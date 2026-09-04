@@ -18,6 +18,18 @@ Voir aussi : [navigation](navigation.md) · [viewport](viewport.md)
 | `orbit_sensitivity` | 0.008 rad/px | Vitesse de rotation à l'orbite |
 | `zoom_sensitivity` | 0.0015 | Vitesse du zoom molette |
 | `grid_pixel_spacing` | 48 px | Espacement minimal des lignes avant que le pas de grille grossisse |
+| `ruler_corner` | `BottomLeft` | Coin où se place la barre d'échelle |
+| `ruler_visible` | `true` | Afficher ou non la barre d'échelle |
+| `unit` | `Millimeter` | Unité affichée par la règle |
+
+## `TrackpadConfig`
+
+| Réglage | Défaut | Effet |
+| --- | --- | --- |
+| `scroll` | `Pan` | Ce que fait un défilement à deux doigts |
+| `shift_scroll` | `Orbit` | Idem avec Maj enfoncée |
+| `pinch_zooms` | `true` | Le pincement zoome |
+| `scroll_sensitivity` | 1.0 | Multiplicateur du défilement trackpad |
 
 ## Ce qui n'est pas encore configurable
 
@@ -28,6 +40,8 @@ devront migrer vers la configuration quand le besoin se posera :
   (`AxisStyle`, `GridStyle` dans `cao_render::geometry`) ;
 - la couleur de fond du viewport ;
 - la durée de l'animation de changement de vue (0.35 s) ;
+- la largeur des bords du cube qui sélectionnent une arête ou un coin
+  (`ZONE_BORDER`, 22 % du côté) ;
 - le champ de vision de la caméra (45°).
 
 ## Il n'y a pas encore de fichier de configuration

@@ -64,6 +64,7 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 - [rendu.md](rendu.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
 - [navigation.md](navigation.md) — gestes souris, comportement de la caméra
 - [configuration.md](configuration.md) — ce qui est réglable, et ce qui ne l'est pas encore
+- [build.md](build.md) — compiler, exécutable Windows
 
 ## Format de fichier
 

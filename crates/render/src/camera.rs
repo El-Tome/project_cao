@@ -45,19 +45,70 @@ impl CubeFace {
         }
     }
 
-    /// Camera (yaw, pitch) that looks straight at this face, i.e. whose
-    /// forward direction is the face normal reversed. At yaw 0 the camera
-    /// looks along +Y, and yaw turns it towards -X.
-    fn view_angles(self) -> (f32, f32) {
+    /// Index used to order faces canonically, so that an edge or corner names
+    /// its faces in one fixed order however it was picked.
+    fn index(self) -> u8 {
         match self {
-            Self::MinusY => (0.0, 0.0),
-            Self::PlusX => (FRAC_PI_2, 0.0),
-            Self::PlusY => (PI, 0.0),
-            Self::MinusX => (-FRAC_PI_2, 0.0),
-            Self::PlusZ => (0.0, FRAC_PI_2),
-            Self::MinusZ => (0.0, -FRAC_PI_2),
+            Self::PlusX => 0,
+            Self::MinusX => 1,
+            Self::PlusY => 2,
+            Self::MinusY => 3,
+            Self::PlusZ => 4,
+            Self::MinusZ => 5,
         }
     }
+}
+
+/// What the user aimed at on the orientation cube. A face gives an axis-aligned
+/// view (and a work plane); an edge or a corner gives an oblique view, which by
+/// definition is not aligned with any plane.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CubeZone {
+    Face(CubeFace),
+    Edge([CubeFace; 2]),
+    Corner([CubeFace; 3]),
+}
+
+impl CubeZone {
+    pub fn edge(a: CubeFace, b: CubeFace) -> Self {
+        let mut faces = [a, b];
+        faces.sort_by_key(|face| face.index());
+        Self::Edge(faces)
+    }
+
+    pub fn corner(a: CubeFace, b: CubeFace, c: CubeFace) -> Self {
+        let mut faces = [a, b, c];
+        faces.sort_by_key(|face| face.index());
+        Self::Corner(faces)
+    }
+
+    /// Direction from the centre of the cube towards this zone: the camera is
+    /// placed along it looking back at the origin.
+    pub fn direction(self) -> Vec3 {
+        let sum = match self {
+            Self::Face(face) => face.normal(),
+            Self::Edge(faces) => faces.iter().map(|face| face.normal()).sum(),
+            Self::Corner(faces) => faces.iter().map(|face| face.normal()).sum(),
+        };
+        sum.normalize()
+    }
+
+    /// The work plane this zone lands on, if any. Only faces have one.
+    pub fn plane(self) -> Option<GridPlane> {
+        match self {
+            Self::Face(face) => Some(face.plane()),
+            Self::Edge(_) | Self::Corner(_) => None,
+        }
+    }
+}
+
+/// Camera (yaw, pitch) that looks from `direction` back at the target. At yaw 0
+/// the camera looks along +Y, and yaw turns it towards -X.
+pub fn view_angles_towards(direction: Vec3) -> (f32, f32) {
+    let direction = direction.normalize_or(Vec3::NEG_Y);
+    let pitch = direction.z.clamp(-1.0, 1.0).asin();
+    let yaw = f32::atan2(direction.x, -direction.y);
+    (yaw, pitch)
 }
 
 /// The plane a grid is drawn on, named after the two axes it contains.
@@ -179,7 +230,16 @@ impl OrbitCamera {
 
     /// Exponential zoom so each notch feels the same at every scale.
     pub fn zoom(&mut self, scroll: f32, sensitivity: f32) {
-        self.distance = (self.distance * (-scroll * sensitivity).exp()).clamp(1e-3, 1e7);
+        self.zoom_by_factor((scroll * sensitivity).exp());
+    }
+
+    /// Zoom expressed as a direct scale factor, as a pinch gesture reports it:
+    /// a factor above 1 brings the part closer.
+    pub fn zoom_by_factor(&mut self, factor: f32) {
+        if factor <= 0.0 {
+            return;
+        }
+        self.distance = (self.distance / factor).clamp(1e-3, 1e7);
     }
 
     pub fn set_view_angles(&mut self, yaw: f32, pitch: f32) {
@@ -201,8 +261,8 @@ pub struct ViewTransition {
 }
 
 impl ViewTransition {
-    pub fn to_face(camera: &OrbitCamera, face: CubeFace) -> Self {
-        let (yaw, pitch) = face.view_angles();
+    pub fn to_zone(camera: &OrbitCamera, zone: CubeZone) -> Self {
+        let (yaw, pitch) = view_angles_towards(zone.direction());
         Self::to_angles(camera, yaw, pitch)
     }
 
@@ -249,20 +309,69 @@ fn ease_in_out(t: f32) -> f32 {
 mod tests {
     use super::*;
 
+    /// Every zone — face, edge or corner — must end up with the camera looking
+    /// straight back down the direction of that zone.
     #[test]
-    fn face_views_look_straight_at_the_face() {
-        for face in CubeFace::ALL {
+    fn zone_views_look_straight_at_the_zone() {
+        for zone in every_zone() {
             let mut camera = OrbitCamera::default();
-            let mut transition = ViewTransition::to_face(&camera, face);
+            let mut transition = ViewTransition::to_zone(&camera, zone);
             while transition.advance(&mut camera, 0.1) {}
 
+            let expected = -zone.direction();
             let forward = camera.forward();
             assert!(
-                (forward + face.normal()).length() < 1e-4,
-                "{face:?}: looking along {forward:?}, expected {:?}",
-                -face.normal()
+                (forward - expected).length() < 1e-4,
+                "{zone:?}: looking along {forward:?}, expected {expected:?}"
             );
         }
+    }
+
+    /// An edge or corner names its faces in a fixed order, so the same zone
+    /// picked from two different faces compares equal.
+    #[test]
+    fn zones_are_order_independent() {
+        assert_eq!(
+            CubeZone::edge(CubeFace::PlusZ, CubeFace::MinusY),
+            CubeZone::edge(CubeFace::MinusY, CubeFace::PlusZ)
+        );
+        assert_eq!(
+            CubeZone::corner(CubeFace::PlusZ, CubeFace::MinusY, CubeFace::PlusX),
+            CubeZone::corner(CubeFace::PlusX, CubeFace::PlusZ, CubeFace::MinusY)
+        );
+    }
+
+    /// Only a face lands on a work plane; oblique views do not.
+    #[test]
+    fn only_faces_carry_a_plane() {
+        for zone in every_zone() {
+            assert_eq!(
+                zone.plane().is_some(),
+                matches!(zone, CubeZone::Face(_)),
+                "{zone:?}"
+            );
+        }
+    }
+
+    fn every_zone() -> Vec<CubeZone> {
+        let mut zones: Vec<CubeZone> = CubeFace::ALL.map(CubeZone::Face).into();
+        for a in CubeFace::ALL {
+            for b in CubeFace::ALL {
+                if a.normal().dot(b.normal()).abs() > 0.5 {
+                    continue;
+                }
+                zones.push(CubeZone::edge(a, b));
+                for c in CubeFace::ALL {
+                    if c.normal().dot(a.normal()).abs() > 0.5
+                        || c.normal().dot(b.normal()).abs() > 0.5
+                    {
+                        continue;
+                    }
+                    zones.push(CubeZone::corner(a, b, c));
+                }
+            }
+        }
+        zones
     }
 
     #[test]

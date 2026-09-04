@@ -1,6 +1,6 @@
 use cao_core::ViewportConfig;
-use cao_core::config::{Binding, PointerButton, ViewportCorner};
-use cao_render::camera::{CubeFace, GridPlane};
+use cao_core::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
+use cao_render::camera::{CubeFace, CubeZone, GridPlane};
 use cao_render::{
     AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition, ViewportRect,
     adaptive_step, cube, push_axes, push_grid,
@@ -27,7 +27,7 @@ pub struct ViewportState {
     camera: OrbitCamera,
     mode: ViewMode,
     transition: Option<ViewTransition>,
-    hovered_face: Option<CubeFace>,
+    hovered_zone: Option<CubeZone>,
     drag: Option<Drag>,
 }
 
@@ -38,7 +38,7 @@ impl Default for ViewportState {
             camera: OrbitCamera::default(),
             mode: ViewMode::Free,
             transition: None,
-            hovered_face: None,
+            hovered_zone: None,
             drag: None,
         }
     }
@@ -49,9 +49,20 @@ impl ViewportState {
         self.mode
     }
 
-    fn snap_to_face(&mut self, face: CubeFace) {
-        self.transition = Some(ViewTransition::to_face(&self.camera, face));
-        self.mode = ViewMode::Plane(face.plane());
+    /// A face lands on its work plane and shows the grid; an edge or a corner
+    /// is an oblique view, which stays in wireframe mode.
+    fn snap_to_zone(&mut self, zone: CubeZone) {
+        self.transition = Some(ViewTransition::to_zone(&self.camera, zone));
+        self.mode = match zone.plane() {
+            Some(plane) => ViewMode::Plane(plane),
+            None => ViewMode::Free,
+        };
+    }
+
+    fn orbit(&mut self, delta: Vec2, sensitivity: f32) {
+        self.camera.orbit(delta, sensitivity);
+        self.mode = ViewMode::Free;
+        self.transition = None;
     }
 }
 
@@ -67,8 +78,17 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState) {
     advance_transition(ui, state);
     handle_input(ui, state, &response, cube_rect);
 
-    let frame = build_frame(ui, state, rect, cube_rect);
+    let scale = ViewScale::of(
+        &state.camera,
+        rect,
+        ui.ctx().pixels_per_point(),
+        &state.config,
+    );
+    let frame = build_frame(state, rect, cube_rect, scale);
     paint_face_labels(ui, state, cube_rect);
+    if state.config.ruler_visible {
+        paint_ruler(ui, state, rect, scale);
+    }
 
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
@@ -76,18 +96,58 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState) {
     ));
 }
 
-fn cube_rect(viewport: egui::Rect, config: &ViewportConfig) -> egui::Rect {
-    let size = egui::vec2(config.cube_size, config.cube_size);
-    let margin = config.cube_margin;
-    let corner = match config.cube_corner {
+/// How much of the world one pixel covers right now, and the grid step that
+/// follows from it. Shared by the grid and the scale bar so they can never
+/// disagree.
+#[derive(Clone, Copy)]
+struct ViewScale {
+    units_per_pixel: f32,
+    step: f32,
+    height_px: f32,
+}
+
+impl ViewScale {
+    fn of(
+        camera: &OrbitCamera,
+        rect: egui::Rect,
+        pixels_per_point: f32,
+        config: &ViewportConfig,
+    ) -> Self {
+        let height_px = rect.height() * pixels_per_point;
+        let units_per_pixel = camera.world_units_per_pixel(height_px);
+        Self {
+            units_per_pixel,
+            step: adaptive_step(units_per_pixel, config.grid_pixel_spacing),
+            height_px,
+        }
+    }
+
+    /// Length of one grid step on screen, in logical points.
+    fn step_in_points(&self, pixels_per_point: f32) -> f32 {
+        self.step / self.units_per_pixel / pixels_per_point
+    }
+}
+
+fn corner_origin(
+    viewport: egui::Rect,
+    corner: ViewportCorner,
+    size: egui::Vec2,
+    margin: f32,
+) -> egui::Pos2 {
+    match corner {
         ViewportCorner::TopLeft => viewport.left_top() + egui::vec2(margin, margin),
         ViewportCorner::TopRight => viewport.right_top() + egui::vec2(-margin - size.x, margin),
         ViewportCorner::BottomLeft => viewport.left_bottom() + egui::vec2(margin, -margin - size.y),
         ViewportCorner::BottomRight => {
             viewport.right_bottom() + egui::vec2(-margin - size.x, -margin - size.y)
         }
-    };
-    egui::Rect::from_min_size(corner, size)
+    }
+}
+
+fn cube_rect(viewport: egui::Rect, config: &ViewportConfig) -> egui::Rect {
+    let size = egui::vec2(config.cube_size, config.cube_size);
+    let origin = corner_origin(viewport, config.cube_corner, size, config.cube_margin);
+    egui::Rect::from_min_size(origin, size)
 }
 
 fn advance_transition(ui: &egui::Ui, state: &mut ViewportState) {
@@ -111,21 +171,21 @@ fn handle_input(
     let pointer = response.hover_pos();
     let over_cube = pointer.is_some_and(|position| cube_rect.contains(position));
 
-    state.hovered_face = match (state.drag, pointer) {
+    state.hovered_zone = match (state.drag, pointer) {
         (None, Some(position)) if over_cube => {
-            cube::pick_face(state.camera.rotation(), to_ndc(position, cube_rect))
+            cube::pick_zone(state.camera.rotation(), to_ndc(position, cube_rect))
         }
         _ => None,
     };
 
     if response.clicked()
-        && let Some(face) = state.hovered_face
+        && let Some(zone) = state.hovered_zone
     {
-        state.snap_to_face(face);
+        state.snap_to_zone(zone);
         return;
     }
 
-    let (delta, scroll, drag) = ui.input(|input| {
+    let (delta, wheel, scroll, pinch, drag) = ui.input(|input| {
         let matches = |bindings: &[Binding]| {
             bindings.iter().any(|binding| {
                 input.pointer.button_down(to_egui_button(binding.button))
@@ -142,9 +202,12 @@ fn handle_input(
         } else {
             None
         };
+        let (wheel, scroll) = split_scroll(input);
         (
             Vec2::new(input.pointer.delta().x, input.pointer.delta().y),
-            input.smooth_scroll_delta.y,
+            wheel,
+            scroll,
+            input.zoom_delta(),
             drag,
         )
     });
@@ -158,19 +221,81 @@ fn handle_input(
         (None, _) => None,
     };
 
+    let height_px = rect_height_px(ui, response.rect);
+
     match state.drag {
-        Some(Drag::Orbit) => {
-            state.camera.orbit(delta, state.config.orbit_sensitivity);
-            state.mode = ViewMode::Free;
-            state.transition = None;
-        }
-        Some(Drag::Pan) => state.camera.pan(delta, rect_height_px(ui, response.rect)),
+        Some(Drag::Orbit) => state.orbit(delta, state.config.orbit_sensitivity),
+        Some(Drag::Pan) => state.camera.pan(delta, height_px),
         None => {}
     }
 
-    if response.hovered() && scroll != 0.0 {
-        state.camera.zoom(scroll, state.config.zoom_sensitivity);
+    if !response.hovered() {
+        return;
     }
+
+    // A mouse wheel zooms, as in every CAD package. A trackpad's two-finger
+    // scroll is a different gesture in the same event stream, so it gets its
+    // own mapping.
+    if wheel != 0.0 {
+        state.camera.zoom(wheel, state.config.zoom_sensitivity);
+    }
+
+    if scroll != Vec2::ZERO {
+        let trackpad = state.config.trackpad;
+        let shift = ui.input(|input| input.modifiers.shift);
+        let gesture = if shift {
+            trackpad.shift_scroll
+        } else {
+            trackpad.scroll
+        };
+        let scroll = scroll * trackpad.scroll_sensitivity;
+
+        match gesture {
+            TrackpadGesture::Pan => state.camera.pan(scroll, height_px),
+            TrackpadGesture::Orbit => {
+                state.orbit(-scroll, state.config.orbit_sensitivity);
+            }
+            TrackpadGesture::Zoom => {
+                state.camera.zoom(scroll.y, state.config.zoom_sensitivity);
+            }
+            TrackpadGesture::Ignore => {}
+        }
+    }
+
+    if state.config.trackpad.pinch_zooms && pinch != 1.0 {
+        state.camera.zoom_by_factor(pinch);
+    }
+}
+
+/// Splits scroll events into the mouse wheel (reported in lines or pages) and
+/// a trackpad's two-finger scroll (reported in points). egui merges both into
+/// `smooth_scroll_delta`, which would make them indistinguishable.
+fn split_scroll(input: &egui::InputState) -> (f32, Vec2) {
+    let mut wheel = 0.0;
+    let mut scroll = Vec2::ZERO;
+
+    for event in &input.events {
+        let egui::Event::MouseWheel {
+            unit,
+            delta,
+            modifiers,
+            ..
+        } = event
+        else {
+            continue;
+        };
+        // egui turns a scroll with the zoom modifier into a zoom gesture; it
+        // must not also count as a scroll here.
+        if modifiers.command {
+            continue;
+        }
+        match unit {
+            egui::MouseWheelUnit::Point => scroll += Vec2::new(delta.x, delta.y),
+            egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => wheel += delta.y,
+        }
+    }
+
+    (wheel, scroll)
 }
 
 fn to_egui_button(button: PointerButton) -> egui::PointerButton {
@@ -194,31 +319,25 @@ fn rect_height_px(ui: &egui::Ui, rect: egui::Rect) -> f32 {
 }
 
 fn build_frame(
-    ui: &egui::Ui,
     state: &ViewportState,
     rect: egui::Rect,
     cube_rect: egui::Rect,
+    scale: ViewScale,
 ) -> SceneFrame {
     let camera = &state.camera;
-    let pixels_per_point = ui.ctx().pixels_per_point();
-    let height_px = rect.height() * pixels_per_point;
+    let pixels_per_point = scale.height_px / rect.height();
 
     let mut lines = Vec::new();
 
     if let ViewMode::Plane(plane) = state.mode {
-        let step = adaptive_step(
-            camera.world_units_per_pixel(height_px),
-            state.config.grid_pixel_spacing,
-        );
-        let visible_world_height = camera.world_units_per_pixel(height_px) * height_px;
-        let half_extent = visible_world_height * 1.5;
+        let half_extent = scale.units_per_pixel * scale.height_px * 1.5;
         let (_, _, normal) = plane.basis();
         let center = camera.target() - normal * camera.target().dot(normal);
         push_grid(
             &mut lines,
             plane,
             center,
-            step,
+            scale.step,
             half_extent,
             &GridStyle::default(),
         );
@@ -228,7 +347,7 @@ fn build_frame(
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();
-    cube::push_faces(&mut cube_triangles, state.hovered_face);
+    cube::push_faces(&mut cube_triangles, state.hovered_zone);
     cube::push_edges(&mut cube_edges, camera.forward(), 1.5);
 
     SceneFrame {
@@ -268,7 +387,7 @@ fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect
             cube_rect.center().x + clip.x / clip.w * cube_rect.width() * 0.5,
             cube_rect.center().y - clip.y / clip.w * cube_rect.height() * 0.5,
         );
-        let color = if state.hovered_face == Some(face) {
+        let color = if state.hovered_zone == Some(CubeZone::Face(face)) {
             egui::Color32::WHITE
         } else {
             egui::Color32::from_gray(60)
@@ -292,6 +411,43 @@ fn face_label(face: CubeFace) -> &'static str {
         CubeFace::PlusZ => "DESSUS",
         CubeFace::MinusZ => "DESSOUS",
     }
+}
+
+/// A scale bar: one grid step long, labelled with the length it represents.
+/// It answers "how big is a square, and how fast am I zooming" at a glance.
+fn paint_ruler(ui: &egui::Ui, state: &ViewportState, viewport: egui::Rect, scale: ViewScale) {
+    let config = &state.config;
+    let length = scale.step_in_points(ui.ctx().pixels_per_point());
+    let label = config.unit.format(scale.step);
+
+    let tick = 5.0;
+    let text_height = 16.0;
+    let size = egui::vec2(length, tick + text_height);
+    let origin = corner_origin(viewport, config.ruler_corner, size, config.cube_margin);
+
+    let painter = ui.painter();
+    let color = egui::Color32::from_gray(200);
+    let stroke = egui::Stroke::new(1.5, color);
+    let baseline = origin.y + size.y;
+    let (left, right) = (origin.x, origin.x + length);
+
+    painter.line_segment(
+        [egui::pos2(left, baseline), egui::pos2(right, baseline)],
+        stroke,
+    );
+    for x in [left, right] {
+        painter.line_segment(
+            [egui::pos2(x, baseline), egui::pos2(x, baseline - tick)],
+            stroke,
+        );
+    }
+    painter.text(
+        egui::pos2((left + right) * 0.5, baseline - tick - 2.0),
+        egui::Align2::CENTER_BOTTOM,
+        label,
+        egui::FontId::proportional(12.0),
+        color,
+    );
 }
 
 struct ViewportCallback {

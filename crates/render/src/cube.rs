@@ -1,7 +1,7 @@
 use glam::camera::rh::proj::directx;
 use glam::{Mat4, Quat, Vec2, Vec3};
 
-use crate::camera::CubeFace;
+use crate::camera::{CubeFace, CubeZone};
 use crate::geometry::{Vertex, srgb};
 
 /// Half-size of the orthographic box the cube is drawn in. Slightly larger
@@ -58,6 +58,10 @@ fn corners(face: CubeFace) -> [Vec3; 4] {
     ]
 }
 
+/// Half-width of the border strips that select an edge or a corner rather than
+/// the face itself. The face centre therefore covers the middle ~56% of a side.
+const ZONE_BORDER: f32 = 0.22;
+
 /// Faces are shaded by orientation so the cube reads as a solid even before
 /// the labels are drawn over it.
 fn face_color(face: CubeFace, hovered: bool) -> [f32; 4] {
@@ -72,16 +76,71 @@ fn face_color(face: CubeFace, hovered: bool) -> [f32; 4] {
     }
 }
 
-/// Triangles for the whole cube. Winding is counter-clockwise seen from
-/// outside, so back-face culling hides the far side.
-pub fn push_faces(out: &mut Vec<Vertex>, hovered: Option<CubeFace>) {
+/// The face reached by leaving a face across the given tangent: the neighbour
+/// that shares that border.
+fn neighbour(tangent: Vec3, sign: f32) -> CubeFace {
+    let normal = tangent * sign;
+    CubeFace::ALL
+        .into_iter()
+        .find(|candidate| candidate.normal().dot(normal) > 0.5)
+        .expect("a cube tangent always points at another face")
+}
+
+/// Which zone a point on `face` belongs to, from its coordinates along the
+/// face tangents (each in -0.5..0.5).
+fn zone_at(face: CubeFace, u: f32, v: f32) -> CubeZone {
+    let (u_axis, v_axis) = tangents(face);
+    let limit = HALF - ZONE_BORDER;
+    let on_u = u.abs() > limit;
+    let on_v = v.abs() > limit;
+
+    match (on_u, on_v) {
+        (true, true) => CubeZone::corner(
+            face,
+            neighbour(u_axis, u.signum()),
+            neighbour(v_axis, v.signum()),
+        ),
+        (true, false) => CubeZone::edge(face, neighbour(u_axis, u.signum())),
+        (false, true) => CubeZone::edge(face, neighbour(v_axis, v.signum())),
+        (false, false) => CubeZone::Face(face),
+    }
+}
+
+/// The 1D cuts of a face side: border strip, centre, border strip.
+fn zone_spans() -> [(f32, f32); 3] {
+    let limit = HALF - ZONE_BORDER;
+    [(-HALF, -limit), (-limit, limit), (limit, HALF)]
+}
+
+/// Triangles for the whole cube. Each face is cut into a 3×3 grid so that a
+/// hovered edge or corner can be highlighted on every face it touches, the way
+/// a CAD navigation cube does. Winding is counter-clockwise seen from outside,
+/// so back-face culling hides the far side.
+pub fn push_faces(out: &mut Vec<Vertex>, hovered: Option<CubeZone>) {
     for face in CubeFace::ALL {
-        let color = face_color(face, hovered == Some(face));
-        let [a, b, c, d] = corners(face);
-        for point in [a, b, c, a, c, d] {
-            out.push(Vertex::solid(point, color));
+        let (u_axis, v_axis) = tangents(face);
+        let center = face_center(face);
+
+        for (u_start, u_end) in zone_spans() {
+            for (v_start, v_end) in zone_spans() {
+                let zone = zone_at(face, midpoint(u_start, u_end), midpoint(v_start, v_end));
+                let color = face_color(face, hovered == Some(zone));
+                let tile = [
+                    center + u_axis * u_start + v_axis * v_start,
+                    center + u_axis * u_end + v_axis * v_start,
+                    center + u_axis * u_end + v_axis * v_end,
+                    center + u_axis * u_start + v_axis * v_end,
+                ];
+                for point in [tile[0], tile[1], tile[2], tile[0], tile[2], tile[3]] {
+                    out.push(Vertex::solid(point, color));
+                }
+            }
         }
     }
+}
+
+fn midpoint(start: f32, end: f32) -> f32 {
+    (start + end) * 0.5
 }
 
 /// Outlines of the front-facing faces only: drawing every edge without a depth
@@ -100,18 +159,19 @@ pub fn push_edges(out: &mut Vec<Vertex>, camera_forward: Vec3, width: f32) {
     }
 }
 
-/// Which face sits under the cursor, given its position in the cube's own
-/// viewport as normalized device coordinates (-1..1, y up).
-pub fn pick_face(camera_rotation: Quat, ndc: Vec2) -> Option<CubeFace> {
+/// Which zone sits under the cursor, given its position in the cube's own
+/// viewport as normalized device coordinates (-1..1, y up). Returns the face,
+/// edge or corner aimed at, or `None` when the cursor misses the cube.
+pub fn pick_zone(camera_rotation: Quat, ndc: Vec2) -> Option<CubeZone> {
     let origin = camera_rotation * Vec3::new(ndc.x * ORTHO_HALF_SIZE, ndc.y * ORTHO_HALF_SIZE, 2.0);
-    let direction = camera_rotation * Vec3::NEG_Z;
+    let direction_vector = camera_rotation * Vec3::NEG_Z;
 
     let mut t_enter = f32::NEG_INFINITY;
     let mut t_exit = f32::INFINITY;
     let mut entered_on = None;
 
     for axis in 0..3 {
-        let (origin, direction) = (origin.to_array()[axis], direction.to_array()[axis]);
+        let (origin, direction) = (origin.to_array()[axis], direction_vector.to_array()[axis]);
 
         if direction.abs() < 1e-6 {
             if origin.abs() > HALF {
@@ -138,20 +198,24 @@ pub fn pick_face(camera_rotation: Quat, ndc: Vec2) -> Option<CubeFace> {
     }
 
     let (axis, direction) = entered_on?;
-    Some(match (axis, direction > 0.0) {
+    let face = match (axis, direction > 0.0) {
         (0, true) => CubeFace::MinusX,
         (0, false) => CubeFace::PlusX,
         (1, true) => CubeFace::MinusY,
         (1, false) => CubeFace::PlusY,
         (_, true) => CubeFace::MinusZ,
         (_, false) => CubeFace::PlusZ,
-    })
+    };
+
+    let hit = origin + direction_vector * t_enter;
+    let (u_axis, v_axis) = tangents(face);
+    Some(zone_at(face, hit.dot(u_axis), hit.dot(v_axis)))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::camera::OrbitCamera;
+    use crate::camera::{CubeZone, OrbitCamera};
     use std::f32::consts::FRAC_PI_2;
 
     /// Looking straight at a face, the centre of the cube's viewport must pick
@@ -160,22 +224,65 @@ mod tests {
     fn clicking_the_centre_picks_the_face_we_look_at() {
         for face in CubeFace::ALL {
             let mut camera = OrbitCamera::default();
-            let mut transition = crate::ViewTransition::to_face(&camera, face);
+            let mut transition = crate::ViewTransition::to_zone(&camera, CubeZone::Face(face));
             while transition.advance(&mut camera, 0.1) {}
 
             assert_eq!(
-                pick_face(camera.rotation(), Vec2::ZERO),
-                Some(face),
+                pick_zone(camera.rotation(), Vec2::ZERO),
+                Some(CubeZone::Face(face)),
                 "looking at {face:?}"
             );
         }
+    }
+
+    /// Straight-on at a face, the border strips select the neighbouring edges
+    /// and the four corner tiles select corners.
+    #[test]
+    fn borders_of_a_face_pick_edges_and_corners() {
+        let mut camera = OrbitCamera::default();
+        camera.set_view_angles(0.0, FRAC_PI_2);
+
+        // The cube spans 0.5 of the orthographic half-size, so a face border
+        // sits around 0.4 in normalized device coordinates.
+        let near_border = 0.45;
+        assert!(matches!(
+            pick_zone(camera.rotation(), Vec2::new(near_border, 0.0)),
+            Some(CubeZone::Edge(_))
+        ));
+        assert!(matches!(
+            pick_zone(camera.rotation(), Vec2::new(0.0, near_border)),
+            Some(CubeZone::Edge(_))
+        ));
+        assert!(matches!(
+            pick_zone(camera.rotation(), Vec2::new(near_border, near_border)),
+            Some(CubeZone::Corner(_))
+        ));
+        assert!(matches!(
+            pick_zone(camera.rotation(), Vec2::ZERO),
+            Some(CubeZone::Face(_))
+        ));
+    }
+
+    /// An edge picked from one of its two faces is the same zone as when it is
+    /// picked from the other, so the highlight covers both.
+    #[test]
+    fn an_edge_is_the_same_zone_from_either_face() {
+        let top = CubeZone::Face(CubeFace::PlusZ);
+        let front = CubeZone::Face(CubeFace::MinusY);
+
+        let from_top = zone_at(CubeFace::PlusZ, 0.0, -0.45);
+        let from_front = zone_at(CubeFace::MinusY, 0.0, 0.45);
+
+        assert_eq!(from_top, from_front);
+        assert_ne!(from_top, top);
+        assert_ne!(from_top, front);
     }
 
     #[test]
     fn clicking_outside_the_cube_picks_nothing() {
         let mut camera = OrbitCamera::default();
         camera.set_view_angles(0.0, FRAC_PI_2);
-        assert_eq!(pick_face(camera.rotation(), Vec2::new(0.99, 0.99)), None);
+        assert_eq!(pick_zone(camera.rotation(), Vec2::new(0.99, 0.99)), None);
     }
 
     /// Exactly three faces are visible from a general viewpoint, and never a

@@ -7,9 +7,10 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
 
 - **Menu de démarrage** : créer une nouvelle pièce, ou rouvrir une des 10
   dernières pièces ouvertes.
-- **Viewport 3D** : espace 3D avec les axes X/Y/Z, un cube d'orientation
-  cliquable dans un coin, et une grille adaptative quand on se pose sur un
-  plan. Voir [`docs/viewport.md`](docs/viewport.md).
+- **Viewport 3D** : espace 3D avec les axes X/Y/Z, un cube d'orientation dont
+  les faces, arêtes et coins sont cliquables, une grille adaptative quand on se
+  pose sur un plan, et une barre d'échelle en mm. Navigation souris et
+  trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
 
 Aucun mode d'édition (croquis, extrusion, assemblage) n'est encore implémenté —
 voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble
@@ -31,6 +32,15 @@ cargo run -p cao_app
 - `crates/app` (`cao_app`) — interface desktop (egui/eframe) : menu de
   démarrage et viewport.
 
+## Exécutable Windows
+
+```sh
+./scripts/build-windows.sh
+```
+
+Produit un `.exe` autonome depuis macOS ou Linux — voir
+[`docs/build.md`](docs/build.md).
+
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
@@ -38,6 +48,7 @@ cargo run -p cao_app
 - [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
 - [Navigation](docs/navigation.md) — gestes souris, caméra
 - [Configuration](docs/configuration.md) — réglages disponibles
+- [Compilation](docs/build.md) — exécutable Windows, autres plateformes
 
 ## Tests
 

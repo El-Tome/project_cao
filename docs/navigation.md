@@ -2,20 +2,32 @@
 
 Voir aussi : [viewport](viewport.md) · [configuration](configuration.md)
 
-## Raccourcis par défaut (préréglage Fusion 360)
+## À la souris (préréglage Fusion 360)
 
 | Geste | Action |
 | --- | --- |
 | Molette | Zoom |
 | Clic molette + glisser | Déplacement (pan) |
 | Maj + clic molette + glisser | Orbite |
-| **Alt + clic gauche + glisser** | Orbite |
-| **Alt + Maj + clic gauche + glisser** | Déplacement |
-| Clic sur une face du cube | Vue de face + grille du plan |
+| Clic sur le cube | Voir [viewport](viewport.md) |
 
-Les deux lignes en gras sont des équivalents ajoutés pour les trackpads
-(portables, Mac), qui n'ont pas de bouton du milieu. Elles existent dans tous
-les préréglages.
+## Au trackpad
+
+| Geste | Action |
+| --- | --- |
+| Deux doigts | Déplacement (pan) |
+| Maj + deux doigts | Orbite |
+| Pincer | Zoom |
+| Alt + clic gauche + glisser | Orbite |
+| Alt + Maj + clic gauche + glisser | Déplacement |
+
+Molette de souris et défilement à deux doigts arrivent dans le même flux
+d'événements ; ils sont distingués par leur unité (lignes pour une molette,
+pixels pour un trackpad), ce qui permet de garder « molette = zoom » sans que
+le trackpad zoome à toute vitesse.
+
+Les gestes du trackpad sont réglables (`TrackpadConfig`) : chacun des deux
+défilements peut être `Pan`, `Orbit`, `Zoom` ou `Ignore`.
 
 ## Autres préréglages
 

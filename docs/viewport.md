@@ -22,8 +22,19 @@ plan, puisque la vue n'est alors plus alignée sur un plan. En revanche le pan
 et le zoom conservent le mode : cadrer ou zoomer sur un plan est un geste
 normal.
 
-Les arêtes et les coins du cube ne sont pas cliquables : seules les 6 faces le
-sont, et chacune amène sur le plan de travail correspondant.
+Le cube se clique sur trois types de zones, découpées comme une grille 3×3 sur
+chaque face :
+
+| Zone cliquée | Vue obtenue | Mode |
+| --- | --- | --- |
+| **Face** (centre) | Vue droite sur le plan | Grille |
+| **Arête** (bord) | Vue à 45° entre deux faces | Traits |
+| **Coin** | Vue isométrique | Traits |
+
+Seule une face correspond à un plan de travail : une vue d'arête ou de coin est
+oblique, donc par définition alignée sur aucun plan — elle reste en mode
+traits. Survoler une arête ou un coin le met en surbrillance sur toutes les
+faces qu'il touche à la fois.
 
 | Face cliquée | Vue | Plan de grille |
 | --- | --- | --- |
@@ -55,16 +66,30 @@ non par le GPU : afficher du texte demanderait un atlas de police côté rendu,
 alors qu'egui en a déjà un.
 
 Sa position est configurable (`cube_corner`, coin haut-droit par défaut), tout
-comme sa taille et sa marge. Le survol met la face en surbrillance.
+comme sa taille et sa marge. Le survol met la zone visée en surbrillance.
 
-La détection de la face survolée est un lancer de rayon sur le CPU
-(`cube::pick_face`), pas une lecture de pixel GPU : le cube est un cube
-axis-aligned en projection orthographique, l'intersection est donc quelques
-lignes de calcul et reste synchrone avec l'affichage.
+La détection de la zone survolée est un lancer de rayon sur le CPU
+(`cube::pick_zone`), pas une lecture de pixel GPU : le cube est axis-aligned en
+projection orthographique, l'intersection tient donc en quelques lignes de
+calcul et reste synchrone avec l'affichage.
+
+## La règle (barre d'échelle)
+
+En bas à gauche, une barre longue d'exactement un carreau de la grille, avec sa
+valeur (« 10 mm »). Elle répond à deux questions d'un coup d'œil : quelle est la
+taille d'un carreau, et à quelle vitesse on zoome — la valeur change en
+sautant de 1 à 2, 5, 10, ce qui rend le zoom lisible.
+
+Son coin est configurable (`ruler_corner`), et elle peut être masquée
+(`ruler_visible`).
 
 ## Repère et unités
 
 Convention **Z vers le haut** (usuelle en CAO mécanique) : le plan XY est le
-plan « du sol », vu de dessus. Les unités du monde ne sont pas encore
-attachées à une unité physique — ce choix viendra avec le format de fichier de
-la pièce.
+plan « du sol », vu de dessus.
+
+Une unité du monde vaut **un millimètre** pour l'instant, et la règle affiche
+donc des mm. À terme l'échelle devra s'adapter à la première cote posée : si on
+déclare qu'un trait fait 100 mm, 5 m ou 5 mm, le visuel ne doit pas bouger,
+c'est l'échelle du document qui est redéfinie. Ce n'est pas encore implémenté —
+seul le type `LengthUnit` est en place pour l'accueillir.

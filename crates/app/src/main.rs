@@ -1,3 +1,7 @@
+// Sur Windows, une application graphique ne doit pas ouvrir de console. On la
+// garde en debug pour continuer à voir les panics et les logs.
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+
 mod app;
 mod screens;
 

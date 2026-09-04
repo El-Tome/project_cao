@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use cao_render::camera::{CubeFace, GridPlane};
+use cao_render::camera::{CubeFace, CubeZone, GridPlane};
 use cao_render::{
     AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewportRect, adaptive_step,
     cube, push_axes, push_grid,
@@ -47,7 +47,14 @@ fn main() {
     hovered_view.set_view_angles(-0.9, 0.5);
     let mut frame = build_frame(&hovered_view, None);
     frame.cube_triangles.clear();
-    cube::push_faces(&mut frame.cube_triangles, Some(CubeFace::PlusZ));
+    cube::push_faces(
+        &mut frame.cube_triangles,
+        Some(CubeZone::corner(
+            CubeFace::PlusZ,
+            CubeFace::MinusY,
+            CubeFace::PlusX,
+        )),
+    );
     render(
         &device,
         &queue,
@@ -95,7 +102,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<GridPlane>) -> SceneFrame {
     cube::push_faces(&mut cube_triangles, None);
     cube::push_edges(&mut cube_edges, camera.forward(), 1.5);
 
-    let cube_size = 128.0;
+    let cube_size = 288.0;
     SceneFrame {
         scene_view_projection: camera.view_projection(WIDTH as f32 / HEIGHT as f32),
         scene_viewport: ViewportRect {

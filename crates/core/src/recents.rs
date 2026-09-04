@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{project_dirs, StorageError};
+use crate::storage::{StorageError, project_dirs};
 
 /// How many recent parts we remember and show in the start menu.
 pub const MAX_RECENTS: usize = 10;

@@ -32,6 +32,8 @@ Un crate = une responsabilité, sans dépendance dans le mauvais sens :
   chemins de stockage) et persistance. **Aucune dépendance UI.** Doit rester
   réutilisable tel quel par n'importe quel futur front-end (desktop, web,
   tablette).
+- `cao_render` : rendu GPU du viewport (`wgpu`), sans dépendance interface.
+  Voir [rendu.md](rendu.md).
 - `cao_app` : shell applicatif desktop (`eframe`). Contient l'état de
   l'application et le routage entre écrans/modes.
 
@@ -51,10 +53,17 @@ L'application est un menu de démarrage qui bascule vers différents modes :
 - D'autres modes viendront s'ajouter au menu au fil du temps.
 
 Aujourd'hui, `crates/app/src/screens/mod.rs` définit un enum `Screen` avec
-une seule alternance réelle : le menu de démarrage et un écran vide affiché
-après création/ouverture d'une pièce. Chaque nouveau mode doit ajouter une
-variante à cet enum et son propre module dans `screens/`, jamais une branche
-ajoutée à un module existant.
+deux variantes : le menu de démarrage et la pièce ouverte, qui affiche le
+viewport 3D (axes, grille, cube d'orientation — voir [viewport.md](viewport.md)).
+Chaque nouveau mode doit ajouter une variante à cet enum et son propre module
+dans `screens/`, jamais une branche ajoutée à un module existant.
+
+## Documentation par sujet
+
+- [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
+- [rendu.md](rendu.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
+- [navigation.md](navigation.md) — gestes souris, comportement de la caméra
+- [configuration.md](configuration.md) — ce qui est réglable, et ce qui ne l'est pas encore
 
 ## Format de fichier
 

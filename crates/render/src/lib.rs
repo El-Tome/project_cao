@@ -1,0 +1,12 @@
+//! GPU rendering of the 3D viewport: world axes, adaptive grid and the
+//! orientation cube. Depends on `wgpu` and `glam` only — no UI framework — so
+//! the same renderer can back a future tablet/web front-end.
+
+pub mod camera;
+pub mod cube;
+pub mod geometry;
+mod renderer;
+
+pub use camera::{CubeFace, GridPlane, OrbitCamera, ViewTransition};
+pub use geometry::{AxisStyle, GridStyle, Vertex, adaptive_step, push_axes, push_grid, srgb};
+pub use renderer::{SceneFrame, SceneRenderer, ViewportRect};

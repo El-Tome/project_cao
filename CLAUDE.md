@@ -33,3 +33,4 @@ avant toute modification structurelle.
 - Les textes visibles par l'utilisateur (UI, messages) sont en français mais un systeme de traduction sera neccessaire.
 - Ne pas ésiter a faire des commits et des branches avec git pour revenir en arrière au cas où il y aurait un probleme.
 - Créer une doc sur plusieur fichier en parrallèle pour faciliter la compréntion du code et des fonctions pour faciliter l'intervention dans les fichiers.
+- n'hésite pas a demander au moindre moment ou tu ne comprends pas ou que la demande n'est pas très clair ou qu'il manque des informations avant de faire la moindre action

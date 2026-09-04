@@ -5,11 +5,15 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
 
 ## État actuel
 
-Seul le **menu de démarrage** existe : créer une nouvelle pièce, ou rouvrir
-une des 10 dernières pièces ouvertes. Aucun mode d'édition (croquis,
-extrusion, assemblage) n'est encore implémenté — voir
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
-feuille de route.
+- **Menu de démarrage** : créer une nouvelle pièce, ou rouvrir une des 10
+  dernières pièces ouvertes.
+- **Viewport 3D** : espace 3D avec les axes X/Y/Z, un cube d'orientation
+  cliquable dans un coin, et une grille adaptative quand on se pose sur un
+  plan. Voir [`docs/viewport.md`](docs/viewport.md).
+
+Aucun mode d'édition (croquis, extrusion, assemblage) n'est encore implémenté —
+voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble
+et la feuille de route.
 
 ## Lancer l'application
 
@@ -19,10 +23,28 @@ cargo run -p cao_app
 
 ## Structure du workspace
 
-- `crates/core` (`cao_core`) — types de domaine et persistance, sans aucune
-  dépendance UI. Réutilisable tel quel par un futur front-end web/tablette.
-- `crates/app` (`cao_app`) — interface desktop (egui/eframe), pour l'instant
-  limitée au menu de démarrage.
+- `crates/core` (`cao_core`) — types de domaine, persistance et configuration,
+  sans aucune dépendance UI. Réutilisable tel quel par un futur front-end
+  web/tablette.
+- `crates/render` (`cao_render`) — rendu GPU du viewport (wgpu), sans
+  dépendance UI non plus.
+- `crates/app` (`cao_app`) — interface desktop (egui/eframe) : menu de
+  démarrage et viewport.
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
+- [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
+- [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
+- [Navigation](docs/navigation.md) — gestes souris, caméra
+- [Configuration](docs/configuration.md) — réglages disponibles
+
+## Tests
+
+```sh
+cargo test --workspace
+cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
+```
 
 ## Licence
 

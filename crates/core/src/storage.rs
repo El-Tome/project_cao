@@ -19,10 +19,10 @@ pub fn project_dirs() -> Result<ProjectDirs, StorageError> {
 /// Where new parts land by default: `<Documents>/CAO` if a documents folder
 /// exists on this platform, otherwise the app's own data directory.
 pub fn default_projects_dir() -> Result<PathBuf, StorageError> {
-    if let Some(user_dirs) = UserDirs::new() {
-        if let Some(docs) = user_dirs.document_dir() {
-            return Ok(docs.join("CAO"));
-        }
+    if let Some(user_dirs) = UserDirs::new()
+        && let Some(docs) = user_dirs.document_dir()
+    {
+        return Ok(docs.join("CAO"));
     }
     Ok(project_dirs()?.data_dir().join("projects"))
 }

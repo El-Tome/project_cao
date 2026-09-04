@@ -56,7 +56,13 @@ impl PartDocument {
 fn sanitize_filename(name: &str) -> String {
     let cleaned: String = name
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect();
     let trimmed = cleaned.trim();
     if trimmed.is_empty() {

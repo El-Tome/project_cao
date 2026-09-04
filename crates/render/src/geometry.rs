@@ -1,0 +1,274 @@
+use bytemuck::{Pod, Zeroable};
+use glam::Vec3;
+
+use crate::camera::GridPlane;
+
+/// A single vertex of the line/triangle soup the renderer consumes. Colors are
+/// linear (not sRGB): see [`srgb`]. `width` is the line thickness in physical
+/// pixels, and is ignored by triangle geometry.
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct Vertex {
+    pub position: [f32; 3],
+    pub color: [f32; 4],
+    pub width: f32,
+}
+
+impl Vertex {
+    pub fn line(position: Vec3, color: [f32; 4], width: f32) -> Self {
+        Self {
+            position: position.to_array(),
+            color,
+            width,
+        }
+    }
+
+    pub fn solid(position: Vec3, color: [f32; 4]) -> Self {
+        Self::line(position, color, 0.0)
+    }
+}
+
+/// Converts an sRGB color (the space color pickers and CSS use) to the linear
+/// space the shader blends and writes in.
+pub fn srgb(r: f32, g: f32, b: f32, a: f32) -> [f32; 4] {
+    fn channel(c: f32) -> f32 {
+        if c <= 0.04045 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    }
+    [channel(r), channel(g), channel(b), a]
+}
+
+pub struct AxisStyle {
+    pub x: [f32; 4],
+    pub y: [f32; 4],
+    pub z: [f32; 4],
+    pub width: f32,
+}
+
+impl Default for AxisStyle {
+    fn default() -> Self {
+        Self {
+            x: srgb(0.90, 0.30, 0.35, 1.0),
+            y: srgb(0.45, 0.75, 0.30, 1.0),
+            z: srgb(0.30, 0.55, 0.95, 1.0),
+            width: 2.0,
+        }
+    }
+}
+
+/// The three world axes as lines through the origin, long enough to always
+/// leave the view at the given camera distance.
+pub fn push_axes(out: &mut Vec<Vertex>, half_length: f32, style: &AxisStyle) {
+    for (axis, color) in [(Vec3::X, style.x), (Vec3::Y, style.y), (Vec3::Z, style.z)] {
+        out.push(Vertex::line(-axis * half_length, color, style.width));
+        out.push(Vertex::line(axis * half_length, color, style.width));
+    }
+}
+
+/// Picks the grid step from the 1–2–5–10 sequence, the smallest one whose
+/// on-screen spacing stays above `target_pixel_spacing`. Zooming in therefore
+/// subdivides the grid, zooming out merges it.
+pub fn adaptive_step(world_units_per_pixel: f32, target_pixel_spacing: f32) -> f32 {
+    let minimum = (world_units_per_pixel * target_pixel_spacing).max(1e-6);
+    let decade = 10f32.powf(minimum.log10().floor());
+    for multiple in [1.0, 2.0, 5.0] {
+        if decade * multiple >= minimum {
+            return decade * multiple;
+        }
+    }
+    decade * 10.0
+}
+
+pub struct GridStyle {
+    pub minor: [f32; 4],
+    pub major: [f32; 4],
+    pub minor_width: f32,
+    pub major_width: f32,
+    /// Every n-th line uses `major`.
+    pub major_every: i32,
+    /// Segments per line; more segments make the radial fade smoother.
+    pub segments: i32,
+}
+
+impl Default for GridStyle {
+    fn default() -> Self {
+        Self {
+            minor: srgb(0.55, 0.58, 0.62, 0.35),
+            major: srgb(0.65, 0.68, 0.73, 0.60),
+            minor_width: 1.0,
+            major_width: 1.5,
+            major_every: 10,
+            segments: 24,
+        }
+    }
+}
+
+/// A grid on `plane`, centred on `center` snapped to the step so lines stay put
+/// while panning, fading out radially instead of ending on a hard edge.
+pub fn push_grid(
+    out: &mut Vec<Vertex>,
+    plane: GridPlane,
+    center: Vec3,
+    step: f32,
+    half_extent: f32,
+    style: &GridStyle,
+) {
+    let (u, v, _normal) = plane.basis();
+    let lines = (half_extent / step).ceil() as i32;
+    let origin = snap_to_step(center, u, v, step);
+
+    for (along, across) in [(u, v), (v, u)] {
+        for index in -lines..=lines {
+            let offset = index as f32 * step;
+            let base = origin + across * offset;
+
+            if base.dot(across).abs() < step * 0.001 {
+                continue;
+            }
+
+            let major = index.rem_euclid(style.major_every) == 0;
+            let color = if major { style.major } else { style.minor };
+            let width = if major {
+                style.major_width
+            } else {
+                style.minor_width
+            };
+
+            push_faded_line(
+                out,
+                &GridLine {
+                    base,
+                    direction: along,
+                    color,
+                    width,
+                },
+                half_extent,
+                origin,
+                style.segments,
+            );
+        }
+    }
+}
+
+fn snap_to_step(center: Vec3, u: Vec3, v: Vec3, step: f32) -> Vec3 {
+    u * (center.dot(u) / step).round() * step + v * (center.dot(v) / step).round() * step
+}
+
+/// One grid line, ready to be emitted as segments.
+struct GridLine {
+    base: Vec3,
+    direction: Vec3,
+    color: [f32; 4],
+    width: f32,
+}
+
+/// Emits one grid line as a strip of segments whose alpha falls off with the
+/// distance to the grid centre.
+fn push_faded_line(
+    out: &mut Vec<Vertex>,
+    line: &GridLine,
+    half_extent: f32,
+    center: Vec3,
+    segments: i32,
+) {
+    let GridLine {
+        base,
+        direction,
+        color,
+        width,
+    } = *line;
+    let segments = segments.max(1);
+    let mut previous = None;
+
+    for index in 0..=segments {
+        let t = index as f32 / segments as f32 * 2.0 - 1.0;
+        let point = base + direction * (t * half_extent);
+        let fade = radial_fade(point.distance(center), half_extent);
+        let vertex = Vertex::line(
+            point,
+            [color[0], color[1], color[2], color[3] * fade],
+            width,
+        );
+
+        if let Some(previous) = previous {
+            out.push(previous);
+            out.push(vertex);
+        }
+        previous = Some(vertex);
+    }
+}
+
+fn radial_fade(distance: f32, half_extent: f32) -> f32 {
+    let normalized = (distance / half_extent).clamp(0.0, 1.0);
+    (1.0 - normalized * normalized).clamp(0.0, 1.0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The step must always keep lines at least `target` pixels apart, and
+    /// only ever be a 1, 2 or 5 times a power of ten.
+    #[test]
+    fn adaptive_step_follows_the_1_2_5_sequence() {
+        let target = 48.0;
+        let mut units_per_pixel = 1e-4;
+
+        while units_per_pixel < 1e4 {
+            let step = adaptive_step(units_per_pixel, target);
+            assert!(
+                step >= units_per_pixel * target,
+                "step {step} too small for {units_per_pixel}"
+            );
+
+            let mantissa = step / 10f32.powf(step.log10().floor());
+            assert!(
+                [1.0, 2.0, 5.0]
+                    .iter()
+                    .any(|value| (mantissa - value).abs() < 1e-3),
+                "step {step} is not a 1/2/5 multiple"
+            );
+
+            units_per_pixel *= 1.3;
+        }
+    }
+
+    /// Zooming in never coarsens the grid, zooming out never refines it.
+    #[test]
+    fn adaptive_step_grows_with_distance() {
+        let mut previous = 0.0;
+        for exponent in -4..4 {
+            let step = adaptive_step(10f32.powi(exponent), 48.0);
+            assert!(step >= previous);
+            previous = step;
+        }
+    }
+
+    #[test]
+    fn grid_skips_the_lines_the_axes_already_draw() {
+        let mut vertices = Vec::new();
+        push_grid(
+            &mut vertices,
+            GridPlane::Xy,
+            Vec3::ZERO,
+            10.0,
+            50.0,
+            &GridStyle::default(),
+        );
+        assert!(!vertices.is_empty());
+
+        // A segment lying flat on an axis would double up the coloured axis
+        // line; individual vertices may still touch an axis when a line
+        // crosses it.
+        for segment in vertices.as_chunks::<2>().0 {
+            let [start, end] = [segment[0].position, segment[1].position];
+            assert!(
+                !(start[0] == 0.0 && end[0] == 0.0) && !(start[1] == 0.0 && end[1] == 0.0),
+                "grid segment {start:?}..{end:?} lies on an axis"
+            );
+        }
+    }
+}

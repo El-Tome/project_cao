@@ -8,7 +8,8 @@ use glam::Vec3;
 
 use crate::MSAA_SAMPLES;
 use crate::screens::history_tree::HistoryAction;
-use crate::screens::ribbon::{Ribbon, RibbonAction};
+use crate::screens::extrusion::ExtrusionState;
+use crate::screens::ribbon::{Category, Ribbon, RibbonAction};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
@@ -77,6 +78,7 @@ impl CaoApp {
             path,
             viewport: ViewportState::default(),
             editor: SketchEditor::default(),
+            extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
         }));
     }
@@ -104,6 +106,7 @@ impl CaoApp {
             path,
             viewport,
             editor,
+            extrusion,
             ribbon,
         } = part.as_mut();
 
@@ -118,7 +121,7 @@ impl CaoApp {
                     .on_hover_text(path.display().to_string());
                 ui.separator();
                 ui.weak(mode_label(viewport.mode()));
-                if let Some(message) = &editor.message {
+                for message in [&editor.message, &extrusion.message].into_iter().flatten() {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
                 }
@@ -126,8 +129,8 @@ impl CaoApp {
             });
         });
 
-        let action = ribbon.show(ui, doc, editor);
-        changed |= apply_ribbon_action(action, doc, editor, viewport);
+        let action = ribbon.show(ui, doc, editor, extrusion);
+        changed |= apply_ribbon_action(action, doc, editor, extrusion, ribbon, viewport);
 
         if ribbon.history_open {
             egui::Panel::left("history_panel")
@@ -154,6 +157,7 @@ impl CaoApp {
             let mut context = screens::viewport::SketchContext {
                 document: doc,
                 editor,
+                extrusion,
             };
             changed |= screens::viewport::show(ui, viewport, &mut context);
         });
@@ -210,17 +214,42 @@ fn apply_ribbon_action(
     action: RibbonAction,
     doc: &mut PartDocument,
     editor: &mut SketchEditor,
+    extrusion: &mut ExtrusionState,
+    ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
 ) -> bool {
     match action {
         RibbonAction::None => false,
         RibbonAction::NewSketch => {
+            extrusion.close();
             editor.start_choosing_plane();
             false
         }
+        // Finishing a drawing is where an extrusion naturally begins, so the
+        // tool is offered right there rather than left to be found again.
         RibbonAction::FinishSketch => {
+            if let Some(index) = editor.active_sketch() {
+                extrusion.offer(index);
+                ribbon.category = Category::Extrusion;
+            }
             editor.close();
             false
+        }
+        RibbonAction::CancelExtrusion => {
+            extrusion.close();
+            ribbon.category = Category::Sketch;
+            false
+        }
+        RibbonAction::ApplyExtrusion => {
+            let changed = apply_extrusion(doc, extrusion);
+            if changed {
+                // Seen from straight above its own plane, a new prism looks
+                // exactly like the drawing it came from.
+                if let Some((min, max)) = doc.body().bounds() {
+                    viewport.look_at_part((min + max) * 0.5, (max - min).length() * 0.6);
+                }
+            }
+            changed
         }
         RibbonAction::Undo | RibbonAction::Redo => {
             let changed = if action == RibbonAction::Undo {
@@ -241,6 +270,43 @@ fn apply_ribbon_action(
             false
         }
     }
+}
+
+/// Turns the chosen areas into matter, or takes them out of it.
+fn apply_extrusion(doc: &mut PartDocument, extrusion: &mut ExtrusionState) -> bool {
+    let (Some(sketch), Some(mode), Some(distance)) = (
+        extrusion.sketch,
+        extrusion.mode,
+        extrusion.distance(),
+    ) else {
+        return false;
+    };
+    if extrusion.picks.is_empty() {
+        return false;
+    }
+
+    let before = doc.body().clone();
+    let picks = std::mem::take(&mut extrusion.picks);
+    doc.apply(Operation::Extrude {
+        sketch,
+        picks,
+        distance,
+        mode,
+    });
+
+    // An extrusion that changes nothing is worth saying out loud: a cut that
+    // misses the matter looks exactly like a tool that did not work.
+    extrusion.message = (doc.body() == &before).then(|| {
+        match mode {
+            cao_core::ExtrusionMode::Add => "L'extrusion n'a rien ajouté.",
+            cao_core::ExtrusionMode::Cut => {
+                "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
+            }
+        }
+        .to_string()
+    });
+    extrusion.mode = None;
+    true
 }
 
 /// After the history moves, the sketch being edited may no longer exist. The

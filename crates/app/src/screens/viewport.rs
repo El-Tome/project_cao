@@ -10,6 +10,7 @@ use cao_render::{
 use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
+use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{ChainAnchor, DimensionMode, SketchEditor, Tool};
 
 /// What the canvas is showing: the bare world axes, or a work plane with its
@@ -71,6 +72,21 @@ impl ViewportState {
         self.mode = ViewMode::Plane(plane);
     }
 
+    /// Turns to an oblique view and frames the whole part, which is how a
+    /// freshly extruded volume is actually seen: straight down on its own
+    /// sketch plane, a prism is indistinguishable from the drawing it came
+    /// from.
+    pub fn look_at_part(&mut self, center: Vec3, radius: f32) {
+        let corner = CubeZone::corner(
+            cao_render::CubeFace::PlusX,
+            cao_render::CubeFace::MinusY,
+            cao_render::CubeFace::PlusZ,
+        );
+        self.transition = Some(ViewTransition::to_zone(&self.camera, corner));
+        self.camera.focus_on(center, radius, self.aspect);
+        self.mode = ViewMode::Free;
+    }
+
     /// A face lands on its work plane and shows the grid; an edge or a corner
     /// is an oblique view, which stays in wireframe mode.
     fn snap_to_zone(&mut self, zone: CubeZone) {
@@ -100,6 +116,7 @@ impl ViewportState {
 pub struct SketchContext<'a> {
     pub document: &'a mut PartDocument,
     pub editor: &'a mut SketchEditor,
+    pub extrusion: &'a mut ExtrusionState,
 }
 
 /// Returns true when the part was modified and should be saved.
@@ -123,6 +140,11 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         sketch.document.scale(),
     );
     let changed = if handled_cube {
+        false
+    } else if sketch.extrusion.is_active() {
+        // Picking areas takes the whole canvas: no drawing tool is in hand
+        // while the extrusion is being set up.
+        pick_areas(state, &response, rect, sketch);
         false
     } else {
         handle_sketch_input(ui, state, &response, rect, scale, sketch)
@@ -456,6 +478,66 @@ fn handle_sketch_input(
             false
         }
         Tool::Select | Tool::None => false,
+    }
+}
+
+/// Choosing which closed areas of a sketch become matter.
+///
+/// An area is named by a point inside it rather than by its rank, so the choice
+/// still means the same thing after the drawing changes. Clicking an area
+/// already chosen takes it back out.
+fn pick_areas(
+    state: &ViewportState,
+    response: &egui::Response,
+    rect: egui::Rect,
+    context: &mut SketchContext<'_>,
+) {
+    context.extrusion.hovered = None;
+
+    let Some(index) = context.extrusion.sketch else {
+        return;
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return;
+    };
+    let Some(pointer) = response.hover_pos() else {
+        return;
+    };
+
+    let (origin, direction) = state
+        .camera
+        .ray(to_ndc(pointer, rect), rect.width() / rect.height());
+    let Some(cursor) = sketch.plane.ray_intersection(origin, direction) else {
+        return;
+    };
+
+    let regions = sketch.regions();
+    // The innermost area wins: inside a shape drawn within another, the click
+    // means the small one, not the one it sits in.
+    let Some(under) = regions
+        .iter()
+        .enumerate()
+        .filter(|(_, region)| region.contains(cursor))
+        .max_by_key(|(_, region)| region.depth)
+        .map(|(index, _)| index)
+    else {
+        return;
+    };
+    context.extrusion.hovered = Some(under);
+
+    if !response.clicked() {
+        return;
+    }
+    let already = context
+        .extrusion
+        .picks
+        .iter()
+        .position(|pick| regions[under].contains(*pick));
+    match already {
+        Some(position) => {
+            context.extrusion.picks.remove(position);
+        }
+        None => context.extrusion.picks.push(cursor),
     }
 }
 
@@ -956,6 +1038,16 @@ fn build_frame(
         push_sketch(&mut lines, &mut surfaces, sketch, scale, active, context);
     }
 
+    push_chosen_areas(&mut surfaces, context);
+
+    let mut solids = Vec::new();
+    cao_render::push_solid(
+        &mut solids,
+        &context.document.body().triangles(),
+        srgb(0.78, 0.80, 0.84, 1.0),
+        camera.forward(),
+    );
+
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();
     cube::push_faces(&mut cube_triangles, state.hovered_zone);
@@ -965,6 +1057,7 @@ fn build_frame(
         scene_view_projection: camera.view_projection(scale.aspect),
         scene_viewport: to_physical(rect, pixels_per_point),
         scene_surfaces: surfaces,
+        scene_solids: solids,
         scene_lines: lines,
         cube_view_projection: cube::view_projection(camera.rotation()),
         cube_triangles,
@@ -1002,6 +1095,54 @@ fn push_choosable_planes(
             outline,
             if hovered { 2.5 } else { 1.5 },
         );
+    }
+}
+
+/// Marks the areas picked for an extrusion, and the one under the cursor.
+///
+/// A chosen area is filled with the colour of the matter it is about to become,
+/// which is the only preview needed before the height is typed.
+fn push_chosen_areas(surfaces: &mut Vec<cao_render::Vertex>, context: &SketchContext<'_>) {
+    if !context.extrusion.is_active() {
+        return;
+    }
+    let Some(sketch) = context
+        .extrusion
+        .sketch
+        .and_then(|index| context.document.sketches().get(index))
+    else {
+        return;
+    };
+
+    let cutting = context.extrusion.mode == Some(cao_core::ExtrusionMode::Cut);
+    let chosen = if cutting {
+        srgb(0.95, 0.45, 0.40, 0.45)
+    } else {
+        srgb(0.40, 0.85, 0.60, 0.45)
+    };
+
+    for (index, region) in sketch.regions().iter().enumerate() {
+        let picked = context
+            .extrusion
+            .picks
+            .iter()
+            .any(|pick| region.contains(*pick));
+        let hovered = context.extrusion.hovered == Some(index);
+        if !picked && !hovered {
+            continue;
+        }
+        let color = if picked { chosen } else { srgb(0.85, 0.88, 0.95, 0.20) };
+
+        // Holes stay empty here too: what is shown filled is exactly what will
+        // become matter.
+        for [a, b, c] in region.face_triangles() {
+            for corner in [a, b, c] {
+                surfaces.push(cao_render::Vertex::solid(
+                    sketch.plane.to_world(corner),
+                    color,
+                ));
+            }
+        }
     }
 }
 

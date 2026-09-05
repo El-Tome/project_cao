@@ -1,4 +1,5 @@
 pub mod annotations;
+pub mod extrusion;
 pub mod history_tree;
 pub mod ribbon;
 pub mod sketch;
@@ -9,6 +10,7 @@ use std::path::PathBuf;
 
 use cao_core::PartDocument;
 
+use extrusion::ExtrusionState;
 use ribbon::Ribbon;
 use sketch::SketchEditor;
 use viewport::ViewportState;
@@ -20,6 +22,7 @@ pub struct OpenPart {
     pub path: PathBuf,
     pub viewport: ViewportState,
     pub editor: SketchEditor,
+    pub extrusion: ExtrusionState,
     pub ribbon: Ribbon,
 }
 

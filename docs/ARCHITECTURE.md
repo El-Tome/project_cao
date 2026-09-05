@@ -35,6 +35,9 @@ Un crate = une responsabilité, sans dépendance dans le mauvais sens :
 - `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
   la règle qui applique une longueur. Ni rendu ni interface.
   Voir [esquisse.md](esquisse.md).
+- `cao_solid` : les volumes — maillage de polygones, extrusion d'une aire en
+  prisme, opérations booléennes (ajout et enlèvement de matière). Ni rendu ni
+  interface. Voir [extrusion.md](extrusion.md).
 - `cao_render` : rendu GPU du viewport (`wgpu`), sans dépendance interface.
   Voir [rendu.md](rendu.md).
 - `cao_app` : shell applicatif desktop (`eframe`). Contient l'état de
@@ -50,8 +53,8 @@ rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 L'application est un menu de démarrage qui bascule vers différents modes :
 
 - **Croquis → Extrusion** : cycle esquisse 2D puis extrusion, répétable en
-  boucle pour construire une pièce. L'esquisse existe
-  ([esquisse.md](esquisse.md)) ; l'extrusion reste à faire.
+  boucle pour construire une pièce. Les deux existent :
+  [esquisse.md](esquisse.md), [extrusion.md](extrusion.md).
 - **Assemblage** : assembler plusieurs pièces entre elles (pas encore
   implémenté).
 - D'autres modes viendront s'ajouter au menu au fil du temps.

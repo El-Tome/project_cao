@@ -54,6 +54,17 @@ fonction en cours — une ligne par esquisse, dépliable. Les étapes annulées
 apparaissent en grisé sous la position courante. Cliquer une ligne remet la
 pièce dans l'état où elle était juste après cette étape.
 
+## L'extrusion dans l'historique
+
+Une extrusion est une opération comme une autre : elle ouvre sa propre ligne
+dans l'arbre, et revenir avant elle rend la pièce à l'état de dessin. Le volume
+n'est jamais stocké — il est reconstruit en rejouant les opérations, exactement
+comme la géométrie de l'esquisse.
+
+L'aire extrudée est retenue par **la position cliquée** et non par son rang,
+pour la même raison que les points d'un trait : un rang bougerait dès qu'une
+autre forme est dessinée. Voir [extrusion.md](extrusion.md).
+
 ## Le format de fichier
 
 Un `.caopart` est une **archive zip**, et non plus un seul objet JSON :

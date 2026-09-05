@@ -21,6 +21,9 @@ pub struct SceneFrame {
     /// when starting a sketch. Drawn before the lines and never culled, since
     /// a plane must be visible from both sides.
     pub scene_surfaces: Vec<Vertex>,
+    /// The matter of the part. Unlike everything else here it is a real solid,
+    /// so it is the only geometry that writes depth.
+    pub scene_solids: Vec<Vertex>,
     pub scene_lines: Vec<Vertex>,
     pub cube_view_projection: Mat4,
     pub cube_triangles: Vec<Vertex>,
@@ -141,18 +144,21 @@ impl DynamicVertexBuffer {
     }
 }
 
-/// Draws the viewport: world axes and grid as lines, plus the orientation cube
-/// in its own corner viewport.
+/// Draws the viewport: the part's matter as shaded solids, the axes, grid and
+/// sketches as lines and flat areas, plus the orientation cube in its corner.
 ///
-/// No depth buffer is involved. The scene is only lines, and the cube is a
-/// convex solid drawn last, so back-face culling alone resolves it correctly.
+/// Only the solids are depth-tested. Everything else is drawn over them on
+/// purpose: a sketch or a dimension buried inside a block would be unusable,
+/// and the orientation cube must never be hidden by the part.
 pub struct SceneRenderer {
     line_pipeline: wgpu::RenderPipeline,
     triangle_pipeline: wgpu::RenderPipeline,
     surface_pipeline: wgpu::RenderPipeline,
+    solid_pipeline: wgpu::RenderPipeline,
     scene_uniform: UniformBinding,
     cube_uniform: UniformBinding,
     scene_surfaces: DynamicVertexBuffer,
+    scene_solids: DynamicVertexBuffer,
     scene_lines: DynamicVertexBuffer,
     cube_triangles: DynamicVertexBuffer,
     cube_edges: DynamicVertexBuffer,
@@ -161,6 +167,11 @@ pub struct SceneRenderer {
 }
 
 impl SceneRenderer {
+    /// The depth buffer the window has to be asked for. Kept here so the one
+    /// place that knows the format is the one that builds the pipelines.
+    pub const DEPTH_BITS: u8 = 24;
+    pub const DEPTH_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Depth24Plus;
+
     pub fn new(
         device: &wgpu::Device,
         target_format: wgpu::TextureFormat,
@@ -212,8 +223,22 @@ impl SceneRenderer {
             attributes: &wgpu::vertex_attr_array![0 => Float32x3, 1 => Float32x4],
         };
 
+        // Everything but the solids is drawn on top of whatever is already
+        // there, so it keeps the depth test but never writes to it.
+        let depth_state = |write: bool| wgpu::DepthStencilState {
+            format: Self::DEPTH_FORMAT,
+            depth_write_enabled: Some(write),
+            depth_compare: Some(if write {
+                wgpu::CompareFunction::Less
+            } else {
+                wgpu::CompareFunction::Always
+            }),
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState::default(),
+        };
+
         let make_pipeline =
-            |label: &str, entry_point, layout: &wgpu::VertexBufferLayout, cull_mode| {
+            |label: &str, entry_point, layout: &wgpu::VertexBufferLayout, cull_mode, depth| {
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                     label: Some(label),
                     layout: Some(&pipeline_layout),
@@ -232,7 +257,7 @@ impl SceneRenderer {
                         polygon_mode: wgpu::PolygonMode::Fill,
                         conservative: false,
                     },
-                    depth_stencil: None,
+                    depth_stencil: Some(depth),
                     multisample: wgpu::MultisampleState {
                         count: sample_count,
                         mask: !0,
@@ -254,22 +279,40 @@ impl SceneRenderer {
             };
 
         Self {
-            line_pipeline: make_pipeline("cao_line_pipeline", "vs_line", &line_layout, None),
+            line_pipeline: make_pipeline(
+                "cao_line_pipeline",
+                "vs_line",
+                &line_layout,
+                None,
+                depth_state(false),
+            ),
             triangle_pipeline: make_pipeline(
                 "cao_triangle_pipeline",
                 "vs_solid",
                 &solid_layout,
                 Some(wgpu::Face::Back),
+                depth_state(false),
             ),
             surface_pipeline: make_pipeline(
                 "cao_surface_pipeline",
                 "vs_solid",
                 &solid_layout,
                 None,
+                depth_state(false),
+            ),
+            // A real volume: the only geometry whose near faces must hide its
+            // far ones, so the only one that writes depth.
+            solid_pipeline: make_pipeline(
+                "cao_solid_pipeline",
+                "vs_solid",
+                &solid_layout,
+                Some(wgpu::Face::Back),
+                depth_state(true),
             ),
             scene_uniform: UniformBinding::new(device, &uniform_layout, "cao_scene_uniform"),
             cube_uniform: UniformBinding::new(device, &uniform_layout, "cao_cube_uniform"),
             scene_surfaces: DynamicVertexBuffer::new(device, "cao_scene_surfaces"),
+            scene_solids: DynamicVertexBuffer::new(device, "cao_scene_solids"),
             scene_lines: DynamicVertexBuffer::new(device, "cao_scene_lines"),
             cube_triangles: DynamicVertexBuffer::new(device, "cao_cube_triangles"),
             cube_edges: DynamicVertexBuffer::new(device, "cao_cube_edges"),
@@ -293,6 +336,7 @@ impl SceneRenderer {
         );
         self.scene_surfaces
             .upload(device, queue, &frame.scene_surfaces);
+        self.scene_solids.upload(device, queue, &frame.scene_solids);
         self.scene_lines.upload(device, queue, &frame.scene_lines);
         self.cube_triangles
             .upload(device, queue, &frame.cube_triangles);
@@ -302,6 +346,8 @@ impl SceneRenderer {
 
     pub fn paint(&self, pass: &mut wgpu::RenderPass<'_>) {
         pass.set_bind_group(0, &self.scene_uniform.bind_group, &[]);
+        pass.set_pipeline(&self.solid_pipeline);
+        self.scene_solids.draw_triangles(pass);
         pass.set_pipeline(&self.surface_pipeline);
         self.scene_surfaces.draw_triangles(pass);
         pass.set_pipeline(&self.line_pipeline);

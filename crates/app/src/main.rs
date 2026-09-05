@@ -14,6 +14,9 @@ fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 800.0]),
         multisampling: MSAA_SAMPLES,
+        // Asked for by the renderer, which is where the format is decided: a
+        // solid part needs its near faces to hide its far ones.
+        depth_buffer: cao_render::SceneRenderer::DEPTH_BITS,
         ..Default::default()
     };
 

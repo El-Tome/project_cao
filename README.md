@@ -21,7 +21,12 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
   le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
 
-L'extrusion et l'assemblage restent à faire — voir
+- **Extrusion** : après avoir terminé une esquisse, choisir une à plusieurs
+  aires fermées et leur donner une hauteur, en ajoutant ou en enlevant de la
+  matière. Deux cercles l'un dans l'autre donnent un tube, pas un barreau. Voir
+  [`docs/extrusion.md`](docs/extrusion.md).
+
+L'assemblage reste à faire — voir
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
 feuille de route.
 
@@ -37,6 +42,8 @@ cargo run -p cao_app
   sans aucune dépendance UI. Réutilisable tel quel par un futur front-end
   web/tablette.
 - `crates/sketch` (`cao_sketch`) — modèle d'esquisse et application des cotes,
+  sans rendu ni UI.
+- `crates/solid` (`cao_solid`) — volumes, extrusion et opérations booléennes,
   sans rendu ni UI.
 - `crates/render` (`cao_render`) — rendu GPU du viewport (wgpu), sans
   dépendance UI non plus.

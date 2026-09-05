@@ -13,6 +13,31 @@ pub enum PointRef {
     New(Vec2),
 }
 
+/// What an extrusion does to the part.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum ExtrusionMode {
+    /// Adds the prism to the part.
+    Add,
+    /// Takes the prism out of it.
+    Cut,
+}
+
+impl ExtrusionMode {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Add => "Ajout de matière",
+            Self::Cut => "Enlèvement de matière",
+        }
+    }
+
+    pub fn hint(self) -> &'static str {
+        match self {
+            Self::Add => "Sélectionner des aires fermées, donner une hauteur",
+            Self::Cut => "Sélectionner des aires fermées, donner une profondeur",
+        }
+    }
+}
+
 /// One step of the part's history. Replaying the list from the start rebuilds
 /// the whole part, which is what makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -59,6 +84,20 @@ pub enum Operation {
         /// Millimetres for a length or radius, degrees for an angle.
         value: f32,
     },
+    /// Turns closed areas of a sketch into matter, or takes matter away.
+    Extrude {
+        sketch: usize,
+        /// One position inside each chosen area, in the sketch's own
+        /// coordinates.
+        ///
+        /// The areas are named by a point rather than by their rank: a rank
+        /// would move the moment another shape is drawn, and the extrusion
+        /// would silently start applying to a different part of the drawing.
+        picks: Vec<Vec2>,
+        /// Millimetres. Negative goes the other way along the plane.
+        distance: f32,
+        mode: ExtrusionMode,
+    },
 }
 
 impl Operation {
@@ -72,6 +111,15 @@ impl Operation {
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::MovePoint { .. } => "Déplacement".to_string(),
             Self::MoveDimension { .. } => "Cote déplacée".to_string(),
+            Self::Extrude {
+                distance, mode, ..
+            } => {
+                let verb = match mode {
+                    ExtrusionMode::Add => "Extrusion",
+                    ExtrusionMode::Cut => "Enlèvement",
+                };
+                format!("{verb} {distance} mm")
+            }
             Self::SetDimension { target, value, .. } => match target {
                 DimensionTarget::Angle { .. } => format!("Angle {value}°"),
                 DimensionTarget::AxisAngle { axis, .. } => {
@@ -128,6 +176,9 @@ impl Operation {
                 "Esquisse {sketch} · décalage ({:.1}, {:.1})",
                 offset.x, offset.y
             ),
+            Self::Extrude { sketch, picks, .. } => {
+                format!("Esquisse {sketch} · {} aire(s)", picks.len())
+            }
             Self::SetDimension { sketch, target, .. } => match target {
                 DimensionTarget::Distance { from, to } => {
                     format!("Esquisse {sketch} · points {} et {}", from.0, to.0)
@@ -151,7 +202,7 @@ impl Operation {
     /// True for the operations that open a new feature in the tree, and under
     /// which the following ones are grouped.
     pub fn starts_feature(&self) -> bool {
-        matches!(self, Self::CreateSketch { .. })
+        matches!(self, Self::CreateSketch { .. } | Self::Extrude { .. })
     }
 }
 

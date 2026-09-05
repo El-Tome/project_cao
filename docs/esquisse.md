@@ -117,6 +117,16 @@ chaque angle.
 Une cote en lecture seule est tracée plus discrètement, en gris : elle rend
 compte, elle ne décide pas.
 
+### Déplacer une cote
+
+Avec l'outil Sélection, attraper une cote la décale, et le décalage est
+enregistré avec elle. C'est **toute l'annotation** qui bouge — la ligne, ses
+flèches et sa valeur ensemble — les lignes d'attache s'étirant pour suivre : un
+nombre qui s'éloignerait seul de sa ligne se lirait comme une étiquette égarée.
+
+Un angle reste accroché au coin qu'il mesure : le tirer ouvre son arc au lieu de
+l'arracher. Un rayon tourne autour de son cercle.
+
 ## Les couleurs : où en est le dessin
 
 | Couleur | Ce que ça veut dire |
@@ -148,21 +158,36 @@ rôle.)*
 
 ### Ce qu'il faut pour arriver au vert
 
-Trois choses, et il en manque souvent une :
+Deux choses :
 
 1. **Les valeurs de forme nécessaires** — longueurs et angles. « Nécessaires »
    et non « toutes » : dans un triangle dont deux côtés et l'angle entre eux
    sont donnés, le troisième côté **suit** et ne peut plus être imposé.
 2. **Un rattachement à l'origine**, par accrochage ou par cote.
-3. **Une direction fixe** : une cote d'angle prise avec un axe de l'esquisse.
-   Se rattacher à l'origine enlève les deux façons de glisser, jamais la façon
-   de tourner — sans référence de direction, le dessin peut pivoter autour de
-   son ancre et toutes les cotes restent vraies.
 
-**Exemple, un rectangle** dont un coin est sur l'origine : il faut deux côtés,
-**trois** angles droits (le quatrième suit) et l'angle d'un côté avec un axe.
-Avec un seul angle droit le quadrilatère peut encore se déformer en
-parallélogramme ; sans l'angle d'axe il peut encore tourner.
+**Exemple, un rectangle** dont un coin est sur l'origine : deux côtés et
+**trois** angles droits (le quatrième suit) suffisent. Avec un seul angle droit
+le quadrilatère peut encore se déformer en parallélogramme.
+
+### L'orientation est implicite, comme le point d'origine
+
+Faire tourner un dessin entier autour de l'origine ne change aucune longueur et
+aucun angle : **aucune cote ne peut voir cette rotation**. Il fallait donc
+autrefois poser une cote d'angle à 0° sur un axe, uniquement pour dire « et ça
+reste dans ce sens-là ».
+
+Ce n'est plus nécessaire : un dessin **garde le sens dans lequel il a été
+dessiné**, exactement comme il possède un point d'origine sans qu'on le place.
+
+La règle vaut **par groupe de géométrie reliée** : deux formes dessinées à
+l'écart peuvent tourner l'une par rapport à l'autre, donc chacune garde son
+sens de son côté. Une seule règle commune laisserait les deux libres de pivoter
+l'une contre l'autre, et aucune ne serait jamais figée.
+
+Poser malgré tout un angle avec un axe reste possible et n'enlève rien : dès
+qu'une cote dit dans quel sens une forme est posée, la règle implicite s'efface
+pour ce groupe — sans quoi la même liberté serait retirée deux fois et un
+dessin encore libre de glisser passerait pour figé.
 
 ### Comment c'est calculé
 
@@ -174,6 +199,26 @@ des autres — un comptage ne le verrait jamais.
 Pour savoir si un point précis est figé, on calcule les **mouvements encore
 possibles** (le noyau du système) : si aucun d'eux ne déplace ce point, il ne
 peut plus bouger.
+
+### Un point figé ne se déplace plus à la souris
+
+Un sommet vert ne répond pas à l'outil Sélection. Le tirer reviendrait à défaire
+en silence une valeur qui a été tapée ; pour le bouger, on change ce qui le
+retient.
+
+## Les surfaces fermées
+
+Dès qu'un contour se referme, l'aire qu'il enclôt est **légèrement teintée**.
+Quatre traits séparés deviennent une face, et on voit d'un coup d'œil si une
+forme est vraiment fermée.
+
+Une forme dessinée **dans une autre** est teintée plus franchement : sans cela
+un contour et la poche qui s'y trouve se fondraient l'un dans l'autre.
+
+Les contours sont trouvés comme une carte trouve ses pays : on longe chaque
+trait en tournant toujours le plus serré possible, et le parcours revient sur
+lui-même autour d'une aire exactement. Compter les traits ne suffirait pas — un
+même côté appartient à deux aires quand deux formes le partagent.
 
 ## Les cotes en trop
 
@@ -227,8 +272,9 @@ d'itérations et le signale au lieu de s'arrêter en silence sur l'une d'elles.
 
 Une cote d'angle se pose sur deux traits qui se touchent. Avec l'outil Angle,
 le second clic peut aussi tomber sur **un axe de l'esquisse** : l'angle est
-alors mesuré par rapport à cette direction fixe, et c'est ce qui empêche le
-dessin de tourner.
+alors mesuré par rapport à cette direction fixe. Ce n'est plus obligatoire pour
+figer un dessin — l'orientation est implicite — mais c'est ce qui sert à poser
+une forme à un angle voulu.
 
 Le sens d'ouverture est conservé : demander 30° sur un coin qui tourne dans un
 sens ne le retourne pas. Un angle ne peut jamais définir l'échelle du document :
@@ -259,10 +305,11 @@ permet en plus de revenir directement à n'importe quelle étape. Voir
 
 ## Ce qui manque encore
 
-- Aucun accrochage à la grille ni aux alignements (horizontal, vertical) : seul
-  l'accrochage aux points existants est fait.
-- Pas de suppression d'un trait déjà tracé autrement qu'en revenant en arrière
-  dans l'historique.
+- Pas d'accrochage aux alignements (horizontal, vertical) d'un point existant :
+  l'aimantation ne tient qu'aux points et à la grille.
+- Une forme dessinée dans une autre est teintée comme une aire à part, pas
+  traitée comme un trou : la zone commune reste remplie deux fois.
+- Un contour qui se recoupe lui-même n'est pas teinté.
 - Pas de cotes de diamètre, ni de cotes horizontales/verticales séparées (une
   cote point à point mesure toujours la distance directe).
 - On ne peut pas supprimer un point ni un trait autrement qu'en revenant en

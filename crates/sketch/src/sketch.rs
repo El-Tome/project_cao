@@ -357,7 +357,7 @@ impl Sketch {
     pub fn freedom(&self, millimeters_per_unit: f32) -> Freedom {
         // The origin never moves, so its two coordinates are not in play.
         let free_coordinates = self.points.len().saturating_sub(1) * 2;
-        let held = solver::rank(&self.equations(millimeters_per_unit)).min(free_coordinates);
+        let held = solver::rank(&self.analysed_system(millimeters_per_unit)).min(free_coordinates);
 
         // A circle brings its own radius, which only its own dimension can
         // settle; that pair never touches the point coordinates.
@@ -444,7 +444,8 @@ impl Sketch {
         let pinned: Vec<bool> = (0..self.points.len())
             .map(|index| self.is_origin(PointId(index)))
             .collect();
-        let free = solver::null_space(&self.equations(millimeters_per_unit), &pinned, variables);
+        let free =
+            solver::null_space(&self.analysed_system(millimeters_per_unit), &pinned, variables);
 
         (0..self.points.len())
             .map(|index| {
@@ -566,7 +567,7 @@ mod tests {
     /// Pinning a point takes away the two ways a drawing can slide, never the
     /// way it can turn: that last freedom needs an angle to a fixed direction.
     #[test]
-    fn a_drawing_is_only_complete_once_it_can_no_longer_turn() {
+    fn a_drawing_needs_no_angle_to_the_axes_to_be_complete() {
         let (mut sketch, [base, side, _]) = triangle();
         sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
         sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
@@ -580,10 +581,26 @@ mod tests {
         );
         sketch.resolve(1.0);
 
-        // The corner sits on the origin, so only the rotation is left.
-        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 1);
-        assert!(!sketch.is_fully_constrained(1.0));
+        // Which way up the drawing sits is implicit, like its origin point.
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 0);
+        assert!(sketch.is_fully_constrained(1.0));
+    }
 
+    /// Stating the orientation by hand must not take the same freedom twice,
+    /// or a drawing free to slide would be reported as pinned.
+    #[test]
+    fn an_angle_to_an_axis_replaces_the_implicit_one() {
+        let (mut sketch, [base, side, _]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
+        sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: base,
+                second: side,
+            },
+            90.0,
+            false,
+        );
         sketch.set_dimension(
             DimensionTarget::AxisAngle {
                 segment: base,
@@ -595,7 +612,6 @@ mod tests {
         sketch.resolve(1.0);
 
         assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 0);
-        assert!(sketch.is_fully_constrained(1.0));
     }
 
     /// One contour nailed down beside another still floating: the drawing has
@@ -629,12 +645,43 @@ mod tests {
         assert!(!sketch.is_fully_constrained(1.0));
     }
 
-    /// A length alone leaves the far end free to swing around its anchor.
+    /// A length from the origin is enough on its own: the drawing keeps the
+    /// direction it was drawn in, so the far end has nowhere left to go.
     #[test]
-    fn a_length_without_a_direction_leaves_the_end_free() {
+    fn a_length_from_the_origin_settles_its_end() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let end = sketch.add_point(Vec2::new(20.0, 0.0));
         let segment = sketch.add_segment(Sketch::ORIGIN, end);
+        sketch.set_dimension(DimensionTarget::Length(segment), 20.0, false);
+
+        assert!(sketch.settled_points(1.0)[end.0]);
+    }
+
+    /// A shape drawn beside another must not stop it from being settled: each
+    /// group of joined geometry keeps the direction it was drawn in on its own.
+    #[test]
+    fn a_loose_shape_beside_a_measured_one_leaves_it_settled() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corner = sketch.add_point(Vec2::new(80.0, 0.0));
+        let side = sketch.add_segment(Sketch::ORIGIN, corner);
+        sketch.set_dimension(DimensionTarget::Length(side), 80.0, false);
+
+        let loose_a = sketch.add_point(Vec2::new(200.0, 200.0));
+        let loose_b = sketch.add_point(Vec2::new(260.0, 200.0));
+        sketch.add_segment(loose_a, loose_b);
+
+        let settled = sketch.settled_points(1.0);
+        assert!(settled[corner.0], "held by a length and the way it was drawn");
+        assert!(!settled[loose_a.0]);
+    }
+
+    /// A length that hangs off nothing fixed still swings freely.
+    #[test]
+    fn a_length_away_from_the_origin_leaves_its_end_free() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let anchor = sketch.add_point(Vec2::new(30.0, 30.0));
+        let end = sketch.add_point(Vec2::new(50.0, 30.0));
+        let segment = sketch.add_segment(anchor, end);
         sketch.set_dimension(DimensionTarget::Length(segment), 20.0, false);
 
         assert!(!sketch.settled_points(1.0)[end.0]);

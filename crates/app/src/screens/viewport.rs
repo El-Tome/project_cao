@@ -420,7 +420,21 @@ fn handle_sketch_input(
     // Dragging a point is a gesture, not a click, so it comes before the
     // click-based tools.
     if context.editor.tool == Tool::Select {
-        return drag_point(context, index, cursor, response, snap);
+        // What is grabbed is decided where the button went down, not where the
+        // cursor is when egui calls it a drag: by then it has already travelled
+        // the few pixels of the drag threshold, which was enough to miss the
+        // very point being aimed at.
+        let pressed = ui
+            .input(|input| input.pointer.press_origin())
+            .and_then(|position| {
+                let (origin, direction) = state
+                    .camera
+                    .ray(to_ndc(position, rect), rect.width() / rect.height());
+                plane.ray_intersection(origin, direction)
+            })
+            .map(|position| magnetise(position, scale, &state.config, context, index, snap))
+            .unwrap_or(cursor);
+        return drag_point(context, index, cursor, pressed, response, snap);
     }
 
     if !response.clicked() {
@@ -451,22 +465,29 @@ fn drag_point(
     context: &mut SketchContext<'_>,
     index: usize,
     cursor: Vec2,
+    pressed: Vec2,
     response: &egui::Response,
     snap: f32,
 ) -> bool {
     let sketch = &context.document.sketches()[index];
 
     if response.drag_started() {
+        // Nothing that is already held in place can be dragged: a value the
+        // user typed must not be silently undone by a slip of the mouse. The
+        // way to move a settled point is to change what settles it.
+        let settled = sketch.settled_points(context.document.scale());
+
         // A point first, then an annotation: the point is the smaller target
         // and the one a drag is usually after.
         context.editor.dragged_point = sketch
-            .nearest_point(cursor, snap)
-            .filter(|point| !sketch.is_origin(*point));
+            .nearest_point(pressed, snap)
+            .filter(|point| !sketch.is_origin(*point))
+            .filter(|point| !settled.get(point.0).copied().unwrap_or(false));
 
         if context.editor.dragged_point.is_none() {
             context.editor.dragged_dimension =
-                nearest_annotation(context, index, cursor, snap * 1.5);
-            context.editor.drag_origin = Some(cursor);
+                nearest_annotation(context, index, pressed, snap * 1.5);
+            context.editor.drag_origin = Some(pressed);
         }
     }
 
@@ -932,7 +953,7 @@ fn build_frame(
 
     for (index, sketch) in context.document.sketches().iter().enumerate() {
         let active = context.editor.active_sketch() == Some(index);
-        push_sketch(&mut lines, sketch, scale, active, context);
+        push_sketch(&mut lines, &mut surfaces, sketch, scale, active, context);
     }
 
     let mut cube_triangles = Vec::new();
@@ -984,6 +1005,39 @@ fn push_choosable_planes(
     }
 }
 
+/// Tints the areas the drawing encloses, so a closed contour reads as a face
+/// rather than four separate lines.
+///
+/// A shape drawn inside another is tinted more heavily: without that, an
+/// outline and the pocket in it wash into one another and the eye cannot tell
+/// which is which.
+fn push_regions(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    active: bool,
+    context: &SketchContext<'_>,
+) {
+    // Mid-drag the stored positions are one gesture behind what is on screen,
+    // and a fill lagging its own outline is worse than no fill.
+    if context.editor.dragged_point.is_some() {
+        return;
+    }
+
+    for region in sketch.regions() {
+        let shade = 0.10 + 0.06 * region.depth.min(4) as f32;
+        let color = if active {
+            srgb(0.45, 0.65, 0.95, shade)
+        } else {
+            srgb(0.60, 0.63, 0.68, shade * 0.6)
+        };
+        for [a, b, c] in region.triangles {
+            for corner in [a, b, c] {
+                surfaces.push(cao_render::Vertex::solid(sketch.plane.to_world(corner), color));
+            }
+        }
+    }
+}
+
 /// Colours saying how settled the drawing is: a shape that still has freedom
 /// left is drawn one way, one that is fully determined another. It is the
 /// quickest possible answer to "is my part pinned down yet?".
@@ -1006,11 +1060,14 @@ fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) 
 
 fn push_sketch(
     out: &mut Vec<cao_render::Vertex>,
+    surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     scale: ViewScale,
     active: bool,
     context: &SketchContext<'_>,
 ) {
+    push_regions(surfaces, sketch, active, context);
+
     // Per element, not one verdict for the whole drawing: a contour can be
     // nailed down while its neighbour is still floating, and that is exactly
     // what tells the user what is left to do.

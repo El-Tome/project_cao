@@ -67,6 +67,7 @@ pub fn push(
                 start,
                 end,
                 away_from(sketch),
+                offset,
                 style,
                 pixel,
             ))
@@ -79,13 +80,14 @@ pub fn push(
                 start,
                 end,
                 away_from(sketch),
+                offset,
                 style,
                 pixel,
             ))
         }
         DimensionTarget::Angle { first, second } => {
             let (pivot, a, b) = sketch.corner_points(first, second)?;
-            Some(angular(out, plane, pivot, a, b, style, pixel))
+            Some(angular(out, plane, pivot, a, b, offset, style, pixel))
         }
         DimensionTarget::AxisAngle { segment, axis } => {
             let (start, end) = endpoints(sketch, segment)?;
@@ -96,6 +98,7 @@ pub fn push(
                 start,
                 start + axis.direction() * start.distance(end),
                 end,
+                offset,
                 style,
                 pixel,
             ))
@@ -103,12 +106,9 @@ pub fn push(
         DimensionTarget::Radius(circle) => {
             let circle = *sketch.circles().get(circle.0)?;
             let center = *sketch.points().get(circle.center.0)?;
-            Some(radial(out, plane, center, circle.radius, style, pixel))
+            Some(radial(out, plane, center, circle.radius, offset, style, pixel))
         }
     }
-    .map(|placement| Placement {
-        text_at: placement.text_at + offset,
-    })
 }
 
 fn endpoints(sketch: &Sketch, segment: cao_sketch::SegmentId) -> Option<(Vec2, Vec2)> {
@@ -126,12 +126,14 @@ fn away_from(sketch: &Sketch) -> Vec2 {
 
 /// A length or a distance: the classic pair of extension lines with a
 /// dimension line between them.
+#[allow(clippy::too_many_arguments)]
 fn linear(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
     start: Vec2,
     end: Vec2,
     center: Vec2,
+    moved_by: Vec2,
     style: &Style,
     pixel: f32,
 ) -> Placement {
@@ -146,13 +148,17 @@ fn linear(
         normal = -normal;
     }
 
-    let offset = normal * style.offset_pixels * pixel;
+    // Dragging moves the whole annotation, not just its value: the line, its
+    // arrows and its text travel together, with the extension lines stretching
+    // to follow. A number floating away from its own line reads as a stray
+    // label rather than a dimension.
+    let offset = normal * style.offset_pixels * pixel + moved_by;
     let (from, to) = (start + offset, end + offset);
 
     // Extension lines overshoot the dimension line a little, as on a drawing.
-    let overshoot = normal * (style.offset_pixels + 4.0) * pixel;
-    line(out, plane, start, start + overshoot, style);
-    line(out, plane, end, end + overshoot, style);
+    let overshoot = normal * 4.0 * pixel;
+    line(out, plane, start, from + overshoot, style);
+    line(out, plane, end, to + overshoot, style);
     line(out, plane, from, to, style);
 
     arrow(out, plane, from, direction, style, pixel);
@@ -172,16 +178,17 @@ fn text_clearance(normal: Vec2) -> f32 {
 }
 
 /// An angle: an arc between the two arms, with an arrowhead at each end.
+#[allow(clippy::too_many_arguments)]
 fn angular(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
     pivot: Vec2,
     first: Vec2,
     second: Vec2,
+    moved_by: Vec2,
     style: &Style,
     pixel: f32,
 ) -> Placement {
-    let radius = style.arc_pixels * pixel;
     let start = (first - pivot).to_angle();
     let mut sweep = (second - pivot).to_angle() - start;
     // Always draw the smaller way round: that is the angle being talked about.
@@ -191,6 +198,14 @@ fn angular(
     while sweep < -std::f32::consts::PI {
         sweep += std::f32::consts::TAU;
     }
+
+    // An arc has to stay hinged on the corner it measures, so a drag opens it
+    // out instead of tearing it away: the part of the movement along the
+    // bisector becomes radius, the part across it slides the value round.
+    let bisector = Vec2::from_angle(start + sweep * 0.5);
+    let widened = moved_by.dot(bisector);
+    let radius = (style.arc_pixels * pixel + widened).max(6.0 * pixel);
+    let alongside = moved_by - bisector * widened;
 
     const STEPS: usize = 24;
     let mut previous = None;
@@ -226,7 +241,7 @@ fn angular(
     );
 
     Placement {
-        text_at: pivot + Vec2::from_angle(start + sweep * 0.5) * (radius + 14.0 * pixel),
+        text_at: pivot + bisector * (radius + 14.0 * pixel) + alongside,
     }
 }
 
@@ -236,10 +251,14 @@ fn radial(
     plane: &WorkPlane,
     center: Vec2,
     radius: f32,
+    moved_by: Vec2,
     style: &Style,
     pixel: f32,
 ) -> Placement {
-    let direction = Vec2::splat(std::f32::consts::FRAC_1_SQRT_2);
+    // A radius is always drawn from the centre outwards, so dragging it turns
+    // the leader about the circle rather than detaching it.
+    let default = Vec2::splat(std::f32::consts::FRAC_1_SQRT_2);
+    let direction = (default * radius + moved_by).normalize_or(default);
     let rim = center + direction * radius;
     line(out, plane, center, rim, style);
     arrow(out, plane, rim, -direction, style, pixel);

@@ -120,6 +120,76 @@ impl Sketch {
             .collect()
     }
 
+    /// Every equation the drawing must satisfy, plus the one rule it is never
+    /// asked to state: that it does not turn on the spot.
+    ///
+    /// Spinning a whole drawing about the sketch origin leaves every length and
+    /// every angle exactly as it was, so no dimension can ever see it. Without
+    /// this, a shape could carry all its values and still be reported loose,
+    /// and the user had to add an angle to an axis by hand purely to say "and
+    /// it stays this way up". That orientation is implicit now, just as the
+    /// origin point is.
+    ///
+    /// It carries no error: it never moves anything, it only accounts for the
+    /// freedom that is already gone.
+    pub(crate) fn analysed_system(&self, millimeters_per_unit: f32) -> Vec<Equation> {
+        let mut equations = self.equations(millimeters_per_unit);
+        for gauge in self.rotation_gauges() {
+            // A shape already measured against an axis says which way up it is;
+            // adding the implicit rule on top would take that freedom twice and
+            // report a drawing as more settled than it is.
+            if equations
+                .iter()
+                .all(|equation| turns_nothing(equation, &gauge))
+            {
+                equations.push(gauge);
+            }
+        }
+        equations
+    }
+
+    /// One rule per group of joined geometry. Two shapes drawn apart can be
+    /// turned independently, so one shared rule would leave both of them able
+    /// to turn against each other and neither would ever count as settled.
+    fn rotation_gauges(&self) -> Vec<Equation> {
+        let pinned = self.pinned_points();
+        let mut group: Vec<usize> = (0..self.points().len()).collect();
+
+        fn root(group: &mut [usize], mut point: usize) -> usize {
+            while group[point] != point {
+                group[point] = group[group[point]];
+                point = group[point];
+            }
+            point
+        }
+        for segment in self.segments() {
+            let (a, b) = (root(&mut group, segment.start.0), root(&mut group, segment.end.0));
+            group[a] = b;
+        }
+
+        let mut gauges: Vec<(usize, Equation)> = Vec::new();
+        for (index, point) in self.points().iter().enumerate() {
+            if pinned[index] {
+                continue;
+            }
+            let owner = root(&mut group, index);
+            let equation = match gauges.iter_mut().find(|(each, _)| *each == owner) {
+                Some((_, equation)) => equation,
+                None => {
+                    gauges.push((owner, Equation::new(self.points().len() * 2)));
+                    &mut gauges.last_mut().expect("just pushed").1
+                }
+            };
+            equation.add(PointId(index), Vec2::new(-point.y, point.x));
+        }
+
+        gauges
+            .into_iter()
+            .map(|(_, equation)| equation)
+            .filter(|equation| equation.norm_squared() > 1e-12)
+            .collect()
+    }
+
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
     fn characteristic_size(&self) -> f32 {
@@ -273,6 +343,22 @@ impl Sketch {
         equation.add(segment.start, -turn * sign);
         Some(equation)
     }
+}
+
+/// Whether an equation says nothing about which way round the drawing sits.
+///
+/// A dimension taken against an axis already fixes the orientation; adding the
+/// implicit rule on top of it would take away a freedom twice and report a
+/// drawing as more settled than it is.
+fn turns_nothing(equation: &Equation, gauge: &Equation) -> bool {
+    let projection: f32 = equation
+        .gradient
+        .iter()
+        .zip(&gauge.gradient)
+        .map(|(a, b)| a * b)
+        .sum();
+    let sizes = norm(&equation.gradient) * norm(&gauge.gradient);
+    sizes < 1e-12 || (projection / sizes).abs() < 1e-3
 }
 
 /// How many of a set of equations are genuinely independent.

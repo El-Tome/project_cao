@@ -27,7 +27,9 @@ caméra ni de souris ne vit dans `cao_render` — juste des données de dessin.
 
 Il n'y a **aucun tampon de profondeur**, et ce n'est pas un oubli :
 
-- la scène n'est faite que de lignes, dont l'ordre de dessin suffit ;
+- la scène est faite de lignes et de surfaces à plat (plans proposés, aires
+  fermées d'une esquisse), toutes dessinées dans un ordre suffisant : les
+  surfaces d'abord, semi-transparentes, les lignes par-dessus ;
 - le cube est un solide convexe dessiné en dernier : le simple *back-face
   culling* suffit à ne montrer que les faces avant. Ses arêtes ne sont émises
   que pour les faces visibles, sinon celles de derrière transperceraient le

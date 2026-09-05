@@ -5,10 +5,12 @@
 
 mod constraints;
 mod plane;
+mod regions;
 mod sketch;
 mod solver;
 
 pub use constraints::{Dimension, DimensionTarget, Freedom, SketchAxis};
 pub use plane::WorkPlane;
+pub use regions::Region;
 pub use sketch::{Circle, CircleId, LengthOutcome, PointId, Segment, SegmentId, Sketch};
 pub use solver::SolveOutcome;

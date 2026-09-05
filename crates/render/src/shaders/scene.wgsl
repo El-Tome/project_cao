@@ -76,8 +76,9 @@ fn clip_range(a: vec4<f32>, b: vec4<f32>) -> vec2<f32> {
 /// one-pixel hairline is unreadable on a high-DPI display.
 ///
 /// Each instance is one segment, expanded here into two triangles. The quad is
-/// emitted directly in normalized device coordinates (w = 1): there is no depth
-/// buffer to feed, and it keeps the width exact however far the line reaches.
+/// emitted directly in normalized device coordinates (w = 1), which keeps the
+/// width exact however far the line reaches. The depth is carried across by
+/// hand, so that a line can be hidden by the part standing in front of it.
 @vertex
 fn vs_line(
     @builtin(vertex_index) index: u32,
@@ -138,7 +139,11 @@ fn vs_line(
     let normal = vec2<f32>(-direction.y, direction.x);
     let offset = normal * side * current.width / resolution;
 
-    out.clip_position = vec4<f32>(position + offset, 0.0, 1.0);
+    // Both ends of the quad take the depth of the end they belong to, so a
+    // line running away from the camera is hidden gradually rather than all at
+    // once.
+    let depth = clamp(current.clip.z / current.clip.w, 0.0, 1.0);
+    out.clip_position = vec4<f32>(position + offset, depth, 1.0);
     out.color = current.color;
     return out;
 }

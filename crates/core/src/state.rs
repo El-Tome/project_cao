@@ -2,7 +2,7 @@ use cao_sketch::{DimensionTarget, LengthOutcome, Sketch};
 use cao_solid::Mesh;
 use glam::Vec2;
 
-use crate::history::{ExtrusionMode, History, Operation, PointRef};
+use crate::history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 
 /// What applying a typed length did.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -144,7 +144,75 @@ impl PartState {
                 self.extrude(*sketch, picks, *distance, *mode);
                 None
             }
+            Operation::Revolve {
+                sketch,
+                picks,
+                axis,
+                angle,
+                mode,
+            } => {
+                self.revolve(*sketch, picks, *axis, *angle, *mode);
+                None
+            }
         }
+    }
+
+    /// Sweeps the chosen areas around an axis of the sketch and joins the
+    /// result to the part, or takes it out.
+    fn revolve(
+        &mut self,
+        index: usize,
+        picks: &[Vec2],
+        axis: RevolutionAxis,
+        degrees: f32,
+        mode: ExtrusionMode,
+    ) {
+        let Some(sketch) = self.sketches.get(index) else {
+            return;
+        };
+        let Some((axis_origin, axis_direction)) = axis_in_sketch(sketch, axis) else {
+            return;
+        };
+
+        let plane = sketch.plane;
+        let turn = degrees.to_radians();
+        let regions = sketch.regions();
+
+        let mut tool = Mesh::default();
+        for pick in picks {
+            let Some(region) = regions
+                .iter()
+                .filter(|region| region.contains(*pick))
+                .max_by_key(|region| region.depth)
+            else {
+                continue;
+            };
+            let Some(piece) = cao_solid::revolution(
+                &region.outline,
+                &region.holes,
+                &region.face_triangles(),
+                |point| plane.to_world(point),
+                axis_origin,
+                axis_direction,
+                turn,
+            ) else {
+                continue;
+            };
+            tool = tool.union(&piece);
+        }
+
+        self.combine(tool, mode);
+    }
+
+    /// Joins a tool to the part, or takes it out.
+    fn combine(&mut self, tool: Mesh, mode: ExtrusionMode) {
+        if tool.is_empty() {
+            return;
+        }
+        self.body = match mode {
+            ExtrusionMode::Add => self.body.union(&tool),
+            ExtrusionMode::Cut => self.body.difference(&tool),
+        };
     }
 
     /// Turns the chosen areas of a sketch into a prism and joins it to the
@@ -187,13 +255,7 @@ impl PartState {
             tool = tool.union(&piece);
         }
 
-        if tool.is_empty() {
-            return;
-        }
-        self.body = match mode {
-            ExtrusionMode::Add => self.body.union(&tool),
-            ExtrusionMode::Cut => self.body.difference(&tool),
-        };
+        self.combine(tool, mode);
     }
 
     /// Applies a length typed by the user, in millimetres.
@@ -276,6 +338,20 @@ impl PartState {
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
             DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
+        }
+    }
+}
+
+/// Where a revolution's axis lies, in the sketch's own coordinates.
+fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(Vec2, Vec2)> {
+    match axis {
+        RevolutionAxis::Sketch(axis) => Some((Vec2::ZERO, axis.direction())),
+        RevolutionAxis::Segment(segment) => {
+            if segment.0 >= sketch.segments().len() {
+                return None;
+            }
+            let (start, end) = sketch.endpoints(segment);
+            ((end - start).length() > 1e-6).then_some((start, end - start))
         }
     }
 }
@@ -852,6 +928,107 @@ mod extrusion_tests {
 
         let made = volume(&PartState::rebuild(&history).body);
         assert!((made - (1000.0 - 40.0)).abs() < 2.0, "{made}");
+    }
+
+    /// Une révolution complète autour d'un axe de l'esquisse.
+    #[test]
+    fn a_revolution_sweeps_an_area_around_an_axis() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        history.push(Operation::Revolve {
+            sketch: 0,
+            picks: vec![Vec2::new(4.0, 1.0)],
+            axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
+            angle: 360.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let made = volume(&PartState::rebuild(&history).body);
+        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+    }
+
+    /// L'axe peut être un trait qu'on a tracé soi-même.
+    #[test]
+    fn a_revolution_can_turn_around_a_drawn_line() {
+        let mut history = sketch_history();
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::new(0.0, -10.0)),
+            end: PointRef::New(Vec2::new(0.0, 10.0)),
+        });
+        rectangle(&mut history, Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        history.push(Operation::Revolve {
+            sketch: 0,
+            picks: vec![Vec2::new(4.0, 1.0)],
+            axis: crate::history::RevolutionAxis::Segment(cao_sketch::SegmentId(0)),
+            angle: 360.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let made = volume(&PartState::rebuild(&history).body);
+        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+    }
+
+    /// Un profil à cheval sur l'axe passerait à travers lui-même : rien n'est
+    /// produit plutôt qu'un volume retourné.
+    #[test]
+    fn a_revolution_across_its_axis_makes_nothing() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::new(-4.0, 0.0), Vec2::new(5.0, 2.0));
+        history.push(Operation::Revolve {
+            sketch: 0,
+            picks: vec![Vec2::new(1.0, 1.0)],
+            axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
+            angle: 360.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        assert!(PartState::rebuild(&history).body.is_empty());
+    }
+
+    /// Le blocage rencontré à l'usage, avec ses vraies mesures : un cylindre de
+    /// révolution de trente unités de rayon, puis une esquisse posée sur sa
+    /// face du dessus et creusée dedans.
+    ///
+    /// À cette distance de l'origine, un triangle sortait de son propre plan en
+    /// `f32`, et la partition de l'espace le recoupait sans fin.
+    #[test]
+    fn cutting_into_a_revolved_part_from_its_own_face() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::new(-30.0, -7.5), Vec2::new(0.0, -52.5));
+        history.push(Operation::Revolve {
+            sketch: 0,
+            picks: vec![Vec2::new(-14.8, -26.5)],
+            axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
+            angle: 360.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        // Le plan tel que le donne le clic sur la face : sa normale et ses axes
+        // ne sont pas exactement alignés, ce qui fait partie du cas.
+        let face = WorkPlane {
+            origin: Vec3::new(9.729663e-07, -7.5000005, -1.2972885e-06),
+            u: Vec3::new(-1.0, -1.2972883e-07, 0.0),
+            v: Vec3::new(2.2439427e-14, -1.7297178e-07, 1.0),
+        };
+        history.push(Operation::CreateSketch { plane: face });
+        history.push(Operation::AddRectangle {
+            sketch: 1,
+            corner: PointRef::New(Vec2::new(-25.0, 32.5)),
+            opposite: PointRef::New(Vec2::new(12.5, -7.5)),
+        });
+        history.push(Operation::Extrude {
+            sketch: 1,
+            picks: vec![Vec2::new(-6.0, 12.0)],
+            distance: -10.0,
+            mode: ExtrusionMode::Cut,
+        });
+
+        let state = PartState::rebuild(&history);
+        assert!(!state.body.is_empty());
+        assert!(volume(&state.body) > 0.0);
     }
 
     /// Une esquisse pas entièrement contrainte s'extrude quand même.

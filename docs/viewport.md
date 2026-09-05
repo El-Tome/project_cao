@@ -113,3 +113,19 @@ donc des mm. À terme l'échelle devra s'adapter à la première cote posée : s
 déclare qu'un trait fait 100 mm, 5 m ou 5 mm, le visuel ne doit pas bouger,
 c'est l'échelle du document qui est redéfinie. Ce n'est pas encore implémenté —
 seul le type `LengthUnit` est en place pour l'accueillir.
+
+## Les axes derrière la pièce
+
+Les axes X, Y et Z et la grille sont **cachés par la pièce** quand elle est
+devant : sans ça, un trait rouge traversant un volume se lit comme une arête de
+ce volume, et on ne sait plus ce qu'on regarde.
+
+Ils gardent le test de profondeur sans y écrire, et sont tirés d'un cheveu vers
+la caméra : une grille dessinée sur une face de la pièce est exactement aussi
+loin que cette face, et sans ce décalage les deux se disputeraient chaque pixel.
+Le décalage n'a pas de terme de pente — là où une face est vue par la tranche,
+sa profondeur change énormément d'un pixel à l'autre, et un décalage
+proportionnel y suffirait à faire ressortir le trait au travers.
+
+L'esquisse en cours, ses cotes et le cube d'orientation restent au contraire
+toujours visibles : une cote enterrée dans un bloc serait inutilisable.

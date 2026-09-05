@@ -20,6 +20,13 @@ Voir aussi : [viewport](viewport.md) · [architecture](ARCHITECTURE.md)
 5. **Recadrer** remet la vue exactement face au plan et recadre le dessin.
    C'est le bouton à utiliser après avoir orbité pour regarder derrière.
 
+### Sur quoi on dessine
+
+Les trois plans d'origine, et — dès qu'il y a de la matière — **n'importe
+quelle face plane de la pièce**. Les faces passent devant les trois plans là où
+elles sont, celles-ci restant disponibles partout ailleurs. Voir
+[extrusion.md](extrusion.md).
+
 ## Les outils
 
 | Outil | Geste |

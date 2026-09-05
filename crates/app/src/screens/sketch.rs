@@ -130,7 +130,7 @@ pub struct SketchEditor {
     pub plane: Option<WorkPlane>,
     /// Where the polyline in progress carries on from.
     pub chain: Option<ChainAnchor>,
-    pub hovered_plane: Option<usize>,
+    pub hovered_plane: Option<PlaneChoice>,
     /// What the dimension tool is pointing at.
     pub selected: Option<DimensionTarget>,
     /// Which kind of measurement the dimension tool is forcing.
@@ -159,6 +159,29 @@ pub struct SketchEditor {
     /// Where the next point would land, snapped. Drives the preview line.
     pub cursor: Option<Vec2>,
     pub message: Option<String>,
+}
+
+/// What the cursor is offering to sketch on.
+///
+/// A face of the part and one of the three planes of the origin are the same
+/// choice as far as the user is concerned, so they are the same value here.
+/// Which one wins is decided by whichever is nearer the camera, so a face in
+/// front of a plane takes it — without ever making the planes unreachable.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum PlaneChoice {
+    /// One of the three planes through the origin, by rank.
+    Origin(usize),
+    /// A flat face of the part.
+    Face(WorkPlane),
+}
+
+impl PlaneChoice {
+    pub fn plane(self) -> WorkPlane {
+        match self {
+            Self::Origin(index) => WorkPlane::ORIGIN_PLANES[index],
+            Self::Face(plane) => plane,
+        }
+    }
 }
 
 /// The point a polyline continues from.

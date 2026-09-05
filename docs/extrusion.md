@@ -19,7 +19,28 @@ Voir aussi : [esquisse](esquisse.md) · [historique](historique.md) ·
    ressemble exactement au dessin dont il sort.
 
 Les deux outils sont le même travail : ils ne diffèrent que par ce qu'ils font
-du prisme à la fin.
+du volume à la fin.
+
+## Droite ou révolution
+
+La même paire d'outils fabrique le volume de deux façons :
+
+| Forme | Ce qu'on donne |
+| --- | --- |
+| **Droite** | Une hauteur, en millimètres. La matière part perpendiculairement au plan. |
+| **Révolution** | Un angle, en degrés, et un axe. L'aire tourne autour de cet axe. |
+
+L'axe est soit l'un des deux axes de l'esquisse, soit **un trait qu'on a tracé
+soi-même** : en mode révolution, cliquer un trait le prend comme axe. Un trait
+est une cible bien plus petite qu'une aire, donc il est proposé en premier.
+
+Un tour complet se referme sur lui-même et n'a pas d'extrémités ; un tour
+partiel est fermé aux deux bouts par le profil lui-même.
+
+Le profil doit tenir **entièrement d'un seul côté de l'axe**. À cheval, il
+passerait à travers lui-même en tournant, et aucune précaution ensuite ne
+rattrape une forme obtenue comme ça : rien n'est produit, et l'application le
+dit.
 
 ## Ce qu'est une aire, et pourquoi le tube marche
 
@@ -94,15 +115,63 @@ unités du monde avec l'échelle du document, donc une extrusion de 25 mm reste
 est reconstruit en rejouant l'historique, donc c'est l'échelle **au moment du
 rejeu** qui s'applique.
 
+## Esquisser sur une face de la pièce
+
+Une fois qu'il y a de la matière, **ses faces planes sont des plans
+d'esquisse**. Le choix d'un plan les propose en premier là où elles sont, et
+les trois plans d'origine restent disponibles partout ailleurs — ils s'effacent
+visuellement pour ne plus masquer la pièce.
+
+La face du dessus est prioritaire sur les trois plans plutôt que « le plus
+proche de la caméra » : les plans d'origine sont des feuilles infinies qui
+traversent la pièce, et le plus proche serait presque toujours l'un d'eux.
+
+Toutes les faces qui partagent le même plan s'allument ensemble : une surface
+courbe et une surface coupée sont l'une comme l'autre stockées en plusieurs
+morceaux plats, et n'en allumer qu'un se lirait comme choisir un fragment.
+
+L'origine de l'esquisse tombe là où l'origine du monde se projette sur la face,
+et la vue se cale sur l'endroit cliqué. Une esquisse posée sur une face est
+enregistrée avec **son plan complet**, pas avec une référence à la face : si la
+pièce change ensuite, le dessin reste où il a été fait plutôt que de suivre une
+face qui n'existe peut-être plus.
+
+## Pourquoi l'application se fermait
+
+Un cas rencontré à l'usage : un cylindre de révolution, puis une poche creusée
+dedans depuis sa propre face — l'application se fermait d'un coup, sans message,
+et pas toujours.
+
+La cause était dans la partition de l'espace. Elle trie les faces par le plan
+sur lequel elles se posent, et le premier plan vient d'une face prise au
+hasard : cette face-là est sur ce plan par définition. Sauf qu'en `f32`, à
+trente unités de l'origine, le produit scalaire porte déjà quelques millionièmes
+d'erreur — plus que la tolérance qui servait alors. Un triangle ressortait donc
+**des deux côtés de son propre plan**, était coupé en deux, et chaque moitié
+recommençait : un découpage sans fin, qui remplissait la pile et arrêtait le
+programme.
+
+Trois choses ont changé :
+
+- la tolérance est **relative** à la distance à l'origine, et non plus fixe ;
+- la face qui a donné le plan est mise de côté au lieu d'être triée, ce qui
+  garantit qu'à chaque tour il reste strictement moins de faces à placer ;
+- le parcours de l'arbre ne passe plus par la pile d'appels du tout — les nœuds
+  vivent dans un tableau et se désignent par leur position. Une pièce faite de
+  centaines de facettes donne un arbre en chaîne, et une descente récursive y
+  finit par déborder même sans erreur de calcul.
+
+Le cas exact, avec ses vraies mesures, est un test.
+
 ## Ce qui manque encore
 
 - Pas de « jusqu'à la face suivante » ni de « traversant tout » : seule une
-  hauteur donnée existe.
-- Pas de dépouille, pas de révolution, pas de balayage.
+  hauteur, ou un angle, donné.
+- Pas de dépouille et pas de balayage le long d'une courbe.
+- Une esquisse posée sur une face ne suit pas cette face si la pièce change :
+  elle reste sur le plan où elle a été faite.
 - Une extrusion n'est pas modifiable après coup : il faut revenir en arrière
   dans l'historique et la refaire.
-- Les faces du volume ne sont pas sélectionnables : on ne peut pas encore
-  esquisser sur une face de la pièce, seulement sur les trois plans d'origine.
 - Le maillage n'est pas exporté (pas de STL/STEP).
 - Les booléens travaillent en `f32` : deux faces exactement coplanaires peuvent
   laisser des éclats de surface. Rien de visible aux tailles courantes, mais

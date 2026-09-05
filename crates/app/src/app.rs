@@ -274,32 +274,42 @@ fn apply_ribbon_action(
 
 /// Turns the chosen areas into matter, or takes them out of it.
 fn apply_extrusion(doc: &mut PartDocument, extrusion: &mut ExtrusionState) -> bool {
-    let (Some(sketch), Some(mode), Some(distance)) = (
-        extrusion.sketch,
-        extrusion.mode,
-        extrusion.distance(),
-    ) else {
+    let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
         return false;
     };
-    if extrusion.picks.is_empty() {
+    if !extrusion.is_ready() {
         return false;
     }
 
     let before = doc.body().clone();
     let picks = std::mem::take(&mut extrusion.picks);
-    doc.apply(Operation::Extrude {
-        sketch,
-        picks,
-        distance,
-        mode,
-    });
+    let operation = if extrusion.is_revolving() {
+        Operation::Revolve {
+            sketch,
+            picks,
+            axis: extrusion.axis,
+            angle: extrusion.angle().unwrap_or_default(),
+            mode,
+        }
+    } else {
+        Operation::Extrude {
+            sketch,
+            picks,
+            distance: extrusion.distance().unwrap_or_default(),
+            mode,
+        }
+    };
+    doc.apply(operation);
 
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work.
     extrusion.message = (doc.body() == &before).then(|| {
-        match mode {
-            cao_core::ExtrusionMode::Add => "L'extrusion n'a rien ajouté.",
-            cao_core::ExtrusionMode::Cut => {
+        match (mode, extrusion.is_revolving()) {
+            (_, true) => {
+                "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
+            }
+            (cao_core::ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
+            (cao_core::ExtrusionMode::Cut, false) => {
                 "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
             }
         }

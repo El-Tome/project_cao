@@ -13,8 +13,40 @@ pub struct Polygon {
 }
 
 impl Polygon {
+    /// A face, or `None` when the corners given do not describe one.
+    ///
+    /// A sliver with no area is refused rather than kept: it has no direction
+    /// to face, and the boolean operations sort faces by the plane they lie on.
+    /// One face without a plane and the sorting never finishes — which ends the
+    /// program on a blown stack rather than with an error.
     pub fn new(corners: Vec<Vec3>) -> Option<Self> {
-        (corners.len() >= 3).then_some(Self { corners })
+        if corners.len() < 3 {
+            return None;
+        }
+        let candidate = Self { corners };
+        // Judged against the face's own size rather than in absolute units: a
+        // thin wall is a real face at any scale, while a splinter left by a cut
+        // has almost no area for the room it takes up. Splinters are what make
+        // the partition below grow without end.
+        let reach = candidate.perimeter();
+        (reach > 1e-9 && candidate.area_vector().length() / (reach * reach) > 1e-7)
+            .then_some(candidate)
+    }
+
+    fn perimeter(&self) -> f32 {
+        (0..self.corners.len())
+            .map(|index| self.corners[index].distance(self.corners[(index + 1) % self.corners.len()]))
+            .sum()
+    }
+
+    fn area_vector(&self) -> Vec3 {
+        let mut doubled = Vec3::ZERO;
+        for index in 0..self.corners.len() {
+            let current = self.corners[index];
+            let next = self.corners[(index + 1) % self.corners.len()];
+            doubled += current.cross(next);
+        }
+        doubled * 0.5
     }
 
     /// The outward direction of the face, from the winding of its corners.
@@ -67,6 +99,32 @@ impl Mesh {
             .collect()
     }
 
+    /// The face a ray meets first, if any.
+    ///
+    /// This is what lets a sketch be started on the part itself rather than
+    /// only on the three planes of the origin: the face under the cursor is
+    /// found the same way the cursor finds anything else in the view.
+    pub fn ray_hit(&self, origin: Vec3, direction: Vec3) -> Option<FaceHit> {
+        let mut nearest: Option<FaceHit> = None;
+        for polygon in &self.polygons {
+            for triangle in polygon.triangles() {
+                let Some(distance) = ray_triangle(origin, direction, triangle) else {
+                    continue;
+                };
+                if nearest
+                    .as_ref()
+                    .is_none_or(|best| distance < best.distance)
+                {
+                    nearest = Some(FaceHit {
+                        distance,
+                        polygon: polygon.clone(),
+                    });
+                }
+            }
+        }
+        nearest
+    }
+
     pub fn bounds(&self) -> Option<(Vec3, Vec3)> {
         let first = *self.polygons.first()?.corners.first()?;
         Some(
@@ -78,6 +136,43 @@ impl Mesh {
                 }),
         )
     }
+}
+
+/// A face of the part, and how far along the ray it was met.
+#[derive(Clone, Debug)]
+pub struct FaceHit {
+    pub distance: f32,
+    pub polygon: Polygon,
+}
+
+/// Where a ray crosses a triangle, as a distance along the ray.
+///
+/// Möller–Trumbore: it solves for the barycentric coordinates directly, so the
+/// test that the crossing lies inside the triangle falls out of the same
+/// arithmetic instead of needing a second step.
+fn ray_triangle(origin: Vec3, direction: Vec3, [a, b, c]: [Vec3; 3]) -> Option<f32> {
+    let (edge_1, edge_2) = (b - a, c - a);
+    let across = direction.cross(edge_2);
+    let determinant = edge_1.dot(across);
+    if determinant.abs() < 1e-9 {
+        return None;
+    }
+
+    let inverse = 1.0 / determinant;
+    let to_corner = origin - a;
+    let u = to_corner.dot(across) * inverse;
+    if !(-1e-5..=1.0 + 1e-5).contains(&u) {
+        return None;
+    }
+
+    let along = to_corner.cross(edge_1);
+    let v = direction.dot(along) * inverse;
+    if v < -1e-5 || u + v > 1.0 + 1e-5 {
+        return None;
+    }
+
+    let distance = edge_2.dot(along) * inverse;
+    (distance > 1e-5).then_some(distance)
 }
 
 /// Turns a flat area into a prism: the face at the bottom, the same face moved
@@ -150,6 +245,115 @@ pub fn prism(
     Mesh { polygons }
 }
 
+/// Turns a flat area into a solid of revolution: the face swept around an axis
+/// lying in its own plane.
+///
+/// `axis_origin` and `axis_direction` are given in the plane's own 2D
+/// coordinates, since that is where the user picks them — one of the sketch
+/// axes, or a line they drew.
+///
+/// Returns `None` when the face straddles the axis: sweeping it would turn the
+/// solid inside out through itself, and no amount of care afterwards recovers a
+/// shape from that.
+pub fn revolution(
+    outline: &[Vec2],
+    holes: &[Vec<Vec2>],
+    triangles: &[[Vec2; 3]],
+    to_world: impl Fn(Vec2) -> Vec3,
+    axis_origin: Vec2,
+    axis_direction: Vec2,
+    turn: f32,
+) -> Option<Mesh> {
+    let along = axis_direction.normalize_or_zero();
+    if along == Vec2::ZERO || turn.abs() < 1e-4 {
+        return None;
+    }
+
+    // Everything must sit on one side of the axis. A profile crossing it would
+    // sweep through itself.
+    let side = |point: Vec2| along.perp_dot(point - axis_origin);
+    let sides: Vec<f32> = outline
+        .iter()
+        .chain(holes.iter().flatten())
+        .map(|point| side(*point))
+        .collect();
+    let furthest = sides.iter().fold(0.0f32, |far, each| far.max(each.abs()));
+    if furthest < 1e-6 {
+        return None;
+    }
+    let sign = sides
+        .iter()
+        .find(|distance| distance.abs() > furthest * 1e-3)
+        .map(|distance| distance.signum())?;
+    if sides
+        .iter()
+        .any(|distance| distance * sign < -furthest * 1e-3)
+    {
+        return None;
+    }
+
+    let origin = to_world(axis_origin);
+    let axis = (to_world(axis_origin + along) - origin).normalize_or(Vec3::Z);
+    let full = (turn.abs() - std::f32::consts::TAU).abs() < 1e-3;
+
+    // Enough steps that the flats read as a curve, scaled to how far it turns.
+    let steps = ((turn.abs() / std::f32::consts::TAU) * 64.0).ceil().max(3.0) as usize;
+    let at = |point: Vec2, step: usize| {
+        let angle = turn * step as f32 / steps as f32;
+        let world = to_world(point) - origin;
+        origin + glam::Quat::from_axis_angle(axis, angle) * world
+    };
+
+    let mut polygons = Vec::new();
+
+    // Walls, as triangles rather than quads: a quad swept around an axis is
+    // bent, and the boolean operations sort faces by the plane they lie on.
+    let mut wall = |loop_points: &[Vec2], flip: bool| {
+        for index in 0..loop_points.len() {
+            let (a, b) = (
+                loop_points[index],
+                loop_points[(index + 1) % loop_points.len()],
+            );
+            for step in 0..steps {
+                let (a0, b0) = (at(a, step), at(b, step));
+                let (a1, b1) = (at(a, step + 1), at(b, step + 1));
+                let faces = if flip {
+                    [[a0, b0, b1], [a0, b1, a1]]
+                } else {
+                    [[a0, b1, b0], [a0, a1, b1]]
+                };
+                polygons.extend(faces.into_iter().filter_map(|face| Polygon::new(face.to_vec())));
+            }
+        }
+    };
+
+    // Which way the walls face depends on how the loop turns, which side of the
+    // axis it sits on, and which way the sweep goes.
+    let outward = (signed_area(outline) > 0.0) == (sign * turn > 0.0);
+    wall(outline, outward);
+    for hole in holes {
+        wall(hole, (signed_area(hole) > 0.0) != (sign * turn > 0.0));
+    }
+
+    // A full turn closes on itself and needs no ends.
+    if !full {
+        for triangle in triangles {
+            let start: Vec<Vec3> = triangle.iter().map(|point| at(*point, 0)).collect();
+            let end: Vec<Vec3> = triangle.iter().map(|point| at(*point, steps)).collect();
+            for (corners, closing) in [(start, false), (end, true)] {
+                let Some(polygon) = Polygon::new(corners) else {
+                    continue;
+                };
+                let outward = polygon.normal().dot(axis.cross(polygon.corners[0] - origin));
+                let facing = (outward > 0.0) == closing;
+                polygons.push(if facing { polygon } else { polygon.flipped() });
+            }
+        }
+    }
+
+    Some(Mesh { polygons })
+}
+
 fn signed_area(loop_points: &[Vec2]) -> f32 {
     let mut total = 0.0;
     for index in 0..loop_points.len() {
@@ -196,6 +400,118 @@ pub(crate) mod tests {
             |point| at + Vec3::new(point.x, point.y, 0.0),
             Vec3::Z * height,
         )
+    }
+
+    /// A sliver has no direction to face, and must not become a polygon: the
+    /// boolean operations sort faces by their plane and would never finish.
+    #[test]
+    fn a_face_with_no_area_is_refused() {
+        let flat = vec![Vec3::ZERO, Vec3::X, Vec3::X * 2.0];
+        assert!(Polygon::new(flat).is_none(), "trois points alignés");
+        assert!(Polygon::new(vec![Vec3::ZERO, Vec3::X]).is_none(), "deux points");
+        assert!(Polygon::new(vec![Vec3::ZERO; 4]).is_none(), "quatre fois le même");
+    }
+
+    fn profile(min: Vec2, max: Vec2) -> Vec<Vec2> {
+        vec![
+            min,
+            Vec2::new(max.x, min.y),
+            max,
+            Vec2::new(min.x, max.y),
+        ]
+    }
+
+    /// Pappus: sweeping an area right round gives its area times the distance
+    /// travelled by its centre.
+    #[test]
+    fn a_full_turn_gives_pappus_volume() {
+        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let solid = revolution(
+            &outline,
+            &[],
+            &fan(&outline),
+            |point| Vec3::new(point.x, point.y, 0.0),
+            Vec2::ZERO,
+            Vec2::Y,
+            std::f32::consts::TAU,
+        )
+        .expect("un profil d'un seul côté de l'axe");
+
+        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        let made = volume(&solid);
+        assert!((made - expected).abs() / expected < 0.01, "{made} / {expected}");
+    }
+
+    /// A part turn is capped at both ends, and holds the matching share.
+    #[test]
+    fn a_quarter_turn_holds_a_quarter_of_the_volume() {
+        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let solid = revolution(
+            &outline,
+            &[],
+            &fan(&outline),
+            |point| Vec3::new(point.x, point.y, 0.0),
+            Vec2::ZERO,
+            Vec2::Y,
+            std::f32::consts::FRAC_PI_2,
+        )
+        .expect("un quart de tour");
+
+        let expected = std::f32::consts::FRAC_PI_2 * 4.0 * 4.0;
+        let made = volume(&solid);
+        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+    }
+
+    /// Turning the other way must not turn the solid inside out.
+    #[test]
+    fn turning_backwards_still_faces_outwards() {
+        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let solid = revolution(
+            &outline,
+            &[],
+            &fan(&outline),
+            |point| Vec3::new(point.x, point.y, 0.0),
+            Vec2::ZERO,
+            Vec2::Y,
+            -std::f32::consts::FRAC_PI_2,
+        )
+        .expect("un quart de tour à l'envers");
+        assert!(volume(&solid) > 0.0, "{}", volume(&solid));
+    }
+
+    /// A profile lying across the axis would sweep through itself.
+    #[test]
+    fn a_profile_across_the_axis_is_refused() {
+        let outline = profile(Vec2::new(-2.0, 0.0), Vec2::new(5.0, 2.0));
+        assert!(
+            revolution(
+                &outline,
+                &[],
+                &fan(&outline),
+                |point| Vec3::new(point.x, point.y, 0.0),
+                Vec2::ZERO,
+                Vec2::Y,
+                std::f32::consts::TAU,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn a_ray_finds_the_face_it_meets_first() {
+        let solid = box_of(10.0, 4.0, Vec3::ZERO);
+
+        // Straight down onto the top of the box, from well above it.
+        let hit = solid
+            .ray_hit(Vec3::new(5.0, 5.0, 20.0), Vec3::NEG_Z)
+            .expect("la face du dessus");
+        assert!((hit.distance - 16.0).abs() < 1e-3, "{}", hit.distance);
+        assert!(hit.polygon.normal().dot(Vec3::Z) > 0.99, "elle regarde en haut");
+
+        assert!(
+            solid.ray_hit(Vec3::new(50.0, 50.0, 20.0), Vec3::NEG_Z).is_none(),
+            "à côté de la pièce"
+        );
     }
 
     #[test]

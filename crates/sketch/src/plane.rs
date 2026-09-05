@@ -78,8 +78,15 @@ impl WorkPlane {
         Some(self.to_local(origin + direction * distance))
     }
 
-    /// Human-readable name, for the three origin planes and anything else.
+    /// Human-readable name.
+    ///
+    /// Only a plane through the origin is named after its axes: a face of the
+    /// part can be parallel to one without being it, and calling it "Plan XZ"
+    /// would say the drawing sits somewhere it does not.
     pub fn label(&self) -> &'static str {
+        if self.origin.length_squared() > 1e-9 {
+            return "Face de la pièce";
+        }
         let normal = self.normal().abs();
         if normal.z > 0.999 {
             "Plan XY"

@@ -131,26 +131,32 @@ impl Default for TrackpadConfig {
 /// millimetre for now; a part will later be able to carry its own scale.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum LengthUnit {
+    Micrometer,
     Millimeter,
     Centimeter,
     Meter,
+    Kilometer,
 }
 
 impl LengthUnit {
     pub fn suffix(self) -> &'static str {
         match self {
+            Self::Micrometer => "µm",
             Self::Millimeter => "mm",
             Self::Centimeter => "cm",
             Self::Meter => "m",
+            Self::Kilometer => "km",
         }
     }
 
     /// How many millimetres one of this unit is worth.
     pub fn millimeters(self) -> f32 {
         match self {
+            Self::Micrometer => 0.001,
             Self::Millimeter => 1.0,
             Self::Centimeter => 10.0,
             Self::Meter => 1000.0,
+            Self::Kilometer => 1_000_000.0,
         }
     }
 
@@ -189,13 +195,20 @@ pub struct ViewportConfig {
     pub trackpad: TrackpadConfig,
     /// Radians of rotation per pixel dragged.
     pub orbit_sensitivity: f32,
+    /// Zoom per pixel of trackpad scroll.
     pub zoom_sensitivity: f32,
+    /// Zoom per notch of mouse wheel. A notch reports one line, not fifty
+    /// pixels, so it needs its own much larger factor.
+    pub wheel_zoom_sensitivity: f32,
+    /// How close and how far the camera may get, in world units (mm).
+    pub min_distance: f32,
+    pub max_distance: f32,
     /// Smallest on-screen spacing, in pixels, before the grid step grows.
     pub grid_pixel_spacing: f32,
     /// Corner the scale bar sits in.
     pub ruler_corner: ViewportCorner,
     pub ruler_visible: bool,
-    pub unit: LengthUnit,
+    pub unit: UnitDisplay,
 }
 
 impl Default for ViewportConfig {
@@ -208,17 +221,69 @@ impl Default for ViewportConfig {
             trackpad: TrackpadConfig::default(),
             orbit_sensitivity: 0.008,
             zoom_sensitivity: 0.0015,
+            wheel_zoom_sensitivity: 0.12,
+            min_distance: 1e-3,
+            max_distance: 1e9,
             grid_pixel_spacing: 48.0,
             ruler_corner: ViewportCorner::BottomLeft,
             ruler_visible: true,
-            unit: LengthUnit::Millimeter,
+            unit: UnitDisplay::Auto,
         }
+    }
+}
+
+/// How the scale bar labels a length: always in the same unit, or in whichever
+/// one keeps the number readable.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum UnitDisplay {
+    Auto,
+    Fixed(LengthUnit),
+}
+
+impl UnitDisplay {
+    /// Picks the unit that keeps a length short: no "50000 mm" when "50 m"
+    /// says the same thing. Centimetres are skipped, being unusual in
+    /// mechanical design.
+    pub fn unit_for(self, millimeters: f32) -> LengthUnit {
+        match self {
+            Self::Fixed(unit) => unit,
+            Self::Auto => {
+                let magnitude = millimeters.abs();
+                if magnitude >= 1_000_000.0 {
+                    LengthUnit::Kilometer
+                } else if magnitude >= 1000.0 {
+                    LengthUnit::Meter
+                } else if magnitude >= 0.1 {
+                    LengthUnit::Millimeter
+                } else {
+                    LengthUnit::Micrometer
+                }
+            }
+        }
+    }
+
+    pub fn format(self, millimeters: f32) -> String {
+        self.unit_for(millimeters).format(millimeters)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn auto_units_keep_numbers_short() {
+        assert_eq!(UnitDisplay::Auto.format(10.0), "10 mm");
+        assert_eq!(UnitDisplay::Auto.format(500.0), "500 mm");
+        assert_eq!(UnitDisplay::Auto.format(1000.0), "1 m");
+        assert_eq!(UnitDisplay::Auto.format(50_000.0), "50 m");
+        assert_eq!(UnitDisplay::Auto.format(2_000_000.0), "2 km");
+        assert_eq!(UnitDisplay::Auto.format(0.05), "50 µm");
+        assert_eq!(
+            UnitDisplay::Fixed(LengthUnit::Millimeter).format(50_000.0),
+            "50000 mm"
+        );
+    }
 
     #[test]
     fn lengths_are_formatted_without_useless_decimals() {

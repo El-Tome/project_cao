@@ -33,9 +33,12 @@ pub struct ViewportState {
 
 impl Default for ViewportState {
     fn default() -> Self {
+        let config = ViewportConfig::default();
+        let mut camera = OrbitCamera::default();
+        camera.set_distance_limits(config.min_distance, config.max_distance);
         Self {
-            config: ViewportConfig::default(),
-            camera: OrbitCamera::default(),
+            config,
+            camera,
             mode: ViewMode::Free,
             transition: None,
             hovered_zone: None,
@@ -104,6 +107,7 @@ struct ViewScale {
     units_per_pixel: f32,
     step: f32,
     height_px: f32,
+    diagonal_px: f32,
 }
 
 impl ViewScale {
@@ -115,10 +119,12 @@ impl ViewScale {
     ) -> Self {
         let height_px = rect.height() * pixels_per_point;
         let units_per_pixel = camera.world_units_per_pixel(height_px);
+        let width_px = rect.width() * pixels_per_point;
         Self {
             units_per_pixel,
             step: adaptive_step(units_per_pixel, config.grid_pixel_spacing),
             height_px,
+            diagonal_px: (width_px * width_px + height_px * height_px).sqrt(),
         }
     }
 
@@ -185,7 +191,7 @@ fn handle_input(
         return;
     }
 
-    let (delta, wheel, scroll, pinch, drag) = ui.input(|input| {
+    let (delta, scroll, drag) = ui.input(|input| {
         let matches = |bindings: &[Binding]| {
             bindings.iter().any(|binding| {
                 input.pointer.button_down(to_egui_button(binding.button))
@@ -202,12 +208,9 @@ fn handle_input(
         } else {
             None
         };
-        let (wheel, scroll) = split_scroll(input);
         (
             Vec2::new(input.pointer.delta().x, input.pointer.delta().y),
-            wheel,
-            scroll,
-            input.zoom_delta(),
+            ScrollInput::read(input),
             drag,
         )
     });
@@ -234,13 +237,21 @@ fn handle_input(
     }
 
     // A mouse wheel zooms, as in every CAD package. A trackpad's two-finger
-    // scroll is a different gesture in the same event stream, so it gets its
-    // own mapping.
-    if wheel != 0.0 {
-        state.camera.zoom(wheel, state.config.zoom_sensitivity);
+    // scroll is a different gesture arriving in the same event stream, so it
+    // gets its own mapping and its own sensitivity.
+    if scroll.wheel_notches != 0.0 {
+        state
+            .camera
+            .zoom(scroll.wheel_notches, state.config.wheel_zoom_sensitivity);
     }
 
-    if scroll != Vec2::ZERO {
+    if scroll.zoom_points != 0.0 {
+        state
+            .camera
+            .zoom(scroll.zoom_points, state.config.zoom_sensitivity);
+    }
+
+    if scroll.trackpad != Vec2::ZERO {
         let trackpad = state.config.trackpad;
         let shift = ui.input(|input| input.modifiers.shift);
         let gesture = if shift {
@@ -248,54 +259,76 @@ fn handle_input(
         } else {
             trackpad.scroll
         };
-        let scroll = scroll * trackpad.scroll_sensitivity;
+        let delta = scroll.trackpad * trackpad.scroll_sensitivity;
 
         match gesture {
-            TrackpadGesture::Pan => state.camera.pan(scroll, height_px),
-            TrackpadGesture::Orbit => {
-                state.orbit(-scroll, state.config.orbit_sensitivity);
-            }
-            TrackpadGesture::Zoom => {
-                state.camera.zoom(scroll.y, state.config.zoom_sensitivity);
-            }
+            TrackpadGesture::Pan => state.camera.pan(delta, height_px),
+            TrackpadGesture::Orbit => state.orbit(-delta, state.config.orbit_sensitivity),
+            TrackpadGesture::Zoom => state.camera.zoom(delta.y, state.config.zoom_sensitivity),
             TrackpadGesture::Ignore => {}
         }
     }
 
-    if state.config.trackpad.pinch_zooms && pinch != 1.0 {
-        state.camera.zoom_by_factor(pinch);
+    if state.config.trackpad.pinch_zooms && scroll.pinch != 1.0 {
+        state.camera.zoom_by_factor(scroll.pinch);
     }
 }
 
-/// Splits scroll events into the mouse wheel (reported in lines or pages) and
-/// a trackpad's two-finger scroll (reported in points). egui merges both into
-/// `smooth_scroll_delta`, which would make them indistinguishable.
-fn split_scroll(input: &egui::InputState) -> (f32, Vec2) {
-    let mut wheel = 0.0;
-    let mut scroll = Vec2::ZERO;
+/// The scroll-like gestures of one frame, kept apart because they mean
+/// different things.
+///
+/// They cannot be read from `smooth_scroll_delta`/`zoom_delta`, which merge a
+/// wheel, a two-finger scroll and a pinch into common values: a wheel notch is
+/// one *line* while a trackpad reports *pixels*, so sharing a sensitivity makes
+/// one of them crawl and the other bolt.
+#[derive(Default)]
+struct ScrollInput {
+    /// Mouse wheel, in notches.
+    wheel_notches: f32,
+    /// Two-finger scroll, in points.
+    trackpad: Vec2,
+    /// Two-finger scroll held with the zoom modifier, in points.
+    zoom_points: f32,
+    /// Pinch, as a scale factor (1.0 = no change).
+    pinch: f32,
+}
 
-    for event in &input.events {
-        let egui::Event::MouseWheel {
-            unit,
-            delta,
-            modifiers,
-            ..
-        } = event
-        else {
-            continue;
+impl ScrollInput {
+    fn read(input: &egui::InputState) -> Self {
+        let mut scroll = Self {
+            pinch: 1.0,
+            ..Self::default()
         };
-        // egui turns a scroll with the zoom modifier into a zoom gesture; it
-        // must not also count as a scroll here.
-        if modifiers.command {
-            continue;
-        }
-        match unit {
-            egui::MouseWheelUnit::Point => scroll += Vec2::new(delta.x, delta.y),
-            egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => wheel += delta.y,
-        }
-    }
 
-    (wheel, scroll)
+        for event in &input.events {
+            match event {
+                egui::Event::MouseWheel {
+                    unit,
+                    delta,
+                    modifiers,
+                    ..
+                } => match unit {
+                    egui::MouseWheelUnit::Point if modifiers.command => {
+                        scroll.zoom_points += delta.y;
+                    }
+                    egui::MouseWheelUnit::Point => {
+                        scroll.trackpad += Vec2::new(delta.x, delta.y);
+                    }
+                    egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
+                        scroll.wheel_notches += delta.y;
+                    }
+                },
+                egui::Event::Zoom(factor) => scroll.pinch *= factor,
+                _ => {}
+            }
+        }
+
+        if let Some(touch) = input.multi_touch() {
+            scroll.pinch *= touch.zoom_delta;
+        }
+
+        scroll
+    }
 }
 
 fn to_egui_button(button: PointerButton) -> egui::PointerButton {
@@ -329,8 +362,13 @@ fn build_frame(
 
     let mut lines = Vec::new();
 
-    if let ViewMode::Plane(plane) = state.mode {
-        let half_extent = scale.units_per_pixel * scale.height_px * 1.5;
+    // The grid is only drawn once the view has actually landed on the plane.
+    // Mid-animation the view is oblique, and a grid of finite size seen at an
+    // angle reads as a disc floating in the middle of the screen.
+    if let (ViewMode::Plane(plane), None) = (state.mode, &state.transition) {
+        // It also has to reach past the corners of the screen, or its outer
+        // fade shows up as that same disc.
+        let half_extent = scale.units_per_pixel * scale.diagonal_px * 1.5;
         let (_, _, normal) = plane.basis();
         let center = camera.target() - normal * camera.target().dot(normal);
         push_grid(

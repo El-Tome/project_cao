@@ -129,7 +129,11 @@ pub fn push_grid(
                 continue;
             }
 
-            let major = index.rem_euclid(style.major_every) == 0;
+            // "Major" must follow the world coordinate, not the index: the
+            // index is counted from the panned centre, so using it would make
+            // the heavy lines drift away from the origin as you pan.
+            let steps_from_origin = base.dot(across) / (step * style.major_every as f32);
+            let major = (steps_from_origin - steps_from_origin.round()).abs() < 1e-3;
             let color = if major { style.major } else { style.minor };
             let width = if major {
                 style.major_width
@@ -201,9 +205,18 @@ fn push_faded_line(
     }
 }
 
+/// Fully opaque out to `FADE_START` of the extent, then falling off to
+/// nothing at the edge. Fading from the very centre would draw the grid as a
+/// small bright disc floating in the middle of the view.
+const FADE_START: f32 = 0.55;
+
 fn radial_fade(distance: f32, half_extent: f32) -> f32 {
     let normalized = (distance / half_extent).clamp(0.0, 1.0);
-    (1.0 - normalized * normalized).clamp(0.0, 1.0)
+    if normalized <= FADE_START {
+        return 1.0;
+    }
+    let outer = (normalized - FADE_START) / (1.0 - FADE_START);
+    (1.0 - outer * outer).clamp(0.0, 1.0)
 }
 
 #[cfg(test)]
@@ -245,6 +258,72 @@ mod tests {
             assert!(step >= previous);
             previous = step;
         }
+    }
+
+    /// Heavy lines must sit on world multiples of the major step whatever the
+    /// grid is centred on, otherwise they drift away from the axes on a pan.
+    #[test]
+    fn major_lines_stay_anchored_to_the_origin_when_panning() {
+        let style = GridStyle::default();
+        let step = 10.0;
+        let major_step = step * style.major_every as f32;
+
+        for center in [
+            Vec3::ZERO,
+            Vec3::new(37.0, -114.0, 0.0),
+            Vec3::new(-950.0, 620.0, 0.0),
+        ] {
+            let mut vertices = Vec::new();
+            push_grid(&mut vertices, GridPlane::Xy, center, step, 300.0, &style);
+
+            let major_lines: Vec<_> = vertices
+                .iter()
+                .filter(|vertex| vertex.width == style.major_width)
+                .collect();
+            assert!(
+                !major_lines.is_empty(),
+                "no major line for centre {center:?}"
+            );
+
+            for vertex in major_lines {
+                // A heavy line runs along one axis, so exactly one of its two
+                // in-plane coordinates is the constant that must land on the
+                // major step.
+                let [x, y, _] = vertex.position;
+                let on_x = (x / major_step - (x / major_step).round()).abs() < 1e-3;
+                let on_y = (y / major_step - (y / major_step).round()).abs() < 1e-3;
+                assert!(
+                    on_x || on_y,
+                    "major line vertex at ({x}, {y}) is off the {major_step} grid"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn grid_is_opaque_around_its_centre() {
+        let mut vertices = Vec::new();
+        push_grid(
+            &mut vertices,
+            GridPlane::Xy,
+            Vec3::ZERO,
+            10.0,
+            300.0,
+            &GridStyle::default(),
+        );
+
+        let near_center = vertices
+            .iter()
+            .filter(|vertex| Vec3::from_array(vertex.position).length() < 100.0)
+            .count();
+        assert!(near_center > 0);
+        assert!(
+            vertices
+                .iter()
+                .filter(|vertex| Vec3::from_array(vertex.position).length() < 100.0)
+                .all(|vertex| vertex.color[3] > 0.2),
+            "the grid must not fade out right next to its centre"
+        );
     }
 
     #[test]

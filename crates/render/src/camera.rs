@@ -141,6 +141,8 @@ pub struct OrbitCamera {
     yaw: f32,
     pitch: f32,
     fov_y: f32,
+    min_distance: f32,
+    max_distance: f32,
 }
 
 impl Default for OrbitCamera {
@@ -151,6 +153,8 @@ impl Default for OrbitCamera {
             yaw: -PI * 0.7,
             pitch: 0.5,
             fov_y: 45f32.to_radians(),
+            min_distance: 1e-3,
+            max_distance: 1e9,
         }
     }
 }
@@ -228,9 +232,18 @@ impl OrbitCamera {
         self.target += (-self.right() * delta.x + self.up() * delta.y) * scale;
     }
 
+    /// How far the camera may travel. A hard bound has to exist: positions are
+    /// f32, and beyond a few million units the precision of the view falls
+    /// apart.
+    pub fn set_distance_limits(&mut self, min: f32, max: f32) {
+        self.min_distance = min.max(1e-6);
+        self.max_distance = max.max(self.min_distance);
+        self.distance = self.distance.clamp(self.min_distance, self.max_distance);
+    }
+
     /// Exponential zoom so each notch feels the same at every scale.
-    pub fn zoom(&mut self, scroll: f32, sensitivity: f32) {
-        self.zoom_by_factor((scroll * sensitivity).exp());
+    pub fn zoom(&mut self, amount: f32, sensitivity: f32) {
+        self.zoom_by_factor((amount * sensitivity).exp());
     }
 
     /// Zoom expressed as a direct scale factor, as a pinch gesture reports it:
@@ -239,7 +252,7 @@ impl OrbitCamera {
         if factor <= 0.0 {
             return;
         }
-        self.distance = (self.distance / factor).clamp(1e-3, 1e7);
+        self.distance = (self.distance / factor).clamp(self.min_distance, self.max_distance);
     }
 
     pub fn set_view_angles(&mut self, yaw: f32, pitch: f32) {
@@ -403,5 +416,31 @@ mod tests {
 
         camera.zoom(1e6, 0.0015);
         assert!(camera.distance() >= 1e-3);
+    }
+
+    #[test]
+    fn zoom_respects_configured_limits() {
+        let mut camera = OrbitCamera::default();
+        camera.set_distance_limits(0.5, 5_000.0);
+
+        camera.zoom(-1e6, 0.0015);
+        assert!(camera.distance() <= 5_000.0);
+        camera.zoom(1e6, 0.0015);
+        assert!(camera.distance() >= 0.5);
+    }
+
+    /// Zooming out must keep going well past the few tens of metres a part is
+    /// modelled at, so a whole assembly can be framed.
+    #[test]
+    fn zooming_out_reaches_far_beyond_a_part() {
+        let mut camera = OrbitCamera::default();
+        for _ in 0..200 {
+            camera.zoom(-100.0, 0.0015);
+        }
+        assert!(
+            camera.distance() > 1e6,
+            "stuck at {} units",
+            camera.distance()
+        );
     }
 }

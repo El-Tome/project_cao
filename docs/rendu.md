@@ -48,9 +48,20 @@ Astuce du format : le buffer reste une simple suite de paires de sommets ; c'est
 la `VertexBufferLayout` qui la relit avec un pas de deux sommets par instance.
 Les constructeurs de géométrie n'ont donc rien de spécial à faire.
 
-Un segment qui traverse le plan de la caméra est coupé au plan proche dans le
-shader : diviser par un `w` négatif renverrait le point de l'autre côté de
-l'écran. C'est le cas courant des axes, qui traversent toute la scène.
+Chaque segment est découpé dans le shader contre cinq plans — le plan proche et
+les quatre côtés d'une boîte deux fois plus large que l'écran — **en coordonnées
+homogènes, avant toute division par `w`**. C'est le point délicat :
+
+- diviser par un `w` négatif renverrait le point de l'autre côté de l'écran ;
+- couper au plan proche « au plus près » (`w` minuscule) donne des coordonnées
+  écran de l'ordre de 10⁵, et y ajouter une demi-épaisseur de ligne ne change
+  alors plus rien en `f32` : la ligne s'affine puis disparaît en plein écran.
+  C'est exactement le bug qu'on a eu sur les axes, qui traversent toute la
+  scène et passent donc derrière la caméra.
+
+Une fois découpé, le quad est émis directement en coordonnées écran (`w = 1`) :
+il n'y a pas de depth buffer à alimenter, et l'épaisseur reste ainsi exacte
+quelle que soit la longueur de la ligne.
 
 ## Couleurs
 

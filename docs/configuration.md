@@ -16,11 +16,14 @@ Voir aussi : [navigation](navigation.md) · [viewport](viewport.md)
 | `cube_margin` | 12 pt | Marge entre le cube et les bords du canvas |
 | `navigation` | `Fusion360` | Préréglage des gestes souris |
 | `orbit_sensitivity` | 0.008 rad/px | Vitesse de rotation à l'orbite |
-| `zoom_sensitivity` | 0.0015 | Vitesse du zoom molette |
+| `zoom_sensitivity` | 0.0015 | Zoom par pixel de défilement trackpad |
+| `wheel_zoom_sensitivity` | 0.12 | Zoom par cran de molette (un cran = une ligne, pas 50 pixels) |
+| `min_distance` | 0.001 mm | Distance caméra minimale |
+| `max_distance` | 1e9 mm | Distance caméra maximale (1 000 km) |
 | `grid_pixel_spacing` | 48 px | Espacement minimal des lignes avant que le pas de grille grossisse |
 | `ruler_corner` | `BottomLeft` | Coin où se place la barre d'échelle |
 | `ruler_visible` | `true` | Afficher ou non la barre d'échelle |
-| `unit` | `Millimeter` | Unité affichée par la règle |
+| `unit` | `Auto` | Unité de la règle : `Auto` choisit µm/mm/m/km, ou `Fixed(unité)` |
 
 ## `TrackpadConfig`
 

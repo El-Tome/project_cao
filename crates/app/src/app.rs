@@ -5,7 +5,7 @@ use cao_render::SceneRenderer;
 
 use crate::MSAA_SAMPLES;
 use crate::screens::viewport::{ViewMode, ViewportState};
-use crate::screens::{self, Screen, start_menu::StartMenuAction};
+use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
 
 pub struct CaoApp {
     screen: Screen,
@@ -66,11 +66,11 @@ impl CaoApp {
             self.error = Some(err.to_string());
         }
         self.error = None;
-        self.screen = Screen::PartOpened {
+        self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,
             viewport: ViewportState::default(),
-        };
+        }));
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
@@ -88,14 +88,14 @@ impl CaoApp {
     }
 
     fn show_part(&mut self, ui: &mut egui::Ui) {
-        let Screen::PartOpened {
+        let Screen::PartOpened(part) = &mut self.screen else {
+            return;
+        };
+        let OpenPart {
             doc,
             path,
             viewport,
-        } = &mut self.screen
-        else {
-            return;
-        };
+        } = part.as_mut();
 
         let mut back_to_menu = false;
         egui::Panel::top("part_toolbar").show(ui, |ui| {

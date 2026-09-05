@@ -23,12 +23,61 @@ fn mix_ends(a: LineEnd, b: LineEnd, t: f32) -> LineEnd {
     return LineEnd(mix(a.clip, b.clip, t), mix(a.color, b.color, t), mix(a.width, b.width, t));
 }
 
-const NEAR_W: f32 = 1e-5;
+/// Smallest `w` (distance in front of the camera) a line vertex may keep.
+const NEAR_W: f32 = 1e-4;
+
+/// How far outside the screen a line is still drawn, in screen widths.
+/// Everything beyond is invisible anyway, and cutting there keeps coordinates
+/// small enough that adding a half-width to them stays exact in f32.
+const NDC_LIMIT: f32 = 2.0;
+
+/// Signed distance of a clip-space point to one of the five planes we clip
+/// against, positive inside. Kept in clip space — dividing by `w` first would
+/// blow up for points near the camera and wreck the precision of the cut.
+fn plane_distance(clip: vec4<f32>, plane: u32) -> f32 {
+    switch plane {
+        case 0u: { return clip.w - NEAR_W; }
+        case 1u: { return clip.x + NDC_LIMIT * clip.w; }
+        case 2u: { return NDC_LIMIT * clip.w - clip.x; }
+        case 3u: { return clip.y + NDC_LIMIT * clip.w; }
+        default: { return NDC_LIMIT * clip.w - clip.y; }
+    }
+}
+
+/// The sub-range of the segment `a`→`b` that survives all five planes, as a
+/// pair of parameters. Returns an empty range when nothing survives.
+fn clip_range(a: vec4<f32>, b: vec4<f32>) -> vec2<f32> {
+    var enter = 0.0;
+    var exit = 1.0;
+
+    for (var plane = 0u; plane < 5u; plane++) {
+        let start = plane_distance(a, plane);
+        let end = plane_distance(b, plane);
+
+        if (start < 0.0 && end < 0.0) {
+            return vec2<f32>(1.0, 0.0);
+        }
+        if (start >= 0.0 && end >= 0.0) {
+            continue;
+        }
+
+        let crossing = start / (start - end);
+        if (start < 0.0) {
+            enter = max(enter, crossing);
+        } else {
+            exit = min(exit, crossing);
+        }
+    }
+
+    return vec2<f32>(enter, exit);
+}
 
 /// Lines are drawn as screen-space quads: `wgpu` has no line width, and a
 /// one-pixel hairline is unreadable on a high-DPI display.
 ///
-/// Each instance is one segment, expanded here into two triangles.
+/// Each instance is one segment, expanded here into two triangles. The quad is
+/// emitted directly in normalized device coordinates (w = 1): there is no depth
+/// buffer to feed, and it keeps the width exact however far the line reaches.
 @vertex
 fn vs_line(
     @builtin(vertex_index) index: u32,
@@ -44,38 +93,43 @@ fn vs_line(
     let at_end = corner >= 2u;
     let side = select(-1.0, 1.0, (corner & 1u) == 1u);
 
-    var a = LineEnd(
+    var out: VertexOutput;
+    // A dropped segment collapses to a single point, which rasterizes to
+    // nothing. Emitting w = 0 instead would be a division by zero, and drivers
+    // disagree on what that draws.
+    out.clip_position = vec4<f32>(0.0, 0.0, 0.0, 1.0);
+    out.color = vec4<f32>(0.0);
+
+    let a = LineEnd(
         uniforms.view_projection * vec4<f32>(start_position, 1.0),
         start_color,
         start_width,
     );
-    var b = LineEnd(
+    let b = LineEnd(
         uniforms.view_projection * vec4<f32>(end_position, 1.0),
         end_color,
         end_width,
     );
 
-    var out: VertexOutput;
-
-    // A segment crossing the camera plane has to be cut at the near plane:
-    // dividing by a negative w would wrap it to the wrong side of the screen.
-    if (a.clip.w < NEAR_W && b.clip.w < NEAR_W) {
-        out.clip_position = vec4<f32>(0.0, 0.0, 0.0, 0.0);
-        out.color = vec4<f32>(0.0);
+    let range = clip_range(a.clip, b.clip);
+    if (range.x > range.y) {
         return out;
     }
-    if (a.clip.w < NEAR_W) {
-        a = mix_ends(a, b, (NEAR_W - a.clip.w) / (b.clip.w - a.clip.w));
-    } else if (b.clip.w < NEAR_W) {
-        b = mix_ends(b, a, (NEAR_W - b.clip.w) / (a.clip.w - b.clip.w));
+
+    let clipped_a = mix_ends(a, b, range.x);
+    let clipped_b = mix_ends(a, b, range.y);
+    let screen_a = clipped_a.clip.xy / clipped_a.clip.w;
+    let screen_b = clipped_b.clip.xy / clipped_b.clip.w;
+
+    var current = clipped_a;
+    var position = screen_a;
+    if (at_end) {
+        current = clipped_b;
+        position = screen_b;
     }
 
-    var current = a;
-    if (at_end) {
-        current = b;
-    }
     let resolution = max(uniforms.params.yz, vec2<f32>(1.0, 1.0));
-    let screen_delta = (b.clip.xy / b.clip.w - a.clip.xy / a.clip.w) * resolution;
+    let screen_delta = (screen_b - screen_a) * resolution;
 
     var direction = vec2<f32>(1.0, 0.0);
     if (length(screen_delta) > 1e-6) {
@@ -84,11 +138,7 @@ fn vs_line(
     let normal = vec2<f32>(-direction.y, direction.x);
     let offset = normal * side * current.width / resolution;
 
-    out.clip_position = vec4<f32>(
-        (current.clip.xy / current.clip.w + offset) * current.clip.w,
-        current.clip.z,
-        current.clip.w,
-    );
+    out.clip_position = vec4<f32>(position + offset, 0.0, 1.0);
     out.color = current.color;
     return out;
 }

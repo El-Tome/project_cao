@@ -22,6 +22,10 @@ plan, puisque la vue n'est alors plus alignée sur un plan. En revanche le pan
 et le zoom conservent le mode : cadrer ou zoomer sur un plan est un geste
 normal.
 
+La grille n'apparaît qu'une fois la vue **posée** sur le plan, pas pendant
+l'animation : à mi-chemin la vue est oblique, et une grille de taille finie vue
+de biais se lit comme un disque flottant au milieu de l'écran.
+
 Le cube se clique sur trois types de zones, découpées comme une grille 3×3 sur
 chaque face :
 
@@ -79,6 +83,10 @@ En bas à gauche, une barre longue d'exactement un carreau de la grille, avec sa
 valeur (« 10 mm »). Elle répond à deux questions d'un coup d'œil : quelle est la
 taille d'un carreau, et à quelle vitesse on zoome — la valeur change en
 sautant de 1 à 2, 5, 10, ce qui rend le zoom lisible.
+
+L'unité s'adapte pour éviter les nombres à rallonge : µm, mm, m puis km selon
+l'échelle, donc « 50 m » et non « 50000 mm ». On peut la figer sur une unité
+précise (`unit: Fixed(…)`).
 
 Son coin est configurable (`ruler_corner`), et elle peut être masquée
 (`ruler_visible`).

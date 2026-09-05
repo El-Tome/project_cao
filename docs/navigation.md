@@ -26,6 +26,15 @@ d'événements ; ils sont distingués par leur unité (lignes pour une molette,
 pixels pour un trackpad), ce qui permet de garder « molette = zoom » sans que
 le trackpad zoome à toute vitesse.
 
+C'est aussi pour ça que la molette a **sa propre sensibilité**
+(`wheel_zoom_sensitivity`) : un cran de molette vaut *une ligne*, quand un
+geste de trackpad vaut des centaines de *pixels*. Partager un même réglage
+rendait forcément l'un des deux inutilisable — la molette avançait d'un
+demi-pourcent par cran pendant que Ctrl + molette faisait des bonds.
+
+Ctrl (ou Cmd) + molette et Ctrl + deux doigts zooment aussi, à la même vitesse
+que le geste sans modificateur : ce n'est plus un raccourci « turbo ».
+
 Les gestes du trackpad sont réglables (`TrackpadConfig`) : chacun des deux
 défilements peut être `Pan`, `Orbit`, `Zoom` ou `Ignore`.
 
@@ -49,6 +58,9 @@ qui fait basculer l'image. Ici, la vue de dessus est un angle comme un autre.
 - **Zoom** : exponentiel, donc un cran de molette a le même effet visuel qu'on
   soit à 1 mm ou à 10 m de la pièce. Les plans proche et lointain suivent la
   distance, ce qui garde la précision de profondeur utilisable à toute échelle.
+  La distance est bornée (`min_distance`, `max_distance`, par défaut 1 µm à
+  1 000 km) : une borne doit exister, les positions étant en `f32`, mais elle
+  est réglable et assez lointaine pour cadrer un assemblage entier.
 - **Pan** : converti en unités monde selon la distance, pour que la pièce suive
   exactement le curseur.
 - **Orbite** : fait toujours repasser en vue 3D libre (voir

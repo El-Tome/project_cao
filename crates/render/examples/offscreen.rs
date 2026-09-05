@@ -43,6 +43,34 @@ fn main() {
         &out_dir.join("viewport_plane_xy.png"),
     );
 
+    // Panned away from the origin: the heavy lines must stay on the axes.
+    let mut panned = OrbitCamera::default();
+    panned.set_view_angles(0.0, std::f32::consts::FRAC_PI_2);
+    panned.pan(glam::Vec2::new(-260.0, 170.0), HEIGHT as f32);
+    render(
+        &device,
+        &queue,
+        &mut renderer,
+        &build_frame(&panned, Some(GridPlane::Xy)),
+        &out_dir.join("viewport_plane_panned.png"),
+    );
+
+    // Grazing angles: the axes must stay visible however the camera is turned.
+    for (index, (yaw, pitch)) in [(0.05_f32, 0.02_f32), (0.8, 0.05), (1.55, 0.6), (2.4, 0.9)]
+        .into_iter()
+        .enumerate()
+    {
+        let mut camera = OrbitCamera::default();
+        camera.set_view_angles(yaw, pitch);
+        render(
+            &device,
+            &queue,
+            &mut renderer,
+            &build_frame(&camera, None),
+            &out_dir.join(format!("viewport_grazing_{index}.png")),
+        );
+    }
+
     let mut hovered_view = OrbitCamera::default();
     hovered_view.set_view_angles(-0.9, 0.5);
     let mut frame = build_frame(&hovered_view, None);
@@ -82,7 +110,8 @@ fn build_frame(camera: &OrbitCamera, plane: Option<GridPlane>) -> SceneFrame {
     if let Some(plane) = plane {
         let units_per_pixel = camera.world_units_per_pixel(HEIGHT as f32);
         let step = adaptive_step(units_per_pixel, 48.0);
-        let half_extent = units_per_pixel * HEIGHT as f32 * 1.5;
+        let diagonal = ((WIDTH * WIDTH + HEIGHT * HEIGHT) as f32).sqrt();
+        let half_extent = units_per_pixel * diagonal * 1.5;
         let (_, _, normal) = plane.basis();
         let center = camera.target() - normal * camera.target().dot(normal);
         push_grid(

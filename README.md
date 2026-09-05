@@ -27,6 +27,12 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   l'autre donnent un tube, pas un barreau. Les faces planes de la pièce servent
   ensuite de plans d'esquisse. Voir [`docs/extrusion.md`](docs/extrusion.md).
 
+- **Réglages** : un écran de préférences pour le viewport, la navigation, les
+  couleurs et le fond (dégradés compris), les raccourcis clavier et
+  l'arrangement de la barre d'outils. Le tout en profils nommés, conservés entre
+  les sessions, remis à zéro d'un bouton et partageables en un fichier. Voir
+  [`docs/configuration.md`](docs/configuration.md).
+
 L'assemblage reste à faire — voir
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
 feuille de route.

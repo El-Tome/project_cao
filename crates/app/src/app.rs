@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use cao_core::history::Operation;
-use cao_core::{DimensionOutcome, PartDocument, RecentList};
+use cao_core::{Command, DimensionOutcome, PartDocument, Profiles, RecentList};
 use cao_render::SceneRenderer;
 use cao_sketch::{DimensionTarget, LengthOutcome, WorkPlane};
 use glam::Vec3;
@@ -9,7 +9,7 @@ use glam::Vec3;
 use crate::MSAA_SAMPLES;
 use crate::screens::history_tree::HistoryAction;
 use crate::screens::extrusion::ExtrusionState;
-use crate::screens::ribbon::{Category, Ribbon, RibbonAction};
+use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
@@ -17,6 +17,11 @@ use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
 pub struct CaoApp {
     screen: Screen,
     recents: RecentList,
+    /// Every set of settings the user has, and which one is in use. Held here
+    /// rather than in the open part: settings outlive the part being drawn.
+    profiles: Profiles,
+    settings_open: bool,
+    settings_editor: crate::screens::settings::SettingsEditor,
     new_part_name: String,
     error: Option<String>,
 }
@@ -41,8 +46,17 @@ impl CaoApp {
         Self {
             screen: Screen::StartMenu,
             recents,
+            profiles: Profiles::load(),
+            settings_open: false,
+            settings_editor: crate::screens::settings::SettingsEditor::default(),
             new_part_name: String::new(),
             error: None,
+        }
+    }
+
+    fn save_settings(&mut self) {
+        if let Err(err) = self.profiles.save() {
+            self.error = Some(err.to_string());
         }
     }
 
@@ -98,6 +112,7 @@ impl CaoApp {
     }
 
     fn show_part(&mut self, ui: &mut egui::Ui) {
+        let settings = self.profiles.active().clone();
         let Screen::PartOpened(part) = &mut self.screen else {
             return;
         };
@@ -110,8 +125,14 @@ impl CaoApp {
             ribbon,
         } = part.as_mut();
 
+        // The viewport reads its own copy: it is handed to the renderer every
+        // frame and must not borrow from the settings being edited.
+        viewport.config = settings.viewport;
+        viewport.theme = settings.theme.clone();
+
         let mut back_to_menu = false;
         let mut changed = false;
+        let mut asked: Vec<Command> = Vec::new();
 
         egui::Panel::top("part_title_bar").show(ui, |ui| {
             ui.horizontal(|ui| {
@@ -129,8 +150,23 @@ impl CaoApp {
             });
         });
 
-        let action = ribbon.show(ui, doc, editor, extrusion);
-        changed |= apply_ribbon_action(action, doc, editor, extrusion, ribbon, viewport);
+        asked.extend(ribbon.show(ui, &settings, doc, editor, extrusion));
+        asked.extend(
+            shortcuts_pressed(ui, &settings)
+                .into_iter()
+                .filter(|command| {
+                    crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)
+                }),
+        );
+        for command in asked {
+            match command {
+                Command::OpenSettings => self.settings_open = true,
+                Command::BackToMenu => back_to_menu = true,
+                _ => {
+                    changed |= run(command, doc, editor, extrusion, ribbon, viewport);
+                }
+            }
+        }
 
         if ribbon.history_open {
             egui::Panel::left("history_panel")
@@ -172,35 +208,28 @@ impl CaoApp {
         }
     }
 
-    fn handle_shortcuts(&mut self, ui: &egui::Ui) {
-        let Screen::PartOpened(part) = &mut self.screen else {
-            return;
-        };
-
-        let (undo, redo) = ui.input_mut(|input| {
-            (
-                input.consume_shortcut(&egui::KeyboardShortcut::new(
-                    egui::Modifiers::COMMAND,
-                    egui::Key::Z,
-                )),
-                input.consume_shortcut(&egui::KeyboardShortcut::new(
-                    egui::Modifiers::COMMAND,
-                    egui::Key::Y,
-                )) || input.consume_shortcut(&egui::KeyboardShortcut::new(
-                    egui::Modifiers::COMMAND.plus(egui::Modifiers::SHIFT),
-                    egui::Key::Z,
-                )),
-            )
-        });
-
-        let changed = (undo && part.doc.undo()) || (redo && part.doc.redo());
-        if !changed {
+    /// The preferences, in a window over whatever is open. Kept out of the
+    /// screen routing on purpose: settings apply to the whole application, and
+    /// closing them must not close the part being drawn.
+    fn show_settings(&mut self, ui: &mut egui::Ui) {
+        if !self.settings_open {
             return;
         }
+        let mut open = true;
+        let mut touched = false;
 
-        clamp_editor_to_document(&mut part.editor, &part.doc);
-        let (doc, path) = (part.doc.clone(), part.path.clone());
-        self.save_part(&doc, &path);
+        egui::Window::new("Préférences")
+            .open(&mut open)
+            .default_size([720.0, 560.0])
+            .vscroll(true)
+            .show(ui.ctx(), |ui| {
+                touched = screens::settings::show(ui, &mut self.profiles, &mut self.settings_editor);
+            });
+
+        self.settings_open = open;
+        if touched {
+            self.save_settings();
+        }
     }
 
     fn save_part(&mut self, doc: &PartDocument, path: &std::path::Path) {
@@ -210,37 +239,123 @@ impl CaoApp {
     }
 }
 
-fn apply_ribbon_action(
-    action: RibbonAction,
+/// Carries out one command, wherever it came from.
+///
+/// A button and a shortcut both end up here: two paths would drift apart, and
+/// a shortcut that does almost what its button does is worse than none.
+/// Returns true when the part changed and needs saving.
+fn run(
+    command: Command,
     doc: &mut PartDocument,
     editor: &mut SketchEditor,
     extrusion: &mut ExtrusionState,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
 ) -> bool {
-    match action {
-        RibbonAction::None => false,
-        RibbonAction::NewSketch => {
+    use crate::screens::extrusion::Shape;
+    use crate::screens::sketch::{DimensionMode, Tool};
+
+    let tool = |editor: &mut SketchEditor, wanted: Tool| {
+        editor.tool = wanted;
+        editor.reset_pending();
+    };
+
+    match command {
+        Command::OpenSettings | Command::BackToMenu => false,
+        Command::NewSketch => {
             extrusion.close();
             editor.start_choosing_plane();
             false
         }
         // Finishing a drawing is where an extrusion naturally begins, so the
         // tool is offered right there rather than left to be found again.
-        RibbonAction::FinishSketch => {
+        Command::FinishSketch => {
             if let Some(index) = editor.active_sketch() {
                 extrusion.offer(index);
-                ribbon.category = Category::Extrusion;
+                ribbon.tab = 1;
             }
             editor.close();
             false
         }
-        RibbonAction::CancelExtrusion => {
-            extrusion.close();
-            ribbon.category = Category::Sketch;
+        Command::RecenterOnSketch => {
+            if let Some(plane) = editor.plane {
+                let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
+                viewport.look_at_plane(plane, center, radius);
+            }
             false
         }
-        RibbonAction::ApplyExtrusion => {
+        Command::Undo | Command::Redo => {
+            let changed = if command == Command::Undo {
+                doc.undo()
+            } else {
+                doc.redo()
+            };
+            if changed {
+                clamp_editor_to_document(editor, doc);
+            }
+            changed
+        }
+        Command::ToolSelect => {
+            tool(editor, Tool::Select);
+            false
+        }
+        Command::ToolLine => {
+            tool(editor, Tool::Line);
+            false
+        }
+        Command::ToolRectangle => {
+            tool(editor, Tool::Rectangle);
+            false
+        }
+        Command::ToolCircle => {
+            tool(editor, Tool::Circle);
+            false
+        }
+        Command::ToolPoint => {
+            tool(editor, Tool::Point);
+            false
+        }
+        Command::ToolDimension => {
+            tool(editor, Tool::Dimension);
+            false
+        }
+        Command::DimensionAuto
+        | Command::DimensionPointToPoint
+        | Command::DimensionLength
+        | Command::DimensionAngle
+        | Command::DimensionRadius => {
+            editor.dimension_mode = match command {
+                Command::DimensionPointToPoint => DimensionMode::PointToPoint,
+                Command::DimensionLength => DimensionMode::Length,
+                Command::DimensionAngle => DimensionMode::Angle,
+                Command::DimensionRadius => DimensionMode::Radius,
+                _ => DimensionMode::Auto,
+            };
+            editor.reset_pending();
+            false
+        }
+        Command::ExtrusionAdd => {
+            extrusion.arm(cao_core::ExtrusionMode::Add);
+            false
+        }
+        Command::ExtrusionCut => {
+            extrusion.arm(cao_core::ExtrusionMode::Cut);
+            false
+        }
+        Command::ExtrusionStraight => {
+            extrusion.shape = Shape::Straight;
+            false
+        }
+        Command::ExtrusionRevolution => {
+            extrusion.shape = Shape::Revolution;
+            false
+        }
+        Command::ExtrusionCancel => {
+            extrusion.close();
+            ribbon.tab = 0;
+            false
+        }
+        Command::ExtrusionApply => {
             let changed = apply_extrusion(doc, extrusion);
             if changed {
                 // Seen from straight above its own plane, a new prism looks
@@ -251,25 +366,87 @@ fn apply_ribbon_action(
             }
             changed
         }
-        RibbonAction::Undo | RibbonAction::Redo => {
-            let changed = if action == RibbonAction::Undo {
-                doc.undo()
-            } else {
-                doc.redo()
-            };
-            if changed {
-                clamp_editor_to_document(editor, doc);
-            }
-            changed
-        }
-        RibbonAction::RecenterOnSketch => {
-            if let Some(plane) = editor.plane {
-                let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
-                viewport.look_at_plane(plane, center, radius);
-            }
+        Command::ToggleHistory => {
+            ribbon.history_open = !ribbon.history_open;
             false
         }
+        Command::ToggleToolbarDocked => false,
     }
+}
+
+/// The commands whose shortcut was pressed this frame.
+///
+/// Nothing is read while a text field has the keyboard: typing "50" into a
+/// dimension must not also fire whatever those keys are bound to.
+fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_core::Settings) -> Vec<Command> {
+    if ui.ctx().egui_wants_keyboard_input() {
+        return Vec::new();
+    }
+    ui.input_mut(|input| {
+        settings
+            .shortcuts
+            .bindings
+            .iter()
+            .filter(|(_, chord)| {
+                to_egui_key(chord.key).is_some_and(|key| {
+                    input.consume_shortcut(&egui::KeyboardShortcut::new(modifiers(*chord), key))
+                })
+            })
+            .map(|(command, _)| *command)
+            .collect()
+    })
+}
+
+fn modifiers(chord: cao_core::Chord) -> egui::Modifiers {
+    let mut modifiers = egui::Modifiers::NONE;
+    if chord.command {
+        modifiers = modifiers.plus(egui::Modifiers::COMMAND);
+    }
+    if chord.shift {
+        modifiers = modifiers.plus(egui::Modifiers::SHIFT);
+    }
+    if chord.alt {
+        modifiers = modifiers.plus(egui::Modifiers::ALT);
+    }
+    modifiers
+}
+
+fn to_egui_key(key: cao_core::Key) -> Option<egui::Key> {
+    use cao_core::Key as K;
+    use egui::Key as E;
+    Some(match key {
+        K::A => E::A, K::B => E::B, K::C => E::C, K::D => E::D, K::E => E::E,
+        K::F => E::F, K::G => E::G, K::H => E::H, K::I => E::I, K::J => E::J,
+        K::K => E::K, K::L => E::L, K::M => E::M, K::N => E::N, K::O => E::O,
+        K::P => E::P, K::Q => E::Q, K::R => E::R, K::S => E::S, K::T => E::T,
+        K::U => E::U, K::V => E::V, K::W => E::W, K::X => E::X, K::Y => E::Y,
+        K::Z => E::Z,
+        K::Num0 => E::Num0, K::Num1 => E::Num1, K::Num2 => E::Num2,
+        K::Num3 => E::Num3, K::Num4 => E::Num4, K::Num5 => E::Num5,
+        K::Num6 => E::Num6, K::Num7 => E::Num7, K::Num8 => E::Num8,
+        K::Num9 => E::Num9,
+        K::F1 => E::F1, K::F2 => E::F2, K::F3 => E::F3, K::F4 => E::F4,
+        K::F5 => E::F5, K::F6 => E::F6, K::F7 => E::F7, K::F8 => E::F8,
+        K::F9 => E::F9, K::F10 => E::F10, K::F11 => E::F11, K::F12 => E::F12,
+        K::Escape => E::Escape,
+        K::Tab => E::Tab,
+        K::Space => E::Space,
+        K::Enter => E::Enter,
+        K::Backspace => E::Backspace,
+        K::Delete => E::Delete,
+        K::Home => E::Home,
+        K::End => E::End,
+        K::PageUp => E::PageUp,
+        K::PageDown => E::PageDown,
+        K::Left => E::ArrowLeft,
+        K::Right => E::ArrowRight,
+        K::Up => E::ArrowUp,
+        K::Down => E::ArrowDown,
+        K::Plus => E::Plus,
+        K::Minus => E::Minus,
+        K::Comma => E::Comma,
+        K::Period => E::Period,
+    })
 }
 
 /// Turns the chosen areas into matter, or takes them out of it.
@@ -445,9 +622,12 @@ impl eframe::App for CaoApp {
 
         if matches!(self.screen, Screen::StartMenu) {
             self.show_start_menu(ui);
+            if ui.button("⚙ Préférences").clicked() {
+                self.settings_open = true;
+            }
         } else {
-            self.handle_shortcuts(ui);
             self.show_part(ui);
         }
+        self.show_settings(ui);
     }
 }

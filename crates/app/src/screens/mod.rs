@@ -2,6 +2,7 @@ pub mod annotations;
 pub mod extrusion;
 pub mod history_tree;
 pub mod ribbon;
+pub mod settings;
 pub mod sketch;
 pub mod start_menu;
 pub mod viewport;

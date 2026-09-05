@@ -17,42 +17,6 @@ pub enum Tool {
     Dimension,
 }
 
-impl Tool {
-    /// The tools offered in the Esquisse category, in order.
-    pub const SKETCH_TOOLS: [Self; 6] = [
-        Self::Select,
-        Self::Line,
-        Self::Rectangle,
-        Self::Circle,
-        Self::Point,
-        Self::Dimension,
-    ];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::None => "Aucun outil",
-            Self::Select => "Sélection",
-            Self::Line => "Ligne",
-            Self::Rectangle => "Rectangle",
-            Self::Circle => "Cercle",
-            Self::Point => "Point",
-            Self::Dimension => "Cote",
-        }
-    }
-
-    pub fn hint(self) -> &'static str {
-        match self {
-            Self::None => "",
-            Self::Select => "Cliquer-glisser un point pour le déplacer",
-            Self::Line => "Clics successifs, Échap pour terminer la chaîne",
-            Self::Rectangle => "Deux clics : deux coins opposés",
-            Self::Circle => "Deux clics : centre puis rayon",
-            Self::Point => "Un clic pose un point",
-            Self::Dimension => "Cote intelligente : cliquer ce qu'on veut mesurer",
-        }
-    }
-}
-
 /// What the smart dimension tool is allowed to measure.
 ///
 /// `Auto` takes whatever is under the cursor, which covers most of the work.
@@ -73,34 +37,6 @@ pub enum DimensionMode {
 }
 
 impl DimensionMode {
-    pub const ALL: [Self; 5] = [
-        Self::Auto,
-        Self::PointToPoint,
-        Self::Length,
-        Self::Angle,
-        Self::Radius,
-    ];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Auto => "Intelligente",
-            Self::PointToPoint => "Point à point",
-            Self::Length => "Trait",
-            Self::Angle => "Angle",
-            Self::Radius => "Rayon",
-        }
-    }
-
-    pub fn hint(self) -> &'static str {
-        match self {
-            Self::Auto => "Mesure ce qui est sous le curseur",
-            Self::PointToPoint => "Deux points, reliés ou non",
-            Self::Length => "Un trait, mesuré sur toute sa longueur",
-            Self::Angle => "Deux traits qui se touchent, ou un trait et un axe",
-            Self::Radius => "Un cercle",
-        }
-    }
-
     /// Whether this mode may pick a point.
     pub fn takes_points(self) -> bool {
         matches!(self, Self::Auto | Self::PointToPoint)

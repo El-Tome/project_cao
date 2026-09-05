@@ -29,9 +29,10 @@ pour la V1 ; il pourra être remis en question si les besoins tactile/stylet
 Un crate = une responsabilité, sans dépendance dans le mauvais sens :
 
 - `cao_core` : types de domaine (document de pièce, échelle, liste des
-  récents, chemins de stockage) et persistance. **Aucune dépendance UI.** Doit rester
-  réutilisable tel quel par n'importe quel futur front-end (desktop, web,
-  tablette).
+  récents, chemins de stockage), les réglages — thème, raccourcis, barre
+  d'outils, profils — et la persistance de tout cela. **Aucune dépendance UI.**
+  Doit rester réutilisable tel quel par n'importe quel futur front-end (desktop,
+  web, tablette). Voir [configuration.md](configuration.md).
 - `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
   la règle qui applique une longueur. Ni rendu ni interface.
   Voir [esquisse.md](esquisse.md).

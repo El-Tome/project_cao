@@ -196,6 +196,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
             width: WIDTH as f32,
             height: HEIGHT as f32,
         },
+        scene_background: Vec::new(),
         scene_world_lines: Vec::new(),
         scene_solids: Vec::new(),
         scene_lines: lines,

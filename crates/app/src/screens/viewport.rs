@@ -3,15 +3,27 @@ use cao_core::ViewportConfig;
 use cao_core::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
 use cao_core::history::{Operation, PointRef};
 use cao_render::camera::{CubeZone, view_angles_towards};
+use cao_core::theme::{Background, Rgba, Theme};
 use cao_render::{
-    AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition, ViewportRect,
-    adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad, srgb,
+    AxisStyle, BackgroundShape, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition,
+    ViewportRect, adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad,
+    srgb,
 };
 use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{ChainAnchor, DimensionMode, PlaneChoice, SketchEditor, Tool};
+
+/// A colour from the theme, turned into the space the shader blends in.
+fn tint(color: Rgba) -> [f32; 4] {
+    srgb(color.r, color.g, color.b, color.a)
+}
+
+/// The same, with the opacity replaced.
+fn tint_at(color: Rgba, alpha: f32) -> [f32; 4] {
+    tint(color.with_alpha(alpha))
+}
 
 /// What the canvas is showing: the bare world axes, or a work plane with its
 /// grid. Landing on a plane shows the grid; orbiting leaves it, since the view
@@ -30,6 +42,8 @@ enum Drag {
 
 pub struct ViewportState {
     pub config: ViewportConfig,
+    /// Every colour the viewport draws with, copied from the profile in use.
+    pub theme: Theme,
     camera: OrbitCamera,
     mode: ViewMode,
     transition: Option<ViewTransition>,
@@ -47,6 +61,7 @@ impl Default for ViewportState {
         camera.set_distance_limits(config.min_distance, config.max_distance);
         Self {
             config,
+            theme: Theme::default(),
             camera,
             mode: ViewMode::Free,
             transition: None,
@@ -690,7 +705,9 @@ fn nearest_annotation(
     tolerance: f32,
 ) -> Option<DimensionTarget> {
     let sketch = context.document.sketches().get(index)?;
-    let style = crate::screens::annotations::Style::driving();
+    // Only where the annotation lands matters here; its vertices are thrown
+    // away, so the theme's colours never come into it.
+    let style = crate::screens::annotations::Style::driving(&Theme::default());
     let mut discarded = Vec::new();
 
     let anchors: Vec<_> = sketch
@@ -1042,9 +1059,14 @@ fn build_frame(
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
 
+    let theme = &state.theme;
     let mut lines = Vec::new();
     let mut world_lines = Vec::new();
     let mut surfaces = Vec::new();
+
+    let mut background = Vec::new();
+    let (shape, sample) = background_shape(&theme.background);
+    cao_render::push_background(&mut background, shape, sample);
 
     // The grid is only drawn once the view has actually landed on the plane.
     // Mid-animation the view is oblique, and a grid of finite size seen at an
@@ -1062,7 +1084,14 @@ fn build_frame(
             center,
             scale.step,
             half_extent,
-            &GridStyle::default(),
+            &GridStyle {
+                minor: tint(theme.grid_minor),
+                major: tint(theme.grid_major),
+                minor_width: theme.grid_minor_width,
+                major_width: theme.grid_major_width,
+                major_every: theme.grid_major_every.max(1),
+                ..GridStyle::default()
+            },
         );
     }
 
@@ -1073,7 +1102,12 @@ fn build_frame(
     push_axes(
         &mut world_lines,
         camera.distance() * 50.0,
-        &AxisStyle::default(),
+        &AxisStyle {
+            x: tint(theme.axis_x),
+            y: tint(theme.axis_y),
+            z: tint(theme.axis_z),
+            width: theme.axis_width,
+        },
         facing,
     );
 
@@ -1083,16 +1117,16 @@ fn build_frame(
 
     for (index, sketch) in context.document.sketches().iter().enumerate() {
         let active = context.editor.active_sketch() == Some(index);
-        push_sketch(&mut lines, &mut surfaces, sketch, scale, active, context);
+        push_sketch(&mut lines, &mut surfaces, sketch, theme, scale, active, context);
     }
 
-    push_chosen_areas(&mut surfaces, &mut lines, context);
+    push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let mut solids = Vec::new();
     cao_render::push_solid(
         &mut solids,
         &context.document.body().triangles(),
-        srgb(0.78, 0.80, 0.84, 1.0),
+        tint(theme.solid),
         camera.forward(),
     );
 
@@ -1104,6 +1138,7 @@ fn build_frame(
     SceneFrame {
         scene_view_projection: camera.view_projection(scale.aspect),
         scene_viewport: to_physical(rect, pixels_per_point),
+        scene_background: background,
         scene_world_lines: world_lines,
         scene_surfaces: surfaces,
         scene_solids: solids,
@@ -1121,6 +1156,7 @@ fn push_choosable_planes(
     state: &ViewportState,
     context: &SketchContext<'_>,
 ) {
+    let theme = &state.theme;
     let half_size = plane_half_size(state);
     // Once there is a part, the three planes step back: they are still there to
     // be picked, but they no longer hide the faces one usually wants.
@@ -1128,20 +1164,20 @@ fn push_choosable_planes(
     let faded = if has_body { 0.35 } else { 1.0 };
 
     if let Some(PlaneChoice::Face(plane)) = context.editor.hovered_plane {
-        push_hovered_face(surfaces, context, plane);
+        push_hovered_face(surfaces, theme, context, plane);
     }
 
     for (index, plane) in WorkPlane::ORIGIN_PLANES.iter().enumerate() {
         let hovered = context.editor.hovered_plane == Some(PlaneChoice::Origin(index));
         let fill = if hovered {
-            srgb(0.30, 0.60, 0.95, 0.35)
+            tint(theme.highlight)
         } else {
-            srgb(0.55, 0.60, 0.68, 0.12 * faded)
+            tint_at(theme.sketch_inactive, 0.12 * faded)
         };
         let outline = if hovered {
-            srgb(0.45, 0.75, 1.0, 1.0)
+            tint_at(theme.highlight, 1.0)
         } else {
-            srgb(0.65, 0.70, 0.78, 0.7 * faded)
+            tint_at(theme.sketch_inactive, 0.7 * faded)
         };
         push_plane_quad(surfaces, plane.origin, plane.u, plane.v, half_size, fill);
         push_plane_outline(
@@ -1163,6 +1199,7 @@ fn push_choosable_planes(
 fn push_chosen_areas(
     surfaces: &mut Vec<cao_render::Vertex>,
     lines: &mut Vec<cao_render::Vertex>,
+    theme: &Theme,
     context: &SketchContext<'_>,
 ) {
     if !context.extrusion.is_active() {
@@ -1178,13 +1215,13 @@ fn push_chosen_areas(
 
     let cutting = context.extrusion.mode == Some(cao_core::ExtrusionMode::Cut);
     let chosen = if cutting {
-        srgb(0.95, 0.45, 0.40, 0.45)
+        tint(theme.extrusion_cut)
     } else {
-        srgb(0.40, 0.85, 0.60, 0.45)
+        tint(theme.extrusion_add)
     };
 
     if context.extrusion.is_revolving() {
-        push_revolution_axis(lines, sketch, context);
+        push_revolution_axis(lines, sketch, theme, context);
     }
 
     for (index, region) in sketch.regions().iter().enumerate() {
@@ -1197,7 +1234,11 @@ fn push_chosen_areas(
         if !picked && !hovered {
             continue;
         }
-        let color = if picked { chosen } else { srgb(0.85, 0.88, 0.95, 0.20) };
+        let color = if picked {
+            chosen
+        } else {
+            tint_at(theme.highlight, theme.highlight.a * 0.5)
+        };
 
         // Holes stay empty here too: what is shown filled is exactly what will
         // become matter.
@@ -1217,6 +1258,7 @@ fn push_chosen_areas(
 fn push_revolution_axis(
     lines: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
+    theme: &Theme,
     context: &SketchContext<'_>,
 ) {
     let (origin, direction) = match context.extrusion.axis {
@@ -1235,7 +1277,7 @@ fn push_revolution_axis(
         .map(|(min, max)| (max - min).length())
         .unwrap_or(1.0)
         .max(1.0);
-    let color = srgb(0.95, 0.75, 0.30, 0.9);
+    let color = tint_at(theme.sketch_free, 0.9);
     lines.push(cao_render::Vertex::line(
         sketch.plane.to_world(origin - direction * reach),
         color,
@@ -1257,6 +1299,7 @@ fn push_revolution_axis(
 fn push_regions(
     surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
+    theme: &Theme,
     active: bool,
     context: &SketchContext<'_>,
 ) {
@@ -1267,11 +1310,13 @@ fn push_regions(
     }
 
     for region in sketch.regions() {
-        let shade = 0.10 + 0.06 * region.depth.min(4) as f32;
+        // Deeper areas take more of the tint, which is what tells a shape
+        // drawn inside another from the one it sits in.
+        let shade = theme.region_fill.a * (1.0 + 0.6 * region.depth.min(4) as f32);
         let color = if active {
-            srgb(0.45, 0.65, 0.95, shade)
+            tint_at(theme.region_fill, shade)
         } else {
-            srgb(0.60, 0.63, 0.68, shade * 0.6)
+            tint_at(theme.sketch_inactive, shade * 0.6)
         };
         for [a, b, c] in region.triangles {
             for corner in [a, b, c] {
@@ -1285,12 +1330,13 @@ fn push_regions(
 /// would sketch on.
 fn push_hovered_face(
     surfaces: &mut Vec<cao_render::Vertex>,
+    theme: &Theme,
     context: &SketchContext<'_>,
     plane: WorkPlane,
 ) {
     let normal = plane.normal();
     let offset = plane.origin.dot(normal);
-    let fill = srgb(0.30, 0.60, 0.95, 0.40);
+    let fill = tint(theme.highlight);
 
     // Every face lying on the same plane lights up together: a curved surface
     // and a cut one are both stored as many flat pieces, and lighting only the
@@ -1309,14 +1355,29 @@ fn push_hovered_face(
     }
 }
 
+/// Turns the background the user described into what the renderer draws.
+fn background_shape(background: &Background) -> (BackgroundShape, impl Fn(f32) -> [f32; 4] + '_) {
+    let shape = match background {
+        Background::Solid(_) => BackgroundShape::Flat,
+        Background::Linear { angle_degrees, .. } => BackgroundShape::Linear {
+            angle_degrees: *angle_degrees,
+        },
+        Background::Radial { center, radius, .. } => BackgroundShape::Radial {
+            center: *center,
+            radius: *radius,
+        },
+    };
+    (shape, move |t: f32| tint(background.sample(t)))
+}
+
 /// Colours saying how settled the drawing is: a shape that still has freedom
 /// left is drawn one way, one that is fully determined another. It is the
 /// quickest possible answer to "is my part pinned down yet?".
-fn sketch_colors(active: bool, constrained: bool) -> ([f32; 4], f32) {
+fn sketch_colors(theme: &Theme, active: bool, constrained: bool) -> ([f32; 4], f32) {
     match (active, constrained) {
-        (true, false) => (srgb(0.98, 0.85, 0.35, 1.0), 2.5),
-        (true, true) => (srgb(0.45, 0.85, 0.55, 1.0), 2.5),
-        (false, _) => (srgb(0.70, 0.72, 0.76, 0.8), 1.5),
+        (true, false) => (tint(theme.sketch_free), theme.sketch_width),
+        (true, true) => (tint(theme.sketch_settled), theme.sketch_width),
+        (false, _) => (tint(theme.sketch_inactive), theme.sketch_width * 0.6),
     }
 }
 
@@ -1329,15 +1390,17 @@ fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) 
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_sketch(
     out: &mut Vec<cao_render::Vertex>,
     surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
+    theme: &Theme,
     scale: ViewScale,
     active: bool,
     context: &SketchContext<'_>,
 ) {
-    push_regions(surfaces, sketch, active, context);
+    push_regions(surfaces, sketch, theme, active, context);
 
     // Per element, not one verdict for the whole drawing: a contour can be
     // nailed down while its neighbour is still floating, and that is exactly
@@ -1346,7 +1409,7 @@ fn push_sketch(
     let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
 
     for segment in sketch.segments() {
-        let (color, width) = sketch_colors(active, holds(segment.start) && holds(segment.end));
+        let (color, width) = sketch_colors(theme, active, holds(segment.start) && holds(segment.end));
         let start = sketch
             .plane
             .to_world(shown_position(sketch, segment.start, context));
@@ -1358,7 +1421,7 @@ fn push_sketch(
     }
 
     for circle in sketch.circles() {
-        let (color, width) = sketch_colors(active, holds(circle.center));
+        let (color, width) = sketch_colors(theme, active, holds(circle.center));
         push_circle(out, sketch, circle.center, circle.radius, color, width);
     }
 
@@ -1366,16 +1429,16 @@ fn push_sketch(
         return;
     }
 
-    push_point_markers(out, sketch, scale, &settled, context);
+    push_point_markers(out, sketch, theme, scale, &settled, context);
 
     // Every dimension is drawn where it applies, with extension lines, arrows
     // and arcs, so the drawing says what holds it rather than just carrying a
     // number.
     for dimension in sketch.dimensions() {
         let style = if dimension.driven {
-            crate::screens::annotations::Style::driven()
+            crate::screens::annotations::Style::driven(theme)
         } else {
-            crate::screens::annotations::Style::driving()
+            crate::screens::annotations::Style::driving(theme)
         };
         crate::screens::annotations::push(
             out,
@@ -1386,13 +1449,13 @@ fn push_sketch(
         );
     }
 
-    push_preview(out, sketch, context);
+    push_preview(out, sketch, theme, context);
 
     if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected
         && selected.0 < sketch.segments().len()
     {
         let (start, end) = sketch.endpoints(selected);
-        let highlight = srgb(0.30, 0.75, 1.0, 1.0);
+        let highlight = tint_at(theme.highlight, 1.0);
         out.push(cao_render::Vertex::line(
             sketch.plane.to_world(start),
             highlight,
@@ -1413,16 +1476,17 @@ fn push_sketch(
 fn push_point_markers(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
+    theme: &Theme,
     scale: ViewScale,
     settled: &[bool],
     context: &SketchContext<'_>,
 ) {
     let half = scale.world_size_of(4.0);
-    let highlight = srgb(0.30, 0.75, 1.0, 1.0);
+    let highlight = tint_at(theme.highlight, 1.0);
 
     for index in 0..sketch.points().len() {
         let point = PointId(index);
-        let (base, _) = sketch_colors(true, settled.get(index).copied().unwrap_or(false));
+        let (base, _) = sketch_colors(theme, true, settled.get(index).copied().unwrap_or(false));
         let center = sketch
             .plane
             .to_world(shown_position(sketch, point, context));
@@ -1465,11 +1529,16 @@ fn push_point_markers(
 
 /// The shape about to be drawn, following the cursor: placing a point blind and
 /// only then seeing where it went is needlessly uncomfortable.
-fn push_preview(out: &mut Vec<cao_render::Vertex>, sketch: &Sketch, context: &SketchContext<'_>) {
+fn push_preview(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    theme: &Theme,
+    context: &SketchContext<'_>,
+) {
     let Some(cursor) = context.editor.cursor else {
         return;
     };
-    let preview = srgb(0.98, 0.85, 0.35, 0.55);
+    let preview = tint_at(theme.sketch_free, 0.55);
 
     if let Some(anchor) = context.editor.chain {
         let from = match anchor {
@@ -1635,7 +1704,7 @@ fn paint_dimension_labels(
         // Asking the annotation where its value belongs keeps the text on the
         // dimension line instead of floating near the geometry.
         let mut ignored = Vec::new();
-        let style = crate::screens::annotations::Style::driving();
+        let style = crate::screens::annotations::Style::driving(&state.theme);
         let Some(placement) = crate::screens::annotations::push(
             &mut ignored,
             sketch,

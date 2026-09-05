@@ -22,9 +22,10 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
 
 - **Extrusion** : après avoir terminé une esquisse, choisir une à plusieurs
-  aires fermées et leur donner une hauteur, en ajoutant ou en enlevant de la
-  matière. Deux cercles l'un dans l'autre donnent un tube, pas un barreau. Voir
-  [`docs/extrusion.md`](docs/extrusion.md).
+  aires fermées et leur donner une hauteur — ou un angle et un axe, pour une
+  révolution — en ajoutant ou en enlevant de la matière. Deux cercles l'un dans
+  l'autre donnent un tube, pas un barreau. Les faces planes de la pièce servent
+  ensuite de plans d'esquisse. Voir [`docs/extrusion.md`](docs/extrusion.md).
 
 L'assemblage reste à faire — voir
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la

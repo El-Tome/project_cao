@@ -201,9 +201,15 @@ impl Sketch {
 fn inside(region: &Region) -> Vec2 {
     let outline = &region.outline;
     let count = outline.len();
+    // `total_cmp` rather than `partial_cmp`: a stray NaN would make the
+    // comparison return None, and unwrapping it would take the whole
+    // application down over one bad coordinate.
     let corner = (0..count)
         .min_by(|a, b| {
-            (outline[*a].y, outline[*a].x).partial_cmp(&(outline[*b].y, outline[*b].x)).unwrap()
+            outline[*a]
+                .y
+                .total_cmp(&outline[*b].y)
+                .then(outline[*a].x.total_cmp(&outline[*b].x))
         })
         .unwrap_or(0);
     let (previous, here, following) = (

@@ -1,4 +1,4 @@
-use cao_sketch::{DimensionTarget, PointId, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -34,6 +34,26 @@ impl ExtrusionMode {
         match self {
             Self::Add => "Sélectionner des aires fermées, donner une hauteur",
             Self::Cut => "Sélectionner des aires fermées, donner une profondeur",
+        }
+    }
+}
+
+/// What a face is swept around.
+///
+/// Either one of the sketch's own axes, or a line the user drew. A drawn line
+/// is named by its rank in the sketch, which is stable: segments are only ever
+/// appended.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RevolutionAxis {
+    Sketch(SketchAxis),
+    Segment(SegmentId),
+}
+
+impl RevolutionAxis {
+    pub fn label(self) -> String {
+        match self {
+            Self::Sketch(axis) => axis.label().to_string(),
+            Self::Segment(segment) => format!("trait {}", segment.0),
         }
     }
 }
@@ -98,6 +118,15 @@ pub enum Operation {
         distance: f32,
         mode: ExtrusionMode,
     },
+    /// Sweeps closed areas of a sketch around an axis lying in its plane.
+    Revolve {
+        sketch: usize,
+        picks: Vec<Vec2>,
+        axis: RevolutionAxis,
+        /// Degrees. Negative turns the other way.
+        angle: f32,
+        mode: ExtrusionMode,
+    },
 }
 
 impl Operation {
@@ -111,6 +140,13 @@ impl Operation {
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::MovePoint { .. } => "Déplacement".to_string(),
             Self::MoveDimension { .. } => "Cote déplacée".to_string(),
+            Self::Revolve { angle, mode, .. } => {
+                let verb = match mode {
+                    ExtrusionMode::Add => "Révolution",
+                    ExtrusionMode::Cut => "Révolution creusée",
+                };
+                format!("{verb} {angle}°")
+            }
             Self::Extrude {
                 distance, mode, ..
             } => {
@@ -179,6 +215,13 @@ impl Operation {
             Self::Extrude { sketch, picks, .. } => {
                 format!("Esquisse {sketch} · {} aire(s)", picks.len())
             }
+            Self::Revolve {
+                sketch, picks, axis, ..
+            } => format!(
+                "Esquisse {sketch} · {} aire(s) autour de {}",
+                picks.len(),
+                axis.label()
+            ),
             Self::SetDimension { sketch, target, .. } => match target {
                 DimensionTarget::Distance { from, to } => {
                     format!("Esquisse {sketch} · points {} et {}", from.0, to.0)
@@ -202,7 +245,10 @@ impl Operation {
     /// True for the operations that open a new feature in the tree, and under
     /// which the following ones are grouped.
     pub fn starts_feature(&self) -> bool {
-        matches!(self, Self::CreateSketch { .. } | Self::Extrude { .. })
+        matches!(
+            self,
+            Self::CreateSketch { .. } | Self::Extrude { .. } | Self::Revolve { .. }
+        )
     }
 }
 

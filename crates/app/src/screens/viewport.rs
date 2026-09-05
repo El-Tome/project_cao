@@ -11,7 +11,7 @@ use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
 use crate::screens::extrusion::ExtrusionState;
-use crate::screens::sketch::{ChainAnchor, DimensionMode, SketchEditor, Tool};
+use crate::screens::sketch::{ChainAnchor, DimensionMode, PlaneChoice, SketchEditor, Tool};
 
 /// What the canvas is showing: the bare world axes, or a work plane with its
 /// grid. Landing on a plane shows the grid; orbiting leaves it, since the view
@@ -144,7 +144,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     } else if sketch.extrusion.is_active() {
         // Picking areas takes the whole canvas: no drawing tool is in hand
         // while the extrusion is being set up.
-        pick_areas(state, &response, rect, sketch);
+        pick_areas(state, &response, rect, scale, sketch);
         false
     } else {
         handle_sketch_input(ui, state, &response, rect, scale, sketch)
@@ -392,22 +392,24 @@ fn handle_sketch_input(
         .ray(to_ndc(pointer, rect), rect.width() / rect.height());
 
     if context.editor.is_choosing_plane() {
-        let half_size = plane_half_size(state);
-        context.editor.hovered_plane = WorkPlane::ORIGIN_PLANES
-            .iter()
-            .position(|plane| plane_hit(plane, origin, direction, half_size).is_some());
+        context.editor.hovered_plane = plane_under(state, context, origin, direction);
 
         if response.clicked()
-            && let Some(index) = context.editor.hovered_plane
+            && let Some(choice) = context.editor.hovered_plane
         {
-            let plane = WorkPlane::ORIGIN_PLANES[index];
+            let plane = choice.plane();
             context.document.apply(Operation::CreateSketch { plane });
             let sketch = context.document.sketches().len() - 1;
             context.editor.begin_editing(sketch, plane);
             // A fresh sketch has nothing to frame yet, so we show a patch of
-            // plane big enough to draw in. The scale is meaningless until the
-            // first dimension anyway.
-            state.look_at_plane(plane, plane.origin, DEFAULT_SKETCH_RADIUS);
+            // plane big enough to draw in, centred where the click landed. On a
+            // face of the part that matters: the plane's own origin is the world
+            // origin projected onto it, which can be nowhere near the face.
+            let center = plane
+                .ray_intersection(origin, direction)
+                .map(|local| plane.to_world(local))
+                .unwrap_or(plane.origin);
+            state.look_at_plane(plane, center, DEFAULT_SKETCH_RADIUS);
             return true;
         }
         return false;
@@ -481,6 +483,40 @@ fn handle_sketch_input(
     }
 }
 
+/// What is offered to sketch on under the cursor: a face of the part where
+/// there is one, otherwise the nearest of the three planes of the origin.
+///
+/// The part comes first rather than whatever is nearest the camera. The three
+/// planes are unbounded sheets running right through the part, so nearest-wins
+/// would leave them covering the very faces one usually wants — while they
+/// stay reachable everywhere the part is not.
+fn plane_under(
+    state: &ViewportState,
+    context: &SketchContext<'_>,
+    origin: Vec3,
+    direction: Vec3,
+) -> Option<PlaneChoice> {
+    if let Some(hit) = context.document.body().ray_hit(origin, direction) {
+        // The sketch's own origin lands where the world origin projects onto
+        // the face, so that a drawing on a face is still measured from
+        // somewhere the user can point at.
+        let normal = hit.polygon.normal();
+        let plane = WorkPlane::from_normal(normal * hit.polygon.plane_offset(), normal);
+        return Some(PlaneChoice::Face(plane));
+    }
+
+    let half_size = plane_half_size(state);
+    WorkPlane::ORIGIN_PLANES
+        .iter()
+        .enumerate()
+        .filter_map(|(index, plane)| {
+            let local = plane_hit(plane, origin, direction, half_size)?;
+            Some(((plane.to_world(local) - origin).length(), index))
+        })
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, index)| PlaneChoice::Origin(index))
+}
+
 /// Choosing which closed areas of a sketch become matter.
 ///
 /// An area is named by a point inside it rather than by its rank, so the choice
@@ -490,6 +526,7 @@ fn pick_areas(
     state: &ViewportState,
     response: &egui::Response,
     rect: egui::Rect,
+    scale: ViewScale,
     context: &mut SketchContext<'_>,
 ) {
     context.extrusion.hovered = None;
@@ -510,6 +547,16 @@ fn pick_areas(
     let Some(cursor) = sketch.plane.ray_intersection(origin, direction) else {
         return;
     };
+
+    // A line is a much smaller target than an area, so it is offered first:
+    // that is how a drawn line becomes the axis a revolution turns around.
+    if context.extrusion.is_revolving()
+        && response.clicked()
+        && let Some(segment) = sketch.nearest_segment(cursor, scale.world_size_of(8.0))
+    {
+        context.extrusion.axis = cao_core::RevolutionAxis::Segment(segment);
+        return;
+    }
 
     let regions = sketch.regions();
     // The innermost area wins: inside a shape drawn within another, the click
@@ -996,6 +1043,7 @@ fn build_frame(
     let pixels_per_point = scale.height_px / rect.height();
 
     let mut lines = Vec::new();
+    let mut world_lines = Vec::new();
     let mut surfaces = Vec::new();
 
     // The grid is only drawn once the view has actually landed on the plane.
@@ -1008,7 +1056,7 @@ fn build_frame(
         let normal = plane.normal();
         let center = camera.target() - normal * (camera.target() - plane.origin).dot(normal);
         push_grid(
-            &mut lines,
+            &mut world_lines,
             plane.u,
             plane.v,
             center,
@@ -1023,7 +1071,7 @@ fn build_frame(
         ViewMode::Free => None,
     };
     push_axes(
-        &mut lines,
+        &mut world_lines,
         camera.distance() * 50.0,
         &AxisStyle::default(),
         facing,
@@ -1038,7 +1086,7 @@ fn build_frame(
         push_sketch(&mut lines, &mut surfaces, sketch, scale, active, context);
     }
 
-    push_chosen_areas(&mut surfaces, context);
+    push_chosen_areas(&mut surfaces, &mut lines, context);
 
     let mut solids = Vec::new();
     cao_render::push_solid(
@@ -1056,6 +1104,7 @@ fn build_frame(
     SceneFrame {
         scene_view_projection: camera.view_projection(scale.aspect),
         scene_viewport: to_physical(rect, pixels_per_point),
+        scene_world_lines: world_lines,
         scene_surfaces: surfaces,
         scene_solids: solids,
         scene_lines: lines,
@@ -1073,17 +1122,26 @@ fn push_choosable_planes(
     context: &SketchContext<'_>,
 ) {
     let half_size = plane_half_size(state);
+    // Once there is a part, the three planes step back: they are still there to
+    // be picked, but they no longer hide the faces one usually wants.
+    let has_body = !context.document.body().is_empty();
+    let faded = if has_body { 0.35 } else { 1.0 };
+
+    if let Some(PlaneChoice::Face(plane)) = context.editor.hovered_plane {
+        push_hovered_face(surfaces, context, plane);
+    }
+
     for (index, plane) in WorkPlane::ORIGIN_PLANES.iter().enumerate() {
-        let hovered = context.editor.hovered_plane == Some(index);
+        let hovered = context.editor.hovered_plane == Some(PlaneChoice::Origin(index));
         let fill = if hovered {
             srgb(0.30, 0.60, 0.95, 0.35)
         } else {
-            srgb(0.55, 0.60, 0.68, 0.12)
+            srgb(0.55, 0.60, 0.68, 0.12 * faded)
         };
         let outline = if hovered {
             srgb(0.45, 0.75, 1.0, 1.0)
         } else {
-            srgb(0.65, 0.70, 0.78, 0.7)
+            srgb(0.65, 0.70, 0.78, 0.7 * faded)
         };
         push_plane_quad(surfaces, plane.origin, plane.u, plane.v, half_size, fill);
         push_plane_outline(
@@ -1102,7 +1160,11 @@ fn push_choosable_planes(
 ///
 /// A chosen area is filled with the colour of the matter it is about to become,
 /// which is the only preview needed before the height is typed.
-fn push_chosen_areas(surfaces: &mut Vec<cao_render::Vertex>, context: &SketchContext<'_>) {
+fn push_chosen_areas(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    lines: &mut Vec<cao_render::Vertex>,
+    context: &SketchContext<'_>,
+) {
     if !context.extrusion.is_active() {
         return;
     }
@@ -1120,6 +1182,10 @@ fn push_chosen_areas(surfaces: &mut Vec<cao_render::Vertex>, context: &SketchCon
     } else {
         srgb(0.40, 0.85, 0.60, 0.45)
     };
+
+    if context.extrusion.is_revolving() {
+        push_revolution_axis(lines, sketch, context);
+    }
 
     for (index, region) in sketch.regions().iter().enumerate() {
         let picked = context
@@ -1144,6 +1210,42 @@ fn push_chosen_areas(surfaces: &mut Vec<cao_render::Vertex>, context: &SketchCon
             }
         }
     }
+}
+
+/// Draws the axis a revolution turns around, well past the drawing so it reads
+/// as an axis rather than as one more line of the sketch.
+fn push_revolution_axis(
+    lines: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    context: &SketchContext<'_>,
+) {
+    let (origin, direction) = match context.extrusion.axis {
+        cao_core::RevolutionAxis::Sketch(axis) => (Vec2::ZERO, axis.direction()),
+        cao_core::RevolutionAxis::Segment(segment) => {
+            if segment.0 >= sketch.segments().len() {
+                return;
+            }
+            let (start, end) = sketch.endpoints(segment);
+            (start, (end - start).normalize_or(Vec2::X))
+        }
+    };
+
+    let reach = sketch
+        .bounds()
+        .map(|(min, max)| (max - min).length())
+        .unwrap_or(1.0)
+        .max(1.0);
+    let color = srgb(0.95, 0.75, 0.30, 0.9);
+    lines.push(cao_render::Vertex::line(
+        sketch.plane.to_world(origin - direction * reach),
+        color,
+        2.0,
+    ));
+    lines.push(cao_render::Vertex::line(
+        sketch.plane.to_world(origin + direction * reach),
+        color,
+        2.0,
+    ));
 }
 
 /// Tints the areas the drawing encloses, so a closed contour reads as a face
@@ -1174,6 +1276,34 @@ fn push_regions(
         for [a, b, c] in region.triangles {
             for corner in [a, b, c] {
                 surfaces.push(cao_render::Vertex::solid(sketch.plane.to_world(corner), color));
+            }
+        }
+    }
+}
+
+/// Lights up the face of the part under the cursor, so it is clear what a click
+/// would sketch on.
+fn push_hovered_face(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    context: &SketchContext<'_>,
+    plane: WorkPlane,
+) {
+    let normal = plane.normal();
+    let offset = plane.origin.dot(normal);
+    let fill = srgb(0.30, 0.60, 0.95, 0.40);
+
+    // Every face lying on the same plane lights up together: a curved surface
+    // and a cut one are both stored as many flat pieces, and lighting only the
+    // piece under the cursor would read as picking a fragment of it. Only the
+    // fill is drawn — outlining each piece would show the seams between them,
+    // which are not something the user drew.
+    for polygon in &context.document.body().polygons {
+        if polygon.normal().dot(normal) < 0.999 || (polygon.plane_offset() - offset).abs() > 1e-4 {
+            continue;
+        }
+        for [a, b, c] in polygon.triangles() {
+            for corner in [a, b, c] {
+                surfaces.push(cao_render::Vertex::solid(corner, fill));
             }
         }
     }

@@ -1,6 +1,7 @@
-use cao_core::{ExtrusionMode, PartDocument};
+use cao_core::{ExtrusionMode, PartDocument, RevolutionAxis};
+use cao_sketch::SketchAxis;
 
-use crate::screens::extrusion::ExtrusionState;
+use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{DimensionMode, SketchEditor, Tool};
 
 /// A family of tools. Assembly is listed so the shape of the menu is visible,
@@ -157,7 +158,20 @@ impl Ribbon {
 
         let Some(sketch) = extrusion.sketch.filter(|index| *index < document.sketches().len())
         else {
-            ui.weak("Terminez une esquisse pour l'extruder, ou choisissez-en une dans l'historique.");
+            // Terminating a drawing offers its sketch straight away, but a part
+            // reopened later has none offered: rather than send the user back
+            // through the history to re-enter and re-finish a sketch, they are
+            // all listed here.
+            if document.sketches().is_empty() {
+                ui.weak("Dessinez d'abord une esquisse.");
+                return action;
+            }
+            ui.label("Extruder l'esquisse :");
+            for index in 0..document.sketches().len() {
+                if ui.button(format!("{}", index + 1)).clicked() {
+                    extrusion.offer(index);
+                }
+            }
             return action;
         };
 
@@ -178,20 +192,53 @@ impl Ribbon {
         }
 
         ui.separator();
-        ui.label("Hauteur :");
-        ui.add(
-            egui::TextEdit::singleline(&mut extrusion.distance_input)
-                .desired_width(70.0)
-                .hint_text("mm"),
-        );
+        for shape in Shape::ALL {
+            if ui
+                .selectable_label(extrusion.shape == shape, shape.label())
+                .on_hover_text(shape.hint())
+                .clicked()
+            {
+                extrusion.shape = shape;
+            }
+        }
+
+        ui.separator();
+        if extrusion.is_revolving() {
+            ui.label("Angle :");
+            ui.add(
+                egui::TextEdit::singleline(&mut extrusion.angle_input)
+                    .desired_width(60.0)
+                    .hint_text("°"),
+            );
+            ui.label("Autour de :");
+            for axis in [SketchAxis::U, SketchAxis::V] {
+                let chosen = extrusion.axis == RevolutionAxis::Sketch(axis);
+                if ui.selectable_label(chosen, axis.label()).clicked() {
+                    extrusion.axis = RevolutionAxis::Sketch(axis);
+                }
+            }
+            if let RevolutionAxis::Segment(segment) = extrusion.axis {
+                ui.selectable_label(true, format!("trait {}", segment.0))
+                    .on_hover_text("Cliquer un autre trait de l'esquisse pour en changer");
+            } else {
+                ui.weak("ou cliquer un trait")
+                    .on_hover_text("Un trait de l'esquisse peut servir d'axe");
+            }
+        } else {
+            ui.label("Hauteur :");
+            ui.add(
+                egui::TextEdit::singleline(&mut extrusion.distance_input)
+                    .desired_width(70.0)
+                    .hint_text("mm"),
+            );
+        }
         ui.checkbox(&mut extrusion.reversed, "Sens inverse")
             .on_hover_text("Pousser la matière de l'autre côté du plan");
 
         ui.separator();
         ui.weak(format!("{} aire(s)", extrusion.picks.len()));
 
-        let ready = !extrusion.picks.is_empty() && extrusion.distance().is_some();
-        ui.add_enabled_ui(ready, |ui| {
+        ui.add_enabled_ui(extrusion.is_ready(), |ui| {
             if ui.button("Appliquer").clicked() {
                 action = RibbonAction::ApplyExtrusion;
             }

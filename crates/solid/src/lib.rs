@@ -5,4 +5,4 @@
 mod boolean;
 mod mesh;
 
-pub use mesh::{Mesh, Polygon, prism};
+pub use mesh::{FaceHit, Mesh, Polygon, prism, revolution};

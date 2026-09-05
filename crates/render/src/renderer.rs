@@ -20,6 +20,9 @@ pub struct SceneFrame {
     /// Translucent surfaces in world space, such as the work planes offered
     /// when starting a sketch. Drawn before the lines and never culled, since
     /// a plane must be visible from both sides.
+    /// The axes and the grid: the world the part sits in, so they are hidden
+    /// by it rather than drawn through it.
+    pub scene_world_lines: Vec<Vertex>,
     pub scene_surfaces: Vec<Vertex>,
     /// The matter of the part. Unlike everything else here it is a real solid,
     /// so it is the only geometry that writes depth.
@@ -155,10 +158,12 @@ pub struct SceneRenderer {
     triangle_pipeline: wgpu::RenderPipeline,
     surface_pipeline: wgpu::RenderPipeline,
     solid_pipeline: wgpu::RenderPipeline,
+    world_line_pipeline: wgpu::RenderPipeline,
     scene_uniform: UniformBinding,
     cube_uniform: UniformBinding,
     scene_surfaces: DynamicVertexBuffer,
     scene_solids: DynamicVertexBuffer,
+    scene_world_lines: DynamicVertexBuffer,
     scene_lines: DynamicVertexBuffer,
     cube_triangles: DynamicVertexBuffer,
     cube_edges: DynamicVertexBuffer,
@@ -237,6 +242,25 @@ impl SceneRenderer {
             bias: wgpu::DepthBiasState::default(),
         };
 
+        // Lines that belong to the world are hidden by the part, but pulled a
+        // hair towards the camera first: a grid drawn on a face of the part is
+        // exactly as far away as the face, and without the nudge the two would
+        // fight over every pixel.
+        let hidden_by_the_part = wgpu::DepthStencilState {
+            format: Self::DEPTH_FORMAT,
+            depth_write_enabled: Some(false),
+            depth_compare: Some(wgpu::CompareFunction::LessEqual),
+            stencil: wgpu::StencilState::default(),
+            bias: wgpu::DepthBiasState {
+                constant: -4,
+                // No slope term: where a face is seen edge-on its depth changes
+                // enormously from pixel to pixel, and a slope-scaled nudge there
+                // is big enough to drag the line right through the part.
+                slope_scale: 0.0,
+                clamp: 0.0,
+            },
+        };
+
         let make_pipeline =
             |label: &str, entry_point, layout: &wgpu::VertexBufferLayout, cull_mode, depth| {
                 device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -300,6 +324,13 @@ impl SceneRenderer {
                 None,
                 depth_state(false),
             ),
+            world_line_pipeline: make_pipeline(
+                "cao_world_line_pipeline",
+                "vs_line",
+                &line_layout,
+                None,
+                hidden_by_the_part,
+            ),
             // A real volume: the only geometry whose near faces must hide its
             // far ones, so the only one that writes depth.
             solid_pipeline: make_pipeline(
@@ -313,6 +344,7 @@ impl SceneRenderer {
             cube_uniform: UniformBinding::new(device, &uniform_layout, "cao_cube_uniform"),
             scene_surfaces: DynamicVertexBuffer::new(device, "cao_scene_surfaces"),
             scene_solids: DynamicVertexBuffer::new(device, "cao_scene_solids"),
+            scene_world_lines: DynamicVertexBuffer::new(device, "cao_scene_world_lines"),
             scene_lines: DynamicVertexBuffer::new(device, "cao_scene_lines"),
             cube_triangles: DynamicVertexBuffer::new(device, "cao_cube_triangles"),
             cube_edges: DynamicVertexBuffer::new(device, "cao_cube_edges"),
@@ -337,6 +369,8 @@ impl SceneRenderer {
         self.scene_surfaces
             .upload(device, queue, &frame.scene_surfaces);
         self.scene_solids.upload(device, queue, &frame.scene_solids);
+        self.scene_world_lines
+            .upload(device, queue, &frame.scene_world_lines);
         self.scene_lines.upload(device, queue, &frame.scene_lines);
         self.cube_triangles
             .upload(device, queue, &frame.cube_triangles);
@@ -348,6 +382,8 @@ impl SceneRenderer {
         pass.set_bind_group(0, &self.scene_uniform.bind_group, &[]);
         pass.set_pipeline(&self.solid_pipeline);
         self.scene_solids.draw_triangles(pass);
+        pass.set_pipeline(&self.world_line_pipeline);
+        self.scene_world_lines.draw_lines(pass);
         pass.set_pipeline(&self.surface_pipeline);
         self.scene_surfaces.draw_triangles(pass);
         pass.set_pipeline(&self.line_pipeline);

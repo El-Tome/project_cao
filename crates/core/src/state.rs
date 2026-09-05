@@ -119,15 +119,16 @@ impl PartState {
         target: DimensionTarget,
         value: f32,
     ) -> Option<DimensionOutcome> {
-        if value <= 0.0 {
+        if value <= 0.0 && !matches!(target, DimensionTarget::AxisAngle { .. }) {
             return None;
         }
+        let scale = self.scale();
         let measured = self.measured(index, target)?;
 
-        // Nothing is left to determine here, so this value cannot drive the
-        // shape. It is kept as a readout instead of being refused: seeing a
-        // length is useful even when setting it is not.
-        if self.sketches[index].would_be_redundant(target) {
+        // Nothing here is left to determine, so this value cannot drive the
+        // shape. It is kept as a readout rather than refused: seeing a length
+        // is useful even when setting it is not.
+        if self.sketches.get(index)?.would_be_redundant(target, scale) {
             self.sketches[index].set_dimension(target, measured, true);
             return Some(DimensionOutcome::Reference);
         }
@@ -140,21 +141,23 @@ impl PartState {
             self.sketches[index].set_dimension(target, value, false);
             let millimeters_per_unit = value / units;
             self.millimeters_per_unit = Some(millimeters_per_unit);
+            // Nothing to solve: the value was chosen to match what is already
+            // drawn, which is the whole point of letting it set the scale.
             return Some(DimensionOutcome::ScaleDefined {
                 millimeters_per_unit,
             });
         }
 
-        let scale = self.scale();
-        let sketch = &mut self.sketches[index];
+        let sketch = self.sketches.get_mut(index)?;
         sketch.set_dimension(target, value, false);
 
-        let outcome = match target {
-            DimensionTarget::Length(segment) => sketch.set_segment_length(segment, value / scale),
-            DimensionTarget::Angle { first, second } => sketch.set_angle(first, second, value),
-            DimensionTarget::Radius(circle) => sketch.set_circle_radius(circle, value / scale),
-        };
-        Some(DimensionOutcome::Geometry(outcome))
+        // A radius stands on its own; everything else moves the points, so the
+        // whole system is re-solved to keep the earlier values true.
+        if let DimensionTarget::Radius(circle) = target {
+            sketch.set_circle_radius(circle, value / scale);
+            return Some(DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact));
+        }
+        Some(DimensionOutcome::Geometry(sketch.resolve(scale)))
     }
 
     /// The length a dimension refers to, in world units, or `None` for an angle
@@ -164,7 +167,7 @@ impl PartState {
         let units = match target {
             DimensionTarget::Length(segment) => sketch.segment_length(segment),
             DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
-            DimensionTarget::Angle { .. } => return None,
+            DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. } => return None,
         };
         (units > 1e-6).then_some(units)
     }
@@ -180,6 +183,7 @@ impl PartState {
             DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len())
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
+            DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
         }
     }
 }

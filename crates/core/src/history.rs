@@ -60,6 +60,9 @@ impl Operation {
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::SetDimension { target, value, .. } => match target {
                 DimensionTarget::Angle { .. } => format!("Angle {value}°"),
+                DimensionTarget::AxisAngle { axis, .. } => {
+                    format!("Angle {value}° / {}", axis.label())
+                }
                 DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
                 DimensionTarget::Length(_) => format!("Cote {value} mm"),
             },
@@ -102,6 +105,9 @@ impl Operation {
                 }
                 DimensionTarget::Angle { first, second } => {
                     format!("Esquisse {sketch} · traits {} et {}", first.0, second.0)
+                }
+                DimensionTarget::AxisAngle { segment, axis } => {
+                    format!("Esquisse {sketch} · trait {} / {}", segment.0, axis.label())
                 }
                 DimensionTarget::Radius(circle) => {
                     format!("Esquisse {sketch} · cercle {}", circle.0)

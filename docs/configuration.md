@@ -21,6 +21,9 @@ Voir aussi : [navigation](navigation.md) · [viewport](viewport.md)
 | `min_distance` | 0.001 mm | Distance caméra minimale |
 | `max_distance` | 1e9 mm | Distance caméra maximale (1 000 km) |
 | `grid_pixel_spacing` | 48 px | Espacement minimal des lignes avant que le pas de grille grossisse |
+| `grid_snap` | `true` | Aimantation du curseur sur la grille |
+| `grid_snap_divisions` | 4 | Subdivisions d'un carreau pour l'aimantation |
+| `grid_snap_pixels` | 12 px | Distance en deçà de laquelle la grille attire |
 | `ruler_corner` | `BottomLeft` | Coin où se place la barre d'échelle |
 | `ruler_visible` | `true` | Afficher ou non la barre d'échelle |
 | `unit` | `Auto` | Unité de la règle : `Auto` choisit µm/mm/m/km, ou `Fixed(unité)` |

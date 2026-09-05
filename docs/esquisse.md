@@ -31,8 +31,22 @@ Voir aussi : [viewport](viewport.md) · [architecture](ARCHITECTURE.md)
 | **Cote** | Cliquer un trait ou un cercle, puis saisir la longueur ou le rayon en millimètres. |
 | **Angle** | Cliquer deux traits qui se touchent, puis saisir l'angle en degrés. |
 
-Un clic à moins de 10 pixels d'un point existant réutilise ce point — c'est ce
-qui permet de fermer un contour, et de rattacher une forme à une autre.
+## L'aimantation
+
+Le curseur est attiré par ce dont il est proche, dans cet ordre :
+
+1. **Un point existant**, à moins de 10 pixels — c'est ce qui permet de fermer
+   un contour et de rattacher une forme à une autre.
+2. **La grille**, à moins de 12 pixels, sur des quarts de carreau.
+
+L'aimant de la grille est ce qui rend faciles le tracé sur l'origine et l'angle
+droit à main levée : il suffit de viser à peu près. Il ne mord qu'à quelques
+pixels, donc une position libre volontaire reste possible. Tout est réglable
+(`grid_snap`, `grid_snap_divisions`, `grid_snap_pixels`).
+
+Attention : aimanter n'est pas contraindre. Un trait posé bien horizontalement
+grâce à la grille reste libre de tourner tant qu'aucune cote d'angle ne le
+tient.
 
 Un rectangle est **une seule opération** dans l'historique, pas quatre traits :
 c'est ce qu'on veut voir en relisant la construction.
@@ -52,33 +66,39 @@ et une face de pièce en sera un.
 
 | Couleur | Ce que ça veut dire |
 | --- | --- |
-| **Jaune** | Il reste de la liberté : la forme peut encore bouger ou changer de taille. |
-| **Vert** | Entièrement contrainte : plus rien à déterminer. |
+| **Jaune** | Il reste de la liberté : le dessin peut encore bouger ou changer de forme. |
+| **Vert** | Entièrement contraint : plus rien à déterminer. |
 | **Gris** | Une autre esquisse que celle en cours d'édition. |
 
-Une forme perd sa liberté à mesure qu'on la cote, et un point posé **sur
-l'origine** de l'esquisse la fige sur place — c'est ce qui enlève la dernière
-liberté de translation.
+### Ce qu'il faut pour arriver au vert
 
-### Comment c'est calculé, et ses limites
+Trois choses, et il en manque souvent une :
 
-C'est un **comptage**, pas une analyse de rang : chaque point vaut deux
-inconnues, chaque cercle ajoute son rayon, chaque cote pilotante en retire une,
-un point sur l'origine en retire deux. Quand le compte tombe à zéro, la forme
-est déclarée contrainte.
+1. **Toutes les valeurs de forme** — les longueurs et les angles nécessaires.
+   Attention, « nécessaires » et non « toutes » : dans un triangle dont deux
+   côtés et l'angle entre eux sont donnés, le troisième côté **suit** et ne
+   peut plus être imposé.
+2. **Un sommet sur l'origine** de l'esquisse. C'est ce qui l'empêche de
+   glisser. *(Plus tard, en 3D, ce pourra aussi être un sommet d'une pièce
+   existante.)*
+3. **Une direction fixe** : une cote d'angle prise avec un axe de l'esquisse.
+   Poser un point sur l'origine enlève les deux façons de glisser, jamais la
+   façon de tourner — sans référence de direction, le dessin peut pivoter
+   autour de son ancre et toutes les cotes restent vraies.
 
-Ce comptage ne sait pas voir que deux contraintes disent la même chose
-autrement. Un dessin qu'il annonce contraint peut donc, dans un montage
-inhabituel, l'être imparfaitement. C'est suffisant pour colorer le dessin et
-signaler la redondance évidente, et ce n'est volontairement pas présenté comme
-davantage.
+### Comment c'est calculé
+
+Par le **rang** du système d'équations, pas en comptant les cotes. Chaque cote
+donne une équation ; on regarde combien d'entre elles disent quelque chose de
+neuf. C'est la seule façon de voir que le troisième côté d'un triangle découle
+des autres — un comptage ne le verrait jamais.
 
 ## Les cotes en trop
 
-Poser une cote sur une forme qui n'a plus de liberté n'apporte rien. Plutôt que
-de la refuser, l'application la pose **en lecture seule** : elle affiche la
-valeur mesurée, entre parenthèses et en gris, et son champ n'est pas
-modifiable. Un message le dit au moment de la poser.
+Poser une cote dont la valeur découle déjà des autres n'apporte rien.
+L'application le détecte et la pose **en lecture seule** plutôt que de la
+refuser : elle affiche la valeur mesurée, entre parenthèses et en gris, et son
+champ n'est pas modifiable. Un message le dit au moment de la poser.
 
 C'est utile : lire une longueur reste intéressant même quand la fixer n'a pas
 de sens. Et comme elle affiche toujours ce que la géométrie mesure, elle reste
@@ -107,31 +127,41 @@ rien d'une taille.
 
 ### Comment la géométrie bouge
 
-La règle est volontairement simple et prévisible :
+Toutes les cotes sont **re-résolues ensemble** à chaque changement. C'est ce
+qui fait qu'une valeur reste vraie après en avoir modifié une autre : le
+système entier est repris, au lieu d'appliquer chaque cote une fois puis de
+l'oublier.
 
-- le **point de départ** du trait est l'ancre, il ne bouge jamais ;
-- le **point d'arrivée** glisse le long du trait jusqu'à la bonne longueur ;
-- tout ce qui est accroché à ce point d'arrivée le suit **en bloc**, en gardant
-  ses propres longueurs et angles.
+La méthode est la projection : chaque équation est corrigée un peu, à tour de
+rôle, jusqu'à ce que plus rien ne bouge. Les points posés sur l'origine ne
+bougent jamais. Le procédé est déterministe — même dessin, même ordre, même
+nombre d'itérations — ce qui permet de reconstruire une pièce à l'identique en
+rejouant son historique.
 
-Ancre veut dire ancré *à ce qui le tient* : si une cote ultérieure déplace la
-géométrie à laquelle ce point appartient, il suit, parce que c'est le même
-point partagé.
+Si les valeurs se contredisent, le solveur s'arrête au bout de son quota
+d'itérations et le signale au lieu de s'arrêter en silence sur l'une d'elles.
 
-**Cas du contour fermé.** Si le dessin reboucle sur l'ancre — un carré, par
-exemple — aucun déplacement en bloc ne peut satisfaire la longueur sans casser
-la boucle. Seul le point d'arrivée est alors déplacé, ce qui déforme les traits
-voisins, et l'application le dit : « Contour fermé : seul le point d'arrivée a
-bougé ».
+### Les angles
+
+Une cote d'angle se pose sur deux traits qui se touchent. Avec l'outil Angle,
+le second clic peut aussi tomber sur **un axe de l'esquisse** : l'angle est
+alors mesuré par rapport à cette direction fixe, et c'est ce qui empêche le
+dessin de tourner.
+
+Le sens d'ouverture est conservé : demander 30° sur un coin qui tourne dans un
+sens ne le retourne pas. Un angle ne peut jamais définir l'échelle du document :
+des degrés ne disent rien d'une taille.
 
 ### Ce que ce n'est pas
 
-Ce n'est **pas** un solveur de contraintes général. Il n'y a ni parallélisme,
-ni perpendicularité, ni tangence, ni résolution numérique itérative ; poser
-deux cotes contradictoires ne déclenche aucun diagnostic. C'est une règle de
-propagation déterministe, suffisante pour dessiner et donner ses dimensions à
-un contour, et qui devra être remplacée par un vrai solveur quand les
-contraintes géométriques arriveront.
+Les seules contraintes sont les cotes : il n'y a pas de parallélisme, de
+perpendicularité ni de tangence à poser explicitement. Un angle de 90° fait le
+travail d'une perpendicularité, mais il faut le poser.
+
+Le solveur est de type projection, pas de Newton : il converge bien sur les
+dessins de cette taille, mais il n'y a ni détection de conflit avant coup, ni
+diagnostic expliquant *quelles* cotes se contredisent — seulement le constat
+qu'il n'y est pas arrivé.
 
 ## Enregistrement
 
@@ -154,4 +184,6 @@ permet en plus de revenir directement à n'importe quelle étape. Voir
 - Pas de cotes entre deux points quelconques, ni de cotes de diamètre.
 - Les contraintes géométriques (parallèle, perpendiculaire, tangent) n'existent
   pas : seules les cotes contraignent.
+- Le solveur ne dit pas *quelles* cotes se contredisent quand il n'y arrive
+  pas.
 - L'esquisse ne produit encore aucun volume : l'extrusion est l'étape suivante.

@@ -1,8 +1,9 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::constraints::{Components, Dimension, DimensionTarget, Freedom, is_anchor};
+use crate::constraints::{Dimension, DimensionTarget, Freedom, SketchAxis, is_anchor};
 use crate::plane::WorkPlane;
+use crate::solver::{self, SolveOutcome};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PointId(pub usize);
@@ -231,43 +232,33 @@ impl Sketch {
         None
     }
 
-    /// Turns `second` about the point it shares with `first` until the angle
-    /// between them is `degrees`, taking whatever hangs off its far end with
-    /// it. Same spirit as a length: one side is the anchor, the other gives.
-    pub fn set_angle(
-        &mut self,
+    /// The shared point of two segments, with their far ends.
+    pub(crate) fn shared_corner(
+        &self,
         first: SegmentId,
         second: SegmentId,
-        degrees: f32,
-    ) -> LengthOutcome {
-        let Some((pivot, far_first, far_second)) = self.corner(first, second) else {
-            return LengthOutcome::Degenerate;
-        };
+    ) -> Option<(PointId, PointId, PointId)> {
+        self.corner(first, second)
+    }
 
-        let center = self.point(pivot);
-        let toward_first = (self.point(far_first) - center).normalize_or_zero();
-        let toward_second = (self.point(far_second) - center).normalize_or_zero();
-        if toward_first == Vec2::ZERO || toward_second == Vec2::ZERO {
-            return LengthOutcome::Degenerate;
-        }
+    pub(crate) fn translate_point(&mut self, point: PointId, delta: Vec2) {
+        self.points[point.0] += delta;
+    }
 
-        // Signed so the angle keeps opening the same way: asking for 30° on a
-        // corner that turns clockwise must not flip it over to the other side.
-        let current = toward_first
-            .perp_dot(toward_second)
-            .atan2(toward_first.dot(toward_second));
-        let target = degrees.to_radians() * if current < 0.0 { -1.0 } else { 1.0 };
-        let rotation = target - current;
-
-        let group = self.connected_from(far_second, second);
-        if group.contains(&pivot) {
-            self.points[far_second.0] = rotate_about(self.points[far_second.0], center, rotation);
-            return LengthOutcome::BestEffort;
+    /// The angle a segment makes with one of the sketch axes, in degrees.
+    pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f32> {
+        let (start, end) = self.endpoints(segment);
+        let direction = (end - start).normalize_or_zero();
+        if direction == Vec2::ZERO {
+            return None;
         }
-        for point in group {
-            self.points[point.0] = rotate_about(self.points[point.0], center, rotation);
-        }
-        LengthOutcome::Exact
+        Some(
+            direction
+                .dot(axis.direction())
+                .clamp(-1.0, 1.0)
+                .acos()
+                .to_degrees(),
+        )
     }
 
     pub fn set_circle_radius(&mut self, id: CircleId, radius: f32) -> LengthOutcome {
@@ -276,65 +267,6 @@ impl Sketch {
         }
         self.circles[id.0].radius = radius;
         LengthOutcome::Exact
-    }
-
-    /// Stretches a segment to `target` world units.
-    ///
-    /// The start of the segment is the anchor and never moves; the far end
-    /// slides along the segment's own direction, dragging along everything that
-    /// hangs off it. If the geometry loops back round to the anchor, there is
-    /// no rigid move that satisfies the length, so only the far end is moved.
-    pub fn set_segment_length(&mut self, id: SegmentId, target: f32) -> LengthOutcome {
-        let segment = self.segments[id.0];
-        let (start, end) = self.endpoints(id);
-        let span = end - start;
-        let current = span.length();
-
-        if current < 1e-6 || target <= 0.0 {
-            return LengthOutcome::Degenerate;
-        }
-
-        let shift = span / current * (target - current);
-        let group = self.connected_from(segment.end, id);
-
-        if group.contains(&segment.start) {
-            self.points[segment.end.0] += shift;
-            return LengthOutcome::BestEffort;
-        }
-
-        for point in group {
-            self.points[point.0] += shift;
-        }
-        LengthOutcome::Exact
-    }
-
-    /// Every point reachable from `from` by walking segments, ignoring the one
-    /// being resized: that is exactly the part of the drawing that should
-    /// follow the moving end.
-    fn connected_from(&self, from: PointId, ignored: SegmentId) -> Vec<PointId> {
-        let mut reached = vec![from];
-        let mut frontier = vec![from];
-
-        while let Some(point) = frontier.pop() {
-            for (index, segment) in self.segments.iter().enumerate() {
-                if SegmentId(index) == ignored {
-                    continue;
-                }
-                let next = if segment.start == point {
-                    segment.end
-                } else if segment.end == point {
-                    segment.start
-                } else {
-                    continue;
-                };
-                if !reached.contains(&next) {
-                    reached.push(next);
-                    frontier.push(next);
-                }
-            }
-        }
-
-        reached
     }
 
     /// Smallest axis-aligned box containing every point, in sketch coordinates.
@@ -350,191 +282,302 @@ impl Sketch {
     }
 }
 
-fn rotate_about(point: Vec2, center: Vec2, radians: f32) -> Vec2 {
-    let offset = point - center;
-    let (sin, cos) = radians.sin_cos();
-    center
-        + Vec2::new(
-            offset.x * cos - offset.y * sin,
-            offset.x * sin + offset.y * cos,
-        )
-}
-
 impl Sketch {
-    /// Which independent piece of the drawing each point belongs to. Points
-    /// joined by a segment move together, so they share a piece.
-    fn components(&self) -> Vec<usize> {
-        let mut sets = Components::new(self.points.len().max(1));
-        for segment in &self.segments {
-            sets.union(segment.start.0, segment.end.0);
-        }
-        (0..self.points.len())
-            .map(|index| sets.find(index))
-            .collect()
-    }
-
-    /// How much freedom each piece of the drawing still has.
+    /// Coordinates that no constraint holds, worked out from the rank of the
+    /// system: how many independent things the dimensions actually say.
     ///
-    /// Every point is two unknowns, every circle adds its radius, every
-    /// dimension that drives the geometry removes one, and a point pinned to
-    /// the sketch origin removes two. A piece with nothing left is what the
-    /// user sees as fully constrained.
-    pub fn freedom_by_component(&self) -> Vec<Freedom> {
-        let components = self.components();
-        let mut counts = vec![0i32; self.points.len().max(1)];
+    /// Points pinned to the origin are taken out of the count outright, since
+    /// neither of their coordinates can move.
+    pub fn freedom(&self, millimeters_per_unit: f32) -> Freedom {
+        let anchored = self
+            .points
+            .iter()
+            .filter(|point| is_anchor(**point))
+            .count();
+        let free_coordinates = self.points.len().saturating_sub(anchored) * 2;
+        let held = solver::rank(&self.equations(millimeters_per_unit)).min(free_coordinates);
 
-        for (index, root) in components.iter().enumerate() {
-            counts[*root] += 2;
-            if is_anchor(self.points[index]) {
-                counts[*root] -= 2;
-            }
-        }
-        for circle in &self.circles {
-            counts[components[circle.center.0]] += 1;
-        }
-        for dimension in &self.dimensions {
-            if dimension.driven {
-                continue;
-            }
-            if let Some(root) = self.component_of_target(dimension.target, &components) {
-                counts[root] -= 1;
-            }
-        }
-
-        counts
-            .into_iter()
-            .map(|degrees_of_freedom| Freedom { degrees_of_freedom })
-            .collect()
-    }
-
-    fn component_of_target(&self, target: DimensionTarget, components: &[usize]) -> Option<usize> {
-        let point = match target {
-            DimensionTarget::Length(segment) => self.segments.get(segment.0)?.start,
-            DimensionTarget::Angle { first, .. } => self.segments.get(first.0)?.start,
-            DimensionTarget::Radius(circle) => self.circles.get(circle.0)?.center,
-        };
-        components.get(point.0).copied()
-    }
-
-    /// Whether the piece of drawing a point belongs to has any freedom left.
-    pub fn point_is_constrained(&self, point: PointId) -> bool {
-        let components = self.components();
-        let freedom = self.freedom_by_component();
-        components
-            .get(point.0)
-            .and_then(|root| freedom.get(*root))
-            .is_some_and(|freedom| freedom.fully_constrained())
-    }
-
-    pub fn segment_is_constrained(&self, segment: SegmentId) -> bool {
-        self.segments
-            .get(segment.0)
-            .is_some_and(|segment| self.point_is_constrained(segment.start))
-    }
-
-    /// True when the drawing has nothing left to determine.
-    pub fn is_fully_constrained(&self) -> bool {
-        !self.points.is_empty()
-            && self
-                .freedom_by_component()
+        // A circle brings its own radius, which only its own dimension can
+        // settle; that pair never touches the point coordinates.
+        let radii_without_a_value = self.circles.len().saturating_sub(
+            self.dimensions
                 .iter()
-                .enumerate()
-                .filter(|(root, _)| self.components().contains(root))
-                .all(|(_, freedom)| freedom.fully_constrained())
+                .filter(|dimension| {
+                    !dimension.driven && matches!(dimension.target, DimensionTarget::Radius(_))
+                })
+                .count(),
+        );
+
+        Freedom {
+            degrees_of_freedom: (free_coordinates - held) + radii_without_a_value,
+        }
     }
 
-    /// Whether a new dimension on this target would add nothing: its piece of
-    /// the drawing is already fully determined. Such a dimension is still worth
-    /// placing to read the value, but it must not drive anything.
-    pub fn would_be_redundant(&self, target: DimensionTarget) -> bool {
+    pub fn is_fully_constrained(&self, millimeters_per_unit: f32) -> bool {
+        !self.points.is_empty() && self.freedom(millimeters_per_unit).fully_constrained()
+    }
+
+    /// Whether a value on this target would say anything new.
+    ///
+    /// A constraint is redundant when its equation is a combination of those
+    /// already there — exactly the case of a triangle's third side once its
+    /// other sides and angles are fixed. Counting constraints could never see
+    /// that; comparing their directions can.
+    pub fn would_be_redundant(&self, target: DimensionTarget, millimeters_per_unit: f32) -> bool {
         if self.dimension_of(target).is_some() {
             return false;
         }
-        let components = self.components();
-        let freedom = self.freedom_by_component();
-        self.component_of_target(target, &components)
-            .and_then(|root| freedom.get(root))
-            .is_some_and(|freedom| freedom.fully_constrained())
+        if let DimensionTarget::Radius(circle) = target {
+            // A radius stands alone: redundant only if that circle already has
+            // one driving it.
+            return self.dimensions.iter().any(|dimension| {
+                !dimension.driven && dimension.target == DimensionTarget::Radius(circle)
+            });
+        }
+
+        let existing = self.equations(millimeters_per_unit);
+        let Some(candidate) = self.candidate_equation(target, millimeters_per_unit) else {
+            return false;
+        };
+        solver::is_dependent(&existing, &candidate)
+    }
+
+    /// The equation a not-yet-placed dimension would contribute, taken at the
+    /// value the geometry already has so only its direction matters.
+    fn candidate_equation(
+        &self,
+        target: DimensionTarget,
+        millimeters_per_unit: f32,
+    ) -> Option<solver::Equation> {
+        let value = match target {
+            DimensionTarget::Length(segment) => {
+                self.segment_length(segment) * millimeters_per_unit.max(1e-9)
+            }
+            DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
+            DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
+            DimensionTarget::Radius(_) => return None,
+        };
+
+        let mut probe = self.clone();
+        probe.dimensions.clear();
+        probe.set_dimension(target, value, false);
+        probe.equations(millimeters_per_unit).into_iter().next()
+    }
+
+    /// Whether the drawing has any freedom left. Used for colouring, which
+    /// speaks about the drawing as a whole.
+    pub fn is_settled(&self, millimeters_per_unit: f32) -> bool {
+        self.is_fully_constrained(millimeters_per_unit)
+    }
+
+    /// Re-satisfies every dimension at once, reporting whether it managed.
+    pub fn resolve(&mut self, millimeters_per_unit: f32) -> LengthOutcome {
+        match self.solve(millimeters_per_unit) {
+            SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
+            SolveOutcome::Residual => LengthOutcome::BestEffort,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::constraints::SketchAxis;
 
-    /// Two segments in a chain: fixing the length of the first must slide the
-    /// second along, keeping its own length and direction.
-    #[test]
-    fn a_dimension_drags_the_rest_of_the_chain() {
+    /// A right-angled triangle: corner at the origin, one side along X, one up.
+    fn triangle() -> (Sketch, [SegmentId; 3]) {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(10.0, 4.0));
-        let first = sketch.add_segment(a, b);
-        let second = sketch.add_segment(b, c);
+        let corner = sketch.add_point(Vec2::ZERO);
+        let right = sketch.add_point(Vec2::new(40.0, 0.0));
+        let top = sketch.add_point(Vec2::new(0.0, 30.0));
+        let base = sketch.add_segment(corner, right);
+        let side = sketch.add_segment(corner, top);
+        let hypotenuse = sketch.add_segment(right, top);
+        (sketch, [base, side, hypotenuse])
+    }
 
-        assert_eq!(sketch.set_segment_length(first, 25.0), LengthOutcome::Exact);
+    /// The bug this solver exists for: setting a second value must not undo the
+    /// first. Applying each dimension once and forgetting it could never do
+    /// this.
+    #[test]
+    fn an_angle_still_holds_after_a_length_is_changed() {
+        let (mut sketch, [base, side, _]) = triangle();
 
-        assert!((sketch.segment_length(first) - 25.0).abs() < 1e-4);
-        assert_eq!(sketch.point(a), Vec2::ZERO, "the anchor must not move");
-        assert!((sketch.point(b) - Vec2::new(25.0, 0.0)).length() < 1e-4);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: base,
+                second: side,
+            },
+            60.0,
+            false,
+        );
+        sketch.resolve(1.0);
+        assert!((sketch.angle_between(base, side).unwrap() - 60.0).abs() < 0.1);
+
+        sketch.set_dimension(DimensionTarget::Length(base), 100.0, false);
+        sketch.resolve(1.0);
+
+        let angle = sketch.angle_between(base, side).unwrap();
+        let length = sketch.segment_length(base);
+        assert!((angle - 60.0).abs() < 0.1, "the angle drifted to {angle}°");
+        assert!((length - 100.0).abs() < 0.1, "the length is {length}");
+    }
+
+    #[test]
+    fn every_value_holds_at_once() {
+        let (mut sketch, [base, side, _]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(base), 50.0, false);
+        sketch.set_dimension(DimensionTarget::Length(side), 20.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: base,
+                second: side,
+            },
+            45.0,
+            false,
+        );
+
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        assert!((sketch.segment_length(base) - 50.0).abs() < 0.1);
+        assert!((sketch.segment_length(side) - 20.0).abs() < 0.1);
+        assert!((sketch.angle_between(base, side).unwrap() - 45.0).abs() < 0.1);
+    }
+
+    /// The case reported from the drawing: with two angles and two sides given,
+    /// the third side follows and cannot be set independently.
+    #[test]
+    fn the_third_side_of_a_settled_triangle_is_redundant() {
+        let (mut sketch, [base, side, hypotenuse]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
+        sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: base,
+                second: side,
+            },
+            90.0,
+            false,
+        );
+        sketch.resolve(1.0);
+
         assert!(
-            (sketch.point(c) - Vec2::new(25.0, 4.0)).length() < 1e-4,
-            "the far segment should travel rigidly"
+            sketch.would_be_redundant(DimensionTarget::Length(hypotenuse), 1.0),
+            "the hypotenuse follows from the two sides and their angle"
         );
-        assert!((sketch.segment_length(second) - 4.0).abs() < 1e-4);
     }
 
-    /// A closed shape cannot absorb a rigid move: the far end alone gives way,
-    /// and we say so rather than pretending the length was satisfied cleanly.
+    /// Nothing is redundant while the shape can still change.
     #[test]
-    fn a_closed_shape_is_stretched_best_effort() {
+    fn a_side_of_an_open_shape_is_not_redundant() {
+        let (sketch, [_, _, hypotenuse]) = triangle();
+        assert!(!sketch.would_be_redundant(DimensionTarget::Length(hypotenuse), 1.0));
+    }
+
+    /// Pinning a point takes away the two ways a drawing can slide, never the
+    /// way it can turn: that last freedom needs an angle to a fixed direction.
+    #[test]
+    fn a_drawing_is_only_complete_once_it_can_no_longer_turn() {
+        let (mut sketch, [base, side, _]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
+        sketch.set_dimension(DimensionTarget::Length(side), 30.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: base,
+                second: side,
+            },
+            90.0,
+            false,
+        );
+        sketch.resolve(1.0);
+
+        // The corner sits on the origin, so only the rotation is left.
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 1);
+        assert!(!sketch.is_fully_constrained(1.0));
+
+        sketch.set_dimension(
+            DimensionTarget::AxisAngle {
+                segment: base,
+                axis: SketchAxis::U,
+            },
+            0.0,
+            false,
+        );
+        sketch.resolve(1.0);
+
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 0);
+        assert!(sketch.is_fully_constrained(1.0));
+    }
+
+    /// A drawing with no point on the origin can still slide about, however
+    /// many values it carries.
+    #[test]
+    fn a_drawing_that_is_not_pinned_is_never_complete() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(Vec2::new(5.0, 5.0));
+        let b = sketch.add_point(Vec2::new(15.0, 5.0));
+        let segment = sketch.add_segment(a, b);
+        sketch.set_dimension(DimensionTarget::Length(segment), 10.0, false);
+        sketch.set_dimension(
+            DimensionTarget::AxisAngle {
+                segment,
+                axis: SketchAxis::U,
+            },
+            0.0,
+            false,
+        );
+
+        assert!(!sketch.is_fully_constrained(1.0));
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 2, "free to slide");
+    }
+
+    /// A readout says nothing about the shape, so it must not remove freedom.
+    #[test]
+    fn a_driven_dimension_constrains_nothing() {
+        let (mut sketch, [base, _, _]) = triangle();
+        let before = sketch.freedom(1.0).degrees_of_freedom;
+        sketch.set_dimension(DimensionTarget::Length(base), 100.0, true);
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, before);
+    }
+
+    #[test]
+    fn an_angle_needs_two_segments_that_meet() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(Vec2::ZERO);
         let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(10.0, 10.0));
-        let d = sketch.add_point(Vec2::new(0.0, 10.0));
-        let bottom = sketch.add_segment(a, b);
-        sketch.add_segment(b, c);
-        sketch.add_segment(c, d);
-        sketch.add_segment(d, a);
+        let c = sketch.add_point(Vec2::new(0.0, 5.0));
+        let d = sketch.add_point(Vec2::new(5.0, 5.0));
+        let first = sketch.add_segment(a, b);
+        let apart = sketch.add_segment(c, d);
 
-        assert_eq!(
-            sketch.set_segment_length(bottom, 30.0),
-            LengthOutcome::BestEffort
-        );
-        assert!((sketch.segment_length(bottom) - 30.0).abs() < 1e-4);
-        assert_eq!(sketch.point(a), Vec2::ZERO);
-        assert!((sketch.point(b) - Vec2::new(30.0, 0.0)).length() < 1e-4);
-        assert_eq!(sketch.point(c), Vec2::new(10.0, 10.0), "the far side stays");
+        assert!(sketch.angle_between(first, apart).is_none());
     }
 
     #[test]
-    fn a_lone_segment_just_stretches() {
+    fn an_axis_angle_measures_from_the_sketch_direction() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(3.0, 4.0));
+        let b = sketch.add_point(Vec2::new(10.0, 10.0));
         let segment = sketch.add_segment(a, b);
 
-        assert_eq!(
-            sketch.set_segment_length(segment, 10.0),
-            LengthOutcome::Exact
-        );
-        assert!((sketch.segment_length(segment) - 10.0).abs() < 1e-4);
-        // Direction preserved: the 3-4-5 triangle scales to 6-8-10.
-        assert!((sketch.point(b) - Vec2::new(6.0, 8.0)).length() < 1e-4);
+        let angle = sketch.angle_with_axis(segment, SketchAxis::U).unwrap();
+        assert!((angle - 45.0).abs() < 1e-3, "got {angle}°");
     }
 
+    /// Contradictory values cannot both be met, and the solver has to say so
+    /// rather than quietly settling on one of them.
     #[test]
-    fn a_zero_length_segment_cannot_be_stretched() {
+    fn impossible_values_are_reported() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::ZERO);
-        let segment = sketch.add_segment(a, b);
-        assert_eq!(
-            sketch.set_segment_length(segment, 10.0),
-            LengthOutcome::Degenerate
-        );
+        let b = sketch.add_point(Vec2::new(10.0, 0.0));
+        let first = sketch.add_segment(a, b);
+        let second = sketch.add_segment(a, b);
+
+        sketch.set_dimension(DimensionTarget::Length(first), 50.0, false);
+        sketch.set_dimension(DimensionTarget::Length(second), 90.0, false);
+
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::BestEffort);
     }
 
     #[test]
@@ -549,113 +592,19 @@ mod tests {
         assert_eq!(sketch.points().len(), 2);
     }
 
-    /// A right angle asked to become 30° must actually measure 30°, and take
-    /// the rest of the chain with it.
     #[test]
-    fn an_angle_turns_the_second_segment() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let corner = sketch.add_point(Vec2::ZERO);
-        let right = sketch.add_point(Vec2::new(10.0, 0.0));
-        let up = sketch.add_point(Vec2::new(0.0, 10.0));
-        let tip = sketch.add_point(Vec2::new(0.0, 14.0));
-        let first = sketch.add_segment(corner, right);
-        let second = sketch.add_segment(corner, up);
-        sketch.add_segment(up, tip);
-
-        assert!((sketch.angle_between(first, second).unwrap() - 90.0).abs() < 1e-3);
-        assert_eq!(sketch.set_angle(first, second, 30.0), LengthOutcome::Exact);
-
-        let measured = sketch.angle_between(first, second).unwrap();
-        assert!((measured - 30.0).abs() < 1e-2, "got {measured}°");
-        // The far segment travelled with it and kept its own length.
-        assert!((sketch.point(up).distance(sketch.point(tip)) - 4.0).abs() < 1e-3);
-    }
-
-    #[test]
-    fn an_angle_needs_two_segments_that_meet() {
+    fn the_nearest_segment_is_found_along_its_body() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(0.0, 5.0));
-        let d = sketch.add_point(Vec2::new(5.0, 5.0));
-        let first = sketch.add_segment(a, b);
-        let apart = sketch.add_segment(c, d);
+        let b = sketch.add_point(Vec2::new(100.0, 0.0));
+        let segment = sketch.add_segment(a, b);
 
-        assert!(sketch.angle_between(first, apart).is_none());
         assert_eq!(
-            sketch.set_angle(first, apart, 45.0),
-            LengthOutcome::Degenerate
+            sketch.nearest_segment(Vec2::new(50.0, 2.0), 5.0),
+            Some(segment)
         );
-    }
-
-    /// A lone segment has 4 unknowns; its length removes one, pinning a point
-    /// to the origin removes two, and the last one is its direction.
-    #[test]
-    fn freedom_is_counted_down_as_constraints_are_added() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let anchor = sketch.add_point(Vec2::ZERO);
-        let far = sketch.add_point(Vec2::new(10.0, 0.0));
-        let segment = sketch.add_segment(anchor, far);
-
-        let freedom = |sketch: &Sketch| sketch.freedom_by_component()[0].degrees_of_freedom;
-        // 2 points = 4, minus 2 for the anchored one.
-        assert_eq!(freedom(&sketch), 2);
-
-        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, false);
-        assert_eq!(freedom(&sketch), 1);
-        assert!(!sketch.is_fully_constrained());
-
-        let other = sketch.add_point(Vec2::new(10.0, 10.0));
-        let second = sketch.add_segment(far, other);
-        sketch.set_dimension(DimensionTarget::Length(second), 50.0, false);
-        sketch.set_dimension(
-            DimensionTarget::Angle {
-                first: segment,
-                second,
-            },
-            90.0,
-            false,
-        );
-        // 3 points = 6, minus 2 anchored, minus 3 dimensions = 1 left: the
-        // direction of the first segment.
-        assert_eq!(freedom(&sketch), 1);
-    }
-
-    /// A driven dimension is only a readout, so it must not count as removing
-    /// any freedom.
-    #[test]
-    fn a_driven_dimension_constrains_nothing() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let anchor = sketch.add_point(Vec2::ZERO);
-        let far = sketch.add_point(Vec2::new(10.0, 0.0));
-        let segment = sketch.add_segment(anchor, far);
-
-        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, true);
-        assert_eq!(sketch.freedom_by_component()[0].degrees_of_freedom, 2);
-    }
-
-    /// Once a piece of the drawing has nothing left to determine, a further
-    /// dimension on it adds nothing and must be flagged.
-    #[test]
-    fn a_dimension_on_a_settled_shape_is_redundant() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let anchor = sketch.add_point(Vec2::ZERO);
-        let far = sketch.add_point(Vec2::new(10.0, 0.0));
-        let segment = sketch.add_segment(anchor, far);
-        let circle = sketch.add_circle(anchor, 5.0);
-
-        assert!(!sketch.would_be_redundant(DimensionTarget::Length(segment)));
-
-        // Take away the last two freedoms: the segment length and the radius.
-        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, false);
-        sketch.set_dimension(DimensionTarget::Radius(circle), 20.0, false);
-        // 2 points(4) + radius(1) - anchor(2) - 2 dimensions = 1 left.
-        let second = sketch.add_segment(anchor, far);
-        sketch.set_dimension(DimensionTarget::Length(second), 100.0, false);
-
-        assert!(sketch.is_fully_constrained());
-        let extra = sketch.add_segment(far, anchor);
-        assert!(sketch.would_be_redundant(DimensionTarget::Length(extra)));
+        assert_eq!(sketch.nearest_segment(Vec2::new(50.0, 40.0), 5.0), None);
+        assert_eq!(sketch.nearest_segment(Vec2::new(150.0, 0.0), 5.0), None);
     }
 
     #[test]
@@ -674,21 +623,6 @@ mod tests {
             "not the middle"
         );
         assert_eq!(sketch.nearest_circle(Vec2::new(30.0, 0.0), 1.0), None);
-    }
-
-    #[test]
-    fn the_nearest_segment_is_found_along_its_body() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(100.0, 0.0));
-        let segment = sketch.add_segment(a, b);
-
-        assert_eq!(
-            sketch.nearest_segment(Vec2::new(50.0, 2.0), 5.0),
-            Some(segment)
-        );
-        assert_eq!(sketch.nearest_segment(Vec2::new(50.0, 40.0), 5.0), None);
-        assert_eq!(sketch.nearest_segment(Vec2::new(150.0, 0.0), 5.0), None);
     }
 
     #[test]

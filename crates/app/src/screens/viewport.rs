@@ -412,8 +412,9 @@ fn handle_sketch_input(
 
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(10.0);
+    let cursor = magnetise(cursor, scale, &state.config, context, index, snap);
 
-    context.editor.cursor = Some(snap_position(context, index, cursor, snap));
+    context.editor.cursor = Some(cursor);
 
     if !response.clicked() {
         return false;
@@ -484,8 +485,9 @@ fn select_dimension_target(context: &mut SketchContext<'_>, index: usize, cursor
 
     let measured = target.and_then(|target| context.document.measured(index, target));
     context.editor.select(target, measured);
+    let scale = context.document.scale();
     context.editor.message = match target {
-        Some(target) if context.document.sketches()[index].would_be_redundant(target) => {
+        Some(target) if context.document.sketches()[index].would_be_redundant(target, scale) => {
             Some(REDUNDANT_WARNING.to_string())
         }
         _ => None,
@@ -496,15 +498,37 @@ fn select_dimension_target(context: &mut SketchContext<'_>, index: usize, cursor
 /// at a time.
 fn pick_angle_segments(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
     let sketch = &context.document.sketches()[index];
-    let Some(picked) = sketch.nearest_segment(cursor, snap) else {
+    let picked = sketch.nearest_segment(cursor, snap);
+
+    let Some(first) = context.editor.first_angle_segment else {
+        let Some(picked) = picked else {
+            return;
+        };
+        context.editor.first_angle_segment = Some(picked);
+        context.editor.message =
+            Some("Choisissez le second trait, ou un axe de l'esquisse".to_string());
         return;
     };
 
-    let Some(first) = context.editor.first_angle_segment else {
-        context.editor.first_angle_segment = Some(picked);
-        context.editor.message = Some("Choisissez le second trait".to_string());
+    // Clicking an axis rather than a second segment gives the drawing a fixed
+    // direction to lean on — the only way to stop it turning about its anchor.
+    let Some(picked) = picked else {
+        let Some(axis) = axis_under(cursor, snap) else {
+            return;
+        };
+        context.editor.first_angle_segment = None;
+        let target = DimensionTarget::AxisAngle {
+            segment: first,
+            axis,
+        };
+        let measured = context.document.measured(index, target);
+        context.editor.select(Some(target), measured);
+        context.editor.message = context.document.sketches()[index]
+            .would_be_redundant(target, context.document.scale())
+            .then(|| REDUNDANT_WARNING.to_string());
         return;
     };
+
     if first == picked {
         return;
     }
@@ -523,21 +547,63 @@ fn pick_angle_segments(context: &mut SketchContext<'_>, index: usize, cursor: Ve
 
     let measured = context.document.measured(index, target);
     context.editor.select(Some(target), measured);
+    let scale = context.document.scale();
     context.editor.message = context.document.sketches()[index]
-        .would_be_redundant(target)
+        .would_be_redundant(target, scale)
         .then(|| REDUNDANT_WARNING.to_string());
+}
+
+/// Which sketch axis the cursor is on, if either. The axes are drawn as lines
+/// through the origin, so they are picked the same way a segment is.
+fn axis_under(cursor: Vec2, tolerance: f32) -> Option<cao_sketch::SketchAxis> {
+    if cursor.y.abs() <= tolerance {
+        return Some(cao_sketch::SketchAxis::U);
+    }
+    if cursor.x.abs() <= tolerance {
+        return Some(cao_sketch::SketchAxis::V);
+    }
+    None
 }
 
 /// Shown when a value would add nothing to a shape that is already settled.
 pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : la forme est déjà entièrement contrainte. Elle sera posée en simple lecture.";
 
-/// Where the next point would actually land, snapping onto an existing one when
-/// the cursor is near it. Shown live so the drawing never surprises the user.
-fn snap_position(context: &SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> Vec2 {
+/// Pulls the cursor onto whatever it is near: an existing point first, then the
+/// grid.
+///
+/// The grid magnet is what makes drawing on the origin, or a right angle by
+/// following the lines, a matter of aiming roughly rather than exactly. It only
+/// bites within a few pixels, so a deliberate free position is still possible.
+fn magnetise(
+    cursor: Vec2,
+    scale: ViewScale,
+    config: &ViewportConfig,
+    context: &SketchContext<'_>,
+    index: usize,
+    snap: f32,
+) -> Vec2 {
     let sketch = &context.document.sketches()[index];
-    match sketch.nearest_point(cursor, snap) {
-        Some(id) => sketch.point(id),
-        None => cursor,
+    if let Some(point) = sketch.nearest_point(cursor, snap) {
+        return sketch.point(point);
+    }
+    if !config.grid_snap {
+        return cursor;
+    }
+
+    // The grid is drawn every `step`; snapping to a fraction of it keeps the
+    // magnet useful without forcing everything onto the coarse lines.
+    let step = scale.step / config.grid_snap_divisions.max(1) as f32;
+    if step <= 0.0 {
+        return cursor;
+    }
+    let snapped = Vec2::new(
+        (cursor.x / step).round() * step,
+        (cursor.y / step).round() * step,
+    );
+    if snapped.distance(cursor) <= scale.world_size_of(config.grid_snap_pixels) {
+        snapped
+    } else {
+        cursor
     }
 }
 
@@ -751,11 +817,9 @@ fn push_sketch(
     active: bool,
     context: &SketchContext<'_>,
 ) {
-    for (index, segment) in sketch.segments().iter().enumerate() {
-        let (color, width) = sketch_colors(
-            active,
-            sketch.segment_is_constrained(cao_sketch::SegmentId(index)),
-        );
+    let settled = sketch.is_settled(context.document.scale());
+    for segment in sketch.segments() {
+        let (color, width) = sketch_colors(active, settled);
         let start = sketch.plane.to_world(sketch.point(segment.start));
         let end = sketch.plane.to_world(sketch.point(segment.end));
         out.push(cao_render::Vertex::line(start, color, width));
@@ -763,7 +827,7 @@ fn push_sketch(
     }
 
     for circle in sketch.circles() {
-        let (color, width) = sketch_colors(active, sketch.point_is_constrained(circle.center));
+        let (color, width) = sketch_colors(active, settled);
         push_circle(out, sketch, circle.center, circle.radius, color, width);
     }
 
@@ -774,8 +838,8 @@ fn push_sketch(
     // Points are drawn as small crosses kept at a constant size on screen, so
     // they stay clickable at any zoom.
     let arm = scale.world_size_of(4.0);
-    for (index, point) in sketch.points().iter().enumerate() {
-        let (color, _) = sketch_colors(true, sketch.point_is_constrained(PointId(index)));
+    for point in sketch.points() {
+        let (color, _) = sketch_colors(true, settled);
         let center = sketch.plane.to_world(*point);
         for axis in [sketch.plane.u, sketch.plane.v] {
             out.push(cao_render::Vertex::line(center - axis * arm, color, 1.5));
@@ -1017,6 +1081,14 @@ fn dimension_anchor(sketch: &Sketch, target: DimensionTarget) -> Option<Vec2> {
             let circle = sketch.circle(circle);
             sketch.point(circle.center) + Vec2::new(circle.radius * 0.7, circle.radius * 0.7)
         }),
+        DimensionTarget::AxisAngle { segment, .. } => {
+            // Beside the far end, where it does not sit on top of the axis it
+            // is measured from.
+            (segment.0 < sketch.segments().len()).then(|| {
+                let (start, end) = sketch.endpoints(segment);
+                start + (end - start) * 0.25
+            })
+        }
         DimensionTarget::Angle { first, second } => {
             let (a, b) = (
                 sketch.segments().get(first.0)?,

@@ -3,6 +3,34 @@ use serde::{Deserialize, Serialize};
 
 use crate::sketch::{CircleId, SegmentId};
 
+/// One of the sketch's own axes, usable as the fixed reference of an angle.
+///
+/// Without it a drawing can always be spun about its anchor: pinning a point
+/// takes away the two ways it can slide, never the way it can turn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SketchAxis {
+    /// The sketch's horizontal axis.
+    U,
+    /// The sketch's vertical axis.
+    V,
+}
+
+impl SketchAxis {
+    pub fn direction(self) -> Vec2 {
+        match self {
+            Self::U => Vec2::X,
+            Self::V => Vec2::Y,
+        }
+    }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::U => "axe horizontal",
+            Self::V => "axe vertical",
+        }
+    }
+}
+
 /// What a dimension measures.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DimensionTarget {
@@ -10,6 +38,11 @@ pub enum DimensionTarget {
     Length(SegmentId),
     /// Angle at the point two segments share.
     Angle { first: SegmentId, second: SegmentId },
+    /// Angle between a segment and one of the sketch axes.
+    AxisAngle {
+        segment: SegmentId,
+        axis: SketchAxis,
+    },
     /// Radius of a circle.
     Radius(CircleId),
 }
@@ -29,7 +62,10 @@ pub struct Dimension {
 
 impl Dimension {
     pub fn is_angle(&self) -> bool {
-        matches!(self.target, DimensionTarget::Angle { .. })
+        matches!(
+            self.target,
+            DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+        )
     }
 
     /// How the value reads on screen.
@@ -38,22 +74,20 @@ impl Dimension {
     }
 }
 
-/// How much freedom is left in one connected piece of a drawing.
+/// How much freedom a drawing still has.
 ///
-/// This is a **count**, not a rank analysis: it compares the number of
-/// coordinates against the number of values fixed. It cannot tell that two
-/// constraints say the same thing in different words, so a drawing it calls
-/// fully constrained may still be under-determined in an unusual arrangement.
-/// It is enough to colour the drawing and to warn about the obvious redundancy,
-/// and it is deliberately not presented as more than that.
+/// Worked out from the **rank** of the constraint system, not by counting
+/// constraints: that is the only way to see that a triangle's third side
+/// follows from its other sides and angles, and so adds nothing.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Freedom {
-    pub degrees_of_freedom: i32,
+    /// Coordinates that are still free to move.
+    pub degrees_of_freedom: usize,
 }
 
 impl Freedom {
     pub fn fully_constrained(self) -> bool {
-        self.degrees_of_freedom <= 0
+        self.degrees_of_freedom == 0
     }
 }
 
@@ -63,33 +97,4 @@ pub const ANCHOR_TOLERANCE: f32 = 1e-4;
 
 pub fn is_anchor(position: Vec2) -> bool {
     position.length() <= ANCHOR_TOLERANCE
-}
-
-/// Union-find over point indices, used to group a drawing into the pieces that
-/// move independently of each other.
-pub(crate) struct Components {
-    parent: Vec<usize>,
-}
-
-impl Components {
-    pub fn new(count: usize) -> Self {
-        Self {
-            parent: (0..count).collect(),
-        }
-    }
-
-    pub fn find(&mut self, mut index: usize) -> usize {
-        while self.parent[index] != index {
-            self.parent[index] = self.parent[self.parent[index]];
-            index = self.parent[index];
-        }
-        index
-    }
-
-    pub fn union(&mut self, a: usize, b: usize) {
-        let (a, b) = (self.find(a), self.find(b));
-        if a != b {
-            self.parent[b] = a;
-        }
-    }
 }

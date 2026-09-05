@@ -205,6 +205,12 @@ pub struct ViewportConfig {
     pub max_distance: f32,
     /// Smallest on-screen spacing, in pixels, before the grid step grows.
     pub grid_pixel_spacing: f32,
+    /// Whether the cursor is pulled onto the grid while drawing.
+    pub grid_snap: bool,
+    /// How many parts each grid square is divided into for snapping.
+    pub grid_snap_divisions: u32,
+    /// How close, in pixels, the cursor must be for the grid to pull it.
+    pub grid_snap_pixels: f32,
     /// Corner the scale bar sits in.
     pub ruler_corner: ViewportCorner,
     pub ruler_visible: bool,
@@ -225,6 +231,9 @@ impl Default for ViewportConfig {
             min_distance: 1e-3,
             max_distance: 1e9,
             grid_pixel_spacing: 48.0,
+            grid_snap: true,
+            grid_snap_divisions: 4,
+            grid_snap_pixels: 12.0,
             ruler_corner: ViewportCorner::BottomLeft,
             ruler_visible: true,
             unit: UnitDisplay::Auto,

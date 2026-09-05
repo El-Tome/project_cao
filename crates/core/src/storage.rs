@@ -10,6 +10,10 @@ pub enum StorageError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Archive(#[from] zip::result::ZipError),
+    #[error("le fichier de pièce ne contient pas « {0} »")]
+    MissingEntry(String),
 }
 
 pub fn project_dirs() -> Result<ProjectDirs, StorageError> {

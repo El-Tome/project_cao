@@ -1,4 +1,5 @@
 use cao_sketch::{PointId, SegmentId, WorkPlane};
+use glam::Vec2;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
 /// menu; nothing else needs to know about them.
@@ -41,14 +42,26 @@ pub struct SketchEditor {
     /// The plane a sketch is being drawn on, kept here so the view can be
     /// re-aligned with it at any time.
     pub plane: Option<WorkPlane>,
-    /// Last point of the polyline in progress: the next click continues from
-    /// there rather than starting a new segment.
-    pub chain: Option<PointId>,
+    /// Where the polyline in progress carries on from.
+    pub chain: Option<ChainAnchor>,
     pub hovered_plane: Option<usize>,
     pub selected_segment: Option<SegmentId>,
     /// Text being typed into the dimension field.
     pub dimension_input: String,
+    /// Where the next point would land, snapped. Drives the preview line.
+    pub cursor: Option<Vec2>,
     pub message: Option<String>,
+}
+
+/// The point a polyline continues from.
+///
+/// The first click of a chain has nothing to attach to yet, and creating a
+/// lone point would put a step in the history that draws nothing. So it is held
+/// here until the second click, which turns the pair into one segment.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum ChainAnchor {
+    Pending(Vec2),
+    Point(PointId),
 }
 
 impl SketchEditor {

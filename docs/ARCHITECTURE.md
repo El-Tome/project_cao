@@ -65,6 +65,8 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 ## Documentation par sujet
 
 - [esquisse.md](esquisse.md) — dessiner, coter, et la règle d'échelle
+- [historique.md](historique.md) — opérations, annulation, format de fichier
+- [interface.md](interface.md) — barre d'outils détachable, panneaux
 - [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
 - [rendu.md](rendu.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
 - [navigation.md](navigation.md) — gestes souris, comportement de la caméra
@@ -73,11 +75,12 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 
 ## Format de fichier
 
-Une pièce est un JSON (`.caopart`) portant ses métadonnées, son échelle
-(millimètres par unité du monde) et ses esquisses. Il est versionné par
-`schema_version` ; les champs ajoutés au fil du temps ont des valeurs par
-défaut, si bien qu'un fichier écrit par une version antérieure se rouvre sans
-conversion. Les extrusions viendront s'y ajouter de la même façon.
+Une pièce est une **archive zip** (`.caopart`) contenant ses métadonnées et son
+historique d'opérations. La géométrie n'est pas enregistrée : elle est
+reconstruite en rejouant l'historique, ce qui fait de l'annulation, du
+rétablissement et du retour à une étape la même opération. Les fichiers écrits
+au format précédent (un JSON unique) sont convertis à l'ouverture. Voir
+[historique.md](historique.md).
 
 ## Pistes non prioritaires (à débattre plus tard)
 

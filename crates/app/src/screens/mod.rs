@@ -1,3 +1,5 @@
+pub mod history_tree;
+pub mod ribbon;
 pub mod sketch;
 pub mod start_menu;
 pub mod viewport;
@@ -6,6 +8,7 @@ use std::path::PathBuf;
 
 use cao_core::PartDocument;
 
+use ribbon::Ribbon;
 use sketch::SketchEditor;
 use viewport::ViewportState;
 
@@ -16,6 +19,7 @@ pub struct OpenPart {
     pub path: PathBuf,
     pub viewport: ViewportState,
     pub editor: SketchEditor,
+    pub ribbon: Ribbon,
 }
 
 /// The current top-level screen. New modes (sketch/extrude, assembly, ...)

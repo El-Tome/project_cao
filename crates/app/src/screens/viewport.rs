@@ -1,15 +1,16 @@
 use cao_core::PartDocument;
 use cao_core::ViewportConfig;
 use cao_core::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
+use cao_core::history::{Operation, PointRef};
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{
     AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition, ViewportRect,
     adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad, srgb,
 };
-use cao_sketch::{Sketch, WorkPlane};
+use cao_sketch::{PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
-use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::sketch::{ChainAnchor, SketchEditor, Tool};
 
 /// What the canvas is showing: the bare world axes, or a work plane with its
 /// grid. Landing on a plane shows the grid; orbiting leaves it, since the view
@@ -119,6 +120,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         rect,
         ui.ctx().pixels_per_point(),
         &state.config,
+        sketch.document.scale(),
     );
     let changed = if handled_cube {
         false
@@ -147,7 +149,10 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
 #[derive(Clone, Copy)]
 struct ViewScale {
     units_per_pixel: f32,
+    /// Grid step in world units, for drawing.
     step: f32,
+    /// The same step in millimetres, for the label.
+    step_millimeters: f32,
     height_px: f32,
     diagonal_px: f32,
     aspect: f32,
@@ -159,13 +164,31 @@ impl ViewScale {
         rect: egui::Rect,
         pixels_per_point: f32,
         config: &ViewportConfig,
+        millimeters_per_unit: f32,
     ) -> Self {
         let height_px = rect.height() * pixels_per_point;
         let units_per_pixel = camera.world_units_per_pixel(height_px);
         let width_px = rect.width() * pixels_per_point;
+
+        // The step is chosen in millimetres, not in world units: those are what
+        // the ruler shows, so they are what must land on round values. Once the
+        // first dimension has set the scale, a world unit is no longer a
+        // millimetre, and picking the step in units would put the ruler out by
+        // exactly that factor.
+        let millimeters_per_unit = if millimeters_per_unit > 1e-9 {
+            millimeters_per_unit
+        } else {
+            1.0
+        };
+        let step_millimeters = adaptive_step(
+            units_per_pixel * millimeters_per_unit,
+            config.grid_pixel_spacing,
+        );
+
         Self {
             units_per_pixel,
-            step: adaptive_step(units_per_pixel, config.grid_pixel_spacing),
+            step: step_millimeters / millimeters_per_unit,
+            step_millimeters,
             height_px,
             diagonal_px: (width_px * width_px + height_px * height_px).sqrt(),
             aspect: rect.width() / rect.height(),
@@ -339,6 +362,7 @@ fn handle_sketch_input(
 ) -> bool {
     let Some(pointer) = response.hover_pos() else {
         context.editor.hovered_plane = None;
+        context.editor.cursor = None;
         return false;
     };
     let (origin, direction) = state
@@ -355,8 +379,8 @@ fn handle_sketch_input(
             && let Some(index) = context.editor.hovered_plane
         {
             let plane = WorkPlane::ORIGIN_PLANES[index];
-            context.document.sketches.push(Sketch::new(plane));
-            let sketch = context.document.sketches.len() - 1;
+            context.document.apply(Operation::CreateSketch { plane });
+            let sketch = context.document.sketches().len() - 1;
             context.editor.begin_editing(sketch, plane);
             // A fresh sketch has nothing to frame yet, so we show a patch of
             // plane big enough to draw in. The scale is meaningless until the
@@ -370,7 +394,14 @@ fn handle_sketch_input(
     let Some(index) = context.editor.active_sketch() else {
         return false;
     };
-    let plane = context.document.sketches[index].plane;
+    let Some(plane) = context
+        .document
+        .sketches()
+        .get(index)
+        .map(|sketch| sketch.plane)
+    else {
+        return false;
+    };
     let Some(cursor) = plane.ray_intersection(origin, direction) else {
         return false;
     };
@@ -382,20 +413,12 @@ fn handle_sketch_input(
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(10.0);
 
+    context.editor.cursor = Some(snap_position(context, index, cursor, snap));
+
     match context.editor.tool {
-        Tool::Line if response.clicked() => {
-            let sketch = &mut context.document.sketches[index];
-            let point = sketch.point_at(cursor, snap);
-            if let Some(previous) = context.editor.chain
-                && previous != point
-            {
-                sketch.add_segment(previous, point);
-            }
-            context.editor.chain = Some(point);
-            true
-        }
+        Tool::Line if response.clicked() => draw_line_point(context, index, cursor, snap),
         Tool::Dimension if response.clicked() => {
-            let sketch = &context.document.sketches[index];
+            let sketch = &context.document.sketches()[index];
             let segment = sketch.nearest_segment(cursor, snap);
             let length = segment.map(|id| {
                 sketch
@@ -408,6 +431,57 @@ fn handle_sketch_input(
         }
         _ => false,
     }
+}
+
+/// Where the next point would actually land, snapping onto an existing one when
+/// the cursor is near it. Shown live so the drawing never surprises the user.
+fn snap_position(context: &SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> Vec2 {
+    let sketch = &context.document.sketches()[index];
+    match sketch.nearest_point(cursor, snap) {
+        Some(id) => sketch.point(id),
+        None => cursor,
+    }
+}
+
+/// One click of the line tool. The first click only remembers where the chain
+/// starts; the second turns the pair into a segment in the history.
+fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
+    let sketch = &context.document.sketches()[index];
+    let end = match sketch.nearest_point(cursor, snap) {
+        Some(id) => PointRef::Existing(id),
+        None => PointRef::New(cursor),
+    };
+
+    let Some(anchor) = context.editor.chain else {
+        context.editor.chain = Some(match end {
+            PointRef::Existing(id) => ChainAnchor::Point(id),
+            PointRef::New(position) => ChainAnchor::Pending(position),
+        });
+        return false;
+    };
+
+    let start = match anchor {
+        ChainAnchor::Point(id) => PointRef::Existing(id),
+        ChainAnchor::Pending(position) => PointRef::New(position),
+    };
+    if start == end {
+        return false;
+    }
+
+    context.document.apply(Operation::AddSegment {
+        sketch: index,
+        start,
+        end,
+    });
+
+    // The far end of the segment just drawn becomes the next anchor. A point
+    // created by the operation is the last one in the sketch.
+    let sketch = &context.document.sketches()[index];
+    context.editor.chain = Some(ChainAnchor::Point(match end {
+        PointRef::Existing(id) => id,
+        PointRef::New(_) => PointId(sketch.points().len().saturating_sub(1)),
+    }));
+    true
 }
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.
@@ -507,7 +581,7 @@ fn build_frame(
         push_choosable_planes(&mut surfaces, &mut lines, state, context);
     }
 
-    for (index, sketch) in context.document.sketches.iter().enumerate() {
+    for (index, sketch) in context.document.sketches().iter().enumerate() {
         let active = context.editor.active_sketch() == Some(index);
         push_sketch(&mut lines, sketch, scale, active, context);
     }
@@ -597,6 +671,27 @@ fn push_sketch(
         }
     }
 
+    // The segment about to be drawn, following the cursor: placing a point
+    // blind and only then seeing where it went is needlessly uncomfortable.
+    if let (Some(anchor), Some(cursor)) = (context.editor.chain, context.editor.cursor) {
+        let from = match anchor {
+            ChainAnchor::Pending(position) => position,
+            ChainAnchor::Point(id) if id.0 < sketch.points().len() => sketch.point(id),
+            ChainAnchor::Point(_) => cursor,
+        };
+        let preview = srgb(0.98, 0.85, 0.35, 0.55);
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(from),
+            preview,
+            1.5,
+        ));
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(cursor),
+            preview,
+            1.5,
+        ));
+    }
+
     if let Some(selected) = context.editor.selected_segment
         && selected.0 < sketch.segments().len()
     {
@@ -666,7 +761,7 @@ fn paint_dimension_labels(
     let Some(index) = context.editor.active_sketch() else {
         return;
     };
-    let Some(sketch) = context.document.sketches.get(index) else {
+    let Some(sketch) = context.document.sketches().get(index) else {
         return;
     };
     let view_projection = state
@@ -709,7 +804,7 @@ fn face_label(face: cao_render::CubeFace) -> &'static str {
 fn paint_ruler(ui: &egui::Ui, state: &ViewportState, viewport: egui::Rect, scale: ViewScale) {
     let config = &state.config;
     let length = scale.step_in_points(ui.ctx().pixels_per_point());
-    let label = config.unit.format(scale.step);
+    let label = config.unit.format(scale.step_millimeters);
 
     let tick = 5.0;
     let text_height = 16.0;

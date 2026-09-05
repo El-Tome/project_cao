@@ -88,6 +88,12 @@ L'unité s'adapte pour éviter les nombres à rallonge : µm, mm, m puis km selo
 l'échelle, donc « 50 m » et non « 50000 mm ». On peut la figer sur une unité
 précise (`unit: Fixed(…)`).
 
+Le pas est choisi **en millimètres**, puis converti en unités du monde pour
+tracer la grille. C'est l'inverse qui serait naturel, mais faux : une fois la
+première cote posée, une unité du monde ne vaut plus un millimètre, et choisir
+le pas en unités mettait la règle à côté d'exactement ce facteur — l'erreur
+constante et proportionnelle qu'on observait.
+
 Son coin est configurable (`ruler_corner`), et elle peut être masquée
 (`ruler_visible`).
 

@@ -4,10 +4,14 @@
 
 pub mod config;
 mod document;
+pub mod history;
 mod recents;
+mod state;
 mod storage;
 
 pub use config::ViewportConfig;
-pub use document::{DimensionOutcome, PartDocument, SCHEMA_VERSION};
+pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
+pub use history::{History, Operation, PointRef};
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
+pub use state::{DimensionOutcome, PartState};
 pub use storage::{StorageError, default_projects_dir};

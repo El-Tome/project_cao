@@ -13,9 +13,11 @@ Voir aussi : [viewport](viewport.md) · [architecture](ARCHITECTURE.md)
    zone de travail, la grille s'affiche. Tout plan fonctionne, y compris un
    plan oblique : la vue se met face à sa normale quelle qu'elle soit.
 3. **Outil Ligne.** Chaque clic prolonge la polyligne depuis le point
-   précédent. `Échap` termine la chaîne sans quitter l'esquisse. Un clic à
-   moins de 10 pixels d'un point existant réutilise ce point — c'est ce qui
-   permet de fermer un contour.
+   précédent, et le trait à venir se dessine en continu jusqu'au curseur — il
+   suit l'accrochage, donc on voit où le point tombera avant de cliquer.
+   `Échap` termine la chaîne sans quitter l'esquisse. Un clic à moins de
+   10 pixels d'un point existant réutilise ce point — c'est ce qui permet de
+   fermer un contour.
 4. **Outil Cote.** Cliquer un trait le sélectionne, puis on tape sa longueur en
    millimètres dans la barre du haut.
 5. **Recadrer sur l'esquisse** remet la vue exactement face au plan et recadre
@@ -68,14 +70,21 @@ contraintes géométriques arriveront.
 
 ## Enregistrement
 
-L'esquisse est écrite dans le `.caopart` à chaque modification. Le fichier
-porte un numéro de version de schéma, et les pièces créées avant l'esquisse se
-rouvrent sans problème : les champs ajoutés depuis ont des valeurs par défaut.
+Chaque geste devient une opération enregistrée dans le `.caopart` — une archive
+zip, décrite dans [historique.md](historique.md). Le dessin lui-même n'est pas
+stocké : il est reconstruit en rejouant ces opérations.
+
+## Annuler
+
+`Ctrl+Z` annule, `Ctrl+Y` (ou `Ctrl+Maj+Z`) rétablit. Le panneau Historique
+permet en plus de revenir directement à n'importe quelle étape. Voir
+[historique.md](historique.md).
 
 ## Ce qui manque encore
 
 - Aucun accrochage à la grille ni aux alignements (horizontal, vertical) : seul
   l'accrochage aux points existants est fait.
-- Pas d'annulation (`Ctrl+Z`), pas de suppression de trait.
+- Pas de suppression d'un trait déjà tracé autrement qu'en revenant en arrière
+  dans l'historique.
 - Pas de cotes angulaires ni de cotes entre deux points quelconques.
 - L'esquisse ne produit encore aucun volume : l'extrusion est l'étape suivante.

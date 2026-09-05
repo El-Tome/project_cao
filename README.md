@@ -16,6 +16,10 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   première cote définit l'échelle du dessin, les suivantes déforment la
   géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
 
+- **Historique** : chaque geste est une opération enregistrée. Annulation
+  (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
+  le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
+
 L'extrusion et l'assemblage restent à faire — voir
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
 feuille de route.
@@ -51,6 +55,8 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 
 - [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
 - [Esquisse](docs/esquisse.md) — dessiner, coter, la règle d'échelle
+- [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
+- [Interface](docs/interface.md) — barre d'outils détachable, panneaux
 - [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
 - [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
 - [Navigation](docs/navigation.md) — gestes souris, caméra

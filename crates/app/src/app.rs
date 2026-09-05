@@ -1,12 +1,14 @@
 use std::path::PathBuf;
 
+use cao_core::history::Operation;
 use cao_core::{DimensionOutcome, PartDocument, RecentList};
 use cao_render::SceneRenderer;
 use cao_sketch::{LengthOutcome, WorkPlane};
 use glam::Vec3;
 
 use crate::MSAA_SAMPLES;
-use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::ribbon::{Ribbon, RibbonAction};
+use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
 
@@ -64,7 +66,7 @@ impl CaoApp {
     }
 
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
-        self.recents.push(path.clone(), doc.name.clone());
+        self.recents.push(path.clone(), doc.name().to_string());
         if let Err(err) = self.recents.save() {
             self.error = Some(err.to_string());
         }
@@ -74,6 +76,7 @@ impl CaoApp {
             path,
             viewport: ViewportState::default(),
             editor: SketchEditor::default(),
+            ribbon: Ribbon::new(),
         }));
     }
 
@@ -100,78 +103,43 @@ impl CaoApp {
             path,
             viewport,
             editor,
+            ribbon,
         } = part.as_mut();
 
         let mut back_to_menu = false;
         let mut changed = false;
 
-        egui::Panel::top("part_menu_bar").show(ui, |ui| {
-            egui::MenuBar::new().ui(ui, |ui| {
-                back_to_menu = ui.button("← Menu").clicked();
-                ui.separator();
-
-                ui.menu_button("Esquisse", |ui| {
-                    if ui.button("Nouvelle esquisse").clicked() {
-                        editor.start_choosing_plane();
-                        ui.close();
-                    }
-
-                    let drawing = editor.active_sketch().is_some();
-                    ui.add_enabled_ui(drawing, |ui| {
-                        ui.separator();
-                        for tool in [Tool::Line, Tool::Dimension] {
-                            if ui
-                                .selectable_label(editor.tool == tool, tool.label())
-                                .clicked()
-                            {
-                                editor.tool = tool;
-                                editor.end_chain();
-                                ui.close();
-                            }
-                        }
-                        ui.separator();
-                        if ui.button("Terminer l'esquisse").clicked() {
-                            editor.close();
-                            ui.close();
-                        }
-                    });
-                });
-
-                ui.separator();
-                ui.label(&doc.name)
-                    .on_hover_text(path.display().to_string());
-            });
-        });
-
-        egui::Panel::top("part_status_bar").show(ui, |ui| {
+        egui::Panel::top("part_title_bar").show(ui, |ui| {
             ui.horizontal(|ui| {
-                if let Some(plane) = editor.plane {
-                    if ui
-                        .button("Recadrer sur l'esquisse")
-                        .on_hover_text("Remet la vue face au plan et recadre le dessin")
-                        .clicked()
-                    {
-                        let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
-                        viewport.look_at_plane(plane, center, radius);
-                    }
-                    ui.separator();
-                }
-
+                back_to_menu = ui.button("⌂ Accueil").clicked();
+                ui.separator();
+                ui.strong(doc.name())
+                    .on_hover_text(path.display().to_string());
+                ui.separator();
                 ui.weak(mode_label(viewport.mode()));
-
-                if editor.active_sketch().is_some() {
-                    ui.separator();
-                    ui.weak(format!("Outil : {}", editor.tool.label()));
-                }
-
                 if let Some(message) = &editor.message {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
                 }
-
                 changed |= dimension_field(ui, doc, editor);
             });
         });
+
+        let action = ribbon.show(ui, doc, editor);
+        changed |= apply_ribbon_action(action, doc, editor, viewport);
+
+        if ribbon.history_open {
+            egui::Panel::left("history_panel")
+                .resizable(true)
+                .default_size(220.0)
+                .show(ui, |ui| {
+                    if let Some(step) = screens::history_tree::show(ui, doc) {
+                        doc.rewind_to(step);
+                        clamp_editor_to_document(editor, doc);
+                        changed = true;
+                    }
+                });
+        }
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::viewport::SketchContext {
@@ -191,10 +159,93 @@ impl CaoApp {
         }
     }
 
+    fn handle_shortcuts(&mut self, ui: &egui::Ui) {
+        let Screen::PartOpened(part) = &mut self.screen else {
+            return;
+        };
+
+        let (undo, redo) = ui.input_mut(|input| {
+            (
+                input.consume_shortcut(&egui::KeyboardShortcut::new(
+                    egui::Modifiers::COMMAND,
+                    egui::Key::Z,
+                )),
+                input.consume_shortcut(&egui::KeyboardShortcut::new(
+                    egui::Modifiers::COMMAND,
+                    egui::Key::Y,
+                )) || input.consume_shortcut(&egui::KeyboardShortcut::new(
+                    egui::Modifiers::COMMAND.plus(egui::Modifiers::SHIFT),
+                    egui::Key::Z,
+                )),
+            )
+        });
+
+        let changed = (undo && part.doc.undo()) || (redo && part.doc.redo());
+        if !changed {
+            return;
+        }
+
+        clamp_editor_to_document(&mut part.editor, &part.doc);
+        let (doc, path) = (part.doc.clone(), part.path.clone());
+        self.save_part(&doc, &path);
+    }
+
     fn save_part(&mut self, doc: &PartDocument, path: &std::path::Path) {
         if let Err(err) = doc.save(path) {
             self.error = Some(err.to_string());
         }
+    }
+}
+
+fn apply_ribbon_action(
+    action: RibbonAction,
+    doc: &mut PartDocument,
+    editor: &mut SketchEditor,
+    viewport: &mut ViewportState,
+) -> bool {
+    match action {
+        RibbonAction::None => false,
+        RibbonAction::NewSketch => {
+            editor.start_choosing_plane();
+            false
+        }
+        RibbonAction::FinishSketch => {
+            editor.close();
+            false
+        }
+        RibbonAction::Undo | RibbonAction::Redo => {
+            let changed = if action == RibbonAction::Undo {
+                doc.undo()
+            } else {
+                doc.redo()
+            };
+            if changed {
+                clamp_editor_to_document(editor, doc);
+            }
+            changed
+        }
+        RibbonAction::RecenterOnSketch => {
+            if let Some(plane) = editor.plane {
+                let (center, radius) = sketch_framing(doc, editor.active_sketch(), plane);
+                viewport.look_at_plane(plane, center, radius);
+            }
+            false
+        }
+    }
+}
+
+/// After the history moves, the sketch being edited may no longer exist. The
+/// editor has to let go of it rather than point at nothing.
+fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {
+    editor.end_chain();
+    editor.selected_segment = None;
+
+    let Some(index) = editor.active_sketch() else {
+        return;
+    };
+    match doc.sketches().get(index) {
+        Some(sketch) => editor.plane = Some(sketch.plane),
+        None => editor.close(),
     }
 }
 
@@ -229,7 +280,11 @@ fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut Sketc
         return false;
     };
 
-    match doc.apply_dimension(index, segment, millimeters) {
+    match doc.apply(Operation::SetDimension {
+        sketch: index,
+        segment,
+        millimeters,
+    }) {
         Some(DimensionOutcome::ScaleDefined {
             millimeters_per_unit,
         }) => {
@@ -257,7 +312,7 @@ fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut Sketc
 /// sensible patch of the plane around its origin.
 fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -> (Vec3, f32) {
     let bounds = sketch
-        .and_then(|index| doc.sketches.get(index))
+        .and_then(|index| doc.sketches().get(index))
         .and_then(|sketch| sketch.bounds());
 
     match bounds {
@@ -288,6 +343,7 @@ impl eframe::App for CaoApp {
         if matches!(self.screen, Screen::StartMenu) {
             self.show_start_menu(ui);
         } else {
+            self.handle_shortcuts(ui);
             self.show_part(ui);
         }
     }

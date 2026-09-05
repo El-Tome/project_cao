@@ -12,9 +12,10 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   pose sur un plan, et une barre d'échelle en mm. Navigation souris et
   trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
 
-- **Esquisse** : choisir un plan, tracer des polylignes, coter un trait. La
-  première cote définit l'échelle du dessin, les suivantes déforment la
-  géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
+- **Esquisse** : choisir un plan, puis tracer lignes, rectangles, cercles et
+  points, coter des longueurs, des rayons et des angles. Le dessin se colore
+  selon ce qu'il lui reste comme liberté. La première cote définit l'échelle,
+  les suivantes déforment la géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
 
 - **Historique** : chaque geste est une opération enregistrée. Annulation
   (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis

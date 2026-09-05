@@ -1,4 +1,4 @@
-use cao_sketch::{PointId, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, SegmentId, WorkPlane};
 use glam::Vec2;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
@@ -8,15 +8,45 @@ pub enum Tool {
     #[default]
     None,
     Line,
+    Rectangle,
+    Circle,
+    Point,
     Dimension,
+    Angle,
 }
 
 impl Tool {
+    /// The tools offered in the Esquisse category, in order.
+    pub const SKETCH_TOOLS: [Self; 6] = [
+        Self::Line,
+        Self::Rectangle,
+        Self::Circle,
+        Self::Point,
+        Self::Dimension,
+        Self::Angle,
+    ];
+
     pub fn label(self) -> &'static str {
         match self {
             Self::None => "Aucun outil",
             Self::Line => "Ligne",
+            Self::Rectangle => "Rectangle",
+            Self::Circle => "Cercle",
+            Self::Point => "Point",
             Self::Dimension => "Cote",
+            Self::Angle => "Angle",
+        }
+    }
+
+    pub fn hint(self) -> &'static str {
+        match self {
+            Self::None => "",
+            Self::Line => "Clics successifs, Échap pour terminer la chaîne",
+            Self::Rectangle => "Deux clics : deux coins opposés",
+            Self::Circle => "Deux clics : centre puis rayon",
+            Self::Point => "Un clic pose un point",
+            Self::Dimension => "Cliquer un trait ou un cercle, puis saisir la valeur",
+            Self::Angle => "Cliquer deux traits qui se touchent",
         }
     }
 }
@@ -45,7 +75,12 @@ pub struct SketchEditor {
     /// Where the polyline in progress carries on from.
     pub chain: Option<ChainAnchor>,
     pub hovered_plane: Option<usize>,
-    pub selected_segment: Option<SegmentId>,
+    /// What the dimension tool is pointing at.
+    pub selected: Option<DimensionTarget>,
+    /// First segment picked by the angle tool, waiting for the second.
+    pub first_angle_segment: Option<SegmentId>,
+    /// First corner of a rectangle, or the centre of a circle.
+    pub pending_start: Option<Vec2>,
     /// Text being typed into the dimension field.
     pub dimension_input: String,
     /// Where the next point would land, snapped. Drives the preview line.
@@ -79,16 +114,24 @@ impl SketchEditor {
     pub fn start_choosing_plane(&mut self) {
         self.phase = SketchPhase::ChoosingPlane;
         self.tool = Tool::None;
-        self.chain = None;
-        self.selected_segment = None;
+        self.reset_pending();
         self.message = Some("Choisissez un plan d'esquisse".to_string());
+    }
+
+    /// Drops everything half-finished: the polyline in progress, the first
+    /// corner of a shape, the segment waiting for its partner.
+    pub fn reset_pending(&mut self) {
+        self.chain = None;
+        self.pending_start = None;
+        self.first_angle_segment = None;
+        self.selected = None;
     }
 
     pub fn begin_editing(&mut self, sketch: usize, plane: WorkPlane) {
         self.phase = SketchPhase::Editing(sketch);
         self.plane = Some(plane);
         self.tool = Tool::Line;
-        self.chain = None;
+        self.reset_pending();
         self.hovered_plane = None;
         self.message = None;
     }
@@ -102,9 +145,9 @@ impl SketchEditor {
         *self = Self::default();
     }
 
-    pub fn select_segment(&mut self, segment: Option<SegmentId>, current_length_mm: Option<f32>) {
-        self.selected_segment = segment;
-        self.dimension_input = match current_length_mm {
+    pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f32>) {
+        self.selected = target;
+        self.dimension_input = match measured {
             Some(length) => format!("{length:.2}")
                 .trim_end_matches('0')
                 .trim_end_matches('.')

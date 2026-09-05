@@ -82,6 +82,11 @@ impl PartDocument {
         self.state.to_millimeters(units)
     }
 
+    /// What the geometry measures for a dimension target, right now.
+    pub fn measured(&self, sketch: usize, target: cao_sketch::DimensionTarget) -> Option<f32> {
+        self.state.measured(sketch, target)
+    }
+
     /// Records an operation and applies it. Recording and applying go together
     /// so the two can never fall out of step.
     pub fn apply(&mut self, operation: Operation) -> Option<DimensionOutcome> {
@@ -210,8 +215,8 @@ mod legacy {
             for dimension in sketch.dimensions() {
                 history.push(Operation::SetDimension {
                     sketch: index,
-                    segment: dimension.segment,
-                    millimeters: dimension.millimeters,
+                    target: dimension.target,
+                    value: dimension.value,
                 });
             }
         }
@@ -276,7 +281,7 @@ fn sanitize_filename(name: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use cao_sketch::{SegmentId, WorkPlane};
+    use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
     use glam::Vec2;
 
     use super::*;
@@ -293,8 +298,8 @@ mod tests {
         });
         document.apply(Operation::SetDimension {
             sketch: 0,
-            segment: SegmentId(0),
-            millimeters: 100.0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0,
         });
         document
     }

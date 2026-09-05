@@ -1,4 +1,4 @@
-use cao_sketch::{PointId, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, WorkPlane};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -20,15 +20,32 @@ pub enum Operation {
     CreateSketch {
         plane: WorkPlane,
     },
+    AddPoint {
+        sketch: usize,
+        position: Vec2,
+    },
     AddSegment {
         sketch: usize,
         start: PointRef,
         end: PointRef,
     },
+    /// Four corners and four sides in one step, so the history reads as one
+    /// rectangle rather than four unrelated lines.
+    AddRectangle {
+        sketch: usize,
+        corner: Vec2,
+        opposite: Vec2,
+    },
+    AddCircle {
+        sketch: usize,
+        center: PointRef,
+        radius: f32,
+    },
     SetDimension {
         sketch: usize,
-        segment: SegmentId,
-        millimeters: f32,
+        target: DimensionTarget,
+        /// Millimetres for a length or radius, degrees for an angle.
+        value: f32,
     },
 }
 
@@ -37,8 +54,15 @@ impl Operation {
     pub fn label(&self) -> String {
         match self {
             Self::CreateSketch { plane } => format!("Esquisse — {}", plane.label()),
+            Self::AddPoint { .. } => "Point".to_string(),
             Self::AddSegment { .. } => "Trait".to_string(),
-            Self::SetDimension { millimeters, .. } => format!("Cote {millimeters} mm"),
+            Self::AddRectangle { .. } => "Rectangle".to_string(),
+            Self::AddCircle { .. } => "Cercle".to_string(),
+            Self::SetDimension { target, value, .. } => match target {
+                DimensionTarget::Angle { .. } => format!("Angle {value}°"),
+                DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
+                DimensionTarget::Length(_) => format!("Cote {value} mm"),
+            },
         }
     }
 
@@ -51,6 +75,9 @@ impl Operation {
                 plane.normal().y,
                 plane.normal().z
             ),
+            Self::AddPoint { sketch, position } => {
+                format!("Esquisse {sketch} · ({:.1}, {:.1})", position.x, position.y)
+            }
             Self::AddSegment { sketch, start, end } => {
                 format!(
                     "Esquisse {sketch} · {} → {}",
@@ -58,9 +85,28 @@ impl Operation {
                     point_label(end)
                 )
             }
-            Self::SetDimension {
-                sketch, segment, ..
-            } => format!("Esquisse {sketch} · trait {}", segment.0),
+            Self::AddRectangle {
+                sketch,
+                corner,
+                opposite,
+            } => format!(
+                "Esquisse {sketch} · ({:.1}, {:.1}) → ({:.1}, {:.1})",
+                corner.x, corner.y, opposite.x, opposite.y
+            ),
+            Self::AddCircle { sketch, radius, .. } => {
+                format!("Esquisse {sketch} · rayon {radius:.2}")
+            }
+            Self::SetDimension { sketch, target, .. } => match target {
+                DimensionTarget::Length(segment) => {
+                    format!("Esquisse {sketch} · trait {}", segment.0)
+                }
+                DimensionTarget::Angle { first, second } => {
+                    format!("Esquisse {sketch} · traits {} et {}", first.0, second.0)
+                }
+                DimensionTarget::Radius(circle) => {
+                    format!("Esquisse {sketch} · cercle {}", circle.0)
+                }
+            },
         }
     }
 

@@ -3,10 +3,11 @@ use std::path::PathBuf;
 use cao_core::history::Operation;
 use cao_core::{DimensionOutcome, PartDocument, RecentList};
 use cao_render::SceneRenderer;
-use cao_sketch::{LengthOutcome, WorkPlane};
+use cao_sketch::{DimensionTarget, LengthOutcome, WorkPlane};
 use glam::Vec3;
 
 use crate::MSAA_SAMPLES;
+use crate::screens::history_tree::HistoryAction;
 use crate::screens::ribbon::{Ribbon, RibbonAction};
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
@@ -132,12 +133,20 @@ impl CaoApp {
             egui::Panel::left("history_panel")
                 .resizable(true)
                 .default_size(220.0)
-                .show(ui, |ui| {
-                    if let Some(step) = screens::history_tree::show(ui, doc) {
+                .show(ui, |ui| match screens::history_tree::show(ui, doc) {
+                    HistoryAction::RewindTo(step) => {
                         doc.rewind_to(step);
                         clamp_editor_to_document(editor, doc);
                         changed = true;
                     }
+                    HistoryAction::EditSketch(sketch) => {
+                        if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
+                            editor.begin_editing(sketch, plane);
+                            let (center, radius) = sketch_framing(doc, Some(sketch), plane);
+                            viewport.look_at_plane(plane, center, radius);
+                        }
+                    }
+                    HistoryAction::None => {}
                 });
         }
 
@@ -237,8 +246,7 @@ fn apply_ribbon_action(
 /// After the history moves, the sketch being edited may no longer exist. The
 /// editor has to let go of it rather than point at nothing.
 fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {
-    editor.end_chain();
-    editor.selected_segment = None;
+    editor.reset_pending();
 
     let Some(index) = editor.active_sketch() else {
         return;
@@ -249,19 +257,34 @@ fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {
     }
 }
 
-/// The length field shown once a segment is selected with the dimension tool.
-/// Returns true when a length was applied.
+/// The value field shown once the dimension or angle tool has picked
+/// something. Returns true when a value was applied.
 fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut SketchEditor) -> bool {
-    let (Some(index), Some(segment)) = (editor.active_sketch(), editor.selected_segment) else {
+    let (Some(index), Some(target)) = (editor.active_sketch(), editor.selected) else {
         return false;
     };
 
+    let driven = doc.sketches()[index]
+        .dimension_of(target)
+        .is_some_and(|dimension| dimension.driven);
+    let angle = matches!(target, DimensionTarget::Angle { .. });
+
     ui.separator();
-    ui.label("Cote :");
+    ui.label(if angle { "Angle :" } else { "Cote :" });
+
+    if driven {
+        // A readout cannot be edited: changing it would mean nothing, since it
+        // reports the geometry rather than deciding it.
+        let measured = doc.measured(index, target).unwrap_or_default();
+        let suffix = if angle { "°" } else { "mm" };
+        ui.weak(format!("{measured:.2} {suffix} (lecture seule)"));
+        return false;
+    }
+
     let field = ui.add(
         egui::TextEdit::singleline(&mut editor.dimension_input)
             .desired_width(90.0)
-            .hint_text("mm"),
+            .hint_text(if angle { "degrés" } else { "mm" }),
     );
     let submitted = field.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
     let applied = ui.button("Appliquer").clicked() || submitted;
@@ -270,20 +293,20 @@ fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut Sketc
         return false;
     }
 
-    let Ok(millimeters) = editor
+    let Ok(value) = editor
         .dimension_input
         .trim()
         .replace(',', ".")
         .parse::<f32>()
     else {
-        editor.message = Some("Valeur de cote invalide".to_string());
+        editor.message = Some("Valeur invalide".to_string());
         return false;
     };
 
     match doc.apply(Operation::SetDimension {
         sketch: index,
-        segment,
-        millimeters,
+        target,
+        value,
     }) {
         Some(DimensionOutcome::ScaleDefined {
             millimeters_per_unit,
@@ -301,8 +324,12 @@ fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut Sketc
             editor.message = Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
             true
         }
+        Some(DimensionOutcome::Reference) => {
+            editor.message = Some(screens::viewport::REDUNDANT_WARNING.to_string());
+            true
+        }
         _ => {
-            editor.message = Some("Cote impossible sur ce trait".to_string());
+            editor.message = Some("Cote impossible ici".to_string());
             false
         }
     }

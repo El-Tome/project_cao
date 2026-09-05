@@ -7,7 +7,7 @@ use cao_render::{
     AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition, ViewportRect,
     adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad, srgb,
 };
-use cao_sketch::{PointId, Sketch, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
 use crate::screens::sketch::{ChainAnchor, SketchEditor, Tool};
@@ -415,23 +415,121 @@ fn handle_sketch_input(
 
     context.editor.cursor = Some(snap_position(context, index, cursor, snap));
 
+    if !response.clicked() {
+        return false;
+    }
+
     match context.editor.tool {
-        Tool::Line if response.clicked() => draw_line_point(context, index, cursor, snap),
-        Tool::Dimension if response.clicked() => {
-            let sketch = &context.document.sketches()[index];
-            let segment = sketch.nearest_segment(cursor, snap);
-            let length = segment.map(|id| {
-                sketch
-                    .dimension_of(id)
-                    .map(|dimension| dimension.millimeters)
-                    .unwrap_or_else(|| context.document.to_millimeters(sketch.segment_length(id)))
+        Tool::Line => draw_line_point(context, index, cursor, snap),
+        Tool::Point => {
+            context.document.apply(Operation::AddPoint {
+                sketch: index,
+                position: cursor,
             });
-            context.editor.select_segment(segment, length);
+            true
+        }
+        Tool::Rectangle | Tool::Circle => two_click_shape(context, index, cursor),
+        Tool::Dimension => {
+            select_dimension_target(context, index, cursor, snap);
             false
         }
-        _ => false,
+        Tool::Angle => {
+            pick_angle_segments(context, index, cursor, snap);
+            false
+        }
+        Tool::None => false,
     }
 }
+
+/// Rectangles and circles are both "click a start, click an end". The first
+/// click only records where; the second builds the shape in one operation.
+fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2) -> bool {
+    let Some(start) = context.editor.pending_start else {
+        context.editor.pending_start = Some(cursor);
+        return false;
+    };
+    context.editor.pending_start = None;
+
+    let operation = match context.editor.tool {
+        Tool::Rectangle => Operation::AddRectangle {
+            sketch: index,
+            corner: start,
+            opposite: cursor,
+        },
+        _ => Operation::AddCircle {
+            sketch: index,
+            center: PointRef::New(start),
+            radius: start.distance(cursor),
+        },
+    };
+
+    // A shape with no extent is a stray click, not a drawing.
+    if start.distance(cursor) < 1e-6 {
+        return false;
+    }
+    context.document.apply(operation);
+    true
+}
+
+fn select_dimension_target(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+    let sketch = &context.document.sketches()[index];
+    let target = sketch
+        .nearest_segment(cursor, snap)
+        .map(DimensionTarget::Length)
+        .or_else(|| {
+            sketch
+                .nearest_circle(cursor, snap)
+                .map(DimensionTarget::Radius)
+        });
+
+    let measured = target.and_then(|target| context.document.measured(index, target));
+    context.editor.select(target, measured);
+    context.editor.message = match target {
+        Some(target) if context.document.sketches()[index].would_be_redundant(target) => {
+            Some(REDUNDANT_WARNING.to_string())
+        }
+        _ => None,
+    };
+}
+
+/// The angle tool needs two segments that meet, so it collects them one click
+/// at a time.
+fn pick_angle_segments(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+    let sketch = &context.document.sketches()[index];
+    let Some(picked) = sketch.nearest_segment(cursor, snap) else {
+        return;
+    };
+
+    let Some(first) = context.editor.first_angle_segment else {
+        context.editor.first_angle_segment = Some(picked);
+        context.editor.message = Some("Choisissez le second trait".to_string());
+        return;
+    };
+    if first == picked {
+        return;
+    }
+
+    context.editor.first_angle_segment = None;
+    let target = DimensionTarget::Angle {
+        first,
+        second: picked,
+    };
+
+    if sketch.angle_between(first, picked).is_none() {
+        context.editor.select(None, None);
+        context.editor.message = Some("Ces deux traits ne se touchent pas".to_string());
+        return;
+    }
+
+    let measured = context.document.measured(index, target);
+    context.editor.select(Some(target), measured);
+    context.editor.message = context.document.sketches()[index]
+        .would_be_redundant(target)
+        .then(|| REDUNDANT_WARNING.to_string());
+}
+
+/// Shown when a value would add nothing to a shape that is already settled.
+pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : la forme est déjà entièrement contrainte. Elle sera posée en simple lecture.";
 
 /// Where the next point would actually land, snapping onto an existing one when
 /// the cursor is near it. Shown live so the drawing never surprises the user.
@@ -635,6 +733,17 @@ fn push_choosable_planes(
     }
 }
 
+/// Colours saying how settled the drawing is: a shape that still has freedom
+/// left is drawn one way, one that is fully determined another. It is the
+/// quickest possible answer to "is my part pinned down yet?".
+fn sketch_colors(active: bool, constrained: bool) -> ([f32; 4], f32) {
+    match (active, constrained) {
+        (true, false) => (srgb(0.98, 0.85, 0.35, 1.0), 2.5),
+        (true, true) => (srgb(0.45, 0.85, 0.55, 1.0), 2.5),
+        (false, _) => (srgb(0.70, 0.72, 0.76, 0.8), 1.5),
+    }
+}
+
 fn push_sketch(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -642,18 +751,20 @@ fn push_sketch(
     active: bool,
     context: &SketchContext<'_>,
 ) {
-    let color = if active {
-        srgb(0.98, 0.85, 0.35, 1.0)
-    } else {
-        srgb(0.70, 0.72, 0.76, 0.8)
-    };
-    let width = if active { 2.5 } else { 1.5 };
-
-    for segment in sketch.segments() {
+    for (index, segment) in sketch.segments().iter().enumerate() {
+        let (color, width) = sketch_colors(
+            active,
+            sketch.segment_is_constrained(cao_sketch::SegmentId(index)),
+        );
         let start = sketch.plane.to_world(sketch.point(segment.start));
         let end = sketch.plane.to_world(sketch.point(segment.end));
         out.push(cao_render::Vertex::line(start, color, width));
         out.push(cao_render::Vertex::line(end, color, width));
+    }
+
+    for circle in sketch.circles() {
+        let (color, width) = sketch_colors(active, sketch.point_is_constrained(circle.center));
+        push_circle(out, sketch, circle.center, circle.radius, color, width);
     }
 
     if !active {
@@ -663,7 +774,8 @@ fn push_sketch(
     // Points are drawn as small crosses kept at a constant size on screen, so
     // they stay clickable at any zoom.
     let arm = scale.world_size_of(4.0);
-    for point in sketch.points() {
+    for (index, point) in sketch.points().iter().enumerate() {
+        let (color, _) = sketch_colors(true, sketch.point_is_constrained(PointId(index)));
         let center = sketch.plane.to_world(*point);
         for axis in [sketch.plane.u, sketch.plane.v] {
             out.push(cao_render::Vertex::line(center - axis * arm, color, 1.5));
@@ -671,28 +783,9 @@ fn push_sketch(
         }
     }
 
-    // The segment about to be drawn, following the cursor: placing a point
-    // blind and only then seeing where it went is needlessly uncomfortable.
-    if let (Some(anchor), Some(cursor)) = (context.editor.chain, context.editor.cursor) {
-        let from = match anchor {
-            ChainAnchor::Pending(position) => position,
-            ChainAnchor::Point(id) if id.0 < sketch.points().len() => sketch.point(id),
-            ChainAnchor::Point(_) => cursor,
-        };
-        let preview = srgb(0.98, 0.85, 0.35, 0.55);
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(from),
-            preview,
-            1.5,
-        ));
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(cursor),
-            preview,
-            1.5,
-        ));
-    }
+    push_preview(out, sketch, context);
 
-    if let Some(selected) = context.editor.selected_segment
+    if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected
         && selected.0 < sketch.segments().len()
     {
         let (start, end) = sketch.endpoints(selected);
@@ -707,6 +800,109 @@ fn push_sketch(
             highlight,
             4.0,
         ));
+    }
+}
+
+/// The shape about to be drawn, following the cursor: placing a point blind and
+/// only then seeing where it went is needlessly uncomfortable.
+fn push_preview(out: &mut Vec<cao_render::Vertex>, sketch: &Sketch, context: &SketchContext<'_>) {
+    let Some(cursor) = context.editor.cursor else {
+        return;
+    };
+    let preview = srgb(0.98, 0.85, 0.35, 0.55);
+
+    if let Some(anchor) = context.editor.chain {
+        let from = match anchor {
+            ChainAnchor::Pending(position) => position,
+            ChainAnchor::Point(id) if id.0 < sketch.points().len() => sketch.point(id),
+            ChainAnchor::Point(_) => cursor,
+        };
+        push_preview_line(out, sketch, from, cursor, preview);
+    }
+
+    let Some(start) = context.editor.pending_start else {
+        return;
+    };
+    match context.editor.tool {
+        Tool::Rectangle => {
+            let corners = [
+                start,
+                Vec2::new(cursor.x, start.y),
+                cursor,
+                Vec2::new(start.x, cursor.y),
+            ];
+            for index in 0..4 {
+                push_preview_line(
+                    out,
+                    sketch,
+                    corners[index],
+                    corners[(index + 1) % 4],
+                    preview,
+                );
+            }
+        }
+        Tool::Circle => {
+            let radius = start.distance(cursor);
+            push_circle_at(out, sketch, start, radius, preview, 1.5);
+        }
+        _ => {}
+    }
+}
+
+fn push_preview_line(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    from: Vec2,
+    to: Vec2,
+    color: [f32; 4],
+) {
+    out.push(cao_render::Vertex::line(
+        sketch.plane.to_world(from),
+        color,
+        1.5,
+    ));
+    out.push(cao_render::Vertex::line(
+        sketch.plane.to_world(to),
+        color,
+        1.5,
+    ));
+}
+
+fn push_circle(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    center: PointId,
+    radius: f32,
+    color: [f32; 4],
+    width: f32,
+) {
+    push_circle_at(out, sketch, sketch.point(center), radius, color, width);
+}
+
+/// Circles are drawn as a many-sided polygon: the line renderer only knows
+/// about segments, and at this many sides the corners are invisible.
+fn push_circle_at(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    center: Vec2,
+    radius: f32,
+    color: [f32; 4],
+    width: f32,
+) {
+    const SIDES: usize = 96;
+    if radius <= 0.0 {
+        return;
+    }
+    let mut previous = None;
+    for step in 0..=SIDES {
+        let angle = step as f32 / SIDES as f32 * std::f32::consts::TAU;
+        let point = center + Vec2::new(angle.cos(), angle.sin()) * radius;
+        let world = sketch.plane.to_world(point);
+        if let Some(previous) = previous {
+            out.push(cao_render::Vertex::line(previous, color, width));
+            out.push(cao_render::Vertex::line(world, color, width));
+        }
+        previous = Some(world);
     }
 }
 
@@ -751,7 +947,9 @@ fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect
     }
 }
 
-/// Each dimensioned segment carries its length, drawn beside its middle.
+/// Each dimension is drawn where it applies, with the value it stands for.
+/// A readout shows what the geometry measures rather than a stored number, so
+/// it stays true however the drawing moves.
 fn paint_dimension_labels(
     ui: &egui::Ui,
     state: &ViewportState,
@@ -770,21 +968,66 @@ fn paint_dimension_labels(
     let painter = ui.painter_at(rect);
 
     for dimension in sketch.dimensions() {
-        if dimension.segment.0 >= sketch.segments().len() {
+        let Some(anchor) = dimension_anchor(sketch, dimension.target) else {
             continue;
-        }
-        let (start, end) = sketch.endpoints(dimension.segment);
-        let middle = sketch.plane.to_world((start + end) * 0.5);
-        let Some(position) = to_screen(middle, view_projection, rect) else {
+        };
+        let Some(position) = to_screen(sketch.plane.to_world(anchor), view_projection, rect) else {
             continue;
+        };
+        let value = if dimension.driven {
+            context
+                .document
+                .measured(index, dimension.target)
+                .unwrap_or(dimension.value)
+        } else {
+            dimension.value
+        };
+        let text = if dimension.is_angle() {
+            format!("{value:.1}°")
+        } else {
+            state.config.unit.format(value)
+        };
+        let color = if dimension.driven {
+            egui::Color32::from_gray(170)
+        } else {
+            egui::Color32::from_rgb(250, 220, 120)
         };
         painter.text(
             position - egui::vec2(0.0, 12.0),
             egui::Align2::CENTER_BOTTOM,
-            state.config.unit.format(dimension.millimeters),
+            if dimension.driven {
+                format!("({text})")
+            } else {
+                text
+            },
             egui::FontId::proportional(13.0),
-            egui::Color32::from_rgb(250, 220, 120),
+            color,
         );
+    }
+}
+
+/// Where a dimension's label belongs, in sketch coordinates.
+fn dimension_anchor(sketch: &Sketch, target: DimensionTarget) -> Option<Vec2> {
+    match target {
+        DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len()).then(|| {
+            let (start, end) = sketch.endpoints(segment);
+            (start + end) * 0.5
+        }),
+        DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len()).then(|| {
+            let circle = sketch.circle(circle);
+            sketch.point(circle.center) + Vec2::new(circle.radius * 0.7, circle.radius * 0.7)
+        }),
+        DimensionTarget::Angle { first, second } => {
+            let (a, b) = (
+                sketch.segments().get(first.0)?,
+                sketch.segments().get(second.0)?,
+            );
+            // The label sits at the corner the two share.
+            let shared = [a.start, a.end]
+                .into_iter()
+                .find(|point| *point == b.start || *point == b.end)?;
+            Some(sketch.point(shared))
+        }
     }
 }
 

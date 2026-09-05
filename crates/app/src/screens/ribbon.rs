@@ -160,13 +160,14 @@ impl Ribbon {
 
         let drawing = editor.active_sketch().is_some();
         ui.add_enabled_ui(drawing, |ui| {
-            for tool in [Tool::Line, Tool::Dimension] {
+            for tool in Tool::SKETCH_TOOLS {
                 if ui
                     .selectable_label(editor.tool == tool, tool.label())
+                    .on_hover_text(tool.hint())
                     .clicked()
                 {
                     editor.tool = tool;
-                    editor.end_chain();
+                    editor.reset_pending();
                 }
             }
             if ui.button("Recadrer").clicked() {

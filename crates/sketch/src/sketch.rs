@@ -1,6 +1,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
+use crate::constraints::{Components, Dimension, DimensionTarget, Freedom, is_anchor};
 use crate::plane::WorkPlane;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -9,6 +10,17 @@ pub struct PointId(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct SegmentId(pub usize);
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub struct CircleId(pub usize);
+
+/// A circle, kept as a centre point shared with the rest of the drawing plus a
+/// radius, so that moving the centre moves the circle with it.
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct Circle {
+    pub center: PointId,
+    pub radius: f32,
+}
+
 /// A straight line between two points. Points are shared: chaining a polyline
 /// reuses the previous end, which is what makes a dimension able to drag the
 /// rest of the chain along.
@@ -16,14 +28,6 @@ pub struct SegmentId(pub usize);
 pub struct Segment {
     pub start: PointId,
     pub end: PointId,
-}
-
-/// A length the user has fixed on a segment, kept in millimetres — the unit
-/// they typed, independent of the document scale.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Dimension {
-    pub segment: SegmentId,
-    pub millimeters: f32,
 }
 
 /// What happened when a length was applied.
@@ -47,6 +51,8 @@ pub struct Sketch {
     pub plane: WorkPlane,
     points: Vec<Vec2>,
     segments: Vec<Segment>,
+    #[serde(default)]
+    circles: Vec<Circle>,
     dimensions: Vec<Dimension>,
 }
 
@@ -56,6 +62,7 @@ impl Sketch {
             plane,
             points: Vec::new(),
             segments: Vec::new(),
+            circles: Vec::new(),
             dimensions: Vec::new(),
         }
     }
@@ -68,8 +75,35 @@ impl Sketch {
         &self.segments
     }
 
+    pub fn circles(&self) -> &[Circle] {
+        &self.circles
+    }
+
     pub fn dimensions(&self) -> &[Dimension] {
         &self.dimensions
+    }
+
+    pub fn circle(&self, id: CircleId) -> Circle {
+        self.circles[id.0]
+    }
+
+    pub fn add_circle(&mut self, center: PointId, radius: f32) -> CircleId {
+        self.circles.push(Circle { center, radius });
+        CircleId(self.circles.len() - 1)
+    }
+
+    /// The circle whose outline passes closest to `position`.
+    pub fn nearest_circle(&self, position: Vec2, tolerance: f32) -> Option<CircleId> {
+        self.circles
+            .iter()
+            .enumerate()
+            .map(|(index, circle)| {
+                let distance = (self.point(circle.center).distance(position) - circle.radius).abs();
+                (CircleId(index), distance)
+            })
+            .filter(|(_, distance)| *distance <= tolerance)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| id)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -143,27 +177,105 @@ impl Sketch {
         start.distance(end)
     }
 
-    pub fn dimension_of(&self, id: SegmentId) -> Option<&Dimension> {
+    pub fn dimension_of(&self, target: DimensionTarget) -> Option<&Dimension> {
         self.dimensions
             .iter()
-            .find(|dimension| dimension.segment == id)
+            .find(|dimension| dimension.target == target)
     }
 
-    /// Records the length the user typed on a segment, replacing any previous
-    /// one. Moving the geometry is a separate step: the very first dimension of
-    /// a document sets its scale instead of resizing anything.
-    pub fn set_dimension(&mut self, segment: SegmentId, millimeters: f32) {
+    /// Records a value the user typed, replacing any previous one on the same
+    /// target. Moving the geometry is a separate step: the very first dimension
+    /// of a document sets its scale instead of resizing anything, and a driven
+    /// one never moves anything at all.
+    pub fn set_dimension(&mut self, target: DimensionTarget, value: f32, driven: bool) {
         match self
             .dimensions
             .iter_mut()
-            .find(|dimension| dimension.segment == segment)
+            .find(|dimension| dimension.target == target)
         {
-            Some(existing) => existing.millimeters = millimeters,
+            Some(existing) => {
+                existing.value = value;
+                existing.driven = driven;
+            }
             None => self.dimensions.push(Dimension {
-                segment,
-                millimeters,
+                target,
+                value,
+                driven,
             }),
         }
+    }
+
+    /// The angle at the point two segments share, in degrees, or `None` when
+    /// they do not meet.
+    pub fn angle_between(&self, first: SegmentId, second: SegmentId) -> Option<f32> {
+        let (pivot, a, b) = self.corner(first, second)?;
+        let first = (self.point(a) - self.point(pivot)).normalize_or_zero();
+        let second = (self.point(b) - self.point(pivot)).normalize_or_zero();
+        if first == Vec2::ZERO || second == Vec2::ZERO {
+            return None;
+        }
+        Some(first.dot(second).clamp(-1.0, 1.0).acos().to_degrees())
+    }
+
+    /// The shared point of two segments, with their far ends.
+    fn corner(&self, first: SegmentId, second: SegmentId) -> Option<(PointId, PointId, PointId)> {
+        let (a, b) = (self.segments[first.0], self.segments[second.0]);
+        for (pivot, far_a) in [(a.start, a.end), (a.end, a.start)] {
+            if b.start == pivot {
+                return Some((pivot, far_a, b.end));
+            }
+            if b.end == pivot {
+                return Some((pivot, far_a, b.start));
+            }
+        }
+        None
+    }
+
+    /// Turns `second` about the point it shares with `first` until the angle
+    /// between them is `degrees`, taking whatever hangs off its far end with
+    /// it. Same spirit as a length: one side is the anchor, the other gives.
+    pub fn set_angle(
+        &mut self,
+        first: SegmentId,
+        second: SegmentId,
+        degrees: f32,
+    ) -> LengthOutcome {
+        let Some((pivot, far_first, far_second)) = self.corner(first, second) else {
+            return LengthOutcome::Degenerate;
+        };
+
+        let center = self.point(pivot);
+        let toward_first = (self.point(far_first) - center).normalize_or_zero();
+        let toward_second = (self.point(far_second) - center).normalize_or_zero();
+        if toward_first == Vec2::ZERO || toward_second == Vec2::ZERO {
+            return LengthOutcome::Degenerate;
+        }
+
+        // Signed so the angle keeps opening the same way: asking for 30° on a
+        // corner that turns clockwise must not flip it over to the other side.
+        let current = toward_first
+            .perp_dot(toward_second)
+            .atan2(toward_first.dot(toward_second));
+        let target = degrees.to_radians() * if current < 0.0 { -1.0 } else { 1.0 };
+        let rotation = target - current;
+
+        let group = self.connected_from(far_second, second);
+        if group.contains(&pivot) {
+            self.points[far_second.0] = rotate_about(self.points[far_second.0], center, rotation);
+            return LengthOutcome::BestEffort;
+        }
+        for point in group {
+            self.points[point.0] = rotate_about(self.points[point.0], center, rotation);
+        }
+        LengthOutcome::Exact
+    }
+
+    pub fn set_circle_radius(&mut self, id: CircleId, radius: f32) -> LengthOutcome {
+        if radius <= 0.0 {
+            return LengthOutcome::Degenerate;
+        }
+        self.circles[id.0].radius = radius;
+        LengthOutcome::Exact
     }
 
     /// Stretches a segment to `target` world units.
@@ -235,6 +347,114 @@ impl Sketch {
                     (min.min(*point), max.max(*point))
                 }),
         )
+    }
+}
+
+fn rotate_about(point: Vec2, center: Vec2, radians: f32) -> Vec2 {
+    let offset = point - center;
+    let (sin, cos) = radians.sin_cos();
+    center
+        + Vec2::new(
+            offset.x * cos - offset.y * sin,
+            offset.x * sin + offset.y * cos,
+        )
+}
+
+impl Sketch {
+    /// Which independent piece of the drawing each point belongs to. Points
+    /// joined by a segment move together, so they share a piece.
+    fn components(&self) -> Vec<usize> {
+        let mut sets = Components::new(self.points.len().max(1));
+        for segment in &self.segments {
+            sets.union(segment.start.0, segment.end.0);
+        }
+        (0..self.points.len())
+            .map(|index| sets.find(index))
+            .collect()
+    }
+
+    /// How much freedom each piece of the drawing still has.
+    ///
+    /// Every point is two unknowns, every circle adds its radius, every
+    /// dimension that drives the geometry removes one, and a point pinned to
+    /// the sketch origin removes two. A piece with nothing left is what the
+    /// user sees as fully constrained.
+    pub fn freedom_by_component(&self) -> Vec<Freedom> {
+        let components = self.components();
+        let mut counts = vec![0i32; self.points.len().max(1)];
+
+        for (index, root) in components.iter().enumerate() {
+            counts[*root] += 2;
+            if is_anchor(self.points[index]) {
+                counts[*root] -= 2;
+            }
+        }
+        for circle in &self.circles {
+            counts[components[circle.center.0]] += 1;
+        }
+        for dimension in &self.dimensions {
+            if dimension.driven {
+                continue;
+            }
+            if let Some(root) = self.component_of_target(dimension.target, &components) {
+                counts[root] -= 1;
+            }
+        }
+
+        counts
+            .into_iter()
+            .map(|degrees_of_freedom| Freedom { degrees_of_freedom })
+            .collect()
+    }
+
+    fn component_of_target(&self, target: DimensionTarget, components: &[usize]) -> Option<usize> {
+        let point = match target {
+            DimensionTarget::Length(segment) => self.segments.get(segment.0)?.start,
+            DimensionTarget::Angle { first, .. } => self.segments.get(first.0)?.start,
+            DimensionTarget::Radius(circle) => self.circles.get(circle.0)?.center,
+        };
+        components.get(point.0).copied()
+    }
+
+    /// Whether the piece of drawing a point belongs to has any freedom left.
+    pub fn point_is_constrained(&self, point: PointId) -> bool {
+        let components = self.components();
+        let freedom = self.freedom_by_component();
+        components
+            .get(point.0)
+            .and_then(|root| freedom.get(*root))
+            .is_some_and(|freedom| freedom.fully_constrained())
+    }
+
+    pub fn segment_is_constrained(&self, segment: SegmentId) -> bool {
+        self.segments
+            .get(segment.0)
+            .is_some_and(|segment| self.point_is_constrained(segment.start))
+    }
+
+    /// True when the drawing has nothing left to determine.
+    pub fn is_fully_constrained(&self) -> bool {
+        !self.points.is_empty()
+            && self
+                .freedom_by_component()
+                .iter()
+                .enumerate()
+                .filter(|(root, _)| self.components().contains(root))
+                .all(|(_, freedom)| freedom.fully_constrained())
+    }
+
+    /// Whether a new dimension on this target would add nothing: its piece of
+    /// the drawing is already fully determined. Such a dimension is still worth
+    /// placing to read the value, but it must not drive anything.
+    pub fn would_be_redundant(&self, target: DimensionTarget) -> bool {
+        if self.dimension_of(target).is_some() {
+            return false;
+        }
+        let components = self.components();
+        let freedom = self.freedom_by_component();
+        self.component_of_target(target, &components)
+            .and_then(|root| freedom.get(root))
+            .is_some_and(|freedom| freedom.fully_constrained())
     }
 }
 
@@ -327,6 +547,133 @@ mod tests {
         assert_eq!(first, again);
         assert_ne!(first, elsewhere);
         assert_eq!(sketch.points().len(), 2);
+    }
+
+    /// A right angle asked to become 30° must actually measure 30°, and take
+    /// the rest of the chain with it.
+    #[test]
+    fn an_angle_turns_the_second_segment() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corner = sketch.add_point(Vec2::ZERO);
+        let right = sketch.add_point(Vec2::new(10.0, 0.0));
+        let up = sketch.add_point(Vec2::new(0.0, 10.0));
+        let tip = sketch.add_point(Vec2::new(0.0, 14.0));
+        let first = sketch.add_segment(corner, right);
+        let second = sketch.add_segment(corner, up);
+        sketch.add_segment(up, tip);
+
+        assert!((sketch.angle_between(first, second).unwrap() - 90.0).abs() < 1e-3);
+        assert_eq!(sketch.set_angle(first, second, 30.0), LengthOutcome::Exact);
+
+        let measured = sketch.angle_between(first, second).unwrap();
+        assert!((measured - 30.0).abs() < 1e-2, "got {measured}°");
+        // The far segment travelled with it and kept its own length.
+        assert!((sketch.point(up).distance(sketch.point(tip)) - 4.0).abs() < 1e-3);
+    }
+
+    #[test]
+    fn an_angle_needs_two_segments_that_meet() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(Vec2::ZERO);
+        let b = sketch.add_point(Vec2::new(10.0, 0.0));
+        let c = sketch.add_point(Vec2::new(0.0, 5.0));
+        let d = sketch.add_point(Vec2::new(5.0, 5.0));
+        let first = sketch.add_segment(a, b);
+        let apart = sketch.add_segment(c, d);
+
+        assert!(sketch.angle_between(first, apart).is_none());
+        assert_eq!(
+            sketch.set_angle(first, apart, 45.0),
+            LengthOutcome::Degenerate
+        );
+    }
+
+    /// A lone segment has 4 unknowns; its length removes one, pinning a point
+    /// to the origin removes two, and the last one is its direction.
+    #[test]
+    fn freedom_is_counted_down_as_constraints_are_added() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let anchor = sketch.add_point(Vec2::ZERO);
+        let far = sketch.add_point(Vec2::new(10.0, 0.0));
+        let segment = sketch.add_segment(anchor, far);
+
+        let freedom = |sketch: &Sketch| sketch.freedom_by_component()[0].degrees_of_freedom;
+        // 2 points = 4, minus 2 for the anchored one.
+        assert_eq!(freedom(&sketch), 2);
+
+        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, false);
+        assert_eq!(freedom(&sketch), 1);
+        assert!(!sketch.is_fully_constrained());
+
+        let other = sketch.add_point(Vec2::new(10.0, 10.0));
+        let second = sketch.add_segment(far, other);
+        sketch.set_dimension(DimensionTarget::Length(second), 50.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: segment,
+                second,
+            },
+            90.0,
+            false,
+        );
+        // 3 points = 6, minus 2 anchored, minus 3 dimensions = 1 left: the
+        // direction of the first segment.
+        assert_eq!(freedom(&sketch), 1);
+    }
+
+    /// A driven dimension is only a readout, so it must not count as removing
+    /// any freedom.
+    #[test]
+    fn a_driven_dimension_constrains_nothing() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let anchor = sketch.add_point(Vec2::ZERO);
+        let far = sketch.add_point(Vec2::new(10.0, 0.0));
+        let segment = sketch.add_segment(anchor, far);
+
+        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, true);
+        assert_eq!(sketch.freedom_by_component()[0].degrees_of_freedom, 2);
+    }
+
+    /// Once a piece of the drawing has nothing left to determine, a further
+    /// dimension on it adds nothing and must be flagged.
+    #[test]
+    fn a_dimension_on_a_settled_shape_is_redundant() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let anchor = sketch.add_point(Vec2::ZERO);
+        let far = sketch.add_point(Vec2::new(10.0, 0.0));
+        let segment = sketch.add_segment(anchor, far);
+        let circle = sketch.add_circle(anchor, 5.0);
+
+        assert!(!sketch.would_be_redundant(DimensionTarget::Length(segment)));
+
+        // Take away the last two freedoms: the segment length and the radius.
+        sketch.set_dimension(DimensionTarget::Length(segment), 100.0, false);
+        sketch.set_dimension(DimensionTarget::Radius(circle), 20.0, false);
+        // 2 points(4) + radius(1) - anchor(2) - 2 dimensions = 1 left.
+        let second = sketch.add_segment(anchor, far);
+        sketch.set_dimension(DimensionTarget::Length(second), 100.0, false);
+
+        assert!(sketch.is_fully_constrained());
+        let extra = sketch.add_segment(far, anchor);
+        assert!(sketch.would_be_redundant(DimensionTarget::Length(extra)));
+    }
+
+    #[test]
+    fn a_circle_is_found_by_its_outline() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let center = sketch.add_point(Vec2::ZERO);
+        let circle = sketch.add_circle(center, 10.0);
+
+        assert_eq!(
+            sketch.nearest_circle(Vec2::new(10.2, 0.0), 1.0),
+            Some(circle)
+        );
+        assert_eq!(
+            sketch.nearest_circle(Vec2::ZERO, 1.0),
+            None,
+            "not the middle"
+        );
+        assert_eq!(sketch.nearest_circle(Vec2::new(30.0, 0.0), 1.0), None);
     }
 
     #[test]

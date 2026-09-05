@@ -1,4 +1,5 @@
-use cao_sketch::{LengthOutcome, SegmentId, Sketch};
+use cao_sketch::{DimensionTarget, LengthOutcome, Sketch};
+use glam::Vec2;
 
 use crate::history::{History, Operation, PointRef};
 
@@ -10,6 +11,10 @@ pub enum DimensionOutcome {
     ScaleDefined { millimeters_per_unit: f32 },
     /// The scale was already fixed, so the geometry moved to match.
     Geometry(LengthOutcome),
+    /// The shape was already fully determined, so this value drives nothing.
+    /// It is kept as a readout: it shows what the geometry measures, and
+    /// changing it would mean nothing.
+    Reference,
 }
 
 /// The geometry of a part at a given point in its history.
@@ -54,6 +59,10 @@ impl PartState {
                 self.sketches.push(Sketch::new(*plane));
                 None
             }
+            Operation::AddPoint { sketch, position } => {
+                self.sketches.get_mut(*sketch)?.add_point(*position);
+                None
+            }
             Operation::AddSegment { sketch, start, end } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
                 let start = resolve(sketch, start);
@@ -63,11 +72,39 @@ impl PartState {
                 }
                 None
             }
+            Operation::AddRectangle {
+                sketch,
+                corner,
+                opposite,
+            } => {
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let corners = [
+                    *corner,
+                    Vec2::new(opposite.x, corner.y),
+                    *opposite,
+                    Vec2::new(corner.x, opposite.y),
+                ];
+                let points: Vec<_> = corners.iter().map(|at| sketch.add_point(*at)).collect();
+                for index in 0..4 {
+                    sketch.add_segment(points[index], points[(index + 1) % 4]);
+                }
+                None
+            }
+            Operation::AddCircle {
+                sketch,
+                center,
+                radius,
+            } => {
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let center = resolve(sketch, center);
+                sketch.add_circle(center, *radius);
+                None
+            }
             Operation::SetDimension {
                 sketch,
-                segment,
-                millimeters,
-            } => self.apply_dimension(*sketch, *segment, *millimeters),
+                target,
+                value,
+            } => self.apply_dimension(*sketch, *target, *value),
         }
     }
 
@@ -78,33 +115,72 @@ impl PartState {
     /// later one is a constraint, and the geometry gives way instead.
     fn apply_dimension(
         &mut self,
-        sketch: usize,
-        segment: SegmentId,
-        millimeters: f32,
+        index: usize,
+        target: DimensionTarget,
+        value: f32,
     ) -> Option<DimensionOutcome> {
-        if millimeters <= 0.0 {
+        if value <= 0.0 {
             return None;
         }
-        let length_in_units = self.sketches.get(sketch)?.segment_length(segment);
-        if length_in_units < 1e-6 {
-            return None;
+        let measured = self.measured(index, target)?;
+
+        // Nothing is left to determine here, so this value cannot drive the
+        // shape. It is kept as a readout instead of being refused: seeing a
+        // length is useful even when setting it is not.
+        if self.sketches[index].would_be_redundant(target) {
+            self.sketches[index].set_dimension(target, measured, true);
+            return Some(DimensionOutcome::Reference);
         }
 
-        if !self.has_scale() {
-            self.sketches[sketch].set_dimension(segment, millimeters);
-            let millimeters_per_unit = millimeters / length_in_units;
+        // A length in millimetres is what gives the drawing its size; an angle
+        // says nothing about scale, so it can never be the one to set it.
+        if !self.has_scale()
+            && let Some(units) = self.length_in_units(index, target)
+        {
+            self.sketches[index].set_dimension(target, value, false);
+            let millimeters_per_unit = value / units;
             self.millimeters_per_unit = Some(millimeters_per_unit);
             return Some(DimensionOutcome::ScaleDefined {
                 millimeters_per_unit,
             });
         }
 
-        let target_units = millimeters / self.scale();
-        let sketch = &mut self.sketches[sketch];
-        sketch.set_dimension(segment, millimeters);
-        Some(DimensionOutcome::Geometry(
-            sketch.set_segment_length(segment, target_units),
-        ))
+        let scale = self.scale();
+        let sketch = &mut self.sketches[index];
+        sketch.set_dimension(target, value, false);
+
+        let outcome = match target {
+            DimensionTarget::Length(segment) => sketch.set_segment_length(segment, value / scale),
+            DimensionTarget::Angle { first, second } => sketch.set_angle(first, second, value),
+            DimensionTarget::Radius(circle) => sketch.set_circle_radius(circle, value / scale),
+        };
+        Some(DimensionOutcome::Geometry(outcome))
+    }
+
+    /// The length a dimension refers to, in world units, or `None` for an angle
+    /// which has no length at all.
+    fn length_in_units(&self, index: usize, target: DimensionTarget) -> Option<f32> {
+        let sketch = self.sketches.get(index)?;
+        let units = match target {
+            DimensionTarget::Length(segment) => sketch.segment_length(segment),
+            DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
+            DimensionTarget::Angle { .. } => return None,
+        };
+        (units > 1e-6).then_some(units)
+    }
+
+    /// What the geometry actually measures right now: millimetres for a length
+    /// or a radius, degrees for an angle. This is what a readout shows, so it
+    /// stays true however the drawing moves afterwards.
+    pub fn measured(&self, index: usize, target: DimensionTarget) -> Option<f32> {
+        let sketch = self.sketches.get(index)?;
+        match target {
+            DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len())
+                .then(|| self.to_millimeters(sketch.segment_length(segment))),
+            DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len())
+                .then(|| self.to_millimeters(sketch.circle(circle).radius)),
+            DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
+        }
     }
 }
 
@@ -117,7 +193,7 @@ fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
 
 #[cfg(test)]
 mod tests {
-    use cao_sketch::WorkPlane;
+    use cao_sketch::{SegmentId, WorkPlane};
     use glam::Vec2;
 
     use super::*;
@@ -180,8 +256,8 @@ mod tests {
         let mut history = chain_history();
         history.push(Operation::SetDimension {
             sketch: 0,
-            segment: SegmentId(0),
-            millimeters: 100.0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0,
         });
 
         let mut live = PartState::default();
@@ -201,8 +277,8 @@ mod tests {
 
         let outcome = state.apply(&Operation::SetDimension {
             sketch: 0,
-            segment: SegmentId(0),
-            millimeters: 100.0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0,
         });
 
         assert_eq!(
@@ -219,14 +295,14 @@ mod tests {
         let mut state = PartState::rebuild(&chain_history());
         state.apply(&Operation::SetDimension {
             sketch: 0,
-            segment: SegmentId(0),
-            millimeters: 100.0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0,
         });
 
         let outcome = state.apply(&Operation::SetDimension {
             sketch: 0,
-            segment: SegmentId(1),
-            millimeters: 100.0,
+            target: DimensionTarget::Length(SegmentId(1)),
+            value: 100.0,
         });
 
         assert_eq!(
@@ -249,5 +325,151 @@ mod tests {
             None
         );
         assert!(state.sketches.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod extra_tests {
+    use cao_sketch::{CircleId, DimensionTarget, SegmentId, WorkPlane};
+    use glam::Vec2;
+
+    use super::*;
+
+    #[test]
+    fn a_rectangle_is_one_step_with_four_sides() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddRectangle {
+            sketch: 0,
+            corner: Vec2::ZERO,
+            opposite: Vec2::new(40.0, 20.0),
+        });
+
+        let sketch = &state.sketches[0];
+        assert_eq!(sketch.points().len(), 4);
+        assert_eq!(sketch.segments().len(), 4);
+        assert!((sketch.segment_length(SegmentId(0)) - 40.0).abs() < 1e-4);
+        assert!((sketch.segment_length(SegmentId(1)) - 20.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_circle_takes_its_radius_from_the_scale() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddCircle {
+            sketch: 0,
+            center: PointRef::New(Vec2::ZERO),
+            radius: 4.0,
+        });
+
+        // First value in the part: it sets the scale rather than resizing.
+        let outcome = state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Radius(CircleId(0)),
+            value: 20.0,
+        });
+        assert_eq!(
+            outcome,
+            Some(DimensionOutcome::ScaleDefined {
+                millimeters_per_unit: 5.0
+            })
+        );
+        assert!((state.sketches[0].circle(CircleId(0)).radius - 4.0).abs() < 1e-4);
+    }
+
+    /// An angle cannot set the scale: degrees say nothing about size.
+    #[test]
+    fn an_angle_never_defines_the_scale() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::ZERO),
+            end: PointRef::New(Vec2::new(10.0, 0.0)),
+        });
+        state.apply(&Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(cao_sketch::PointId(0)),
+            end: PointRef::New(Vec2::new(0.0, 10.0)),
+        });
+
+        let outcome = state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Angle {
+                first: SegmentId(0),
+                second: SegmentId(1),
+            },
+            value: 45.0,
+        });
+
+        assert!(matches!(outcome, Some(DimensionOutcome::Geometry(_))));
+        assert!(!state.has_scale());
+        let measured = state.sketches[0]
+            .angle_between(SegmentId(0), SegmentId(1))
+            .expect("the segments meet");
+        assert!((measured - 45.0).abs() < 1e-2, "got {measured}°");
+    }
+
+    /// A value on an already-settled shape becomes a readout, and the readout
+    /// shows what the geometry measures rather than what was typed.
+    #[test]
+    fn a_redundant_dimension_becomes_a_readout() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::ZERO),
+            end: PointRef::New(Vec2::new(10.0, 0.0)),
+        });
+        state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0,
+        });
+        // Anchored point plus the length: nothing left but the direction, and a
+        // second segment on the same points removes it.
+        state.apply(&Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(cao_sketch::PointId(0)),
+            end: PointRef::Existing(cao_sketch::PointId(1)),
+        });
+        state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(1)),
+            value: 100.0,
+        });
+
+        // Changing a value that already drives something is not redundant, so
+        // the redundant one has to be a target that has never been set.
+        state.apply(&Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(cao_sketch::PointId(0)),
+            end: PointRef::Existing(cao_sketch::PointId(1)),
+        });
+
+        let outcome = state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(2)),
+            value: 999.0,
+        });
+
+        assert_eq!(outcome, Some(DimensionOutcome::Reference));
+        let stored = state.sketches[0]
+            .dimension_of(DimensionTarget::Length(SegmentId(2)))
+            .expect("a readout was placed");
+        assert!(stored.driven);
+        assert!(
+            (stored.value - 100.0).abs() < 1e-2,
+            "a readout shows the measurement, not the typed value: {}",
+            stored.value
+        );
     }
 }

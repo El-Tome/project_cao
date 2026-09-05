@@ -1,8 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 
-use crate::camera::GridPlane;
-
 /// A single vertex of the line/triangle soup the renderer consumes. Colors are
 /// linear (not sRGB): see [`srgb`]. `width` is the line thickness in physical
 /// pixels, and is ignored by triangle geometry.
@@ -61,8 +59,15 @@ impl Default for AxisStyle {
 
 /// The three world axes as lines through the origin, long enough to always
 /// leave the view at the given camera distance.
-pub fn push_axes(out: &mut Vec<Vertex>, half_length: f32, style: &AxisStyle) {
+///
+/// `facing` drops the axis pointing at the camera: on a work plane it would
+/// project to a single dot sitting over the drawing, which reads as a stray
+/// mark rather than an axis.
+pub fn push_axes(out: &mut Vec<Vertex>, half_length: f32, style: &AxisStyle, facing: Option<Vec3>) {
     for (axis, color) in [(Vec3::X, style.x), (Vec3::Y, style.y), (Vec3::Z, style.z)] {
+        if facing.is_some_and(|normal| normal.normalize_or_zero().dot(axis).abs() > 0.999) {
+            continue;
+        }
         out.push(Vertex::line(-axis * half_length, color, style.width));
         out.push(Vertex::line(axis * half_length, color, style.width));
     }
@@ -106,17 +111,21 @@ impl Default for GridStyle {
     }
 }
 
-/// A grid on `plane`, centred on `center` snapped to the step so lines stay put
-/// while panning, fading out radially instead of ending on a hard edge.
+/// A grid on the plane spanned by `u` and `v`, centred on `center` snapped to
+/// the step so lines stay put while panning, fading out radially instead of
+/// ending on a hard edge.
+///
+/// Taking the basis rather than one of three named planes means any work plane
+/// gets a grid, including one lying at an angle on a face.
 pub fn push_grid(
     out: &mut Vec<Vertex>,
-    plane: GridPlane,
+    u: Vec3,
+    v: Vec3,
     center: Vec3,
     step: f32,
     half_extent: f32,
     style: &GridStyle,
 ) {
-    let (u, v, _normal) = plane.basis();
     let lines = (half_extent / step).ceil() as i32;
     let origin = snap_to_step(center, u, v, step);
 
@@ -219,6 +228,51 @@ fn radial_fade(distance: f32, half_extent: f32) -> f32 {
     (1.0 - outer * outer).clamp(0.0, 1.0)
 }
 
+/// A square patch of a plane, centred on `center`, as two triangles. Used to
+/// show the work planes a sketch can start on.
+pub fn push_plane_quad(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    u: Vec3,
+    v: Vec3,
+    half_size: f32,
+    color: [f32; 4],
+) {
+    let corners = [
+        center - u * half_size - v * half_size,
+        center + u * half_size - v * half_size,
+        center + u * half_size + v * half_size,
+        center - u * half_size + v * half_size,
+    ];
+    for point in [
+        corners[0], corners[1], corners[2], corners[0], corners[2], corners[3],
+    ] {
+        out.push(Vertex::solid(point, color));
+    }
+}
+
+/// The outline of that same square patch.
+pub fn push_plane_outline(
+    out: &mut Vec<Vertex>,
+    center: Vec3,
+    u: Vec3,
+    v: Vec3,
+    half_size: f32,
+    color: [f32; 4],
+    width: f32,
+) {
+    let corners = [
+        center - u * half_size - v * half_size,
+        center + u * half_size - v * half_size,
+        center + u * half_size + v * half_size,
+        center - u * half_size + v * half_size,
+    ];
+    for index in 0..4 {
+        out.push(Vertex::line(corners[index], color, width));
+        out.push(Vertex::line(corners[(index + 1) % 4], color, width));
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -274,7 +328,7 @@ mod tests {
             Vec3::new(-950.0, 620.0, 0.0),
         ] {
             let mut vertices = Vec::new();
-            push_grid(&mut vertices, GridPlane::Xy, center, step, 300.0, &style);
+            push_grid(&mut vertices, Vec3::X, Vec3::Y, center, step, 300.0, &style);
 
             let major_lines: Vec<_> = vertices
                 .iter()
@@ -305,7 +359,8 @@ mod tests {
         let mut vertices = Vec::new();
         push_grid(
             &mut vertices,
-            GridPlane::Xy,
+            Vec3::X,
+            Vec3::Y,
             Vec3::ZERO,
             10.0,
             300.0,
@@ -331,7 +386,8 @@ mod tests {
         let mut vertices = Vec::new();
         push_grid(
             &mut vertices,
-            GridPlane::Xy,
+            Vec3::X,
+            Vec3::Y,
             Vec3::ZERO,
             10.0,
             50.0,

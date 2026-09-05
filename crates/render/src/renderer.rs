@@ -17,6 +17,10 @@ pub struct ViewportRect {
 pub struct SceneFrame {
     pub scene_view_projection: Mat4,
     pub scene_viewport: ViewportRect,
+    /// Translucent surfaces in world space, such as the work planes offered
+    /// when starting a sketch. Drawn before the lines and never culled, since
+    /// a plane must be visible from both sides.
+    pub scene_surfaces: Vec<Vertex>,
     pub scene_lines: Vec<Vertex>,
     pub cube_view_projection: Mat4,
     pub cube_triangles: Vec<Vertex>,
@@ -145,8 +149,10 @@ impl DynamicVertexBuffer {
 pub struct SceneRenderer {
     line_pipeline: wgpu::RenderPipeline,
     triangle_pipeline: wgpu::RenderPipeline,
+    surface_pipeline: wgpu::RenderPipeline,
     scene_uniform: UniformBinding,
     cube_uniform: UniformBinding,
+    scene_surfaces: DynamicVertexBuffer,
     scene_lines: DynamicVertexBuffer,
     cube_triangles: DynamicVertexBuffer,
     cube_edges: DynamicVertexBuffer,
@@ -255,8 +261,15 @@ impl SceneRenderer {
                 &solid_layout,
                 Some(wgpu::Face::Back),
             ),
+            surface_pipeline: make_pipeline(
+                "cao_surface_pipeline",
+                "vs_solid",
+                &solid_layout,
+                None,
+            ),
             scene_uniform: UniformBinding::new(device, &uniform_layout, "cao_scene_uniform"),
             cube_uniform: UniformBinding::new(device, &uniform_layout, "cao_cube_uniform"),
+            scene_surfaces: DynamicVertexBuffer::new(device, "cao_scene_surfaces"),
             scene_lines: DynamicVertexBuffer::new(device, "cao_scene_lines"),
             cube_triangles: DynamicVertexBuffer::new(device, "cao_cube_triangles"),
             cube_edges: DynamicVertexBuffer::new(device, "cao_cube_edges"),
@@ -278,6 +291,8 @@ impl SceneRenderer {
             frame.cube_viewport,
             self.encode_srgb,
         );
+        self.scene_surfaces
+            .upload(device, queue, &frame.scene_surfaces);
         self.scene_lines.upload(device, queue, &frame.scene_lines);
         self.cube_triangles
             .upload(device, queue, &frame.cube_triangles);
@@ -286,8 +301,10 @@ impl SceneRenderer {
     }
 
     pub fn paint(&self, pass: &mut wgpu::RenderPass<'_>) {
-        pass.set_pipeline(&self.line_pipeline);
         pass.set_bind_group(0, &self.scene_uniform.bind_group, &[]);
+        pass.set_pipeline(&self.surface_pipeline);
+        self.scene_surfaces.draw_triangles(pass);
+        pass.set_pipeline(&self.line_pipeline);
         self.scene_lines.draw_lines(pass);
 
         if self.cube_viewport.width < 1.0 || self.cube_viewport.height < 1.0 {

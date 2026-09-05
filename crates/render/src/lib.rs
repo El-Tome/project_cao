@@ -7,6 +7,9 @@ pub mod cube;
 pub mod geometry;
 mod renderer;
 
-pub use camera::{CubeFace, GridPlane, OrbitCamera, ViewTransition};
-pub use geometry::{AxisStyle, GridStyle, Vertex, adaptive_step, push_axes, push_grid, srgb};
+pub use camera::{CubeFace, CubeZone, OrbitCamera, ViewTransition};
+pub use geometry::{
+    AxisStyle, GridStyle, Vertex, adaptive_step, push_axes, push_grid, push_plane_outline,
+    push_plane_quad, srgb,
+};
 pub use renderer::{SceneFrame, SceneRenderer, ViewportRect};

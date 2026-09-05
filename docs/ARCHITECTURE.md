@@ -28,10 +28,13 @@ pour la V1 ; il pourra être remis en question si les besoins tactile/stylet
 
 Un crate = une responsabilité, sans dépendance dans le mauvais sens :
 
-- `cao_core` : types de domaine (document de pièce, liste des récents,
-  chemins de stockage) et persistance. **Aucune dépendance UI.** Doit rester
+- `cao_core` : types de domaine (document de pièce, échelle, liste des
+  récents, chemins de stockage) et persistance. **Aucune dépendance UI.** Doit rester
   réutilisable tel quel par n'importe quel futur front-end (desktop, web,
   tablette).
+- `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
+  la règle qui applique une longueur. Ni rendu ni interface.
+  Voir [esquisse.md](esquisse.md).
 - `cao_render` : rendu GPU du viewport (`wgpu`), sans dépendance interface.
   Voir [rendu.md](rendu.md).
 - `cao_app` : shell applicatif desktop (`eframe`). Contient l'état de
@@ -47,7 +50,8 @@ rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 L'application est un menu de démarrage qui bascule vers différents modes :
 
 - **Croquis → Extrusion** : cycle esquisse 2D puis extrusion, répétable en
-  boucle pour construire une pièce (pas encore implémenté).
+  boucle pour construire une pièce. L'esquisse existe
+  ([esquisse.md](esquisse.md)) ; l'extrusion reste à faire.
 - **Assemblage** : assembler plusieurs pièces entre elles (pas encore
   implémenté).
 - D'autres modes viendront s'ajouter au menu au fil du temps.
@@ -60,6 +64,7 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 
 ## Documentation par sujet
 
+- [esquisse.md](esquisse.md) — dessiner, coter, et la règle d'échelle
 - [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
 - [rendu.md](rendu.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
 - [navigation.md](navigation.md) — gestes souris, comportement de la caméra
@@ -68,10 +73,11 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 
 ## Format de fichier
 
-Une pièce est aujourd'hui un simple JSON (`.caopart`) ne contenant que des
-métadonnées (id, nom, dates). Il portera l'arbre de fonctions (croquis,
-extrusions, ...) une fois le mode croquis implémenté — ce sera un changement
-de schéma à versionner, pas une réécriture du format.
+Une pièce est un JSON (`.caopart`) portant ses métadonnées, son échelle
+(millimètres par unité du monde) et ses esquisses. Il est versionné par
+`schema_version` ; les champs ajoutés au fil du temps ont des valeurs par
+défaut, si bien qu'un fichier écrit par une version antérieure se rouvre sans
+conversion. Les extrusions viendront s'y ajouter de la même façon.
 
 ## Pistes non prioritaires (à débattre plus tard)
 

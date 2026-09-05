@@ -12,9 +12,13 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   pose sur un plan, et une barre d'échelle en mm. Navigation souris et
   trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
 
-Aucun mode d'édition (croquis, extrusion, assemblage) n'est encore implémenté —
-voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble
-et la feuille de route.
+- **Esquisse** : choisir un plan, tracer des polylignes, coter un trait. La
+  première cote définit l'échelle du dessin, les suivantes déforment la
+  géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
+
+L'extrusion et l'assemblage restent à faire — voir
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
+feuille de route.
 
 ## Lancer l'application
 
@@ -27,6 +31,8 @@ cargo run -p cao_app
 - `crates/core` (`cao_core`) — types de domaine, persistance et configuration,
   sans aucune dépendance UI. Réutilisable tel quel par un futur front-end
   web/tablette.
+- `crates/sketch` (`cao_sketch`) — modèle d'esquisse et application des cotes,
+  sans rendu ni UI.
 - `crates/render` (`cao_render`) — rendu GPU du viewport (wgpu), sans
   dépendance UI non plus.
 - `crates/app` (`cao_app`) — interface desktop (egui/eframe) : menu de
@@ -44,6 +50,7 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
+- [Esquisse](docs/esquisse.md) — dessiner, coter, la règle d'échelle
 - [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
 - [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
 - [Navigation](docs/navigation.md) — gestes souris, caméra

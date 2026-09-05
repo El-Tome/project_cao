@@ -1,3 +1,4 @@
+pub mod sketch;
 pub mod start_menu;
 pub mod viewport;
 
@@ -5,13 +6,16 @@ use std::path::PathBuf;
 
 use cao_core::PartDocument;
 
+use sketch::SketchEditor;
 use viewport::ViewportState;
 
-/// A part being worked on, with the state of the view onto it.
+/// A part being worked on, with the state of the view onto it and of the
+/// sketch being drawn.
 pub struct OpenPart {
     pub doc: PartDocument,
     pub path: PathBuf,
     pub viewport: ViewportState,
+    pub editor: SketchEditor,
 }
 
 /// The current top-level screen. New modes (sketch/extrude, assembly, ...)

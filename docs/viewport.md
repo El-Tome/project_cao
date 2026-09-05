@@ -91,6 +91,12 @@ précise (`unit: Fixed(…)`).
 Son coin est configurable (`ruler_corner`), et elle peut être masquée
 (`ruler_visible`).
 
+## L'axe qui pointe vers nous
+
+En mode plan, l'axe perpendiculaire au plan n'est pas dessiné : vu de face il
+se réduit à un point posé au milieu du dessin, qu'on lit comme une salissure et
+non comme un axe.
+
 ## Repère et unités
 
 Convention **Z vers le haut** (usuelle en CAO mécanique) : le plan XY est le

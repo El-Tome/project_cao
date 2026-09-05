@@ -5,7 +5,7 @@
 
 use std::path::PathBuf;
 
-use cao_render::camera::{CubeFace, CubeZone, GridPlane};
+use cao_render::camera::{CubeFace, CubeZone};
 use cao_render::{
     AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewportRect, adaptive_step,
     cube, push_axes, push_grid,
@@ -39,8 +39,57 @@ fn main() {
         &device,
         &queue,
         &mut renderer,
-        &build_frame(&plane_view, Some(GridPlane::Xy)),
+        &build_frame(&plane_view, Some((glam::Vec3::X, glam::Vec3::Y))),
         &out_dir.join("viewport_plane_xy.png"),
+    );
+
+    // The plane chooser: three translucent patches, one under the cursor.
+    let chooser = OrbitCamera::default();
+    let mut frame = build_frame(&chooser, None);
+    let half_size = chooser.distance() * 0.3;
+    for (index, (u, v)) in [
+        (glam::Vec3::X, glam::Vec3::Y),
+        (glam::Vec3::X, glam::Vec3::Z),
+        (glam::Vec3::Y, glam::Vec3::Z),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let hovered = index == 0;
+        let fill = if hovered {
+            cao_render::srgb(0.30, 0.60, 0.95, 0.35)
+        } else {
+            cao_render::srgb(0.55, 0.60, 0.68, 0.12)
+        };
+        let outline = if hovered {
+            cao_render::srgb(0.45, 0.75, 1.0, 1.0)
+        } else {
+            cao_render::srgb(0.65, 0.70, 0.78, 0.7)
+        };
+        cao_render::push_plane_quad(
+            &mut frame.scene_surfaces,
+            glam::Vec3::ZERO,
+            u,
+            v,
+            half_size,
+            fill,
+        );
+        cao_render::push_plane_outline(
+            &mut frame.scene_lines,
+            glam::Vec3::ZERO,
+            u,
+            v,
+            half_size,
+            outline,
+            if hovered { 2.5 } else { 1.5 },
+        );
+    }
+    render(
+        &device,
+        &queue,
+        &mut renderer,
+        &frame,
+        &out_dir.join("viewport_plane_chooser.png"),
     );
 
     // Panned away from the origin: the heavy lines must stay on the axes.
@@ -51,7 +100,7 @@ fn main() {
         &device,
         &queue,
         &mut renderer,
-        &build_frame(&panned, Some(GridPlane::Xy)),
+        &build_frame(&panned, Some((glam::Vec3::X, glam::Vec3::Y))),
         &out_dir.join("viewport_plane_panned.png"),
     );
 
@@ -104,19 +153,20 @@ async fn request_device() -> (wgpu::Device, wgpu::Queue) {
         .expect("could not create device")
 }
 
-fn build_frame(camera: &OrbitCamera, plane: Option<GridPlane>) -> SceneFrame {
+fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) -> SceneFrame {
     let mut lines = Vec::new();
 
-    if let Some(plane) = plane {
+    if let Some((u, v)) = plane {
         let units_per_pixel = camera.world_units_per_pixel(HEIGHT as f32);
         let step = adaptive_step(units_per_pixel, 48.0);
         let diagonal = ((WIDTH * WIDTH + HEIGHT * HEIGHT) as f32).sqrt();
         let half_extent = units_per_pixel * diagonal * 1.5;
-        let (_, _, normal) = plane.basis();
+        let normal = u.cross(v).normalize();
         let center = camera.target() - normal * camera.target().dot(normal);
         push_grid(
             &mut lines,
-            plane,
+            u,
+            v,
             center,
             step,
             half_extent,
@@ -124,7 +174,12 @@ fn build_frame(camera: &OrbitCamera, plane: Option<GridPlane>) -> SceneFrame {
         );
     }
 
-    push_axes(&mut lines, camera.distance() * 50.0, &AxisStyle::default());
+    push_axes(
+        &mut lines,
+        camera.distance() * 50.0,
+        &AxisStyle::default(),
+        None,
+    );
 
     let mut cube_triangles = Vec::new();
     let mut cube_edges = Vec::new();
@@ -133,6 +188,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<GridPlane>) -> SceneFrame {
 
     let cube_size = 288.0;
     SceneFrame {
+        scene_surfaces: Vec::new(),
         scene_view_projection: camera.view_projection(WIDTH as f32 / HEIGHT as f32),
         scene_viewport: ViewportRect {
             x: 0.0,

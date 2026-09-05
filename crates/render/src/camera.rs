@@ -36,12 +36,13 @@ impl CubeFace {
         }
     }
 
-    /// The work plane a sketch would sit on when looking straight at this face.
-    pub fn plane(self) -> GridPlane {
+    /// The two world axes spanning the plane this face looks at: the basis of
+    /// the work plane a sketch would sit on.
+    pub fn plane_basis(self) -> (Vec3, Vec3) {
         match self {
-            Self::PlusX | Self::MinusX => GridPlane::Yz,
-            Self::PlusY | Self::MinusY => GridPlane::Xz,
-            Self::PlusZ | Self::MinusZ => GridPlane::Xy,
+            Self::PlusX | Self::MinusX => (Vec3::Y, Vec3::Z),
+            Self::PlusY | Self::MinusY => (Vec3::X, Vec3::Z),
+            Self::PlusZ | Self::MinusZ => (Vec3::X, Vec3::Y),
         }
     }
 
@@ -93,10 +94,11 @@ impl CubeZone {
         sum.normalize()
     }
 
-    /// The work plane this zone lands on, if any. Only faces have one.
-    pub fn plane(self) -> Option<GridPlane> {
+    /// The face this zone is, if it is one. An edge or a corner looks at no
+    /// single plane, which is why they stay in wireframe mode.
+    pub fn face(self) -> Option<CubeFace> {
         match self {
-            Self::Face(face) => Some(face.plane()),
+            Self::Face(face) => Some(face),
             Self::Edge(_) | Self::Corner(_) => None,
         }
     }
@@ -109,25 +111,6 @@ pub fn view_angles_towards(direction: Vec3) -> (f32, f32) {
     let pitch = direction.z.clamp(-1.0, 1.0).asin();
     let yaw = f32::atan2(direction.x, -direction.y);
     (yaw, pitch)
-}
-
-/// The plane a grid is drawn on, named after the two axes it contains.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum GridPlane {
-    Xy,
-    Xz,
-    Yz,
-}
-
-impl GridPlane {
-    /// The two in-plane basis vectors, and the plane normal.
-    pub fn basis(self) -> (Vec3, Vec3, Vec3) {
-        match self {
-            Self::Xy => (Vec3::X, Vec3::Y, Vec3::Z),
-            Self::Xz => (Vec3::X, Vec3::Z, Vec3::Y),
-            Self::Yz => (Vec3::Y, Vec3::Z, Vec3::X),
-        }
-    }
 }
 
 /// Camera orbiting a target point, parameterised by yaw/pitch/distance rather
@@ -255,6 +238,35 @@ impl OrbitCamera {
         self.distance = (self.distance / factor).clamp(self.min_distance, self.max_distance);
     }
 
+    pub fn set_target(&mut self, target: Vec3) {
+        self.target = target;
+    }
+
+    /// Frames a sphere: looks at its centre from far enough back that it fits
+    /// the narrower of the two field-of-view angles, with a little margin.
+    pub fn focus_on(&mut self, center: Vec3, radius: f32, aspect: f32) {
+        self.target = center;
+        let half_vertical = self.fov_y * 0.5;
+        let half_horizontal = (half_vertical.tan() * aspect.max(1e-3)).atan();
+        let half_angle = half_vertical.min(half_horizontal).max(1e-3);
+        self.distance = (radius.max(1e-4) / half_angle.sin() * 1.25)
+            .clamp(self.min_distance, self.max_distance);
+    }
+
+    /// The world-space ray under a point of the viewport, given in normalized
+    /// device coordinates (-1..1, y up). Used to pick what the cursor is over.
+    pub fn ray(&self, ndc: Vec2, aspect: f32) -> (Vec3, Vec3) {
+        let inverse = self.view_projection(aspect).inverse();
+        let unproject = |depth: f32| {
+            let point = inverse * glam::Vec4::new(ndc.x, ndc.y, depth, 1.0);
+            point.truncate() / point.w
+        };
+        // wgpu clip space puts the near plane at depth 0 and the far plane at 1.
+        let near = unproject(0.0);
+        let far = unproject(1.0);
+        (near, (far - near).normalize_or(self.forward()))
+    }
+
     pub fn set_view_angles(&mut self, yaw: f32, pitch: f32) {
         self.yaw = yaw.rem_euclid(TAU);
         self.pitch = pitch.clamp(-FRAC_PI_2, FRAC_PI_2);
@@ -359,7 +371,7 @@ mod tests {
     fn only_faces_carry_a_plane() {
         for zone in every_zone() {
             assert_eq!(
-                zone.plane().is_some(),
+                zone.face().is_some(),
                 matches!(zone, CubeZone::Face(_)),
                 "{zone:?}"
             );
@@ -416,6 +428,43 @@ mod tests {
 
         camera.zoom(1e6, 0.0015);
         assert!(camera.distance() >= 1e-3);
+    }
+
+    /// A ray through the middle of the screen must run straight down the
+    /// camera's own direction, and one off to the side must lean away from it.
+    #[test]
+    fn rays_follow_the_camera() {
+        let camera = OrbitCamera::default();
+        let (origin, direction) = camera.ray(Vec2::ZERO, 1.6);
+
+        assert!(
+            (direction - camera.forward()).length() < 1e-3,
+            "centre ray points along {direction:?}, expected {:?}",
+            camera.forward()
+        );
+        assert!((origin - camera.eye()).length() < camera.distance());
+
+        let (_, right_edge) = camera.ray(Vec2::new(0.9, 0.0), 1.6);
+        assert!(right_edge.dot(camera.right()) > 0.1);
+    }
+
+    /// Framing a sphere must put it fully inside the view: the angle from the
+    /// eye to its rim stays under the half field of view.
+    #[test]
+    fn focusing_frames_the_whole_sphere() {
+        for (radius, aspect) in [(1.0, 1.6), (500.0, 0.6), (0.01, 1.0)] {
+            let mut camera = OrbitCamera::default();
+            camera.focus_on(Vec3::new(3.0, -4.0, 5.0), radius, aspect);
+
+            assert_eq!(camera.target(), Vec3::new(3.0, -4.0, 5.0));
+            let half_vertical = 45f32.to_radians() * 0.5;
+            let half_horizontal = (half_vertical.tan() * aspect).atan();
+            let rim_angle = (radius / camera.distance()).asin();
+            assert!(
+                rim_angle < half_vertical.min(half_horizontal),
+                "radius {radius} at aspect {aspect} does not fit"
+            );
+        }
     }
 
     #[test]

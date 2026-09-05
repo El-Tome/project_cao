@@ -78,16 +78,31 @@ impl PartState {
                 opposite,
             } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
-                let corners = [
-                    *corner,
-                    Vec2::new(opposite.x, corner.y),
-                    *opposite,
-                    Vec2::new(corner.x, opposite.y),
-                ];
-                let points: Vec<_> = corners.iter().map(|at| sketch.add_point(*at)).collect();
+                // The two given corners may reuse points already drawn; the
+                // other two are always new.
+                let first = resolve(sketch, corner);
+                let third = resolve(sketch, opposite);
+                let (a, c) = (sketch.point(first), sketch.point(third));
+                let second = sketch.add_point(Vec2::new(c.x, a.y));
+                let fourth = sketch.add_point(Vec2::new(a.x, c.y));
+
+                let corners = [first, second, third, fourth];
                 for index in 0..4 {
-                    sketch.add_segment(points[index], points[(index + 1) % 4]);
+                    sketch.add_segment(corners[index], corners[(index + 1) % 4]);
                 }
+                None
+            }
+            Operation::MovePoint {
+                sketch,
+                point,
+                position,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.move_point(*point, *position);
+                // Moving a point by hand must not break the values already
+                // given, so the drawing settles again around it.
+                sketch.resolve(scale);
                 None
             }
             Operation::AddCircle {
@@ -166,6 +181,7 @@ impl PartState {
         let sketch = self.sketches.get(index)?;
         let units = match target {
             DimensionTarget::Length(segment) => sketch.segment_length(segment),
+            DimensionTarget::Distance { from, to } => sketch.point(from).distance(sketch.point(to)),
             DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
             DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. } => return None,
         };
@@ -180,6 +196,9 @@ impl PartState {
         match target {
             DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len())
                 .then(|| self.to_millimeters(sketch.segment_length(segment))),
+            DimensionTarget::Distance { from, to } => (from.0 < sketch.points().len()
+                && to.0 < sketch.points().len())
+            .then(|| self.to_millimeters(sketch.point(from).distance(sketch.point(to)))),
             DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len())
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
@@ -214,7 +233,8 @@ mod tests {
         });
         history.push(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::Existing(cao_sketch::PointId(1)),
+            // Point 0 is the sketch origin, so the corner just drawn is 2.
+            start: PointRef::Existing(cao_sketch::PointId(2)),
             end: PointRef::New(Vec2::new(2.0, 1.0)),
         });
         history
@@ -225,7 +245,11 @@ mod tests {
         let state = PartState::rebuild(&chain_history());
         assert_eq!(state.sketches.len(), 1);
         assert_eq!(state.sketches[0].segments().len(), 2);
-        assert_eq!(state.sketches[0].points().len(), 3, "the corner is shared");
+        assert_eq!(
+            state.sketches[0].points().len(),
+            4,
+            "the origin, plus three drawn points with the corner shared"
+        );
     }
 
     /// Rewinding must give exactly the state that existed at that step: this is
@@ -347,12 +371,13 @@ mod extra_tests {
         });
         state.apply(&Operation::AddRectangle {
             sketch: 0,
-            corner: Vec2::ZERO,
-            opposite: Vec2::new(40.0, 20.0),
+            corner: PointRef::New(Vec2::ZERO),
+            opposite: PointRef::New(Vec2::new(40.0, 20.0)),
         });
 
         let sketch = &state.sketches[0];
-        assert_eq!(sketch.points().len(), 4);
+        // The origin, plus the four corners.
+        assert_eq!(sketch.points().len(), 5);
         assert_eq!(sketch.segments().len(), 4);
         assert!((sketch.segment_length(SegmentId(0)) - 40.0).abs() < 1e-4);
         assert!((sketch.segment_length(SegmentId(1)) - 20.0).abs() < 1e-4);
@@ -399,7 +424,7 @@ mod extra_tests {
         });
         state.apply(&Operation::AddSegment {
             sketch: 0,
-            start: PointRef::Existing(cao_sketch::PointId(0)),
+            start: PointRef::Existing(cao_sketch::PointId(1)),
             end: PointRef::New(Vec2::new(0.0, 10.0)),
         });
 
@@ -428,9 +453,10 @@ mod extra_tests {
         state.apply(&Operation::CreateSketch {
             plane: WorkPlane::XY,
         });
+        // Hung off the sketch origin, so only the far point can still move.
         state.apply(&Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::ZERO),
+            start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             end: PointRef::New(Vec2::new(10.0, 0.0)),
         });
         state.apply(&Operation::SetDimension {
@@ -438,36 +464,32 @@ mod extra_tests {
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
         });
-        // Anchored point plus the length: nothing left but the direction, and a
-        // second segment on the same points removes it.
-        state.apply(&Operation::AddSegment {
-            sketch: 0,
-            start: PointRef::Existing(cao_sketch::PointId(0)),
-            end: PointRef::Existing(cao_sketch::PointId(1)),
-        });
         state.apply(&Operation::SetDimension {
             sketch: 0,
-            target: DimensionTarget::Length(SegmentId(1)),
-            value: 100.0,
+            target: DimensionTarget::AxisAngle {
+                segment: SegmentId(0),
+                axis: cao_sketch::SketchAxis::U,
+            },
+            value: 0.0,
         });
 
         // Changing a value that already drives something is not redundant, so
         // the redundant one has to be a target that has never been set.
         state.apply(&Operation::AddSegment {
             sketch: 0,
-            start: PointRef::Existing(cao_sketch::PointId(0)),
+            start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             end: PointRef::Existing(cao_sketch::PointId(1)),
         });
 
         let outcome = state.apply(&Operation::SetDimension {
             sketch: 0,
-            target: DimensionTarget::Length(SegmentId(2)),
+            target: DimensionTarget::Length(SegmentId(1)),
             value: 999.0,
         });
 
         assert_eq!(outcome, Some(DimensionOutcome::Reference));
         let stored = state.sketches[0]
-            .dimension_of(DimensionTarget::Length(SegmentId(2)))
+            .dimension_of(DimensionTarget::Length(SegmentId(1)))
             .expect("a readout was placed");
         assert!(stored.driven);
         assert!(

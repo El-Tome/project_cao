@@ -1,6 +1,6 @@
 use cao_core::PartDocument;
 
-use crate::screens::sketch::{SketchEditor, Tool};
+use crate::screens::sketch::{DimensionMode, SketchEditor, Tool};
 
 /// A family of tools. Only sketching exists so far; extrusion and assembly are
 /// listed so the shape of the menu is visible, and so adding them is a matter
@@ -177,6 +177,25 @@ impl Ribbon {
                 action = RibbonAction::FinishSketch;
             }
         });
+
+        // The dimension tool's own row: what it is allowed to measure. Auto
+        // covers most of the work; the others are there for when two things
+        // sit under the same cursor and the wrong one keeps winning.
+        if drawing && editor.tool == Tool::Dimension {
+            ui.end_row();
+            ui.separator();
+            ui.label("Mesurer :");
+            for mode in DimensionMode::ALL {
+                if ui
+                    .selectable_label(editor.dimension_mode == mode, mode.label())
+                    .on_hover_text(mode.hint())
+                    .clicked()
+                {
+                    editor.dimension_mode = mode;
+                    editor.reset_pending();
+                }
+            }
+        }
 
         ui.separator();
 

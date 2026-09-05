@@ -1,7 +1,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::constraints::{Dimension, DimensionTarget, Freedom, SketchAxis, is_anchor};
+use crate::constraints::{Dimension, DimensionTarget, Freedom, SketchAxis};
 use crate::plane::WorkPlane;
 use crate::solver::{self, SolveOutcome};
 
@@ -58,14 +58,34 @@ pub struct Sketch {
 }
 
 impl Sketch {
+    /// Every sketch owns a point at its origin from the moment it is created.
+    ///
+    /// It is not drawn like the others and cannot be moved: it is there to be
+    /// snapped onto and measured from, so that pinning a drawing never means
+    /// first remembering to place a point by hand.
+    pub const ORIGIN: PointId = PointId(0);
+
     pub fn new(plane: WorkPlane) -> Self {
         Self {
             plane,
-            points: Vec::new(),
+            points: vec![Vec2::ZERO],
             segments: Vec::new(),
             circles: Vec::new(),
             dimensions: Vec::new(),
         }
+    }
+
+    pub fn is_origin(&self, point: PointId) -> bool {
+        point == Self::ORIGIN
+    }
+
+    /// Points the user drew, as opposed to the origin the sketch was born with.
+    pub fn drawn_points(&self) -> impl Iterator<Item = (PointId, Vec2)> + '_ {
+        self.points
+            .iter()
+            .enumerate()
+            .skip(1)
+            .map(|(index, point)| (PointId(index), *point))
     }
 
     pub fn points(&self) -> &[Vec2] {
@@ -123,6 +143,16 @@ impl Sketch {
     pub fn add_point(&mut self, position: Vec2) -> PointId {
         self.points.push(position);
         PointId(self.points.len() - 1)
+    }
+
+    /// Moves a point where the user dragged it. The origin stays put.
+    pub fn move_point(&mut self, point: PointId, position: Vec2) {
+        if self.is_origin(point) {
+            return;
+        }
+        if let Some(existing) = self.points.get_mut(point.0) {
+            *existing = position;
+        }
     }
 
     /// Reuses an existing point when one is within `tolerance`, so that clicking
@@ -289,12 +319,8 @@ impl Sketch {
     /// Points pinned to the origin are taken out of the count outright, since
     /// neither of their coordinates can move.
     pub fn freedom(&self, millimeters_per_unit: f32) -> Freedom {
-        let anchored = self
-            .points
-            .iter()
-            .filter(|point| is_anchor(**point))
-            .count();
-        let free_coordinates = self.points.len().saturating_sub(anchored) * 2;
+        // The origin never moves, so its two coordinates are not in play.
+        let free_coordinates = self.points.len().saturating_sub(1) * 2;
         let held = solver::rank(&self.equations(millimeters_per_unit)).min(free_coordinates);
 
         // A circle brings its own radius, which only its own dimension can
@@ -314,7 +340,7 @@ impl Sketch {
     }
 
     pub fn is_fully_constrained(&self, millimeters_per_unit: f32) -> bool {
-        !self.points.is_empty() && self.freedom(millimeters_per_unit).fully_constrained()
+        self.points.len() > 1 && self.freedom(millimeters_per_unit).fully_constrained()
     }
 
     /// Whether a value on this target would say anything new.
@@ -353,6 +379,9 @@ impl Sketch {
             DimensionTarget::Length(segment) => {
                 self.segment_length(segment) * millimeters_per_unit.max(1e-9)
             }
+            DimensionTarget::Distance { from, to } => {
+                self.point(from).distance(self.point(to)) * millimeters_per_unit.max(1e-9)
+            }
             DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
             DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
             DimensionTarget::Radius(_) => return None,
@@ -384,10 +413,10 @@ mod tests {
     use super::*;
     use crate::constraints::SketchAxis;
 
-    /// A right-angled triangle: corner at the origin, one side along X, one up.
+    /// A right-angled triangle hung off the sketch origin.
     fn triangle() -> (Sketch, [SegmentId; 3]) {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let corner = sketch.add_point(Vec2::ZERO);
+        let corner = Sketch::ORIGIN;
         let right = sketch.add_point(Vec2::new(40.0, 0.0));
         let top = sketch.add_point(Vec2::new(0.0, 30.0));
         let base = sketch.add_segment(corner, right);
@@ -509,8 +538,8 @@ mod tests {
         assert!(sketch.is_fully_constrained(1.0));
     }
 
-    /// A drawing with no point on the origin can still slide about, however
-    /// many values it carries.
+    /// A drawing that touches nothing fixed can still slide about, however many
+    /// values it carries.
     #[test]
     fn a_drawing_that_is_not_pinned_is_never_complete() {
         let mut sketch = Sketch::new(WorkPlane::XY);
@@ -589,7 +618,46 @@ mod tests {
 
         assert_eq!(first, again);
         assert_ne!(first, elsewhere);
-        assert_eq!(sketch.points().len(), 2);
+        assert_eq!(sketch.points().len(), 3, "the origin plus the two placed");
+    }
+
+    /// Clicking where the origin sits must join it rather than lay a second
+    /// point on top: that is how a drawing gets pinned without thinking about
+    /// it.
+    #[test]
+    fn clicking_the_origin_joins_it() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        assert_eq!(sketch.point_at(Vec2::new(0.05, -0.05), 0.5), Sketch::ORIGIN);
+        assert_eq!(sketch.points().len(), 1);
+    }
+
+    #[test]
+    fn the_origin_never_moves() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        sketch.move_point(Sketch::ORIGIN, Vec2::new(10.0, 10.0));
+        assert_eq!(sketch.point(Sketch::ORIGIN), Vec2::ZERO);
+    }
+
+    /// A distance can be measured between any two points, joined or not, which
+    /// is what lets a shape be positioned from the origin.
+    #[test]
+    fn a_distance_pins_a_point_against_the_origin() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let free = sketch.add_point(Vec2::new(3.0, 4.0));
+
+        sketch.set_dimension(
+            DimensionTarget::Distance {
+                from: Sketch::ORIGIN,
+                to: free,
+            },
+            10.0,
+            false,
+        );
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let distance = sketch.point(free).length();
+        assert!((distance - 10.0).abs() < 0.01, "got {distance}");
+        assert_eq!(sketch.point(Sketch::ORIGIN), Vec2::ZERO);
     }
 
     #[test]
@@ -628,10 +696,10 @@ mod tests {
     #[test]
     fn bounds_cover_every_point() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        assert!(sketch.bounds().is_none());
         sketch.add_point(Vec2::new(-3.0, 7.0));
         sketch.add_point(Vec2::new(12.0, -1.0));
-        let (min, max) = sketch.bounds().expect("two points");
+        let (min, max) = sketch.bounds().expect("some points");
+        // The origin is a point like any other as far as framing goes.
         assert_eq!(min, Vec2::new(-3.0, -1.0));
         assert_eq!(max, Vec2::new(12.0, 7.0));
     }

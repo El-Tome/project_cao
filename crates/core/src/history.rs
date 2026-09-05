@@ -33,13 +33,19 @@ pub enum Operation {
     /// rectangle rather than four unrelated lines.
     AddRectangle {
         sketch: usize,
-        corner: Vec2,
-        opposite: Vec2,
+        corner: PointRef,
+        opposite: PointRef,
     },
     AddCircle {
         sketch: usize,
         center: PointRef,
         radius: f32,
+    },
+    /// Dragging a point to a new place.
+    MovePoint {
+        sketch: usize,
+        point: PointId,
+        position: Vec2,
     },
     SetDimension {
         sketch: usize,
@@ -58,13 +64,16 @@ impl Operation {
             Self::AddSegment { .. } => "Trait".to_string(),
             Self::AddRectangle { .. } => "Rectangle".to_string(),
             Self::AddCircle { .. } => "Cercle".to_string(),
+            Self::MovePoint { .. } => "Déplacement".to_string(),
             Self::SetDimension { target, value, .. } => match target {
                 DimensionTarget::Angle { .. } => format!("Angle {value}°"),
                 DimensionTarget::AxisAngle { axis, .. } => {
                     format!("Angle {value}° / {}", axis.label())
                 }
                 DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-                DimensionTarget::Length(_) => format!("Cote {value} mm"),
+                DimensionTarget::Length(_) | DimensionTarget::Distance { .. } => {
+                    format!("Cote {value} mm")
+                }
             },
         }
     }
@@ -93,13 +102,25 @@ impl Operation {
                 corner,
                 opposite,
             } => format!(
-                "Esquisse {sketch} · ({:.1}, {:.1}) → ({:.1}, {:.1})",
-                corner.x, corner.y, opposite.x, opposite.y
+                "Esquisse {sketch} · {} → {}",
+                point_label(corner),
+                point_label(opposite)
             ),
             Self::AddCircle { sketch, radius, .. } => {
                 format!("Esquisse {sketch} · rayon {radius:.2}")
             }
+            Self::MovePoint {
+                sketch,
+                point,
+                position,
+            } => format!(
+                "Esquisse {sketch} · point {} vers ({:.1}, {:.1})",
+                point.0, position.x, position.y
+            ),
             Self::SetDimension { sketch, target, .. } => match target {
+                DimensionTarget::Distance { from, to } => {
+                    format!("Esquisse {sketch} · points {} et {}", from.0, to.0)
+                }
                 DimensionTarget::Length(segment) => {
                     format!("Esquisse {sketch} · trait {}", segment.0)
                 }
@@ -191,6 +212,14 @@ impl History {
         }
         self.applied += 1;
         true
+    }
+
+    /// Rewrites every operation in place. Only meant for bringing an older
+    /// file up to date; nothing else should reach past the cursor.
+    pub fn map_operations(&mut self, mut change: impl FnMut(&mut Operation)) {
+        for operation in &mut self.operations {
+            change(operation);
+        }
     }
 
     /// Moves the cursor anywhere in the list, which is how the history tree

@@ -17,7 +17,8 @@ pub const PART_EXTENSION: &str = "caopart";
 /// Bumped whenever the layout of a saved part changes.
 ///
 /// 1: a single JSON object. 2: a zip archive holding several files.
-pub const SCHEMA_VERSION: u32 = 2;
+/// 3: every sketch owns a point at its origin, which shifts point numbering.
+pub const SCHEMA_VERSION: u32 = 3;
 
 const METADATA_ENTRY: &str = "part.json";
 const HISTORY_ENTRY: &str = "history.json";
@@ -151,9 +152,15 @@ impl PartDocument {
         }
 
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
-        let metadata: PartMetadata =
+        let mut metadata: PartMetadata =
             serde_json::from_str(&read_entry(&mut archive, METADATA_ENTRY)?)?;
-        let history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
+        let mut history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
+
+        if metadata.schema_version < 3 {
+            migrate::add_origin_point(&mut history);
+            metadata.schema_version = SCHEMA_VERSION;
+        }
+
         let state = PartState::rebuild(&history);
 
         Ok(Self {
@@ -174,6 +181,45 @@ fn read_entry<R: Read + std::io::Seek>(
     let mut text = String::new();
     entry.read_to_string(&mut text)?;
     Ok(text)
+}
+
+/// Bringing older files up to date.
+mod migrate {
+    use super::*;
+
+    /// Sketches gained a point at their origin, created before anything the
+    /// user draws. Every point a saved operation refers to therefore moved up
+    /// by one, and the references have to move with them or an old part would
+    /// rebuild into a different drawing.
+    pub fn add_origin_point(history: &mut History) {
+        history.map_operations(|operation| match operation {
+            Operation::AddSegment { start, end, .. } => {
+                shift(start);
+                shift(end);
+            }
+            Operation::AddRectangle {
+                corner, opposite, ..
+            } => {
+                shift(corner);
+                shift(opposite);
+            }
+            Operation::AddCircle { center, .. } => shift(center),
+            Operation::MovePoint { point, .. } => point.0 += 1,
+            Operation::SetDimension { target, .. } => {
+                if let cao_sketch::DimensionTarget::Distance { from, to } = target {
+                    from.0 += 1;
+                    to.0 += 1;
+                }
+            }
+            Operation::CreateSketch { .. } | Operation::AddPoint { .. } => {}
+        });
+    }
+
+    fn shift(point: &mut PointRef) {
+        if let PointRef::Existing(id) = point {
+            id.0 += 1;
+        }
+    }
 }
 
 /// Reading the previous format: one JSON object holding the geometry directly.
@@ -253,7 +299,8 @@ mod legacy {
         emitted: &mut Vec<cao_sketch::PointId>,
     ) -> PointRef {
         if let Some(index) = emitted.iter().position(|seen| *seen == point) {
-            return PointRef::Existing(cao_sketch::PointId(index));
+            // Plus one: every sketch now starts with its origin point.
+            return PointRef::Existing(cao_sketch::PointId(index + 1));
         }
         emitted.push(point);
         PointRef::New(sketch.point(point))
@@ -373,6 +420,51 @@ mod tests {
         assert!(document.has_scale());
     }
 
+    /// A part saved before sketches had an origin point must rebuild into the
+    /// same drawing, not one shifted by a point.
+    #[test]
+    fn an_older_archive_has_its_point_numbering_migrated() {
+        let directory = temp_dir();
+        let path = directory.join("piece.caopart");
+
+        // A history as version 2 wrote it: the first drawn point was number 0.
+        let mut history = History::default();
+        history.push(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::ZERO),
+            end: PointRef::New(Vec2::new(10.0, 0.0)),
+        });
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(cao_sketch::PointId(1)),
+            end: PointRef::New(Vec2::new(10.0, 5.0)),
+        });
+
+        let mut older = PartDocument::new("Ancienne");
+        older.metadata.schema_version = 2;
+        older.history = history;
+        older.save(&path).expect("saves");
+
+        let reloaded = PartDocument::load(&path).expect("loads");
+
+        assert_eq!(reloaded.metadata.schema_version, SCHEMA_VERSION);
+        let sketch = &reloaded.sketches()[0];
+        assert_eq!(sketch.segments().len(), 2);
+        // Origin, then the three drawn points, with the corner still shared.
+        assert_eq!(sketch.points().len(), 4);
+        let (_, first_end) = sketch.endpoints(SegmentId(0));
+        let (second_start, _) = sketch.endpoints(SegmentId(1));
+        assert_eq!(
+            first_end, second_start,
+            "the two segments must still meet at the same corner"
+        );
+
+        fs::remove_dir_all(&directory).ok();
+    }
+
     /// Parts written as plain JSON before the archive format must still open,
     /// with their drawings turned into history.
     #[test]
@@ -398,8 +490,8 @@ mod tests {
         assert_eq!(document.sketches()[0].segments().len(), 2);
         assert_eq!(
             document.sketches()[0].points().len(),
-            3,
-            "the shared corner must stay shared"
+            4,
+            "the origin, plus three points with the corner shared"
         );
         assert_eq!(document.scale(), 50.0);
         assert_eq!(document.history.applied(), 3);

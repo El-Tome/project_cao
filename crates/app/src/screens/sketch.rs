@@ -7,47 +7,103 @@ use glam::Vec2;
 pub enum Tool {
     #[default]
     None,
+    /// Pick points and drag them.
+    Select,
     Line,
     Rectangle,
     Circle,
     Point,
+    /// Smart dimension: measures whatever is clicked.
     Dimension,
-    Angle,
 }
 
 impl Tool {
     /// The tools offered in the Esquisse category, in order.
     pub const SKETCH_TOOLS: [Self; 6] = [
+        Self::Select,
         Self::Line,
         Self::Rectangle,
         Self::Circle,
         Self::Point,
         Self::Dimension,
-        Self::Angle,
     ];
 
     pub fn label(self) -> &'static str {
         match self {
             Self::None => "Aucun outil",
+            Self::Select => "Sélection",
             Self::Line => "Ligne",
             Self::Rectangle => "Rectangle",
             Self::Circle => "Cercle",
             Self::Point => "Point",
             Self::Dimension => "Cote",
-            Self::Angle => "Angle",
         }
     }
 
     pub fn hint(self) -> &'static str {
         match self {
             Self::None => "",
+            Self::Select => "Cliquer-glisser un point pour le déplacer",
             Self::Line => "Clics successifs, Échap pour terminer la chaîne",
             Self::Rectangle => "Deux clics : deux coins opposés",
             Self::Circle => "Deux clics : centre puis rayon",
             Self::Point => "Un clic pose un point",
-            Self::Dimension => "Cliquer un trait ou un cercle, puis saisir la valeur",
-            Self::Angle => "Cliquer deux traits qui se touchent",
+            Self::Dimension => "Cote intelligente : cliquer ce qu'on veut mesurer",
         }
+    }
+}
+
+/// What the smart dimension tool is allowed to measure.
+///
+/// `Auto` takes whatever is under the cursor, which covers most of the work.
+/// The others force one kind, for when two things overlap and the wrong one
+/// keeps winning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum DimensionMode {
+    #[default]
+    Auto,
+    /// Between two points, joined or not.
+    PointToPoint,
+    /// The length of a segment, by clicking the segment itself.
+    Length,
+    /// Between two segments, or a segment and a sketch axis.
+    Angle,
+    /// The radius of a circle.
+    Radius,
+}
+
+impl DimensionMode {
+    pub const ALL: [Self; 5] = [
+        Self::Auto,
+        Self::PointToPoint,
+        Self::Length,
+        Self::Angle,
+        Self::Radius,
+    ];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Auto => "Intelligente",
+            Self::PointToPoint => "Point à point",
+            Self::Length => "Trait",
+            Self::Angle => "Angle",
+            Self::Radius => "Rayon",
+        }
+    }
+
+    pub fn hint(self) -> &'static str {
+        match self {
+            Self::Auto => "Mesure ce qui est sous le curseur",
+            Self::PointToPoint => "Deux points, reliés ou non",
+            Self::Length => "Un trait, mesuré sur toute sa longueur",
+            Self::Angle => "Deux traits qui se touchent, ou un trait et un axe",
+            Self::Radius => "Un cercle",
+        }
+    }
+
+    /// Whether this mode may pick a point.
+    pub fn takes_points(self) -> bool {
+        matches!(self, Self::Auto | Self::PointToPoint)
     }
 }
 
@@ -77,8 +133,16 @@ pub struct SketchEditor {
     pub hovered_plane: Option<usize>,
     /// What the dimension tool is pointing at.
     pub selected: Option<DimensionTarget>,
-    /// First segment picked by the angle tool, waiting for the second.
+    /// Which kind of measurement the dimension tool is forcing.
+    pub dimension_mode: DimensionMode,
+    /// First segment picked by the angle mode, waiting for the second.
     pub first_angle_segment: Option<SegmentId>,
+    /// First point picked by the point-to-point mode.
+    pub first_point: Option<PointId>,
+    /// Point being dragged with the selection tool.
+    pub dragged_point: Option<PointId>,
+    /// Point under the cursor, highlighted so it is clear what a click takes.
+    pub hovered_point: Option<PointId>,
     /// First corner of a rectangle, or the centre of a circle.
     pub pending_start: Option<Vec2>,
     /// Text being typed into the dimension field.
@@ -124,6 +188,8 @@ impl SketchEditor {
         self.chain = None;
         self.pending_start = None;
         self.first_angle_segment = None;
+        self.first_point = None;
+        self.dragged_point = None;
         self.selected = None;
     }
 

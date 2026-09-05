@@ -67,6 +67,18 @@ Séparer les fichiers permet de faire évoluer chaque partie indépendamment, et
 laisse la place à ce qui viendra s'ajouter (miniature de la pièce, matériaux,
 maillages exportés) sans réécrire le reste à chaque enregistrement.
 
+### Les versions
+
+| Version | Ce qui change |
+| --- | --- |
+| 1 | Un seul objet JSON. |
+| 2 | Une archive zip à plusieurs fichiers. |
+| 3 | Chaque esquisse possède un point à son origine, ce qui décale la numérotation des points. |
+
+Un fichier plus ancien est converti à l'ouverture. Le passage en 3 renumérote
+les points auxquels les opérations font référence : sans ça, une pièce se
+reconstruirait en un dessin différent.
+
 ### Les anciens fichiers
 
 Les pièces écrites au format précédent (un JSON unique) s'ouvrent toujours :

@@ -10,7 +10,7 @@ use cao_render::{
 use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
-use crate::screens::sketch::{ChainAnchor, SketchEditor, Tool};
+use crate::screens::sketch::{ChainAnchor, DimensionMode, SketchEditor, Tool};
 
 /// What the canvas is showing: the bare world axes, or a work plane with its
 /// grid. Landing on a plane shows the grid; orbiting leaves it, since the view
@@ -415,6 +415,13 @@ fn handle_sketch_input(
     let cursor = magnetise(cursor, scale, &state.config, context, index, snap);
 
     context.editor.cursor = Some(cursor);
+    context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
+
+    // Dragging a point is a gesture, not a click, so it comes before the
+    // click-based tools.
+    if context.editor.tool == Tool::Select {
+        return drag_point(context, index, cursor, response, snap);
+    }
 
     if !response.clicked() {
         return false;
@@ -429,124 +436,201 @@ fn handle_sketch_input(
             });
             true
         }
-        Tool::Rectangle | Tool::Circle => two_click_shape(context, index, cursor),
+        Tool::Rectangle | Tool::Circle => two_click_shape(context, index, cursor, snap),
         Tool::Dimension => {
-            select_dimension_target(context, index, cursor, snap);
+            measure(context, index, cursor, snap);
             false
         }
-        Tool::Angle => {
-            pick_angle_segments(context, index, cursor, snap);
-            false
-        }
-        Tool::None => false,
+        Tool::Select | Tool::None => false,
     }
 }
 
-/// Rectangles and circles are both "click a start, click an end". The first
-/// click only records where; the second builds the shape in one operation.
-fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2) -> bool {
+/// Moving a point by hand. The drawing settles around it afterwards, so the
+/// values already given stay true.
+fn drag_point(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    response: &egui::Response,
+    snap: f32,
+) -> bool {
+    let sketch = &context.document.sketches()[index];
+
+    if response.drag_started() {
+        context.editor.dragged_point = sketch
+            .nearest_point(cursor, snap)
+            .filter(|point| !sketch.is_origin(*point));
+    }
+    let Some(point) = context.editor.dragged_point else {
+        return false;
+    };
+    let finished = response.drag_stopped();
+    if finished {
+        context.editor.dragged_point = None;
+    }
+    if !response.dragged() && !finished {
+        return false;
+    }
+
+    context.document.apply(Operation::MovePoint {
+        sketch: index,
+        point,
+        position: cursor,
+    });
+    true
+}
+
+/// A point already there, or a new one where the cursor is.
+fn point_ref_at(context: &SketchContext<'_>, index: usize, position: Vec2, snap: f32) -> PointRef {
+    match context.document.sketches()[index].nearest_point(position, snap) {
+        Some(point) => PointRef::Existing(point),
+        None => PointRef::New(position),
+    }
+}
+
+fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
     let Some(start) = context.editor.pending_start else {
         context.editor.pending_start = Some(cursor);
         return false;
     };
-    context.editor.pending_start = None;
-
-    let operation = match context.editor.tool {
-        Tool::Rectangle => Operation::AddRectangle {
-            sketch: index,
-            corner: start,
-            opposite: cursor,
-        },
-        _ => Operation::AddCircle {
-            sketch: index,
-            center: PointRef::New(start),
-            radius: start.distance(cursor),
-        },
-    };
-
     // A shape with no extent is a stray click, not a drawing.
     if start.distance(cursor) < 1e-6 {
         return false;
     }
+    context.editor.pending_start = None;
+
+    // Corners and centres reuse a point already drawn when one is under the
+    // cursor, so shapes hang together instead of stacking points on top of
+    // each other. Nothing forces the user to place those points first.
+    let anchor = point_ref_at(context, index, start, snap);
+    let operation = match context.editor.tool {
+        Tool::Rectangle => Operation::AddRectangle {
+            sketch: index,
+            corner: anchor,
+            opposite: point_ref_at(context, index, cursor, snap),
+        },
+        _ => Operation::AddCircle {
+            sketch: index,
+            center: anchor,
+            radius: start.distance(cursor),
+        },
+    };
+
     context.document.apply(operation);
     true
 }
 
-fn select_dimension_target(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+/// The smart dimension tool: works out what is under the cursor and measures
+/// it, unless a mode is forcing one kind.
+///
+/// Two-step measurements — point to point, angle — collect their first half and
+/// wait; everything else is settled in a single click.
+fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+    let mode = context.editor.dimension_mode;
     let sketch = &context.document.sketches()[index];
-    let target = sketch
-        .nearest_segment(cursor, snap)
-        .map(DimensionTarget::Length)
-        .or_else(|| {
-            sketch
-                .nearest_circle(cursor, snap)
-                .map(DimensionTarget::Radius)
-        });
 
-    let measured = target.and_then(|target| context.document.measured(index, target));
-    context.editor.select(target, measured);
-    let scale = context.document.scale();
-    context.editor.message = match target {
-        Some(target) if context.document.sketches()[index].would_be_redundant(target, scale) => {
-            Some(REDUNDANT_WARNING.to_string())
+    // A point wins over a segment under the same cursor: it is the smaller
+    // target, so aiming at it is the deliberate act.
+    if mode.takes_points()
+        && let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
+    {
+        return measure_from_point(context, index, point);
+    }
+    if mode == DimensionMode::PointToPoint {
+        return;
+    }
+
+    if matches!(mode, DimensionMode::Auto | DimensionMode::Angle)
+        && context.editor.first_angle_segment.is_some()
+    {
+        return continue_angle(context, index, cursor, snap);
+    }
+
+    if mode != DimensionMode::Radius
+        && let Some(segment) = sketch.nearest_segment(cursor, snap)
+    {
+        if mode == DimensionMode::Angle {
+            context.editor.first_angle_segment = Some(segment);
+            context.editor.message =
+                Some("Choisissez le second trait, ou un axe de l'esquisse".to_string());
+            return;
         }
-        _ => None,
-    };
+        return select_target(context, index, DimensionTarget::Length(segment));
+    }
+
+    if mode != DimensionMode::Length
+        && let Some(circle) = sketch.nearest_circle(cursor, snap)
+    {
+        return select_target(context, index, DimensionTarget::Radius(circle));
+    }
+
+    context.editor.select(None, None);
+    context.editor.message = Some("Rien à mesurer ici".to_string());
 }
 
-/// The angle tool needs two segments that meet, so it collects them one click
-/// at a time.
-fn pick_angle_segments(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
-    let sketch = &context.document.sketches()[index];
-    let picked = sketch.nearest_segment(cursor, snap);
+/// First click on a point remembers it; the second gives the distance between
+/// the two. Measuring from the sketch origin is how a shape gets positioned.
+fn measure_from_point(context: &mut SketchContext<'_>, index: usize, point: PointId) {
+    let Some(first) = context.editor.first_point else {
+        context.editor.first_point = Some(point);
+        context.editor.message = Some("Choisissez le second point".to_string());
+        return;
+    };
+    if first == point {
+        return;
+    }
+    context.editor.first_point = None;
+    select_target(
+        context,
+        index,
+        DimensionTarget::Distance {
+            from: first,
+            to: point,
+        },
+    );
+}
 
+/// Second half of an angle: another segment, or one of the sketch axes.
+fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
     let Some(first) = context.editor.first_angle_segment else {
-        let Some(picked) = picked else {
-            return;
-        };
-        context.editor.first_angle_segment = Some(picked);
-        context.editor.message =
-            Some("Choisissez le second trait, ou un axe de l'esquisse".to_string());
         return;
     };
+    let sketch = &context.document.sketches()[index];
 
-    // Clicking an axis rather than a second segment gives the drawing a fixed
-    // direction to lean on — the only way to stop it turning about its anchor.
-    let Some(picked) = picked else {
-        let Some(axis) = axis_under(cursor, snap) else {
+    if let Some(second) = sketch.nearest_segment(cursor, snap) {
+        if second == first {
             return;
-        };
+        }
         context.editor.first_angle_segment = None;
-        let target = DimensionTarget::AxisAngle {
-            segment: first,
-            axis,
-        };
-        let measured = context.document.measured(index, target);
-        context.editor.select(Some(target), measured);
-        context.editor.message = context.document.sketches()[index]
-            .would_be_redundant(target, context.document.scale())
-            .then(|| REDUNDANT_WARNING.to_string());
-        return;
-    };
-
-    if first == picked {
-        return;
+        if sketch.angle_between(first, second).is_none() {
+            context.editor.select(None, None);
+            context.editor.message = Some("Ces deux traits ne se touchent pas".to_string());
+            return;
+        }
+        return select_target(context, index, DimensionTarget::Angle { first, second });
     }
 
-    context.editor.first_angle_segment = None;
-    let target = DimensionTarget::Angle {
-        first,
-        second: picked,
-    };
-
-    if sketch.angle_between(first, picked).is_none() {
-        context.editor.select(None, None);
-        context.editor.message = Some("Ces deux traits ne se touchent pas".to_string());
-        return;
+    // An axis rather than a second segment gives the drawing a fixed direction
+    // to lean on — the only way to stop it turning about its origin.
+    if let Some(axis) = axis_under(cursor, snap) {
+        context.editor.first_angle_segment = None;
+        select_target(
+            context,
+            index,
+            DimensionTarget::AxisAngle {
+                segment: first,
+                axis,
+            },
+        );
     }
+}
 
+/// Selects a target and fills the value field, warning when the value would add
+/// nothing.
+fn select_target(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
     let measured = context.document.measured(index, target);
     context.editor.select(Some(target), measured);
+
     let scale = context.document.scale();
     context.editor.message = context.document.sketches()[index]
         .would_be_redundant(target, scale)
@@ -835,17 +919,7 @@ fn push_sketch(
         return;
     }
 
-    // Points are drawn as small crosses kept at a constant size on screen, so
-    // they stay clickable at any zoom.
-    let arm = scale.world_size_of(4.0);
-    for point in sketch.points() {
-        let (color, _) = sketch_colors(true, settled);
-        let center = sketch.plane.to_world(*point);
-        for axis in [sketch.plane.u, sketch.plane.v] {
-            out.push(cao_render::Vertex::line(center - axis * arm, color, 1.5));
-            out.push(cao_render::Vertex::line(center + axis * arm, color, 1.5));
-        }
-    }
+    push_point_markers(out, sketch, scale, settled, context);
 
     push_preview(out, sketch, context);
 
@@ -864,6 +938,61 @@ fn push_sketch(
             highlight,
             4.0,
         ));
+    }
+}
+
+/// Points are drawn as small squares kept at a constant size on screen, so they
+/// stay visible and clickable at any zoom. The sketch origin gets a diamond
+/// instead: it is always there, cannot be moved, and everything can be measured
+/// from it, so it should not look like an ordinary point.
+fn push_point_markers(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    scale: ViewScale,
+    settled: bool,
+    context: &SketchContext<'_>,
+) {
+    let half = scale.world_size_of(4.0);
+    let (base, _) = sketch_colors(true, settled);
+    let highlight = srgb(0.30, 0.75, 1.0, 1.0);
+
+    for (index, position) in sketch.points().iter().enumerate() {
+        let point = PointId(index);
+        let center = sketch.plane.to_world(*position);
+        let hovered = context.editor.hovered_point == Some(point)
+            || context.editor.first_point == Some(point);
+        let color = if hovered { highlight } else { base };
+        let width = if hovered { 2.5 } else { 1.5 };
+
+        let (u, v) = if sketch.is_origin(point) {
+            // Turned a quarter: a diamond reads differently at a glance.
+            (
+                (sketch.plane.u + sketch.plane.v) * std::f32::consts::FRAC_1_SQRT_2,
+                (sketch.plane.v - sketch.plane.u) * std::f32::consts::FRAC_1_SQRT_2,
+            )
+        } else {
+            (sketch.plane.u, sketch.plane.v)
+        };
+        let size = if sketch.is_origin(point) {
+            half * 1.6
+        } else {
+            half
+        };
+
+        let corners = [
+            center - u * size - v * size,
+            center + u * size - v * size,
+            center + u * size + v * size,
+            center - u * size + v * size,
+        ];
+        for corner in 0..4 {
+            out.push(cao_render::Vertex::line(corners[corner], color, width));
+            out.push(cao_render::Vertex::line(
+                corners[(corner + 1) % 4],
+                color,
+                width,
+            ));
+        }
     }
 }
 
@@ -1081,6 +1210,9 @@ fn dimension_anchor(sketch: &Sketch, target: DimensionTarget) -> Option<Vec2> {
             let circle = sketch.circle(circle);
             sketch.point(circle.center) + Vec2::new(circle.radius * 0.7, circle.radius * 0.7)
         }),
+        DimensionTarget::Distance { from, to } => (from.0 < sketch.points().len()
+            && to.0 < sketch.points().len())
+        .then(|| (sketch.point(from) + sketch.point(to)) * 0.5),
         DimensionTarget::AxisAngle { segment, .. } => {
             // Beside the far end, where it does not sit on top of the axis it
             // is measured from.

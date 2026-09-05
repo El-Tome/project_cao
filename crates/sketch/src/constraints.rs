@@ -1,7 +1,7 @@
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
-use crate::sketch::{CircleId, SegmentId};
+use crate::sketch::{CircleId, PointId, SegmentId};
 
 /// One of the sketch's own axes, usable as the fixed reference of an angle.
 ///
@@ -36,6 +36,10 @@ impl SketchAxis {
 pub enum DimensionTarget {
     /// Length of a segment.
     Length(SegmentId),
+    /// Straight distance between two points, which need not be joined by a
+    /// segment. Measuring from the sketch origin is how a drawing gets pinned
+    /// without having to sit exactly on it.
+    Distance { from: PointId, to: PointId },
     /// Angle at the point two segments share.
     Angle { first: SegmentId, second: SegmentId },
     /// Angle between a segment and one of the sketch axes.
@@ -89,12 +93,4 @@ impl Freedom {
     pub fn fully_constrained(self) -> bool {
         self.degrees_of_freedom == 0
     }
-}
-
-/// Points sitting on the sketch origin are pinned there, which is how a drawing
-/// gets rid of its last freedom to slide around.
-pub const ANCHOR_TOLERANCE: f32 = 1e-4;
-
-pub fn is_anchor(position: Vec2) -> bool {
-    position.length() <= ANCHOR_TOLERANCE
 }

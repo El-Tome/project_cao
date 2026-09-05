@@ -1,6 +1,6 @@
 use glam::Vec2;
 
-use crate::constraints::{DimensionTarget, is_anchor};
+use crate::constraints::DimensionTarget;
 use crate::sketch::{PointId, Sketch};
 
 /// One equation the drawing has to satisfy, linearised around its current
@@ -112,11 +112,11 @@ impl Sketch {
         SolveOutcome::Residual
     }
 
-    /// Points that must not move: those sitting on the sketch origin.
+    /// Points that must not move. Only the sketch's own origin, which is what
+    /// everything else can be measured from.
     fn pinned_points(&self) -> Vec<bool> {
-        self.points()
-            .iter()
-            .map(|point| is_anchor(*point))
+        (0..self.points().len())
+            .map(|index| self.is_origin(PointId(index)))
             .collect()
     }
 
@@ -169,6 +169,9 @@ impl Sketch {
             DimensionTarget::Length(segment) => {
                 let segment = *self.segments().get(segment.0)?;
                 self.length_equation(segment.start, segment.end, dimension.value / scale)?
+            }
+            DimensionTarget::Distance { from, to } => {
+                self.length_equation(from, to, dimension.value / scale)?
             }
             DimensionTarget::Angle { first, second } => {
                 self.angle_equation(first, second, dimension.value)?

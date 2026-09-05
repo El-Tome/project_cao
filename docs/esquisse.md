@@ -24,19 +24,47 @@ Voir aussi : [viewport](viewport.md) · [architecture](ARCHITECTURE.md)
 
 | Outil | Geste |
 | --- | --- |
+| **Sélection** | Cliquer-glisser un point pour le déplacer. |
 | **Ligne** | Clics successifs, chaque trait prolonge le précédent. `Échap` termine la chaîne. |
 | **Rectangle** | Deux clics : deux coins opposés. |
 | **Cercle** | Deux clics : le centre puis un point du bord. |
 | **Point** | Un clic pose un point isolé. |
-| **Cote** | Cliquer un trait ou un cercle, puis saisir la longueur ou le rayon en millimètres. |
-| **Angle** | Cliquer deux traits qui se touchent, puis saisir l'angle en degrés. |
+| **Cote** | Cote intelligente, voir plus bas. |
+
+Ligne, rectangle et cercle **réutilisent les points déjà présents** quand le
+curseur en survole un : les formes se tiennent entre elles au lieu d'empiler
+des points au même endroit. Rien n'oblige jamais à poser ces points d'abord —
+l'outil Point est là pour les cas où on le veut explicitement.
+
+Déplacer un point avec l'outil Sélection ne casse pas les cotes déjà posées :
+le dessin se réajuste autour de lui.
+
+## La cote intelligente
+
+Un seul outil, qui mesure ce qu'on lui montre :
+
+| Ce qu'on clique | Ce qu'on obtient |
+| --- | --- |
+| Un trait | Sa longueur |
+| Deux points | La distance entre eux, reliés ou non |
+| Deux traits qui se touchent | L'angle entre eux |
+| Un trait puis un axe de l'esquisse | L'angle avec cette direction |
+| Un cercle | Son rayon |
+
+Un point l'emporte sur un trait sous le même curseur : c'est la plus petite
+cible, donc la viser est un acte délibéré.
+
+Quand deux choses se superposent et que la mauvaise l'emporte, la rangée
+**Mesurer** force le type : *Intelligente*, *Point à point*, *Trait*, *Angle*,
+*Rayon*.
 
 ## L'aimantation
 
 Le curseur est attiré par ce dont il est proche, dans cet ordre :
 
 1. **Un point existant**, à moins de 10 pixels — c'est ce qui permet de fermer
-   un contour et de rattacher une forme à une autre.
+   un contour, de rattacher une forme à une autre, et de se poser sur
+   l'origine.
 2. **La grille**, à moins de 12 pixels, sur des quarts de carreau.
 
 L'aimant de la grille est ce qui rend faciles le tracé sur l'origine et l'angle
@@ -70,21 +98,34 @@ et une face de pièce en sera un.
 | **Vert** | Entièrement contraint : plus rien à déterminer. |
 | **Gris** | Une autre esquisse que celle en cours d'édition. |
 
+### Le point d'origine
+
+Chaque esquisse possède, dès sa création, **un point à son origine**. On ne le
+place pas : il est là. Il se distingue des autres par un losange, ne se déplace
+jamais, et sert de référence à tout le reste.
+
+C'est lui qui empêche un dessin de glisser, de deux façons :
+
+- en **accrochant** un sommet dessus — un clic à proximité le rejoint plutôt
+  que de poser un second point au même endroit ;
+- en **mesurant depuis lui** — une cote point à point entre l'origine et un
+  sommet le positionne sans qu'il ait à le toucher.
+
+*(Plus tard, en 3D, un sommet d'une pièce existante pourra jouer le même
+rôle.)*
+
 ### Ce qu'il faut pour arriver au vert
 
 Trois choses, et il en manque souvent une :
 
-1. **Toutes les valeurs de forme** — les longueurs et les angles nécessaires.
-   Attention, « nécessaires » et non « toutes » : dans un triangle dont deux
-   côtés et l'angle entre eux sont donnés, le troisième côté **suit** et ne
-   peut plus être imposé.
-2. **Un sommet sur l'origine** de l'esquisse. C'est ce qui l'empêche de
-   glisser. *(Plus tard, en 3D, ce pourra aussi être un sommet d'une pièce
-   existante.)*
+1. **Les valeurs de forme nécessaires** — longueurs et angles. « Nécessaires »
+   et non « toutes » : dans un triangle dont deux côtés et l'angle entre eux
+   sont donnés, le troisième côté **suit** et ne peut plus être imposé.
+2. **Un rattachement à l'origine**, par accrochage ou par cote.
 3. **Une direction fixe** : une cote d'angle prise avec un axe de l'esquisse.
-   Poser un point sur l'origine enlève les deux façons de glisser, jamais la
-   façon de tourner — sans référence de direction, le dessin peut pivoter
-   autour de son ancre et toutes les cotes restent vraies.
+   Se rattacher à l'origine enlève les deux façons de glisser, jamais la façon
+   de tourner — sans référence de direction, le dessin peut pivoter autour de
+   son ancre et toutes les cotes restent vraies.
 
 ### Comment c'est calculé
 
@@ -181,7 +222,10 @@ permet en plus de revenir directement à n'importe quelle étape. Voir
   l'accrochage aux points existants est fait.
 - Pas de suppression d'un trait déjà tracé autrement qu'en revenant en arrière
   dans l'historique.
-- Pas de cotes entre deux points quelconques, ni de cotes de diamètre.
+- Pas de cotes de diamètre, ni de cotes horizontales/verticales séparées (une
+  cote point à point mesure toujours la distance directe).
+- On ne peut pas supprimer un point ni un trait autrement qu'en revenant en
+  arrière dans l'historique.
 - Les contraintes géométriques (parallèle, perpendiculaire, tangent) n'existent
   pas : seules les cotes contraignent.
 - Le solveur ne dit pas *quelles* cotes se contredisent quand il n'y arrive

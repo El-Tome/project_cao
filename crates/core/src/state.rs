@@ -1,7 +1,8 @@
 use cao_sketch::{DimensionTarget, LengthOutcome, Sketch};
+use cao_solid::Mesh;
 use glam::Vec2;
 
-use crate::history::{History, Operation, PointRef};
+use crate::history::{ExtrusionMode, History, Operation, PointRef};
 
 /// What applying a typed length did.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -28,6 +29,10 @@ pub struct PartState {
     /// dimension is typed.
     pub millimeters_per_unit: Option<f32>,
     pub sketches: Vec<Sketch>,
+    /// The matter of the part, as one surface. Extrusions add to it or take
+    /// from it; there is a single body rather than a pile of separate lumps,
+    /// so that a pocket cut in a block really is a hole in the block.
+    pub body: Mesh,
 }
 
 impl PartState {
@@ -130,7 +135,65 @@ impl PartState {
                 target,
                 value,
             } => self.apply_dimension(*sketch, *target, *value),
+            Operation::Extrude {
+                sketch,
+                picks,
+                distance,
+                mode,
+            } => {
+                self.extrude(*sketch, picks, *distance, *mode);
+                None
+            }
         }
+    }
+
+    /// Turns the chosen areas of a sketch into a prism and joins it to the
+    /// part, or takes it out.
+    ///
+    /// Every area is turned into matter first and the lot is applied in one go:
+    /// two areas extruded together must behave as one shape, not as two that
+    /// happen to be cut one after the other.
+    fn extrude(&mut self, index: usize, picks: &[Vec2], distance: f32, mode: ExtrusionMode) {
+        let scale = self.scale();
+        let Some(sketch) = self.sketches.get(index) else {
+            return;
+        };
+        if distance.abs() < 1e-6 {
+            return;
+        }
+
+        let plane = sketch.plane;
+        let travel = plane.normal() * (distance / scale);
+        let regions = sketch.regions();
+
+        let mut tool = Mesh::default();
+        for pick in picks {
+            // The area is found again by the point that was clicked, so the
+            // extrusion still means the same thing after the drawing changes.
+            let Some(region) = regions
+                .iter()
+                .filter(|region| region.contains(*pick))
+                .max_by_key(|region| region.depth)
+            else {
+                continue;
+            };
+            let piece = cao_solid::prism(
+                &region.outline,
+                &region.holes,
+                &region.face_triangles(),
+                |point| plane.to_world(point),
+                travel,
+            );
+            tool = tool.union(&piece);
+        }
+
+        if tool.is_empty() {
+            return;
+        }
+        self.body = match mode {
+            ExtrusionMode::Add => self.body.union(&tool),
+            ExtrusionMode::Cut => self.body.difference(&tool),
+        };
     }
 
     /// Applies a length typed by the user, in millimetres.
@@ -642,5 +705,193 @@ mod extra_tests {
             "a readout shows the measurement, not the typed value: {}",
             stored.value
         );
+    }
+}
+
+#[cfg(test)]
+mod extrusion_tests {
+    use cao_sketch::WorkPlane;
+    use glam::{Vec2, Vec3};
+
+    use super::*;
+    use crate::history::ExtrusionMode;
+
+    fn volume(mesh: &Mesh) -> f32 {
+        mesh.triangles()
+            .iter()
+            .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
+            .sum()
+    }
+
+    fn rectangle(history: &mut History, min: Vec2, max: Vec2) {
+        history.push(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(min),
+            opposite: PointRef::New(max),
+        });
+    }
+
+    fn sketch_history() -> History {
+        let mut history = History::default();
+        history.push(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        history
+    }
+
+    #[test]
+    fn an_extrusion_turns_an_area_into_matter() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 20.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(5.0, 10.0)],
+            distance: 4.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let state = PartState::rebuild(&history);
+        assert!((volume(&state.body) - 800.0).abs() < 1.0);
+        let (min, max) = state.body.bounds().expect("un volume");
+        assert!((max.z - min.z - 4.0).abs() < 1e-3, "hauteur");
+    }
+
+    /// L'aire cliquée est retrouvée par le point, pas par son rang : dessiner
+    /// autre chose ensuite ne doit pas déplacer l'extrusion.
+    #[test]
+    fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        rectangle(&mut history, Vec2::new(40.0, 40.0), Vec2::new(50.0, 60.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(45.0, 50.0)],
+            distance: 2.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let state = PartState::rebuild(&history);
+        assert!((volume(&state.body) - 400.0).abs() < 1.0, "la seconde aire");
+        let (min, _) = state.body.bounds().expect("un volume");
+        assert!(min.x > 39.0, "au bon endroit : {min}");
+    }
+
+    /// Deux cercles l'un dans l'autre font un tube : l'outil ne remplit pas le
+    /// milieu.
+    #[test]
+    fn two_circles_extrude_to_a_tube() {
+        let mut history = sketch_history();
+        history.push(Operation::AddCircle {
+            sketch: 0,
+            center: PointRef::New(Vec2::ZERO),
+            radius: 10.0,
+        });
+        history.push(Operation::AddCircle {
+            sketch: 0,
+            center: PointRef::Existing(cao_sketch::PointId(1)),
+            radius: 6.0,
+        });
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(8.0, 0.0)],
+            distance: 5.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let state = PartState::rebuild(&history);
+        let expected = std::f32::consts::PI * (100.0 - 36.0) * 5.0;
+        let made = volume(&state.body);
+        assert!((made - expected).abs() / expected < 0.03, "{made} / {expected}");
+    }
+
+    /// Une poche : la seconde esquisse creuse le bloc de la première.
+    #[test]
+    fn a_cut_takes_matter_away() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(5.0, 5.0)],
+            distance: 10.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        history.push(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        history.push(Operation::AddRectangle {
+            sketch: 1,
+            corner: PointRef::New(Vec2::new(2.0, 2.0)),
+            opposite: PointRef::New(Vec2::new(4.0, 4.0)),
+        });
+        history.push(Operation::Extrude {
+            sketch: 1,
+            picks: vec![Vec2::new(3.0, 3.0)],
+            distance: 4.0,
+            mode: ExtrusionMode::Cut,
+        });
+
+        let state = PartState::rebuild(&history);
+        let made = volume(&state.body);
+        assert!((made - (1000.0 - 16.0)).abs() < 2.0, "{made}");
+    }
+
+    /// Une forme dans une autre laisse le milieu vide dès la première
+    /// extrusion : c'est le cas du tube, en rectangles.
+    #[test]
+    fn a_shape_inside_another_is_already_hollow() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        rectangle(&mut history, Vec2::new(2.0, 2.0), Vec2::new(4.0, 4.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(1.0, 1.0)],
+            distance: 10.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let made = volume(&PartState::rebuild(&history).body);
+        assert!((made - (1000.0 - 40.0)).abs() < 2.0, "{made}");
+    }
+
+    /// Une esquisse pas entièrement contrainte s'extrude quand même.
+    #[test]
+    fn an_extrusion_does_not_wait_for_a_settled_sketch() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::new(3.0, 3.0), Vec2::new(9.0, 9.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(5.0, 5.0)],
+            distance: 1.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let state = PartState::rebuild(&history);
+        assert!(!state.sketches[0].is_fully_constrained(1.0));
+        assert!(!state.body.is_empty());
+    }
+
+    /// Une cote change l'échelle : une extrusion de 10 mm reste 10 mm.
+    #[test]
+    fn an_extrusion_is_given_in_millimetres() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(1.0, 1.0));
+        history.push(Operation::SetDimension {
+            sketch: 0,
+            target: cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(0)),
+            value: 50.0,
+        });
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(0.5, 0.5)],
+            distance: 25.0,
+            mode: ExtrusionMode::Add,
+        });
+
+        let state = PartState::rebuild(&history);
+        let (min, max) = state.body.bounds().expect("un volume");
+        let height_millimetres = (max.z - min.z) * state.scale();
+        assert!((height_millimetres - 25.0).abs() < 1e-3, "{height_millimetres}");
+        let _ = Vec3::ZERO;
     }
 }

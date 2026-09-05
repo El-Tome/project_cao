@@ -11,7 +11,7 @@ mod storage;
 
 pub use config::ViewportConfig;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
-pub use history::{History, Operation, PointRef};
+pub use history::{ExtrusionMode, History, Operation, PointRef};
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
 pub use state::{DimensionOutcome, PartState};
 pub use storage::{StorageError, default_projects_dir};

@@ -549,6 +549,7 @@ dependencies = [
  "cao_core",
  "cao_render",
  "cao_sketch",
+ "cao_solid",
  "eframe",
  "egui",
  "egui-wgpu",
@@ -561,6 +562,7 @@ name = "cao_core"
 version = "0.1.0"
 dependencies = [
  "cao_sketch",
+ "cao_solid",
  "chrono",
  "directories",
  "glam",
@@ -584,6 +586,14 @@ dependencies = [
 
 [[package]]
 name = "cao_sketch"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "serde",
+]
+
+[[package]]
+name = "cao_solid"
 version = "0.1.0"
 dependencies = [
  "glam",

@@ -35,9 +35,19 @@ Il n'y a **aucun tampon de profondeur**, et ce n'est pas un oubli :
   que pour les faces visibles, sinon celles de derrière transperceraient le
   solide.
 
-Le jour où de vraies pièces ombrées seront affichées, il faudra ajouter un
-depth buffer — ce qui suppose de configurer l'attachement correspondant côté
-egui.
+Depuis l'extrusion, il y a un **tampon de profondeur**, demandé à la fenêtre
+par `eframe` (`depth_buffer`) et dont le format est décidé dans `cao_render`,
+là où les pipelines sont construits. Seuls les **solides** le testent et y
+écrivent : tout le reste est dessiné par-dessus volontairement — une esquisse
+ou une cote enterrée dans un bloc serait inutilisable, et le cube d'orientation
+ne doit jamais être caché par la pièce.
+
+Les solides sont éclairés **à plat**, une teinte par face calculée une fois
+depuis son orientation et cuite dans la couleur du sommet : une pièce faite de
+faces planes se lit mieux à plat que lissée, et cela évite de trimballer une
+normale dans le format de sommet pour une géométrie sans courbes. La lumière
+suit la caméra, si bien que tourner la pièce ne la laisse jamais face à un côté
+non éclairé.
 
 ## Lignes épaisses
 

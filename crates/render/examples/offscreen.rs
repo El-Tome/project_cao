@@ -196,6 +196,7 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
             width: WIDTH as f32,
             height: HEIGHT as f32,
         },
+        scene_solids: Vec::new(),
         scene_lines: lines,
         cube_view_projection: cube::view_projection(camera.rotation()),
         cube_triangles,

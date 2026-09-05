@@ -6,6 +6,7 @@ license.workspace = true
 
 [dependencies]
 cao_sketch = { path = "../sketch" }
+cao_solid = { path = "../solid" }
 glam.workspace = true
 zip = { version = "8", default-features = false, features = ["deflate"] }
 serde.workspace = true

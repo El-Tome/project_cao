@@ -10,8 +10,28 @@ use crate::sketch::Sketch;
 #[derive(Clone, Debug)]
 pub struct Region {
     pub outline: Vec<Vec2>,
+    /// The outlines drawn directly inside this one. They are what a shape
+    /// leaves hollow when it becomes a solid — the middle of a tube.
+    pub holes: Vec<Vec<Vec2>>,
     pub depth: usize,
     pub triangles: Vec<[Vec2; 3]>,
+}
+
+impl Region {
+    /// The area as a solid face: the outline with what sits inside it taken
+    /// out. This is what an extrusion turns into matter, so that two circles
+    /// one inside the other give a tube and not a rod.
+    pub fn face_triangles(&self) -> Vec<[Vec2; 3]> {
+        if self.holes.is_empty() {
+            return self.triangles.clone();
+        }
+        triangulate(&bridge_holes(&self.outline, &self.holes))
+    }
+
+    /// Whether the point is in the area itself, holes excluded.
+    pub fn contains(&self, point: Vec2) -> bool {
+        encloses(&self.outline, point) && !self.holes.iter().any(|hole| encloses(hole, point))
+    }
 }
 
 /// How finely a circle is cut up when it is treated as a closed area.
@@ -42,6 +62,7 @@ impl Sketch {
                 let triangles = triangulate(&outline);
                 (!triangles.is_empty()).then_some(Region {
                     outline,
+                    holes: Vec::new(),
                     depth: 0,
                     triangles,
                 })
@@ -57,6 +78,33 @@ impl Sketch {
                 .count();
         }
         regions.sort_by_key(|region| region.depth);
+
+        // Only the outlines directly inside count as holes: what sits inside a
+        // hole is matter again, and belongs to its own area.
+        let outlines: Vec<(usize, Vec<Vec2>)> = regions
+            .iter()
+            .map(|region| (region.depth, region.outline.clone()))
+            .collect();
+        let insides: Vec<Vec2> = regions.iter().map(inside).collect();
+        let holes: Vec<Vec<Vec<Vec2>>> = regions
+            .iter()
+            .enumerate()
+            .map(|(index, region)| {
+                outlines
+                    .iter()
+                    .enumerate()
+                    .filter(|(other, (depth, _))| {
+                        *other != index
+                            && *depth == region.depth + 1
+                            && encloses(&region.outline, insides[*other])
+                    })
+                    .map(|(_, (_, outline))| outline.clone())
+                    .collect()
+            })
+            .collect();
+        for (region, holes) in regions.iter_mut().zip(holes) {
+            region.holes = holes;
+        }
         regions
     }
 
@@ -194,6 +242,86 @@ fn encloses(outline: &[Vec2], point: Vec2) -> bool {
     inside
 }
 
+/// Splices every hole into the outline so one closed path describes the face.
+///
+/// A ring cannot be cut into triangles as it stands: there is no way round it
+/// that does not either leave the hole filled or leave the outline open. The
+/// classic answer is to cut a corridor from the hole out to the outline and
+/// walk down one side and back up the other — the two sides lie on top of each
+/// other, so the corridor has no area and the face is unchanged.
+fn bridge_holes(outline: &[Vec2], holes: &[Vec<Vec2>]) -> Vec<Vec2> {
+    let mut path = counter_clockwise(outline);
+    // Rightmost first: a hole further right can only ever bridge to the outline
+    // or to a hole already spliced in, never to one still waiting.
+    let mut pending: Vec<Vec<Vec2>> = holes.iter().map(|hole| clockwise(hole)).collect();
+    pending.sort_by(|a, b| rightmost(b).x.total_cmp(&rightmost(a).x));
+
+    for hole in pending {
+        let Some(path_with_hole) = splice(&path, &hole) else {
+            continue;
+        };
+        path = path_with_hole;
+    }
+    path
+}
+
+fn splice(path: &[Vec2], hole: &[Vec2]) -> Option<Vec<Vec2>> {
+    let entry = hole.iter().copied().enumerate().max_by(|a, b| a.1.x.total_cmp(&b.1.x))?;
+    let (entry_index, entry_point) = entry;
+
+    // The corridor goes to whichever corner of the path is both to the right of
+    // the hole and closest to it: going left would cross the hole itself.
+    let exit = (0..path.len())
+        .filter(|index| path[*index].x >= entry_point.x)
+        .min_by(|a, b| {
+            path[*a]
+                .distance_squared(entry_point)
+                .total_cmp(&path[*b].distance_squared(entry_point))
+        })
+        .or_else(|| {
+            (0..path.len()).min_by(|a, b| {
+                path[*a]
+                    .distance_squared(entry_point)
+                    .total_cmp(&path[*b].distance_squared(entry_point))
+            })
+        })?;
+
+    let mut spliced: Vec<Vec2> = path[..=exit].to_vec();
+    for step in 0..hole.len() {
+        spliced.push(hole[(entry_index + step) % hole.len()]);
+    }
+    spliced.push(entry_point);
+    spliced.extend_from_slice(&path[exit..]);
+    Some(spliced)
+}
+
+fn rightmost(loop_points: &[Vec2]) -> Vec2 {
+    loop_points
+        .iter()
+        .copied()
+        .fold(Vec2::new(f32::MIN, 0.0), |best, point| {
+            if point.x > best.x { point } else { best }
+        })
+}
+
+fn counter_clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
+    let mut points = loop_points.to_vec();
+    if signed_area(&points) < 0.0 {
+        points.reverse();
+    }
+    points
+}
+
+/// A hole runs the opposite way round to the face it is cut out of, so that
+/// walking the spliced path keeps the matter on the same side throughout.
+fn clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
+    let mut points = loop_points.to_vec();
+    if signed_area(&points) > 0.0 {
+        points.reverse();
+    }
+    points
+}
+
 /// Cuts a closed outline into triangles by clipping ears: repeatedly take a
 /// corner no other corner sits in, and snip it off.
 fn triangulate(outline: &[Vec2]) -> Vec<[Vec2; 3]> {
@@ -228,6 +356,14 @@ fn triangulate(outline: &[Vec2]) -> Vec<[Vec2; 3]> {
                         && *other != (index + count - 1) % count
                         && *other != (index + 1) % count
                 })
+                // A corner of the ear itself, met a second time, is the seam of
+                // a corridor cut out to a hole: it sits on the ear by
+                // construction and must not be read as blocking it.
+                .filter(|(_, point)| {
+                    point.distance_squared(a) > EPSILON
+                        && point.distance_squared(b) > EPSILON
+                        && point.distance_squared(c) > EPSILON
+                })
                 .all(|(_, point)| !in_triangle(*point, a, b, c));
             if clear {
                 triangles.push([a, b, c]);
@@ -245,6 +381,9 @@ fn triangulate(outline: &[Vec2]) -> Vec<[Vec2; 3]> {
     }
     triangles
 }
+
+/// How close two positions have to be to count as the same corner.
+const EPSILON: f32 = 1e-12;
 
 fn in_triangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
     let side = |from: Vec2, to: Vec2| (to - from).perp_dot(point - from);
@@ -320,6 +459,68 @@ mod tests {
         let regions = sketch.regions();
         assert_eq!(regions.len(), 2);
         assert!(regions.iter().all(|region| region.depth == 0));
+    }
+
+    fn area(triangles: &[[Vec2; 3]]) -> f32 {
+        triangles
+            .iter()
+            .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
+            .sum()
+    }
+
+    /// Two circles one inside the other are a tube, not a rod: the face keeps
+    /// the middle hollow.
+    #[test]
+    fn a_shape_inside_another_is_a_hole_in_its_face() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(20.0, 20.0));
+        rectangle(&mut sketch, Vec2::new(5.0, 5.0), Vec2::new(15.0, 15.0));
+        let regions = sketch.regions();
+
+        assert_eq!(regions[0].holes.len(), 1, "le contour extérieur est percé");
+        assert!(regions[1].holes.is_empty());
+
+        let ring = area(&regions[0].face_triangles());
+        assert!((ring - 300.0).abs() < 1e-2, "aire de l'anneau : {ring}");
+        assert!((area(&regions[0].triangles) - 400.0).abs() < 1e-2, "teinte pleine");
+
+        assert!(regions[0].contains(Vec2::new(2.0, 2.0)));
+        assert!(!regions[0].contains(Vec2::new(10.0, 10.0)), "le trou est vide");
+        assert!(regions[1].contains(Vec2::new(10.0, 10.0)));
+    }
+
+    /// Matter inside a hole is matter again, and belongs to its own face.
+    #[test]
+    fn a_shape_inside_a_hole_is_not_a_hole_of_the_outer_one() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(30.0, 30.0));
+        rectangle(&mut sketch, Vec2::new(5.0, 5.0), Vec2::new(25.0, 25.0));
+        rectangle(&mut sketch, Vec2::new(10.0, 10.0), Vec2::new(20.0, 20.0));
+        let regions = sketch.regions();
+
+        assert_eq!(regions[0].holes.len(), 1);
+        assert_eq!(regions[1].holes.len(), 1);
+        assert!(regions[2].holes.is_empty());
+        assert!((area(&regions[2].face_triangles()) - 100.0).abs() < 1e-2);
+    }
+
+    /// Le cas cité : deux cercles concentriques font un tube.
+    #[test]
+    fn two_circles_make_a_tube() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let center = sketch.add_point(Vec2::new(10.0, 10.0));
+        sketch.add_circle(center, 8.0);
+        sketch.add_circle(center, 5.0);
+
+        let regions = sketch.regions();
+        assert_eq!(regions.len(), 2);
+        let ring = area(&regions[0].face_triangles());
+        let expected = std::f32::consts::PI * (8.0f32.powi(2) - 5.0f32.powi(2));
+        assert!(
+            (ring - expected).abs() / expected < 0.02,
+            "anneau {ring}, attendu ~{expected}"
+        );
+        assert!(!regions[0].contains(Vec2::new(10.0, 10.0)));
     }
 
     #[test]

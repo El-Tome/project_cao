@@ -1,10 +1,10 @@
-use cao_core::PartDocument;
+use cao_core::{ExtrusionMode, PartDocument};
 
+use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{DimensionMode, SketchEditor, Tool};
 
-/// A family of tools. Only sketching exists so far; extrusion and assembly are
-/// listed so the shape of the menu is visible, and so adding them is a matter
-/// of filling in their tools.
+/// A family of tools. Assembly is listed so the shape of the menu is visible,
+/// and so adding it is a matter of filling in its tools.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Category {
     #[default]
@@ -25,7 +25,7 @@ impl Category {
     }
 
     pub fn available(self) -> bool {
-        matches!(self, Self::Sketch)
+        matches!(self, Self::Sketch | Self::Extrusion)
     }
 }
 
@@ -40,6 +40,9 @@ pub enum RibbonAction {
     Undo,
     Redo,
     RecenterOnSketch,
+    /// Turn the chosen areas into matter, or take them out of it.
+    ApplyExtrusion,
+    CancelExtrusion,
 }
 
 /// The toolbar: a row of categories, and under it the tools of the one picked.
@@ -67,19 +70,20 @@ impl Ribbon {
         ui: &mut egui::Ui,
         document: &PartDocument,
         editor: &mut SketchEditor,
+        extrusion: &mut ExtrusionState,
     ) -> RibbonAction {
         let mut action = RibbonAction::None;
 
         if self.docked {
             egui::Panel::top("ribbon_docked").show(ui, |ui| {
-                action = self.contents(ui, document, editor);
+                action = self.contents(ui, document, editor, extrusion);
             });
         } else {
             egui::Window::new("Outils")
                 .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
                 .resizable(false)
                 .show(ui.ctx(), |ui| {
-                    action = self.contents(ui, document, editor);
+                    action = self.contents(ui, document, editor, extrusion);
                 });
         }
 
@@ -91,6 +95,7 @@ impl Ribbon {
         ui: &mut egui::Ui,
         document: &PartDocument,
         editor: &mut SketchEditor,
+        extrusion: &mut ExtrusionState,
     ) -> RibbonAction {
         let mut action = RibbonAction::None;
 
@@ -130,12 +135,70 @@ impl Ribbon {
         ui.horizontal_wrapped(|ui| {
             action = match self.category {
                 Category::Sketch => self.sketch_tools(ui, document, editor),
-                Category::Extrusion | Category::Assembly => {
+                Category::Extrusion => Self::extrusion_tools(ui, document, extrusion),
+                Category::Assembly => {
                     ui.weak("Aucun outil pour cette catégorie pour l'instant.");
                     RibbonAction::None
                 }
             };
         });
+
+        action
+    }
+
+    /// The two ways of turning a drawing into a volume. They differ only in
+    /// what they do with the prism at the end, so they share everything here.
+    fn extrusion_tools(
+        ui: &mut egui::Ui,
+        document: &PartDocument,
+        extrusion: &mut ExtrusionState,
+    ) -> RibbonAction {
+        let mut action = RibbonAction::None;
+
+        let Some(sketch) = extrusion.sketch.filter(|index| *index < document.sketches().len())
+        else {
+            ui.weak("Terminez une esquisse pour l'extruder, ou choisissez-en une dans l'historique.");
+            return action;
+        };
+
+        for mode in [ExtrusionMode::Add, ExtrusionMode::Cut] {
+            if ui
+                .selectable_label(extrusion.mode == Some(mode), mode.label())
+                .on_hover_text(mode.hint())
+                .clicked()
+            {
+                extrusion.arm(mode);
+            }
+        }
+
+        if !extrusion.is_active() {
+            ui.separator();
+            ui.weak(format!("Esquisse {}", sketch + 1));
+            return action;
+        }
+
+        ui.separator();
+        ui.label("Hauteur :");
+        ui.add(
+            egui::TextEdit::singleline(&mut extrusion.distance_input)
+                .desired_width(70.0)
+                .hint_text("mm"),
+        );
+        ui.checkbox(&mut extrusion.reversed, "Sens inverse")
+            .on_hover_text("Pousser la matière de l'autre côté du plan");
+
+        ui.separator();
+        ui.weak(format!("{} aire(s)", extrusion.picks.len()));
+
+        let ready = !extrusion.picks.is_empty() && extrusion.distance().is_some();
+        ui.add_enabled_ui(ready, |ui| {
+            if ui.button("Appliquer").clicked() {
+                action = RibbonAction::ApplyExtrusion;
+            }
+        });
+        if ui.button("Annuler").clicked() {
+            action = RibbonAction::CancelExtrusion;
+        }
 
         action
     }

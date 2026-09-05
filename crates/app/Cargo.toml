@@ -8,6 +8,7 @@ license.workspace = true
 cao_core = { path = "../core" }
 cao_render = { path = "../render" }
 cao_sketch = { path = "../sketch" }
+cao_solid = { path = "../solid" }
 eframe.workspace = true
 egui.workspace = true
 egui-wgpu.workspace = true

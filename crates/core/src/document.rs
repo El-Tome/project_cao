@@ -72,6 +72,11 @@ impl PartDocument {
         &self.state.sketches
     }
 
+    /// The matter of the part, as one surface.
+    pub fn body(&self) -> &cao_solid::Mesh {
+        &self.state.body
+    }
+
     pub fn scale(&self) -> f32 {
         self.state.scale()
     }

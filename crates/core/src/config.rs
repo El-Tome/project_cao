@@ -104,7 +104,7 @@ pub enum TrackpadGesture {
 /// Trackpad gestures. A two-finger scroll and a mouse wheel arrive as the same
 /// kind of event but in different units (pixels vs lines), which is how they
 /// are told apart.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TrackpadConfig {
     /// Two-finger scroll.
     pub scroll: TrackpadGesture,
@@ -184,7 +184,7 @@ impl LengthUnit {
 
 /// Everything tweakable about the 3D viewport. Serializable so it can be
 /// persisted and exposed in a preferences screen later.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ViewportConfig {
     pub cube_corner: ViewportCorner,
     /// Side of the orientation cube's square, in logical points.

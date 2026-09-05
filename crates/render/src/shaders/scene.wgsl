@@ -148,6 +148,20 @@ fn vs_line(
     return out;
 }
 
+/// The background: positions are already in normalized device coordinates, so
+/// no camera is involved and it stays put while the view turns. Placed at the
+/// far plane, though nothing tests against it.
+@vertex
+fn vs_screen(
+    @location(0) position: vec3<f32>,
+    @location(1) color: vec4<f32>,
+) -> VertexOutput {
+    var out: VertexOutput;
+    out.clip_position = vec4<f32>(position.xy, 0.999, 1.0);
+    out.color = color;
+    return out;
+}
+
 @vertex
 fn vs_solid(
     @location(0) position: vec3<f32>,

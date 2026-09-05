@@ -20,6 +20,8 @@ pub struct SceneFrame {
     /// Translucent surfaces in world space, such as the work planes offered
     /// when starting a sketch. Drawn before the lines and never culled, since
     /// a plane must be visible from both sides.
+    /// What fills the viewport behind everything, in screen coordinates.
+    pub scene_background: Vec<Vertex>,
     /// The axes and the grid: the world the part sits in, so they are hidden
     /// by it rather than drawn through it.
     pub scene_world_lines: Vec<Vertex>,
@@ -157,11 +159,13 @@ pub struct SceneRenderer {
     line_pipeline: wgpu::RenderPipeline,
     triangle_pipeline: wgpu::RenderPipeline,
     surface_pipeline: wgpu::RenderPipeline,
+    background_pipeline: wgpu::RenderPipeline,
     solid_pipeline: wgpu::RenderPipeline,
     world_line_pipeline: wgpu::RenderPipeline,
     scene_uniform: UniformBinding,
     cube_uniform: UniformBinding,
     scene_surfaces: DynamicVertexBuffer,
+    scene_background: DynamicVertexBuffer,
     scene_solids: DynamicVertexBuffer,
     scene_world_lines: DynamicVertexBuffer,
     scene_lines: DynamicVertexBuffer,
@@ -324,6 +328,13 @@ impl SceneRenderer {
                 None,
                 depth_state(false),
             ),
+            background_pipeline: make_pipeline(
+                "cao_background_pipeline",
+                "vs_screen",
+                &solid_layout,
+                None,
+                depth_state(false),
+            ),
             world_line_pipeline: make_pipeline(
                 "cao_world_line_pipeline",
                 "vs_line",
@@ -343,6 +354,7 @@ impl SceneRenderer {
             scene_uniform: UniformBinding::new(device, &uniform_layout, "cao_scene_uniform"),
             cube_uniform: UniformBinding::new(device, &uniform_layout, "cao_cube_uniform"),
             scene_surfaces: DynamicVertexBuffer::new(device, "cao_scene_surfaces"),
+            scene_background: DynamicVertexBuffer::new(device, "cao_scene_background"),
             scene_solids: DynamicVertexBuffer::new(device, "cao_scene_solids"),
             scene_world_lines: DynamicVertexBuffer::new(device, "cao_scene_world_lines"),
             scene_lines: DynamicVertexBuffer::new(device, "cao_scene_lines"),
@@ -368,6 +380,8 @@ impl SceneRenderer {
         );
         self.scene_surfaces
             .upload(device, queue, &frame.scene_surfaces);
+        self.scene_background
+            .upload(device, queue, &frame.scene_background);
         self.scene_solids.upload(device, queue, &frame.scene_solids);
         self.scene_world_lines
             .upload(device, queue, &frame.scene_world_lines);
@@ -380,6 +394,8 @@ impl SceneRenderer {
 
     pub fn paint(&self, pass: &mut wgpu::RenderPass<'_>) {
         pass.set_bind_group(0, &self.scene_uniform.bind_group, &[]);
+        pass.set_pipeline(&self.background_pipeline);
+        self.scene_background.draw_triangles(pass);
         pass.set_pipeline(&self.solid_pipeline);
         self.scene_solids.draw_triangles(pass);
         pass.set_pipeline(&self.world_line_pipeline);

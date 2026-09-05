@@ -12,24 +12,6 @@ pub enum Shape {
     Revolution,
 }
 
-impl Shape {
-    pub const ALL: [Self; 2] = [Self::Straight, Self::Revolution];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Straight => "Droite",
-            Self::Revolution => "Révolution",
-        }
-    }
-
-    pub fn hint(self) -> &'static str {
-        match self {
-            Self::Straight => "Pousser la matière perpendiculairement au plan",
-            Self::Revolution => "Faire tourner l'aire autour d'un axe du plan",
-        }
-    }
-}
-
 /// Everything the extrusion workflow remembers between frames.
 ///
 /// It is deliberately its own module rather than more fields on the sketch

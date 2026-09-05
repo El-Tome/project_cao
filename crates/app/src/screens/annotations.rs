@@ -1,3 +1,4 @@
+use cao_core::theme::Theme;
 use cao_render::{Vertex, srgb};
 use cao_sketch::{DimensionTarget, Sketch, WorkPlane};
 use glam::Vec2;
@@ -18,9 +19,10 @@ pub struct Style {
 }
 
 impl Style {
-    pub fn driving() -> Self {
+    pub fn driving(theme: &Theme) -> Self {
+        let color = theme.dimension;
         Self {
-            color: srgb(0.98, 0.85, 0.35, 0.9),
+            color: srgb(color.r, color.g, color.b, color.a),
             width: 1.2,
             offset_pixels: 22.0,
             arrow_pixels: 8.0,
@@ -29,10 +31,11 @@ impl Style {
     }
 
     /// A readout is drawn more quietly: it reports rather than decides.
-    pub fn driven() -> Self {
+    pub fn driven(theme: &Theme) -> Self {
+        let color = theme.dimension_driven;
         Self {
-            color: srgb(0.62, 0.65, 0.70, 0.8),
-            ..Self::driving()
+            color: srgb(color.r, color.g, color.b, color.a),
+            ..Self::driving(theme)
         }
     }
 }

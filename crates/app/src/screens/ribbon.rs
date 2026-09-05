@@ -1,208 +1,343 @@
-use cao_core::{ExtrusionMode, PartDocument, RevolutionAxis};
-use cao_sketch::SketchAxis;
+use cao_core::toolbar::{Edge, Item, ToolbarLayout};
+use cao_core::{Command, PartDocument, Settings};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{DimensionMode, SketchEditor, Tool};
 
-/// A family of tools. Assembly is listed so the shape of the menu is visible,
-/// and so adding it is a matter of filling in its tools.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum Category {
-    #[default]
-    Sketch,
-    Extrusion,
-    Assembly,
-}
+/// How wide a toolbar starts when it is down one side.
+const SIDE_WIDTH: f32 = 210.0;
 
-impl Category {
-    pub const ALL: [Self; 3] = [Self::Sketch, Self::Extrusion, Self::Assembly];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Sketch => "Esquisse",
-            Self::Extrusion => "Extrusion",
-            Self::Assembly => "Assemblage",
-        }
-    }
-
-    pub fn available(self) -> bool {
-        matches!(self, Self::Sketch | Self::Extrusion)
-    }
-}
-
-/// What the user asked the toolbar to do. Kept as a value rather than acted on
-/// in place: the toolbar only borrows the editor, while these need the whole
-/// part.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum RibbonAction {
-    None,
-    NewSketch,
-    FinishSketch,
-    Undo,
-    Redo,
-    RecenterOnSketch,
-    /// Turn the chosen areas into matter, or take them out of it.
-    ApplyExtrusion,
-    CancelExtrusion,
-}
-
-/// The toolbar: a row of categories, and under it the tools of the one picked.
+/// The toolbar, drawn from the arrangement the user has set.
 ///
-/// It lives in a small window that is docked to the top of the screen by
-/// default and can be pulled off and moved anywhere.
+/// Nothing about which buttons exist or where they sit is decided here: the
+/// tree comes from the settings, and this only knows how to draw a tree. That
+/// is what lets the arrangement be changed, saved and handed to somebody else.
 #[derive(Default)]
 pub struct Ribbon {
-    pub category: Category,
-    pub docked: bool,
+    /// Which top-level group is open, by rank.
+    pub tab: usize,
     pub history_open: bool,
 }
 
 impl Ribbon {
     pub fn new() -> Self {
         Self {
-            category: Category::Sketch,
-            docked: true,
+            tab: 0,
             history_open: true,
         }
     }
 
+    /// Draws the bar and returns every command the user asked for this frame.
     pub fn show(
         &mut self,
         ui: &mut egui::Ui,
+        settings: &Settings,
         document: &PartDocument,
-        editor: &mut SketchEditor,
+        editor: &SketchEditor,
         extrusion: &mut ExtrusionState,
-    ) -> RibbonAction {
-        let mut action = RibbonAction::None;
+    ) -> Vec<Command> {
+        let layout = &settings.toolbar;
+        let mut asked = Vec::new();
 
-        if self.docked {
-            egui::Panel::top("ribbon_docked").show(ui, |ui| {
-                action = self.contents(ui, document, editor, extrusion);
-            });
-        } else {
-            egui::Window::new("Outils")
-                .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
-                .resizable(false)
-                .show(ui.ctx(), |ui| {
-                    action = self.contents(ui, document, editor, extrusion);
+        match layout.edge {
+            Edge::Floating => {
+                egui::Window::new("Outils")
+                    .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
+                    .resizable(false)
+                    .show(ui.ctx(), |ui| {
+                        asked = self.contents(ui, settings, document, editor, extrusion);
+                    });
+            }
+            Edge::Top => {
+                egui::Panel::top("ribbon").show(ui, |ui| {
+                    asked = self.contents(ui, settings, document, editor, extrusion);
                 });
+            }
+            Edge::Bottom => {
+                egui::Panel::bottom("ribbon").show(ui, |ui| {
+                    asked = self.contents(ui, settings, document, editor, extrusion);
+                });
+            }
+            // A side bar has to be told how wide to start: left to itself it
+            // takes the room its widest button asks for, which on a wide
+            // window is the whole window.
+            Edge::Left => {
+                egui::Panel::left("ribbon")
+                    .resizable(true)
+                    .default_size(SIDE_WIDTH)
+                    .show(ui, |ui| {
+                        asked = self.contents(ui, settings, document, editor, extrusion);
+                    });
+            }
+            Edge::Right => {
+                egui::Panel::right("ribbon")
+                    .resizable(true)
+                    .default_size(SIDE_WIDTH)
+                    .show(ui, |ui| {
+                        asked = self.contents(ui, settings, document, editor, extrusion);
+                    });
+            }
         }
 
-        action
+        asked
     }
 
     fn contents(
         &mut self,
         ui: &mut egui::Ui,
+        settings: &Settings,
         document: &PartDocument,
-        editor: &mut SketchEditor,
+        editor: &SketchEditor,
         extrusion: &mut ExtrusionState,
-    ) -> RibbonAction {
-        let mut action = RibbonAction::None;
+    ) -> Vec<Command> {
+        let layout = &settings.toolbar;
+        let mut asked = Vec::new();
+        let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
 
-        ui.horizontal(|ui| {
-            for category in Category::ALL {
-                let enabled = category.available();
-                let selected = self.category == category;
-                let response = ui
-                    .add_enabled_ui(enabled, |ui| {
-                        ui.selectable_label(selected, category.label())
-                    })
-                    .inner;
-                if response.clicked() {
-                    self.category = category;
-                }
-                if !enabled {
-                    response.on_hover_text("Pas encore disponible");
+        self.header(ui, layout, &mut asked, vertical);
+        ui.separator();
+
+        let state = Context {
+            settings,
+            document,
+            editor,
+            extrusion: &*extrusion,
+        };
+
+        // The open tab, then whatever sits at the top level outside any group.
+        let open = layout.items.get(self.tab);
+        if let Some(Item::Group { items, .. }) = open {
+            lay_out(ui, items, 1, &state, &mut asked, vertical);
+        }
+        for item in &layout.items {
+            if !matches!(item, Item::Group { .. }) {
+                lay_out(ui, std::slice::from_ref(item), 1, &state, &mut asked, vertical);
+            }
+        }
+
+        extrusion_row(ui, document, extrusion, &mut asked);
+        asked
+    }
+
+    /// The logo, the tabs and the window toggles.
+    fn header(
+        &mut self,
+        ui: &mut egui::Ui,
+        layout: &ToolbarLayout,
+        asked: &mut Vec<Command>,
+        vertical: bool,
+    ) {
+        let mut row = |ui: &mut egui::Ui| {
+            if layout.show_logo {
+                ui.strong(&layout.logo_text);
+                ui.separator();
+            }
+            for (rank, item) in layout.items.iter().enumerate() {
+                let Item::Group { name, .. } = item else {
+                    continue;
+                };
+                if ui.selectable_label(self.tab == rank, name).clicked() {
+                    self.tab = rank;
                 }
             }
+        };
 
+        if vertical {
+            ui.vertical(|ui| row(ui));
+            ui.horizontal_wrapped(|ui| {
+                ui.toggle_value(&mut self.history_open, "Historique");
+                if ui.button("⚙").on_hover_text("Préférences").clicked() {
+                    asked.push(Command::OpenSettings);
+                }
+            });
+            return;
+        }
+
+        ui.horizontal(|ui| {
+            row(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                let icon = if self.docked { "⏏" } else { "📌" };
-                let hint = if self.docked {
-                    "Détacher la barre d'outils"
-                } else {
-                    "Ancrer la barre en haut"
-                };
-                if ui.button(icon).on_hover_text(hint).clicked() {
-                    self.docked = !self.docked;
+                if ui.button("⚙").on_hover_text("Préférences").clicked() {
+                    asked.push(Command::OpenSettings);
                 }
                 ui.toggle_value(&mut self.history_open, "Historique");
             });
         });
-
-        ui.separator();
-
-        ui.horizontal_wrapped(|ui| {
-            action = match self.category {
-                Category::Sketch => self.sketch_tools(ui, document, editor),
-                Category::Extrusion => Self::extrusion_tools(ui, document, extrusion),
-                Category::Assembly => {
-                    ui.weak("Aucun outil pour cette catégorie pour l'instant.");
-                    RibbonAction::None
-                }
-            };
-        });
-
-        action
     }
+}
 
-    /// The two ways of turning a drawing into a volume. They differ only in
-    /// what they do with the prism at the end, so they share everything here.
-    fn extrusion_tools(
-        ui: &mut egui::Ui,
-        document: &PartDocument,
-        extrusion: &mut ExtrusionState,
-    ) -> RibbonAction {
-        let mut action = RibbonAction::None;
+/// What the toolbar needs to know to draw a button in the right state.
+struct Context<'a> {
+    settings: &'a Settings,
+    document: &'a PartDocument,
+    editor: &'a SketchEditor,
+    extrusion: &'a ExtrusionState,
+}
 
-        let Some(sketch) = extrusion.sketch.filter(|index| *index < document.sketches().len())
-        else {
-            // Terminating a drawing offers its sketch straight away, but a part
-            // reopened later has none offered: rather than send the user back
-            // through the history to re-enter and re-finish a sketch, they are
-            // all listed here.
-            if document.sketches().is_empty() {
-                ui.weak("Dessinez d'abord une esquisse.");
-                return action;
+/// Draws a run of entries, at the depth they sit in the tree.
+///
+/// A group one level in is spread out where it is, with its name beside it; any
+/// deeper and it becomes a menu that opens on click. Laying a third level out
+/// in place would push everything else off the bar, and there is no bottom to
+/// how deep the user may go.
+fn lay_out(
+    ui: &mut egui::Ui,
+    items: &[Item],
+    depth: usize,
+    state: &Context<'_>,
+    asked: &mut Vec<Command>,
+    vertical: bool,
+) {
+    let run = |ui: &mut egui::Ui| {
+        for item in items {
+            match item {
+                Item::Command(command) => button(ui, *command, state, asked),
+                Item::Separator => {
+                    ui.separator();
+                }
+                Item::Group { name, items } if depth <= 1 => {
+                    ui.group(|ui| {
+                        let inner = |ui: &mut egui::Ui| {
+                            ui.weak(name);
+                            lay_out(ui, items, depth + 1, state, asked, vertical);
+                        };
+                        if vertical {
+                            ui.vertical(inner);
+                        } else {
+                            ui.horizontal(inner);
+                        }
+                    });
+                }
+                Item::Group { name, items } => {
+                    ui.menu_button(name, |ui| {
+                        lay_out(ui, items, depth + 1, state, asked, true);
+                    });
+                }
             }
+        }
+    };
+
+    if vertical {
+        ui.vertical(run);
+    } else {
+        ui.horizontal_wrapped(run);
+    }
+}
+
+fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
+    let label = match state.settings.shortcuts.chord_for(command) {
+        Some(chord) => format!("{} ({})", command.label(), chord.label()),
+        None => command.label().to_string(),
+    };
+    let label = if state.settings.toolbar.show_labels {
+        label
+    } else {
+        command.label().chars().take(2).collect()
+    };
+
+    let response = ui
+        .add_enabled_ui(enabled(command, state), |ui| {
+            ui.selectable_label(active(command, state), label)
+        })
+        .inner
+        .on_hover_text(command.hint());
+    if response.clicked() {
+        asked.push(command);
+    }
+}
+
+/// Whether the command is the one currently in force, so its button shows as
+/// pressed.
+fn active(command: Command, state: &Context<'_>) -> bool {
+    let tool = state.editor.tool;
+    let mode = state.editor.dimension_mode;
+    match command {
+        Command::ToolSelect => tool == Tool::Select,
+        Command::ToolLine => tool == Tool::Line,
+        Command::ToolRectangle => tool == Tool::Rectangle,
+        Command::ToolCircle => tool == Tool::Circle,
+        Command::ToolPoint => tool == Tool::Point,
+        Command::ToolDimension => tool == Tool::Dimension,
+        Command::DimensionAuto => mode == DimensionMode::Auto,
+        Command::DimensionPointToPoint => mode == DimensionMode::PointToPoint,
+        Command::DimensionLength => mode == DimensionMode::Length,
+        Command::DimensionAngle => mode == DimensionMode::Angle,
+        Command::DimensionRadius => mode == DimensionMode::Radius,
+        Command::ExtrusionAdd => state.extrusion.mode == Some(cao_core::ExtrusionMode::Add),
+        Command::ExtrusionCut => state.extrusion.mode == Some(cao_core::ExtrusionMode::Cut),
+        Command::ExtrusionStraight => state.extrusion.shape == Shape::Straight,
+        Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
+        _ => false,
+    }
+}
+
+fn enabled(command: Command, state: &Context<'_>) -> bool {
+    is_enabled(command, state.document, state.editor, state.extrusion)
+}
+
+/// Whether a command can be carried out right now.
+///
+/// Shared with the keyboard: a shortcut for a command whose button is greyed
+/// out must do nothing either, or Enter would "finish" a sketch that is not
+/// open.
+pub fn is_enabled(
+    command: Command,
+    document: &PartDocument,
+    editor: &SketchEditor,
+    extrusion: &ExtrusionState,
+) -> bool {
+    let drawing = editor.active_sketch().is_some();
+    match command {
+        Command::Undo => document.history.can_undo(),
+        Command::Redo => document.history.can_redo(),
+        Command::FinishSketch | Command::RecenterOnSketch => drawing,
+        Command::ToolSelect
+        | Command::ToolLine
+        | Command::ToolRectangle
+        | Command::ToolCircle
+        | Command::ToolPoint
+        | Command::ToolDimension => drawing,
+        Command::DimensionAuto
+        | Command::DimensionPointToPoint
+        | Command::DimensionLength
+        | Command::DimensionAngle
+        | Command::DimensionRadius => drawing && editor.tool == Tool::Dimension,
+        Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
+        Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
+        Command::ExtrusionApply => extrusion.is_ready(),
+        Command::ExtrusionCancel => extrusion.is_active(),
+        _ => true,
+    }
+}
+
+/// The values an extrusion needs, shown only while one is being set up.
+///
+/// These are not commands: they are numbers being typed, and a toolbar entry
+/// cannot stand for a field the user is in the middle of filling in.
+fn extrusion_row(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    extrusion: &mut ExtrusionState,
+    asked: &mut Vec<Command>,
+) {
+    if extrusion.sketch.is_none() {
+        if document.sketches().is_empty() {
+            return;
+        }
+        ui.horizontal_wrapped(|ui| {
             ui.label("Extruder l'esquisse :");
             for index in 0..document.sketches().len() {
                 if ui.button(format!("{}", index + 1)).clicked() {
                     extrusion.offer(index);
                 }
             }
-            return action;
-        };
+        });
+        return;
+    }
+    if !extrusion.is_active() {
+        return;
+    }
 
-        for mode in [ExtrusionMode::Add, ExtrusionMode::Cut] {
-            if ui
-                .selectable_label(extrusion.mode == Some(mode), mode.label())
-                .on_hover_text(mode.hint())
-                .clicked()
-            {
-                extrusion.arm(mode);
-            }
-        }
-
-        if !extrusion.is_active() {
-            ui.separator();
-            ui.weak(format!("Esquisse {}", sketch + 1));
-            return action;
-        }
-
-        ui.separator();
-        for shape in Shape::ALL {
-            if ui
-                .selectable_label(extrusion.shape == shape, shape.label())
-                .on_hover_text(shape.hint())
-                .clicked()
-            {
-                extrusion.shape = shape;
-            }
-        }
-
-        ui.separator();
+    ui.horizontal_wrapped(|ui| {
         if extrusion.is_revolving() {
             ui.label("Angle :");
             ui.add(
@@ -211,18 +346,17 @@ impl Ribbon {
                     .hint_text("°"),
             );
             ui.label("Autour de :");
-            for axis in [SketchAxis::U, SketchAxis::V] {
-                let chosen = extrusion.axis == RevolutionAxis::Sketch(axis);
+            for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
+                let chosen = extrusion.axis == cao_core::RevolutionAxis::Sketch(axis);
                 if ui.selectable_label(chosen, axis.label()).clicked() {
-                    extrusion.axis = RevolutionAxis::Sketch(axis);
+                    extrusion.axis = cao_core::RevolutionAxis::Sketch(axis);
                 }
             }
-            if let RevolutionAxis::Segment(segment) = extrusion.axis {
+            if let cao_core::RevolutionAxis::Segment(segment) = extrusion.axis {
                 ui.selectable_label(true, format!("trait {}", segment.0))
                     .on_hover_text("Cliquer un autre trait de l'esquisse pour en changer");
             } else {
-                ui.weak("ou cliquer un trait")
-                    .on_hover_text("Un trait de l'esquisse peut servir d'axe");
+                ui.weak("ou cliquer un trait");
             }
         } else {
             ui.label("Hauteur :");
@@ -237,89 +371,13 @@ impl Ribbon {
 
         ui.separator();
         ui.weak(format!("{} aire(s)", extrusion.picks.len()));
-
         ui.add_enabled_ui(extrusion.is_ready(), |ui| {
             if ui.button("Appliquer").clicked() {
-                action = RibbonAction::ApplyExtrusion;
+                asked.push(Command::ExtrusionApply);
             }
         });
         if ui.button("Annuler").clicked() {
-            action = RibbonAction::CancelExtrusion;
+            asked.push(Command::ExtrusionCancel);
         }
-
-        action
-    }
-
-    fn sketch_tools(
-        &self,
-        ui: &mut egui::Ui,
-        document: &PartDocument,
-        editor: &mut SketchEditor,
-    ) -> RibbonAction {
-        let mut action = RibbonAction::None;
-
-        if ui
-            .button("Nouvelle esquisse")
-            .on_hover_text("Choisir un plan pour commencer un dessin")
-            .clicked()
-        {
-            action = RibbonAction::NewSketch;
-        }
-
-        ui.separator();
-
-        let drawing = editor.active_sketch().is_some();
-        ui.add_enabled_ui(drawing, |ui| {
-            for tool in Tool::SKETCH_TOOLS {
-                if ui
-                    .selectable_label(editor.tool == tool, tool.label())
-                    .on_hover_text(tool.hint())
-                    .clicked()
-                {
-                    editor.tool = tool;
-                    editor.reset_pending();
-                }
-            }
-            if ui.button("Recadrer").clicked() {
-                action = RibbonAction::RecenterOnSketch;
-            }
-            if ui.button("Terminer").clicked() {
-                action = RibbonAction::FinishSketch;
-            }
-        });
-
-        // The dimension tool's own row: what it is allowed to measure. Auto
-        // covers most of the work; the others are there for when two things
-        // sit under the same cursor and the wrong one keeps winning.
-        if drawing && editor.tool == Tool::Dimension {
-            ui.end_row();
-            ui.separator();
-            ui.label("Mesurer :");
-            for mode in DimensionMode::ALL {
-                if ui
-                    .selectable_label(editor.dimension_mode == mode, mode.label())
-                    .on_hover_text(mode.hint())
-                    .clicked()
-                {
-                    editor.dimension_mode = mode;
-                    editor.reset_pending();
-                }
-            }
-        }
-
-        ui.separator();
-
-        ui.add_enabled_ui(document.history.can_undo(), |ui| {
-            if ui.button("↶ Annuler").on_hover_text("Ctrl+Z").clicked() {
-                action = RibbonAction::Undo;
-            }
-        });
-        ui.add_enabled_ui(document.history.can_redo(), |ui| {
-            if ui.button("↷ Rétablir").on_hover_text("Ctrl+Y").clicked() {
-                action = RibbonAction::Redo;
-            }
-        });
-
-        action
-    }
+    });
 }

@@ -1,3 +1,4 @@
+pub mod annotations;
 pub mod history_tree;
 pub mod ribbon;
 pub mod sketch;

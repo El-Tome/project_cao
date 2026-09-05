@@ -14,6 +14,8 @@ pub enum StorageError {
     Archive(#[from] zip::result::ZipError),
     #[error("le fichier de pièce ne contient pas « {0} »")]
     MissingEntry(String),
+    #[error("pièce enregistrée dans une version antérieure (v{0}), non prise en charge")]
+    UnsupportedVersion(u32),
 }
 
 pub fn project_dirs() -> Result<ProjectDirs, StorageError> {

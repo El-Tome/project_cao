@@ -7,7 +7,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::history::{History, Operation, PointRef};
+use crate::history::{History, Operation};
 use crate::state::{DimensionOutcome, PartState};
 use crate::storage::StorageError;
 
@@ -16,8 +16,9 @@ pub const PART_EXTENSION: &str = "caopart";
 
 /// Bumped whenever the layout of a saved part changes.
 ///
-/// 1: a single JSON object. 2: a zip archive holding several files.
-/// 3: every sketch owns a point at its origin, which shifts point numbering.
+/// Older versions are refused rather than converted: while the tool is still
+/// taking shape, a conversion would be more likely to rebuild a part wrongly
+/// than to save anything worth keeping.
 pub const SCHEMA_VERSION: u32 = 3;
 
 const METADATA_ENTRY: &str = "part.json";
@@ -146,21 +147,21 @@ impl PartDocument {
     pub fn load(path: &Path) -> Result<Self, StorageError> {
         let bytes = fs::read(path)?;
 
-        // Parts written before the archive format are a bare JSON object.
+        // Files from before the archive format are not read: the tool changed
+        // too much for a conversion to be worth trusting, and nothing of value
+        // was drawn with those versions.
         if !bytes.starts_with(b"PK") {
-            return legacy::import(&bytes);
+            return Err(StorageError::UnsupportedVersion(1));
         }
 
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
-        let mut metadata: PartMetadata =
+        let metadata: PartMetadata =
             serde_json::from_str(&read_entry(&mut archive, METADATA_ENTRY)?)?;
-        let mut history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
-
-        if metadata.schema_version < 3 {
-            migrate::add_origin_point(&mut history);
-            metadata.schema_version = SCHEMA_VERSION;
+        if metadata.schema_version != SCHEMA_VERSION {
+            return Err(StorageError::UnsupportedVersion(metadata.schema_version));
         }
 
+        let history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
         let state = PartState::rebuild(&history);
 
         Ok(Self {
@@ -181,130 +182,6 @@ fn read_entry<R: Read + std::io::Seek>(
     let mut text = String::new();
     entry.read_to_string(&mut text)?;
     Ok(text)
-}
-
-/// Bringing older files up to date.
-mod migrate {
-    use super::*;
-
-    /// Sketches gained a point at their origin, created before anything the
-    /// user draws. Every point a saved operation refers to therefore moved up
-    /// by one, and the references have to move with them or an old part would
-    /// rebuild into a different drawing.
-    pub fn add_origin_point(history: &mut History) {
-        history.map_operations(|operation| match operation {
-            Operation::AddSegment { start, end, .. } => {
-                shift(start);
-                shift(end);
-            }
-            Operation::AddRectangle {
-                corner, opposite, ..
-            } => {
-                shift(corner);
-                shift(opposite);
-            }
-            Operation::AddCircle { center, .. } => shift(center),
-            Operation::MovePoint { point, .. } => point.0 += 1,
-            Operation::SetDimension { target, .. } => {
-                if let cao_sketch::DimensionTarget::Distance { from, to } = target {
-                    from.0 += 1;
-                    to.0 += 1;
-                }
-            }
-            Operation::CreateSketch { .. } | Operation::AddPoint { .. } => {}
-        });
-    }
-
-    fn shift(point: &mut PointRef) {
-        if let PointRef::Existing(id) = point {
-            id.0 += 1;
-        }
-    }
-}
-
-/// Reading the previous format: one JSON object holding the geometry directly.
-/// Its drawings are turned into the operations that would have produced them,
-/// so an old part arrives with a history like any other.
-mod legacy {
-    use super::*;
-
-    #[derive(Deserialize)]
-    struct LegacyPart {
-        id: Uuid,
-        name: String,
-        created_at: DateTime<Utc>,
-        modified_at: DateTime<Utc>,
-        #[serde(default)]
-        millimeters_per_unit: Option<f32>,
-        #[serde(default)]
-        sketches: Vec<Sketch>,
-    }
-
-    pub fn import(bytes: &[u8]) -> Result<PartDocument, StorageError> {
-        let legacy: LegacyPart = serde_json::from_slice(bytes)?;
-        let mut history = History::default();
-
-        for sketch in &legacy.sketches {
-            history.push(Operation::CreateSketch {
-                plane: sketch.plane,
-            });
-        }
-        for (index, sketch) in legacy.sketches.iter().enumerate() {
-            let mut emitted = Vec::new();
-            for segment in sketch.segments() {
-                history.push(Operation::AddSegment {
-                    sketch: index,
-                    start: point_ref(sketch, segment.start, &mut emitted),
-                    end: point_ref(sketch, segment.end, &mut emitted),
-                });
-            }
-            for dimension in sketch.dimensions() {
-                history.push(Operation::SetDimension {
-                    sketch: index,
-                    target: dimension.target,
-                    value: dimension.value,
-                });
-            }
-        }
-
-        let mut document = PartDocument {
-            metadata: PartMetadata {
-                id: legacy.id,
-                name: legacy.name,
-                created_at: legacy.created_at,
-                modified_at: legacy.modified_at,
-                schema_version: SCHEMA_VERSION,
-            },
-            history,
-            state: PartState::default(),
-        };
-        document.rebuild();
-
-        // A part whose scale was set but which has no dimension to re-derive it
-        // from keeps the scale it was saved with.
-        if !document.has_scale()
-            && let Some(scale) = legacy.millimeters_per_unit
-        {
-            document.state.millimeters_per_unit = Some(scale);
-        }
-
-        Ok(document)
-    }
-
-    /// The first mention of a point creates it, later ones refer back to it, so
-    /// shared corners stay shared through the conversion.
-    fn point_ref(
-        sketch: &Sketch,
-        point: cao_sketch::PointId,
-        emitted: &mut Vec<cao_sketch::PointId>,
-    ) -> PointRef {
-        if let Some(index) = emitted.iter().position(|seen| *seen == point) {
-            // Plus one: every sketch now starts with its origin point.
-            return PointRef::Existing(cao_sketch::PointId(index + 1));
-        }
-        emitted.push(point);
-        PointRef::New(sketch.point(point))
-    }
 }
 
 fn sanitize_filename(name: &str) -> String {
@@ -329,6 +206,8 @@ fn sanitize_filename(name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+
+    use crate::history::PointRef;
     use glam::Vec2;
 
     use super::*;
@@ -420,95 +299,35 @@ mod tests {
         assert!(document.has_scale());
     }
 
-    /// A part saved before sketches had an origin point must rebuild into the
-    /// same drawing, not one shifted by a point.
+    /// A part from an older version is refused with a clear reason rather than
+    /// rebuilt into something subtly different.
     #[test]
-    fn an_older_archive_has_its_point_numbering_migrated() {
+    fn a_part_from_an_older_version_is_refused() {
         let directory = temp_dir();
         let path = directory.join("piece.caopart");
 
-        // A history as version 2 wrote it: the first drawn point was number 0.
-        let mut history = History::default();
-        history.push(Operation::CreateSketch {
-            plane: WorkPlane::XY,
-        });
-        history.push(Operation::AddSegment {
-            sketch: 0,
-            start: PointRef::New(Vec2::ZERO),
-            end: PointRef::New(Vec2::new(10.0, 0.0)),
-        });
-        history.push(Operation::AddSegment {
-            sketch: 0,
-            start: PointRef::Existing(cao_sketch::PointId(1)),
-            end: PointRef::New(Vec2::new(10.0, 5.0)),
-        });
-
-        let mut older = PartDocument::new("Ancienne");
-        older.metadata.schema_version = 2;
-        older.history = history;
+        let older = PartDocument::new("Ancienne");
         older.save(&path).expect("saves");
+        // Rewrite the metadata as an earlier version.
+        let mut document = PartDocument::load(&path).expect("loads");
+        document.metadata.schema_version = 2;
+        document.save(&path).expect("saves again");
 
-        let reloaded = PartDocument::load(&path).expect("loads");
-
-        assert_eq!(reloaded.metadata.schema_version, SCHEMA_VERSION);
-        let sketch = &reloaded.sketches()[0];
-        assert_eq!(sketch.segments().len(), 2);
-        // Origin, then the three drawn points, with the corner still shared.
-        assert_eq!(sketch.points().len(), 4);
-        let (_, first_end) = sketch.endpoints(SegmentId(0));
-        let (second_start, _) = sketch.endpoints(SegmentId(1));
-        assert_eq!(
-            first_end, second_start,
-            "the two segments must still meet at the same corner"
-        );
+        let error = PartDocument::load(&path).expect_err("must be refused");
+        assert!(matches!(error, StorageError::UnsupportedVersion(2)));
 
         fs::remove_dir_all(&directory).ok();
     }
 
-    /// Parts written as plain JSON before the archive format must still open,
-    /// with their drawings turned into history.
     #[test]
-    fn a_legacy_json_part_is_imported_with_a_history() {
-        let legacy = r#"{
-            "id": "6f1b2c34-5d6e-4f80-9a1b-2c3d4e5f6071",
-            "name": "Ancienne pièce",
-            "created_at": "2026-01-01T10:00:00Z",
-            "modified_at": "2026-01-01T10:00:00Z",
-            "millimeters_per_unit": 50.0,
-            "sketches": [{
-                "plane": {"origin": [0,0,0], "u": [1,0,0], "v": [0,1,0]},
-                "points": [[0,0],[2,0],[2,1]],
-                "segments": [{"start":0,"end":1},{"start":1,"end":2}],
-                "dimensions": []
-            }]
-        }"#;
+    fn a_plain_json_file_is_refused() {
+        let directory = temp_dir();
+        let path = directory.join("piece.caopart");
+        fs::write(&path, br#"{"name":"ancienne"}"#).expect("writes");
 
-        let document = legacy::import(legacy.as_bytes()).expect("imports");
+        let error = PartDocument::load(&path).expect_err("must be refused");
+        assert!(matches!(error, StorageError::UnsupportedVersion(1)));
 
-        assert_eq!(document.name(), "Ancienne pièce");
-        assert_eq!(document.sketches().len(), 1);
-        assert_eq!(document.sketches()[0].segments().len(), 2);
-        assert_eq!(
-            document.sketches()[0].points().len(),
-            4,
-            "the origin, plus three points with the corner shared"
-        );
-        assert_eq!(document.scale(), 50.0);
-        assert_eq!(document.history.applied(), 3);
-    }
-
-    /// A part with no drawing at all still opens.
-    #[test]
-    fn an_empty_legacy_part_is_imported() {
-        let legacy = r#"{
-            "id": "6f1b2c34-5d6e-4f80-9a1b-2c3d4e5f6071",
-            "name": "Vide",
-            "created_at": "2026-01-01T10:00:00Z",
-            "modified_at": "2026-01-01T10:00:00Z"
-        }"#;
-
-        let document = legacy::import(legacy.as_bytes()).expect("imports");
-        assert!(document.history.is_empty());
-        assert!(document.sketches().is_empty());
+        fs::remove_dir_all(&directory).ok();
     }
 }

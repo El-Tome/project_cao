@@ -546,9 +546,26 @@ fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f3
         return continue_angle(context, index, cursor, snap);
     }
 
+    // An axis picked first waits for the segment to measure against it.
+    if matches!(mode, DimensionMode::Auto | DimensionMode::Angle)
+        && context.editor.first_angle_segment.is_none()
+        && let Some(axis) = axis_under(cursor, snap)
+        && sketch.nearest_segment(cursor, snap).is_none()
+    {
+        context.editor.first_axis = Some(axis);
+        context.editor.message = Some(format!(
+            "{} choisi, cliquez maintenant un trait",
+            axis.label()
+        ));
+        return;
+    }
+
     if mode != DimensionMode::Radius
         && let Some(segment) = sketch.nearest_segment(cursor, snap)
     {
+        if let Some(axis) = context.editor.first_axis.take() {
+            return select_target(context, index, DimensionTarget::AxisAngle { segment, axis });
+        }
         if mode == DimensionMode::Angle {
             context.editor.first_angle_segment = Some(segment);
             context.editor.message =
@@ -597,10 +614,13 @@ fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, s
     };
     let sketch = &context.document.sketches()[index];
 
-    if let Some(second) = sketch.nearest_segment(cursor, snap) {
-        if second == first {
-            return;
-        }
+    // A segment lying along an axis is found before the axis itself, so
+    // clicking the same segment twice is read as "and now the axis it sits on"
+    // rather than ignored — which is what made a rectangle drawn on the axes
+    // impossible to pin down.
+    if let Some(second) = sketch.nearest_segment(cursor, snap)
+        && second != first
+    {
         context.editor.first_angle_segment = None;
         if sketch.angle_between(first, second).is_none() {
             context.editor.select(None, None);
@@ -894,6 +914,15 @@ fn sketch_colors(active: bool, constrained: bool) -> ([f32; 4], f32) {
     }
 }
 
+/// Where a point is shown: at the cursor while it is being dragged, at its
+/// recorded place otherwise.
+fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> Vec2 {
+    match (context.editor.dragged_point, context.editor.drag_position) {
+        (Some(dragged), Some(position)) if dragged == point && !sketch.is_origin(point) => position,
+        _ => sketch.point(point),
+    }
+}
+
 fn push_sketch(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -904,8 +933,12 @@ fn push_sketch(
     let settled = sketch.is_settled(context.document.scale());
     for segment in sketch.segments() {
         let (color, width) = sketch_colors(active, settled);
-        let start = sketch.plane.to_world(sketch.point(segment.start));
-        let end = sketch.plane.to_world(sketch.point(segment.end));
+        let start = sketch
+            .plane
+            .to_world(shown_position(sketch, segment.start, context));
+        let end = sketch
+            .plane
+            .to_world(shown_position(sketch, segment.end, context));
         out.push(cao_render::Vertex::line(start, color, width));
         out.push(cao_render::Vertex::line(end, color, width));
     }
@@ -920,6 +953,24 @@ fn push_sketch(
     }
 
     push_point_markers(out, sketch, scale, settled, context);
+
+    // Every dimension is drawn where it applies, with extension lines, arrows
+    // and arcs, so the drawing says what holds it rather than just carrying a
+    // number.
+    for dimension in sketch.dimensions() {
+        let style = if dimension.driven {
+            crate::screens::annotations::Style::driven()
+        } else {
+            crate::screens::annotations::Style::driving()
+        };
+        crate::screens::annotations::push(
+            out,
+            sketch,
+            dimension.target,
+            &style,
+            scale.units_per_pixel,
+        );
+    }
 
     push_preview(out, sketch, context);
 
@@ -956,9 +1007,11 @@ fn push_point_markers(
     let (base, _) = sketch_colors(true, settled);
     let highlight = srgb(0.30, 0.75, 1.0, 1.0);
 
-    for (index, position) in sketch.points().iter().enumerate() {
+    for index in 0..sketch.points().len() {
         let point = PointId(index);
-        let center = sketch.plane.to_world(*position);
+        let center = sketch
+            .plane
+            .to_world(shown_position(sketch, point, context));
         let hovered = context.editor.hovered_point == Some(point)
             || context.editor.first_point == Some(point);
         let color = if hovered { highlight } else { base };
@@ -1160,11 +1213,29 @@ fn paint_dimension_labels(
         .view_projection(rect.width() / rect.height().max(1.0));
     let painter = ui.painter_at(rect);
 
+    let pixel = state
+        .camera
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point());
+
     for dimension in sketch.dimensions() {
-        let Some(anchor) = dimension_anchor(sketch, dimension.target) else {
+        // Asking the annotation where its value belongs keeps the text on the
+        // dimension line instead of floating near the geometry.
+        let mut ignored = Vec::new();
+        let style = crate::screens::annotations::Style::driving();
+        let Some(placement) = crate::screens::annotations::push(
+            &mut ignored,
+            sketch,
+            dimension.target,
+            &style,
+            pixel,
+        ) else {
             continue;
         };
-        let Some(position) = to_screen(sketch.plane.to_world(anchor), view_projection, rect) else {
+        let Some(position) = to_screen(
+            sketch.plane.to_world(placement.text_at),
+            view_projection,
+            rect,
+        ) else {
             continue;
         };
         let value = if dimension.driven {
@@ -1186,8 +1257,8 @@ fn paint_dimension_labels(
             egui::Color32::from_rgb(250, 220, 120)
         };
         painter.text(
-            position - egui::vec2(0.0, 12.0),
-            egui::Align2::CENTER_BOTTOM,
+            position,
+            egui::Align2::CENTER_CENTER,
             if dimension.driven {
                 format!("({text})")
             } else {
@@ -1196,42 +1267,6 @@ fn paint_dimension_labels(
             egui::FontId::proportional(13.0),
             color,
         );
-    }
-}
-
-/// Where a dimension's label belongs, in sketch coordinates.
-fn dimension_anchor(sketch: &Sketch, target: DimensionTarget) -> Option<Vec2> {
-    match target {
-        DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len()).then(|| {
-            let (start, end) = sketch.endpoints(segment);
-            (start + end) * 0.5
-        }),
-        DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len()).then(|| {
-            let circle = sketch.circle(circle);
-            sketch.point(circle.center) + Vec2::new(circle.radius * 0.7, circle.radius * 0.7)
-        }),
-        DimensionTarget::Distance { from, to } => (from.0 < sketch.points().len()
-            && to.0 < sketch.points().len())
-        .then(|| (sketch.point(from) + sketch.point(to)) * 0.5),
-        DimensionTarget::AxisAngle { segment, .. } => {
-            // Beside the far end, where it does not sit on top of the axis it
-            // is measured from.
-            (segment.0 < sketch.segments().len()).then(|| {
-                let (start, end) = sketch.endpoints(segment);
-                start + (end - start) * 0.25
-            })
-        }
-        DimensionTarget::Angle { first, second } => {
-            let (a, b) = (
-                sketch.segments().get(first.0)?,
-                sketch.segments().get(second.0)?,
-            );
-            // The label sits at the corner the two share.
-            let shared = [a.start, a.end]
-                .into_iter()
-                .find(|point| *point == b.start || *point == b.end)?;
-            Some(sketch.point(shared))
-        }
     }
 }
 

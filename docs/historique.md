@@ -67,26 +67,12 @@ Séparer les fichiers permet de faire évoluer chaque partie indépendamment, et
 laisse la place à ce qui viendra s'ajouter (miniature de la pièce, matériaux,
 maillages exportés) sans réécrire le reste à chaque enregistrement.
 
-### Les versions
+### Les versions antérieures ne sont pas converties
 
-| Version | Ce qui change |
-| --- | --- |
-| 1 | Un seul objet JSON. |
-| 2 | Une archive zip à plusieurs fichiers. |
-| 3 | Chaque esquisse possède un point à son origine, ce qui décale la numérotation des points. |
-
-Un fichier plus ancien est converti à l'ouverture. Le passage en 3 renumérote
-les points auxquels les opérations font référence : sans ça, une pièce se
-reconstruirait en un dessin différent.
-
-### Les anciens fichiers
-
-Les pièces écrites au format précédent (un JSON unique) s'ouvrent toujours :
-le chargeur reconnaît un fichier qui ne commence pas par la signature d'une
-archive, et **convertit son dessin en opérations** — une par esquisse, une par
-trait, une par cote. L'ancienne pièce arrive donc avec un historique comme les
-autres, y compris ses coins partagés. Elle est réenregistrée au nouveau format
-à la première modification.
+Un fichier écrit par une version antérieure est **refusé**, avec la raison, au
+lieu d'être converti. Tant que l'outil bouge autant, une conversion aurait plus
+de chances de reconstruire une pièce de travers que de sauver quoi que ce soit
+d'utile.
 
 ## Ce qui manque
 

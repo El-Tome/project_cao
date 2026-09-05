@@ -445,6 +445,141 @@ mod extra_tests {
         assert!((measured - 45.0).abs() < 1e-2, "got {measured}°");
     }
 
+    /// The rectangle from the report: one corner on the origin, sides along the
+    /// axes, three right angles and two lengths. It must end up fully
+    /// constrained — which needs the angle taken against an axis, since
+    /// nothing else stops it turning about its corner.
+    #[test]
+    fn a_rectangle_on_the_axes_can_be_fully_constrained() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
+            opposite: PointRef::New(Vec2::new(70.0, 30.0)),
+        });
+
+        let sketch = &state.sketches[0];
+        assert!(!sketch.is_fully_constrained(1.0), "nothing given yet");
+
+        // Two sides, the three right angles a rectangle needs, and the
+        // direction of one side against an axis.
+        for (target, value) in [
+            (DimensionTarget::Length(SegmentId(0)), 70.0),
+            (DimensionTarget::Length(SegmentId(1)), 30.0),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(0),
+                    second: SegmentId(1),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(1),
+                    second: SegmentId(2),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(2),
+                    second: SegmentId(3),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::AxisAngle {
+                    segment: SegmentId(0),
+                    axis: cao_sketch::SketchAxis::U,
+                },
+                0.0,
+            ),
+        ] {
+            state.apply(&Operation::SetDimension {
+                sketch: 0,
+                target,
+                value,
+            });
+        }
+
+        let sketch = &state.sketches[0];
+        assert_eq!(
+            sketch.freedom(state.scale()).degrees_of_freedom,
+            0,
+            "the rectangle should have nothing left to determine"
+        );
+        assert!(sketch.is_fully_constrained(state.scale()));
+    }
+
+    /// Once it is settled, a further angle on the same rectangle adds nothing.
+    #[test]
+    fn a_further_angle_on_a_settled_rectangle_is_redundant() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
+            opposite: PointRef::New(Vec2::new(70.0, 30.0)),
+        });
+        // Two sides, the three right angles a rectangle needs, and the
+        // direction of one side against an axis.
+        for (target, value) in [
+            (DimensionTarget::Length(SegmentId(0)), 70.0),
+            (DimensionTarget::Length(SegmentId(1)), 30.0),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(0),
+                    second: SegmentId(1),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(1),
+                    second: SegmentId(2),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::Angle {
+                    first: SegmentId(2),
+                    second: SegmentId(3),
+                },
+                90.0,
+            ),
+            (
+                DimensionTarget::AxisAngle {
+                    segment: SegmentId(0),
+                    axis: cao_sketch::SketchAxis::U,
+                },
+                0.0,
+            ),
+        ] {
+            state.apply(&Operation::SetDimension {
+                sketch: 0,
+                target,
+                value,
+            });
+        }
+
+        // The fourth corner follows from the other three.
+        let outcome = state.apply(&Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Angle {
+                first: SegmentId(3),
+                second: SegmentId(0),
+            },
+            value: 90.0,
+        });
+
+        assert_eq!(outcome, Some(DimensionOutcome::Reference));
+    }
+
     /// A value on an already-settled shape becomes a readout, and the readout
     /// shows what the geometry measures rather than what was typed.
     #[test]

@@ -262,6 +262,13 @@ impl Sketch {
         None
     }
 
+    /// The corner two segments share, as positions: the pivot and the two far
+    /// ends. What an annotation needs to draw the angle.
+    pub fn corner_points(&self, first: SegmentId, second: SegmentId) -> Option<(Vec2, Vec2, Vec2)> {
+        let (pivot, a, b) = self.corner(first, second)?;
+        Some((self.point(pivot), self.point(a), self.point(b)))
+    }
+
     /// The shared point of two segments, with their far ends.
     pub(crate) fn shared_corner(
         &self,

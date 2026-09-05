@@ -1,4 +1,4 @@
-use cao_sketch::{DimensionTarget, PointId, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::Vec2;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
@@ -139,8 +139,13 @@ pub struct SketchEditor {
     pub first_angle_segment: Option<SegmentId>,
     /// First point picked by the point-to-point mode.
     pub first_point: Option<PointId>,
-    /// Point being dragged with the selection tool.
+    /// Point being dragged with the selection tool, and where it currently
+    /// sits. Nothing is recorded until it is let go: a drag produces one entry
+    /// in the history, not one per frame.
     pub dragged_point: Option<PointId>,
+    pub drag_position: Option<Vec2>,
+    /// Axis picked first by the dimension tool, waiting for a segment.
+    pub first_axis: Option<SketchAxis>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
     /// First corner of a rectangle, or the centre of a circle.
@@ -189,7 +194,9 @@ impl SketchEditor {
         self.pending_start = None;
         self.first_angle_segment = None;
         self.first_point = None;
+        self.first_axis = None;
         self.dragged_point = None;
+        self.drag_position = None;
         self.selected = None;
     }
 

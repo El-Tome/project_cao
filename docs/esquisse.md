@@ -37,7 +37,9 @@ des points au même endroit. Rien n'oblige jamais à poser ces points d'abord �
 l'outil Point est là pour les cas où on le veut explicitement.
 
 Déplacer un point avec l'outil Sélection ne casse pas les cotes déjà posées :
-le dessin se réajuste autour de lui.
+le dessin se réajuste autour de lui. Le déplacement n'est enregistré qu'au
+**relâchement** — pendant le glissement le point suit simplement le curseur, ce
+qui évite de remplir l'historique de milliers d'entrées disant la même chose.
 
 ## La cote intelligente
 
@@ -49,10 +51,16 @@ Un seul outil, qui mesure ce qu'on lui montre :
 | Deux points | La distance entre eux, reliés ou non |
 | Deux traits qui se touchent | L'angle entre eux |
 | Un trait puis un axe de l'esquisse | L'angle avec cette direction |
+| Un axe puis un trait | Le même, dans l'autre ordre |
 | Un cercle | Son rayon |
 
 Un point l'emporte sur un trait sous le même curseur : c'est la plus petite
 cible, donc la viser est un acte délibéré.
+
+**Un trait posé sur un axe** se sélectionne en cliquant deux fois dessus : le
+premier clic prend le trait, le second — qui retombe forcément sur le même
+trait — est lu comme « et maintenant l'axe sur lequel il repose ». Sans ça un
+rectangle dessiné le long des axes ne pouvait jamais être contraint.
 
 Quand deux choses se superposent et que la mauvaise l'emporte, la rangée
 **Mesurer** force le type : *Intelligente*, *Point à point*, *Trait*, *Angle*,
@@ -90,6 +98,21 @@ YZ) : il n'existe pas encore de solide, donc pas de face à cliquer. Le code de
 sélection ne dépend pas de ce fait — il teste un rayon contre un `WorkPlane`,
 et une face de pièce en sera un.
 
+## Ce que les cotes dessinent
+
+Une cote n'est pas qu'un nombre posé à côté du dessin : elle est **tracée**,
+avec ses lignes d'attache, sa ligne de cote et ses flèches pour une longueur,
+un arc fléché pour un angle, un rayon fléché pour un cercle. La valeur s'écrit
+sur le tracé.
+
+C'est du dessin vectoriel produit par le code, pas des images : quelques
+segments par cote, qui suivent la géométrie quand elle bouge et restent nets à
+n'importe quel zoom. Une image devrait être refaite pour chaque valeur et
+chaque angle.
+
+Une cote en lecture seule est tracée plus discrètement, en gris : elle rend
+compte, elle ne décide pas.
+
 ## Les couleurs : où en est le dessin
 
 | Couleur | Ce que ça veut dire |
@@ -126,6 +149,11 @@ Trois choses, et il en manque souvent une :
    Se rattacher à l'origine enlève les deux façons de glisser, jamais la façon
    de tourner — sans référence de direction, le dessin peut pivoter autour de
    son ancre et toutes les cotes restent vraies.
+
+**Exemple, un rectangle** dont un coin est sur l'origine : il faut deux côtés,
+**trois** angles droits (le quatrième suit) et l'angle d'un côté avec un axe.
+Avec un seul angle droit le quadrilatère peut encore se déformer en
+parallélogramme ; sans l'angle d'axe il peut encore tourner.
 
 ### Comment c'est calculé
 

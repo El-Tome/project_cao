@@ -109,7 +109,16 @@ impl CubeZone {
 pub fn view_angles_towards(direction: Vec3) -> (f32, f32) {
     let direction = direction.normalize_or(Vec3::NEG_Y);
     let pitch = direction.z.clamp(-1.0, 1.0).asin();
-    let yaw = f32::atan2(direction.x, -direction.y);
+
+    // Looking straight up or down, the yaw is free — and deriving it anyway is
+    // a trap: `atan2(0.0, -0.0)` is π, not 0, so a top view came out turned
+    // half a turn and every sketch was drawn mirrored.
+    let flat = Vec2::new(direction.x, direction.y);
+    let yaw = if flat.length_squared() < 1e-12 {
+        0.0
+    } else {
+        f32::atan2(flat.x, -flat.y)
+    };
     (yaw, pitch)
 }
 
@@ -428,6 +437,30 @@ mod tests {
 
         camera.zoom(1e6, 0.0015);
         assert!(camera.distance() >= 1e-3);
+    }
+
+    /// Looking straight down must not turn the view: the sketch axes have to
+    /// land the way round they are drawn.
+    #[test]
+    fn a_top_view_is_not_turned_half_a_turn() {
+        for (direction, name) in [(Vec3::Z, "dessus"), (Vec3::NEG_Z, "dessous")] {
+            let (yaw, _) = view_angles_towards(direction);
+            assert!(
+                yaw.abs() < 1e-4,
+                "{name}: yaw {} au lieu de 0",
+                yaw.to_degrees()
+            );
+        }
+
+        let mut camera = OrbitCamera::default();
+        let (yaw, pitch) = view_angles_towards(Vec3::Z);
+        camera.set_view_angles(yaw, pitch);
+        assert!(
+            (camera.right() - Vec3::X).length() < 1e-4,
+            "X doit aller vers la droite, pas {:?}",
+            camera.right()
+        );
+        assert!((camera.up() - Vec3::Y).length() < 1e-4);
     }
 
     /// A ray through the middle of the screen must run straight down the

@@ -115,6 +115,16 @@ impl PartState {
                 sketch.add_circle(center, *radius);
                 None
             }
+            Operation::MoveDimension {
+                sketch,
+                target,
+                offset,
+            } => {
+                self.sketches
+                    .get_mut(*sketch)?
+                    .offset_dimension(*target, *offset);
+                None
+            }
             Operation::SetDimension {
                 sketch,
                 target,

@@ -143,6 +143,10 @@ pub struct SketchEditor {
     /// sits. Nothing is recorded until it is let go: a drag produces one entry
     /// in the history, not one per frame.
     pub dragged_point: Option<PointId>,
+    /// Annotation being dragged out of the way.
+    pub dragged_dimension: Option<DimensionTarget>,
+    /// Where the drag began, to measure how far it has travelled.
+    pub drag_origin: Option<Vec2>,
     pub drag_position: Option<Vec2>,
     /// Axis picked first by the dimension tool, waiting for a segment.
     pub first_axis: Option<SketchAxis>,
@@ -196,6 +200,8 @@ impl SketchEditor {
         self.first_point = None;
         self.first_axis = None;
         self.dragged_point = None;
+        self.dragged_dimension = None;
+        self.drag_origin = None;
         self.drag_position = None;
         self.selected = None;
     }

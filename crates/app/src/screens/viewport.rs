@@ -457,27 +457,108 @@ fn drag_point(
     let sketch = &context.document.sketches()[index];
 
     if response.drag_started() {
+        // A point first, then an annotation: the point is the smaller target
+        // and the one a drag is usually after.
         context.editor.dragged_point = sketch
             .nearest_point(cursor, snap)
             .filter(|point| !sketch.is_origin(*point));
+
+        if context.editor.dragged_point.is_none() {
+            context.editor.dragged_dimension =
+                nearest_annotation(context, index, cursor, snap * 1.5);
+            context.editor.drag_origin = Some(cursor);
+        }
     }
+
+    if let Some(target) = context.editor.dragged_dimension {
+        return drag_annotation(context, index, target, cursor, response);
+    }
+
     let Some(point) = context.editor.dragged_point else {
         return false;
     };
-    let finished = response.drag_stopped();
-    if finished {
-        context.editor.dragged_point = None;
-    }
-    if !response.dragged() && !finished {
+
+    // While the drag lasts the point is only *shown* at the cursor; the move is
+    // recorded once, on release. Recording every frame buried the history under
+    // hundreds of entries that all said the same thing.
+    if !response.drag_stopped() {
+        context.editor.drag_position = Some(cursor);
         return false;
     }
 
+    context.editor.dragged_point = None;
+    context.editor.drag_position = None;
     context.document.apply(Operation::MovePoint {
         sketch: index,
         point,
         position: cursor,
     });
     true
+}
+
+/// Moving an annotation out of the way. Same rule as a point: shown following
+/// the cursor, written once on release.
+fn drag_annotation(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    cursor: Vec2,
+    response: &egui::Response,
+) -> bool {
+    let Some(origin) = context.editor.drag_origin else {
+        return false;
+    };
+    let travelled = cursor - origin;
+
+    if !response.drag_stopped() {
+        context.editor.drag_position = Some(cursor);
+        return false;
+    }
+
+    let previous = context.document.sketches()[index]
+        .dimension_of(target)
+        .map(|dimension| dimension.offset)
+        .unwrap_or(Vec2::ZERO);
+
+    context.editor.dragged_dimension = None;
+    context.editor.drag_origin = None;
+    context.editor.drag_position = None;
+    context.document.apply(Operation::MoveDimension {
+        sketch: index,
+        target,
+        offset: previous + travelled,
+    });
+    true
+}
+
+/// Which annotation sits under the cursor. Their positions are worked out by
+/// the drawing code, so they are asked for rather than guessed.
+fn nearest_annotation(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    tolerance: f32,
+) -> Option<DimensionTarget> {
+    let sketch = context.document.sketches().get(index)?;
+    let style = crate::screens::annotations::Style::driving();
+    let mut discarded = Vec::new();
+
+    let anchors: Vec<_> = sketch
+        .dimensions()
+        .iter()
+        .filter_map(|dimension| {
+            crate::screens::annotations::push(
+                &mut discarded,
+                sketch,
+                dimension.target,
+                &style,
+                tolerance / 24.0,
+            )
+            .map(|placement| (dimension.target, placement.text_at))
+        })
+        .collect();
+
+    sketch.nearest_dimension(&anchors, cursor, tolerance)
 }
 
 /// A point already there, or a new one where the cursor is.
@@ -930,9 +1011,14 @@ fn push_sketch(
     active: bool,
     context: &SketchContext<'_>,
 ) {
-    let settled = sketch.is_settled(context.document.scale());
+    // Per element, not one verdict for the whole drawing: a contour can be
+    // nailed down while its neighbour is still floating, and that is exactly
+    // what tells the user what is left to do.
+    let settled = sketch.settled_points(context.document.scale());
+    let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
+
     for segment in sketch.segments() {
-        let (color, width) = sketch_colors(active, settled);
+        let (color, width) = sketch_colors(active, holds(segment.start) && holds(segment.end));
         let start = sketch
             .plane
             .to_world(shown_position(sketch, segment.start, context));
@@ -944,7 +1030,7 @@ fn push_sketch(
     }
 
     for circle in sketch.circles() {
-        let (color, width) = sketch_colors(active, settled);
+        let (color, width) = sketch_colors(active, holds(circle.center));
         push_circle(out, sketch, circle.center, circle.radius, color, width);
     }
 
@@ -952,7 +1038,7 @@ fn push_sketch(
         return;
     }
 
-    push_point_markers(out, sketch, scale, settled, context);
+    push_point_markers(out, sketch, scale, &settled, context);
 
     // Every dimension is drawn where it applies, with extension lines, arrows
     // and arcs, so the drawing says what holds it rather than just carrying a
@@ -1000,15 +1086,15 @@ fn push_point_markers(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     scale: ViewScale,
-    settled: bool,
+    settled: &[bool],
     context: &SketchContext<'_>,
 ) {
     let half = scale.world_size_of(4.0);
-    let (base, _) = sketch_colors(true, settled);
     let highlight = srgb(0.30, 0.75, 1.0, 1.0);
 
     for index in 0..sketch.points().len() {
         let point = PointId(index);
+        let (base, _) = sketch_colors(true, settled.get(index).copied().unwrap_or(false));
         let center = sketch
             .plane
             .to_world(shown_position(sketch, point, context));

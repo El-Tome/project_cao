@@ -145,6 +145,34 @@ impl Sketch {
         PointId(self.points.len() - 1)
     }
 
+    /// Moves an annotation away from where it would sit on its own.
+    pub fn offset_dimension(&mut self, target: DimensionTarget, offset: Vec2) {
+        if let Some(dimension) = self
+            .dimensions
+            .iter_mut()
+            .find(|dimension| dimension.target == target)
+        {
+            dimension.offset = offset;
+        }
+    }
+
+    /// The dimension whose annotation sits nearest `position`, within
+    /// `tolerance`. Needs where each one is drawn, which only the front-end
+    /// knows.
+    pub fn nearest_dimension(
+        &self,
+        anchors: &[(DimensionTarget, Vec2)],
+        position: Vec2,
+        tolerance: f32,
+    ) -> Option<DimensionTarget> {
+        anchors
+            .iter()
+            .map(|(target, at)| (*target, at.distance(position)))
+            .filter(|(_, distance)| *distance <= tolerance)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(target, _)| target)
+    }
+
     /// Moves a point where the user dragged it. The origin stays put.
     pub fn move_point(&mut self, point: PointId, position: Vec2) {
         if self.is_origin(point) {
@@ -232,6 +260,7 @@ impl Sketch {
                 target,
                 value,
                 driven,
+                offset: Vec2::ZERO,
             }),
         }
     }
@@ -400,10 +429,34 @@ impl Sketch {
         probe.equations(millimeters_per_unit).into_iter().next()
     }
 
-    /// Whether the drawing has any freedom left. Used for colouring, which
-    /// speaks about the drawing as a whole.
+    /// Whether the drawing has any freedom left, as a whole.
     pub fn is_settled(&self, millimeters_per_unit: f32) -> bool {
         self.is_fully_constrained(millimeters_per_unit)
+    }
+
+    /// Which points can no longer move at all.
+    ///
+    /// A drawing is rarely all-or-nothing: one contour can be nailed down while
+    /// another is still floating beside it. Showing that per point, rather than
+    /// one verdict for the whole sketch, says what is left to do.
+    pub fn settled_points(&self, millimeters_per_unit: f32) -> Vec<bool> {
+        let variables = self.points.len() * 2;
+        let pinned: Vec<bool> = (0..self.points.len())
+            .map(|index| self.is_origin(PointId(index)))
+            .collect();
+        let free = solver::null_space(&self.equations(millimeters_per_unit), &pinned, variables);
+
+        (0..self.points.len())
+            .map(|index| {
+                if pinned[index] {
+                    return true;
+                }
+                // Settled means no way to move survives at this point.
+                free.iter().all(|direction| {
+                    direction[index * 2].abs() < 1e-3 && direction[index * 2 + 1].abs() < 1e-3
+                })
+            })
+            .collect()
     }
 
     /// Re-satisfies every dimension at once, reporting whether it managed.
@@ -543,6 +596,48 @@ mod tests {
 
         assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 0);
         assert!(sketch.is_fully_constrained(1.0));
+    }
+
+    /// One contour nailed down beside another still floating: the drawing has
+    /// to say so per element, not give one verdict for the whole.
+    #[test]
+    fn part_of_a_drawing_can_be_settled_while_the_rest_floats() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+
+        let held = sketch.add_point(Vec2::new(20.0, 0.0));
+        let fixed = sketch.add_segment(Sketch::ORIGIN, held);
+        sketch.set_dimension(DimensionTarget::Length(fixed), 20.0, false);
+        sketch.set_dimension(
+            DimensionTarget::AxisAngle {
+                segment: fixed,
+                axis: SketchAxis::U,
+            },
+            0.0,
+            false,
+        );
+
+        let loose_a = sketch.add_point(Vec2::new(50.0, 50.0));
+        let loose_b = sketch.add_point(Vec2::new(70.0, 50.0));
+        sketch.add_segment(loose_a, loose_b);
+
+        let settled = sketch.settled_points(1.0);
+
+        assert!(settled[Sketch::ORIGIN.0], "the origin never moves");
+        assert!(settled[held.0], "held by a length and a direction");
+        assert!(!settled[loose_a.0], "nothing holds this one");
+        assert!(!settled[loose_b.0]);
+        assert!(!sketch.is_fully_constrained(1.0));
+    }
+
+    /// A length alone leaves the far end free to swing around its anchor.
+    #[test]
+    fn a_length_without_a_direction_leaves_the_end_free() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let end = sketch.add_point(Vec2::new(20.0, 0.0));
+        let segment = sketch.add_segment(Sketch::ORIGIN, end);
+        sketch.set_dimension(DimensionTarget::Length(segment), 20.0, false);
+
+        assert!(!sketch.settled_points(1.0)[end.0]);
     }
 
     /// A drawing that touches nothing fixed can still slide about, however many

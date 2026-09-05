@@ -47,6 +47,12 @@ pub enum Operation {
         point: PointId,
         position: Vec2,
     },
+    /// Dragging an annotation away from where it sits by default.
+    MoveDimension {
+        sketch: usize,
+        target: DimensionTarget,
+        offset: Vec2,
+    },
     SetDimension {
         sketch: usize,
         target: DimensionTarget,
@@ -65,6 +71,7 @@ impl Operation {
             Self::AddRectangle { .. } => "Rectangle".to_string(),
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::MovePoint { .. } => "Déplacement".to_string(),
+            Self::MoveDimension { .. } => "Cote déplacée".to_string(),
             Self::SetDimension { target, value, .. } => match target {
                 DimensionTarget::Angle { .. } => format!("Angle {value}°"),
                 DimensionTarget::AxisAngle { axis, .. } => {
@@ -116,6 +123,10 @@ impl Operation {
             } => format!(
                 "Esquisse {sketch} · point {} vers ({:.1}, {:.1})",
                 point.0, position.x, position.y
+            ),
+            Self::MoveDimension { sketch, offset, .. } => format!(
+                "Esquisse {sketch} · décalage ({:.1}, {:.1})",
+                offset.x, offset.y
             ),
             Self::SetDimension { sketch, target, .. } => match target {
                 DimensionTarget::Distance { from, to } => {

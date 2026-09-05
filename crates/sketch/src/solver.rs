@@ -286,6 +286,43 @@ pub(crate) fn rank(equations: &[Equation]) -> usize {
     independent_rows(equations, None).0
 }
 
+/// The ways the drawing can still move without breaking anything.
+///
+/// Each returned vector is a direction the coordinates may travel in. Where a
+/// point has no component in any of them, it cannot move at all: that point is
+/// settled, whatever the rest of the drawing is doing. This is what lets one
+/// line be shown as fixed while its neighbour is still loose.
+pub(crate) fn null_space(
+    equations: &[Equation],
+    pinned: &[bool],
+    variables: usize,
+) -> Vec<Vec<f32>> {
+    let mut basis: Vec<Vec<f32>> = Vec::new();
+    for equation in equations {
+        if let Some(row) = reduce(&equation.gradient, &basis) {
+            basis.push(row);
+        }
+    }
+
+    // Anything left once the constraints have had their say is free movement.
+    let mut free: Vec<Vec<f32>> = Vec::new();
+    for index in 0..variables {
+        // A pinned point cannot move, so it is not a direction to consider.
+        if pinned.get(index / 2).copied().unwrap_or(false) {
+            continue;
+        }
+        let mut candidate = vec![0.0; variables];
+        candidate[index] = 1.0;
+
+        let mut combined = basis.clone();
+        combined.extend(free.iter().cloned());
+        if let Some(direction) = reduce(&candidate, &combined) {
+            free.push(direction);
+        }
+    }
+    free
+}
+
 /// True when `candidate` says nothing the others do not already say.
 pub(crate) fn is_dependent(equations: &[Equation], candidate: &Equation) -> bool {
     independent_rows(equations, Some(candidate)).1

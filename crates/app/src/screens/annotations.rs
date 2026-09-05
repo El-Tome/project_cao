@@ -22,9 +22,9 @@ impl Style {
         Self {
             color: srgb(0.98, 0.85, 0.35, 0.9),
             width: 1.2,
-            offset_pixels: 16.0,
+            offset_pixels: 22.0,
             arrow_pixels: 8.0,
-            arc_pixels: 28.0,
+            arc_pixels: 34.0,
         }
     }
 
@@ -54,14 +54,34 @@ pub fn push(
     pixel: f32,
 ) -> Option<Placement> {
     let plane = &sketch.plane;
+    let offset = sketch
+        .dimension_of(target)
+        .map(|dimension| dimension.offset)
+        .unwrap_or(Vec2::ZERO);
     match target {
         DimensionTarget::Length(segment) => {
             let (start, end) = endpoints(sketch, segment)?;
-            Some(linear(out, plane, start, end, style, pixel))
+            Some(linear(
+                out,
+                plane,
+                start,
+                end,
+                away_from(sketch),
+                style,
+                pixel,
+            ))
         }
         DimensionTarget::Distance { from, to } => {
             let (start, end) = (*sketch.points().get(from.0)?, *sketch.points().get(to.0)?);
-            Some(linear(out, plane, start, end, style, pixel))
+            Some(linear(
+                out,
+                plane,
+                start,
+                end,
+                away_from(sketch),
+                style,
+                pixel,
+            ))
         }
         DimensionTarget::Angle { first, second } => {
             let (pivot, a, b) = sketch.corner_points(first, second)?;
@@ -86,10 +106,22 @@ pub fn push(
             Some(radial(out, plane, center, circle.radius, style, pixel))
         }
     }
+    .map(|placement| Placement {
+        text_at: placement.text_at + offset,
+    })
 }
 
 fn endpoints(sketch: &Sketch, segment: cao_sketch::SegmentId) -> Option<(Vec2, Vec2)> {
     (segment.0 < sketch.segments().len()).then(|| sketch.endpoints(segment))
+}
+
+/// The middle of the drawing, used to push dimension lines outwards. Laid over
+/// the shape they measure, they hide it; outside, they read like a drawing.
+fn away_from(sketch: &Sketch) -> Vec2 {
+    sketch
+        .bounds()
+        .map(|(min, max)| (min + max) * 0.5)
+        .unwrap_or(Vec2::ZERO)
 }
 
 /// A length or a distance: the classic pair of extension lines with a
@@ -99,12 +131,20 @@ fn linear(
     plane: &WorkPlane,
     start: Vec2,
     end: Vec2,
+    center: Vec2,
     style: &Style,
     pixel: f32,
 ) -> Placement {
     let span = end - start;
     let direction = span.normalize_or(Vec2::X);
-    let normal = Vec2::new(-direction.y, direction.x);
+    let mut normal = Vec2::new(-direction.y, direction.x);
+
+    // Always step away from the drawing: on a closed contour the inward side
+    // lays the dimension line straight over the shape it measures.
+    let middle = (start + end) * 0.5;
+    if normal.dot(middle - center) < 0.0 {
+        normal = -normal;
+    }
 
     let offset = normal * style.offset_pixels * pixel;
     let (from, to) = (start + offset, end + offset);
@@ -119,8 +159,16 @@ fn linear(
     arrow(out, plane, to, -direction, style, pixel);
 
     Placement {
-        text_at: (from + to) * 0.5 + normal * 3.0 * pixel,
+        text_at: (from + to) * 0.5 + normal * text_clearance(normal) * pixel,
     }
+}
+
+/// How far to push a label off its line so the line does not run through it.
+///
+/// Text is much wider than it is tall, so clearing it sideways — which is what
+/// a vertical dimension needs — takes far more room than clearing it upwards.
+fn text_clearance(normal: Vec2) -> f32 {
+    12.0 + 24.0 * normal.x.abs()
 }
 
 /// An angle: an arc between the two arms, with an arrowhead at each end.
@@ -178,7 +226,7 @@ fn angular(
     );
 
     Placement {
-        text_at: pivot + Vec2::from_angle(start + sweep * 0.5) * (radius + 10.0 * pixel),
+        text_at: pivot + Vec2::from_angle(start + sweep * 0.5) * (radius + 14.0 * pixel),
     }
 }
 
@@ -196,8 +244,9 @@ fn radial(
     line(out, plane, center, rim, style);
     arrow(out, plane, rim, -direction, style, pixel);
 
+    let aside = Vec2::new(-direction.y, direction.x);
     Placement {
-        text_at: center + direction * radius * 0.6,
+        text_at: center + direction * radius * 0.55 + aside * text_clearance(aside) * pixel,
     }
 }
 

@@ -62,6 +62,11 @@ pub struct Dimension {
     /// Millimetres for a length or a radius, degrees for an angle.
     pub value: f32,
     pub driven: bool,
+    /// Where the annotation sits relative to where it would land on its own,
+    /// in sketch units. Dragged by hand when the default place collides with
+    /// the drawing.
+    #[serde(default)]
+    pub offset: Vec2,
 }
 
 impl Dimension {

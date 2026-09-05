@@ -36,6 +36,10 @@ curseur en survole un : les formes se tiennent entre elles au lieu d'empiler
 des points au même endroit. Rien n'oblige jamais à poser ces points d'abord —
 l'outil Point est là pour les cas où on le veut explicitement.
 
+L'outil Sélection déplace aussi les **cotes elles-mêmes** : attraper une
+annotation la décale, ce qui permet de la sortir de là où elle gêne. Le
+décalage est enregistré avec la cote.
+
 Déplacer un point avec l'outil Sélection ne casse pas les cotes déjà posées :
 le dessin se réajuste autour de lui. Le déplacement n'est enregistré qu'au
 **relâchement** — pendant le glissement le point suit simplement le curseur, ce
@@ -117,9 +121,14 @@ compte, elle ne décide pas.
 
 | Couleur | Ce que ça veut dire |
 | --- | --- |
-| **Jaune** | Il reste de la liberté : le dessin peut encore bouger ou changer de forme. |
-| **Vert** | Entièrement contraint : plus rien à déterminer. |
+| **Jaune** | Il reste de la liberté : cet élément peut encore bouger. |
+| **Vert** | Entièrement contraint : ce point ne peut plus se déplacer du tout. |
 | **Gris** | Une autre esquisse que celle en cours d'édition. |
+
+La couleur est **par élément, pas par esquisse** : un contour peut être
+entièrement figé pendant que son voisin flotte encore, et c'est justement ce
+qui montre ce qu'il reste à faire. Un trait n'est vert que si ses deux
+extrémités le sont.
 
 ### Le point d'origine
 
@@ -161,6 +170,10 @@ Par le **rang** du système d'équations, pas en comptant les cotes. Chaque cote
 donne une équation ; on regarde combien d'entre elles disent quelque chose de
 neuf. C'est la seule façon de voir que le troisième côté d'un triangle découle
 des autres — un comptage ne le verrait jamais.
+
+Pour savoir si un point précis est figé, on calcule les **mouvements encore
+possibles** (le noyau du système) : si aucun d'eux ne déplace ce point, il ne
+peut plus bouger.
 
 ## Les cotes en trop
 

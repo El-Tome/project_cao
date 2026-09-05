@@ -5,9 +5,23 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
 
 ## État actuel
 
-Seul le **menu de démarrage** existe : créer une nouvelle pièce, ou rouvrir
-une des 10 dernières pièces ouvertes. Aucun mode d'édition (croquis,
-extrusion, assemblage) n'est encore implémenté — voir
+- **Menu de démarrage** : créer une nouvelle pièce, ou rouvrir une des 10
+  dernières pièces ouvertes.
+- **Viewport 3D** : espace 3D avec les axes X/Y/Z, un cube d'orientation dont
+  les faces, arêtes et coins sont cliquables, une grille adaptative quand on se
+  pose sur un plan, et une barre d'échelle en mm. Navigation souris et
+  trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
+
+- **Esquisse** : choisir un plan, puis tracer lignes, rectangles, cercles et
+  points, coter des longueurs, des rayons et des angles. Le dessin se colore
+  selon ce qu'il lui reste comme liberté. La première cote définit l'échelle,
+  les suivantes déforment la géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
+
+- **Historique** : chaque geste est une opération enregistrée. Annulation
+  (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
+  le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
+
+L'extrusion et l'assemblage restent à faire — voir
 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
 feuille de route.
 
@@ -19,10 +33,43 @@ cargo run -p cao_app
 
 ## Structure du workspace
 
-- `crates/core` (`cao_core`) — types de domaine et persistance, sans aucune
-  dépendance UI. Réutilisable tel quel par un futur front-end web/tablette.
-- `crates/app` (`cao_app`) — interface desktop (egui/eframe), pour l'instant
-  limitée au menu de démarrage.
+- `crates/core` (`cao_core`) — types de domaine, persistance et configuration,
+  sans aucune dépendance UI. Réutilisable tel quel par un futur front-end
+  web/tablette.
+- `crates/sketch` (`cao_sketch`) — modèle d'esquisse et application des cotes,
+  sans rendu ni UI.
+- `crates/render` (`cao_render`) — rendu GPU du viewport (wgpu), sans
+  dépendance UI non plus.
+- `crates/app` (`cao_app`) — interface desktop (egui/eframe) : menu de
+  démarrage et viewport.
+
+## Exécutable Windows
+
+```sh
+./scripts/build-windows.sh
+```
+
+Produit un `.exe` autonome depuis macOS ou Linux — voir
+[`docs/build.md`](docs/build.md).
+
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
+- [Esquisse](docs/esquisse.md) — dessiner, coter, la règle d'échelle
+- [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
+- [Interface](docs/interface.md) — barre d'outils détachable, panneaux
+- [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
+- [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
+- [Navigation](docs/navigation.md) — gestes souris, caméra
+- [Configuration](docs/configuration.md) — réglages disponibles
+- [Compilation](docs/build.md) — exécutable Windows, autres plateformes
+
+## Tests
+
+```sh
+cargo test --workspace
+cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
+```
 
 ## Licence
 

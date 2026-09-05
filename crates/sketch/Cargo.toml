@@ -1,0 +1,9 @@
+[package]
+name = "cao_sketch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+glam = { workspace = true, features = ["serde"] }
+serde.workspace = true

@@ -8,7 +8,11 @@ pub enum StartMenuAction {
     Open(PathBuf),
 }
 
-pub fn show(ui: &mut egui::Ui, recents: &[RecentEntry], new_part_name: &mut String) -> StartMenuAction {
+pub fn show(
+    ui: &mut egui::Ui,
+    recents: &[RecentEntry],
+    new_part_name: &mut String,
+) -> StartMenuAction {
     let mut action = StartMenuAction::None;
 
     ui.vertical_centered(|ui| {
@@ -30,7 +34,10 @@ pub fn show(ui: &mut egui::Ui, recents: &[RecentEntry], new_part_name: &mut Stri
             });
             ui.add_space(8.0);
             let can_create = !new_part_name.trim().is_empty();
-            if ui.add_enabled(can_create, egui::Button::new("Créer")).clicked() {
+            if ui
+                .add_enabled(can_create, egui::Button::new("Créer"))
+                .clicked()
+            {
                 action = StartMenuAction::CreateNew(new_part_name.trim().to_string());
                 new_part_name.clear();
             }

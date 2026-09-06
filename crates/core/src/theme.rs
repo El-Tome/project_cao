@@ -156,6 +156,12 @@ pub struct Theme {
     pub dimension: Rgba,
     /// A read-only dimension: it reports rather than decides.
     pub dimension_driven: Rgba,
+    /// Something held in place by a rule, which cannot be dragged any more.
+    #[serde(default = "Theme::default_fixed")]
+    pub fixed: Rgba,
+    /// The marks of the rules, written beside what they hold.
+    #[serde(default = "Theme::default_rule")]
+    pub rule: Rgba,
 
     /// Tint of a closed area of a sketch. Deeper areas get more of it.
     pub region_fill: Rgba,
@@ -164,6 +170,20 @@ pub struct Theme {
     pub highlight: Rgba,
     pub extrusion_add: Rgba,
     pub extrusion_cut: Rgba,
+}
+
+impl Theme {
+    /// Warm and clearly apart from the rest: what is fixed should read as
+    /// fixed at a glance, not as one more yellow trait.
+    fn default_fixed() -> Rgba {
+        Rgba::new(0.95, 0.45, 0.25, 1.0)
+    }
+
+    /// Cool and quiet: the marks are there to be read when looked for, not to
+    /// compete with the drawing.
+    fn default_rule() -> Rgba {
+        Rgba::new(0.55, 0.75, 0.95, 1.0)
+    }
 }
 
 impl Default for Theme {
@@ -198,6 +218,8 @@ impl Default for Theme {
 
             region_fill: Rgba::new(0.45, 0.65, 0.95, 0.10),
             solid: Rgba::opaque(0.78, 0.80, 0.84),
+            fixed: Theme::default_fixed(),
+            rule: Theme::default_rule(),
             highlight: Rgba::new(0.30, 0.60, 0.95, 0.40),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),

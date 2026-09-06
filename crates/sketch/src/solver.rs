@@ -1,7 +1,7 @@
 use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget};
-use crate::sketch::{PointId, SegmentId, Sketch};
+use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
 /// One equation the drawing has to satisfy, linearised around its current
 /// shape: how far off it is, and how each coordinate would change that.
@@ -260,7 +260,8 @@ impl Sketch {
                         stretched.push(first);
                         stretched.push(second);
                     }
-                    Constraint::Tangent { segment, .. } => stretched.push(segment),
+                    Constraint::Tangent { segment, .. }
+                    | Constraint::AxisCollinear { segment, .. } => stretched.push(segment),
                     _ => {}
                 },
             }
@@ -470,10 +471,26 @@ impl Sketch {
             .map(|index| self.is_origin(PointId(index)))
             .collect();
         for constraint in self.constraints() {
-            if let Constraint::Fixed { point } = constraint
-                && point.0 < pinned.len()
-            {
-                pinned[point.0] = true;
+            let Constraint::Fixed { element } = constraint else {
+                continue;
+            };
+            // Holding a trait means holding both its ends; holding a circle
+            // means holding its centre and nothing else — its radius is free.
+            let held: Vec<PointId> = match element {
+                Element::Point(point) => vec![*point],
+                Element::Segment(segment) => match self.segments().get(segment.0) {
+                    Some(segment) => vec![segment.start, segment.end],
+                    None => Vec::new(),
+                },
+                Element::Circle(circle) => match self.circles().get(circle.0) {
+                    Some(circle) => vec![circle.center],
+                    None => Vec::new(),
+                },
+            };
+            for point in held {
+                if point.0 < pinned.len() {
+                    pinned[point.0] = true;
+                }
             }
         }
         pinned
@@ -651,6 +668,7 @@ impl Sketch {
                     .collect()
             }
             Constraint::Midpoint { point, segment } => self.midpoint_equations(point, segment),
+            Constraint::AxisCollinear { segment, axis } => self.on_axis_equations(segment, axis),
             // Held in place by the pins rather than by an equation: a fixed
             // point simply has nowhere to go.
             Constraint::Fixed { .. } | Constraint::EqualRadius { .. } => Vec::new(),
@@ -729,13 +747,45 @@ impl Sketch {
             return None;
         }
 
+        // Only the second trait gives way: the first one clicked is the length
+        // wanted, and a rule that moved both would leave neither of them the
+        // size that was asked for. A corner the two share belongs to the first
+        // as much as to the second, so it stays put too — otherwise stretching
+        // the second would drag the first out of shape.
+        let shared = |point: PointId| point == one.start || point == one.end;
         let mut equation = Equation::new(self.points().len() * 2);
-        equation.error = first_length - second_length;
-        equation.add(one.end, first_span / first_length);
-        equation.add(one.start, -first_span / first_length);
-        equation.add(other.end, -second_span / second_length);
-        equation.add(other.start, second_span / second_length);
+        equation.error = second_length - first_length;
+        if !shared(other.end) {
+            equation.add(other.end, second_span / second_length);
+        }
+        if !shared(other.start) {
+            equation.add(other.start, -second_span / second_length);
+        }
         Some(equation)
+    }
+
+    /// A trait laid on one of the sketch's own axes: both its ends have to sit
+    /// on that line, which is two statements.
+    fn on_axis_equations(
+        &self,
+        segment: SegmentId,
+        axis: crate::constraints::SketchAxis,
+    ) -> Vec<Equation> {
+        let Some(line) = self.segments().get(segment.0).copied() else {
+            return Vec::new();
+        };
+        let direction = axis.direction();
+        let normal = DVec2::new(-direction.y, direction.x);
+
+        [line.start, line.end]
+            .into_iter()
+            .map(|point| {
+                let mut equation = Equation::new(self.points().len() * 2);
+                equation.error = self.point(point).dot(normal);
+                equation.add(point, normal);
+                equation
+            })
+            .collect()
     }
 
     /// A point held at a given distance from the line a trait lies on — nought

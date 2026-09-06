@@ -16,7 +16,8 @@ use glam::{DVec2, DVec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
-    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Rule, Selection, SketchEditor, Tool,
+    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Rule, RulePick, Selection, SketchEditor,
+    Tool,
 };
 
 /// A colour from the theme, turned into the space the shader blends in.
@@ -708,14 +709,17 @@ fn pick(
     nearest_rule(sketch, cursor, snap * 1.5).map(Selection::Rule)
 }
 
-/// The rule whose mark sits nearest the cursor.
+/// The rule whose nearest mark sits under the cursor.
 fn nearest_rule(sketch: &Sketch, cursor: DVec2, tolerance: f64) -> Option<Constraint> {
     sketch
         .constraints()
         .iter()
         .filter_map(|constraint| {
-            let at = rule_anchor(sketch, *constraint)?;
-            Some((*constraint, at.distance(cursor)))
+            let nearest = rule_marks(sketch, *constraint)
+                .into_iter()
+                .map(|at| at.distance(cursor))
+                .min_by(f64::total_cmp)?;
+            Some((*constraint, nearest))
         })
         .filter(|(_, distance)| *distance <= tolerance)
         .min_by(|a, b| a.1.total_cmp(&b.1))
@@ -739,13 +743,20 @@ fn constrain(
         return false;
     };
     // Smallest target first, as everywhere else: a point is harder to hit on
-    // purpose than the trait it sits on.
+    // purpose than the trait it sits on. The axes of the sketch come last,
+    // being the widest thing on screen.
     let picked = sketch
         .nearest_point(cursor, snap * 0.8)
         .filter(|point| !sketch.is_origin(*point) || rule == Rule::Coincident)
         .map(Element::Point)
         .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))
-        .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle));
+        .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle))
+        .map(RulePick::Element)
+        .or_else(|| {
+            (rule == Rule::Collinear)
+                .then(|| axis_under(cursor, snap).map(RulePick::Axis))
+                .flatten()
+        });
 
     let Some(picked) = picked else {
         context.editor.message = Some("Rien à contraindre ici".to_string());
@@ -788,27 +799,36 @@ fn constrain(
 fn rule_operation(
     rule: Rule,
     index: usize,
-    picks: &[Element],
+    picks: &[RulePick],
     sketch: &Sketch,
 ) -> Option<Operation> {
+    // The order is kept: for an equality, the first trait clicked is the one
+    // whose length the other takes.
     let segments: Vec<SegmentId> = picks
         .iter()
         .filter_map(|pick| match pick {
-            Element::Segment(id) => Some(*id),
+            RulePick::Element(Element::Segment(id)) => Some(*id),
             _ => None,
         })
         .collect();
     let points: Vec<PointId> = picks
         .iter()
         .filter_map(|pick| match pick {
-            Element::Point(id) => Some(*id),
+            RulePick::Element(Element::Point(id)) => Some(*id),
             _ => None,
         })
         .collect();
     let circles: Vec<CircleId> = picks
         .iter()
         .filter_map(|pick| match pick {
-            Element::Circle(id) => Some(*id),
+            RulePick::Element(Element::Circle(id)) => Some(*id),
+            _ => None,
+        })
+        .collect();
+    let axes: Vec<cao_sketch::SketchAxis> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            RulePick::Axis(axis) => Some(*axis),
             _ => None,
         })
         .collect();
@@ -826,8 +846,16 @@ fn rule_operation(
             .and_then(|(first, second)| constraint(Constraint::Perpendicular { first, second })),
         Rule::Parallel => pair(&segments)
             .and_then(|(first, second)| constraint(Constraint::Parallel { first, second })),
-        Rule::Collinear => pair(&segments)
-            .and_then(|(first, second)| constraint(Constraint::Collinear { first, second })),
+        Rule::Collinear => match (pair(&segments), segments.as_slice(), axes.as_slice()) {
+            (Some((first, second)), _, _) => constraint(Constraint::Collinear { first, second }),
+            // A trait laid on one of the sketch's own axes, which is the same
+            // rule against a line that cannot move.
+            (None, [segment], [axis]) => constraint(Constraint::AxisCollinear {
+                segment: *segment,
+                axis: *axis,
+            }),
+            _ => None,
+        },
         Rule::Equal => match (pair(&segments), circles.as_slice()) {
             (Some((first, second)), _) => constraint(Constraint::Equal { first, second }),
             (None, [first, second]) => constraint(Constraint::EqualRadius {
@@ -850,8 +878,8 @@ fn rule_operation(
             }),
             _ => None,
         },
-        Rule::Fixed => match points.as_slice() {
-            [point] => constraint(Constraint::Fixed { point: *point }),
+        Rule::Fixed => match picks {
+            [RulePick::Element(element)] => constraint(Constraint::Fixed { element: *element }),
             _ => None,
         },
         Rule::Coincident => match (points.as_slice(), segments.as_slice()) {
@@ -2562,7 +2590,11 @@ fn push_sketch(
     let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
 
     for (id, segment) in sketch.live_segments() {
-        let (color, width) = sketch_colors(theme, active, holds(segment.start) && holds(segment.end));
+        let held = holds(segment.start) && holds(segment.end);
+        let (color, width) = match sketch.is_held(Element::Segment(id)) {
+            true => (tint(theme.fixed), theme.sketch_width),
+            false => sketch_colors(theme, active, held),
+        };
         let (color, width) = mark_selected(
             context,
             theme,
@@ -2581,7 +2613,10 @@ fn push_sketch(
     }
 
     for (id, circle) in sketch.live_circles() {
-        let (color, width) = sketch_colors(theme, active, holds(circle.center));
+        let (color, width) = match sketch.is_held(Element::Circle(id)) {
+            true => (tint(theme.fixed), theme.sketch_width),
+            false => sketch_colors(theme, active, holds(circle.center)),
+        };
         let (color, width) = mark_selected(
             context,
             theme,
@@ -2661,7 +2696,10 @@ fn push_point_markers(
         if sketch.is_erased_point(point) {
             continue;
         }
-        let (base, _) = sketch_colors(theme, true, settled.get(index).copied().unwrap_or(false));
+        let (base, _) = match sketch.is_held(Element::Point(point)) {
+            true => (tint(theme.fixed), theme.sketch_width),
+            false => sketch_colors(theme, true, settled.get(index).copied().unwrap_or(false)),
+        };
         let center = sketch
             .plane
             .to_world(shown_position(sketch, point, context));
@@ -3196,11 +3234,14 @@ fn live_field(
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
 }
 
-/// Where a rule's mark is written: next to what it holds, and out of the way
-/// of the geometry itself.
-fn rule_anchor(sketch: &Sketch, constraint: Constraint) -> Option<DVec2> {
+/// Where a rule's marks are written: on each of the things it holds, so that
+/// pointing at one of them says what it is caught up in.
+///
+/// A right angle is the exception: its mark belongs *in* the corner, which is
+/// the only place it reads as an angle rather than as a note about two traits.
+fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
     let middle = |segment: SegmentId| {
-        (segment.0 < sketch.segments().len()).then(|| {
+        (segment.0 < sketch.segments().len() && !sketch.is_erased_segment(segment)).then(|| {
             let (start, end) = sketch.endpoints(segment);
             (start + end) * 0.5
         })
@@ -3212,20 +3253,44 @@ fn rule_anchor(sketch: &Sketch, constraint: Constraint) -> Option<DVec2> {
             sketch.point(round.center) + DVec2::splat(round.radius * 0.7)
         })
     };
+    let both = |first: SegmentId, second: SegmentId| {
+        [middle(first), middle(second)].into_iter().flatten().collect()
+    };
+
     match constraint {
-        Constraint::Perpendicular { first, second }
-        | Constraint::Parallel { first, second }
+        Constraint::Perpendicular { first, second } => match corner_of(sketch, first, second) {
+            Some(at) => vec![at],
+            None => both(first, second),
+        },
+        Constraint::Parallel { first, second }
         | Constraint::Equal { first, second }
-        | Constraint::Collinear { first, second } => {
-            Some((middle(first)? + middle(second)?) * 0.5)
+        | Constraint::Collinear { first, second } => both(first, second),
+        Constraint::EqualRadius { first, second } => {
+            [circle(first), circle(second)].into_iter().flatten().collect()
         }
-        Constraint::EqualRadius { first, second } => Some((circle(first)? + circle(second)?) * 0.5),
-        Constraint::OnSegment { point: held, .. } | Constraint::Fixed { point: held } => {
-            point(held)
+        Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
+        Constraint::OnSegment { point: held, .. } | Constraint::Midpoint { point: held, .. } => {
+            point(held).into_iter().collect()
         }
-        Constraint::Midpoint { point: held, .. } => point(held),
-        Constraint::Tangent { circle: round, .. } => circle(round),
+        Constraint::Tangent { circle: round, .. } => circle(round).into_iter().collect(),
+        Constraint::Fixed { element } => match element {
+            Element::Point(held) => point(held).into_iter().collect(),
+            Element::Segment(held) => middle(held).into_iter().collect(),
+            Element::Circle(held) => circle(held).into_iter().collect(),
+        },
     }
+}
+
+/// Just inside the corner two traits make, along the bisector.
+///
+/// They have to actually meet: two traits held square without touching have no
+/// corner to write in, and the marks then go on the traits themselves.
+fn corner_of(sketch: &Sketch, first: SegmentId, second: SegmentId) -> Option<DVec2> {
+    let (pivot, a, b) = sketch.corner_points(first, second)?;
+    let reach = (a.distance(pivot).min(b.distance(pivot))) * 0.25;
+    let inward = ((a - pivot).normalize_or_zero() + (b - pivot).normalize_or_zero())
+        .normalize_or(DVec2::X);
+    Some(pivot + inward * reach)
 }
 
 /// The marks of the rules, written beside what they hold.
@@ -3241,7 +3306,15 @@ fn paint_rule_marks(
     let Some(index) = context.editor.active_sketch() else {
         return;
     };
-    let Some(sketch) = context.document.sketches().get(index) else {
+    // Mid-drag the marks are read off the settled preview, like the values of
+    // the dimensions: read from the recorded drawing they would stay behind
+    // and only catch up when the button came up.
+    let Some(sketch) = context
+        .editor
+        .drag_preview
+        .as_ref()
+        .or_else(|| context.document.sketches().get(index))
+    else {
         return;
     };
     let view_projection = state
@@ -3249,28 +3322,42 @@ fn paint_rule_marks(
         .view_projection(rect.width() / rect.height().max(1.0));
     let painter = ui.painter_at(rect);
 
+    // Several rules can hold the same corner — a middle and a right angle, say
+    // — so marks that would land on each other are set side by side.
+    let mut taken: Vec<egui::Pos2> = Vec::new();
     for constraint in sketch.constraints() {
-        let Some(at) = rule_anchor(sketch, *constraint) else {
-            continue;
-        };
-        let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
-            continue;
-        };
         let held = context.editor.is_selected(Selection::Rule(*constraint));
-        painter.text(
-            position + egui::vec2(9.0, -9.0),
-            egui::Align2::CENTER_CENTER,
-            constraint.mark(),
-            egui::FontId::proportional(13.0),
-            match held {
-                true => tint_to_color(state.theme.highlight),
-                false => egui::Color32::from_rgb(140, 190, 240),
-            },
-        );
+        for at in rule_marks(sketch, *constraint) {
+            let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
+                continue;
+            };
+            let mut position = position + egui::vec2(9.0, -9.0);
+            while taken
+                .iter()
+                .any(|held| held.distance(position) < MARK_SPACING)
+            {
+                position.x += MARK_SPACING;
+            }
+            taken.push(position);
+            painter.text(
+                position,
+                egui::Align2::CENTER_CENTER,
+                constraint.mark(),
+                egui::FontId::proportional(13.0),
+                match held {
+                    true => tint_to_color(state.theme.highlight),
+                    false => tint_to_color(state.theme.rule),
+                },
+            );
+        }
     }
 }
 
-/// The box being pulled across the drawing.
+/// How far apart two marks are set when they would otherwise land on top of
+/// each other, in points.
+const MARK_SPACING: f32 = 16.0;
+
+/// The box being pulled across the drawing./// The box being pulled across the drawing.
 ///
 /// Drawn on the sketch's own axes rather than the screen's: seen at an angle,
 /// a box that stayed square on screen would take in a different area than the

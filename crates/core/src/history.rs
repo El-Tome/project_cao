@@ -136,25 +136,12 @@ pub enum Operation {
         kept: PointId,
         dropped: PointId,
     },
-    /// Deletes a piece of a sketch, and whatever leaned on it.
-    Erase {
-        sketch: usize,
-        element: Element,
-    },
-    /// Deletes a dimension without touching the geometry it measured.
-    EraseDimension {
-        sketch: usize,
-        target: DimensionTarget,
-    },
     /// Lays down a rule with no value: perpendicular, parallel, equal…
     Constrain {
         sketch: usize,
         constraint: Constraint,
     },
     /// Deletes everything that was selected, in one step.
-    ///
-    /// `Erase` and `EraseDimension` above are what a single deletion used to
-    /// be, and are kept so that parts drawn before this still replay.
     EraseMany {
         sketch: usize,
         elements: Vec<Element>,
@@ -194,12 +181,6 @@ impl Operation {
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::MovePoint { .. } => "Déplacement".to_string(),
             Self::MoveDimension { .. } => "Cote déplacée".to_string(),
-            Self::Erase { element, .. } => match element {
-                Element::Point(_) => "Point supprimé".to_string(),
-                Element::Segment(_) => "Trait supprimé".to_string(),
-                Element::Circle(_) => "Cercle supprimé".to_string(),
-            },
-            Self::EraseDimension { .. } => "Cote supprimée".to_string(),
             Self::Constrain { constraint, .. } => constraint.label().to_string(),
             Self::EraseMany {
                 elements,
@@ -304,11 +285,6 @@ impl Operation {
             Self::Extrude { sketch, picks, .. } => {
                 format!("Esquisse {sketch} · {} aire(s)", picks.len())
             }
-            Self::Erase { sketch, element } => match element {
-                Element::Point(point) => format!("Esquisse {sketch} · point {}", point.0),
-                Element::Segment(segment) => format!("Esquisse {sketch} · trait {}", segment.0),
-                Element::Circle(circle) => format!("Esquisse {sketch} · cercle {}", circle.0),
-            },
             Self::Constrain {
                 sketch,
                 constraint,
@@ -324,7 +300,6 @@ impl Operation {
                 dimensions.len(),
                 constraints.len()
             ),
-            Self::EraseDimension { sketch, .. } => format!("Esquisse {sketch}"),
             Self::MergePoints {
                 sketch,
                 kept,

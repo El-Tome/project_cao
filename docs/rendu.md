@@ -52,9 +52,10 @@ non éclairé.
 ## L'ordre de peinture
 
 La scène part **en premier**. Tout ce qu'egui peint par-dessus le viewport — les
-valeurs des cotes, la barre d'échelle, les étiquettes du cube — est ajouté à la
-même couche, dans l'ordre, et la scène remplit désormais toute la zone avec son
-fond : peinte en dernier, elle les effaçait toutes.
+valeurs des cotes, les champs de saisie qui les accompagnent, la barre
+d'échelle, les étiquettes du cube — est ajouté à la même couche, dans l'ordre,
+et la scène remplit désormais toute la zone avec son fond : peinte en dernier,
+elle les effaçait toutes.
 
 ## Lignes épaisses
 

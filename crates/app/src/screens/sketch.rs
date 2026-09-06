@@ -8,21 +8,29 @@ pub enum Selection {
     Dimension(DimensionTarget),
 }
 
-/// The length and the angle of the line being drawn, shown as it moves and
-/// editable on the spot.
+/// One of the two values that can be typed while a shape is being drawn.
 ///
-/// A value left alone is only a readout. A value typed becomes a constraint:
-/// the line can no longer take another, and the dimension is placed on it when
-/// the line is validated. Fixing one of the two still leaves the other free —
-/// an angle alone lets the line be lengthened, a length alone lets it turn.
+/// A value left alone is only a readout of what the cursor is doing. A value
+/// typed becomes a decision: the shape can no longer take another, and the
+/// dimension is placed on it when the shape is validated.
+#[derive(Default)]
+pub struct LiveField {
+    pub text: String,
+    pub locked: Option<f32>,
+}
+
+/// The two values shown as a shape is drawn, editable on the spot: length and
+/// angle for a line, width and height for a rectangle.
+///
+/// Fixing one of the two still leaves the other free — an angle alone lets the
+/// line be lengthened, a length alone lets it turn.
 #[derive(Default)]
 pub struct LiveInput {
-    pub length: String,
-    pub angle: String,
-    /// Millimetres, once the user has typed a length.
-    pub locked_length: Option<f32>,
-    /// Degrees from the horizontal axis, once typed.
-    pub locked_angle: Option<f32>,
+    pub first: LiveField,
+    pub second: LiveField,
+    /// Set when the fields appear, so the first one takes the keyboard on its
+    /// own: reaching it with Tab means walking through the toolbar first.
+    pub focus: bool,
 }
 
 impl LiveInput {
@@ -30,8 +38,14 @@ impl LiveInput {
         *self = Self::default();
     }
 
+    /// Starts a fresh pair of fields with the keyboard on the first one.
+    pub fn open(&mut self) {
+        self.clear();
+        self.focus = true;
+    }
+
     pub fn is_locked(&self) -> bool {
-        self.locked_length.is_some() || self.locked_angle.is_some()
+        self.first.locked.is_some() || self.second.locked.is_some()
     }
 
     /// Reads a field the user has just changed. An emptied field goes back to
@@ -111,8 +125,11 @@ pub struct SketchEditor {
     /// Where the polyline in progress carries on from.
     pub chain: Option<ChainAnchor>,
     pub hovered_plane: Option<PlaneChoice>,
-    /// What the dimension tool is pointing at.
+    /// What the dimension tool is pointing at, once it is placed.
     pub selected: Option<DimensionTarget>,
+    /// The dimension chosen but not yet put down: it follows the cursor until
+    /// a second click says where it goes.
+    pub placing: Option<DimensionTarget>,
     /// Which kind of measurement the dimension tool is forcing.
     pub dimension_mode: DimensionMode,
     /// First segment picked by the angle mode, waiting for the second.
@@ -232,6 +249,7 @@ impl SketchEditor {
         self.first_angle_segment = None;
         self.first_point = None;
         self.first_axis = None;
+        self.placing = None;
         self.dragged_point = None;
         self.drag_preview = None;
         self.dragged_dimension = None;
@@ -247,15 +265,6 @@ impl SketchEditor {
         self.reset_pending();
         self.hovered_plane = None;
         self.message = None;
-    }
-
-    /// Ends the polyline in progress without leaving the sketch.
-    pub fn end_chain(&mut self) {
-        self.chain = None;
-        self.chain_previous = None;
-        self.square_corner = None;
-        self.aimed = None;
-        self.live.clear();
     }
 
     /// The element the selection tool is holding, if it is geometry.

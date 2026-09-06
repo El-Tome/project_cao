@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use cao_core::history::Operation;
-use cao_core::{Command, DimensionOutcome, PartDocument, Profiles, RecentList};
+use cao_core::{Command, PartDocument, Profiles, RecentList};
 use cao_render::SceneRenderer;
-use cao_sketch::{DimensionTarget, LengthOutcome, WorkPlane};
+use cao_sketch::WorkPlane;
 use glam::Vec3;
 
 use crate::MSAA_SAMPLES;
@@ -146,7 +146,6 @@ impl CaoApp {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
                 }
-                changed |= dimension_field(ui, doc, editor);
             });
         });
 
@@ -507,94 +506,6 @@ fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {
     match doc.sketches().get(index) {
         Some(sketch) => editor.plane = Some(sketch.plane),
         None => editor.close(),
-    }
-}
-
-/// The value field shown once the dimension or angle tool has picked
-/// something. Returns true when a value was applied.
-fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut SketchEditor) -> bool {
-    let (Some(index), Some(target)) = (editor.active_sketch(), editor.selected) else {
-        return false;
-    };
-
-    let driven = doc.sketches()[index]
-        .dimension_of(target)
-        .is_some_and(|dimension| dimension.driven);
-    let angle = matches!(target, DimensionTarget::Angle { .. });
-
-    ui.separator();
-    ui.label(if angle { "Angle :" } else { "Cote :" });
-
-    if driven {
-        // A readout cannot be edited: changing it would mean nothing, since it
-        // reports the geometry rather than deciding it.
-        let measured = doc.measured(index, target).unwrap_or_default();
-        let suffix = if angle { "°" } else { "mm" };
-        ui.weak(format!("{measured:.2} {suffix} (lecture seule)"));
-        return false;
-    }
-
-    let field = ui.add(
-        egui::TextEdit::singleline(&mut editor.dimension_input)
-            .desired_width(90.0)
-            .hint_text(if angle { "degrés" } else { "mm" }),
-    );
-    // The field takes the keyboard the moment its dimension is picked: the
-    // value is the next thing the user is going to type, and getting there with
-    // Tab means walking through the whole toolbar first.
-    if std::mem::take(&mut editor.focus_dimension_field) {
-        field.request_focus();
-    }
-    // Entrée validant la valeur est consommée ici : le champ vient de rendre le
-    // clavier, donc sans cela le même appui déclencherait aussi le raccourci
-    // qui lui est lié — et terminerait l'esquisse.
-    let submitted = field.lost_focus()
-        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
-    let applied = ui.button("Appliquer").clicked() || submitted;
-
-    if !applied {
-        return false;
-    }
-
-    let Ok(value) = editor
-        .dimension_input
-        .trim()
-        .replace(',', ".")
-        .parse::<f32>()
-    else {
-        editor.message = Some("Valeur invalide".to_string());
-        return false;
-    };
-
-    match doc.apply(Operation::SetDimension {
-        sketch: index,
-        target,
-        value,
-    }) {
-        Some(DimensionOutcome::ScaleDefined {
-            millimeters_per_unit,
-        }) => {
-            editor.message = Some(format!(
-                "Échelle définie : 1 unité = {millimeters_per_unit:.4} mm"
-            ));
-            true
-        }
-        Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => {
-            editor.message = None;
-            true
-        }
-        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => {
-            editor.message = Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
-            true
-        }
-        Some(DimensionOutcome::Reference) => {
-            editor.message = Some(screens::viewport::REDUNDANT_WARNING.to_string());
-            true
-        }
-        _ => {
-            editor.message = Some("Cote impossible ici".to_string());
-            false
-        }
     }
 }
 

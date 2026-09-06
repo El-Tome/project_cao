@@ -117,7 +117,7 @@ Un seul outil, qui mesure ce qu'on lui montre :
 
 | Ce qu'on clique | Ce qu'on obtient |
 | --- | --- |
-| Un trait | Sa longueur |
+| Un trait | Sa longueur, sa largeur ou sa hauteur, selon où la cote se pose |
 | Deux points | La distance entre eux, reliés ou non |
 | Deux traits qui se touchent | L'angle entre eux |
 | Un trait puis un point | La distance du point à la droite, prise d'équerre |
@@ -151,6 +151,29 @@ La cote est posée avec la valeur que la géométrie mesure déjà, donc **poser
 cote ne déforme jamais rien**. C'est en tapant une autre valeur qu'on déplace le
 dessin.
 
+### Un trait en diagonale se lit de trois façons
+
+Sa longueur, sa largeur ou sa hauteur. Laquelle est choisie dépend simplement
+**d'où l'on pose la cote**, les deux bouts du trait délimitant une boîte :
+
+| Où va le curseur | Ce qui est coté |
+| --- | --- |
+| Au-dessus ou en dessous de la boîte | La **largeur** — écart horizontal |
+| À gauche ou à droite | La **hauteur** — écart vertical |
+| Dans la boîte, ou au-delà d'un coin | La **longueur**, en diagonale |
+
+L'aperçu montre laquelle avant le clic. Une cote de largeur est dessinée à
+l'horizontale, ses deux lignes d'attache descendant chacune de son bout : elles
+n'ont donc pas la même longueur, comme sur un plan.
+
+Les trois peuvent cohabiter sur un même trait — largeur et hauteur ensemble le
+fixent complètement, et le solveur les tient séparément : une largeur laisse le
+trait libre de coulisser à la verticale.
+
+Un trait déjà d'aplomb ne se voit pas proposer le choix : à moins de 5° d'un
+axe, sa largeur *est* sa longueur, et deux noms pour une seule mesure est un
+nom de trop.
+
 ### Une mesure, une seule cote
 
 Recliquer ce qui est déjà coté **rouvre la cote existante** au lieu d'en poser
@@ -162,6 +185,9 @@ Les deux façons de désigner une même mesure — deux traits dans un sens ou d
 l'autre, deux points dans un sens ou dans l'autre — sont ramenées à une seule
 avant d'être enregistrées. Sans ça, la même cote existerait deux fois, en double
 exemplaire superposé.
+
+Revalider une valeur qui est déjà celle en vigueur ne fait **rien** : appuyer
+deux fois sur ✔ ne doit pas laisser deux étapes identiques dans l'historique.
 
 ### Où la cote se tient
 

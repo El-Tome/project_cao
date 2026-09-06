@@ -6,7 +6,7 @@ Voir aussi : [esquisse](esquisse.md) · [historique](historique.md)
 
 ```
 ┌──────────────────────────────────────────────┐
-│ ⌂ Accueil │ nom de la pièce │ vue │ cote…     │  barre de titre
+│ ⌂ Accueil │ nom de la pièce │ vue │ message…  │  barre de titre
 ├──────────────────────────────────────────────┤
 │ Esquisse │ Extrusion │ Assemblage             │  catégories
 │ ─────────────────────────────────────────────│

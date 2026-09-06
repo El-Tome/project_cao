@@ -32,11 +32,20 @@ elles sont, celles-ci restant disponibles partout ailleurs. Voir
 | Outil | Geste |
 | --- | --- |
 | **Sélection** | Cliquer-glisser un point pour le déplacer. |
-| **Ligne** | Clics successifs, chaque trait prolonge le précédent. `Échap` termine la chaîne. |
+| **Ligne** | Clics successifs, chaque trait prolonge le précédent. |
 | **Rectangle** | Deux clics : deux coins opposés. |
 | **Cercle** | Deux clics : le centre puis un point du bord. |
 | **Point** | Un clic pose un point isolé. |
-| **Cote** | Cote intelligente, voir plus bas. |
+| **Cote** | Deux clics : ce qu'on mesure, puis où l'annotation se pose. |
+
+### `Échap` recule d'un cran
+
+Un appui abandonne ce qui est en cours : la chaîne de traits, le premier coin
+d'une forme, la cote qui cherche sa place. Un second appui — quand il n'y a plus
+rien à abandonner — **revient à l'outil Sélection**.
+
+Un outil qui reste en main une fois son travail fait est un outil qui dessine un
+trait perdu au clic suivant.
 
 Ligne, rectangle et cercle **réutilisent les points déjà présents** quand le
 curseur en survole un : les formes se tiennent entre elles au lieu d'empiler
@@ -54,8 +63,19 @@ qui évite de remplir l'historique de milliers d'entrées disant la même chose.
 
 ## Dessiner à une valeur
 
-Pendant qu'un trait se dessine, sa **longueur** et son **angle avec
-l'horizontale** sont affichés à côté, dans deux champs.
+Pendant qu'une forme se dessine, deux champs suivent le curseur : la
+**longueur** et l'**angle avec l'horizontale** pour un trait, la **largeur** et
+la **hauteur** pour un rectangle.
+
+Ils sont accrochés au pointeur, en bas à droite : posés sur le dessin, ils
+finissaient sous le curseur, et un curseur sur les champs n'est plus un curseur
+sur le canevas — la forme cessait de le suivre.
+
+Le premier champ **prend le clavier dès qu'il apparaît**, valeur entière
+sélectionnée : on tape, sans un seul Tab. Tab passe au second. Un champ auquel
+on ne touche pas reste vide et montre la mesure en filigrane — garder la mesure
+*dans* le champ faisait que la première frappe atterrissait derrière elle, et
+« 40 » tapé sur « 0.000 » se lisait 0,00040.
 
 Laissés tranquilles, ce sont de simples indications. **Tapés dedans, ce sont des
 décisions** : le trait ne peut plus prendre une autre valeur, et la cote
@@ -70,7 +90,11 @@ Fixer l'un des deux laisse l'autre libre, ce qui est tout l'intérêt :
 | Une longueur | La direction : le trait tourne à cette distance |
 | Les deux | Rien ; le clic ne fait que valider |
 
-Vider un champ reprend la décision. `Entrée` valide le trait sans avoir à
+Un rectangle marche pareil, côté par côté : une largeur tapée fige la largeur et
+laisse la hauteur suivre le curseur. Les deux tailles arrivent alors comme cotes
+sur la forme, avec ses angles droits.
+
+Vider un champ reprend la décision. `Entrée` valide la forme sans avoir à
 retrouver le canevas avec la souris.
 
 Le signe suit le curseur : 30° tapé veut dire les 30° vers lesquels on pointe,
@@ -102,6 +126,17 @@ Un seul outil, qui mesure ce qu'on lui montre :
 
 Un point l'emporte sur un trait sous le même curseur : c'est la plus petite
 cible, donc la viser est un acte délibéré.
+
+### On clique ce qu'on mesure, puis où la cote se pose
+
+Le premier clic prend la géométrie ; l'annotation **suit ensuite le curseur**,
+valeur comprise, jusqu'au second clic qui la pose là. Une cote lâchée d'office
+par-dessus la forme qu'elle mesure doit de toute façon en être écartée à la
+main : autant qu'elle arrive où elle doit être.
+
+La cote est posée avec la valeur que la géométrie mesure déjà, donc **poser une
+cote ne déforme jamais rien**. C'est en tapant une autre valeur qu'on déplace le
+dessin.
 
 **Un trait posé sur un axe** se sélectionne en cliquant deux fois dessus : le
 premier clic prend le trait, le second — qui retombe forcément sur le même
@@ -356,11 +391,17 @@ trait en tournant toujours le plus serré possible, et le parcours revient sur
 lui-même autour d'une aire exactement. Compter les traits ne suffirait pas — un
 même côté appartient à deux aires quand deux formes le partagent.
 
-### Le champ prend le clavier tout seul
+### Le champ de valeur est sur la cote
 
-Dès qu'une cote est choisie, son champ de valeur **prend le clavier** : c'est la
-prochaine chose que l'utilisateur va taper, et y arriver avec Tab voudrait dire
-traverser toute la barre d'outils d'abord.
+Une fois posée, la cote porte son champ de saisie **juste à côté d'elle**, dans
+le viewport. Il était auparavant dans la barre de titre, à un bras du dessin :
+l'œil devait quitter la forme mesurée pour retrouver le nombre qui lui
+appartient.
+
+Le champ **prend le clavier** dès que la cote est posée, valeur sélectionnée :
+on tape la nouvelle et c'est tout — y arriver avec Tab voudrait dire traverser
+toute la barre d'outils d'abord, et sans la sélection « 40 » tapé sur « 60.88 »
+se lirait 60,8840.
 
 `Entrée` valide, et **cette frappe-là est consommée sur place** : le champ vient
 de rendre le clavier, donc sans cela le même appui déclencherait aussi le

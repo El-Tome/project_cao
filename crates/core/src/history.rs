@@ -149,6 +149,16 @@ pub enum Operation {
     },
 }
 
+/// A value as it reads in the history: a dimension taken from the drawing
+/// itself is a full float, and "Cote 60.878967 mm" is unreadable.
+fn short(value: f32) -> String {
+    let text = format!("{value:.2}");
+    match text.contains('.') {
+        true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
+        false => text,
+    }
+}
+
 impl Operation {
     /// Short name for the history tree.
     pub fn label(&self) -> String {
@@ -183,16 +193,19 @@ impl Operation {
                 };
                 format!("{verb} {distance} mm")
             }
-            Self::SetDimension { target, value, .. } => match target {
-                DimensionTarget::Angle { .. } => format!("Angle {value}°"),
-                DimensionTarget::AxisAngle { axis, .. } => {
-                    format!("Angle {value}° / {}", axis.label())
+            Self::SetDimension { target, value, .. } => {
+                let value = short(*value);
+                match target {
+                    DimensionTarget::Angle { .. } => format!("Angle {value}°"),
+                    DimensionTarget::AxisAngle { axis, .. } => {
+                        format!("Angle {value}° / {}", axis.label())
+                    }
+                    DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
+                    DimensionTarget::Length(_) | DimensionTarget::Distance { .. } => {
+                        format!("Cote {value} mm")
+                    }
                 }
-                DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-                DimensionTarget::Length(_) | DimensionTarget::Distance { .. } => {
-                    format!("Cote {value} mm")
-                }
-            },
+            }
         }
     }
 

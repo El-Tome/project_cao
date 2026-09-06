@@ -14,7 +14,7 @@ use glam::{Vec2, Vec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
-    ChainAnchor, DimensionMode, PlaneChoice, Selection, SketchEditor, Tool,
+    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Selection, SketchEditor, Tool,
 };
 
 /// A colour from the theme, turned into the space the shader blends in.
@@ -148,6 +148,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     state.aspect = rect.width() / rect.height();
 
     advance_transition(ui, state);
+    handle_escape(ui, sketch);
     let handled_cube = handle_navigation(ui, state, &response, cube_rect);
     let scale = ViewScale::of(
         &state.camera,
@@ -182,18 +183,50 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
-    if paint_live_input(ui, state, rect, sketch) {
-        // Enter finishes the line from the keyboard, without having to find the
-        // canvas again with the mouse.
-        let Some(index) = sketch.editor.active_sketch() else {
-            return changed;
-        };
-        let cursor = sketch.editor.cursor.unwrap_or_default();
-        let snap = scale.world_size_of(10.0);
-        return changed | draw_line_point(sketch, index, cursor, snap);
+    let mut changed = changed | paint_dimension_field(ui, state, rect, sketch);
+
+    let drawing = sketch.editor.chain.is_some() || sketch.editor.pending_start.is_some();
+    if drawing && paint_live_input(ui, sketch) {
+        // Enter finishes the shape from the keyboard, without having to find
+        // the canvas again with the mouse.
+        if let Some(index) = sketch.editor.active_sketch() {
+            let cursor = sketch.editor.aimed.or(sketch.editor.cursor).unwrap_or_default();
+            let snap = scale.world_size_of(10.0);
+            changed |= match sketch.editor.tool {
+                Tool::Line => draw_line_point(sketch, index, cursor, snap),
+                _ => two_click_shape(sketch, index, cursor, snap),
+            };
+        }
     }
 
     changed
+}
+
+/// Escape steps back out of whatever is going on: the shape in progress, the
+/// dimension being placed, and then the tool itself.
+///
+/// A tool that stays in hand after its work is done is a tool that draws a
+/// stray line on the next click; falling back to the selection tool is the
+/// habit every CAD package has taught.
+fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
+    if context.editor.active_sketch().is_none()
+        || !ui.input(|input| input.key_pressed(egui::Key::Escape))
+    {
+        return;
+    }
+    let editor = &mut context.editor;
+    let busy = editor.chain.is_some()
+        || editor.pending_start.is_some()
+        || editor.placing.is_some()
+        || editor.selected.is_some()
+        || editor.selected_element.is_some()
+        || editor.first_point.is_some()
+        || editor.first_angle_segment.is_some()
+        || editor.first_axis.is_some();
+    editor.reset_pending();
+    if !busy {
+        editor.tool = Tool::Select;
+    }
 }
 
 /// How much of the world one pixel covers right now, and the grid step that
@@ -461,10 +494,6 @@ fn handle_sketch_input(
         return false;
     };
 
-    if ui.input(|input| input.key_pressed(egui::Key::Escape)) {
-        context.editor.end_chain();
-    }
-
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(10.0);
     let (cursor, snapped_to) = magnetise(cursor, scale, &state.config, context, index, snap);
@@ -483,6 +512,9 @@ fn handle_sketch_input(
                 .square_with
                 .and_then(|_| anchor_position(sketch, context));
             (Some(aimed.position), corner)
+        }
+        Tool::Rectangle if context.editor.pending_start.is_some() => {
+            (Some(rectangle_corner(context, cursor)), None)
         }
         _ => (None, None),
     };
@@ -542,11 +574,13 @@ fn handle_sketch_input(
             });
             true
         }
-        Tool::Rectangle | Tool::Circle => two_click_shape(context, index, cursor, snap),
-        Tool::Dimension => {
-            measure(context, index, cursor, snap);
-            false
-        }
+        Tool::Rectangle | Tool::Circle => two_click_shape(
+            context,
+            index,
+            context.editor.aimed.unwrap_or(cursor),
+            snap,
+        ),
+        Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Select | Tool::None => false,
     }
 }
@@ -869,6 +903,9 @@ fn point_ref_at(context: &SketchContext<'_>, index: usize, position: Vec2, snap:
 fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
     let Some(start) = context.editor.pending_start else {
         context.editor.pending_start = Some(cursor);
+        if context.editor.tool == Tool::Rectangle {
+            context.editor.live.open();
+        }
         return false;
     };
     // A shape with no extent is a stray click, not a drawing.
@@ -899,7 +936,30 @@ fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
     if rectangle {
         dimension_the_rectangle(context, index);
     }
+    context.editor.live.clear();
     true
+}
+
+/// The far corner of the rectangle being drawn, once the sizes typed have had
+/// their say. A size left alone follows the cursor; one typed only fixes that
+/// side, so the other can still be dragged out.
+fn rectangle_corner(context: &SketchContext<'_>, cursor: Vec2) -> Vec2 {
+    let Some(start) = context.editor.pending_start else {
+        return cursor;
+    };
+    let scale = context.document.scale().max(1e-9);
+    let span = cursor - start;
+    // The sign follows the cursor: 40 typed means 40 the way the user is
+    // dragging, not 40 the other way.
+    let side = |locked: Option<f32>, current: f32| match locked {
+        Some(millimeters) => (millimeters / scale).copysign(current),
+        None => current,
+    };
+    start
+        + Vec2::new(
+            side(context.editor.live.first.locked, span.x),
+            side(context.editor.live.second.locked, span.y),
+        )
 }
 
 /// Places on a fresh rectangle what makes it a rectangle, and its two sizes.
@@ -948,7 +1008,19 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize) {
 ///
 /// Two-step measurements — point to point, angle — collect their first half and
 /// wait; everything else is settled in a single click.
-fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+fn measure(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    snap: f32,
+    pixel: f32,
+) -> bool {
+    // A dimension already chosen is waiting to be put down: this click says
+    // where, and nothing else is read from it.
+    if let Some(target) = context.editor.placing.take() {
+        return place_dimension(context, index, target, cursor, pixel);
+    }
+
     let mode = context.editor.dimension_mode;
     let sketch = &context.document.sketches()[index];
 
@@ -957,16 +1029,18 @@ fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f3
     if mode.takes_points()
         && let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
     {
-        return measure_from_point(context, index, point);
+        measure_from_point(context, index, point);
+        return false;
     }
     if mode == DimensionMode::PointToPoint {
-        return;
+        return false;
     }
 
     if matches!(mode, DimensionMode::Auto | DimensionMode::Angle)
         && context.editor.first_angle_segment.is_some()
     {
-        return continue_angle(context, index, cursor, snap);
+        continue_angle(context, index, cursor, snap);
+        return false;
     }
 
     // An axis picked first waits for the segment to measure against it.
@@ -980,32 +1054,103 @@ fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f3
             "{} choisi, cliquez maintenant un trait",
             axis.label()
         ));
-        return;
+        return false;
     }
 
     if mode != DimensionMode::Radius
         && let Some(segment) = sketch.nearest_segment(cursor, snap)
     {
         if let Some(axis) = context.editor.first_axis.take() {
-            return select_target(context, index, DimensionTarget::AxisAngle { segment, axis });
+            select_target(context, index, DimensionTarget::AxisAngle { segment, axis });
+            return false;
         }
         if mode == DimensionMode::Angle {
             context.editor.first_angle_segment = Some(segment);
             context.editor.message =
                 Some("Choisissez le second trait, ou un axe de l'esquisse".to_string());
-            return;
+            return false;
         }
-        return select_target(context, index, DimensionTarget::Length(segment));
+        select_target(context, index, DimensionTarget::Length(segment));
+        return false;
     }
 
     if mode != DimensionMode::Length
         && let Some(circle) = sketch.nearest_circle(cursor, snap)
     {
-        return select_target(context, index, DimensionTarget::Radius(circle));
+        select_target(context, index, DimensionTarget::Radius(circle));
+        return false;
     }
 
     context.editor.select(None, None);
     context.editor.message = Some("Rien à mesurer ici".to_string());
+    false
+}
+
+/// Puts down the dimension that was waiting, where the click landed.
+///
+/// The value it starts with is what the geometry already measures, so placing
+/// one never moves the drawing; typing another is what does.
+fn place_dimension(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    cursor: Vec2,
+    pixel: f32,
+) -> bool {
+    let Some(value) = context.document.measured(index, target) else {
+        return false;
+    };
+    let offset = annotation_offset(context, index, target, cursor, pixel);
+    let outcome = context.document.apply(Operation::SetDimension {
+        sketch: index,
+        target,
+        value,
+    });
+    // A click landing on the spot the annotation would have taken anyway needs
+    // no entry in the history saying so.
+    if offset.length() > 1e-6 {
+        context.document.apply(Operation::MoveDimension {
+            sketch: index,
+            target,
+            offset,
+        });
+    }
+
+    context.editor.select(Some(target), Some(value));
+    context.editor.message = matches!(outcome, Some(cao_core::DimensionOutcome::Reference))
+        .then(|| REDUNDANT_WARNING.to_string());
+    true
+}
+
+/// The offset that puts an annotation's value where the cursor is.
+///
+/// Worked out by asking the annotation where it would write itself with no
+/// offset at all: a linear or angular annotation moves exactly as far as its
+/// offset, so the difference is the answer.
+fn annotation_offset(
+    context: &SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    cursor: Vec2,
+    pixel: f32,
+) -> Vec2 {
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return Vec2::ZERO;
+    };
+    let mut ignored = Vec::new();
+    // Only the shape of the annotation matters here, never its colours.
+    let style = crate::screens::annotations::Style::driving(&Theme::default());
+    match crate::screens::annotations::push(
+        &mut ignored,
+        sketch,
+        target,
+        &style,
+        pixel,
+        Vec2::ZERO,
+    ) {
+        Some(placement) => cursor - placement.text_at,
+        None => Vec2::ZERO,
+    }
 }
 
 /// The dimension a click would place right now, without placing it.
@@ -1128,16 +1273,24 @@ fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, s
     }
 }
 
-/// Selects a target and fills the value field, warning when the value would add
-/// nothing.
+/// Takes hold of what was clicked; the annotation then follows the cursor until
+/// a second click says where it goes.
+///
+/// Two clicks rather than one because a dimension dropped on top of the shape
+/// it measures has to be dragged off it anyway — this way it lands where it
+/// belongs from the start.
 fn select_target(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
-    let measured = context.document.measured(index, target);
-    context.editor.select(Some(target), measured);
+    context.editor.select(None, None);
+    context.editor.placing = Some(target);
 
     let scale = context.document.scale();
-    context.editor.message = context.document.sketches()[index]
-        .would_be_redundant(target, scale)
-        .then(|| REDUNDANT_WARNING.to_string());
+    context.editor.message = Some(
+        if context.document.sketches()[index].would_be_redundant(target, scale) {
+            REDUNDANT_WARNING.to_string()
+        } else {
+            "Cliquez où poser la cote".to_string()
+        },
+    );
 }
 
 /// Which sketch axis the cursor is on, if either. The axes are drawn as lines
@@ -1230,7 +1383,7 @@ fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
             PointRef::Existing(id) => ChainAnchor::Point(id),
             PointRef::New(position) => ChainAnchor::Pending(position),
         });
-        context.editor.live.clear();
+        context.editor.live.open();
         return false;
     };
 
@@ -1270,7 +1423,7 @@ fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
 
     dimension_the_line(context, index, drawn, aimed);
     context.editor.chain_previous = Some(drawn);
-    context.editor.live.clear();
+    context.editor.live.open();
     true
 }
 
@@ -1300,13 +1453,16 @@ fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
     };
 
     let scale = context.document.scale().max(1e-9);
-    let live = &context.editor.live;
+    let (locked_length, locked_angle) = (
+        context.editor.live.first.locked,
+        context.editor.live.second.locked,
+    );
     let span = cursor - from;
 
     let mut direction = span.normalize_or(Vec2::X);
     let mut square_with = None;
 
-    if let Some(degrees) = live.locked_angle {
+    if let Some(degrees) = locked_angle {
         // The sign follows the cursor: 30° typed means the 30° the user is
         // pointing at, not the one below the axis they are not.
         let wanted = Vec2::from_angle(degrees.to_radians());
@@ -1320,7 +1476,7 @@ fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
         square_with = Some(previous);
     }
 
-    let length = match live.locked_length {
+    let length = match locked_length {
         Some(millimeters) => millimeters / scale,
         None => span.dot(direction).max(0.0),
     };
@@ -1395,10 +1551,10 @@ fn dimension_the_line(
     let live = &context.editor.live;
     let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
 
-    if let Some(length) = live.locked_length {
+    if let Some(length) = live.first.locked {
         wanted.push((DimensionTarget::Length(segment), length));
     }
-    if let Some(angle) = live.locked_angle {
+    if let Some(angle) = live.second.locked {
         wanted.push((
             DimensionTarget::AxisAngle {
                 segment,
@@ -2103,6 +2259,22 @@ fn push_square_mark(
     }
 }
 
+/// The annotation the dimension tool is showing in advance: the one a click
+/// would choose, or the one already chosen and looking for its place.
+fn pending_annotation(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    scale: ViewScale,
+) -> Option<(DimensionTarget, Vec2)> {
+    if let Some(target) = context.editor.placing {
+        let offset = annotation_offset(context, index, target, cursor, scale.units_per_pixel);
+        return Some((target, offset));
+    }
+    let target = measure_preview(context, index, cursor, scale.world_size_of(10.0))?;
+    Some((target, Vec2::ZERO))
+}
+
 /// The shape about to be drawn, following the cursor: placing a point blind and
 /// only then seeing where it went is needlessly uncomfortable.
 fn push_preview(
@@ -2149,15 +2321,12 @@ fn push_preview(
         push_point_marker(out, sketch, cursor, scale.world_size_of(4.0), preview, 1.5);
     }
 
-    // The dimension a click would place, drawn faintly where it would land.
+    // The dimension a click would place, drawn faintly where it would land —
+    // then, once it is chosen, the same annotation following the cursor to the
+    // spot it will sit on.
     if context.editor.tool == Tool::Dimension
         && let Some(index) = context.editor.active_sketch()
-        && let Some(target) = measure_preview(
-            context,
-            index,
-            cursor,
-            scale.world_size_of(10.0),
-        )
+        && let Some((target, nudge)) = pending_annotation(context, index, cursor, scale)
     {
         let mut style = crate::screens::annotations::Style::driving(theme);
         style.color = preview;
@@ -2168,7 +2337,7 @@ fn push_preview(
             target,
             &style,
             scale.units_per_pixel,
-            Vec2::ZERO,
+            nudge,
         );
     }
 
@@ -2195,11 +2364,12 @@ fn push_preview(
     };
     match context.editor.tool {
         Tool::Rectangle => {
+            let far = context.editor.aimed.unwrap_or(cursor);
             let corners = [
                 start,
-                Vec2::new(cursor.x, start.y),
-                cursor,
-                Vec2::new(start.x, cursor.y),
+                Vec2::new(far.x, start.y),
+                far,
+                Vec2::new(start.x, far.y),
             ];
             for index in 0..4 {
                 push_preview_line(
@@ -2325,81 +2495,115 @@ fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect
 ///
 /// Returns true when the user pressed Enter to finish the line from the
 /// keyboard.
-fn paint_live_input(
-    ui: &mut egui::Ui,
-    state: &ViewportState,
-    rect: egui::Rect,
-    context: &mut SketchContext<'_>,
-) -> bool {
-    if context.editor.tool != Tool::Line || context.editor.chain.is_none() {
-        return false;
-    }
+fn paint_live_input(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> bool {
     let Some(index) = context.editor.active_sketch() else {
         return false;
     };
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let (Some(from), Some(to)) = (
-        anchor_position(sketch, context),
-        context.editor.aimed.or(context.editor.cursor),
-    ) else {
+    let Some(cursor) = context.editor.aimed.or(context.editor.cursor) else {
         return false;
     };
-
     let scale = context.document.scale();
-    let span = to - from;
-    let measured_length = span.length() * scale;
-    let measured_angle = span.y.atan2(span.x).to_degrees();
 
-    // Anchored on the middle of the line, nudged clear of it.
-    let middle = sketch.plane.to_world((from + to) * 0.5);
-    let Some(at) = to_screen(middle, state.camera.view_projection(state.aspect), rect) else {
+    // Two numbers, whatever the tool: a line is a length and an angle, a
+    // rectangle is its two sides.
+    let (labels, measured) = match context.editor.tool {
+        Tool::Line => {
+            let Some(from) = anchor_position(sketch, context) else {
+                return false;
+            };
+            let span = cursor - from;
+            (
+                ["mm", "°"],
+                [span.length() * scale, span.y.atan2(span.x).to_degrees()],
+            )
+        }
+        Tool::Rectangle => {
+            let Some(start) = context.editor.pending_start else {
+                return false;
+            };
+            let span = cursor - start;
+            (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
+        }
+        _ => return false,
+    };
+
+    // Hung off the pointer itself, down and to the right: anchored on the
+    // drawing, the fields ended up under the cursor, and a cursor over them is
+    // a cursor no longer over the canvas — the shape stopped following it.
+    let Some(at) = ui.ctx().pointer_latest_pos() else {
         return false;
     };
 
     let live = &mut context.editor.live;
-    if live.locked_length.is_none() {
-        live.length = format!("{measured_length:.3}");
-    }
-    if live.locked_angle.is_none() {
-        live.angle = format!("{measured_angle:.1}");
-    }
-
     let mut validated = false;
-    egui::Area::new(egui::Id::new("live_line_input"))
-        .fixed_pos(at + egui::vec2(14.0, -34.0))
+    let focus = std::mem::take(&mut live.focus);
+    egui::Area::new(egui::Id::new("live_input"))
+        .fixed_pos(at + egui::vec2(20.0, 20.0))
         .order(egui::Order::Foreground)
         .show(ui.ctx(), |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    validated |= live_field(ui, "mm", &mut live.length, &mut live.locked_length);
-                    validated |= live_field(ui, "°", &mut live.angle, &mut live.locked_angle);
+                    validated |= live_field(ui, labels[0], measured[0], &mut live.first, focus);
+                    validated |= live_field(ui, labels[1], measured[1], &mut live.second, false);
                 });
             });
         });
     validated
 }
 
+/// A number field that takes the keyboard on demand, whole value selected.
+///
+/// Selecting it matters: the field arrives holding the value already there, and
+/// without it the first keystroke lands after it — 40 typed over 60.88 read
+/// 60.8840.
+fn value_field(ui: &mut egui::Ui, text: &mut String, hint: &str, focus: bool) -> egui::Response {
+    let output = egui::TextEdit::singleline(text)
+        .desired_width(72.0)
+        .hint_text(hint)
+        .show(ui);
+    let response = output.response.response;
+    if focus {
+        response.request_focus();
+        let mut state = output.state;
+        state.cursor.set_char_range(Some(egui::text::CCursorRange::two(
+            egui::text::CCursor::new(0),
+            egui::text::CCursor::new(text.chars().count()),
+        )));
+        state.store(ui.ctx(), response.id);
+    }
+    response
+}
+
 /// One of the two fields. Returns true when Enter was pressed in it.
-fn live_field(ui: &mut egui::Ui, suffix: &str, text: &mut String, locked: &mut Option<f32>) -> bool {
-    let response = ui.add(
-        egui::TextEdit::singleline(text)
-            .desired_width(64.0)
-            .text_color(if locked.is_some() {
-                ui.visuals().strong_text_color()
-            } else {
-                ui.visuals().weak_text_color()
-            }),
-    );
+///
+/// An untouched field stays empty and shows what the cursor is doing as a hint:
+/// keeping the readout in the field itself meant the first keystroke landed
+/// after it, and "40" typed over "0.000" read 0.00040.
+fn live_field(
+    ui: &mut egui::Ui,
+    suffix: &str,
+    measured: f32,
+    field: &mut LiveField,
+    focus: bool,
+) -> bool {
+    // The keyboard goes to the first field as soon as the fields appear: the
+    // value is the next thing the user types, and Tab from the canvas walks
+    // through the whole toolbar to get here.
+    let response = value_field(ui, &mut field.text, &format!("{measured:.2}"), focus);
     ui.label(suffix);
 
     // Typing is what turns a readout into a decision. Emptying the field takes
     // the decision back.
     if response.changed() {
-        *locked = crate::screens::sketch::LiveInput::read(text);
+        field.locked = crate::screens::sketch::LiveInput::read(&field.text);
     }
-    response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter))
+    // Enter is consumed rather than merely read: the field has just given the
+    // keyboard back, so the shortcut bound to that key would fire too.
+    response.lost_focus()
+        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
 }
 
 /// Each dimension is drawn where it applies, with the value it stands for.
@@ -2485,6 +2689,174 @@ fn paint_dimension_labels(
             egui::FontId::proportional(13.0),
             color,
         );
+    }
+
+    // The dimension being placed carries its value with it: a bare pair of
+    // arrows says nothing about what is being measured.
+    if let Some(target) = context.editor.placing
+        && let Some(cursor) = context.editor.cursor
+        && let Some(value) = context.document.measured(index, target)
+        && let Some(position) = to_screen(sketch.plane.to_world(cursor), view_projection, rect)
+    {
+        painter.text(
+            position,
+            egui::Align2::CENTER_CENTER,
+            if matches!(
+                target,
+                DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+            ) {
+                format!("{value:.1}°")
+            } else {
+                state.config.unit.format(value)
+            },
+            egui::FontId::proportional(13.0),
+            egui::Color32::from_rgb(250, 220, 120),
+        );
+    }
+}
+
+/// The value of the dimension in hand, written right where that dimension is.
+///
+/// It used to sit in the title bar, an arm's length from the drawing: the eyes
+/// had to leave the shape being measured to find the number belonging to it.
+/// Returns true when a value was applied.
+fn paint_dimension_field(
+    ui: &mut egui::Ui,
+    state: &ViewportState,
+    rect: egui::Rect,
+    context: &mut SketchContext<'_>,
+) -> bool {
+    let (Some(index), Some(target)) = (context.editor.active_sketch(), context.editor.selected)
+    else {
+        return false;
+    };
+    let pixel = state
+        .camera
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point());
+    let Some(at) = annotation_screen_position(state, rect, context, index, target, pixel) else {
+        return false;
+    };
+
+    let driven = context.document.sketches()[index]
+        .dimension_of(target)
+        .is_some_and(|dimension| dimension.driven);
+    let angle = matches!(
+        target,
+        DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+    );
+
+    let mut applied = false;
+    egui::Area::new(egui::Id::new("dimension_field"))
+        .fixed_pos(at + egui::vec2(16.0, 12.0))
+        .order(egui::Order::Foreground)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    if driven {
+                        // A readout cannot be edited: changing it would mean
+                        // nothing, since it reports the geometry rather than
+                        // deciding it.
+                        let measured = context.document.measured(index, target).unwrap_or_default();
+                        let suffix = if angle { "°" } else { "mm" };
+                        ui.weak(format!("{measured:.2} {suffix} (lecture seule)"));
+                        return;
+                    }
+                    let field = value_field(
+                        ui,
+                        &mut context.editor.dimension_input,
+                        if angle { "degrés" } else { "mm" },
+                        std::mem::take(&mut context.editor.focus_dimension_field),
+                    );
+                    // Enter is eaten here: the field has just given the keyboard
+                    // back, so the same press would otherwise also fire the
+                    // shortcut bound to it — and end the sketch.
+                    let submitted = field.lost_focus()
+                        && ui.input_mut(|input| {
+                            input.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
+                        });
+                    applied = ui.button("✔").on_hover_text("Appliquer").clicked() || submitted;
+                });
+            });
+        });
+
+    applied && apply_dimension_value(context, index, target)
+}
+
+/// Where an annotation writes its value, on screen.
+fn annotation_screen_position(
+    state: &ViewportState,
+    rect: egui::Rect,
+    context: &SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    pixel: f32,
+) -> Option<egui::Pos2> {
+    let sketch = context.document.sketches().get(index)?;
+    let mut ignored = Vec::new();
+    let placement = crate::screens::annotations::push(
+        &mut ignored,
+        sketch,
+        target,
+        &crate::screens::annotations::Style::driving(&state.theme),
+        pixel,
+        live_offset(context, target),
+    )?;
+    to_screen(
+        sketch.plane.to_world(placement.text_at),
+        state
+            .camera
+            .view_projection(rect.width() / rect.height().max(1.0)),
+        rect,
+    )
+}
+
+/// Records what the user typed into the value field.
+fn apply_dimension_value(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+) -> bool {
+    let Ok(value) = context
+        .editor
+        .dimension_input
+        .trim()
+        .replace(',', ".")
+        .parse::<f32>()
+    else {
+        context.editor.message = Some("Valeur invalide".to_string());
+        return false;
+    };
+
+    match context.document.apply(Operation::SetDimension {
+        sketch: index,
+        target,
+        value,
+    }) {
+        Some(cao_core::DimensionOutcome::ScaleDefined {
+            millimeters_per_unit,
+        }) => {
+            context.editor.message = Some(format!(
+                "Échelle définie : 1 unité = {millimeters_per_unit:.4} mm"
+            ));
+            true
+        }
+        Some(cao_core::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact)) => {
+            context.editor.message = None;
+            true
+        }
+        Some(cao_core::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::BestEffort)) => {
+            context.editor.message =
+                Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
+            true
+        }
+        Some(cao_core::DimensionOutcome::Reference) => {
+            context.editor.message = Some(REDUNDANT_WARNING.to_string());
+            true
+        }
+        _ => {
+            context.editor.message = Some("Cote impossible ici".to_string());
+            false
+        }
     }
 }
 

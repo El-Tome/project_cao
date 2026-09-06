@@ -1,7 +1,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-use crate::sketch::{CircleId, PointId, SegmentId};
+use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
 /// One of the sketch's own axes, usable as the fixed reference of an angle.
 ///
@@ -132,10 +132,15 @@ pub enum Constraint {
         point: PointId,
         segment: SegmentId,
     },
-    /// A point that stays where it is put. Its size is not fixed by this, only
-    /// its place.
+    /// A trait lying on one of the sketch's own axes.
+    AxisCollinear {
+        segment: SegmentId,
+        axis: SketchAxis,
+    },
+    /// Something that stays where it is put. Only its place is held: a fixed
+    /// circle keeps its centre, not its radius.
     Fixed {
-        point: PointId,
+        element: Element,
     },
 }
 
@@ -175,7 +180,7 @@ impl Constraint {
             Self::Parallel { .. } => "Parallèle",
             Self::Equal { .. } | Self::EqualRadius { .. } => "Égalité",
             Self::OnSegment { .. } => "Coïncidence",
-            Self::Collinear { .. } => "Colinéaire",
+            Self::Collinear { .. } | Self::AxisCollinear { .. } => "Colinéaire",
             Self::Tangent { .. } => "Tangence",
             Self::Midpoint { .. } => "Milieu",
             Self::Fixed { .. } => "Fixe",
@@ -193,7 +198,7 @@ impl Constraint {
             Self::Parallel { .. } => "//",
             Self::Equal { .. } | Self::EqualRadius { .. } => "=",
             Self::OnSegment { .. } => "+",
-            Self::Collinear { .. } => "--",
+            Self::Collinear { .. } | Self::AxisCollinear { .. } => "--",
             Self::Tangent { .. } => "T",
             Self::Midpoint { .. } => "1/2",
             Self::Fixed { .. } => "X",

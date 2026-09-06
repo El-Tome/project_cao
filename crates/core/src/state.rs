@@ -162,22 +162,6 @@ impl PartState {
                 sketch.resolve(scale);
                 None
             }
-            Operation::Erase { sketch, element } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.erase(*element);
-                // What is left may have room to move again, so it settles into
-                // whatever the remaining values still ask of it.
-                sketch.resolve(scale);
-                None
-            }
-            Operation::EraseDimension { sketch, target } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.erase_dimension(*target);
-                sketch.resolve(scale);
-                None
-            }
             Operation::Constrain { sketch, constraint } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
@@ -1204,9 +1188,11 @@ mod extrusion_tests {
         let before = volume(&PartState::rebuild(&history).body);
         assert!(before > 0.0);
 
-        history.push(Operation::Erase {
+        history.push(Operation::EraseMany {
             sketch: 0,
-            element: cao_sketch::Element::Segment(cao_sketch::SegmentId(0)),
+            elements: vec![cao_sketch::Element::Segment(cao_sketch::SegmentId(0))],
+            dimensions: Vec::new(),
+            constraints: Vec::new(),
         });
 
         let state = PartState::rebuild(&history);

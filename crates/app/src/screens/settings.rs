@@ -317,6 +317,8 @@ fn appearance_section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
     ui.add(egui::Slider::new(&mut theme.sketch_width, 0.5..=8.0).text("Épaisseur des traits"));
     color_row(ui, "Cote", &mut theme.dimension);
     color_row(ui, "Cote en lecture seule", &mut theme.dimension_driven);
+    color_row(ui, "Élément fixé", &mut theme.fixed);
+    color_row(ui, "Marque de contrainte", &mut theme.rule);
     color_row(ui, "Teinte des aires", &mut theme.region_fill);
 
     ui.add_space(10.0);

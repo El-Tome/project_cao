@@ -62,6 +62,14 @@ impl LiveInput {
     }
 }
 
+/// What the constraint tool has been pointed at: a piece of the drawing, or
+/// one of the sketch's own axes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RulePick {
+    Element(Element),
+    Axis(SketchAxis),
+}
+
 /// Which rule the constraint tool is about to lay down.
 ///
 /// A rule is placed by pointing at what it speaks of: two traits for a right
@@ -220,7 +228,7 @@ pub struct SketchEditor {
     /// actually going to land.
     pub drag_preview: Option<cao_sketch::Sketch>,
     /// What the constraint tool has been pointed at so far.
-    pub rule_picks: Vec<Element>,
+    pub rule_picks: Vec<RulePick>,
     /// Everything the selection tool is holding, ready to be deleted.
     pub selection: Vec<Selection>,
     /// The box being pulled across the drawing, in sketch coordinates: where it

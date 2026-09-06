@@ -31,8 +31,10 @@ déplacée » à chaque clic n'aurait rien dit de plus. Un déplacement ultérie
 la souris, reste une opération à part.
 
 Une sélection supprimée d'un bloc est de même **une seule opération**, avec la
-liste de ce qui part. Une étape par élément aurait demandé autant d'annulations
-que d'éléments pour revenir sur un seul geste.
+liste de ce qui part — tracés, cotes et contraintes ensemble. Une étape par
+élément aurait demandé autant d'annulations que d'éléments pour revenir sur un
+seul geste. C'est la seule suppression : il n'y a pas d'opération séparée pour
+n'en effacer qu'un.
 
 ## Le curseur et la branche abandonnée
 

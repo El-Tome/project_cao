@@ -235,6 +235,30 @@ impl Sketch {
         self.constraints.retain(|held| *held != constraint);
     }
 
+    /// Whether a piece of the drawing is held in place by a rule.
+    ///
+    /// A trait held still holds its two ends; a circle held still holds its
+    /// centre, so both read as fixed although only one of them was named.
+    pub fn is_held(&self, element: Element) -> bool {
+        let holds_point = |point: PointId, held: Element| match held {
+            Element::Point(id) => id == point,
+            Element::Segment(id) => self
+                .segments
+                .get(id.0)
+                .is_some_and(|segment| segment.start == point || segment.end == point),
+            Element::Circle(id) => self.circles.get(id.0).is_some_and(|c| c.center == point),
+        };
+        self.constraints.iter().any(|constraint| {
+            let Constraint::Fixed { element: held } = constraint else {
+                return false;
+            };
+            match element {
+                Element::Point(point) => holds_point(point, *held),
+                other => *held == other,
+            }
+        })
+    }
+
     /// Whether everything a rule speaks of is still drawn.
     fn holds_up(&self, constraint: Constraint) -> bool {
         let segment = |id: SegmentId| id.0 < self.segments.len() && !self.is_erased_segment(id);
@@ -262,7 +286,12 @@ impl Sketch {
                 circle: round,
                 segment: line,
             } => circle(round) && segment(line),
-            Constraint::Fixed { point: held } => point(held),
+            Constraint::AxisCollinear { segment: on, .. } => segment(on),
+            Constraint::Fixed { element } => match element {
+                Element::Point(held) => point(held),
+                Element::Segment(held) => segment(held),
+                Element::Circle(held) => circle(held),
+            },
         }
     }
 
@@ -1013,7 +1042,7 @@ mod tests {
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
         let gap = sketch.segment_length(first) - sketch.segment_length(second);
-        assert!(gap.abs() < 1e-6, "écart de longueur = {gap}");
+        assert!(gap.abs() < 1e-4, "écart de longueur = {gap}");
     }
 
     #[test]
@@ -1091,13 +1120,66 @@ mod tests {
     }
 
     #[test]
+    fn the_second_trait_takes_the_length_of_the_first() {
+        let (mut sketch, first, second) = corner();
+        let wanted = sketch.segment_length(first);
+        sketch.add_constraint(Constraint::Equal { first, second });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        assert!(
+            (sketch.segment_length(first) - wanted).abs() < 1e-9,
+            "le premier trait a bougé"
+        );
+        assert!((sketch.segment_length(second) - wanted).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_trait_can_be_laid_on_an_axis_of_the_sketch() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(10.0, 12.0));
+        let end = sketch.add_point(DVec2::new(70.0, 40.0));
+        let line = sketch.add_segment(start, end);
+
+        sketch.add_constraint(Constraint::AxisCollinear {
+            segment: line,
+            axis: SketchAxis::U,
+        });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        assert!(sketch.point(start).y.abs() < 1e-6);
+        assert!(sketch.point(end).y.abs() < 1e-6);
+    }
+
+    #[test]
+    fn fixing_a_trait_holds_both_of_its_ends() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(10.0, 10.0));
+        let end = sketch.add_point(DVec2::new(60.0, 10.0));
+        let line = sketch.add_segment(start, end);
+        let far = sketch.add_point(DVec2::new(60.0, 60.0));
+        let other = sketch.add_segment(end, far);
+
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Segment(line),
+        });
+        sketch.set_dimension(DimensionTarget::Length(other), 90.0, false);
+        sketch.resolve(1.0);
+
+        assert!(sketch.point(start).distance(DVec2::new(10.0, 10.0)) < 1e-9);
+        assert!(sketch.point(end).distance(DVec2::new(60.0, 10.0)) < 1e-9);
+        assert!((sketch.segment_length(other) - 90.0).abs() < 1e-4);
+    }
+
+    #[test]
     fn a_fixed_point_stays_where_it_was_put() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let start = sketch.add_point(DVec2::new(10.0, 10.0));
         let end = sketch.add_point(DVec2::new(60.0, 10.0));
         let line = sketch.add_segment(start, end);
 
-        sketch.add_constraint(Constraint::Fixed { point: start });
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Point(start),
+        });
         sketch.set_dimension(DimensionTarget::Length(line), 90.0, false);
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 

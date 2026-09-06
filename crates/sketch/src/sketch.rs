@@ -214,7 +214,9 @@ impl Sketch {
             DimensionTarget::Projected { from, to, .. } => {
                 !self.is_erased_point(from) && !self.is_erased_point(to)
             }
-            DimensionTarget::Radius(circle) => !self.is_erased_circle(circle),
+            DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
+                !self.is_erased_circle(circle)
+            }
         }
     }
 
@@ -795,7 +797,7 @@ impl Sketch {
             DimensionTarget::Projected { from, to, axis } => {
                 self.projected_gap(from, to, axis)? * millimeters_per_unit.max(1e-9)
             }
-            DimensionTarget::Radius(_) => return None,
+            DimensionTarget::Radius(_) | DimensionTarget::Diameter(_) => return None,
         };
 
         let mut probe = self.clone();

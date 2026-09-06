@@ -308,6 +308,16 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ToolLine),
                                 Item::Command(C::ToolRectangle),
                                 Item::Command(C::ToolCircle),
+                                Item::group(
+                                    "Cercles",
+                                    vec![
+                                        Item::Command(C::CircleCenter),
+                                        Item::Command(C::CircleTwoPoints),
+                                        Item::Command(C::CircleThreePoints),
+                                        Item::Command(C::CircleTwoTangents),
+                                        Item::Command(C::CircleThreeTangents),
+                                    ],
+                                ),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
                                 // A third level opens as a menu rather than

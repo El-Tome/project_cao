@@ -34,7 +34,7 @@ elles sont, celles-ci restant disponibles partout ailleurs. Voir
 | **Sélection** | Cliquer pour prendre, cliquer-glisser un point pour le déplacer, glisser dans le vide pour encadrer. |
 | **Ligne** | Clics successifs, chaque trait prolonge le précédent. |
 | **Rectangle** | Deux clics : deux coins opposés. |
-| **Cercle** | Deux clics : le centre puis un point du bord. |
+| **Cercle** | Cinq façons de le poser, voir plus bas. |
 | **Point** | Un clic pose un point isolé. |
 | **Cote** | Deux clics : ce qu'on mesure, puis où l'annotation se pose. |
 
@@ -143,7 +143,8 @@ Un seul outil, qui mesure ce qu'on lui montre :
 | Un point puis un trait | La même, dans l'autre ordre |
 | Un trait puis un axe de l'esquisse | L'angle avec cette direction |
 | Un axe puis un trait | Le même, dans l'autre ordre |
-| Un cercle | Son rayon |
+| Un cercle | Son **diamètre** |
+| Un cercle puis son centre | Son rayon |
 
 Le premier clic prend une entité et **montre déjà ce qu'elle mesure toute
 seule** — la longueur d'un trait. Cliquer une seconde entité avant de poser la
@@ -158,6 +159,13 @@ trait fin prolonge le segment jusque-là, comme sur un plan.
 
 Un point l'emporte sur un trait sous le même curseur : c'est la plus petite
 cible, donc la viser est un acte délibéré.
+
+### Un cercle donne son diamètre
+
+Un simple clic sur un cercle prend son **diamètre** : c'est la taille à laquelle
+un trou est percé et celle à laquelle un rond est tourné. Le rayon se demande
+exprès, en cliquant ensuite le **centre** — la seule chose que le centre puisse
+ajouter à un cercle déjà pris.
 
 ### On clique ce qu'on mesure, puis où la cote se pose
 
@@ -234,6 +242,33 @@ rectangle dessiné le long des axes ne pouvait jamais être contraint.
 Quand deux choses se superposent et que la mauvaise l'emporte, la rangée
 **Mesurer** force le type : *Intelligente*, *Point à point*, *Trait*, *Angle*,
 *Rayon*.
+
+## Les cercles
+
+Le menu **Cercles**, dans la rangée Dessin, en propose cinq façons :
+
+| Façon | Ce qu'on clique |
+| --- | --- |
+| **Centre et diamètre** | Le centre, puis un point du bord |
+| **Deux points du bord** | Deux points opposés ; le centre est entre les deux |
+| **Deux points puis le centre** | Deux points du bord, puis le centre |
+| **Tangent à deux droites** | Deux traits, puis le centre |
+| **Tangent à trois droites** | Trois traits : il ne reste rien à choisir |
+
+Les deux façons qui finissent par le centre ne le prennent pas où l'on clique :
+un centre à égale distance de deux points ne peut être que sur leur
+**médiatrice**, et un centre à égale distance de deux droites que sur leur
+**bissectrice**. Le clic y est ramené — l'utilisateur dit à peu près où, la
+géométrie dit exactement où.
+
+Un cercle posé contre des traits **y reste** : la tangence est enregistrée comme
+contrainte, puisque c'est tout l'intérêt de les avoir désignés.
+
+Le **diamètre se tape** pendant le geste, comme la longueur d'un trait ou les
+côtés d'un rectangle, et devient une cote sur le cercle. Une taille trop petite
+pour atteindre les deux points est retenue à la plus petite qui les atteint :
+taper 150 passe par 1 et par 15 en chemin, et un cercle qui disparaît à la
+première frappe emporte avec lui le champ dans lequel on écrit.
 
 ## Les contraintes
 

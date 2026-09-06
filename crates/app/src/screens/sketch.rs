@@ -62,6 +62,54 @@ impl LiveInput {
     }
 }
 
+/// How a circle is being drawn.
+///
+/// Every one of them ends the same way — a centre and a radius — but what the
+/// user points at to get there differs, and so does what is known after each
+/// click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CircleMode {
+    /// The centre, then a point of the rim.
+    #[default]
+    Center,
+    /// Two opposite points of the rim.
+    TwoPoints,
+    /// Two points of the rim, then the centre — which can only sit on their
+    /// perpendicular bisector, so the click is brought back onto it.
+    ThreePoints,
+    /// Two traits it must touch, then the centre on their bisector.
+    TwoTangents,
+    /// Three traits it must touch: the circle inscribed between them, with
+    /// nothing left to choose.
+    ThreeTangents,
+}
+
+impl CircleMode {
+    /// What to point at, said in the title bar while the tool waits.
+    pub fn asks_for(self) -> &'static str {
+        match self {
+            Self::Center => "Cliquez le centre, puis un point du bord",
+            Self::TwoPoints => "Cliquez deux points opposés du bord",
+            Self::ThreePoints => "Cliquez deux points du bord, puis le centre",
+            Self::TwoTangents => "Cliquez deux droites, puis le centre",
+            Self::ThreeTangents => "Cliquez trois droites",
+        }
+    }
+
+    /// Whether it is drawn by pointing at traits rather than at places.
+    pub fn touches_traits(self) -> bool {
+        matches!(self, Self::TwoTangents | Self::ThreeTangents)
+    }
+
+    /// How many things it needs before the circle is settled.
+    pub fn wants(self) -> usize {
+        match self {
+            Self::Center | Self::TwoPoints => 2,
+            Self::ThreePoints | Self::TwoTangents | Self::ThreeTangents => 3,
+        }
+    }
+}
+
 /// What the constraint tool has been pointed at: a piece of the drawing, or
 /// one of the sketch's own axes.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -229,6 +277,10 @@ pub struct SketchEditor {
     pub drag_preview: Option<cao_sketch::Sketch>,
     /// What the constraint tool has been pointed at so far.
     pub rule_picks: Vec<RulePick>,
+    /// How the circle tool is drawing, and what it has been shown so far.
+    pub circle_mode: CircleMode,
+    pub circle_points: Vec<DVec2>,
+    pub circle_segments: Vec<SegmentId>,
     /// Everything the selection tool is holding, ready to be deleted.
     pub selection: Vec<Selection>,
     /// The box being pulled across the drawing, in sketch coordinates: where it
@@ -322,6 +374,8 @@ impl SketchEditor {
         self.selection.clear();
         self.band = None;
         self.rule_picks.clear();
+        self.circle_points.clear();
+        self.circle_segments.clear();
         self.pending_start = None;
         self.first_angle_segment = None;
         self.first_point = None;

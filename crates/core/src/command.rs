@@ -20,6 +20,12 @@ pub enum Command {
     ToolPoint,
     ToolDimension,
 
+    CircleCenter,
+    CircleTwoPoints,
+    CircleThreePoints,
+    CircleTwoTangents,
+    CircleThreeTangents,
+
     DimensionAuto,
     DimensionPointToPoint,
     DimensionLength,
@@ -51,7 +57,7 @@ pub enum Command {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 33] = [
+    pub const ALL: [Self; 38] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -63,6 +69,11 @@ impl Command {
         Self::ToolCircle,
         Self::ToolPoint,
         Self::ToolDimension,
+        Self::CircleCenter,
+        Self::CircleTwoPoints,
+        Self::CircleThreePoints,
+        Self::CircleTwoTangents,
+        Self::CircleThreeTangents,
         Self::DimensionAuto,
         Self::DimensionPointToPoint,
         Self::DimensionLength,
@@ -100,6 +111,11 @@ impl Command {
             Self::ToolCircle => "Cercle",
             Self::ToolPoint => "Point",
             Self::ToolDimension => "Cote",
+            Self::CircleCenter => "Centre et diamètre",
+            Self::CircleTwoPoints => "Deux points du bord",
+            Self::CircleThreePoints => "Deux points puis le centre",
+            Self::CircleTwoTangents => "Tangent à deux droites",
+            Self::CircleThreeTangents => "Tangent à trois droites",
             Self::DimensionAuto => "Cote intelligente",
             Self::DimensionPointToPoint => "Cote point à point",
             Self::DimensionLength => "Cote de trait",
@@ -141,6 +157,11 @@ impl Command {
             Self::ToolCircle => "Deux clics : centre puis rayon",
             Self::ToolPoint => "Un clic pose un point",
             Self::ToolDimension => "Cote intelligente : cliquer ce qu'on veut mesurer",
+            Self::CircleCenter => "Le centre, puis un point du bord",
+            Self::CircleTwoPoints => "Deux points opposés du bord",
+            Self::CircleThreePoints => "Deux points du bord, puis le centre sur leur médiatrice",
+            Self::CircleTwoTangents => "Deux droites, puis le centre sur leur bissectrice",
+            Self::CircleThreeTangents => "Trois droites : le cercle inscrit entre elles",
             Self::DimensionAuto => "Mesure ce qui est sous le curseur",
             Self::DimensionPointToPoint => "Deux points, reliés ou non",
             Self::DimensionLength => "Un trait, mesuré sur toute sa longueur",
@@ -180,6 +201,11 @@ impl Command {
             | Self::ToolCircle
             | Self::ToolPoint
             | Self::ToolDimension => "Outils de dessin",
+            Self::CircleCenter
+            | Self::CircleTwoPoints
+            | Self::CircleThreePoints
+            | Self::CircleTwoTangents
+            | Self::CircleThreeTangents => "Cercles",
             Self::DimensionAuto
             | Self::DimensionPointToPoint
             | Self::DimensionLength

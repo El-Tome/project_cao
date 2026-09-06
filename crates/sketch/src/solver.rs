@@ -886,8 +886,8 @@ impl Sketch {
             DimensionTarget::Projected { from, to, axis } => {
                 self.projected_equation(from, to, axis, dimension.value / scale)?
             }
-            // A radius has no bearing on where the points are.
-            DimensionTarget::Radius(_) => return None,
+            // The size of a circle has no bearing on where the points are.
+            DimensionTarget::Radius(_) | DimensionTarget::Diameter(_) => return None,
         };
 
         // A pinned coordinate cannot absorb any correction.

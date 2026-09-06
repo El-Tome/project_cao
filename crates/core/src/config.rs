@@ -211,6 +211,11 @@ pub struct ViewportConfig {
     pub grid_snap_divisions: u32,
     /// How close, in pixels, the cursor must be for the grid to pull it.
     pub grid_snap_pixels: f32,
+    /// How close, in pixels, the cursor must be for a line already drawn to
+    /// pull it. Larger than the grid's: drawing onto a line already there is
+    /// far more common than drawing near it.
+    #[serde(default = "default_segment_snap_pixels")]
+    pub segment_snap_pixels: f32,
     /// Corner the scale bar sits in.
     pub ruler_corner: ViewportCorner,
     pub ruler_visible: bool,
@@ -234,11 +239,16 @@ impl Default for ViewportConfig {
             grid_snap: true,
             grid_snap_divisions: 4,
             grid_snap_pixels: 12.0,
+            segment_snap_pixels: default_segment_snap_pixels(),
             ruler_corner: ViewportCorner::BottomLeft,
             ruler_visible: true,
             unit: UnitDisplay::Auto,
         }
     }
+}
+
+fn default_segment_snap_pixels() -> f32 {
+    28.0
 }
 
 /// How the scale bar labels a length: always in the same unit, or in whichever

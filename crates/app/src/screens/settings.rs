@@ -197,6 +197,12 @@ fn viewport_section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
     ui.checkbox(&mut config.grid_snap, "Aimantation sur la grille");
     ui.add(egui::Slider::new(&mut config.grid_snap_divisions, 1..=16).text("Subdivisions"));
     ui.add(egui::Slider::new(&mut config.grid_snap_pixels, 1.0..=48.0).text("Portée de l'aimant"));
+    ui.add(
+        egui::Slider::new(&mut config.segment_snap_pixels, 1.0..=48.0)
+            .text("Portée des traits")
+            .clamping(egui::SliderClamping::Never),
+    )
+    .on_hover_text("Un trait déjà dessiné attire plus fort que la grille");
 
     ui.add_space(10.0);
     ui.heading("Règle");

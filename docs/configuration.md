@@ -15,7 +15,7 @@ Bouton ⚙ de la barre d'outils, ou `Cmd/Ctrl + ,`. Six sections :
 | Section | Ce qu'on y règle |
 | --- | --- |
 | **Profils** | Changer, dupliquer, supprimer, importer, exporter, tout remettre par défaut |
-| **Viewport** | Cube d'orientation, grille, règle, limites de la caméra |
+| **Viewport** | Cube d'orientation, grille et aimants, règle, limites de la caméra |
 | **Navigation** | Habitudes souris, sensibilités, gestes du trackpad |
 | **Apparence** | Le fond, et toutes les couleurs et épaisseurs |
 | **Raccourcis** | La touche de chaque commande |

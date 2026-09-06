@@ -132,6 +132,8 @@ pub struct SketchEditor {
     pub first_axis: Option<SketchAxis>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
+    /// What the cursor has been pulled onto, so the drawing can say so.
+    pub snap: Option<crate::screens::viewport::Snap>,
     /// What the selection tool is holding, ready to be deleted.
     pub selected_element: Option<Selection>,
     /// The last segment the line tool drew, which the next one may square up

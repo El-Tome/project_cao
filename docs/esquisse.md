@@ -114,21 +114,39 @@ Quand deux choses se superposent et que la mauvaise l'emporte, la rangée
 
 ## L'aimantation
 
-Le curseur est attiré par ce dont il est proche, dans cet ordre :
+Le curseur est attiré, dans cet ordre :
 
-1. **Un point existant**, à moins de 10 pixels — c'est ce qui permet de fermer
-   un contour, de rattacher une forme à une autre, et de se poser sur
-   l'origine.
-2. **La grille**, à moins de 12 pixels, sur des quarts de carreau.
+| Ce qui attire | Pourquoi en premier |
+| --- | --- |
+| **Un point existant** | C'est ce qu'on vise le plus souvent, et rater d'un cheveu laisse une géométrie qui n'a l'air jointe que de loin |
+| **Le milieu d'un trait** | On y vise exprès, et rien à l'écran ne dit qu'on est exactement à mi-longueur : un **petit triangle** l'annonce |
+| **Le corps d'un trait** | Dessiner sur un trait déjà là est bien plus courant que dessiner à côté |
+| **La grille** | Le filet de sécurité, avec la portée la plus courte |
 
-L'aimant de la grille est ce qui rend faciles le tracé sur l'origine et l'angle
-droit à main levée : il suffit de viser à peu près. Il ne mord qu'à quelques
-pixels, donc une position libre volontaire reste possible. Tout est réglable
-(`grid_snap`, `grid_snap_divisions`, `grid_snap_pixels`).
+Un trait déjà dessiné attire donc **plus fort que la grille** : sa portée est
+réglable à part ([configuration.md](configuration.md)).
 
-Attention : aimanter n'est pas contraindre. Un trait posé bien horizontalement
-grâce à la grille reste libre de tourner tant qu'aucune cote d'angle ne le
-tient.
+### Deux sommets superposés n'en font qu'un
+
+Lâcher un point sur un autre les **fusionne** : tout ce qui pointait vers celui
+qui part pointe désormais vers celui qui reste, les cotes comprises. Deux bouts
+posés l'un sur l'autre sont un seul coin, pas deux — sans quoi le contour a
+l'air fermé sans l'être, et rien ne s'extrude.
+
+Un trait dont les deux bouts deviennent le même point s'en va : il n'a plus ni
+longueur ni direction. Et le point d'origine n'est jamais celui qui cède.
+
+La décision est prise au lâcher et **enregistrée**, comme l'accrochage : la
+distance qui compte dépend du zoom du moment, donc la refaire au rejeu pourrait
+joindre une autre paire, ou aucune.
+
+L'aimant de la grille mord sur des quarts de carreau : viser à peu près suffit
+pour se poser sur l'origine. Aucun aimant ne mord au-delà de quelques pixels,
+donc une position libre volontaire reste possible.
+
+Attention : **aimanter n'est pas contraindre**. Un trait posé bien
+horizontalement grâce à la grille reste libre de tourner tant qu'aucune cote
+d'angle ne le tient.
 
 Un rectangle est **une seule opération** dans l'historique, pas quatre traits :
 c'est ce qu'on veut voir en relisant la construction.

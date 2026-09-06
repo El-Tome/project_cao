@@ -118,6 +118,16 @@ pub enum Operation {
         distance: f32,
         mode: ExtrusionMode,
     },
+    /// Makes two points one, once they have been laid on top of each other.
+    ///
+    /// Recorded rather than worked out again on replay: which points are close
+    /// enough depends on the zoom at the time, so re-deriving it later could
+    /// join a different pair — or none.
+    MergePoints {
+        sketch: usize,
+        kept: PointId,
+        dropped: PointId,
+    },
     /// Deletes a piece of a sketch, and whatever leaned on it.
     Erase {
         sketch: usize,
@@ -156,6 +166,7 @@ impl Operation {
                 Element::Circle(_) => "Cercle supprimé".to_string(),
             },
             Self::EraseDimension { .. } => "Cote supprimée".to_string(),
+            Self::MergePoints { .. } => "Sommets fusionnés".to_string(),
             Self::Revolve { angle, mode, .. } => {
                 let verb = match mode {
                     ExtrusionMode::Add => "Révolution",
@@ -237,6 +248,11 @@ impl Operation {
                 Element::Circle(circle) => format!("Esquisse {sketch} · cercle {}", circle.0),
             },
             Self::EraseDimension { sketch, .. } => format!("Esquisse {sketch}"),
+            Self::MergePoints {
+                sketch,
+                kept,
+                dropped,
+            } => format!("Esquisse {sketch} · points {} et {}", kept.0, dropped.0),
             Self::Revolve {
                 sketch, picks, axis, ..
             } => format!(

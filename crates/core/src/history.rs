@@ -207,6 +207,10 @@ impl Operation {
                         format!("Angle {value}° / {}", axis.label())
                     }
                     DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
+                    DimensionTarget::Projected { axis, .. } => match axis {
+                        cao_sketch::SketchAxis::U => format!("Largeur {value} mm"),
+                        cao_sketch::SketchAxis::V => format!("Hauteur {value} mm"),
+                    },
                     DimensionTarget::PointToSegment { .. }
                     | DimensionTarget::Length(_)
                     | DimensionTarget::Distance { .. } => format!("Cote {value} mm"),
@@ -295,6 +299,12 @@ impl Operation {
                 DimensionTarget::PointToSegment { point, segment } => {
                     format!("Esquisse {sketch} · point {} au trait {}", point.0, segment.0)
                 }
+                DimensionTarget::Projected { from, to, axis } => format!(
+                    "Esquisse {sketch} · points {} et {} sur l'{}",
+                    from.0,
+                    to.0,
+                    axis.label()
+                ),
                 DimensionTarget::Radius(circle) => {
                     format!("Esquisse {sketch} · cercle {}", circle.0)
                 }

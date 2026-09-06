@@ -73,8 +73,7 @@ pub fn push(
             Some(linear(
                 out,
                 plane,
-                start,
-                end,
+                Span::between(start, end),
                 away_from(sketch),
                 Moved { placed, nudge },
                 style,
@@ -86,8 +85,19 @@ pub fn push(
             Some(linear(
                 out,
                 plane,
-                start,
-                end,
+                Span::between(start, end),
+                away_from(sketch),
+                Moved { placed, nudge },
+                style,
+                pixel,
+            ))
+        }
+        DimensionTarget::Projected { from, to, axis } => {
+            let (start, end) = (*sketch.points().get(from.0)?, *sketch.points().get(to.0)?);
+            Some(linear(
+                out,
+                plane,
+                Span::along(start, end, axis.direction()),
                 away_from(sketch),
                 Moved { placed, nudge },
                 style,
@@ -109,8 +119,7 @@ pub fn push(
             Some(linear(
                 out,
                 plane,
-                foot,
-                at,
+                Span::between(foot, at),
                 away_from(sketch),
                 Moved { placed, nudge },
                 style,
@@ -194,21 +203,59 @@ fn away_from(sketch: &Sketch) -> Vec2 {
         .unwrap_or(Vec2::ZERO)
 }
 
+/// What a linear dimension measures: two ends, and the direction its dimension
+/// line runs in.
+///
+/// The two are separate because a dimension on a slanted trait can be read
+/// three ways — its length, its width, or its height — and the width is drawn
+/// along the horizontal even though its ends are not level.
+#[derive(Clone, Copy)]
+struct Span {
+    start: Vec2,
+    end: Vec2,
+    direction: Vec2,
+}
+
+impl Span {
+    fn between(start: Vec2, end: Vec2) -> Self {
+        Self {
+            start,
+            end,
+            direction: (end - start).normalize_or(Vec2::X),
+        }
+    }
+
+    fn along(start: Vec2, end: Vec2, direction: Vec2) -> Self {
+        // Pointing the line the way the trait goes keeps the arrows outward.
+        let direction = if (end - start).dot(direction) < 0.0 {
+            -direction
+        } else {
+            direction
+        };
+        Self {
+            start,
+            end,
+            direction,
+        }
+    }
+}
+
 /// A length or a distance: the classic pair of extension lines with a
 /// dimension line between them.
-#[allow(clippy::too_many_arguments)]
 fn linear(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
-    start: Vec2,
-    end: Vec2,
+    span: Span,
     center: Vec2,
     moved_by: Moved,
     style: &Style,
     pixel: f32,
 ) -> Placement {
-    let span = end - start;
-    let direction = span.normalize_or(Vec2::X);
+    let Span {
+        start,
+        end,
+        direction,
+    } = span;
     let mut normal = Vec2::new(-direction.y, direction.x);
 
     // Always step away from the drawing: on a closed contour the inward side
@@ -218,19 +265,25 @@ fn linear(
         normal = -normal;
     }
 
-    // A dimension line has to stay parallel to what it measures, with its two
-    // extension lines perpendicular and of the same length — otherwise it is a
-    // skewed pair of arrows that no longer reads as a measurement. So the
-    // movement is split: across the line it steps the line away, along it, it
-    // only slides the value.
+    // A dimension line has to stay parallel to the direction it measures, with
+    // its extension lines perpendicular to it — otherwise it is a skewed pair
+    // of arrows that no longer reads as a measurement. So the movement is
+    // split: across the line it steps the line away, along it, it only slides
+    // the value.
+    //
+    // The two ends are not always level (a width taken on a slanted trait is
+    // exactly that case), so the line clears the outer of the two and the
+    // extension lines come out different lengths, as on a drawing.
+    let outer = start.dot(normal).max(end.dot(normal));
     let stepped = moved_by.along(normal, style.offset_pixels * pixel);
-    let offset = normal * stepped;
-    let (from, to) = (start + offset, end + offset);
+    let level = outer + stepped;
+    let onto = |point: Vec2| point + normal * (level - point.dot(normal));
+    let (from, to) = (onto(start), onto(end));
 
     // Extension lines overshoot the dimension line a little, as on a drawing.
-    let overshoot = normal * (stepped + 4.0 * pixel * stepped.signum());
-    line(out, plane, start, start + overshoot, style);
-    line(out, plane, end, end + overshoot, style);
+    let overshoot = normal * 4.0 * pixel * stepped.signum();
+    line(out, plane, start, from + overshoot, style);
+    line(out, plane, end, to + overshoot, style);
     line(out, plane, from, to, style);
 
     arrow(out, plane, from, direction, style, pixel);
@@ -239,12 +292,12 @@ fn linear(
     // The value may still slide along the line, which is what lets two
     // dimensions sharing a direction stop covering each other.
     let slid = moved_by.along(direction, 0.0);
-    let foot = middle + offset + direction * slid;
+    let foot = (from + to) * 0.5 + direction * slid;
     let clearance = normal * text_clearance(normal) * pixel;
 
     // Pushed past the ends, the value has nothing next to it saying which
     // dimension it belongs to. A leader carries the line out to it.
-    if slid.abs() > span.length() * 0.5 {
+    if slid.abs() > (to - from).length() * 0.5 {
         let nearest = if slid > 0.0 { to } else { from };
         line(out, plane, nearest, foot, style);
         line(out, plane, foot, foot + clearance * 0.6, style);
@@ -252,7 +305,7 @@ fn linear(
 
     Placement {
         text_at: foot + clearance,
-        offset: offset + direction * slid,
+        offset: normal * stepped + direction * slid,
     }
 }
 

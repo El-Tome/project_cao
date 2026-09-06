@@ -255,6 +255,9 @@ impl Sketch {
             DimensionTarget::PointToSegment { point, segment } => {
                 self.point_to_segment_equation(point, segment, dimension.value / scale)?
             }
+            DimensionTarget::Projected { from, to, axis } => {
+                self.projected_equation(from, to, axis, dimension.value / scale)?
+            }
             // A radius has no bearing on where the points are.
             DimensionTarget::Radius(_) => return None,
         };
@@ -281,6 +284,36 @@ impl Sketch {
         equation.error = length - target;
         equation.add(b, direction);
         equation.add(a, -direction);
+        Some(equation)
+    }
+
+    /// The gap between two points along one axis, which is what a horizontal or
+    /// vertical dimension on a slanted trait holds.
+    ///
+    /// Only the movement along that axis matters: the points stay free to slide
+    /// across it, which is exactly what makes such a dimension weaker than a
+    /// length — and the reason both can sit on the same trait.
+    fn projected_equation(
+        &self,
+        from: PointId,
+        to: PointId,
+        axis: crate::constraints::SketchAxis,
+        target: f32,
+    ) -> Option<Equation> {
+        if from.0 >= self.points().len() || to.0 >= self.points().len() {
+            return None;
+        }
+        let direction = axis.direction();
+        let gap = (self.point(to) - self.point(from)).dot(direction);
+        if gap.abs() < 1e-9 {
+            return None;
+        }
+        let sign = if gap < 0.0 { -1.0 } else { 1.0 };
+
+        let mut equation = Equation::new(self.points().len() * 2);
+        equation.error = gap.abs() - target;
+        equation.add(to, direction * sign);
+        equation.add(from, -direction * sign);
         Some(equation)
     }
 

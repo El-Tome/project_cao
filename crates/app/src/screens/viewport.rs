@@ -1158,6 +1158,20 @@ fn place_dimension(
     cursor: Vec2,
     pixel: f32,
 ) -> bool {
+    // Where the cursor is says which of the three readings of a slanted trait
+    // is wanted, so it is settled here, at the click that puts the cote down.
+    let target = oriented(context, index, target, cursor);
+
+    // The reading asked for is already on the drawing: show its value rather
+    // than lay a second copy over it.
+    if context.document.sketches()[index]
+        .dimension_of(target)
+        .is_some()
+    {
+        edit_dimension(context, index, target);
+        return false;
+    }
+
     let Some(value) = context.document.measured(index, target) else {
         return false;
     };
@@ -1349,10 +1363,13 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
 
     // The same measurement clicked again is the one already there: showing its
     // value to be retyped is what the user is after, not a second copy of it
-    // laid over the first.
-    if context.document.sketches()[index]
-        .dimension_of(target)
-        .is_some()
+    // laid over the first. A slanted trait is the exception — it has a width
+    // and a height to offer besides its length, and which one is wanted is only
+    // known once the cote is placed.
+    if !is_slanted(&context.document.sketches()[index], target)
+        && context.document.sketches()[index]
+            .dimension_of(target)
+            .is_some()
     {
         return edit_dimension(context, index, target);
     }
@@ -1383,6 +1400,66 @@ fn edit_dimension(context: &mut SketchContext<'_>, index: usize, target: Dimensi
     context.editor.first_axis = None;
     context.editor.select(Some(target), value);
     context.editor.message = None;
+}
+
+/// How far off an axis a trait has to be before its width and its height are
+/// worth offering: a trait already level has a width equal to its length, and
+/// two names for one measurement is one too many.
+const SLANT_DEGREES: f32 = 5.0;
+
+/// Which of the three readings of a slanted trait the cursor is asking for.
+///
+/// The two ends box off the plane: above or below that box the cursor asks for
+/// the width, left or right of it the height, and inside it — the triangle the
+/// trait closes — or out past a corner, the length itself.
+fn oriented(
+    context: &SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    cursor: Vec2,
+) -> DimensionTarget {
+    let sketch = match context.document.sketches().get(index) {
+        Some(sketch) => sketch,
+        None => return target,
+    };
+    let Some((from, to)) = ends_of(sketch, target).filter(|_| is_slanted(sketch, target)) else {
+        return target;
+    };
+    let (a, b) = (sketch.point(from), sketch.point(to));
+    let (low, high) = (a.min(b), a.max(b));
+    let within_x = (low.x..=high.x).contains(&cursor.x);
+    let within_y = (low.y..=high.y).contains(&cursor.y);
+    let axis = match (within_x, within_y) {
+        (true, false) => cao_sketch::SketchAxis::U,
+        (false, true) => cao_sketch::SketchAxis::V,
+        _ => return target,
+    };
+    DimensionTarget::Projected { from, to, axis }.normalised()
+}
+
+/// Whether a trait leans far enough off both axes for its width and its height
+/// to be worth offering beside its length.
+fn is_slanted(sketch: &Sketch, target: DimensionTarget) -> bool {
+    let Some((from, to)) = ends_of(sketch, target) else {
+        return false;
+    };
+    let span = sketch.point(to) - sketch.point(from);
+    let slant = span.y.atan2(span.x).to_degrees().abs();
+    slant.min((slant - 90.0).abs()).min((slant - 180.0).abs()) >= SLANT_DEGREES
+}
+
+/// The two ends of what a linear dimension measures, when it has two.
+fn ends_of(sketch: &Sketch, target: DimensionTarget) -> Option<(PointId, PointId)> {
+    match target {
+        DimensionTarget::Length(segment) => {
+            let segment = sketch.segments().get(segment.0)?;
+            Some((segment.start, segment.end))
+        }
+        DimensionTarget::Distance { from, to } | DimensionTarget::Projected { from, to, .. } => {
+            Some((from, to))
+        }
+        _ => None,
+    }
 }
 
 /// The second half a dimension in hand can still take: another segment makes it
@@ -2439,6 +2516,7 @@ fn pending_annotation(
         {
             return Some((refined, Vec2::ZERO));
         }
+        let target = oriented(context, index, target, cursor);
         // The preview is nudged from where the annotation stands today, not
         // moved to an absolute offset: `push` adds a nudge on top of whatever
         // the dimension already carries.
@@ -3025,6 +3103,16 @@ fn apply_dimension_value(
 
     // Only the value changes here: where the annotation sits was decided when it
     // was put down, and retyping a number must not send it back to its default.
+    // A value that is already the one in force changes nothing, and clicking
+    // ✔ twice must not leave two identical steps in the history.
+    if context.document.sketches()[index]
+        .dimension_of(target)
+        .is_some_and(|dimension| (dimension.value - value).abs() < 1e-4)
+    {
+        context.editor.message = None;
+        return false;
+    }
+
     match context.document.apply(Operation::SetDimension {
         sketch: index,
         target,

@@ -53,6 +53,13 @@ pub enum DimensionTarget {
         point: PointId,
         segment: SegmentId,
     },
+    /// The gap between two points along one of the sketch's axes: the width of
+    /// a slanted trait rather than its length, or its height.
+    Projected {
+        from: PointId,
+        to: PointId,
+        axis: SketchAxis,
+    },
     /// Radius of a circle.
     Radius(CircleId),
 }
@@ -69,6 +76,11 @@ impl DimensionTarget {
             Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
                 first: second,
                 second: first,
+            },
+            Self::Projected { from, to, axis } if to.0 < from.0 => Self::Projected {
+                from: to,
+                to: from,
+                axis,
             },
             other => other,
         }

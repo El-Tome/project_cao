@@ -195,6 +195,9 @@ impl Sketch {
             DimensionTarget::PointToSegment { point, segment } => {
                 !self.is_erased_point(point) && !self.is_erased_segment(segment)
             }
+            DimensionTarget::Projected { from, to, .. } => {
+                !self.is_erased_point(from) && !self.is_erased_point(to)
+            }
             DimensionTarget::Radius(circle) => !self.is_erased_circle(circle),
         }
     }
@@ -507,6 +510,19 @@ impl Sketch {
         Some(start + direction * (self.point(point) - start).dot(direction))
     }
 
+    /// The gap between two points along one axis of the sketch, in units.
+    pub fn projected_gap(
+        &self,
+        from: PointId,
+        to: PointId,
+        axis: crate::constraints::SketchAxis,
+    ) -> Option<f32> {
+        if from.0 >= self.points.len() || to.0 >= self.points.len() {
+            return None;
+        }
+        Some((self.point(to) - self.point(from)).dot(axis.direction()).abs())
+    }
+
     /// The distance from a point to the line a segment lies on, in units.
     pub fn point_to_segment(&self, point: PointId, segment: SegmentId) -> Option<f32> {
         let foot = self.foot_on_segment(point, segment)?;
@@ -673,6 +689,9 @@ impl Sketch {
             DimensionTarget::PointToSegment { point, segment } => {
                 self.point_to_segment(point, segment)? * millimeters_per_unit.max(1e-9)
             }
+            DimensionTarget::Projected { from, to, axis } => {
+                self.projected_gap(from, to, axis)? * millimeters_per_unit.max(1e-9)
+            }
             DimensionTarget::Radius(_) => return None,
         };
 
@@ -734,6 +753,11 @@ fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> Dimensi
             point: swap(point),
             segment,
         },
+        DimensionTarget::Projected { from, to, axis } => DimensionTarget::Projected {
+            from: swap(from),
+            to: swap(to),
+            axis,
+        },
         other => other,
     }
 }
@@ -785,6 +809,57 @@ mod tests {
 
         let distance = sketch.point_to_segment(far, line).unwrap();
         assert!((distance - 20.0).abs() < 1e-2, "distance = {distance}");
+    }
+
+    #[test]
+    fn a_width_moves_the_trait_sideways_and_leaves_its_height_alone() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(Vec2::new(0.0, 0.0));
+        let end = sketch.add_point(Vec2::new(40.0, 30.0));
+        sketch.add_segment(start, end);
+
+        sketch.set_dimension(
+            DimensionTarget::Projected {
+                from: start,
+                to: end,
+                axis: SketchAxis::U,
+            },
+            60.0,
+            false,
+        );
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let width = sketch.projected_gap(start, end, SketchAxis::U).unwrap();
+        let height = sketch.projected_gap(start, end, SketchAxis::V).unwrap();
+        assert!((width - 60.0).abs() < 1e-2, "largeur = {width}");
+        assert!((height - 30.0).abs() < 1e-2, "hauteur = {height}");
+    }
+
+    #[test]
+    fn a_width_and_a_height_together_pin_a_trait_down() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = Sketch::ORIGIN;
+        let end = sketch.add_point(Vec2::new(40.0, 30.0));
+        sketch.add_segment(start, end);
+
+        for (axis, value) in [(SketchAxis::U, 80.0), (SketchAxis::V, 15.0)] {
+            sketch.set_dimension(
+                DimensionTarget::Projected {
+                    from: start,
+                    to: end,
+                    axis,
+                },
+                value,
+                false,
+            );
+        }
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let landed = sketch.point(end);
+        assert!(
+            (landed - Vec2::new(80.0, 15.0)).length() < 1e-2,
+            "arrivée = {landed:?}"
+        );
     }
 
     #[test]

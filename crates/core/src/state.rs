@@ -355,6 +355,9 @@ impl PartState {
             DimensionTarget::PointToSegment { point, segment } => {
                 sketch.point_to_segment(point, segment)?
             }
+            DimensionTarget::Projected { from, to, axis } => {
+                sketch.projected_gap(from, to, axis)?
+            }
             DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. } => return None,
         };
         (units > 1e-6).then_some(units)
@@ -377,6 +380,9 @@ impl PartState {
             DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
             DimensionTarget::PointToSegment { point, segment } => sketch
                 .point_to_segment(point, segment)
+                .map(|units| self.to_millimeters(units)),
+            DimensionTarget::Projected { from, to, axis } => sketch
+                .projected_gap(from, to, axis)
                 .map(|units| self.to_millimeters(units)),
         }
     }

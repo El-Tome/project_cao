@@ -49,10 +49,7 @@ pub enum DimensionTarget {
     },
     /// Distance from a point to the line a segment lies on, taken square to
     /// that line — as if a perpendicular segment ran from the point down to it.
-    PointToSegment {
-        point: PointId,
-        segment: SegmentId,
-    },
+    PointToSegment { point: PointId, segment: SegmentId },
     /// The gap between two points along one of the sketch's axes: the width of
     /// a slanted trait rather than its length, or its height.
     Projected {
@@ -83,6 +80,123 @@ impl DimensionTarget {
                 axis,
             },
             other => other,
+        }
+    }
+}
+
+/// A rule with no number to it.
+///
+/// A dimension says how big something is; a constraint says how two things
+/// stand to each other. Both take freedom away from the drawing and both are
+/// counted the same way when working out what is still loose — they are kept
+/// apart only because one carries a value the user types and the other does
+/// not.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Constraint {
+    /// Two traits meeting at a right angle, without saying which way up.
+    Perpendicular {
+        first: SegmentId,
+        second: SegmentId,
+    },
+    Parallel {
+        first: SegmentId,
+        second: SegmentId,
+    },
+    /// Two traits of the same length.
+    Equal {
+        first: SegmentId,
+        second: SegmentId,
+    },
+    /// Two circles of the same radius.
+    EqualRadius {
+        first: CircleId,
+        second: CircleId,
+    },
+    /// A point held on the line a trait lies on, wherever the trait goes.
+    OnSegment {
+        point: PointId,
+        segment: SegmentId,
+    },
+    /// Two traits lying on one and the same line.
+    Collinear {
+        first: SegmentId,
+        second: SegmentId,
+    },
+    /// A circle brushing a line: the line grazes it and no more.
+    Tangent {
+        circle: CircleId,
+        segment: SegmentId,
+    },
+    /// A point held halfway along a trait.
+    Midpoint {
+        point: PointId,
+        segment: SegmentId,
+    },
+    /// A point that stays where it is put. Its size is not fixed by this, only
+    /// its place.
+    Fixed {
+        point: PointId,
+    },
+}
+
+impl Constraint {
+    /// The same rule with its pair in a fixed order, so the two ways of
+    /// clicking it are one rule.
+    pub fn normalised(self) -> Self {
+        match self {
+            Self::Perpendicular { first, second } if second.0 < first.0 => Self::Perpendicular {
+                first: second,
+                second: first,
+            },
+            Self::Parallel { first, second } if second.0 < first.0 => Self::Parallel {
+                first: second,
+                second: first,
+            },
+            Self::Equal { first, second } if second.0 < first.0 => Self::Equal {
+                first: second,
+                second: first,
+            },
+            Self::EqualRadius { first, second } if second.0 < first.0 => Self::EqualRadius {
+                first: second,
+                second: first,
+            },
+            Self::Collinear { first, second } if second.0 < first.0 => Self::Collinear {
+                first: second,
+                second: first,
+            },
+            other => other,
+        }
+    }
+
+    /// How it reads in the history and on the drawing.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Perpendicular { .. } => "Perpendiculaire",
+            Self::Parallel { .. } => "Parallèle",
+            Self::Equal { .. } | Self::EqualRadius { .. } => "Égalité",
+            Self::OnSegment { .. } => "Coïncidence",
+            Self::Collinear { .. } => "Colinéaire",
+            Self::Tangent { .. } => "Tangence",
+            Self::Midpoint { .. } => "Milieu",
+            Self::Fixed { .. } => "Fixe",
+        }
+    }
+
+    /// The mark drawn next to what it holds.
+    ///
+    /// Plain letters and punctuation: the drawing symbols of the trade —
+    /// ⊥, ∥, ½ — are not in the fonts the interface ships with, and a mark that
+    /// comes out as an empty box says less than nothing.
+    pub fn mark(self) -> &'static str {
+        match self {
+            Self::Perpendicular { .. } => "|_",
+            Self::Parallel { .. } => "//",
+            Self::Equal { .. } | Self::EqualRadius { .. } => "=",
+            Self::OnSegment { .. } => "+",
+            Self::Collinear { .. } => "--",
+            Self::Tangent { .. } => "T",
+            Self::Midpoint { .. } => "1/2",
+            Self::Fixed { .. } => "X",
         }
     }
 }

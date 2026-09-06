@@ -1,7 +1,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-use crate::constraints::{Dimension, DimensionTarget, Freedom, SketchAxis};
+use crate::constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
 use crate::plane::WorkPlane;
 use crate::solver::{self, SolveOutcome};
 
@@ -55,6 +55,9 @@ pub struct Sketch {
     #[serde(default)]
     circles: Vec<Circle>,
     dimensions: Vec<Dimension>,
+    /// The rules that carry no value: perpendicular, parallel, equal…
+    #[serde(default)]
+    constraints: Vec<Constraint>,
     /// What has been deleted, by rank.
     ///
     /// Deleted geometry is marked rather than taken out of the list: a segment
@@ -112,6 +115,7 @@ impl Sketch {
             segments: Vec::new(),
             circles: Vec::new(),
             dimensions: Vec::new(),
+            constraints: Vec::new(),
             erased: Erased::default(),
         }
     }
@@ -187,6 +191,10 @@ impl Sketch {
             .into_iter()
             .filter(|dimension| self.measures_live(dimension.target))
             .collect();
+        self.constraints = std::mem::take(&mut self.constraints)
+            .into_iter()
+            .filter(|constraint| self.holds_up(*constraint))
+            .collect();
     }
 
     /// Whether everything a dimension refers to is still drawn.
@@ -207,6 +215,54 @@ impl Sketch {
                 !self.is_erased_point(from) && !self.is_erased_point(to)
             }
             DimensionTarget::Radius(circle) => !self.is_erased_circle(circle),
+        }
+    }
+
+    pub fn constraints(&self) -> &[Constraint] {
+        &self.constraints
+    }
+
+    /// Adds a rule, unless the drawing already carries it.
+    pub fn add_constraint(&mut self, constraint: Constraint) {
+        let constraint = constraint.normalised();
+        if !self.constraints.contains(&constraint) && self.holds_up(constraint) {
+            self.constraints.push(constraint);
+        }
+    }
+
+    pub fn erase_constraint(&mut self, constraint: Constraint) {
+        let constraint = constraint.normalised();
+        self.constraints.retain(|held| *held != constraint);
+    }
+
+    /// Whether everything a rule speaks of is still drawn.
+    fn holds_up(&self, constraint: Constraint) -> bool {
+        let segment = |id: SegmentId| id.0 < self.segments.len() && !self.is_erased_segment(id);
+        let circle = |id: CircleId| id.0 < self.circles.len() && !self.is_erased_circle(id);
+        let point = |id: PointId| id.0 < self.points.len() && !self.is_erased_point(id);
+        match constraint {
+            Constraint::Perpendicular { first, second }
+            | Constraint::Parallel { first, second }
+            | Constraint::Equal { first, second }
+            | Constraint::Collinear { first, second } => {
+                first != second && segment(first) && segment(second)
+            }
+            Constraint::EqualRadius { first, second } => {
+                first != second && circle(first) && circle(second)
+            }
+            Constraint::OnSegment {
+                point: held,
+                segment: on,
+            }
+            | Constraint::Midpoint {
+                point: held,
+                segment: on,
+            } => point(held) && segment(on),
+            Constraint::Tangent {
+                circle: round,
+                segment: line,
+            } => circle(round) && segment(line),
+            Constraint::Fixed { point: held } => point(held),
         }
     }
 
@@ -363,16 +419,17 @@ impl Sketch {
     ///
     /// Drawing onto a line already there is far more common than drawing near
     /// it, so a line pulls harder than the grid does.
-    pub fn nearest_on_segment(&self, position: DVec2, tolerance: f64) -> Option<(SegmentId, DVec2)> {
+    pub fn nearest_on_segment(
+        &self,
+        position: DVec2,
+        tolerance: f64,
+    ) -> Option<(SegmentId, DVec2)> {
         (0..self.segments.len())
             .map(SegmentId)
             .filter(|id| !self.is_erased_segment(*id))
             .map(|id| (id, self.project_onto(id, position)))
             .filter(|(_, at)| at.distance(position) <= tolerance)
-            .min_by(|a, b| {
-                a.1.distance(position)
-                    .total_cmp(&b.1.distance(position))
-            })
+            .min_by(|a, b| a.1.distance(position).total_cmp(&b.1.distance(position)))
     }
 
     /// The middle of the nearest segment, within `tolerance`.
@@ -383,10 +440,7 @@ impl Sketch {
                 (id, (start + end) * 0.5)
             })
             .filter(|(_, middle)| middle.distance(position) <= tolerance)
-            .min_by(|a, b| {
-                a.1.distance(position)
-                    .total_cmp(&b.1.distance(position))
-            })
+            .min_by(|a, b| a.1.distance(position).total_cmp(&b.1.distance(position)))
     }
 
     fn project_onto(&self, id: SegmentId, position: DVec2) -> DVec2 {
@@ -528,7 +582,11 @@ impl Sketch {
         if from.0 >= self.points.len() || to.0 >= self.points.len() {
             return None;
         }
-        Some((self.point(to) - self.point(from)).dot(axis.direction()).abs())
+        Some(
+            (self.point(to) - self.point(from))
+                .dot(axis.direction())
+                .abs(),
+        )
     }
 
     /// The distance from a point to the line a segment lies on, in units.
@@ -565,7 +623,11 @@ impl Sketch {
 
     /// The corner two segments share, as positions: the pivot and the two far
     /// ends. What an annotation needs to draw the angle.
-    pub fn corner_points(&self, first: SegmentId, second: SegmentId) -> Option<(DVec2, DVec2, DVec2)> {
+    pub fn corner_points(
+        &self,
+        first: SegmentId,
+        second: SegmentId,
+    ) -> Option<(DVec2, DVec2, DVec2)> {
         let (pivot, a, b) = self.corner(first, second)?;
         Some((self.point(pivot), self.point(a), self.point(b)))
     }
@@ -728,8 +790,11 @@ impl Sketch {
         let pinned: Vec<bool> = (0..self.points.len())
             .map(|index| self.is_origin(PointId(index)))
             .collect();
-        let free =
-            solver::null_space(&self.analysed_system(millimeters_per_unit), &pinned, variables);
+        let free = solver::null_space(
+            &self.analysed_system(millimeters_per_unit),
+            &pinned,
+            variables,
+        );
 
         (0..self.points.len())
             .map(|index| {
@@ -746,9 +811,40 @@ impl Sketch {
 
     /// Re-satisfies every dimension at once, reporting whether it managed.
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
+        self.level_radii();
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
             SolveOutcome::Residual => LengthOutcome::BestEffort,
+        }
+    }
+}
+
+impl Sketch {
+    /// Gives circles told to be equal the radius of the first of them.
+    ///
+    /// Set rather than solved: the solver only moves points, and a radius is
+    /// not one — it is a number the circle carries. Passing over the list a few
+    /// times lets a chain of equalities settle without looping for ever on one
+    /// that contradicts itself.
+    fn level_radii(&mut self) {
+        for _ in 0..4 {
+            let mut changed = false;
+            for index in 0..self.constraints.len() {
+                let Constraint::EqualRadius { first, second } = self.constraints[index] else {
+                    continue;
+                };
+                if first.0 >= self.circles.len() || second.0 >= self.circles.len() {
+                    continue;
+                }
+                let wanted = self.circles[first.0].radius;
+                if (self.circles[second.0].radius - wanted).abs() > 1e-12 {
+                    self.circles[second.0].radius = wanted;
+                    changed = true;
+                }
+            }
+            if !changed {
+                return;
+            }
         }
     }
 }
@@ -872,6 +968,151 @@ mod tests {
             (landed - DVec2::new(80.0, 15.0)).length() < 1e-2,
             "arrivée = {landed:?}"
         );
+    }
+
+    /// Un dessin minimal : deux traits qui partent du même coin.
+    fn corner() -> (Sketch, SegmentId, SegmentId) {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let pivot = sketch.add_point(DVec2::new(10.0, 10.0));
+        let a = sketch.add_point(DVec2::new(60.0, 14.0));
+        let b = sketch.add_point(DVec2::new(16.0, 55.0));
+        let first = sketch.add_segment(pivot, a);
+        let second = sketch.add_segment(pivot, b);
+        (sketch, first, second)
+    }
+
+    fn direction(sketch: &Sketch, segment: SegmentId) -> DVec2 {
+        let (start, end) = sketch.endpoints(segment);
+        (end - start).normalize()
+    }
+
+    #[test]
+    fn a_right_angle_can_be_asked_for_without_a_value() {
+        let (mut sketch, first, second) = corner();
+        sketch.add_constraint(Constraint::Perpendicular { first, second });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let square = direction(&sketch, first).dot(direction(&sketch, second));
+        assert!(square.abs() < 1e-6, "produit scalaire = {square}");
+    }
+
+    #[test]
+    fn two_traits_can_be_told_to_keep_the_same_direction() {
+        let (mut sketch, first, second) = corner();
+        sketch.add_constraint(Constraint::Parallel { first, second });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let across = direction(&sketch, first).perp_dot(direction(&sketch, second));
+        assert!(across.abs() < 1e-6, "produit vectoriel = {across}");
+    }
+
+    #[test]
+    fn two_traits_can_be_told_to_have_the_same_length() {
+        let (mut sketch, first, second) = corner();
+        sketch.add_constraint(Constraint::Equal { first, second });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let gap = sketch.segment_length(first) - sketch.segment_length(second);
+        assert!(gap.abs() < 1e-6, "écart de longueur = {gap}");
+    }
+
+    #[test]
+    fn a_point_can_be_held_on_a_line() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(100.0, 20.0));
+        let line = sketch.add_segment(start, end);
+        let floating = sketch.add_point(DVec2::new(40.0, 50.0));
+
+        sketch.add_constraint(Constraint::OnSegment {
+            point: floating,
+            segment: line,
+        });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let gap = sketch.point_to_segment(floating, line).unwrap();
+        assert!(gap < 1e-6, "le point est à {gap} de la droite");
+    }
+
+    #[test]
+    fn a_point_can_be_held_halfway_along_a_trait() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(80.0, 40.0));
+        let line = sketch.add_segment(start, end);
+        let floating = sketch.add_point(DVec2::new(10.0, 60.0));
+
+        sketch.add_constraint(Constraint::Midpoint {
+            point: floating,
+            segment: line,
+        });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let middle = (sketch.point(start) + sketch.point(end)) * 0.5;
+        assert!(sketch.point(floating).distance(middle) < 1e-6);
+    }
+
+    #[test]
+    fn a_circle_can_be_told_to_brush_a_line() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(100.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let center = sketch.add_point(DVec2::new(50.0, 30.0));
+        let circle = sketch.add_circle(center, 20.0);
+
+        sketch.add_constraint(Constraint::Tangent {
+            circle,
+            segment: line,
+        });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let gap = sketch.point_to_segment(center, line).unwrap();
+        assert!((gap - 20.0).abs() < 1e-6, "distance au centre = {gap}");
+    }
+
+    #[test]
+    fn two_traits_can_be_laid_on_the_same_line() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(0.0, 0.0));
+        let b = sketch.add_point(DVec2::new(50.0, 0.0));
+        let c = sketch.add_point(DVec2::new(70.0, 18.0));
+        let d = sketch.add_point(DVec2::new(120.0, 30.0));
+        let first = sketch.add_segment(a, b);
+        let second = sketch.add_segment(c, d);
+
+        sketch.add_constraint(Constraint::Collinear { first, second });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        for point in [c, d] {
+            let gap = sketch.point_to_segment(point, first).unwrap();
+            assert!(gap < 1e-3, "un bout est à {gap} de l'autre droite");
+        }
+    }
+
+    #[test]
+    fn a_fixed_point_stays_where_it_was_put() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(10.0, 10.0));
+        let end = sketch.add_point(DVec2::new(60.0, 10.0));
+        let line = sketch.add_segment(start, end);
+
+        sketch.add_constraint(Constraint::Fixed { point: start });
+        sketch.set_dimension(DimensionTarget::Length(line), 90.0, false);
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        assert!(sketch.point(start).distance(DVec2::new(10.0, 10.0)) < 1e-9);
+        assert!((sketch.segment_length(line) - 90.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_rule_goes_when_what_it_spoke_of_goes() {
+        let (mut sketch, first, second) = corner();
+        sketch.add_constraint(Constraint::Perpendicular { first, second });
+        assert_eq!(sketch.constraints().len(), 1);
+
+        sketch.erase(Element::Segment(second));
+        assert!(sketch.constraints().is_empty());
     }
 
     #[test]
@@ -1186,7 +1427,10 @@ mod tests {
         sketch.add_segment(loose_a, loose_b);
 
         let settled = sketch.settled_points(1.0);
-        assert!(settled[corner.0], "held by a length and the way it was drawn");
+        assert!(
+            settled[corner.0],
+            "held by a length and the way it was drawn"
+        );
         assert!(!settled[loose_a.0]);
     }
 
@@ -1395,7 +1639,9 @@ mod tests {
         assert!(!sketch.is_erased_segment(side));
         assert_eq!(sketch.live_segments().count(), 2);
         assert!(
-            sketch.dimension_of(DimensionTarget::Length(third)).is_some(),
+            sketch
+                .dimension_of(DimensionTarget::Length(third))
+                .is_some(),
             "la cote du troisième côté est intacte"
         );
         assert_eq!(sketch.nearest_segment(DVec2::new(50.0, 0.0), 1.0), None);
@@ -1475,7 +1721,10 @@ mod tests {
     #[test]
     fn clicking_the_origin_joins_it() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        assert_eq!(sketch.point_at(DVec2::new(0.05, -0.05), 0.5), Sketch::ORIGIN);
+        assert_eq!(
+            sketch.point_at(DVec2::new(0.05, -0.05), 0.5),
+            Sketch::ORIGIN
+        );
         assert_eq!(sketch.points().len(), 1);
     }
 
@@ -1552,4 +1801,3 @@ mod tests {
         assert_eq!(max, DVec2::new(12.0, 7.0));
     }
 }
-

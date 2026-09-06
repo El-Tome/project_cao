@@ -235,6 +235,57 @@ Quand deux choses se superposent et que la mauvaise l'emporte, la rangée
 **Mesurer** force le type : *Intelligente*, *Point à point*, *Trait*, *Angle*,
 *Rayon*.
 
+## Les contraintes
+
+Une cote dit **combien** ; une contrainte dit **comment**. Les deux enlèvent de
+la liberté au dessin et comptent pareil quand il s'agit de savoir ce qui est
+encore libre — elles sont tenues à part uniquement parce que l'une porte une
+valeur que l'utilisateur tape et l'autre non.
+
+Le menu **Contraintes**, dans la rangée Dessin, en propose neuf :
+
+| Règle | Ce qu'on clique | Ce qu'elle tient |
+| --- | --- | --- |
+| **Perpendiculaire** | Deux traits | Ils restent d'équerre |
+| **Parallèle** | Deux traits | Ils gardent la même direction |
+| **Égalité** | Deux traits, ou deux cercles | Même longueur, ou même rayon |
+| **Coïncidence** | Un point et un trait, ou deux points | Le point reste sur la droite ; deux points n'en font qu'un |
+| **Colinéaire** | Deux traits | Ils reposent sur la même droite |
+| **Tangence** | Un cercle et un trait | Le trait effleure le cercle |
+| **Milieu** | Un point et un trait | Le point reste à mi-longueur |
+| **Fixe** | Un point | Il ne bouge plus de sa place (sa taille n'est pas fixée pour autant) |
+| **Concentrique** | Deux cercles | Ils partagent un seul centre |
+
+L'ordre des clics est libre : un point et un trait font la même coïncidence
+dans un sens comme dans l'autre. Ce qui compte est **ce qui** a été cliqué, donc
+la règle est construite à partir des types récoltés et non de leur ordre.
+
+Deux d'entre elles ne sont pas des règles mais des **fusions** : deux points
+amenés à coïncider, et deux cercles ramenés sur un centre unique. Les tenir à
+distance nulle par une équation laisserait deux points superposés pour
+toujours — exactement ce que le dessin ne veut pas.
+
+### Comment elles sont tenues
+
+Chacune devient une équation de plus dans le même système que les cotes :
+perpendicularité et parallélisme sont un produit scalaire ou vectoriel à
+annuler, l'égalité une différence de longueurs, la coïncidence une distance à
+une droite, le milieu deux équations — être au milieu est deux affirmations,
+pas une.
+
+Deux cas sortent du solveur, qui ne sait que déplacer des points :
+
+- **Fixe** passe par les épingles : un point fixé n'a simplement nulle part où
+  aller, comme le point d'origine.
+- **Égalité de deux cercles** est appliquée directement, un rayon n'étant pas
+  une coordonnée mais un nombre que le cercle porte.
+
+Une règle disparaît d'elle-même quand ce dont elle parle est supprimé. Sa
+**marque** est écrite à côté de ce qu'elle tient (`|_`, `//`, `=`, `+`, `--`,
+`T`, `1/2`, `X`) et se sélectionne comme le reste, pour être supprimée. Les
+symboles du dessin technique — ⊥, ∥, ½ — ne sont pas dans les polices livrées
+avec l'interface, et une marque qui sort en carré vide dit moins que rien.
+
 ## L'aimantation
 
 Le curseur est attiré, dans cet ordre :

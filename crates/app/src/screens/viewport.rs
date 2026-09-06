@@ -493,7 +493,8 @@ fn handle_sketch_input(
     // click-based tools.
     if context.editor.tool == Tool::Select {
         if response.clicked() {
-            context.editor.selected_element = pick(context, index, cursor, snap);
+            context.editor.selected_element =
+                pick(context, index, cursor, snap, scale.units_per_pixel);
         }
         if let Some(selection) = context.editor.selected_element
             && ui.input(|input| {
@@ -517,7 +518,15 @@ fn handle_sketch_input(
             })
             .map(|position| magnetise(position, scale, &state.config, context, index, snap).0)
             .unwrap_or(cursor);
-        return drag_point(context, index, cursor, pressed, response, snap);
+        return drag_point(
+            context,
+            index,
+            cursor,
+            pressed,
+            response,
+            snap,
+            scale.units_per_pixel,
+        );
     }
 
     if !response.clicked() {
@@ -585,6 +594,7 @@ fn pick(
     index: usize,
     cursor: Vec2,
     snap: f32,
+    pixel: f32,
 ) -> Option<Selection> {
     let sketch = context.document.sketches().get(index)?;
 
@@ -600,7 +610,7 @@ fn pick(
     if let Some(circle) = sketch.nearest_circle(cursor, snap) {
         return Some(Selection::Element(Element::Circle(circle)));
     }
-    nearest_annotation(context, index, cursor, snap * 1.5).map(Selection::Dimension)
+    nearest_annotation(context, index, cursor, snap * 1.5, pixel).map(Selection::Dimension)
 }
 
 /// Deletes what the selection tool is holding.
@@ -692,6 +702,7 @@ fn pick_areas(
 
 /// Moving a point by hand. The drawing settles around it afterwards, so the
 /// values already given stay true.
+#[allow(clippy::too_many_arguments)]
 fn drag_point(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -699,6 +710,7 @@ fn drag_point(
     pressed: Vec2,
     response: &egui::Response,
     snap: f32,
+    pixel: f32,
 ) -> bool {
     let sketch = &context.document.sketches()[index];
 
@@ -717,7 +729,7 @@ fn drag_point(
 
         if context.editor.dragged_point.is_none() {
             context.editor.dragged_dimension =
-                nearest_annotation(context, index, pressed, snap * 1.5);
+                nearest_annotation(context, index, pressed, snap * 1.5, pixel);
             context.editor.drag_origin = Some(pressed);
         }
     }
@@ -816,10 +828,14 @@ fn nearest_annotation(
     index: usize,
     cursor: Vec2,
     tolerance: f32,
+    pixel: f32,
 ) -> Option<DimensionTarget> {
     let sketch = context.document.sketches().get(index)?;
     // Only where the annotation lands matters here; its vertices are thrown
-    // away, so the theme's colours never come into it.
+    // away, so the theme's colours never come into it. The scale, on the other
+    // hand, has to be the real one: an annotation sits a fixed number of pixels
+    // off what it measures, so guessing it puts the target somewhere the
+    // annotation is not.
     let style = crate::screens::annotations::Style::driving(&Theme::default());
     let mut discarded = Vec::new();
 
@@ -832,7 +848,7 @@ fn nearest_annotation(
                 sketch,
                 dimension.target,
                 &style,
-                tolerance / 24.0,
+                pixel,
             )
             .map(|placement| (dimension.target, placement.text_at))
         })
@@ -2331,7 +2347,15 @@ fn paint_dimension_labels(
     let Some(index) = context.editor.active_sketch() else {
         return;
     };
-    let Some(sketch) = context.document.sketches().get(index) else {
+    // Mid-drag the annotations are drawn from the settled preview, so their
+    // values have to be read from the same drawing — otherwise the numbers stay
+    // behind while the lines they belong to move away.
+    let Some(sketch) = context
+        .editor
+        .drag_preview
+        .as_ref()
+        .or_else(|| context.document.sketches().get(index))
+    else {
         return;
     };
     let view_projection = state

@@ -203,6 +203,10 @@ point. Auparavant seul le point suivait le curseur pendant que le reste ne
 bougeait pas ; la forme paraissait déchirée, et on ne voyait rien de là où elle
 allait atterrir.
 
+Les cotes suivent : leurs lignes, leurs flèches **et leurs valeurs** sont lues
+sur ce même dessin en train de se poser, sans quoi les nombres resteraient en
+arrière pendant que les lignes auxquelles ils appartiennent s'en vont.
+
 Rien n'est enregistré pour autant : l'historique ne reçoit qu'une seule
 opération, au lâcher.
 
@@ -226,6 +230,11 @@ compte, elle ne décide pas.
 Avec l'outil Sélection, attraper une cote la décale, et le décalage est
 enregistré avec elle. C'est **toute l'annotation** qui bouge — la ligne, ses
 flèches et sa valeur ensemble.
+
+Attraper une cote suppose de savoir où elle est dessinée : elle se tient à un
+nombre fixe de **pixels** de ce qu'elle mesure, donc la chercher à une autre
+échelle que celle de l'écran la place là où elle n'est pas — et elle devient
+alors impossible à attraper.
 
 Une cote de longueur ne s'éloigne que **perpendiculairement** à ce qu'elle
 mesure : la part du déplacement le long du trait est écartée. La ligne de cote

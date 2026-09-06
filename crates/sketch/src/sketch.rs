@@ -129,6 +129,14 @@ impl Sketch {
     }
 
     /// The segments still drawn, with their rank.
+    pub fn live_points(&self) -> impl Iterator<Item = (PointId, DVec2)> + '_ {
+        self.points
+            .iter()
+            .enumerate()
+            .map(|(rank, point)| (PointId(rank), *point))
+            .filter(|(id, _)| !self.is_erased_point(*id))
+    }
+
     pub fn live_segments(&self) -> impl Iterator<Item = (SegmentId, Segment)> + '_ {
         self.segments
             .iter()

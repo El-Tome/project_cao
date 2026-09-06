@@ -181,6 +181,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     ));
 
     paint_face_labels(ui, state, cube_rect);
+    paint_band(ui, state, rect, sketch);
     paint_dimension_labels(ui, state, rect, sketch);
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
@@ -223,7 +224,7 @@ fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
         || editor.pending_start.is_some()
         || editor.placing.is_some()
         || editor.selected.is_some()
-        || editor.selected_element.is_some()
+        || !editor.selection.is_empty()
         || editor.first_point.is_some()
         || editor.first_angle_segment.is_some()
         || editor.first_axis.is_some();
@@ -531,25 +532,6 @@ fn handle_sketch_input(
     // Dragging a point is a gesture, not a click, so it comes before the
     // click-based tools.
     if context.editor.tool == Tool::Select {
-        if response.clicked() {
-            let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
-            context.editor.selected_element = picked;
-            // A dimension picked with the selection tool opens its value too:
-            // reaching for the dimension tool again to change a number one is
-            // already pointing at is a step for nothing.
-            match picked {
-                Some(Selection::Dimension(target)) => edit_dimension(context, index, target),
-                _ => context.editor.select(None, None),
-            }
-        }
-        if let Some(selection) = context.editor.selected_element
-            && ui.input(|input| {
-                input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace)
-            })
-        {
-            context.editor.selected_element = None;
-            return erase(context, index, selection);
-        }
         // What is grabbed is decided where the button went down, not where the
         // cursor is when egui calls it a drag: by then it has already travelled
         // the few pixels of the drag threshold, which was enough to miss the
@@ -564,6 +546,63 @@ fn handle_sketch_input(
             })
             .map(|position| magnetise(position, scale, &state.config, context, index, snap).0)
             .unwrap_or(cursor);
+
+        let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
+        if response.clicked() {
+            let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
+            match (picked, adding) {
+                // Holding the modifier gathers things up one by one, which is
+                // how one picks out three traits that no box can enclose alone.
+                (Some(what), true) => context.editor.toggle(what),
+                (Some(what), false) => context.editor.selection = vec![what],
+                (None, false) => context.editor.selection.clear(),
+                (None, true) => {}
+            }
+            // A dimension picked with the selection tool opens its value too:
+            // reaching for the dimension tool again to change a number one is
+            // already pointing at is a step for nothing.
+            match picked {
+                Some(Selection::Dimension(target)) if !adding => {
+                    edit_dimension(context, index, target)
+                }
+                _ => context.editor.select(None, None),
+            }
+        }
+
+        if !context.editor.selection.is_empty()
+            && ui.input(|input| {
+                input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace)
+            })
+        {
+            let held = std::mem::take(&mut context.editor.selection);
+            return erase(context, index, &held);
+        }
+
+        // A drag that grabbed nothing pulls a box instead, the way a desktop
+        // does. Who grabs is settled at the start of the gesture and holds for
+        // the whole of it: deciding again every frame would swap gestures
+        // mid-drag, as soon as the cursor happened to pass over a point.
+        if response.drag_started() {
+            let changed = drag_point(
+                context,
+                index,
+                cursor,
+                pressed,
+                response,
+                snap,
+                scale.units_per_pixel,
+            );
+            if context.editor.dragged_point.is_none()
+                && context.editor.dragged_dimension.is_none()
+            {
+                context.editor.band = Some((pressed, cursor));
+            }
+            return changed;
+        }
+        if context.editor.band.is_some() {
+            return band_select(context, index, cursor, response, adding, scale.units_per_pixel);
+        }
+
         return drag_point(
             context,
             index,
@@ -662,19 +701,92 @@ fn pick(
     nearest_annotation(context, index, cursor, snap * 1.5, pixel).map(Selection::Dimension)
 }
 
-/// Deletes what the selection tool is holding.
-fn erase(context: &mut SketchContext<'_>, index: usize, selection: Selection) -> bool {
-    let operation = match selection {
-        Selection::Element(element) => Operation::Erase {
-            sketch: index,
-            element,
-        },
-        Selection::Dimension(target) => Operation::EraseDimension {
-            sketch: index,
-            target,
-        },
+/// Pulls a box across the drawing and takes everything inside it.
+///
+/// Whole elements only: a trait counts when both its ends are in the box. Half
+/// a trait cannot be deleted, so letting the box claim it would say something
+/// the drawing cannot do.
+fn band_select(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    to: DVec2,
+    response: &egui::Response,
+    adding: bool,
+    pixel: f64,
+) -> bool {
+    // Where the box started is kept from the frame the drag began: egui lets go
+    // of the press position on the very frame the button comes up, which is the
+    // frame that matters here.
+    let Some((from, _)) = context.editor.band else {
+        return false;
     };
-    context.document.apply(operation);
+    context.editor.band = Some((from, to));
+    if !response.drag_stopped() {
+        return false;
+    }
+    context.editor.band = None;
+
+    let (low, high) = (from.min(to), from.max(to));
+    let inside = |point: DVec2| point.cmpge(low).all() && point.cmple(high).all();
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return false;
+    };
+
+    let mut caught: Vec<Selection> = Vec::new();
+    for (id, point) in sketch.live_points() {
+        if inside(point) && !sketch.is_origin(id) {
+            caught.push(Selection::Element(Element::Point(id)));
+        }
+    }
+    for (id, segment) in sketch.live_segments() {
+        if inside(sketch.point(segment.start)) && inside(sketch.point(segment.end)) {
+            caught.push(Selection::Element(Element::Segment(id)));
+        }
+    }
+    for (id, circle) in sketch.live_circles() {
+        let center = sketch.point(circle.center);
+        let reach = DVec2::splat(circle.radius);
+        if inside(center - reach) && inside(center + reach) {
+            caught.push(Selection::Element(Element::Circle(id)));
+        }
+    }
+    for dimension in sketch.dimensions() {
+        if annotation_home(context, index, dimension.target, pixel)
+            .is_some_and(|(text_at, _)| inside(text_at))
+        {
+            caught.push(Selection::Dimension(dimension.target));
+        }
+    }
+
+    if !adding {
+        context.editor.selection.clear();
+    }
+    for what in caught {
+        if !context.editor.is_selected(what) {
+            context.editor.selection.push(what);
+        }
+    }
+    false
+}
+
+/// Deletes what the selection tool is holding, in one step.
+fn erase(context: &mut SketchContext<'_>, index: usize, selection: &[Selection]) -> bool {
+    if selection.is_empty() {
+        return false;
+    }
+    let mut elements = Vec::new();
+    let mut dimensions = Vec::new();
+    for held in selection {
+        match held {
+            Selection::Element(element) => elements.push(*element),
+            Selection::Dimension(target) => dimensions.push(*target),
+        }
+    }
+    context.document.apply(Operation::EraseMany {
+        sketch: index,
+        elements,
+        dimensions,
+    });
     true
 }
 
@@ -2302,7 +2414,7 @@ fn push_sketch(
         } else {
             crate::screens::annotations::Style::driving(theme)
         };
-        if context.editor.selected() == Some(Selection::Dimension(dimension.target)) {
+        if context.editor.is_selected(Selection::Dimension(dimension.target)) {
             style.color = tint_at(theme.highlight, 1.0);
             style.width *= 2.0;
         }
@@ -2426,7 +2538,7 @@ fn mark_selected(
     color: [f32; 4],
     width: f32,
 ) -> ([f32; 4], f32) {
-    if context.editor.selected() == Some(element) {
+    if context.editor.is_selected(element) {
         (tint_at(theme.highlight, 1.0), width * 1.8)
     } else {
         (color, width)
@@ -2889,6 +3001,60 @@ fn live_field(
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+}
+
+/// The box being pulled across the drawing.
+///
+/// Drawn on the sketch's own axes rather than the screen's: seen at an angle,
+/// a box that stayed square on screen would take in a different area than the
+/// one it appears to cover.
+fn paint_band(
+    ui: &egui::Ui,
+    state: &ViewportState,
+    rect: egui::Rect,
+    context: &SketchContext<'_>,
+) {
+    let (Some((from, to)), Some(index)) = (context.editor.band, context.editor.active_sketch())
+    else {
+        return;
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return;
+    };
+    let view_projection = state
+        .camera
+        .view_projection(rect.width() / rect.height().max(1.0));
+
+    let corners: Option<Vec<egui::Pos2>> = [
+        from,
+        DVec2::new(to.x, from.y),
+        to,
+        DVec2::new(from.x, to.y),
+    ]
+    .into_iter()
+    .map(|corner| to_screen(sketch.plane.to_world(corner), view_projection, rect))
+    .collect();
+    let Some(corners) = corners else {
+        return;
+    };
+
+    let edge = tint_to_color(state.theme.highlight);
+    ui.painter_at(rect).add(egui::Shape::convex_polygon(
+        corners,
+        edge.gamma_multiply(0.12),
+        egui::Stroke::new(1.0, edge),
+    ));
+}
+
+/// A colour of the theme as egui paints it.
+fn tint_to_color(color: Rgba) -> egui::Color32 {
+    let channel = |value: f32| (value.clamp(0.0, 1.0) * 255.0) as u8;
+    egui::Color32::from_rgba_unmultiplied(
+        channel(color.r),
+        channel(color.g),
+        channel(color.b),
+        channel(color.a),
+    )
 }
 
 /// Each dimension is drawn where it applies, with the value it stands for.

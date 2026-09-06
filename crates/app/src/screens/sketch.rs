@@ -157,8 +157,11 @@ pub struct SketchEditor {
     /// was showed a shape torn out of shape, and nothing of where it was
     /// actually going to land.
     pub drag_preview: Option<cao_sketch::Sketch>,
-    /// What the selection tool is holding, ready to be deleted.
-    pub selected_element: Option<Selection>,
+    /// Everything the selection tool is holding, ready to be deleted.
+    pub selection: Vec<Selection>,
+    /// The box being pulled across the drawing, in sketch coordinates: where it
+    /// started and where the cursor is now.
+    pub band: Option<(DVec2, DVec2)>,
     /// The last segment the line tool drew, which the next one may square up
     /// against.
     pub chain_previous: Option<SegmentId>,
@@ -244,7 +247,8 @@ impl SketchEditor {
         self.square_corner = None;
         self.aimed = None;
         self.live.clear();
-        self.selected_element = None;
+        self.selection.clear();
+        self.band = None;
         self.pending_start = None;
         self.first_angle_segment = None;
         self.first_point = None;
@@ -267,9 +271,19 @@ impl SketchEditor {
         self.message = None;
     }
 
-    /// The element the selection tool is holding, if it is geometry.
-    pub fn selected(&self) -> Option<Selection> {
-        self.selected_element
+    /// Whether something is part of what the selection tool is holding.
+    pub fn is_selected(&self, what: Selection) -> bool {
+        self.selection.contains(&what)
+    }
+
+    /// Adds or removes one thing, the way holding the modifier does.
+    pub fn toggle(&mut self, what: Selection) {
+        match self.selection.iter().position(|held| *held == what) {
+            Some(index) => {
+                self.selection.remove(index);
+            }
+            None => self.selection.push(what),
+        }
     }
 
     pub fn close(&mut self) {

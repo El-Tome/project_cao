@@ -31,12 +31,31 @@ elles sont, celles-ci restant disponibles partout ailleurs. Voir
 
 | Outil | Geste |
 | --- | --- |
-| **Sélection** | Cliquer-glisser un point pour le déplacer. |
+| **Sélection** | Cliquer pour prendre, cliquer-glisser un point pour le déplacer, glisser dans le vide pour encadrer. |
 | **Ligne** | Clics successifs, chaque trait prolonge le précédent. |
 | **Rectangle** | Deux clics : deux coins opposés. |
 | **Cercle** | Deux clics : le centre puis un point du bord. |
 | **Point** | Un clic pose un point isolé. |
 | **Cote** | Deux clics : ce qu'on mesure, puis où l'annotation se pose. |
+
+### Prendre plusieurs choses à la fois
+
+Glisser **à partir du vide** tire une boîte, comme sur un bureau, et prend tout
+ce qu'elle contient **entièrement** : un trait compte quand ses deux bouts y
+sont. La moitié d'un trait ne se supprime pas, donc laisser la boîte s'en saisir
+promettrait quelque chose que le dessin ne sait pas faire.
+
+Qui répond au glissement est décidé **au départ du geste** et le reste jusqu'au
+bout : un point sous le curseur au moment d'appuyer se déplace, sinon c'est une
+boîte. Sans cela le geste changerait de nature en cours de route, dès que le
+curseur passerait au-dessus d'un point.
+
+`Cmd`/`Ctrl` (ou `Maj`) en cliquant **ajoute ou retire** un élément un par un,
+et fonctionne aussi avec la boîte. C'est ce qui permet de désigner trois traits
+qu'aucun cadre ne peut enfermer seuls.
+
+`Suppr` efface tout ce qui est tenu **en une seule étape** d'historique : une
+sélection supprimée est un seul geste, et une seule annulation la ramène.
 
 ### `Échap` recule d'un cran
 

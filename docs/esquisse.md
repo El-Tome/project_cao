@@ -528,6 +528,39 @@ rejouant son historique.
 Si les valeurs se contredisent, le solveur s'arrête au bout de son quota
 d'itérations et le signale au lieu de s'arrêter en silence sur l'une d'elles.
 
+#### Ce que le changement n'a pas à déformer
+
+Une valeur tapée, un point déplacé : quelques équations ne sont plus vraies, et
+**elles seules disent où le dessin a le droit de céder**. Un angle s'ouvre entre
+ses deux traits ; une longueur étire son propre trait. Tout le reste est soudé.
+
+Le solveur découpe donc le dessin en **blocs** — des paquets de traits soudés
+entre eux — et ne leur laisse qu'un déplacement d'ensemble : porté, tourné,
+jamais plié. Un bloc qui partage un point avec un bloc déjà en place **tourne
+autour de ce point** : c'est ce qui fait qu'une figure pivote autour de son coin
+au lieu de s'étirer. Un bloc tenant un point qui ne peut pas bouger — l'origine
+— ne bouge pas du tout.
+
+Concrètement, sur une chaîne posée sur l'origine avec un angle coté au milieu :
+changer cet angle laisse le côté ancré exactement où il est et fait pivoter
+l'autre, formes conservées, au lieu de déformer tout le dessin d'un peu partout.
+
+Cette mise en forme est appliquée **à chaque pas** de correction, et non en
+retouche à la fin : une correction étalée sur les points puis redressée après
+coup est une correction jetée aux trois quarts, et le dessin met alors des
+dizaines de tours à converger.
+
+Garder les formes n'est pas toujours possible — la valeur demandée peut vouloir
+exactement ce qu'on tenait, comme la hauteur d'un rectangle. Le dessin est alors
+résolu à l'ancienne, en pliant là où il faut.
+
+#### Les angles se jugent en angles
+
+L'écart d'une équation est comparé à la taille du dessin, ce qui a du sens pour
+une longueur et pas pour un angle. Un dessin de 150 unités pouvait ainsi être
+déclaré résolu avec un coin à un dixième de degré près. Un angle est maintenant
+jugé sur lui-même, en radians.
+
 #### Le dessin ne dérive pas
 
 Un groupe que rien ne tient droit peut être tourné sans casser une seule cote,

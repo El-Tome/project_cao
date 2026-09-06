@@ -867,6 +867,57 @@ mod tests {
     }
 
     #[test]
+    fn changing_an_angle_turns_the_far_shape_instead_of_bending_it() {
+        // A chain hung off the origin, with a corner dimensioned halfway along
+        // and nothing else holding it: exactly the drawing in progress where
+        // the far end used to wander.
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let o = Sketch::ORIGIN;
+        let a = sketch.add_point(DVec2::new(40.0, 0.0));
+        let corner = sketch.add_point(DVec2::new(80.0, 0.0));
+        let c = sketch.add_point(DVec2::new(80.0, 40.0));
+        let d = sketch.add_point(DVec2::new(120.0, 60.0));
+        sketch.add_segment(o, a);
+        let first = sketch.add_segment(a, corner);
+        let second = sketch.add_segment(corner, c);
+        sketch.add_segment(c, d);
+
+        sketch.set_dimension(DimensionTarget::Angle { first, second }, 90.0, false);
+        sketch.resolve(1.0);
+
+        let shape_of = |sketch: &Sketch| {
+            [
+                sketch.point(o).distance(sketch.point(a)),
+                sketch.point(c).distance(sketch.point(d)),
+                (sketch.point(d) - sketch.point(c))
+                    .perp_dot(sketch.point(corner) - sketch.point(c)),
+            ]
+        };
+        let (was_anchored, was_far) = (sketch.point(a), shape_of(&sketch));
+
+        sketch.set_dimension(DimensionTarget::Angle { first, second }, 60.0, false);
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        // The side hanging off the origin has not budged...
+        assert!(
+            sketch.point(a).distance(was_anchored) < 1e-6,
+            "le côté ancré a bougé : {:?}",
+            sketch.point(a)
+        );
+        // ...and the far side kept its shape, corner included, rather than
+        // being bent to absorb the change.
+        let now = shape_of(&sketch);
+        for (before, after) in was_far.iter().zip(now.iter()) {
+            assert!(
+                (before - after).abs() < 1e-3,
+                "la figure éloignée s'est déformée : {was_far:?} puis {now:?}"
+            );
+        }
+        let angle = sketch.angle_between(first, second).unwrap();
+        assert!((angle - 60.0).abs() < 1e-3, "angle obtenu : {angle}");
+    }
+
+    #[test]
     fn a_rectangle_does_not_turn_when_one_of_its_sides_changes() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let corner = Sketch::ORIGIN;

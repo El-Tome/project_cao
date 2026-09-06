@@ -34,3 +34,4 @@ avant toute modification structurelle.
 - Ne pas ésiter a faire des commits et des branches avec git pour revenir en arrière au cas où il y aurait un probleme tu peux également push sur le dépot.
 - Créer une doc sur plusieur fichier en parrallèle pour faciliter la compréntion du code et des fonctions pour faciliter l'intervention dans les fichiers.
 - n'hésite pas a demander au moindre moment ou tu ne comprends pas ou que la demande n'est pas très clair ou qu'il manque des informations avant de faire la moindre action
+- avant chaque début de tache il faut faire un pull et check si tu n'as pas une branche en cour qui pourrai faire la feature demander car il y a plusieur personne qui travail sur ce projet

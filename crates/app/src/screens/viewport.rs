@@ -849,6 +849,7 @@ fn nearest_annotation(
                 dimension.target,
                 &style,
                 pixel,
+                Vec2::ZERO,
             )
             .map(|placement| (dimension.target, placement.text_at))
         })
@@ -893,8 +894,53 @@ fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
         },
     };
 
+    let rectangle = context.editor.tool == Tool::Rectangle;
     context.document.apply(operation);
+    if rectangle {
+        dimension_the_rectangle(context, index);
+    }
     true
+}
+
+/// Places on a fresh rectangle what makes it a rectangle, and its two sizes.
+///
+/// Drawing one and then having to say four times that its corners are square is
+/// busywork: that is what a rectangle *is*. Three right angles are enough — the
+/// fourth follows — plus a length on two neighbouring sides, which is exactly
+/// what pins it down.
+fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize) {
+    let count = context.document.sketches()[index].segments().len();
+    let Some(first) = count.checked_sub(4) else {
+        return;
+    };
+    let sides: Vec<SegmentId> = (first..count).map(SegmentId).collect();
+
+    let scale = context.document.scale();
+    let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
+    for corner in 0..3 {
+        wanted.push((
+            DimensionTarget::Angle {
+                first: sides[corner],
+                second: sides[corner + 1],
+            },
+            90.0,
+        ));
+    }
+    for side in sides.iter().take(2) {
+        let length = context.document.sketches()[index].segment_length(*side) * scale;
+        wanted.push((DimensionTarget::Length(*side), length));
+    }
+
+    for (target, value) in wanted {
+        if context.document.sketches()[index].would_be_redundant(target, scale) {
+            continue;
+        }
+        context.document.apply(Operation::SetDimension {
+            sketch: index,
+            target,
+            value,
+        });
+    }
 }
 
 /// The smart dimension tool: works out what is under the cursor and measures
@@ -1845,6 +1891,7 @@ fn push_sketch(
             dimension.target,
             &style,
             scale.units_per_pixel,
+            live_offset(context, dimension.target),
         );
     }
 
@@ -1933,6 +1980,19 @@ fn push_point_markers(
                 width,
             ));
         }
+    }
+}
+
+/// How far an annotation has been dragged so far, before anything is recorded.
+///
+/// Nothing goes into the history until the button is let go, so without this
+/// the annotation would sit still through the whole gesture and only jump at
+/// the end — the drag would look like it had done nothing.
+fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> Vec2 {
+    let editor = &context.editor;
+    match (editor.dragged_dimension, editor.drag_origin, editor.drag_position) {
+        (Some(dragged), Some(origin), Some(position)) if dragged == target => position - origin,
+        _ => Vec2::ZERO,
     }
 }
 
@@ -2102,7 +2162,14 @@ fn push_preview(
         let mut style = crate::screens::annotations::Style::driving(theme);
         style.color = preview;
         style.width *= 0.9;
-        crate::screens::annotations::push(out, sketch, target, &style, scale.units_per_pixel);
+        crate::screens::annotations::push(
+            out,
+            sketch,
+            target,
+            &style,
+            scale.units_per_pixel,
+            Vec2::ZERO,
+        );
     }
 
     // What the cursor has been caught by. The middle of a line is the one that
@@ -2378,6 +2445,7 @@ fn paint_dimension_labels(
             dimension.target,
             &style,
             pixel,
+            live_offset(context, dimension.target),
         ) else {
             continue;
         };

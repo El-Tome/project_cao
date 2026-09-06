@@ -49,18 +49,23 @@ pub struct Placement {
 ///
 /// `pixel` is how many sketch units one screen pixel covers, so the annotation
 /// keeps the same size on screen however far the camera is.
+/// `nudge` is added to the offset the dimension carries, for an annotation
+/// being dragged: nothing is recorded until the button is let go, but it has to
+/// follow the cursor meanwhile or the drag looks like it did nothing.
 pub fn push(
     out: &mut Vec<Vertex>,
     sketch: &Sketch,
     target: DimensionTarget,
     style: &Style,
     pixel: f32,
+    nudge: Vec2,
 ) -> Option<Placement> {
     let plane = &sketch.plane;
     let offset = sketch
         .dimension_of(target)
         .map(|dimension| dimension.offset)
-        .unwrap_or(Vec2::ZERO);
+        .unwrap_or(Vec2::ZERO)
+        + nudge;
     match target {
         DimensionTarget::Length(segment) => {
             let (start, end) = endpoints(sketch, segment)?;

@@ -539,7 +539,17 @@ fn dimension_field(ui: &mut egui::Ui, doc: &mut PartDocument, editor: &mut Sketc
             .desired_width(90.0)
             .hint_text(if angle { "degrés" } else { "mm" }),
     );
-    let submitted = field.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter));
+    // The field takes the keyboard the moment its dimension is picked: the
+    // value is the next thing the user is going to type, and getting there with
+    // Tab means walking through the whole toolbar first.
+    if std::mem::take(&mut editor.focus_dimension_field) {
+        field.request_focus();
+    }
+    // Entrée validant la valeur est consommée ici : le champ vient de rendre le
+    // clavier, donc sans cela le même appui déclencherait aussi le raccourci
+    // qui lui est lié — et terminerait l'esquisse.
+    let submitted = field.lost_focus()
+        && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
     let applied = ui.button("Appliquer").clicked() || submitted;
 
     if !applied {

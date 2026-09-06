@@ -1,4 +1,4 @@
-use cao_sketch::{DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::Vec2;
 use serde::{Deserialize, Serialize};
 
@@ -118,6 +118,16 @@ pub enum Operation {
         distance: f32,
         mode: ExtrusionMode,
     },
+    /// Deletes a piece of a sketch, and whatever leaned on it.
+    Erase {
+        sketch: usize,
+        element: Element,
+    },
+    /// Deletes a dimension without touching the geometry it measured.
+    EraseDimension {
+        sketch: usize,
+        target: DimensionTarget,
+    },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
         sketch: usize,
@@ -140,6 +150,12 @@ impl Operation {
             Self::AddCircle { .. } => "Cercle".to_string(),
             Self::MovePoint { .. } => "Déplacement".to_string(),
             Self::MoveDimension { .. } => "Cote déplacée".to_string(),
+            Self::Erase { element, .. } => match element {
+                Element::Point(_) => "Point supprimé".to_string(),
+                Element::Segment(_) => "Trait supprimé".to_string(),
+                Element::Circle(_) => "Cercle supprimé".to_string(),
+            },
+            Self::EraseDimension { .. } => "Cote supprimée".to_string(),
             Self::Revolve { angle, mode, .. } => {
                 let verb = match mode {
                     ExtrusionMode::Add => "Révolution",
@@ -215,6 +231,12 @@ impl Operation {
             Self::Extrude { sketch, picks, .. } => {
                 format!("Esquisse {sketch} · {} aire(s)", picks.len())
             }
+            Self::Erase { sketch, element } => match element {
+                Element::Point(point) => format!("Esquisse {sketch} · point {}", point.0),
+                Element::Segment(segment) => format!("Esquisse {sketch} · trait {}", segment.0),
+                Element::Circle(circle) => format!("Esquisse {sketch} · cercle {}", circle.0),
+            },
+            Self::EraseDimension { sketch, .. } => format!("Esquisse {sketch}"),
             Self::Revolve {
                 sketch, picks, axis, ..
             } => format!(

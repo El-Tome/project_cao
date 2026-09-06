@@ -52,6 +52,41 @@ le dessin se réajuste autour de lui. Le déplacement n'est enregistré qu'au
 **relâchement** — pendant le glissement le point suit simplement le curseur, ce
 qui évite de remplir l'historique de milliers d'entrées disant la même chose.
 
+## Dessiner à une valeur
+
+Pendant qu'un trait se dessine, sa **longueur** et son **angle avec
+l'horizontale** sont affichés à côté, dans deux champs.
+
+Laissés tranquilles, ce sont de simples indications. **Tapés dedans, ce sont des
+décisions** : le trait ne peut plus prendre une autre valeur, et la cote
+correspondante est posée d'elle-même quand le trait est validé. Un trait dessiné
+à une valeur n'a pas à être mesuré après coup.
+
+Fixer l'un des deux laisse l'autre libre, ce qui est tout l'intérêt :
+
+| Ce qui est tapé | Ce qui reste libre |
+| --- | --- |
+| Un angle | La longueur : le trait s'allonge et se raccourcit sur cette direction |
+| Une longueur | La direction : le trait tourne à cette distance |
+| Les deux | Rien ; le clic ne fait que valider |
+
+Vider un champ reprend la décision. `Entrée` valide le trait sans avoir à
+retrouver le canevas avec la souris.
+
+Le signe suit le curseur : 30° tapé veut dire les 30° vers lesquels on pointe,
+pas ceux d'en dessous. Et tant qu'une valeur est fixée, un point voisin n'est
+plus accroché — cela redonnerait discrètement au trait une autre longueur.
+
+## Les angles droits se posent tout seuls
+
+En dessinant à la suite d'un trait, s'approcher à moins de 4° de la
+perpendiculaire **cale le trait exactement à 90°**, affiche le petit carré du
+dessin technique dans le coin, et pose la contrainte d'angle à la validation.
+
+Le carré est montré **avant** de valider : une contrainte qui apparaît sans
+prévenir est une mauvaise surprise. La bande est assez large pour être facile à
+viser, assez étroite pour ne pas voler un angle vraiment voulu à 80°.
+
 ## La cote intelligente
 
 Un seul outil, qui mesure ce qu'on lui montre :
@@ -97,6 +132,28 @@ tient.
 
 Un rectangle est **une seule opération** dans l'historique, pas quatre traits :
 c'est ce qu'on veut voir en relisant la construction.
+
+## Supprimer
+
+Avec l'outil **Sélection**, cliquer un trait, un point, un cercle ou une cote le
+met en surbrillance ; `Suppr` ou `Retour arrière` l'efface. Le plus petit gagne :
+un point avant un trait avant un cercle avant une cote, puisque plus la cible est
+petite, plus il est difficile de la viser exprès.
+
+Supprimer **emporte ce qui s'appuyait dessus**. Un trait sans son point n'est pas
+de la géométrie, et une cote qui mesure ce qui n'est plus là ne rend compte de
+rien. Le point d'origine, lui, ne s'efface pas : c'est ce depuis quoi tout le
+reste est mesuré.
+
+### Pourquoi rien n'est vraiment retiré
+
+Ce qui est supprimé est **marqué**, pas sorti de la liste. Un trait retiré du
+milieu décalerait le rang de tous les suivants, et chaque cote déjà enregistrée
+contre ces rangs se mettrait silencieusement à désigner un autre morceau du
+dessin.
+
+C'est aussi ce qui fait qu'une suppression se rejoue et s'annule comme n'importe
+quelle autre étape ([historique.md](historique.md)).
 
 ## Rouvrir une esquisse
 
@@ -314,15 +371,20 @@ permet en plus de revenir directement à n'importe quelle étape. Voir
 
 - Pas d'accrochage aux alignements (horizontal, vertical) d'un point existant :
   l'aimantation ne tient qu'aux points et à la grille.
+- La saisie en direct n'existe que pour le trait : le rectangle et le cercle se
+  cotent après coup.
+- Le seul angle posé tout seul est l'angle droit ; il n'y a ni parallélisme ni
+  tangence automatiques.
+- On ne peut pas sélectionner plusieurs éléments à la fois pour les supprimer
+  d'un coup.
 - Une forme dessinée dans une autre est teintée comme une aire à part, pas
   traitée comme un trou : la zone commune reste remplie deux fois.
 - Un contour qui se recoupe lui-même n'est pas teinté.
 - Pas de cotes de diamètre, ni de cotes horizontales/verticales séparées (une
   cote point à point mesure toujours la distance directe).
-- On ne peut pas supprimer un point ni un trait autrement qu'en revenant en
-  arrière dans l'historique.
-- Les contraintes géométriques (parallèle, perpendiculaire, tangent) n'existent
-  pas : seules les cotes contraignent.
+- Les contraintes géométriques (parallèle, tangent) n'existent pas : seules les
+  cotes contraignent — l'angle droit posé tout seul est une cote d'angle comme
+  une autre.
 - Le solveur ne dit pas *quelles* cotes se contredisent quand il n'y arrive
   pas.
 - L'esquisse ne produit encore aucun volume : l'extrusion est l'étape suivante.

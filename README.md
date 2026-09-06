@@ -13,7 +13,9 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
 
 - **Esquisse** : choisir un plan, puis tracer lignes, rectangles, cercles et
-  points, coter des longueurs, des rayons et des angles. Le dessin se colore
+  points, coter des longueurs, des rayons et des angles. Un trait se dessine à
+  la longueur et à l'angle voulus, tapés à côté du curseur, et se cote tout
+  seul ; les angles droits se posent d'eux-mêmes ; tout s'efface avec `Suppr`. Le dessin se colore
   selon ce qu'il lui reste comme liberté. La première cote définit l'échelle,
   les suivantes déforment la géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
 

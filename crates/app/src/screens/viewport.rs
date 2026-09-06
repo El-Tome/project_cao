@@ -9,11 +9,13 @@ use cao_render::{
     ViewportRect, adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad,
     srgb,
 };
-use cao_sketch::{DimensionTarget, PointId, Sketch, WorkPlane};
+use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, Sketch, WorkPlane};
 use glam::{Vec2, Vec3};
 
 use crate::screens::extrusion::ExtrusionState;
-use crate::screens::sketch::{ChainAnchor, DimensionMode, PlaneChoice, SketchEditor, Tool};
+use crate::screens::sketch::{
+    ChainAnchor, DimensionMode, PlaneChoice, Selection, SketchEditor, Tool,
+};
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: Rgba) -> [f32; 4] {
@@ -168,6 +170,16 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     let frame = build_frame(state, rect, cube_rect, scale, sketch);
     paint_face_labels(ui, state, cube_rect);
     paint_dimension_labels(ui, state, rect, sketch);
+    if paint_live_input(ui, state, rect, sketch) {
+        // Enter finishes the line from the keyboard, without having to find the
+        // canvas again with the mouse.
+        let Some(index) = sketch.editor.active_sketch() else {
+            return changed;
+        };
+        let cursor = sketch.editor.cursor.unwrap_or_default();
+        let snap = scale.world_size_of(10.0);
+        return changed | draw_line_point(sketch, index, cursor, snap);
+    }
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
@@ -456,9 +468,36 @@ fn handle_sketch_input(
     context.editor.cursor = Some(cursor);
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
 
+    // Worked out once a frame and shown as the preview, so that what is drawn
+    // on screen is exactly what a click would record.
+    let (aimed, corner) = match context.editor.tool {
+        Tool::Line if context.editor.chain.is_some() => {
+            let aimed = aim(context, index, cursor);
+            let sketch = &context.document.sketches()[index];
+            let corner = aimed
+                .square_with
+                .and_then(|_| anchor_position(sketch, context));
+            (Some(aimed.position), corner)
+        }
+        _ => (None, None),
+    };
+    context.editor.aimed = aimed;
+    context.editor.square_corner = corner;
+
     // Dragging a point is a gesture, not a click, so it comes before the
     // click-based tools.
     if context.editor.tool == Tool::Select {
+        if response.clicked() {
+            context.editor.selected_element = pick(context, index, cursor, snap);
+        }
+        if let Some(selection) = context.editor.selected_element
+            && ui.input(|input| {
+                input.key_pressed(egui::Key::Delete) || input.key_pressed(egui::Key::Backspace)
+            })
+        {
+            context.editor.selected_element = None;
+            return erase(context, index, selection);
+        }
         // What is grabbed is decided where the button went down, not where the
         // cursor is when egui calls it a drag: by then it has already travelled
         // the few pixels of the drag threshold, which was enough to miss the
@@ -530,6 +569,49 @@ fn plane_under(
         })
         .min_by(|a, b| a.0.total_cmp(&b.0))
         .map(|(_, index)| PlaneChoice::Origin(index))
+}
+
+/// What the cursor is over, in the order a click should take it.
+///
+/// A point before a line before a circle before a dimension: the smaller the
+/// target, the harder it is to hit on purpose, so the smaller one wins.
+fn pick(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    snap: f32,
+) -> Option<Selection> {
+    let sketch = context.document.sketches().get(index)?;
+
+    if let Some(point) = sketch
+        .nearest_point(cursor, snap)
+        .filter(|point| !sketch.is_origin(*point))
+    {
+        return Some(Selection::Element(Element::Point(point)));
+    }
+    if let Some(segment) = sketch.nearest_segment(cursor, snap) {
+        return Some(Selection::Element(Element::Segment(segment)));
+    }
+    if let Some(circle) = sketch.nearest_circle(cursor, snap) {
+        return Some(Selection::Element(Element::Circle(circle)));
+    }
+    nearest_annotation(context, index, cursor, snap * 1.5).map(Selection::Dimension)
+}
+
+/// Deletes what the selection tool is holding.
+fn erase(context: &mut SketchContext<'_>, index: usize, selection: Selection) -> bool {
+    let operation = match selection {
+        Selection::Element(element) => Operation::Erase {
+            sketch: index,
+            element,
+        },
+        Selection::Dimension(target) => Operation::EraseDimension {
+            sketch: index,
+            target,
+        },
+    };
+    context.document.apply(operation);
+    true
 }
 
 /// Choosing which closed areas of a sketch become matter.
@@ -963,17 +1045,29 @@ fn magnetise(
 /// starts; the second turns the pair into a segment in the history.
 fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
     let sketch = &context.document.sketches()[index];
-    let end = match sketch.nearest_point(cursor, snap) {
-        Some(id) => PointRef::Existing(id),
-        None => PointRef::New(cursor),
-    };
 
     let Some(anchor) = context.editor.chain else {
+        let end = match sketch.nearest_point(cursor, snap) {
+            Some(id) => PointRef::Existing(id),
+            None => PointRef::New(cursor),
+        };
         context.editor.chain = Some(match end {
             PointRef::Existing(id) => ChainAnchor::Point(id),
             PointRef::New(position) => ChainAnchor::Pending(position),
         });
+        context.editor.live.clear();
         return false;
+    };
+
+    // Where the line actually ends: what the user typed wins over where the
+    // cursor is, and a right angle is snapped to before anything is recorded.
+    let aimed = aim(context, index, cursor);
+    let sketch = &context.document.sketches()[index];
+    let end = match sketch.nearest_point(aimed.position, snap) {
+        // A value typed is a decision; joining a point that happens to be near
+        // would quietly give the line another length.
+        Some(id) if !context.editor.live.is_locked() => PointRef::Existing(id),
+        _ => PointRef::New(aimed.position),
     };
 
     let start = match anchor {
@@ -993,11 +1087,166 @@ fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
     // The far end of the segment just drawn becomes the next anchor. A point
     // created by the operation is the last one in the sketch.
     let sketch = &context.document.sketches()[index];
+    let drawn = SegmentId(sketch.segments().len().saturating_sub(1));
     context.editor.chain = Some(ChainAnchor::Point(match end {
         PointRef::Existing(id) => id,
         PointRef::New(_) => PointId(sketch.points().len().saturating_sub(1)),
     }));
+
+    dimension_the_line(context, index, drawn, aimed);
+    context.editor.chain_previous = Some(drawn);
+    context.editor.live.clear();
     true
+}
+
+/// Where the line being drawn actually ends, and what that implies.
+#[derive(Clone, Copy)]
+struct Aim {
+    position: Vec2,
+    /// The segment this one has just been squared up against.
+    square_with: Option<SegmentId>,
+}
+
+/// Applies to the cursor everything the user has already decided.
+///
+/// A locked angle leaves the line free to lengthen along that direction; a
+/// locked length leaves it free to turn at that distance; both leave nothing to
+/// the cursor at all. That is the point of locking one and not the other.
+fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
+    let nowhere = Aim {
+        position: cursor,
+        square_with: None,
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return nowhere;
+    };
+    let Some(from) = anchor_position(sketch, context) else {
+        return nowhere;
+    };
+
+    let scale = context.document.scale().max(1e-9);
+    let live = &context.editor.live;
+    let span = cursor - from;
+
+    let mut direction = span.normalize_or(Vec2::X);
+    let mut square_with = None;
+
+    if let Some(degrees) = live.locked_angle {
+        // The sign follows the cursor: 30° typed means the 30° the user is
+        // pointing at, not the one below the axis they are not.
+        let wanted = Vec2::from_angle(degrees.to_radians());
+        direction = if wanted.dot(direction) >= 0.0 {
+            wanted
+        } else {
+            -wanted
+        };
+    } else if let Some((perpendicular, previous)) = right_angle(sketch, context, from, span) {
+        direction = perpendicular;
+        square_with = Some(previous);
+    }
+
+    let length = match live.locked_length {
+        Some(millimeters) => millimeters / scale,
+        None => span.dot(direction).max(0.0),
+    };
+
+    Aim {
+        position: from + direction * length.max(1e-6),
+        square_with,
+    }
+}
+
+/// Half the width of the band, in degrees, inside which a corner is taken as
+/// square. Wide enough to be easy to hit, narrow enough that an angle really
+/// meant to be 80° is not stolen.
+const SQUARE_TOLERANCE_DEGREES: f32 = 4.0;
+
+/// The direction that squares this line up against the one before it, when the
+/// cursor is close enough to it.
+fn right_angle(
+    sketch: &Sketch,
+    context: &SketchContext<'_>,
+    from: Vec2,
+    span: Vec2,
+) -> Option<(Vec2, SegmentId)> {
+    let previous = context.editor.chain_previous?;
+    if previous.0 >= sketch.segments().len() || sketch.is_erased_segment(previous) {
+        return None;
+    }
+    let (start, end) = sketch.endpoints(previous);
+    // The arm runs from the shared corner outwards, whichever way it was drawn.
+    let arm = if start.distance(from) < end.distance(from) {
+        end - start
+    } else {
+        start - end
+    }
+    .normalize_or_zero();
+    let direction = span.normalize_or_zero();
+    if arm == Vec2::ZERO || direction == Vec2::ZERO {
+        return None;
+    }
+
+    let off_square = direction.dot(arm).abs().asin().to_degrees();
+    if off_square > SQUARE_TOLERANCE_DEGREES {
+        return None;
+    }
+    let square = Vec2::new(-arm.y, arm.x);
+    let towards = if square.dot(direction) >= 0.0 {
+        square
+    } else {
+        -square
+    };
+    Some((towards, previous))
+}
+
+fn anchor_position(sketch: &Sketch, context: &SketchContext<'_>) -> Option<Vec2> {
+    match context.editor.chain? {
+        ChainAnchor::Pending(position) => Some(position),
+        ChainAnchor::Point(id) => (id.0 < sketch.points().len()).then(|| sketch.point(id)),
+    }
+}
+
+/// Places on the line just drawn whatever the user typed, and the right angle
+/// they aimed at.
+///
+/// A value that would say nothing is left out: the drawing already holds it,
+/// and a second copy could only be redundant.
+fn dimension_the_line(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    segment: SegmentId,
+    aimed: Aim,
+) {
+    let live = &context.editor.live;
+    let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
+
+    if let Some(length) = live.locked_length {
+        wanted.push((DimensionTarget::Length(segment), length));
+    }
+    if let Some(angle) = live.locked_angle {
+        wanted.push((
+            DimensionTarget::AxisAngle {
+                segment,
+                axis: cao_sketch::SketchAxis::U,
+            },
+            angle.abs(),
+        ));
+    }
+    if let Some(first) = aimed.square_with {
+        wanted.push((DimensionTarget::Angle { first, second: segment }, 90.0));
+    }
+
+    let scale = context.document.scale();
+    for (target, value) in wanted {
+        if context.document.sketches()[index].would_be_redundant(target, scale) {
+            continue;
+        }
+        context.document.apply(Operation::SetDimension {
+            sketch: index,
+            target,
+            value,
+        });
+    }
 }
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.
@@ -1408,8 +1657,15 @@ fn push_sketch(
     let settled = sketch.settled_points(context.document.scale());
     let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
 
-    for segment in sketch.segments() {
+    for (id, segment) in sketch.live_segments() {
         let (color, width) = sketch_colors(theme, active, holds(segment.start) && holds(segment.end));
+        let (color, width) = mark_selected(
+            context,
+            theme,
+            Selection::Element(Element::Segment(id)),
+            color,
+            width,
+        );
         let start = sketch
             .plane
             .to_world(shown_position(sketch, segment.start, context));
@@ -1420,8 +1676,15 @@ fn push_sketch(
         out.push(cao_render::Vertex::line(end, color, width));
     }
 
-    for circle in sketch.circles() {
+    for (id, circle) in sketch.live_circles() {
         let (color, width) = sketch_colors(theme, active, holds(circle.center));
+        let (color, width) = mark_selected(
+            context,
+            theme,
+            Selection::Element(Element::Circle(id)),
+            color,
+            width,
+        );
         push_circle(out, sketch, circle.center, circle.radius, color, width);
     }
 
@@ -1435,11 +1698,15 @@ fn push_sketch(
     // and arcs, so the drawing says what holds it rather than just carrying a
     // number.
     for dimension in sketch.dimensions() {
-        let style = if dimension.driven {
+        let mut style = if dimension.driven {
             crate::screens::annotations::Style::driven(theme)
         } else {
             crate::screens::annotations::Style::driving(theme)
         };
+        if context.editor.selected() == Some(Selection::Dimension(dimension.target)) {
+            style.color = tint_at(theme.highlight, 1.0);
+            style.width *= 2.0;
+        }
         crate::screens::annotations::push(
             out,
             sketch,
@@ -1449,7 +1716,7 @@ fn push_sketch(
         );
     }
 
-    push_preview(out, sketch, theme, context);
+    push_preview(out, sketch, theme, scale, context);
 
     if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected
         && selected.0 < sketch.segments().len()
@@ -1486,6 +1753,9 @@ fn push_point_markers(
 
     for index in 0..sketch.points().len() {
         let point = PointId(index);
+        if sketch.is_erased_point(point) {
+            continue;
+        }
         let (base, _) = sketch_colors(theme, true, settled.get(index).copied().unwrap_or(false));
         let center = sketch
             .plane
@@ -1494,6 +1764,13 @@ fn push_point_markers(
             || context.editor.first_point == Some(point);
         let color = if hovered { highlight } else { base };
         let width = if hovered { 2.5 } else { 1.5 };
+        let (color, width) = mark_selected(
+            context,
+            theme,
+            Selection::Element(Element::Point(point)),
+            color,
+            width,
+        );
 
         let (u, v) = if sketch.is_origin(point) {
             // Turned a quarter: a diamond reads differently at a glance.
@@ -1527,12 +1804,89 @@ fn push_point_markers(
     }
 }
 
+/// Draws what the selection tool is holding differently, so it is clear what
+/// pressing Suppr would take away.
+fn mark_selected(
+    context: &SketchContext<'_>,
+    theme: &Theme,
+    element: Selection,
+    color: [f32; 4],
+    width: f32,
+) -> ([f32; 4], f32) {
+    if context.editor.selected() == Some(element) {
+        (tint_at(theme.highlight, 1.0), width * 1.8)
+    } else {
+        (color, width)
+    }
+}
+
+/// A small square outline on the plane, which is what a point looks like.
+fn push_point_marker(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    at: Vec2,
+    size: f32,
+    color: [f32; 4],
+    width: f32,
+) {
+    let center = sketch.plane.to_world(at);
+    let (u, v) = (sketch.plane.u, sketch.plane.v);
+    let corners = [
+        center - u * size - v * size,
+        center + u * size - v * size,
+        center + u * size + v * size,
+        center - u * size + v * size,
+    ];
+    for corner in 0..4 {
+        out.push(cao_render::Vertex::line(corners[corner], color, width));
+        out.push(cao_render::Vertex::line(
+            corners[(corner + 1) % 4],
+            color,
+            width,
+        ));
+    }
+}
+
+/// The draughtsman's mark for a right angle: a small square tucked into the
+/// corner, on the inside of the two arms.
+fn push_square_mark(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    corner: Vec2,
+    along: Vec2,
+    across: Vec2,
+    scale: ViewScale,
+    color: [f32; 4],
+) {
+    let (along, across) = (along.normalize_or_zero(), across.normalize_or_zero());
+    if along == Vec2::ZERO || across == Vec2::ZERO {
+        return;
+    }
+    // Kept the same size on screen: it marks a corner, it does not measure it.
+    let side = scale.world_size_of(11.0);
+    let (a, b) = (along * side, across * side);
+
+    for (start, end) in [(a, a + b), (a + b, b)] {
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(corner + start),
+            color,
+            2.0,
+        ));
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(corner + end),
+            color,
+            2.0,
+        ));
+    }
+}
+
 /// The shape about to be drawn, following the cursor: placing a point blind and
 /// only then seeing where it went is needlessly uncomfortable.
 fn push_preview(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     theme: &Theme,
+    scale: ViewScale,
     context: &SketchContext<'_>,
 ) {
     let Some(cursor) = context.editor.cursor else {
@@ -1546,7 +1900,30 @@ fn push_preview(
             ChainAnchor::Point(id) if id.0 < sketch.points().len() => sketch.point(id),
             ChainAnchor::Point(_) => cursor,
         };
-        push_preview_line(out, sketch, from, cursor, preview);
+        let to = context.editor.aimed.unwrap_or(cursor);
+        push_preview_line(out, sketch, from, to, preview);
+
+        // The little square of a right angle, drawn before it is committed to
+        // so the constraint is never a surprise. Its two arms are the line
+        // being drawn and the one it is squaring up against.
+        if let (Some(corner), Some(previous)) =
+            (context.editor.square_corner, context.editor.chain_previous)
+            && previous.0 < sketch.segments().len()
+        {
+            let (start, end) = sketch.endpoints(previous);
+            let arm = if start.distance(corner) < end.distance(corner) {
+                end - start
+            } else {
+                start - end
+            };
+            push_square_mark(out, sketch, corner, to - from, -arm, scale, preview);
+        }
+    }
+
+    // The point tool has nothing pending, yet placing a point blind is exactly
+    // as uncomfortable as the rest.
+    if context.editor.tool == Tool::Point {
+        push_point_marker(out, sketch, cursor, scale.world_size_of(4.0), preview, 1.5);
     }
 
     let Some(start) = context.editor.pending_start else {
@@ -1674,6 +2051,91 @@ fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect
             color,
         );
     }
+}
+
+/// The length and the angle of the line being drawn, editable on the spot.
+///
+/// Left alone they only report. Typed into, they become constraints and are
+/// placed as dimensions when the line is validated — which is the whole point:
+/// a line drawn to a value should not have to be measured afterwards.
+///
+/// Returns true when the user pressed Enter to finish the line from the
+/// keyboard.
+fn paint_live_input(
+    ui: &mut egui::Ui,
+    state: &ViewportState,
+    rect: egui::Rect,
+    context: &mut SketchContext<'_>,
+) -> bool {
+    if context.editor.tool != Tool::Line || context.editor.chain.is_none() {
+        return false;
+    }
+    let Some(index) = context.editor.active_sketch() else {
+        return false;
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return false;
+    };
+    let (Some(from), Some(to)) = (
+        anchor_position(sketch, context),
+        context.editor.aimed.or(context.editor.cursor),
+    ) else {
+        return false;
+    };
+
+    let scale = context.document.scale();
+    let span = to - from;
+    let measured_length = span.length() * scale;
+    let measured_angle = span.y.atan2(span.x).to_degrees();
+
+    // Anchored on the middle of the line, nudged clear of it.
+    let middle = sketch.plane.to_world((from + to) * 0.5);
+    let Some(at) = to_screen(middle, state.camera.view_projection(state.aspect), rect) else {
+        return false;
+    };
+
+    let live = &mut context.editor.live;
+    if live.locked_length.is_none() {
+        live.length = format!("{measured_length:.3}");
+    }
+    if live.locked_angle.is_none() {
+        live.angle = format!("{measured_angle:.1}");
+    }
+
+    let mut validated = false;
+    egui::Area::new(egui::Id::new("live_line_input"))
+        .fixed_pos(at + egui::vec2(14.0, -34.0))
+        .order(egui::Order::Foreground)
+        .show(ui.ctx(), |ui| {
+            egui::Frame::popup(ui.style()).show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    validated |= live_field(ui, "mm", &mut live.length, &mut live.locked_length);
+                    validated |= live_field(ui, "°", &mut live.angle, &mut live.locked_angle);
+                });
+            });
+        });
+    validated
+}
+
+/// One of the two fields. Returns true when Enter was pressed in it.
+fn live_field(ui: &mut egui::Ui, suffix: &str, text: &mut String, locked: &mut Option<f32>) -> bool {
+    let response = ui.add(
+        egui::TextEdit::singleline(text)
+            .desired_width(64.0)
+            .text_color(if locked.is_some() {
+                ui.visuals().strong_text_color()
+            } else {
+                ui.visuals().weak_text_color()
+            }),
+    );
+    ui.label(suffix);
+
+    // Typing is what turns a readout into a decision. Emptying the field takes
+    // the decision back.
+    if response.changed() {
+        *locked = crate::screens::sketch::LiveInput::read(text);
+    }
+    response.lost_focus() && ui.input(|input| input.key_pressed(egui::Key::Enter))
 }
 
 /// Each dimension is drawn where it applies, with the value it stands for.

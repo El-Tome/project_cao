@@ -65,6 +65,16 @@ L'aire extrudée est retenue par **la position cliquée** et non par son rang,
 pour la même raison que les points d'un trait : un rang bougerait dès qu'une
 autre forme est dessinée. Voir [extrusion.md](extrusion.md).
 
+## Supprimer ne retire rien de la liste
+
+Une suppression est une opération comme les autres, et elle **marque** ce qui
+disparaît au lieu de le retirer. Sortir un trait du milieu de la liste
+décalerait le rang de tous les suivants, et chaque cote enregistrée contre ces
+rangs désignerait alors un autre morceau du dessin — silencieusement.
+
+C'est ce qui permet d'annuler une suppression comme n'importe quelle autre
+étape, et de la rejouer à l'identique. Voir [esquisse.md](esquisse.md).
+
 ## Le format de fichier
 
 Un `.caopart` est une **archive zip**, et non plus un seul objet JSON :

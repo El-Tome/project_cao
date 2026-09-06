@@ -144,6 +144,22 @@ impl PartState {
                 self.extrude(*sketch, picks, *distance, *mode);
                 None
             }
+            Operation::Erase { sketch, element } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.erase(*element);
+                // What is left may have room to move again, so it settles into
+                // whatever the remaining values still ask of it.
+                sketch.resolve(scale);
+                None
+            }
+            Operation::EraseDimension { sketch, target } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.erase_dimension(*target);
+                sketch.resolve(scale);
+                None
+            }
             Operation::Revolve {
                 sketch,
                 picks,
@@ -1029,6 +1045,38 @@ mod extrusion_tests {
         let state = PartState::rebuild(&history);
         assert!(!state.body.is_empty());
         assert!(volume(&state.body) > 0.0);
+    }
+
+    /// Supprimer et rejouer doivent donner la même pièce : c'est ce qui permet
+    /// de revenir en arrière sur une suppression.
+    #[test]
+    fn a_deletion_replays_like_any_other_step() {
+        let mut history = sketch_history();
+        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        history.push(Operation::Extrude {
+            sketch: 0,
+            picks: vec![Vec2::new(5.0, 5.0)],
+            distance: 4.0,
+            mode: ExtrusionMode::Add,
+        });
+        let before = volume(&PartState::rebuild(&history).body);
+        assert!(before > 0.0);
+
+        history.push(Operation::Erase {
+            sketch: 0,
+            element: cao_sketch::Element::Segment(cao_sketch::SegmentId(0)),
+        });
+
+        let state = PartState::rebuild(&history);
+        assert!(state.sketches[0].regions().is_empty(), "l'aire est ouverte");
+        assert!(
+            (volume(&state.body) - before).abs() < 1.0,
+            "le volume déjà fabriqué reste"
+        );
+
+        // Et le curseur ramené avant la suppression rend le contour.
+        history.undo();
+        assert_eq!(PartState::rebuild(&history).sketches[0].regions().len(), 1);
     }
 
     /// Une esquisse pas entièrement contrainte s'extrude quand même.

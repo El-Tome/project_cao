@@ -1,5 +1,49 @@
-use cao_sketch::{DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::Vec2;
+
+/// What the selection tool is holding, and what pressing Suppr would delete.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Selection {
+    Element(Element),
+    Dimension(DimensionTarget),
+}
+
+/// The length and the angle of the line being drawn, shown as it moves and
+/// editable on the spot.
+///
+/// A value left alone is only a readout. A value typed becomes a constraint:
+/// the line can no longer take another, and the dimension is placed on it when
+/// the line is validated. Fixing one of the two still leaves the other free —
+/// an angle alone lets the line be lengthened, a length alone lets it turn.
+#[derive(Default)]
+pub struct LiveInput {
+    pub length: String,
+    pub angle: String,
+    /// Millimetres, once the user has typed a length.
+    pub locked_length: Option<f32>,
+    /// Degrees from the horizontal axis, once typed.
+    pub locked_angle: Option<f32>,
+}
+
+impl LiveInput {
+    pub fn clear(&mut self) {
+        *self = Self::default();
+    }
+
+    pub fn is_locked(&self) -> bool {
+        self.locked_length.is_some() || self.locked_angle.is_some()
+    }
+
+    /// Reads a field the user has just changed. An emptied field goes back to
+    /// being a readout.
+    pub fn read(text: &str) -> Option<f32> {
+        text.trim()
+            .replace(',', ".")
+            .parse::<f32>()
+            .ok()
+            .filter(|value| value.is_finite())
+    }
+}
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
 /// menu; nothing else needs to know about them.
@@ -88,6 +132,19 @@ pub struct SketchEditor {
     pub first_axis: Option<SketchAxis>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
+    /// What the selection tool is holding, ready to be deleted.
+    pub selected_element: Option<Selection>,
+    /// The last segment the line tool drew, which the next one may square up
+    /// against.
+    pub chain_previous: Option<SegmentId>,
+    /// The corner where a right angle is about to be made, so it can be shown
+    /// before it is committed to.
+    pub square_corner: Option<Vec2>,
+    /// Where the line being drawn would actually end, once what the user typed
+    /// and the right-angle snap have had their say. The preview shows this and
+    /// not the raw cursor, so what is drawn is what a click would record.
+    pub aimed: Option<Vec2>,
+    pub live: LiveInput,
     /// First corner of a rectangle, or the centre of a circle.
     pub pending_start: Option<Vec2>,
     /// Text being typed into the dimension field.
@@ -154,6 +211,11 @@ impl SketchEditor {
     /// corner of a shape, the segment waiting for its partner.
     pub fn reset_pending(&mut self) {
         self.chain = None;
+        self.chain_previous = None;
+        self.square_corner = None;
+        self.aimed = None;
+        self.live.clear();
+        self.selected_element = None;
         self.pending_start = None;
         self.first_angle_segment = None;
         self.first_point = None;
@@ -177,6 +239,15 @@ impl SketchEditor {
     /// Ends the polyline in progress without leaving the sketch.
     pub fn end_chain(&mut self) {
         self.chain = None;
+        self.chain_previous = None;
+        self.square_corner = None;
+        self.aimed = None;
+        self.live.clear();
+    }
+
+    /// The element the selection tool is holding, if it is geometry.
+    pub fn selected(&self) -> Option<Selection> {
+        self.selected_element
     }
 
     pub fn close(&mut self) {

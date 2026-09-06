@@ -167,9 +167,21 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         handle_sketch_input(ui, state, &response, rect, scale, sketch)
     };
 
+    // The scene goes down first. Everything egui paints — the values of the
+    // dimensions, the scale bar, the labels — is added to the same layer, in
+    // order, and the scene now fills the viewport with its background: put it
+    // last and it wipes all of them out.
     let frame = build_frame(state, rect, cube_rect, scale, sketch);
+    ui.painter().add(egui_wgpu::Callback::new_paint_callback(
+        rect,
+        ViewportCallback { frame },
+    ));
+
     paint_face_labels(ui, state, cube_rect);
     paint_dimension_labels(ui, state, rect, sketch);
+    if state.config.ruler_visible {
+        paint_ruler(ui, state, rect, scale);
+    }
     if paint_live_input(ui, state, rect, sketch) {
         // Enter finishes the line from the keyboard, without having to find the
         // canvas again with the mouse.
@@ -180,14 +192,6 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         let snap = scale.world_size_of(10.0);
         return changed | draw_line_point(sketch, index, cursor, snap);
     }
-    if state.config.ruler_visible {
-        paint_ruler(ui, state, rect, scale);
-    }
-
-    ui.painter().add(egui_wgpu::Callback::new_paint_callback(
-        rect,
-        ViewportCallback { frame },
-    ));
 
     changed
 }
@@ -729,13 +733,23 @@ fn drag_point(
     // While the drag lasts the point is only *shown* at the cursor; the move is
     // recorded once, on release. Recording every frame buried the history under
     // hundreds of entries that all said the same thing.
+    //
+    // What is shown, though, is the whole drawing settled as if the point had
+    // been let go here — the values already given pull the rest of the shape
+    // along, and seeing only the point move told nothing of where it was
+    // heading.
     if !response.drag_stopped() {
         context.editor.drag_position = Some(cursor);
+        let mut settling = context.document.sketches()[index].clone();
+        settling.move_point(point, cursor);
+        settling.resolve(context.document.scale());
+        context.editor.drag_preview = Some(settling);
         return false;
     }
 
     context.editor.dragged_point = None;
     context.editor.drag_position = None;
+    context.editor.drag_preview = None;
     context.document.apply(Operation::MovePoint {
         sketch: index,
         point,
@@ -930,6 +944,66 @@ fn measure(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f3
 
     context.editor.select(None, None);
     context.editor.message = Some("Rien à mesurer ici".to_string());
+}
+
+/// The dimension a click would place right now, without placing it.
+///
+/// The same reading of the cursor as `measure`, so what is shown in advance is
+/// what will actually be recorded — two separate readings would eventually
+/// disagree, and a preview that lies is worse than none.
+fn measure_preview(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    snap: f32,
+) -> Option<DimensionTarget> {
+    let mode = context.editor.dimension_mode;
+    let sketch = context.document.sketches().get(index)?;
+
+    if mode.takes_points()
+        && let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
+    {
+        let first = context.editor.first_point?;
+        return (first != point).then_some(DimensionTarget::Distance { from: first, to: point });
+    }
+    if mode == DimensionMode::PointToPoint {
+        return None;
+    }
+
+    if matches!(mode, DimensionMode::Auto | DimensionMode::Angle)
+        && let Some(first) = context.editor.first_angle_segment
+    {
+        if let Some(second) = sketch.nearest_segment(cursor, snap)
+            && second != first
+        {
+            return sketch
+                .angle_between(first, second)
+                .map(|_| DimensionTarget::Angle { first, second });
+        }
+        return axis_under(cursor, snap).map(|axis| DimensionTarget::AxisAngle {
+            segment: first,
+            axis,
+        });
+    }
+
+    if mode != DimensionMode::Radius
+        && let Some(segment) = sketch.nearest_segment(cursor, snap)
+    {
+        return match (context.editor.first_axis, mode) {
+            (Some(axis), _) => Some(DimensionTarget::AxisAngle { segment, axis }),
+            // The angle mode is still waiting for its partner, so there is
+            // nothing whole to show yet.
+            (None, DimensionMode::Angle) => None,
+            (None, _) => Some(DimensionTarget::Length(segment)),
+        };
+    }
+
+    if mode != DimensionMode::Length {
+        return sketch
+            .nearest_circle(cursor, snap)
+            .map(DimensionTarget::Radius);
+    }
+    None
 }
 
 /// First click on a point remembers it; the second gives the distance between
@@ -1405,7 +1479,12 @@ fn build_frame(
 
     for (index, sketch) in context.document.sketches().iter().enumerate() {
         let active = context.editor.active_sketch() == Some(index);
-        push_sketch(&mut lines, &mut surfaces, sketch, theme, scale, active, context);
+        // Mid-drag, the settled preview stands in for the recorded drawing.
+        let shown = match (active, &context.editor.drag_preview) {
+            (true, Some(preview)) => preview,
+            _ => sketch,
+        };
+        push_sketch(&mut lines, &mut surfaces, shown, theme, scale, active, context);
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
@@ -1589,14 +1668,7 @@ fn push_regions(
     sketch: &Sketch,
     theme: &Theme,
     active: bool,
-    context: &SketchContext<'_>,
 ) {
-    // Mid-drag the stored positions are one gesture behind what is on screen,
-    // and a fill lagging its own outline is worse than no fill.
-    if context.editor.dragged_point.is_some() {
-        return;
-    }
-
     for region in sketch.regions() {
         // Deeper areas take more of the tint, which is what tells a shape
         // drawn inside another from the one it sits in.
@@ -1672,6 +1744,11 @@ fn sketch_colors(theme: &Theme, active: bool, constrained: bool) -> ([f32; 4], f
 /// Where a point is shown: at the cursor while it is being dragged, at its
 /// recorded place otherwise.
 fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> Vec2 {
+    // The settled preview already has the point where the cursor put it, and
+    // everything else where it followed; moving it again would put it twice.
+    if context.editor.drag_preview.is_some() {
+        return sketch.point(point);
+    }
     match (context.editor.dragged_point, context.editor.drag_position) {
         (Some(dragged), Some(position)) if dragged == point && !sketch.is_origin(point) => position,
         _ => sketch.point(point),
@@ -1688,7 +1765,7 @@ fn push_sketch(
     active: bool,
     context: &SketchContext<'_>,
 ) {
-    push_regions(surfaces, sketch, theme, active, context);
+    push_regions(surfaces, sketch, theme, active);
 
     // Per element, not one verdict for the whole drawing: a contour can be
     // nailed down while its neighbour is still floating, and that is exactly
@@ -1994,6 +2071,22 @@ fn push_preview(
     // as uncomfortable as the rest.
     if context.editor.tool == Tool::Point {
         push_point_marker(out, sketch, cursor, scale.world_size_of(4.0), preview, 1.5);
+    }
+
+    // The dimension a click would place, drawn faintly where it would land.
+    if context.editor.tool == Tool::Dimension
+        && let Some(index) = context.editor.active_sketch()
+        && let Some(target) = measure_preview(
+            context,
+            index,
+            cursor,
+            scale.world_size_of(10.0),
+        )
+    {
+        let mut style = crate::screens::annotations::Style::driving(theme);
+        style.color = preview;
+        style.width *= 0.9;
+        crate::screens::annotations::push(out, sketch, target, &style, scale.units_per_pixel);
     }
 
     // What the cursor has been caught by. The middle of a line is the one that

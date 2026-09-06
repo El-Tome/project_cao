@@ -184,6 +184,28 @@ YZ) : il n'existe pas encore de solide, donc pas de face à cliquer. Le code de
 sélection ne dépend pas de ce fait — il teste un rayon contre un `WorkPlane`,
 et une face de pièce en sera un.
 
+## Tout se voit avant d'être posé
+
+Chaque outil montre ce qu'un clic ferait, avant de le faire : le trait suit le
+curseur, le rectangle et le cercle se dessinent en clair, le point a son
+marqueur, et **la cote intelligente trace l'annotation qu'elle poserait** — au
+bon endroit, avec ses flèches et ses lignes d'attache.
+
+L'aperçu de la cote est calculé par **la même lecture du curseur** que la pose
+elle-même. Deux lectures séparées finiraient par diverger, et un aperçu qui ment
+est pire que pas d'aperçu du tout.
+
+### Pendant qu'on déplace un point
+
+Le dessin est montré **tel qu'il se posera** si on lâche là : le solveur tourne
+à chaque image, et les valeurs déjà données tirent le reste de la forme avec le
+point. Auparavant seul le point suivait le curseur pendant que le reste ne
+bougeait pas ; la forme paraissait déchirée, et on ne voyait rien de là où elle
+allait atterrir.
+
+Rien n'est enregistré pour autant : l'historique ne reçoit qu'une seule
+opération, au lâcher.
+
 ## Ce que les cotes dessinent
 
 Une cote n'est pas qu'un nombre posé à côté du dessin : elle est **tracée**,
@@ -203,8 +225,15 @@ compte, elle ne décide pas.
 
 Avec l'outil Sélection, attraper une cote la décale, et le décalage est
 enregistré avec elle. C'est **toute l'annotation** qui bouge — la ligne, ses
-flèches et sa valeur ensemble — les lignes d'attache s'étirant pour suivre : un
-nombre qui s'éloignerait seul de sa ligne se lirait comme une étiquette égarée.
+flèches et sa valeur ensemble.
+
+Une cote de longueur ne s'éloigne que **perpendiculairement** à ce qu'elle
+mesure : la part du déplacement le long du trait est écartée. La ligne de cote
+reste donc parallèle à ce qu'elle mesure, avec ses deux lignes d'attache
+perpendiculaires et de même longueur. Autrement c'est une paire de flèches de
+travers, qui ne se lit plus comme une mesure. Seule la valeur peut encore
+glisser le long de la ligne, ce qui permet à deux cotes de même direction de ne
+plus se recouvrir.
 
 Un angle reste accroché au coin qu'il mesure : le tirer ouvre son arc au lieu de
 l'arracher. Un rayon tourne autour de son cercle.

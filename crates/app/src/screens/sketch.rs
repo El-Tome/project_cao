@@ -157,6 +157,10 @@ pub struct SketchEditor {
     pub pending_start: Option<Vec2>,
     /// Text being typed into the dimension field.
     pub dimension_input: String,
+    /// Set when a dimension has just been picked, so its field takes the
+    /// keyboard on its own: reaching it with Tab means walking through every
+    /// button of the toolbar first.
+    pub focus_dimension_field: bool,
     /// Where the next point would land, snapped. Drives the preview line.
     pub cursor: Option<Vec2>,
     pub message: Option<String>,
@@ -264,6 +268,7 @@ impl SketchEditor {
     }
 
     pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f32>) {
+        self.focus_dimension_field = target.is_some() && target != self.selected;
         self.selected = target;
         self.dimension_input = match measured {
             Some(length) => format!("{length:.2}")

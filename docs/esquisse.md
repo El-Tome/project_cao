@@ -151,6 +151,18 @@ d'angle ne le tient.
 Un rectangle est **une seule opération** dans l'historique, pas quatre traits :
 c'est ce qu'on veut voir en relisant la construction.
 
+### Un rectangle arrive coté
+
+Le dessiner puis devoir dire quatre fois que ses coins sont droits, c'est de la
+corvée : c'est ce qu'un rectangle *est*. Il reçoit donc tout seul **trois angles
+droits** — le quatrième suit — et **une longueur sur deux côtés voisins**, ce
+qui le fige exactement.
+
+Une valeur qui n'apporterait rien est laissée de côté, comme pour le trait. Et
+comme la forme est aussitôt entièrement contrainte, une cote posée dessus après
+coup est en lecture seule : pour changer une taille, on retape la cote qui est
+déjà là.
+
 ## Supprimer
 
 Avec l'outil **Sélection**, cliquer un trait, un point, un cercle ou une cote le
@@ -230,6 +242,10 @@ compte, elle ne décide pas.
 Avec l'outil Sélection, attraper une cote la décale, et le décalage est
 enregistré avec elle. C'est **toute l'annotation** qui bouge — la ligne, ses
 flèches et sa valeur ensemble.
+
+L'annotation suit le curseur pendant tout le geste, alors que rien n'est
+enregistré avant le lâcher : sans cela elle resterait immobile et sauterait à la
+fin, et le déplacement aurait l'air de n'avoir rien fait.
 
 Attraper une cote suppose de savoir où elle est dessinée : elle se tient à un
 nombre fixe de **pixels** de ce qu'elle mesure, donc la chercher à une autre
@@ -339,6 +355,16 @@ Les contours sont trouvés comme une carte trouve ses pays : on longe chaque
 trait en tournant toujours le plus serré possible, et le parcours revient sur
 lui-même autour d'une aire exactement. Compter les traits ne suffirait pas — un
 même côté appartient à deux aires quand deux formes le partagent.
+
+### Le champ prend le clavier tout seul
+
+Dès qu'une cote est choisie, son champ de valeur **prend le clavier** : c'est la
+prochaine chose que l'utilisateur va taper, et y arriver avec Tab voudrait dire
+traverser toute la barre d'outils d'abord.
+
+`Entrée` valide, et **cette frappe-là est consommée sur place** : le champ vient
+de rendre le clavier, donc sans cela le même appui déclencherait aussi le
+raccourci qui lui est lié — et terminerait l'esquisse.
 
 ## Les cotes en trop
 

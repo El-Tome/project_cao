@@ -215,6 +215,78 @@ impl ToolbarLayout {
     }
 }
 
+impl ToolbarLayout {
+    /// Puts into this layout the commands the standard one has and it has not,
+    /// each in the group it belongs to.
+    ///
+    /// A layout is saved with the profile, so a toolbar arranged once would
+    /// never hear of a tool added later: the new buttons would exist for a
+    /// fresh profile and for nobody else. What the user has arranged is left
+    /// exactly as it is; only what is missing is added.
+    pub fn adopt_new_commands(&mut self, reference: &Self) {
+        let mut known = Vec::new();
+        collect(&self.items, &mut known);
+
+        let mut wanted = Vec::new();
+        gather(&reference.items, &mut Vec::new(), &mut wanted);
+        for (path, command) in wanted {
+            if known.contains(&command) {
+                continue;
+            }
+            let seat = seat_for(&mut self.items, &path);
+            seat.push(Item::Command(command));
+        }
+    }
+}
+
+/// Every command a branch holds, however deep.
+fn collect(items: &[Item], out: &mut Vec<Command>) {
+    for item in items {
+        match item {
+            Item::Command(command) => out.push(*command),
+            Item::Group { items, .. } => collect(items, out),
+            Item::Separator => {}
+        }
+    }
+}
+
+/// Every command of a branch with the names of the groups it sits in.
+fn gather(items: &[Item], path: &mut Vec<String>, out: &mut Vec<(Vec<String>, Command)>) {
+    for item in items {
+        match item {
+            Item::Command(command) => out.push((path.clone(), *command)),
+            Item::Group { name, items } => {
+                path.push(name.clone());
+                gather(items, path, out);
+                path.pop();
+            }
+            Item::Separator => {}
+        }
+    }
+}
+
+/// The list a command should join, digging the groups of the path out of the
+/// layout, or making them when they are not there.
+fn seat_for<'a>(items: &'a mut Vec<Item>, path: &[String]) -> &'a mut Vec<Item> {
+    let Some((name, rest)) = path.split_first() else {
+        return items;
+    };
+    let found = items.iter().position(
+        |item| matches!(item, Item::Group { name: held, .. } if held == name),
+    );
+    let index = match found {
+        Some(index) => index,
+        None => {
+            items.push(Item::group(name, Vec::new()));
+            items.len() - 1
+        }
+    };
+    match &mut items[index] {
+        Item::Group { items, .. } => seat_for(items, rest),
+        _ => unreachable!("the entry was just found or made as a group"),
+    }
+}
+
 impl Default for ToolbarLayout {
     fn default() -> Self {
         use Command as C;
@@ -238,6 +310,23 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ToolCircle),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
+                                // A third level opens as a menu rather than
+                                // being spread out: nine rules laid on the bar
+                                // would push everything else off it.
+                                Item::group(
+                                    "Contraintes",
+                                    vec![
+                                        Item::Command(C::RulePerpendicular),
+                                        Item::Command(C::RuleParallel),
+                                        Item::Command(C::RuleEqual),
+                                        Item::Command(C::RuleCoincident),
+                                        Item::Command(C::RuleCollinear),
+                                        Item::Command(C::RuleTangent),
+                                        Item::Command(C::RuleMidpoint),
+                                        Item::Command(C::RuleFixed),
+                                        Item::Command(C::RuleConcentric),
+                                    ],
+                                ),
                             ],
                         ),
                         Item::Command(C::RecenterOnSketch),
@@ -263,6 +352,32 @@ impl Default for ToolbarLayout {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn a_toolbar_arranged_before_a_tool_existed_still_gets_it() {
+        // A layout as it might have been saved: the standard one, with the
+        // constraints group not yet invented and a button moved by hand.
+        let mut saved = ToolbarLayout {
+            items: vec![Item::group(
+                "Esquisse",
+                vec![Item::group("Dessin", vec![Item::Command(Command::ToolLine)])],
+            )],
+            ..ToolbarLayout::default()
+        };
+        saved.adopt_new_commands(&ToolbarLayout::default());
+
+        let mut held = Vec::new();
+        collect(&saved.items, &mut held);
+        assert!(held.contains(&Command::RulePerpendicular));
+        assert!(held.contains(&Command::ToolLine), "l'existant est intact");
+
+        // And running it twice does not pile up copies.
+        let before = held.len();
+        saved.adopt_new_commands(&ToolbarLayout::default());
+        let mut again = Vec::new();
+        collect(&saved.items, &mut again);
+        assert_eq!(again.len(), before);
+    }
+
     use super::*;
 
     fn layout() -> ToolbarLayout {

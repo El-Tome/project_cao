@@ -1,4 +1,6 @@
-use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+};
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -144,6 +146,11 @@ pub enum Operation {
         sketch: usize,
         target: DimensionTarget,
     },
+    /// Lays down a rule with no value: perpendicular, parallel, equal…
+    Constrain {
+        sketch: usize,
+        constraint: Constraint,
+    },
     /// Deletes everything that was selected, in one step.
     ///
     /// `Erase` and `EraseDimension` above are what a single deletion used to
@@ -152,6 +159,8 @@ pub enum Operation {
         sketch: usize,
         elements: Vec<Element>,
         dimensions: Vec<DimensionTarget>,
+        #[serde(default)]
+        constraints: Vec<Constraint>,
     },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
@@ -191,16 +200,26 @@ impl Operation {
                 Element::Circle(_) => "Cercle supprimé".to_string(),
             },
             Self::EraseDimension { .. } => "Cote supprimée".to_string(),
+            Self::Constrain { constraint, .. } => constraint.label().to_string(),
             Self::EraseMany {
                 elements,
                 dimensions,
+                constraints,
                 ..
-            } => match (elements.as_slice(), dimensions.as_slice()) {
-                ([Element::Point(_)], []) => "Point supprimé".to_string(),
-                ([Element::Segment(_)], []) => "Trait supprimé".to_string(),
-                ([Element::Circle(_)], []) => "Cercle supprimé".to_string(),
-                ([], [_]) => "Cote supprimée".to_string(),
-                _ => format!("{} éléments supprimés", elements.len() + dimensions.len()),
+            } => match (
+                elements.as_slice(),
+                dimensions.as_slice(),
+                constraints.as_slice(),
+            ) {
+                ([Element::Point(_)], [], []) => "Point supprimé".to_string(),
+                ([Element::Segment(_)], [], []) => "Trait supprimé".to_string(),
+                ([Element::Circle(_)], [], []) => "Cercle supprimé".to_string(),
+                ([], [_], []) => "Cote supprimée".to_string(),
+                ([], [], [rule]) => format!("{} supprimée", rule.label()),
+                _ => format!(
+                    "{} éléments supprimés",
+                    elements.len() + dimensions.len() + constraints.len()
+                ),
             },
             Self::MergePoints { .. } => "Sommets fusionnés".to_string(),
             Self::Revolve { angle, mode, .. } => {
@@ -290,14 +309,20 @@ impl Operation {
                 Element::Segment(segment) => format!("Esquisse {sketch} · trait {}", segment.0),
                 Element::Circle(circle) => format!("Esquisse {sketch} · cercle {}", circle.0),
             },
+            Self::Constrain {
+                sketch,
+                constraint,
+            } => format!("Esquisse {sketch} · {}", constraint.label()),
             Self::EraseMany {
                 sketch,
                 elements,
                 dimensions,
+                constraints,
             } => format!(
-                "Esquisse {sketch} · {} tracé(s) et {} cote(s)",
+                "Esquisse {sketch} · {} tracé(s), {} cote(s), {} contrainte(s)",
                 elements.len(),
-                dimensions.len()
+                dimensions.len(),
+                constraints.len()
             ),
             Self::EraseDimension { sketch, .. } => format!("Esquisse {sketch}"),
             Self::MergePoints {

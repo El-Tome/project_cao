@@ -9,12 +9,14 @@ use cao_render::{
     ViewportRect, adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad,
     srgb,
 };
-use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, Sketch, WorkPlane};
+use cao_sketch::{
+    CircleId, Constraint, DimensionTarget, Element, PointId, SegmentId, Sketch, WorkPlane,
+};
 use glam::{DVec2, DVec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
-    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Selection, SketchEditor, Tool,
+    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Rule, Selection, SketchEditor, Tool,
 };
 
 /// A colour from the theme, turned into the space the shader blends in.
@@ -182,6 +184,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
 
     paint_face_labels(ui, state, cube_rect);
     paint_band(ui, state, rect, sketch);
+    paint_rule_marks(ui, state, rect, sketch);
     paint_dimension_labels(ui, state, rect, sketch);
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
@@ -635,6 +638,7 @@ fn handle_sketch_input(
             scale.units_per_pixel,
         ),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }
 }
@@ -698,7 +702,193 @@ fn pick(
     if let Some(circle) = sketch.nearest_circle(cursor, snap) {
         return Some(Selection::Element(Element::Circle(circle)));
     }
-    nearest_annotation(context, index, cursor, snap * 1.5, pixel).map(Selection::Dimension)
+    if let Some(target) = nearest_annotation(context, index, cursor, snap * 1.5, pixel) {
+        return Some(Selection::Dimension(target));
+    }
+    nearest_rule(sketch, cursor, snap * 1.5).map(Selection::Rule)
+}
+
+/// The rule whose mark sits nearest the cursor.
+fn nearest_rule(sketch: &Sketch, cursor: DVec2, tolerance: f64) -> Option<Constraint> {
+    sketch
+        .constraints()
+        .iter()
+        .filter_map(|constraint| {
+            let at = rule_anchor(sketch, *constraint)?;
+            Some((*constraint, at.distance(cursor)))
+        })
+        .filter(|(_, distance)| *distance <= tolerance)
+        .min_by(|a, b| a.1.total_cmp(&b.1))
+        .map(|(constraint, _)| constraint)
+}
+
+/// Points the constraint tool at something, and lays the rule down as soon as
+/// it has been shown enough.
+///
+/// The order of the clicks does not matter: a point and a trait make the same
+/// coincidence whichever comes first. What matters is what was clicked, so the
+/// rule is built from the kinds gathered rather than from their order.
+fn constrain(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    rule: Rule,
+    cursor: DVec2,
+    snap: f64,
+) -> bool {
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return false;
+    };
+    // Smallest target first, as everywhere else: a point is harder to hit on
+    // purpose than the trait it sits on.
+    let picked = sketch
+        .nearest_point(cursor, snap * 0.8)
+        .filter(|point| !sketch.is_origin(*point) || rule == Rule::Coincident)
+        .map(Element::Point)
+        .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))
+        .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle));
+
+    let Some(picked) = picked else {
+        context.editor.message = Some("Rien à contraindre ici".to_string());
+        return false;
+    };
+    if context.editor.rule_picks.contains(&picked) {
+        return false;
+    }
+    context.editor.rule_picks.push(picked);
+    if context.editor.rule_picks.len() < rule.wants() {
+        context.editor.message = Some(rule.asks_for().to_string());
+        return false;
+    }
+
+    let picks = std::mem::take(&mut context.editor.rule_picks);
+    if let Some(Operation::Constrain { constraint, .. }) =
+        rule_operation(rule, index, &picks, sketch)
+        && sketch.constraints().contains(&constraint.normalised())
+    {
+        // The drawing already carries it; recording the step again would fill
+        // the history with entries that change nothing.
+        context.editor.message = Some(format!("{} : déjà posée", rule.label()));
+        return false;
+    }
+    let Some(operation) = rule_operation(rule, index, &picks, sketch) else {
+        context.editor.message = Some(format!("{} : {}", rule.asks_for(), "pas ces éléments-là"));
+        return false;
+    };
+    context.document.apply(operation);
+    context.editor.message = Some(rule.asks_for().to_string());
+    true
+}
+
+/// The step a rule becomes, once it has been shown what it speaks of.
+///
+/// Two of them are not rules at all but merges: two points made one, or two
+/// circles brought onto a single centre. Holding them apart with an equation
+/// would leave two points sitting on top of each other for ever, which is
+/// exactly what the drawing does not want.
+fn rule_operation(
+    rule: Rule,
+    index: usize,
+    picks: &[Element],
+    sketch: &Sketch,
+) -> Option<Operation> {
+    let segments: Vec<SegmentId> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            Element::Segment(id) => Some(*id),
+            _ => None,
+        })
+        .collect();
+    let points: Vec<PointId> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            Element::Point(id) => Some(*id),
+            _ => None,
+        })
+        .collect();
+    let circles: Vec<CircleId> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            Element::Circle(id) => Some(*id),
+            _ => None,
+        })
+        .collect();
+
+    let constraint = |constraint: Constraint| {
+        Some(Operation::Constrain {
+            sketch: index,
+            constraint,
+        })
+    };
+    let pair = |list: &[SegmentId]| (list.len() == 2).then(|| (list[0], list[1]));
+
+    match rule {
+        Rule::Perpendicular => pair(&segments)
+            .and_then(|(first, second)| constraint(Constraint::Perpendicular { first, second })),
+        Rule::Parallel => pair(&segments)
+            .and_then(|(first, second)| constraint(Constraint::Parallel { first, second })),
+        Rule::Collinear => pair(&segments)
+            .and_then(|(first, second)| constraint(Constraint::Collinear { first, second })),
+        Rule::Equal => match (pair(&segments), circles.as_slice()) {
+            (Some((first, second)), _) => constraint(Constraint::Equal { first, second }),
+            (None, [first, second]) => constraint(Constraint::EqualRadius {
+                first: *first,
+                second: *second,
+            }),
+            _ => None,
+        },
+        Rule::Tangent => match (circles.as_slice(), segments.as_slice()) {
+            ([circle], [segment]) => constraint(Constraint::Tangent {
+                circle: *circle,
+                segment: *segment,
+            }),
+            _ => None,
+        },
+        Rule::Midpoint => match (points.as_slice(), segments.as_slice()) {
+            ([point], [segment]) => constraint(Constraint::Midpoint {
+                point: *point,
+                segment: *segment,
+            }),
+            _ => None,
+        },
+        Rule::Fixed => match points.as_slice() {
+            [point] => constraint(Constraint::Fixed { point: *point }),
+            _ => None,
+        },
+        Rule::Coincident => match (points.as_slice(), segments.as_slice()) {
+            ([point], [segment]) => constraint(Constraint::OnSegment {
+                point: *point,
+                segment: *segment,
+            }),
+            // Two points asked to coincide are one point: the origin is never
+            // the one that gives way.
+            ([first, second], []) => {
+                let (kept, dropped) = match sketch.is_origin(*second) {
+                    true => (*second, *first),
+                    false => (*first, *second),
+                };
+                Some(Operation::MergePoints {
+                    sketch: index,
+                    kept,
+                    dropped,
+                })
+            }
+            _ => None,
+        },
+        Rule::Concentric => match circles.as_slice() {
+            [first, second] => {
+                let (kept, dropped) = (
+                    sketch.circle(*first).center,
+                    sketch.circle(*second).center,
+                );
+                (kept != dropped).then_some(Operation::MergePoints {
+                    sketch: index,
+                    kept,
+                    dropped,
+                })
+            }
+            _ => None,
+        },
+    }
 }
 
 /// Pulls a box across the drawing and takes everything inside it.
@@ -776,16 +966,19 @@ fn erase(context: &mut SketchContext<'_>, index: usize, selection: &[Selection])
     }
     let mut elements = Vec::new();
     let mut dimensions = Vec::new();
+    let mut constraints = Vec::new();
     for held in selection {
         match held {
             Selection::Element(element) => elements.push(*element),
             Selection::Dimension(target) => dimensions.push(*target),
+            Selection::Rule(constraint) => constraints.push(*constraint),
         }
     }
     context.document.apply(Operation::EraseMany {
         sketch: index,
         elements,
         dimensions,
+        constraints,
     });
     true
 }
@@ -3001,6 +3194,80 @@ fn live_field(
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+}
+
+/// Where a rule's mark is written: next to what it holds, and out of the way
+/// of the geometry itself.
+fn rule_anchor(sketch: &Sketch, constraint: Constraint) -> Option<DVec2> {
+    let middle = |segment: SegmentId| {
+        (segment.0 < sketch.segments().len()).then(|| {
+            let (start, end) = sketch.endpoints(segment);
+            (start + end) * 0.5
+        })
+    };
+    let point = |id: PointId| (id.0 < sketch.points().len()).then(|| sketch.point(id));
+    let circle = |id: CircleId| {
+        (id.0 < sketch.circles().len()).then(|| {
+            let round = sketch.circle(id);
+            sketch.point(round.center) + DVec2::splat(round.radius * 0.7)
+        })
+    };
+    match constraint {
+        Constraint::Perpendicular { first, second }
+        | Constraint::Parallel { first, second }
+        | Constraint::Equal { first, second }
+        | Constraint::Collinear { first, second } => {
+            Some((middle(first)? + middle(second)?) * 0.5)
+        }
+        Constraint::EqualRadius { first, second } => Some((circle(first)? + circle(second)?) * 0.5),
+        Constraint::OnSegment { point: held, .. } | Constraint::Fixed { point: held } => {
+            point(held)
+        }
+        Constraint::Midpoint { point: held, .. } => point(held),
+        Constraint::Tangent { circle: round, .. } => circle(round),
+    }
+}
+
+/// The marks of the rules, written beside what they hold.
+///
+/// Text rather than drawn symbols: a rule has no size and no direction of its
+/// own, so there is nothing to draw it *at* — only something to write next to.
+fn paint_rule_marks(
+    ui: &egui::Ui,
+    state: &ViewportState,
+    rect: egui::Rect,
+    context: &SketchContext<'_>,
+) {
+    let Some(index) = context.editor.active_sketch() else {
+        return;
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return;
+    };
+    let view_projection = state
+        .camera
+        .view_projection(rect.width() / rect.height().max(1.0));
+    let painter = ui.painter_at(rect);
+
+    for constraint in sketch.constraints() {
+        let Some(at) = rule_anchor(sketch, *constraint) else {
+            continue;
+        };
+        let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
+            continue;
+        };
+        let held = context.editor.is_selected(Selection::Rule(*constraint));
+        painter.text(
+            position + egui::vec2(9.0, -9.0),
+            egui::Align2::CENTER_CENTER,
+            constraint.mark(),
+            egui::FontId::proportional(13.0),
+            match held {
+                true => tint_to_color(state.theme.highlight),
+                false => egui::Color32::from_rgb(140, 190, 240),
+            },
+        );
+    }
 }
 
 /// The box being pulled across the drawing.

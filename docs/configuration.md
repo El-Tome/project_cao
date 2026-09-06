@@ -108,6 +108,12 @@ L'éditeur permet de sélectionner une entrée, la monter, la descendre, la fair
 entrer dans le groupe juste au-dessus, l'en sortir, la retirer, créer des
 groupes, les renommer, et ajouter n'importe quelle commande depuis la palette.
 
+Une barre arrangée à la main **reçoit les outils ajoutés plus tard**, chacun
+dans le groupe où la barre standard le place. Sans cela, une barre réorganisée
+une fois n'entendrait plus jamais parler d'un nouvel outil : les boutons neufs
+existeraient pour un profil neuf et pour personne d'autre. Ce que l'utilisateur
+a arrangé n'est pas touché ; seul ce qui manque est ajouté.
+
 Un emplacement pour le **logo** existe déjà, avec son texte, en attendant qu'il
 y ait une image à y mettre.
 

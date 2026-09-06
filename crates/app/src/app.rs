@@ -252,7 +252,7 @@ fn run(
     viewport: &mut ViewportState,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{DimensionMode, Tool};
+    use crate::screens::sketch::{DimensionMode, Rule, Tool};
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -331,6 +331,30 @@ fn run(
                 _ => DimensionMode::Auto,
             };
             editor.reset_pending();
+            false
+        }
+        Command::RulePerpendicular
+        | Command::RuleParallel
+        | Command::RuleEqual
+        | Command::RuleCoincident
+        | Command::RuleCollinear
+        | Command::RuleTangent
+        | Command::RuleMidpoint
+        | Command::RuleFixed
+        | Command::RuleConcentric => {
+            let rule = match command {
+                Command::RuleParallel => Rule::Parallel,
+                Command::RuleEqual => Rule::Equal,
+                Command::RuleCoincident => Rule::Coincident,
+                Command::RuleCollinear => Rule::Collinear,
+                Command::RuleTangent => Rule::Tangent,
+                Command::RuleMidpoint => Rule::Midpoint,
+                Command::RuleFixed => Rule::Fixed,
+                Command::RuleConcentric => Rule::Concentric,
+                _ => Rule::Perpendicular,
+            };
+            tool(editor, Tool::Constrain(rule));
+            editor.message = Some(rule.asks_for().to_string());
             false
         }
         Command::ExtrusionAdd => {

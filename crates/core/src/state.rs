@@ -178,13 +178,24 @@ impl PartState {
                 sketch.resolve(scale);
                 None
             }
+            Operation::Constrain { sketch, constraint } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.add_constraint(*constraint);
+                sketch.resolve(scale);
+                None
+            }
             Operation::EraseMany {
                 sketch,
                 elements,
                 dimensions,
+                constraints,
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
+                for rule in constraints {
+                    sketch.erase_constraint(*rule);
+                }
                 for target in dimensions {
                     sketch.erase_dimension(*target);
                 }
@@ -1165,6 +1176,7 @@ mod extrusion_tests {
                 cao_sketch::Element::Segment(cao_sketch::SegmentId(2)),
             ],
             dimensions: vec![DimensionTarget::Length(cao_sketch::SegmentId(0))],
+            constraints: Vec::new(),
         });
 
         let state = PartState::rebuild(&history);

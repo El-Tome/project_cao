@@ -26,6 +26,16 @@ pub enum Command {
     DimensionAngle,
     DimensionRadius,
 
+    RulePerpendicular,
+    RuleParallel,
+    RuleEqual,
+    RuleCoincident,
+    RuleCollinear,
+    RuleTangent,
+    RuleMidpoint,
+    RuleFixed,
+    RuleConcentric,
+
     ExtrusionAdd,
     ExtrusionCut,
     ExtrusionStraight,
@@ -41,7 +51,7 @@ pub enum Command {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 24] = [
+    pub const ALL: [Self; 33] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -58,6 +68,15 @@ impl Command {
         Self::DimensionLength,
         Self::DimensionAngle,
         Self::DimensionRadius,
+        Self::RulePerpendicular,
+        Self::RuleParallel,
+        Self::RuleEqual,
+        Self::RuleCoincident,
+        Self::RuleCollinear,
+        Self::RuleTangent,
+        Self::RuleMidpoint,
+        Self::RuleFixed,
+        Self::RuleConcentric,
         Self::ExtrusionAdd,
         Self::ExtrusionCut,
         Self::ExtrusionStraight,
@@ -86,6 +105,15 @@ impl Command {
             Self::DimensionLength => "Cote de trait",
             Self::DimensionAngle => "Cote d'angle",
             Self::DimensionRadius => "Cote de rayon",
+            Self::RulePerpendicular => "Perpendiculaire",
+            Self::RuleParallel => "Parallèle",
+            Self::RuleEqual => "Égalité",
+            Self::RuleCoincident => "Coïncidence",
+            Self::RuleCollinear => "Colinéaire",
+            Self::RuleTangent => "Tangence",
+            Self::RuleMidpoint => "Milieu",
+            Self::RuleFixed => "Fixe",
+            Self::RuleConcentric => "Concentrique",
             Self::ExtrusionAdd => "Ajout de matière",
             Self::ExtrusionCut => "Enlèvement de matière",
             Self::ExtrusionStraight => "Extrusion droite",
@@ -118,6 +146,15 @@ impl Command {
             Self::DimensionLength => "Un trait, mesuré sur toute sa longueur",
             Self::DimensionAngle => "Deux traits qui se touchent, ou un trait et un axe",
             Self::DimensionRadius => "Un cercle",
+            Self::RulePerpendicular => "Deux traits, mis d'équerre",
+            Self::RuleParallel => "Deux traits, gardant la même direction",
+            Self::RuleEqual => "Deux traits de même longueur, ou deux cercles de même rayon",
+            Self::RuleCoincident => "Un point posé sur un trait, ou deux points fondus en un",
+            Self::RuleCollinear => "Deux traits couchés sur la même droite",
+            Self::RuleTangent => "Un cercle et un trait qui l'effleure",
+            Self::RuleMidpoint => "Un point tenu au milieu d'un trait",
+            Self::RuleFixed => "Un point qui ne bouge plus de sa place",
+            Self::RuleConcentric => "Deux cercles ramenés sur le même centre",
             Self::ExtrusionAdd => "Sélectionner des aires fermées, donner une hauteur",
             Self::ExtrusionCut => "Sélectionner des aires fermées, donner une profondeur",
             Self::ExtrusionStraight => "Pousser la matière perpendiculairement au plan",
@@ -148,6 +185,15 @@ impl Command {
             | Self::DimensionLength
             | Self::DimensionAngle
             | Self::DimensionRadius => "Cotes",
+            Self::RulePerpendicular
+            | Self::RuleParallel
+            | Self::RuleEqual
+            | Self::RuleCoincident
+            | Self::RuleCollinear
+            | Self::RuleTangent
+            | Self::RuleMidpoint
+            | Self::RuleFixed
+            | Self::RuleConcentric => "Contraintes",
             Self::ExtrusionAdd
             | Self::ExtrusionCut
             | Self::ExtrusionStraight

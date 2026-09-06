@@ -144,6 +144,15 @@ pub enum Operation {
         sketch: usize,
         target: DimensionTarget,
     },
+    /// Deletes everything that was selected, in one step.
+    ///
+    /// `Erase` and `EraseDimension` above are what a single deletion used to
+    /// be, and are kept so that parts drawn before this still replay.
+    EraseMany {
+        sketch: usize,
+        elements: Vec<Element>,
+        dimensions: Vec<DimensionTarget>,
+    },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
         sketch: usize,
@@ -182,6 +191,17 @@ impl Operation {
                 Element::Circle(_) => "Cercle supprimé".to_string(),
             },
             Self::EraseDimension { .. } => "Cote supprimée".to_string(),
+            Self::EraseMany {
+                elements,
+                dimensions,
+                ..
+            } => match (elements.as_slice(), dimensions.as_slice()) {
+                ([Element::Point(_)], []) => "Point supprimé".to_string(),
+                ([Element::Segment(_)], []) => "Trait supprimé".to_string(),
+                ([Element::Circle(_)], []) => "Cercle supprimé".to_string(),
+                ([], [_]) => "Cote supprimée".to_string(),
+                _ => format!("{} éléments supprimés", elements.len() + dimensions.len()),
+            },
             Self::MergePoints { .. } => "Sommets fusionnés".to_string(),
             Self::Revolve { angle, mode, .. } => {
                 let verb = match mode {
@@ -270,6 +290,15 @@ impl Operation {
                 Element::Segment(segment) => format!("Esquisse {sketch} · trait {}", segment.0),
                 Element::Circle(circle) => format!("Esquisse {sketch} · cercle {}", circle.0),
             },
+            Self::EraseMany {
+                sketch,
+                elements,
+                dimensions,
+            } => format!(
+                "Esquisse {sketch} · {} tracé(s) et {} cote(s)",
+                elements.len(),
+                dimensions.len()
+            ),
             Self::EraseDimension { sketch, .. } => format!("Esquisse {sketch}"),
             Self::MergePoints {
                 sketch,

@@ -30,6 +30,10 @@ cote est un seul geste de l'utilisateur ; lire « Cote 60 mm » puis « Cote
 déplacée » à chaque clic n'aurait rien dit de plus. Un déplacement ultérieur, à
 la souris, reste une opération à part.
 
+Une sélection supprimée d'un bloc est de même **une seule opération**, avec la
+liste de ce qui part. Une étape par élément aurait demandé autant d'annulations
+que d'éléments pour revenir sur un seul geste.
+
 ## Le curseur et la branche abandonnée
 
 L'historique retient toutes les opérations et une position : ce qui est avant

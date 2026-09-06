@@ -178,6 +178,24 @@ impl PartState {
                 sketch.resolve(scale);
                 None
             }
+            Operation::EraseMany {
+                sketch,
+                elements,
+                dimensions,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                for target in dimensions {
+                    sketch.erase_dimension(*target);
+                }
+                for element in elements {
+                    sketch.erase(*element);
+                }
+                // What is left may have room to move again, so it settles into
+                // whatever the remaining values still ask of it.
+                sketch.resolve(scale);
+                None
+            }
             Operation::Revolve {
                 sketch,
                 picks,
@@ -1121,6 +1139,42 @@ mod extrusion_tests {
             2,
             "les deux traits tiennent toujours au sommet commun"
         );
+    }
+
+    /// Une sélection supprimée d'un bloc est une seule étape, qu'une seule
+    /// annulation défait.
+    #[test]
+    fn a_whole_selection_goes_in_one_step() {
+        let mut history = sketch_history();
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
+        history.push(Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(cao_sketch::SegmentId(0)),
+            value: 10.0,
+            placement: None,
+        });
+        let drawn = PartState::rebuild(&history).sketches[0]
+            .live_segments()
+            .count();
+        assert_eq!(drawn, 4);
+
+        history.push(Operation::EraseMany {
+            sketch: 0,
+            elements: vec![
+                cao_sketch::Element::Segment(cao_sketch::SegmentId(0)),
+                cao_sketch::Element::Segment(cao_sketch::SegmentId(2)),
+            ],
+            dimensions: vec![DimensionTarget::Length(cao_sketch::SegmentId(0))],
+        });
+
+        let state = PartState::rebuild(&history);
+        assert_eq!(state.sketches[0].live_segments().count(), 2);
+        assert!(state.sketches[0].dimensions().is_empty());
+
+        history.undo();
+        let back = PartState::rebuild(&history);
+        assert_eq!(back.sketches[0].live_segments().count(), 4);
+        assert_eq!(back.sketches[0].dimensions().len(), 1);
     }
 
     /// Supprimer et rejouer doivent donner la même pièce : c'est ce qui permet

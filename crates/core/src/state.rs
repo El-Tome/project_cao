@@ -144,6 +144,17 @@ impl PartState {
                 self.extrude(*sketch, picks, *distance, *mode);
                 None
             }
+            Operation::MergePoints {
+                sketch,
+                kept,
+                dropped,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.merge_points(*kept, *dropped);
+                sketch.resolve(scale);
+                None
+            }
             Operation::Erase { sketch, element } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
@@ -1045,6 +1056,40 @@ mod extrusion_tests {
         let state = PartState::rebuild(&history);
         assert!(!state.body.is_empty());
         assert!(volume(&state.body) > 0.0);
+    }
+
+    /// Deux sommets superposés n'en font plus qu'un, et le rejeu le refait à
+    /// l'identique.
+    #[test]
+    fn merging_two_points_replays() {
+        let mut history = sketch_history();
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::new(-10.0, 0.0)),
+            end: PointRef::New(Vec2::new(0.0, 10.0)),
+        });
+        history.push(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(Vec2::new(0.0, 10.0)),
+            end: PointRef::New(Vec2::new(10.0, 0.0)),
+        });
+
+        let before = PartState::rebuild(&history);
+        assert_eq!(before.sketches[0].drawn_points().count(), 4);
+
+        history.push(Operation::MergePoints {
+            sketch: 0,
+            kept: cao_sketch::PointId(2),
+            dropped: cao_sketch::PointId(3),
+        });
+
+        let state = PartState::rebuild(&history);
+        assert_eq!(state.sketches[0].drawn_points().count(), 3);
+        assert_eq!(
+            state.sketches[0].live_segments().count(),
+            2,
+            "les deux traits tiennent toujours au sommet commun"
+        );
     }
 
     /// Supprimer et rejouer doivent donner la même pièce : c'est ce qui permet

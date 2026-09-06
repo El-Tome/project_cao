@@ -463,7 +463,8 @@ fn handle_sketch_input(
 
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(10.0);
-    let cursor = magnetise(cursor, scale, &state.config, context, index, snap);
+    let (cursor, snapped_to) = magnetise(cursor, scale, &state.config, context, index, snap);
+    context.editor.snap = snapped_to;
 
     context.editor.cursor = Some(cursor);
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
@@ -510,7 +511,7 @@ fn handle_sketch_input(
                     .ray(to_ndc(position, rect), rect.width() / rect.height());
                 plane.ray_intersection(origin, direction)
             })
-            .map(|position| magnetise(position, scale, &state.config, context, index, snap))
+            .map(|position| magnetise(position, scale, &state.config, context, index, snap).0)
             .unwrap_or(cursor);
         return drag_point(context, index, cursor, pressed, response, snap);
     }
@@ -740,6 +741,22 @@ fn drag_point(
         point,
         position: cursor,
     });
+
+    // Two ends laid on top of each other are one corner, not two. The decision
+    // is taken here, at the drop, and recorded: how close is close enough
+    // depends on the zoom, so re-deriving it on replay could join a different
+    // pair, or none.
+    let sketch = &context.document.sketches()[index];
+    if let Some(other) = sketch
+        .nearest_point(cursor, snap)
+        .filter(|other| *other != point)
+    {
+        context.document.apply(Operation::MergePoints {
+            sketch: index,
+            kept: other,
+            dropped: point,
+        });
+    }
     true
 }
 
@@ -1015,30 +1032,52 @@ fn magnetise(
     context: &SketchContext<'_>,
     index: usize,
     snap: f32,
-) -> Vec2 {
+) -> (Vec2, Option<Snap>) {
     let sketch = &context.document.sketches()[index];
     if let Some(point) = sketch.nearest_point(cursor, snap) {
-        return sketch.point(point);
+        return (sketch.point(point), Some(Snap::Point));
     }
+
+    // A line already drawn pulls harder than the grid, and its middle harder
+    // still: joining the middle of a side is a thing one aims at, and landing a
+    // hair off it leaves geometry that only looks joined.
+    let reach = scale.world_size_of(config.segment_snap_pixels);
+    if let Some((_, middle)) = sketch.nearest_midpoint(cursor, reach) {
+        return (middle, Some(Snap::Midpoint(middle)));
+    }
+    if let Some((_, at)) = sketch.nearest_on_segment(cursor, reach) {
+        return (at, Some(Snap::OnSegment(at)));
+    }
+
     if !config.grid_snap {
-        return cursor;
+        return (cursor, None);
     }
 
     // The grid is drawn every `step`; snapping to a fraction of it keeps the
     // magnet useful without forcing everything onto the coarse lines.
     let step = scale.step / config.grid_snap_divisions.max(1) as f32;
     if step <= 0.0 {
-        return cursor;
+        return (cursor, None);
     }
     let snapped = Vec2::new(
         (cursor.x / step).round() * step,
         (cursor.y / step).round() * step,
     );
     if snapped.distance(cursor) <= scale.world_size_of(config.grid_snap_pixels) {
-        snapped
+        (snapped, None)
     } else {
-        cursor
+        (cursor, None)
     }
+}
+
+/// What the cursor has been pulled onto, when it is worth saying so.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Snap {
+    Point,
+    /// The middle of a line, which needs a mark of its own: nothing else on
+    /// screen says the cursor is exactly halfway along.
+    Midpoint(Vec2),
+    OnSegment(Vec2),
 }
 
 /// One click of the line tool. The first click only remembers where the chain
@@ -1847,6 +1886,37 @@ fn push_point_marker(
     }
 }
 
+/// The mark for the middle of a line: a small triangle, as on a drawing.
+///
+/// A shape of its own rather than the square used for a point — the two mean
+/// different things and must not be told apart by size alone.
+fn push_midpoint_mark(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    at: Vec2,
+    scale: ViewScale,
+    color: [f32; 4],
+) {
+    let size = scale.world_size_of(6.0);
+    let corners = [
+        at + Vec2::new(0.0, size),
+        at + Vec2::new(-size, -size * 0.7),
+        at + Vec2::new(size, -size * 0.7),
+    ];
+    for index in 0..3 {
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(corners[index]),
+            color,
+            2.0,
+        ));
+        out.push(cao_render::Vertex::line(
+            sketch.plane.to_world(corners[(index + 1) % 3]),
+            color,
+            2.0,
+        ));
+    }
+}
+
 /// The draughtsman's mark for a right angle: a small square tucked into the
 /// corner, on the inside of the two arms.
 fn push_square_mark(
@@ -1924,6 +1994,24 @@ fn push_preview(
     // as uncomfortable as the rest.
     if context.editor.tool == Tool::Point {
         push_point_marker(out, sketch, cursor, scale.world_size_of(4.0), preview, 1.5);
+    }
+
+    // What the cursor has been caught by. The middle of a line is the one that
+    // has to be said out loud: nothing else on screen tells you that you are
+    // exactly halfway along it.
+    match context.editor.snap {
+        Some(Snap::Midpoint(at)) => {
+            push_midpoint_mark(out, sketch, at, scale, tint_at(theme.highlight, 1.0))
+        }
+        Some(Snap::OnSegment(at)) => push_point_marker(
+            out,
+            sketch,
+            at,
+            scale.world_size_of(3.0),
+            tint_at(theme.highlight, 1.0),
+            2.0,
+        ),
+        _ => {}
     }
 
     let Some(start) = context.editor.pending_start else {

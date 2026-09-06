@@ -345,6 +345,96 @@ impl Sketch {
             .map(|(id, _)| id)
     }
 
+    /// The point on a segment's body nearest `position`, within `tolerance`.
+    ///
+    /// Drawing onto a line already there is far more common than drawing near
+    /// it, so a line pulls harder than the grid does.
+    pub fn nearest_on_segment(&self, position: Vec2, tolerance: f32) -> Option<(SegmentId, Vec2)> {
+        (0..self.segments.len())
+            .map(SegmentId)
+            .filter(|id| !self.is_erased_segment(*id))
+            .map(|id| (id, self.project_onto(id, position)))
+            .filter(|(_, at)| at.distance(position) <= tolerance)
+            .min_by(|a, b| {
+                a.1.distance(position)
+                    .total_cmp(&b.1.distance(position))
+            })
+    }
+
+    /// The middle of the nearest segment, within `tolerance`.
+    pub fn nearest_midpoint(&self, position: Vec2, tolerance: f32) -> Option<(SegmentId, Vec2)> {
+        self.live_segments()
+            .map(|(id, _)| {
+                let (start, end) = self.endpoints(id);
+                (id, (start + end) * 0.5)
+            })
+            .filter(|(_, middle)| middle.distance(position) <= tolerance)
+            .min_by(|a, b| {
+                a.1.distance(position)
+                    .total_cmp(&b.1.distance(position))
+            })
+    }
+
+    fn project_onto(&self, id: SegmentId, position: Vec2) -> Vec2 {
+        let (start, end) = self.endpoints(id);
+        let span = end - start;
+        let length_squared = span.length_squared();
+        if length_squared < 1e-12 {
+            return start;
+        }
+        let t = ((position - start).dot(span) / length_squared).clamp(0.0, 1.0);
+        start + span * t
+    }
+
+    /// Makes two points one.
+    ///
+    /// Everything that referred to `dropped` now refers to `kept`, and any
+    /// segment left with the same point at both ends goes: it has no length and
+    /// no direction, so it is not a line any more.
+    pub fn merge_points(&mut self, kept: PointId, dropped: PointId) {
+        if kept == dropped || self.is_origin(dropped) && !self.is_origin(kept) {
+            // The origin never moves, so it is always the one kept.
+            return self.merge_points(dropped, kept);
+        }
+        if kept.0 >= self.points.len() || dropped.0 >= self.points.len() {
+            return;
+        }
+
+        for segment in &mut self.segments {
+            if segment.start == dropped {
+                segment.start = kept;
+            }
+            if segment.end == dropped {
+                segment.end = kept;
+            }
+        }
+        for circle in &mut self.circles {
+            if circle.center == dropped {
+                circle.center = kept;
+            }
+        }
+
+        let collapsed: Vec<Element> = self
+            .live_segments()
+            .filter(|(_, segment)| segment.start == segment.end)
+            .map(|(id, _)| Element::Segment(id))
+            .collect();
+        for segment in collapsed {
+            self.erase(segment);
+        }
+
+        Erased::mark(&mut self.erased.points, dropped.0);
+        let dimensions = std::mem::take(&mut self.dimensions);
+        self.dimensions = dimensions
+            .into_iter()
+            .map(|dimension| Dimension {
+                target: redirect(dimension.target, kept, dropped),
+                ..dimension
+            })
+            .filter(|dimension| self.measures_live(dimension.target))
+            .collect();
+    }
+
     fn distance_to_segment(&self, id: SegmentId, position: Vec2) -> f32 {
         let (start, end) = self.endpoints(id);
         let span = end - start;
@@ -598,6 +688,18 @@ impl Sketch {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
             SolveOutcome::Residual => LengthOutcome::BestEffort,
         }
+    }
+}
+
+/// Points a dimension at the point that was kept.
+fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> DimensionTarget {
+    let swap = |point: PointId| if point == dropped { kept } else { point };
+    match target {
+        DimensionTarget::Distance { from, to } => DimensionTarget::Distance {
+            from: swap(from),
+            to: swap(to),
+        },
+        other => other,
     }
 }
 
@@ -888,6 +990,115 @@ mod tests {
         sketch.set_dimension(DimensionTarget::Length(second), 90.0, false);
 
         assert_eq!(sketch.resolve(1.0), LengthOutcome::BestEffort);
+    }
+
+    #[test]
+    fn a_line_pulls_along_its_whole_body() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let end = sketch.add_point(Vec2::new(100.0, 0.0));
+        let side = sketch.add_segment(Sketch::ORIGIN, end);
+
+        let (found, at) = sketch
+            .nearest_on_segment(Vec2::new(30.0, 2.0), 5.0)
+            .expect("le trait attire");
+        assert_eq!(found, side);
+        assert!(at.distance(Vec2::new(30.0, 0.0)) < 1e-4, "{at:?}");
+
+        assert_eq!(sketch.nearest_on_segment(Vec2::new(30.0, 40.0), 5.0), None);
+        // Past the end, the pull stops at the end rather than off in space.
+        let (_, beyond) = sketch
+            .nearest_on_segment(Vec2::new(104.0, 0.0), 5.0)
+            .expect("le bout attire encore");
+        assert!(beyond.distance(Vec2::new(100.0, 0.0)) < 1e-4);
+    }
+
+    #[test]
+    fn the_middle_of_a_line_is_its_own_catch() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let end = sketch.add_point(Vec2::new(100.0, 0.0));
+        let side = sketch.add_segment(Sketch::ORIGIN, end);
+
+        let (found, at) = sketch
+            .nearest_midpoint(Vec2::new(48.0, 3.0), 5.0)
+            .expect("le milieu attire");
+        assert_eq!(found, side);
+        assert_eq!(at, Vec2::new(50.0, 0.0));
+        assert_eq!(sketch.nearest_midpoint(Vec2::new(20.0, 0.0), 5.0), None);
+    }
+
+    /// Two ends laid on top of each other are one corner, not two.
+    #[test]
+    fn merging_two_points_joins_what_they_held() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let left = sketch.add_point(Vec2::new(-10.0, 0.0));
+        let meeting = sketch.add_point(Vec2::new(0.0, 10.0));
+        let twin = sketch.add_point(Vec2::new(0.0, 10.0));
+        let right = sketch.add_point(Vec2::new(10.0, 0.0));
+        let first = sketch.add_segment(left, meeting);
+        let second = sketch.add_segment(twin, right);
+
+        sketch.merge_points(meeting, twin);
+
+        assert!(sketch.is_erased_point(twin));
+        assert_eq!(sketch.segments()[second.0].start, meeting);
+        assert_eq!(sketch.segments()[first.0].end, meeting);
+        assert_eq!(sketch.live_segments().count(), 2, "les deux traits restent");
+    }
+
+    /// A segment whose two ends became one has no length and no direction.
+    #[test]
+    fn merging_the_ends_of_a_line_takes_the_line() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(Vec2::new(0.0, 0.0));
+        let b = sketch.add_point(Vec2::new(1.0, 0.0));
+        let short = sketch.add_segment(a, b);
+
+        sketch.merge_points(a, b);
+        assert!(sketch.is_erased_segment(short));
+    }
+
+    /// The origin is never the one that gives way.
+    #[test]
+    fn merging_onto_the_origin_keeps_the_origin() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let stray = sketch.add_point(Vec2::ZERO);
+        let far = sketch.add_point(Vec2::new(10.0, 0.0));
+        sketch.add_segment(stray, far);
+
+        sketch.merge_points(stray, Sketch::ORIGIN);
+
+        assert!(!sketch.is_erased_point(Sketch::ORIGIN));
+        assert!(sketch.is_erased_point(stray));
+        assert_eq!(sketch.segments()[0].start, Sketch::ORIGIN);
+    }
+
+    #[test]
+    fn merging_moves_a_dimension_onto_the_point_that_stays() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let kept = sketch.add_point(Vec2::new(10.0, 0.0));
+        let twin = sketch.add_point(Vec2::new(10.0, 0.0));
+        let far = sketch.add_point(Vec2::new(10.0, 20.0));
+        sketch.add_segment(twin, far);
+        sketch.set_dimension(
+            DimensionTarget::Distance {
+                from: Sketch::ORIGIN,
+                to: twin,
+            },
+            10.0,
+            false,
+        );
+
+        sketch.merge_points(kept, twin);
+
+        assert!(
+            sketch
+                .dimension_of(DimensionTarget::Distance {
+                    from: Sketch::ORIGIN,
+                    to: kept,
+                })
+                .is_some(),
+            "la cote suit le point conservé"
+        );
     }
 
     /// Deleting must not shift the rank of what stays: a dimension already

@@ -151,24 +151,29 @@ fn linear(
         normal = -normal;
     }
 
-    // Dragging moves the whole annotation, not just its value: the line, its
-    // arrows and its text travel together, with the extension lines stretching
-    // to follow. A number floating away from its own line reads as a stray
-    // label rather than a dimension.
-    let offset = normal * style.offset_pixels * pixel + moved_by;
+    // Dragging moves the whole annotation, but only away from what it measures:
+    // the part of the movement along the line is dropped. A dimension line has
+    // to stay parallel to what it measures, with its two extension lines
+    // perpendicular and of the same length — otherwise it is a skewed pair of
+    // arrows that no longer reads as a measurement.
+    let stepped = style.offset_pixels * pixel + moved_by.dot(normal);
+    let offset = normal * stepped;
     let (from, to) = (start + offset, end + offset);
 
     // Extension lines overshoot the dimension line a little, as on a drawing.
-    let overshoot = normal * 4.0 * pixel;
-    line(out, plane, start, from + overshoot, style);
-    line(out, plane, end, to + overshoot, style);
+    let overshoot = normal * (stepped + 4.0 * pixel);
+    line(out, plane, start, start + overshoot, style);
+    line(out, plane, end, end + overshoot, style);
     line(out, plane, from, to, style);
 
     arrow(out, plane, from, direction, style, pixel);
     arrow(out, plane, to, -direction, style, pixel);
 
+    // The value may still slide along the line, which is what lets two
+    // dimensions sharing a direction stop covering each other.
+    let alongside = direction * moved_by.dot(direction);
     Placement {
-        text_at: (from + to) * 0.5 + normal * text_clearance(normal) * pixel,
+        text_at: (from + to) * 0.5 + normal * text_clearance(normal) * pixel + alongside,
     }
 }
 

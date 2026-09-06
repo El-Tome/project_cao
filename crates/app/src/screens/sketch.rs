@@ -134,6 +134,12 @@ pub struct SketchEditor {
     pub hovered_point: Option<PointId>,
     /// What the cursor has been pulled onto, so the drawing can say so.
     pub snap: Option<crate::screens::viewport::Snap>,
+    /// The whole sketch as it would settle if the point were let go here.
+    ///
+    /// Drawing only the point under the cursor and leaving the rest where it
+    /// was showed a shape torn out of shape, and nothing of where it was
+    /// actually going to land.
+    pub drag_preview: Option<cao_sketch::Sketch>,
     /// What the selection tool is holding, ready to be deleted.
     pub selected_element: Option<Selection>,
     /// The last segment the line tool drew, which the next one may square up
@@ -223,6 +229,7 @@ impl SketchEditor {
         self.first_point = None;
         self.first_axis = None;
         self.dragged_point = None;
+        self.drag_preview = None;
         self.dragged_dimension = None;
         self.drag_origin = None;
         self.drag_position = None;

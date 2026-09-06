@@ -49,6 +49,13 @@ normale dans le format de sommet pour une géométrie sans courbes. La lumière
 suit la caméra, si bien que tourner la pièce ne la laisse jamais face à un côté
 non éclairé.
 
+## L'ordre de peinture
+
+La scène part **en premier**. Tout ce qu'egui peint par-dessus le viewport — les
+valeurs des cotes, la barre d'échelle, les étiquettes du cube — est ajouté à la
+même couche, dans l'ordre, et la scène remplit désormais toute la zone avec son
+fond : peinte en dernier, elle les effaçait toutes.
+
 ## Lignes épaisses
 
 `wgpu` ne sait pas dessiner de ligne large : la topologie `LineList` donne

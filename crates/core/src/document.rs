@@ -77,7 +77,7 @@ impl PartDocument {
         &self.state.body
     }
 
-    pub fn scale(&self) -> f32 {
+    pub fn scale(&self) -> f64 {
         self.state.scale()
     }
 
@@ -85,12 +85,12 @@ impl PartDocument {
         self.state.has_scale()
     }
 
-    pub fn to_millimeters(&self, units: f32) -> f32 {
+    pub fn to_millimeters(&self, units: f64) -> f64 {
         self.state.to_millimeters(units)
     }
 
     /// What the geometry measures for a dimension target, right now.
-    pub fn measured(&self, sketch: usize, target: cao_sketch::DimensionTarget) -> Option<f32> {
+    pub fn measured(&self, sketch: usize, target: cao_sketch::DimensionTarget) -> Option<f64> {
         self.state.measured(sketch, target)
     }
 
@@ -213,7 +213,7 @@ mod tests {
     use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 
     use crate::history::PointRef;
-    use glam::Vec2;
+    use glam::DVec2;
 
     use super::*;
 
@@ -224,8 +224,8 @@ mod tests {
         });
         document.apply(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::ZERO),
-            end: PointRef::New(Vec2::new(2.0, 0.0)),
+            start: PointRef::New(DVec2::ZERO),
+            end: PointRef::New(DVec2::new(2.0, 0.0)),
         });
         document.apply(Operation::SetDimension {
             sketch: 0,

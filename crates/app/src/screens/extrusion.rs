@@ -1,6 +1,6 @@
 use cao_core::{ExtrusionMode, RevolutionAxis};
 use cao_sketch::SketchAxis;
-use glam::Vec2;
+use glam::DVec2;
 
 /// How the matter is made from the chosen areas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -23,7 +23,7 @@ pub struct ExtrusionState {
     /// The sketch whose areas are being picked.
     pub sketch: Option<usize>,
     /// One point inside each chosen area, in the sketch's coordinates.
-    pub picks: Vec<Vec2>,
+    pub picks: Vec<DVec2>,
     /// The area under the cursor, as an index into the sketch's areas.
     pub hovered: Option<usize>,
     /// Straight, or swept around an axis.
@@ -94,12 +94,12 @@ impl ExtrusionState {
     }
 
     /// The value typed, in millimetres, signed by the chosen direction.
-    pub fn distance(&self) -> Option<f32> {
+    pub fn distance(&self) -> Option<f64> {
         signed(&self.distance_input, self.reversed)
     }
 
     /// The sweep typed, in degrees, signed by the chosen direction.
-    pub fn angle(&self) -> Option<f32> {
+    pub fn angle(&self) -> Option<f64> {
         let value = signed(&self.angle_input, self.reversed)?;
         (value.abs() <= 360.0).then_some(value)
     }
@@ -116,11 +116,11 @@ impl ExtrusionState {
     }
 }
 
-fn signed(input: &str, reversed: bool) -> Option<f32> {
+fn signed(input: &str, reversed: bool) -> Option<f64> {
     let value = input
         .trim()
         .replace(',', ".")
-        .parse::<f32>()
+        .parse::<f64>()
         .ok()
         .filter(|value| value.abs() > 1e-6)?;
     Some(if reversed { -value } else { value })

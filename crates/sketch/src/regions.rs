@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::DVec2;
 
 use crate::sketch::Sketch;
 
@@ -9,19 +9,19 @@ use crate::sketch::Sketch;
 /// glance instead of reading as a single blob.
 #[derive(Clone, Debug)]
 pub struct Region {
-    pub outline: Vec<Vec2>,
+    pub outline: Vec<DVec2>,
     /// The outlines drawn directly inside this one. They are what a shape
     /// leaves hollow when it becomes a solid — the middle of a tube.
-    pub holes: Vec<Vec<Vec2>>,
+    pub holes: Vec<Vec<DVec2>>,
     pub depth: usize,
-    pub triangles: Vec<[Vec2; 3]>,
+    pub triangles: Vec<[DVec2; 3]>,
 }
 
 impl Region {
     /// The area as a solid face: the outline with what sits inside it taken
     /// out. This is what an extrusion turns into matter, so that two circles
     /// one inside the other give a tube and not a rod.
-    pub fn face_triangles(&self) -> Vec<[Vec2; 3]> {
+    pub fn face_triangles(&self) -> Vec<[DVec2; 3]> {
         if self.holes.is_empty() {
             return self.triangles.clone();
         }
@@ -29,7 +29,7 @@ impl Region {
     }
 
     /// Whether the point is in the area itself, holes excluded.
-    pub fn contains(&self, point: Vec2) -> bool {
+    pub fn contains(&self, point: DVec2) -> bool {
         encloses(&self.outline, point) && !self.holes.iter().any(|hole| encloses(hole, point))
     }
 }
@@ -50,8 +50,8 @@ impl Sketch {
             let center = self.point(circle.center);
             (0..CIRCLE_STEPS)
                 .map(|step| {
-                    let angle = std::f32::consts::TAU * step as f32 / CIRCLE_STEPS as f32;
-                    center + Vec2::from_angle(angle) * circle.radius
+                    let angle = std::f64::consts::TAU * step as f64 / CIRCLE_STEPS as f64;
+                    center + DVec2::from_angle(angle) * circle.radius
                 })
                 .collect()
         }));
@@ -69,7 +69,7 @@ impl Sketch {
             })
             .collect();
 
-        let insides: Vec<Vec2> = regions.iter().map(inside).collect();
+        let insides: Vec<DVec2> = regions.iter().map(inside).collect();
         for (index, point) in insides.iter().enumerate() {
             regions[index].depth = regions
                 .iter()
@@ -81,12 +81,12 @@ impl Sketch {
 
         // Only the outlines directly inside count as holes: what sits inside a
         // hole is matter again, and belongs to its own area.
-        let outlines: Vec<(usize, Vec<Vec2>)> = regions
+        let outlines: Vec<(usize, Vec<DVec2>)> = regions
             .iter()
             .map(|region| (region.depth, region.outline.clone()))
             .collect();
-        let insides: Vec<Vec2> = regions.iter().map(inside).collect();
-        let holes: Vec<Vec<Vec<Vec2>>> = regions
+        let insides: Vec<DVec2> = regions.iter().map(inside).collect();
+        let holes: Vec<Vec<Vec<DVec2>>> = regions
             .iter()
             .enumerate()
             .map(|(index, region)| {
@@ -110,7 +110,7 @@ impl Sketch {
 
     /// Walks the segment graph and returns each area it encloses, as a loop of
     /// positions turning counter-clockwise.
-    fn closed_outlines(&self) -> Vec<Vec<Vec2>> {
+    fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
         // Only what is still drawn: a deleted side must not close an area that
         // is no longer there.
         let ends: Vec<(usize, usize)> = self
@@ -170,7 +170,7 @@ impl Sketch {
                 }
             }
 
-            let outline: Vec<Vec2> = loop_edges
+            let outline: Vec<DVec2> = loop_edges
                 .iter()
                 .map(|vertex| self.points()[*vertex])
                 .collect();
@@ -196,7 +196,7 @@ impl Sketch {
 /// inside whatever is drawn within it too, and every area would then count
 /// itself as nested. The lowest corner is always a convex one, so stepping
 /// just inside along its bisector lands in the area itself.
-fn inside(region: &Region) -> Vec2 {
+fn inside(region: &Region) -> DVec2 {
     let outline = &region.outline;
     let count = outline.len();
     // `total_cmp` rather than `partial_cmp`: a stray NaN would make the
@@ -221,7 +221,7 @@ fn inside(region: &Region) -> Vec2 {
     here + bisector * reach
 }
 
-fn signed_area(outline: &[Vec2]) -> f32 {
+fn signed_area(outline: &[DVec2]) -> f64 {
     let mut total = 0.0;
     for index in 0..outline.len() {
         let current = outline[index];
@@ -231,7 +231,7 @@ fn signed_area(outline: &[Vec2]) -> f32 {
     total * 0.5
 }
 
-fn encloses(outline: &[Vec2], point: Vec2) -> bool {
+fn encloses(outline: &[DVec2], point: DVec2) -> bool {
     let mut inside = false;
     for index in 0..outline.len() {
         let a = outline[index];
@@ -253,11 +253,11 @@ fn encloses(outline: &[Vec2], point: Vec2) -> bool {
 /// classic answer is to cut a corridor from the hole out to the outline and
 /// walk down one side and back up the other — the two sides lie on top of each
 /// other, so the corridor has no area and the face is unchanged.
-fn bridge_holes(outline: &[Vec2], holes: &[Vec<Vec2>]) -> Vec<Vec2> {
+fn bridge_holes(outline: &[DVec2], holes: &[Vec<DVec2>]) -> Vec<DVec2> {
     let mut path = counter_clockwise(outline);
     // Rightmost first: a hole further right can only ever bridge to the outline
     // or to a hole already spliced in, never to one still waiting.
-    let mut pending: Vec<Vec<Vec2>> = holes.iter().map(|hole| clockwise(hole)).collect();
+    let mut pending: Vec<Vec<DVec2>> = holes.iter().map(|hole| clockwise(hole)).collect();
     pending.sort_by(|a, b| rightmost(b).x.total_cmp(&rightmost(a).x));
 
     for hole in pending {
@@ -269,7 +269,7 @@ fn bridge_holes(outline: &[Vec2], holes: &[Vec<Vec2>]) -> Vec<Vec2> {
     path
 }
 
-fn splice(path: &[Vec2], hole: &[Vec2]) -> Option<Vec<Vec2>> {
+fn splice(path: &[DVec2], hole: &[DVec2]) -> Option<Vec<DVec2>> {
     let entry = hole.iter().copied().enumerate().max_by(|a, b| a.1.x.total_cmp(&b.1.x))?;
     let (entry_index, entry_point) = entry;
 
@@ -290,7 +290,7 @@ fn splice(path: &[Vec2], hole: &[Vec2]) -> Option<Vec<Vec2>> {
             })
         })?;
 
-    let mut spliced: Vec<Vec2> = path[..=exit].to_vec();
+    let mut spliced: Vec<DVec2> = path[..=exit].to_vec();
     for step in 0..hole.len() {
         spliced.push(hole[(entry_index + step) % hole.len()]);
     }
@@ -299,16 +299,16 @@ fn splice(path: &[Vec2], hole: &[Vec2]) -> Option<Vec<Vec2>> {
     Some(spliced)
 }
 
-fn rightmost(loop_points: &[Vec2]) -> Vec2 {
+fn rightmost(loop_points: &[DVec2]) -> DVec2 {
     loop_points
         .iter()
         .copied()
-        .fold(Vec2::new(f32::MIN, 0.0), |best, point| {
+        .fold(DVec2::new(f64::MIN, 0.0), |best, point| {
             if point.x > best.x { point } else { best }
         })
 }
 
-fn counter_clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
+fn counter_clockwise(loop_points: &[DVec2]) -> Vec<DVec2> {
     let mut points = loop_points.to_vec();
     if signed_area(&points) < 0.0 {
         points.reverse();
@@ -318,7 +318,7 @@ fn counter_clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
 
 /// A hole runs the opposite way round to the face it is cut out of, so that
 /// walking the spliced path keeps the matter on the same side throughout.
-fn clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
+fn clockwise(loop_points: &[DVec2]) -> Vec<DVec2> {
     let mut points = loop_points.to_vec();
     if signed_area(&points) > 0.0 {
         points.reverse();
@@ -328,11 +328,11 @@ fn clockwise(loop_points: &[Vec2]) -> Vec<Vec2> {
 
 /// Cuts a closed outline into triangles by clipping ears: repeatedly take a
 /// corner no other corner sits in, and snip it off.
-fn triangulate(outline: &[Vec2]) -> Vec<[Vec2; 3]> {
+fn triangulate(outline: &[DVec2]) -> Vec<[DVec2; 3]> {
     if outline.len() < 3 || signed_area(outline).abs() < 1e-9 {
         return Vec::new();
     }
-    let mut remaining: Vec<Vec2> = outline.to_vec();
+    let mut remaining: Vec<DVec2> = outline.to_vec();
     if signed_area(&remaining) < 0.0 {
         remaining.reverse();
     }
@@ -387,10 +387,10 @@ fn triangulate(outline: &[Vec2]) -> Vec<[Vec2; 3]> {
 }
 
 /// How close two positions have to be to count as the same corner.
-const EPSILON: f32 = 1e-12;
+const EPSILON: f64 = 1e-12;
 
-fn in_triangle(point: Vec2, a: Vec2, b: Vec2, c: Vec2) -> bool {
-    let side = |from: Vec2, to: Vec2| (to - from).perp_dot(point - from);
+fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
+    let side = |from: DVec2, to: DVec2| (to - from).perp_dot(point - from);
     side(a, b) >= 0.0 && side(b, c) >= 0.0 && side(c, a) >= 0.0
 }
 
@@ -399,12 +399,12 @@ mod tests {
     use super::*;
     use crate::plane::WorkPlane;
 
-    fn rectangle(sketch: &mut Sketch, min: Vec2, max: Vec2) {
+    fn rectangle(sketch: &mut Sketch, min: DVec2, max: DVec2) {
         let corners = [
             sketch.add_point(min),
-            sketch.add_point(Vec2::new(max.x, min.y)),
+            sketch.add_point(DVec2::new(max.x, min.y)),
             sketch.add_point(max),
-            sketch.add_point(Vec2::new(min.x, max.y)),
+            sketch.add_point(DVec2::new(min.x, max.y)),
         ];
         for index in 0..4 {
             sketch.add_segment(corners[index], corners[(index + 1) % 4]);
@@ -414,9 +414,9 @@ mod tests {
     #[test]
     fn an_open_shape_encloses_nothing() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(10.0, 10.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(10.0, 0.0));
+        let c = sketch.add_point(DVec2::new(10.0, 10.0));
         sketch.add_segment(a, b);
         sketch.add_segment(b, c);
         assert!(sketch.regions().is_empty());
@@ -425,11 +425,11 @@ mod tests {
     #[test]
     fn a_closed_contour_is_one_region() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(10.0, 4.0));
+        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(10.0, 4.0));
         let regions = sketch.regions();
         assert_eq!(regions.len(), 1);
         assert_eq!(regions[0].depth, 0);
-        let area: f32 = regions[0]
+        let area: f64 = regions[0]
             .triangles
             .iter()
             .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
@@ -440,8 +440,8 @@ mod tests {
     #[test]
     fn a_shape_inside_another_is_one_level_deeper() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(20.0, 20.0));
-        rectangle(&mut sketch, Vec2::new(5.0, 5.0), Vec2::new(10.0, 10.0));
+        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(20.0, 20.0));
+        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(10.0, 10.0));
         let regions = sketch.regions();
         assert_eq!(regions.len(), 2);
         assert_eq!(regions[0].depth, 0);
@@ -451,12 +451,12 @@ mod tests {
     #[test]
     fn two_shapes_sharing_a_side_are_two_regions() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(10.0, 10.0));
-        let d = sketch.add_point(Vec2::new(0.0, 10.0));
-        let e = sketch.add_point(Vec2::new(20.0, 0.0));
-        let f = sketch.add_point(Vec2::new(20.0, 10.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(10.0, 0.0));
+        let c = sketch.add_point(DVec2::new(10.0, 10.0));
+        let d = sketch.add_point(DVec2::new(0.0, 10.0));
+        let e = sketch.add_point(DVec2::new(20.0, 0.0));
+        let f = sketch.add_point(DVec2::new(20.0, 10.0));
         for (from, to) in [(a, b), (b, c), (c, d), (d, a), (b, e), (e, f), (f, c)] {
             sketch.add_segment(from, to);
         }
@@ -465,7 +465,7 @@ mod tests {
         assert!(regions.iter().all(|region| region.depth == 0));
     }
 
-    fn area(triangles: &[[Vec2; 3]]) -> f32 {
+    fn area(triangles: &[[DVec2; 3]]) -> f64 {
         triangles
             .iter()
             .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
@@ -477,8 +477,8 @@ mod tests {
     #[test]
     fn a_shape_inside_another_is_a_hole_in_its_face() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(20.0, 20.0));
-        rectangle(&mut sketch, Vec2::new(5.0, 5.0), Vec2::new(15.0, 15.0));
+        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(20.0, 20.0));
+        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(15.0, 15.0));
         let regions = sketch.regions();
 
         assert_eq!(regions[0].holes.len(), 1, "le contour extérieur est percé");
@@ -488,18 +488,18 @@ mod tests {
         assert!((ring - 300.0).abs() < 1e-2, "aire de l'anneau : {ring}");
         assert!((area(&regions[0].triangles) - 400.0).abs() < 1e-2, "teinte pleine");
 
-        assert!(regions[0].contains(Vec2::new(2.0, 2.0)));
-        assert!(!regions[0].contains(Vec2::new(10.0, 10.0)), "le trou est vide");
-        assert!(regions[1].contains(Vec2::new(10.0, 10.0)));
+        assert!(regions[0].contains(DVec2::new(2.0, 2.0)));
+        assert!(!regions[0].contains(DVec2::new(10.0, 10.0)), "le trou est vide");
+        assert!(regions[1].contains(DVec2::new(10.0, 10.0)));
     }
 
     /// Matter inside a hole is matter again, and belongs to its own face.
     #[test]
     fn a_shape_inside_a_hole_is_not_a_hole_of_the_outer_one() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, Vec2::ZERO, Vec2::new(30.0, 30.0));
-        rectangle(&mut sketch, Vec2::new(5.0, 5.0), Vec2::new(25.0, 25.0));
-        rectangle(&mut sketch, Vec2::new(10.0, 10.0), Vec2::new(20.0, 20.0));
+        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(30.0, 30.0));
+        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(25.0, 25.0));
+        rectangle(&mut sketch, DVec2::new(10.0, 10.0), DVec2::new(20.0, 20.0));
         let regions = sketch.regions();
 
         assert_eq!(regions[0].holes.len(), 1);
@@ -512,28 +512,28 @@ mod tests {
     #[test]
     fn two_circles_make_a_tube() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let center = sketch.add_point(Vec2::new(10.0, 10.0));
+        let center = sketch.add_point(DVec2::new(10.0, 10.0));
         sketch.add_circle(center, 8.0);
         sketch.add_circle(center, 5.0);
 
         let regions = sketch.regions();
         assert_eq!(regions.len(), 2);
         let ring = area(&regions[0].face_triangles());
-        let expected = std::f32::consts::PI * (8.0f32.powi(2) - 5.0f32.powi(2));
+        let expected = std::f64::consts::PI * (8.0f64.powi(2) - 5.0f64.powi(2));
         assert!(
             (ring - expected).abs() / expected < 0.02,
             "anneau {ring}, attendu ~{expected}"
         );
-        assert!(!regions[0].contains(Vec2::new(10.0, 10.0)));
+        assert!(!regions[0].contains(DVec2::new(10.0, 10.0)));
     }
 
     #[test]
     fn a_circle_encloses_its_disc() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let center = sketch.add_point(Vec2::new(3.0, 3.0));
+        let center = sketch.add_point(DVec2::new(3.0, 3.0));
         sketch.add_circle(center, 2.0);
         let regions = sketch.regions();
         assert_eq!(regions.len(), 1);
-        assert!(encloses(&regions[0].outline, Vec2::new(3.0, 3.0)));
+        assert!(encloses(&regions[0].outline, DVec2::new(3.0, 3.0)));
     }
 }

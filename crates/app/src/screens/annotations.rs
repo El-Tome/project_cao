@@ -1,7 +1,7 @@
 use cao_core::theme::Theme;
 use cao_render::{Vertex, srgb};
 use cao_sketch::{DimensionTarget, Sketch, WorkPlane};
-use glam::Vec2;
+use glam::DVec2;
 
 /// Dimensions are drawn, not pasted in from pictures: extension lines,
 /// arrowheads and arcs are a handful of segments, they follow the geometry as
@@ -11,11 +11,11 @@ pub struct Style {
     pub color: [f32; 4],
     pub width: f32,
     /// How far the dimension line sits from what it measures, in pixels.
-    pub offset_pixels: f32,
+    pub offset_pixels: f64,
     /// Length of an arrowhead, in pixels.
-    pub arrow_pixels: f32,
+    pub arrow_pixels: f64,
     /// Radius of an angle's arc, in pixels.
-    pub arc_pixels: f32,
+    pub arc_pixels: f64,
 }
 
 impl Style {
@@ -46,8 +46,8 @@ impl Style {
 /// The second is what a drag records: the annotation says where it ended up, so
 /// nothing outside has to redo its geometry to work it out.
 pub struct Placement {
-    pub text_at: Vec2,
-    pub offset: Vec2,
+    pub text_at: DVec2,
+    pub offset: DVec2,
 }
 
 /// Draws one dimension and says where its value belongs.
@@ -62,8 +62,8 @@ pub fn push(
     sketch: &Sketch,
     target: DimensionTarget,
     style: &Style,
-    pixel: f32,
-    nudge: Vec2,
+    pixel: f64,
+    nudge: DVec2,
 ) -> Option<Placement> {
     let plane = &sketch.plane;
     let placed = sketch.dimension_of(target).and_then(|dimension| dimension.offset);
@@ -178,29 +178,29 @@ pub fn push(
 /// pixels, which is what keeps a fresh drawing readable at any scale.
 #[derive(Clone, Copy)]
 struct Moved {
-    placed: Option<Vec2>,
-    nudge: Vec2,
+    placed: Option<DVec2>,
+    nudge: DVec2,
 }
 
 impl Moved {
     /// How far along `direction` the annotation has been pushed, falling back
     /// to `default` when it has never been placed.
-    fn along(&self, direction: Vec2, default: f32) -> f32 {
+    fn along(&self, direction: DVec2, default: f64) -> f64 {
         self.placed.map_or(default, |offset| offset.dot(direction)) + self.nudge.dot(direction)
     }
 }
 
-fn endpoints(sketch: &Sketch, segment: cao_sketch::SegmentId) -> Option<(Vec2, Vec2)> {
+fn endpoints(sketch: &Sketch, segment: cao_sketch::SegmentId) -> Option<(DVec2, DVec2)> {
     (segment.0 < sketch.segments().len()).then(|| sketch.endpoints(segment))
 }
 
 /// The middle of the drawing, used to push dimension lines outwards. Laid over
 /// the shape they measure, they hide it; outside, they read like a drawing.
-fn away_from(sketch: &Sketch) -> Vec2 {
+fn away_from(sketch: &Sketch) -> DVec2 {
     sketch
         .bounds()
         .map(|(min, max)| (min + max) * 0.5)
-        .unwrap_or(Vec2::ZERO)
+        .unwrap_or(DVec2::ZERO)
 }
 
 /// What a linear dimension measures: two ends, and the direction its dimension
@@ -211,21 +211,21 @@ fn away_from(sketch: &Sketch) -> Vec2 {
 /// along the horizontal even though its ends are not level.
 #[derive(Clone, Copy)]
 struct Span {
-    start: Vec2,
-    end: Vec2,
-    direction: Vec2,
+    start: DVec2,
+    end: DVec2,
+    direction: DVec2,
 }
 
 impl Span {
-    fn between(start: Vec2, end: Vec2) -> Self {
+    fn between(start: DVec2, end: DVec2) -> Self {
         Self {
             start,
             end,
-            direction: (end - start).normalize_or(Vec2::X),
+            direction: (end - start).normalize_or(DVec2::X),
         }
     }
 
-    fn along(start: Vec2, end: Vec2, direction: Vec2) -> Self {
+    fn along(start: DVec2, end: DVec2, direction: DVec2) -> Self {
         // Pointing the line the way the trait goes keeps the arrows outward.
         let direction = if (end - start).dot(direction) < 0.0 {
             -direction
@@ -246,17 +246,17 @@ fn linear(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
     span: Span,
-    center: Vec2,
+    center: DVec2,
     moved_by: Moved,
     style: &Style,
-    pixel: f32,
+    pixel: f64,
 ) -> Placement {
     let Span {
         start,
         end,
         direction,
     } = span;
-    let mut normal = Vec2::new(-direction.y, direction.x);
+    let mut normal = DVec2::new(-direction.y, direction.x);
 
     // Always step away from the drawing: on a closed contour the inward side
     // lays the dimension line straight over the shape it measures.
@@ -277,7 +277,7 @@ fn linear(
     let outer = start.dot(normal).max(end.dot(normal));
     let stepped = moved_by.along(normal, style.offset_pixels * pixel);
     let level = outer + stepped;
-    let onto = |point: Vec2| point + normal * (level - point.dot(normal));
+    let onto = |point: DVec2| point + normal * (level - point.dot(normal));
     let (from, to) = (onto(start), onto(end));
 
     // Extension lines overshoot the dimension line a little, as on a drawing.
@@ -313,7 +313,7 @@ fn linear(
 ///
 /// Text is much wider than it is tall, so clearing it sideways — which is what
 /// a vertical dimension needs — takes far more room than clearing it upwards.
-fn text_clearance(normal: Vec2) -> f32 {
+fn text_clearance(normal: DVec2) -> f64 {
     12.0 + 24.0 * normal.x.abs()
 }
 
@@ -322,28 +322,28 @@ fn text_clearance(normal: Vec2) -> f32 {
 fn angular(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
-    pivot: Vec2,
-    first: Vec2,
-    second: Vec2,
+    pivot: DVec2,
+    first: DVec2,
+    second: DVec2,
     moved_by: Moved,
     style: &Style,
-    pixel: f32,
+    pixel: f64,
 ) -> Placement {
     let start = (first - pivot).to_angle();
     let mut sweep = (second - pivot).to_angle() - start;
     // Always draw the smaller way round: that is the angle being talked about.
-    while sweep > std::f32::consts::PI {
-        sweep -= std::f32::consts::TAU;
+    while sweep > std::f64::consts::PI {
+        sweep -= std::f64::consts::TAU;
     }
-    while sweep < -std::f32::consts::PI {
-        sweep += std::f32::consts::TAU;
+    while sweep < -std::f64::consts::PI {
+        sweep += std::f64::consts::TAU;
     }
 
     // An arc stays hinged on the corner it measures: what is recorded is where
     // the value sits relative to that corner, and the arc is drawn just inside
     // it. Splitting the movement into radius and slide instead let a value
     // dragged sideways shrink its own arc to nothing.
-    let bisector = Vec2::from_angle(start + sweep * 0.5);
+    let bisector = DVec2::from_angle(start + sweep * 0.5);
     let clearance = 14.0 * pixel;
     let reach = moved_by
         .placed
@@ -354,8 +354,8 @@ fn angular(
     const STEPS: usize = 24;
     let mut previous = None;
     for step in 0..=STEPS {
-        let angle = start + sweep * step as f32 / STEPS as f32;
-        let point = pivot + Vec2::from_angle(angle) * radius;
+        let angle = start + sweep * step as f64 / STEPS as f64;
+        let point = pivot + DVec2::from_angle(angle) * radius;
         if let Some(previous) = previous {
             line(out, plane, previous, point, style);
         }
@@ -364,9 +364,9 @@ fn angular(
 
     // Arrowheads point along the arc, so they lie tangent to it.
     let tangent =
-        |angle: f32, sign: f32| Vec2::from_angle(angle + std::f32::consts::FRAC_PI_2) * sign;
-    let at_start = pivot + Vec2::from_angle(start) * radius;
-    let at_end = pivot + Vec2::from_angle(start + sweep) * radius;
+        |angle: f64, sign: f64| DVec2::from_angle(angle + std::f64::consts::FRAC_PI_2) * sign;
+    let at_start = pivot + DVec2::from_angle(start) * radius;
+    let at_end = pivot + DVec2::from_angle(start + sweep) * radius;
     arrow(
         out,
         plane,
@@ -389,11 +389,11 @@ fn angular(
     let text_at = pivot + reach;
     let towards = reach.to_angle();
     let mut turn = towards - start;
-    while turn > std::f32::consts::PI {
-        turn -= std::f32::consts::TAU;
+    while turn > std::f64::consts::PI {
+        turn -= std::f64::consts::TAU;
     }
-    while turn < -std::f32::consts::PI {
-        turn += std::f32::consts::TAU;
+    while turn < -std::f64::consts::PI {
+        turn += std::f64::consts::TAU;
     }
     let fraction = turn / sweep;
     if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
@@ -415,22 +415,22 @@ fn angular(
 fn radial(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
-    center: Vec2,
-    radius: f32,
+    center: DVec2,
+    radius: f64,
     moved_by: Moved,
     style: &Style,
-    pixel: f32,
+    pixel: f64,
 ) -> Placement {
     // A radius is always drawn from the centre outwards, so dragging it turns
     // the leader about the circle rather than detaching it.
-    let default = Vec2::splat(std::f32::consts::FRAC_1_SQRT_2);
+    let default = DVec2::splat(std::f64::consts::FRAC_1_SQRT_2);
     let placed = moved_by.placed.unwrap_or(default * radius) + moved_by.nudge;
     let direction = placed.normalize_or(default);
     let rim = center + direction * radius;
     line(out, plane, center, rim, style);
     arrow(out, plane, rim, -direction, style, pixel);
 
-    let aside = Vec2::new(-direction.y, direction.x);
+    let aside = DVec2::new(-direction.y, direction.x);
     Placement {
         text_at: center + direction * radius * 0.55 + aside * text_clearance(aside) * pixel,
         offset: direction * radius,
@@ -442,20 +442,20 @@ fn radial(
 fn arrow(
     out: &mut Vec<Vertex>,
     plane: &WorkPlane,
-    tip: Vec2,
-    direction: Vec2,
+    tip: DVec2,
+    direction: DVec2,
     style: &Style,
-    pixel: f32,
+    pixel: f64,
 ) {
     let length = style.arrow_pixels * pixel;
-    let back = direction.normalize_or(Vec2::X) * length;
-    let side = Vec2::new(-back.y, back.x) * 0.35;
+    let back = direction.normalize_or(DVec2::X) * length;
+    let side = DVec2::new(-back.y, back.x) * 0.35;
 
     line(out, plane, tip, tip + back + side, style);
     line(out, plane, tip, tip + back - side, style);
 }
 
-fn line(out: &mut Vec<Vertex>, plane: &WorkPlane, from: Vec2, to: Vec2, style: &Style) {
-    out.push(Vertex::line(plane.to_world(from), style.color, style.width));
-    out.push(Vertex::line(plane.to_world(to), style.color, style.width));
+fn line(out: &mut Vec<Vertex>, plane: &WorkPlane, from: DVec2, to: DVec2, style: &Style) {
+    out.push(Vertex::line(plane.to_world(from).as_vec3(), style.color, style.width));
+    out.push(Vertex::line(plane.to_world(to).as_vec3(), style.color, style.width));
 }

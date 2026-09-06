@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::DVec2;
 
 use crate::constraints::DimensionTarget;
 use crate::sketch::{PointId, Sketch};
@@ -10,10 +10,10 @@ use crate::sketch::{PointId, Sketch};
 /// lengths and angles, exact, and the solver runs them hundreds of times.
 pub(crate) struct Equation {
     /// Current value minus the wanted one. Zero when satisfied.
-    pub error: f32,
+    pub error: f64,
     /// Change of `error` per unit change of each coordinate, laid out as
     /// x0, y0, x1, y1, …
-    pub gradient: Vec<f32>,
+    pub gradient: Vec<f64>,
 }
 
 impl Equation {
@@ -24,12 +24,12 @@ impl Equation {
         }
     }
 
-    fn add(&mut self, point: PointId, value: Vec2) {
+    fn add(&mut self, point: PointId, value: DVec2) {
         self.gradient[point.0 * 2] += value.x;
         self.gradient[point.0 * 2 + 1] += value.y;
     }
 
-    fn norm_squared(&self) -> f32 {
+    fn norm_squared(&self) -> f64 {
         self.gradient.iter().map(|value| value * value).sum()
     }
 }
@@ -49,7 +49,7 @@ pub enum SolveOutcome {
 const MAX_ITERATIONS: usize = 400;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
-const TOLERANCE: f32 = 1e-5;
+const TOLERANCE: f64 = 1e-5;
 
 impl Sketch {
     /// Moves the drawing until every dimension holds at once.
@@ -62,7 +62,7 @@ impl Sketch {
     /// over and over, until nothing moves. It is deterministic — same drawing,
     /// same order, same number of steps — which is what lets a part be rebuilt
     /// identically by replaying its history.
-    pub fn solve(&mut self, millimeters_per_unit: f32) -> SolveOutcome {
+    pub fn solve(&mut self, millimeters_per_unit: f64) -> SolveOutcome {
         let equations = self.equations(millimeters_per_unit);
         if equations.is_empty() {
             return SolveOutcome::Nothing;
@@ -73,7 +73,7 @@ impl Sketch {
         let held = self.orientations(millimeters_per_unit);
 
         for _ in 0..MAX_ITERATIONS {
-            let mut worst: f32 = 0.0;
+            let mut worst: f64 = 0.0;
             for index in 0..self.dimension_count() {
                 let Some(equation) = self.equation(index, millimeters_per_unit, &pinned) else {
                     continue;
@@ -93,7 +93,7 @@ impl Sketch {
                     .map(|(point, _)| {
                         (
                             PointId(point),
-                            Vec2::new(
+                            DVec2::new(
                                 equation.gradient[point * 2] * step,
                                 equation.gradient[point * 2 + 1] * step,
                             ),
@@ -123,7 +123,7 @@ impl Sketch {
     /// finite, and what each of them leaves behind adds up. A rectangle whose
     /// height is changed came out several degrees off, still reporting itself
     /// fully constrained, because it was: it had simply turned.
-    fn orientations(&self, millimeters_per_unit: f32) -> Vec<(usize, PointId, PointId, f32)> {
+    fn orientations(&self, millimeters_per_unit: f64) -> Vec<(usize, PointId, PointId, f64)> {
         let equations = self.equations(millimeters_per_unit);
         let groups = self.point_groups();
 
@@ -160,7 +160,7 @@ impl Sketch {
     /// origin leaves every dimension of a group free to turn exactly as it
     /// found it — that is what "free to turn" means — so this straightens the
     /// drawing without touching what it measures.
-    fn hold_orientations(&mut self, held: &[(usize, PointId, PointId, f32)]) {
+    fn hold_orientations(&mut self, held: &[(usize, PointId, PointId, f64)]) {
         if held.is_empty() {
             return;
         }
@@ -176,7 +176,7 @@ impl Sketch {
             if drift.abs() < 1e-6 {
                 continue;
             }
-            let turn = Vec2::from_angle(-drift);
+            let turn = DVec2::from_angle(-drift);
             for index in 0..self.points().len() {
                 if pinned[index] || groups[index] != *owner {
                     continue;
@@ -207,7 +207,7 @@ impl Sketch {
     ///
     /// It carries no error: it never moves anything, it only accounts for the
     /// freedom that is already gone.
-    pub(crate) fn analysed_system(&self, millimeters_per_unit: f32) -> Vec<Equation> {
+    pub(crate) fn analysed_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
         let mut equations = self.equations(millimeters_per_unit);
         for (_, gauge) in self.rotation_gauges() {
             // A shape already measured against an axis says which way up it is;
@@ -265,7 +265,7 @@ impl Sketch {
                     &mut gauges.last_mut().expect("just pushed").1
                 }
             };
-            equation.add(PointId(index), Vec2::new(-point.y, point.x));
+            equation.add(PointId(index), DVec2::new(-point.y, point.x));
         }
 
         gauges.retain(|(_, equation)| equation.norm_squared() > 1e-12);
@@ -274,7 +274,7 @@ impl Sketch {
 
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
-    fn characteristic_size(&self) -> f32 {
+    fn characteristic_size(&self) -> f64 {
         self.bounds()
             .map(|(min, max)| (max - min).length())
             .filter(|size| *size > 1e-6)
@@ -287,7 +287,7 @@ impl Sketch {
 
     /// Every equation the drawing must satisfy, including the pins that hold it
     /// in place.
-    pub(crate) fn equations(&self, millimeters_per_unit: f32) -> Vec<Equation> {
+    pub(crate) fn equations(&self, millimeters_per_unit: f64) -> Vec<Equation> {
         let mut equations = Vec::new();
         let pinned = self.pinned_points();
 
@@ -304,7 +304,7 @@ impl Sketch {
     fn equation(
         &self,
         index: usize,
-        millimeters_per_unit: f32,
+        millimeters_per_unit: f64,
         pinned: &[bool],
     ) -> Option<Equation> {
         let dimension = *self.dimensions().get(index)?;
@@ -351,7 +351,7 @@ impl Sketch {
         Some(equation)
     }
 
-    fn length_equation(&self, a: PointId, b: PointId, target: f32) -> Option<Equation> {
+    fn length_equation(&self, a: PointId, b: PointId, target: f64) -> Option<Equation> {
         let span = self.point(b) - self.point(a);
         let length = span.length();
         if length < 1e-9 {
@@ -377,7 +377,7 @@ impl Sketch {
         from: PointId,
         to: PointId,
         axis: crate::constraints::SketchAxis,
-        target: f32,
+        target: f64,
     ) -> Option<Equation> {
         if from.0 >= self.points().len() || to.0 >= self.points().len() {
             return None;
@@ -404,7 +404,7 @@ impl Sketch {
         &self,
         first: crate::sketch::SegmentId,
         second: crate::sketch::SegmentId,
-        degrees: f32,
+        degrees: f64,
     ) -> Option<Equation> {
         let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
         let a = self.point(far_first) - self.point(pivot);
@@ -419,8 +419,8 @@ impl Sketch {
 
         // Turning a point about the pivot changes the angle by the component
         // perpendicular to its arm, scaled by how far out it sits.
-        let from_first = Vec2::new(-a.y, a.x) / length_a;
-        let from_second = Vec2::new(-b.y, b.x) / length_b;
+        let from_first = DVec2::new(-a.y, a.x) / length_a;
+        let from_second = DVec2::new(-b.y, b.x) / length_b;
 
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = signed.abs() - degrees.to_radians();
@@ -442,7 +442,7 @@ impl Sketch {
         &self,
         point: PointId,
         segment: crate::sketch::SegmentId,
-        target: f32,
+        target: f64,
     ) -> Option<Equation> {
         let segment = *self.segments().get(segment.0)?;
         let (a, b) = (self.point(segment.start), self.point(segment.end));
@@ -458,18 +458,18 @@ impl Sketch {
             return None;
         }
 
-        let d_cross_point = Vec2::new(-span.y, span.x);
-        let d_cross_start = Vec2::new(span.y - reach.y, reach.x - span.x);
-        let d_cross_end = Vec2::new(reach.y, -reach.x);
+        let d_cross_point = DVec2::new(-span.y, span.x);
+        let d_cross_start = DVec2::new(span.y - reach.y, reach.x - span.x);
+        let d_cross_end = DVec2::new(reach.y, -reach.x);
         let unit = span / length;
-        let gradient = |d_cross: Vec2, d_length: Vec2| {
+        let gradient = |d_cross: DVec2, d_length: DVec2| {
             (d_cross - d_length * distance) / length
         };
 
         let sign = if distance < 0.0 { -1.0 } else { 1.0 };
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = distance.abs() - target;
-        equation.add(point, gradient(d_cross_point, Vec2::ZERO) * sign);
+        equation.add(point, gradient(d_cross_point, DVec2::ZERO) * sign);
         equation.add(segment.start, gradient(d_cross_start, -unit) * sign);
         equation.add(segment.end, gradient(d_cross_end, unit) * sign);
         Some(equation)
@@ -484,7 +484,7 @@ impl Sketch {
         &self,
         segment: crate::sketch::SegmentId,
         axis: crate::constraints::SketchAxis,
-        degrees: f32,
+        degrees: f64,
     ) -> Option<Equation> {
         let segment = *self.segments().get(segment.0)?;
         let span = self.point(segment.end) - self.point(segment.start);
@@ -496,7 +496,7 @@ impl Sketch {
         let reference = axis.direction();
         let signed = reference.perp_dot(span).atan2(reference.dot(span));
         let sign = if signed < 0.0 { -1.0 } else { 1.0 };
-        let turn = Vec2::new(-span.y, span.x) / length;
+        let turn = DVec2::new(-span.y, span.x) / length;
 
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = signed.abs() - degrees.to_radians();
@@ -508,12 +508,12 @@ impl Sketch {
 
 /// An angle brought back into [-pi, pi], so a drift either side of a turn reads
 /// as the small angle it is.
-fn wrap(mut angle: f32) -> f32 {
-    while angle > std::f32::consts::PI {
-        angle -= std::f32::consts::TAU;
+fn wrap(mut angle: f64) -> f64 {
+    while angle > std::f64::consts::PI {
+        angle -= std::f64::consts::TAU;
     }
-    while angle < -std::f32::consts::PI {
-        angle += std::f32::consts::TAU;
+    while angle < -std::f64::consts::PI {
+        angle += std::f64::consts::TAU;
     }
     angle
 }
@@ -524,7 +524,7 @@ fn wrap(mut angle: f32) -> f32 {
 /// implicit rule on top of it would take away a freedom twice and report a
 /// drawing as more settled than it is.
 fn turns_nothing(equation: &Equation, gauge: &Equation) -> bool {
-    let projection: f32 = equation
+    let projection: f64 = equation
         .gradient
         .iter()
         .zip(&gauge.gradient)
@@ -555,8 +555,8 @@ pub(crate) fn null_space(
     equations: &[Equation],
     pinned: &[bool],
     variables: usize,
-) -> Vec<Vec<f32>> {
-    let mut basis: Vec<Vec<f32>> = Vec::new();
+) -> Vec<Vec<f64>> {
+    let mut basis: Vec<Vec<f64>> = Vec::new();
     for equation in equations {
         if let Some(row) = reduce(&equation.gradient, &basis) {
             basis.push(row);
@@ -564,7 +564,7 @@ pub(crate) fn null_space(
     }
 
     // Anything left once the constraints have had their say is free movement.
-    let mut free: Vec<Vec<f32>> = Vec::new();
+    let mut free: Vec<Vec<f64>> = Vec::new();
     for index in 0..variables {
         // A pinned point cannot move, so it is not a direction to consider.
         if pinned.get(index / 2).copied().unwrap_or(false) {
@@ -588,7 +588,7 @@ pub(crate) fn is_dependent(equations: &[Equation], candidate: &Equation) -> bool
 }
 
 fn independent_rows(equations: &[Equation], candidate: Option<&Equation>) -> (usize, bool) {
-    let mut basis: Vec<Vec<f32>> = Vec::new();
+    let mut basis: Vec<Vec<f64>> = Vec::new();
 
     for equation in equations {
         if let Some(row) = reduce(&equation.gradient, &basis) {
@@ -605,7 +605,7 @@ fn independent_rows(equations: &[Equation], candidate: Option<&Equation>) -> (us
 
 /// Removes from `row` everything the basis already covers, returning what is
 /// left once normalised, or `None` when nothing is.
-fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
+fn reduce(row: &[f64], basis: &[Vec<f64>]) -> Option<Vec<f64>> {
     let mut residual = row.to_vec();
     let original = norm(&residual);
     if original < 1e-9 {
@@ -613,7 +613,7 @@ fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
     }
 
     for existing in basis {
-        let projection: f32 = residual
+        let projection: f64 = residual
             .iter()
             .zip(existing)
             .map(|(value, base)| value * base)
@@ -635,6 +635,6 @@ fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
     Some(residual)
 }
 
-fn norm(row: &[f32]) -> f32 {
-    row.iter().map(|value| value * value).sum::<f32>().sqrt()
+fn norm(row: &[f64]) -> f64 {
+    row.iter().map(|value| value * value).sum::<f64>().sqrt()
 }

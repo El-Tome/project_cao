@@ -94,3 +94,22 @@ au format précédent (un JSON unique) sont convertis à l'ouverture. Voir
   réseau/sync avant ça.
 - **Licence pro** : une offre commerciale en plus de la double licence
   MIT/Apache-2.0, modalités non définies.
+
+## Les nombres
+
+Le noyau — esquisse, solveur, solide, booléens — calcule en **`f64`**. La
+caméra, le rendu et l'interface restent en `f32`, qui est ce que le GPU et egui
+prennent, et la conversion se fait au dernier moment, à chaque passage de
+frontière.
+
+Le `f32` garde environ sept chiffres : une pièce d'un mètre décrite en
+millimètres n'a déjà plus qu'un pas de 6·10⁻⁵ mm, et l'erreur s'accumule dans
+les booléens — c'est ce qui avait fait boucler la partition de l'espace
+([extrusion.md](extrusion.md)). Le `f64` en garde seize.
+
+Ce que cela ne donne pas : l'**exactitude**. 0,1 mm reste un nombre que le
+binaire ne sait pas écrire, et deux chemins de calcul différents peuvent
+toujours donner deux résultats à un cheveu près. Y répondre demanderait de
+ranger les valeurs saisies en entiers (le picomètre comme unité, le micro-degré
+pour les angles) au moment où elles entrent dans l'historique, en continuant de
+calculer en `f64`. Ce n'est pas fait.

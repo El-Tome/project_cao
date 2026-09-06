@@ -4,7 +4,7 @@ use cao_core::history::Operation;
 use cao_core::{Command, PartDocument, Profiles, RecentList};
 use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
-use glam::Vec3;
+use glam::DVec3;
 
 use crate::MSAA_SAMPLES;
 use crate::screens::history_tree::HistoryAction;
@@ -511,7 +511,7 @@ fn clamp_editor_to_document(editor: &mut SketchEditor, doc: &PartDocument) {
 
 /// Centre and radius to frame: the sketch if it has anything in it, otherwise a
 /// sensible patch of the plane around its origin.
-fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -> (Vec3, f32) {
+fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -> (DVec3, f64) {
     let bounds = sketch
         .and_then(|index| doc.sketches().get(index))
         .and_then(|sketch| sketch.bounds());

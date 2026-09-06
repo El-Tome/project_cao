@@ -1,4 +1,4 @@
-use glam::{Vec2, Vec3};
+use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 /// A flat, convex-enough face of a solid, kept as its corners in order.
@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// nothing — that is left to the very end, for the renderer.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Polygon {
-    pub corners: Vec<Vec3>,
+    pub corners: Vec<DVec3>,
 }
 
 impl Polygon {
@@ -19,7 +19,7 @@ impl Polygon {
     /// to face, and the boolean operations sort faces by the plane they lie on.
     /// One face without a plane and the sorting never finishes — which ends the
     /// program on a blown stack rather than with an error.
-    pub fn new(corners: Vec<Vec3>) -> Option<Self> {
+    pub fn new(corners: Vec<DVec3>) -> Option<Self> {
         if corners.len() < 3 {
             return None;
         }
@@ -33,14 +33,14 @@ impl Polygon {
             .then_some(candidate)
     }
 
-    fn perimeter(&self) -> f32 {
+    fn perimeter(&self) -> f64 {
         (0..self.corners.len())
             .map(|index| self.corners[index].distance(self.corners[(index + 1) % self.corners.len()]))
             .sum()
     }
 
-    fn area_vector(&self) -> Vec3 {
-        let mut doubled = Vec3::ZERO;
+    fn area_vector(&self) -> DVec3 {
+        let mut doubled = DVec3::ZERO;
         for index in 0..self.corners.len() {
             let current = self.corners[index];
             let next = self.corners[(index + 1) % self.corners.len()];
@@ -50,20 +50,20 @@ impl Polygon {
     }
 
     /// The outward direction of the face, from the winding of its corners.
-    pub fn normal(&self) -> Vec3 {
+    pub fn normal(&self) -> DVec3 {
         // Newell's formula rather than one cross product: it uses every corner,
         // so a face whose first three corners happen to be nearly in line still
         // gets a usable direction.
-        let mut normal = Vec3::ZERO;
+        let mut normal = DVec3::ZERO;
         for index in 0..self.corners.len() {
             let current = self.corners[index];
             let next = self.corners[(index + 1) % self.corners.len()];
             normal += (current - next).cross(current + next);
         }
-        normal.normalize_or(Vec3::Z)
+        normal.normalize_or(DVec3::Z)
     }
 
-    pub fn plane_offset(&self) -> f32 {
+    pub fn plane_offset(&self) -> f64 {
         self.normal().dot(self.corners[0])
     }
 
@@ -75,7 +75,7 @@ impl Polygon {
 
     /// The face cut into triangles by a fan from its first corner. Faces here
     /// are convex or nearly so, which is what makes a fan enough.
-    pub fn triangles(&self) -> impl Iterator<Item = [Vec3; 3]> + '_ {
+    pub fn triangles(&self) -> impl Iterator<Item = [DVec3; 3]> + '_ {
         (1..self.corners.len().saturating_sub(1))
             .map(move |index| [self.corners[0], self.corners[index], self.corners[index + 1]])
     }
@@ -92,7 +92,7 @@ impl Mesh {
         self.polygons.is_empty()
     }
 
-    pub fn triangles(&self) -> Vec<[Vec3; 3]> {
+    pub fn triangles(&self) -> Vec<[DVec3; 3]> {
         self.polygons
             .iter()
             .flat_map(|polygon| polygon.triangles())
@@ -104,7 +104,7 @@ impl Mesh {
     /// This is what lets a sketch be started on the part itself rather than
     /// only on the three planes of the origin: the face under the cursor is
     /// found the same way the cursor finds anything else in the view.
-    pub fn ray_hit(&self, origin: Vec3, direction: Vec3) -> Option<FaceHit> {
+    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
         let mut nearest: Option<FaceHit> = None;
         for polygon in &self.polygons {
             for triangle in polygon.triangles() {
@@ -125,7 +125,7 @@ impl Mesh {
         nearest
     }
 
-    pub fn bounds(&self) -> Option<(Vec3, Vec3)> {
+    pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let first = *self.polygons.first()?.corners.first()?;
         Some(
             self.polygons
@@ -141,7 +141,7 @@ impl Mesh {
 /// A face of the part, and how far along the ray it was met.
 #[derive(Clone, Debug)]
 pub struct FaceHit {
-    pub distance: f32,
+    pub distance: f64,
     pub polygon: Polygon,
 }
 
@@ -150,7 +150,7 @@ pub struct FaceHit {
 /// Möller–Trumbore: it solves for the barycentric coordinates directly, so the
 /// test that the crossing lies inside the triangle falls out of the same
 /// arithmetic instead of needing a second step.
-fn ray_triangle(origin: Vec3, direction: Vec3, [a, b, c]: [Vec3; 3]) -> Option<f32> {
+fn ray_triangle(origin: DVec3, direction: DVec3, [a, b, c]: [DVec3; 3]) -> Option<f64> {
     let (edge_1, edge_2) = (b - a, c - a);
     let across = direction.cross(edge_2);
     let determinant = edge_1.dot(across);
@@ -182,17 +182,17 @@ fn ray_triangle(origin: Vec3, direction: Vec3, [a, b, c]: [Vec3; 3]) -> Option<f
 /// places them in space. A hole gets walls too — that is what makes the inside
 /// of a tube a surface rather than an opening.
 pub fn prism(
-    outline: &[Vec2],
-    holes: &[Vec<Vec2>],
-    triangles: &[[Vec2; 3]],
-    to_world: impl Fn(Vec2) -> Vec3,
-    direction: Vec3,
+    outline: &[DVec2],
+    holes: &[Vec<DVec2>],
+    triangles: &[[DVec2; 3]],
+    to_world: impl Fn(DVec2) -> DVec3,
+    direction: DVec3,
 ) -> Mesh {
     let mut polygons = Vec::new();
 
     for triangle in triangles {
-        let bottom: Vec<Vec3> = triangle.iter().map(|corner| to_world(*corner)).collect();
-        let top: Vec<Vec3> = bottom.iter().map(|corner| *corner + direction).collect();
+        let bottom: Vec<DVec3> = triangle.iter().map(|corner| to_world(*corner)).collect();
+        let top: Vec<DVec3> = bottom.iter().map(|corner| *corner + direction).collect();
 
         // The two caps face opposite ways, so one of them is wound backwards.
         if let Some(polygon) = Polygon::new(bottom.clone()) {
@@ -215,13 +215,13 @@ pub fn prism(
 
     // Which way the walls face depends both on how the loop turns and on which
     // side of the plane the matter is being pushed to.
-    let origin = to_world(Vec2::ZERO);
-    let normal = (to_world(Vec2::X) - origin)
-        .cross(to_world(Vec2::Y) - origin)
-        .normalize_or(Vec3::Z);
+    let origin = to_world(DVec2::ZERO);
+    let normal = (to_world(DVec2::X) - origin)
+        .cross(to_world(DVec2::Y) - origin)
+        .normalize_or(DVec3::Z);
     let along = direction.dot(normal) > 0.0;
 
-    let mut walls = |loop_points: &[Vec2], inward: bool| {
+    let mut walls = |loop_points: &[DVec2], inward: bool| {
         for index in 0..loop_points.len() {
             let a = to_world(loop_points[index]);
             let b = to_world(loop_points[(index + 1) % loop_points.len()]);
@@ -256,28 +256,28 @@ pub fn prism(
 /// solid inside out through itself, and no amount of care afterwards recovers a
 /// shape from that.
 pub fn revolution(
-    outline: &[Vec2],
-    holes: &[Vec<Vec2>],
-    triangles: &[[Vec2; 3]],
-    to_world: impl Fn(Vec2) -> Vec3,
-    axis_origin: Vec2,
-    axis_direction: Vec2,
-    turn: f32,
+    outline: &[DVec2],
+    holes: &[Vec<DVec2>],
+    triangles: &[[DVec2; 3]],
+    to_world: impl Fn(DVec2) -> DVec3,
+    axis_origin: DVec2,
+    axis_direction: DVec2,
+    turn: f64,
 ) -> Option<Mesh> {
     let along = axis_direction.normalize_or_zero();
-    if along == Vec2::ZERO || turn.abs() < 1e-4 {
+    if along == DVec2::ZERO || turn.abs() < 1e-4 {
         return None;
     }
 
     // Everything must sit on one side of the axis. A profile crossing it would
     // sweep through itself.
-    let side = |point: Vec2| along.perp_dot(point - axis_origin);
-    let sides: Vec<f32> = outline
+    let side = |point: DVec2| along.perp_dot(point - axis_origin);
+    let sides: Vec<f64> = outline
         .iter()
         .chain(holes.iter().flatten())
         .map(|point| side(*point))
         .collect();
-    let furthest = sides.iter().fold(0.0f32, |far, each| far.max(each.abs()));
+    let furthest = sides.iter().fold(0.0f64, |far, each| far.max(each.abs()));
     if furthest < 1e-6 {
         return None;
     }
@@ -293,22 +293,22 @@ pub fn revolution(
     }
 
     let origin = to_world(axis_origin);
-    let axis = (to_world(axis_origin + along) - origin).normalize_or(Vec3::Z);
-    let full = (turn.abs() - std::f32::consts::TAU).abs() < 1e-3;
+    let axis = (to_world(axis_origin + along) - origin).normalize_or(DVec3::Z);
+    let full = (turn.abs() - std::f64::consts::TAU).abs() < 1e-3;
 
     // Enough steps that the flats read as a curve, scaled to how far it turns.
-    let steps = ((turn.abs() / std::f32::consts::TAU) * 64.0).ceil().max(3.0) as usize;
-    let at = |point: Vec2, step: usize| {
-        let angle = turn * step as f32 / steps as f32;
+    let steps = ((turn.abs() / std::f64::consts::TAU) * 64.0).ceil().max(3.0) as usize;
+    let at = |point: DVec2, step: usize| {
+        let angle = turn * step as f64 / steps as f64;
         let world = to_world(point) - origin;
-        origin + glam::Quat::from_axis_angle(axis, angle) * world
+        origin + glam::DQuat::from_axis_angle(axis, angle) * world
     };
 
     let mut polygons = Vec::new();
 
     // Walls, as triangles rather than quads: a quad swept around an axis is
     // bent, and the boolean operations sort faces by the plane they lie on.
-    let mut wall = |loop_points: &[Vec2], flip: bool| {
+    let mut wall = |loop_points: &[DVec2], flip: bool| {
         for index in 0..loop_points.len() {
             let (a, b) = (
                 loop_points[index],
@@ -338,8 +338,8 @@ pub fn revolution(
     // A full turn closes on itself and needs no ends.
     if !full {
         for triangle in triangles {
-            let start: Vec<Vec3> = triangle.iter().map(|point| at(*point, 0)).collect();
-            let end: Vec<Vec3> = triangle.iter().map(|point| at(*point, steps)).collect();
+            let start: Vec<DVec3> = triangle.iter().map(|point| at(*point, 0)).collect();
+            let end: Vec<DVec3> = triangle.iter().map(|point| at(*point, steps)).collect();
             for (corners, closing) in [(start, false), (end, true)] {
                 let Some(polygon) = Polygon::new(corners) else {
                     continue;
@@ -354,7 +354,7 @@ pub fn revolution(
     Some(Mesh { polygons })
 }
 
-fn signed_area(loop_points: &[Vec2]) -> f32 {
+fn signed_area(loop_points: &[DVec2]) -> f64 {
     let mut total = 0.0;
     for index in 0..loop_points.len() {
         total += loop_points[index].perp_dot(loop_points[(index + 1) % loop_points.len()]);
@@ -369,36 +369,36 @@ pub(crate) mod tests {
     /// The volume a closed surface encloses, from the signed volumes of the
     /// tetrahedra its triangles make with the origin. Negative means the
     /// surface is inside out, which is a bug worth catching.
-    pub(crate) fn volume(mesh: &Mesh) -> f32 {
+    pub(crate) fn volume(mesh: &Mesh) -> f64 {
         mesh.triangles()
             .iter()
             .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
             .sum()
     }
 
-    fn square(size: f32) -> Vec<Vec2> {
+    fn square(size: f64) -> Vec<DVec2> {
         vec![
-            Vec2::ZERO,
-            Vec2::new(size, 0.0),
-            Vec2::new(size, size),
-            Vec2::new(0.0, size),
+            DVec2::ZERO,
+            DVec2::new(size, 0.0),
+            DVec2::new(size, size),
+            DVec2::new(0.0, size),
         ]
     }
 
-    fn fan(loop_points: &[Vec2]) -> Vec<[Vec2; 3]> {
+    fn fan(loop_points: &[DVec2]) -> Vec<[DVec2; 3]> {
         (1..loop_points.len() - 1)
             .map(|index| [loop_points[0], loop_points[index], loop_points[index + 1]])
             .collect()
     }
 
-    pub(crate) fn box_of(size: f32, height: f32, at: Vec3) -> Mesh {
+    pub(crate) fn box_of(size: f64, height: f64, at: DVec3) -> Mesh {
         let outline = square(size);
         prism(
             &outline,
             &[],
             &fan(&outline),
-            |point| at + Vec3::new(point.x, point.y, 0.0),
-            Vec3::Z * height,
+            |point| at + DVec3::new(point.x, point.y, 0.0),
+            DVec3::Z * height,
         )
     }
 
@@ -406,18 +406,18 @@ pub(crate) mod tests {
     /// boolean operations sort faces by their plane and would never finish.
     #[test]
     fn a_face_with_no_area_is_refused() {
-        let flat = vec![Vec3::ZERO, Vec3::X, Vec3::X * 2.0];
+        let flat = vec![DVec3::ZERO, DVec3::X, DVec3::X * 2.0];
         assert!(Polygon::new(flat).is_none(), "trois points alignés");
-        assert!(Polygon::new(vec![Vec3::ZERO, Vec3::X]).is_none(), "deux points");
-        assert!(Polygon::new(vec![Vec3::ZERO; 4]).is_none(), "quatre fois le même");
+        assert!(Polygon::new(vec![DVec3::ZERO, DVec3::X]).is_none(), "deux points");
+        assert!(Polygon::new(vec![DVec3::ZERO; 4]).is_none(), "quatre fois le même");
     }
 
-    fn profile(min: Vec2, max: Vec2) -> Vec<Vec2> {
+    fn profile(min: DVec2, max: DVec2) -> Vec<DVec2> {
         vec![
             min,
-            Vec2::new(max.x, min.y),
+            DVec2::new(max.x, min.y),
             max,
-            Vec2::new(min.x, max.y),
+            DVec2::new(min.x, max.y),
         ]
     }
 
@@ -425,19 +425,19 @@ pub(crate) mod tests {
     /// travelled by its centre.
     #[test]
     fn a_full_turn_gives_pappus_volume() {
-        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let outline = profile(DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         let solid = revolution(
             &outline,
             &[],
             &fan(&outline),
-            |point| Vec3::new(point.x, point.y, 0.0),
-            Vec2::ZERO,
-            Vec2::Y,
-            std::f32::consts::TAU,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec2::ZERO,
+            DVec2::Y,
+            std::f64::consts::TAU,
         )
         .expect("un profil d'un seul côté de l'axe");
 
-        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        let expected = std::f64::consts::TAU * 4.0 * 4.0;
         let made = volume(&solid);
         assert!((made - expected).abs() / expected < 0.01, "{made} / {expected}");
     }
@@ -445,19 +445,19 @@ pub(crate) mod tests {
     /// A part turn is capped at both ends, and holds the matching share.
     #[test]
     fn a_quarter_turn_holds_a_quarter_of_the_volume() {
-        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let outline = profile(DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         let solid = revolution(
             &outline,
             &[],
             &fan(&outline),
-            |point| Vec3::new(point.x, point.y, 0.0),
-            Vec2::ZERO,
-            Vec2::Y,
-            std::f32::consts::FRAC_PI_2,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec2::ZERO,
+            DVec2::Y,
+            std::f64::consts::FRAC_PI_2,
         )
         .expect("un quart de tour");
 
-        let expected = std::f32::consts::FRAC_PI_2 * 4.0 * 4.0;
+        let expected = std::f64::consts::FRAC_PI_2 * 4.0 * 4.0;
         let made = volume(&solid);
         assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
     }
@@ -465,15 +465,15 @@ pub(crate) mod tests {
     /// Turning the other way must not turn the solid inside out.
     #[test]
     fn turning_backwards_still_faces_outwards() {
-        let outline = profile(Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        let outline = profile(DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         let solid = revolution(
             &outline,
             &[],
             &fan(&outline),
-            |point| Vec3::new(point.x, point.y, 0.0),
-            Vec2::ZERO,
-            Vec2::Y,
-            -std::f32::consts::FRAC_PI_2,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec2::ZERO,
+            DVec2::Y,
+            -std::f64::consts::FRAC_PI_2,
         )
         .expect("un quart de tour à l'envers");
         assert!(volume(&solid) > 0.0, "{}", volume(&solid));
@@ -482,16 +482,16 @@ pub(crate) mod tests {
     /// A profile lying across the axis would sweep through itself.
     #[test]
     fn a_profile_across_the_axis_is_refused() {
-        let outline = profile(Vec2::new(-2.0, 0.0), Vec2::new(5.0, 2.0));
+        let outline = profile(DVec2::new(-2.0, 0.0), DVec2::new(5.0, 2.0));
         assert!(
             revolution(
                 &outline,
                 &[],
                 &fan(&outline),
-                |point| Vec3::new(point.x, point.y, 0.0),
-                Vec2::ZERO,
-                Vec2::Y,
-                std::f32::consts::TAU,
+                |point| DVec3::new(point.x, point.y, 0.0),
+                DVec2::ZERO,
+                DVec2::Y,
+                std::f64::consts::TAU,
             )
             .is_none()
         );
@@ -499,24 +499,24 @@ pub(crate) mod tests {
 
     #[test]
     fn a_ray_finds_the_face_it_meets_first() {
-        let solid = box_of(10.0, 4.0, Vec3::ZERO);
+        let solid = box_of(10.0, 4.0, DVec3::ZERO);
 
         // Straight down onto the top of the box, from well above it.
         let hit = solid
-            .ray_hit(Vec3::new(5.0, 5.0, 20.0), Vec3::NEG_Z)
+            .ray_hit(DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z)
             .expect("la face du dessus");
         assert!((hit.distance - 16.0).abs() < 1e-3, "{}", hit.distance);
-        assert!(hit.polygon.normal().dot(Vec3::Z) > 0.99, "elle regarde en haut");
+        assert!(hit.polygon.normal().dot(DVec3::Z) > 0.99, "elle regarde en haut");
 
         assert!(
-            solid.ray_hit(Vec3::new(50.0, 50.0, 20.0), Vec3::NEG_Z).is_none(),
+            solid.ray_hit(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z).is_none(),
             "à côté de la pièce"
         );
     }
 
     #[test]
     fn a_prism_holds_the_volume_of_its_face() {
-        let solid = box_of(10.0, 4.0, Vec3::ZERO);
+        let solid = box_of(10.0, 4.0, DVec3::ZERO);
         assert!((volume(&solid) - 400.0).abs() < 1e-2, "{}", volume(&solid));
     }
 
@@ -528,8 +528,8 @@ pub(crate) mod tests {
             &outline,
             &[],
             &fan(&outline),
-            |point| Vec3::new(point.x, point.y, 0.0),
-            Vec3::NEG_Z * 4.0,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec3::NEG_Z * 4.0,
         );
         assert!((volume(&solid) - 400.0).abs() < 1e-2, "{}", volume(&solid));
     }
@@ -540,37 +540,37 @@ pub(crate) mod tests {
     fn a_hole_is_kept_hollow() {
         let outline = square(10.0);
         let hole = vec![
-            Vec2::new(3.0, 3.0),
-            Vec2::new(7.0, 3.0),
-            Vec2::new(7.0, 7.0),
-            Vec2::new(3.0, 7.0),
+            DVec2::new(3.0, 3.0),
+            DVec2::new(7.0, 3.0),
+            DVec2::new(7.0, 7.0),
+            DVec2::new(3.0, 7.0),
         ];
         // The face of the ring, cut by hand into four strips.
         let triangles = vec![
-            [Vec2::new(0.0, 0.0), Vec2::new(10.0, 0.0), Vec2::new(7.0, 3.0)],
-            [Vec2::new(0.0, 0.0), Vec2::new(7.0, 3.0), Vec2::new(3.0, 3.0)],
-            [Vec2::new(10.0, 0.0), Vec2::new(10.0, 10.0), Vec2::new(7.0, 7.0)],
-            [Vec2::new(10.0, 0.0), Vec2::new(7.0, 7.0), Vec2::new(7.0, 3.0)],
+            [DVec2::new(0.0, 0.0), DVec2::new(10.0, 0.0), DVec2::new(7.0, 3.0)],
+            [DVec2::new(0.0, 0.0), DVec2::new(7.0, 3.0), DVec2::new(3.0, 3.0)],
+            [DVec2::new(10.0, 0.0), DVec2::new(10.0, 10.0), DVec2::new(7.0, 7.0)],
+            [DVec2::new(10.0, 0.0), DVec2::new(7.0, 7.0), DVec2::new(7.0, 3.0)],
             [
-                Vec2::new(10.0, 10.0),
-                Vec2::new(0.0, 10.0),
-                Vec2::new(3.0, 7.0),
+                DVec2::new(10.0, 10.0),
+                DVec2::new(0.0, 10.0),
+                DVec2::new(3.0, 7.0),
             ],
             [
-                Vec2::new(10.0, 10.0),
-                Vec2::new(3.0, 7.0),
-                Vec2::new(7.0, 7.0),
+                DVec2::new(10.0, 10.0),
+                DVec2::new(3.0, 7.0),
+                DVec2::new(7.0, 7.0),
             ],
-            [Vec2::new(0.0, 10.0), Vec2::new(0.0, 0.0), Vec2::new(3.0, 3.0)],
-            [Vec2::new(0.0, 10.0), Vec2::new(3.0, 3.0), Vec2::new(3.0, 7.0)],
+            [DVec2::new(0.0, 10.0), DVec2::new(0.0, 0.0), DVec2::new(3.0, 3.0)],
+            [DVec2::new(0.0, 10.0), DVec2::new(3.0, 3.0), DVec2::new(3.0, 7.0)],
         ];
 
         let solid = prism(
             &outline,
             std::slice::from_ref(&hole),
             &triangles,
-            |point| Vec3::new(point.x, point.y, 0.0),
-            Vec3::Z * 2.0,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec3::Z * 2.0,
         );
 
         // (100 - 16) × 2

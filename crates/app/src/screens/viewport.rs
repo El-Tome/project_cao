@@ -10,7 +10,7 @@ use cao_render::{
     srgb,
 };
 use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, Sketch, WorkPlane};
-use glam::{Vec2, Vec3};
+use glam::{DVec2, DVec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
@@ -82,10 +82,11 @@ impl ViewportState {
     /// Turns the camera to look straight at a plane and frames `radius` around
     /// `center`, which is what both starting a sketch and the re-align button
     /// do.
-    pub fn look_at_plane(&mut self, plane: WorkPlane, center: Vec3, radius: f32) {
-        let (yaw, pitch) = view_angles_towards(plane.normal());
+    pub fn look_at_plane(&mut self, plane: WorkPlane, center: DVec3, radius: f64) {
+        let (yaw, pitch) = view_angles_towards(plane.normal().as_vec3());
         self.transition = Some(ViewTransition::to_angles(&self.camera, yaw, pitch));
-        self.camera.focus_on(center, radius, self.aspect);
+        self.camera
+            .focus_on(center.as_vec3(), radius as f32, self.aspect);
         self.mode = ViewMode::Plane(plane);
     }
 
@@ -93,14 +94,15 @@ impl ViewportState {
     /// freshly extruded volume is actually seen: straight down on its own
     /// sketch plane, a prism is indistinguishable from the drawing it came
     /// from.
-    pub fn look_at_part(&mut self, center: Vec3, radius: f32) {
+    pub fn look_at_part(&mut self, center: DVec3, radius: f64) {
         let corner = CubeZone::corner(
             cao_render::CubeFace::PlusX,
             cao_render::CubeFace::MinusY,
             cao_render::CubeFace::PlusZ,
         );
         self.transition = Some(ViewTransition::to_zone(&self.camera, corner));
-        self.camera.focus_on(center, radius, self.aspect);
+        self.camera
+            .focus_on(center.as_vec3(), radius as f32, self.aspect);
         self.mode = ViewMode::Free;
     }
 
@@ -112,16 +114,16 @@ impl ViewportState {
             Some(face) => {
                 let (u, v) = face.plane_basis();
                 ViewMode::Plane(WorkPlane {
-                    origin: Vec3::ZERO,
-                    u,
-                    v,
+                    origin: DVec3::ZERO,
+                    u: u.as_dvec3(),
+                    v: v.as_dvec3(),
                 })
             }
             None => ViewMode::Free,
         };
     }
 
-    fn orbit(&mut self, delta: Vec2, sensitivity: f32) {
+    fn orbit(&mut self, delta: glam::Vec2, sensitivity: f32) {
         self.camera.orbit(delta, sensitivity);
         self.mode = ViewMode::Free;
         self.transition = None;
@@ -236,11 +238,11 @@ fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
 /// disagree.
 #[derive(Clone, Copy)]
 struct ViewScale {
-    units_per_pixel: f32,
+    units_per_pixel: f64,
     /// Grid step in world units, for drawing.
-    step: f32,
+    step: f64,
     /// The same step in millimetres, for the label.
-    step_millimeters: f32,
+    step_millimeters: f64,
     height_px: f32,
     diagonal_px: f32,
     aspect: f32,
@@ -252,10 +254,10 @@ impl ViewScale {
         rect: egui::Rect,
         pixels_per_point: f32,
         config: &ViewportConfig,
-        millimeters_per_unit: f32,
+        millimeters_per_unit: f64,
     ) -> Self {
         let height_px = rect.height() * pixels_per_point;
-        let units_per_pixel = camera.world_units_per_pixel(height_px);
+        let units_per_pixel = camera.world_units_per_pixel(height_px) as f64;
         let width_px = rect.width() * pixels_per_point;
 
         // The step is chosen in millimetres, not in world units: those are what
@@ -269,9 +271,9 @@ impl ViewScale {
             1.0
         };
         let step_millimeters = adaptive_step(
-            units_per_pixel * millimeters_per_unit,
+            (units_per_pixel * millimeters_per_unit) as f32,
             config.grid_pixel_spacing,
-        );
+        ) as f64;
 
         Self {
             units_per_pixel,
@@ -285,11 +287,11 @@ impl ViewScale {
 
     /// Length of one grid step on screen, in logical points.
     fn step_in_points(&self, pixels_per_point: f32) -> f32 {
-        self.step / self.units_per_pixel / pixels_per_point
+        (self.step / self.units_per_pixel) as f32 / pixels_per_point
     }
 
     /// World size of something that should stay a fixed size on screen.
-    fn world_size_of(&self, pixels: f32) -> f32 {
+    fn world_size_of(&self, pixels: f64) -> f64 {
         self.units_per_pixel * pixels
     }
 }
@@ -371,7 +373,7 @@ fn handle_navigation(
             None
         };
         (
-            Vec2::new(input.pointer.delta().x, input.pointer.delta().y),
+            glam::Vec2::new(input.pointer.delta().x, input.pointer.delta().y),
             ScrollInput::read(input),
             drag,
         )
@@ -413,7 +415,7 @@ fn handle_navigation(
             .zoom(scroll.zoom_points, state.config.zoom_sensitivity);
     }
 
-    if scroll.trackpad != Vec2::ZERO {
+    if scroll.trackpad != glam::Vec2::ZERO {
         let trackpad = state.config.trackpad;
         let shift = ui.input(|input| input.modifiers.shift);
         let gesture = if shift {
@@ -453,9 +455,12 @@ fn handle_sketch_input(
         context.editor.cursor = None;
         return false;
     };
+    // The camera reasons in f32, the drawing in f64: the ray crosses over here,
+    // once, rather than at every call that follows.
     let (origin, direction) = state
         .camera
         .ray(to_ndc(pointer, rect), rect.width() / rect.height());
+    let (origin, direction) = (origin.as_dvec3(), direction.as_dvec3());
 
     if context.editor.is_choosing_plane() {
         context.editor.hovered_plane = plane_under(state, context, origin, direction);
@@ -555,7 +560,7 @@ fn handle_sketch_input(
                 let (origin, direction) = state
                     .camera
                     .ray(to_ndc(position, rect), rect.width() / rect.height());
-                plane.ray_intersection(origin, direction)
+                plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
             })
             .map(|position| magnetise(position, scale, &state.config, context, index, snap).0)
             .unwrap_or(cursor);
@@ -605,8 +610,8 @@ fn handle_sketch_input(
 fn plane_under(
     state: &ViewportState,
     context: &SketchContext<'_>,
-    origin: Vec3,
-    direction: Vec3,
+    origin: DVec3,
+    direction: DVec3,
 ) -> Option<PlaneChoice> {
     if let Some(hit) = context.document.body().ray_hit(origin, direction) {
         // The sketch's own origin lands where the world origin projects onto
@@ -636,9 +641,9 @@ fn plane_under(
 fn pick(
     context: &SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
-    pixel: f32,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
 ) -> Option<Selection> {
     let sketch = context.document.sketches().get(index)?;
 
@@ -700,7 +705,10 @@ fn pick_areas(
     let (origin, direction) = state
         .camera
         .ray(to_ndc(pointer, rect), rect.width() / rect.height());
-    let Some(cursor) = sketch.plane.ray_intersection(origin, direction) else {
+    let Some(cursor) = sketch
+        .plane
+        .ray_intersection(origin.as_dvec3(), direction.as_dvec3())
+    else {
         return;
     };
 
@@ -750,11 +758,11 @@ fn pick_areas(
 fn drag_point(
     context: &mut SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    pressed: Vec2,
+    cursor: DVec2,
+    pressed: DVec2,
     response: &egui::Response,
-    snap: f32,
-    pixel: f32,
+    snap: f64,
+    pixel: f64,
 ) -> bool {
     let sketch = &context.document.sketches()[index];
 
@@ -836,9 +844,9 @@ fn drag_annotation(
     context: &mut SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    cursor: Vec2,
+    cursor: DVec2,
     response: &egui::Response,
-    pixel: f32,
+    pixel: f64,
 ) -> bool {
     let Some(origin) = context.editor.drag_origin else {
         return false;
@@ -872,9 +880,9 @@ fn drag_annotation(
 fn nearest_annotation(
     context: &SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    tolerance: f32,
-    pixel: f32,
+    cursor: DVec2,
+    tolerance: f64,
+    pixel: f64,
 ) -> Option<DimensionTarget> {
     let sketch = context.document.sketches().get(index)?;
     // Only where the annotation lands matters here; its vertices are thrown
@@ -895,7 +903,7 @@ fn nearest_annotation(
                 dimension.target,
                 &style,
                 pixel,
-                Vec2::ZERO,
+                DVec2::ZERO,
             )
             .map(|placement| (dimension.target, placement.text_at))
         })
@@ -905,7 +913,7 @@ fn nearest_annotation(
 }
 
 /// A point already there, or a new one where the cursor is.
-fn point_ref_at(context: &SketchContext<'_>, index: usize, position: Vec2, snap: f32) -> PointRef {
+fn point_ref_at(context: &SketchContext<'_>, index: usize, position: DVec2, snap: f64) -> PointRef {
     match context.document.sketches()[index].nearest_point(position, snap) {
         Some(point) => PointRef::Existing(point),
         None => PointRef::New(position),
@@ -915,9 +923,9 @@ fn point_ref_at(context: &SketchContext<'_>, index: usize, position: Vec2, snap:
 fn two_click_shape(
     context: &mut SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
-    pixel: f32,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
 ) -> bool {
     let Some(start) = context.editor.pending_start else {
         context.editor.pending_start = Some(cursor);
@@ -961,7 +969,7 @@ fn two_click_shape(
 /// The far corner of the rectangle being drawn, once the sizes typed have had
 /// their say. A size left alone follows the cursor; one typed only fixes that
 /// side, so the other can still be dragged out.
-fn rectangle_corner(context: &SketchContext<'_>, cursor: Vec2) -> Vec2 {
+fn rectangle_corner(context: &SketchContext<'_>, cursor: DVec2) -> DVec2 {
     let Some(start) = context.editor.pending_start else {
         return cursor;
     };
@@ -969,12 +977,12 @@ fn rectangle_corner(context: &SketchContext<'_>, cursor: Vec2) -> Vec2 {
     let span = cursor - start;
     // The sign follows the cursor: 40 typed means 40 the way the user is
     // dragging, not 40 the other way.
-    let side = |locked: Option<f32>, current: f32| match locked {
+    let side = |locked: Option<f64>, current: f64| match locked {
         Some(millimeters) => (millimeters / scale).copysign(current),
         None => current,
     };
     start
-        + Vec2::new(
+        + DVec2::new(
             side(context.editor.live.first.locked, span.x),
             side(context.editor.live.second.locked, span.y),
         )
@@ -986,7 +994,7 @@ fn rectangle_corner(context: &SketchContext<'_>, cursor: Vec2) -> Vec2 {
 /// busywork: that is what a rectangle *is*. Three right angles are enough — the
 /// fourth follows — plus a length on two neighbouring sides, which is exactly
 /// what pins it down.
-fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel: f32) {
+fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel: f64) {
     let count = context.document.sketches()[index].segments().len();
     let Some(first) = count.checked_sub(4) else {
         return;
@@ -994,7 +1002,7 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
     let sides: Vec<SegmentId> = (first..count).map(SegmentId).collect();
 
     let scale = context.document.scale();
-    let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
+    let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
     for corner in 0..3 {
         wanted.push((
             DimensionTarget::Angle {
@@ -1034,9 +1042,9 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
 fn measure(
     context: &mut SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
-    pixel: f32,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
 ) -> bool {
     let mode = context.editor.dimension_mode;
 
@@ -1155,8 +1163,8 @@ fn place_dimension(
     context: &mut SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    cursor: Vec2,
-    pixel: f32,
+    cursor: DVec2,
+    pixel: f64,
 ) -> bool {
     // Where the cursor is says which of the three readings of a slanted trait
     // is wanted, so it is settled here, at the click that puts the cote down.
@@ -1195,8 +1203,8 @@ fn annotation_home(
     context: &SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    pixel: f32,
-) -> Option<(Vec2, Vec2)> {
+    pixel: f64,
+) -> Option<(DVec2, DVec2)> {
     let sketch = context.document.sketches().get(index)?;
     let mut ignored = Vec::new();
     // Only the shape of the annotation matters here, never its colours.
@@ -1207,7 +1215,7 @@ fn annotation_home(
         target,
         &style,
         pixel,
-        Vec2::ZERO,
+        DVec2::ZERO,
     )?;
     Some((placement.text_at, placement.offset))
 }
@@ -1221,12 +1229,12 @@ fn annotation_offset(
     context: &SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    cursor: Vec2,
-    pixel: f32,
-) -> Vec2 {
+    cursor: DVec2,
+    pixel: f64,
+) -> DVec2 {
     match annotation_home(context, index, target, pixel) {
         Some((text_at, offset)) => offset + (cursor - text_at),
-        None => Vec2::ZERO,
+        None => DVec2::ZERO,
     }
 }
 
@@ -1238,8 +1246,8 @@ fn annotation_offset(
 fn measure_preview(
     context: &SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
+    cursor: DVec2,
+    snap: f64,
 ) -> Option<DimensionTarget> {
     let mode = context.editor.dimension_mode;
     let sketch = context.document.sketches().get(index)?;
@@ -1313,7 +1321,7 @@ fn measure_from_point(context: &mut SketchContext<'_>, index: usize, point: Poin
 }
 
 /// Second half of an angle: another segment, or one of the sketch axes.
-fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) {
+fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, snap: f64) {
     let Some(first) = context.editor.first_angle_segment else {
         return;
     };
@@ -1408,7 +1416,7 @@ fn edit_dimension(context: &mut SketchContext<'_>, index: usize, target: Dimensi
 /// Only a trait sitting square on an axis is left out: its width *is* its
 /// length, and two names for one measurement is one too many. Everything else,
 /// however slightly leaning, gets the choice.
-const SLANT_DEGREES: f32 = 0.5;
+const SLANT_DEGREES: f64 = 0.5;
 
 /// Which of the three readings of a slanted trait the cursor is asking for.
 ///
@@ -1419,7 +1427,7 @@ fn oriented(
     context: &SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    cursor: Vec2,
+    cursor: DVec2,
 ) -> DimensionTarget {
     let sketch = match context.document.sketches().get(index) {
         Some(sketch) => sketch,
@@ -1475,8 +1483,8 @@ fn refine(
     context: &SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    cursor: Vec2,
-    snap: f32,
+    cursor: DVec2,
+    snap: f64,
 ) -> Option<DimensionTarget> {
     let DimensionTarget::Length(first) = target else {
         return None;
@@ -1519,7 +1527,7 @@ fn touches(sketch: &Sketch, segment: SegmentId, point: PointId) -> bool {
 
 /// Which sketch axis the cursor is on, if either. The axes are drawn as lines
 /// through the origin, so they are picked the same way a segment is.
-fn axis_under(cursor: Vec2, tolerance: f32) -> Option<cao_sketch::SketchAxis> {
+fn axis_under(cursor: DVec2, tolerance: f64) -> Option<cao_sketch::SketchAxis> {
     if cursor.y.abs() <= tolerance {
         return Some(cao_sketch::SketchAxis::U);
     }
@@ -1539,13 +1547,13 @@ pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : la forme est d�
 /// following the lines, a matter of aiming roughly rather than exactly. It only
 /// bites within a few pixels, so a deliberate free position is still possible.
 fn magnetise(
-    cursor: Vec2,
+    cursor: DVec2,
     scale: ViewScale,
     config: &ViewportConfig,
     context: &SketchContext<'_>,
     index: usize,
-    snap: f32,
-) -> (Vec2, Option<Snap>) {
+    snap: f64,
+) -> (DVec2, Option<Snap>) {
     let sketch = &context.document.sketches()[index];
     if let Some(point) = sketch.nearest_point(cursor, snap) {
         return (sketch.point(point), Some(Snap::Point));
@@ -1554,7 +1562,7 @@ fn magnetise(
     // A line already drawn pulls harder than the grid, and its middle harder
     // still: joining the middle of a side is a thing one aims at, and landing a
     // hair off it leaves geometry that only looks joined.
-    let reach = scale.world_size_of(config.segment_snap_pixels);
+    let reach = scale.world_size_of(config.segment_snap_pixels as f64);
     if let Some((_, middle)) = sketch.nearest_midpoint(cursor, reach) {
         return (middle, Some(Snap::Midpoint(middle)));
     }
@@ -1568,15 +1576,15 @@ fn magnetise(
 
     // The grid is drawn every `step`; snapping to a fraction of it keeps the
     // magnet useful without forcing everything onto the coarse lines.
-    let step = scale.step / config.grid_snap_divisions.max(1) as f32;
+    let step = scale.step / config.grid_snap_divisions.max(1) as f64;
     if step <= 0.0 {
         return (cursor, None);
     }
-    let snapped = Vec2::new(
+    let snapped = DVec2::new(
         (cursor.x / step).round() * step,
         (cursor.y / step).round() * step,
     );
-    if snapped.distance(cursor) <= scale.world_size_of(config.grid_snap_pixels) {
+    if snapped.distance(cursor) <= scale.world_size_of(config.grid_snap_pixels as f64) {
         (snapped, None)
     } else {
         (cursor, None)
@@ -1589,8 +1597,8 @@ pub enum Snap {
     Point,
     /// The middle of a line, which needs a mark of its own: nothing else on
     /// screen says the cursor is exactly halfway along.
-    Midpoint(Vec2),
-    OnSegment(Vec2),
+    Midpoint(DVec2),
+    OnSegment(DVec2),
 }
 
 /// One click of the line tool. The first click only remembers where the chain
@@ -1598,9 +1606,9 @@ pub enum Snap {
 fn draw_line_point(
     context: &mut SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
-    pixel: f32,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
 ) -> bool {
     let sketch = &context.document.sketches()[index];
 
@@ -1660,7 +1668,7 @@ fn draw_line_point(
 /// Where the line being drawn actually ends, and what that implies.
 #[derive(Clone, Copy)]
 struct Aim {
-    position: Vec2,
+    position: DVec2,
     /// The segment this one has just been squared up against.
     square_with: Option<SegmentId>,
 }
@@ -1670,7 +1678,7 @@ struct Aim {
 /// A locked angle leaves the line free to lengthen along that direction; a
 /// locked length leaves it free to turn at that distance; both leave nothing to
 /// the cursor at all. That is the point of locking one and not the other.
-fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
+fn aim(context: &SketchContext<'_>, index: usize, cursor: DVec2) -> Aim {
     let nowhere = Aim {
         position: cursor,
         square_with: None,
@@ -1689,13 +1697,13 @@ fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
     );
     let span = cursor - from;
 
-    let mut direction = span.normalize_or(Vec2::X);
+    let mut direction = span.normalize_or(DVec2::X);
     let mut square_with = None;
 
     if let Some(degrees) = locked_angle {
         // The sign follows the cursor: 30° typed means the 30° the user is
         // pointing at, not the one below the axis they are not.
-        let wanted = Vec2::from_angle(degrees.to_radians());
+        let wanted = DVec2::from_angle(degrees.to_radians());
         direction = if wanted.dot(direction) >= 0.0 {
             wanted
         } else {
@@ -1720,16 +1728,16 @@ fn aim(context: &SketchContext<'_>, index: usize, cursor: Vec2) -> Aim {
 /// Half the width of the band, in degrees, inside which a corner is taken as
 /// square. Wide enough to be easy to hit, narrow enough that an angle really
 /// meant to be 80° is not stolen.
-const SQUARE_TOLERANCE_DEGREES: f32 = 4.0;
+const SQUARE_TOLERANCE_DEGREES: f64 = 4.0;
 
 /// The direction that squares this line up against the one before it, when the
 /// cursor is close enough to it.
 fn right_angle(
     sketch: &Sketch,
     context: &SketchContext<'_>,
-    from: Vec2,
-    span: Vec2,
-) -> Option<(Vec2, SegmentId)> {
+    from: DVec2,
+    span: DVec2,
+) -> Option<(DVec2, SegmentId)> {
     let previous = context.editor.chain_previous?;
     if previous.0 >= sketch.segments().len() || sketch.is_erased_segment(previous) {
         return None;
@@ -1743,7 +1751,7 @@ fn right_angle(
     }
     .normalize_or_zero();
     let direction = span.normalize_or_zero();
-    if arm == Vec2::ZERO || direction == Vec2::ZERO {
+    if arm == DVec2::ZERO || direction == DVec2::ZERO {
         return None;
     }
 
@@ -1751,7 +1759,7 @@ fn right_angle(
     if off_square > SQUARE_TOLERANCE_DEGREES {
         return None;
     }
-    let square = Vec2::new(-arm.y, arm.x);
+    let square = DVec2::new(-arm.y, arm.x);
     let towards = if square.dot(direction) >= 0.0 {
         square
     } else {
@@ -1760,7 +1768,7 @@ fn right_angle(
     Some((towards, previous))
 }
 
-fn anchor_position(sketch: &Sketch, context: &SketchContext<'_>) -> Option<Vec2> {
+fn anchor_position(sketch: &Sketch, context: &SketchContext<'_>) -> Option<DVec2> {
     match context.editor.chain? {
         ChainAnchor::Pending(position) => Some(position),
         ChainAnchor::Point(id) => (id.0 < sketch.points().len()).then(|| sketch.point(id)),
@@ -1777,10 +1785,10 @@ fn dimension_the_line(
     index: usize,
     segment: SegmentId,
     aimed: Aim,
-    pixel: f32,
+    pixel: f64,
 ) {
     let live = &context.editor.live;
-    let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
+    let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
 
     if let Some(length) = live.first.locked {
         wanted.push((DimensionTarget::Length(segment), length));
@@ -1821,20 +1829,20 @@ fn dimension_the_line(
 /// These are physical pixels, so a high-density screen halves them: at ten, a
 /// point had to be hit within four points of the mouse, which is a good deal
 /// finer than anyone aims.
-const PICK_PIXELS: f32 = 18.0;
+const PICK_PIXELS: f64 = 18.0;
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.
-pub const DEFAULT_SKETCH_RADIUS: f32 = 100.0;
+pub const DEFAULT_SKETCH_RADIUS: f64 = 100.0;
 
 /// Work planes are drawn a fixed fraction of the view across, so they stay
 /// clickable however far the camera is.
-fn plane_half_size(state: &ViewportState) -> f32 {
-    state.camera.distance() * 0.3
+fn plane_half_size(state: &ViewportState) -> f64 {
+    state.camera.distance() as f64 * 0.3
 }
 
 /// Where a ray crosses a plane patch, in plane coordinates, if it lands inside
 /// the square actually drawn.
-fn plane_hit(plane: &WorkPlane, origin: Vec3, direction: Vec3, half_size: f32) -> Option<Vec2> {
+fn plane_hit(plane: &WorkPlane, origin: DVec3, direction: DVec3, half_size: f64) -> Option<DVec2> {
     let hit = plane.ray_intersection(origin, direction)?;
     (hit.x.abs() <= half_size && hit.y.abs() <= half_size).then_some(hit)
 }
@@ -1848,16 +1856,16 @@ fn to_egui_button(button: PointerButton) -> egui::PointerButton {
 }
 
 /// Position inside `rect` as normalized device coordinates: -1..1 with y up.
-fn to_ndc(position: egui::Pos2, rect: egui::Rect) -> Vec2 {
-    Vec2::new(
+fn to_ndc(position: egui::Pos2, rect: egui::Rect) -> glam::Vec2 {
+    glam::Vec2::new(
         (position.x - rect.center().x) / (rect.width() * 0.5),
         (rect.center().y - position.y) / (rect.height() * 0.5),
     )
 }
 
 /// Where a world point lands on screen, or `None` when it is behind the camera.
-fn to_screen(point: Vec3, view_projection: glam::Mat4, rect: egui::Rect) -> Option<egui::Pos2> {
-    let clip = view_projection * point.extend(1.0);
+fn to_screen(point: DVec3, view_projection: glam::Mat4, rect: egui::Rect) -> Option<egui::Pos2> {
+    let clip = view_projection * point.as_vec3().extend(1.0);
     if clip.w <= 1e-6 {
         return None;
     }
@@ -1897,15 +1905,16 @@ fn build_frame(
     if let (ViewMode::Plane(plane), None) = (state.mode, &state.transition) {
         // It also has to reach past the corners of the screen, or its outer
         // fade shows up as that same disc.
-        let half_extent = scale.units_per_pixel * scale.diagonal_px * 1.5;
-        let normal = plane.normal();
-        let center = camera.target() - normal * (camera.target() - plane.origin).dot(normal);
+        let half_extent = (scale.units_per_pixel * scale.diagonal_px as f64 * 1.5) as f32;
+        let normal = plane.normal().as_vec3();
+        let origin = plane.origin.as_vec3();
+        let center = camera.target() - normal * (camera.target() - origin).dot(normal);
         push_grid(
             &mut world_lines,
-            plane.u,
-            plane.v,
+            plane.u.as_vec3(),
+            plane.v.as_vec3(),
             center,
-            scale.step,
+            scale.step as f32,
             half_extent,
             &GridStyle {
                 minor: tint(theme.grid_minor),
@@ -1919,7 +1928,7 @@ fn build_frame(
     }
 
     let facing = match state.mode {
-        ViewMode::Plane(plane) => Some(plane.normal()),
+        ViewMode::Plane(plane) => Some(plane.normal().as_vec3()),
         ViewMode::Free => None,
     };
     push_axes(
@@ -1953,7 +1962,13 @@ fn build_frame(
     let mut solids = Vec::new();
     cao_render::push_solid(
         &mut solids,
-        &context.document.body().triangles(),
+        &context
+            .document
+            .body()
+            .triangles()
+            .iter()
+            .map(|corners| corners.map(|corner| corner.as_vec3()))
+            .collect::<Vec<_>>(),
         tint(theme.solid),
         camera.forward(),
     );
@@ -2007,13 +2022,20 @@ fn push_choosable_planes(
         } else {
             tint_at(theme.sketch_inactive, 0.7 * faded)
         };
-        push_plane_quad(surfaces, plane.origin, plane.u, plane.v, half_size, fill);
+        push_plane_quad(
+            surfaces,
+            plane.origin.as_vec3(),
+            plane.u.as_vec3(),
+            plane.v.as_vec3(),
+            half_size as f32,
+            fill,
+        );
         push_plane_outline(
             lines,
-            plane.origin,
-            plane.u,
-            plane.v,
-            half_size,
+            plane.origin.as_vec3(),
+            plane.u.as_vec3(),
+            plane.v.as_vec3(),
+            half_size as f32,
             outline,
             if hovered { 2.5 } else { 1.5 },
         );
@@ -2073,7 +2095,7 @@ fn push_chosen_areas(
         for [a, b, c] in region.face_triangles() {
             for corner in [a, b, c] {
                 surfaces.push(cao_render::Vertex::solid(
-                    sketch.plane.to_world(corner),
+                    sketch.plane.to_world(corner).as_vec3(),
                     color,
                 ));
             }
@@ -2090,13 +2112,13 @@ fn push_revolution_axis(
     context: &SketchContext<'_>,
 ) {
     let (origin, direction) = match context.extrusion.axis {
-        cao_core::RevolutionAxis::Sketch(axis) => (Vec2::ZERO, axis.direction()),
+        cao_core::RevolutionAxis::Sketch(axis) => (DVec2::ZERO, axis.direction()),
         cao_core::RevolutionAxis::Segment(segment) => {
             if segment.0 >= sketch.segments().len() {
                 return;
             }
             let (start, end) = sketch.endpoints(segment);
-            (start, (end - start).normalize_or(Vec2::X))
+            (start, (end - start).normalize_or(DVec2::X))
         }
     };
 
@@ -2107,12 +2129,12 @@ fn push_revolution_axis(
         .max(1.0);
     let color = tint_at(theme.sketch_free, 0.9);
     lines.push(cao_render::Vertex::line(
-        sketch.plane.to_world(origin - direction * reach),
+        sketch.plane.to_world(origin - direction * reach).as_vec3(),
         color,
         2.0,
     ));
     lines.push(cao_render::Vertex::line(
-        sketch.plane.to_world(origin + direction * reach),
+        sketch.plane.to_world(origin + direction * reach).as_vec3(),
         color,
         2.0,
     ));
@@ -2141,7 +2163,7 @@ fn push_regions(
         };
         for [a, b, c] in region.triangles {
             for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(sketch.plane.to_world(corner), color));
+                surfaces.push(cao_render::Vertex::solid(sketch.plane.to_world(corner).as_vec3(), color));
             }
         }
     }
@@ -2170,7 +2192,7 @@ fn push_hovered_face(
         }
         for [a, b, c] in polygon.triangles() {
             for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(corner, fill));
+                surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
             }
         }
     }
@@ -2204,7 +2226,7 @@ fn sketch_colors(theme: &Theme, active: bool, constrained: bool) -> ([f32; 4], f
 
 /// Where a point is shown: at the cursor while it is being dragged, at its
 /// recorded place otherwise.
-fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> Vec2 {
+fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> DVec2 {
     // The settled preview already has the point where the cursor put it, and
     // everything else where it followed; moving it again would put it twice.
     if context.editor.drag_preview.is_some() {
@@ -2249,8 +2271,8 @@ fn push_sketch(
         let end = sketch
             .plane
             .to_world(shown_position(sketch, segment.end, context));
-        out.push(cao_render::Vertex::line(start, color, width));
-        out.push(cao_render::Vertex::line(end, color, width));
+        out.push(cao_render::Vertex::line(start.as_vec3(), color, width));
+        out.push(cao_render::Vertex::line(end.as_vec3(), color, width));
     }
 
     for (id, circle) in sketch.live_circles() {
@@ -2302,12 +2324,12 @@ fn push_sketch(
         let (start, end) = sketch.endpoints(selected);
         let highlight = tint_at(theme.highlight, 1.0);
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(start),
+            sketch.plane.to_world(start).as_vec3(),
             highlight,
             4.0,
         ));
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(end),
+            sketch.plane.to_world(end).as_vec3(),
             highlight,
             4.0,
         ));
@@ -2353,8 +2375,8 @@ fn push_point_markers(
         let (u, v) = if sketch.is_origin(point) {
             // Turned a quarter: a diamond reads differently at a glance.
             (
-                (sketch.plane.u + sketch.plane.v) * std::f32::consts::FRAC_1_SQRT_2,
-                (sketch.plane.v - sketch.plane.u) * std::f32::consts::FRAC_1_SQRT_2,
+                (sketch.plane.u + sketch.plane.v) * std::f64::consts::FRAC_1_SQRT_2,
+                (sketch.plane.v - sketch.plane.u) * std::f64::consts::FRAC_1_SQRT_2,
             )
         } else {
             (sketch.plane.u, sketch.plane.v)
@@ -2372,9 +2394,9 @@ fn push_point_markers(
             center - u * size + v * size,
         ];
         for corner in 0..4 {
-            out.push(cao_render::Vertex::line(corners[corner], color, width));
+            out.push(cao_render::Vertex::line(corners[corner].as_vec3(), color, width));
             out.push(cao_render::Vertex::line(
-                corners[(corner + 1) % 4],
+                corners[(corner + 1) % 4].as_vec3(),
                 color,
                 width,
             ));
@@ -2387,11 +2409,11 @@ fn push_point_markers(
 /// Nothing goes into the history until the button is let go, so without this
 /// the annotation would sit still through the whole gesture and only jump at
 /// the end — the drag would look like it had done nothing.
-fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> Vec2 {
+fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> DVec2 {
     let editor = &context.editor;
     match (editor.dragged_dimension, editor.drag_origin, editor.drag_position) {
         (Some(dragged), Some(origin), Some(position)) if dragged == target => position - origin,
-        _ => Vec2::ZERO,
+        _ => DVec2::ZERO,
     }
 }
 
@@ -2415,8 +2437,8 @@ fn mark_selected(
 fn push_point_marker(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    at: Vec2,
-    size: f32,
+    at: DVec2,
+    size: f64,
     color: [f32; 4],
     width: f32,
 ) {
@@ -2429,9 +2451,9 @@ fn push_point_marker(
         center - u * size + v * size,
     ];
     for corner in 0..4 {
-        out.push(cao_render::Vertex::line(corners[corner], color, width));
+        out.push(cao_render::Vertex::line(corners[corner].as_vec3(), color, width));
         out.push(cao_render::Vertex::line(
-            corners[(corner + 1) % 4],
+            corners[(corner + 1) % 4].as_vec3(),
             color,
             width,
         ));
@@ -2445,24 +2467,24 @@ fn push_point_marker(
 fn push_midpoint_mark(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    at: Vec2,
+    at: DVec2,
     scale: ViewScale,
     color: [f32; 4],
 ) {
     let size = scale.world_size_of(6.0);
     let corners = [
-        at + Vec2::new(0.0, size),
-        at + Vec2::new(-size, -size * 0.7),
-        at + Vec2::new(size, -size * 0.7),
+        at + DVec2::new(0.0, size),
+        at + DVec2::new(-size, -size * 0.7),
+        at + DVec2::new(size, -size * 0.7),
     ];
     for index in 0..3 {
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(corners[index]),
+            sketch.plane.to_world(corners[index]).as_vec3(),
             color,
             2.0,
         ));
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(corners[(index + 1) % 3]),
+            sketch.plane.to_world(corners[(index + 1) % 3]).as_vec3(),
             color,
             2.0,
         ));
@@ -2474,14 +2496,14 @@ fn push_midpoint_mark(
 fn push_square_mark(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    corner: Vec2,
-    along: Vec2,
-    across: Vec2,
+    corner: DVec2,
+    along: DVec2,
+    across: DVec2,
     scale: ViewScale,
     color: [f32; 4],
 ) {
     let (along, across) = (along.normalize_or_zero(), across.normalize_or_zero());
-    if along == Vec2::ZERO || across == Vec2::ZERO {
+    if along == DVec2::ZERO || across == DVec2::ZERO {
         return;
     }
     // Kept the same size on screen: it marks a corner, it does not measure it.
@@ -2490,12 +2512,12 @@ fn push_square_mark(
 
     for (start, end) in [(a, a + b), (a + b, b)] {
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(corner + start),
+            sketch.plane.to_world(corner + start).as_vec3(),
             color,
             2.0,
         ));
         out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(corner + end),
+            sketch.plane.to_world(corner + end).as_vec3(),
             color,
             2.0,
         ));
@@ -2507,17 +2529,17 @@ fn push_square_mark(
 fn pending_annotation(
     context: &SketchContext<'_>,
     index: usize,
-    cursor: Vec2,
-    snap: f32,
-    pixel: f32,
-) -> Option<(DimensionTarget, Vec2)> {
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
+) -> Option<(DimensionTarget, DVec2)> {
     if let Some(target) = context.editor.placing {
         // A second entity under the cursor turns the dimension into another
         // one; it is shown where it would land, not dragged to the cursor.
         if context.editor.dimension_mode == DimensionMode::Auto
             && let Some(refined) = refine(context, index, target, cursor, snap)
         {
-            return Some((refined, Vec2::ZERO));
+            return Some((refined, DVec2::ZERO));
         }
         let target = oriented(context, index, target, cursor);
         // The preview is nudged from where the annotation stands today, not
@@ -2529,7 +2551,7 @@ fn pending_annotation(
         return Some((target, nudge));
     }
     let target = measure_preview(context, index, cursor, snap)?;
-    Some((target, Vec2::ZERO))
+    Some((target, DVec2::ZERO))
 }
 
 /// The shape about to be drawn, following the cursor: placing a point blind and
@@ -2630,9 +2652,9 @@ fn push_preview(
             let far = context.editor.aimed.unwrap_or(cursor);
             let corners = [
                 start,
-                Vec2::new(far.x, start.y),
+                DVec2::new(far.x, start.y),
                 far,
-                Vec2::new(start.x, far.y),
+                DVec2::new(start.x, far.y),
             ];
             for index in 0..4 {
                 push_preview_line(
@@ -2655,17 +2677,17 @@ fn push_preview(
 fn push_preview_line(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    from: Vec2,
-    to: Vec2,
+    from: DVec2,
+    to: DVec2,
     color: [f32; 4],
 ) {
     out.push(cao_render::Vertex::line(
-        sketch.plane.to_world(from),
+            sketch.plane.to_world(from).as_vec3(),
         color,
         1.5,
     ));
     out.push(cao_render::Vertex::line(
-        sketch.plane.to_world(to),
+            sketch.plane.to_world(to).as_vec3(),
         color,
         1.5,
     ));
@@ -2675,7 +2697,7 @@ fn push_circle(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     center: PointId,
-    radius: f32,
+    radius: f64,
     color: [f32; 4],
     width: f32,
 ) {
@@ -2687,8 +2709,8 @@ fn push_circle(
 fn push_circle_at(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    center: Vec2,
-    radius: f32,
+    center: DVec2,
+    radius: f64,
     color: [f32; 4],
     width: f32,
 ) {
@@ -2698,14 +2720,14 @@ fn push_circle_at(
     }
     let mut previous = None;
     for step in 0..=SIDES {
-        let angle = step as f32 / SIDES as f32 * std::f32::consts::TAU;
-        let point = center + Vec2::new(angle.cos(), angle.sin()) * radius;
+        let angle = step as f64 / SIDES as f64 * std::f64::consts::TAU;
+        let point = center + DVec2::new(angle.cos(), angle.sin()) * radius;
         let world = sketch.plane.to_world(point);
         if let Some(previous) = previous {
             out.push(cao_render::Vertex::line(previous, color, width));
-            out.push(cao_render::Vertex::line(world, color, width));
+            out.push(cao_render::Vertex::line(world.as_vec3(), color, width));
         }
-        previous = Some(world);
+        previous = Some(world.as_vec3());
     }
 }
 
@@ -2848,7 +2870,7 @@ fn value_field(ui: &mut egui::Ui, text: &mut String, hint: &str, focus: bool) ->
 fn live_field(
     ui: &mut egui::Ui,
     suffix: &str,
-    measured: f32,
+    measured: f64,
     field: &mut LiveField,
     focus: bool,
 ) -> bool {
@@ -2899,7 +2921,7 @@ fn paint_dimension_labels(
 
     let pixel = state
         .camera
-        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point());
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
 
     for dimension in sketch.dimensions() {
         // Asking the annotation where its value belongs keeps the text on the
@@ -3009,7 +3031,7 @@ fn paint_dimension_field(
     };
     let pixel = state
         .camera
-        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point());
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
     let Some(at) = annotation_screen_position(state, rect, context, index, target, pixel) else {
         return false;
     };
@@ -3066,7 +3088,7 @@ fn annotation_screen_position(
     context: &SketchContext<'_>,
     index: usize,
     target: DimensionTarget,
-    pixel: f32,
+    pixel: f64,
 ) -> Option<egui::Pos2> {
     let sketch = context.document.sketches().get(index)?;
     let mut ignored = Vec::new();
@@ -3098,7 +3120,7 @@ fn apply_dimension_value(
         .dimension_input
         .trim()
         .replace(',', ".")
-        .parse::<f32>()
+        .parse::<f64>()
     else {
         context.editor.message = Some("Valeur invalide".to_string());
         return false;
@@ -3210,7 +3232,7 @@ struct ScrollInput {
     /// Mouse wheel, in notches.
     wheel_notches: f32,
     /// Two-finger scroll, in points.
-    trackpad: Vec2,
+    trackpad: glam::Vec2,
     /// Two-finger scroll held with the zoom modifier, in points.
     zoom_points: f32,
     /// Pinch, as a scale factor (1.0 = no change).
@@ -3236,7 +3258,7 @@ impl ScrollInput {
                         scroll.zoom_points += delta.y;
                     }
                     egui::MouseWheelUnit::Point => {
-                        scroll.trackpad += Vec2::new(delta.x, delta.y);
+                        scroll.trackpad += glam::Vec2::new(delta.x, delta.y);
                     }
                     egui::MouseWheelUnit::Line | egui::MouseWheelUnit::Page => {
                         scroll.wheel_notches += delta.y;

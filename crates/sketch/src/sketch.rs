@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{Dimension, DimensionTarget, Freedom, SketchAxis};
@@ -19,7 +19,7 @@ pub struct CircleId(pub usize);
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct Circle {
     pub center: PointId,
-    pub radius: f32,
+    pub radius: f64,
 }
 
 /// A straight line between two points. Points are shared: chaining a polyline
@@ -50,7 +50,7 @@ pub enum LengthOutcome {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Sketch {
     pub plane: WorkPlane,
-    points: Vec<Vec2>,
+    points: Vec<DVec2>,
     segments: Vec<Segment>,
     #[serde(default)]
     circles: Vec<Circle>,
@@ -108,7 +108,7 @@ impl Sketch {
     pub fn new(plane: WorkPlane) -> Self {
         Self {
             plane,
-            points: vec![Vec2::ZERO],
+            points: vec![DVec2::ZERO],
             segments: Vec::new(),
             circles: Vec::new(),
             dimensions: Vec::new(),
@@ -212,7 +212,7 @@ impl Sketch {
     }
 
     /// Points the user drew, as opposed to the origin the sketch was born with.
-    pub fn drawn_points(&self) -> impl Iterator<Item = (PointId, Vec2)> + '_ {
+    pub fn drawn_points(&self) -> impl Iterator<Item = (PointId, DVec2)> + '_ {
         self.points
             .iter()
             .enumerate()
@@ -221,7 +221,7 @@ impl Sketch {
             .filter(|(id, _)| !self.is_erased_point(*id))
     }
 
-    pub fn points(&self) -> &[Vec2] {
+    pub fn points(&self) -> &[DVec2] {
         &self.points
     }
 
@@ -241,13 +241,13 @@ impl Sketch {
         self.circles[id.0]
     }
 
-    pub fn add_circle(&mut self, center: PointId, radius: f32) -> CircleId {
+    pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
         self.circles.push(Circle { center, radius });
         CircleId(self.circles.len() - 1)
     }
 
     /// The circle whose outline passes closest to `position`.
-    pub fn nearest_circle(&self, position: Vec2, tolerance: f32) -> Option<CircleId> {
+    pub fn nearest_circle(&self, position: DVec2, tolerance: f64) -> Option<CircleId> {
         self.circles
             .iter()
             .enumerate()
@@ -265,22 +265,22 @@ impl Sketch {
         self.live_segments().next().is_none()
     }
 
-    pub fn point(&self, id: PointId) -> Vec2 {
+    pub fn point(&self, id: PointId) -> DVec2 {
         self.points[id.0]
     }
 
-    pub fn endpoints(&self, id: SegmentId) -> (Vec2, Vec2) {
+    pub fn endpoints(&self, id: SegmentId) -> (DVec2, DVec2) {
         let segment = self.segments[id.0];
         (self.point(segment.start), self.point(segment.end))
     }
 
-    pub fn add_point(&mut self, position: Vec2) -> PointId {
+    pub fn add_point(&mut self, position: DVec2) -> PointId {
         self.points.push(position);
         PointId(self.points.len() - 1)
     }
 
     /// Moves an annotation away from where it would sit on its own.
-    pub fn offset_dimension(&mut self, target: DimensionTarget, offset: Vec2) {
+    pub fn offset_dimension(&mut self, target: DimensionTarget, offset: DVec2) {
         if let Some(dimension) = self
             .dimensions
             .iter_mut()
@@ -295,9 +295,9 @@ impl Sketch {
     /// knows.
     pub fn nearest_dimension(
         &self,
-        anchors: &[(DimensionTarget, Vec2)],
-        position: Vec2,
-        tolerance: f32,
+        anchors: &[(DimensionTarget, DVec2)],
+        position: DVec2,
+        tolerance: f64,
     ) -> Option<DimensionTarget> {
         anchors
             .iter()
@@ -308,7 +308,7 @@ impl Sketch {
     }
 
     /// Moves a point where the user dragged it. The origin stays put.
-    pub fn move_point(&mut self, point: PointId, position: Vec2) {
+    pub fn move_point(&mut self, point: PointId, position: DVec2) {
         if self.is_origin(point) {
             return;
         }
@@ -320,14 +320,14 @@ impl Sketch {
     /// Reuses an existing point when one is within `tolerance`, so that clicking
     /// back onto a corner joins the geometry there instead of laying a second
     /// point on top of it.
-    pub fn point_at(&mut self, position: Vec2, tolerance: f32) -> PointId {
+    pub fn point_at(&mut self, position: DVec2, tolerance: f64) -> PointId {
         match self.nearest_point(position, tolerance) {
             Some(id) => id,
             None => self.add_point(position),
         }
     }
 
-    pub fn nearest_point(&self, position: Vec2, tolerance: f32) -> Option<PointId> {
+    pub fn nearest_point(&self, position: DVec2, tolerance: f64) -> Option<PointId> {
         self.points
             .iter()
             .enumerate()
@@ -339,7 +339,7 @@ impl Sketch {
     }
 
     /// The segment whose body passes closest to `position`, within `tolerance`.
-    pub fn nearest_segment(&self, position: Vec2, tolerance: f32) -> Option<SegmentId> {
+    pub fn nearest_segment(&self, position: DVec2, tolerance: f64) -> Option<SegmentId> {
         (0..self.segments.len())
             .map(|index| {
                 let id = SegmentId(index);
@@ -355,7 +355,7 @@ impl Sketch {
     ///
     /// Drawing onto a line already there is far more common than drawing near
     /// it, so a line pulls harder than the grid does.
-    pub fn nearest_on_segment(&self, position: Vec2, tolerance: f32) -> Option<(SegmentId, Vec2)> {
+    pub fn nearest_on_segment(&self, position: DVec2, tolerance: f64) -> Option<(SegmentId, DVec2)> {
         (0..self.segments.len())
             .map(SegmentId)
             .filter(|id| !self.is_erased_segment(*id))
@@ -368,7 +368,7 @@ impl Sketch {
     }
 
     /// The middle of the nearest segment, within `tolerance`.
-    pub fn nearest_midpoint(&self, position: Vec2, tolerance: f32) -> Option<(SegmentId, Vec2)> {
+    pub fn nearest_midpoint(&self, position: DVec2, tolerance: f64) -> Option<(SegmentId, DVec2)> {
         self.live_segments()
             .map(|(id, _)| {
                 let (start, end) = self.endpoints(id);
@@ -381,7 +381,7 @@ impl Sketch {
             })
     }
 
-    fn project_onto(&self, id: SegmentId, position: Vec2) -> Vec2 {
+    fn project_onto(&self, id: SegmentId, position: DVec2) -> DVec2 {
         let (start, end) = self.endpoints(id);
         let span = end - start;
         let length_squared = span.length_squared();
@@ -441,7 +441,7 @@ impl Sketch {
             .collect();
     }
 
-    fn distance_to_segment(&self, id: SegmentId, position: Vec2) -> f32 {
+    fn distance_to_segment(&self, id: SegmentId, position: DVec2) -> f64 {
         let (start, end) = self.endpoints(id);
         let span = end - start;
         let length_squared = span.length_squared();
@@ -457,7 +457,7 @@ impl Sketch {
         SegmentId(self.segments.len() - 1)
     }
 
-    pub fn segment_length(&self, id: SegmentId) -> f32 {
+    pub fn segment_length(&self, id: SegmentId) -> f64 {
         let (start, end) = self.endpoints(id);
         start.distance(end)
     }
@@ -472,7 +472,7 @@ impl Sketch {
     /// target. Moving the geometry is a separate step: the very first dimension
     /// of a document sets its scale instead of resizing anything, and a driven
     /// one never moves anything at all.
-    pub fn set_dimension(&mut self, target: DimensionTarget, value: f32, driven: bool) {
+    pub fn set_dimension(&mut self, target: DimensionTarget, value: f64, driven: bool) {
         match self
             .dimensions
             .iter_mut()
@@ -496,7 +496,7 @@ impl Sketch {
     /// The line, not the segment: a distance to a line is still a distance when
     /// the foot falls past the end of the drawn part, and a drawing says so
     /// with a thin extension line.
-    pub fn foot_on_segment(&self, point: PointId, segment: SegmentId) -> Option<Vec2> {
+    pub fn foot_on_segment(&self, point: PointId, segment: SegmentId) -> Option<DVec2> {
         if point.0 >= self.points.len() || segment.0 >= self.segments.len() {
             return None;
         }
@@ -516,7 +516,7 @@ impl Sketch {
         from: PointId,
         to: PointId,
         axis: crate::constraints::SketchAxis,
-    ) -> Option<f32> {
+    ) -> Option<f64> {
         if from.0 >= self.points.len() || to.0 >= self.points.len() {
             return None;
         }
@@ -524,18 +524,18 @@ impl Sketch {
     }
 
     /// The distance from a point to the line a segment lies on, in units.
-    pub fn point_to_segment(&self, point: PointId, segment: SegmentId) -> Option<f32> {
+    pub fn point_to_segment(&self, point: PointId, segment: SegmentId) -> Option<f64> {
         let foot = self.foot_on_segment(point, segment)?;
         Some(self.point(point).distance(foot))
     }
 
     /// The angle at the point two segments share, in degrees, or `None` when
     /// they do not meet.
-    pub fn angle_between(&self, first: SegmentId, second: SegmentId) -> Option<f32> {
+    pub fn angle_between(&self, first: SegmentId, second: SegmentId) -> Option<f64> {
         let (pivot, a, b) = self.corner(first, second)?;
         let first = (self.point(a) - self.point(pivot)).normalize_or_zero();
         let second = (self.point(b) - self.point(pivot)).normalize_or_zero();
-        if first == Vec2::ZERO || second == Vec2::ZERO {
+        if first == DVec2::ZERO || second == DVec2::ZERO {
             return None;
         }
         Some(first.dot(second).clamp(-1.0, 1.0).acos().to_degrees())
@@ -557,7 +557,7 @@ impl Sketch {
 
     /// The corner two segments share, as positions: the pivot and the two far
     /// ends. What an annotation needs to draw the angle.
-    pub fn corner_points(&self, first: SegmentId, second: SegmentId) -> Option<(Vec2, Vec2, Vec2)> {
+    pub fn corner_points(&self, first: SegmentId, second: SegmentId) -> Option<(DVec2, DVec2, DVec2)> {
         let (pivot, a, b) = self.corner(first, second)?;
         Some((self.point(pivot), self.point(a), self.point(b)))
     }
@@ -571,19 +571,19 @@ impl Sketch {
         self.corner(first, second)
     }
 
-    pub(crate) fn translate_point(&mut self, point: PointId, delta: Vec2) {
+    pub(crate) fn translate_point(&mut self, point: PointId, delta: DVec2) {
         self.points[point.0] += delta;
     }
 
-    pub(crate) fn place_point(&mut self, point: PointId, position: Vec2) {
+    pub(crate) fn place_point(&mut self, point: PointId, position: DVec2) {
         self.points[point.0] = position;
     }
 
     /// The angle a segment makes with one of the sketch axes, in degrees.
-    pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f32> {
+    pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f64> {
         let (start, end) = self.endpoints(segment);
         let direction = (end - start).normalize_or_zero();
-        if direction == Vec2::ZERO {
+        if direction == DVec2::ZERO {
             return None;
         }
         Some(
@@ -595,7 +595,7 @@ impl Sketch {
         )
     }
 
-    pub fn set_circle_radius(&mut self, id: CircleId, radius: f32) -> LengthOutcome {
+    pub fn set_circle_radius(&mut self, id: CircleId, radius: f64) -> LengthOutcome {
         if radius <= 0.0 {
             return LengthOutcome::Degenerate;
         }
@@ -604,7 +604,7 @@ impl Sketch {
     }
 
     /// Smallest axis-aligned box containing every point, in sketch coordinates.
-    pub fn bounds(&self) -> Option<(Vec2, Vec2)> {
+    pub fn bounds(&self) -> Option<(DVec2, DVec2)> {
         let first = *self.points.first()?;
         Some(
             self.points
@@ -624,7 +624,7 @@ impl Sketch {
     ///
     /// Points pinned to the origin are taken out of the count outright, since
     /// neither of their coordinates can move.
-    pub fn freedom(&self, millimeters_per_unit: f32) -> Freedom {
+    pub fn freedom(&self, millimeters_per_unit: f64) -> Freedom {
         // The origin never moves, so its two coordinates are not in play.
         let free_coordinates = self.points.len().saturating_sub(1) * 2;
         let held = solver::rank(&self.analysed_system(millimeters_per_unit)).min(free_coordinates);
@@ -645,7 +645,7 @@ impl Sketch {
         }
     }
 
-    pub fn is_fully_constrained(&self, millimeters_per_unit: f32) -> bool {
+    pub fn is_fully_constrained(&self, millimeters_per_unit: f64) -> bool {
         self.points.len() > 1 && self.freedom(millimeters_per_unit).fully_constrained()
     }
 
@@ -655,7 +655,7 @@ impl Sketch {
     /// already there — exactly the case of a triangle's third side once its
     /// other sides and angles are fixed. Counting constraints could never see
     /// that; comparing their directions can.
-    pub fn would_be_redundant(&self, target: DimensionTarget, millimeters_per_unit: f32) -> bool {
+    pub fn would_be_redundant(&self, target: DimensionTarget, millimeters_per_unit: f64) -> bool {
         if self.dimension_of(target).is_some() {
             return false;
         }
@@ -679,7 +679,7 @@ impl Sketch {
     fn candidate_equation(
         &self,
         target: DimensionTarget,
-        millimeters_per_unit: f32,
+        millimeters_per_unit: f64,
     ) -> Option<solver::Equation> {
         let value = match target {
             DimensionTarget::Length(segment) => {
@@ -706,7 +706,7 @@ impl Sketch {
     }
 
     /// Whether the drawing has any freedom left, as a whole.
-    pub fn is_settled(&self, millimeters_per_unit: f32) -> bool {
+    pub fn is_settled(&self, millimeters_per_unit: f64) -> bool {
         self.is_fully_constrained(millimeters_per_unit)
     }
 
@@ -715,7 +715,7 @@ impl Sketch {
     /// A drawing is rarely all-or-nothing: one contour can be nailed down while
     /// another is still floating beside it. Showing that per point, rather than
     /// one verdict for the whole sketch, says what is left to do.
-    pub fn settled_points(&self, millimeters_per_unit: f32) -> Vec<bool> {
+    pub fn settled_points(&self, millimeters_per_unit: f64) -> Vec<bool> {
         let variables = self.points.len() * 2;
         let pinned: Vec<bool> = (0..self.points.len())
             .map(|index| self.is_origin(PointId(index)))
@@ -737,7 +737,7 @@ impl Sketch {
     }
 
     /// Re-satisfies every dimension at once, reporting whether it managed.
-    pub fn resolve(&mut self, millimeters_per_unit: f32) -> LengthOutcome {
+    pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
             SolveOutcome::Residual => LengthOutcome::BestEffort,
@@ -774,10 +774,10 @@ mod tests {
     #[test]
     fn a_point_is_pushed_square_to_a_line() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let start = sketch.add_point(Vec2::new(0.0, 0.0));
-        let end = sketch.add_point(Vec2::new(40.0, 0.0));
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(40.0, 0.0));
         let line = sketch.add_segment(start, end);
-        let floating = sketch.add_point(Vec2::new(10.0, 5.0));
+        let floating = sketch.add_point(DVec2::new(10.0, 5.0));
 
         sketch.set_dimension(
             DimensionTarget::PointToSegment {
@@ -796,10 +796,10 @@ mod tests {
     #[test]
     fn the_distance_holds_when_the_foot_falls_off_the_segment() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let start = sketch.add_point(Vec2::new(0.0, 0.0));
-        let end = sketch.add_point(Vec2::new(10.0, 0.0));
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(10.0, 0.0));
         let line = sketch.add_segment(start, end);
-        let far = sketch.add_point(Vec2::new(80.0, 3.0));
+        let far = sketch.add_point(DVec2::new(80.0, 3.0));
 
         sketch.set_dimension(
             DimensionTarget::PointToSegment {
@@ -818,8 +818,8 @@ mod tests {
     #[test]
     fn a_width_moves_the_trait_sideways_and_leaves_its_height_alone() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let start = sketch.add_point(Vec2::new(0.0, 0.0));
-        let end = sketch.add_point(Vec2::new(40.0, 30.0));
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(40.0, 30.0));
         sketch.add_segment(start, end);
 
         sketch.set_dimension(
@@ -843,7 +843,7 @@ mod tests {
     fn a_width_and_a_height_together_pin_a_trait_down() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let start = Sketch::ORIGIN;
-        let end = sketch.add_point(Vec2::new(40.0, 30.0));
+        let end = sketch.add_point(DVec2::new(40.0, 30.0));
         sketch.add_segment(start, end);
 
         for (axis, value) in [(SketchAxis::U, 80.0), (SketchAxis::V, 15.0)] {
@@ -861,7 +861,7 @@ mod tests {
 
         let landed = sketch.point(end);
         assert!(
-            (landed - Vec2::new(80.0, 15.0)).length() < 1e-2,
+            (landed - DVec2::new(80.0, 15.0)).length() < 1e-2,
             "arrivée = {landed:?}"
         );
     }
@@ -870,9 +870,9 @@ mod tests {
     fn a_rectangle_does_not_turn_when_one_of_its_sides_changes() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let corner = Sketch::ORIGIN;
-        let right = sketch.add_point(Vec2::new(100.0, 0.0));
-        let far = sketch.add_point(Vec2::new(100.0, 50.0));
-        let top = sketch.add_point(Vec2::new(0.0, 50.0));
+        let right = sketch.add_point(DVec2::new(100.0, 0.0));
+        let far = sketch.add_point(DVec2::new(100.0, 50.0));
+        let top = sketch.add_point(DVec2::new(0.0, 50.0));
         let sides = [
             sketch.add_segment(corner, right),
             sketch.add_segment(right, far),
@@ -934,8 +934,8 @@ mod tests {
     fn triangle() -> (Sketch, [SegmentId; 3]) {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let corner = Sketch::ORIGIN;
-        let right = sketch.add_point(Vec2::new(40.0, 0.0));
-        let top = sketch.add_point(Vec2::new(0.0, 30.0));
+        let right = sketch.add_point(DVec2::new(40.0, 0.0));
+        let top = sketch.add_point(DVec2::new(0.0, 30.0));
         let base = sketch.add_segment(corner, right);
         let side = sketch.add_segment(corner, top);
         let hypotenuse = sketch.add_segment(right, top);
@@ -1076,7 +1076,7 @@ mod tests {
     fn part_of_a_drawing_can_be_settled_while_the_rest_floats() {
         let mut sketch = Sketch::new(WorkPlane::XY);
 
-        let held = sketch.add_point(Vec2::new(20.0, 0.0));
+        let held = sketch.add_point(DVec2::new(20.0, 0.0));
         let fixed = sketch.add_segment(Sketch::ORIGIN, held);
         sketch.set_dimension(DimensionTarget::Length(fixed), 20.0, false);
         sketch.set_dimension(
@@ -1088,8 +1088,8 @@ mod tests {
             false,
         );
 
-        let loose_a = sketch.add_point(Vec2::new(50.0, 50.0));
-        let loose_b = sketch.add_point(Vec2::new(70.0, 50.0));
+        let loose_a = sketch.add_point(DVec2::new(50.0, 50.0));
+        let loose_b = sketch.add_point(DVec2::new(70.0, 50.0));
         sketch.add_segment(loose_a, loose_b);
 
         let settled = sketch.settled_points(1.0);
@@ -1106,7 +1106,7 @@ mod tests {
     #[test]
     fn a_length_from_the_origin_settles_its_end() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let end = sketch.add_point(Vec2::new(20.0, 0.0));
+        let end = sketch.add_point(DVec2::new(20.0, 0.0));
         let segment = sketch.add_segment(Sketch::ORIGIN, end);
         sketch.set_dimension(DimensionTarget::Length(segment), 20.0, false);
 
@@ -1118,12 +1118,12 @@ mod tests {
     #[test]
     fn a_loose_shape_beside_a_measured_one_leaves_it_settled() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let corner = sketch.add_point(Vec2::new(80.0, 0.0));
+        let corner = sketch.add_point(DVec2::new(80.0, 0.0));
         let side = sketch.add_segment(Sketch::ORIGIN, corner);
         sketch.set_dimension(DimensionTarget::Length(side), 80.0, false);
 
-        let loose_a = sketch.add_point(Vec2::new(200.0, 200.0));
-        let loose_b = sketch.add_point(Vec2::new(260.0, 200.0));
+        let loose_a = sketch.add_point(DVec2::new(200.0, 200.0));
+        let loose_b = sketch.add_point(DVec2::new(260.0, 200.0));
         sketch.add_segment(loose_a, loose_b);
 
         let settled = sketch.settled_points(1.0);
@@ -1135,8 +1135,8 @@ mod tests {
     #[test]
     fn a_length_away_from_the_origin_leaves_its_end_free() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let anchor = sketch.add_point(Vec2::new(30.0, 30.0));
-        let end = sketch.add_point(Vec2::new(50.0, 30.0));
+        let anchor = sketch.add_point(DVec2::new(30.0, 30.0));
+        let end = sketch.add_point(DVec2::new(50.0, 30.0));
         let segment = sketch.add_segment(anchor, end);
         sketch.set_dimension(DimensionTarget::Length(segment), 20.0, false);
 
@@ -1148,8 +1148,8 @@ mod tests {
     #[test]
     fn a_drawing_that_is_not_pinned_is_never_complete() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::new(5.0, 5.0));
-        let b = sketch.add_point(Vec2::new(15.0, 5.0));
+        let a = sketch.add_point(DVec2::new(5.0, 5.0));
+        let b = sketch.add_point(DVec2::new(15.0, 5.0));
         let segment = sketch.add_segment(a, b);
         sketch.set_dimension(DimensionTarget::Length(segment), 10.0, false);
         sketch.set_dimension(
@@ -1177,10 +1177,10 @@ mod tests {
     #[test]
     fn an_angle_needs_two_segments_that_meet() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
-        let c = sketch.add_point(Vec2::new(0.0, 5.0));
-        let d = sketch.add_point(Vec2::new(5.0, 5.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(10.0, 0.0));
+        let c = sketch.add_point(DVec2::new(0.0, 5.0));
+        let d = sketch.add_point(DVec2::new(5.0, 5.0));
         let first = sketch.add_segment(a, b);
         let apart = sketch.add_segment(c, d);
 
@@ -1190,8 +1190,8 @@ mod tests {
     #[test]
     fn an_axis_angle_measures_from_the_sketch_direction() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 10.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(10.0, 10.0));
         let segment = sketch.add_segment(a, b);
 
         let angle = sketch.angle_with_axis(segment, SketchAxis::U).unwrap();
@@ -1203,8 +1203,8 @@ mod tests {
     #[test]
     fn impossible_values_are_reported() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(10.0, 0.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(10.0, 0.0));
         let first = sketch.add_segment(a, b);
         let second = sketch.add_segment(a, b);
 
@@ -1217,45 +1217,45 @@ mod tests {
     #[test]
     fn a_line_pulls_along_its_whole_body() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let end = sketch.add_point(Vec2::new(100.0, 0.0));
+        let end = sketch.add_point(DVec2::new(100.0, 0.0));
         let side = sketch.add_segment(Sketch::ORIGIN, end);
 
         let (found, at) = sketch
-            .nearest_on_segment(Vec2::new(30.0, 2.0), 5.0)
+            .nearest_on_segment(DVec2::new(30.0, 2.0), 5.0)
             .expect("le trait attire");
         assert_eq!(found, side);
-        assert!(at.distance(Vec2::new(30.0, 0.0)) < 1e-4, "{at:?}");
+        assert!(at.distance(DVec2::new(30.0, 0.0)) < 1e-4, "{at:?}");
 
-        assert_eq!(sketch.nearest_on_segment(Vec2::new(30.0, 40.0), 5.0), None);
+        assert_eq!(sketch.nearest_on_segment(DVec2::new(30.0, 40.0), 5.0), None);
         // Past the end, the pull stops at the end rather than off in space.
         let (_, beyond) = sketch
-            .nearest_on_segment(Vec2::new(104.0, 0.0), 5.0)
+            .nearest_on_segment(DVec2::new(104.0, 0.0), 5.0)
             .expect("le bout attire encore");
-        assert!(beyond.distance(Vec2::new(100.0, 0.0)) < 1e-4);
+        assert!(beyond.distance(DVec2::new(100.0, 0.0)) < 1e-4);
     }
 
     #[test]
     fn the_middle_of_a_line_is_its_own_catch() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let end = sketch.add_point(Vec2::new(100.0, 0.0));
+        let end = sketch.add_point(DVec2::new(100.0, 0.0));
         let side = sketch.add_segment(Sketch::ORIGIN, end);
 
         let (found, at) = sketch
-            .nearest_midpoint(Vec2::new(48.0, 3.0), 5.0)
+            .nearest_midpoint(DVec2::new(48.0, 3.0), 5.0)
             .expect("le milieu attire");
         assert_eq!(found, side);
-        assert_eq!(at, Vec2::new(50.0, 0.0));
-        assert_eq!(sketch.nearest_midpoint(Vec2::new(20.0, 0.0), 5.0), None);
+        assert_eq!(at, DVec2::new(50.0, 0.0));
+        assert_eq!(sketch.nearest_midpoint(DVec2::new(20.0, 0.0), 5.0), None);
     }
 
     /// Two ends laid on top of each other are one corner, not two.
     #[test]
     fn merging_two_points_joins_what_they_held() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let left = sketch.add_point(Vec2::new(-10.0, 0.0));
-        let meeting = sketch.add_point(Vec2::new(0.0, 10.0));
-        let twin = sketch.add_point(Vec2::new(0.0, 10.0));
-        let right = sketch.add_point(Vec2::new(10.0, 0.0));
+        let left = sketch.add_point(DVec2::new(-10.0, 0.0));
+        let meeting = sketch.add_point(DVec2::new(0.0, 10.0));
+        let twin = sketch.add_point(DVec2::new(0.0, 10.0));
+        let right = sketch.add_point(DVec2::new(10.0, 0.0));
         let first = sketch.add_segment(left, meeting);
         let second = sketch.add_segment(twin, right);
 
@@ -1271,8 +1271,8 @@ mod tests {
     #[test]
     fn merging_the_ends_of_a_line_takes_the_line() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::new(0.0, 0.0));
-        let b = sketch.add_point(Vec2::new(1.0, 0.0));
+        let a = sketch.add_point(DVec2::new(0.0, 0.0));
+        let b = sketch.add_point(DVec2::new(1.0, 0.0));
         let short = sketch.add_segment(a, b);
 
         sketch.merge_points(a, b);
@@ -1283,8 +1283,8 @@ mod tests {
     #[test]
     fn merging_onto_the_origin_keeps_the_origin() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let stray = sketch.add_point(Vec2::ZERO);
-        let far = sketch.add_point(Vec2::new(10.0, 0.0));
+        let stray = sketch.add_point(DVec2::ZERO);
+        let far = sketch.add_point(DVec2::new(10.0, 0.0));
         sketch.add_segment(stray, far);
 
         sketch.merge_points(stray, Sketch::ORIGIN);
@@ -1297,9 +1297,9 @@ mod tests {
     #[test]
     fn merging_moves_a_dimension_onto_the_point_that_stays() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let kept = sketch.add_point(Vec2::new(10.0, 0.0));
-        let twin = sketch.add_point(Vec2::new(10.0, 0.0));
-        let far = sketch.add_point(Vec2::new(10.0, 20.0));
+        let kept = sketch.add_point(DVec2::new(10.0, 0.0));
+        let twin = sketch.add_point(DVec2::new(10.0, 0.0));
+        let far = sketch.add_point(DVec2::new(10.0, 20.0));
         sketch.add_segment(twin, far);
         sketch.set_dimension(
             DimensionTarget::Distance {
@@ -1339,7 +1339,7 @@ mod tests {
             sketch.dimension_of(DimensionTarget::Length(third)).is_some(),
             "la cote du troisième côté est intacte"
         );
-        assert_eq!(sketch.nearest_segment(Vec2::new(50.0, 0.0), 1.0), None);
+        assert_eq!(sketch.nearest_segment(DVec2::new(50.0, 0.0), 1.0), None);
     }
 
     /// A dimension measuring something deleted would report on nothing.
@@ -1357,8 +1357,8 @@ mod tests {
     #[test]
     fn erasing_a_point_takes_what_leaned_on_it() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let corner = sketch.add_point(Vec2::new(10.0, 0.0));
-        let far = sketch.add_point(Vec2::new(10.0, 10.0));
+        let corner = sketch.add_point(DVec2::new(10.0, 0.0));
+        let far = sketch.add_point(DVec2::new(10.0, 10.0));
         let touching = sketch.add_segment(Sketch::ORIGIN, corner);
         let apart = sketch.add_segment(corner, far);
         sketch.add_circle(corner, 3.0);
@@ -1383,10 +1383,10 @@ mod tests {
     fn an_erased_shape_no_longer_encloses_an_area() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let corners = [
-            sketch.add_point(Vec2::ZERO),
-            sketch.add_point(Vec2::new(10.0, 0.0)),
-            sketch.add_point(Vec2::new(10.0, 10.0)),
-            sketch.add_point(Vec2::new(0.0, 10.0)),
+            sketch.add_point(DVec2::ZERO),
+            sketch.add_point(DVec2::new(10.0, 0.0)),
+            sketch.add_point(DVec2::new(10.0, 10.0)),
+            sketch.add_point(DVec2::new(0.0, 10.0)),
         ];
         let mut sides = Vec::new();
         for index in 0..4 {
@@ -1401,9 +1401,9 @@ mod tests {
     #[test]
     fn clicking_back_onto_a_corner_reuses_it() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let first = sketch.point_at(Vec2::new(5.0, 5.0), 0.5);
-        let again = sketch.point_at(Vec2::new(5.2, 5.1), 0.5);
-        let elsewhere = sketch.point_at(Vec2::new(40.0, 5.0), 0.5);
+        let first = sketch.point_at(DVec2::new(5.0, 5.0), 0.5);
+        let again = sketch.point_at(DVec2::new(5.2, 5.1), 0.5);
+        let elsewhere = sketch.point_at(DVec2::new(40.0, 5.0), 0.5);
 
         assert_eq!(first, again);
         assert_ne!(first, elsewhere);
@@ -1416,15 +1416,15 @@ mod tests {
     #[test]
     fn clicking_the_origin_joins_it() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        assert_eq!(sketch.point_at(Vec2::new(0.05, -0.05), 0.5), Sketch::ORIGIN);
+        assert_eq!(sketch.point_at(DVec2::new(0.05, -0.05), 0.5), Sketch::ORIGIN);
         assert_eq!(sketch.points().len(), 1);
     }
 
     #[test]
     fn the_origin_never_moves() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        sketch.move_point(Sketch::ORIGIN, Vec2::new(10.0, 10.0));
-        assert_eq!(sketch.point(Sketch::ORIGIN), Vec2::ZERO);
+        sketch.move_point(Sketch::ORIGIN, DVec2::new(10.0, 10.0));
+        assert_eq!(sketch.point(Sketch::ORIGIN), DVec2::ZERO);
     }
 
     /// A distance can be measured between any two points, joined or not, which
@@ -1432,7 +1432,7 @@ mod tests {
     #[test]
     fn a_distance_pins_a_point_against_the_origin() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let free = sketch.add_point(Vec2::new(3.0, 4.0));
+        let free = sketch.add_point(DVec2::new(3.0, 4.0));
 
         sketch.set_dimension(
             DimensionTarget::Distance {
@@ -1446,51 +1446,51 @@ mod tests {
 
         let distance = sketch.point(free).length();
         assert!((distance - 10.0).abs() < 0.01, "got {distance}");
-        assert_eq!(sketch.point(Sketch::ORIGIN), Vec2::ZERO);
+        assert_eq!(sketch.point(Sketch::ORIGIN), DVec2::ZERO);
     }
 
     #[test]
     fn the_nearest_segment_is_found_along_its_body() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(Vec2::ZERO);
-        let b = sketch.add_point(Vec2::new(100.0, 0.0));
+        let a = sketch.add_point(DVec2::ZERO);
+        let b = sketch.add_point(DVec2::new(100.0, 0.0));
         let segment = sketch.add_segment(a, b);
 
         assert_eq!(
-            sketch.nearest_segment(Vec2::new(50.0, 2.0), 5.0),
+            sketch.nearest_segment(DVec2::new(50.0, 2.0), 5.0),
             Some(segment)
         );
-        assert_eq!(sketch.nearest_segment(Vec2::new(50.0, 40.0), 5.0), None);
-        assert_eq!(sketch.nearest_segment(Vec2::new(150.0, 0.0), 5.0), None);
+        assert_eq!(sketch.nearest_segment(DVec2::new(50.0, 40.0), 5.0), None);
+        assert_eq!(sketch.nearest_segment(DVec2::new(150.0, 0.0), 5.0), None);
     }
 
     #[test]
     fn a_circle_is_found_by_its_outline() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        let center = sketch.add_point(Vec2::ZERO);
+        let center = sketch.add_point(DVec2::ZERO);
         let circle = sketch.add_circle(center, 10.0);
 
         assert_eq!(
-            sketch.nearest_circle(Vec2::new(10.2, 0.0), 1.0),
+            sketch.nearest_circle(DVec2::new(10.2, 0.0), 1.0),
             Some(circle)
         );
         assert_eq!(
-            sketch.nearest_circle(Vec2::ZERO, 1.0),
+            sketch.nearest_circle(DVec2::ZERO, 1.0),
             None,
             "not the middle"
         );
-        assert_eq!(sketch.nearest_circle(Vec2::new(30.0, 0.0), 1.0), None);
+        assert_eq!(sketch.nearest_circle(DVec2::new(30.0, 0.0), 1.0), None);
     }
 
     #[test]
     fn bounds_cover_every_point() {
         let mut sketch = Sketch::new(WorkPlane::XY);
-        sketch.add_point(Vec2::new(-3.0, 7.0));
-        sketch.add_point(Vec2::new(12.0, -1.0));
+        sketch.add_point(DVec2::new(-3.0, 7.0));
+        sketch.add_point(DVec2::new(12.0, -1.0));
         let (min, max) = sketch.bounds().expect("some points");
         // The origin is a point like any other as far as framing goes.
-        assert_eq!(min, Vec2::new(-3.0, -1.0));
-        assert_eq!(max, Vec2::new(12.0, 7.0));
+        assert_eq!(min, DVec2::new(-3.0, -1.0));
+        assert_eq!(max, DVec2::new(12.0, 7.0));
     }
 }
 

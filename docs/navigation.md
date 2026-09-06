@@ -59,7 +59,8 @@ qui fait basculer l'image. Ici, la vue de dessus est un angle comme un autre.
   soit à 1 mm ou à 10 m de la pièce. Les plans proche et lointain suivent la
   distance, ce qui garde la précision de profondeur utilisable à toute échelle.
   La distance est bornée (`min_distance`, `max_distance`, par défaut 1 µm à
-  1 000 km) : une borne doit exister, les positions étant en `f32`, mais elle
+  1 000 km) : une borne doit exister, la caméra et le rendu travaillant en
+  `f32`, mais elle
   est réglable et assez lointaine pour cadrer un assemblage entier.
 - **Pan** : converti en unités monde selon la distance, pour que la pièce suive
   exactement le curseur.

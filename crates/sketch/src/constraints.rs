@@ -57,8 +57,12 @@ pub enum DimensionTarget {
         to: PointId,
         axis: SketchAxis,
     },
-    /// Radius of a circle.
+    /// Radius of a circle, taken from its centre out to the rim.
     Radius(CircleId),
+    /// Diameter of a circle, right across it. What a single click on a circle
+    /// means: it is the size a hole is drilled to and the size a round bar is
+    /// turned to, and a radius is what one asks for on purpose.
+    Diameter(CircleId),
 }
 
 impl DimensionTarget {

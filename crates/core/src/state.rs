@@ -350,8 +350,14 @@ impl PartState {
 
         // A radius stands on its own; everything else moves the points, so the
         // whole system is re-solved to keep the earlier values true.
-        if let DimensionTarget::Radius(circle) = target {
-            sketch.set_circle_radius(circle, value / scale);
+        // A circle stands on its own: its size is a number it carries, not a
+        // place its points are in.
+        if let DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) = target {
+            let wanted = match target {
+                DimensionTarget::Diameter(_) => value / (2.0 * scale),
+                _ => value / scale,
+            };
+            sketch.set_circle_radius(circle, wanted);
             return Some(DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact));
         }
         Some(DimensionOutcome::Geometry(sketch.resolve(scale)))
@@ -365,6 +371,7 @@ impl PartState {
             DimensionTarget::Length(segment) => sketch.segment_length(segment),
             DimensionTarget::Distance { from, to } => sketch.point(from).distance(sketch.point(to)),
             DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
+            DimensionTarget::Diameter(circle) => sketch.circle(circle).radius * 2.0,
             DimensionTarget::PointToSegment { point, segment } => {
                 sketch.point_to_segment(point, segment)?
             }
@@ -389,6 +396,8 @@ impl PartState {
             .then(|| self.to_millimeters(sketch.point(from).distance(sketch.point(to)))),
             DimensionTarget::Radius(circle) => (circle.0 < sketch.circles().len())
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
+            DimensionTarget::Diameter(circle) => (circle.0 < sketch.circles().len())
+                .then(|| self.to_millimeters(sketch.circle(circle).radius * 2.0)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
             DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
             DimensionTarget::PointToSegment { point, segment } => sketch

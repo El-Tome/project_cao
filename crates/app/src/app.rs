@@ -252,7 +252,7 @@ fn run(
     viewport: &mut ViewportState,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{DimensionMode, Rule, Tool};
+    use crate::screens::sketch::{CircleMode, DimensionMode, Rule, Tool};
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -331,6 +331,22 @@ fn run(
                 _ => DimensionMode::Auto,
             };
             editor.reset_pending();
+            false
+        }
+        Command::CircleCenter
+        | Command::CircleTwoPoints
+        | Command::CircleThreePoints
+        | Command::CircleTwoTangents
+        | Command::CircleThreeTangents => {
+            editor.circle_mode = match command {
+                Command::CircleTwoPoints => CircleMode::TwoPoints,
+                Command::CircleThreePoints => CircleMode::ThreePoints,
+                Command::CircleTwoTangents => CircleMode::TwoTangents,
+                Command::CircleThreeTangents => CircleMode::ThreeTangents,
+                _ => CircleMode::Center,
+            };
+            tool(editor, Tool::Circle);
+            editor.message = Some(editor.circle_mode.asks_for().to_string());
             false
         }
         Command::RulePerpendicular

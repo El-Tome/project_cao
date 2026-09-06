@@ -4,6 +4,7 @@
 //! straight into a part file.
 
 mod constraints;
+pub mod construct;
 mod plane;
 mod regions;
 mod sketch;

@@ -227,6 +227,7 @@ impl Operation {
                         format!("Angle {value}° / {}", axis.label())
                     }
                     DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
+                    DimensionTarget::Diameter(_) => format!("Diamètre {value} mm"),
                     DimensionTarget::Projected { axis, .. } => match axis {
                         cao_sketch::SketchAxis::U => format!("Largeur {value} mm"),
                         cao_sketch::SketchAxis::V => format!("Hauteur {value} mm"),
@@ -334,7 +335,7 @@ impl Operation {
                     to.0,
                     axis.label()
                 ),
-                DimensionTarget::Radius(circle) => {
+                DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
                     format!("Esquisse {sketch} · cercle {}", circle.0)
                 }
             },

@@ -153,6 +153,19 @@ pub fn push(
                 pixel,
             ))
         }
+        DimensionTarget::Diameter(circle) => {
+            let circle = *sketch.circles().get(circle.0)?;
+            let center = *sketch.points().get(circle.center.0)?;
+            Some(across(
+                out,
+                plane,
+                center,
+                circle.radius,
+                Moved { placed, nudge },
+                style,
+                pixel,
+            ))
+        }
         DimensionTarget::Radius(circle) => {
             let circle = *sketch.circles().get(circle.0)?;
             let center = *sketch.points().get(circle.center.0)?;
@@ -408,6 +421,35 @@ fn angular(
     Placement {
         text_at,
         offset: reach,
+    }
+}
+
+/// A diameter: the line right across the circle, an arrow at each end.
+///
+/// Drawn through the middle rather than from it, which is what tells a diameter
+/// from a radius at a glance.
+fn across(
+    out: &mut Vec<Vertex>,
+    plane: &WorkPlane,
+    center: DVec2,
+    radius: f64,
+    moved_by: Moved,
+    style: &Style,
+    pixel: f64,
+) -> Placement {
+    let default = DVec2::splat(std::f64::consts::FRAC_1_SQRT_2);
+    let placed = moved_by.placed.unwrap_or(default * radius) + moved_by.nudge;
+    let direction = placed.normalize_or(default);
+    let (from, to) = (center - direction * radius, center + direction * radius);
+
+    line(out, plane, from, to, style);
+    arrow(out, plane, from, direction, style, pixel);
+    arrow(out, plane, to, -direction, style, pixel);
+
+    let aside = DVec2::new(-direction.y, direction.x);
+    Placement {
+        text_at: center + direction * radius * 0.5 + aside * text_clearance(aside) * pixel,
+        offset: direction * radius,
     }
 }
 

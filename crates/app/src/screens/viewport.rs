@@ -16,8 +16,8 @@ use glam::{DVec2, DVec3};
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
-    ChainAnchor, DimensionMode, LiveField, PlaneChoice, Rule, RulePick, Selection, SketchEditor,
-    Tool,
+    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, Rule, RulePick, Selection,
+    SketchEditor, Tool,
 };
 
 /// A colour from the theme, turned into the space the shader blends in.
@@ -192,7 +192,10 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     }
     let mut changed = changed | paint_dimension_field(ui, state, rect, sketch);
 
-    let drawing = sketch.editor.chain.is_some() || sketch.editor.pending_start.is_some();
+    let drawing = sketch.editor.chain.is_some()
+        || sketch.editor.pending_start.is_some()
+        || !sketch.editor.circle_points.is_empty()
+        || !sketch.editor.circle_segments.is_empty();
     if drawing && paint_live_input(ui, sketch) {
         // Enter finishes the shape from the keyboard, without having to find
         // the canvas again with the mouse.
@@ -203,6 +206,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
                 Tool::Line => {
                     draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
                 }
+                Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
                 _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
             };
         }
@@ -631,13 +635,14 @@ fn handle_sketch_input(
             });
             true
         }
-        Tool::Rectangle | Tool::Circle => two_click_shape(
+        Tool::Rectangle => two_click_shape(
             context,
             index,
             context.editor.aimed.unwrap_or(cursor),
             snap,
             scale.units_per_pixel,
         ),
+        Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
@@ -1321,6 +1326,188 @@ fn rectangle_corner(context: &SketchContext<'_>, cursor: DVec2) -> DVec2 {
         )
 }
 
+/// One click of the circle tool: takes what was pointed at, and draws the
+/// circle as soon as enough of it is known.
+fn draw_circle(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+    pixel: f64,
+) -> bool {
+    let mode = context.editor.circle_mode;
+    let sketch = &context.document.sketches()[index];
+
+    if mode.touches_traits() && context.editor.circle_segments.len() < mode.wants() - 1 {
+        let Some(segment) = sketch.nearest_segment(cursor, snap) else {
+            context.editor.message = Some("Cliquez un trait".to_string());
+            return false;
+        };
+        if !context.editor.circle_segments.contains(&segment) {
+            context.editor.circle_segments.push(segment);
+            context.editor.live.open();
+        }
+        context.editor.message = Some(mode.asks_for().to_string());
+        return false;
+    }
+
+    if !mode.touches_traits() && context.editor.circle_points.len() < mode.wants() - 1 {
+        context.editor.circle_points.push(cursor);
+        context.editor.live.open();
+        context.editor.message = Some(mode.asks_for().to_string());
+        return false;
+    }
+
+    let Some(found) = circle_from(context, index, cursor, snap) else {
+        context.editor.message = Some("Ces éléments ne donnent pas de cercle".to_string());
+        return false;
+    };
+    let places = std::mem::take(&mut context.editor.circle_points);
+    let mut touched = std::mem::take(&mut context.editor.circle_segments);
+    // The last trait of a three-tangent circle is the one under the cursor at
+    // the click, and it holds the circle just as much as the other two.
+    if mode == CircleMode::ThreeTangents
+        && let Some(last) = sketch.nearest_segment(cursor, snap)
+        && !touched.contains(&last)
+    {
+        touched.push(last);
+    }
+
+    // The centre reuses a point already drawn when one is under it, as
+    // everywhere else, so shapes hang together instead of stacking points.
+    let center = point_ref_at(context, index, found.center, snap);
+    context.document.apply(Operation::AddCircle {
+        sketch: index,
+        center,
+        radius: found.radius,
+    });
+    let drawn = CircleId(context.document.sketches()[index].circles().len().saturating_sub(1));
+
+    // A circle drawn against traits stays against them: the tangency is the
+    // whole point of having pointed at them.
+    for segment in touched {
+        context.document.apply(Operation::Constrain {
+            sketch: index,
+            constraint: cao_sketch::Constraint::Tangent {
+                circle: drawn,
+                segment,
+            },
+        });
+    }
+    // And a size typed by hand becomes the dimension it deserves.
+    if let Some(diameter) = context.editor.live.first.locked {
+        let target = DimensionTarget::Diameter(drawn);
+        let scale = context.document.scale();
+        if !context.document.sketches()[index].would_be_redundant(target, scale) {
+            context.document.apply(Operation::SetDimension {
+                sketch: index,
+                target,
+                value: diameter,
+                placement: annotation_home(context, index, target, pixel).map(|(_, at)| at),
+            });
+        }
+    }
+    let _ = places;
+
+    context.editor.live.clear();
+    context.editor.message = Some(mode.asks_for().to_string());
+    true
+}
+
+/// The circle the picks so far and the cursor make, if they make one.
+///
+/// The same reading is used for the preview and for the click, so what is shown
+/// is what gets drawn.
+fn circle_from(
+    context: &SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+) -> Option<Found> {
+    let sketch = context.document.sketches().get(index)?;
+    let scale = context.document.scale().max(1e-9);
+    let wanted = context
+        .editor
+        .live
+        .first
+        .locked
+        .map(|diameter| diameter / (2.0 * scale));
+    let places = &context.editor.circle_points;
+    let line = |segment: &SegmentId| sketch.endpoints(*segment);
+
+    let found = match context.editor.circle_mode {
+        CircleMode::Center => {
+            let center = *places.first()?;
+            Found {
+                center,
+                radius: center.distance(cursor),
+            }
+        }
+        CircleMode::TwoPoints => {
+            let first = *places.first()?;
+            // A size typed pushes the far point out along the same direction.
+            let far = match wanted {
+                Some(radius) => first + (cursor - first).normalize_or(DVec2::X) * radius * 2.0,
+                None => cursor,
+            };
+            Found {
+                center: (first + far) * 0.5,
+                radius: first.distance(far) * 0.5,
+            }
+        }
+        CircleMode::ThreePoints => {
+            let (first, second) = (*places.first()?, *places.get(1)?);
+            let center = match wanted {
+                // A size too small to reach both points is held at the smallest
+                // that does. Typing 150 goes through 1 and 15 on the way, and a
+                // circle that vanishes at the first keystroke takes the field
+                // being typed into with it.
+                Some(radius) => cao_sketch::construct::centre_through_at(
+                    first,
+                    second,
+                    cursor,
+                    radius.max(first.distance(second) * 0.5),
+                )?,
+                None => cao_sketch::construct::centre_through(first, second, cursor)?,
+            };
+            Found {
+                center,
+                radius: center.distance(first),
+            }
+        }
+        CircleMode::TwoTangents => {
+            let mut touching = cao_sketch::construct::centre_touching_two(
+                line(context.editor.circle_segments.first()?),
+                line(context.editor.circle_segments.get(1)?),
+                cursor,
+            )?;
+            if let Some(radius) = wanted {
+                touching = cao_sketch::construct::resize_touching(touching, radius);
+            }
+            Found {
+                center: touching.centre,
+                radius: touching.radius,
+            }
+        }
+        CircleMode::ThreeTangents => {
+            let (center, radius) = cao_sketch::construct::circle_touching_three(
+                line(context.editor.circle_segments.first()?),
+                line(context.editor.circle_segments.get(1)?),
+                line(&sketch.nearest_segment(cursor, snap)?),
+            )?;
+            Found { center, radius }
+        }
+    };
+    (found.radius > 1e-9).then_some(found)
+}
+
+/// A circle about to be drawn.
+#[derive(Clone, Copy)]
+struct Found {
+    center: DVec2,
+    radius: f64,
+}
+
 /// Places on a fresh rectangle what makes it a rectangle, and its two sizes.
 ///
 /// Drawing one and then having to say four times that its corners are square is
@@ -1479,7 +1666,7 @@ fn measure(
     if mode != DimensionMode::Length
         && let Some(circle) = sketch.nearest_circle(cursor, snap)
     {
-        select_target(context, index, DimensionTarget::Radius(circle));
+        select_target(context, index, DimensionTarget::Diameter(circle));
         return false;
     }
 
@@ -1626,7 +1813,7 @@ fn measure_preview(
     if mode != DimensionMode::Length {
         return sketch
             .nearest_circle(cursor, snap)
-            .map(DimensionTarget::Radius);
+            .map(DimensionTarget::Diameter);
     }
     None
 }
@@ -1819,10 +2006,21 @@ fn refine(
     cursor: DVec2,
     snap: f64,
 ) -> Option<DimensionTarget> {
+    let sketch = context.document.sketches().get(index)?;
+
+    // A diameter taken back to the centre is a radius: it is the one thing the
+    // centre can add to a circle already picked.
+    if let DimensionTarget::Diameter(circle) = target {
+        let center = sketch.circle(circle).center;
+        return sketch
+            .nearest_point(cursor, snap * 0.8)
+            .filter(|point| *point == center)
+            .map(|_| DimensionTarget::Radius(circle));
+    }
+
     let DimensionTarget::Length(first) = target else {
         return None;
     };
-    let sketch = context.document.sketches().get(index)?;
 
     if let Some(second) = sketch.nearest_segment(cursor, snap)
         && second != first
@@ -2987,33 +3185,28 @@ fn push_preview(
         _ => {}
     }
 
+    if context.editor.tool == Tool::Circle
+        && let Some(index) = context.editor.active_sketch()
+        && let Some(found) = circle_from(context, index, cursor, scale.world_size_of(PICK_PIXELS))
+    {
+        push_circle_at(out, sketch, found.center, found.radius, preview, 1.5);
+        push_point_marker(out, sketch, found.center, scale.world_size_of(3.0), preview, 1.5);
+    }
+
     let Some(start) = context.editor.pending_start else {
         return;
     };
-    match context.editor.tool {
-        Tool::Rectangle => {
-            let far = context.editor.aimed.unwrap_or(cursor);
-            let corners = [
-                start,
-                DVec2::new(far.x, start.y),
-                far,
-                DVec2::new(start.x, far.y),
-            ];
-            for index in 0..4 {
-                push_preview_line(
-                    out,
-                    sketch,
-                    corners[index],
-                    corners[(index + 1) % 4],
-                    preview,
-                );
-            }
+    if context.editor.tool == Tool::Rectangle {
+        let far = context.editor.aimed.unwrap_or(cursor);
+        let corners = [
+            start,
+            DVec2::new(far.x, start.y),
+            far,
+            DVec2::new(start.x, far.y),
+        ];
+        for index in 0..4 {
+            push_preview_line(out, sketch, corners[index], corners[(index + 1) % 4], preview);
         }
-        Tool::Circle => {
-            let radius = start.distance(cursor);
-            push_circle_at(out, sketch, start, radius, preview, 1.5);
-        }
-        _ => {}
     }
 }
 
@@ -3124,24 +3317,30 @@ fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect
 /// Returns true when the user pressed Enter to finish the line from the
 /// keyboard.
 fn paint_live_input(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> bool {
-    let Some(index) = context.editor.active_sketch() else {
-        return false;
-    };
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return false;
-    };
-    let Some(cursor) = context.editor.aimed.or(context.editor.cursor) else {
-        return false;
-    };
+    paint_live_fields(ui, context).unwrap_or(false)
+}
+
+/// The same, written where a missing piece simply means there is nothing to
+/// show yet.
+fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Option<bool> {
+    let index = context.editor.active_sketch()?;
+    let sketch = context.document.sketches().get(index)?;
+    let cursor = context.editor.aimed.or(context.editor.cursor)?;
     let scale = context.document.scale();
 
-    // Two numbers, whatever the tool: a line is a length and an angle, a
-    // rectangle is its two sides.
-    let (labels, measured) = match context.editor.tool {
+    // A line is a length and an angle, a rectangle its two sides, a circle its
+    // diameter and nothing else — so its second field is left out.
+    let (labels, measured): ([&str; 2], [f64; 2]) = match context.editor.tool {
+        Tool::Circle => {
+            // Shown whether or not the picks make a circle just now: a field
+            // that disappears while being typed into cannot be typed into.
+            let across = circle_from(context, index, cursor, f64::MAX)
+                .map(|found| found.radius * 2.0 * scale)
+                .unwrap_or_default();
+            (["mm", ""], [across, 0.0])
+        }
         Tool::Line => {
-            let Some(from) = anchor_position(sketch, context) else {
-                return false;
-            };
+            let from = anchor_position(sketch, context)?;
             let span = cursor - from;
             (
                 ["mm", "°"],
@@ -3149,21 +3348,17 @@ fn paint_live_input(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> bool 
             )
         }
         Tool::Rectangle => {
-            let Some(start) = context.editor.pending_start else {
-                return false;
-            };
+            let start = context.editor.pending_start?;
             let span = cursor - start;
             (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
         }
-        _ => return false,
+        _ => return None,
     };
 
     // Hung off the pointer itself, down and to the right: anchored on the
     // drawing, the fields ended up under the cursor, and a cursor over them is
     // a cursor no longer over the canvas — the shape stopped following it.
-    let Some(at) = ui.ctx().pointer_latest_pos() else {
-        return false;
-    };
+    let at = ui.ctx().pointer_latest_pos()?;
 
     let live = &mut context.editor.live;
     let mut validated = false;
@@ -3175,11 +3370,14 @@ fn paint_live_input(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> bool 
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
                     validated |= live_field(ui, labels[0], measured[0], &mut live.first, focus);
-                    validated |= live_field(ui, labels[1], measured[1], &mut live.second, false);
+                    if !labels[1].is_empty() {
+                        validated |=
+                            live_field(ui, labels[1], measured[1], &mut live.second, false);
+                    }
                 });
             });
         });
-    validated
+    Some(validated)
 }
 
 /// A number field that takes the keyboard on demand, whole value selected.

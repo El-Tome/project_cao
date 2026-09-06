@@ -2,7 +2,7 @@ use cao_core::toolbar::{Edge, Item, ToolbarLayout};
 use cao_core::{Command, PartDocument, Settings};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::sketch::{DimensionMode, Rule, SketchEditor, Tool};
+use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
@@ -257,6 +257,17 @@ fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolCircle => tool == Tool::Circle,
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
+        Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
+        Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
+        Command::CircleThreePoints => {
+            tool == Tool::Circle && mode_is(state, CircleMode::ThreePoints)
+        }
+        Command::CircleTwoTangents => {
+            tool == Tool::Circle && mode_is(state, CircleMode::TwoTangents)
+        }
+        Command::CircleThreeTangents => {
+            tool == Tool::Circle && mode_is(state, CircleMode::ThreeTangents)
+        }
         Command::RulePerpendicular => tool == Tool::Constrain(Rule::Perpendicular),
         Command::RuleParallel => tool == Tool::Constrain(Rule::Parallel),
         Command::RuleEqual => tool == Tool::Constrain(Rule::Equal),
@@ -277,6 +288,10 @@ fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
         _ => false,
     }
+}
+
+fn mode_is(state: &Context<'_>, mode: CircleMode) -> bool {
+    state.editor.circle_mode == mode
 }
 
 fn enabled(command: Command, state: &Context<'_>) -> bool {
@@ -310,6 +325,11 @@ pub fn is_enabled(
         | Command::DimensionLength
         | Command::DimensionAngle
         | Command::DimensionRadius => drawing && editor.tool == Tool::Dimension,
+        Command::CircleCenter
+        | Command::CircleTwoPoints
+        | Command::CircleThreePoints
+        | Command::CircleTwoTangents
+        | Command::CircleThreeTangents => drawing,
         Command::RulePerpendicular
         | Command::RuleParallel
         | Command::RuleEqual

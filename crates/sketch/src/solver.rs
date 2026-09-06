@@ -49,7 +49,7 @@ pub enum SolveOutcome {
 const MAX_ITERATIONS: usize = 400;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
-const TOLERANCE: f32 = 1e-4;
+const TOLERANCE: f32 = 1e-5;
 
 impl Sketch {
     /// Moves the drawing until every dimension holds at once.
@@ -70,6 +70,7 @@ impl Sketch {
 
         let pinned = self.pinned_points();
         let scale = self.characteristic_size();
+        let held = self.orientations(millimeters_per_unit);
 
         for _ in 0..MAX_ITERATIONS {
             let mut worst: f32 = 0.0;
@@ -105,11 +106,85 @@ impl Sketch {
             }
 
             if worst < TOLERANCE {
+                self.hold_orientations(&held);
                 return SolveOutcome::Solved;
             }
         }
 
+        self.hold_orientations(&held);
         SolveOutcome::Residual
+    }
+
+    /// The direction each free-to-turn group is sitting at, before anything
+    /// moves.
+    ///
+    /// A group nothing holds upright can be spun without breaking a single
+    /// dimension, so the solver is free to spin it — and it does: the steps are
+    /// finite, and what each of them leaves behind adds up. A rectangle whose
+    /// height is changed came out several degrees off, still reporting itself
+    /// fully constrained, because it was: it had simply turned.
+    fn orientations(&self, millimeters_per_unit: f32) -> Vec<(usize, PointId, PointId, f32)> {
+        let equations = self.equations(millimeters_per_unit);
+        let groups = self.point_groups();
+
+        self.rotation_gauges()
+            .into_iter()
+            .filter(|(_, gauge)| {
+                equations
+                    .iter()
+                    .all(|equation| turns_nothing(equation, gauge))
+            })
+            .filter_map(|(owner, _)| {
+                let (from, to) = self.orientation_pair(owner, &groups)?;
+                let span = self.point(to) - self.point(from);
+                (span.length() > 1e-6).then(|| (owner, from, to, span.to_angle()))
+            })
+            .collect()
+    }
+
+    /// The pair of points whose direction stands for a group's own. The first
+    /// trait drawn in it, or — for a lone point — the line from the origin,
+    /// which is the only other thing there is to lean on.
+    fn orientation_pair(&self, owner: usize, groups: &[usize]) -> Option<(PointId, PointId)> {
+        if let Some((_, segment)) = self
+            .live_segments()
+            .find(|(_, segment)| groups[segment.start.0] == owner)
+        {
+            return Some((segment.start, segment.end));
+        }
+        let lone = groups.iter().position(|group| *group == owner)?;
+        (lone != Sketch::ORIGIN.0).then_some((Sketch::ORIGIN, PointId(lone)))
+    }
+
+    /// Turns each group back the way it was pointing. A rigid turn about the
+    /// origin leaves every dimension of a group free to turn exactly as it
+    /// found it — that is what "free to turn" means — so this straightens the
+    /// drawing without touching what it measures.
+    fn hold_orientations(&mut self, held: &[(usize, PointId, PointId, f32)]) {
+        if held.is_empty() {
+            return;
+        }
+        let groups = self.point_groups();
+        let pinned = self.pinned_points();
+
+        for (owner, from, to, was) in held {
+            let span = self.point(*to) - self.point(*from);
+            if span.length() < 1e-6 {
+                continue;
+            }
+            let drift = wrap(span.to_angle() - was);
+            if drift.abs() < 1e-6 {
+                continue;
+            }
+            let turn = Vec2::from_angle(-drift);
+            for index in 0..self.points().len() {
+                if pinned[index] || groups[index] != *owner {
+                    continue;
+                }
+                let moved = turn.rotate(self.point(PointId(index)));
+                self.place_point(PointId(index), moved);
+            }
+        }
     }
 
     /// Points that must not move. Only the sketch's own origin, which is what
@@ -134,7 +209,7 @@ impl Sketch {
     /// freedom that is already gone.
     pub(crate) fn analysed_system(&self, millimeters_per_unit: f32) -> Vec<Equation> {
         let mut equations = self.equations(millimeters_per_unit);
-        for gauge in self.rotation_gauges() {
+        for (_, gauge) in self.rotation_gauges() {
             // A shape already measured against an axis says which way up it is;
             // adding the implicit rule on top would take that freedom twice and
             // report a drawing as more settled than it is.
@@ -148,11 +223,9 @@ impl Sketch {
         equations
     }
 
-    /// One rule per group of joined geometry. Two shapes drawn apart can be
-    /// turned independently, so one shared rule would leave both of them able
-    /// to turn against each other and neither would ever count as settled.
-    fn rotation_gauges(&self) -> Vec<Equation> {
-        let pinned = self.pinned_points();
+    /// Which group of joined geometry each point belongs to, as the index of a
+    /// representative point. Two shapes drawn apart are two groups.
+    pub(crate) fn point_groups(&self) -> Vec<usize> {
         let mut group: Vec<usize> = (0..self.points().len()).collect();
 
         fn root(group: &mut [usize], mut point: usize) -> usize {
@@ -169,13 +242,22 @@ impl Sketch {
             );
             group[a] = b;
         }
+        (0..group.len()).map(|point| root(&mut group, point)).collect()
+    }
+
+    /// One rule per group of joined geometry. Two shapes drawn apart can be
+    /// turned independently, so one shared rule would leave both of them able
+    /// to turn against each other and neither would ever count as settled.
+    fn rotation_gauges(&self) -> Vec<(usize, Equation)> {
+        let pinned = self.pinned_points();
+        let groups = self.point_groups();
 
         let mut gauges: Vec<(usize, Equation)> = Vec::new();
         for (index, point) in self.points().iter().enumerate() {
             if pinned[index] {
                 continue;
             }
-            let owner = root(&mut group, index);
+            let owner = groups[index];
             let equation = match gauges.iter_mut().find(|(each, _)| *each == owner) {
                 Some((_, equation)) => equation,
                 None => {
@@ -186,11 +268,8 @@ impl Sketch {
             equation.add(PointId(index), Vec2::new(-point.y, point.x));
         }
 
+        gauges.retain(|(_, equation)| equation.norm_squared() > 1e-12);
         gauges
-            .into_iter()
-            .map(|(_, equation)| equation)
-            .filter(|equation| equation.norm_squared() > 1e-12)
-            .collect()
     }
 
     /// A length representative of the drawing, used to judge errors relative to
@@ -425,6 +504,18 @@ impl Sketch {
         equation.add(segment.start, -turn * sign);
         Some(equation)
     }
+}
+
+/// An angle brought back into [-pi, pi], so a drift either side of a turn reads
+/// as the small angle it is.
+fn wrap(mut angle: f32) -> f32 {
+    while angle > std::f32::consts::PI {
+        angle -= std::f32::consts::TAU;
+    }
+    while angle < -std::f32::consts::PI {
+        angle += std::f32::consts::TAU;
+    }
+    angle
 }
 
 /// Whether an equation says nothing about which way round the drawing sits.

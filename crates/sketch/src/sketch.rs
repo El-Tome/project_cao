@@ -575,6 +575,10 @@ impl Sketch {
         self.points[point.0] += delta;
     }
 
+    pub(crate) fn place_point(&mut self, point: PointId, position: Vec2) {
+        self.points[point.0] = position;
+    }
+
     /// The angle a segment makes with one of the sketch axes, in degrees.
     pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f32> {
         let (start, end) = self.endpoints(segment);
@@ -860,6 +864,47 @@ mod tests {
             (landed - Vec2::new(80.0, 15.0)).length() < 1e-2,
             "arrivée = {landed:?}"
         );
+    }
+
+    #[test]
+    fn a_rectangle_does_not_turn_when_one_of_its_sides_changes() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corner = Sketch::ORIGIN;
+        let right = sketch.add_point(Vec2::new(100.0, 0.0));
+        let far = sketch.add_point(Vec2::new(100.0, 50.0));
+        let top = sketch.add_point(Vec2::new(0.0, 50.0));
+        let sides = [
+            sketch.add_segment(corner, right),
+            sketch.add_segment(right, far),
+            sketch.add_segment(far, top),
+            sketch.add_segment(top, corner),
+        ];
+        for pair in sides.windows(2) {
+            sketch.set_dimension(
+                DimensionTarget::Angle {
+                    first: pair[0],
+                    second: pair[1],
+                },
+                90.0,
+                false,
+            );
+        }
+        sketch.set_dimension(DimensionTarget::Length(sides[0]), 100.0, false);
+        sketch.set_dimension(DimensionTarget::Length(sides[1]), 50.0, false);
+        sketch.resolve(1.0);
+        assert!(sketch.is_fully_constrained(1.0));
+
+        sketch.set_dimension(DimensionTarget::Length(sides[1]), 80.0, false);
+        sketch.resolve(1.0);
+
+        // Nothing holds the rectangle upright but the implicit rule that it
+        // does not turn on its own, which is exactly what is being checked.
+        let base = sketch.point(right) - sketch.point(corner);
+        assert!(
+            base.y.atan2(base.x).to_degrees().abs() < 0.05,
+            "le rectangle s'est incliné : {base:?}"
+        );
+        assert!((sketch.point(far) - sketch.point(right)).length() - 80.0 < 0.05);
     }
 
     #[test]
@@ -1448,3 +1493,4 @@ mod tests {
         assert_eq!(max, Vec2::new(12.0, 7.0));
     }
 }
+

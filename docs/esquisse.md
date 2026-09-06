@@ -170,9 +170,9 @@ Les trois peuvent cohabiter sur un même trait — largeur et hauteur ensemble l
 fixent complètement, et le solveur les tient séparément : une largeur laisse le
 trait libre de coulisser à la verticale.
 
-Un trait déjà d'aplomb ne se voit pas proposer le choix : à moins de 5° d'un
-axe, sa largeur *est* sa longueur, et deux noms pour une seule mesure est un
-nom de trop.
+Seul un trait **posé d'aplomb sur un axe** — 0, 90, 180, 270° — ne se voit pas
+proposer le choix : sa largeur *est* sa longueur, et deux noms pour une seule
+mesure est un nom de trop. Tout le reste, si peu incliné soit-il, l'a.
 
 ### Une mesure, une seule cote
 
@@ -527,6 +527,21 @@ rejouant son historique.
 
 Si les valeurs se contredisent, le solveur s'arrête au bout de son quota
 d'itérations et le signale au lieu de s'arrêter en silence sur l'une d'elles.
+
+#### Le dessin ne dérive pas
+
+Un groupe que rien ne tient droit peut être tourné sans casser une seule cote,
+donc **le solveur est libre de le tourner** — et il le faisait : chaque
+correction est un pas de taille finie, et ce que chacun laisse derrière lui
+s'additionne. Un rectangle dont on changeait la hauteur ressortait de plusieurs
+degrés de travers, en se déclarant toujours entièrement contraint — et il
+l'était : il avait simplement tourné.
+
+Le sens de chaque groupe libre de tourner est donc **relevé avant de résoudre**
+(la direction de son premier trait) et **rétabli après**. Faire tourner en bloc
+un groupe que rien n'oriente laisse toutes ses cotes exactement comme elles
+étaient — c'est la définition même de « libre de tourner » — donc le dessin est
+redressé sans que rien de ce qu'il mesure ne change.
 
 ### Les angles
 

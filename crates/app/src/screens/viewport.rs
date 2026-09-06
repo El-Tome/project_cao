@@ -1403,9 +1403,12 @@ fn edit_dimension(context: &mut SketchContext<'_>, index: usize, target: Dimensi
 }
 
 /// How far off an axis a trait has to be before its width and its height are
-/// worth offering: a trait already level has a width equal to its length, and
-/// two names for one measurement is one too many.
-const SLANT_DEGREES: f32 = 5.0;
+/// worth offering.
+///
+/// Only a trait sitting square on an axis is left out: its width *is* its
+/// length, and two names for one measurement is one too many. Everything else,
+/// however slightly leaning, gets the choice.
+const SLANT_DEGREES: f32 = 0.5;
 
 /// Which of the three readings of a slanted trait the cursor is asking for.
 ///

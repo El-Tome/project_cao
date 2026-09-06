@@ -1,7 +1,7 @@
-use glam::Vec2;
+use glam::DVec2;
 
 use crate::constraints::DimensionTarget;
-use crate::sketch::{PointId, Sketch};
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// One equation the drawing has to satisfy, linearised around its current
 /// shape: how far off it is, and how each coordinate would change that.
@@ -10,26 +10,40 @@ use crate::sketch::{PointId, Sketch};
 /// lengths and angles, exact, and the solver runs them hundreds of times.
 pub(crate) struct Equation {
     /// Current value minus the wanted one. Zero when satisfied.
-    pub error: f32,
+    pub error: f64,
+    /// Whether that error is an angle rather than a length. An angle is judged
+    /// on its own: dividing radians by the size of the drawing let a big
+    /// drawing be declared settled with its corners a tenth of a degree out.
+    pub angular: bool,
     /// Change of `error` per unit change of each coordinate, laid out as
     /// x0, y0, x1, y1, …
-    pub gradient: Vec<f32>,
+    pub gradient: Vec<f64>,
 }
 
 impl Equation {
     fn new(variables: usize) -> Self {
         Self {
             error: 0.0,
+            angular: false,
             gradient: vec![0.0; variables],
         }
     }
 
-    fn add(&mut self, point: PointId, value: Vec2) {
+    /// How far off this equation is, in a unit that means the same thing for
+    /// every kind of dimension.
+    fn off_by(&self, scale: f64) -> f64 {
+        match self.angular {
+            true => self.error.abs(),
+            false => self.error.abs() / scale,
+        }
+    }
+
+    fn add(&mut self, point: PointId, value: DVec2) {
         self.gradient[point.0 * 2] += value.x;
         self.gradient[point.0 * 2 + 1] += value.y;
     }
 
-    fn norm_squared(&self) -> f32 {
+    fn norm_squared(&self) -> f64 {
         self.gradient.iter().map(|value| value * value).sum()
     }
 }
@@ -49,7 +63,7 @@ pub enum SolveOutcome {
 const MAX_ITERATIONS: usize = 400;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
-const TOLERANCE: f32 = 1e-5;
+const TOLERANCE: f64 = 1e-5;
 
 impl Sketch {
     /// Moves the drawing until every dimension holds at once.
@@ -62,23 +76,53 @@ impl Sketch {
     /// over and over, until nothing moves. It is deterministic — same drawing,
     /// same order, same number of steps — which is what lets a part be rebuilt
     /// identically by replaying its history.
-    pub fn solve(&mut self, millimeters_per_unit: f32) -> SolveOutcome {
-        let equations = self.equations(millimeters_per_unit);
-        if equations.is_empty() {
+    pub fn solve(&mut self, millimeters_per_unit: f64) -> SolveOutcome {
+        if self.equations(millimeters_per_unit).is_empty() {
             return SolveOutcome::Nothing;
         }
 
-        let pinned = self.pinned_points();
         let scale = self.characteristic_size();
         let held = self.orientations(millimeters_per_unit);
+        let blocks = self.untouched_blocks(millimeters_per_unit, scale);
+        let before: Vec<DVec2> = self.points().to_vec();
+
+        let mut outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
+        if !blocks.is_empty() {
+            // The steps keep the shapes to first order only; welding them back
+            // exactly leaves a little to settle, which one more pass takes.
+            self.weld(&before, &blocks);
+            outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
+
+            // Keeping the shapes is not always possible — the values may want
+            // the very thing that was being held. The drawing is then solved
+            // the plain way, bending where it must.
+            if self.worst_error(millimeters_per_unit, scale) >= TOLERANCE {
+                for (index, position) in before.iter().enumerate() {
+                    self.place_point(PointId(index), *position);
+                }
+                outcome = self.sweeps(millimeters_per_unit, scale, &[]);
+            }
+        }
+
+        self.hold_orientations(&held);
+        outcome
+    }
+
+    /// Corrects every equation a little, over and over, until nothing moves.
+    ///
+    /// Deterministic — same drawing, same order, same number of steps — which
+    /// is what lets a part be rebuilt identically by replaying its history.
+    fn sweeps(&mut self, millimeters_per_unit: f64, scale: f64, blocks: &[Block]) -> SolveOutcome {
+        let pinned = self.pinned_points();
+        let owner = ownership(blocks, self.points().len());
 
         for _ in 0..MAX_ITERATIONS {
-            let mut worst: f32 = 0.0;
+            let mut worst: f64 = 0.0;
             for index in 0..self.dimension_count() {
                 let Some(equation) = self.equation(index, millimeters_per_unit, &pinned) else {
                     continue;
                 };
-                worst = worst.max(equation.error.abs() / scale);
+                worst = worst.max(equation.off_by(scale));
 
                 let norm = equation.norm_squared();
                 if norm < 1e-12 {
@@ -86,33 +130,239 @@ impl Sketch {
                 }
                 // Move along the gradient just far enough to cancel the error.
                 let step = -equation.error / norm;
-                let moves: Vec<_> = pinned
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, pinned)| !**pinned)
-                    .map(|(point, _)| {
-                        (
-                            PointId(point),
-                            Vec2::new(
-                                equation.gradient[point * 2] * step,
-                                equation.gradient[point * 2 + 1] * step,
-                            ),
+                let mut moves: Vec<DVec2> = (0..self.points().len())
+                    .map(|point| {
+                        if pinned[point] {
+                            return DVec2::ZERO;
+                        }
+                        DVec2::new(
+                            equation.gradient[point * 2] * step,
+                            equation.gradient[point * 2 + 1] * step,
                         )
                     })
                     .collect();
-                for (point, delta) in moves {
-                    self.translate_point(point, delta);
+                self.rigidify(&mut moves, blocks, &owner);
+
+                for (point, delta) in moves.into_iter().enumerate() {
+                    self.translate_point(PointId(point), delta);
                 }
             }
 
             if worst < TOLERANCE {
-                self.hold_orientations(&held);
                 return SolveOutcome::Solved;
             }
         }
-
-        self.hold_orientations(&held);
         SolveOutcome::Residual
+    }
+
+    /// Takes a correction meant for loose points and makes it a movement of
+    /// whole blocks: each one is carried and turned, never bent.
+    ///
+    /// A block hinged on a point another block already answers for turns about
+    /// that point and follows it, which is what makes a shape swing round a
+    /// corner instead of stretching away from it. Doing this to every step,
+    /// rather than tidying up afterwards, is what makes the drawing settle: a
+    /// correction spread over the points and then straightened out again is a
+    /// correction mostly thrown away.
+    fn rigidify(&self, moves: &mut [DVec2], blocks: &[Block], owner: &[Option<usize>]) {
+        let pinned = self.pinned_points();
+        for (index, block) in blocks.iter().enumerate() {
+            let hinge = block
+                .points
+                .iter()
+                .find(|point| pinned[point.0] || owner[point.0] != Some(index))
+                .copied();
+            let (center, carried) = match hinge {
+                Some(point) => (self.point(point), moves[point.0]),
+                None => (
+                    block.points.iter().map(|point| self.point(*point)).sum::<DVec2>()
+                        / block.points.len() as f64,
+                    block.points.iter().map(|point| moves[point.0]).sum::<DVec2>()
+                        / block.points.len() as f64,
+                ),
+            };
+
+            let (mut torque, mut spread) = (0.0, 0.0);
+            for point in &block.points {
+                let arm = self.point(*point) - center;
+                torque += arm.perp_dot(moves[point.0] - carried);
+                spread += arm.length_squared();
+            }
+            let turn = if spread > 1e-12 { torque / spread } else { 0.0 };
+
+            for point in &block.points {
+                if pinned[point.0] || owner[point.0] != Some(index) {
+                    continue;
+                }
+                let arm = self.point(*point) - center;
+                moves[point.0] = carried + DVec2::new(-arm.y, arm.x) * turn;
+            }
+        }
+    }
+
+    /// The parts of the drawing the change has no reason to reshape.
+    ///
+    /// A value typed, or a point dragged, leaves a handful of equations no
+    /// longer true. Those say where the drawing is allowed to give: an angle
+    /// opens between its two traits, a length stretches its own trait. Every
+    /// other trait stays welded to its neighbours, and the shapes they make are
+    /// carried along and turned round, never bent.
+    ///
+    /// Without this, the correction spreads through the whole drawing and a
+    /// figure at the far end — held by nothing in particular, as most of a
+    /// drawing in progress is — quietly deforms.
+    fn untouched_blocks(&self, millimeters_per_unit: f64, scale: f64) -> Vec<Block> {
+        let pinned = self.pinned_points();
+        let mut hot: Vec<Vec<PointId>> = Vec::new();
+        let mut opened: Vec<(SegmentId, SegmentId)> = Vec::new();
+        let mut stretched: Vec<SegmentId> = Vec::new();
+
+        for index in 0..self.dimension_count() {
+            let Some(equation) = self.equation(index, millimeters_per_unit, &pinned) else {
+                continue;
+            };
+            if equation.off_by(scale) < TOLERANCE {
+                continue;
+            }
+            hot.push(
+                (0..self.points().len())
+                    .filter(|point| {
+                        equation.gradient[point * 2].abs() > 1e-12
+                            || equation.gradient[point * 2 + 1].abs() > 1e-12
+                    })
+                    .map(PointId)
+                    .collect(),
+            );
+            match self.dimensions()[index].target {
+                DimensionTarget::Angle { first, second } => opened.push((first, second)),
+                DimensionTarget::Length(segment) => stretched.push(segment),
+                _ => {}
+            }
+        }
+        if hot.is_empty() {
+            return Vec::new();
+        }
+
+        let segments: Vec<(SegmentId, crate::sketch::Segment)> = self.live_segments().collect();
+        let mut group: Vec<usize> = (0..segments.len()).collect();
+        fn root(group: &mut [usize], mut seat: usize) -> usize {
+            while group[seat] != seat {
+                group[seat] = group[group[seat]];
+                seat = group[seat];
+            }
+            seat
+        }
+        for (a, (first, one)) in segments.iter().enumerate() {
+            for (b, (second, other)) in segments.iter().enumerate().skip(a + 1) {
+                let joined = [one.start, one.end]
+                    .iter()
+                    .any(|point| *point == other.start || *point == other.end);
+                let cut = stretched.contains(first)
+                    || stretched.contains(second)
+                    || opened.contains(&(*first, *second))
+                    || opened.contains(&(*second, *first));
+                if joined && !cut {
+                    let (a, b) = (root(&mut group, a), root(&mut group, b));
+                    group[a] = b;
+                }
+            }
+        }
+
+        let mut blocks: Vec<Vec<PointId>> = Vec::new();
+        let mut owner: Vec<Option<usize>> = vec![None; segments.len()];
+        for (index, (_, segment)) in segments.iter().enumerate() {
+            let seat = root(&mut group, index);
+            let block = *owner[seat].get_or_insert_with(|| {
+                blocks.push(Vec::new());
+                blocks.len() - 1
+            });
+            for point in [segment.start, segment.end] {
+                if !blocks[block].contains(&point) {
+                    blocks[block].push(point);
+                }
+            }
+        }
+
+        let mut kept: Vec<Block> = blocks
+            .into_iter()
+            .filter(|points| points.len() > 1)
+            // A block holding every point of a change is the very thing that
+            // has to give: it keeps no shape.
+            .filter(|points| {
+                !hot.iter()
+                    .any(|touched| touched.iter().all(|point| points.contains(point)))
+            })
+            .map(|mut points| {
+                points.sort_by_key(|point| point.0);
+                Block {
+                    anchored: points.iter().any(|point| pinned[point.0]),
+                    points,
+                }
+            })
+            .collect();
+
+        // What cannot move is put back first, so the rest settles around it.
+        kept.sort_by_key(|block| (!block.anchored, block.points[0].0));
+        kept
+    }
+
+    /// Puts every untouched block back to the shape it had, in the place the
+    /// solve moved it to.
+    ///
+    /// The blocks are welded in order: what cannot move first, then each block
+    /// hinged on the point it shares with those already in place. A block is
+    /// only carried and turned, never bent. Returns how far the furthest point
+    /// had to be put back, which is how the loop knows it has settled.
+    fn weld(&mut self, before: &[DVec2], blocks: &[Block]) -> f64 {
+        let mut placed = vec![false; self.points().len()];
+        let pinned = self.pinned_points();
+        let mut worst = 0.0f64;
+
+        for Block { points, .. } in blocks {
+            let hinge = points
+                .iter()
+                .find(|point| placed[point.0] || pinned[point.0])
+                .copied();
+            let (was, is) = match hinge {
+                Some(point) => (before[point.0], self.point(point)),
+                None => (
+                    points.iter().map(|point| before[point.0]).sum::<DVec2>() / points.len() as f64,
+                    points.iter().map(|point| self.point(*point)).sum::<DVec2>()
+                        / points.len() as f64,
+                ),
+            };
+
+            // The turn that best lines the shape up with where the solve put
+            // it: nothing else about the block is allowed to change.
+            let (mut across, mut along) = (0.0, 0.0);
+            for point in points {
+                let then = before[point.0] - was;
+                let now = self.point(*point) - is;
+                across += then.perp_dot(now);
+                along += then.dot(now);
+            }
+            let turn = DVec2::from_angle(across.atan2(along));
+
+            for point in points {
+                if pinned[point.0] {
+                    placed[point.0] = true;
+                    continue;
+                }
+                let landing = is + turn.rotate(before[point.0] - was);
+                worst = worst.max(landing.distance(self.point(*point)));
+                self.place_point(*point, landing);
+                placed[point.0] = true;
+            }
+        }
+        worst
+    }
+
+    /// How far off the drawing is, as a fraction of its own size.
+    fn worst_error(&self, millimeters_per_unit: f64, scale: f64) -> f64 {
+        self.equations(millimeters_per_unit)
+            .iter()
+            .map(|equation| equation.off_by(scale))
+            .fold(0.0, f64::max)
     }
 
     /// The direction each free-to-turn group is sitting at, before anything
@@ -123,7 +373,7 @@ impl Sketch {
     /// finite, and what each of them leaves behind adds up. A rectangle whose
     /// height is changed came out several degrees off, still reporting itself
     /// fully constrained, because it was: it had simply turned.
-    fn orientations(&self, millimeters_per_unit: f32) -> Vec<(usize, PointId, PointId, f32)> {
+    fn orientations(&self, millimeters_per_unit: f64) -> Vec<(usize, PointId, PointId, f64)> {
         let equations = self.equations(millimeters_per_unit);
         let groups = self.point_groups();
 
@@ -160,7 +410,7 @@ impl Sketch {
     /// origin leaves every dimension of a group free to turn exactly as it
     /// found it — that is what "free to turn" means — so this straightens the
     /// drawing without touching what it measures.
-    fn hold_orientations(&mut self, held: &[(usize, PointId, PointId, f32)]) {
+    fn hold_orientations(&mut self, held: &[(usize, PointId, PointId, f64)]) {
         if held.is_empty() {
             return;
         }
@@ -176,7 +426,7 @@ impl Sketch {
             if drift.abs() < 1e-6 {
                 continue;
             }
-            let turn = Vec2::from_angle(-drift);
+            let turn = DVec2::from_angle(-drift);
             for index in 0..self.points().len() {
                 if pinned[index] || groups[index] != *owner {
                     continue;
@@ -207,7 +457,7 @@ impl Sketch {
     ///
     /// It carries no error: it never moves anything, it only accounts for the
     /// freedom that is already gone.
-    pub(crate) fn analysed_system(&self, millimeters_per_unit: f32) -> Vec<Equation> {
+    pub(crate) fn analysed_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
         let mut equations = self.equations(millimeters_per_unit);
         for (_, gauge) in self.rotation_gauges() {
             // A shape already measured against an axis says which way up it is;
@@ -265,7 +515,7 @@ impl Sketch {
                     &mut gauges.last_mut().expect("just pushed").1
                 }
             };
-            equation.add(PointId(index), Vec2::new(-point.y, point.x));
+            equation.add(PointId(index), DVec2::new(-point.y, point.x));
         }
 
         gauges.retain(|(_, equation)| equation.norm_squared() > 1e-12);
@@ -274,7 +524,7 @@ impl Sketch {
 
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
-    fn characteristic_size(&self) -> f32 {
+    fn characteristic_size(&self) -> f64 {
         self.bounds()
             .map(|(min, max)| (max - min).length())
             .filter(|size| *size > 1e-6)
@@ -287,7 +537,7 @@ impl Sketch {
 
     /// Every equation the drawing must satisfy, including the pins that hold it
     /// in place.
-    pub(crate) fn equations(&self, millimeters_per_unit: f32) -> Vec<Equation> {
+    pub(crate) fn equations(&self, millimeters_per_unit: f64) -> Vec<Equation> {
         let mut equations = Vec::new();
         let pinned = self.pinned_points();
 
@@ -304,7 +554,7 @@ impl Sketch {
     fn equation(
         &self,
         index: usize,
-        millimeters_per_unit: f32,
+        millimeters_per_unit: f64,
         pinned: &[bool],
     ) -> Option<Equation> {
         let dimension = *self.dimensions().get(index)?;
@@ -351,7 +601,7 @@ impl Sketch {
         Some(equation)
     }
 
-    fn length_equation(&self, a: PointId, b: PointId, target: f32) -> Option<Equation> {
+    fn length_equation(&self, a: PointId, b: PointId, target: f64) -> Option<Equation> {
         let span = self.point(b) - self.point(a);
         let length = span.length();
         if length < 1e-9 {
@@ -377,7 +627,7 @@ impl Sketch {
         from: PointId,
         to: PointId,
         axis: crate::constraints::SketchAxis,
-        target: f32,
+        target: f64,
     ) -> Option<Equation> {
         if from.0 >= self.points().len() || to.0 >= self.points().len() {
             return None;
@@ -404,7 +654,7 @@ impl Sketch {
         &self,
         first: crate::sketch::SegmentId,
         second: crate::sketch::SegmentId,
-        degrees: f32,
+        degrees: f64,
     ) -> Option<Equation> {
         let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
         let a = self.point(far_first) - self.point(pivot);
@@ -419,11 +669,12 @@ impl Sketch {
 
         // Turning a point about the pivot changes the angle by the component
         // perpendicular to its arm, scaled by how far out it sits.
-        let from_first = Vec2::new(-a.y, a.x) / length_a;
-        let from_second = Vec2::new(-b.y, b.x) / length_b;
+        let from_first = DVec2::new(-a.y, a.x) / length_a;
+        let from_second = DVec2::new(-b.y, b.x) / length_b;
 
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = signed.abs() - degrees.to_radians();
+        equation.angular = true;
         equation.add(far_second, from_second * sign);
         equation.add(far_first, -from_first * sign);
         equation.add(pivot, (from_first - from_second) * sign);
@@ -442,7 +693,7 @@ impl Sketch {
         &self,
         point: PointId,
         segment: crate::sketch::SegmentId,
-        target: f32,
+        target: f64,
     ) -> Option<Equation> {
         let segment = *self.segments().get(segment.0)?;
         let (a, b) = (self.point(segment.start), self.point(segment.end));
@@ -458,18 +709,18 @@ impl Sketch {
             return None;
         }
 
-        let d_cross_point = Vec2::new(-span.y, span.x);
-        let d_cross_start = Vec2::new(span.y - reach.y, reach.x - span.x);
-        let d_cross_end = Vec2::new(reach.y, -reach.x);
+        let d_cross_point = DVec2::new(-span.y, span.x);
+        let d_cross_start = DVec2::new(span.y - reach.y, reach.x - span.x);
+        let d_cross_end = DVec2::new(reach.y, -reach.x);
         let unit = span / length;
-        let gradient = |d_cross: Vec2, d_length: Vec2| {
+        let gradient = |d_cross: DVec2, d_length: DVec2| {
             (d_cross - d_length * distance) / length
         };
 
         let sign = if distance < 0.0 { -1.0 } else { 1.0 };
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = distance.abs() - target;
-        equation.add(point, gradient(d_cross_point, Vec2::ZERO) * sign);
+        equation.add(point, gradient(d_cross_point, DVec2::ZERO) * sign);
         equation.add(segment.start, gradient(d_cross_start, -unit) * sign);
         equation.add(segment.end, gradient(d_cross_end, unit) * sign);
         Some(equation)
@@ -484,7 +735,7 @@ impl Sketch {
         &self,
         segment: crate::sketch::SegmentId,
         axis: crate::constraints::SketchAxis,
-        degrees: f32,
+        degrees: f64,
     ) -> Option<Equation> {
         let segment = *self.segments().get(segment.0)?;
         let span = self.point(segment.end) - self.point(segment.start);
@@ -496,24 +747,45 @@ impl Sketch {
         let reference = axis.direction();
         let signed = reference.perp_dot(span).atan2(reference.dot(span));
         let sign = if signed < 0.0 { -1.0 } else { 1.0 };
-        let turn = Vec2::new(-span.y, span.x) / length;
+        let turn = DVec2::new(-span.y, span.x) / length;
 
         let mut equation = Equation::new(self.points().len() * 2);
         equation.error = signed.abs() - degrees.to_radians();
+        equation.angular = true;
         equation.add(segment.end, turn * sign);
         equation.add(segment.start, -turn * sign);
         Some(equation)
     }
 }
 
+/// Which block answers for each point: the first one holding it. A point two
+/// blocks share is the hinge between them, and only its own block moves it.
+fn ownership(blocks: &[Block], points: usize) -> Vec<Option<usize>> {
+    let mut owner = vec![None; points];
+    for (index, block) in blocks.iter().enumerate() {
+        for point in &block.points {
+            owner[point.0].get_or_insert(index);
+        }
+    }
+    owner
+}
+
+/// A part of a drawing that keeps its shape while the rest of it settles.
+struct Block {
+    points: Vec<PointId>,
+    /// Whether it holds a point that cannot move, in which case it is turned
+    /// about that point rather than carried along.
+    anchored: bool,
+}
+
 /// An angle brought back into [-pi, pi], so a drift either side of a turn reads
 /// as the small angle it is.
-fn wrap(mut angle: f32) -> f32 {
-    while angle > std::f32::consts::PI {
-        angle -= std::f32::consts::TAU;
+fn wrap(mut angle: f64) -> f64 {
+    while angle > std::f64::consts::PI {
+        angle -= std::f64::consts::TAU;
     }
-    while angle < -std::f32::consts::PI {
-        angle += std::f32::consts::TAU;
+    while angle < -std::f64::consts::PI {
+        angle += std::f64::consts::TAU;
     }
     angle
 }
@@ -524,7 +796,7 @@ fn wrap(mut angle: f32) -> f32 {
 /// implicit rule on top of it would take away a freedom twice and report a
 /// drawing as more settled than it is.
 fn turns_nothing(equation: &Equation, gauge: &Equation) -> bool {
-    let projection: f32 = equation
+    let projection: f64 = equation
         .gradient
         .iter()
         .zip(&gauge.gradient)
@@ -555,8 +827,8 @@ pub(crate) fn null_space(
     equations: &[Equation],
     pinned: &[bool],
     variables: usize,
-) -> Vec<Vec<f32>> {
-    let mut basis: Vec<Vec<f32>> = Vec::new();
+) -> Vec<Vec<f64>> {
+    let mut basis: Vec<Vec<f64>> = Vec::new();
     for equation in equations {
         if let Some(row) = reduce(&equation.gradient, &basis) {
             basis.push(row);
@@ -564,7 +836,7 @@ pub(crate) fn null_space(
     }
 
     // Anything left once the constraints have had their say is free movement.
-    let mut free: Vec<Vec<f32>> = Vec::new();
+    let mut free: Vec<Vec<f64>> = Vec::new();
     for index in 0..variables {
         // A pinned point cannot move, so it is not a direction to consider.
         if pinned.get(index / 2).copied().unwrap_or(false) {
@@ -588,7 +860,7 @@ pub(crate) fn is_dependent(equations: &[Equation], candidate: &Equation) -> bool
 }
 
 fn independent_rows(equations: &[Equation], candidate: Option<&Equation>) -> (usize, bool) {
-    let mut basis: Vec<Vec<f32>> = Vec::new();
+    let mut basis: Vec<Vec<f64>> = Vec::new();
 
     for equation in equations {
         if let Some(row) = reduce(&equation.gradient, &basis) {
@@ -605,7 +877,7 @@ fn independent_rows(equations: &[Equation], candidate: Option<&Equation>) -> (us
 
 /// Removes from `row` everything the basis already covers, returning what is
 /// left once normalised, or `None` when nothing is.
-fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
+fn reduce(row: &[f64], basis: &[Vec<f64>]) -> Option<Vec<f64>> {
     let mut residual = row.to_vec();
     let original = norm(&residual);
     if original < 1e-9 {
@@ -613,7 +885,7 @@ fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
     }
 
     for existing in basis {
-        let projection: f32 = residual
+        let projection: f64 = residual
             .iter()
             .zip(existing)
             .map(|(value, base)| value * base)
@@ -635,6 +907,6 @@ fn reduce(row: &[f32], basis: &[Vec<f32>]) -> Option<Vec<f32>> {
     Some(residual)
 }
 
-fn norm(row: &[f32]) -> f32 {
-    row.iter().map(|value| value * value).sum::<f32>().sqrt()
+fn norm(row: &[f64]) -> f64 {
+    row.iter().map(|value| value * value).sum::<f64>().sqrt()
 }

@@ -150,7 +150,7 @@ impl LengthUnit {
     }
 
     /// How many millimetres one of this unit is worth.
-    pub fn millimeters(self) -> f32 {
+    pub fn millimeters(self) -> f64 {
         match self {
             Self::Micrometer => 0.001,
             Self::Millimeter => 1.0,
@@ -162,7 +162,7 @@ impl LengthUnit {
 
     /// Formats a length given in world units (millimetres today), trimming the
     /// decimals that a round value does not need.
-    pub fn format(self, millimeters: f32) -> String {
+    pub fn format(self, millimeters: f64) -> String {
         let value = millimeters / self.millimeters();
         let text = if value >= 100.0 {
             format!("{value:.0}")
@@ -263,7 +263,7 @@ impl UnitDisplay {
     /// Picks the unit that keeps a length short: no "50000 mm" when "50 m"
     /// says the same thing. Centimetres are skipped, being unusual in
     /// mechanical design.
-    pub fn unit_for(self, millimeters: f32) -> LengthUnit {
+    pub fn unit_for(self, millimeters: f64) -> LengthUnit {
         match self {
             Self::Fixed(unit) => unit,
             Self::Auto => {
@@ -281,7 +281,7 @@ impl UnitDisplay {
         }
     }
 
-    pub fn format(self, millimeters: f32) -> String {
+    pub fn format(self, millimeters: f64) -> String {
         self.unit_for(millimeters).format(millimeters)
     }
 }

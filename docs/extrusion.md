@@ -144,9 +144,9 @@ et pas toujours.
 
 La cause était dans la partition de l'espace. Elle trie les faces par le plan
 sur lequel elles se posent, et le premier plan vient d'une face prise au
-hasard : cette face-là est sur ce plan par définition. Sauf qu'en `f32`, à
-trente unités de l'origine, le produit scalaire porte déjà quelques millionièmes
-d'erreur — plus que la tolérance qui servait alors. Un triangle ressortait donc
+hasard : cette face-là est sur ce plan par définition. Sauf qu'en `f32` — ce
+qu'utilisait alors le noyau —, à trente unités de l'origine, le produit scalaire
+porte déjà quelques millionièmes d'erreur, plus que la tolérance qui servait. Un triangle ressortait donc
 **des deux côtés de son propre plan**, était coupé en deux, et chaque moitié
 recommençait : un découpage sans fin, qui remplissait la pile et arrêtait le
 programme.
@@ -173,6 +173,7 @@ Le cas exact, avec ses vraies mesures, est un test.
 - Une extrusion n'est pas modifiable après coup : il faut revenir en arrière
   dans l'historique et la refaire.
 - Le maillage n'est pas exporté (pas de STL/STEP).
-- Les booléens travaillent en `f32` : deux faces exactement coplanaires peuvent
-  laisser des éclats de surface. Rien de visible aux tailles courantes, mais
-  c'est la première chose à revoir si un volume devient bizarre.
+- Deux faces exactement coplanaires peuvent encore laisser des éclats de
+  surface. Le passage du noyau en `f64` a ramené la tolérance de coplanarité
+  d'un millionième à un milliardième, donc il en reste mille fois moins, mais
+  le cas n'est pas traité pour lui-même.

@@ -1,4 +1,4 @@
-use glam::Vec2;
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::sketch::{CircleId, PointId, SegmentId};
@@ -16,10 +16,10 @@ pub enum SketchAxis {
 }
 
 impl SketchAxis {
-    pub fn direction(self) -> Vec2 {
+    pub fn direction(self) -> DVec2 {
         match self {
-            Self::U => Vec2::X,
-            Self::V => Vec2::Y,
+            Self::U => DVec2::X,
+            Self::V => DVec2::Y,
         }
     }
 
@@ -96,7 +96,7 @@ impl DimensionTarget {
 pub struct Dimension {
     pub target: DimensionTarget,
     /// Millimetres for a length or a radius, degrees for an angle.
-    pub value: f32,
+    pub value: f64,
     pub driven: bool,
     /// Where the annotation sits, in sketch units, measured from what it
     /// annotates. `None` while it has never been placed, in which case it falls
@@ -106,7 +106,7 @@ pub struct Dimension {
     /// expected to stay there: a placement in pixels slides back over the
     /// drawing as soon as one zooms out.
     #[serde(default)]
-    pub offset: Option<Vec2>,
+    pub offset: Option<DVec2>,
 }
 
 impl Dimension {

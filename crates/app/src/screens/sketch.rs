@@ -1,5 +1,5 @@
 use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
-use glam::Vec2;
+use glam::DVec2;
 
 /// What the selection tool is holding, and what pressing Suppr would delete.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -16,7 +16,7 @@ pub enum Selection {
 #[derive(Default)]
 pub struct LiveField {
     pub text: String,
-    pub locked: Option<f32>,
+    pub locked: Option<f64>,
 }
 
 /// The two values shown as a shape is drawn, editable on the spot: length and
@@ -50,10 +50,10 @@ impl LiveInput {
 
     /// Reads a field the user has just changed. An emptied field goes back to
     /// being a readout.
-    pub fn read(text: &str) -> Option<f32> {
+    pub fn read(text: &str) -> Option<f64> {
         text.trim()
             .replace(',', ".")
-            .parse::<f32>()
+            .parse::<f64>()
             .ok()
             .filter(|value| value.is_finite())
     }
@@ -143,8 +143,8 @@ pub struct SketchEditor {
     /// Annotation being dragged out of the way.
     pub dragged_dimension: Option<DimensionTarget>,
     /// Where the drag began, to measure how far it has travelled.
-    pub drag_origin: Option<Vec2>,
-    pub drag_position: Option<Vec2>,
+    pub drag_origin: Option<DVec2>,
+    pub drag_position: Option<DVec2>,
     /// Axis picked first by the dimension tool, waiting for a segment.
     pub first_axis: Option<SketchAxis>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
@@ -164,14 +164,14 @@ pub struct SketchEditor {
     pub chain_previous: Option<SegmentId>,
     /// The corner where a right angle is about to be made, so it can be shown
     /// before it is committed to.
-    pub square_corner: Option<Vec2>,
+    pub square_corner: Option<DVec2>,
     /// Where the line being drawn would actually end, once what the user typed
     /// and the right-angle snap have had their say. The preview shows this and
     /// not the raw cursor, so what is drawn is what a click would record.
-    pub aimed: Option<Vec2>,
+    pub aimed: Option<DVec2>,
     pub live: LiveInput,
     /// First corner of a rectangle, or the centre of a circle.
-    pub pending_start: Option<Vec2>,
+    pub pending_start: Option<DVec2>,
     /// Text being typed into the dimension field.
     pub dimension_input: String,
     /// Set when a dimension has just been picked, so its field takes the
@@ -179,7 +179,7 @@ pub struct SketchEditor {
     /// button of the toolbar first.
     pub focus_dimension_field: bool,
     /// Where the next point would land, snapped. Drives the preview line.
-    pub cursor: Option<Vec2>,
+    pub cursor: Option<DVec2>,
     pub message: Option<String>,
 }
 
@@ -213,7 +213,7 @@ impl PlaneChoice {
 /// here until the second click, which turns the pair into one segment.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ChainAnchor {
-    Pending(Vec2),
+    Pending(DVec2),
     Point(PointId),
 }
 
@@ -276,7 +276,7 @@ impl SketchEditor {
         *self = Self::default();
     }
 
-    pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f32>) {
+    pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f64>) {
         self.focus_dimension_field = target.is_some() && target != self.selected;
         self.selected = target;
         self.dimension_input = match measured {

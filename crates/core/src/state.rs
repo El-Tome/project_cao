@@ -1,6 +1,6 @@
 use cao_sketch::{DimensionTarget, LengthOutcome, Sketch};
 use cao_solid::Mesh;
-use glam::Vec2;
+use glam::DVec2;
 
 use crate::history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 
@@ -9,7 +9,7 @@ use crate::history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis
 pub enum DimensionOutcome {
     /// The part had no dimension yet, so this one set its scale instead of
     /// moving anything: the drawing keeps its shape and gains a real size.
-    ScaleDefined { millimeters_per_unit: f32 },
+    ScaleDefined { millimeters_per_unit: f64 },
     /// The scale was already fixed, so the geometry moved to match.
     Geometry(LengthOutcome),
     /// The shape was already fully determined, so this value drives nothing.
@@ -27,7 +27,7 @@ pub enum DimensionOutcome {
 pub struct PartState {
     /// Millimetres one world unit is worth, undefined until the first
     /// dimension is typed.
-    pub millimeters_per_unit: Option<f32>,
+    pub millimeters_per_unit: Option<f64>,
     pub sketches: Vec<Sketch>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
@@ -44,7 +44,7 @@ impl PartState {
         state
     }
 
-    pub fn scale(&self) -> f32 {
+    pub fn scale(&self) -> f64 {
         self.millimeters_per_unit.unwrap_or(1.0)
     }
 
@@ -52,7 +52,7 @@ impl PartState {
         self.millimeters_per_unit.is_some()
     }
 
-    pub fn to_millimeters(&self, units: f32) -> f32 {
+    pub fn to_millimeters(&self, units: f64) -> f64 {
         units * self.scale()
     }
 
@@ -88,8 +88,8 @@ impl PartState {
                 let first = resolve(sketch, corner);
                 let third = resolve(sketch, opposite);
                 let (a, c) = (sketch.point(first), sketch.point(third));
-                let second = sketch.add_point(Vec2::new(c.x, a.y));
-                let fourth = sketch.add_point(Vec2::new(a.x, c.y));
+                let second = sketch.add_point(DVec2::new(c.x, a.y));
+                let fourth = sketch.add_point(DVec2::new(a.x, c.y));
 
                 let corners = [first, second, third, fourth];
                 for index in 0..4 {
@@ -196,9 +196,9 @@ impl PartState {
     fn revolve(
         &mut self,
         index: usize,
-        picks: &[Vec2],
+        picks: &[DVec2],
         axis: RevolutionAxis,
-        degrees: f32,
+        degrees: f64,
         mode: ExtrusionMode,
     ) {
         let Some(sketch) = self.sketches.get(index) else {
@@ -255,7 +255,7 @@ impl PartState {
     /// Every area is turned into matter first and the lot is applied in one go:
     /// two areas extruded together must behave as one shape, not as two that
     /// happen to be cut one after the other.
-    fn extrude(&mut self, index: usize, picks: &[Vec2], distance: f32, mode: ExtrusionMode) {
+    fn extrude(&mut self, index: usize, picks: &[DVec2], distance: f64, mode: ExtrusionMode) {
         let scale = self.scale();
         let Some(sketch) = self.sketches.get(index) else {
             return;
@@ -301,7 +301,7 @@ impl PartState {
         &mut self,
         index: usize,
         target: DimensionTarget,
-        value: f32,
+        value: f64,
     ) -> Option<DimensionOutcome> {
         if value <= 0.0 && !matches!(target, DimensionTarget::AxisAngle { .. }) {
             return None;
@@ -346,7 +346,7 @@ impl PartState {
 
     /// The length a dimension refers to, in world units, or `None` for an angle
     /// which has no length at all.
-    fn length_in_units(&self, index: usize, target: DimensionTarget) -> Option<f32> {
+    fn length_in_units(&self, index: usize, target: DimensionTarget) -> Option<f64> {
         let sketch = self.sketches.get(index)?;
         let units = match target {
             DimensionTarget::Length(segment) => sketch.segment_length(segment),
@@ -366,7 +366,7 @@ impl PartState {
     /// What the geometry actually measures right now: millimetres for a length
     /// or a radius, degrees for an angle. This is what a readout shows, so it
     /// stays true however the drawing moves afterwards.
-    pub fn measured(&self, index: usize, target: DimensionTarget) -> Option<f32> {
+    pub fn measured(&self, index: usize, target: DimensionTarget) -> Option<f64> {
         let sketch = self.sketches.get(index)?;
         match target {
             DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len())
@@ -389,9 +389,9 @@ impl PartState {
 }
 
 /// Where a revolution's axis lies, in the sketch's own coordinates.
-fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(Vec2, Vec2)> {
+fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(DVec2, DVec2)> {
     match axis {
-        RevolutionAxis::Sketch(axis) => Some((Vec2::ZERO, axis.direction())),
+        RevolutionAxis::Sketch(axis) => Some((DVec2::ZERO, axis.direction())),
         RevolutionAxis::Segment(segment) => {
             if segment.0 >= sketch.segments().len() {
                 return None;
@@ -412,7 +412,7 @@ fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
 #[cfg(test)]
 mod tests {
     use cao_sketch::{SegmentId, WorkPlane};
-    use glam::Vec2;
+    use glam::DVec2;
 
     use super::*;
 
@@ -423,14 +423,14 @@ mod tests {
         });
         history.push(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::ZERO),
-            end: PointRef::New(Vec2::new(2.0, 0.0)),
+            start: PointRef::New(DVec2::ZERO),
+            end: PointRef::New(DVec2::new(2.0, 0.0)),
         });
         history.push(Operation::AddSegment {
             sketch: 0,
             // Point 0 is the sketch origin, so the corner just drawn is 2.
             start: PointRef::Existing(cao_sketch::PointId(2)),
-            end: PointRef::New(Vec2::new(2.0, 1.0)),
+            end: PointRef::New(DVec2::new(2.0, 1.0)),
         });
         history
     }
@@ -546,8 +546,8 @@ mod tests {
         assert_eq!(
             state.apply(&Operation::AddSegment {
                 sketch: 3,
-                start: PointRef::New(Vec2::ZERO),
-                end: PointRef::New(Vec2::X),
+                start: PointRef::New(DVec2::ZERO),
+                end: PointRef::New(DVec2::X),
             }),
             None
         );
@@ -558,7 +558,7 @@ mod tests {
 #[cfg(test)]
 mod extra_tests {
     use cao_sketch::{CircleId, DimensionTarget, SegmentId, WorkPlane};
-    use glam::Vec2;
+    use glam::DVec2;
 
     use super::*;
 
@@ -570,8 +570,8 @@ mod extra_tests {
         });
         state.apply(&Operation::AddRectangle {
             sketch: 0,
-            corner: PointRef::New(Vec2::ZERO),
-            opposite: PointRef::New(Vec2::new(40.0, 20.0)),
+            corner: PointRef::New(DVec2::ZERO),
+            opposite: PointRef::New(DVec2::new(40.0, 20.0)),
         });
 
         let sketch = &state.sketches[0];
@@ -590,7 +590,7 @@ mod extra_tests {
         });
         state.apply(&Operation::AddCircle {
             sketch: 0,
-            center: PointRef::New(Vec2::ZERO),
+            center: PointRef::New(DVec2::ZERO),
             radius: 4.0,
         });
 
@@ -619,13 +619,13 @@ mod extra_tests {
         });
         state.apply(&Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::ZERO),
-            end: PointRef::New(Vec2::new(10.0, 0.0)),
+            start: PointRef::New(DVec2::ZERO),
+            end: PointRef::New(DVec2::new(10.0, 0.0)),
         });
         state.apply(&Operation::AddSegment {
             sketch: 0,
             start: PointRef::Existing(cao_sketch::PointId(1)),
-            end: PointRef::New(Vec2::new(0.0, 10.0)),
+            end: PointRef::New(DVec2::new(0.0, 10.0)),
         });
 
         let outcome = state.apply(&Operation::SetDimension {
@@ -659,7 +659,7 @@ mod extra_tests {
         state.apply(&Operation::AddRectangle {
             sketch: 0,
             corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
-            opposite: PointRef::New(Vec2::new(70.0, 30.0)),
+            opposite: PointRef::New(DVec2::new(70.0, 30.0)),
         });
 
         let sketch = &state.sketches[0];
@@ -726,7 +726,7 @@ mod extra_tests {
         state.apply(&Operation::AddRectangle {
             sketch: 0,
             corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
-            opposite: PointRef::New(Vec2::new(70.0, 30.0)),
+            opposite: PointRef::New(DVec2::new(70.0, 30.0)),
         });
         // Two sides, the three right angles a rectangle needs, and the
         // direction of one side against an axis.
@@ -796,7 +796,7 @@ mod extra_tests {
         state.apply(&Operation::AddSegment {
             sketch: 0,
             start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
-            end: PointRef::New(Vec2::new(10.0, 0.0)),
+            end: PointRef::New(DVec2::new(10.0, 0.0)),
         });
         state.apply(&Operation::SetDimension {
             sketch: 0,
@@ -845,19 +845,19 @@ mod extra_tests {
 #[cfg(test)]
 mod extrusion_tests {
     use cao_sketch::WorkPlane;
-    use glam::{Vec2, Vec3};
+    use glam::{DVec2, DVec3};
 
     use super::*;
     use crate::history::ExtrusionMode;
 
-    fn volume(mesh: &Mesh) -> f32 {
+    fn volume(mesh: &Mesh) -> f64 {
         mesh.triangles()
             .iter()
             .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
             .sum()
     }
 
-    fn rectangle(history: &mut History, min: Vec2, max: Vec2) {
+    fn rectangle(history: &mut History, min: DVec2, max: DVec2) {
         history.push(Operation::AddRectangle {
             sketch: 0,
             corner: PointRef::New(min),
@@ -876,10 +876,10 @@ mod extrusion_tests {
     #[test]
     fn an_extrusion_turns_an_area_into_matter() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 20.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 20.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(5.0, 10.0)],
+            picks: vec![DVec2::new(5.0, 10.0)],
             distance: 4.0,
             mode: ExtrusionMode::Add,
         });
@@ -895,11 +895,11 @@ mod extrusion_tests {
     #[test]
     fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
-        rectangle(&mut history, Vec2::new(40.0, 40.0), Vec2::new(50.0, 60.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
+        rectangle(&mut history, DVec2::new(40.0, 40.0), DVec2::new(50.0, 60.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(45.0, 50.0)],
+            picks: vec![DVec2::new(45.0, 50.0)],
             distance: 2.0,
             mode: ExtrusionMode::Add,
         });
@@ -917,7 +917,7 @@ mod extrusion_tests {
         let mut history = sketch_history();
         history.push(Operation::AddCircle {
             sketch: 0,
-            center: PointRef::New(Vec2::ZERO),
+            center: PointRef::New(DVec2::ZERO),
             radius: 10.0,
         });
         history.push(Operation::AddCircle {
@@ -927,13 +927,13 @@ mod extrusion_tests {
         });
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(8.0, 0.0)],
+            picks: vec![DVec2::new(8.0, 0.0)],
             distance: 5.0,
             mode: ExtrusionMode::Add,
         });
 
         let state = PartState::rebuild(&history);
-        let expected = std::f32::consts::PI * (100.0 - 36.0) * 5.0;
+        let expected = std::f64::consts::PI * (100.0 - 36.0) * 5.0;
         let made = volume(&state.body);
         assert!((made - expected).abs() / expected < 0.03, "{made} / {expected}");
     }
@@ -942,10 +942,10 @@ mod extrusion_tests {
     #[test]
     fn a_cut_takes_matter_away() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(5.0, 5.0)],
+            picks: vec![DVec2::new(5.0, 5.0)],
             distance: 10.0,
             mode: ExtrusionMode::Add,
         });
@@ -955,12 +955,12 @@ mod extrusion_tests {
         });
         history.push(Operation::AddRectangle {
             sketch: 1,
-            corner: PointRef::New(Vec2::new(2.0, 2.0)),
-            opposite: PointRef::New(Vec2::new(4.0, 4.0)),
+            corner: PointRef::New(DVec2::new(2.0, 2.0)),
+            opposite: PointRef::New(DVec2::new(4.0, 4.0)),
         });
         history.push(Operation::Extrude {
             sketch: 1,
-            picks: vec![Vec2::new(3.0, 3.0)],
+            picks: vec![DVec2::new(3.0, 3.0)],
             distance: 4.0,
             mode: ExtrusionMode::Cut,
         });
@@ -975,11 +975,11 @@ mod extrusion_tests {
     #[test]
     fn a_shape_inside_another_is_already_hollow() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
-        rectangle(&mut history, Vec2::new(2.0, 2.0), Vec2::new(4.0, 4.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
+        rectangle(&mut history, DVec2::new(2.0, 2.0), DVec2::new(4.0, 4.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(1.0, 1.0)],
+            picks: vec![DVec2::new(1.0, 1.0)],
             distance: 10.0,
             mode: ExtrusionMode::Add,
         });
@@ -992,17 +992,17 @@ mod extrusion_tests {
     #[test]
     fn a_revolution_sweeps_an_area_around_an_axis() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        rectangle(&mut history, DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         history.push(Operation::Revolve {
             sketch: 0,
-            picks: vec![Vec2::new(4.0, 1.0)],
+            picks: vec![DVec2::new(4.0, 1.0)],
             axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
             angle: 360.0,
             mode: ExtrusionMode::Add,
         });
 
         let made = volume(&PartState::rebuild(&history).body);
-        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        let expected = std::f64::consts::TAU * 4.0 * 4.0;
         assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
     }
 
@@ -1012,20 +1012,20 @@ mod extrusion_tests {
         let mut history = sketch_history();
         history.push(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::new(0.0, -10.0)),
-            end: PointRef::New(Vec2::new(0.0, 10.0)),
+            start: PointRef::New(DVec2::new(0.0, -10.0)),
+            end: PointRef::New(DVec2::new(0.0, 10.0)),
         });
-        rectangle(&mut history, Vec2::new(3.0, 0.0), Vec2::new(5.0, 2.0));
+        rectangle(&mut history, DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         history.push(Operation::Revolve {
             sketch: 0,
-            picks: vec![Vec2::new(4.0, 1.0)],
+            picks: vec![DVec2::new(4.0, 1.0)],
             axis: crate::history::RevolutionAxis::Segment(cao_sketch::SegmentId(0)),
             angle: 360.0,
             mode: ExtrusionMode::Add,
         });
 
         let made = volume(&PartState::rebuild(&history).body);
-        let expected = std::f32::consts::TAU * 4.0 * 4.0;
+        let expected = std::f64::consts::TAU * 4.0 * 4.0;
         assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
     }
 
@@ -1034,10 +1034,10 @@ mod extrusion_tests {
     #[test]
     fn a_revolution_across_its_axis_makes_nothing() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::new(-4.0, 0.0), Vec2::new(5.0, 2.0));
+        rectangle(&mut history, DVec2::new(-4.0, 0.0), DVec2::new(5.0, 2.0));
         history.push(Operation::Revolve {
             sketch: 0,
-            picks: vec![Vec2::new(1.0, 1.0)],
+            picks: vec![DVec2::new(1.0, 1.0)],
             axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
             angle: 360.0,
             mode: ExtrusionMode::Add,
@@ -1051,14 +1051,14 @@ mod extrusion_tests {
     /// face du dessus et creusée dedans.
     ///
     /// À cette distance de l'origine, un triangle sortait de son propre plan en
-    /// `f32`, et la partition de l'espace le recoupait sans fin.
+    /// `f64`, et la partition de l'espace le recoupait sans fin.
     #[test]
     fn cutting_into_a_revolved_part_from_its_own_face() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::new(-30.0, -7.5), Vec2::new(0.0, -52.5));
+        rectangle(&mut history, DVec2::new(-30.0, -7.5), DVec2::new(0.0, -52.5));
         history.push(Operation::Revolve {
             sketch: 0,
-            picks: vec![Vec2::new(-14.8, -26.5)],
+            picks: vec![DVec2::new(-14.8, -26.5)],
             axis: crate::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
             angle: 360.0,
             mode: ExtrusionMode::Add,
@@ -1067,19 +1067,19 @@ mod extrusion_tests {
         // Le plan tel que le donne le clic sur la face : sa normale et ses axes
         // ne sont pas exactement alignés, ce qui fait partie du cas.
         let face = WorkPlane {
-            origin: Vec3::new(9.729663e-07, -7.5000005, -1.2972885e-06),
-            u: Vec3::new(-1.0, -1.2972883e-07, 0.0),
-            v: Vec3::new(2.2439427e-14, -1.7297178e-07, 1.0),
+            origin: DVec3::new(9.729663e-07, -7.5000005, -1.2972885e-06),
+            u: DVec3::new(-1.0, -1.2972883e-07, 0.0),
+            v: DVec3::new(2.2439427e-14, -1.7297178e-07, 1.0),
         };
         history.push(Operation::CreateSketch { plane: face });
         history.push(Operation::AddRectangle {
             sketch: 1,
-            corner: PointRef::New(Vec2::new(-25.0, 32.5)),
-            opposite: PointRef::New(Vec2::new(12.5, -7.5)),
+            corner: PointRef::New(DVec2::new(-25.0, 32.5)),
+            opposite: PointRef::New(DVec2::new(12.5, -7.5)),
         });
         history.push(Operation::Extrude {
             sketch: 1,
-            picks: vec![Vec2::new(-6.0, 12.0)],
+            picks: vec![DVec2::new(-6.0, 12.0)],
             distance: -10.0,
             mode: ExtrusionMode::Cut,
         });
@@ -1096,13 +1096,13 @@ mod extrusion_tests {
         let mut history = sketch_history();
         history.push(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::new(-10.0, 0.0)),
-            end: PointRef::New(Vec2::new(0.0, 10.0)),
+            start: PointRef::New(DVec2::new(-10.0, 0.0)),
+            end: PointRef::New(DVec2::new(0.0, 10.0)),
         });
         history.push(Operation::AddSegment {
             sketch: 0,
-            start: PointRef::New(Vec2::new(0.0, 10.0)),
-            end: PointRef::New(Vec2::new(10.0, 0.0)),
+            start: PointRef::New(DVec2::new(0.0, 10.0)),
+            end: PointRef::New(DVec2::new(10.0, 0.0)),
         });
 
         let before = PartState::rebuild(&history);
@@ -1128,10 +1128,10 @@ mod extrusion_tests {
     #[test]
     fn a_deletion_replays_like_any_other_step() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(10.0, 10.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(5.0, 5.0)],
+            picks: vec![DVec2::new(5.0, 5.0)],
             distance: 4.0,
             mode: ExtrusionMode::Add,
         });
@@ -1159,10 +1159,10 @@ mod extrusion_tests {
     #[test]
     fn an_extrusion_does_not_wait_for_a_settled_sketch() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::new(3.0, 3.0), Vec2::new(9.0, 9.0));
+        rectangle(&mut history, DVec2::new(3.0, 3.0), DVec2::new(9.0, 9.0));
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(5.0, 5.0)],
+            picks: vec![DVec2::new(5.0, 5.0)],
             distance: 1.0,
             mode: ExtrusionMode::Add,
         });
@@ -1176,7 +1176,7 @@ mod extrusion_tests {
     #[test]
     fn an_extrusion_is_given_in_millimetres() {
         let mut history = sketch_history();
-        rectangle(&mut history, Vec2::ZERO, Vec2::new(1.0, 1.0));
+        rectangle(&mut history, DVec2::ZERO, DVec2::new(1.0, 1.0));
         history.push(Operation::SetDimension {
             sketch: 0,
             target: cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(0)),
@@ -1185,7 +1185,7 @@ mod extrusion_tests {
         });
         history.push(Operation::Extrude {
             sketch: 0,
-            picks: vec![Vec2::new(0.5, 0.5)],
+            picks: vec![DVec2::new(0.5, 0.5)],
             distance: 25.0,
             mode: ExtrusionMode::Add,
         });
@@ -1194,6 +1194,6 @@ mod extrusion_tests {
         let (min, max) = state.body.bounds().expect("un volume");
         let height_millimetres = (max.z - min.z) * state.scale();
         assert!((height_millimetres - 25.0).abs() < 1e-3, "{height_millimetres}");
-        let _ = Vec3::ZERO;
+        let _ = DVec3::ZERO;
     }
 }

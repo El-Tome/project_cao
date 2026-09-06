@@ -1,5 +1,5 @@
 use cao_sketch::{DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
-use glam::Vec2;
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 /// Which point an operation refers to.
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PointRef {
     Existing(PointId),
-    New(Vec2),
+    New(DVec2),
 }
 
 /// What an extrusion does to the part.
@@ -67,7 +67,7 @@ pub enum Operation {
     },
     AddPoint {
         sketch: usize,
-        position: Vec2,
+        position: DVec2,
     },
     AddSegment {
         sketch: usize,
@@ -84,31 +84,31 @@ pub enum Operation {
     AddCircle {
         sketch: usize,
         center: PointRef,
-        radius: f32,
+        radius: f64,
     },
     /// Dragging a point to a new place.
     MovePoint {
         sketch: usize,
         point: PointId,
-        position: Vec2,
+        position: DVec2,
     },
     /// Dragging an annotation away from where it sits by default.
     MoveDimension {
         sketch: usize,
         target: DimensionTarget,
-        offset: Vec2,
+        offset: DVec2,
     },
     SetDimension {
         sketch: usize,
         target: DimensionTarget,
         /// Millimetres for a length or radius, degrees for an angle.
-        value: f32,
+        value: f64,
         /// Where the annotation goes, in sketch units. Carried by the same
         /// step rather than a `MoveDimension` of its own: a dimension put down
         /// somewhere is one action, and reading "Cote 60 mm" then "Cote
         /// déplacée" for every single click says nothing extra.
         #[serde(default)]
-        placement: Option<Vec2>,
+        placement: Option<DVec2>,
     },
     /// Turns closed areas of a sketch into matter, or takes matter away.
     Extrude {
@@ -119,9 +119,9 @@ pub enum Operation {
         /// The areas are named by a point rather than by their rank: a rank
         /// would move the moment another shape is drawn, and the extrusion
         /// would silently start applying to a different part of the drawing.
-        picks: Vec<Vec2>,
+        picks: Vec<DVec2>,
         /// Millimetres. Negative goes the other way along the plane.
-        distance: f32,
+        distance: f64,
         mode: ExtrusionMode,
     },
     /// Makes two points one, once they have been laid on top of each other.
@@ -147,17 +147,17 @@ pub enum Operation {
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
         sketch: usize,
-        picks: Vec<Vec2>,
+        picks: Vec<DVec2>,
         axis: RevolutionAxis,
         /// Degrees. Negative turns the other way.
-        angle: f32,
+        angle: f64,
         mode: ExtrusionMode,
     },
 }
 
 /// A value as it reads in the history: a dimension taken from the drawing
 /// itself is a full float, and "Cote 60.878967 mm" is unreadable.
-fn short(value: f32) -> String {
+fn short(value: f64) -> String {
     let text = format!("{value:.2}");
     match text.contains('.') {
         true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
@@ -414,8 +414,8 @@ mod tests {
     fn segment_op(sketch: usize) -> Operation {
         Operation::AddSegment {
             sketch,
-            start: PointRef::New(Vec2::ZERO),
-            end: PointRef::New(Vec2::X),
+            start: PointRef::New(DVec2::ZERO),
+            end: PointRef::New(DVec2::X),
         }
     }
 

@@ -47,8 +47,32 @@ pub enum DimensionTarget {
         segment: SegmentId,
         axis: SketchAxis,
     },
+    /// Distance from a point to the line a segment lies on, taken square to
+    /// that line — as if a perpendicular segment ran from the point down to it.
+    PointToSegment {
+        point: PointId,
+        segment: SegmentId,
+    },
     /// Radius of a circle.
     Radius(CircleId),
+}
+
+impl DimensionTarget {
+    /// The same target with its pair put in a fixed order.
+    ///
+    /// Clicking two segments one way round and the other way round means the
+    /// same angle; without this they are two different targets, and the drawing
+    /// ends up carrying the same dimension twice.
+    pub fn normalised(self) -> Self {
+        match self {
+            Self::Distance { from, to } if to.0 < from.0 => Self::Distance { from: to, to: from },
+            Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
+                first: second,
+                second: first,
+            },
+            other => other,
+        }
+    }
 }
 
 /// A value the user has fixed.
@@ -62,11 +86,15 @@ pub struct Dimension {
     /// Millimetres for a length or a radius, degrees for an angle.
     pub value: f32,
     pub driven: bool,
-    /// Where the annotation sits relative to where it would land on its own,
-    /// in sketch units. Dragged by hand when the default place collides with
-    /// the drawing.
+    /// Where the annotation sits, in sketch units, measured from what it
+    /// annotates. `None` while it has never been placed, in which case it falls
+    /// back to a distance in pixels.
+    ///
+    /// In sketch units rather than pixels because a dimension put somewhere is
+    /// expected to stay there: a placement in pixels slides back over the
+    /// drawing as soon as one zooms out.
     #[serde(default)]
-    pub offset: Vec2,
+    pub offset: Option<Vec2>,
 }
 
 impl Dimension {
@@ -75,6 +103,11 @@ impl Dimension {
             self.target,
             DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
         )
+    }
+
+    /// Whether this dimension has been put somewhere by hand.
+    pub fn is_placed(&self) -> bool {
+        self.offset.is_some()
     }
 
     /// How the value reads on screen.

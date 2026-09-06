@@ -25,6 +25,11 @@ Un test vérifie explicitement qu'appliquer une opération en direct donne le m�
 résultat que la rejouer : sans quoi un dessin pourrait changer d'aspect au
 simple fait de fermer et rouvrir la pièce.
 
+Une cote emporte **où son annotation se pose** dans la même opération. Poser une
+cote est un seul geste de l'utilisateur ; lire « Cote 60 mm » puis « Cote
+déplacée » à chaque clic n'aurait rien dit de plus. Un déplacement ultérieur, à
+la souris, reste une opération à part.
+
 ## Le curseur et la branche abandonnée
 
 L'historique retient toutes les opérations et une position : ce qui est avant

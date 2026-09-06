@@ -192,6 +192,9 @@ impl Sketch {
                 !self.is_erased_segment(first) && !self.is_erased_segment(second)
             }
             DimensionTarget::AxisAngle { segment, .. } => !self.is_erased_segment(segment),
+            DimensionTarget::PointToSegment { point, segment } => {
+                !self.is_erased_point(point) && !self.is_erased_segment(segment)
+            }
             DimensionTarget::Radius(circle) => !self.is_erased_circle(circle),
         }
     }
@@ -280,7 +283,7 @@ impl Sketch {
             .iter_mut()
             .find(|dimension| dimension.target == target)
         {
-            dimension.offset = offset;
+            dimension.offset = Some(offset);
         }
     }
 
@@ -480,9 +483,34 @@ impl Sketch {
                 target,
                 value,
                 driven,
-                offset: Vec2::ZERO,
+                offset: None,
             }),
         }
+    }
+
+    /// Where the perpendicular from a point meets the line a segment lies on.
+    ///
+    /// The line, not the segment: a distance to a line is still a distance when
+    /// the foot falls past the end of the drawn part, and a drawing says so
+    /// with a thin extension line.
+    pub fn foot_on_segment(&self, point: PointId, segment: SegmentId) -> Option<Vec2> {
+        if point.0 >= self.points.len() || segment.0 >= self.segments.len() {
+            return None;
+        }
+        let (start, end) = self.endpoints(segment);
+        let span = end - start;
+        let length = span.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let direction = span / length;
+        Some(start + direction * (self.point(point) - start).dot(direction))
+    }
+
+    /// The distance from a point to the line a segment lies on, in units.
+    pub fn point_to_segment(&self, point: PointId, segment: SegmentId) -> Option<f32> {
+        let foot = self.foot_on_segment(point, segment)?;
+        Some(self.point(point).distance(foot))
     }
 
     /// The angle at the point two segments share, in degrees, or `None` when
@@ -642,6 +670,9 @@ impl Sketch {
             }
             DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
             DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
+            DimensionTarget::PointToSegment { point, segment } => {
+                self.point_to_segment(point, segment)? * millimeters_per_unit.max(1e-9)
+            }
             DimensionTarget::Radius(_) => return None,
         };
 
@@ -699,6 +730,10 @@ fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> Dimensi
             from: swap(from),
             to: swap(to),
         },
+        DimensionTarget::PointToSegment { point, segment } => DimensionTarget::PointToSegment {
+            point: swap(point),
+            segment,
+        },
         other => other,
     }
 }
@@ -707,6 +742,73 @@ fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> Dimensi
 mod tests {
     use super::*;
     use crate::constraints::SketchAxis;
+
+    #[test]
+    fn a_point_is_pushed_square_to_a_line() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(Vec2::new(0.0, 0.0));
+        let end = sketch.add_point(Vec2::new(40.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let floating = sketch.add_point(Vec2::new(10.0, 5.0));
+
+        sketch.set_dimension(
+            DimensionTarget::PointToSegment {
+                point: floating,
+                segment: line,
+            },
+            12.0,
+            false,
+        );
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let distance = sketch.point_to_segment(floating, line).unwrap();
+        assert!((distance - 12.0).abs() < 1e-2, "distance = {distance}");
+    }
+
+    #[test]
+    fn the_distance_holds_when_the_foot_falls_off_the_segment() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(Vec2::new(0.0, 0.0));
+        let end = sketch.add_point(Vec2::new(10.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let far = sketch.add_point(Vec2::new(80.0, 3.0));
+
+        sketch.set_dimension(
+            DimensionTarget::PointToSegment {
+                point: far,
+                segment: line,
+            },
+            20.0,
+            false,
+        );
+        sketch.resolve(1.0);
+
+        let distance = sketch.point_to_segment(far, line).unwrap();
+        assert!((distance - 20.0).abs() < 1e-2, "distance = {distance}");
+    }
+
+    #[test]
+    fn the_two_ways_of_naming_a_pair_are_one_target() {
+        let first = DimensionTarget::Angle {
+            first: SegmentId(3),
+            second: SegmentId(1),
+        };
+        let second = DimensionTarget::Angle {
+            first: SegmentId(1),
+            second: SegmentId(3),
+        };
+        assert_eq!(first.normalised(), second.normalised());
+
+        let there = DimensionTarget::Distance {
+            from: PointId(5),
+            to: PointId(2),
+        };
+        let back = DimensionTarget::Distance {
+            from: PointId(2),
+            to: PointId(5),
+        };
+        assert_eq!(there.normalised(), back.normalised());
+    }
 
     /// A right-angled triangle hung off the sketch origin.
     fn triangle() -> (Sketch, [SegmentId; 3]) {

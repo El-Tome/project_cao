@@ -134,7 +134,14 @@ impl PartState {
                 sketch,
                 target,
                 value,
-            } => self.apply_dimension(*sketch, *target, *value),
+                placement,
+            } => {
+                let outcome = self.apply_dimension(*sketch, *target, *value);
+                if let (Some(offset), Some(drawing)) = (placement, self.sketches.get_mut(*sketch)) {
+                    drawing.offset_dimension(*target, *offset);
+                }
+                outcome
+            }
             Operation::Extrude {
                 sketch,
                 picks,
@@ -345,6 +352,9 @@ impl PartState {
             DimensionTarget::Length(segment) => sketch.segment_length(segment),
             DimensionTarget::Distance { from, to } => sketch.point(from).distance(sketch.point(to)),
             DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
+            DimensionTarget::PointToSegment { point, segment } => {
+                sketch.point_to_segment(point, segment)?
+            }
             DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. } => return None,
         };
         (units > 1e-6).then_some(units)
@@ -365,6 +375,9 @@ impl PartState {
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
             DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
+            DimensionTarget::PointToSegment { point, segment } => sketch
+                .point_to_segment(point, segment)
+                .map(|units| self.to_millimeters(units)),
         }
     }
 }
@@ -462,6 +475,7 @@ mod tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
+            placement: None,
         });
 
         let mut live = PartState::default();
@@ -483,6 +497,7 @@ mod tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
+            placement: None,
         });
 
         assert_eq!(
@@ -501,12 +516,14 @@ mod tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
+            placement: None,
         });
 
         let outcome = state.apply(&Operation::SetDimension {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(1)),
             value: 100.0,
+            placement: None,
         });
 
         assert_eq!(
@@ -576,6 +593,7 @@ mod extra_tests {
             sketch: 0,
             target: DimensionTarget::Radius(CircleId(0)),
             value: 20.0,
+            placement: None,
         });
         assert_eq!(
             outcome,
@@ -611,6 +629,7 @@ mod extra_tests {
                 second: SegmentId(1),
             },
             value: 45.0,
+            placement: None,
         });
 
         assert!(matches!(outcome, Some(DimensionOutcome::Geometry(_))));
@@ -678,6 +697,7 @@ mod extra_tests {
                 sketch: 0,
                 target,
                 value,
+                placement: None,
             });
         }
 
@@ -740,6 +760,7 @@ mod extra_tests {
                 sketch: 0,
                 target,
                 value,
+                placement: None,
             });
         }
 
@@ -751,6 +772,7 @@ mod extra_tests {
                 second: SegmentId(0),
             },
             value: 90.0,
+            placement: None,
         });
 
         assert_eq!(outcome, Some(DimensionOutcome::Reference));
@@ -774,6 +796,7 @@ mod extra_tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
+            placement: None,
         });
         state.apply(&Operation::SetDimension {
             sketch: 0,
@@ -782,6 +805,7 @@ mod extra_tests {
                 axis: cao_sketch::SketchAxis::U,
             },
             value: 0.0,
+            placement: None,
         });
 
         // Changing a value that already drives something is not redundant, so
@@ -796,6 +820,7 @@ mod extra_tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(1)),
             value: 999.0,
+            placement: None,
         });
 
         assert_eq!(outcome, Some(DimensionOutcome::Reference));
@@ -1150,6 +1175,7 @@ mod extrusion_tests {
             sketch: 0,
             target: cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(0)),
             value: 50.0,
+            placement: None,
         });
         history.push(Operation::Extrude {
             sketch: 0,

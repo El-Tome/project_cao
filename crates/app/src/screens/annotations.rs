@@ -40,9 +40,14 @@ impl Style {
     }
 }
 
-/// Where the value should be written, once the annotation is drawn.
+/// Where the value should be written, once the annotation is drawn, and the
+/// offset that would put the annotation exactly where it has just been drawn.
+///
+/// The second is what a drag records: the annotation says where it ended up, so
+/// nothing outside has to redo its geometry to work it out.
 pub struct Placement {
     pub text_at: Vec2,
+    pub offset: Vec2,
 }
 
 /// Draws one dimension and says where its value belongs.
@@ -61,11 +66,7 @@ pub fn push(
     nudge: Vec2,
 ) -> Option<Placement> {
     let plane = &sketch.plane;
-    let offset = sketch
-        .dimension_of(target)
-        .map(|dimension| dimension.offset)
-        .unwrap_or(Vec2::ZERO)
-        + nudge;
+    let placed = sketch.dimension_of(target).and_then(|dimension| dimension.offset);
     match target {
         DimensionTarget::Length(segment) => {
             let (start, end) = endpoints(sketch, segment)?;
@@ -75,7 +76,7 @@ pub fn push(
                 start,
                 end,
                 away_from(sketch),
-                offset,
+                Moved { placed, nudge },
                 style,
                 pixel,
             ))
@@ -88,14 +89,46 @@ pub fn push(
                 start,
                 end,
                 away_from(sketch),
-                offset,
+                Moved { placed, nudge },
+                style,
+                pixel,
+            ))
+        }
+        DimensionTarget::PointToSegment { point, segment } => {
+            let at = *sketch.points().get(point.0)?;
+            let foot = sketch.foot_on_segment(point, segment)?;
+            // The line is measured, not the drawn part of it: when the foot
+            // lands past the end, a thin line carries the segment out to it, as
+            // on a drawing.
+            let (start, end) = endpoints(sketch, segment)?;
+            for corner in [start, end] {
+                if (foot - start).dot(foot - end) > 0.0 {
+                    line(out, plane, corner, foot, style);
+                }
+            }
+            Some(linear(
+                out,
+                plane,
+                foot,
+                at,
+                away_from(sketch),
+                Moved { placed, nudge },
                 style,
                 pixel,
             ))
         }
         DimensionTarget::Angle { first, second } => {
             let (pivot, a, b) = sketch.corner_points(first, second)?;
-            Some(angular(out, plane, pivot, a, b, offset, style, pixel))
+            Some(angular(
+                out,
+                plane,
+                pivot,
+                a,
+                b,
+                Moved { placed, nudge },
+                style,
+                pixel,
+            ))
         }
         DimensionTarget::AxisAngle { segment, axis } => {
             let (start, end) = endpoints(sketch, segment)?;
@@ -106,7 +139,7 @@ pub fn push(
                 start,
                 start + axis.direction() * start.distance(end),
                 end,
-                offset,
+                Moved { placed, nudge },
                 style,
                 pixel,
             ))
@@ -114,8 +147,37 @@ pub fn push(
         DimensionTarget::Radius(circle) => {
             let circle = *sketch.circles().get(circle.0)?;
             let center = *sketch.points().get(circle.center.0)?;
-            Some(radial(out, plane, center, circle.radius, offset, style, pixel))
+            Some(radial(
+                out,
+                plane,
+                center,
+                circle.radius,
+                Moved { placed, nudge },
+                style,
+                pixel,
+            ))
         }
+    }
+}
+
+/// Where an annotation sits: what was recorded for it, if anything, plus what a
+/// drag in progress is adding on top.
+///
+/// The two are kept apart because they answer different questions. A recorded
+/// offset is in sketch units and holds the annotation in place whatever the
+/// zoom; with nothing recorded, the annotation stands off by a distance in
+/// pixels, which is what keeps a fresh drawing readable at any scale.
+#[derive(Clone, Copy)]
+struct Moved {
+    placed: Option<Vec2>,
+    nudge: Vec2,
+}
+
+impl Moved {
+    /// How far along `direction` the annotation has been pushed, falling back
+    /// to `default` when it has never been placed.
+    fn along(&self, direction: Vec2, default: f32) -> f32 {
+        self.placed.map_or(default, |offset| offset.dot(direction)) + self.nudge.dot(direction)
     }
 }
 
@@ -141,7 +203,7 @@ fn linear(
     start: Vec2,
     end: Vec2,
     center: Vec2,
-    moved_by: Vec2,
+    moved_by: Moved,
     style: &Style,
     pixel: f32,
 ) -> Placement {
@@ -156,17 +218,17 @@ fn linear(
         normal = -normal;
     }
 
-    // Dragging moves the whole annotation, but only away from what it measures:
-    // the part of the movement along the line is dropped. A dimension line has
-    // to stay parallel to what it measures, with its two extension lines
-    // perpendicular and of the same length — otherwise it is a skewed pair of
-    // arrows that no longer reads as a measurement.
-    let stepped = style.offset_pixels * pixel + moved_by.dot(normal);
+    // A dimension line has to stay parallel to what it measures, with its two
+    // extension lines perpendicular and of the same length — otherwise it is a
+    // skewed pair of arrows that no longer reads as a measurement. So the
+    // movement is split: across the line it steps the line away, along it, it
+    // only slides the value.
+    let stepped = moved_by.along(normal, style.offset_pixels * pixel);
     let offset = normal * stepped;
     let (from, to) = (start + offset, end + offset);
 
     // Extension lines overshoot the dimension line a little, as on a drawing.
-    let overshoot = normal * (stepped + 4.0 * pixel);
+    let overshoot = normal * (stepped + 4.0 * pixel * stepped.signum());
     line(out, plane, start, start + overshoot, style);
     line(out, plane, end, end + overshoot, style);
     line(out, plane, from, to, style);
@@ -176,9 +238,21 @@ fn linear(
 
     // The value may still slide along the line, which is what lets two
     // dimensions sharing a direction stop covering each other.
-    let alongside = direction * moved_by.dot(direction);
+    let slid = moved_by.along(direction, 0.0);
+    let foot = middle + offset + direction * slid;
+    let clearance = normal * text_clearance(normal) * pixel;
+
+    // Pushed past the ends, the value has nothing next to it saying which
+    // dimension it belongs to. A leader carries the line out to it.
+    if slid.abs() > span.length() * 0.5 {
+        let nearest = if slid > 0.0 { to } else { from };
+        line(out, plane, nearest, foot, style);
+        line(out, plane, foot, foot + clearance * 0.6, style);
+    }
+
     Placement {
-        text_at: (from + to) * 0.5 + normal * text_clearance(normal) * pixel + alongside,
+        text_at: foot + clearance,
+        offset: offset + direction * slid,
     }
 }
 
@@ -198,7 +272,7 @@ fn angular(
     pivot: Vec2,
     first: Vec2,
     second: Vec2,
-    moved_by: Vec2,
+    moved_by: Moved,
     style: &Style,
     pixel: f32,
 ) -> Placement {
@@ -212,13 +286,17 @@ fn angular(
         sweep += std::f32::consts::TAU;
     }
 
-    // An arc has to stay hinged on the corner it measures, so a drag opens it
-    // out instead of tearing it away: the part of the movement along the
-    // bisector becomes radius, the part across it slides the value round.
+    // An arc stays hinged on the corner it measures: what is recorded is where
+    // the value sits relative to that corner, and the arc is drawn just inside
+    // it. Splitting the movement into radius and slide instead let a value
+    // dragged sideways shrink its own arc to nothing.
     let bisector = Vec2::from_angle(start + sweep * 0.5);
-    let widened = moved_by.dot(bisector);
-    let radius = (style.arc_pixels * pixel + widened).max(6.0 * pixel);
-    let alongside = moved_by - bisector * widened;
+    let clearance = 14.0 * pixel;
+    let reach = moved_by
+        .placed
+        .unwrap_or(bisector * (style.arc_pixels * pixel + clearance))
+        + moved_by.nudge;
+    let radius = (reach.length() - clearance).max(6.0 * pixel);
 
     const STEPS: usize = 24;
     let mut previous = None;
@@ -253,8 +331,30 @@ fn angular(
         pixel,
     );
 
+    // Dragged outside the two arms, the value has nothing joining it to the arc
+    // it belongs to; a leader says where it comes from.
+    let text_at = pivot + reach;
+    let towards = reach.to_angle();
+    let mut turn = towards - start;
+    while turn > std::f32::consts::PI {
+        turn -= std::f32::consts::TAU;
+    }
+    while turn < -std::f32::consts::PI {
+        turn += std::f32::consts::TAU;
+    }
+    let fraction = turn / sweep;
+    if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
+        let nearer = if turn.abs() < (turn - sweep).abs() {
+            at_start
+        } else {
+            at_end
+        };
+        line(out, plane, nearer, text_at - reach.normalize_or_zero() * clearance, style);
+    }
+
     Placement {
-        text_at: pivot + bisector * (radius + 14.0 * pixel) + alongside,
+        text_at,
+        offset: reach,
     }
 }
 
@@ -264,14 +364,15 @@ fn radial(
     plane: &WorkPlane,
     center: Vec2,
     radius: f32,
-    moved_by: Vec2,
+    moved_by: Moved,
     style: &Style,
     pixel: f32,
 ) -> Placement {
     // A radius is always drawn from the centre outwards, so dragging it turns
     // the leader about the circle rather than detaching it.
     let default = Vec2::splat(std::f32::consts::FRAC_1_SQRT_2);
-    let direction = (default * radius + moved_by).normalize_or(default);
+    let placed = moved_by.placed.unwrap_or(default * radius) + moved_by.nudge;
+    let direction = placed.normalize_or(default);
     let rim = center + direction * radius;
     line(out, plane, center, rim, style);
     arrow(out, plane, rim, -direction, style, pixel);
@@ -279,6 +380,7 @@ fn radial(
     let aside = Vec2::new(-direction.y, direction.x);
     Placement {
         text_at: center + direction * radius * 0.55 + aside * text_clearance(aside) * pixel,
+        offset: direction * radius,
     }
 }
 

@@ -231,6 +231,7 @@ mod tests {
             sketch: 0,
             target: DimensionTarget::Length(SegmentId(0)),
             value: 100.0,
+            placement: None,
         });
         document
     }

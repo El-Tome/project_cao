@@ -103,6 +103,12 @@ pub enum Operation {
         target: DimensionTarget,
         /// Millimetres for a length or radius, degrees for an angle.
         value: f32,
+        /// Where the annotation goes, in sketch units. Carried by the same
+        /// step rather than a `MoveDimension` of its own: a dimension put down
+        /// somewhere is one action, and reading "Cote 60 mm" then "Cote
+        /// déplacée" for every single click says nothing extra.
+        #[serde(default)]
+        placement: Option<Vec2>,
     },
     /// Turns closed areas of a sketch into matter, or takes matter away.
     Extrude {
@@ -201,9 +207,9 @@ impl Operation {
                         format!("Angle {value}° / {}", axis.label())
                     }
                     DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-                    DimensionTarget::Length(_) | DimensionTarget::Distance { .. } => {
-                        format!("Cote {value} mm")
-                    }
+                    DimensionTarget::PointToSegment { .. }
+                    | DimensionTarget::Length(_)
+                    | DimensionTarget::Distance { .. } => format!("Cote {value} mm"),
                 }
             }
         }
@@ -285,6 +291,9 @@ impl Operation {
                 }
                 DimensionTarget::AxisAngle { segment, axis } => {
                     format!("Esquisse {sketch} · trait {} / {}", segment.0, axis.label())
+                }
+                DimensionTarget::PointToSegment { point, segment } => {
+                    format!("Esquisse {sketch} · point {} au trait {}", point.0, segment.0)
                 }
                 DimensionTarget::Radius(circle) => {
                     format!("Esquisse {sketch} · cercle {}", circle.0)

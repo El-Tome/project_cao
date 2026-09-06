@@ -191,10 +191,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         // the canvas again with the mouse.
         if let Some(index) = sketch.editor.active_sketch() {
             let cursor = sketch.editor.aimed.or(sketch.editor.cursor).unwrap_or_default();
-            let snap = scale.world_size_of(10.0);
+            let snap = scale.world_size_of(PICK_PIXELS);
             changed |= match sketch.editor.tool {
-                Tool::Line => draw_line_point(sketch, index, cursor, snap),
-                _ => two_click_shape(sketch, index, cursor, snap),
+                Tool::Line => {
+                    draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
+                }
+                _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
             };
         }
     }
@@ -495,7 +497,7 @@ fn handle_sketch_input(
     };
 
     // Snapping to an existing point is what lets a contour actually close.
-    let snap = scale.world_size_of(10.0);
+    let snap = scale.world_size_of(PICK_PIXELS);
     let (cursor, snapped_to) = magnetise(cursor, scale, &state.config, context, index, snap);
     context.editor.snap = snapped_to;
 
@@ -525,8 +527,15 @@ fn handle_sketch_input(
     // click-based tools.
     if context.editor.tool == Tool::Select {
         if response.clicked() {
-            context.editor.selected_element =
-                pick(context, index, cursor, snap, scale.units_per_pixel);
+            let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
+            context.editor.selected_element = picked;
+            // A dimension picked with the selection tool opens its value too:
+            // reaching for the dimension tool again to change a number one is
+            // already pointing at is a step for nothing.
+            match picked {
+                Some(Selection::Dimension(target)) => edit_dimension(context, index, target),
+                _ => context.editor.select(None, None),
+            }
         }
         if let Some(selection) = context.editor.selected_element
             && ui.input(|input| {
@@ -566,7 +575,7 @@ fn handle_sketch_input(
     }
 
     match context.editor.tool {
-        Tool::Line => draw_line_point(context, index, cursor, snap),
+        Tool::Line => draw_line_point(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Point => {
             context.document.apply(Operation::AddPoint {
                 sketch: index,
@@ -579,6 +588,7 @@ fn handle_sketch_input(
             index,
             context.editor.aimed.unwrap_or(cursor),
             snap,
+            scale.units_per_pixel,
         ),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Select | Tool::None => false,
@@ -769,7 +779,7 @@ fn drag_point(
     }
 
     if let Some(target) = context.editor.dragged_dimension {
-        return drag_annotation(context, index, target, cursor, response);
+        return drag_annotation(context, index, target, cursor, response, pixel);
     }
 
     let Some(point) = context.editor.dragged_point else {
@@ -828,6 +838,7 @@ fn drag_annotation(
     target: DimensionTarget,
     cursor: Vec2,
     response: &egui::Response,
+    pixel: f32,
 ) -> bool {
     let Some(origin) = context.editor.drag_origin else {
         return false;
@@ -839,10 +850,11 @@ fn drag_annotation(
         return false;
     }
 
-    let previous = context.document.sketches()[index]
-        .dimension_of(target)
-        .map(|dimension| dimension.offset)
-        .unwrap_or(Vec2::ZERO);
+    // Where the annotation sits right now, whether that was recorded before or
+    // is still the standing-off distance it was drawn with.
+    let previous = annotation_home(context, index, target, pixel)
+        .map(|(_, offset)| offset)
+        .unwrap_or_default();
 
     context.editor.dragged_dimension = None;
     context.editor.drag_origin = None;
@@ -900,7 +912,13 @@ fn point_ref_at(context: &SketchContext<'_>, index: usize, position: Vec2, snap:
     }
 }
 
-fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
+fn two_click_shape(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    snap: f32,
+    pixel: f32,
+) -> bool {
     let Some(start) = context.editor.pending_start else {
         context.editor.pending_start = Some(cursor);
         if context.editor.tool == Tool::Rectangle {
@@ -934,7 +952,7 @@ fn two_click_shape(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
     let rectangle = context.editor.tool == Tool::Rectangle;
     context.document.apply(operation);
     if rectangle {
-        dimension_the_rectangle(context, index);
+        dimension_the_rectangle(context, index, pixel);
     }
     context.editor.live.clear();
     true
@@ -968,7 +986,7 @@ fn rectangle_corner(context: &SketchContext<'_>, cursor: Vec2) -> Vec2 {
 /// busywork: that is what a rectangle *is*. Three right angles are enough — the
 /// fourth follows — plus a length on two neighbouring sides, which is exactly
 /// what pins it down.
-fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize) {
+fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel: f32) {
     let count = context.document.sketches()[index].segments().len();
     let Some(first) = count.checked_sub(4) else {
         return;
@@ -992,13 +1010,18 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize) {
     }
 
     for (target, value) in wanted {
+        let target = target.normalised();
         if context.document.sketches()[index].would_be_redundant(target, scale) {
             continue;
         }
+        // Pinned down where it is drawn, in sketch units: left to stand off by
+        // a distance in pixels, an annotation slides back over the drawing as
+        // soon as one zooms out.
         context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
+            placement: annotation_home(context, index, target, pixel).map(|(_, offset)| offset),
         });
     }
 }
@@ -1015,13 +1038,37 @@ fn measure(
     snap: f32,
     pixel: f32,
 ) -> bool {
-    // A dimension already chosen is waiting to be put down: this click says
-    // where, and nothing else is read from it.
-    if let Some(target) = context.editor.placing.take() {
+    let mode = context.editor.dimension_mode;
+
+    // A dimension already chosen is waiting to be put down. This click either
+    // adds the second half of a pair — the segment that makes it an angle, the
+    // point that makes it a distance to a line — or says where it goes.
+    if let Some(target) = context.editor.placing {
+        if mode == DimensionMode::Auto
+            && let Some(refined) = refine(context, index, target, cursor, snap)
+        {
+            context.editor.placing = Some(refined);
+            context.editor.message = Some(PLACE_PROMPT.to_string());
+            return false;
+        }
+        context.editor.placing = None;
         return place_dimension(context, index, target, cursor, pixel);
     }
 
-    let mode = context.editor.dimension_mode;
+    let sketch = &context.document.sketches()[index];
+
+    // An annotation under the cursor, with no geometry there to take the click
+    // first, means changing its value — never laying a second copy over it.
+    let on_geometry = sketch.nearest_point(cursor, snap * 0.8).is_some()
+        || sketch.nearest_segment(cursor, snap).is_some()
+        || sketch.nearest_circle(cursor, snap).is_some();
+    if !on_geometry
+        && let Some(target) = nearest_annotation(context, index, cursor, snap * 1.5, pixel)
+    {
+        edit_dimension(context, index, target);
+        return false;
+    }
+
     let sketch = &context.document.sketches()[index];
 
     // A point wins over a segment under the same cursor: it is the smaller
@@ -1030,6 +1077,20 @@ fn measure(
         && let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
     {
         measure_from_point(context, index, point);
+        return false;
+    }
+    // A point already picked, and now a segment: the distance from that point
+    // to the line, taken square to it.
+    if mode != DimensionMode::PointToPoint
+        && let Some(point) = context.editor.first_point
+        && let Some(segment) = sketch.nearest_segment(cursor, snap)
+    {
+        context.editor.first_point = None;
+        select_target(
+            context,
+            index,
+            DimensionTarget::PointToSegment { point, segment },
+        );
         return false;
     }
     if mode == DimensionMode::PointToPoint {
@@ -1100,21 +1161,12 @@ fn place_dimension(
     let Some(value) = context.document.measured(index, target) else {
         return false;
     };
-    let offset = annotation_offset(context, index, target, cursor, pixel);
     let outcome = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
         value,
+        placement: Some(annotation_offset(context, index, target, cursor, pixel)),
     });
-    // A click landing on the spot the annotation would have taken anyway needs
-    // no entry in the history saying so.
-    if offset.length() > 1e-6 {
-        context.document.apply(Operation::MoveDimension {
-            sketch: index,
-            target,
-            offset,
-        });
-    }
 
     context.editor.select(Some(target), Some(value));
     context.editor.message = matches!(outcome, Some(cao_core::DimensionOutcome::Reference))
@@ -1122,11 +1174,35 @@ fn place_dimension(
     true
 }
 
-/// The offset that puts an annotation's value where the cursor is.
+/// Where an annotation currently writes its value, and the offset that holds it
+/// there. Asked of the drawing code itself: two ways of working out where an
+/// annotation sits would eventually disagree.
+fn annotation_home(
+    context: &SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    pixel: f32,
+) -> Option<(Vec2, Vec2)> {
+    let sketch = context.document.sketches().get(index)?;
+    let mut ignored = Vec::new();
+    // Only the shape of the annotation matters here, never its colours.
+    let style = crate::screens::annotations::Style::driving(&Theme::default());
+    let placement = crate::screens::annotations::push(
+        &mut ignored,
+        sketch,
+        target,
+        &style,
+        pixel,
+        Vec2::ZERO,
+    )?;
+    Some((placement.text_at, placement.offset))
+}
+
+/// What the annotation has to be moved by for its value to land on the cursor,
+/// and the offset that would record that.
 ///
-/// Worked out by asking the annotation where it would write itself with no
-/// offset at all: a linear or angular annotation moves exactly as far as its
-/// offset, so the difference is the answer.
+/// A linear or angular annotation follows its offset exactly, so the gap
+/// between where the value is and where the cursor is *is* the movement.
 fn annotation_offset(
     context: &SketchContext<'_>,
     index: usize,
@@ -1134,21 +1210,8 @@ fn annotation_offset(
     cursor: Vec2,
     pixel: f32,
 ) -> Vec2 {
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return Vec2::ZERO;
-    };
-    let mut ignored = Vec::new();
-    // Only the shape of the annotation matters here, never its colours.
-    let style = crate::screens::annotations::Style::driving(&Theme::default());
-    match crate::screens::annotations::push(
-        &mut ignored,
-        sketch,
-        target,
-        &style,
-        pixel,
-        Vec2::ZERO,
-    ) {
-        Some(placement) => cursor - placement.text_at,
+    match annotation_home(context, index, target, pixel) {
+        Some((text_at, offset)) => offset + (cursor - text_at),
         None => Vec2::ZERO,
     }
 }
@@ -1273,6 +1336,8 @@ fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, s
     }
 }
 
+pub const PLACE_PROMPT: &str = "Cliquez où poser la cote, ou une seconde entité";
+
 /// Takes hold of what was clicked; the annotation then follows the cursor until
 /// a second click says where it goes.
 ///
@@ -1280,6 +1345,18 @@ fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, s
 /// it measures has to be dragged off it anyway — this way it lands where it
 /// belongs from the start.
 fn select_target(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
+    let target = target.normalised();
+
+    // The same measurement clicked again is the one already there: showing its
+    // value to be retyped is what the user is after, not a second copy of it
+    // laid over the first.
+    if context.document.sketches()[index]
+        .dimension_of(target)
+        .is_some()
+    {
+        return edit_dimension(context, index, target);
+    }
+
     context.editor.select(None, None);
     context.editor.placing = Some(target);
 
@@ -1288,9 +1365,76 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
         if context.document.sketches()[index].would_be_redundant(target, scale) {
             REDUNDANT_WARNING.to_string()
         } else {
-            "Cliquez où poser la cote".to_string()
+            PLACE_PROMPT.to_string()
         },
     );
+}
+
+/// Opens a dimension already on the drawing for editing, its value in the field
+/// ready to be replaced.
+fn edit_dimension(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
+    let value = context.document.sketches()[index]
+        .dimension_of(target)
+        .map(|dimension| dimension.value)
+        .or_else(|| context.document.measured(index, target));
+    context.editor.placing = None;
+    context.editor.first_point = None;
+    context.editor.first_angle_segment = None;
+    context.editor.first_axis = None;
+    context.editor.select(Some(target), value);
+    context.editor.message = None;
+}
+
+/// The second half a dimension in hand can still take: another segment makes it
+/// an angle, a point makes it a distance to a line, an axis a direction.
+///
+/// Without this, clicking a segment could only ever mean its length, and an
+/// angle between two traits had to be asked for through the Mesurer row — which
+/// is exactly what one expects the smart dimension to do on its own.
+fn refine(
+    context: &SketchContext<'_>,
+    index: usize,
+    target: DimensionTarget,
+    cursor: Vec2,
+    snap: f32,
+) -> Option<DimensionTarget> {
+    let DimensionTarget::Length(first) = target else {
+        return None;
+    };
+    let sketch = context.document.sketches().get(index)?;
+
+    if let Some(second) = sketch.nearest_segment(cursor, snap)
+        && second != first
+        && sketch.angle_between(first, second).is_some()
+    {
+        return Some(DimensionTarget::Angle { first, second }.normalised());
+    }
+    if let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
+        && !touches(sketch, first, point)
+    {
+        return Some(DimensionTarget::PointToSegment {
+            point,
+            segment: first,
+        });
+    }
+    if sketch.nearest_segment(cursor, snap).is_none()
+        && let Some(axis) = axis_under(cursor, snap)
+    {
+        return Some(DimensionTarget::AxisAngle {
+            segment: first,
+            axis,
+        });
+    }
+    None
+}
+
+/// Whether a point is one of a segment's own ends — measuring a segment to its
+/// own corner would be a distance of nothing.
+fn touches(sketch: &Sketch, segment: SegmentId, point: PointId) -> bool {
+    match sketch.segments().get(segment.0) {
+        Some(segment) => segment.start == point || segment.end == point,
+        None => false,
+    }
 }
 
 /// Which sketch axis the cursor is on, if either. The axes are drawn as lines
@@ -1371,7 +1515,13 @@ pub enum Snap {
 
 /// One click of the line tool. The first click only remembers where the chain
 /// starts; the second turns the pair into a segment in the history.
-fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, snap: f32) -> bool {
+fn draw_line_point(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: Vec2,
+    snap: f32,
+    pixel: f32,
+) -> bool {
     let sketch = &context.document.sketches()[index];
 
     let Some(anchor) = context.editor.chain else {
@@ -1421,7 +1571,7 @@ fn draw_line_point(context: &mut SketchContext<'_>, index: usize, cursor: Vec2, 
         PointRef::New(_) => PointId(sketch.points().len().saturating_sub(1)),
     }));
 
-    dimension_the_line(context, index, drawn, aimed);
+    dimension_the_line(context, index, drawn, aimed, pixel);
     context.editor.chain_previous = Some(drawn);
     context.editor.live.open();
     true
@@ -1547,6 +1697,7 @@ fn dimension_the_line(
     index: usize,
     segment: SegmentId,
     aimed: Aim,
+    pixel: f32,
 ) {
     let live = &context.editor.live;
     let mut wanted: Vec<(DimensionTarget, f32)> = Vec::new();
@@ -1569,16 +1720,28 @@ fn dimension_the_line(
 
     let scale = context.document.scale();
     for (target, value) in wanted {
+        let target = target.normalised();
         if context.document.sketches()[index].would_be_redundant(target, scale) {
             continue;
         }
+        // Pinned down where it is drawn, in sketch units: left to stand off by
+        // a distance in pixels, an annotation slides back over the drawing as
+        // soon as one zooms out.
         context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
+            placement: annotation_home(context, index, target, pixel).map(|(_, offset)| offset),
         });
     }
 }
+
+/// How close, in pixels, the cursor has to be to take hold of something.
+///
+/// These are physical pixels, so a high-density screen halves them: at ten, a
+/// point had to be hit within four points of the mouse, which is a good deal
+/// finer than anyone aims.
+const PICK_PIXELS: f32 = 18.0;
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.
 pub const DEFAULT_SKETCH_RADIUS: f32 = 100.0;
@@ -2265,13 +2428,26 @@ fn pending_annotation(
     context: &SketchContext<'_>,
     index: usize,
     cursor: Vec2,
-    scale: ViewScale,
+    snap: f32,
+    pixel: f32,
 ) -> Option<(DimensionTarget, Vec2)> {
     if let Some(target) = context.editor.placing {
-        let offset = annotation_offset(context, index, target, cursor, scale.units_per_pixel);
-        return Some((target, offset));
+        // A second entity under the cursor turns the dimension into another
+        // one; it is shown where it would land, not dragged to the cursor.
+        if context.editor.dimension_mode == DimensionMode::Auto
+            && let Some(refined) = refine(context, index, target, cursor, snap)
+        {
+            return Some((refined, Vec2::ZERO));
+        }
+        // The preview is nudged from where the annotation stands today, not
+        // moved to an absolute offset: `push` adds a nudge on top of whatever
+        // the dimension already carries.
+        let nudge = annotation_home(context, index, target, pixel)
+            .map(|(text_at, _)| cursor - text_at)
+            .unwrap_or_default();
+        return Some((target, nudge));
     }
-    let target = measure_preview(context, index, cursor, scale.world_size_of(10.0))?;
+    let target = measure_preview(context, index, cursor, snap)?;
     Some((target, Vec2::ZERO))
 }
 
@@ -2326,7 +2502,13 @@ fn push_preview(
     // spot it will sit on.
     if context.editor.tool == Tool::Dimension
         && let Some(index) = context.editor.active_sketch()
-        && let Some((target, nudge)) = pending_annotation(context, index, cursor, scale)
+        && let Some((target, nudge)) = pending_annotation(
+            context,
+            index,
+            cursor,
+            scale.world_size_of(PICK_PIXELS),
+            scale.units_per_pixel,
+        )
     {
         let mut style = crate::screens::annotations::Style::driving(theme);
         style.color = preview;
@@ -2693,10 +2875,24 @@ fn paint_dimension_labels(
 
     // The dimension being placed carries its value with it: a bare pair of
     // arrows says nothing about what is being measured.
-    if let Some(target) = context.editor.placing
+    if context.editor.placing.is_some()
         && let Some(cursor) = context.editor.cursor
+        && let Some((target, nudge)) =
+            pending_annotation(context, index, cursor, pixel * PICK_PIXELS, pixel)
         && let Some(value) = context.document.measured(index, target)
-        && let Some(position) = to_screen(sketch.plane.to_world(cursor), view_projection, rect)
+        && let Some(placement) = crate::screens::annotations::push(
+            &mut Vec::new(),
+            sketch,
+            target,
+            &crate::screens::annotations::Style::driving(&state.theme),
+            pixel,
+            nudge,
+        )
+        && let Some(position) = to_screen(
+            sketch.plane.to_world(placement.text_at),
+            view_projection,
+            rect,
+        )
     {
         painter.text(
             position,
@@ -2827,10 +3023,13 @@ fn apply_dimension_value(
         return false;
     };
 
+    // Only the value changes here: where the annotation sits was decided when it
+    // was put down, and retyping a number must not send it back to its default.
     match context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
         value,
+        placement: None,
     }) {
         Some(cao_core::DimensionOutcome::ScaleDefined {
             millimeters_per_unit,

@@ -252,6 +252,9 @@ impl Sketch {
             DimensionTarget::AxisAngle { segment, axis } => {
                 self.axis_angle_equation(segment, axis, dimension.value)?
             }
+            DimensionTarget::PointToSegment { point, segment } => {
+                self.point_to_segment_equation(point, segment, dimension.value / scale)?
+            }
             // A radius has no bearing on where the points are.
             DimensionTarget::Radius(_) => return None,
         };
@@ -317,6 +320,49 @@ impl Sketch {
 }
 
 impl Sketch {
+    /// The distance from a point to the line two other points define.
+    ///
+    /// The distance is the cross product of the line's span with the reach to
+    /// the point, over that span's length; everything below is that quotient
+    /// differentiated, which is why the line's own ends move too — a drawing
+    /// where only the point could answer would tilt the line instead.
+    fn point_to_segment_equation(
+        &self,
+        point: PointId,
+        segment: crate::sketch::SegmentId,
+        target: f32,
+    ) -> Option<Equation> {
+        let segment = *self.segments().get(segment.0)?;
+        let (a, b) = (self.point(segment.start), self.point(segment.end));
+        let span = b - a;
+        let length = span.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let reach = self.point(point) - a;
+        let cross = span.perp_dot(reach);
+        let distance = cross / length;
+        if distance.abs() < 1e-9 {
+            return None;
+        }
+
+        let d_cross_point = Vec2::new(-span.y, span.x);
+        let d_cross_start = Vec2::new(span.y - reach.y, reach.x - span.x);
+        let d_cross_end = Vec2::new(reach.y, -reach.x);
+        let unit = span / length;
+        let gradient = |d_cross: Vec2, d_length: Vec2| {
+            (d_cross - d_length * distance) / length
+        };
+
+        let sign = if distance < 0.0 { -1.0 } else { 1.0 };
+        let mut equation = Equation::new(self.points().len() * 2);
+        equation.error = distance.abs() - target;
+        equation.add(point, gradient(d_cross_point, Vec2::ZERO) * sign);
+        equation.add(segment.start, gradient(d_cross_start, -unit) * sign);
+        equation.add(segment.end, gradient(d_cross_end, unit) * sign);
+        Some(equation)
+    }
+
     /// The angle between a segment and a fixed direction of the sketch.
     ///
     /// Unlike an angle between two segments, this one has something immovable

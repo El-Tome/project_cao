@@ -120,9 +120,22 @@ Un seul outil, qui mesure ce qu'on lui montre :
 | Un trait | Sa longueur |
 | Deux points | La distance entre eux, reliés ou non |
 | Deux traits qui se touchent | L'angle entre eux |
+| Un trait puis un point | La distance du point à la droite, prise d'équerre |
+| Un point puis un trait | La même, dans l'autre ordre |
 | Un trait puis un axe de l'esquisse | L'angle avec cette direction |
 | Un axe puis un trait | Le même, dans l'autre ordre |
 | Un cercle | Son rayon |
+
+Le premier clic prend une entité et **montre déjà ce qu'elle mesure toute
+seule** — la longueur d'un trait. Cliquer une seconde entité avant de poser la
+cote la transforme : un autre trait en fait un angle, un point en fait une
+distance à la droite. C'est ce qu'on attend d'une cote dite intelligente, et ça
+évite d'aller chercher le type dans la rangée *Mesurer*.
+
+Une cote d'un point à une droite se lit comme si un segment perpendiculaire
+descendait du point jusqu'à la droite. C'est bien la **droite** qui est mesurée,
+pas le bout de trait dessiné : quand le pied tombe au-delà de l'extrémité, un
+trait fin prolonge le segment jusque-là, comme sur un plan.
 
 Un point l'emporte sur un trait sous le même curseur : c'est la plus petite
 cible, donc la viser est un acte délibéré.
@@ -137,6 +150,36 @@ main : autant qu'elle arrive où elle doit être.
 La cote est posée avec la valeur que la géométrie mesure déjà, donc **poser une
 cote ne déforme jamais rien**. C'est en tapant une autre valeur qu'on déplace le
 dessin.
+
+### Une mesure, une seule cote
+
+Recliquer ce qui est déjà coté **rouvre la cote existante** au lieu d'en poser
+une deuxième par-dessus. Cliquer une annotation directement fait la même chose,
+avec l'outil Cote comme avec l'outil Sélection : c'est le geste évident pour
+changer un nombre qu'on a déjà sous le curseur.
+
+Les deux façons de désigner une même mesure — deux traits dans un sens ou dans
+l'autre, deux points dans un sens ou dans l'autre — sont ramenées à une seule
+avant d'être enregistrées. Sans ça, la même cote existerait deux fois, en double
+exemplaire superposé.
+
+### Où la cote se tient
+
+Ce qui est enregistré est la position de l'annotation **en unités du dessin**,
+pas en pixels. Une cote posée quelque part y reste : à l'ancienne, un décalage
+en pixels ramenait toutes les annotations sur la forme dès qu'on dézoomait. Les
+cotes automatiques du trait et du rectangle sont figées de la même façon au
+moment où elles sont posées.
+
+Seule la taille de ce qui doit rester lisible — le texte, les pointes de flèche
+— continue de se compter en pixels.
+
+### Le petit trait de rappel
+
+Une valeur tirée sur le côté, au-delà des extrémités de la cote, n'a plus rien
+qui dise à quoi elle appartient. Un **trait de rappel** prolonge alors la ligne
+de cote jusque sous le nombre. Même chose pour un angle dont la valeur est
+sortie de l'ouverture des deux traits.
 
 **Un trait posé sur un axe** se sélectionne en cliquant deux fois dessus : le
 premier clic prend le trait, le second — qui retombe forcément sur le même
@@ -160,6 +203,10 @@ Le curseur est attiré, dans cet ordre :
 
 Un trait déjà dessiné attire donc **plus fort que la grille** : sa portée est
 réglable à part ([configuration.md](configuration.md)).
+
+La portée d'un **clic** (ce qu'on attrape, ce qu'on cote) est de 18 pixels
+physiques, soit 9 points sur un écran haute densité. À dix, il fallait viser un
+point à quatre points près : bien plus fin que ce que quiconque vise.
 
 ### Deux sommets superposés n'en font qu'un
 

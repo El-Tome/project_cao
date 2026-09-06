@@ -46,7 +46,7 @@ impl Sketch {
     /// segment belongs to two areas when two shapes share a side.
     pub fn regions(&self) -> Vec<Region> {
         let mut outlines = self.closed_outlines();
-        outlines.extend(self.circles().iter().map(|circle| {
+        outlines.extend(self.live_circles().map(|(_, circle)| {
             let center = self.point(circle.center);
             (0..CIRCLE_STEPS)
                 .map(|step| {
@@ -111,22 +111,20 @@ impl Sketch {
     /// Walks the segment graph and returns each area it encloses, as a loop of
     /// positions turning counter-clockwise.
     fn closed_outlines(&self) -> Vec<Vec<Vec2>> {
-        let segments = self.segments();
-        if segments.is_empty() {
-            return Vec::new();
-        }
-
-        // Two half-edges per segment: a side is walked once in each direction,
-        // once for the area on either side of it.
-        let ends: Vec<(usize, usize)> = segments
-            .iter()
-            .flat_map(|segment| {
+        // Only what is still drawn: a deleted side must not close an area that
+        // is no longer there.
+        let ends: Vec<(usize, usize)> = self
+            .live_segments()
+            .flat_map(|(_, segment)| {
                 [
                     (segment.start.0, segment.end.0),
                     (segment.end.0, segment.start.0),
                 ]
             })
             .collect();
+        if ends.is_empty() {
+            return Vec::new();
+        }
 
         let mut leaving: Vec<Vec<usize>> = vec![Vec::new(); self.points().len()];
         for (half, (from, to)) in ends.iter().enumerate() {

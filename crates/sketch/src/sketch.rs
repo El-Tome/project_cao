@@ -55,6 +55,46 @@ pub struct Sketch {
     #[serde(default)]
     circles: Vec<Circle>,
     dimensions: Vec<Dimension>,
+    /// What has been deleted, by rank.
+    ///
+    /// Deleted geometry is marked rather than taken out of the list: a segment
+    /// removed from the middle would shift the rank of every later one, and
+    /// every dimension already recorded against those ranks would silently
+    /// start pointing at a different piece of the drawing.
+    #[serde(default)]
+    erased: Erased,
+}
+
+/// The ranks that no longer count.
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+struct Erased {
+    #[serde(default)]
+    points: Vec<bool>,
+    #[serde(default)]
+    segments: Vec<bool>,
+    #[serde(default)]
+    circles: Vec<bool>,
+}
+
+impl Erased {
+    fn holds(list: &[bool], rank: usize) -> bool {
+        list.get(rank).copied().unwrap_or(false)
+    }
+
+    fn mark(list: &mut Vec<bool>, rank: usize) {
+        if list.len() <= rank {
+            list.resize(rank + 1, false);
+        }
+        list[rank] = true;
+    }
+}
+
+/// One thing a sketch is made of, for deleting it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Element {
+    Point(PointId),
+    Segment(SegmentId),
+    Circle(CircleId),
 }
 
 impl Sketch {
@@ -72,7 +112,93 @@ impl Sketch {
             segments: Vec::new(),
             circles: Vec::new(),
             dimensions: Vec::new(),
+            erased: Erased::default(),
         }
+    }
+
+    pub fn is_erased_point(&self, point: PointId) -> bool {
+        Erased::holds(&self.erased.points, point.0)
+    }
+
+    pub fn is_erased_segment(&self, segment: SegmentId) -> bool {
+        Erased::holds(&self.erased.segments, segment.0)
+    }
+
+    pub fn is_erased_circle(&self, circle: CircleId) -> bool {
+        Erased::holds(&self.erased.circles, circle.0)
+    }
+
+    /// The segments still drawn, with their rank.
+    pub fn live_segments(&self) -> impl Iterator<Item = (SegmentId, Segment)> + '_ {
+        self.segments
+            .iter()
+            .enumerate()
+            .map(|(rank, segment)| (SegmentId(rank), *segment))
+            .filter(|(id, _)| !self.is_erased_segment(*id))
+    }
+
+    pub fn live_circles(&self) -> impl Iterator<Item = (CircleId, Circle)> + '_ {
+        self.circles
+            .iter()
+            .enumerate()
+            .map(|(rank, circle)| (CircleId(rank), *circle))
+            .filter(|(id, _)| !self.is_erased_circle(*id))
+    }
+
+    /// Deletes an element, and everything that leaned on it.
+    ///
+    /// A segment without its point is not geometry, and a dimension measuring
+    /// something that is gone would report on nothing — so they go too, rather
+    /// than being left behind as references into a hole.
+    pub fn erase(&mut self, element: Element) {
+        match element {
+            Element::Point(point) => {
+                if self.is_origin(point) {
+                    return;
+                }
+                Erased::mark(&mut self.erased.points, point.0);
+                let touched: Vec<Element> = self
+                    .live_segments()
+                    .filter(|(_, segment)| segment.start == point || segment.end == point)
+                    .map(|(id, _)| Element::Segment(id))
+                    .chain(
+                        self.live_circles()
+                            .filter(|(_, circle)| circle.center == point)
+                            .map(|(id, _)| Element::Circle(id)),
+                    )
+                    .collect();
+                for element in touched {
+                    self.erase(element);
+                }
+            }
+            Element::Segment(segment) => Erased::mark(&mut self.erased.segments, segment.0),
+            Element::Circle(circle) => Erased::mark(&mut self.erased.circles, circle.0),
+        }
+        let dimensions = std::mem::take(&mut self.dimensions);
+        self.dimensions = dimensions
+            .into_iter()
+            .filter(|dimension| self.measures_live(dimension.target))
+            .collect();
+    }
+
+    /// Whether everything a dimension refers to is still drawn.
+    fn measures_live(&self, target: DimensionTarget) -> bool {
+        match target {
+            DimensionTarget::Length(segment) => !self.is_erased_segment(segment),
+            DimensionTarget::Distance { from, to } => {
+                !self.is_erased_point(from) && !self.is_erased_point(to)
+            }
+            DimensionTarget::Angle { first, second } => {
+                !self.is_erased_segment(first) && !self.is_erased_segment(second)
+            }
+            DimensionTarget::AxisAngle { segment, .. } => !self.is_erased_segment(segment),
+            DimensionTarget::Radius(circle) => !self.is_erased_circle(circle),
+        }
+    }
+
+    pub fn erase_dimension(&mut self, target: DimensionTarget) {
+        self.dimensions
+            .retain(|dimension| dimension.target != target);
     }
 
     pub fn is_origin(&self, point: PointId) -> bool {
@@ -86,6 +212,7 @@ impl Sketch {
             .enumerate()
             .skip(1)
             .map(|(index, point)| (PointId(index), *point))
+            .filter(|(id, _)| !self.is_erased_point(*id))
     }
 
     pub fn points(&self) -> &[Vec2] {
@@ -122,13 +249,14 @@ impl Sketch {
                 let distance = (self.point(circle.center).distance(position) - circle.radius).abs();
                 (CircleId(index), distance)
             })
+            .filter(|(id, _)| !self.is_erased_circle(*id))
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
     }
 
     pub fn is_empty(&self) -> bool {
-        self.segments.is_empty()
+        self.live_segments().next().is_none()
     }
 
     pub fn point(&self, id: PointId) -> Vec2 {
@@ -198,6 +326,7 @@ impl Sketch {
             .iter()
             .enumerate()
             .map(|(index, point)| (PointId(index), point.distance(position)))
+            .filter(|(id, _)| !self.is_erased_point(*id))
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
@@ -210,6 +339,7 @@ impl Sketch {
                 let id = SegmentId(index);
                 (id, self.distance_to_segment(id, position))
             })
+            .filter(|(id, _)| !self.is_erased_segment(*id))
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
@@ -341,7 +471,9 @@ impl Sketch {
         Some(
             self.points
                 .iter()
-                .fold((first, first), |(min, max), point| {
+                .enumerate()
+                .filter(|(rank, _)| !self.is_erased_point(PointId(*rank)))
+                .fold((first, first), |(min, max), (_, point)| {
                     (min.min(*point), max.max(*point))
                 }),
         )
@@ -756,6 +888,81 @@ mod tests {
         sketch.set_dimension(DimensionTarget::Length(second), 90.0, false);
 
         assert_eq!(sketch.resolve(1.0), LengthOutcome::BestEffort);
+    }
+
+    /// Deleting must not shift the rank of what stays: a dimension already
+    /// recorded against a segment would then measure another one.
+    #[test]
+    fn erasing_a_segment_leaves_the_others_where_they_were() {
+        let (mut sketch, [base, side, third]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(third), 40.0, false);
+
+        sketch.erase(Element::Segment(base));
+
+        assert!(sketch.is_erased_segment(base));
+        assert!(!sketch.is_erased_segment(side));
+        assert_eq!(sketch.live_segments().count(), 2);
+        assert!(
+            sketch.dimension_of(DimensionTarget::Length(third)).is_some(),
+            "la cote du troisième côté est intacte"
+        );
+        assert_eq!(sketch.nearest_segment(Vec2::new(50.0, 0.0), 1.0), None);
+    }
+
+    /// A dimension measuring something deleted would report on nothing.
+    #[test]
+    fn erasing_takes_the_dimensions_that_measured_it() {
+        let (mut sketch, [base, _, _]) = triangle();
+        sketch.set_dimension(DimensionTarget::Length(base), 40.0, false);
+        assert_eq!(sketch.dimensions().len(), 1);
+
+        sketch.erase(Element::Segment(base));
+        assert!(sketch.dimensions().is_empty());
+    }
+
+    /// A segment without its point is not geometry.
+    #[test]
+    fn erasing_a_point_takes_what_leaned_on_it() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corner = sketch.add_point(Vec2::new(10.0, 0.0));
+        let far = sketch.add_point(Vec2::new(10.0, 10.0));
+        let touching = sketch.add_segment(Sketch::ORIGIN, corner);
+        let apart = sketch.add_segment(corner, far);
+        sketch.add_circle(corner, 3.0);
+
+        sketch.erase(Element::Point(corner));
+
+        assert!(sketch.is_erased_segment(touching));
+        assert!(sketch.is_erased_segment(apart));
+        assert_eq!(sketch.live_circles().count(), 0);
+        assert!(!sketch.is_erased_point(far), "le point d'en face reste");
+    }
+
+    /// The origin is what everything else is measured from.
+    #[test]
+    fn the_origin_cannot_be_erased() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        sketch.erase(Element::Point(Sketch::ORIGIN));
+        assert!(!sketch.is_erased_point(Sketch::ORIGIN));
+    }
+
+    #[test]
+    fn an_erased_shape_no_longer_encloses_an_area() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corners = [
+            sketch.add_point(Vec2::ZERO),
+            sketch.add_point(Vec2::new(10.0, 0.0)),
+            sketch.add_point(Vec2::new(10.0, 10.0)),
+            sketch.add_point(Vec2::new(0.0, 10.0)),
+        ];
+        let mut sides = Vec::new();
+        for index in 0..4 {
+            sides.push(sketch.add_segment(corners[index], corners[(index + 1) % 4]));
+        }
+        assert_eq!(sketch.regions().len(), 1);
+
+        sketch.erase(Element::Segment(sides[0]));
+        assert!(sketch.regions().is_empty());
     }
 
     #[test]

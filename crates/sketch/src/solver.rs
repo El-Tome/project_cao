@@ -162,8 +162,11 @@ impl Sketch {
             }
             point
         }
-        for segment in self.segments() {
-            let (a, b) = (root(&mut group, segment.start.0), root(&mut group, segment.end.0));
+        for (_, segment) in self.live_segments() {
+            let (a, b) = (
+                root(&mut group, segment.start.0),
+                root(&mut group, segment.end.0),
+            );
             group[a] = b;
         }
 

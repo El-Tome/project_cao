@@ -2205,7 +2205,8 @@ fn axis_under(cursor: DVec2, tolerance: f64) -> Option<cao_sketch::SketchAxis> {
 }
 
 /// Shown when a value would add nothing to a shape that is already settled.
-pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : la forme est déjà entièrement contrainte. Elle sera posée en simple lecture.";
+pub const REDUNDANT_WARNING: &str =
+    "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
 
 /// Pulls the cursor onto whatever it is near: an existing point first, then the
 /// grid.

@@ -871,6 +871,7 @@ fn rule_operation(
         },
         Rule::Tangent => match (circles.as_slice(), segments.as_slice()) {
             ([circle], [segment]) => constraint(Constraint::Tangent {
+                at: None,
                 circle: *circle,
                 segment: *segment,
             }),
@@ -1143,8 +1144,7 @@ fn drag_point(
     if !response.drag_stopped() {
         context.editor.drag_position = Some(cursor);
         let mut settling = context.document.sketches()[index].clone();
-        settling.move_point(point, cursor);
-        settling.resolve(context.document.scale());
+        settling.settle_around(point, cursor, context.document.scale());
         context.editor.drag_preview = Some(settling);
         return false;
     }
@@ -1292,6 +1292,7 @@ fn two_click_shape(
             sketch: index,
             center: anchor,
             radius: start.distance(cursor),
+            rim: Vec::new(),
         },
     };
 
@@ -1376,10 +1377,27 @@ fn draw_circle(
     // The centre reuses a point already drawn when one is under it, as
     // everywhere else, so shapes hang together instead of stacking points.
     let center = point_ref_at(context, index, found.center, snap);
+    // The places clicked on the rim stay as points of the drawing, held on the
+    // circle: they are what it can afterwards be grabbed and measured by.
+    let rim: Vec<DVec2> = match mode {
+        CircleMode::Center => vec![cursor],
+        CircleMode::TwoPoints => match places.first() {
+            Some(first) => vec![*first, found.center * 2.0 - *first],
+            None => Vec::new(),
+        },
+        CircleMode::ThreePoints => places.clone(),
+        CircleMode::TwoTangents | CircleMode::ThreeTangents => Vec::new(),
+    };
+    let rim: Vec<cao_core::PointRef> = rim
+        .into_iter()
+        .filter(|place| place.distance(found.center) > 1e-6)
+        .map(|place| point_ref_at(context, index, place, snap))
+        .collect();
     context.document.apply(Operation::AddCircle {
         sketch: index,
         center,
         radius: found.radius,
+        rim,
     });
     let drawn = CircleId(context.document.sketches()[index].circles().len().saturating_sub(1));
 
@@ -1391,6 +1409,7 @@ fn draw_circle(
             constraint: cao_sketch::Constraint::Tangent {
                 circle: drawn,
                 segment,
+                at: None,
             },
         });
     }
@@ -1407,7 +1426,6 @@ fn draw_circle(
             });
         }
     }
-    let _ = places;
 
     context.editor.live.clear();
     context.editor.message = Some(mode.asks_for().to_string());
@@ -1956,7 +1974,12 @@ fn oriented(
     let Some((from, to)) = ends_of(sketch, target).filter(|_| is_slanted(sketch, target)) else {
         return target;
     };
-    let (a, b) = (sketch.point(from), sketch.point(to));
+    let (Some(a), Some(b)) = (
+        sketch.points().get(from.0).copied(),
+        sketch.points().get(to.0).copied(),
+    ) else {
+        return target;
+    };
     let (low, high) = (a.min(b), a.max(b));
     let within_x = (low.x..=high.x).contains(&cursor.x);
     let within_y = (low.y..=high.y).contains(&cursor.y);
@@ -1974,7 +1997,10 @@ fn is_slanted(sketch: &Sketch, target: DimensionTarget) -> bool {
     let Some((from, to)) = ends_of(sketch, target) else {
         return false;
     };
-    let span = sketch.point(to) - sketch.point(from);
+    let (Some(start), Some(end)) = (sketch.points().get(from.0), sketch.points().get(to.0)) else {
+        return false;
+    };
+    let span = *end - *start;
     let slant = span.y.atan2(span.x).to_degrees().abs();
     slant.min((slant - 90.0).abs()).min((slant - 180.0).abs()) >= SLANT_DEGREES
 }
@@ -2011,7 +2037,7 @@ fn refine(
     // A diameter taken back to the centre is a radius: it is the one thing the
     // centre can add to a circle already picked.
     if let DimensionTarget::Diameter(circle) = target {
-        let center = sketch.circle(circle).center;
+        let center = sketch.circles().get(circle.0)?.center;
         return sketch
             .nearest_point(cursor, snap * 0.8)
             .filter(|point| *point == center)
@@ -3475,11 +3501,17 @@ fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
         Constraint::Tangent {
             circle: round,
             segment,
-        } => (round.0 < sketch.circles().len())
-            .then(|| sketch.foot_on_segment(sketch.circle(round).center, segment))
-            .flatten()
+            at,
+        } => at
+            .and_then(point)
+            .or_else(|| {
+                (round.0 < sketch.circles().len())
+                    .then(|| sketch.foot_on_segment(sketch.circle(round).center, segment))
+                    .flatten()
+            })
             .into_iter()
             .collect(),
+        Constraint::OnCircle { point: held, .. } => point(held).into_iter().collect(),
         Constraint::Fixed { element } => match element {
             Element::Point(held) => point(held).into_iter().collect(),
             Element::Segment(held) => middle(held).into_iter().collect(),

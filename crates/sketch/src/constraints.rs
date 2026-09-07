@@ -130,6 +130,20 @@ pub enum Constraint {
     Tangent {
         circle: CircleId,
         segment: SegmentId,
+        /// The point where the two touch, kept as a real point of the drawing
+        /// so it can be grabbed, dimensioned and snapped to. It is held both on
+        /// the line and square under the centre, which is what keeps it at the
+        /// contact instead of sliding along the line.
+        #[serde(default)]
+        at: Option<PointId>,
+    },
+    /// A point held on a circle's rim, wherever the circle goes and whatever
+    /// size it takes. This is what makes the points clicked to draw a circle
+    /// into handles: dragging one resizes the circle instead of leaving a
+    /// stray point behind.
+    OnCircle {
+        point: PointId,
+        circle: CircleId,
     },
     /// A point held halfway along a trait.
     Midpoint {
@@ -183,7 +197,7 @@ impl Constraint {
             Self::Perpendicular { .. } => "Perpendiculaire",
             Self::Parallel { .. } => "Parallèle",
             Self::Equal { .. } | Self::EqualRadius { .. } => "Égalité",
-            Self::OnSegment { .. } => "Coïncidence",
+            Self::OnSegment { .. } | Self::OnCircle { .. } => "Coïncidence",
             Self::Collinear { .. } | Self::AxisCollinear { .. } => "Colinéaire",
             Self::Tangent { .. } => "Tangence",
             Self::Midpoint { .. } => "Milieu",
@@ -201,7 +215,7 @@ impl Constraint {
             Self::Perpendicular { .. } => "|_",
             Self::Parallel { .. } => "//",
             Self::Equal { .. } | Self::EqualRadius { .. } => "=",
-            Self::OnSegment { .. } => "+",
+            Self::OnSegment { .. } | Self::OnCircle { .. } => "+",
             Self::Collinear { .. } | Self::AxisCollinear { .. } => "--",
             Self::Tangent { .. } => "T",
             Self::Midpoint { .. } => "1/2",

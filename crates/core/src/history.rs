@@ -87,6 +87,12 @@ pub enum Operation {
         sketch: usize,
         center: PointRef,
         radius: f64,
+        /// The places clicked on the rim, kept as real points held on the
+        /// circle. They are what a circle drawn by its points can be grabbed
+        /// by: dragging one resizes the circle rather than leaving a stray
+        /// point behind.
+        #[serde(default)]
+        rim: Vec<PointRef>,
     },
     /// Dragging a point to a new place.
     MovePoint {

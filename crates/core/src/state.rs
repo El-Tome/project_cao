@@ -104,20 +104,25 @@ impl PartState {
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.move_point(*point, *position);
                 // Moving a point by hand must not break the values already
-                // given, so the drawing settles again around it.
-                sketch.resolve(scale);
+                // given, so the drawing settles again around it — around it,
+                // the point itself staying exactly where it was dropped.
+                sketch.settle_around(*point, *position, scale);
                 None
             }
             Operation::AddCircle {
                 sketch,
                 center,
                 radius,
+                rim,
             } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
                 let center = resolve(sketch, center);
-                sketch.add_circle(center, *radius);
+                let circle = sketch.add_circle(center, *radius);
+                for place in rim {
+                    let point = resolve(sketch, place);
+                    sketch.add_constraint(cao_sketch::Constraint::OnCircle { point, circle });
+                }
                 None
             }
             Operation::MoveDimension {
@@ -358,10 +363,14 @@ impl PartState {
     fn length_in_units(&self, index: usize, target: DimensionTarget) -> Option<f64> {
         let sketch = self.sketches.get(index)?;
         let units = match target {
-            DimensionTarget::Length(segment) => sketch.segment_length(segment),
-            DimensionTarget::Distance { from, to } => sketch.point(from).distance(sketch.point(to)),
-            DimensionTarget::Radius(circle) => sketch.circle(circle).radius,
-            DimensionTarget::Diameter(circle) => sketch.circle(circle).radius * 2.0,
+            DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len())
+                .then(|| sketch.segment_length(segment))?,
+            DimensionTarget::Distance { from, to } => {
+                let points = sketch.points();
+                points.get(from.0)?.distance(*points.get(to.0)?)
+            }
+            DimensionTarget::Radius(circle) => sketch.circles().get(circle.0)?.radius,
+            DimensionTarget::Diameter(circle) => sketch.circles().get(circle.0)?.radius * 2.0,
             DimensionTarget::PointToSegment { point, segment } => {
                 sketch.point_to_segment(point, segment)?
             }
@@ -604,6 +613,7 @@ mod extra_tests {
             sketch: 0,
             center: PointRef::New(DVec2::ZERO),
             radius: 4.0,
+            rim: Vec::new(),
         });
 
         // First value in the part: it sets the scale rather than resizing.
@@ -931,11 +941,13 @@ mod extrusion_tests {
             sketch: 0,
             center: PointRef::New(DVec2::ZERO),
             radius: 10.0,
+            rim: Vec::new(),
         });
         history.push(Operation::AddCircle {
             sketch: 0,
             center: PointRef::Existing(cao_sketch::PointId(1)),
             radius: 6.0,
+            rim: Vec::new(),
         });
         history.push(Operation::Extrude {
             sketch: 0,

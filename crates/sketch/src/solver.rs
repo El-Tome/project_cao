@@ -498,7 +498,7 @@ impl Sketch {
     /// everything else can be measured from.
     fn pinned_points(&self) -> Vec<bool> {
         let mut pinned: Vec<bool> = (0..self.points().len())
-            .map(|index| self.is_origin(PointId(index)))
+            .map(|index| self.is_origin(PointId(index)) || self.is_held_still(PointId(index)))
             .collect();
         for constraint in self.constraints() {
             let Constraint::Fixed { element } = constraint else {
@@ -689,7 +689,11 @@ impl Sketch {
                 .on_line_equation(point, segment, 0.0)
                 .into_iter()
                 .collect(),
-            Constraint::Tangent { circle, segment } => {
+            Constraint::Tangent {
+                circle,
+                segment,
+                at,
+            } => {
                 let Some(round) = self.circles().get(circle.0).copied() else {
                     return Vec::new();
                 };
@@ -698,16 +702,27 @@ impl Sketch {
                     return Vec::new();
                 };
                 // Growing the circle closes the gap just as surely as moving
-                // it does, so the size is part of the answer.
+                // it does, so the size is part of the answer — outwards or
+                // inwards according to the side of the line the circle is on.
                 if let Some(column) = self.radius_column(circle) {
-                    let sign = match self.point_to_segment(round.center, segment) {
-                        Some(_) => -1.0,
-                        None => -1.0,
-                    };
-                    equation.add_radius(column, sign);
+                    equation.add_radius(column, -self.side_of(round.center, segment));
                 }
-                vec![equation]
+                let mut equations = vec![equation];
+                // Where the two touch is a point of the drawing, and it is not
+                // free: it lies on the line, square under the centre. Without
+                // that second half it would slide along the line, since sliding
+                // a point along a circle it touches changes nothing at all to
+                // first order.
+                if let Some(contact) = self.live_point(at) {
+                    equations.extend(self.on_line_equation(contact, segment, 0.0));
+                    equations.extend(self.foot_equation(contact, round.center, segment));
+                }
+                equations
             }
+            Constraint::OnCircle { point, circle } => self
+                .rim_equation(point, circle)
+                .into_iter()
+                .collect(),
             Constraint::EqualRadius { first, second } => {
                 let (Some(one), Some(other)) = (
                     self.radius_column(first),
@@ -876,6 +891,81 @@ impl Sketch {
         );
         equation.add(line.end, gradient(DVec2::new(reach.y, -reach.x), unit));
         Some(equation)
+    }
+
+    /// Which side of a line a point lies on: +1 or -1, and +1 when it is on it.
+    fn side_of(&self, point: PointId, segment: SegmentId) -> f64 {
+        let Some(line) = self.segments().get(segment.0).copied() else {
+            return 1.0;
+        };
+        let (a, b) = (self.point(line.start), self.point(line.end));
+        match (b - a).perp_dot(self.point(point) - a) < 0.0 {
+            true => -1.0,
+            false => 1.0,
+        }
+    }
+
+    /// A point held square under another across a line: what keeps a tangency's
+    /// contact where the two actually touch.
+    fn foot_equation(
+        &self,
+        point: PointId,
+        under: PointId,
+        segment: SegmentId,
+    ) -> Option<Equation> {
+        let line = *self.segments().get(segment.0)?;
+        if point.0 >= self.points().len() || under.0 >= self.points().len() {
+            return None;
+        }
+        let (a, b) = (self.point(line.start), self.point(line.end));
+        let span = b - a;
+        let length = span.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let unit = span / length;
+        let reach = self.point(point) - self.point(under);
+
+        // The direction itself turns when the trait's ends move, which is what
+        // carries the contact round with the line.
+        let turning = (reach - unit * reach.dot(unit)) / length;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = reach.dot(unit);
+        equation.add(point, unit);
+        equation.add(under, -unit);
+        equation.add(line.end, turning);
+        equation.add(line.start, -turning);
+        Some(equation)
+    }
+
+    /// A point held on a circle's rim. The size gives as readily as the place:
+    /// dragging such a point is how a circle is resized by hand.
+    fn rim_equation(&self, point: PointId, circle: crate::sketch::CircleId) -> Option<Equation> {
+        let round = *self.circles().get(circle.0)?;
+        if point.0 >= self.points().len() {
+            return None;
+        }
+        let reach = self.point(point) - self.point(round.center);
+        let length = reach.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let unit = reach / length;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = length - round.radius;
+        equation.add(point, unit);
+        equation.add(round.center, -unit);
+        if let Some(column) = self.radius_column(circle) {
+            equation.add_radius(column, -1.0);
+        }
+        Some(equation)
+    }
+
+    /// A point a rule names, when it is still drawn.
+    fn live_point(&self, point: Option<PointId>) -> Option<PointId> {
+        point.filter(|id| id.0 < self.points().len() && !self.is_erased_point(*id))
     }
 
     /// A point held halfway along a trait: one equation for each coordinate,

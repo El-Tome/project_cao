@@ -125,6 +125,24 @@ impl PartState {
                 }
                 None
             }
+            Operation::MoveMany { sketch, points, by } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                // Every point of the selection travels by the same step and is
+                // held there: a shape moved as a block keeps its shape, and the
+                // rest of the drawing settles around it.
+                let dropped: Vec<(cao_sketch::PointId, DVec2)> = points
+                    .iter()
+                    .filter_map(|point| {
+                        sketch
+                            .points()
+                            .get(point.0)
+                            .map(|place| (*point, *place + *by))
+                    })
+                    .collect();
+                sketch.settle_around_all(&dropped, scale);
+                None
+            }
             Operation::MoveDimension {
                 sketch,
                 target,

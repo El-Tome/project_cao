@@ -66,13 +66,14 @@ pub struct Sketch {
     /// start pointing at a different piece of the drawing.
     #[serde(default)]
     erased: Erased,
-    /// The point the user is holding under the cursor, while a drag lasts.
+    /// The points the user is holding under the cursor, while a drag lasts.
     ///
-    /// It does not give: the drawing settles *around* it rather than pulling it
-    /// back, which is what makes a shape follow the mouse instead of squirming
-    /// away from it. Nothing to save — it lives only as long as the gesture.
+    /// They do not give: the drawing settles *around* them rather than pulling
+    /// them back, which is what makes a shape follow the mouse instead of
+    /// squirming away from it. Nothing to save — they live only as long as the
+    /// gesture.
     #[serde(skip)]
-    held: Option<PointId>,
+    held: Vec<PointId>,
 }
 
 /// The ranks that no longer count.
@@ -124,7 +125,7 @@ impl Sketch {
             dimensions: Vec::new(),
             constraints: Vec::new(),
             erased: Erased::default(),
-            held: None,
+            held: Vec::new(),
         }
     }
 
@@ -389,7 +390,7 @@ impl Sketch {
 
     /// Whether the user is holding this point under the cursor right now.
     pub(crate) fn is_held_still(&self, point: PointId) -> bool {
-        self.held == Some(point)
+        self.held.contains(&point)
     }
 
     /// Points the user drew, as opposed to the origin the sketch was born with.
@@ -820,23 +821,20 @@ impl Sketch {
     /// Points pinned to the origin are taken out of the count outright, since
     /// neither of their coordinates can move.
     pub fn freedom(&self, millimeters_per_unit: f64) -> Freedom {
-        // The origin never moves, so its two coordinates are not in play.
-        let free_coordinates = self.points.len().saturating_sub(1) * 2;
-        let held = solver::rank(&self.analysed_system(millimeters_per_unit)).min(free_coordinates);
-
-        // A circle brings its own radius, which only its own dimension can
-        // settle; that pair never touches the point coordinates.
-        let radii_without_a_value = self.circles.len().saturating_sub(
-            self.dimensions
-                .iter()
-                .filter(|dimension| {
-                    !dimension.driven && matches!(dimension.target, DimensionTarget::Radius(_))
-                })
-                .count(),
-        );
+        // What the drawing can still move: two coordinates per point that is
+        // free to move, plus one size per circle. A pinned point — the origin,
+        // or anything held by a **Fixe** — has nowhere to go, so it is not in
+        // play; counting it did the opposite of what fixing something is for,
+        // and added two degrees of freedom that nothing could ever take away.
+        let pinned = self.pinned_points();
+        let loose = (0..self.points.len())
+            .filter(|index| !pinned[*index] && !self.is_erased_point(PointId(*index)))
+            .count();
+        let unknowns = loose * 2 + self.live_circles().count();
+        let held = solver::rank(&self.analysed_system(millimeters_per_unit)).min(unknowns);
 
         Freedom {
-            degrees_of_freedom: (free_coordinates - held) + radii_without_a_value,
+            degrees_of_freedom: unknowns - held,
         }
     }
 
@@ -934,26 +932,65 @@ impl Sketch {
             .collect()
     }
 
-    /// Re-satisfies every dimension at once, reporting whether it managed.
     /// Puts a point where it was dropped and settles the rest of the drawing
     /// around it, that point staying exactly where it was put.
-    ///
-    /// Solving without holding it lets the constraints pull it back part of the
-    /// way, so the shape slides out from under the cursor — which is what made
-    /// dragging a tangent circle feel like wrestling it.
     pub fn settle_around(
         &mut self,
         point: PointId,
         position: DVec2,
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
-        self.move_point(point, position);
-        self.held = Some(point);
-        let outcome = self.resolve(millimeters_per_unit);
-        self.held = None;
-        outcome
+        self.settle_around_all(&[(point, position)], millimeters_per_unit)
     }
 
+    /// The same for a whole handful of points dropped at once, which is how a
+    /// selection is moved in one block.
+    ///
+    /// Held, they do not give: the drawing settles around them rather than
+    /// pulling them back, so a shape follows the mouse instead of squirming
+    /// away from it.
+    ///
+    /// When holding them is more than the drawing can bear — a corner dragged
+    /// somewhere no tangency can reach it — the values already given win over
+    /// the cursor: everything goes back and settles the ordinary way. Leaving
+    /// the half-solved state was what let a circle be dragged out of shape and
+    /// stay that way until the next change put it right.
+    pub fn settle_around_all(
+        &mut self,
+        dropped: &[(PointId, DVec2)],
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        let kept = (self.points.clone(), self.circles.clone());
+        let place = |sketch: &mut Self| {
+            for (point, position) in dropped {
+                sketch.move_point(*point, *position);
+            }
+        };
+
+        place(self);
+        self.held = dropped.iter().map(|(point, _)| *point).collect();
+        let outcome = self.resolve(millimeters_per_unit);
+        self.held.clear();
+        if outcome == LengthOutcome::Exact {
+            return outcome;
+        }
+
+        self.points.clone_from(&kept.0);
+        self.circles.clone_from(&kept.1);
+        place(self);
+        let outcome = self.resolve(millimeters_per_unit);
+        if !self.has_a_collapsed_trait(self.drawing_size()) {
+            return outcome;
+        }
+
+        // Neither way leaves a drawing worth keeping: a trait has been squeezed
+        // down to nothing. The gesture is refused rather than the shape broken
+        // — the point simply does not go there.
+        (self.points, self.circles) = kept;
+        LengthOutcome::BestEffort
+    }
+
+    /// Re-satisfies every dimension at once, reporting whether it managed.
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
@@ -1196,6 +1233,136 @@ mod tests {
             "le rayon a rejoint la droite : {}",
             round.radius
         );
+    }
+
+    #[test]
+    fn fixing_a_corner_takes_freedom_away_rather_than_adding_it() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(100.0, 100.0));
+        let b = sketch.add_point(DVec2::new(200.0, 110.0));
+        let c = sketch.add_point(DVec2::new(150.0, 190.0));
+        for (start, end, length) in [(a, b, 100.0), (b, c, 95.0), (c, a, 90.0)] {
+            let side = sketch.add_segment(start, end);
+            sketch.set_dimension(DimensionTarget::Length(side), length, false);
+        }
+        sketch.resolve(1.0);
+
+        // Drawn away from the origin, it can still be slid about.
+        let loose = sketch.freedom(1.0).degrees_of_freedom;
+        assert_eq!(loose, 2, "il reste la translation");
+
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Point(a),
+        });
+        assert!(
+            sketch.freedom(1.0).degrees_of_freedom < loose,
+            "fixer un coin enlève de la liberté, il n'en ajoute pas"
+        );
+    }
+
+    #[test]
+    fn a_drag_that_cannot_be_had_leaves_the_drawing_whole() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corners = [
+            DVec2::new(-80.0, -50.0),
+            DVec2::new(90.0, -40.0),
+            DVec2::new(10.0, 80.0),
+        ];
+        let ids: Vec<_> = corners
+            .iter()
+            .map(|place| sketch.add_point(*place))
+            .collect();
+        let sides: Vec<_> = [(0, 1), (1, 2), (2, 0)]
+            .iter()
+            .map(|(a, b)| sketch.add_segment(ids[*a], ids[*b]))
+            .collect();
+        let (place, radius) = crate::construct::circle_touching_three(
+            (corners[0], corners[1]),
+            (corners[1], corners[2]),
+            (corners[2], corners[0]),
+        )
+        .unwrap();
+        let center = sketch.add_point(place);
+        let circle = sketch.add_circle(center, radius);
+        for segment in &sides {
+            sketch.add_constraint(Constraint::Tangent {
+                circle,
+                segment: *segment,
+                at: None,
+            });
+        }
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Circle(circle),
+        });
+        sketch.set_dimension(DimensionTarget::Diameter(circle), 100.0, false);
+        sketch.resolve(1.0);
+
+        // Dragged somewhere the two sides through it cannot follow while the
+        // circle stays put and keeps its size.
+        sketch.settle_around(ids[1], DVec2::new(900.0, -600.0), 1.0);
+
+        let wanted = sketch.circle(circle).radius;
+        assert!(
+            (wanted - 50.0).abs() < 0.5,
+            "le cercle garde sa taille : {wanted}"
+        );
+        for (rank, side) in sides.iter().enumerate() {
+            let gap = sketch.point_to_segment(center, *side).unwrap();
+            assert!(
+                (gap - wanted).abs() < 0.5,
+                "le côté {rank} touche toujours : {gap} au lieu de {wanted}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_whole_figure_moved_at_once_keeps_its_shape() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corners = [
+            DVec2::new(40.0, 40.0),
+            DVec2::new(140.0, 40.0),
+            DVec2::new(140.0, 110.0),
+            DVec2::new(40.0, 110.0),
+        ];
+        let ids: Vec<_> = corners
+            .iter()
+            .map(|place| sketch.add_point(*place))
+            .collect();
+        let sides: Vec<_> = (0..4)
+            .map(|rank| sketch.add_segment(ids[rank], ids[(rank + 1) % 4]))
+            .collect();
+        for pair in 0..3 {
+            sketch.set_dimension(
+                DimensionTarget::Angle {
+                    first: sides[pair],
+                    second: sides[pair + 1],
+                },
+                90.0,
+                false,
+            );
+        }
+        sketch.resolve(1.0);
+        let before: Vec<f64> = sides.iter().map(|s| sketch.segment_length(*s)).collect();
+
+        let step = DVec2::new(-70.0, 55.0);
+        let dropped: Vec<(PointId, DVec2)> = ids
+            .iter()
+            .map(|point| (*point, sketch.point(*point) + step))
+            .collect();
+        sketch.settle_around_all(&dropped, 1.0);
+
+        for (rank, point) in ids.iter().enumerate() {
+            assert!(
+                sketch.point(*point).distance(corners[rank] + step) < 1e-6,
+                "le coin {rank} a été porté tel quel"
+            );
+        }
+        for (rank, side) in sides.iter().enumerate() {
+            assert!(
+                (sketch.segment_length(*side) - before[rank]).abs() < 1e-6,
+                "et le côté {rank} n'a pas été étiré"
+            );
+        }
     }
 
     #[test]

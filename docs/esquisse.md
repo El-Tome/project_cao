@@ -506,6 +506,28 @@ arrière pendant que les lignes auxquelles ils appartiennent s'en vont.
 Rien n'est enregistré pour autant : l'historique ne reçoit qu'une seule
 opération, au lâcher.
 
+### Quand le geste est impossible
+
+Tenir le point n'est pas toujours à la portée du dessin : un coin tiré là où
+aucune tangence ne peut le suivre, par exemple. Les valeurs déjà données
+l'emportent alors sur le curseur — tout revient en place et se pose de la façon
+ordinaire, le point allant aussi loin que le dessin le lui permet.
+
+Et si même cela écrase un trait jusqu'à n'en plus rien laisser, le geste est
+**refusé** : le point ne va pas là. Un trait de longueur nulle n'est pas de la
+géométrie, et ses équations ne peuvent même plus s'écrire — le système se
+déclarerait satisfait alors que le dessin est tombé en morceaux.
+
+### Déplacer toute une figure d'un bloc
+
+Un glisser qui commence **sur quelque chose de déjà sélectionné** emporte toute
+la sélection, comme un bureau déplace un groupe d'icônes. Chaque point nommé
+avance du même pas : la forme est portée, jamais étirée, et le reste du dessin
+se pose autour d'elle. Une seule ligne dans l'historique pour tout le bloc.
+
+Un glisser qui commence ailleurs reste ce qu'il était : un point sous le
+curseur, ou une boîte de sélection.
+
 ## Ce que les cotes dessinent
 
 Une cote n'est pas qu'un nombre posé à côté du dessin : elle est **tracée**,
@@ -620,6 +642,12 @@ Pour savoir si un point précis est figé, on calcule les **mouvements encore
 possibles** (le noyau du système) : si aucun d'eux ne déplace ce point, il ne
 peut plus bouger.
 
+Ce qui est compté en face, ce sont les **inconnues** : deux par point qui peut
+encore bouger, une par cercle. Un point épinglé — l'origine, ou quoi que ce soit
+que **Fixe** retient — n'en fait pas partie, puisqu'il n'a nulle part où aller.
+Le compter faisait l'inverse de ce à quoi sert Fixe : il ajoutait deux libertés
+que rien ne pouvait plus jamais enlever.
+
 ### Un point figé ne se déplace plus à la souris
 
 Un sommet vert ne répond pas à l'outil Sélection. Le tirer reviendrait à défaire
@@ -703,6 +731,19 @@ rejouant son historique.
 
 Si les valeurs se contredisent, le solveur s'arrête au bout de son quota
 d'itérations et le signale au lieu de s'arrêter en silence sur l'une d'elles.
+
+#### On recommence tant que ça avance
+
+Une passe ne suffit pas toujours. Ce qui est tenu rigide et ce qui a le droit
+de céder est lu **sur la forme telle qu'elle est** ; une fois le dessin
+déplacé, cette lecture est périmée, et recommencer en prend une neuve. Le
+solveur repart donc du début tant que chaque tour enlève au moins un dixième de
+l'erreur restante, et s'arrête dès qu'il n'avance plus.
+
+C'est ce qui arrivait auparavant par accident : un dessin laissé à mi-chemin se
+remettait droit dès que le changement suivant lui donnait un nouveau quota. On
+voyait alors un cercle tangent rester visiblement hors de forme jusqu'à ce
+qu'on touche autre chose. Il se pose maintenant au lâcher.
 
 #### Ce que le changement n'a pas à déformer
 

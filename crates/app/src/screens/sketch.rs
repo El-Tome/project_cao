@@ -258,6 +258,8 @@ pub struct SketchEditor {
     /// sits. Nothing is recorded until it is let go: a drag produces one entry
     /// in the history, not one per frame.
     pub dragged_point: Option<PointId>,
+    /// Every point of the selection when a whole block is being moved at once.
+    pub dragged_group: Vec<PointId>,
     /// Annotation being dragged out of the way.
     pub dragged_dimension: Option<DimensionTarget>,
     /// Where the drag began, to measure how far it has travelled.
@@ -382,6 +384,7 @@ impl SketchEditor {
         self.first_axis = None;
         self.placing = None;
         self.dragged_point = None;
+        self.dragged_group.clear();
         self.drag_preview = None;
         self.dragged_dimension = None;
         self.drag_origin = None;

@@ -108,6 +108,44 @@ and buys nothing.
 - **400 lines per file.** Seventeen files are already over and are named in the
   test with their current length; none of them may grow.
 
+## How work is delivered
+
+One issue, one branch, one pull request. Nothing lands on `main` any other way.
+
+The branch is created **from the issue**, so GitHub links the two and the issue
+shows its own branch:
+
+```sh
+gh issue develop <n> --base main --name <type>/<n>-<short-description> --checkout
+```
+
+**Conventional commit everywhere a name is written** — the branch, every commit
+title, and the pull request title. `feat`, `fix`, `refactor`, `perf`, `docs`,
+`test`, `build`, `ci`, `chore`, with the crate as scope when there is one.
+
+The prefix does not replace the evocative sentence this repository asks for; it
+precedes it. What follows the colon still says what the software can do now:
+
+```
+refactor(core): a part archive and a configuration file fail apart
+docs/24-storage-error-becomes-two-errors
+```
+
+**A pull request always carries a body.** What changed, what was decided and
+what was set aside, how it was verified, and `Closes #n`. A pull request with
+no body is one nobody can review a month later.
+
+**Stack rather than wait.** An issue whose dependency is still in review
+branches off *that* branch and targets it as base, instead of blocking on a
+merge. The body names what it sits on, and the base moves back to `main` on its
+own once the parent lands.
+
+**Three labels carry the state of an issue** — `todo` for ready to start,
+`backlog` for waiting on something, `in-progress` for a branch that exists.
+Epics carry none of the three: they are tracked by their sub-issues. Labels
+rather than a Project board because the `gh` token here has no `read:project`
+scope; if that changes, the board replaces them.
+
 ## Rules that do not apply here
 
 `~/.claude/*.md` describes a TypeScript stack — Effect, Redux, hexagonal in

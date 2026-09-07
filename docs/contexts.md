@@ -49,8 +49,17 @@ nothing else:
 | `command.rs` | 235 | **0** |
 | `recents.rs` | 74 | **0** |
 
-1 796 lines — 41 % of the crate — never mention the geometry. Two contexts, held
+2 031 lines — 47 % of the crate — never mention the geometry. Two contexts, held
 together by the accident of being neither interface nor mathematics:
+
+`command.rs` is counted in that figure, and it is the one row where that was a
+choice rather than a reading. Its vocabulary is the part's — `NewSketch`,
+`Undo`, `ExtrusionCut` — but `Command` is the vocabulary of *intent*, not of
+what the part records: nothing replays a `Command`, and no `.caopart` mentions
+one. Its only two consumers are `toolbar.rs` and `shortcuts.rs`, which bind it
+to a gesture and to a chord, and `toolbar.rs` serialises it into the profile. It
+goes with the preferences. Leaving it behind would point `cao_prefs` at
+`cao_core`, the one edge the target forbids.
 
 **The part.** `Operation`, `History`, `PartState`, `PartDocument`. Its language
 is operation, replay, step, part. Its invariant is that the geometry is never

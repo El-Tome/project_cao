@@ -1,11 +1,21 @@
 ---
 name: architecture-rust
-description: SOLID, clean architecture et ports & adapters appliqués au workspace CAO. À utiliser avant d'ajouter une crate, un module ou une dépendance, avant de faire de l'I/O (fichier, horloge, réseau) dans une couche métier, et quand on se demande où une responsabilité doit vivre ou pourquoi un test est difficile à écrire.
+description: SOLID, clean architecture, ports and adapters, and bounded contexts applied to the CAO workspace. Use before adding a crate, a module or a dependency, before doing I/O (file, clock, network) in a business layer, and whenever you wonder where a responsibility should live or why a test is hard to write.
 ---
 
 # Architecture
 
-## Le graphe autorisé
+## The rules are a test
+
+`crates/app/tests/architecture.rs` runs in the gate and enforces what follows:
+the crate graph, the purity of the two geometry crates, no interface crate below
+the shell, no disk or clock under a domain boundary, no user-facing wording
+below `cao_app`.
+
+Read it before arguing with this file. Where the two disagree, the test is
+right — it is the one that has been run.
+
+## The allowed graph
 
 ```
 cao_app  ──►  cao_core  ──►  cao_sketch
@@ -13,64 +23,98 @@ cao_app  ──►  cao_core  ──►  cao_sketch
    └──────────►  cao_render
 ```
 
-Une flèche vers la gauche est interdite. `cao_sketch` ne connaîtra jamais
-`cao_core`, `cao_render` ne connaîtra jamais `cao_app`.
+An arrow to the left is forbidden. `cao_sketch` will never know `cao_core`,
+`cao_render` will never know `cao_app`.
 
-Ce que chaque crate a le droit de voir :
-
-| Crate | Dépendances | Interdit |
+| Crate | Dependencies | Forbidden |
 | --- | --- | --- |
-| `cao_sketch` | `glam`, `serde` | tout le reste |
-| `cao_solid` | `glam`, `serde` | tout le reste |
-| `cao_render` | `wgpu`, `glam`, `bytemuck` | tout framework d'interface |
-| `cao_core` | `cao_sketch`, `cao_solid`, `serde`, `zip`, `chrono`, `directories` | **toute crate UI** — `egui`, `eframe`, `winit` |
-| `cao_app` | tout ce qui précède, `egui`, `eframe` | — |
+| `cao_sketch` | `glam`, `serde` — nothing else | everything else |
+| `cao_solid` | `glam`, `serde` — nothing else | everything else |
+| `cao_render` | `wgpu`, `glam`, `bytemuck` | any interface framework |
+| `cao_core` | `cao_sketch`, `cao_solid`, `serde`, `zip`, `chrono`, `directories`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
+| `cao_app` | everything above, `egui`, `eframe` | — |
 
-**`cao_core` sans UI n'est pas négociable** : c'est la condition pour qu'un
-futur front-end tablette ou web le réutilise tel quel.
+**`cao_core` without UI is not negotiable**: it is the condition for a future
+tablet or web front-end to reuse it as it stands.
 
-**`cao_app` est un shell fin** : fenêtre et routage entre modes. Dès qu'un mode
-porte une logique métier non triviale, il devient son propre crate
-(`cao_assembly`, ...) plutôt que de grossir `screens/`.
+**`cao_app` is a thin shell**: window and routing between modes. As soon as a
+mode carries non-trivial business logic it becomes its own crate
+(`cao_assembly`, …) rather than swelling `screens/`.
 
-## Les écarts actuels — dette connue, pas des modèles
+## Bounded contexts
 
-Deux endroits du dépôt contredisent ce qui précède. Ils sont documentés ici pour
-qu'on ne les recopie **jamais** comme exemple.
+The crate graph says what may depend on what. [`docs/contexts.md`](../../../docs/contexts.md)
+says where the seams are and why, and it is the target the refactor works
+towards. [`docs/glossary.md`](../../../docs/glossary.md) holds the words.
 
-### `cao_core` n'est pas le domaine
+Read both before deciding where something lives. The short version:
 
-Sa documentation dit « types de domaine ». C'est faux : il dépend de
-`cao_sketch` et `cao_solid` et orchestre esquisse, solide, historique et
-persistance. C'est la couche **application**. Les vrais domaines sont
-`cao_sketch` et `cao_solid`, qui ne dépendent que de `glam` et `serde`.
+- **`cao_sketch` — the drawing**, and **`cao_solid` — the matter**, are the two
+  real domains. Pure mathematics. A geometry rule belongs in one of them.
+- **`cao_render` — the picture**, **`cao_app` — the shell**.
+- **`cao_core` is two contexts, not one.** The part (`history`, `state`,
+  `document`) and the preferences (`settings`, `theme`, `shortcuts`, `toolbar`,
+  `recents`, `config`, `command`) share a manifest and nothing else: 1 796 of
+  its 4 328 lines never mention the geometry. The preferences are meant to leave
+  as `cao_prefs`.
 
-Conséquence pratique : quand tu cherches « où mettre une règle métier de
-géométrie », la réponse est `cao_sketch` ou `cao_solid`, pas `cao_core`.
-`cao_core` reçoit ce qui **coordonne** — l'historique, le document, l'état
-rejoué.
+## Three patterns already here, never named
 
-### L'I/O est en dur sous la frontière
+Naming them matters because an agent that does not see them breaks them.
 
-`document.rs`, `recents.rs`, `settings.rs` et `storage.rs` appellent
-directement `std::fs`, `directories::ProjectDirs`, `zip` et `chrono::Utc::now()`.
+**Event sourcing.** `History` is a log of `Operation`; `PartState::rebuild` is
+the projection. Undo, redo and stepping back are the same operation because
+they are all replay. The consequence is hard: **an `Operation` is immutable once
+written and its meaning is frozen** — changing how one replays changes what
+every existing `.caopart` draws. A new behaviour is a new variant, never a new
+reading of an old one.
 
-Ça se voit dans les tests : ils écrivent dans `std::env::temp_dir()`, créent de
-vrais dossiers et les effacent au `remove_dir_all`. Ils sont lents, dépendants
-de l'environnement, et deux tests qui tombent sur le même dossier se marchent
-dessus.
+**Aggregate root.** `Sketch` is one. Points, segments, circles, dimensions and
+constraints are not valid independently — the solver resolves them together. Its
+fields are private and stay private: every change goes through the root, or the
+invariant is lost.
 
-## La règle des ports
+**Anti-corruption layer.** `PointRef::{Existing, New}` translates between what
+the user did and what the drawing records: snapping depends on the zoom at the
+time, so the interface resolves it at the click and the part stores the answer.
+The `f64` → `f32` narrowing towards `cao_render` is the other one.
 
-**Aucun `std::fs`, `directories`, `chrono::Utc::now()`, ni accès réseau sous une
-frontière de domaine sans passer par un trait.**
+## The known gaps — debt, not models
 
-Le critère est simple : si une fonction ne peut pas être testée sans toucher le
-disque, l'horloge ou le réseau, c'est qu'il manque un port.
+Two places contradict the above. They are written down here so they are never
+copied as examples.
 
-### Le patron, en Rust
+### `cao_core` is not the domain
 
-Le port est un trait, dans la couche qui en a besoin :
+Its documentation says "domain types". That is false: it depends on
+`cao_sketch` and `cao_solid` and orchestrates sketch, solid, history and
+persistence. It is the **application** layer.
+
+In practice: when you look for "where does this geometry rule go", the answer is
+`cao_sketch` or `cao_solid`, never `cao_core`. `cao_core` takes what
+**coordinates** — the history, the document, the replayed state.
+
+### I/O is hardwired below the boundary
+
+`document.rs`, `recents.rs`, `settings.rs` and `storage.rs` call `std::fs`,
+`directories::ProjectDirs`, `zip` and `chrono::Utc::now()` directly.
+
+It shows in the tests: they write into `std::env::temp_dir()`, create real
+directories and delete them with `remove_dir_all`. They are slow, they depend on
+the environment, and two tests landing on the same directory tread on each
+other.
+
+The architecture test lists those four files and refuses a fifth.
+
+## The rule of ports
+
+**No `std::fs`, `directories`, `chrono::Utc::now()` or network access under a
+domain boundary without a trait.**
+
+The test is simple: if a function cannot be tested without touching the disk,
+the clock or the network, a port is missing.
+
+The port is a trait, in the layer that needs it:
 
 ```rust
 pub trait PartRepository {
@@ -83,103 +127,111 @@ pub trait Clock {
 }
 ```
 
-L'adaptateur réel vit à côté, et c'est **lui seul** qui a le droit d'appeler
-`std::fs` :
+The real adapter lives beside it, and **it alone** may call `std::fs`:
 
 ```rust
 pub struct ZipPartRepository;
 
 impl PartRepository for ZipPartRepository {
-    fn load(&self, path: &Path) -> Result<PartDocument, StorageError> { /* zip + serde */ }
-    fn save(&self, path: &Path, document: &PartDocument) -> Result<(), StorageError> { /* ... */ }
 }
 ```
 
-L'adaptateur de test est une implémentation **fonctionnelle**, pas un bouchon
-vide : il stocke dans une `HashMap` et se comporte réellement comme un dépôt.
+The test adapter is a **working** implementation, not an empty stub: it stores
+in a `HashMap` and really behaves like a repository.
 
 ```rust
 #[derive(Default)]
 struct InMemoryParts(RefCell<HashMap<PathBuf, PartDocument>>);
 ```
 
-Le code métier prend le trait, jamais l'implémentation :
+Business code takes the trait, never the implementation:
 
 ```rust
 fn open_part<R: PartRepository>(repo: &R, path: &Path) -> Result<PartState, StorageError>
 ```
 
-Générique plutôt que `dyn` quand il n'y a qu'une implémentation à la fois : pas
-d'indirection au moment de l'appel, et le compilateur voit tout.
+Generic rather than `dyn` while there is one implementation at a time: no
+indirection at the call, and the compiler sees everything.
 
-### Quand ne pas poser de port
+**None of these traits exist yet.** The workspace has zero of them today. This
+section describes the target, not the state.
 
-Un port pour du calcul pur ne sert à rien. `cao_sketch` et `cao_solid` ne font
-que des mathématiques : ils sont déjà testables tels quels et n'ont besoin
-d'aucune abstraction. Une abstraction qui n'enlève ni disque, ni horloge, ni
-réseau, ni GPU est du poids mort.
+### When not to add a port
 
-## SOLID, appliqué ici
+A port for pure computation buys nothing. `cao_sketch` and `cao_solid` do
+mathematics: they are already testable as they stand and need no abstraction. An
+abstraction that removes neither disk, nor clock, nor network, nor GPU is dead
+weight.
 
-**Responsabilité unique.** Le repoussoir est `app/src/screens/viewport.rs` :
-4 179 lignes, 105 fonctions, 7 structures, où cohabitent la caméra, le
-hit-test, la saisie clavier, les gestes et le dessin des annotations. N'y ajoute
-rien qui puisse vivre ailleurs. Un fichier qui grossit signale une
-responsabilité de trop, pas un besoin de sous-titres.
+## The rule of wording
 
-**Ouvert/fermé.** `PartState::apply` est un `match` sur `Operation` : chaque
-nouvelle opération oblige à rouvrir la fonction. C'est assumé pour l'instant —
-l'exhaustivité du `match` est justement ce qui garantit qu'aucune opération
-n'est oubliée au rejeu, et le compilateur le vérifie. Mais si le `match` se met
-à contenir de la logique plutôt que des appels courts, extrais le corps de
-chaque bras.
+**No text meant for a reader below `cao_app`.** A layer underneath returns a
+named case — `ExtrusionMode::Cut`, `StorageError::MissingEntry` — and the
+interface decides how it is said, and later in which language.
 
-**Substitution de Liskov.** Une implémentation d'un port doit se comporter comme
-les autres. Si l'adaptateur de test accepte un chemin que l'adaptateur réel
-refuse, les tests mentent.
+This is what makes i18n a wiring job rather than a rewrite. It is not true yet:
+75 lines of French still sit below `cao_app`, spread over eight files, two of
+them in `cao_sketch`. The architecture test holds the count per file so that it
+can only fall.
 
-**Ségrégation des interfaces.** Un trait par besoin. Un `Storage` unique portant
-pièces, réglages, récents et journal de plantage obligerait chaque test à tout
-implémenter.
+## SOLID, applied here
 
-**Inversion des dépendances.** Le métier définit le trait, l'infrastructure
-l'implémente. Le trait vit avec le code qui l'utilise, jamais avec
-l'implémentation.
+**Single responsibility.** The repellent is `app/src/screens/viewport.rs`:
+4 234 lines, 105 functions, 10 types, where the camera, hit-testing, keyboard
+input, gestures and annotation drawing all live together. Add nothing to it that
+could live elsewhere. A file that grows is signalling one responsibility too
+many, not a need for subheadings.
 
-## Ajouter quelque chose
+**Open/closed.** `PartState::apply` is a `match` on `Operation`: every new
+operation reopens the function. That is accepted for now — the exhaustive
+`match` is exactly what guarantees no operation is forgotten at replay, and the
+compiler checks it. But if the `match` starts holding logic rather than short
+calls, extract the body of each arm.
 
-**Une crate** — seulement quand un mode dépasse un simple écran et porte une
-logique métier propre. Elle respecte le graphe : elle ne remonte jamais vers
-`cao_app`.
+**Liskov substitution.** One implementation of a port must behave like the
+others. If the test adapter accepts a path the real one refuses, the tests lie.
 
-**Un mode** — une variante de `enum Screen` (`app/src/screens/mod.rs`) et son
-propre module dans `screens/`. Jamais une branche greffée sur un module
-existant.
+**Interface segregation.** One trait per need. A single `Storage` carrying
+parts, settings, recents and the crash log would force every test to implement
+all of it.
 
-**Une dépendance** — dans `[workspace.dependencies]` de la racine, avec la
-version, puis référencée par `.workspace = true`. Vérifie d'abord qu'elle ne
-casse pas le tableau ci-dessus.
+**Dependency inversion.** The business layer defines the trait, the
+infrastructure implements it. The trait lives with the code that uses it, never
+with the implementation.
 
-**Une constante** — un `const` ou un objet `as const`. Jamais un état global
-mutable.
+## Adding something
 
-## Les erreurs
+**A crate** — only when a mode outgrows a single screen and carries business
+logic of its own, or when a bounded context in `docs/contexts.md` is being split
+out. It respects the graph, and the architecture test gains an edge in the same
+commit.
 
-`thiserror`, avec des variantes qui **nomment** le cas :
+**A mode** — a variant of `enum Screen` (`app/src/screens/mod.rs`) and its own
+module in `screens/`. Never a branch grafted onto an existing module.
+
+**A dependency** — in `[workspace.dependencies]` at the root, with the version,
+then referenced with `.workspace = true`. Check first that it does not break the
+table above; the architecture test will refuse it for the two geometry crates.
+
+**A constant** — a `const` or an `as const` object. Never mutable global state.
+
+## Errors
+
+`thiserror`, with variants that **name** the case:
 
 ```rust
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
-    #[error("le fichier de pièce ne contient pas « {0} »")]
+    #[error("part file has no entry named {0}")]
     MissingEntry(String),
     #[error(transparent)]
     Io(#[from] std::io::Error),
 }
 ```
 
-Jamais de variante fourre-tout portant une `String` libre : l'appelant ne peut
-alors rien décider, il ne peut qu'afficher. Les messages destinés à
-l'utilisateur sont en français, comme le reste de ce qu'il lit.
+Never a catch-all variant carrying a free `String`: the caller can then decide
+nothing, it can only display. The message names the case; the wording the user
+reads is chosen in `cao_app`.
 
-Pas de `unwrap()`, `expect()` ni `panic!()` dans du code de production. Un
-`expect()` dans un test est normal et souhaitable.
+No `unwrap()`, `expect()` or `panic!()` in production code. An `expect()` in a
+test is normal and wanted.

@@ -264,6 +264,26 @@ géométrie dit exactement où.
 Un cercle posé contre des traits **y reste** : la tangence est enregistrée comme
 contrainte, puisque c'est tout l'intérêt de les avoir désignés.
 
+### Les endroits cliqués deviennent des points
+
+Un cercle tracé par des points garde ces points : ils sont des points du dessin
+comme les autres, tenus sur le bord. C'est ce qui donne des **poignées** à un
+cercle, qui n'en avait que son centre — on peut les attraper, mesurer depuis
+eux, s'y aimanter.
+
+- **Tirer une poignée du bord agrandit le cercle** : le rayon est une inconnue
+  du solveur, et le point tenu sur le bord la fait bouger.
+- **Tirer le centre déplace tout le cercle**, ses poignées avec lui.
+
+Une tangence emmène de même son **point de contact**. Il n'est pas libre : il est
+sur la droite, et d'aplomb sous le centre. Sans cette seconde moitié il
+glisserait le long de la droite — faire glisser un point le long d'un cercle
+qu'il touche ne change rien du tout au premier ordre, et le solveur n'aurait
+donc rien à corriger.
+
+Ce point est ce qu'on attrape pour **faire glisser un cercle le long de la
+droite qu'il touche**, sans casser la tangence.
+
 Le **diamètre se tape** pendant le geste, comme la longueur d'un trait ou les
 côtés d'un rectangle, et devient une cote sur le cercle. Une taille trop petite
 pour atteindre les deux points est retenue à la plus petite qui les atteint :
@@ -284,9 +304,9 @@ Le menu **Contraintes**, dans la rangée Dessin, en propose neuf :
 | **Perpendiculaire** | Deux traits | Ils restent d'équerre |
 | **Parallèle** | Deux traits | Ils gardent la même direction |
 | **Égalité** | Deux traits, ou deux cercles | Le second prend la taille du premier |
-| **Coïncidence** | Un point et un trait, ou deux points | Le point reste sur la droite ; deux points n'en font qu'un |
+| **Coïncidence** | Un point et un trait, ou deux points | Le point reste sur la droite ; deux points n'en font qu'un ; un point posé sur un cercle reste sur son bord |
 | **Colinéaire** | Deux traits, ou un trait et un axe du repère | Ils reposent sur la même droite |
-| **Tangence** | Un cercle et un trait | Le trait effleure le cercle |
+| **Tangence** | Un cercle et un trait | Le trait effleure le cercle, et le point de contact est posé |
 | **Milieu** | Un point et un trait | Le point reste à mi-longueur |
 | **Fixe** | N'importe quoi : un point, un trait, un cercle | Il ne bouge plus de sa place (sa taille n'est pas fixée pour autant) |
 | **Concentrique** | Deux cercles | Ils partagent un seul centre |
@@ -466,6 +486,12 @@ elle-même. Deux lectures séparées finiraient par diverger, et un aperçu qui 
 est pire que pas d'aperçu du tout.
 
 ### Pendant qu'on déplace un point
+
+Le point tenu sous le curseur **ne cède pas** : le dessin se pose *autour* de
+lui. Le solveur l'épingle le temps du geste, exactement comme le point
+d'origine. Sans cela les contraintes le ramènent en partie en arrière, la forme
+sort de sous le curseur — c'est ce qui rendait un cercle tangent si pénible à
+déplacer.
 
 Le dessin est montré **tel qu'il se posera** si on lâche là : le solveur tourne
 à chaque image, et les valeurs déjà données tirent le reste de la forme avec le

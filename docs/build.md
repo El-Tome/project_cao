@@ -43,6 +43,21 @@ aussi directement.
   les en-têtes et bibliothèques Microsoft, qui ne sont pas librement
   redistribuables. Le rendu passe par DX12 ou Vulkan dans les deux cas.
 
+## Quand ça plante
+
+Une application graphique sous Windows n'ouvre pas de console : un panic n'y
+laisse rien à lire, et « ça a planté » est tout ce qu'on a. Chaque panic est
+donc écrit à la suite dans un fichier :
+
+| Système | Fichier |
+| --- | --- |
+| macOS | `~/Library/Application Support/dev.cao.cao/plantages.log` |
+| Windows | `%APPDATA%\cao\cao\data\plantages.log` |
+| Linux | `~/.local/share/cao/plantages.log` |
+
+Il contient l'heure, le message et la pile d'appels. Le message part aussi vers
+le terminal quand il y en a un.
+
 ## Autres plateformes
 
 Linux et macOS se compilent nativement avec `cargo build --release -p cao_app`.

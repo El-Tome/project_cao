@@ -22,6 +22,6 @@ pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
 pub use state::{DimensionOutcome, PartState};
 pub use settings::{PROFILE_EXTENSION, Profile, Profiles, Settings};
 pub use shortcuts::{Chord, Key, Shortcuts};
-pub use storage::{StorageError, default_projects_dir};
+pub use storage::{StorageError, crash_log_path, default_projects_dir, record_panics};
 pub use theme::{Background, Rgba, Stop, Theme};
 pub use toolbar::{Edge, ToolbarLayout};

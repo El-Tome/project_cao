@@ -66,6 +66,13 @@ pub struct Sketch {
     /// start pointing at a different piece of the drawing.
     #[serde(default)]
     erased: Erased,
+    /// The point the user is holding under the cursor, while a drag lasts.
+    ///
+    /// It does not give: the drawing settles *around* it rather than pulling it
+    /// back, which is what makes a shape follow the mouse instead of squirming
+    /// away from it. Nothing to save — it lives only as long as the gesture.
+    #[serde(skip)]
+    held: Option<PointId>,
 }
 
 /// The ranks that no longer count.
@@ -117,6 +124,7 @@ impl Sketch {
             dimensions: Vec::new(),
             constraints: Vec::new(),
             erased: Erased::default(),
+            held: None,
         }
     }
 
@@ -191,10 +199,18 @@ impl Sketch {
             .into_iter()
             .filter(|dimension| self.measures_live(dimension.target))
             .collect();
-        self.constraints = std::mem::take(&mut self.constraints)
-            .into_iter()
-            .filter(|constraint| self.holds_up(*constraint))
-            .collect();
+        let (kept, dropped): (Vec<Constraint>, Vec<Constraint>) =
+            std::mem::take(&mut self.constraints)
+                .into_iter()
+                .partition(|constraint| self.holds_up(*constraint));
+        self.constraints = kept;
+        // A tangency taking its contact point with it: left behind, the point
+        // would sit in mid-air with nothing holding it.
+        for constraint in dropped {
+            if let Constraint::Tangent { at: Some(point), .. } = constraint {
+                Erased::mark(&mut self.erased.points, point.0);
+            }
+        }
     }
 
     /// Whether everything a dimension refers to is still drawn.
@@ -226,13 +242,73 @@ impl Sketch {
 
     /// Adds a rule, unless the drawing already carries it.
     pub fn add_constraint(&mut self, constraint: Constraint) {
+        // A tangency brings its contact point with it, so it is laid down by
+        // the method that knows how to make one.
+        if let Constraint::Tangent {
+            circle,
+            segment,
+            at: None,
+        } = constraint
+        {
+            self.add_tangency(circle, segment);
+            return;
+        }
         let constraint = constraint.normalised();
         if !self.constraints.contains(&constraint) && self.holds_up(constraint) {
             self.constraints.push(constraint);
         }
     }
 
+    /// A circle told to brush a line, and the point where the two touch.
+    ///
+    /// That point is a point of the drawing like any other — it can be grabbed
+    /// to slide the circle along the line, measured from, and snapped to. It is
+    /// made here rather than at the click because where it goes is not a
+    /// choice: it is the foot of the centre on the line.
+    pub fn add_tangency(&mut self, circle: CircleId, segment: SegmentId) {
+        let plain = Constraint::Tangent {
+            circle,
+            segment,
+            at: None,
+        };
+        if !self.holds_up(plain) || self.tangency_index(circle, segment).is_some() {
+            return;
+        }
+        let at = self
+            .foot_on_segment(self.circle(circle).center, segment)
+            .map(|place| self.add_point(place));
+        self.constraints.push(Constraint::Tangent {
+            circle,
+            segment,
+            at,
+        });
+    }
+
+    fn tangency_index(&self, circle: CircleId, segment: SegmentId) -> Option<usize> {
+        self.constraints.iter().position(|held| {
+            matches!(
+                held,
+                Constraint::Tangent { circle: round, segment: line, .. }
+                    if *round == circle && *line == segment
+            )
+        })
+    }
+
     pub fn erase_constraint(&mut self, constraint: Constraint) {
+        // A tangency is named by the two things it holds, whatever became of
+        // its contact point, and that point goes with it.
+        if let Constraint::Tangent {
+            circle, segment, ..
+        } = constraint
+        {
+            let Some(rank) = self.tangency_index(circle, segment) else {
+                return;
+            };
+            if let Constraint::Tangent { at: Some(point), .. } = self.constraints.remove(rank) {
+                self.erase(Element::Point(point));
+            }
+            return;
+        }
         let constraint = constraint.normalised();
         self.constraints.retain(|held| *held != constraint);
     }
@@ -287,7 +363,12 @@ impl Sketch {
             Constraint::Tangent {
                 circle: round,
                 segment: line,
+                ..
             } => circle(round) && segment(line),
+            Constraint::OnCircle {
+                point: held,
+                circle: round,
+            } => point(held) && circle(round),
             Constraint::AxisCollinear { segment: on, .. } => segment(on),
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held),
@@ -304,6 +385,11 @@ impl Sketch {
 
     pub fn is_origin(&self, point: PointId) -> bool {
         point == Self::ORIGIN
+    }
+
+    /// Whether the user is holding this point under the cursor right now.
+    pub(crate) fn is_held_still(&self, point: PointId) -> bool {
+        self.held == Some(point)
     }
 
     /// Points the user drew, as opposed to the origin the sketch was born with.
@@ -785,10 +871,12 @@ impl Sketch {
     ) -> Option<solver::Equation> {
         let value = match target {
             DimensionTarget::Length(segment) => {
-                self.segment_length(segment) * millimeters_per_unit.max(1e-9)
+                (segment.0 < self.segments.len()).then(|| self.segment_length(segment))?
+                    * millimeters_per_unit.max(1e-9)
             }
             DimensionTarget::Distance { from, to } => {
-                self.point(from).distance(self.point(to)) * millimeters_per_unit.max(1e-9)
+                let (a, b) = (self.points.get(from.0)?, self.points.get(to.0)?);
+                a.distance(*b) * millimeters_per_unit.max(1e-9)
             }
             DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
             DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
@@ -799,10 +887,10 @@ impl Sketch {
                 self.projected_gap(from, to, axis)? * millimeters_per_unit.max(1e-9)
             }
             DimensionTarget::Radius(circle) => {
-                self.circle(circle).radius * millimeters_per_unit.max(1e-9)
+                self.circles.get(circle.0)?.radius * millimeters_per_unit.max(1e-9)
             }
             DimensionTarget::Diameter(circle) => {
-                self.circle(circle).radius * 2.0 * millimeters_per_unit.max(1e-9)
+                self.circles.get(circle.0)?.radius * 2.0 * millimeters_per_unit.max(1e-9)
             }
         };
 
@@ -847,6 +935,25 @@ impl Sketch {
     }
 
     /// Re-satisfies every dimension at once, reporting whether it managed.
+    /// Puts a point where it was dropped and settles the rest of the drawing
+    /// around it, that point staying exactly where it was put.
+    ///
+    /// Solving without holding it lets the constraints pull it back part of the
+    /// way, so the shape slides out from under the cursor — which is what made
+    /// dragging a tangent circle feel like wrestling it.
+    pub fn settle_around(
+        &mut self,
+        point: PointId,
+        position: DVec2,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        self.move_point(point, position);
+        self.held = Some(point);
+        let outcome = self.resolve(millimeters_per_unit);
+        self.held = None;
+        outcome
+    }
+
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
@@ -1060,6 +1167,125 @@ mod tests {
     }
 
     #[test]
+    fn a_circle_brushes_a_line_drawn_the_other_way_round_too() {
+        // The trait runs right to left, which puts the circle on the negative
+        // side of it. Growing the circle then closes the gap the other way; a
+        // size correction taken with the wrong sign sends the radius running.
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(40.0, 0.0));
+        let end = sketch.add_point(DVec2::new(-40.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let center = sketch.add_point(DVec2::new(0.0, 30.0));
+        let circle = sketch.add_circle(center, 12.0);
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Segment(line),
+        });
+        sketch.add_constraint(Constraint::Fixed {
+            element: Element::Circle(circle),
+        });
+        sketch.add_constraint(Constraint::Tangent {
+            circle,
+            segment: line,
+            at: None,
+        });
+
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+        let round = sketch.circle(circle);
+        assert!(
+            (round.radius - 30.0).abs() < 1e-3,
+            "le rayon a rejoint la droite : {}",
+            round.radius
+        );
+    }
+
+    #[test]
+    fn a_tangency_keeps_a_point_where_the_two_touch() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(-40.0, 0.0));
+        let end = sketch.add_point(DVec2::new(40.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let center = sketch.add_point(DVec2::new(0.0, 30.0));
+        let circle = sketch.add_circle(center, 25.0);
+
+        sketch.add_constraint(Constraint::Tangent {
+            circle,
+            segment: line,
+            at: None,
+        });
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        let Some(Constraint::Tangent { at: Some(touch), .. }) = sketch
+            .constraints()
+            .iter()
+            .find(|rule| matches!(rule, Constraint::Tangent { .. }))
+            .copied()
+        else {
+            panic!("la tangence n'a pas de point de contact");
+        };
+        let contact = sketch.point(touch);
+        let foot = sketch.foot_on_segment(center, line).unwrap();
+        assert!(contact.distance(foot) < 1e-3, "le contact a glissé : {contact}");
+
+        // The line moved out from under it: the contact follows, it does not
+        // stay behind on the old spot.
+        sketch.settle_around(end, DVec2::new(40.0, 40.0), 1.0);
+        let foot = sketch.foot_on_segment(sketch.circle(circle).center, line).unwrap();
+        assert!(sketch.point(touch).distance(foot) < 1e-2);
+    }
+
+    #[test]
+    fn a_point_on_the_rim_resizes_the_circle_when_it_is_pulled() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let center = sketch.add_point(DVec2::new(0.0, 0.0));
+        let circle = sketch.add_circle(center, 10.0);
+        let rim = sketch.add_point(DVec2::new(10.0, 0.0));
+        sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+
+        sketch.settle_around(rim, DVec2::new(30.0, 0.0), 1.0);
+
+        assert!(
+            sketch.point(rim).distance(DVec2::new(30.0, 0.0)) < 1e-9,
+            "le point lâché ne bouge plus"
+        );
+        let round = sketch.circle(circle);
+        let reach = sketch.point(rim).distance(sketch.point(round.center));
+        assert!(
+            (reach - round.radius).abs() < 1e-3,
+            "le point est resté sur le bord"
+        );
+        assert!(round.radius > 10.0, "le cercle a grandi : {}", round.radius);
+    }
+
+    #[test]
+    fn a_circle_dragged_by_its_centre_stays_under_the_cursor() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(-60.0, 0.0));
+        let end = sketch.add_point(DVec2::new(60.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let center = sketch.add_point(DVec2::new(0.0, 20.0));
+        let circle = sketch.add_circle(center, 20.0);
+        sketch.add_constraint(Constraint::Tangent {
+            circle,
+            segment: line,
+            at: None,
+        });
+
+        let dropped = DVec2::new(35.0, 45.0);
+        sketch.settle_around(center, dropped, 1.0);
+
+        assert!(
+            sketch.point(center).distance(dropped) < 1e-9,
+            "le centre a glissé sous le curseur : {}",
+            sketch.point(center)
+        );
+        let gap = sketch.point_to_segment(center, line).unwrap();
+        assert!(
+            (gap - sketch.circle(circle).radius).abs() < 1e-2,
+            "et la tangence tient toujours"
+        );
+    }
+
+    #[test]
     fn a_circle_told_to_brush_a_line_takes_the_size_that_touches() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let start = sketch.add_point(DVec2::new(0.0, 0.0));
@@ -1071,6 +1297,7 @@ mod tests {
         sketch.add_constraint(Constraint::Tangent {
             circle,
             segment: line,
+            at: None,
         });
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
@@ -1097,6 +1324,7 @@ mod tests {
         sketch.add_constraint(Constraint::Tangent {
             circle,
             segment: line,
+            at: None,
         });
         sketch.set_dimension(DimensionTarget::Radius(circle), 20.0, false);
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
@@ -1128,7 +1356,11 @@ mod tests {
         let center = sketch.add_point(place);
         let circle = sketch.add_circle(center, radius);
         for segment in sides {
-            sketch.add_constraint(Constraint::Tangent { circle, segment });
+            sketch.add_constraint(Constraint::Tangent {
+                circle,
+                segment,
+                at: None,
+            });
         }
 
         sketch.set_dimension(DimensionTarget::Length(sides[0]), 300.0, false);

@@ -318,12 +318,27 @@ annuler, l'égalité une différence de longueurs, la coïncidence une distance 
 une droite, le milieu deux équations — être au milieu est deux affirmations,
 pas une.
 
-Deux cas sortent du solveur, qui ne sait que déplacer des points :
+**Fixe** sort du solveur : elle passe par les épingles, un point fixé n'ayant
+simplement nulle part où aller, comme le point d'origine.
 
-- **Fixe** passe par les épingles : un point fixé n'a simplement nulle part où
-  aller, comme le point d'origine.
-- **Égalité de deux cercles** est appliquée directement, un rayon n'étant pas
-  une coordonnée mais un nombre que le cercle porte.
+### La taille d'un cercle est une inconnue comme une autre
+
+Le système compte deux inconnues par point **et une par cercle**. Un cercle tenu
+contre un trait cède sur sa taille aussi volontiers que sur sa place, et une
+règle qui ne pourrait que le déplacer devrait être rompue pour l'agrandir.
+
+C'est ce qui fait marcher trois choses d'un coup :
+
+- tirer un coin d'un triangle **agrandit son cercle inscrit** au lieu de le
+  laisser en travers ;
+- changer la taille d'un cercle tangent **le fait glisser** pour qu'il continue
+  de toucher, au lieu d'attendre le geste suivant ;
+- coter la distance du centre à la droite est **une vraie cote**, qui pilote le
+  dessin. Tant que le rayon n'était pas une inconnue, l'analyse de rang la
+  voyait identique à la tangence et la posait en lecture seule.
+
+Rayon, diamètre et égalité de rayons sont donc devenus des équations ordinaires,
+et les deux passes qui les rattrapaient à la main ont disparu.
 
 Une règle disparaît d'elle-même quand ce dont elle parle est supprimé.
 
@@ -336,6 +351,8 @@ entre les deux.
 
 L'angle droit fait exception : sa marque va **dans le coin**, seul endroit où
 elle se lit comme un angle plutôt que comme une note à propos de deux traits.
+Une tangence va de même **au point de contact** : les trois tangences d'un
+cercle inscrit se poseraient sinon toutes au même endroit.
 
 Plusieurs règles peuvent tenir le même endroit — un milieu et une
 perpendicularité, par exemple. Les marques qui se poseraient l'une sur l'autre

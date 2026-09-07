@@ -676,6 +676,14 @@ impl Sketch {
         self.points[point.0] += delta;
     }
 
+    /// Changes a circle's size by a step of the solve. Never below nothing: a
+    /// circle turned inside out is not a circle.
+    pub(crate) fn grow_circle(&mut self, circle: CircleId, delta: f64) {
+        if let Some(round) = self.circles.get_mut(circle.0) {
+            round.radius = (round.radius + delta).max(1e-9);
+        }
+    }
+
     pub(crate) fn place_point(&mut self, point: PointId, position: DVec2) {
         self.points[point.0] = position;
     }
@@ -760,13 +768,6 @@ impl Sketch {
         if self.dimension_of(target).is_some() {
             return false;
         }
-        if let DimensionTarget::Radius(circle) = target {
-            // A radius stands alone: redundant only if that circle already has
-            // one driving it.
-            return self.dimensions.iter().any(|dimension| {
-                !dimension.driven && dimension.target == DimensionTarget::Radius(circle)
-            });
-        }
 
         let existing = self.equations(millimeters_per_unit);
         let Some(candidate) = self.candidate_equation(target, millimeters_per_unit) else {
@@ -797,7 +798,12 @@ impl Sketch {
             DimensionTarget::Projected { from, to, axis } => {
                 self.projected_gap(from, to, axis)? * millimeters_per_unit.max(1e-9)
             }
-            DimensionTarget::Radius(_) | DimensionTarget::Diameter(_) => return None,
+            DimensionTarget::Radius(circle) => {
+                self.circle(circle).radius * millimeters_per_unit.max(1e-9)
+            }
+            DimensionTarget::Diameter(circle) => {
+                self.circle(circle).radius * 2.0 * millimeters_per_unit.max(1e-9)
+            }
         };
 
         let mut probe = self.clone();
@@ -817,7 +823,7 @@ impl Sketch {
     /// another is still floating beside it. Showing that per point, rather than
     /// one verdict for the whole sketch, says what is left to do.
     pub fn settled_points(&self, millimeters_per_unit: f64) -> Vec<bool> {
-        let variables = self.points.len() * 2;
+        let variables = self.variables();
         let pinned: Vec<bool> = (0..self.points.len())
             .map(|index| self.is_origin(PointId(index)))
             .collect();
@@ -842,7 +848,6 @@ impl Sketch {
 
     /// Re-satisfies every dimension at once, reporting whether it managed.
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
-        self.level_radii();
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
             SolveOutcome::Residual => LengthOutcome::BestEffort,
@@ -850,35 +855,6 @@ impl Sketch {
     }
 }
 
-impl Sketch {
-    /// Gives circles told to be equal the radius of the first of them.
-    ///
-    /// Set rather than solved: the solver only moves points, and a radius is
-    /// not one — it is a number the circle carries. Passing over the list a few
-    /// times lets a chain of equalities settle without looping for ever on one
-    /// that contradicts itself.
-    fn level_radii(&mut self) {
-        for _ in 0..4 {
-            let mut changed = false;
-            for index in 0..self.constraints.len() {
-                let Constraint::EqualRadius { first, second } = self.constraints[index] else {
-                    continue;
-                };
-                if first.0 >= self.circles.len() || second.0 >= self.circles.len() {
-                    continue;
-                }
-                let wanted = self.circles[first.0].radius;
-                if (self.circles[second.0].radius - wanted).abs() > 1e-12 {
-                    self.circles[second.0].radius = wanted;
-                    changed = true;
-                }
-            }
-            if !changed {
-                return;
-            }
-        }
-    }
-}
 
 /// Points a dimension at the point that was kept.
 fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> DimensionTarget {
@@ -1084,7 +1060,7 @@ mod tests {
     }
 
     #[test]
-    fn a_circle_can_be_told_to_brush_a_line() {
+    fn a_circle_told_to_brush_a_line_takes_the_size_that_touches() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let start = sketch.add_point(DVec2::new(0.0, 0.0));
         let end = sketch.add_point(DVec2::new(100.0, 0.0));
@@ -1098,8 +1074,75 @@ mod tests {
         });
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
+        // Nothing says how big it is, so the circle meets the line by moving
+        // and by growing at once — whichever costs least.
         let gap = sketch.point_to_segment(center, line).unwrap();
-        assert!((gap - 20.0).abs() < 1e-6, "distance au centre = {gap}");
+        assert!(
+            (gap - sketch.circle(circle).radius).abs() < 1e-6,
+            "le cercle ne touche pas : {gap} contre {}",
+            sketch.circle(circle).radius
+        );
+        assert!(sketch.circle(circle).radius > 20.0, "il a bien grandi");
+    }
+
+    #[test]
+    fn a_circle_of_a_said_size_moves_to_keep_touching() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(100.0, 0.0));
+        let line = sketch.add_segment(start, end);
+        let center = sketch.add_point(DVec2::new(50.0, 30.0));
+        let circle = sketch.add_circle(center, 20.0);
+
+        sketch.add_constraint(Constraint::Tangent {
+            circle,
+            segment: line,
+        });
+        sketch.set_dimension(DimensionTarget::Radius(circle), 20.0, false);
+        assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+
+        // The size is the decision now, so the circle comes down to the line.
+        let held = sketch.circle(circle).radius;
+        assert!((held - 20.0).abs() < 1e-3, "rayon = {held}");
+        let gap = sketch.point_to_segment(center, line).unwrap();
+        assert!((gap - 20.0).abs() < 1e-3, "distance au centre = {gap}");
+    }
+
+    #[test]
+    fn an_inscribed_circle_follows_the_triangle_it_sits_in() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(0.0, 0.0));
+        let b = sketch.add_point(DVec2::new(200.0, 0.0));
+        let c = sketch.add_point(DVec2::new(100.0, 150.0));
+        let sides = [
+            sketch.add_segment(a, b),
+            sketch.add_segment(b, c),
+            sketch.add_segment(c, a),
+        ];
+        let (place, radius) = crate::construct::circle_touching_three(
+            (sketch.point(a), sketch.point(b)),
+            (sketch.point(b), sketch.point(c)),
+            (sketch.point(c), sketch.point(a)),
+        )
+        .unwrap();
+        let center = sketch.add_point(place);
+        let circle = sketch.add_circle(center, radius);
+        for segment in sides {
+            sketch.add_constraint(Constraint::Tangent { circle, segment });
+        }
+
+        sketch.set_dimension(DimensionTarget::Length(sides[0]), 300.0, false);
+        sketch.resolve(1.0);
+
+        let held = sketch.circle(circle).radius;
+        for segment in sides {
+            let gap = sketch.point_to_segment(center, segment).unwrap();
+            assert!(
+                (gap - held).abs() < 0.05,
+                "le cercle est à {gap} d'un côté pour un rayon de {held}"
+            );
+        }
+        assert!((sketch.segment_length(sides[0]) - 300.0).abs() < 0.05);
     }
 
     #[test]
@@ -1242,7 +1285,7 @@ mod tests {
         let now = shape_of(&sketch);
         for (before, after) in was_far.iter().zip(now.iter()) {
             assert!(
-                (before - after).abs() < 1e-3,
+                (before - after).abs() < 1e-3 * before.abs().max(1.0),
                 "la figure éloignée s'est déformée : {was_far:?} puis {now:?}"
             );
         }

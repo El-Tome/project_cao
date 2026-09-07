@@ -350,16 +350,6 @@ impl PartState {
 
         // A radius stands on its own; everything else moves the points, so the
         // whole system is re-solved to keep the earlier values true.
-        // A circle stands on its own: its size is a number it carries, not a
-        // place its points are in.
-        if let DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) = target {
-            let wanted = match target {
-                DimensionTarget::Diameter(_) => value / (2.0 * scale),
-                _ => value / scale,
-            };
-            sketch.set_circle_radius(circle, wanted);
-            return Some(DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact));
-        }
         Some(DimensionOutcome::Geometry(sketch.resolve(scale)))
     }
 

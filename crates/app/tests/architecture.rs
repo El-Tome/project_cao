@@ -90,17 +90,8 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
 ];
 
 const BUCKETS_NAMED_AFTER_NOTHING: [&str; 11] = [
-    "util",
-    "utils",
-    "helper",
-    "helpers",
-    "common",
-    "misc",
-    "shared",
-    "manager",
-    "handler",
-    "stuff",
-    "various",
+    "util", "utils", "helper", "helpers", "common", "misc", "shared", "manager", "handler",
+    "stuff", "various",
 ];
 
 /// Widgets a screen styles by hand. Layout containers — `Frame`, `Area`,
@@ -247,10 +238,9 @@ fn every_name_is_snake_case_and_none_of_them_is_a_bucket() {
 
         for name in inside_src.trim_end_matches(".rs").split('/') {
             assert!(
-                name.chars()
-                    .all(|character| character.is_ascii_lowercase()
-                        || character.is_ascii_digit()
-                        || character == '_'),
+                name.chars().all(|character| character.is_ascii_lowercase()
+                    || character.is_ascii_digit()
+                    || character == '_'),
                 "{path}: `{name}` is not snake_case. Rust module names are identifiers, \
                  so neither kebab-case nor a dotted suffix can ever name a file here. \
                  The role is carried by the folder — see docs/code-layout.md.",
@@ -294,10 +284,7 @@ fn a_file_that_outgrew_its_budget_has_to_be_split() {
     }
 
     let listed: BTreeSet<&str> = budgets.keys().copied().collect();
-    assert_eq!(
-        seen, listed,
-        "these files are gone but still hold a budget",
-    );
+    assert_eq!(seen, listed, "these files are gone but still hold a budget",);
 }
 
 #[test]

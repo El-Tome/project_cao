@@ -3470,7 +3470,16 @@ fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
         Constraint::OnSegment { point: held, .. } | Constraint::Midpoint { point: held, .. } => {
             point(held).into_iter().collect()
         }
-        Constraint::Tangent { circle: round, .. } => circle(round).into_iter().collect(),
+        // Where the circle actually touches, not somewhere beside it: three
+        // tangencies of one circle would otherwise all land on the same spot.
+        Constraint::Tangent {
+            circle: round,
+            segment,
+        } => (round.0 < sketch.circles().len())
+            .then(|| sketch.foot_on_segment(sketch.circle(round).center, segment))
+            .flatten()
+            .into_iter()
+            .collect(),
         Constraint::Fixed { element } => match element {
             Element::Point(held) => point(held).into_iter().collect(),
             Element::Segment(held) => middle(held).into_iter().collect(),

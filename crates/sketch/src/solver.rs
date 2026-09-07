@@ -43,6 +43,12 @@ impl Equation {
         self.gradient[point.0 * 2 + 1] += value.y;
     }
 
+    /// The size of a circle is an unknown like any other: the columns after the
+    /// coordinates are the radii, one apiece.
+    fn add_radius(&mut self, at: usize, value: f64) {
+        self.gradient[at] += value;
+    }
+
     fn norm_squared(&self) -> f64 {
         self.gradient.iter().map(|value| value * value).sum()
     }
@@ -143,6 +149,15 @@ impl Sketch {
 
                     for (point, delta) in moves.into_iter().enumerate() {
                         self.translate_point(PointId(point), delta);
+                    }
+                    // And the sizes of the circles, which are unknowns of the
+                    // same system.
+                    for circle in 0..self.circles().len() {
+                        let column = self.points().len() * 2 + circle;
+                        let delta = equation.gradient[column] * step;
+                        if delta != 0.0 {
+                            self.grow_circle(crate::sketch::CircleId(circle), delta);
+                        }
                     }
                 }
             }
@@ -464,6 +479,21 @@ impl Sketch {
         }
     }
 
+    /// How many unknowns the drawing has: two per point, plus the size of each
+    /// circle.
+    ///
+    /// A radius counts as one because it is one: a circle held against a trait
+    /// gives on its size as readily as on its place, and a rule that could only
+    /// move the circle would have to be broken to make it bigger.
+    pub(crate) fn variables(&self) -> usize {
+        self.points().len() * 2 + self.circles().len()
+    }
+
+    /// Which column stands for a circle's size.
+    fn radius_column(&self, circle: crate::sketch::CircleId) -> Option<usize> {
+        (circle.0 < self.circles().len()).then(|| self.points().len() * 2 + circle.0)
+    }
+
     /// Points that must not move. Only the sketch's own origin, which is what
     /// everything else can be measured from.
     fn pinned_points(&self) -> Vec<bool> {
@@ -564,7 +594,7 @@ impl Sketch {
             let equation = match gauges.iter_mut().find(|(each, _)| *each == owner) {
                 Some((_, equation)) => equation,
                 None => {
-                    gauges.push((owner, Equation::new(self.points().len() * 2)));
+                    gauges.push((owner, Equation::new(self.variables())));
                     &mut gauges.last_mut().expect("just pushed").1
                 }
             };
@@ -663,15 +693,40 @@ impl Sketch {
                 let Some(round) = self.circles().get(circle.0).copied() else {
                     return Vec::new();
                 };
-                self.on_line_equation(round.center, segment, round.radius)
-                    .into_iter()
-                    .collect()
+                let Some(mut equation) = self.on_line_equation(round.center, segment, round.radius)
+                else {
+                    return Vec::new();
+                };
+                // Growing the circle closes the gap just as surely as moving
+                // it does, so the size is part of the answer.
+                if let Some(column) = self.radius_column(circle) {
+                    let sign = match self.point_to_segment(round.center, segment) {
+                        Some(_) => -1.0,
+                        None => -1.0,
+                    };
+                    equation.add_radius(column, sign);
+                }
+                vec![equation]
+            }
+            Constraint::EqualRadius { first, second } => {
+                let (Some(one), Some(other)) = (
+                    self.radius_column(first),
+                    self.radius_column(second),
+                ) else {
+                    return Vec::new();
+                };
+                let mut equation = Equation::new(self.variables());
+                equation.error =
+                    self.circles()[second.0].radius - self.circles()[first.0].radius;
+                equation.add_radius(other, 1.0);
+                equation.add_radius(one, -1.0);
+                vec![equation]
             }
             Constraint::Midpoint { point, segment } => self.midpoint_equations(point, segment),
             Constraint::AxisCollinear { segment, axis } => self.on_axis_equations(segment, axis),
             // Held in place by the pins rather than by an equation: a fixed
             // point simply has nowhere to go.
-            Constraint::Fixed { .. } | Constraint::EqualRadius { .. } => Vec::new(),
+            Constraint::Fixed { .. } => Vec::new(),
         };
 
         for equation in &mut equations {
@@ -723,7 +778,7 @@ impl Sketch {
         let first_gradient = across(du, u, first_length);
         let second_gradient = across(dv, v, second_length);
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = error;
         equation.angular = true;
         equation.add(one.end, first_gradient);
@@ -753,7 +808,7 @@ impl Sketch {
         // as much as to the second, so it stays put too — otherwise stretching
         // the second would drag the first out of shape.
         let shared = |point: PointId| point == one.start || point == one.end;
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = second_length - first_length;
         if !shared(other.end) {
             equation.add(other.end, second_span / second_length);
@@ -780,7 +835,7 @@ impl Sketch {
         [line.start, line.end]
             .into_iter()
             .map(|point| {
-                let mut equation = Equation::new(self.points().len() * 2);
+                let mut equation = Equation::new(self.variables());
                 equation.error = self.point(point).dot(normal);
                 equation.add(point, normal);
                 equation
@@ -811,7 +866,7 @@ impl Sketch {
         let unit = span / length;
         let gradient = |d_cross: DVec2, d_length: DVec2| (d_cross - d_length * distance) / length;
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         // A circle brushes the line on whichever side it is already on.
         equation.error = distance - gap * distance.signum();
         equation.add(point, gradient(DVec2::new(-span.y, span.x), DVec2::ZERO));
@@ -838,7 +893,7 @@ impl Sketch {
         [DVec2::X, DVec2::Y]
             .into_iter()
             .map(|axis| {
-                let mut equation = Equation::new(self.points().len() * 2);
+                let mut equation = Equation::new(self.variables());
                 equation.error = (held - middle).dot(axis);
                 equation.add(point, axis);
                 equation.add(line.start, -axis * 0.5);
@@ -886,8 +941,12 @@ impl Sketch {
             DimensionTarget::Projected { from, to, axis } => {
                 self.projected_equation(from, to, axis, dimension.value / scale)?
             }
-            // The size of a circle has no bearing on where the points are.
-            DimensionTarget::Radius(_) | DimensionTarget::Diameter(_) => return None,
+            DimensionTarget::Radius(circle) => {
+                self.size_equation(circle, dimension.value / scale)?
+            }
+            DimensionTarget::Diameter(circle) => {
+                self.size_equation(circle, dimension.value / (2.0 * scale))?
+            }
         };
 
         // A pinned coordinate cannot absorb any correction.
@@ -900,6 +959,15 @@ impl Sketch {
         Some(equation)
     }
 
+    /// A circle told how big to be.
+    fn size_equation(&self, circle: crate::sketch::CircleId, target: f64) -> Option<Equation> {
+        let column = self.radius_column(circle)?;
+        let mut equation = Equation::new(self.variables());
+        equation.error = self.circles().get(circle.0)?.radius - target;
+        equation.add_radius(column, 1.0);
+        Some(equation)
+    }
+
     fn length_equation(&self, a: PointId, b: PointId, target: f64) -> Option<Equation> {
         let span = self.point(b) - self.point(a);
         let length = span.length();
@@ -908,7 +976,7 @@ impl Sketch {
         }
         let direction = span / length;
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = length - target;
         equation.add(b, direction);
         equation.add(a, -direction);
@@ -938,7 +1006,7 @@ impl Sketch {
         }
         let sign = if gap < 0.0 { -1.0 } else { 1.0 };
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = gap.abs() - target;
         equation.add(to, direction * sign);
         equation.add(from, -direction * sign);
@@ -971,7 +1039,7 @@ impl Sketch {
         let from_first = DVec2::new(-a.y, a.x) / length_a;
         let from_second = DVec2::new(-b.y, b.x) / length_b;
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = signed.abs() - degrees.to_radians();
         equation.angular = true;
         equation.add(far_second, from_second * sign);
@@ -1015,7 +1083,7 @@ impl Sketch {
         let gradient = |d_cross: DVec2, d_length: DVec2| (d_cross - d_length * distance) / length;
 
         let sign = if distance < 0.0 { -1.0 } else { 1.0 };
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = distance.abs() - target;
         equation.add(point, gradient(d_cross_point, DVec2::ZERO) * sign);
         equation.add(segment.start, gradient(d_cross_start, -unit) * sign);
@@ -1046,7 +1114,7 @@ impl Sketch {
         let sign = if signed < 0.0 { -1.0 } else { 1.0 };
         let turn = DVec2::new(-span.y, span.x) / length;
 
-        let mut equation = Equation::new(self.points().len() * 2);
+        let mut equation = Equation::new(self.variables());
         equation.error = signed.abs() - degrees.to_radians();
         equation.angular = true;
         equation.add(segment.end, turn * sign);
@@ -1207,3 +1275,4 @@ fn reduce(row: &[f64], basis: &[Vec<f64>]) -> Option<Vec<f64>> {
 fn norm(row: &[f64]) -> f64 {
     row.iter().map(|value| value * value).sum::<f64>().sqrt()
 }
+

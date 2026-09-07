@@ -1,4 +1,4 @@
-use cao_core::theme::Theme;
+use cao_prefs::theme::Theme;
 use cao_render::{Vertex, srgb};
 use cao_sketch::{DimensionTarget, Sketch, WorkPlane};
 use glam::DVec2;

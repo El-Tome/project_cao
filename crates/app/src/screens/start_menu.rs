@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cao_core::RecentEntry;
+use cao_prefs::RecentEntry;
 
 pub enum StartMenuAction {
     None,

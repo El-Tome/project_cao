@@ -547,6 +547,7 @@ name = "cao_app"
 version = "0.1.0"
 dependencies = [
  "cao_core",
+ "cao_prefs",
  "cao_render",
  "cao_sketch",
  "cao_solid",

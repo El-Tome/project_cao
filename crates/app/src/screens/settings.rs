@@ -1,11 +1,11 @@
-use cao_core::command::Command;
-use cao_core::config::{
+use cao_prefs::command::Command;
+use cao_prefs::config::{
     LengthUnit, NavigationPreset, TrackpadGesture, UnitDisplay, ViewportCorner,
 };
-use cao_core::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Profiles};
-use cao_core::shortcuts::{Chord, Key};
-use cao_core::theme::{Background, Rgba, Stop, Theme};
-use cao_core::toolbar::{Edge, Item, Path};
+use cao_prefs::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Profiles};
+use cao_prefs::shortcuts::{Chord, Key};
+use cao_prefs::theme::{Background, Rgba, Stop, Theme};
+use cao_prefs::toolbar::{Edge, Item, Path};
 
 /// Which part of the preferences is open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -639,7 +639,7 @@ fn toolbar_section(
 
 /// Where a new entry goes: into the selection when it is a group, otherwise
 /// into the group holding it, otherwise at the root.
-fn group_path(layout: &cao_core::ToolbarLayout, selected: &[usize]) -> Path {
+fn group_path(layout: &cao_prefs::ToolbarLayout, selected: &[usize]) -> Path {
     if matches!(layout.at(selected), Some(Item::Group { .. })) {
         return selected.to_vec();
     }

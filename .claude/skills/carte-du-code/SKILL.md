@@ -8,6 +8,10 @@ description: Trouver où intervenir dans le code CAO. À utiliser dès qu'on che
 `docs/` raconte ce que fait le logiciel. Ce skill dit où c'est écrit.
 La référence complète, lisible aussi par un humain : `docs/carte-du-code.md`.
 
+Ici on cherche **où un comportement est déjà écrit**. Pour savoir **où poser un
+fichier neuf** — quel dossier, ce qu'il a le droit d'importer —, c'est
+`docs/code-layout.md`, et le test d'architecture le vérifie.
+
 ## Les cinq crates et le sens des dépendances
 
 ```

@@ -83,6 +83,28 @@ work is rules that are executed rather than promised.
 both domains and orchestrates them. Naming it after what it holds ends a
 misunderstanding the current name creates on every reading.
 
+## The folders travel with the context
+
+Inside a crate, a file's role is carried by the folder that holds it —
+`model/`, `ports/`, `adapters/`, `services/`, and in the shell `ui/` and
+`screens/<mode>/`. [`code-layout.md`](code-layout.md) says what each one means
+and what it may import.
+
+Those folders belong to the **context**, not to the crate that currently holds
+it, and that is what makes the split above cheap: when `cao_prefs` leaves, it
+takes its own `model/`, `ports/` and `adapters/` with it. A `git mv` of whole
+folders rather than a file-by-file sort of eleven files nobody has looked at in
+months.
+
+Two rules follow, and they are the ones that keep a seam findable:
+
+- **A folder never straddles two contexts.** A `model/` holding both a `Theme`
+  and an `Operation` is not a folder in need of subheadings — it is the signal
+  that the crate is two crates, exactly as `cao_core` is today.
+- **A context never reaches into another one's `model/`.** It goes through a
+  port, or the translation is named and lives at the seam. The three that exist
+  are described just below.
+
 ## What crosses, and what translates
 
 Three boundaries carry a real translation. They are the places where a change

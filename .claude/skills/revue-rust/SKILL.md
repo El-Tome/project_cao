@@ -10,12 +10,16 @@ change introduce this", not "does the repository contain this".
 
 ## Size and responsibility
 
-The repellents, to calibrate against: `viewport.rs` is 4 234 lines and 105
-functions, `sketch.rs` 2 384, `solver.rs` 1 466, `state.rs` 1 297. All of
-`crates/app/src` is 7 454 lines with one test file.
+The budget is **400 lines**, held by the gate. Seventeen files are already over
+it and are named in the test with the length they had the day the rule landed;
+none of them may grow. The repellents, to calibrate against: `viewport.rs` is
+4 234 lines and 105 functions, `sketch.rs` 2 384, `solver.rs` 1 466, `state.rs`
+1 297. All of `crates/app/src` is 7 454 lines with one test file.
 
 - [ ] Is the file I touched growing again? If so, could what I am adding live
       elsewhere?
+- [ ] Did a file fall back under 400? Then drop its entry from the test — that
+      is the result, and it is worth saying in the commit message.
 - [ ] Does a function run past a screen? Does it do more than one thing?
 - [ ] Did I add a parameter to a function that already had five? That is usually
       a missing struct.
@@ -42,11 +46,22 @@ functions, `sketch.rs` 2 384, `solver.rs` 1 466, `state.rs` 1 297. All of
 ## The architecture
 
 The gate runs `crates/app/tests/architecture.rs`, so a violation of the crate
-graph fails on its own. What the test cannot see:
+graph, of the folder rules, of a line budget or of a name fails on its own.
+
+What the test cannot see:
 
 - [ ] Did a geometry rule end up in `crates/app/` rather than in `cao_sketch` or
       `cao_solid`? The test checks dependencies, not where a rule lives.
-- [ ] Is a new mode a variant of `Screen`, or a branch grafted somewhere else?
+- [ ] Is a new mode a variant of `Screen` with its own `screens/<mode>/` folder,
+      or a branch grafted somewhere else?
+- [ ] Is a new file in the folder its role calls for, or in whichever one was
+      already open? See [`docs/code-layout.md`](../../../docs/code-layout.md).
+- [ ] Is a trait in `ports/` a genuine need of the layer, or the concrete type
+      renamed with one implementor and no second one in sight?
+- [ ] Does the decision in a `view.rs` belong in the presenter? Anything you
+      cannot test without opening a window is in the wrong file.
+- [ ] Would this widget serve a second screen? Then it is a `ui/` primitive, not
+      a local one.
 - [ ] **Did a ratchet figure go up?** Lowering one is a result; raising one
       empties the file of meaning and is a decision for the human.
 
@@ -63,6 +78,11 @@ graph fails on its own. What the test cannot see:
 - [ ] No new French wording below `cao_app` — the layer underneath returns a
       named case.
 - [ ] `cao_core` imports no interface crate.
+- [ ] Files and folders in **snake_case**, and none of them named `utils`,
+      `helpers`, `common`, `misc`, `shared`, `manager` or `handler`. A name that
+      says nothing is where responsibilities come to hide.
+- [ ] No suffix in a file name to carry a role — `button.ui.rs` is not a module
+      Rust can name. The folder carries it.
 - [ ] No feature, crate or abstraction that was not asked for. This project
       grows by small, explicitly requested steps.
 

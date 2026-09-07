@@ -49,6 +49,12 @@ grossiront, ils doivent devenir leurs propres crates (`cao_sketch`,
 `cao_assembly`, ...) plutôt que de s'accumuler dans `cao_app`, qui ne doit
 rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 
+À l'intérieur d'une crate, le rôle d'un fichier est porté par son dossier —
+`model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
+`screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
+le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
+`crates/app/tests/architecture.rs` le vérifie dans le gate.
+
 ## Système de modes
 
 L'application est un menu de démarrage qui bascule vers différents modes :

@@ -10,10 +10,14 @@ description: SOLID, clean architecture, ports and adapters, and bounded contexts
 `crates/app/tests/architecture.rs` runs in the gate and enforces what follows:
 the crate graph, the purity of the two geometry crates, no interface crate below
 the shell, no disk or clock under a domain boundary, no user-facing wording
-below `cao_app`.
+below `cao_app`, where each file goes and what it may import, no file past its
+budget, and no name that hides what is inside.
 
 Read it before arguing with this file. Where the two disagree, the test is
 right — it is the one that has been run.
+
+[`docs/code-layout.md`](../../../docs/code-layout.md) holds the folder rules in
+full; what follows is what you need before writing.
 
 ## The allowed graph
 
@@ -41,6 +45,89 @@ tablet or web front-end to reuse it as it stands.
 mode carries non-trivial business logic it becomes its own crate
 (`cao_assembly`, …) rather than swelling `screens/`.
 
+## Inside a crate, the role is the folder
+
+Never a suffix in the name: a Rust module name is an identifier, so
+`button.ui.rs` and `part-repository.rs` cannot name a module at all. Files and
+folders are snake_case, and the path carries the job.
+
+There are three topologies, and a folder appears only where its role exists.
+
+**A pure domain** — `cao_sketch`, `cao_solid` — stays flat. No `ports/`, no
+`adapters/`, no `services/`. It does mathematics; the abstraction would remove
+no disk, no clock, no network.
+
+**A context that coordinates** — `cao_core`, tomorrow `cao_part` and
+`cao_prefs`:
+
+```
+model/       what the context is about: Operation, History, PartState
+ports/       the traits it needs from outside — one need per trait
+adapters/    the implementations. The only place std::fs, chrono,
+             directories and zip may appear
+services/    what coordinates a model and its ports
+```
+
+**The shell** — `cao_app`:
+
+```
+ui/                  primitives: egui, and nothing of the workspace
+screens/<mode>/
+├── state.rs         the presenter — holds, decides, never draws
+└── view.rs          the drawing, through ui/ primitives
+```
+
+| A file under | may reach for | never |
+| --- | --- | --- |
+| `ui/**` | `egui`, `std` | any `cao_*` crate, `crate::screens` |
+| `screens/**/view.rs` | `crate::ui`, `egui`, its presenter | dressing a widget by hand |
+| `screens/**/state.rs` | the business crates | `egui::Ui` — **it does not draw** |
+| `model/**` | `std`, the pure domains | `crate::ports`, `crate::adapters` |
+| `ports/**` | `crate::model` | `crate::adapters`, `crate::services` |
+| `adapters/**` | its port, and the technology | being named by `services/` |
+| `services/**` | `model`, `ports` | `crate::adapters`, `crate::screens` |
+
+The last line is dependency inversion entire: a service names the trait, and
+something above it decides what goes in. That is what lets a test hand it a
+`HashMap` where production hands it a zip file.
+
+**No `utils`, `helpers`, `common`, `misc`, `shared`, `manager`, `handler`.** A
+name that does not say what is inside is where responsibilities come to hide.
+Name what is in it, or put it with the thing it serves.
+
+## The presenter, which is what a hook would have been
+
+`egui` is immediate mode: there is no hook, and inventing one would be a dead
+abstraction. But what a hook *does* — hold the state, work out what the view
+shows, take back what the user did — is a struct worth separating, for the
+reason hooks exist.
+
+**A presenter never takes `&mut egui::Ui`.** That one rule is what makes it
+testable with no window and no GPU.
+
+```rust
+// screens/sketch/state.rs — no egui in sight
+impl SketchEditor {
+    pub fn clicked_at(&mut self, point: Vec2, snap: Snap) -> Option<Operation> { }
+}
+
+// screens/sketch/view.rs — draws, and decides nothing
+pub fn show(ui: &mut egui::Ui, editor: &mut SketchEditor) -> Vec<Command> { }
+```
+
+`SketchEditor`, `ViewportState` and `Ribbon` are already presenters that were
+never separated from their views. `viewport.rs` is the price: 4 234 lines where
+the camera, hit-testing, the keyboard, gestures and annotation drawing share one
+file, none of it reachable without opening a window.
+
+A primitive in `ui/` is the same inversion applied to the interface. It takes a
+`&str`, an `f32`, a `bool`, and hands back what the user did; it knows no part
+and no sketch. `settings.rs` dresses 22 `egui::Slider` and 4 `egui::TextEdit` by
+hand — each re-deciding the same width, step and unit. That is what `ui/` is
+for, and the test holds the count at 31 so it can only fall. Layout containers
+(`Frame`, `Area`, `ScrollArea`, the panels) are not primitives: arranging a
+screen is the screen's own business.
+
 ## Bounded contexts
 
 The crate graph says what may depend on what. [`docs/contexts.md`](../../../docs/contexts.md)
@@ -57,6 +144,19 @@ Read both before deciding where something lives. The short version:
   `recents`, `config`, `command`) share a manifest and nothing else: 1 796 of
   its 4 328 lines never mention the geometry. The preferences are meant to leave
   as `cao_prefs`.
+
+The folders above belong to the **context**, not to the crate that happens to
+hold it. Three consequences:
+
+- When `cao_prefs` leaves, it takes its own `model/`, `ports/` and `adapters/`
+  with it: a `git mv` of whole folders rather than a file-by-file sort.
+- **A folder never straddles two contexts.** A `model/` holding both a `Theme`
+  and an `Operation` is not a folder that needs subheadings — it is two crates
+  that have not been separated yet, and it is the signal to separate them.
+- **A context never reaches into another one's `model/`.** It goes through a
+  port, or the translation is named and lives at the seam. The three that exist
+  are `PointRef::{Existing, New}`, the `f64` → `f32` narrowing, and a named case
+  becoming a sentence.
 
 ## Three patterns already here, never named
 
@@ -114,9 +214,11 @@ domain boundary without a trait.**
 The test is simple: if a function cannot be tested without touching the disk,
 the clock or the network, a port is missing.
 
-The port is a trait, in the layer that needs it:
+The port is a trait, in `ports/` of the layer that needs it — never beside the
+implementation:
 
 ```rust
+// crates/core/src/ports/part_repository.rs
 pub trait PartRepository {
     fn load(&self, path: &Path) -> Result<PartDocument, StorageError>;
     fn save(&self, path: &Path, document: &PartDocument) -> Result<(), StorageError>;
@@ -127,22 +229,31 @@ pub trait Clock {
 }
 ```
 
-The real adapter lives beside it, and **it alone** may call `std::fs`:
+The real adapter goes in `adapters/`, named after the technology and the need,
+and **it alone** may call `std::fs`:
 
 ```rust
+// crates/core/src/adapters/zip_part_repository.rs
 pub struct ZipPartRepository;
 
 impl PartRepository for ZipPartRepository {
 }
 ```
 
-The test adapter is a **working** implementation, not an empty stub: it stores
-in a `HashMap` and really behaves like a repository.
+The test adapter sits next to it, behind `feature = "test-support"` so that
+`tests/` can see it — a `#[cfg(test)]` item is invisible to an integration test.
+It is a **working** implementation, not an empty stub: it stores in a `HashMap`
+and really behaves like a repository.
 
 ```rust
+// crates/core/src/adapters/in_memory_parts.rs
 #[derive(Default)]
 struct InMemoryParts(RefCell<HashMap<PathBuf, PartDocument>>);
 ```
+
+The architecture test exempts `adapters/**` from the disk-and-clock rule:
+reaching outside is what an adapter is for, and the rule is that nothing else
+does.
 
 Business code takes the trait, never the implementation:
 
@@ -176,11 +287,16 @@ can only fall.
 
 ## SOLID, applied here
 
-**Single responsibility.** The repellent is `app/src/screens/viewport.rs`:
-4 234 lines, 105 functions, 10 types, where the camera, hit-testing, keyboard
-input, gestures and annotation drawing all live together. Add nothing to it that
-could live elsewhere. A file that grows is signalling one responsibility too
-many, not a need for subheadings.
+**Single responsibility.** The budget is **400 lines**, and the test holds it.
+The repellent is `app/src/screens/viewport.rs`: 4 234 lines, 105 functions, 10
+types, where the camera, hit-testing, keyboard input, gestures and annotation
+drawing all live together. Seventeen files are over budget; each is named in the
+test with the length it had the day the rule landed, and none of them may grow.
+Once one falls back under 400 its entry has to go — a list of exceptions nobody
+prunes stops being a debt and becomes a second standard.
+
+A file that grows is signalling one responsibility too many, not a need for
+subheadings.
 
 **Open/closed.** `PartState::apply` is a `match` on `Operation`: every new
 operation reopens the function. That is accepted for now — the exhaustive
@@ -207,7 +323,11 @@ out. It respects the graph, and the architecture test gains an edge in the same
 commit.
 
 **A mode** — a variant of `enum Screen` (`app/src/screens/mod.rs`) and its own
-module in `screens/`. Never a branch grafted onto an existing module.
+folder `screens/<mode>/`, holding at least `state.rs` and `view.rs`. Never a
+branch grafted onto an existing module.
+
+**A widget** — in `ui/`, if a second screen could ever want it. `settings.rs`
+holds 26 that were written where they were needed.
 
 **A dependency** — in `[workspace.dependencies]` at the root, with the version,
 then referenced with `.workspace = true`. Check first that it does not break the

@@ -83,10 +83,35 @@ alternative.
 or the clock, it needs a trait before it can cross a domain boundary. See
 `architecture-rust`.
 
+## Moving a file into the folder its role calls for
+
+The most common move in this repository from here on, and the one the layout
+rules exist to make routine.
+[`docs/code-layout.md`](../../../docs/code-layout.md) says which folder.
+
+`git mv` alone, then `mod` declarations, then compile — nothing else in that
+commit. A path change and an edit in the same diff cannot be read.
+
+Two of these moves change more than a path and are worth naming:
+
+**Splitting a screen into `state.rs` and `view.rs`.** Everything that decides
+goes to the presenter, everything that draws stays in the view, and the presenter
+must come out with no `egui::Ui` in any signature. What resists the split is
+usually the interesting part: a decision taken mid-draw, from a value only the
+frame had. Pass it in as an argument rather than following it back into the view.
+
+**Lifting a widget into `ui/`.** The primitive takes plain values and hands back
+what the user did — no `cao_*` import survives the move. The first caller to
+migrate defines the signature; the second one is what tells you whether it was
+the right one. Do not lift a widget that has only ever had one caller.
+
+Both lower a ratchet, and the commit message should say which.
+
 ## The ratchets
 
-`crates/app/tests/architecture.rs` holds two counts: files still reaching for
-the disk or the clock, and lines of user-facing wording still below `cao_app`.
+`crates/app/tests/architecture.rs` holds four: files still reaching for the disk
+or the clock, lines of user-facing wording still below `cao_app`, files past the
+400-line budget, and widgets a screen still dresses by hand.
 
 **A figure only ever goes down.** Lowering one is the visible result of a
 refactor and belongs in its commit message. Raising one to make the gate pass

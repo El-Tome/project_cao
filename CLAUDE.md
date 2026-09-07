@@ -2,9 +2,10 @@
 
 Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the whole picture before
 any structural change, [`docs/contexts.md`](docs/contexts.md) for where the
-seams are and where they are going, [`docs/glossary.md`](docs/glossary.md) for
-the words, and [`docs/carte-du-code.md`](docs/carte-du-code.md) to find where
-things live.
+seams are and where they are going, [`docs/code-layout.md`](docs/code-layout.md)
+for where a new file goes and what it may import,
+[`docs/glossary.md`](docs/glossary.md) for the words, and
+[`docs/carte-du-code.md`](docs/carte-du-code.md) to find where things live.
 
 ## How to work
 
@@ -72,6 +73,47 @@ authority; this section is the summary.
 - Mind the name: whatever its documentation claims, `cao_core` is not the
   domain. It depends on `cao_sketch` and `cao_solid` and orchestrates sketch,
   solid, history and persistence — it is the application layer.
+
+## Where a file goes
+
+Also in the gate. [`docs/code-layout.md`](docs/code-layout.md) is the detail;
+this is what you need before creating a file.
+
+**The role is the folder, never a suffix in the name.** A Rust module name is an
+identifier, so `button.ui.rs` and `part-repository.rs` cannot name a module.
+Files and folders are snake_case, and the path says the job:
+
+```
+crates/core/src/            crates/app/src/
+├── model/                  ├── ui/                  primitives: egui only
+├── ports/                  └── screens/<mode>/
+├── adapters/                   ├── state.rs         the presenter, never draws
+└── services/                   └── view.rs          the drawing
+```
+
+A folder appears only where the role exists. `cao_sketch` and `cao_solid` do
+mathematics and stay flat: a port there removes no disk, no clock, no network,
+and buys nothing.
+
+- **`ui/` knows no `cao_*` crate.** A primitive takes plain values and hands
+  back what the user did. A screen that dresses an `egui::Slider` by hand is
+  writing the same slider for the twenty-third time.
+- **A presenter never takes `&mut egui::Ui`.** That is what makes it testable
+  with no window. Drawing lives in `view.rs`.
+- **`services/` never imports `adapters/`.** It names the trait it needs; the
+  wiring is decided above it.
+- **`adapters/` is the only place allowed to reach the disk or the clock.**
+- **No `utils`, `helpers`, `common`, `misc`, `shared`, `manager`, `handler`.** A
+  name that says nothing is where responsibilities come to hide.
+- **400 lines per file.** Seventeen files are already over and are named in the
+  test with their current length; none of them may grow.
+
+## Rules that do not apply here
+
+`~/.claude/*.md` describes a TypeScript stack — Effect, Redux, hexagonal in
+`.port.ts` / `.adapter.ts`, kebab-case files, React presenter hooks. **None of
+it governs this repository.** The ideas survive the translation; the notation
+does not. Where the two disagree, this file and the architecture test win.
 
 ## Scope
 

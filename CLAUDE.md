@@ -1,72 +1,137 @@
-# Règles pour ce projet
+# Rules for this project
 
-Voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision complète
-avant toute modification structurelle, et
-[`docs/carte-du-code.md`](docs/carte-du-code.md) pour savoir où vit quoi.
+Read [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the whole picture before
+any structural change, [`docs/contexts.md`](docs/contexts.md) for where the
+seams are and where they are going, [`docs/code-layout.md`](docs/code-layout.md)
+for where a new file goes and what it may import,
+[`docs/glossary.md`](docs/glossary.md) for the words, and
+[`docs/carte-du-code.md`](docs/carte-du-code.md) to find where things live.
 
-## Comment travailler
+## How to work
 
-Cinq skills portent le détail, dans `.claude/skills/` :
+Six skills carry the detail, in `.claude/skills/`:
 
-| Skill | Quand |
+| Skill | When |
 | --- | --- |
-| `ouvrir-une-tache` | au tout début, avant de lire du code |
-| `carte-du-code` | pour trouver où intervenir |
-| `rust-tdd` | pour écrire le test avant le code |
-| `architecture-rust` | avant d'ajouter une crate, un module, une dépendance ou de l'I/O |
-| `revue-rust` | avant de commiter |
+| `ouvrir-une-tache` | at the very start, before reading any code |
+| `carte-du-code` | to find where to act |
+| `rust-tdd` | to write the test before the code |
+| `refactor-rust` | to move code that already works, without changing it |
+| `architecture-rust` | before adding a crate, a module, a dependency, or any I/O |
+| `revue-rust` | before committing |
 
-Le sous-agent `revue-archi-rust` relit un diff dans un contexte séparé.
+The `revue-archi-rust` subagent reads a diff in a separate context.
 
-Sur un clone neuf, activer le hook git une fois pour toutes :
+On a fresh clone, enable the git hook once:
 
 ```sh
 git config core.hooksPath .githooks
 ```
 
-`git commit` déclenche alors `clippy -D warnings` puis
-`cargo test --workspace` (~12 s). En cas d'échec, le commit n'est pas exécuté.
-La soupape `CAO_SKIP_GATE=1` existe pour les travaux en cours : elle appartient
-à l'humain, un agent ne la pose jamais de lui-même.
+`git commit` then runs `clippy -D warnings` followed by
+`cargo test --workspace` (~12 s). On failure the commit does not happen. The
+`CAO_SKIP_GATE=1` valve exists for work in progress: it belongs to the human, an
+agent never reaches for it on its own.
 
-Pour une question d'API sur `egui`, `wgpu` ou `glam`, utiliser `context7`
-plutôt que sa mémoire : le projet est sur `egui 0.36`, `wgpu 30` et
-`glam 0.33`, des crates dont l'API casse à chaque version mineure.
+For an API question on `egui`, `wgpu` or `glam`, use `context7` rather than
+memory: this project is on `egui 0.36`, `wgpu 30` and `glam 0.33`, crates whose
+API breaks on every minor release.
 
-## Modularité — non négociable
+## Language
 
-- `cao_core` ne dépend jamais d'une crate UI (`egui`, `eframe`, ...). C'est la
-  seule façon de garder ce crate réutilisable par un futur front-end
-  tablette/web.
-- Un nouveau mode (croquis, assemblage, ...) = une nouvelle variante de
-  `Screen` (`crates/app/src/screens/mod.rs`) + son propre module dans
-  `screens/`. Ne jamais entasser plusieurs modes dans un seul fichier/match.
-- Dès qu'un mode dépasse un simple écran (logique métier non triviale), il
-  doit devenir son propre crate (`cao_sketch`, `cao_assembly`, ...) plutôt
-  que de grossir `cao_app`.
-- `cao_app` doit rester un shell fin : fenêtre + routage entre modes, pas de
-  logique métier.
-- Attention au nom : malgré ce qu'affirme sa documentation, `cao_core` n'est
-  pas le domaine. Il dépend de `cao_sketch` et `cao_solid` et orchestre
-  esquisse, solide, historique et persistance — c'est la couche application.
-  Les vrais domaines sont `cao_sketch` et `cao_solid`. Une règle métier de
-  géométrie va dans l'un des deux.
+Code, test names, documentation, branch names and commit messages are in
+**English**.
 
-## Portée
+Text the user reads is in **French**, and lives only in `cao_app`. Layers below
+return a named case — `ExtrusionMode::Cut`, not "Enlèvement de matière" — and
+the interface decides how it is said. That is what will make translation a
+wiring job rather than a rewrite; the i18n system itself is still to come.
 
-- Ne pas anticiper le collaboratif temps réel ni le format de fichier final
-  (arbre de fonctions) tant que le besoin n'est pas concret — ce sont des
-  décisions explicitement remises à plus tard (voir ARCHITECTURE.md).
-- Ne pas ajouter de fonctionnalité, de crate ou d'abstraction non demandée.
-  Ce projet grossit par petites étapes explicitement demandées par
-  l'utilisateur.
+Documents and commits written before this rule are in French. They are
+translated when touched anyway, never in a sweep of their own, and history is
+not rewritten.
+
+## Modularity — not negotiable
+
+`crates/app/tests/architecture.rs` enforces what follows, in the gate. It is the
+authority; this section is the summary.
+
+- `cao_core` never depends on a UI crate (`egui`, `eframe`, …). That is the only
+  way to keep it reusable by a future tablet or web front-end.
+- `cao_sketch` and `cao_solid` take nothing but `glam` and `serde`. They are the
+  real domains; a geometry rule goes in one of them.
+- No `std::fs`, `directories` or `Utc::now()` below a domain boundary without a
+  trait. Four files in `cao_core` predate the rule and are listed in the test;
+  there will be no fifth.
+- A new mode (sketching, assembly, …) is a new `Screen` variant
+  (`crates/app/src/screens/mod.rs`) plus its own module in `screens/`. Never
+  several modes piled into one file or one match.
+- Once a mode outgrows a single screen, it becomes its own crate (`cao_sketch`,
+  `cao_assembly`, …) rather than swelling `cao_app`.
+- `cao_app` stays a thin shell: window and routing between modes, no business
+  logic.
+- Mind the name: whatever its documentation claims, `cao_core` is not the
+  domain. It depends on `cao_sketch` and `cao_solid` and orchestrates sketch,
+  solid, history and persistence — it is the application layer.
+
+## Where a file goes
+
+Also in the gate. [`docs/code-layout.md`](docs/code-layout.md) is the detail;
+this is what you need before creating a file.
+
+**The role is the folder, never a suffix in the name.** A Rust module name is an
+identifier, so `button.ui.rs` and `part-repository.rs` cannot name a module.
+Files and folders are snake_case, and the path says the job:
+
+```
+crates/core/src/            crates/app/src/
+├── model/                  ├── ui/                  primitives: egui only
+├── ports/                  └── screens/<mode>/
+├── adapters/                   ├── state.rs         the presenter, never draws
+└── services/                   └── view.rs          the drawing
+```
+
+A folder appears only where the role exists. `cao_sketch` and `cao_solid` do
+mathematics and stay flat: a port there removes no disk, no clock, no network,
+and buys nothing.
+
+- **`ui/` knows no `cao_*` crate.** A primitive takes plain values and hands
+  back what the user did. A screen that dresses an `egui::Slider` by hand is
+  writing the same slider for the twenty-third time.
+- **A presenter never takes `&mut egui::Ui`.** That is what makes it testable
+  with no window. Drawing lives in `view.rs`.
+- **`services/` never imports `adapters/`.** It names the trait it needs; the
+  wiring is decided above it.
+- **`adapters/` is the only place allowed to reach the disk or the clock.**
+- **No `utils`, `helpers`, `common`, `misc`, `shared`, `manager`, `handler`.** A
+  name that says nothing is where responsibilities come to hide.
+- **400 lines per file.** Seventeen files are already over and are named in the
+  test with their current length; none of them may grow.
+
+## Rules that do not apply here
+
+`~/.claude/*.md` describes a TypeScript stack — Effect, Redux, hexagonal in
+`.port.ts` / `.adapter.ts`, kebab-case files, React presenter hooks. **None of
+it governs this repository.** The ideas survive the translation; the notation
+does not. Where the two disagree, this file and the architecture test win.
+
+## Scope
+
+- Do not anticipate real-time collaboration or the final file format (a function
+  tree) while the need is not concrete — those are explicitly deferred
+  decisions, see ARCHITECTURE.md.
+- Do not add a feature, a crate or an abstraction nobody asked for. This project
+  grows by small steps the user asked for explicitly.
 
 ## Style
 
-- Pas de commentaires sauf pour une raison non évidente (contrainte cachée,
-  workaround). Le code doit se suffire à lui-même.
-- Les textes visibles par l'utilisateur (UI, messages) sont en français mais un systeme de traduction sera neccessaire.
-- Ne pas ésiter a faire des commits et des branches avec git pour revenir en arrière au cas où il y aurait un probleme tu peux également push sur le dépot.
-- Créer une doc sur plusieur fichier en parrallèle pour faciliter la compréntion du code et des fonctions pour faciliter l'intervention dans les fichiers.
-- n'hésite pas a demander au moindre moment ou tu ne comprends pas ou que la demande n'est pas très clair ou qu'il manque des informations avant de faire la moindre action
-- avant chaque début de tache il faut faire un pull et check si tu n'as pas une branche en cour qui pourrai faire la feature demander car il y a plusieur personne qui travail sur ce projet
+- No comments except for a non-obvious reason (a hidden constraint, a
+  workaround). The code should stand on its own.
+- Commit and branch freely, to be able to step back if something goes wrong;
+  pushing to the remote is fine.
+- Keep the documentation spread over several files rather than one, so that
+  finding the part that covers a given file stays easy.
+- Ask, at any point, when something is unclear, when the request is ambiguous,
+  or when information is missing — before acting.
+- Before starting a task, pull, and check whether an existing branch already
+  covers the request: several people work on this project.

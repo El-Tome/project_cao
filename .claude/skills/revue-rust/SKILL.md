@@ -1,81 +1,114 @@
 ---
 name: revue-rust
-description: Relire du Rust avant de le commiter sur ce dépôt CAO. À utiliser avant tout commit, quand on relit un diff, quand on veut savoir si un fichier est devenu trop gros, ou pour vérifier qu'un changement respecte les règles du projet.
+description: Review Rust before committing it on this CAO repository. Use before any commit, when reading a diff, when wondering whether a file has grown too large, or to check that a change respects the project's rules.
 ---
 
-# Relire avant de commiter
+# Reviewing before committing
 
-Relis le **diff**, pas le fichier. Pour chaque point ci-dessous, la question est
-« est-ce que mon changement introduit ça », pas « est-ce que le dépôt en
-contient ».
+Review the **diff**, not the file. For each point below the question is "does my
+change introduce this", not "does the repository contain this".
 
-## Taille et responsabilité
+## Size and responsibility
 
-Les repoussoirs du dépôt, pour calibrer : `viewport.rs` fait 4 179 lignes et
-105 fonctions, `sketch.rs` 2 372, `solver.rs` 1 470, `state.rs` 1 280.
+The budget is **400 lines**, held by the gate. Seventeen files are already over
+it and are named in the test with the length they had the day the rule landed;
+none of them may grow. The repellents, to calibrate against: `viewport.rs` is
+4 234 lines and 105 functions, `sketch.rs` 2 384, `solver.rs` 1 466, `state.rs`
+1 297. All of `crates/app/src` is 7 454 lines with one test file.
 
-- [ ] Le fichier touché grossit-il encore ? Si oui, ce que j'ajoute pourrait-il
-      vivre ailleurs ?
-- [ ] Une fonction dépasse-t-elle l'écran ? Fait-elle plus d'une chose ?
-- [ ] Ai-je ajouté un paramètre à une fonction qui en avait déjà cinq ? C'est
-      souvent une structure qui manque.
-- [ ] Une nouvelle structure porte-t-elle des champs qui ne servent que dans la
-      moitié des cas ? C'est deux types, pas un.
+- [ ] Is the file I touched growing again? If so, could what I am adding live
+      elsewhere?
+- [ ] Did a file fall back under 400? Then drop its entry from the test — that
+      is the result, and it is worth saying in the commit message.
+- [ ] Does a function run past a screen? Does it do more than one thing?
+- [ ] Did I add a parameter to a function that already had five? That is usually
+      a missing struct.
+- [ ] Does a new type carry fields that only matter half the time? That is two
+      types, not one.
 
-## Ce qui doit faire lever un sourcil
+## What should raise an eyebrow
 
-- [ ] `unwrap()`, `expect()` ou `panic!()` hors code de test. Dans un test,
-      `expect("le fichier existe")` est normal et souhaitable.
-- [ ] `pub` posé par réflexe. Un champ ou une fonction qui n'est pas utilisé
-      hors du module reste privé — c'est ce qui permet de le changer plus tard.
-- [ ] Un `==` entre deux `f64`. Toujours une tolérance, choisie et justifiée.
-- [ ] Un `as f32` ou `as f64` loin d'une frontière. La conversion se fait au
-      dernier moment, au passage vers le GPU ou `egui`.
-- [ ] Une allocation (`Vec::new`, `to_string`, `collect`) dans une boucle de
-      rendu ou de hit-test, qui tourne à chaque trame.
-- [ ] `clone()` pour faire taire l'emprunteur. Souvent une référence suffit ;
-      sinon le découpage est à revoir.
-- [ ] Une variante d'erreur portant une `String` libre — l'appelant ne peut
-      alors rien décider. Voir `architecture-rust`.
-- [ ] Un `enum` de constantes remplacé par des entiers ou des chaînes nues.
+- [ ] `unwrap()`, `expect()` or `panic!()` outside test code. Inside a test,
+      `expect("the file exists")` is normal and wanted.
+- [ ] `pub` added by reflex. A field or function not used outside its module
+      stays private — that is what lets it change later.
+- [ ] `==` between two `f64`. Always a tolerance, chosen and justified.
+- [ ] `as f32` or `as f64` far from a boundary. The conversion happens at the
+      last moment, crossing to the GPU or to `egui`.
+- [ ] An allocation (`Vec::new`, `to_string`, `collect`) inside a paint or
+      hit-test loop that runs every frame.
+- [ ] `clone()` to quiet the borrow checker. Often a reference does; otherwise
+      the split is wrong.
+- [ ] An error variant carrying a free `String` — the caller can decide nothing.
+      See `architecture-rust`.
+- [ ] An `enum` of constants replaced by bare integers or strings.
 
-## Les règles du dépôt
+## The architecture
 
-- [ ] **Aucun commentaire**, sauf pour ce que le code ne peut pas dire :
-      une contrainte invisible depuis le fichier, une alternative écartée qui
-      serait retentée sans la note, une règle venue de l'extérieur. Une
-      paraphrase de la ligne d'en dessous se supprime, elle ne se réécrit pas.
-      Le récit de ta propre modification va dans le message de commit.
-- [ ] **Jamais de commentaire sur un test.** Le nom du test est la phrase.
-- [ ] Le code et les noms de tests sont en **anglais**, les textes vus par
-      l'utilisateur en **français**.
-- [ ] `cao_core` n'importe aucune crate d'interface.
-- [ ] Un nouveau mode est une variante de `Screen`, pas une branche greffée
-      ailleurs.
-- [ ] Aucune fonctionnalité, crate ou abstraction non demandée. Ce projet
-      grossit par petites étapes explicitement demandées.
+The gate runs `crates/app/tests/architecture.rs`, so a violation of the crate
+graph, of the folder rules, of a line budget or of a name fails on its own.
 
-## Les tests
+What the test cannot see:
 
-- [ ] Le comportement ajouté a-t-il un test ? S'il touche `solver.rs`,
-      `constraints.rs` ou `crates/app/`, y a-t-il d'abord un test qui
-      caractérise l'existant ?
-- [ ] Le test décrit-il un **comportement** observable par l'interface
-      publique, ou l'implémentation ? Un test qui casse au renommage d'une
-      fonction privée testait la mauvaise chose.
-- [ ] Le nom du test est-il une phrase qui dit ce que le système fait ?
-- [ ] Une tolérance a-t-elle été élargie pour faire passer un test rouge ? Si
-      oui, il y a un bug dessous — arrête-toi là.
+- [ ] Did a geometry rule end up in `crates/app/` rather than in `cao_sketch` or
+      `cao_solid`? The test checks dependencies, not where a rule lives.
+- [ ] Is a new mode a variant of `Screen` with its own `screens/<mode>/` folder,
+      or a branch grafted somewhere else?
+- [ ] Is a new file in the folder its role calls for, or in whichever one was
+      already open? See [`docs/code-layout.md`](../../../docs/code-layout.md).
+- [ ] Is a trait in `ports/` a genuine need of the layer, or the concrete type
+      renamed with one implementor and no second one in sight?
+- [ ] Does the decision in a `view.rs` belong in the presenter? Anything you
+      cannot test without opening a window is in the wrong file.
+- [ ] Would this widget serve a second screen? Then it is a `ui/` primitive, not
+      a local one.
+- [ ] **Did a ratchet figure go up?** Lowering one is a result; raising one
+      empties the file of meaning and is a decision for the human.
 
-## Avant de valider
+## The project's rules
+
+- [ ] **No comments**, except for what the code cannot say: a constraint
+      invisible from the file, a discarded alternative that would be tried again
+      without the note, a rule coming from outside the code. A paraphrase of the
+      line below is deleted, not rewritten. The story of your own change goes in
+      the commit message.
+- [ ] **Never a comment on a test.** The test name is the sentence.
+- [ ] Code, test names, documentation, branch names and commit messages in
+      **English**. Text the user reads in **French**, and only in `cao_app`.
+- [ ] No new French wording below `cao_app` — the layer underneath returns a
+      named case.
+- [ ] `cao_core` imports no interface crate.
+- [ ] Files and folders in **snake_case**, and none of them named `utils`,
+      `helpers`, `common`, `misc`, `shared`, `manager` or `handler`. A name that
+      says nothing is where responsibilities come to hide.
+- [ ] No suffix in a file name to carry a role — `button.ui.rs` is not a module
+      Rust can name. The folder carries it.
+- [ ] No feature, crate or abstraction that was not asked for. This project
+      grows by small, explicitly requested steps.
+
+## The tests
+
+- [ ] Does the added behaviour have a test? If it touches `solver.rs`,
+      `constraints.rs` or `crates/app/`, is there first a test that
+      characterises what exists?
+- [ ] Does the test describe an observable **behaviour** through the public
+      interface, or the implementation? A test that breaks when a private
+      function is renamed was testing the wrong thing.
+- [ ] Is the test name a sentence saying what the software does?
+- [ ] Was a tolerance widened to make a red test pass? If so there is a bug
+      underneath — stop there.
+- [ ] If this was a refactor: did any test's assertions change? They should not
+      have. See `refactor-rust`.
+
+## Before validating
 
 ```sh
 scripts/verifier.sh
 ```
 
-`clippy -D warnings` puis `cargo test --workspace`, ~12 s. Le gate le refera au
-commit, mais le lancer avant évite un aller-retour.
+`clippy -D warnings` then `cargo test --workspace`, ~12 s. The gate will do it
+again at commit time, but running it first saves a round trip.
 
-Pour une relecture indépendante, le sous-agent `revue-archi-rust` applique ce
-skill et `architecture-rust` à un diff, dans un contexte séparé — celui qui vient
-d'écrire le code est mal placé pour le juger.
+For an independent read, the `revue-archi-rust` subagent applies this skill and
+`architecture-rust` to a diff, in a separate context — whoever just wrote the
+code is badly placed to judge it.

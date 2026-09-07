@@ -4,6 +4,10 @@ Les autres pages de `docs/` racontent ce que fait le logiciel. Celle-ci dit où
 c'est écrit. Elle sert à quiconque arrive sur le projet et cherche par où
 entrer — humain ou agent.
 
+Elle répond à « où est-ce déjà écrit ». Pour « où poser un fichier neuf » — quel
+dossier, ce qu'il a le droit d'importer, quelle taille il ne dépasse pas —,
+c'est [`code-layout.md`](code-layout.md), et le test d'architecture le vérifie.
+
 ## Les cinq crates
 
 ```

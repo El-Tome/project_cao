@@ -49,6 +49,12 @@ grossiront, ils doivent devenir leurs propres crates (`cao_sketch`,
 `cao_assembly`, ...) plutôt que de s'accumuler dans `cao_app`, qui ne doit
 rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 
+À l'intérieur d'une crate, le rôle d'un fichier est porté par son dossier —
+`model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
+`screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
+le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
+`crates/app/tests/architecture.rs` le vérifie dans le gate.
+
 ## Système de modes
 
 L'application est un menu de démarrage qui bascule vers différents modes :
@@ -83,8 +89,9 @@ Une pièce est une **archive zip** (`.caopart`) contenant ses métadonnées et s
 historique d'opérations. La géométrie n'est pas enregistrée : elle est
 reconstruite en rejouant l'historique, ce qui fait de l'annulation, du
 rétablissement et du retour à une étape la même opération. Les fichiers écrits
-au format précédent (un JSON unique) sont convertis à l'ouverture. Voir
-[historique.md](historique.md).
+au format précédent (un JSON unique) ne sont pas lus : l'outil a trop changé
+pour qu'une conversion soit digne de confiance, et rien de précieux n'a été
+dessiné avec ces versions. Voir [historique.md](historique.md).
 
 ## Pistes non prioritaires (à débattre plus tard)
 

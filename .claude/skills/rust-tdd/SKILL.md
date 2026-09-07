@@ -126,7 +126,15 @@ morceaux.
 | Persistance (`document`, `settings`, `recents`) | colocalisé | écrit sur disque — voir ci-dessous |
 | Caméra, cube, géométrie de rendu | colocalisé | calcul pur, pas de GPU |
 | Pipelines wgpu | non testé unitairement | contrôle visuel via l'exemple `offscreen` |
-| Interface `egui` | non testé aujourd'hui | — |
+| Présentateur d'un écran (`state.rs`) | colocalisé | aucune — c'est le but |
+| Dessin d'un écran (`view.rs`), primitives `ui/` | non testé | demanderait une fenêtre |
+
+**Sur les écrans :** un écran se découpe en un présentateur (`state.rs`) et une
+vue (`view.rs`). Le présentateur ne prend jamais `&mut egui::Ui` — le test
+d'architecture le refuse — et c'est précisément ce qui le rend testable sans
+fenêtre ni GPU. Quand tu ajoutes un comportement dans `crates/app/`, la question
+n'est pas « est-ce testable », c'est « qu'est-ce qui décide, et pourquoi est-ce
+dans le fichier qui dessine ». Voir `docs/code-layout.md`.
 
 **Sur la persistance :** ces tests écrivent aujourd'hui dans
 `std::env::temp_dir()` et nettoient au `remove_dir_all`. C'est lent, et deux

@@ -23,6 +23,16 @@ changement l'aggrave.
 `directories`, `Utc::now()`) est-il ajouté sous une frontière de domaine sans
 port ? Un nouveau mode est-il autre chose qu'une variante de `Screen` ?
 
+**Découpage des fichiers** — le gate vérifie les dossiers, les noms et les
+tailles ; toi tu vérifies le jugement derrière. Un fichier neuf est-il dans le
+dossier que son rôle appelle, ou dans celui qui était déjà ouvert ? Un trait
+posé dans `ports/` répond-il à un besoin réel de la couche, ou n'est-ce que le
+type concret renommé avec un seul implémenteur et aucun second en vue ? Une
+décision prise dans un `view.rs` appartient-elle au présentateur — tout ce qui
+ne se teste pas sans ouvrir une fenêtre est dans le mauvais fichier ? Un widget
+habillé à la main servirait-il un deuxième écran, auquel cas c'est une primitive
+`ui/` ? Voir `docs/code-layout.md`.
+
 **SOLID** — une responsabilité de trop dans un fichier qui grossit déjà ; une
 fonction qui fait deux choses ; un type dont la moitié des champs ne sert que
 dans la moitié des cas.

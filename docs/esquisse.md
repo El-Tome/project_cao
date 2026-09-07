@@ -600,36 +600,56 @@ rôle.)*
 
 ### Ce qu'il faut pour arriver au vert
 
-Deux choses :
+Trois choses :
 
 1. **Les valeurs de forme nécessaires** — longueurs et angles. « Nécessaires »
    et non « toutes » : dans un triangle dont deux côtés et l'angle entre eux
    sont donnés, le troisième côté **suit** et ne peut plus être imposé.
 2. **Un rattachement à l'origine**, par accrochage ou par cote.
+3. **De quoi dire dans quel sens la forme est posée** — voir plus bas.
 
 **Exemple, un rectangle** dont un coin est sur l'origine : deux côtés et
 **trois** angles droits (le quatrième suit) suffisent. Avec un seul angle droit
 le quadrilatère peut encore se déformer en parallélogramme.
 
-### L'orientation est implicite, comme le point d'origine
+### Seule l'origine rattache
+
+Un dessin qui ne tient à rien peut être n'importe où sur le plan, et le déclarer
+fini serait dire qu'il est terminé alors qu'il n'est accroché à rien. Le seul
+point qui rattache est donc **l'origine** — et, plus tard en 3D, un sommet ou
+une face de la pièce.
+
+**Fixe** ne rattache pas. Elle tient un élément immobile pendant que le dessin
+se pose — c'est à cela qu'elle sert — mais elle ne dit pas *où* : la figure
+qu'elle seule retient pourrait être ailleurs, et elle ne la fait donc pas
+passer au vert.
+
+### L'orientation, quand la forme la dit d'elle-même
 
 Faire tourner un dessin entier autour de l'origine ne change aucune longueur et
 aucun angle : **aucune cote ne peut voir cette rotation**. Il fallait donc
 autrefois poser une cote d'angle à 0° sur un axe, uniquement pour dire « et ça
 reste dans ce sens-là ».
 
-Ce n'est plus nécessaire : un dessin **garde le sens dans lequel il a été
-dessiné**, exactement comme il possède un point d'origine sans qu'on le place.
+Ce n'est plus nécessaire **quand la forme le dit d'elle-même** : un trait posé
+le long d'un axe dit dans quel sens la figure est couchée. Carré au repère est
+un sens comme un autre, et le plus courant. La figure garde alors le sens dans
+lequel elle a été dessinée, sans qu'on ait rien à écrire.
+
+Une forme **penchée** ne dit rien. Dès qu'aucun de ses traits n'est à 0, 90, 180
+ou 270°, il faut le dire : une cote d'angle contre un axe, et elle passe au
+vert. Sans cela, elle serait déclarée finie alors qu'on peut encore la faire
+pivoter.
 
 La règle vaut **par groupe de géométrie reliée** : deux formes dessinées à
-l'écart peuvent tourner l'une par rapport à l'autre, donc chacune garde son
+l'écart peuvent tourner l'une par rapport à l'autre, donc chacune répond de son
 sens de son côté. Une seule règle commune laisserait les deux libres de pivoter
 l'une contre l'autre, et aucune ne serait jamais figée.
 
-Poser malgré tout un angle avec un axe reste possible et n'enlève rien : dès
-qu'une cote dit dans quel sens une forme est posée, la règle implicite s'efface
-pour ce groupe — sans quoi la même liberté serait retirée deux fois et un
-dessin encore libre de glisser passerait pour figé.
+Poser un angle avec un axe sur une forme déjà carrée n'enlève rien : dès qu'une
+cote dit dans quel sens une forme est posée, la règle implicite s'efface pour ce
+groupe — sans quoi la même liberté serait retirée deux fois et un dessin encore
+libre de glisser passerait pour figé.
 
 ### Comment c'est calculé
 
@@ -642,11 +662,9 @@ Pour savoir si un point précis est figé, on calcule les **mouvements encore
 possibles** (le noyau du système) : si aucun d'eux ne déplace ce point, il ne
 peut plus bouger.
 
-Ce qui est compté en face, ce sont les **inconnues** : deux par point qui peut
-encore bouger, une par cercle. Un point épinglé — l'origine, ou quoi que ce soit
-que **Fixe** retient — n'en fait pas partie, puisqu'il n'a nulle part où aller.
-Le compter faisait l'inverse de ce à quoi sert Fixe : il ajoutait deux libertés
-que rien ne pouvait plus jamais enlever.
+Ce qui est compté en face, ce sont les **inconnues** : deux par point, une par
+cercle. Seule l'origine n'en fait pas partie — c'est le seul point dont on
+sache d'avance qu'il ne bougera pas.
 
 ### Un point figé ne se déplace plus à la souris
 

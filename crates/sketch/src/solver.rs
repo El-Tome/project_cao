@@ -83,6 +83,9 @@ const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
 const TOLERANCE: f64 = 1e-5;
+/// How far off an axis a trait may lean and still count as square to the
+/// sketch, which is what lets a shape keep its orientation without being told.
+const SQUARE_DEGREES: f64 = 0.5;
 
 impl Sketch {
     /// Moves the drawing until every dimension holds at once.
@@ -470,7 +473,7 @@ impl Sketch {
         let equations = self.equations(millimeters_per_unit);
         let groups = self.point_groups();
 
-        self.rotation_gauges()
+        self.rotation_gauges(&self.pinned_points())
             .into_iter()
             .filter(|(_, gauge)| {
                 equations
@@ -577,21 +580,31 @@ impl Sketch {
         pinned
     }
 
-    /// Every equation the drawing must satisfy, plus the one rule it is never
-    /// asked to state: that it does not turn on the spot.
+    /// The system as the verdict "entirely constrained" reads it.
     ///
-    /// Spinning a whole drawing about the sketch origin leaves every length and
-    /// every angle exactly as it was, so no dimension can ever see it. Without
-    /// this, a shape could carry all its values and still be reported loose,
-    /// and the user had to add an angle to an axis by hand purely to say "and
-    /// it stays this way up". That orientation is implicit now, just as the
-    /// origin point is.
+    /// Two things set it apart from the system the solver works on:
     ///
-    /// It carries no error: it never moves anything, it only accounts for the
-    /// freedom that is already gone.
-    pub(crate) fn analysed_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
-        let mut equations = self.equations(millimeters_per_unit);
-        for (_, gauge) in self.rotation_gauges() {
+    /// Only the **sketch origin** counts as immovable. A `Fixe` holds a point
+    /// still while the drawing settles, but it anchors it to nothing: the
+    /// figure it belongs to could still be anywhere on the plane, and calling
+    /// that finished would say the drawing is done when it is attached to
+    /// nothing at all.
+    ///
+    /// And the drawing is granted the way up it was drawn only when it says so
+    /// itself: a trait lying along an axis says which way up a shape is, and
+    /// that is allowed to go without saying. A shape leaning at some other
+    /// angle says nothing, and has to be told — an angle against an axis —
+    /// before it can count as settled.
+    pub(crate) fn anchored_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
+        let anchored: Vec<bool> = (0..self.points().len())
+            .map(|index| self.is_origin(PointId(index)))
+            .collect();
+        let mut equations = self.equations_pinned_by(millimeters_per_unit, &anchored);
+        let square = self.groups_lying_square();
+        for (owner, gauge) in self.rotation_gauges(&anchored) {
+            if !square.contains(&owner) {
+                continue;
+            }
             // A shape already measured against an axis says which way up it is;
             // adding the implicit rule on top would take that freedom twice and
             // report a drawing as more settled than it is.
@@ -629,11 +642,19 @@ impl Sketch {
             .collect()
     }
 
-    /// One rule per group of joined geometry. Two shapes drawn apart can be
-    /// turned independently, so one shared rule would leave both of them able
-    /// to turn against each other and neither would ever count as settled.
-    fn rotation_gauges(&self) -> Vec<(usize, Equation)> {
-        let pinned = self.pinned_points();
+    /// The rule a drawing is never asked to state: that it does not turn on the
+    /// spot.
+    ///
+    /// Spinning a shape about the sketch origin leaves every length and every
+    /// angle exactly as it was, so no dimension can ever see it.
+    ///
+    /// One rule per group of joined geometry: two shapes drawn apart turn
+    /// independently, so a single shared rule would leave both able to turn
+    /// against each other and neither would ever count as settled.
+    ///
+    /// It carries no error: it never moves anything, it only accounts for a
+    /// freedom that is not really there.
+    fn rotation_gauges(&self, pinned: &[bool]) -> Vec<(usize, Equation)> {
         let groups = self.point_groups();
 
         let mut gauges: Vec<(usize, Equation)> = Vec::new();
@@ -656,6 +677,31 @@ impl Sketch {
         gauges
     }
 
+    /// The groups of joined geometry holding at least one trait along an axis.
+    ///
+    /// Such a trait is what lets a shape keep the way up it was drawn without
+    /// being told: square to the sketch is a way up like any other, and the
+    /// commonest one. Anything leaning has to carry an angle.
+    fn groups_lying_square(&self) -> Vec<usize> {
+        let groups = self.point_groups();
+        let mut square = Vec::new();
+        for (_, segment) in self.live_segments() {
+            let span = self.point(segment.end) - self.point(segment.start);
+            if span.length() < 1e-9 {
+                continue;
+            }
+            let leaning = span.y.atan2(span.x).to_degrees().rem_euclid(90.0);
+            if leaning.min(90.0 - leaning) > SQUARE_DEGREES {
+                continue;
+            }
+            let owner = groups[segment.start.0];
+            if !square.contains(&owner) {
+                square.push(owner);
+            }
+        }
+        square
+    }
+
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
     fn characteristic_size(&self) -> f64 {
@@ -672,16 +718,21 @@ impl Sketch {
     /// Every equation the drawing must satisfy, including the pins that hold it
     /// in place.
     pub(crate) fn equations(&self, millimeters_per_unit: f64) -> Vec<Equation> {
+        self.equations_pinned_by(millimeters_per_unit, &self.pinned_points())
+    }
+
+    /// The same, told which points are to be treated as immovable. The solver
+    /// and the verdict do not agree on that, so they each say.
+    fn equations_pinned_by(&self, millimeters_per_unit: f64, pinned: &[bool]) -> Vec<Equation> {
         let mut equations = Vec::new();
-        let pinned = self.pinned_points();
 
         for index in 0..self.dimension_count() {
-            if let Some(equation) = self.equation(index, millimeters_per_unit, &pinned) {
+            if let Some(equation) = self.equation(index, millimeters_per_unit, pinned) {
                 equations.push(equation);
             }
         }
         for index in 0..self.constraints().len() {
-            equations.extend(self.rule_equations(index, &pinned));
+            equations.extend(self.rule_equations(index, pinned));
         }
         equations
     }

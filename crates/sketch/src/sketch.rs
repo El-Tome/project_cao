@@ -821,17 +821,18 @@ impl Sketch {
     /// Points pinned to the origin are taken out of the count outright, since
     /// neither of their coordinates can move.
     pub fn freedom(&self, millimeters_per_unit: f64) -> Freedom {
-        // What the drawing can still move: two coordinates per point that is
-        // free to move, plus one size per circle. A pinned point — the origin,
-        // or anything held by a **Fixe** — has nowhere to go, so it is not in
-        // play; counting it did the opposite of what fixing something is for,
-        // and added two degrees of freedom that nothing could ever take away.
-        let pinned = self.pinned_points();
+        // What the drawing can still move: two coordinates per point, plus one
+        // size per circle. Only the origin is out of play — a **Fixe** holds a
+        // point still while the drawing settles, but it anchors it to nothing,
+        // and a figure it alone holds could be anywhere on the plane.
         let loose = (0..self.points.len())
-            .filter(|index| !pinned[*index] && !self.is_erased_point(PointId(*index)))
+            .filter(|index| {
+                let point = PointId(*index);
+                !self.is_origin(point) && !self.is_erased_point(point)
+            })
             .count();
         let unknowns = loose * 2 + self.live_circles().count();
-        let held = solver::rank(&self.analysed_system(millimeters_per_unit)).min(unknowns);
+        let held = solver::rank(&self.anchored_system(millimeters_per_unit)).min(unknowns);
 
         Freedom {
             degrees_of_freedom: unknowns - held,
@@ -914,7 +915,7 @@ impl Sketch {
             .map(|index| self.is_origin(PointId(index)))
             .collect();
         let free = solver::null_space(
-            &self.analysed_system(millimeters_per_unit),
+            &self.anchored_system(millimeters_per_unit),
             &pinned,
             variables,
         );
@@ -1236,7 +1237,7 @@ mod tests {
     }
 
     #[test]
-    fn fixing_a_corner_takes_freedom_away_rather_than_adding_it() {
+    fn a_figure_adrift_is_never_settled_however_it_is_fixed() {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(DVec2::new(100.0, 100.0));
         let b = sketch.add_point(DVec2::new(200.0, 110.0));
@@ -1247,17 +1248,59 @@ mod tests {
         }
         sketch.resolve(1.0);
 
-        // Drawn away from the origin, it can still be slid about.
-        let loose = sketch.freedom(1.0).degrees_of_freedom;
-        assert_eq!(loose, 2, "il reste la translation");
+        // Drawn away from the origin and leaning, it can still be slid about
+        // and turned: two ways of sliding, one of turning.
+        assert_eq!(sketch.freedom(1.0).degrees_of_freedom, 3);
 
+        // A Fixe holds it still while the drawing settles, but it anchors it to
+        // nothing: the figure could be anywhere on the plane.
         sketch.add_constraint(Constraint::Fixed {
             element: Element::Point(a),
         });
-        assert!(
-            sketch.freedom(1.0).degrees_of_freedom < loose,
-            "fixer un coin enlève de la liberté, il n'en ajoute pas"
+        assert_eq!(
+            sketch.freedom(1.0).degrees_of_freedom,
+            3,
+            "fixer un coin ne rattache à rien"
         );
+    }
+
+    #[test]
+    fn a_shape_leaning_has_to_say_which_way_up_it_is() {
+        // Two traits from the origin, at a right angle to each other and both
+        // measured: everything about the shape is said except the way it lies.
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corner = sketch.add_point(DVec2::new(80.0, 30.0));
+        let far = sketch.add_point(DVec2::new(50.0, 110.0));
+        let along = sketch.add_segment(Sketch::ORIGIN, corner);
+        let across = sketch.add_segment(corner, far);
+        sketch.set_dimension(DimensionTarget::Length(along), 90.0, false);
+        sketch.set_dimension(DimensionTarget::Length(across), 60.0, false);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: along,
+                second: across,
+            },
+            90.0,
+            false,
+        );
+        sketch.resolve(1.0);
+        assert_eq!(
+            sketch.freedom(1.0).degrees_of_freedom,
+            1,
+            "il reste à dire dans quel sens elle est posée"
+        );
+
+        // Said with an angle against an axis, and there is nothing left.
+        sketch.set_dimension(
+            DimensionTarget::AxisAngle {
+                segment: along,
+                axis: crate::constraints::SketchAxis::U,
+            },
+            0.0,
+            false,
+        );
+        sketch.resolve(1.0);
+        assert!(sketch.is_fully_constrained(1.0), "et là elle est posée");
     }
 
     #[test]

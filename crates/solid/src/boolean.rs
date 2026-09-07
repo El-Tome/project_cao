@@ -381,10 +381,7 @@ mod tests {
         let once = block.difference(&small);
         let twice = once.difference(&wide);
         let left = volume(&twice);
-        assert!(
-            (left - (4000.0 - 160.0 - 640.0)).abs() < 2.0,
-            "{left}"
-        );
+        assert!((left - (4000.0 - 160.0 - 640.0)).abs() < 2.0, "{left}");
     }
 
     /// Two areas extruded together are one tool, whatever they overlap.

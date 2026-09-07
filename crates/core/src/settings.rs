@@ -163,7 +163,10 @@ impl Profiles {
     /// Adds a profile, taking a free name when the one asked for is taken.
     pub fn add(&mut self, profile: Profile) -> String {
         let name = self.free_name(&profile.name);
-        self.profiles.push(Profile { name: name.clone(), ..profile });
+        self.profiles.push(Profile {
+            name: name.clone(),
+            ..profile
+        });
         self.active = name.clone();
         name
     }

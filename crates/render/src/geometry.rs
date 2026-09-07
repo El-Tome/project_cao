@@ -132,9 +132,8 @@ pub fn push_background(
                 let (inner, outer) = (sample(low), sample(high));
 
                 for sector in 0..SECTORS {
-                    let angle = |index: usize| {
-                        std::f32::consts::TAU * index as f32 / SECTORS as f32
-                    };
+                    let angle =
+                        |index: usize| std::f32::consts::TAU * index as f32 / SECTORS as f32;
                     let at = |t: f32, index: usize| {
                         let direction = glam::Vec2::from_angle(angle(index));
                         let point = middle + direction * t * reach;

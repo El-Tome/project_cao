@@ -208,7 +208,10 @@ impl Sketch {
         // A tangency taking its contact point with it: left behind, the point
         // would sit in mid-air with nothing holding it.
         for constraint in dropped {
-            if let Constraint::Tangent { at: Some(point), .. } = constraint {
+            if let Constraint::Tangent {
+                at: Some(point), ..
+            } = constraint
+            {
                 Erased::mark(&mut self.erased.points, point.0);
             }
         }
@@ -305,7 +308,10 @@ impl Sketch {
             let Some(rank) = self.tangency_index(circle, segment) else {
                 return;
             };
-            if let Constraint::Tangent { at: Some(point), .. } = self.constraints.remove(rank) {
+            if let Constraint::Tangent {
+                at: Some(point), ..
+            } = self.constraints.remove(rank)
+            {
                 self.erase(Element::Point(point));
             }
             return;
@@ -1000,7 +1006,6 @@ impl Sketch {
     }
 }
 
-
 /// Points a dimension at the point that was kept.
 fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> DimensionTarget {
     let swap = |point: PointId| if point == dropped { kept } else { point };
@@ -1424,7 +1429,9 @@ mod tests {
         });
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
-        let Some(Constraint::Tangent { at: Some(touch), .. }) = sketch
+        let Some(Constraint::Tangent {
+            at: Some(touch), ..
+        }) = sketch
             .constraints()
             .iter()
             .find(|rule| matches!(rule, Constraint::Tangent { .. }))
@@ -1434,12 +1441,17 @@ mod tests {
         };
         let contact = sketch.point(touch);
         let foot = sketch.foot_on_segment(center, line).unwrap();
-        assert!(contact.distance(foot) < 1e-3, "le contact a glissé : {contact}");
+        assert!(
+            contact.distance(foot) < 1e-3,
+            "le contact a glissé : {contact}"
+        );
 
         // The line moved out from under it: the contact follows, it does not
         // stay behind on the old spot.
         sketch.settle_around(end, DVec2::new(40.0, 40.0), 1.0);
-        let foot = sketch.foot_on_segment(sketch.circle(circle).center, line).unwrap();
+        let foot = sketch
+            .foot_on_segment(sketch.circle(circle).center, line)
+            .unwrap();
         assert!(sketch.point(touch).distance(foot) < 1e-2);
     }
 

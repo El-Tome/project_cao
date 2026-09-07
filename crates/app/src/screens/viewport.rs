@@ -2,8 +2,8 @@ use cao_core::PartDocument;
 use cao_core::ViewportConfig;
 use cao_core::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
 use cao_core::history::{Operation, PointRef};
-use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_core::theme::{Background, Rgba, Theme};
+use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{
     AxisStyle, BackgroundShape, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition,
     ViewportRect, adaptive_step, cube, push_axes, push_grid, push_plane_outline, push_plane_quad,
@@ -200,12 +200,14 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         // Enter finishes the shape from the keyboard, without having to find
         // the canvas again with the mouse.
         if let Some(index) = sketch.editor.active_sketch() {
-            let cursor = sketch.editor.aimed.or(sketch.editor.cursor).unwrap_or_default();
+            let cursor = sketch
+                .editor
+                .aimed
+                .or(sketch.editor.cursor)
+                .unwrap_or_default();
             let snap = scale.world_size_of(PICK_PIXELS);
             changed |= match sketch.editor.tool {
-                Tool::Line => {
-                    draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
-                }
+                Tool::Line => draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel),
                 Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
                 _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
             };
@@ -609,7 +611,14 @@ fn handle_sketch_input(
             return changed;
         }
         if context.editor.band.is_some() {
-            return band_select(context, index, cursor, response, adding, scale.units_per_pixel);
+            return band_select(
+                context,
+                index,
+                cursor,
+                response,
+                adding,
+                scale.units_per_pixel,
+            );
         }
 
         return drag_point(
@@ -911,10 +920,7 @@ fn rule_operation(
         },
         Rule::Concentric => match circles.as_slice() {
             [first, second] => {
-                let (kept, dropped) = (
-                    sketch.circle(*first).center,
-                    sketch.circle(*second).center,
-                );
+                let (kept, dropped) = (sketch.circle(*first).center, sketch.circle(*second).center);
                 (kept != dropped).then_some(Operation::MergePoints {
                     sketch: index,
                     kept,
@@ -1509,7 +1515,12 @@ fn draw_circle(
         radius: found.radius,
         rim,
     });
-    let drawn = CircleId(context.document.sketches()[index].circles().len().saturating_sub(1));
+    let drawn = CircleId(
+        context.document.sketches()[index]
+            .circles()
+            .len()
+            .saturating_sub(1),
+    );
 
     // A circle drawn against traits stays against them: the tangency is the
     // whole point of having pointed at them.
@@ -1904,7 +1915,10 @@ fn measure_preview(
         && let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
     {
         let first = context.editor.first_point?;
-        return (first != point).then_some(DimensionTarget::Distance { from: first, to: point });
+        return (first != point).then_some(DimensionTarget::Distance {
+            from: first,
+            to: point,
+        });
     }
     if mode == DimensionMode::PointToPoint {
         return None;
@@ -2205,8 +2219,7 @@ fn axis_under(cursor: DVec2, tolerance: f64) -> Option<cao_sketch::SketchAxis> {
 }
 
 /// Shown when a value would add nothing to a shape that is already settled.
-pub const REDUNDANT_WARNING: &str =
-    "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
+pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
 
 /// Pulls the cursor onto whatever it is near: an existing point first, then the
 /// grid.
@@ -2471,7 +2484,13 @@ fn dimension_the_line(
         ));
     }
     if let Some(first) = aimed.square_with {
-        wanted.push((DimensionTarget::Angle { first, second: segment }, 90.0));
+        wanted.push((
+            DimensionTarget::Angle {
+                first,
+                second: segment,
+            },
+            90.0,
+        ));
     }
 
     let scale = context.document.scale();
@@ -2622,7 +2641,15 @@ fn build_frame(
             (true, Some(preview)) => preview,
             _ => sketch,
         };
-        push_sketch(&mut lines, &mut surfaces, shown, theme, scale, active, context);
+        push_sketch(
+            &mut lines,
+            &mut surfaces,
+            shown,
+            theme,
+            scale,
+            active,
+            context,
+        );
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
@@ -2831,7 +2858,10 @@ fn push_regions(
         };
         for [a, b, c] in region.triangles {
             for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(sketch.plane.to_world(corner).as_vec3(), color));
+                surfaces.push(cao_render::Vertex::solid(
+                    sketch.plane.to_world(corner).as_vec3(),
+                    color,
+                ));
             }
         }
     }
@@ -2977,7 +3007,10 @@ fn push_sketch(
         } else {
             crate::screens::annotations::Style::driving(theme)
         };
-        if context.editor.is_selected(Selection::Dimension(dimension.target)) {
+        if context
+            .editor
+            .is_selected(Selection::Dimension(dimension.target))
+        {
             style.color = tint_at(theme.highlight, 1.0);
             style.width *= 2.0;
         }
@@ -3072,7 +3105,11 @@ fn push_point_markers(
             center - u * size + v * size,
         ];
         for corner in 0..4 {
-            out.push(cao_render::Vertex::line(corners[corner].as_vec3(), color, width));
+            out.push(cao_render::Vertex::line(
+                corners[corner].as_vec3(),
+                color,
+                width,
+            ));
             out.push(cao_render::Vertex::line(
                 corners[(corner + 1) % 4].as_vec3(),
                 color,
@@ -3089,7 +3126,11 @@ fn push_point_markers(
 /// the end — the drag would look like it had done nothing.
 fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> DVec2 {
     let editor = &context.editor;
-    match (editor.dragged_dimension, editor.drag_origin, editor.drag_position) {
+    match (
+        editor.dragged_dimension,
+        editor.drag_origin,
+        editor.drag_position,
+    ) {
         (Some(dragged), Some(origin), Some(position)) if dragged == target => position - origin,
         _ => DVec2::ZERO,
     }
@@ -3129,7 +3170,11 @@ fn push_point_marker(
         center - u * size + v * size,
     ];
     for corner in 0..4 {
-        out.push(cao_render::Vertex::line(corners[corner].as_vec3(), color, width));
+        out.push(cao_render::Vertex::line(
+            corners[corner].as_vec3(),
+            color,
+            width,
+        ));
         out.push(cao_render::Vertex::line(
             corners[(corner + 1) % 4].as_vec3(),
             color,
@@ -3327,7 +3372,14 @@ fn push_preview(
         && let Some(found) = circle_from(context, index, cursor, scale.world_size_of(PICK_PIXELS))
     {
         push_circle_at(out, sketch, found.center, found.radius, preview, 1.5);
-        push_point_marker(out, sketch, found.center, scale.world_size_of(3.0), preview, 1.5);
+        push_point_marker(
+            out,
+            sketch,
+            found.center,
+            scale.world_size_of(3.0),
+            preview,
+            1.5,
+        );
     }
 
     let Some(start) = context.editor.pending_start else {
@@ -3342,7 +3394,13 @@ fn push_preview(
             DVec2::new(start.x, far.y),
         ];
         for index in 0..4 {
-            push_preview_line(out, sketch, corners[index], corners[(index + 1) % 4], preview);
+            push_preview_line(
+                out,
+                sketch,
+                corners[index],
+                corners[(index + 1) % 4],
+                preview,
+            );
         }
     }
 }
@@ -3355,12 +3413,12 @@ fn push_preview_line(
     color: [f32; 4],
 ) {
     out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(from).as_vec3(),
+        sketch.plane.to_world(from).as_vec3(),
         color,
         1.5,
     ));
     out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(to).as_vec3(),
+        sketch.plane.to_world(to).as_vec3(),
         color,
         1.5,
     ));
@@ -3531,10 +3589,12 @@ fn value_field(ui: &mut egui::Ui, text: &mut String, hint: &str, focus: bool) ->
     if focus {
         response.request_focus();
         let mut state = output.state;
-        state.cursor.set_char_range(Some(egui::text::CCursorRange::two(
-            egui::text::CCursor::new(0),
-            egui::text::CCursor::new(text.chars().count()),
-        )));
+        state
+            .cursor
+            .set_char_range(Some(egui::text::CCursorRange::two(
+                egui::text::CCursor::new(0),
+                egui::text::CCursor::new(text.chars().count()),
+            )));
         state.store(ui.ctx(), response.id);
     }
     response
@@ -3589,7 +3649,10 @@ fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
         })
     };
     let both = |first: SegmentId, second: SegmentId| {
-        [middle(first), middle(second)].into_iter().flatten().collect()
+        [middle(first), middle(second)]
+            .into_iter()
+            .flatten()
+            .collect()
     };
 
     match constraint {
@@ -3600,9 +3663,10 @@ fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
         Constraint::Parallel { first, second }
         | Constraint::Equal { first, second }
         | Constraint::Collinear { first, second } => both(first, second),
-        Constraint::EqualRadius { first, second } => {
-            [circle(first), circle(second)].into_iter().flatten().collect()
-        }
+        Constraint::EqualRadius { first, second } => [circle(first), circle(second)]
+            .into_iter()
+            .flatten()
+            .collect(),
         Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
         Constraint::OnSegment { point: held, .. } | Constraint::Midpoint { point: held, .. } => {
             point(held).into_iter().collect()
@@ -3638,8 +3702,8 @@ fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
 fn corner_of(sketch: &Sketch, first: SegmentId, second: SegmentId) -> Option<DVec2> {
     let (pivot, a, b) = sketch.corner_points(first, second)?;
     let reach = (a.distance(pivot).min(b.distance(pivot))) * 0.25;
-    let inward = ((a - pivot).normalize_or_zero() + (b - pivot).normalize_or_zero())
-        .normalize_or(DVec2::X);
+    let inward =
+        ((a - pivot).normalize_or_zero() + (b - pivot).normalize_or_zero()).normalize_or(DVec2::X);
     Some(pivot + inward * reach)
 }
 
@@ -3712,12 +3776,7 @@ const MARK_SPACING: f32 = 16.0;
 /// Drawn on the sketch's own axes rather than the screen's: seen at an angle,
 /// a box that stayed square on screen would take in a different area than the
 /// one it appears to cover.
-fn paint_band(
-    ui: &egui::Ui,
-    state: &ViewportState,
-    rect: egui::Rect,
-    context: &SketchContext<'_>,
-) {
+fn paint_band(ui: &egui::Ui, state: &ViewportState, rect: egui::Rect, context: &SketchContext<'_>) {
     let (Some((from, to)), Some(index)) = (context.editor.band, context.editor.active_sketch())
     else {
         return;
@@ -3729,15 +3788,11 @@ fn paint_band(
         .camera
         .view_projection(rect.width() / rect.height().max(1.0));
 
-    let corners: Option<Vec<egui::Pos2>> = [
-        from,
-        DVec2::new(to.x, from.y),
-        to,
-        DVec2::new(from.x, to.y),
-    ]
-    .into_iter()
-    .map(|corner| to_screen(sketch.plane.to_world(corner), view_projection, rect))
-    .collect();
+    let corners: Option<Vec<egui::Pos2>> =
+        [from, DVec2::new(to.x, from.y), to, DVec2::new(from.x, to.y)]
+            .into_iter()
+            .map(|corner| to_screen(sketch.plane.to_world(corner), view_projection, rect))
+            .collect();
     let Some(corners) = corners else {
         return;
     };

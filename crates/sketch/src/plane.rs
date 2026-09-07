@@ -107,7 +107,11 @@ mod tests {
     #[test]
     fn local_and_world_coordinates_round_trip() {
         for plane in WorkPlane::ORIGIN_PLANES {
-            for point in [DVec2::ZERO, DVec2::new(12.5, -3.0), DVec2::new(-400.0, 900.0)] {
+            for point in [
+                DVec2::ZERO,
+                DVec2::new(12.5, -3.0),
+                DVec2::new(-400.0, 900.0),
+            ] {
                 let round_trip = plane.to_local(plane.to_world(point));
                 assert!((round_trip - point).length() < 1e-3, "{plane:?} {point:?}");
             }

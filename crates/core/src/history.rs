@@ -1,6 +1,4 @@
-use cao_sketch::{
-    Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
-};
+use cao_sketch::{Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -223,9 +221,7 @@ impl Operation {
                 };
                 format!("{verb} {angle}°")
             }
-            Self::Extrude {
-                distance, mode, ..
-            } => {
+            Self::Extrude { distance, mode, .. } => {
                 let verb = match mode {
                     ExtrusionMode::Add => "Extrusion",
                     ExtrusionMode::Cut => "Enlèvement",
@@ -305,10 +301,9 @@ impl Operation {
             Self::Extrude { sketch, picks, .. } => {
                 format!("Esquisse {sketch} · {} aire(s)", picks.len())
             }
-            Self::Constrain {
-                sketch,
-                constraint,
-            } => format!("Esquisse {sketch} · {}", constraint.label()),
+            Self::Constrain { sketch, constraint } => {
+                format!("Esquisse {sketch} · {}", constraint.label())
+            }
             Self::EraseMany {
                 sketch,
                 elements,
@@ -326,7 +321,10 @@ impl Operation {
                 dropped,
             } => format!("Esquisse {sketch} · points {} et {}", kept.0, dropped.0),
             Self::Revolve {
-                sketch, picks, axis, ..
+                sketch,
+                picks,
+                axis,
+                ..
             } => format!(
                 "Esquisse {sketch} · {} aire(s) autour de {}",
                 picks.len(),
@@ -346,7 +344,10 @@ impl Operation {
                     format!("Esquisse {sketch} · trait {} / {}", segment.0, axis.label())
                 }
                 DimensionTarget::PointToSegment { point, segment } => {
-                    format!("Esquisse {sketch} · point {} au trait {}", point.0, segment.0)
+                    format!(
+                        "Esquisse {sketch} · point {} au trait {}",
+                        point.0, segment.0
+                    )
                 }
                 DimensionTarget::Projected { from, to, axis } => format!(
                     "Esquisse {sketch} · points {} et {} sur l'{}",

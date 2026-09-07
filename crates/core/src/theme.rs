@@ -69,7 +69,10 @@ impl Stop {
 pub enum Background {
     Solid(Rgba),
     /// Straight across the viewport, at any angle. 0° runs bottom to top.
-    Linear { angle_degrees: f32, stops: Vec<Stop> },
+    Linear {
+        angle_degrees: f32,
+        stops: Vec<Stop>,
+    },
     /// Out from a point, given in fractions of the viewport.
     Radial {
         center: [f32; 2],

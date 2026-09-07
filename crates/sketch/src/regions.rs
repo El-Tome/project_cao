@@ -270,7 +270,11 @@ fn bridge_holes(outline: &[DVec2], holes: &[Vec<DVec2>]) -> Vec<DVec2> {
 }
 
 fn splice(path: &[DVec2], hole: &[DVec2]) -> Option<Vec<DVec2>> {
-    let entry = hole.iter().copied().enumerate().max_by(|a, b| a.1.x.total_cmp(&b.1.x))?;
+    let entry = hole
+        .iter()
+        .copied()
+        .enumerate()
+        .max_by(|a, b| a.1.x.total_cmp(&b.1.x))?;
     let (entry_index, entry_point) = entry;
 
     // The corridor goes to whichever corner of the path is both to the right of
@@ -486,10 +490,16 @@ mod tests {
 
         let ring = area(&regions[0].face_triangles());
         assert!((ring - 300.0).abs() < 1e-2, "aire de l'anneau : {ring}");
-        assert!((area(&regions[0].triangles) - 400.0).abs() < 1e-2, "teinte pleine");
+        assert!(
+            (area(&regions[0].triangles) - 400.0).abs() < 1e-2,
+            "teinte pleine"
+        );
 
         assert!(regions[0].contains(DVec2::new(2.0, 2.0)));
-        assert!(!regions[0].contains(DVec2::new(10.0, 10.0)), "le trou est vide");
+        assert!(
+            !regions[0].contains(DVec2::new(10.0, 10.0)),
+            "le trou est vide"
+        );
         assert!(regions[1].contains(DVec2::new(10.0, 10.0)));
     }
 

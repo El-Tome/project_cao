@@ -271,9 +271,9 @@ fn seat_for<'a>(items: &'a mut Vec<Item>, path: &[String]) -> &'a mut Vec<Item> 
     let Some((name, rest)) = path.split_first() else {
         return items;
     };
-    let found = items.iter().position(
-        |item| matches!(item, Item::Group { name: held, .. } if held == name),
-    );
+    let found = items
+        .iter()
+        .position(|item| matches!(item, Item::Group { name: held, .. } if held == name));
     let index = match found {
         Some(index) => index,
         None => {
@@ -342,7 +342,10 @@ impl Default for ToolbarLayout {
                         Item::Command(C::RecenterOnSketch),
                         Item::Command(C::FinishSketch),
                         Item::Separator,
-                        Item::group("Édition", vec![Item::Command(C::Undo), Item::Command(C::Redo)]),
+                        Item::group(
+                            "Édition",
+                            vec![Item::Command(C::Undo), Item::Command(C::Redo)],
+                        ),
                     ],
                 ),
                 Item::group(
@@ -369,7 +372,10 @@ mod tests {
         let mut saved = ToolbarLayout {
             items: vec![Item::group(
                 "Esquisse",
-                vec![Item::group("Dessin", vec![Item::Command(Command::ToolLine)])],
+                vec![Item::group(
+                    "Dessin",
+                    vec![Item::Command(Command::ToolLine)],
+                )],
             )],
             ..ToolbarLayout::default()
         };

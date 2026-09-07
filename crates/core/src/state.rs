@@ -381,8 +381,9 @@ impl PartState {
     fn length_in_units(&self, index: usize, target: DimensionTarget) -> Option<f64> {
         let sketch = self.sketches.get(index)?;
         let units = match target {
-            DimensionTarget::Length(segment) => (segment.0 < sketch.segments().len())
-                .then(|| sketch.segment_length(segment))?,
+            DimensionTarget::Length(segment) => {
+                (segment.0 < sketch.segments().len()).then(|| sketch.segment_length(segment))?
+            }
             DimensionTarget::Distance { from, to } => {
                 let points = sketch.points();
                 points.get(from.0)?.distance(*points.get(to.0)?)
@@ -977,7 +978,10 @@ mod extrusion_tests {
         let state = PartState::rebuild(&history);
         let expected = std::f64::consts::PI * (100.0 - 36.0) * 5.0;
         let made = volume(&state.body);
-        assert!((made - expected).abs() / expected < 0.03, "{made} / {expected}");
+        assert!(
+            (made - expected).abs() / expected < 0.03,
+            "{made} / {expected}"
+        );
     }
 
     /// Une poche : la seconde esquisse creuse le bloc de la première.
@@ -1045,7 +1049,10 @@ mod extrusion_tests {
 
         let made = volume(&PartState::rebuild(&history).body);
         let expected = std::f64::consts::TAU * 4.0 * 4.0;
-        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+        assert!(
+            (made - expected).abs() / expected < 0.02,
+            "{made} / {expected}"
+        );
     }
 
     /// L'axe peut être un trait qu'on a tracé soi-même.
@@ -1068,7 +1075,10 @@ mod extrusion_tests {
 
         let made = volume(&PartState::rebuild(&history).body);
         let expected = std::f64::consts::TAU * 4.0 * 4.0;
-        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+        assert!(
+            (made - expected).abs() / expected < 0.02,
+            "{made} / {expected}"
+        );
     }
 
     /// Un profil à cheval sur l'axe passerait à travers lui-même : rien n'est
@@ -1097,7 +1107,11 @@ mod extrusion_tests {
     #[test]
     fn cutting_into_a_revolved_part_from_its_own_face() {
         let mut history = sketch_history();
-        rectangle(&mut history, DVec2::new(-30.0, -7.5), DVec2::new(0.0, -52.5));
+        rectangle(
+            &mut history,
+            DVec2::new(-30.0, -7.5),
+            DVec2::new(0.0, -52.5),
+        );
         history.push(Operation::Revolve {
             sketch: 0,
             picks: vec![DVec2::new(-14.8, -26.5)],
@@ -1274,7 +1288,10 @@ mod extrusion_tests {
         let state = PartState::rebuild(&history);
         let (min, max) = state.body.bounds().expect("un volume");
         let height_millimetres = (max.z - min.z) * state.scale();
-        assert!((height_millimetres - 25.0).abs() < 1e-3, "{height_millimetres}");
+        assert!(
+            (height_millimetres - 25.0).abs() < 1e-3,
+            "{height_millimetres}"
+        );
         let _ = DVec3::ZERO;
     }
 }

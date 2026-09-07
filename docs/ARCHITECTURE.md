@@ -83,8 +83,9 @@ Une pièce est une **archive zip** (`.caopart`) contenant ses métadonnées et s
 historique d'opérations. La géométrie n'est pas enregistrée : elle est
 reconstruite en rejouant l'historique, ce qui fait de l'annulation, du
 rétablissement et du retour à une étape la même opération. Les fichiers écrits
-au format précédent (un JSON unique) sont convertis à l'ouverture. Voir
-[historique.md](historique.md).
+au format précédent (un JSON unique) ne sont pas lus : l'outil a trop changé
+pour qu'une conversion soit digne de confiance, et rien de précieux n'a été
+dessiné avec ces versions. Voir [historique.md](historique.md).
 
 ## Pistes non prioritaires (à débattre plus tard)
 

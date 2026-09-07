@@ -66,7 +66,9 @@ pub fn push(
     nudge: DVec2,
 ) -> Option<Placement> {
     let plane = &sketch.plane;
-    let placed = sketch.dimension_of(target).and_then(|dimension| dimension.offset);
+    let placed = sketch
+        .dimension_of(target)
+        .and_then(|dimension| dimension.offset);
     match target {
         DimensionTarget::Length(segment) => {
             let (start, end) = endpoints(sketch, segment)?;
@@ -415,7 +417,13 @@ fn angular(
         } else {
             at_end
         };
-        line(out, plane, nearer, text_at - reach.normalize_or_zero() * clearance, style);
+        line(
+            out,
+            plane,
+            nearer,
+            text_at - reach.normalize_or_zero() * clearance,
+            style,
+        );
     }
 
     Placement {
@@ -498,6 +506,14 @@ fn arrow(
 }
 
 fn line(out: &mut Vec<Vertex>, plane: &WorkPlane, from: DVec2, to: DVec2, style: &Style) {
-    out.push(Vertex::line(plane.to_world(from).as_vec3(), style.color, style.width));
-    out.push(Vertex::line(plane.to_world(to).as_vec3(), style.color, style.width));
+    out.push(Vertex::line(
+        plane.to_world(from).as_vec3(),
+        style.color,
+        style.width,
+    ));
+    out.push(Vertex::line(
+        plane.to_world(to).as_vec3(),
+        style.color,
+        style.width,
+    ));
 }

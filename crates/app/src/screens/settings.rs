@@ -173,7 +173,9 @@ fn profiles_section(
         .clicked()
     {
         profiles.reset_active();
-        editor.notice = Some(format!("Profil « {active} » remis à ses valeurs d'origine."));
+        editor.notice = Some(format!(
+            "Profil « {active} » remis à ses valeurs d'origine."
+        ));
         touched = true;
     }
 
@@ -285,7 +287,9 @@ fn navigation_section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
     ui.add(
         egui::Slider::new(&mut config.trackpad.scroll_sensitivity, 0.1..=4.0).text("Sensibilité"),
     );
-    ui.add(egui::Slider::new(&mut config.zoom_sensitivity, 0.0001..=0.01).text("Zoom au défilement"));
+    ui.add(
+        egui::Slider::new(&mut config.zoom_sensitivity, 0.0001..=0.01).text("Zoom au défilement"),
+    );
 
     before != profiles.active().viewport
 }
@@ -424,7 +428,10 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>) {
         stops.remove(rank);
     }
     if ui.button("+ Ajouter une couleur").clicked() {
-        let color = stops.last().map(|stop| stop.color).unwrap_or(Rgba::opaque(0.5, 0.5, 0.5));
+        let color = stops
+            .last()
+            .map(|stop| stop.color)
+            .unwrap_or(Rgba::opaque(0.5, 0.5, 0.5));
         stops.push(Stop::new(1.0, color));
     }
 }
@@ -504,7 +511,11 @@ fn read_chord(ui: &egui::Ui) -> Option<Chord> {
     })
 }
 
-fn toolbar_section(ui: &mut egui::Ui, profiles: &mut Profiles, editor: &mut SettingsEditor) -> bool {
+fn toolbar_section(
+    ui: &mut egui::Ui,
+    profiles: &mut Profiles,
+    editor: &mut SettingsEditor,
+) -> bool {
     let before = profiles.active().toolbar.clone();
     let layout = &mut profiles.active_mut().toolbar;
 
@@ -546,7 +557,10 @@ fn toolbar_section(ui: &mut egui::Ui, profiles: &mut Profiles, editor: &mut Sett
             {
                 editor.selected = moved;
             }
-            if ui.button("→ Grouper").on_hover_text("Entrer dans le groupe juste au-dessus").clicked()
+            if ui
+                .button("→ Grouper")
+                .on_hover_text("Entrer dans le groupe juste au-dessus")
+                .clicked()
                 && let Some(moved) = layout.nest(&selected)
             {
                 editor.selected = moved;
@@ -716,20 +730,53 @@ fn from_egui_color(color: egui::Color32) -> Rgba {
 fn from_egui_key(key: egui::Key) -> Option<Key> {
     use egui::Key as E;
     Some(match key {
-        E::A => Key::A, E::B => Key::B, E::C => Key::C, E::D => Key::D,
-        E::E => Key::E, E::F => Key::F, E::G => Key::G, E::H => Key::H,
-        E::I => Key::I, E::J => Key::J, E::K => Key::K, E::L => Key::L,
-        E::M => Key::M, E::N => Key::N, E::O => Key::O, E::P => Key::P,
-        E::Q => Key::Q, E::R => Key::R, E::S => Key::S, E::T => Key::T,
-        E::U => Key::U, E::V => Key::V, E::W => Key::W, E::X => Key::X,
-        E::Y => Key::Y, E::Z => Key::Z,
-        E::Num0 => Key::Num0, E::Num1 => Key::Num1, E::Num2 => Key::Num2,
-        E::Num3 => Key::Num3, E::Num4 => Key::Num4, E::Num5 => Key::Num5,
-        E::Num6 => Key::Num6, E::Num7 => Key::Num7, E::Num8 => Key::Num8,
+        E::A => Key::A,
+        E::B => Key::B,
+        E::C => Key::C,
+        E::D => Key::D,
+        E::E => Key::E,
+        E::F => Key::F,
+        E::G => Key::G,
+        E::H => Key::H,
+        E::I => Key::I,
+        E::J => Key::J,
+        E::K => Key::K,
+        E::L => Key::L,
+        E::M => Key::M,
+        E::N => Key::N,
+        E::O => Key::O,
+        E::P => Key::P,
+        E::Q => Key::Q,
+        E::R => Key::R,
+        E::S => Key::S,
+        E::T => Key::T,
+        E::U => Key::U,
+        E::V => Key::V,
+        E::W => Key::W,
+        E::X => Key::X,
+        E::Y => Key::Y,
+        E::Z => Key::Z,
+        E::Num0 => Key::Num0,
+        E::Num1 => Key::Num1,
+        E::Num2 => Key::Num2,
+        E::Num3 => Key::Num3,
+        E::Num4 => Key::Num4,
+        E::Num5 => Key::Num5,
+        E::Num6 => Key::Num6,
+        E::Num7 => Key::Num7,
+        E::Num8 => Key::Num8,
         E::Num9 => Key::Num9,
-        E::F1 => Key::F1, E::F2 => Key::F2, E::F3 => Key::F3, E::F4 => Key::F4,
-        E::F5 => Key::F5, E::F6 => Key::F6, E::F7 => Key::F7, E::F8 => Key::F8,
-        E::F9 => Key::F9, E::F10 => Key::F10, E::F11 => Key::F11,
+        E::F1 => Key::F1,
+        E::F2 => Key::F2,
+        E::F3 => Key::F3,
+        E::F4 => Key::F4,
+        E::F5 => Key::F5,
+        E::F6 => Key::F6,
+        E::F7 => Key::F7,
+        E::F8 => Key::F8,
+        E::F9 => Key::F9,
+        E::F10 => Key::F10,
+        E::F11 => Key::F11,
         E::F12 => Key::F12,
         E::Escape => Key::Escape,
         E::Tab => Key::Tab,

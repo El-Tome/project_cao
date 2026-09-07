@@ -111,7 +111,14 @@ impl Ribbon {
         }
         for item in &layout.items {
             if !matches!(item, Item::Group { .. }) {
-                lay_out(ui, std::slice::from_ref(item), 1, &state, &mut asked, vertical);
+                lay_out(
+                    ui,
+                    std::slice::from_ref(item),
+                    1,
+                    &state,
+                    &mut asked,
+                    vertical,
+                );
             }
         }
 

@@ -35,7 +35,9 @@ impl Polygon {
 
     fn perimeter(&self) -> f64 {
         (0..self.corners.len())
-            .map(|index| self.corners[index].distance(self.corners[(index + 1) % self.corners.len()]))
+            .map(|index| {
+                self.corners[index].distance(self.corners[(index + 1) % self.corners.len()])
+            })
             .sum()
     }
 
@@ -76,8 +78,13 @@ impl Polygon {
     /// The face cut into triangles by a fan from its first corner. Faces here
     /// are convex or nearly so, which is what makes a fan enough.
     pub fn triangles(&self) -> impl Iterator<Item = [DVec3; 3]> + '_ {
-        (1..self.corners.len().saturating_sub(1))
-            .map(move |index| [self.corners[0], self.corners[index], self.corners[index + 1]])
+        (1..self.corners.len().saturating_sub(1)).map(move |index| {
+            [
+                self.corners[0],
+                self.corners[index],
+                self.corners[index + 1],
+            ]
+        })
     }
 }
 
@@ -111,10 +118,7 @@ impl Mesh {
                 let Some(distance) = ray_triangle(origin, direction, triangle) else {
                     continue;
                 };
-                if nearest
-                    .as_ref()
-                    .is_none_or(|best| distance < best.distance)
-                {
+                if nearest.as_ref().is_none_or(|best| distance < best.distance) {
                     nearest = Some(FaceHit {
                         distance,
                         polygon: polygon.clone(),
@@ -297,7 +301,9 @@ pub fn revolution(
     let full = (turn.abs() - std::f64::consts::TAU).abs() < 1e-3;
 
     // Enough steps that the flats read as a curve, scaled to how far it turns.
-    let steps = ((turn.abs() / std::f64::consts::TAU) * 64.0).ceil().max(3.0) as usize;
+    let steps = ((turn.abs() / std::f64::consts::TAU) * 64.0)
+        .ceil()
+        .max(3.0) as usize;
     let at = |point: DVec2, step: usize| {
         let angle = turn * step as f64 / steps as f64;
         let world = to_world(point) - origin;
@@ -322,7 +328,11 @@ pub fn revolution(
                 } else {
                     [[a0, b1, b0], [a0, a1, b1]]
                 };
-                polygons.extend(faces.into_iter().filter_map(|face| Polygon::new(face.to_vec())));
+                polygons.extend(
+                    faces
+                        .into_iter()
+                        .filter_map(|face| Polygon::new(face.to_vec())),
+                );
             }
         }
     };
@@ -344,7 +354,9 @@ pub fn revolution(
                 let Some(polygon) = Polygon::new(corners) else {
                     continue;
                 };
-                let outward = polygon.normal().dot(axis.cross(polygon.corners[0] - origin));
+                let outward = polygon
+                    .normal()
+                    .dot(axis.cross(polygon.corners[0] - origin));
                 let facing = (outward > 0.0) == closing;
                 polygons.push(if facing { polygon } else { polygon.flipped() });
             }
@@ -408,17 +420,18 @@ pub(crate) mod tests {
     fn a_face_with_no_area_is_refused() {
         let flat = vec![DVec3::ZERO, DVec3::X, DVec3::X * 2.0];
         assert!(Polygon::new(flat).is_none(), "trois points alignés");
-        assert!(Polygon::new(vec![DVec3::ZERO, DVec3::X]).is_none(), "deux points");
-        assert!(Polygon::new(vec![DVec3::ZERO; 4]).is_none(), "quatre fois le même");
+        assert!(
+            Polygon::new(vec![DVec3::ZERO, DVec3::X]).is_none(),
+            "deux points"
+        );
+        assert!(
+            Polygon::new(vec![DVec3::ZERO; 4]).is_none(),
+            "quatre fois le même"
+        );
     }
 
     fn profile(min: DVec2, max: DVec2) -> Vec<DVec2> {
-        vec![
-            min,
-            DVec2::new(max.x, min.y),
-            max,
-            DVec2::new(min.x, max.y),
-        ]
+        vec![min, DVec2::new(max.x, min.y), max, DVec2::new(min.x, max.y)]
     }
 
     /// Pappus: sweeping an area right round gives its area times the distance
@@ -439,7 +452,10 @@ pub(crate) mod tests {
 
         let expected = std::f64::consts::TAU * 4.0 * 4.0;
         let made = volume(&solid);
-        assert!((made - expected).abs() / expected < 0.01, "{made} / {expected}");
+        assert!(
+            (made - expected).abs() / expected < 0.01,
+            "{made} / {expected}"
+        );
     }
 
     /// A part turn is capped at both ends, and holds the matching share.
@@ -459,7 +475,10 @@ pub(crate) mod tests {
 
         let expected = std::f64::consts::FRAC_PI_2 * 4.0 * 4.0;
         let made = volume(&solid);
-        assert!((made - expected).abs() / expected < 0.02, "{made} / {expected}");
+        assert!(
+            (made - expected).abs() / expected < 0.02,
+            "{made} / {expected}"
+        );
     }
 
     /// Turning the other way must not turn the solid inside out.
@@ -506,10 +525,15 @@ pub(crate) mod tests {
             .ray_hit(DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z)
             .expect("la face du dessus");
         assert!((hit.distance - 16.0).abs() < 1e-3, "{}", hit.distance);
-        assert!(hit.polygon.normal().dot(DVec3::Z) > 0.99, "elle regarde en haut");
+        assert!(
+            hit.polygon.normal().dot(DVec3::Z) > 0.99,
+            "elle regarde en haut"
+        );
 
         assert!(
-            solid.ray_hit(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z).is_none(),
+            solid
+                .ray_hit(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z)
+                .is_none(),
             "à côté de la pièce"
         );
     }
@@ -547,10 +571,26 @@ pub(crate) mod tests {
         ];
         // The face of the ring, cut by hand into four strips.
         let triangles = vec![
-            [DVec2::new(0.0, 0.0), DVec2::new(10.0, 0.0), DVec2::new(7.0, 3.0)],
-            [DVec2::new(0.0, 0.0), DVec2::new(7.0, 3.0), DVec2::new(3.0, 3.0)],
-            [DVec2::new(10.0, 0.0), DVec2::new(10.0, 10.0), DVec2::new(7.0, 7.0)],
-            [DVec2::new(10.0, 0.0), DVec2::new(7.0, 7.0), DVec2::new(7.0, 3.0)],
+            [
+                DVec2::new(0.0, 0.0),
+                DVec2::new(10.0, 0.0),
+                DVec2::new(7.0, 3.0),
+            ],
+            [
+                DVec2::new(0.0, 0.0),
+                DVec2::new(7.0, 3.0),
+                DVec2::new(3.0, 3.0),
+            ],
+            [
+                DVec2::new(10.0, 0.0),
+                DVec2::new(10.0, 10.0),
+                DVec2::new(7.0, 7.0),
+            ],
+            [
+                DVec2::new(10.0, 0.0),
+                DVec2::new(7.0, 7.0),
+                DVec2::new(7.0, 3.0),
+            ],
             [
                 DVec2::new(10.0, 10.0),
                 DVec2::new(0.0, 10.0),
@@ -561,8 +601,16 @@ pub(crate) mod tests {
                 DVec2::new(3.0, 7.0),
                 DVec2::new(7.0, 7.0),
             ],
-            [DVec2::new(0.0, 10.0), DVec2::new(0.0, 0.0), DVec2::new(3.0, 3.0)],
-            [DVec2::new(0.0, 10.0), DVec2::new(3.0, 3.0), DVec2::new(3.0, 7.0)],
+            [
+                DVec2::new(0.0, 10.0),
+                DVec2::new(0.0, 0.0),
+                DVec2::new(3.0, 3.0),
+            ],
+            [
+                DVec2::new(0.0, 10.0),
+                DVec2::new(3.0, 3.0),
+                DVec2::new(3.0, 7.0),
+            ],
         ];
 
         let solid = prism(

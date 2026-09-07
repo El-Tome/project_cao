@@ -1,6 +1,4 @@
-use cao_sketch::{
-    Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
-};
+use cao_sketch::{Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 /// What the selection tool is holding, and what pressing Suppr would delete.

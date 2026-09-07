@@ -85,7 +85,10 @@ mod tests {
 
         let written = std::fs::read_to_string(&path).expect("le journal existe");
         assert!(written.contains("premier essai"));
-        assert!(written.contains("second essai"), "le second s'ajoute au premier");
+        assert!(
+            written.contains("second essai"),
+            "le second s'ajoute au premier"
+        );
         assert!(written.contains("append_crash"), "avec la pile d'appels");
         let _ = std::fs::remove_dir_all(&folder);
     }

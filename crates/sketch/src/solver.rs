@@ -821,20 +821,17 @@ impl Sketch {
                 }
                 equations
             }
-            Constraint::OnCircle { point, circle } => self
-                .rim_equation(point, circle)
-                .into_iter()
-                .collect(),
+            Constraint::OnCircle { point, circle } => {
+                self.rim_equation(point, circle).into_iter().collect()
+            }
             Constraint::EqualRadius { first, second } => {
-                let (Some(one), Some(other)) = (
-                    self.radius_column(first),
-                    self.radius_column(second),
-                ) else {
+                let (Some(one), Some(other)) =
+                    (self.radius_column(first), self.radius_column(second))
+                else {
                     return Vec::new();
                 };
                 let mut equation = Equation::new(self.variables());
-                equation.error =
-                    self.circles()[second.0].radius - self.circles()[first.0].radius;
+                equation.error = self.circles()[second.0].radius - self.circles()[first.0].radius;
                 equation.add_radius(other, 1.0);
                 equation.add_radius(one, -1.0);
                 vec![equation]
@@ -1467,4 +1464,3 @@ fn reduce(row: &[f64], basis: &[Vec<f64>]) -> Option<Vec<f64>> {
 fn norm(row: &[f64]) -> f64 {
     row.iter().map(|value| value * value).sum::<f64>().sqrt()
 }
-

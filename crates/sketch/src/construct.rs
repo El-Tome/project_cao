@@ -177,7 +177,11 @@ mod tests {
         // Told to be 10 across, it slides down the same bisector.
         let bigger = resize_touching(found, 10.0);
         assert!((bigger.radius - 10.0).abs() < 1e-9);
-        assert!((bigger.centre.x - 10.0).abs() < 1e-9, "centre = {:?}", bigger.centre);
+        assert!(
+            (bigger.centre.x - 10.0).abs() < 1e-9,
+            "centre = {:?}",
+            bigger.centre
+        );
     }
 
     #[test]
@@ -186,10 +190,17 @@ mod tests {
         let second = (DVec2::new(0.0, 40.0), DVec2::new(100.0, 40.0));
         let found = centre_touching_two(first, second, DVec2::new(60.0, 5.0)).unwrap();
 
-        assert!((found.centre.y - 20.0).abs() < 1e-9, "centre = {:?}", found.centre);
+        assert!(
+            (found.centre.y - 20.0).abs() < 1e-9,
+            "centre = {:?}",
+            found.centre
+        );
         assert!((found.centre.x - 60.0).abs() < 1e-9);
         assert!((found.radius - 20.0).abs() < 1e-9);
-        assert!(found.anchor.is_none(), "deux parallèles n'ont pas de sommet");
+        assert!(
+            found.anchor.is_none(),
+            "deux parallèles n'ont pas de sommet"
+        );
     }
 
     #[test]
@@ -197,7 +208,10 @@ mod tests {
         let (a, b) = (DVec2::new(0.0, 0.0), DVec2::new(6.0, 0.0));
         let centre = centre_through_at(a, b, DVec2::new(3.0, 10.0), 5.0).unwrap();
 
-        assert!(centre.distance(DVec2::new(3.0, 4.0)) < 1e-9, "centre = {centre:?}");
+        assert!(
+            centre.distance(DVec2::new(3.0, 4.0)) < 1e-9,
+            "centre = {centre:?}"
+        );
         assert!(centre_through_at(a, b, DVec2::new(3.0, 10.0), 2.0).is_none());
     }
 
@@ -210,6 +224,9 @@ mod tests {
         let (centre, radius) = circle_touching_three((a, b), (b, c), (c, a)).unwrap();
 
         assert!((radius - 1.0).abs() < 1e-9, "rayon = {radius}");
-        assert!(centre.distance(DVec2::new(1.0, 1.0)) < 1e-9, "centre = {centre:?}");
+        assert!(
+            centre.distance(DVec2::new(1.0, 1.0)) < 1e-9,
+            "centre = {centre:?}"
+        );
     }
 }

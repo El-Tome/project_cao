@@ -100,6 +100,13 @@ pub enum Operation {
         point: PointId,
         position: DVec2,
     },
+    /// Dragging a whole selection: every point named moves by the same step,
+    /// so the shapes travel together instead of being pulled apart.
+    MoveMany {
+        sketch: usize,
+        points: Vec<PointId>,
+        by: DVec2,
+    },
     /// Dragging an annotation away from where it sits by default.
     MoveDimension {
         sketch: usize,
@@ -185,7 +192,7 @@ impl Operation {
             Self::AddSegment { .. } => "Trait".to_string(),
             Self::AddRectangle { .. } => "Rectangle".to_string(),
             Self::AddCircle { .. } => "Cercle".to_string(),
-            Self::MovePoint { .. } => "Déplacement".to_string(),
+            Self::MovePoint { .. } | Self::MoveMany { .. } => "Déplacement".to_string(),
             Self::MoveDimension { .. } => "Cote déplacée".to_string(),
             Self::Constrain { constraint, .. } => constraint.label().to_string(),
             Self::EraseMany {
@@ -284,6 +291,12 @@ impl Operation {
             } => format!(
                 "Esquisse {sketch} · point {} vers ({:.1}, {:.1})",
                 point.0, position.x, position.y
+            ),
+            Self::MoveMany { sketch, points, by } => format!(
+                "Esquisse {sketch} · {} points de ({:.1}, {:.1})",
+                points.len(),
+                by.x,
+                by.y
             ),
             Self::MoveDimension { sketch, offset, .. } => format!(
                 "Esquisse {sketch} · décalage ({:.1}, {:.1})",

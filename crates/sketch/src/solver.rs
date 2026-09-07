@@ -67,6 +67,19 @@ pub enum SolveOutcome {
 }
 
 const MAX_ITERATIONS: usize = 400;
+/// How many times the whole settling is begun again while it is still getting
+/// somewhere.
+///
+/// One pass of it is not always enough: which parts are held rigid and which
+/// are free to give is decided from the shape as it stands, and once the
+/// drawing has moved that reading is out of date. Starting over takes the new
+/// reading. This is exactly what used to happen by accident — a drawing left
+/// half-corrected came right as soon as the next change gave it another go —
+/// and it is what makes a tangent circle settle at the drop rather than
+/// staying out of shape until something else was touched.
+const ROUNDS: usize = 12;
+/// How much of the error a round must clear to be worth another one.
+const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
 const TOLERANCE: f64 = 1e-5;
@@ -88,6 +101,44 @@ impl Sketch {
         }
 
         let scale = self.characteristic_size();
+        let mut outcome = SolveOutcome::Residual;
+        let mut before = f64::INFINITY;
+        for _ in 0..ROUNDS {
+            outcome = self.settle_once(millimeters_per_unit, scale);
+            if outcome == SolveOutcome::Solved {
+                break;
+            }
+            let left = self.worst_error(millimeters_per_unit, scale);
+            if left > before * WORTH_ANOTHER_ROUND {
+                break;
+            }
+            before = left;
+        }
+
+        // A trait pulled down to nothing is not geometry: its equations cannot
+        // even be written, so the system would call itself solved while the
+        // drawing had quietly fallen apart.
+        match self.has_a_collapsed_trait(scale) {
+            true => SolveOutcome::Residual,
+            false => outcome,
+        }
+    }
+
+    /// A length representative of the drawing, used where an absolute size
+    /// would mean different things at different zooms.
+    pub(crate) fn drawing_size(&self) -> f64 {
+        self.characteristic_size()
+    }
+
+    /// Whether any trait has been squeezed down to a point.
+    pub(crate) fn has_a_collapsed_trait(&self, scale: f64) -> bool {
+        self.live_segments()
+            .any(|(id, _)| self.segment_length(id) < scale * 1e-6)
+    }
+
+    /// One go at settling the drawing: the shapes that must not bend are read
+    /// off as it stands, and every equation is corrected around them.
+    fn settle_once(&mut self, millimeters_per_unit: f64, scale: f64) -> SolveOutcome {
         let held = self.orientations(millimeters_per_unit);
         let blocks = self.untouched_blocks(millimeters_per_unit, scale);
         let before: Vec<DVec2> = self.points().to_vec();
@@ -496,7 +547,7 @@ impl Sketch {
 
     /// Points that must not move. Only the sketch's own origin, which is what
     /// everything else can be measured from.
-    fn pinned_points(&self) -> Vec<bool> {
+    pub(crate) fn pinned_points(&self) -> Vec<bool> {
         let mut pinned: Vec<bool> = (0..self.points().len())
             .map(|index| self.is_origin(PointId(index)) || self.is_held_still(PointId(index)))
             .collect();

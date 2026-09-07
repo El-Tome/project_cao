@@ -602,6 +602,7 @@ fn handle_sketch_input(
             );
             if context.editor.dragged_point.is_none()
                 && context.editor.dragged_dimension.is_none()
+                && context.editor.dragged_group.is_empty()
             {
                 context.editor.band = Some((pressed, cursor));
             }
@@ -1106,6 +1107,16 @@ fn drag_point(
     let sketch = &context.document.sketches()[index];
 
     if response.drag_started() {
+        // Pressing on something already picked moves the whole selection, the
+        // way a desktop moves a group of icons. It comes first: what is held is
+        // a deliberate choice, and it would be odd for the drag to take one
+        // corner out of it instead.
+        context.editor.dragged_group = grabbed_group(context, index, pressed, snap, pixel);
+        if !context.editor.dragged_group.is_empty() {
+            context.editor.drag_origin = Some(pressed);
+            return false;
+        }
+
         // Nothing that is already held in place can be dragged: a value the
         // user typed must not be silently undone by a slip of the mouse. The
         // way to move a settled point is to change what settles it.
@@ -1125,6 +1136,9 @@ fn drag_point(
         }
     }
 
+    if !context.editor.dragged_group.is_empty() {
+        return drag_group(context, index, cursor, response);
+    }
     if let Some(target) = context.editor.dragged_dimension {
         return drag_annotation(context, index, target, cursor, response, pixel);
     }
@@ -1173,6 +1187,102 @@ fn drag_point(
             dropped: point,
         });
     }
+    true
+}
+
+/// The points a drag would carry along, when it starts on something the
+/// selection tool is already holding.
+///
+/// Empty when the press lands anywhere else: a drag beside a selection is a
+/// new box, not a move of the old one.
+fn grabbed_group(
+    context: &SketchContext<'_>,
+    index: usize,
+    pressed: DVec2,
+    snap: f64,
+    pixel: f64,
+) -> Vec<PointId> {
+    let Some(what) = pick(context, index, pressed, snap, pixel) else {
+        return Vec::new();
+    };
+    if !context.editor.is_selected(what) {
+        return Vec::new();
+    }
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return Vec::new();
+    };
+
+    let mut points: Vec<PointId> = Vec::new();
+    let mut take = |point: PointId| {
+        if !sketch.is_origin(point) && !points.contains(&point) {
+            points.push(point);
+        }
+    };
+    for held in &context.editor.selection {
+        let Selection::Element(element) = held else {
+            continue;
+        };
+        match element {
+            Element::Point(id) => take(*id),
+            Element::Segment(id) => {
+                if let Some(segment) = sketch.segments().get(id.0) {
+                    take(segment.start);
+                    take(segment.end);
+                }
+            }
+            Element::Circle(id) => {
+                if let Some(circle) = sketch.circles().get(id.0) {
+                    take(circle.center);
+                }
+            }
+        }
+    }
+    points
+}
+
+/// Moving a whole selection at once. Same rule as a point: shown following the
+/// cursor, written once on release, as a single entry in the history.
+fn drag_group(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    cursor: DVec2,
+    response: &egui::Response,
+) -> bool {
+    let Some(origin) = context.editor.drag_origin else {
+        return false;
+    };
+    let travelled = cursor - origin;
+    let points = context.editor.dragged_group.clone();
+
+    if !response.drag_stopped() {
+        context.editor.drag_position = Some(cursor);
+        let mut settling = context.document.sketches()[index].clone();
+        let dropped: Vec<(PointId, DVec2)> = points
+            .iter()
+            .filter_map(|point| {
+                settling
+                    .points()
+                    .get(point.0)
+                    .map(|place| (*point, *place + travelled))
+            })
+            .collect();
+        settling.settle_around_all(&dropped, context.document.scale());
+        context.editor.drag_preview = Some(settling);
+        return false;
+    }
+
+    context.editor.dragged_group.clear();
+    context.editor.drag_origin = None;
+    context.editor.drag_position = None;
+    context.editor.drag_preview = None;
+    if travelled.length() < 1e-9 {
+        return false;
+    }
+    context.document.apply(Operation::MoveMany {
+        sketch: index,
+        points,
+        by: travelled,
+    });
     true
 }
 

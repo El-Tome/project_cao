@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  fmt:
+    name: Formatage (avertissement)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - run: cargo fmt --all --check
+
+  clippy:
+    name: Clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci-deps-ubuntu.sh
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --workspace --all-targets -- -D warnings
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: ./scripts/ci-deps-ubuntu.sh
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test --workspace
+
+  build-windows:
+    name: Exécutable Windows
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mingw-w64
+      - run: rustup target add x86_64-pc-windows-gnu
+      - uses: Swatinem/rust-cache@v2
+      - run: ./scripts/build-windows.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cao-windows
+          path: target/x86_64-pc-windows-gnu/release/cao.exe

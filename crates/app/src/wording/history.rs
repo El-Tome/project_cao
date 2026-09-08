@@ -1,5 +1,7 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
-use cao_sketch::{DimensionTarget, Element, SketchAxis};
+use cao_sketch::Element;
+
+use crate::wording::dimension;
 
 /// The only place a history step is turned into a name.
 ///
@@ -49,24 +51,7 @@ pub fn label(operation: &Operation) -> String {
             };
             format!("{verb} {distance} mm")
         }
-        Operation::SetDimension { target, value, .. } => {
-            let value = short(*value);
-            match target {
-                DimensionTarget::Angle { .. } => format!("Angle {value}°"),
-                DimensionTarget::AxisAngle { axis, .. } => {
-                    format!("Angle {value}° / {}", axis.label())
-                }
-                DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-                DimensionTarget::Diameter(_) => format!("Diamètre {value} mm"),
-                DimensionTarget::Projected { axis, .. } => match axis {
-                    SketchAxis::U => format!("Largeur {value} mm"),
-                    SketchAxis::V => format!("Hauteur {value} mm"),
-                },
-                DimensionTarget::PointToSegment { .. }
-                | DimensionTarget::Length(_)
-                | DimensionTarget::Distance { .. } => format!("Cote {value} mm"),
-            }
-        }
+        Operation::SetDimension { target, value, .. } => dimension::label(target, *value),
     }
 }
 
@@ -151,35 +136,9 @@ pub fn detail(operation: &Operation) -> String {
             picks.len(),
             revolution_axis(*axis)
         ),
-        Operation::SetDimension { sketch, target, .. } => match target {
-            DimensionTarget::Distance { from, to } => {
-                format!("Esquisse {sketch} · points {} et {}", from.0, to.0)
-            }
-            DimensionTarget::Length(segment) => {
-                format!("Esquisse {sketch} · trait {}", segment.0)
-            }
-            DimensionTarget::Angle { first, second } => {
-                format!("Esquisse {sketch} · traits {} et {}", first.0, second.0)
-            }
-            DimensionTarget::AxisAngle { segment, axis } => {
-                format!("Esquisse {sketch} · trait {} / {}", segment.0, axis.label())
-            }
-            DimensionTarget::PointToSegment { point, segment } => {
-                format!(
-                    "Esquisse {sketch} · point {} au trait {}",
-                    point.0, segment.0
-                )
-            }
-            DimensionTarget::Projected { from, to, axis } => format!(
-                "Esquisse {sketch} · points {} et {} sur l'{}",
-                from.0,
-                to.0,
-                axis.label()
-            ),
-            DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
-                format!("Esquisse {sketch} · cercle {}", circle.0)
-            }
-        },
+        Operation::SetDimension { sketch, target, .. } => {
+            format!("Esquisse {sketch} · {}", dimension::spans(target))
+        }
     }
 }
 
@@ -198,25 +157,18 @@ fn point_label(point: &PointRef) -> String {
     }
 }
 
-/// A value as it reads in the history: a dimension taken from the drawing
-/// itself is a full float, and "Cote 60.878967 mm" is unreadable.
-fn short(value: f64) -> String {
-    let text = format!("{value:.2}");
-    match text.contains('.') {
-        true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
-        false => text,
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use cao_sketch::{CircleId, Constraint, PointId, SegmentId, WorkPlane};
+    use cao_sketch::{
+        CircleId, Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane,
+    };
     use glam::DVec2;
 
     use super::*;
 
-    const TRAIT: SegmentId = SegmentId(0);
+    const SEGMENT: SegmentId = SegmentId(0);
     const CIRCLE: CircleId = CircleId(3);
+    const AWAY: DVec2 = DVec2::new(3.0, 0.0);
     const RULE: Constraint = Constraint::Parallel {
         first: SegmentId(0),
         second: SegmentId(1),
@@ -232,15 +184,6 @@ mod tests {
             elements,
             dimensions,
             constraints,
-        }
-    }
-
-    fn measured(target: DimensionTarget, value: f64) -> Operation {
-        Operation::SetDimension {
-            sketch: 0,
-            target,
-            value,
-            placement: None,
         }
     }
 
@@ -264,7 +207,68 @@ mod tests {
     }
 
     #[test]
-    fn a_step_that_shapes_matter_says_which_way_and_how_far() {
+    fn a_drawn_step_is_named_after_the_shape_it_left_behind() {
+        let here = PointRef::New(DVec2::ZERO);
+        let drawn = [
+            Operation::AddPoint {
+                sketch: 0,
+                position: DVec2::ZERO,
+            },
+            Operation::AddSegment {
+                sketch: 0,
+                start: here,
+                end: PointRef::New(AWAY),
+            },
+            Operation::AddRectangle {
+                sketch: 0,
+                corner: here,
+                opposite: PointRef::New(AWAY),
+            },
+            Operation::AddCircle {
+                sketch: 0,
+                center: here,
+                radius: 5.0,
+                rim: Vec::new(),
+            },
+            Operation::MovePoint {
+                sketch: 0,
+                point: PointId(1),
+                position: AWAY,
+            },
+            Operation::MoveMany {
+                sketch: 0,
+                points: vec![PointId(1)],
+                by: AWAY,
+            },
+            Operation::MoveDimension {
+                sketch: 0,
+                target: DimensionTarget::Length(SEGMENT),
+                offset: AWAY,
+            },
+            Operation::MergePoints {
+                sketch: 0,
+                kept: PointId(1),
+                dropped: PointId(2),
+            },
+        ];
+        let names = [
+            "Point",
+            "Trait",
+            "Rectangle",
+            "Cercle",
+            "Déplacement",
+            "Déplacement",
+            "Cote déplacée",
+            "Sommets fusionnés",
+        ];
+
+        for (operation, reads) in drawn.iter().zip(names) {
+            assert_eq!(label(operation), reads, "{operation:?} reads {reads:?}");
+        }
+    }
+
+    #[test]
+    fn a_step_says_which_plane_which_rule_and_which_way_matter_went() {
         let turn = |mode| swept(RevolutionAxis::Sketch(SketchAxis::V), mode);
 
         assert_eq!(label(&raised(ExtrusionMode::Add)), "Extrusion 12 mm");
@@ -289,13 +293,13 @@ mod tests {
     #[test]
     fn a_single_deletion_says_what_went_and_a_grouped_one_says_how_many() {
         let one = |element| erased(vec![element], Vec::new(), Vec::new());
-        let cote = DimensionTarget::Length(TRAIT);
+        let measure = DimensionTarget::Length(SEGMENT);
 
         assert_eq!(label(&one(Element::Point(PointId(1)))), "Point supprimé");
-        assert_eq!(label(&one(Element::Segment(TRAIT))), "Trait supprimé");
+        assert_eq!(label(&one(Element::Segment(SEGMENT))), "Trait supprimé");
         assert_eq!(label(&one(Element::Circle(CIRCLE))), "Cercle supprimé");
         assert_eq!(
-            label(&erased(Vec::new(), vec![cote], Vec::new())),
+            label(&erased(Vec::new(), vec![measure], Vec::new())),
             "Cote supprimée",
         );
         assert_eq!(
@@ -305,7 +309,7 @@ mod tests {
         assert_eq!(
             label(&erased(
                 vec![Element::Point(PointId(1)), Element::Point(PointId(2))],
-                vec![cote],
+                vec![measure],
                 vec![RULE],
             )),
             "4 éléments supprimés",
@@ -313,85 +317,71 @@ mod tests {
     }
 
     #[test]
-    fn a_dimension_is_named_after_what_it_measures() {
-        let along = |axis| DimensionTarget::Projected {
-            from: PointId(1),
-            to: PointId(2),
-            axis,
-        };
-        let named = [
+    fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
+        let unfolded = [
             (
-                DimensionTarget::Angle {
-                    first: SegmentId(0),
-                    second: SegmentId(1),
+                Operation::CreateSketch {
+                    plane: WorkPlane::XY,
                 },
-                "Angle 60°",
+                "Plan d'origine (0, 0, 1)",
             ),
             (
-                DimensionTarget::AxisAngle {
-                    segment: TRAIT,
-                    axis: SketchAxis::U,
+                Operation::AddPoint {
+                    sketch: 2,
+                    position: DVec2::new(1.25, -3.0),
                 },
-                "Angle 60° / axe horizontal",
+                "Esquisse 2 · (1.2, -3.0)",
             ),
-            (along(SketchAxis::U), "Largeur 60 mm"),
-            (along(SketchAxis::V), "Hauteur 60 mm"),
-            (DimensionTarget::Radius(CIRCLE), "Rayon 60 mm"),
-            (DimensionTarget::Diameter(CIRCLE), "Diamètre 60 mm"),
-            (DimensionTarget::Length(TRAIT), "Cote 60 mm"),
+            (
+                Operation::AddSegment {
+                    sketch: 0,
+                    start: PointRef::Existing(PointId(7)),
+                    end: PointRef::New(DVec2::new(2.0, 4.0)),
+                },
+                "Esquisse 0 · point 7 → (2.0, 4.0)",
+            ),
+            (
+                Operation::AddCircle {
+                    sketch: 1,
+                    center: PointRef::New(DVec2::ZERO),
+                    radius: 5.0,
+                    rim: Vec::new(),
+                },
+                "Esquisse 1 · rayon 5.00",
+            ),
+            (
+                Operation::MoveMany {
+                    sketch: 0,
+                    points: vec![PointId(1), PointId(2)],
+                    by: AWAY,
+                },
+                "Esquisse 0 · 2 points de (3.0, 0.0)",
+            ),
+            (
+                erased(vec![Element::Point(PointId(1))], Vec::new(), Vec::new()),
+                "Esquisse 0 · 1 tracé(s), 0 cote(s), 0 contrainte(s)",
+            ),
+            (
+                swept(RevolutionAxis::Segment(SegmentId(4)), ExtrusionMode::Add),
+                "Esquisse 0 · 1 aire(s) autour de trait 4",
+            ),
+            (
+                swept(RevolutionAxis::Sketch(SketchAxis::V), ExtrusionMode::Add),
+                "Esquisse 0 · 1 aire(s) autour de axe vertical",
+            ),
+            (
+                Operation::SetDimension {
+                    sketch: 0,
+                    target: DimensionTarget::Radius(CIRCLE),
+                    value: 60.0,
+                    placement: None,
+                },
+                "Esquisse 0 · cercle 3",
+            ),
         ];
 
-        for (target, reads) in named {
-            assert_eq!(label(&measured(target, 60.0)), reads);
+        for (operation, reads) in unfolded {
+            assert_eq!(detail(&operation), reads, "{operation:?} reads {reads:?}");
         }
-    }
-
-    /// A dimension taken from the drawing itself is a full float, and
-    /// "Cote 60.878967 mm" is unreadable.
-    #[test]
-    fn a_measured_value_is_cut_to_two_decimals_and_keeps_no_trailing_zero() {
-        let cote = |value| label(&measured(DimensionTarget::Length(TRAIT), value));
-
-        assert_eq!(cote(60.878_967), "Cote 60.88 mm");
-        assert_eq!(cote(60.0), "Cote 60 mm");
-        assert_eq!(cote(60.1), "Cote 60.1 mm");
-        assert_eq!(cote(0.001), "Cote 0 mm");
-    }
-
-    #[test]
-    fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
-        assert_eq!(
-            detail(&Operation::CreateSketch {
-                plane: WorkPlane::XY,
-            }),
-            "Plan d'origine (0, 0, 1)",
-        );
-        assert_eq!(
-            detail(&Operation::AddSegment {
-                sketch: 2,
-                start: PointRef::Existing(PointId(7)),
-                end: PointRef::New(DVec2::new(2.0, 4.0)),
-            }),
-            "Esquisse 2 · point 7 → (2.0, 4.0)",
-        );
-        assert_eq!(
-            detail(&erased(
-                vec![Element::Point(PointId(1))],
-                Vec::new(),
-                Vec::new(),
-            )),
-            "Esquisse 0 · 1 tracé(s), 0 cote(s), 0 contrainte(s)",
-        );
-        assert_eq!(
-            detail(&swept(
-                RevolutionAxis::Segment(SegmentId(4)),
-                ExtrusionMode::Add,
-            )),
-            "Esquisse 0 · 1 aire(s) autour de trait 4",
-        );
-        assert_eq!(
-            detail(&measured(DimensionTarget::Radius(CIRCLE), 60.0)),
-            "Esquisse 0 · cercle 3",
-        );
     }
 }

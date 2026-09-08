@@ -21,6 +21,7 @@ use viewport::ViewportState;
 pub struct OpenPart {
     pub doc: PartDocument,
     pub path: PathBuf,
+    pub autosave: crate::autosave::Autosave,
     pub viewport: ViewportState,
     pub editor: SketchEditor,
     pub extrusion: ExtrusionState,

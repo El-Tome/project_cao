@@ -5,8 +5,10 @@
 //! it is the vocabulary of intent — what the toolbar and the keyboard bind to a
 //! gesture — and not of what a `.caopart` records.
 
+mod adapters;
 pub mod command;
 pub mod config;
+pub mod ports;
 mod recents;
 pub mod settings;
 pub mod shortcuts;
@@ -14,8 +16,11 @@ mod storage;
 pub mod theme;
 pub mod toolbar;
 
+#[cfg(any(test, feature = "test-support"))]
+pub use adapters::InMemoryFiles;
 pub use command::{Command, CommandFamily};
 pub use config::ViewportConfig;
+pub use ports::{FileError, Files};
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
 pub use settings::{PROFILE_EXTENSION, Profile, Profiles, Settings};
 pub use shortcuts::{Chord, Key, Shortcuts};

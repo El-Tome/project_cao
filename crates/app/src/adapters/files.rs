@@ -24,6 +24,30 @@ impl Files for DiskFiles {
     }
 }
 
+/// The preferences ask for the same three things from their own port: the
+/// dependency graph forbids `cao_prefs` from reaching into `cao_part`.
+impl cao_prefs::Files for DiskFiles {
+    fn read(&self, path: &Path) -> Result<Vec<u8>, cao_prefs::FileError> {
+        Files::read(self, path).map_err(as_preference)
+    }
+
+    fn write(&self, path: &Path, bytes: &[u8]) -> Result<(), cao_prefs::FileError> {
+        Files::write(self, path, bytes).map_err(as_preference)
+    }
+
+    fn exists(&self, path: &Path) -> bool {
+        Files::exists(self, path)
+    }
+}
+
+fn as_preference(error: FileError) -> cao_prefs::FileError {
+    match error {
+        FileError::Absent(path) => cao_prefs::FileError::Absent(path),
+        FileError::Refused(path) => cao_prefs::FileError::Refused(path),
+        FileError::Interrupted(path) => cao_prefs::FileError::Interrupted(path),
+    }
+}
+
 fn reading(path: &Path, error: &std::io::Error) -> FileError {
     match error.kind() {
         std::io::ErrorKind::NotFound => FileError::Absent(path.to_path_buf()),

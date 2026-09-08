@@ -83,6 +83,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
 | Paths, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| What the preferences ask of a filesystem | `prefs/src/ports/files.rs` | `Files`, `FileError` |
+| A filesystem for tests | `prefs/src/adapters/in_memory_files.rs` | `InMemoryFiles`, behind `test-support` |
 | Commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily` |
 | Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |

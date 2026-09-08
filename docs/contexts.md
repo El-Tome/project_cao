@@ -95,16 +95,23 @@ and what it may import.
 
 **The first two appeared with #42.** `cao_part` holds a `ports/` — `trait Files`,
 the whole of what a part asks of a filesystem — and an `adapters/` where its
-in-memory double sits; the real one, `DiskFiles`, is in the shell. No other
-crate holds either folder yet, and `CLAUDE.md` §Where a file goes carries the
-rule that settles it: *a folder appears only where the role exists.* The layout
-above is a destination, not a scaffold to erect now and fill later.
+in-memory double sits; the real one, `DiskFiles`, is in the shell. `CLAUDE.md`
+§Where a file goes carries the rule that settles where they appear: *a folder
+appears only where the role exists.* The layout above is a destination, not a
+scaffold to erect now and fill later.
 
 So moves 1 and 2 were flat `git mv`s, one file each, and no folder appeared.
-`cao_prefs` earns its own `ports/` and `adapters/` when #43 and #44 give
-`storage.rs` and `recents.rs` a trait to sit behind. Drawing the folders before
-that is guessing where the seam falls, over files that have just moved once
-already.
+`cao_prefs` earned the same two folders with #43, which put `settings.rs` and
+`recents.rs` behind a trait; #44 still owes it the directories they write into.
+
+**Its `trait Files` is its own, not the part's, and the three methods are the
+same three.** The graph forbids `cao_prefs` from reaching into `cao_part`, and a
+third crate holding one trait is a crate nobody asked for — so the port is
+written twice and `DiskFiles` implements both, translating one `FileError` into
+the other. That is the price of the edge that is not there, paid in the shell
+where it is visible. Two ports that describe the same three calls today are also
+free to stop describing the same ones: what a part asks of a filesystem and what
+a profile asks of one are not obliged to stay equal.
 
 Two rules follow all the same, and they are the ones that keep a seam findable:
 

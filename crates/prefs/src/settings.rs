@@ -1,12 +1,11 @@
-use std::fs;
-use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::config::ViewportConfig;
+use crate::ports::Files;
 use crate::shortcuts::Shortcuts;
-use crate::storage::{StorageError, project_dirs, replace_whole};
+use crate::storage::{StorageError, project_dirs};
 use crate::theme::Theme;
 use crate::toolbar::ToolbarLayout;
 
@@ -52,18 +51,17 @@ impl Profile {
     /// Every field has a default, so a profile from a version that knew fewer
     /// settings still loads — the ones it never heard of simply keep their
     /// defaults. Only a different overall version is refused.
-    pub fn import(path: &Path) -> Result<Self, StorageError> {
-        let profile: Self = serde_json::from_str(&fs::read_to_string(path)?)?;
+    pub fn import(files: &impl Files, path: &Path) -> Result<Self, StorageError> {
+        let profile: Self = serde_json::from_slice(&files.read(path)?)?;
         if profile.version != SETTINGS_VERSION {
             return Err(StorageError::UnsupportedVersion(profile.version));
         }
         Ok(profile)
     }
 
-    pub fn export(&self, path: &Path) -> Result<(), StorageError> {
+    pub fn export(&self, files: &impl Files, path: &Path) -> Result<(), StorageError> {
         let json = serde_json::to_string_pretty(self)?;
-        replace_whole(path, |file| file.write_all(json.as_bytes()))?;
-        Ok(())
+        Ok(files.write(path, json.as_bytes())?)
     }
 }
 
@@ -106,16 +104,16 @@ impl Profiles {
     /// A settings file that cannot be read must not stop the application from
     /// starting: the user would be left with no way in, and no way to fix it
     /// from inside.
-    pub fn load() -> Self {
-        Self::read().unwrap_or_default()
+    pub fn load(files: &impl Files) -> Self {
+        Self::read(files).unwrap_or_default()
     }
 
-    fn read() -> Result<Self, StorageError> {
+    fn read(files: &impl Files) -> Result<Self, StorageError> {
         let path = Self::state_path()?;
-        if !path.exists() {
+        if !files.exists(&path) {
             return Ok(Self::default());
         }
-        let mut profiles: Self = serde_json::from_str(&fs::read_to_string(path)?)?;
+        let mut profiles: Self = serde_json::from_slice(&files.read(&path)?)?;
         if profiles.version != SETTINGS_VERSION || profiles.profiles.is_empty() {
             return Ok(Self::default());
         }
@@ -128,10 +126,9 @@ impl Profiles {
         Ok(profiles)
     }
 
-    pub fn save(&self) -> Result<(), StorageError> {
+    pub fn save(&self, files: &impl Files) -> Result<(), StorageError> {
         let json = serde_json::to_string_pretty(self)?;
-        replace_whole(&Self::state_path()?, |file| file.write_all(json.as_bytes()))?;
-        Ok(())
+        Ok(files.write(&Self::state_path()?, json.as_bytes())?)
     }
 
     pub fn names(&self) -> impl Iterator<Item = &str> {
@@ -223,6 +220,7 @@ impl Profiles {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::InMemoryFiles;
     use crate::theme::Rgba;
 
     fn changed() -> Settings {
@@ -294,32 +292,29 @@ mod tests {
 
     #[test]
     fn a_profile_survives_being_written_and_read_back() {
-        let directory = std::env::temp_dir().join(format!("cao_profile_{}", uuid::Uuid::new_v4()));
-        let path = directory.join(format!("atelier.{PROFILE_EXTENSION}"));
+        let files = InMemoryFiles::default();
+        let path = PathBuf::from(format!("/shared/atelier.{PROFILE_EXTENSION}"));
         let profile = Profile::new("Atelier", changed());
 
-        profile.export(&path).expect("writing");
-        let read = Profile::import(&path).expect("reading");
-        assert_eq!(read, profile);
+        profile.export(&files, &path).expect("writes");
 
-        let _ = fs::remove_dir_all(&directory);
+        assert_eq!(Profile::import(&files, &path).expect("reads"), profile);
     }
 
-    /// A profile written by a version that knew fewer settings still loads.
     #[test]
     fn a_profile_missing_fields_falls_back_to_the_defaults() {
-        let directory = std::env::temp_dir().join(format!("cao_partial_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&directory).expect("a directory");
-        let path = directory.join("partial.caoprofile");
-        fs::write(
-            &path,
-            format!(r#"{{"version":{SETTINGS_VERSION},"name":"Minimal","settings":{{}}}}"#),
-        )
-        .expect("writing");
+        let files = InMemoryFiles::default();
+        let path = PathBuf::from(format!("/shared/minimal.{PROFILE_EXTENSION}"));
+        files
+            .write(
+                &path,
+                format!(r#"{{"version":{SETTINGS_VERSION},"name":"Minimal","settings":{{}}}}"#)
+                    .as_bytes(),
+            )
+            .expect("writes");
 
-        let read = Profile::import(&path).expect("reading");
+        let read = Profile::import(&files, &path).expect("reads");
+
         assert_eq!(read.settings, Settings::default());
-
-        let _ = fs::remove_dir_all(&directory);
     }
 }

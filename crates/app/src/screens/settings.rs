@@ -1,12 +1,11 @@
-use crate::wording::settings::profile;
-use cao_prefs::command::Command;
 use cao_prefs::config::{
     LengthUnit, NavigationPreset, TrackpadGesture, UnitDisplay, ViewportCorner,
 };
 use cao_prefs::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Profiles};
-use cao_prefs::shortcuts::{Chord, Key};
-use cao_prefs::theme::{Background, Rgba, Stop, Theme};
-use cao_prefs::toolbar::{Edge, Item, Path};
+use cao_prefs::{Background, Chord, Command, Edge, Item, Key, Path, Rgba, Stop, Theme};
+
+use crate::adapters::files::DiskFiles;
+use crate::wording::settings::profile;
 
 /// Which part of the preferences is open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -147,14 +146,14 @@ fn profiles_section(
         );
         if ui.button("Exporter").clicked() {
             let path = std::path::PathBuf::from(editor.profile_path.trim());
-            match profiles.active_profile().export(&path) {
+            match profiles.active_profile().export(&DiskFiles, &path) {
                 Ok(()) => editor.notice = Some(format!("Écrit dans {}", path.display())),
                 Err(err) => editor.notice = Some(err.to_string()),
             }
         }
         if ui.button("Importer").clicked() {
             let path = std::path::PathBuf::from(editor.profile_path.trim());
-            match Profile::import(&path) {
+            match Profile::import(&DiskFiles, &path) {
                 Ok(profile) => {
                     let name = profiles.add(profile);
                     editor.notice = Some(format!("Profil « {name} » importé."));

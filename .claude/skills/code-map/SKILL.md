@@ -59,10 +59,10 @@ there. See the `architecture-rust` skill.
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| The list of operations, undo, redo | `core/src/history.rs` | `History`, `Operation`, `applied_operations` |
-| **Replaying the history to get the geometry** | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
-| The `.caopart` file (zip), reading and writing | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
-| What fails when opening a part | `core/src/errors.rs` | `PartFileError` |
+| The list of operations, undo, redo | `part/src/history.rs` | `History`, `Operation`, `applied_operations` — what a step is *called* is in `app/src/wording/history.rs` |
+| **Replaying the history to get the geometry** | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| The `.caopart` file (zip), reading and writing | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 
 ## Settings, profiles and recents — `cao_prefs`
 
@@ -70,7 +70,7 @@ there. See the `architecture-rust` skill.
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
 | Paths, parts folder, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
-| The commands of the interface | `prefs/src/command.rs` | `Command`, `label`, `hint`, `family` |
+| The commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily`, `family` — what a command is *called* is in `app/src/wording/command.rs` |
 | Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
@@ -101,6 +101,9 @@ there. See the `architecture-rust` skill.
 | The toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
 | The settings screen | `app/src/screens/settings.rs` | `show(ui, profiles, editor)` |
 | The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
+| What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
+| What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |
+| What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
 

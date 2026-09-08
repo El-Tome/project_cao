@@ -121,6 +121,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |
+| What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
 

@@ -51,6 +51,7 @@ in one of the two domains, never there.
 | The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
+| Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 
 What it does: [`sketch.md`](sketch.md).
 

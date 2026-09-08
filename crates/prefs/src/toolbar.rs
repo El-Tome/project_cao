@@ -469,7 +469,7 @@ mod tests {
     fn only_a_group_can_be_renamed() {
         let mut layout = layout();
         assert!(layout.rename(&[1], "Autre".to_string()));
-        assert_eq!(layout.at(&[1]).map(Item::label), Some("Autre".to_string()));
+        assert!(matches!(layout.at(&[1]), Some(Item::Group { name, .. }) if name == "Autre"));
         assert!(!layout.rename(&[0], "Rien".to_string()));
     }
 }

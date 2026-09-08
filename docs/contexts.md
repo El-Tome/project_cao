@@ -182,11 +182,11 @@ of French still sit below `cao_app`, and
 
 ## Order of the moves
 
-1. **`cao_prefs` out of `cao_core`.** A move of whole files, no logic touched —
-   `storage.rs` excepted, which is cut three ways first — and the architecture
-   test gains an edge.
-2. **`cao_core` renamed `cao_part`.** Mechanical, and best done while the crate
-   is already being handled.
+1. **`cao_prefs` out of `cao_core`.** *Done, #26.* A move of whole files, no
+   logic touched — `storage.rs` excepted, which was cut three ways first — and
+   the architecture test gained an edge.
+2. **`cao_core` renamed `cao_part`.** *Done, #28.* Mechanical: seven files moved
+   with `git mv`, no public type renamed, no ratchet figure changed.
 3. **Wording up into `cao_app`.** Each file moved lowers a figure in the
    architecture test. Unblocks i18n without building it.
 4. **Ports for disk and clock.** Removes the last entries from the other

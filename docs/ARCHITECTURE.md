@@ -28,7 +28,7 @@ particular) turn out to be too constrained by this framework.
 The dependencies go one way only. Not every crate is one context, though — the
 seam that is still missing is named in [contexts.md](contexts.md).
 
-- `cao_core`: the application layer. Depends on `cao_sketch` and `cao_solid`,
+- `cao_part`: the application layer. Depends on `cao_sketch` and `cao_solid`,
   and orchestrates sketch, solid, history and persistence — it is not the
   domain, whatever its name suggests. **No UI dependency at all**, so as to stay
   reusable as it is by any future front-end (desktop, web, tablet). It is to

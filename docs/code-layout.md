@@ -35,12 +35,11 @@ crates/sketch/src/
 └── regions.rs
 ```
 
-**A context that coordinates** — `cao_core` today, `cao_part` and `cao_prefs`
-tomorrow. This is where hexagonal has something to say, because this is where
+**A context that coordinates** — `cao_part` and `cao_prefs`. This is where hexagonal has something to say, because this is where
 the disk, the clock and the file format are.
 
 ```
-crates/core/src/
+crates/part/src/
 ├── model/       what the context is about: Operation, History, PartState
 ├── ports/       the traits it needs from outside — one need per trait
 ├── adapters/    the implementations. The only place std::fs, chrono,

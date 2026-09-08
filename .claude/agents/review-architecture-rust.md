@@ -20,7 +20,7 @@ change makes it worse.
 ## What you look for
 
 **Architecture** — is the dependency graph between crates respected? Does
-`cao_core` import anything from a UI crate? Is I/O (`std::fs`, `directories`,
+`cao_part` import anything from a UI crate? Is I/O (`std::fs`, `directories`,
 `Utc::now()`) added below a domain boundary without a port? Is a new mode
 anything other than a variant of `Screen`?
 

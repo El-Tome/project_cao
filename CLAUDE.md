@@ -73,13 +73,13 @@ are.
 `crates/app/tests/architecture.rs` enforces what follows, in the gate. It is the
 authority; this section is the summary.
 
-- `cao_core` never depends on a UI crate (`egui`, `eframe`, …). That is the only
+- `cao_part` never depends on a UI crate (`egui`, `eframe`, …). That is the only
   way to keep it reusable by a future tablet or web front-end.
 - `cao_sketch` and `cao_solid` take nothing but `glam` and `serde`. They are the
   real domains; a geometry rule goes in one of them.
 - No `std::fs`, `directories` or `Utc::now()` below a domain boundary without a
-  trait. Four files in `cao_core` predate the rule and are listed in the test;
-  there will be no fifth.
+  trait. Four files predate the rule and are named in the test; there will be
+  no fifth.
 - A new mode (sketching, assembly, …) is a new `Screen` variant
   (`crates/app/src/screens/mod.rs`) plus its own module in `screens/`. Never
   several modes piled into one file or one match.
@@ -87,9 +87,6 @@ authority; this section is the summary.
   `cao_assembly`, …) rather than swelling `cao_app`.
 - `cao_app` stays a thin shell: window and routing between modes, no business
   logic.
-- Mind the name: whatever its documentation claims, `cao_core` is not the
-  domain. It depends on `cao_sketch` and `cao_solid` and orchestrates sketch,
-  solid, history and persistence — it is the application layer.
 
 ## Where a file goes
 
@@ -101,7 +98,7 @@ identifier, so `button.ui.rs` and `part-repository.rs` cannot name a module.
 Files and folders are snake_case, and the path says the job:
 
 ```
-crates/core/src/            crates/app/src/
+crates/part/src/            crates/app/src/
 ├── model/                  ├── ui/                  primitives: egui only
 ├── ports/                  └── screens/<mode>/
 ├── adapters/                   ├── state.rs         the presenter, never draws

@@ -565,7 +565,6 @@ dependencies = [
  "cao_sketch",
  "cao_solid",
  "chrono",
- "directories",
  "glam",
  "serde",
  "serde_json",

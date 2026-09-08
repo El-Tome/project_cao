@@ -6,7 +6,7 @@
 #[derive(Debug, thiserror::Error)]
 pub enum PartFileError {
     #[error(transparent)]
-    Io(#[from] std::io::Error),
+    File(#[from] crate::ports::FileError),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
     #[error(transparent)]

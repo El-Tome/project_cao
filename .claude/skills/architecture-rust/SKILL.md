@@ -161,10 +161,10 @@ Read both before deciding where something lives. The short version:
 The folders above belong to the **context**, not to the crate that happens to
 hold it. Three consequences:
 
-- **A folder appears only where the role exists.** None of them exists in the
-  workspace, and no crate declares a trait — so `ports/` has no member it could
-  take. A context moving is a flat `git mv` per file, and earns its folders when
-  a port gives it a role to name.
+- **A folder appears only where the role exists.** `cao_part` earned a `ports/`
+  and an `adapters/` with #42, and no other crate holds either. A context moving
+  is a flat `git mv` per file, and earns its folders when a port gives it a role
+  to name.
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder that needs subheadings — it is two crates
   that have not been separated yet, and it is the signal to separate them.
@@ -203,9 +203,10 @@ holds.
 
 ### I/O is hardwired below the boundary
 
-`crates/part/src/document.rs` and, in `crates/prefs/src/`, `recents.rs`,
-`settings.rs` and `storage.rs` call `std::fs`, `directories::ProjectDirs`,
-`zip` and `chrono::Utc::now()` directly.
+In `crates/prefs/src/`, `recents.rs`, `settings.rs` and `storage.rs` call
+`std::fs`, `directories::ProjectDirs` and `chrono::Utc::now()` directly.
+`crates/part/src/document.rs` was the fourth until #42 gave it the `Files`
+port; only `Utc::now()` is left there, and it leaves with #41.
 
 It shows in the tests: they write into `std::env::temp_dir()`, create real
 directories and delete them with `remove_dir_all`. They are slow, they depend on
@@ -272,8 +273,9 @@ fn open_part<R: PartRepository>(repo: &R, path: &Path) -> Result<PartState, Stor
 Generic rather than `dyn` while there is one implementation at a time: no
 indirection at the call, and the compiler sees everything.
 
-**None of these traits exist yet.** The workspace has zero of them today. This
-section describes the target, not the state.
+**`Files` is the only one of these that exists** — `crates/part/src/ports/`,
+with `DiskFiles` in the shell and `InMemoryFiles` beside the trait. The rest of
+this section describes the target, not the state.
 
 ### When not to add a port
 

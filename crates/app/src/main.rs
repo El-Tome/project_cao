@@ -2,6 +2,7 @@
 // debug, to go on seeing the panics and the logs.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod adapters;
 mod app;
 mod autosave;
 mod screens;

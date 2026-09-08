@@ -6,8 +6,6 @@ use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
 use glam::DVec3;
 
-use crate::MSAA_SAMPLES;
-use crate::autosave::Autosave;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::history_tree::HistoryAction;
 use crate::screens::ribbon::Ribbon;
@@ -15,6 +13,7 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
 use crate::shortcuts::shortcuts_pressed;
+use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave};
 
 pub struct CaoApp {
     screen: Screen,
@@ -70,14 +69,14 @@ impl CaoApp {
                 return;
             }
         };
-        match PartDocument::create_in(&dir, name) {
+        match PartDocument::create_in(&DiskFiles, &dir, name) {
             Ok((doc, path)) => self.open_document(doc, path),
             Err(err) => self.error = Some(err.to_string()),
         }
     }
 
     fn open_part(&mut self, path: PathBuf) {
-        match PartDocument::load(&path) {
+        match PartDocument::load(&DiskFiles, &path) {
             Ok(doc) => self.open_document(doc, path),
             Err(err) => self.error = Some(err.to_string()),
         }
@@ -205,7 +204,7 @@ impl CaoApp {
             autosave.touched();
         }
         let at_rest = back_to_menu || !ui.ctx().input(|input| input.pointer.any_down());
-        if let Some(message) = autosave.write_if_due(doc, path, at_rest) {
+        if let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest) {
             self.error = Some(message);
         }
         if back_to_menu {
@@ -520,7 +519,8 @@ impl eframe::App for CaoApp {
 
     fn on_exit(&mut self) {
         if let Screen::PartOpened(part) = &mut self.screen {
-            part.autosave.write_if_due(&part.doc, &part.path, true);
+            part.autosave
+                .write_if_due(&DiskFiles, &part.doc, &part.path, true);
         }
     }
 }

@@ -69,10 +69,13 @@ What it does: [`extrusion.md`](extrusion.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| List of operations, undo, redo | `core/src/history.rs` | `History`, `Operation` |
-| Replaying the history for the geometry | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
-| The `.caopart` file (zip) | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
-| What fails when opening a part | `core/src/errors.rs` | `PartFileError` |
+| List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
+| Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
+| What a part asks of a filesystem | `part/src/ports/files.rs` | `Files`, `FileError` |
+| A filesystem for tests | `part/src/adapters/in_memory_files.rs` | `InMemoryFiles`, behind `test-support` |
+| The real filesystem, atomic writes | `app/src/adapters/files.rs` | `DiskFiles` |
 
 ## Settings, profiles and recents — `cao_prefs`
 

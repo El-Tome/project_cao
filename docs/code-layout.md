@@ -157,10 +157,10 @@ rule reads as a way of staying there, not as a split still to make.
 
 Three consequences:
 
-- **A folder appears only where the role exists.** None of them exists in the
-  workspace, and no crate declares a trait — so `ports/` has no member it could
-  take. A context moving is a flat `git mv` per file, and earns its folders when
-  a port gives it a role to name.
+- **A folder appears only where the role exists.** `cao_part` earned a `ports/`
+  and an `adapters/` with #42, and no other crate holds either. A context moving
+  is a flat `git mv` per file, and earns its folders when a port gives it a role
+  to name.
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder that needs subheadings; it is two crates
   that have not been separated. That is what `cao_core` was, and

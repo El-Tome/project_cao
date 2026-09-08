@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use cao_part::PartDocument;
+use cao_part::{Files, PartDocument};
 
 /// Whether what is on screen still matches what is on disk.
 ///
@@ -22,6 +22,7 @@ impl Autosave {
     /// held, and answers with what went wrong when it could not.
     pub fn write_if_due(
         &mut self,
+        files: &impl Files,
         document: &PartDocument,
         path: &Path,
         at_rest: bool,
@@ -29,7 +30,7 @@ impl Autosave {
         if !self.pending || !at_rest {
             return None;
         }
-        match document.save(path) {
+        match document.save(files, path) {
             Ok(()) => {
                 self.pending = false;
                 None
@@ -42,6 +43,7 @@ impl Autosave {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::adapters::files::DiskFiles;
     use cao_part::PartDocument;
 
     fn temp_dir(name: &str) -> std::path::PathBuf {
@@ -59,10 +61,18 @@ mod tests {
         let mut autosave = Autosave::default();
 
         autosave.touched();
-        assert!(autosave.write_if_due(&document, &path, false).is_none());
+        assert!(
+            autosave
+                .write_if_due(&DiskFiles, &document, &path, false)
+                .is_none()
+        );
         assert!(!path.exists(), "a drag does not write the file");
 
-        assert!(autosave.write_if_due(&document, &path, true).is_none());
+        assert!(
+            autosave
+                .write_if_due(&DiskFiles, &document, &path, true)
+                .is_none()
+        );
         assert!(path.exists(), "letting go writes it");
 
         std::fs::remove_dir_all(&directory).ok();
@@ -76,10 +86,14 @@ mod tests {
         let mut autosave = Autosave::default();
 
         autosave.touched();
-        autosave.write_if_due(&document, &path, true);
+        autosave.write_if_due(&DiskFiles, &document, &path, true);
         std::fs::remove_file(&path).expect("removes");
 
-        assert!(autosave.write_if_due(&document, &path, true).is_none());
+        assert!(
+            autosave
+                .write_if_due(&DiskFiles, &document, &path, true)
+                .is_none()
+        );
         assert!(!path.exists(), "nothing changed, so nothing is written");
 
         std::fs::remove_dir_all(&directory).ok();

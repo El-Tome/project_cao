@@ -84,10 +84,7 @@ impl CaoApp {
 
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
         self.recents.push(path.clone(), doc.name().to_string());
-        if let Err(err) = self.recents.save() {
-            self.error = Some(err.to_string());
-        }
-        self.error = None;
+        self.error = self.recents.save().err().map(|err| err.to_string());
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,

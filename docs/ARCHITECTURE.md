@@ -56,9 +56,9 @@ rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 `model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
 `screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
 le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
-`crates/app/tests/architecture.rs` le vérifie, et `scripts/verifier.sh` — clippy
-puis `cargo test --workspace`, appelé par les deux hooks locaux avant chaque
-commit — refuse le commit qui l'enfreint.
+`crates/app/tests/architecture.rs` le vérifie, et `scripts/verifier.sh` — format,
+clippy puis `cargo test --workspace`, appelé par les deux hooks locaux avant
+chaque commit — refuse le commit qui l'enfreint.
 
 ## Système de modes
 

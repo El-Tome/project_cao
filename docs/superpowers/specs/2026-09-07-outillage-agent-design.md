@@ -69,8 +69,20 @@ lignes. Aucun réglage de `rustfmt.toml` ne préserve cette mise en forme ; seul
 | Niveau de contrainte | **Hooks bloquants**, pas de simples règles écrites. |
 | Structure | **Skills spécifiques à ce workspace**, pas un pack générique importé. |
 | Couches de gate | **Les trois** : hook Claude Code, hook git `pre-commit`, CI GitHub. |
-| rustfmt | **Hors du gate** pour l'instant. `rustfmt.toml` est livré, la CI vérifie le format en avertissement non bloquant. |
+| rustfmt | **Hors du gate** pour l'instant. `rustfmt.toml` est livré, la CI vérifie le format en avertissement non bloquant. — *reprise le 2026-09-08, voir sous la table* |
 | MCP | **`context7` seul.** |
+
+**Décision du 2026-09-08 (#60) — `rustfmt` bloque.** L'exemption avait un motif
+nommé : la table de correspondance clavier de `app.rs`, compactée à la main, que
+rustfmt éclatait en 26 lignes, et un commit de reformatage global qui serait
+entré en conflit avec la vingtaine de branches distantes alors ouvertes (§ 2).
+Ce commit a eu lieu — `4f81da6`, 22 fichiers — et `grep -rn 'rustfmt::skip'
+crates/` ne renvoie rien : le formatage de rustfmt a été accepté partout, il n'y
+a plus d'exception à protéger. `cargo fmt --all --check` sort en 0 sur l'arbre
+actuel, donc le remettre dans le gate ne bloque rien de ce qui existe et coûte
+environ 0,3 s par commit. `continue-on-error` disparaît de `ci.yml` — avec cette
+option la conclusion du job était `success`, si bien qu'une branche mal formatée
+n'allumait rien nulle part, même déclaré vérification requise.
 
 ### Pourquoi ces choix
 
@@ -246,10 +258,11 @@ standard et ne fait quelque chose que si la commande contient `git commit`.
 
 Enchaîne, en s'arrêtant au premier échec :
 
-1. `cargo clippy --workspace --all-targets -- -D warnings`
-2. `cargo test --workspace`
+1. `cargo fmt --all --check`
+2. `cargo clippy --workspace --all-targets -- -D warnings`
+3. `cargo test --workspace`
 
-`rustfmt` n'y est pas — décision § 3.
+Le format est en tête parce qu'il est le moins cher — décision § 3.
 
 En cas d'échec : sortie en code 2, le commit n'est jamais exécuté, la sortie de
 la commande fautive est renvoyée à l'agent qui corrige et recommence. L'index
@@ -303,8 +316,8 @@ exige au moins 1.85.
 
 ### `rustfmt.toml` et `clippy.toml`
 
-Livrés dès maintenant même si `fmt` n'entre pas dans le gate : la CI en a
-besoin pour son avertissement, et leur présence fixe le style visé.
+Livrés dès le premier jour, alors que `fmt` n'entrait pas encore dans le gate :
+leur présence fixait le style visé en attendant qu'il y entre.
 
 ### `.github/workflows/ci.yml`
 
@@ -313,7 +326,7 @@ Sur chaque push, quelle que soit la branche. Toolchain épinglée par
 
 | Job | Commande | Bloquant |
 | --- | --- | --- |
-| `fmt` | `cargo fmt --all --check` | non — avertissement |
+| `fmt` | `cargo fmt --all --check` | oui |
 | `clippy` | `cargo clippy --workspace --all-targets -- -D warnings` | oui |
 | `test` | `cargo test --workspace` | oui |
 | `build-windows` | `scripts/build-windows.sh` | oui |

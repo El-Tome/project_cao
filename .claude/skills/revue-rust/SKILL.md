@@ -107,8 +107,8 @@ What the test cannot see:
 scripts/verifier.sh
 ```
 
-`clippy -D warnings` then `cargo test --workspace`, ~12 s. The gate will do it
-again at commit time, but running it first saves a round trip.
+`cargo fmt --all --check`, `clippy -D warnings`, then `cargo test --workspace`,
+~12 s. The gate will do it again at commit time, but running it first saves a round trip.
 
 For an independent read, the `revue-archi-rust` subagent applies this skill and
 `architecture-rust` to a diff, in a separate context — whoever just wrote the

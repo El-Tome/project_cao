@@ -10,6 +10,7 @@ mod equation;
 mod independence;
 mod plane;
 mod regions;
+mod rigid;
 pub mod segment;
 mod settled;
 mod sketch;

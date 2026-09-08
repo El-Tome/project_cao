@@ -54,7 +54,7 @@ Les vrais domaines, ceux qui ne dépendent de rien, sont `cao_sketch` et
 | Plan de travail, passage 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Aires fermées, pour extruder | `sketch/src/regions.rs` | `Sketch::regions()` |
 
-Détail fonctionnel : [`esquisse.md`](esquisse.md).
+Détail fonctionnel : [`sketch.md`](sketch.md).
 
 ## Volumes — `cao_solid`
 

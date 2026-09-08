@@ -38,7 +38,7 @@ Un crate = une responsabilité, sans dépendance dans le mauvais sens :
   Voir [configuration.md](configuration.md).
 - `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
   la règle qui applique une longueur. Ni rendu ni interface.
-  Voir [esquisse.md](esquisse.md).
+  Voir [sketch.md](sketch.md).
 - `cao_solid` : les volumes — maillage de polygones, extrusion d'une aire en
   prisme, opérations booléennes (ajout et enlèvement de matière). Ni rendu ni
   interface. Voir [extrusion.md](extrusion.md).
@@ -66,7 +66,7 @@ L'application est un menu de démarrage qui bascule vers différents modes :
 
 - **Croquis → Extrusion** : cycle esquisse 2D puis extrusion, répétable en
   boucle pour construire une pièce. Les deux existent :
-  [esquisse.md](esquisse.md), [extrusion.md](extrusion.md).
+  [sketch.md](sketch.md), [extrusion.md](extrusion.md).
 - **Assemblage** : assembler plusieurs pièces entre elles (pas encore
   implémenté).
 - D'autres modes viendront s'ajouter au menu au fil du temps.
@@ -83,7 +83,7 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 - [code-layout.md](code-layout.md) — où va un fichier neuf, ce qu'il peut importer
 - [carte-du-code.md](carte-du-code.md) — quel fichier porte quel comportement
 - [glossary.md](glossary.md) — les mots, et ce qu'ils veulent dire ici
-- [esquisse.md](esquisse.md) — dessiner, coter, et la règle d'échelle
+- [sketch.md](sketch.md) — dessiner, coter, et la règle d'échelle
 - [historique.md](historique.md) — opérations, annulation, format de fichier
 - [interface.md](interface.md) — barre d'outils détachable, panneaux
 - [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube

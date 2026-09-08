@@ -17,7 +17,7 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
   la longueur et à l'angle voulus, tapés à côté du curseur, et se cote tout
   seul ; les angles droits se posent d'eux-mêmes ; tout s'efface avec `Suppr`. Le dessin se colore
   selon ce qu'il lui reste comme liberté. La première cote définit l'échelle,
-  les suivantes déforment la géométrie. Voir [`docs/esquisse.md`](docs/esquisse.md).
+  les suivantes déforment la géométrie. Voir [`docs/sketch.md`](docs/sketch.md).
 
 - **Historique** : chaque geste est une opération enregistrée. Annulation
   (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
@@ -78,7 +78,7 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 - [Où va un fichier](docs/code-layout.md) — les dossiers, ce qu'ils importent
 - [Carte du code](docs/carte-du-code.md) — quel fichier porte quel comportement
 - [Glossaire](docs/glossary.md) — les mots, et ce qu'ils veulent dire ici
-- [Esquisse](docs/esquisse.md) — dessiner, coter, la règle d'échelle
+- [Esquisse](docs/sketch.md) — dessiner, coter, la règle d'échelle
 - [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
 - [Interface](docs/interface.md) — barre d'outils détachable, panneaux
 - [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube

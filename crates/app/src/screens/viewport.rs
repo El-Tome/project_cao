@@ -2112,7 +2112,7 @@ fn refine(
         return Some(DimensionTarget::Angle { first, second }.normalised());
     }
     if let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
-        && !sketch.touches(first, point)
+        && !sketch.segment_touches(first, point)
     {
         return Some(DimensionTarget::PointToSegment {
             point,

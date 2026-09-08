@@ -47,7 +47,7 @@ impl Sketch {
 
     /// Whether a point is one of a segment's own ends — measuring a segment to
     /// its own corner would be a distance of nothing.
-    pub fn touches(&self, segment: SegmentId, point: PointId) -> bool {
+    pub fn segment_touches(&self, segment: SegmentId, point: PointId) -> bool {
         match self.segments().get(segment.0) {
             Some(segment) => segment.start == point || segment.end == point,
             None => false,
@@ -99,31 +99,67 @@ mod tests {
     use super::*;
     use crate::WorkPlane;
 
-    fn trait_from(start: DVec2, end: DVec2) -> (Sketch, DimensionTarget) {
+    fn trait_from(start: DVec2, end: DVec2) -> (Sketch, DimensionTarget, PointId, PointId) {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let from = sketch.add_point(start);
         let to = sketch.add_point(end);
         let segment = sketch.add_segment(from, to);
-        (sketch, DimensionTarget::Length(segment))
+        (sketch, DimensionTarget::Length(segment), from, to)
+    }
+
+    fn leaning(degrees: f64) -> (Sketch, DimensionTarget, PointId, PointId) {
+        let start = DVec2::new(10.0, 10.0);
+        let span = DVec2::from_angle(degrees.to_radians()) * 40.0;
+        trait_from(start, start + span)
     }
 
     #[test]
     fn a_trait_square_on_an_axis_offers_only_its_length() {
-        let (sketch, length) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 10.0));
+        let (sketch, length, ..) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 10.0));
 
         assert_eq!(sketch.oriented(length, DVec2::new(30.0, 60.0)), length);
         assert_eq!(sketch.oriented(length, DVec2::new(70.0, 10.0)), length);
     }
 
     #[test]
+    fn a_trait_square_on_the_other_axis_offers_only_its_length_too() {
+        let (sketch, length, ..) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(10.0, 50.0));
+
+        assert!(!sketch.is_slanted(length));
+        assert_eq!(sketch.oriented(length, DVec2::new(60.0, 30.0)), length);
+    }
+
+    #[test]
+    fn a_trait_drawn_right_to_left_is_no_more_slanted_than_the_same_one_drawn_the_other_way() {
+        let (sketch, length, ..) = trait_from(DVec2::new(50.0, 10.0), DVec2::new(10.0, 10.0));
+
+        assert!(!sketch.is_slanted(length));
+    }
+
+    #[test]
+    fn a_trait_a_hair_off_an_axis_is_not_yet_worth_two_more_readings() {
+        let (sketch, length, ..) = leaning(0.4);
+
+        assert!(!sketch.is_slanted(length));
+        assert_eq!(sketch.oriented(length, DVec2::new(30.0, 60.0)), length);
+    }
+
+    #[test]
+    fn a_trait_just_past_the_threshold_offers_its_width_and_its_height() {
+        let (sketch, length, ..) = leaning(0.6);
+
+        assert!(sketch.is_slanted(length));
+    }
+
+    #[test]
     fn a_cursor_above_a_slanted_trait_asks_for_its_width() {
-        let (sketch, length) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let (sketch, length, from, to) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
 
         assert_eq!(
             sketch.oriented(length, DVec2::new(30.0, 60.0)),
             DimensionTarget::Projected {
-                from: PointId(1),
-                to: PointId(2),
+                from,
+                to,
                 axis: SketchAxis::U,
             },
         );
@@ -131,13 +167,13 @@ mod tests {
 
     #[test]
     fn a_cursor_beside_a_slanted_trait_asks_for_its_height() {
-        let (sketch, length) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let (sketch, length, from, to) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
 
         assert_eq!(
             sketch.oriented(length, DVec2::new(70.0, 25.0)),
             DimensionTarget::Projected {
-                from: PointId(1),
-                to: PointId(2),
+                from,
+                to,
                 axis: SketchAxis::V,
             },
         );
@@ -145,16 +181,67 @@ mod tests {
 
     #[test]
     fn a_cursor_inside_the_box_of_the_ends_asks_for_the_length() {
-        let (sketch, length) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let (sketch, length, ..) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
 
         assert_eq!(sketch.oriented(length, DVec2::new(30.0, 25.0)), length);
         assert_eq!(sketch.oriented(length, DVec2::new(70.0, 60.0)), length);
     }
 
     #[test]
+    fn a_width_is_named_the_same_way_round_whichever_end_was_drawn_first() {
+        let (start, end) = (DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let cursor = DVec2::new(30.0, 60.0);
+        let (drawn_up, up, ..) = trait_from(start, end);
+
+        let mut drawn_down = Sketch::new(WorkPlane::XY);
+        let first = drawn_down.add_point(start);
+        let second = drawn_down.add_point(end);
+        let down = DimensionTarget::Length(drawn_down.add_segment(second, first));
+
+        assert_eq!(
+            drawn_up.oriented(up, cursor),
+            drawn_down.oriented(down, cursor),
+        );
+    }
+
+    #[test]
+    fn a_reading_already_asked_for_is_not_asked_for_a_second_time() {
+        let (sketch, _, from, to) = trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let width = DimensionTarget::Projected {
+            from,
+            to,
+            axis: SketchAxis::U,
+        };
+
+        assert_eq!(sketch.oriented(width, DVec2::new(30.0, 60.0)), width);
+    }
+
+    #[test]
+    fn a_segment_touches_its_own_ends_and_nothing_else() {
+        let (mut sketch, length, from, to) =
+            trait_from(DVec2::new(10.0, 10.0), DVec2::new(50.0, 40.0));
+        let DimensionTarget::Length(segment) = length else {
+            unreachable!()
+        };
+        let apart = sketch.add_point(DVec2::new(0.0, 80.0));
+
+        assert!(sketch.segment_touches(segment, from));
+        assert!(sketch.segment_touches(segment, to));
+        assert!(!sketch.segment_touches(segment, apart));
+    }
+
+    #[test]
     fn the_horizontal_axis_is_under_a_cursor_on_it() {
         assert_eq!(axis_under(DVec2::new(30.0, 0.2), 0.5), Some(SketchAxis::U));
+    }
+
+    #[test]
+    fn the_vertical_axis_is_under_a_cursor_on_it() {
         assert_eq!(axis_under(DVec2::new(0.2, 30.0), 0.5), Some(SketchAxis::V));
+    }
+
+    #[test]
+    fn a_cursor_off_both_axes_is_on_neither() {
         assert_eq!(axis_under(DVec2::new(30.0, 30.0), 0.5), None);
     }
 }

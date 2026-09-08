@@ -45,6 +45,7 @@ there. See the `architecture-rust` skill.
 | The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | The work plane, 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | The closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` → `Vec<Region>` |
+| Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 
 ### Volumes — `cao_solid`
 

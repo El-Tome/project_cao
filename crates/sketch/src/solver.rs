@@ -141,7 +141,7 @@ impl Sketch {
                     worst = worst.max(equation.off_by(scale));
 
                     let norm = equation.norm_squared();
-                    if norm < 1e-12 {
+                    if norm < equation.flat_below(scale) {
                         continue;
                     }
                     // Move along the gradient just far enough to cancel the error.
@@ -155,7 +155,7 @@ impl Sketch {
                             ),
                         };
                     }
-                    rigidify(self.points(), &mut moves, blocks, &owner, &pinned);
+                    rigidify(self.points(), &mut moves, blocks, &owner, &pinned, scale);
 
                     for (point, delta) in moves.iter().copied().enumerate() {
                         self.translate_point(PointId(point), delta);

@@ -1,59 +1,9 @@
 use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::equation::Equation;
 use crate::independence::norm;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
-
-/// One equation the drawing has to satisfy, linearised around its current
-/// shape: how far off it is, and how each coordinate would change that.
-///
-/// Gradients are analytic rather than sampled: they are short to write for
-/// lengths and angles, exact, and the solver runs them hundreds of times.
-pub(crate) struct Equation {
-    /// Current value minus the wanted one. Zero when satisfied.
-    pub error: f64,
-    /// Whether that error is an angle rather than a length. An angle is judged
-    /// on its own: dividing radians by the size of the drawing let a big
-    /// drawing be declared settled with its corners a tenth of a degree out.
-    pub angular: bool,
-    /// Change of `error` per unit change of each coordinate, laid out as
-    /// x0, y0, x1, y1, …
-    pub gradient: Vec<f64>,
-}
-
-impl Equation {
-    fn new(variables: usize) -> Self {
-        Self {
-            error: 0.0,
-            angular: false,
-            gradient: vec![0.0; variables],
-        }
-    }
-
-    /// How far off this equation is, in a unit that means the same thing for
-    /// every kind of dimension.
-    fn off_by(&self, scale: f64) -> f64 {
-        match self.angular {
-            true => self.error.abs(),
-            false => self.error.abs() / scale,
-        }
-    }
-
-    fn add(&mut self, point: PointId, value: DVec2) {
-        self.gradient[point.0 * 2] += value.x;
-        self.gradient[point.0 * 2 + 1] += value.y;
-    }
-
-    /// The size of a circle is an unknown like any other: the columns after the
-    /// coordinates are the radii, one apiece.
-    fn add_radius(&mut self, at: usize, value: f64) {
-        self.gradient[at] += value;
-    }
-
-    fn norm_squared(&self) -> f64 {
-        self.gradient.iter().map(|value| value * value).sum()
-    }
-}
 
 /// How the solve went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -176,10 +126,17 @@ impl Sketch {
         let pinned = self.pinned_points();
         let owner = ownership(blocks, self.points().len());
 
+        // Both buffers have the same size on every turn, so the sweep owns them
+        // rather than asking for them again on each correction. The gradients
+        // are handed back to the same end, one equation at a time.
+        let mut moves = vec![DVec2::ZERO; self.points().len()];
+        let mut entry: Vec<Equation> = Vec::new();
+
         for _ in 0..MAX_ITERATIONS {
             let mut worst: f64 = 0.0;
             for index in 0..self.equation_count() {
-                for equation in self.any_equation(index, millimeters_per_unit, &pinned) {
+                self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
+                for equation in &entry {
                     worst = worst.max(equation.off_by(scale));
 
                     let norm = equation.norm_squared();
@@ -188,20 +145,18 @@ impl Sketch {
                     }
                     // Move along the gradient just far enough to cancel the error.
                     let step = -equation.error / norm;
-                    let mut moves: Vec<DVec2> = (0..self.points().len())
-                        .map(|point| {
-                            if pinned[point] {
-                                return DVec2::ZERO;
-                            }
-                            DVec2::new(
+                    for (point, delta) in moves.iter_mut().enumerate() {
+                        *delta = match pinned[point] {
+                            true => DVec2::ZERO,
+                            false => DVec2::new(
                                 equation.gradient[point * 2] * step,
                                 equation.gradient[point * 2 + 1] * step,
-                            )
-                        })
-                        .collect();
-                    self.rigidify(&mut moves, blocks, &owner);
+                            ),
+                        };
+                    }
+                    self.rigidify(&mut moves, blocks, &owner, &pinned);
 
-                    for (point, delta) in moves.into_iter().enumerate() {
+                    for (point, delta) in moves.iter().copied().enumerate() {
                         self.translate_point(PointId(point), delta);
                     }
                     // And the sizes of the circles, which are unknowns of the
@@ -213,6 +168,9 @@ impl Sketch {
                             self.grow_circle(crate::sketch::CircleId(circle), delta);
                         }
                     }
+                }
+                for equation in entry.drain(..) {
+                    equation.recycle();
                 }
             }
 
@@ -232,8 +190,13 @@ impl Sketch {
     /// rather than tidying up afterwards, is what makes the drawing settle: a
     /// correction spread over the points and then straightened out again is a
     /// correction mostly thrown away.
-    fn rigidify(&self, moves: &mut [DVec2], blocks: &[Block], owner: &[Option<usize>]) {
-        let pinned = self.pinned_points();
+    fn rigidify(
+        &self,
+        moves: &mut [DVec2],
+        blocks: &[Block],
+        owner: &[Option<usize>],
+        pinned: &[bool],
+    ) {
         for (index, block) in blocks.iter().enumerate() {
             let hinge = block
                 .points
@@ -294,9 +257,11 @@ impl Sketch {
         let mut opened: Vec<(SegmentId, SegmentId)> = Vec::new();
         let mut stretched: Vec<SegmentId> = Vec::new();
 
+        let mut entry: Vec<Equation> = Vec::new();
         for index in 0..self.equation_count() {
             let mut off = false;
-            for equation in self.any_equation(index, millimeters_per_unit, &pinned) {
+            self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
+            for equation in entry.drain(..) {
                 if equation.off_by(scale) < TOLERANCE {
                     continue;
                 }
@@ -733,7 +698,7 @@ impl Sketch {
             }
         }
         for index in 0..self.constraints().len() {
-            equations.extend(self.rule_equations(index, pinned));
+            self.rule_equations(index, pinned, &mut equations);
         }
         equations
     }
@@ -744,65 +709,65 @@ impl Sketch {
         self.dimension_count() + self.constraints().len()
     }
 
-    /// The equations of one entry, whichever kind it is.
+    /// The equations of one entry, whichever kind it is, appended to what the
+    /// caller already holds. Written into a buffer rather than returned so that
+    /// a sweep can hand the same one back four hundred times.
     fn any_equation(
         &self,
         index: usize,
         millimeters_per_unit: f64,
         pinned: &[bool],
-    ) -> Vec<Equation> {
+        into: &mut Vec<Equation>,
+    ) {
         match index.checked_sub(self.dimension_count()) {
-            Some(rule) => self.rule_equations(rule, pinned),
-            None => self
-                .equation(index, millimeters_per_unit, pinned)
-                .into_iter()
-                .collect(),
+            Some(rule) => self.rule_equations(rule, pinned, into),
+            None => into.extend(self.equation(index, millimeters_per_unit, pinned)),
         }
     }
 
-    /// What one rule asks of the drawing. Most ask a single thing; lying two
-    /// traits on one line, or holding a point halfway along one, asks two.
-    fn rule_equations(&self, index: usize, pinned: &[bool]) -> Vec<Equation> {
+    /// What one rule asks of the drawing, appended to what the caller holds.
+    /// Most rules ask a single thing; lying two traits on one line, or holding
+    /// a point halfway along one, asks two.
+    fn rule_equations(&self, index: usize, pinned: &[bool], into: &mut Vec<Equation>) {
         let Some(constraint) = self.constraints().get(index).copied() else {
-            return Vec::new();
+            return;
         };
-        let mut equations = match constraint {
-            Constraint::Perpendicular { first, second } => self
-                .direction_equation(first, second, true)
-                .into_iter()
-                .collect(),
-            Constraint::Parallel { first, second } => self
-                .direction_equation(first, second, false)
-                .into_iter()
-                .collect(),
-            Constraint::Equal { first, second } => self
-                .equal_length_equation(first, second)
-                .into_iter()
-                .collect(),
+        let written = into.len();
+
+        match constraint {
+            Constraint::Perpendicular { first, second } => {
+                into.extend(self.direction_equation(first, second, true))
+            }
+            Constraint::Parallel { first, second } => {
+                into.extend(self.direction_equation(first, second, false))
+            }
+            Constraint::Equal { first, second } => {
+                into.extend(self.equal_length_equation(first, second))
+            }
             Constraint::Collinear { first, second } => {
                 let Some(line) = self.segments().get(second.0).copied() else {
-                    return Vec::new();
+                    return;
                 };
-                [line.start, line.end]
-                    .into_iter()
-                    .filter_map(|point| self.on_line_equation(point, first, 0.0))
-                    .collect()
+                into.extend(
+                    [line.start, line.end]
+                        .into_iter()
+                        .filter_map(|point| self.on_line_equation(point, first, 0.0)),
+                );
             }
-            Constraint::OnSegment { point, segment } => self
-                .on_line_equation(point, segment, 0.0)
-                .into_iter()
-                .collect(),
+            Constraint::OnSegment { point, segment } => {
+                into.extend(self.on_line_equation(point, segment, 0.0))
+            }
             Constraint::Tangent {
                 circle,
                 segment,
                 at,
             } => {
                 let Some(round) = self.circles().get(circle.0).copied() else {
-                    return Vec::new();
+                    return;
                 };
                 let Some(mut equation) = self.on_line_equation(round.center, segment, round.radius)
                 else {
-                    return Vec::new();
+                    return;
                 };
                 // Growing the circle closes the gap just as surely as moving
                 // it does, so the size is part of the answer — outwards or
@@ -810,41 +775,42 @@ impl Sketch {
                 if let Some(column) = self.radius_column(circle) {
                     equation.add_radius(column, -self.side_of(round.center, segment));
                 }
-                let mut equations = vec![equation];
+                into.push(equation);
                 // Where the two touch is a point of the drawing, and it is not
                 // free: it lies on the line, square under the centre. Without
                 // that second half it would slide along the line, since sliding
                 // a point along a circle it touches changes nothing at all to
                 // first order.
                 if let Some(contact) = self.live_point(at) {
-                    equations.extend(self.on_line_equation(contact, segment, 0.0));
-                    equations.extend(self.foot_equation(contact, round.center, segment));
+                    into.extend(self.on_line_equation(contact, segment, 0.0));
+                    into.extend(self.foot_equation(contact, round.center, segment));
                 }
-                equations
             }
-            Constraint::OnCircle { point, circle } => {
-                self.rim_equation(point, circle).into_iter().collect()
-            }
+            Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
             Constraint::EqualRadius { first, second } => {
                 let (Some(one), Some(other)) =
                     (self.radius_column(first), self.radius_column(second))
                 else {
-                    return Vec::new();
+                    return;
                 };
                 let mut equation = Equation::new(self.variables());
                 equation.error = self.circles()[second.0].radius - self.circles()[first.0].radius;
                 equation.add_radius(other, 1.0);
                 equation.add_radius(one, -1.0);
-                vec![equation]
+                into.push(equation);
             }
-            Constraint::Midpoint { point, segment } => self.midpoint_equations(point, segment),
-            Constraint::AxisCollinear { segment, axis } => self.on_axis_equations(segment, axis),
+            Constraint::Midpoint { point, segment } => {
+                self.midpoint_equations(point, segment, into)
+            }
+            Constraint::AxisCollinear { segment, axis } => {
+                self.on_axis_equations(segment, axis, into)
+            }
             // Held in place by the pins rather than by an equation: a fixed
             // point simply has nowhere to go.
-            Constraint::Fixed { .. } => Vec::new(),
-        };
+            Constraint::Fixed { .. } => {}
+        }
 
-        for equation in &mut equations {
+        for equation in &mut into[written..] {
             for (point, pinned) in pinned.iter().enumerate() {
                 if *pinned {
                     equation.gradient[point * 2] = 0.0;
@@ -852,7 +818,6 @@ impl Sketch {
                 }
             }
         }
-        equations
     }
 
     /// Two traits told to stand square to each other, or to keep the same
@@ -940,22 +905,20 @@ impl Sketch {
         &self,
         segment: SegmentId,
         axis: crate::constraints::SketchAxis,
-    ) -> Vec<Equation> {
+        into: &mut Vec<Equation>,
+    ) {
         let Some(line) = self.segments().get(segment.0).copied() else {
-            return Vec::new();
+            return;
         };
         let direction = axis.direction();
         let normal = DVec2::new(-direction.y, direction.x);
 
-        [line.start, line.end]
-            .into_iter()
-            .map(|point| {
-                let mut equation = Equation::new(self.variables());
-                equation.error = self.point(point).dot(normal);
-                equation.add(point, normal);
-                equation
-            })
-            .collect()
+        for point in [line.start, line.end] {
+            let mut equation = Equation::new(self.variables());
+            equation.error = self.point(point).dot(normal);
+            equation.add(point, normal);
+            into.push(equation);
+        }
     }
 
     /// A point held at a given distance from the line a trait lies on — nought
@@ -1070,27 +1033,24 @@ impl Sketch {
 
     /// A point held halfway along a trait: one equation for each coordinate,
     /// since being at the middle is two statements, not one.
-    fn midpoint_equations(&self, point: PointId, segment: SegmentId) -> Vec<Equation> {
+    fn midpoint_equations(&self, point: PointId, segment: SegmentId, into: &mut Vec<Equation>) {
         let Some(line) = self.segments().get(segment.0).copied() else {
-            return Vec::new();
+            return;
         };
         if point.0 >= self.points().len() {
-            return Vec::new();
+            return;
         }
         let middle = (self.point(line.start) + self.point(line.end)) * 0.5;
         let held = self.point(point);
 
-        [DVec2::X, DVec2::Y]
-            .into_iter()
-            .map(|axis| {
-                let mut equation = Equation::new(self.variables());
-                equation.error = (held - middle).dot(axis);
-                equation.add(point, axis);
-                equation.add(line.start, -axis * 0.5);
-                equation.add(line.end, -axis * 0.5);
-                equation
-            })
-            .collect()
+        for axis in [DVec2::X, DVec2::Y] {
+            let mut equation = Equation::new(self.variables());
+            equation.error = (held - middle).dot(axis);
+            equation.add(point, axis);
+            equation.add(line.start, -axis * 0.5);
+            equation.add(line.end, -axis * 0.5);
+            into.push(equation);
+        }
     }
 
     /// The equation for one dimension, or `None` when it does not apply to

@@ -7,9 +7,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::errors::PartFileError;
 use crate::history::{History, Operation};
 use crate::state::{DimensionOutcome, PartState};
-use crate::storage::StorageError;
 
 /// File extension used for a CAO part document.
 pub const PART_EXTENSION: &str = "caopart";
@@ -123,7 +123,10 @@ impl PartDocument {
     }
 
     /// Creates a new part and writes it to `dir/<name>.caopart`.
-    pub fn create_in(dir: &Path, name: impl Into<String>) -> Result<(Self, PathBuf), StorageError> {
+    pub fn create_in(
+        dir: &Path,
+        name: impl Into<String>,
+    ) -> Result<(Self, PathBuf), PartFileError> {
         fs::create_dir_all(dir)?;
         let doc = Self::new(name);
         let path = dir.join(format!(
@@ -134,7 +137,7 @@ impl PartDocument {
         Ok((doc, path))
     }
 
-    pub fn save(&self, path: &Path) -> Result<(), StorageError> {
+    pub fn save(&self, path: &Path) -> Result<(), PartFileError> {
         let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
@@ -149,21 +152,21 @@ impl PartDocument {
         Ok(())
     }
 
-    pub fn load(path: &Path) -> Result<Self, StorageError> {
+    pub fn load(path: &Path) -> Result<Self, PartFileError> {
         let bytes = fs::read(path)?;
 
         // Files from before the archive format are not read: the tool changed
         // too much for a conversion to be worth trusting, and nothing of value
         // was drawn with those versions.
         if !bytes.starts_with(b"PK") {
-            return Err(StorageError::UnsupportedVersion(1));
+            return Err(PartFileError::UnsupportedVersion(1));
         }
 
         let mut archive = zip::ZipArchive::new(Cursor::new(bytes))?;
         let metadata: PartMetadata =
             serde_json::from_str(&read_entry(&mut archive, METADATA_ENTRY)?)?;
         if metadata.schema_version != SCHEMA_VERSION {
-            return Err(StorageError::UnsupportedVersion(metadata.schema_version));
+            return Err(PartFileError::UnsupportedVersion(metadata.schema_version));
         }
 
         let history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
@@ -180,10 +183,10 @@ impl PartDocument {
 fn read_entry<R: Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
     name: &str,
-) -> Result<String, StorageError> {
+) -> Result<String, PartFileError> {
     let mut entry = archive
         .by_name(name)
-        .map_err(|_| StorageError::MissingEntry(name.to_string()))?;
+        .map_err(|_| PartFileError::MissingEntry(name.to_string()))?;
     let mut text = String::new();
     entry.read_to_string(&mut text)?;
     Ok(text)
@@ -320,7 +323,7 @@ mod tests {
         document.save(&path).expect("saves again");
 
         let error = PartDocument::load(&path).expect_err("must be refused");
-        assert!(matches!(error, StorageError::UnsupportedVersion(2)));
+        assert!(matches!(error, PartFileError::UnsupportedVersion(2)));
 
         fs::remove_dir_all(&directory).ok();
     }
@@ -332,7 +335,7 @@ mod tests {
         fs::write(&path, br#"{"name":"ancienne"}"#).expect("writes");
 
         let error = PartDocument::load(&path).expect_err("must be refused");
-        assert!(matches!(error, StorageError::UnsupportedVersion(1)));
+        assert!(matches!(error, PartFileError::UnsupportedVersion(1)));
 
         fs::remove_dir_all(&directory).ok();
     }

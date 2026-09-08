@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use directories::{ProjectDirs, UserDirs};
 
+/// What can go wrong reading or writing what the installation remembers:
+/// profiles, themes, shortcuts, the toolbar layout, the recent files.
 #[derive(Debug, thiserror::Error)]
 pub enum StorageError {
     #[error("could not resolve a config/data directory on this platform")]
@@ -10,11 +12,7 @@ pub enum StorageError {
     Io(#[from] std::io::Error),
     #[error(transparent)]
     Json(#[from] serde_json::Error),
-    #[error(transparent)]
-    Archive(#[from] zip::result::ZipError),
-    #[error("le fichier de pièce ne contient pas « {0} »")]
-    MissingEntry(String),
-    #[error("pièce enregistrée dans une version antérieure (v{0}), non prise en charge")]
+    #[error("profile written by an unsupported settings version (v{0})")]
     UnsupportedVersion(u32),
 }
 

@@ -5,6 +5,7 @@
 pub mod command;
 pub mod config;
 mod document;
+mod errors;
 pub mod history;
 mod recents;
 pub mod settings;
@@ -17,6 +18,7 @@ pub mod toolbar;
 pub use command::Command;
 pub use config::ViewportConfig;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
+pub use errors::PartFileError;
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
 pub use settings::{PROFILE_EXTENSION, Profile, Profiles, Settings};

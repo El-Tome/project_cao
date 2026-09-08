@@ -25,8 +25,8 @@ particular) turn out to be too constrained by this framework.
 
 ## The split into crates
 
-The dependencies go one way only. Not every crate is one context, though — the
-seam that is still missing is named in [contexts.md](contexts.md).
+The dependencies go one way only, and each crate is one context since #26 and
+#28 — [contexts.md](contexts.md) says why the lines fall where they do.
 
 - `cao_part`: the application layer. Depends on `cao_sketch` and `cao_solid`,
   and orchestrates sketch, solid, history and persistence — it is not a domain;

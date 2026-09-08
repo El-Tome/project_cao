@@ -15,7 +15,7 @@ mod solver;
 
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
 pub use dimensioning::axis_under;
-pub use plane::WorkPlane;
+pub use plane::{PlaneKind, WorkPlane};
 pub use regions::Region;
 pub use sketch::{Circle, CircleId, Element, LengthOutcome, PointId, Segment, SegmentId, Sketch};
 pub use solver::SolveOutcome;

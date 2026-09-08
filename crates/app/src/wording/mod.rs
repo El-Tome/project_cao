@@ -7,8 +7,10 @@
 //! directory to pass under rather than a hunt.
 
 pub mod command;
+pub mod constraints;
 pub mod dimension;
 pub mod history;
+pub mod plane;
 pub mod settings;
 pub mod shortcuts;
 pub mod toolbar;

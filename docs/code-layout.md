@@ -62,6 +62,8 @@ crates/app/src/
 `wording/shortcuts.rs` says how a `Key` and a `Chord` read, `wording/toolbar.rs`
 how an `Edge` and an `Item` do, `wording/history.rs` how a step of the part's
 history reads, `wording/dimension.rs` what a dimension measures,
+`wording/constraints.rs` how a rule of the drawing reads and what mark it is
+given, `wording/plane.rs` how a `PlaneKind` is called,
 `wording/settings.rs` what a profile is called. One file per source so that no
 single one gathers the whole application, and so that the eventual translation
 system has one directory to pass under.

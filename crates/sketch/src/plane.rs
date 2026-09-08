@@ -14,6 +14,23 @@ pub struct WorkPlane {
     pub v: DVec3,
 }
 
+/// Which plane a sketch is drawn on, as far as anyone naming it needs to know.
+///
+/// A reading of the geometry, not a name: the interface decides how each case
+/// is said.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum PlaneKind {
+    /// Anywhere but through the world origin. Which is all the geometry
+    /// establishes: a face of the part, a plane offset by hand and a face of a
+    /// second body all answer this.
+    OffOrigin,
+    OriginXY,
+    OriginXZ,
+    OriginYZ,
+    /// Through the origin, but square to none of the three axes.
+    OriginSlanted,
+}
+
 impl WorkPlane {
     pub const XY: Self = Self {
         origin: DVec3::ZERO,
@@ -78,24 +95,24 @@ impl WorkPlane {
         Some(self.to_local(origin + direction * distance))
     }
 
-    /// Human-readable name.
+    /// Which of the planes the interface knows how to name this one is.
     ///
-    /// Only a plane through the origin is named after its axes: a face of the
-    /// part can be parallel to one without being it, and calling it "Plan XZ"
+    /// Only a plane through the origin is recognised by its axes: a face of the
+    /// part can be parallel to one without being it, and answering `OriginXZ`
     /// would say the drawing sits somewhere it does not.
-    pub fn label(&self) -> &'static str {
+    pub fn kind(&self) -> PlaneKind {
         if self.origin.length_squared() > 1e-9 {
-            return "Face de la pièce";
+            return PlaneKind::OffOrigin;
         }
         let normal = self.normal().abs();
         if normal.z > 0.999 {
-            "Plan XY"
+            PlaneKind::OriginXY
         } else if normal.y > 0.999 {
-            "Plan XZ"
+            PlaneKind::OriginXZ
         } else if normal.x > 0.999 {
-            "Plan YZ"
+            PlaneKind::OriginYZ
         } else {
-            "Plan d'esquisse"
+            PlaneKind::OriginSlanted
         }
     }
 }
@@ -148,5 +165,29 @@ mod tests {
 
         assert!(plane.ray_intersection(DVec3::Z * 10.0, DVec3::Z).is_none());
         assert!(plane.ray_intersection(DVec3::Z * 10.0, DVec3::X).is_none());
+    }
+
+    #[test]
+    fn a_plane_is_recognised_by_where_it_sits_and_which_way_it_faces() {
+        let through_origin = [
+            (WorkPlane::XY, PlaneKind::OriginXY),
+            (WorkPlane::XZ, PlaneKind::OriginXZ),
+            (WorkPlane::YZ, PlaneKind::OriginYZ),
+            (
+                WorkPlane::from_normal(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0)),
+                PlaneKind::OriginSlanted,
+            ),
+        ];
+
+        for (plane, kind) in through_origin {
+            assert_eq!(plane.kind(), kind, "{plane:?}");
+        }
+    }
+
+    #[test]
+    fn a_plane_parallel_to_an_axis_plane_but_off_the_origin_is_not_that_plane() {
+        let raised = WorkPlane::from_normal(DVec3::Z * 12.0, DVec3::Z);
+
+        assert_eq!(raised.kind(), PlaneKind::OffOrigin);
     }
 }

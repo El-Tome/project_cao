@@ -13,7 +13,7 @@ use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
 use crate::shortcuts::shortcuts_pressed;
-use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave};
+use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording::plane};
 
 pub struct CaoApp {
     screen: Screen,
@@ -491,7 +491,7 @@ fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -
 fn mode_label(mode: ViewMode) -> &'static str {
     match mode {
         ViewMode::Free => "Vue 3D libre",
-        ViewMode::Plane(plane) => plane.label(),
+        ViewMode::Plane(work_plane) => plane::label(work_plane.kind()),
     }
 }
 

@@ -16,16 +16,21 @@ cao_app  ──►  cao_core  ──►  cao_sketch
    └──────────►  cao_render
 ```
 
-| Crate | Rôle | Dépend de | Lignes |
-| --- | --- | --- | ---: |
-| `cao_sketch` | modèle d'esquisse, contraintes, solveur | `glam`, `serde` | ~5 000 |
-| `cao_solid` | maillage, extrusion, booléens | `glam`, `serde` | ~1 000 |
-| `cao_render` | rendu GPU du viewport | `wgpu`, `glam`, `bytemuck` | ~1 800 |
-| `cao_core` | document, historique, réglages, persistance | les deux domaines | ~3 700 |
-| `cao_app` | shell desktop, routage entre modes | tout | ~6 400 |
+| Crate | Rôle | Dépend de |
+| --- | --- | --- |
+| `cao_sketch` | modèle d'esquisse, contraintes, solveur | `glam`, `serde` |
+| `cao_solid` | maillage, extrusion, booléens | `glam`, `serde` |
+| `cao_render` | rendu GPU du viewport | `wgpu`, `glam`, `bytemuck` |
+| `cao_core` | document, historique, réglages, persistance | les deux domaines |
+| `cao_app` | shell desktop, routage entre modes | tout |
 
 Une flèche vers la gauche est interdite : `cao_sketch` ne connaîtra jamais
 `cao_core`, `cao_render` ne connaîtra jamais `cao_app`.
+
+Aucune longueur n'est chiffrée ici : un nombre dans la prose est exact au commit
+qui l'écrit et faux au suivant. Les seules longueurs qui portent une règle — les
+fichiers au-dessus du budget de 400 lignes — sont tenues par
+`crates/app/tests/architecture.rs`, qui échoue quand elles bougent.
 
 **Une mise en garde sur le nom.** `cao_core` se présente comme « les types de
 domaine », mais il dépend de `cao_sketch` et `cao_solid` et orchestre esquisse,
@@ -38,11 +43,11 @@ Les vrais domaines, ceux qui ne dépendent de rien, sont `cao_sketch` et
 
 | Ce qu'on cherche | Fichier | Point d'entrée |
 | --- | --- | --- |
-| Modèle d'esquisse : points, traits, cercles | `sketch/src/sketch.rs` (2 372 l.) | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| Modèle d'esquisse : points, traits, cercles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
 | Effacer un élément et ses dépendants | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Poser ou retirer une contrainte | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Types de contraintes et de cotes | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
-| Le solveur | `sketch/src/solver.rs` (1 470 l.) | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| Le solveur | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
 | Les cinq constructions de cercle | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | Plan de travail, passage 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Aires fermées, pour extruder | `sketch/src/regions.rs` | `Sketch::regions()` |
@@ -65,7 +70,7 @@ Détail fonctionnel : [`extrusion.md`](extrusion.md).
 | Ce qu'on cherche | Fichier | Point d'entrée |
 | --- | --- | --- |
 | Liste des opérations, annuler, refaire | `core/src/history.rs` | `History`, `Operation` |
-| Rejouer l'historique pour la géométrie | `core/src/state.rs` (1 280 l.) | `PartState::rebuild`, `PartState::apply` |
+| Rejouer l'historique pour la géométrie | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
 | Fichier `.caopart` (zip) | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | Les dix pièces récentes | `core/src/recents.rs` | `RecentList` |
 | Chemins, journal de plantage | `core/src/storage.rs` | `default_projects_dir`, `record_panics` |
@@ -97,7 +102,7 @@ Détail fonctionnel : [`rendu.md`](rendu.md), [`viewport.md`](viewport.md).
 | --- | --- | --- |
 | État de l'application, boucle de trame | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routage entre modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| Canvas : gestes, hit-test, dessin | `app/src/screens/viewport.rs` (4 179 l.) | `show(...)`, `ViewportState`, `ViewMode` |
+| Canvas : gestes, hit-test, dessin | `app/src/screens/viewport.rs` — le plus gros fichier du dépôt | `show(...)`, `ViewportState`, `ViewMode` |
 | Outil d'esquisse, saisie clavier | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode` |
 | Placement des cotes à l'écran | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
 | Extrusion et révolution, côté UI | `app/src/screens/extrusion.rs` | `ExtrusionState` |
@@ -137,11 +142,11 @@ triviale, il devient son propre crate.
 
 ## Ce qui n'a pas de tests
 
-| Zone | Lignes | Tests |
-| --- | ---: | ---: |
-| `sketch/src/solver.rs` | 1 470 | 0 |
-| `sketch/src/constraints.rs` | 283 | 0 |
-| `crates/app/` (entier) | ~6 400 | 0 |
+| Zone | Tests |
+| --- | ---: |
+| `sketch/src/solver.rs` | 0 |
+| `sketch/src/constraints.rs` | 0 |
+| `crates/app/` (entier) | 0 |
 
 Le solveur concentre quatre correctifs récents (`fix/solver-anchoring`,
 `fix/tangent-circles`, `fix/circle-handling`, `fix/dimension-handling`) sans

@@ -35,11 +35,11 @@ sont `cao_sketch` et `cao_solid`. Voir le skill `architecture-rust`.
 
 | Ce qu'on cherche | Fichier | Point d'entrée |
 | --- | --- | --- |
-| Le modèle d'esquisse, points, traits, cercles | `sketch/src/sketch.rs` (2 372 l.) | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| Le modèle d'esquisse, points, traits, cercles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
 | Effacer un élément et ses dépendants | `sketch/src/sketch.rs` | `Sketch::erase`, `Erased` |
 | Poser ou retirer une contrainte | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Les types de contraintes et de cotes | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
-| **Le solveur** — rendre toutes les valeurs vraies ensemble | `sketch/src/solver.rs` (1 470 l.) | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| **Le solveur** — rendre toutes les valeurs vraies ensemble | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
 | Les cinq constructions de cercle | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | Le plan de travail, 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Les aires fermées, pour extruder | `sketch/src/regions.rs` | `Sketch::regions()` → `Vec<Region>` |
@@ -58,7 +58,7 @@ sont `cao_sketch` et `cao_solid`. Voir le skill `architecture-rust`.
 | Ce qu'on cherche | Fichier | Point d'entrée |
 | --- | --- | --- |
 | La liste des opérations, annuler, refaire | `core/src/history.rs` | `History`, `Operation`, `applied_operations` |
-| **Rejouer l'historique pour obtenir la géométrie** | `core/src/state.rs` (1 280 l.) | `PartState::rebuild`, `PartState::apply` |
+| **Rejouer l'historique pour obtenir la géométrie** | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
 | Le fichier `.caopart` (zip), lecture et écriture | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | Les dix pièces récentes | `core/src/recents.rs` | `RecentList` |
 | Chemins, dossier des pièces, journal de plantage | `core/src/storage.rs` | `default_projects_dir`, `record_panics` |
@@ -85,7 +85,7 @@ sont `cao_sketch` et `cao_solid`. Voir le skill `architecture-rust`.
 | --- | --- | --- |
 | L'état de l'application, la boucle de trame | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Le routage entre modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| **Le canvas : gestes, hit-test, dessin** | `app/src/screens/viewport.rs` (4 179 l.) | `show(ui, state, sketch)`, `ViewportState`, `ViewMode` |
+| **Le canvas : gestes, hit-test, dessin** | `app/src/screens/viewport.rs` — le plus gros fichier du dépôt | `show(ui, state, sketch)`, `ViewportState`, `ViewMode` |
 | L'outil d'esquisse, saisie au clavier | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode`, `Selection` |
 | Le placement des cotes à l'écran | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
 | Extrusion et révolution, côté interface | `app/src/screens/extrusion.rs` | `ExtrusionState` |
@@ -126,11 +126,11 @@ porte une logique métier non triviale, il devient son propre crate.
 
 Trois endroits n'ont **aucun test** :
 
-- `sketch/src/solver.rs` — 1 470 lignes, le cœur algorithmique, et quatre
-  correctifs récents portent dessus (`fix/solver-anchoring`,
-  `fix/tangent-circles`, `fix/circle-handling`, `fix/dimension-handling`) ;
-- `sketch/src/constraints.rs` — 283 lignes ;
-- `crates/app/` entier — ~6 400 lignes.
+- `sketch/src/solver.rs` — le cœur algorithmique, et quatre correctifs récents
+  portent dessus (`fix/solver-anchoring`, `fix/tangent-circles`,
+  `fix/circle-handling`, `fix/dimension-handling`) ;
+- `sketch/src/constraints.rs` ;
+- `crates/app/` entier.
 
 Y intervenir demande d'écrire d'abord un test qui caractérise l'existant. Voir
 le skill `rust-tdd`.

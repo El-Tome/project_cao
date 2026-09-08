@@ -10,11 +10,12 @@ change introduce this", not "does the repository contain this".
 
 ## Size and responsibility
 
-The budget is **400 lines**, held by the gate. Seventeen files are already over
-it and are named in the test with the length they had the day the rule landed;
-none of them may grow. The repellents, to calibrate against: `viewport.rs` is
-4 234 lines and 105 functions, `sketch.rs` 2 384, `solver.rs` 1 466, `state.rs`
-1 297. All of `crates/app/src` is 7 454 lines with one test file.
+The budget is **400 lines**, held by the gate. The files already over it are
+named in `FILES_ALLOWED_TO_REACH_OUTSIDE`'s neighbour
+`FILES_OVER_THE_LINE_BUDGET`, each with the length it had the day the rule
+landed; none of them may grow. Read that list to calibrate against, rather than
+a figure written here that a `cargo fmt` would falsify — `viewport.rs`,
+`sketch.rs`, `solver.rs` and `state.rs` are the four largest, in that order.
 
 - [ ] Is the file I touched growing again? If so, could what I am adding live
       elsewhere?

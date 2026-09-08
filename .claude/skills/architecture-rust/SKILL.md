@@ -116,9 +116,10 @@ pub fn show(ui: &mut egui::Ui, editor: &mut SketchEditor) -> Vec<Command> { }
 ```
 
 `SketchEditor`, `ViewportState` and `Ribbon` are already presenters that were
-never separated from their views. `viewport.rs` is the price: 4 234 lines where
-the camera, hit-testing, the keyboard, gestures and annotation drawing share one
-file, none of it reachable without opening a window.
+never separated from their views. `viewport.rs` is the price — the largest file
+in the repository, where the camera, hit-testing, the keyboard, gestures and
+annotation drawing share one file, none of it reachable without opening a
+window.
 
 A primitive in `ui/` is the same inversion applied to the interface. It takes a
 `&str`, an `f32`, a `bool`, and hands back what the user did; it knows no part
@@ -288,10 +289,11 @@ can only fall.
 ## SOLID, applied here
 
 **Single responsibility.** The budget is **400 lines**, and the test holds it.
-The repellent is `app/src/screens/viewport.rs`: 4 234 lines, 105 functions, 10
-types, where the camera, hit-testing, keyboard input, gestures and annotation
-drawing all live together. Seventeen files are over budget; each is named in the
-test with the length it had the day the rule landed, and none of them may grow.
+The repellent is `app/src/screens/viewport.rs`, the largest file in the
+repository by a wide margin, where the camera, hit-testing, keyboard input,
+gestures and annotation drawing all live together. The files over budget are
+named in `FILES_OVER_THE_LINE_BUDGET`, each with the length it had the day the
+rule landed, and none of them may grow.
 Once one falls back under 400 its entry has to go — a list of exceptions nobody
 prunes stops being a debt and becomes a second standard.
 

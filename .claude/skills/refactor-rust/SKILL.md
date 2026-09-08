@@ -23,7 +23,7 @@ map is updated first, or it should not happen.
 Then check the net is under you:
 
 ```sh
-scripts/verifier.sh
+scripts/verify.sh
 ```
 
 Green before you start, or you will not know which failure you caused.
@@ -47,7 +47,7 @@ characterisation test exists for the piece being moved.
 function, paste it, fix what goes red. Rust is unusually good at this: an
 extraction that compiles has almost certainly kept its meaning.
 
-**3. Green.** `scripts/verifier.sh`. If a test fails, the move changed
+**3. Green.** `scripts/verify.sh`. If a test fails, the move changed
 behaviour — that is information, not an obstacle. Undo and look at why, rather
 than adjusting the test.
 
@@ -132,16 +132,16 @@ the human, not a hurdle to clear.
 
 ## Done
 
-- [ ] `scripts/verifier.sh` green, and it was green at every commit in between.
+- [ ] `scripts/verify.sh` green, and it was green at every commit in between.
 - [ ] No test was modified to accommodate the change. A test that moved with its
       code is fine; one whose assertions changed is not.
 - [ ] No ratchet figure went up.
 - [ ] The public surface did not widen for convenience.
 - [ ] Each commit does one thing, and its message says what the software can do
       now — in English, as a sentence.
-- [ ] `docs/carte-du-code.md` still describes where things are. If files moved,
+- [ ] `docs/code-map.md` still describes where things are. If files moved,
       it is now wrong.
 
-For an independent read of the diff, the `revue-archi-rust` subagent applies
-`revue-rust` and `architecture-rust` in a separate context. Whoever just moved
+For an independent read of the diff, the `review-architecture-rust` subagent applies
+`review-rust` and `architecture-rust` in a separate context. Whoever just moved
 the code is the worst placed to see what it took with it.

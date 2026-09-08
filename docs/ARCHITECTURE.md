@@ -2,130 +2,125 @@
 
 ## Vision
 
-Un outil de CAO 3D (type SolidWorks / Fusion 360), 100 % Rust, open source,
-conçu pour être **modulaire** : chaque grande fonctionnalité (menu de
-démarrage, croquis/extrusion, assemblage, futurs modes...) est un module
-indépendant, et la plupart des comportements doivent rester configurables
-plutôt que codés en dur.
+A 3D CAD tool (of the SolidWorks / Fusion 360 kind), 100 % Rust, open source,
+designed to be **modular**: every large feature (start menu, sketch/extrusion,
+assembly, future modes…) is an independent module, and most behaviours should
+stay configurable rather than hard-coded.
 
-Plateformes visées, dans l'ordre :
+Platforms aimed at, in order:
 
-1. Desktop : Windows, Linux, macOS.
-2. Tablette / iPad, avec support du stylet pour esquisser rapidement à la
-   main puis passer en 3D.
-3. Téléphone, en bonus, sans garantie d'usage réel.
+1. Desktop: Windows, Linux, macOS.
+2. Tablet / iPad, with stylus support to sketch quickly by hand and then move
+   to 3D.
+3. Phone, as a bonus, with no promise of real use.
 
-## Pourquoi egui/eframe
+## Why egui/eframe
 
-`egui` est du Rust pur, basé sur `wgpu` — le même socle graphique qui portera
-le futur viewport 3D, pas de pont vers un autre langage. Il compile
-nativement sur les trois OS desktop et vers WASM, ce qui ouvre la voie à un
-portage tablette/web sans réécrire l'interface. C'est un choix pragmatique
-pour la V1 ; il pourra être remis en question si les besoins tactile/stylet
-(mode Apple Pencil notamment) s'avèrent trop limités par ce framework.
+`egui` is pure Rust, built on `wgpu` — the same graphics base that carries the
+3D viewport, with no bridge to another language. It compiles natively on the
+three desktop OSes and to WASM, which opens the way to a tablet or web port
+without rewriting the interface. It is a pragmatic choice for the V1; it may be
+questioned again if the touch and stylus needs (the Apple Pencil mode in
+particular) turn out to be too constrained by this framework.
 
-## Découpage en crates
+## The split into crates
 
-Un crate = une responsabilité, sans dépendance dans le mauvais sens :
+The dependencies go one way only. Not every crate is one context, though — the
+seam that is still missing is named in [contexts.md](contexts.md).
 
-- `cao_core` : la couche applicative. Dépend de `cao_sketch` et de `cao_solid`,
-  et orchestre esquisse, solide, historique et persistance — ce n'est pas le
-  domaine, malgré son nom. **Aucune dépendance UI**, pour rester réutilisable
-  tel quel par n'importe quel futur front-end (desktop, web, tablette). Doit
-  devenir `cao_part` : voir [contexts.md](contexts.md).
-- `cao_prefs` : thème, raccourcis, barre d'outils, profils, fichiers récents, et
-  la persistance de tout cela. Ne connaît ni la géométrie ni l'interface.
-  Voir [configuration.md](configuration.md).
-- `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
-  la règle qui applique une longueur. Ni rendu ni interface.
-  Voir [sketch.md](sketch.md).
-- `cao_solid` : les volumes — maillage de polygones, extrusion d'une aire en
-  prisme, opérations booléennes (ajout et enlèvement de matière). Ni rendu ni
-  interface. Voir [extrusion.md](extrusion.md).
-- `cao_render` : rendu GPU du viewport (`wgpu`), sans dépendance interface.
-  Voir [render.md](render.md).
-- `cao_app` : shell applicatif desktop (`eframe`). Contient l'état de
-  l'application et le routage entre écrans/modes.
+- `cao_core`: the application layer. Depends on `cao_sketch` and `cao_solid`,
+  and orchestrates sketch, solid, history and persistence — it is not the
+  domain, whatever its name suggests. **No UI dependency at all**, so as to stay
+  reusable as it is by any future front-end (desktop, web, tablet). It is to
+  become `cao_part`: see [contexts.md](contexts.md).
+- `cao_prefs`: theme, shortcuts, toolbar, profiles, recent files, and the
+  persistence of all of it. Knows neither the geometry nor the interface. See
+  [configuration.md](configuration.md).
+- `cao_sketch`: the sketch model (work plane, points, traits, dimensions) and
+  the rule that applies a length. No rendering, no interface. See
+  [sketch.md](sketch.md).
+- `cao_solid`: the volumes — a polygon mesh, the extrusion of an area into a
+  prism, boolean operations (adding and taking away matter). No rendering, no
+  interface. See [extrusion.md](extrusion.md).
+- `cao_render`: GPU rendering of the viewport (`wgpu`), with no interface
+  dependency. See [render.md](render.md).
+- `cao_app`: the desktop application shell (`eframe`). Holds the state of the
+  application and the routing between screens and modes.
 
-Au fur et à mesure que les modes (croquis, extrusion, assemblage...)
-grossiront, ils doivent devenir leurs propres crates (`cao_sketch`,
-`cao_assembly`, ...) plutôt que de s'accumuler dans `cao_app`, qui ne doit
-rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
+As the modes (sketch, extrusion, assembly…) grow, they are to become their own
+crates (`cao_sketch`, `cao_assembly`, …) rather than piling up in `cao_app`,
+which must stay a thin shell: window, routing between modes, nothing more.
 
-À l'intérieur d'une crate, le rôle d'un fichier est porté par son dossier —
-`model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
-`screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
-le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
-`crates/app/tests/architecture.rs` le vérifie, et `scripts/verifier.sh` — format,
-clippy puis `cargo test --workspace`, appelé par les deux hooks locaux avant
-chaque commit — refuse le commit qui l'enfreint.
+Inside a crate, the role of a file is carried by its folder — `model/`,
+`ports/`, `adapters/`, `services/`, and in the shell `ui/` and
+`screens/<mode>/`. What each of them means, what it may import, and the budget
+of 400 lines per file: [code-layout.md](code-layout.md).
+`crates/app/tests/architecture.rs` checks it, and `scripts/verify.sh` — format,
+clippy then `cargo test --workspace`, called by both local hooks before every
+commit — refuses the commit that breaks it.
 
-## Système de modes
+## The mode system
 
-L'application est un menu de démarrage qui bascule vers différents modes :
+The application is a start menu that switches to different modes:
 
-- **Croquis → Extrusion** : cycle esquisse 2D puis extrusion, répétable en
-  boucle pour construire une pièce. Les deux existent :
-  [sketch.md](sketch.md), [extrusion.md](extrusion.md).
-- **Assemblage** : assembler plusieurs pièces entre elles (pas encore
-  implémenté).
-- D'autres modes viendront s'ajouter au menu au fil du temps.
+- **Sketch → Extrusion**: the 2D sketch then extrusion cycle, repeatable in a
+  loop to build a part. Both exist: [sketch.md](sketch.md),
+  [extrusion.md](extrusion.md).
+- **Assembly**: assembling several parts together (not implemented yet).
+- Other modes will join the menu over time.
 
-Aujourd'hui, `crates/app/src/screens/mod.rs` définit un enum `Screen` avec
-deux variantes : le menu de démarrage et la pièce ouverte, qui affiche le
-viewport 3D (axes, grille, cube d'orientation — voir [viewport.md](viewport.md)).
-Chaque nouveau mode doit ajouter une variante à cet enum et son propre module
-dans `screens/`, jamais une branche ajoutée à un module existant.
+Today `crates/app/src/screens/mod.rs` defines a `Screen` enum with two
+variants: the start menu, and the open part, which shows the 3D viewport (axes,
+grid, orientation cube — see [viewport.md](viewport.md)). Every new mode is to
+add a variant to that enum and its own module in `screens/`, never a branch
+added to an existing module.
 
-## Documentation par sujet
+## Documentation by subject
 
-- [contexts.md](contexts.md) — où sont les coutures, et où elles vont
-- [code-layout.md](code-layout.md) — où va un fichier neuf, ce qu'il peut importer
-- [carte-du-code.md](carte-du-code.md) — quel fichier porte quel comportement
-- [glossary.md](glossary.md) — les mots, et ce qu'ils veulent dire ici
-- [sketch.md](sketch.md) — dessiner, coter, et la règle d'échelle
-- [historique.md](historique.md) — opérations, annulation, format de fichier
-- [interface.md](interface.md) — barre d'outils détachable, panneaux
-- [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
-- [render.md](render.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
-- [navigation.md](navigation.md) — gestes souris, comportement de la caméra
-- [configuration.md](configuration.md) — ce qui est réglable, et ce qui ne l'est pas encore
-- [build.md](build.md) — compiler, exécutable Windows
+- [contexts.md](contexts.md) — where the seams are, and where they are going
+- [code-layout.md](code-layout.md) — where a new file goes, what it may import
+- [code-map.md](code-map.md) — which file carries which behaviour
+- [glossary.md](glossary.md) — the words, and what they mean here
+- [sketch.md](sketch.md) — drawing, dimensioning, and the rule of scale
+- [history.md](history.md) — operations, undo, the file format
+- [interface.md](interface.md) — the toolbar and the panels
+- [viewport.md](viewport.md) — the two modes of the canvas, the grid, the cube
+- [render.md](render.md) — the `cao_render` crate, wgpu pipelines, thick lines
+- [navigation.md](navigation.md) — mouse gestures, how the camera behaves
+- [configuration.md](configuration.md) — what can be set, and what cannot yet
+- [build.md](build.md) — building, the Windows executable
 
-## Format de fichier
+## The file format
 
-Une pièce est une **archive zip** (`.caopart`) contenant ses métadonnées et son
-historique d'opérations. La géométrie n'est pas enregistrée : elle est
-reconstruite en rejouant l'historique, ce qui fait de l'annulation, du
-rétablissement et du retour à une étape la même opération. Les fichiers écrits
-au format précédent (un JSON unique) ne sont pas lus : l'outil a trop changé
-pour qu'une conversion soit digne de confiance, et rien de précieux n'a été
-dessiné avec ces versions. Voir [historique.md](historique.md).
+A part is a **zip archive** (`.caopart`) holding its metadata and its history
+of operations. The geometry is not saved: it is rebuilt by replaying the
+history, which makes undo, redo and going back to a step one and the same
+operation. Files written in the previous format (a single JSON) are not read:
+the tool has changed too much for a conversion to be trustworthy, and nothing
+precious was drawn with those versions. See [history.md](history.md).
 
-## Pistes non prioritaires (à débattre plus tard)
+## Not a priority (to be argued later)
 
-- **Travail collaboratif** : verrouillage d'une pièce par un seul
-  utilisateur à la fois, vs édition simultanée à plusieurs. Choix à faire
-  quand le besoin deviendra concret ; ne pas anticiper l'architecture
-  réseau/sync avant ça.
-- **Licence pro** : une offre commerciale en plus de la double licence
-  MIT/Apache-2.0, modalités non définies.
+- **Collaborative work**: locking a part to one user at a time, versus several
+  editing at once. A choice to be made when the need becomes concrete; the
+  network and sync architecture is not to be anticipated before that.
+- **A professional licence**: a commercial offering on top of the dual
+  MIT/Apache-2.0 licence, terms undefined.
 
-## Les nombres
+## The numbers
 
-Le noyau — esquisse, solveur, solide, booléens — calcule en **`f64`**. La
-caméra, le rendu et l'interface restent en `f32`, qui est ce que le GPU et egui
-prennent, et la conversion se fait au dernier moment, à chaque passage de
-frontière.
+The core — sketch, solver, solid, booleans — computes in **`f64`**. The camera,
+the rendering and the interface stay in `f32`, which is what the GPU and egui
+take, and the conversion happens at the last moment, at each crossing of the
+boundary.
 
-Le `f32` garde environ sept chiffres : une pièce d'un mètre décrite en
-millimètres n'a déjà plus qu'un pas de 6·10⁻⁵ mm, et l'erreur s'accumule dans
-les booléens — c'est ce qui avait fait boucler la partition de l'espace
-([extrusion.md](extrusion.md)). Le `f64` en garde seize.
+`f32` keeps about seven digits: a part one metre long described in millimetres
+already has a step of no better than 6·10⁻⁵ mm, and the error accumulates in
+the booleans — that is what once sent the partition of space into a loop
+([extrusion.md](extrusion.md)). `f64` keeps sixteen.
 
-Ce que cela ne donne pas : l'**exactitude**. 0,1 mm reste un nombre que le
-binaire ne sait pas écrire, et deux chemins de calcul différents peuvent
-toujours donner deux résultats à un cheveu près. Y répondre demanderait de
-ranger les valeurs saisies en entiers (le picomètre comme unité, le micro-degré
-pour les angles) au moment où elles entrent dans l'historique, en continuant de
-calculer en `f64`. Ce n'est pas fait.
+What that does not give is **exactness**. 0.1 mm is still a number binary
+cannot write, and two different paths of computation can still give two results
+a hair apart. Answering that would mean storing the values typed as integers
+(the picometre as the unit, the micro-degree for angles) at the moment they
+enter the history, while going on computing in `f64`. It is not done.

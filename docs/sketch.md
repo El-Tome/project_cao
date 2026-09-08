@@ -453,7 +453,7 @@ already recorded against those ranks would quietly start naming another piece
 of the drawing.
 
 That is also what makes a deletion replay and undo like any other step
-([historique.md](historique.md)).
+([history.md](history.md)).
 
 ## Reopening a sketch
 
@@ -812,13 +812,13 @@ observation that it did not get there.
 ## Saving
 
 Every gesture becomes an operation recorded in the `.caopart` — a zip archive,
-described in [historique.md](historique.md). The drawing itself is not stored:
+described in [history.md](history.md). The drawing itself is not stored:
 it is rebuilt by replaying those operations.
 
 ## Undoing
 
 `Ctrl+Z` undoes, `Ctrl+Y` (or `Ctrl+Shift+Z`) redoes. The History panel also
-allows going straight back to any step. See [historique.md](historique.md).
+allows going straight back to any step. See [history.md](history.md).
 
 ## What is still missing
 

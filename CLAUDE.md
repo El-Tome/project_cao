@@ -5,7 +5,7 @@ any structural change, [`docs/contexts.md`](docs/contexts.md) for where the
 seams are and where they are going, [`docs/code-layout.md`](docs/code-layout.md)
 for where a new file goes and what it may import,
 [`docs/glossary.md`](docs/glossary.md) for the words, and
-[`docs/carte-du-code.md`](docs/carte-du-code.md) to find where things live.
+[`docs/code-map.md`](docs/code-map.md) to find where things live.
 
 ## How to work
 
@@ -13,14 +13,14 @@ Six skills carry the detail, in `.claude/skills/`:
 
 | Skill | When |
 | --- | --- |
-| `ouvrir-une-tache` | at the very start, before reading any code |
-| `carte-du-code` | to find where to act |
+| `open-a-task` | at the very start, before reading any code |
+| `code-map` | to find where to act |
 | `rust-tdd` | to write the test before the code |
 | `refactor-rust` | to move code that already works, without changing it |
 | `architecture-rust` | before adding a crate, a module, a dependency, or any I/O |
-| `revue-rust` | before committing |
+| `review-rust` | before committing |
 
-The `revue-archi-rust` subagent reads a diff in a separate context.
+The `review-architecture-rust` subagent reads a diff in a separate context.
 
 On a fresh clone, enable the git hook once:
 
@@ -42,19 +42,31 @@ For an API question on `egui`, `wgpu` or `glam`, use `context7` rather than
 memory: this project is on `egui 0.36`, `wgpu 30` and `glam 0.33`, crates whose
 API breaks on every minor release.
 
-## Language
+## Language — not negotiable
 
-Code, test names, documentation, branch names and commit messages are in
-**English**.
+`crates/app/tests/language.rs` enforces what follows, in the gate. It is the
+authority; this section is the summary.
 
-Text the user reads is in **French**, and lives only in `cao_app`. Layers below
-return a named case — `ExtrusionMode::Cut`, not "Enlèvement de matière" — and
-the interface decides how it is said. That is what will make translation a
-wiring job rather than a rewrite; the i18n system itself is still to come.
+**Everything a developer reads is in English.** Documentation, comments,
+assertion messages, test names, commit messages, branch names — and **file and
+folder names**: `docs/render.md`, not `docs/rendu.md`; `scripts/verify.sh`, not
+`scripts/verifier.sh`. There is no "when it is touched anyway" clause: that
+clause is what kept half of this repository French, because a document nobody
+has a reason to open never gets touched.
 
-Documents and commits written before this rule are in French. They are
-translated when touched anyway, never in a sweep of their own, and history is
-not rewritten.
+**The one exception is the interface.** Text the user reads is in **French**,
+and lives only in `cao_app`. Layers below return a named case —
+`ExtrusionMode::Cut`, not "Enlèvement de matière" — and the interface decides
+how it is said. That is what will make translation a wiring job rather than a
+rewrite; the i18n system itself is still to come. A separate rule, in
+`architecture.rs`, keeps those sentences from sinking any lower.
+
+A document quoting such a string word for word keeps it quoted: writing that a
+button reads "Nouvelle esquisse" is not writing in French, and the test skips
+what sits between quotes or backticks.
+
+Git history is not rewritten: the commits that predate the rule stay as they
+are.
 
 ## Modularity — not negotiable
 

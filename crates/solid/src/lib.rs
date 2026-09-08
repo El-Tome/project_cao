@@ -1,6 +1,6 @@
-//! Les volumes : un maillage de polygones, l'extrusion d'une aire d'esquisse
-//! en prisme, et les opérations booléennes qui ajoutent ou enlèvent de la
-//! matière. Ni rendu ni interface, comme `cao_sketch`.
+//! The volumes: a polygon mesh, the extrusion of a sketch area into a prism,
+//! and the boolean operations that add or take away matter. No rendering and
+//! no interface, like `cao_sketch`.
 
 mod boolean;
 mod mesh;

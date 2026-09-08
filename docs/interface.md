@@ -1,6 +1,6 @@
 # The toolbar and the panels
 
-See also: [sketch](sketch.md) · [history](historique.md)
+See also: [sketch](sketch.md) · [history](history.md)
 
 ## Layout
 
@@ -36,7 +36,7 @@ command makes no sense where one is.
 ## The History panel
 
 On the left, resizable, hidden by the "Historique" button of the toolbar. Its
-contents are described in [historique.md](historique.md).
+contents are described in [history.md](history.md).
 
 ## What is missing
 

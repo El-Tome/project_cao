@@ -438,7 +438,7 @@ mod tests {
             .iter()
             .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
             .sum();
-        assert!((area - 40.0).abs() < 1e-3, "aire {area}");
+        assert!((area - 40.0).abs() < 1e-3, "area {area}");
     }
 
     #[test]
@@ -489,7 +489,7 @@ mod tests {
         assert!(regions[1].holes.is_empty());
 
         let ring = area(&regions[0].face_triangles());
-        assert!((ring - 300.0).abs() < 1e-2, "aire de l'anneau : {ring}");
+        assert!((ring - 300.0).abs() < 1e-2, "area of the ring: {ring}");
         assert!(
             (area(&regions[0].triangles) - 400.0).abs() < 1e-2,
             "teinte pleine"

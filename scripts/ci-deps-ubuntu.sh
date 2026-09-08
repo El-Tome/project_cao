@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
-# eframe est compilé avec les features x11 et wayland : sans ces paquets, la CI
-# échoue à l'édition de liens et non au test, ce qui envoie chercher loin.
+# eframe is compiled with the x11 and wayland features: without these packages
+# the CI fails at linking rather than at the tests, which sends one looking far
+# from the cause.
 set -eu
 
 sudo apt-get update

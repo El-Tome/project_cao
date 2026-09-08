@@ -1,179 +1,172 @@
-# Extrusion : de l'aire dessinée au volume
+# Extrusion: from the drawn area to a volume
 
-Voir aussi : [esquisse](sketch.md) · [historique](historique.md) ·
-[rendu](render.md) · [architecture](ARCHITECTURE.md)
+See also: [sketch](sketch.md) · [history](history.md) ·
+[rendering](render.md) · [architecture](ARCHITECTURE.md)
 
-## Le déroulé
+## How it goes
 
-1. On dessine une esquisse et on clique **Terminer**. L'esquisse n'a **pas**
-   besoin d'être entièrement contrainte : on extrude ce qui est là.
-2. La barre bascule d'elle-même sur la catégorie **Extrusion**, proposant les
-   deux outils. C'est là que l'envie d'extruder arrive, plutôt que d'avoir à
-   retrouver l'outil ensuite.
-3. On choisit **Ajout de matière** ou **Enlèvement de matière**.
-4. On clique **une à n aires fermées** du dessin. Un second clic sur une aire
-   déjà prise la retire.
-5. On donne une hauteur en millimètres, éventuellement en sens inverse, et on
-   applique.
-6. La vue bascule en oblique : vu de face depuis son propre plan, un prisme
-   ressemble exactement au dessin dont il sort.
+1. One draws a sketch and clicks **Terminer**. The sketch does **not** need to
+   be entirely constrained: what is there is what gets extruded.
+2. The bar switches by itself to the **Extrusion** category, offering the two
+   tools. That is where the wish to extrude arrives, rather than having to find
+   the tool afterwards.
+3. One chooses **adding matter** or **taking matter away**.
+4. One clicks **one to n closed areas** of the drawing. A second click on an
+   area already taken removes it.
+5. One gives a height in millimetres, possibly the other way round, and
+   applies.
+6. The view swings to a slant: seen head-on from its own plane, a prism looks
+   exactly like the drawing it came from.
 
-Les deux outils sont le même travail : ils ne diffèrent que par ce qu'ils font
-du volume à la fin.
+The two tools are the same work: they differ only in what they do with the
+volume at the end.
 
-## Droite ou révolution
+## Straight or a revolution
 
-La même paire d'outils fabrique le volume de deux façons :
+The same pair of tools builds the volume in two ways:
 
-| Forme | Ce qu'on donne |
+| Shape | What one gives |
 | --- | --- |
-| **Droite** | Une hauteur, en millimètres. La matière part perpendiculairement au plan. |
-| **Révolution** | Un angle, en degrés, et un axe. L'aire tourne autour de cet axe. |
+| **Straight** | A height, in millimetres. The matter goes perpendicular to the plane. |
+| **Revolution** | An angle, in degrees, and an axis. The area turns around that axis. |
 
-L'axe est soit l'un des deux axes de l'esquisse, soit **un trait qu'on a tracé
-soi-même** : en mode révolution, cliquer un trait le prend comme axe. Un trait
-est une cible bien plus petite qu'une aire, donc il est proposé en premier.
+The axis is either one of the two axes of the sketch, or **a trait one has
+drawn oneself**: in revolution mode, clicking a trait takes it as the axis. A
+trait is a far smaller target than an area, so it is offered first.
 
-Un tour complet se referme sur lui-même et n'a pas d'extrémités ; un tour
-partiel est fermé aux deux bouts par le profil lui-même.
+A full turn closes on itself and has no ends; a partial turn is closed at both
+ends by the profile itself.
 
-Le profil doit tenir **entièrement d'un seul côté de l'axe**. À cheval, il
-passerait à travers lui-même en tournant, et aucune précaution ensuite ne
-rattrape une forme obtenue comme ça : rien n'est produit, et l'application le
-dit.
+The profile has to sit **entirely on one side of the axis**. Astride it, it
+would pass through itself while turning, and no precaution afterwards recovers
+a shape obtained that way: nothing is produced, and the application says so.
 
-## Ce qu'est une aire, et pourquoi le tube marche
+## What an area is, and why the tube works
 
-Une aire, c'est un contour fermé **moins ce qui est dessiné directement
-dedans**. Deux cercles l'un dans l'autre donnent donc :
+An area is a closed outline **minus what is drawn directly inside it**. Two
+circles one inside the other therefore give:
 
-| Ce qu'on clique | L'aire obtenue |
+| What one clicks | The area obtained |
 | --- | --- |
-| L'anneau (la teinte claire) | Le tube : le milieu reste vide |
-| Le milieu (la teinte foncée) | Le disque intérieur seul |
+| The ring (the light tint) | The tube: the middle stays empty |
+| The middle (the deeper tint) | The inner disc alone |
 
-C'est exactement la règle « on sélectionne l'aire de la même couleur » : ce qui
-est teinté d'un ton est une aire, ce qui est teinté plus fort en est une autre.
-Ce qui est dessiné **dans un trou** est de la matière à nouveau, et forme sa
-propre aire.
+That is exactly the rule "one selects the area of the same colour": what is
+tinted one shade is one area, what is tinted more strongly is another. What is
+drawn **inside a hole** is matter again, and forms an area of its own.
 
-L'aire choisie est remplie à l'écran de la couleur de la matière qu'elle est sur
-le point de devenir — vert pour un ajout, rouge pour un enlèvement — trous
-compris, donc ce qui est montré plein est exactement ce qui deviendra plein.
+The chosen area is filled on screen with the colour of the matter it is about
+to become — green for an addition, red for a removal — holes included, so what
+is shown solid is exactly what will become solid.
 
-### Découper une aire trouée
+### Cutting up an area with a hole
 
-Un anneau ne peut pas être découpé en triangles tel quel : aucun tour ne laisse
-à la fois le trou vide et le contour fermé. On creuse donc un **couloir** du
-trou jusqu'au contour, et on le parcourt en descendant d'un côté et en
-remontant de l'autre. Les deux bords du couloir sont confondus : il n'a aucune
-aire, et la face est inchangée.
+A ring cannot be cut into triangles as it is: no walk leaves both the hole
+empty and the outline closed. A **corridor** is therefore dug from the hole out
+to the outline, and walked down one side and back up the other. The two edges
+of the corridor coincide: it has no area, and the face is unchanged.
 
-## L'aire est nommée par un point, pas par son rang
+## An area is named by a point, not by its rank
 
-L'opération enregistrée ne retient pas « la deuxième aire » mais **la position
-cliquée**. Un rang bougerait dès qu'on dessine autre chose dans l'esquisse, et
-l'extrusion se mettrait silencieusement à s'appliquer ailleurs. Au rejeu, l'aire
-est retrouvée comme celle qui contient ce point — la plus intérieure s'il y en a
-plusieurs.
+The recorded operation does not keep "the second area" but **the position
+clicked**. A rank would move as soon as something else is drawn in the sketch,
+and the extrusion would silently start applying elsewhere. On replay, the area
+is found as the one containing that point — the innermost if there are several.
 
-C'est le même principe que pour les points d'un trait
-([historique.md](historique.md)) : la décision est prise au clic et conservée.
+It is the same principle as for the points of a trait
+([history.md](history.md)): the decision is taken at the click and kept.
 
-## Ajouter et enlever de la matière
+## Adding and taking away matter
 
-La pièce est **un seul volume**, pas un tas de morceaux : une poche creusée dans
-un bloc doit vraiment être un trou dans ce bloc.
+The part is **one single volume**, not a pile of pieces: a pocket dug in a
+block must really be a hole in that block.
 
-Les deux opérations passent par une **partition binaire de l'espace** (BSP) :
-chaque volume devient un arbre de plans pris sur ses propres faces, et les faces
-de l'autre volume y sont poussées. Chacune ressort étiquetée dedans ou dehors,
-et coupée en deux là où le plan la traverse. L'union et la différence sont
-ensuite affaire de garder les bonnes moitiés et de retourner un volume.
+Both operations go through a **binary space partition** (BSP): each volume
+becomes a tree of planes taken from its own faces, and the faces of the other
+volume are pushed into it. Each comes back labelled inside or outside, and cut
+in two where the plane crosses it. Union and difference are then a matter of
+keeping the right halves and turning a volume inside out.
 
-Cette méthode marche sur n'importe quelle forme, convexe ou non — une poche dans
-un bloc est justement le cas qui casse les méthodes plus simples.
+This method works on any shape, convex or not — a pocket in a block is
+precisely the case that breaks the simpler methods.
 
-Quand plusieurs aires sont extrudées ensemble, elles sont d'abord réunies en un
-seul outil, puis appliquées d'un coup : deux aires extrudées ensemble doivent se
-comporter comme une seule forme.
+When several areas are extruded together, they are first joined into one single
+tool, then applied at once: two areas extruded together must behave as one
+shape.
 
-## Le sens
+## The direction
 
-La matière part le long de la **normale du plan** de l'esquisse. La case *Sens
-inverse* la pousse de l'autre côté ; c'est souvent ce qu'il faut pour creuser,
-puisque la matière n'est pas toujours du côté où pointe le plan.
+The matter goes along the **normal of the plane** of the sketch. The *Sens
+inverse* box pushes it the other way; that is often what is wanted for digging,
+since the matter is not always on the side the plane points at.
 
-Un enlèvement qui ne rencontre rien le dit, au lieu de laisser croire à un outil
-en panne.
+A removal that meets nothing says so, instead of letting one believe the tool
+is broken.
 
-## L'échelle
+## The scale
 
-La hauteur est donnée en millimètres, comme les cotes. Elle est convertie en
-unités du monde avec l'échelle du document, donc une extrusion de 25 mm reste
-25 mm même si une cote redéfinit l'échelle ensuite… à ceci près que le volume
-est reconstruit en rejouant l'historique, donc c'est l'échelle **au moment du
-rejeu** qui s'applique.
+The height is given in millimetres, like the dimensions. It is converted into
+world units with the scale of the document, so an extrusion of 25 mm stays
+25 mm even if a dimension redefines the scale afterwards… except that the
+volume is rebuilt by replaying the history, so it is the scale **at the time of
+the replay** that applies.
 
-## Esquisser sur une face de la pièce
+## Sketching on a face of the part
 
-Une fois qu'il y a de la matière, **ses faces planes sont des plans
-d'esquisse**. Le choix d'un plan les propose en premier là où elles sont, et
-les trois plans d'origine restent disponibles partout ailleurs — ils s'effacent
-visuellement pour ne plus masquer la pièce.
+Once there is matter, **its flat faces are sketch planes**. Choosing a plane
+offers them first where they are, and the three origin planes stay available
+everywhere else — they fade visually so as not to hide the part.
 
-La face du dessus est prioritaire sur les trois plans plutôt que « le plus
-proche de la caméra » : les plans d'origine sont des feuilles infinies qui
-traversent la pièce, et le plus proche serait presque toujours l'un d'eux.
+The face on top wins over the three planes rather than "the nearest to the
+camera": the origin planes are infinite sheets crossing the part, and the
+nearest would almost always be one of them.
 
-Toutes les faces qui partagent le même plan s'allument ensemble : une surface
-courbe et une surface coupée sont l'une comme l'autre stockées en plusieurs
-morceaux plats, et n'en allumer qu'un se lirait comme choisir un fragment.
+Every face sharing the same plane lights up together: a curved surface and a
+cut surface are both stored in several flat pieces, and lighting only one of
+them would read as choosing a fragment.
 
-L'origine de l'esquisse tombe là où l'origine du monde se projette sur la face,
-et la vue se cale sur l'endroit cliqué. Une esquisse posée sur une face est
-enregistrée avec **son plan complet**, pas avec une référence à la face : si la
-pièce change ensuite, le dessin reste où il a été fait plutôt que de suivre une
-face qui n'existe peut-être plus.
+The origin of the sketch falls where the origin of the world projects onto the
+face, and the view settles on the spot clicked. A sketch laid on a face is
+recorded with **its complete plane**, not with a reference to the face: if the
+part changes afterwards, the drawing stays where it was made rather than
+following a face that may no longer exist.
 
-## Pourquoi l'application se fermait
+## Why the application used to close
 
-Un cas rencontré à l'usage : un cylindre de révolution, puis une poche creusée
-dedans depuis sa propre face — l'application se fermait d'un coup, sans message,
-et pas toujours.
+A case met in use: a cylinder of revolution, then a pocket dug into it from its
+own face — the application closed all at once, with no message, and not always.
 
-La cause était dans la partition de l'espace. Elle trie les faces par le plan
-sur lequel elles se posent, et le premier plan vient d'une face prise au
-hasard : cette face-là est sur ce plan par définition. Sauf qu'en `f32` — ce
-qu'utilisait alors le noyau —, à trente unités de l'origine, le produit scalaire
-porte déjà quelques millionièmes d'erreur, plus que la tolérance qui servait. Un triangle ressortait donc
-**des deux côtés de son propre plan**, était coupé en deux, et chaque moitié
-recommençait : un découpage sans fin, qui remplissait la pile et arrêtait le
-programme.
+The cause was in the partition of space. It sorts the faces by the plane they
+lie on, and the first plane comes from a face taken at random: that face is on
+that plane by definition. Except that in `f32` — what the core used at the
+time — thirty units from the origin, the dot product already carries a few
+millionths of error, more than the tolerance in use. A triangle therefore came
+back **on both sides of its own plane**, was cut in two, and each half started
+again: an endless cutting, which filled the stack and stopped the program.
 
-Trois choses ont changé :
+Three things changed:
 
-- la tolérance est **relative** à la distance à l'origine, et non plus fixe ;
-- la face qui a donné le plan est mise de côté au lieu d'être triée, ce qui
-  garantit qu'à chaque tour il reste strictement moins de faces à placer ;
-- le parcours de l'arbre ne passe plus par la pile d'appels du tout — les nœuds
-  vivent dans un tableau et se désignent par leur position. Une pièce faite de
-  centaines de facettes donne un arbre en chaîne, et une descente récursive y
-  finit par déborder même sans erreur de calcul.
+- the tolerance is **relative** to the distance to the origin, and no longer
+  fixed;
+- the face that gave the plane is set aside instead of being sorted, which
+  guarantees that at each round there are strictly fewer faces left to place;
+- the walk of the tree no longer goes through the call stack at all — the nodes
+  live in an array and name each other by position. A part made of hundreds of
+  facets gives a tree in a chain, and a recursive descent into it ends up
+  overflowing even with no error of computation.
 
-Le cas exact, avec ses vraies mesures, est un test.
+The exact case, with its real measurements, is a test.
 
-## Ce qui manque encore
+## What is still missing
 
-- Pas de « jusqu'à la face suivante » ni de « traversant tout » : seule une
-  hauteur, ou un angle, donné.
-- Pas de dépouille et pas de balayage le long d'une courbe.
-- Une esquisse posée sur une face ne suit pas cette face si la pièce change :
-  elle reste sur le plan où elle a été faite.
-- Une extrusion n'est pas modifiable après coup : il faut revenir en arrière
-  dans l'historique et la refaire.
-- Le maillage n'est pas exporté (pas de STL/STEP).
-- Deux faces exactement coplanaires peuvent encore laisser des éclats de
-  surface. Le passage du noyau en `f64` a ramené la tolérance de coplanarité
-  d'un millionième à un milliardième, donc il en reste mille fois moins, mais
-  le cas n'est pas traité pour lui-même.
+- No "up to the next face" and no "through everything": only a height, or an
+  angle, given.
+- No draft and no sweep along a curve.
+- A sketch laid on a face does not follow that face if the part changes: it
+  stays on the plane where it was made.
+- An extrusion cannot be edited afterwards: one has to go back in the history
+  and do it again.
+- The mesh is not exported (no STL/STEP).
+- Two exactly coplanar faces can still leave shards of surface. Moving the core
+  to `f64` brought the coplanarity tolerance from a millionth to a billionth,
+  so there are a thousand times fewer, but the case is not handled for itself.

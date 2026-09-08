@@ -1,4 +1,4 @@
 #!/usr/bin/env sh
-# Activation, une fois par clone :  git config core.hooksPath .githooks
-# Contournable par `git commit --no-verify` — c'est la CI qui rattrape.
-exec "$(git rev-parse --show-toplevel)/scripts/verifier.sh"
+# Enable once per clone:  git config core.hooksPath .githooks
+# Bypassable with `git commit --no-verify` — the CI is what catches that.
+exec "$(git rev-parse --show-toplevel)/scripts/verify.sh"

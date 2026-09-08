@@ -1,108 +1,106 @@
 # CAO
 
-Un logiciel de conception 3D (façon SolidWorks / Fusion 360) entièrement écrit
-en Rust, pensé pour être modulaire et multiplateforme dès le départ.
+A 3D design program (in the manner of SolidWorks / Fusion 360) written entirely
+in Rust, meant to be modular and cross-platform from the start.
 
-## État actuel
+## Where it stands
 
-- **Menu de démarrage** : créer une nouvelle pièce, ou rouvrir une des 10
-  dernières pièces ouvertes.
-- **Viewport 3D** : espace 3D avec les axes X/Y/Z, un cube d'orientation dont
-  les faces, arêtes et coins sont cliquables, une grille adaptative quand on se
-  pose sur un plan, et une barre d'échelle en mm. Navigation souris et
-  trackpad. Voir [`docs/viewport.md`](docs/viewport.md).
+- **Start menu**: create a new part, or reopen one of the last 10 parts opened.
+- **3D viewport**: a 3D space with the X/Y/Z axes, an orientation cube whose
+  faces, edges and corners are clickable, an adaptive grid when settled on a
+  plane, and a scale bar in mm. Mouse and trackpad navigation. See
+  [`docs/viewport.md`](docs/viewport.md).
 
-- **Esquisse** : choisir un plan, puis tracer lignes, rectangles, cercles et
-  points, coter des longueurs, des rayons et des angles. Un trait se dessine à
-  la longueur et à l'angle voulus, tapés à côté du curseur, et se cote tout
-  seul ; les angles droits se posent d'eux-mêmes ; tout s'efface avec `Suppr`. Le dessin se colore
-  selon ce qu'il lui reste comme liberté. La première cote définit l'échelle,
-  les suivantes déforment la géométrie. Voir [`docs/sketch.md`](docs/sketch.md).
+- **Sketch**: pick a plane, then draw lines, rectangles, circles and points,
+  and dimension lengths, radii and angles. A trait is drawn to the length and
+  angle wanted, typed beside the cursor, and dimensions itself; right angles
+  place themselves; anything erases with `Suppr`. The drawing is coloured by
+  how much freedom it has left. The first dimension defines the scale, the
+  following ones deform the geometry. See [`docs/sketch.md`](docs/sketch.md).
 
-- **Historique** : chaque geste est une opération enregistrée. Annulation
-  (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
-  le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
+- **History**: every gesture is a recorded operation. Undo (`Ctrl+Z`), redo,
+  and a direct return to any step from the History panel. See
+  [`docs/history.md`](docs/history.md).
 
-- **Extrusion** : après avoir terminé une esquisse, choisir une à plusieurs
-  aires fermées et leur donner une hauteur — ou un angle et un axe, pour une
-  révolution — en ajoutant ou en enlevant de la matière. Deux cercles l'un dans
-  l'autre donnent un tube, pas un barreau. Les faces planes de la pièce servent
-  ensuite de plans d'esquisse. Voir [`docs/extrusion.md`](docs/extrusion.md).
+- **Extrusion**: once a sketch is finished, choose one or several closed areas
+  and give them a height — or an angle and an axis, for a revolution — adding
+  or taking away matter. Two circles one inside the other give a tube, not a
+  rod. The flat faces of the part then serve as sketch planes. See
+  [`docs/extrusion.md`](docs/extrusion.md).
 
-- **Réglages** : un écran de préférences pour le viewport, la navigation, les
-  couleurs et le fond (dégradés compris), les raccourcis clavier et
-  l'arrangement de la barre d'outils. Le tout en profils nommés, conservés entre
-  les sessions, remis à zéro d'un bouton et partageables en un fichier. Voir
+- **Settings**: a preferences screen for the viewport, navigation, the colours
+  and the background (gradients included), the keyboard shortcuts and the
+  arrangement of the toolbar. All of it in named profiles, kept between
+  sessions, reset at the press of a button and shareable as a file. See
   [`docs/configuration.md`](docs/configuration.md).
 
-L'assemblage reste à faire — voir
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour la vision d'ensemble et la
-feuille de route.
+Assembly is still to come — see
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the whole picture and the
+road ahead.
 
-## Lancer l'application
+## Running the application
 
 ```sh
 cargo run -p cao_app
 ```
 
-## Structure du workspace
+## The shape of the workspace
 
-- `crates/core` (`cao_core`) — la couche applicative : elle orchestre esquisse,
-  solide, historique et persistance. Ce n'est pas le domaine, malgré son nom.
-  Sans aucune dépendance UI, donc réutilisable telle quelle par un futur
-  front-end web/tablette.
-- `crates/prefs` (`cao_prefs`) — thème, raccourcis, barre d'outils, profils,
-  fichiers récents, sans géométrie ni UI.
-- `crates/sketch` (`cao_sketch`) — modèle d'esquisse et application des cotes,
-  sans rendu ni UI.
-- `crates/solid` (`cao_solid`) — volumes, extrusion et opérations booléennes,
-  sans rendu ni UI.
-- `crates/render` (`cao_render`) — rendu GPU du viewport (wgpu), sans
-  dépendance UI non plus.
-- `crates/app` (`cao_app`) — interface desktop (egui/eframe) : menu de
-  démarrage et viewport.
+- `crates/core` (`cao_core`) — the application layer: it orchestrates sketch,
+  solid, history and persistence. It is not the domain, whatever its name
+  suggests. With no UI dependency at all, so reusable as it is by a future
+  web or tablet front-end.
+- `crates/prefs` (`cao_prefs`) — theme, shortcuts, toolbar, profiles, recent
+  files, with no geometry and no UI.
+- `crates/sketch` (`cao_sketch`) — the sketch model and the application of
+  dimensions, with no rendering and no UI.
+- `crates/solid` (`cao_solid`) — volumes, extrusion and boolean operations,
+  with no rendering and no UI.
+- `crates/render` (`cao_render`) — GPU rendering of the viewport (wgpu), with
+  no UI dependency either.
+- `crates/app` (`cao_app`) — the desktop interface (egui/eframe): start menu
+  and viewport.
 
-## Exécutable Windows
+## A Windows executable
 
 ```sh
 ./scripts/build-windows.sh
 ```
 
-Produit un `.exe` autonome depuis macOS ou Linux — voir
+Produces a standalone `.exe` from macOS or Linux — see
 [`docs/build.md`](docs/build.md).
 
 ## Documentation
 
-- [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
-- [Contextes](docs/contexts.md) — où sont les coutures, et où elles vont
-- [Où va un fichier](docs/code-layout.md) — les dossiers, ce qu'ils importent
-- [Carte du code](docs/carte-du-code.md) — quel fichier porte quel comportement
-- [Glossaire](docs/glossary.md) — les mots, et ce qu'ils veulent dire ici
-- [Esquisse](docs/sketch.md) — dessiner, coter, la règle d'échelle
-- [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
-- [Interface](docs/interface.md) — barre d'outils détachable, panneaux
-- [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
-- [Rendu](docs/render.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
-- [Navigation](docs/navigation.md) — gestes souris, caméra
-- [Configuration](docs/configuration.md) — réglages disponibles
-- [Compilation](docs/build.md) — exécutable Windows, autres plateformes
+- [Architecture](docs/ARCHITECTURE.md) — vision, the split, the road ahead
+- [Contexts](docs/contexts.md) — where the seams are, and where they are going
+- [Where a file goes](docs/code-layout.md) — the folders, and what they import
+- [Code map](docs/code-map.md) — which file carries which behaviour
+- [Glossary](docs/glossary.md) — the words, and what they mean here
+- [Sketch](docs/sketch.md) — drawing, dimensioning, the rule of scale
+- [History](docs/history.md) — operations, undo, the `.caopart` format
+- [Interface](docs/interface.md) — the toolbar and the panels
+- [Viewport](docs/viewport.md) — the two modes of the canvas, the grid, the cube
+- [Rendering](docs/render.md) — wgpu pipelines, thick lines, offscreen rendering
+- [Navigation](docs/navigation.md) — mouse gestures, camera
+- [Configuration](docs/configuration.md) — what can be set
+- [Building](docs/build.md) — Windows executable, other platforms
 
 ## Tests
 
 ```sh
 cargo test --workspace
-cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
+cargo run -p cao_render --example offscreen -- /tmp   # writes 3 PNGs to check
 ```
 
-`scripts/verifier.sh` enchaîne `cargo fmt --all --check`, `clippy -D warnings`
-puis `cargo test --workspace` ; les deux hooks locaux l'appellent avant chaque
-commit.
-`crates/app/tests/architecture.rs` y vérifie les règles d'architecture — graphe
-des crates, dossiers, budget de 400 lignes par fichier — et
-`crates/app/tests/gate.rs` que la CI contrôle bien les mêmes choses que lui.
+`scripts/verify.sh` chains `cargo fmt --all --check`, `clippy -D warnings` then
+`cargo test --workspace`; both local hooks call it before every commit.
+`crates/app/tests/architecture.rs` checks the architecture rules there — the
+crate graph, the folders, the budget of 400 lines per file — and
+`crates/app/tests/gate.rs` that the CI checks the same things it does.
 
 ## Licence
 
-Double licence MIT / Apache-2.0, voir [`LICENSE-MIT`](LICENSE-MIT) et
-[`LICENSE-APACHE`](LICENSE-APACHE). Une offre professionnelle additionnelle
-est envisagée à terme (non définie pour l'instant).
+Dual-licensed MIT / Apache-2.0, see [`LICENSE-MIT`](LICENSE-MIT) and
+[`LICENSE-APACHE`](LICENSE-APACHE). An additional professional offering is
+envisaged in time (undefined for now).

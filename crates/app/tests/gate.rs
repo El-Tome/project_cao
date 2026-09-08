@@ -2,7 +2,7 @@
 //! repository is fine". They agree; nothing but this file keeps them agreeing.
 //!
 //! Merging them is not the answer — the CI has reasons to run the commands as
-//! separate jobs rather than call `scripts/verifier.sh`: per-job annotations,
+//! separate jobs rather than call `scripts/verify.sh`: per-job annotations,
 //! parallelism, and a `CAO_SKIP_GATE` that must not reach it. So the divergence
 //! is made to fail a test instead, the way the architecture rules already are.
 //!
@@ -52,27 +52,27 @@ fn the_local_gate_and_the_ci_check_the_same_things() {
 
     assert_eq!(
         checked_by_the_ci, expected,
-        "scripts/verifier.sh and .github/workflows/ci.yml no longer check the same things: \
+        "scripts/verify.sh and .github/workflows/ci.yml no longer check the same things: \
          a step added to one belongs in the other, or in one of the two lists at the top of \
          this file that name what is meant to differ",
     );
 }
 
 fn commands_the_verifier_runs() -> BTreeSet<String> {
-    let script = read("scripts/verifier.sh");
+    let script = read("scripts/verify.sh");
     let mut commands = BTreeSet::new();
 
     for line in script.lines() {
-        let Some(rest) = line.trim().strip_prefix("etape ") else {
+        let Some(rest) = line.trim().strip_prefix("step ") else {
             continue;
         };
         let Some((_, command)) = rest.trim_start_matches('\'').split_once("' ") else {
-            panic!("an etape line whose title is not in single quotes: {line}");
+            panic!("a step line whose title is not in single quotes: {line}");
         };
         commands.insert(command.trim().to_string());
     }
 
-    assert!(!commands.is_empty(), "scripts/verifier.sh runs no etape");
+    assert!(!commands.is_empty(), "scripts/verify.sh runs no step");
     commands
 }
 

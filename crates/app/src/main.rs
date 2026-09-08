@@ -1,5 +1,5 @@
-// Sur Windows, une application graphique ne doit pas ouvrir de console. On la
-// garde en debug pour continuer à voir les panics et les logs.
+// On Windows a graphical application must not open a console. It is kept in
+// debug, to go on seeing the panics and the logs.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod app;

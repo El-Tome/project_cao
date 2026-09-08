@@ -1,119 +1,122 @@
-# Outillage agent — conception
+# Agent tooling — design
 
-Date : 2026-09-07
-Branche : `refactor/architecture`
-État : validé, prêt pour le plan d'implémentation
+Date: 2026-09-07
+Branch: `refactor/architecture`
+State: agreed, ready for the implementation plan
 
-## 1. Pourquoi
+> A record of a decision, kept as it was taken. Every figure, file name and
+> branch name below is the reading of the date at the head of it, and is not
+> updated afterwards: `esquisse.md` has since become `sketch.md`, and the counts
+> have all moved. The amendments dated later are marked where they apply.
 
-Le dépôt n'a aucun outillage agent : pas de `.claude/`, pas de skill, pas de
-hook, pas de CI, pas de configuration de toolchain. Il ne reste que
-`CLAUDE.md` (37 lignes) et `docs/` (1 881 lignes).
+## 1. Why
 
-Ce vide a des effets mesurables.
+The repository has no agent tooling at all: no `.claude/`, no skill, no hook,
+no CI, no toolchain configuration. All that is left is `CLAUDE.md` (37 lines)
+and `docs/` (1 881 lines).
 
-`CLAUDE.md` énonce des règles sans procédure : rien ne dit *comment* mener une
-tâche, les tests n'y sont jamais mentionnés alors que le dépôt en compte 176,
-et la consigne « faire un pull et vérifier s'il n'y a pas déjà une branche »
-n'est adossée à aucun outil — donc oubliée à chaque session.
+That emptiness has measurable effects.
 
-`docs/` est de la prose produit, pas une carte du code. `esquisse.md` décrit
-sur 869 lignes ce que *fait* l'esquisse, jamais *où intervenir*. Aucun fichier
-ne relie un comportement à un module, ni ne liste les invariants à ne pas
-casser.
+`CLAUDE.md` states rules with no procedure: nothing says *how* to carry out a
+task, the tests are never mentioned although the repository holds 176 of them,
+and the instruction "pull and check whether a branch already exists" leans on
+no tool — so it is forgotten every session.
 
-Et la couverture de tests, laissée à la discipline seule, s'est creusée là où
-le risque est le plus grand :
+`docs/` is product prose, not a map of the code. `esquisse.md` describes over
+869 lines what the sketch *does*, never *where to act*. No file ties a
+behaviour to a module, nor lists the invariants not to break.
 
-| Zone | Lignes | Tests |
+And the test coverage, left to discipline alone, has hollowed out exactly where
+the risk is greatest:
+
+| Area | Lines | Tests |
 | --- | ---: | ---: |
 | `sketch/sketch.rs` | 2 372 | 62 |
 | `core/state.rs` | 1 280 | 26 |
 | `sketch/solver.rs` | 1 470 | **0** |
 | `sketch/constraints.rs` | 283 | **0** |
-| `crates/app/` (entier) | ~6 400 | **0** |
+| `crates/app/` (whole) | ~6 400 | **0** |
 
-Le solveur de contraintes n'a aucun test et concentre quatre correctifs
-récents (`fix/solver-anchoring`, `fix/tangent-circles`, `fix/circle-handling`,
-`fix/dimension-handling`). C'est exactement le profil d'une zone où une
-régression passe inaperçue.
+The constraint solver has no test and gathers four recent fixes
+(`fix/solver-anchoring`, `fix/tangent-circles`, `fix/circle-handling`,
+`fix/dimension-handling`). That is exactly the profile of an area where a
+regression goes unnoticed.
 
-## 2. Mesures de référence
+## 2. Baseline measurements
 
-Relevées le 2026-09-07 sur Apple Silicon, Rust 1.98.1 stable, après
-installation de la toolchain (absente de la machine jusque-là).
+Taken on 2026-09-07 on Apple Silicon, Rust 1.98.1 stable, after installing the
+toolchain (absent from the machine until then).
 
-| Commande | Durée | Résultat |
+| Command | Duration | Result |
 | --- | ---: | --- |
-| `cargo fmt --all --check` | < 1 s | **échoue** — 90 différences |
-| `cargo clippy --workspace --all-targets -- -D warnings` | 13 s | **passe, 0 warning** |
-| `cargo test --workspace` | 11 s (36 s à froid) | **passe** |
+| `cargo fmt --all --check` | < 1 s | **fails** — 90 differences |
+| `cargo clippy --workspace --all-targets -- -D warnings` | 13 s | **passes, 0 warning** |
+| `cargo test --workspace` | 11 s (36 s cold) | **passes** |
 
-Deux conséquences pour la conception.
+Two consequences for the design.
 
-`clippy` en mode strict passe déjà sur 19 822 lignes : le gate peut être
-intransigeant dès le premier jour sans rien casser.
+`clippy` in strict mode already passes on 19 822 lines: the gate can be
+uncompromising from day one without breaking anything.
 
-`rustfmt` échoue, mais le réparer demande un commit de reformatage global qui
-entrerait en conflit avec la vingtaine de branches distantes ouvertes. Un des
-90 écarts n'est d'ailleurs pas une faute : la table de correspondance clavier
-de `app.rs` est compactée à la main, en table, et rustfmt l'éclate en 26
-lignes. Aucun réglage de `rustfmt.toml` ne préserve cette mise en forme ; seul
-`#[rustfmt::skip]` le fait.
+`rustfmt` fails, but repairing it wants a global reformatting commit that would
+conflict with the twenty or so remote branches open. One of the 90 differences
+is not a fault either: the keyboard mapping table of `app.rs` is compacted by
+hand, as a table, and rustfmt bursts it into 26 lines. No `rustfmt.toml`
+setting preserves that layout; only `#[rustfmt::skip]` does.
 
-## 3. Décisions
+## 3. Decisions
 
-| Question | Décision |
+| Question | Decision |
 | --- | --- |
-| Périmètre | **Outillage seul.** Aucun `.rs`, aucun `Cargo.toml`, aucune doc existante n'est modifié — sauf `CLAUDE.md`. |
-| Niveau de contrainte | **Hooks bloquants**, pas de simples règles écrites. |
-| Structure | **Skills spécifiques à ce workspace**, pas un pack générique importé. |
-| Couches de gate | **Les trois** : hook Claude Code, hook git `pre-commit`, CI GitHub. |
-| rustfmt | **Hors du gate** pour l'instant. `rustfmt.toml` est livré, la CI vérifie le format en avertissement non bloquant. — *reprise le 2026-09-08, voir sous la table* |
-| MCP | **`context7` seul.** |
+| Scope | **Tooling only.** No `.rs`, no `Cargo.toml`, no existing document is modified — except `CLAUDE.md`. |
+| Level of constraint | **Blocking hooks**, not rules merely written down. |
+| Structure | **Skills specific to this workspace**, not a generic pack imported. |
+| Gate layers | **All three**: Claude Code hook, git `pre-commit` hook, GitHub CI. |
+| rustfmt | **Outside the gate** for now. `rustfmt.toml` is shipped, the CI checks the format as a non-blocking warning. — *taken up again on 2026-09-08, see below the table* |
+| MCP | **`context7` alone.** |
 
-**Décision du 2026-09-08 (#60) — `rustfmt` bloque.** L'exemption avait un motif
-nommé : la table de correspondance clavier de `app.rs`, compactée à la main, que
-rustfmt éclatait en 26 lignes, et un commit de reformatage global qui serait
-entré en conflit avec la vingtaine de branches distantes alors ouvertes (§ 2).
-Ce commit a eu lieu — `4f81da6`, 22 fichiers — et `grep -rn 'rustfmt::skip'
-crates/` ne renvoie rien : le formatage de rustfmt a été accepté partout, il n'y
-a plus d'exception à protéger. `cargo fmt --all --check` sort en 0 sur l'arbre
-actuel, donc le remettre dans le gate ne bloque rien de ce qui existe et coûte
-environ 0,3 s par commit. `continue-on-error` disparaît de `ci.yml` — avec cette
-option la conclusion du job était `success`, si bien qu'une branche mal formatée
-n'allumait rien nulle part, même déclaré vérification requise.
+**Decision of 2026-09-08 (#60) — `rustfmt` blocks.** The exemption had a named
+reason: the keyboard mapping table of `app.rs`, compacted by hand, which rustfmt
+burst into 26 lines, and a global reformatting commit that would have conflicted
+with the twenty or so remote branches open at the time (§ 2). That commit has
+happened — `4f81da6`, 22 files — and `grep -rn 'rustfmt::skip' crates/` returns
+nothing: rustfmt's formatting has been accepted everywhere, there is no
+exception left to protect. `cargo fmt --all --check` exits 0 on the current
+tree, so putting it back in the gate blocks nothing that exists and costs about
+0.3 s per commit. `continue-on-error` disappears from `ci.yml` — with that
+option the conclusion of the job was `success`, so a badly formatted branch lit
+nothing up anywhere, even declared a required check.
 
-### Pourquoi ces choix
+### Why these choices
 
-**Trois couches de gate, parce qu'elles ne protègent pas les mêmes personnes.**
-Un hook Claude Code n'intercepte que les commandes lancées par l'agent : il ne
-voit rien d'un commit fait depuis un terminal ou depuis JetBrains. Le hook git
-couvre tout commit local. La CI couvre la branche distante, donc les
-contributeurs qui n'ont pas configuré leurs hooks.
+**Three gate layers, because they do not protect the same people.** A Claude
+Code hook intercepts only the commands the agent runs: it sees nothing of a
+commit made from a terminal or from JetBrains. The git hook covers every local
+commit. The CI covers the remote branch, and therefore the contributors who
+have not set up their hooks.
 
-| Couche | Bloque | Contournable par |
+| Layer | Blocks | Bypassable by |
 | --- | --- | --- |
-| Hook Claude Code | l'agent | rien |
-| Hook git `pre-commit` | tout commit local | `git commit --no-verify` |
-| CI GitHub | toute branche poussée | rien |
+| Claude Code hook | the agent | nothing |
+| git `pre-commit` hook | every local commit | `git commit --no-verify` |
+| GitHub CI | every branch pushed | nothing |
 
-**Un seul MCP.** Le projet dépend d'`egui 0.36`, `wgpu 30` et `glam 0.33` —
-des crates dont l'API casse à chaque version mineure et sur lesquelles la
-connaissance d'un modèle dérive. `context7` sert des docs versionnées et
-répare ce manque précis. Les serveurs MCP enveloppant `rust-analyzer` sont peu
-maintenus et `cargo check` fait mieux : aucun n'est ajouté.
+**One single MCP.** The project depends on `egui 0.36`, `wgpu 30` and
+`glam 0.33` — crates whose API breaks at every minor version and on which a
+model's knowledge drifts. `context7` serves versioned docs and repairs that
+precise gap. The MCP servers wrapping `rust-analyzer` are barely maintained and
+`cargo check` does better: none is added.
 
-**Des skills qui connaissent ce code.** Un skill générique sur SOLID ne vaut
-rien. Un skill qui dit « avant de toucher `solver.rs`, écris un test
-caractérisant l'existant, parce qu'il n'en a aucun » vaut quelque chose. C'est
-le critère de tri de tout ce qui suit.
+**Skills that know this code.** A generic skill about SOLID is worth nothing. A
+skill that says "before touching `solver.rs`, write a test characterising what
+is there, because it has none" is worth something. That is the sorting
+criterion for everything that follows.
 
-## 4. Ce qui est livré
+## 4. What is delivered
 
 ```
 .claude/
-├── settings.json                       versionné : hooks + permissions
+├── settings.json                       versioned: hooks + permissions
 ├── skills/
 │   ├── code-map/SKILL.md
 │   ├── rust-tdd/SKILL.md
@@ -131,271 +134,273 @@ rust-toolchain.toml
 rustfmt.toml
 clippy.toml
 .github/workflows/ci.yml
-CLAUDE.md                               refondu
-docs/code-map.md                   nouveau
+CLAUDE.md                               rebuilt
+docs/code-map.md                        new
 .gitignore                              + .claude/settings.local.json
 ```
 
-## 5. Les skills
+## 5. The skills
 
-Chaque skill est un `SKILL.md` avec un frontmatter `name` + `description`. La
-`description` dit **quand** déclencher le skill — c'est le seul champ lu avant
-chargement, il doit contenir les mots que l'on emploierait naturellement.
+Each skill is a `SKILL.md` with a `name` + `description` frontmatter. The
+`description` says **when** to trigger the skill — it is the only field read
+before loading, and it must hold the words one would naturally use.
 
-Les skills sont rédigés en **français**, comme `CLAUDE.md` et `docs/`. Le code
-et les noms de tests restent en anglais, conformément à l'usage établi du
-dépôt (`a_crash_is_written_down_with_its_hour_and_its_stack`).
+The skills are written in **French**, like `CLAUDE.md` and `docs/`. The code and
+the test names stay in English, following the established usage of the
+repository (`a_crash_is_written_down_with_its_hour_and_its_stack`). *Reversed on
+2026-09-08 (#95): everything a developer reads is English, names included.*
 
 ### 5.1 `code-map`
 
-Le pont manquant entre `docs/` et les 40 fichiers de `crates/`.
+The missing bridge between `docs/` and the 40 files of `crates/`.
 
-Contenu : une table comportement → crate → fichier → fonction d'entrée,
-couvrant les cinq crates. Puis les invariants du projet, chacun avec sa
-raison :
+Contents: a table behaviour → crate → file → entry function, covering the five
+crates. Then the invariants of the project, each with its reason:
 
-- le noyau calcule en `f64`, la caméra et le rendu en `f32`, et la conversion
-  se fait au dernier moment à chaque passage de frontière ;
-- la géométrie n'est jamais enregistrée : elle est rejouée depuis l'historique
-  par `PartState::rebuild`, ce qui rend annulation, rétablissement et retour à
-  une étape identiques ;
-- un nouveau mode est une variante de `Screen` plus un module dans `screens/`,
-  jamais une branche ajoutée à un module existant ;
-- `cao_core` ne dépend d'aucune crate UI.
+- the core computes in `f64`, the camera and the rendering in `f32`, and the
+  conversion happens at the last moment at each crossing of the boundary;
+- the geometry is never saved: it is replayed from the history by
+  `PartState::rebuild`, which makes undo, redo and going back to a step
+  identical;
+- a new mode is a variant of `Screen` plus a module in `screens/`, never a
+  branch added to an existing module;
+- `cao_core` depends on no UI crate.
 
-Déclenchement : dès qu'il s'agit de trouver où intervenir dans le code.
+Trigger: as soon as it is a matter of finding where to act in the code.
 
 ### 5.2 `rust-tdd`
 
-La boucle rouge/vert/refactor appliquée à ce dépôt.
+The red/green/refactor loop applied to this repository.
 
-- **Un test à la fois.** Jamais tous les tests puis tout le code : des tests
-  écrits en lot vérifient un comportement imaginé, pas le comportement réel.
-- **Où le poser.** `mod tests` colocalisé en bas de fichier, la convention du
-  dépôt ; `crates/<crate>/tests/` pour l'intégration, sur le modèle de
-  `crates/core/tests/stress_tangent.rs`.
-- **Comment boucler vite.** `cargo test -p cao_sketch <filtre>` plutôt que le
-  workspace entier.
-- **Jamais `==` entre deux `f64`.** Comparaison par tolérance, avec une
-  tolérance choisie et justifiée, pas copiée.
-- **Zones sans filet.** `solver.rs` et `constraints.rs` n'ont aucun test et
-  concentrent quatre correctifs récents ; `crates/app/` n'en a aucun sur
-  ~6 400 lignes. Toute intervention dans ces fichiers commence par un test qui
-  caractérise l'existant avant de le modifier.
+- **One test at a time.** Never all the tests then all the code: tests written
+  in a batch check an imagined behaviour, not the real one.
+- **Where to put it.** A colocated `mod tests` at the bottom of the file, the
+  convention of the repository; `crates/<crate>/tests/` for integration, on the
+  model of `crates/core/tests/stress_tangent.rs`.
+- **How to loop fast.** `cargo test -p cao_sketch <filter>` rather than the
+  whole workspace.
+- **Never `==` between two `f64`.** Comparison by tolerance, with a tolerance
+  chosen and justified, not copied.
+- **Areas with no net.** `solver.rs` and `constraints.rs` have no test and
+  gather four recent fixes; `crates/app/` has none over ~6 400 lines. Any work
+  in those files begins with a test that characterises what is there before
+  changing it.
 
 ### 5.3 `architecture-rust`
 
-SOLID et ports & adapters appliqués à ce workspace.
+SOLID and ports & adapters applied to this workspace.
 
-- Le graphe de dépendances autorisé entre les cinq crates.
-- La règle des ports : aucun `std::fs`, `directories`, ni `chrono::Utc::now()`
-  sous une frontière de domaine sans passer par un trait. Justification
-  concrète : les tests de persistance écrivent aujourd'hui dans
-  `std::env::temp_dir()` et font des `remove_dir_all`, ce qui les rend lents et
-  non parallélisables sans risque.
-- Le patron Rust pour introduire un port : trait, implémentation réelle,
-  implémentation de test.
-- **Les écarts actuels, nommés.** `cao_core` dépend de `cao_sketch` et
-  `cao_solid` : c'est en réalité la couche application, pas le domaine, malgré
-  ce qu'affirme sa documentation. L'I/O est en dur dans `document.rs`,
-  `recents.rs`, `settings.rs` et `storage.rs`. Ces endroits sont de la dette
-  connue et ne doivent jamais servir de modèle à recopier.
+- The dependency graph allowed between the five crates.
+- The rule of ports: no `std::fs`, `directories`, or `chrono::Utc::now()` below
+  a domain boundary without going through a trait. The concrete justification:
+  the persistence tests write into `std::env::temp_dir()` today and do
+  `remove_dir_all`, which makes them slow and not safely parallelisable.
+- The Rust pattern for introducing a port: trait, real implementation, test
+  implementation.
+- **The current gaps, named.** `cao_core` depends on `cao_sketch` and
+  `cao_solid`: it is in truth the application layer, not the domain, whatever
+  its documentation says. The I/O is hard-coded in `document.rs`, `recents.rs`,
+  `settings.rs` and `storage.rs`. Those places are known debt and must never
+  serve as a model to copy.
 
 ### 5.4 `review-rust`
 
-Checklist de relecture avant commit.
+A review checklist before committing.
 
-- SRP, avec des seuils chiffrés — `viewport.rs` fait 4 179 lignes et 105
-  fonctions, `sketch.rs` 2 372 ; ce sont les repoussoirs.
-- OCP sur les `match` exhaustifs, `PartState::apply` en exemple : chaque
-  nouvelle opération oblige à rouvrir la fonction.
-- `unwrap()`, `expect()`, `panic!()` hors code de test.
-- `pub` posé par défaut alors que le champ ou la fonction pourrait rester privé.
-- Erreurs : `thiserror`, jamais une variante portant une `String` libre.
-- Allocation à l'intérieur d'une boucle de rendu.
+- SRP, with figures — `viewport.rs` is 4 179 lines and 105 functions,
+  `sketch.rs` 2 372; those are the deterrents.
+- OCP on exhaustive `match`es, `PartState::apply` as the example: every new
+  operation forces the function open again.
+- `unwrap()`, `expect()`, `panic!()` outside test code.
+- `pub` placed by default where the field or the function could stay private.
+- Errors: `thiserror`, never a variant carrying a free `String`.
+- Allocation inside a rendering loop.
 
 ### 5.5 `open-a-task`
 
-La procédure que `CLAUDE.md` demande sans l'outiller.
+The procedure `CLAUDE.md` asks for without giving it a tool.
 
-`git fetch`, comparaison aux branches distantes existantes — il y en a une
-vingtaine — pour ne pas refaire une fonctionnalité déjà en cours, création
-d'une branche `feat/…` ou `fix/…`, puis le style de message de commit du dépôt :
-une phrase française évocatrice, sur le modèle de « Cercles : poignées,
-tangences tenues, plantages tracés ».
+`git fetch`, comparison with the existing remote branches — there are a score
+of them — so as not to redo a feature already under way, creation of a `feat/…`
+or `fix/…` branch, then the commit message style of the repository: an
+evocative French sentence, on the model of "Cercles : poignées, tangences
+tenues, plantages tracés".
 
-## 6. Le sous-agent
+## 6. The subagent
 
-`.claude/agents/review-architecture-rust.md` — sous-agent en lecture seule qui applique
-`review-rust` et `architecture-rust` à un diff et rend une liste de constats
-classés par gravité. Outils : lecture, recherche, `cargo` en lecture seule. Il
-ne modifie rien.
+`.claude/agents/review-architecture-rust.md` — a read-only subagent applying
+`review-rust` and `architecture-rust` to a diff and returning a list of findings
+ranked by severity. Tools: reading, searching, `cargo` read-only. It changes
+nothing.
 
-Il existe pour que la revue se fasse dans un contexte séparé du contexte
-d'écriture : celui qui vient d'écrire le code est mal placé pour le juger.
+It exists so that the review happens in a context separate from the writing
+context: whoever has just written the code is badly placed to judge it.
 
-## 7. Les hooks
+## 7. The hooks
 
-Les trois scripts exportent `PATH="$HOME/.cargo/bin:$PATH"` en préambule : les
-hooks tournent dans un shell non interactif qui ne lit pas `~/.zprofile`, et
-`cargo` y serait autrement introuvable.
+All three scripts export `PATH="$HOME/.cargo/bin:$PATH"` at the head: the hooks
+run in a non-interactive shell that does not read `~/.zprofile`, and `cargo`
+would otherwise be nowhere to be found there.
 
-### 7.1 `session-start.sh` — informatif
+### 7.1 `session-start.sh` — informative
 
-Déclencheur : `SessionStart`. Ne bloque jamais.
+Trigger: `SessionStart`. Never blocks.
 
-Fait un `git fetch --prune`, puis affiche la branche courante, son écart avec
-`origin/main`, les branches distantes les plus récentes, et l'état de l'arbre
-de travail. Signale `cargo` introuvable le cas échéant.
+Does a `git fetch --prune`, then shows the current branch, its distance from
+`origin/main`, the most recent remote branches, and the state of the working
+tree. Reports `cargo` missing where that is the case.
 
-Effet visé : la consigne « pull et vérifie les branches » de `CLAUDE.md` cesse
-de dépendre de la mémoire de l'agent.
+The effect aimed at: the "pull and check the branches" instruction of
+`CLAUDE.md` stops depending on the agent's memory.
 
-### 7.2 `gate-commit.sh` — bloquant
+### 7.2 `gate-commit.sh` — blocking
 
-Déclencheur : `PreToolUse` sur `Bash`. Le script lit le JSON sur son entrée
-standard et ne fait quelque chose que si la commande contient `git commit`.
+Trigger: `PreToolUse` on `Bash`. The script reads the JSON on its standard
+input and does something only if the command holds `git commit`.
 
-Enchaîne, en s'arrêtant au premier échec :
+Chains, stopping at the first failure:
 
 1. `cargo fmt --all --check`
 2. `cargo clippy --workspace --all-targets -- -D warnings`
 3. `cargo test --workspace`
 
-Le format est en tête parce qu'il est le moins cher — décision § 3.
+The format comes first because it is the cheapest — decision § 3.
 
-En cas d'échec : sortie en code 2, le commit n'est jamais exécuté, la sortie de
-la commande fautive est renvoyée à l'agent qui corrige et recommence. L'index
-git n'est pas touché.
+On failure: exit code 2, the commit is never run, the output of the offending
+command is returned to the agent, which fixes it and goes again. The git index
+is not touched.
 
-Si `cargo` est introuvable : refus explicite, message « rustup non installé,
-gate non vérifiable », et non un `command not found` avalé.
+If `cargo` is nowhere to be found: an explicit refusal, with the message
+"rustup not installed, the gate cannot be checked", rather than a
+`command not found` swallowed.
 
-Soupape : si `CAO_SKIP_GATE=1` est présent dans l'environnement, le gate
-s'efface en le signalant. Le skill `open-a-task` porte la consigne que
-l'agent ne pose jamais cette variable de lui-même — elle appartient à
-l'humain, pour ses travaux en cours.
+The valve: if `CAO_SKIP_GATE=1` is in the environment, the gate steps aside and
+says so. The `open-a-task` skill carries the instruction that the agent never
+sets that variable on its own — it belongs to the human, for their work in
+progress.
 
-### 7.3 `.githooks/pre-commit` — bloquant, versionné
+### 7.3 `.githooks/pre-commit` — blocking, versioned
 
-Même enchaînement, pour tout commit local quel qu'en soit l'auteur. Versionné
-dans le dépôt donc relisible et modifiable comme le reste du code.
+The same chain, for every local commit whoever its author. Versioned in the
+repository, therefore readable and modifiable like the rest of the code.
 
-Activation, une fois par clone : `git config core.hooksPath .githooks`. Cette
-commande est documentée dans `CLAUDE.md` et rappelée par `session-start.sh`
-tant qu'elle n'a pas été passée.
+Enabling, once per clone: `git config core.hooksPath .githooks`. That command
+is documented in `CLAUDE.md` and recalled by `session-start.sh` for as long as
+it has not been run.
 
-Contournable par `git commit --no-verify`, ce qui est le comportement attendu
-d'un hook git et la raison d'être de la troisième couche.
+Bypassable with `git commit --no-verify`, which is the expected behaviour of a
+git hook and the reason the third layer exists.
 
 ## 8. `settings.json`
 
-Versionné, donc partagé par l'équipe. Déclare les deux hooks et pré-autorise
-les commandes de lecture et de vérification que l'agent lance en boucle :
+Versioned, and therefore shared by the team. Declares the two hooks and
+pre-authorises the reading and checking commands the agent runs in a loop:
 `cargo test`, `cargo clippy`, `cargo check`, `cargo build`, `cargo fmt`,
 `git status`, `git diff`, `git log`, `git fetch`.
 
-`.claude/settings.local.json` — préférences personnelles — est ajouté au
+`.claude/settings.local.json` — personal preferences — is added to the
 `.gitignore`.
 
 ## 9. `.mcp.json`
 
-Déclare `context7` en HTTP, avec sa clé d'API lue dans l'environnement
-(`CONTEXT7_API_KEY`), sur le modèle du plugin déjà installé globalement. Un
-skill n'est pas nécessaire : le déclencheur naturel est une question d'API sur
-`egui`, `wgpu` ou `glam`, et `CLAUDE.md` porte la consigne d'y recourir plutôt
-que de se fier à une mémoire datée.
+Declares `context7` over HTTP, with its API key read from the environment
+(`CONTEXT7_API_KEY`), on the model of the plugin already installed globally. A
+skill is not needed: the natural trigger is an API question about `egui`,
+`wgpu` or `glam`, and `CLAUDE.md` carries the instruction to reach for it
+rather than trusting a dated memory.
 
-## 10. Hors `.claude/`
+## 10. Outside `.claude/`
 
 ### `rust-toolchain.toml`
 
-Épingle `stable` 1.98.1 avec les composants `clippy` et `rustfmt`, pour que la
-machine de chacun et la CI compilent le même code. L'édition 2024 du workspace
-exige au moins 1.85.
+Pins `stable` 1.98.1 with the `clippy` and `rustfmt` components, so that
+everybody's machine and the CI compile the same code. The 2024 edition of the
+workspace wants at least 1.85.
 
-### `rustfmt.toml` et `clippy.toml`
+### `rustfmt.toml` and `clippy.toml`
 
-Livrés dès le premier jour, alors que `fmt` n'entrait pas encore dans le gate :
-leur présence fixait le style visé en attendant qu'il y entre.
+Shipped from day one, while `fmt` was not yet in the gate: their presence fixed
+the style aimed at until it got there.
 
 ### `.github/workflows/ci.yml`
 
-Sur chaque push, quelle que soit la branche. Toolchain épinglée par
-`rust-toolchain.toml`, cache `Swatinem/rust-cache`.
+On every push, whatever the branch. Toolchain pinned by
+`rust-toolchain.toml`, `Swatinem/rust-cache` cache.
 
-| Job | Commande | Bloquant |
+| Job | Command | Blocking |
 | --- | --- | --- |
-| `fmt` | `cargo fmt --all --check` | oui |
-| `clippy` | `cargo clippy --workspace --all-targets -- -D warnings` | oui |
-| `test` | `cargo test --workspace` | oui |
-| `build-windows` | `scripts/build-windows.sh` | oui |
+| `fmt` | `cargo fmt --all --check` | yes |
+| `clippy` | `cargo clippy --workspace --all-targets -- -D warnings` | yes |
+| `test` | `cargo test --workspace` | yes |
+| `build-windows` | `scripts/build-windows.sh` | yes |
 
-Amendé le 2026-09-08 (#57) : `build-windows` ne tournait que sur `main`, donc
-jamais avant une fusion. Il tourne maintenant sur chaque push ; seul l'envoi de
-l'artefact reste réservé à `main`.
+Amended on 2026-09-08 (#57): `build-windows` ran only on `main`, and therefore
+never before a merge. It now runs on every push; only sending the artefact stays
+reserved to `main`.
 
-Amendé le 2026-09-08 (#58) : `on: push` couvrait `main` seulement, donc une
-branche poussée sans PR ouverte n'était vérifiée nulle part. Il couvre
-maintenant toute branche, et `on: pull_request` disparaît en échange — les deux
-ensemble feraient tourner le workflow deux fois à chaque push. Ce qui est cédé :
-GitHub vérifiait la branche *fusionnée* avec sa base, il vérifie maintenant sa
-tête. Une branche verte mais en retard sur `main` reste possible ; c'est le
-rebase avant fusion qui la rattrape.
+Amended on 2026-09-08 (#58): `on: push` covered `main` only, so a branch pushed
+with no PR open was checked nowhere. It now covers every branch, and
+`on: pull_request` disappears in exchange — the two together would run the
+workflow twice at every push. What is given up: GitHub used to check the branch
+*merged* with its base, it now checks its tip. A branch green but behind `main`
+stays possible; the rebase before merging is what catches it.
 
-Le runner Ubuntu reçoit une étape `apt-get` installant les dépendances système
-de `winit`/`wgpu` (`libxkbcommon-dev`, `libwayland-dev`, `libxcb*`) : `eframe`
-est compilé avec les features `x11` et `wayland`, et sans elles la CI échoue à
-l'édition de liens, pas au test.
+The Ubuntu runner gets an `apt-get` step installing the system dependencies of
+`winit`/`wgpu` (`libxkbcommon-dev`, `libwayland-dev`, `libxcb*`): `eframe` is
+compiled with the `x11` and `wayland` features, and without them the CI fails
+at linking, not at the tests.
 
-Aucun test GPU n'est exécuté. Les tests de `cao_render` (`camera.rs`,
-`geometry.rs`, `cube.rs`) sont du calcul pur et passent sans carte graphique.
-`examples/offscreen.rs` a besoin d'un vrai device `wgpu` : il est compilé, pas
-exécuté. Le contrôle visuel des trois PNG reste manuel, en local.
+No GPU test is run. The tests of `cao_render` (`camera.rs`, `geometry.rs`,
+`cube.rs`) are pure arithmetic and pass with no graphics card.
+`examples/offscreen.rs` needs a real `wgpu` device: it is compiled, not run.
+The visual check of the three PNGs stays manual, locally.
 
-### `CLAUDE.md` refondu
+### `CLAUDE.md` rebuilt
 
-Les règles existantes sont conservées mot pour mot. S'y ajoutent : la boucle de
-travail, un pointeur vers les skills, la commande d'activation des hooks git,
-la consigne de recourir à `context7` pour les API `egui`/`wgpu`/`glam`.
+The existing rules are kept word for word. Added to them: the working loop, a
+pointer to the skills, the command that enables the git hooks, the instruction
+to reach for `context7` for the `egui`/`wgpu`/`glam` APIs.
 
-Une correction : `CLAUDE.md` et `ARCHITECTURE.md` présentent `cao_core` comme
-la crate des « types de domaine ». C'est faux — elle dépend de `cao_sketch` et
-`cao_solid` et orchestre esquisse, solide, historique et persistance. C'est la
-couche application. La formulation est corrigée dans `CLAUDE.md` ;
-`ARCHITECTURE.md` n'est pas touché, le périmètre l'exclut, et le point est
-consigné dans `architecture-rust` comme dette connue.
+One correction: `CLAUDE.md` and `ARCHITECTURE.md` present `cao_core` as the
+crate of "the domain types". That is false — it depends on `cao_sketch` and
+`cao_solid` and orchestrates sketch, solid, history and persistence. It is the
+application layer. The wording is corrected in `CLAUDE.md`; `ARCHITECTURE.md` is
+not touched, the scope excludes it, and the point is recorded in
+`architecture-rust` as known debt.
 
 ### `docs/code-map.md`
 
-Le contenu de référence du skill `code-map`, sous une forme lisible aussi
-par un humain qui arrive sur le projet.
+The reference content of the `code-map` skill, in a form readable by a human
+arriving on the project too.
 
-## 11. Hors périmètre
+## 11. Out of scope
 
-Explicitement exclus de cette tâche :
+Explicitly excluded from this task:
 
-- toute modification d'un `.rs` ou d'un `Cargo.toml` ;
-- le commit de reformatage `cargo fmt --all` et les `#[rustfmt::skip]` associés ;
-- le refactor architectural : inversion de `cao_core`, ports sur la
-  persistance, découpe de `viewport.rs` ;
-- l'écriture des tests manquants du solveur et de `crates/app/` ;
-- la cible `x86_64-pc-windows-gnu` et `mingw-w64`, non installés.
+- any change to a `.rs` or a `Cargo.toml`;
+- the `cargo fmt --all` reformatting commit and the `#[rustfmt::skip]` that go
+  with it;
+- the architectural refactor: inverting `cao_core`, ports on persistence,
+  splitting `viewport.rs`;
+- writing the missing tests of the solver and of `crates/app/`;
+- the `x86_64-pc-windows-gnu` target and `mingw-w64`, not installed.
 
-Ces points sont réels et documentés, mais chacun est une tâche distincte à
-décider séparément.
+Those points are real and documented, but each is a separate task to be decided
+on its own.
 
-## 12. Critères d'acceptation
+## 12. Acceptance criteria
 
-1. `.claude/skills/` contient cinq skills, chacun avec un frontmatter `name` et
-   `description` valide.
-2. Une session ouverte dans le dépôt affiche l'état git sans qu'on le demande.
-3. Un `git commit` tenté alors qu'un test échoue est refusé, et le message
-   d'échec du test est visible.
-4. Le même commit passe une fois le test réparé.
-5. `CAO_SKIP_GATE=1 git commit` passe, en signalant que le gate a été sauté.
-6. Le gate refuse avec un message explicite si `cargo` est absent du `PATH`.
-7. `git config core.hooksPath .githooks` suffit à faire jouer le hook git.
-8. La CI passe sur la branche, `fmt` en avertissement, `clippy` et `test` au vert.
-9. `cargo test --workspace` et `cargo clippy --workspace --all-targets -- -D
-   warnings` restent au vert : aucun fichier source n'a été touché.
+1. `.claude/skills/` holds five skills, each with a valid `name` and
+   `description` frontmatter.
+2. A session opened in the repository shows the git state without being asked.
+3. A `git commit` attempted while a test fails is refused, and the failure
+   message of the test is visible.
+4. The same commit passes once the test is repaired.
+5. `CAO_SKIP_GATE=1 git commit` passes, reporting that the gate was skipped.
+6. The gate refuses with an explicit message if `cargo` is absent from the
+   `PATH`.
+7. `git config core.hooksPath .githooks` is enough to make the git hook play.
+8. The CI passes on the branch, `fmt` as a warning, `clippy` and `test` green.
+9. `cargo test --workspace` and
+   `cargo clippy --workspace --all-targets -- -D warnings` stay green: no source
+   file has been touched.

@@ -1,4 +1,5 @@
 use cao_part::PartDocument;
+use cao_part::feature::Feature;
 use cao_part::history::Operation;
 
 /// The history panel: everything done to the part, newest last, with the steps
@@ -41,48 +42,51 @@ pub fn show(ui: &mut egui::Ui, document: &PartDocument) -> HistoryAction {
         // Steps are grouped under the feature that opened them, which is what
         // makes a long drawing readable: one line per sketch, unfolded on
         // demand.
-        let mut sketch_number = 0;
-        let mut index = 0;
-        while index < operations.len() {
-            let group_end = group_end(operations, index);
-            if operations[index].starts_feature() {
-                let sketch = sketch_number;
-                sketch_number += 1;
+        let features = Feature::all(operations);
+        let first = features
+            .first()
+            .map_or(operations.len(), |feature| feature.start);
+        if let Some(step) = clicked_step(ui, operations, 0, first, applied) {
+            rewind_to = Some(step);
+        }
 
-                let header = egui::CollapsingHeader::new(operations[index].label())
-                    .id_salt(index)
-                    .default_open(true);
-                let response = header.show(ui, |ui| {
-                    // Only overwrite on an actual click: a later group with
-                    // nothing clicked must not erase an earlier one.
-                    if let Some(step) = clicked_step(ui, operations, index, group_end, applied) {
-                        rewind_to = Some(step);
-                    }
-                });
+        for feature in &features {
+            let header = egui::CollapsingHeader::new(operations[feature.start].label())
+                .id_salt(feature.start)
+                .default_open(true);
+            let response = header.show(ui, |ui| {
+                // Only overwrite on an actual click: a later group with
+                // nothing clicked must not erase an earlier one.
+                if let Some(step) =
+                    clicked_step(ui, operations, feature.start, feature.end, applied)
+                {
+                    rewind_to = Some(step);
+                }
+            });
 
-                // Reopening a finished sketch is the common case of coming back
-                // to a part, so it gets a button of its own rather than hiding
-                // behind a right-click.
-                response.header_response.context_menu(|ui| {
-                    if ui.button("Modifier cette esquisse").clicked() {
-                        action = HistoryAction::EditSketch(sketch);
-                        ui.close();
-                    }
-                });
-                ui.horizontal(|ui| {
-                    ui.add_space(18.0);
-                    if ui
-                        .small_button("✏ Modifier")
-                        .on_hover_text("Rouvrir cette esquisse pour y dessiner")
-                        .clicked()
-                    {
-                        action = HistoryAction::EditSketch(sketch);
-                    }
-                });
-            } else if let Some(step) = clicked_step(ui, operations, index, group_end, applied) {
-                rewind_to = Some(step);
-            }
-            index = group_end;
+            let Some(sketch) = feature.sketch else {
+                continue;
+            };
+
+            // Reopening a finished sketch is the common case of coming back
+            // to a part, so it gets a button of its own rather than hiding
+            // behind a right-click.
+            response.header_response.context_menu(|ui| {
+                if ui.button("Modifier cette esquisse").clicked() {
+                    action = HistoryAction::EditSketch(sketch);
+                    ui.close();
+                }
+            });
+            ui.horizontal(|ui| {
+                ui.add_space(18.0);
+                if ui
+                    .small_button("✏ Modifier")
+                    .on_hover_text("Rouvrir cette esquisse pour y dessiner")
+                    .clicked()
+                {
+                    action = HistoryAction::EditSketch(sketch);
+                }
+            });
         }
     });
 
@@ -109,15 +113,6 @@ fn clicked_step(
         }
     }
     clicked
-}
-
-/// Where the run of operations belonging to the feature at `start` ends.
-fn group_end(operations: &[Operation], start: usize) -> usize {
-    let mut end = start + 1;
-    while end < operations.len() && !operations[end].starts_feature() {
-        end += 1;
-    }
-    end
 }
 
 /// One line of the history. Returns true when it was clicked.

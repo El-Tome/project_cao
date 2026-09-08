@@ -23,13 +23,15 @@ pub fn say(error: &StorageError) -> String {
              et ne peut pas être ouvert."
         ),
         StorageError::Json(_) => {
-            "Ce fichier de réglages est abîmé : son contenu ne se relit pas.".to_string()
+            "Le contenu de ce fichier de réglages n'a pas pu être traité.".to_string()
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use super::*;
 
     #[test]
@@ -44,19 +46,23 @@ mod tests {
     }
 
     #[test]
-    fn a_settings_file_that_could_not_be_read_names_the_path_and_says_what_stopped_it() {
-        let absent = say(&StorageError::File(FileError::Absent(
-            "/etc/cao.json".into(),
-        )));
-        let refused = say(&StorageError::File(FileError::Refused(
-            "/etc/cao.json".into(),
-        )));
+    fn every_fate_the_disk_reports_names_the_path_and_reads_differently() {
+        let fates = [
+            FileError::Absent("/etc/cao.json".into()),
+            FileError::Refused("/etc/cao.json".into()),
+            FileError::Interrupted("/etc/cao.json".into()),
+        ];
 
-        assert!(absent.contains("/etc/cao.json"), "{absent}");
-        assert!(refused.contains("/etc/cao.json"), "{refused}");
-        assert_ne!(
-            absent, refused,
-            "a missing file and a refused one read alike"
+        let said: BTreeSet<String> = fates
+            .into_iter()
+            .map(|fate| say(&StorageError::File(fate)))
+            .inspect(|said| assert!(said.contains("/etc/cao.json"), "{said}"))
+            .collect();
+
+        assert_eq!(
+            said.len(),
+            3,
+            "two fates of the disk read the same: {said:?}"
         );
     }
 
@@ -65,7 +71,7 @@ mod tests {
         let said = say(&StorageError::UnsupportedVersion(2));
 
         assert!(
-            said.contains('2'),
+            said.contains("v2"),
             "the reader is told which version wrote the profile: {said}",
         );
     }

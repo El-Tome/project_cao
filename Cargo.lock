@@ -556,6 +556,7 @@ dependencies = [
  "egui",
  "egui-wgpu",
  "glam",
+ "serde_json",
  "wgpu",
 ]
 

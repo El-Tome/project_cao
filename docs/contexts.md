@@ -141,9 +141,11 @@ reason.
 
 **Named case → wording.** A layer below `cao_app` returns
 `ExtrusionMode::Cut`, not "Enlèvement de matière". The interface decides how a
-case is said, and later in which language. This one now holds: no line of
-French is left below `cao_app`, and `crates/app/tests/architecture.rs` holds
-the count at zero so none comes back.
+case is said, and later in which language. This one now holds for everything
+the user reads: no sentence of the interface is left below `cao_app`, and
+`crates/app/tests/architecture.rs` holds the count at zero so none comes back.
+The count stops at `#[cfg(test)]`, so it says nothing about test code, where
+French assertion messages still sit below the line.
 
 ## What is deliberately not its own context
 

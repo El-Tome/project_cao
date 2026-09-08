@@ -20,6 +20,7 @@ wgpu.workspace = true
 [dev-dependencies]
 cao_part = { path = "../part", features = ["test-support"] }
 cao_prefs = { path = "../prefs", features = ["test-support"] }
+serde_json.workspace = true
 
 [[bin]]
 name = "cao"

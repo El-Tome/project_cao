@@ -68,10 +68,8 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 3] = [
     "crates/prefs/src/storage.rs",
 ];
 
-const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 5] = [
+const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 3] = [
     ("crates/part/src/errors.rs", 2),
-    ("crates/prefs/src/settings.rs", 1),
-    ("crates/prefs/src/toolbar.rs", 1),
     ("crates/sketch/src/constraints.rs", 4),
     ("crates/sketch/src/plane.rs", 1),
 ];
@@ -84,7 +82,7 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 16] = [
     ("crates/app/src/app.rs", 524),
     ("crates/app/src/screens/annotations.rs", 517),
     ("crates/app/src/screens/ribbon.rs", 428),
-    ("crates/app/src/screens/settings.rs", 801),
+    ("crates/app/src/screens/settings.rs", 800),
     ("crates/app/src/screens/sketch.rs", 432),
     ("crates/app/src/screens/viewport.rs", 4234),
     ("crates/part/src/state.rs", 1297),

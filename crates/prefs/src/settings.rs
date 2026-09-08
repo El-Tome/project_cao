@@ -11,7 +11,13 @@ use crate::theme::Theme;
 use crate::toolbar::ToolbarLayout;
 
 /// Bumped when the shape of a saved profile changes.
-pub const SETTINGS_VERSION: u32 = 1;
+///
+/// 2 renamed the profile that always exists from a French sentence to the key
+/// `default`. A file written by 1 named it something this version no longer
+/// recognises, so it is not read at all: settings go back to the defaults
+/// rather than opening half understood, with a protected profile the code
+/// would let the user delete.
+pub const SETTINGS_VERSION: u32 = 2;
 
 /// Everything the user can set. One value, so a profile is one thing to save,
 /// to reset, and to hand to somebody else.
@@ -84,7 +90,11 @@ impl Default for Profiles {
 
 /// The profile that always exists. Deleting the last one would leave nothing to
 /// fall back to, so this one is never removed.
-pub const DEFAULT_PROFILE: &str = "Par défaut";
+///
+/// A key rather than a name: it is written into `settings.json`, and it is what
+/// `remove` compares against to refuse. What the user reads is decided in
+/// `cao_app`, so translating it moves no identity.
+pub const DEFAULT_PROFILE: &str = "default";
 
 impl Profiles {
     fn state_path() -> Result<PathBuf, StorageError> {
@@ -222,6 +232,18 @@ mod tests {
         settings
     }
 
+    /// The name is an identity written into settings.json and compared
+    /// against, so it stays a key: a translated one would stop matching the
+    /// profile it protects.
+    #[test]
+    fn the_profile_that_always_exists_is_named_by_a_key() {
+        assert_eq!(DEFAULT_PROFILE, "default");
+        assert!(
+            DEFAULT_PROFILE.is_ascii(),
+            "a key the interface says in its own words holds no accent",
+        );
+    }
+
     #[test]
     fn the_default_profile_is_always_there() {
         let profiles = Profiles::default();
@@ -245,7 +267,7 @@ mod tests {
     fn a_taken_name_is_made_free() {
         let mut profiles = Profiles::default();
         let name = profiles.add(Profile::new(DEFAULT_PROFILE, Settings::default()));
-        assert_eq!(name, "Par défaut 2");
+        assert_eq!(name, "default 2");
         assert_eq!(profiles.names().count(), 2);
     }
 
@@ -267,7 +289,7 @@ mod tests {
         assert!(!profiles.remove(DEFAULT_PROFILE));
         assert!(profiles.remove("Atelier"));
         assert_eq!(profiles.active_name(), DEFAULT_PROFILE);
-        assert!(!profiles.remove(DEFAULT_PROFILE), "il en reste un seul");
+        assert!(!profiles.remove(DEFAULT_PROFILE), "only one is left");
     }
 
     #[test]
@@ -276,8 +298,8 @@ mod tests {
         let path = directory.join(format!("atelier.{PROFILE_EXTENSION}"));
         let profile = Profile::new("Atelier", changed());
 
-        profile.export(&path).expect("écriture");
-        let read = Profile::import(&path).expect("lecture");
+        profile.export(&path).expect("writing");
+        let read = Profile::import(&path).expect("reading");
         assert_eq!(read, profile);
 
         let _ = fs::remove_dir_all(&directory);
@@ -287,15 +309,15 @@ mod tests {
     #[test]
     fn a_profile_missing_fields_falls_back_to_the_defaults() {
         let directory = std::env::temp_dir().join(format!("cao_partial_{}", uuid::Uuid::new_v4()));
-        fs::create_dir_all(&directory).expect("dossier");
+        fs::create_dir_all(&directory).expect("a directory");
         let path = directory.join("partial.caoprofile");
         fs::write(
             &path,
             format!(r#"{{"version":{SETTINGS_VERSION},"name":"Minimal","settings":{{}}}}"#),
         )
-        .expect("écriture");
+        .expect("writing");
 
-        let read = Profile::import(&path).expect("lecture");
+        let read = Profile::import(&path).expect("reading");
         assert_eq!(read.settings, Settings::default());
 
         let _ = fs::remove_dir_all(&directory);

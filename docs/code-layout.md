@@ -61,9 +61,14 @@ crates/app/src/
 `wording/` is where a named case from a lower crate becomes a sentence:
 `wording/shortcuts.rs` says how a `Key` and a `Chord` read, `wording/toolbar.rs`
 how an `Edge` and an `Item` do, `wording/history.rs` how a step of the part's
-history reads, `wording/dimension.rs` what a dimension measures. One file per
-source so that no single one gathers the whole application, and so that the
-eventual translation system has one directory to pass under.
+history reads, `wording/dimension.rs` what a dimension measures,
+`wording/settings.rs` what a profile is called. One file per source so that no
+single one gathers the whole application, and so that the eventual translation
+system has one directory to pass under.
+
+A name a lower crate stores and compares against is a **key** — `default`,
+`sketch`, `drawing` — never the sentence the user reads. Translating a
+sentence then moves nothing: the comparison keeps matching.
 
 ## What may import what
 

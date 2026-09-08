@@ -71,7 +71,7 @@ there. See the `architecture-rust` skill.
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
 | Paths, parts folder, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
 | The commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily`, `family` — what a command is *called* is in `app/src/wording/command.rs` |
-| Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
+| Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` — what a chord is *called* is in `app/src/wording/shortcuts.rs` |
@@ -104,6 +104,7 @@ there. See the `architecture-rust` skill.
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
+| What a profile is called | `app/src/wording/settings.rs` | `profile` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
 

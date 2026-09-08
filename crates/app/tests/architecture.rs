@@ -68,12 +68,11 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 3] = [
     "crates/prefs/src/storage.rs",
 ];
 
-const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 8] = [
+const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 7] = [
     ("crates/part/src/errors.rs", 2),
     ("crates/part/src/history.rs", 19),
     ("crates/prefs/src/command.rs", 39),
     ("crates/prefs/src/settings.rs", 1),
-    ("crates/prefs/src/shortcuts.rs", 5),
     ("crates/prefs/src/toolbar.rs", 4),
     ("crates/sketch/src/constraints.rs", 4),
     ("crates/sketch/src/plane.rs", 1),
@@ -375,6 +374,28 @@ fn a_primitive_knows_the_interface_and_nothing_else() {
                 "{path} imports a workspace crate: {line}. \
                  A primitive takes plain values and hands back what the user did. \
                  Knowing the part is the screen's job.",
+            );
+            assert!(
+                !line.contains("screens"),
+                "{path} imports a screen: {line}. The arrow runs the other way.",
+            );
+        }
+    }
+}
+
+#[test]
+fn a_word_the_user_reads_is_said_without_drawing_it() {
+    for (path, source) in sources_of("app") {
+        if !path.starts_with("crates/app/src/wording/") {
+            continue;
+        }
+
+        for line in imports(&source) {
+            assert!(
+                !line.contains("egui"),
+                "{path} imports the interface: {line}. Wording turns a named case \
+                 into a sentence and hands it back as text; how it is styled and \
+                 where it is drawn is the screen's business.",
             );
             assert!(
                 !line.contains("screens"),

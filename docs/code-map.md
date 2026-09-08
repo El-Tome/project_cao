@@ -119,9 +119,16 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
 | Settings screen | `app/src/screens/settings.rs` | `show(...)` |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
+| What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 
 What they do: [`interface.md`](interface.md),
 [`navigation.md`](navigation.md).
+
+`app/src/wording/` holds the sentences the user reads, one file per source.
+A layer below `cao_app` returns a named case and this is where it is decided
+how that case is said, which is what will make translation a wiring job. The
+sources still saying their own sentences are counted by
+`crates/app/tests/architecture.rs`, and that count only falls.
 
 ## The invariants
 

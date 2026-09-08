@@ -52,10 +52,16 @@ crates/part/src/
 ```
 crates/app/src/
 ├── ui/                  primitives: egui, and nothing of the workspace
+├── wording/             what the user reads, one file per source below
 └── screens/<mode>/
     ├── state.rs         the presenter — holds, decides, never draws
     └── view.rs          the drawing, through ui/ primitives
 ```
+
+`wording/` is where a named case from a lower crate becomes a sentence:
+`wording/shortcuts.rs` says how a `Key` and a `Chord` read. One file per source
+so that no single one gathers the whole application, and so that the eventual
+translation system has one directory to pass under.
 
 ## What may import what
 
@@ -64,6 +70,7 @@ Each line is a test, not a wish.
 | A file under | may reach for | never |
 | --- | --- | --- |
 | `ui/**` | `egui`, `std` | any `cao_*` crate, `crate::screens` |
+| `wording/**` | the `cao_*` case it names | `egui` — it says, it never draws |
 | `screens/**/view.rs` | `crate::ui`, `egui`, its presenter | dressing a widget by hand |
 | `screens/**/state.rs` | the business crates | `egui::Ui` — **it does not draw** |
 | `model/**` | `std`, the pure domains | `crate::ports`, `crate::adapters` |

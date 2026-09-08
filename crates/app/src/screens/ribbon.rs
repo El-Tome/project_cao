@@ -3,6 +3,7 @@ use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};
+use crate::wording::shortcuts;
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
@@ -231,12 +232,11 @@ fn lay_out(
 }
 
 fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
-    let label = match state.settings.shortcuts.chord_for(command) {
-        Some(chord) => format!("{} ({})", command.label(), chord.label()),
-        None => command.label().to_string(),
-    };
     let label = if state.settings.toolbar.show_labels {
-        label
+        match state.settings.shortcuts.chord_for(command) {
+            Some(chord) => format!("{} ({})", command.label(), shortcuts::chord(chord)),
+            None => command.label().to_string(),
+        }
     } else {
         command.label().chars().take(2).collect()
     };

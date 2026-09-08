@@ -7,6 +7,7 @@ mod app;
 mod autosave;
 mod screens;
 mod shortcuts;
+mod wording;
 
 /// Multisampling for the whole surface: the viewport is drawn with thin lines,
 /// which alias badly without it. The renderer's pipelines must be built with

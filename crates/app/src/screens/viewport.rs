@@ -769,7 +769,7 @@ fn constrain(
         .map(RulePick::Element)
         .or_else(|| {
             (rule == Rule::Collinear)
-                .then(|| axis_under(cursor, snap).map(RulePick::Axis))
+                .then(|| cao_sketch::axis_under(cursor, snap).map(RulePick::Axis))
                 .flatten()
         });
 
@@ -1774,7 +1774,7 @@ fn measure(
     // An axis picked first waits for the segment to measure against it.
     if matches!(mode, DimensionMode::Auto | DimensionMode::Angle)
         && context.editor.first_angle_segment.is_none()
-        && let Some(axis) = axis_under(cursor, snap)
+        && let Some(axis) = cao_sketch::axis_under(cursor, snap)
         && sketch.nearest_segment(cursor, snap).is_none()
     {
         context.editor.first_axis = Some(axis);
@@ -1827,7 +1827,11 @@ fn place_dimension(
 ) -> bool {
     // Where the cursor is says which of the three readings of a slanted trait
     // is wanted, so it is settled here, at the click that puts the cote down.
-    let target = oriented(context, index, target, cursor);
+    let target = context
+        .document
+        .sketches()
+        .get(index)
+        .map_or(target, |sketch| sketch.oriented(target, cursor));
 
     // The reading asked for is already on the drawing: show its value rather
     // than lay a second copy over it.
@@ -1934,7 +1938,7 @@ fn measure_preview(
                 .angle_between(first, second)
                 .map(|_| DimensionTarget::Angle { first, second });
         }
-        return axis_under(cursor, snap).map(|axis| DimensionTarget::AxisAngle {
+        return cao_sketch::axis_under(cursor, snap).map(|axis| DimensionTarget::AxisAngle {
             segment: first,
             axis,
         });
@@ -2007,7 +2011,7 @@ fn continue_angle(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, 
 
     // An axis rather than a second segment gives the drawing a fixed direction
     // to lean on — the only way to stop it turning about its origin.
-    if let Some(axis) = axis_under(cursor, snap) {
+    if let Some(axis) = cao_sketch::axis_under(cursor, snap) {
         context.editor.first_angle_segment = None;
         select_target(
             context,
@@ -2036,7 +2040,7 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
     // laid over the first. A slanted trait is the exception — it has a width
     // and a height to offer besides its length, and which one is wanted is only
     // known once the cote is placed.
-    if !is_slanted(&context.document.sketches()[index], target)
+    if !context.document.sketches()[index].is_slanted(target)
         && context.document.sketches()[index]
             .dimension_of(target)
             .is_some()
@@ -2070,77 +2074,6 @@ fn edit_dimension(context: &mut SketchContext<'_>, index: usize, target: Dimensi
     context.editor.first_axis = None;
     context.editor.select(Some(target), value);
     context.editor.message = None;
-}
-
-/// How far off an axis a trait has to be before its width and its height are
-/// worth offering.
-///
-/// Only a trait sitting square on an axis is left out: its width *is* its
-/// length, and two names for one measurement is one too many. Everything else,
-/// however slightly leaning, gets the choice.
-const SLANT_DEGREES: f64 = 0.5;
-
-/// Which of the three readings of a slanted trait the cursor is asking for.
-///
-/// The two ends box off the plane: above or below that box the cursor asks for
-/// the width, left or right of it the height, and inside it — the triangle the
-/// trait closes — or out past a corner, the length itself.
-fn oriented(
-    context: &SketchContext<'_>,
-    index: usize,
-    target: DimensionTarget,
-    cursor: DVec2,
-) -> DimensionTarget {
-    let sketch = match context.document.sketches().get(index) {
-        Some(sketch) => sketch,
-        None => return target,
-    };
-    let Some((from, to)) = ends_of(sketch, target).filter(|_| is_slanted(sketch, target)) else {
-        return target;
-    };
-    let (Some(a), Some(b)) = (
-        sketch.points().get(from.0).copied(),
-        sketch.points().get(to.0).copied(),
-    ) else {
-        return target;
-    };
-    let (low, high) = (a.min(b), a.max(b));
-    let within_x = (low.x..=high.x).contains(&cursor.x);
-    let within_y = (low.y..=high.y).contains(&cursor.y);
-    let axis = match (within_x, within_y) {
-        (true, false) => cao_sketch::SketchAxis::U,
-        (false, true) => cao_sketch::SketchAxis::V,
-        _ => return target,
-    };
-    DimensionTarget::Projected { from, to, axis }.normalised()
-}
-
-/// Whether a trait leans far enough off both axes for its width and its height
-/// to be worth offering beside its length.
-fn is_slanted(sketch: &Sketch, target: DimensionTarget) -> bool {
-    let Some((from, to)) = ends_of(sketch, target) else {
-        return false;
-    };
-    let (Some(start), Some(end)) = (sketch.points().get(from.0), sketch.points().get(to.0)) else {
-        return false;
-    };
-    let span = *end - *start;
-    let slant = span.y.atan2(span.x).to_degrees().abs();
-    slant.min((slant - 90.0).abs()).min((slant - 180.0).abs()) >= SLANT_DEGREES
-}
-
-/// The two ends of what a linear dimension measures, when it has two.
-fn ends_of(sketch: &Sketch, target: DimensionTarget) -> Option<(PointId, PointId)> {
-    match target {
-        DimensionTarget::Length(segment) => {
-            let segment = sketch.segments().get(segment.0)?;
-            Some((segment.start, segment.end))
-        }
-        DimensionTarget::Distance { from, to } | DimensionTarget::Projected { from, to, .. } => {
-            Some((from, to))
-        }
-        _ => None,
-    }
 }
 
 /// The second half a dimension in hand can still take: another segment makes it
@@ -2179,7 +2112,7 @@ fn refine(
         return Some(DimensionTarget::Angle { first, second }.normalised());
     }
     if let Some(point) = sketch.nearest_point(cursor, snap * 0.8)
-        && !touches(sketch, first, point)
+        && !sketch.touches(first, point)
     {
         return Some(DimensionTarget::PointToSegment {
             point,
@@ -2187,33 +2120,12 @@ fn refine(
         });
     }
     if sketch.nearest_segment(cursor, snap).is_none()
-        && let Some(axis) = axis_under(cursor, snap)
+        && let Some(axis) = cao_sketch::axis_under(cursor, snap)
     {
         return Some(DimensionTarget::AxisAngle {
             segment: first,
             axis,
         });
-    }
-    None
-}
-
-/// Whether a point is one of a segment's own ends — measuring a segment to its
-/// own corner would be a distance of nothing.
-fn touches(sketch: &Sketch, segment: SegmentId, point: PointId) -> bool {
-    match sketch.segments().get(segment.0) {
-        Some(segment) => segment.start == point || segment.end == point,
-        None => false,
-    }
-}
-
-/// Which sketch axis the cursor is on, if either. The axes are drawn as lines
-/// through the origin, so they are picked the same way a segment is.
-fn axis_under(cursor: DVec2, tolerance: f64) -> Option<cao_sketch::SketchAxis> {
-    if cursor.y.abs() <= tolerance {
-        return Some(cao_sketch::SketchAxis::U);
-    }
-    if cursor.x.abs() <= tolerance {
-        return Some(cao_sketch::SketchAxis::V);
     }
     None
 }
@@ -3264,7 +3176,11 @@ fn pending_annotation(
         {
             return Some((refined, DVec2::ZERO));
         }
-        let target = oriented(context, index, target, cursor);
+        let target = context
+            .document
+            .sketches()
+            .get(index)
+            .map_or(target, |sketch| sketch.oriented(target, cursor));
         // The preview is nudged from where the annotation stands today, not
         // moved to an absolute offset: `push` adds a nudge on top of whatever
         // the dimension already carries.

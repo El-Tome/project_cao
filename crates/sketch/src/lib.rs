@@ -5,6 +5,7 @@
 
 mod constraints;
 pub mod construct;
+mod dimensioning;
 mod plane;
 mod regions;
 pub mod segment;
@@ -12,6 +13,7 @@ mod sketch;
 mod solver;
 
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
+pub use dimensioning::axis_under;
 pub use plane::WorkPlane;
 pub use regions::Region;
 pub use sketch::{Circle, CircleId, Element, LengthOutcome, PointId, Segment, SegmentId, Sketch};

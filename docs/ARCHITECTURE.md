@@ -115,6 +115,15 @@ precious was drawn with those versions. See [history.md](history.md).
   Editing an operation would invalidate its `.bin`, regenerated on the next
   save and always rebuildable from the JSON. A `part.bin` would play the same
   role at the whole-part level.
+- **How much of the drawing is read to know what is settled.** Today all of
+  it, on every frame, through a cubic pass (`settled_points` and `null_space`,
+  [`crates/sketch/src/independence.rs`](../crates/sketch/src/independence.rs)).
+  Three ways out are on the table and none is decided: remembering the answer
+  between two edits, splitting the drawing into the groups that are genuinely
+  joined, and fronting the exact computation with a propagation along the
+  dimensions that is sound but incomplete. The debate, and what each of them
+  gets wrong, is in issue #140; the decision moves into
+  [`sketch.md`](sketch.md) once it is taken.
 - **Stress simulation**: likely through an external library. Running a
   simulation would duplicate the geometry snapshot to freeze the state at
   that moment, independent of edits made to the part afterward — mechanism,

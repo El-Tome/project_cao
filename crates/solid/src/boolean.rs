@@ -397,9 +397,9 @@ mod tests {
         assert!((left - (4000.0 - 810.0)).abs() < 2.0, "{left}");
     }
 
-    /// Le cas qui a fait tomber l'application : une pièce faite de centaines de
-    /// petites facettes, dans laquelle on creuse. L'arbre de plans y dégénère
-    /// en une longue chaîne, et une version récursive épuise la pile.
+    /// The case that brought the application down: a part made of hundreds of
+    /// small facets, dug into. The tree of planes degenerates there into a long
+    /// chain, and a recursive version exhausts the stack.
     #[test]
     fn cutting_into_a_many_faceted_solid_comes_back() {
         let steps = 96;

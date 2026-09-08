@@ -1127,7 +1127,7 @@ mod tests {
         );
     }
 
-    /// Un dessin minimal : deux traits qui partent du même coin.
+    /// The smallest drawing there is: two traits leaving the same corner.
     fn corner() -> (Sketch, SegmentId, SegmentId) {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let pivot = sketch.add_point(DVec2::new(10.0, 10.0));
@@ -1150,7 +1150,7 @@ mod tests {
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
         let square = direction(&sketch, first).dot(direction(&sketch, second));
-        assert!(square.abs() < 1e-6, "produit scalaire = {square}");
+        assert!(square.abs() < 1e-6, "dot product = {square}");
     }
 
     #[test]
@@ -1614,7 +1614,7 @@ mod tests {
 
         for point in [c, d] {
             let gap = sketch.point_to_segment(point, first).unwrap();
-            assert!(gap < 1e-3, "un bout est à {gap} de l'autre droite");
+            assert!(gap < 1e-3, "one end is {gap} away from the other line");
         }
     }
 

@@ -931,8 +931,8 @@ mod extrusion_tests {
         assert!((max.z - min.z - 4.0).abs() < 1e-3, "hauteur");
     }
 
-    /// L'aire cliquée est retrouvée par le point, pas par son rang : dessiner
-    /// autre chose ensuite ne doit pas déplacer l'extrusion.
+    /// The clicked area is found again by the point, not by its rank: drawing
+    /// something else afterwards must not move the extrusion.
     #[test]
     fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
         let mut history = sketch_history();
@@ -946,13 +946,13 @@ mod extrusion_tests {
         });
 
         let state = PartState::rebuild(&history);
-        assert!((volume(&state.body) - 400.0).abs() < 1.0, "la seconde aire");
+        assert!((volume(&state.body) - 400.0).abs() < 1.0, "the second area");
         let (min, _) = state.body.bounds().expect("un volume");
         assert!(min.x > 39.0, "au bon endroit : {min}");
     }
 
-    /// Deux cercles l'un dans l'autre font un tube : l'outil ne remplit pas le
-    /// milieu.
+    /// Two circles one inside the other make a tube: the tool does not fill the
+    /// middle.
     #[test]
     fn two_circles_extrude_to_a_tube() {
         let mut history = sketch_history();
@@ -984,7 +984,7 @@ mod extrusion_tests {
         );
     }
 
-    /// Une poche : la seconde esquisse creuse le bloc de la première.
+    /// A pocket: the second sketch digs into the block of the first.
     #[test]
     fn a_cut_takes_matter_away() {
         let mut history = sketch_history();
@@ -1016,8 +1016,8 @@ mod extrusion_tests {
         assert!((made - (1000.0 - 16.0)).abs() < 2.0, "{made}");
     }
 
-    /// Une forme dans une autre laisse le milieu vide dès la première
-    /// extrusion : c'est le cas du tube, en rectangles.
+    /// A shape inside another leaves the middle empty from the very first
+    /// extrusion: the tube case, in rectangles.
     #[test]
     fn a_shape_inside_another_is_already_hollow() {
         let mut history = sketch_history();
@@ -1034,7 +1034,7 @@ mod extrusion_tests {
         assert!((made - (1000.0 - 40.0)).abs() < 2.0, "{made}");
     }
 
-    /// Une révolution complète autour d'un axe de l'esquisse.
+    /// A full revolution around an axis of the sketch.
     #[test]
     fn a_revolution_sweeps_an_area_around_an_axis() {
         let mut history = sketch_history();
@@ -1081,8 +1081,8 @@ mod extrusion_tests {
         );
     }
 
-    /// Un profil à cheval sur l'axe passerait à travers lui-même : rien n'est
-    /// produit plutôt qu'un volume retourné.
+    /// A profile astride the axis would pass through itself: nothing is
+    /// produced, rather than a volume turned inside out.
     #[test]
     fn a_revolution_across_its_axis_makes_nothing() {
         let mut history = sketch_history();
@@ -1098,12 +1098,12 @@ mod extrusion_tests {
         assert!(PartState::rebuild(&history).body.is_empty());
     }
 
-    /// Le blocage rencontré à l'usage, avec ses vraies mesures : un cylindre de
-    /// révolution de trente unités de rayon, puis une esquisse posée sur sa
-    /// face du dessus et creusée dedans.
+    /// The hang met in use, with its real measurements: a cylinder of
+    /// revolution thirty units in radius, then a sketch laid on its top face
+    /// and dug into.
     ///
-    /// À cette distance de l'origine, un triangle sortait de son propre plan en
-    /// `f64`, et la partition de l'espace le recoupait sans fin.
+    /// At that distance from the origin a triangle came out of its own plane in
+    /// `f64`, and the partition of space cut it again without end.
     #[test]
     fn cutting_into_a_revolved_part_from_its_own_face() {
         let mut history = sketch_history();
@@ -1120,8 +1120,8 @@ mod extrusion_tests {
             mode: ExtrusionMode::Add,
         });
 
-        // Le plan tel que le donne le clic sur la face : sa normale et ses axes
-        // ne sont pas exactement alignés, ce qui fait partie du cas.
+        // The plane as the click on the face gives it: its normal and its axes
+        // are not exactly aligned, which is part of the case.
         let face = WorkPlane {
             origin: DVec3::new(9.729663e-07, -7.5000005, -1.2972885e-06),
             u: DVec3::new(-1.0, -1.2972883e-07, 0.0),
@@ -1145,8 +1145,8 @@ mod extrusion_tests {
         assert!(volume(&state.body) > 0.0);
     }
 
-    /// Deux sommets superposés n'en font plus qu'un, et le rejeu le refait à
-    /// l'identique.
+    /// Two superimposed vertices become one, and the replay does it again
+    /// identically.
     #[test]
     fn merging_two_points_replays() {
         let mut history = sketch_history();
@@ -1179,8 +1179,8 @@ mod extrusion_tests {
         );
     }
 
-    /// Une sélection supprimée d'un bloc est une seule étape, qu'une seule
-    /// annulation défait.
+    /// A selection deleted as a block is one single step, undone by one single
+    /// undo.
     #[test]
     fn a_whole_selection_goes_in_one_step() {
         let mut history = sketch_history();
@@ -1216,8 +1216,8 @@ mod extrusion_tests {
         assert_eq!(back.sketches[0].dimensions().len(), 1);
     }
 
-    /// Supprimer et rejouer doivent donner la même pièce : c'est ce qui permet
-    /// de revenir en arrière sur une suppression.
+    /// Deleting and replaying must give the same part: that is what allows
+    /// stepping back over a deletion.
     #[test]
     fn a_deletion_replays_like_any_other_step() {
         let mut history = sketch_history();
@@ -1239,18 +1239,18 @@ mod extrusion_tests {
         });
 
         let state = PartState::rebuild(&history);
-        assert!(state.sketches[0].regions().is_empty(), "l'aire est ouverte");
+        assert!(state.sketches[0].regions().is_empty(), "the area is open");
         assert!(
             (volume(&state.body) - before).abs() < 1.0,
             "le volume déjà fabriqué reste"
         );
 
-        // Et le curseur ramené avant la suppression rend le contour.
+        // And the cursor brought back before the deletion returns the outline.
         history.undo();
         assert_eq!(PartState::rebuild(&history).sketches[0].regions().len(), 1);
     }
 
-    /// Une esquisse pas entièrement contrainte s'extrude quand même.
+    /// A sketch that is not entirely constrained extrudes all the same.
     #[test]
     fn an_extrusion_does_not_wait_for_a_settled_sketch() {
         let mut history = sketch_history();
@@ -1267,7 +1267,7 @@ mod extrusion_tests {
         assert!(!state.body.is_empty());
     }
 
-    /// Une cote change l'échelle : une extrusion de 10 mm reste 10 mm.
+    /// A dimension changes the scale: an extrusion of 10 mm stays 10 mm.
     #[test]
     fn an_extrusion_is_given_in_millimetres() {
         let mut history = sketch_history();

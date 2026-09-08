@@ -384,7 +384,7 @@ mod tests {
         let mut held = Vec::new();
         collect(&saved.items, &mut held);
         assert!(held.contains(&Command::RulePerpendicular));
-        assert!(held.contains(&Command::ToolLine), "l'existant est intact");
+        assert!(held.contains(&Command::ToolLine), "the existing is intact");
 
         // And running it twice does not pile up copies.
         let before = held.len();

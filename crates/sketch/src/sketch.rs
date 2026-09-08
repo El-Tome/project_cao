@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
 use crate::independence::is_dependent;
 use crate::plane::WorkPlane;
-use crate::solver::{self, SolveOutcome};
+use crate::solver::SolveOutcome;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PointId(pub usize);
@@ -880,7 +880,7 @@ impl Sketch {
         &self,
         target: DimensionTarget,
         millimeters_per_unit: f64,
-    ) -> Option<solver::Equation> {
+    ) -> Option<crate::equation::Equation> {
         let value = match target {
             DimensionTarget::Length(segment) => {
                 (segment.0 < self.segments.len()).then(|| self.segment_length(segment))?

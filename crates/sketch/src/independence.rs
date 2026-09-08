@@ -4,7 +4,7 @@
 //! an equation but its gradient — never the error, never what is drawn — so it
 //! is kept apart from the solver that runs it, and tested on its own.
 
-use crate::solver::Equation;
+use crate::equation::Equation;
 
 /// How many of a set of equations are genuinely independent.
 ///

@@ -21,7 +21,7 @@ en Rust, pensé pour être modulaire et multiplateforme dès le départ.
 
 - **Historique** : chaque geste est une opération enregistrée. Annulation
   (`Ctrl+Z`), rétablissement, et retour direct à n'importe quelle étape depuis
-  le panneau Historique. Voir [`docs/historique.md`](docs/historique.md).
+  le panneau Historique. Voir [`docs/history.md`](docs/history.md).
 
 - **Extrusion** : après avoir terminé une esquisse, choisir une à plusieurs
   aires fermées et leur donner une hauteur — ou un angle et un axe, pour une
@@ -76,10 +76,10 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 - [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
 - [Contextes](docs/contexts.md) — où sont les coutures, et où elles vont
 - [Où va un fichier](docs/code-layout.md) — les dossiers, ce qu'ils importent
-- [Carte du code](docs/carte-du-code.md) — quel fichier porte quel comportement
+- [Carte du code](docs/code-map.md) — quel fichier porte quel comportement
 - [Glossaire](docs/glossary.md) — les mots, et ce qu'ils veulent dire ici
 - [Esquisse](docs/sketch.md) — dessiner, coter, la règle d'échelle
-- [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
+- [Historique](docs/history.md) — opérations, annulation, format `.caopart`
 - [Interface](docs/interface.md) — barre d'outils détachable, panneaux
 - [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
 - [Rendu](docs/render.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
@@ -94,7 +94,7 @@ cargo test --workspace
 cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
 ```
 
-`scripts/verifier.sh` enchaîne `cargo fmt --all --check`, `clippy -D warnings`
+`scripts/verify.sh` enchaîne `cargo fmt --all --check`, `clippy -D warnings`
 puis `cargo test --workspace` ; les deux hooks locaux l'appellent avant chaque
 commit.
 `crates/app/tests/architecture.rs` y vérifie les règles d'architecture — graphe

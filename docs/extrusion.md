@@ -1,6 +1,6 @@
 # Extrusion : de l'aire dessinée au volume
 
-Voir aussi : [esquisse](sketch.md) · [historique](historique.md) ·
+Voir aussi : [esquisse](sketch.md) · [historique](history.md) ·
 [rendu](render.md) · [architecture](ARCHITECTURE.md)
 
 ## Le déroulé
@@ -78,7 +78,7 @@ est retrouvée comme celle qui contient ce point — la plus intérieure s'il y 
 plusieurs.
 
 C'est le même principe que pour les points d'un trait
-([historique.md](historique.md)) : la décision est prise au clic et conservée.
+([history.md](history.md)) : la décision est prise au clic et conservée.
 
 ## Ajouter et enlever de la matière
 

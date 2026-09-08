@@ -75,7 +75,7 @@ branch that went green last week can still break `main` today, and that is what
 the rebase before a merge is for.
 
 The first three also run locally before every commit
-(`scripts/verifier.sh`, called by `.githooks/pre-commit`), and
+(`scripts/verify.sh`, called by `.githooks/pre-commit`), and
 `crates/app/tests/gate.rs` fails if the two lists stop agreeing.
 
 ## Other platforms

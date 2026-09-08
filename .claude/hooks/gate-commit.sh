@@ -1,27 +1,26 @@
 #!/usr/bin/env sh
-# PreToolUse sur Bash. Ne fait quelque chose que si la commande est un commit.
-# Sortie 2 = l'appel d'outil est refusé et stderr est renvoyé à l'agent.
+# PreToolUse on Bash. Does something only when the command is a commit.
 set -u
 
-charge=$(cat)
+payload=$(cat)
 
 if command -v jq >/dev/null 2>&1; then
-    commande=$(printf '%s' "$charge" | jq -r '.tool_input.command // ""' 2>/dev/null) || commande=$charge
+    command_line=$(printf '%s' "$payload" | jq -r '.tool_input.command // ""' 2>/dev/null) || command_line=$payload
 else
-    commande=$charge
+    command_line=$payload
 fi
 
-case "$commande" in
+case "$command_line" in
     *'git commit'*) ;;
     *) exit 0 ;;
 esac
 
-racine=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}
-verifier="$racine/scripts/verifier.sh"
+root=${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null)}
+verify="$root/scripts/verify.sh"
 
-if [ ! -x "$verifier" ]; then
-    printf 'scripts/verifier.sh introuvable ou non exécutable : gate non vérifiable.\n' >&2
+if [ ! -x "$verify" ]; then
+    printf 'scripts/verify.sh not found or not executable: the gate cannot be checked.\n' >&2
     exit 2
 fi
 
-"$verifier" || exit 2
+"$verify" || exit 2

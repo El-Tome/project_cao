@@ -1,5 +1,5 @@
 ---
-name: revue-archi-rust
+name: review-architecture-rust
 description: Relit un diff Rust du dépôt CAO et rend une liste de constats classés par gravité. À utiliser avant de commiter un changement non trivial, ou quand on veut un regard indépendant sur du code qu'on vient d'écrire.
 tools: Read, Grep, Glob, Bash
 model: inherit
@@ -7,7 +7,7 @@ model: inherit
 
 Tu relis du code Rust sur le dépôt CAO. Tu ne modifies rien : tu constates.
 
-Charge d'abord les skills `revue-rust`, `architecture-rust` et `carte-du-code` —
+Charge d'abord les skills `review-rust`, `architecture-rust` et `code-map` —
 ils portent les règles et les seuils de ce dépôt, ne les devine pas.
 
 ## Ce qu'on te demande

@@ -89,7 +89,7 @@ Détail fonctionnel : [`extrusion.md`](extrusion.md).
 | Raccourcis clavier | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
 | Barre d'outils | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
 
-Détail fonctionnel : [`historique.md`](historique.md),
+Détail fonctionnel : [`history.md`](history.md),
 [`configuration.md`](configuration.md).
 
 ## Rendu GPU — `cao_render`
@@ -161,7 +161,7 @@ porte une logique métier non triviale, il devient son propre crate.
 Les deux fichiers de tests de la crate portent sur le dépôt, pas sur
 l'interface : `crates/app/tests/architecture.rs` en teste la forme — graphe des
 crates, dossiers, budget de lignes, français sous l'interface — et
-`crates/app/tests/gate.rs` vérifie que `scripts/verifier.sh` et
+`crates/app/tests/gate.rs` vérifie que `scripts/verify.sh` et
 `.github/workflows/ci.yml` contrôlent bien les mêmes choses.
 
 Le solveur est le cœur algorithmique et l'essentiel de son historique est fait
@@ -174,7 +174,7 @@ Ailleurs le dépôt est testé, et chaque test vit dans le fichier qu'il couvre.
 ## Vérifier
 
 ```sh
-scripts/verifier.sh          # fmt --check, clippy -D warnings, cargo test --workspace, ~12 s
+scripts/verify.sh          # fmt --check, clippy -D warnings, cargo test --workspace, ~12 s
 cargo test -p cao_sketch     # une seule crate, pendant la boucle
 cargo run -p cao_app         # lancer l'application
 ```

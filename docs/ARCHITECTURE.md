@@ -56,7 +56,7 @@ rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 `model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
 `screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
 le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
-`crates/app/tests/architecture.rs` le vérifie, et `scripts/verifier.sh` — format,
+`crates/app/tests/architecture.rs` le vérifie, et `scripts/verify.sh` — format,
 clippy puis `cargo test --workspace`, appelé par les deux hooks locaux avant
 chaque commit — refuse le commit qui l'enfreint.
 
@@ -81,10 +81,10 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 
 - [contexts.md](contexts.md) — où sont les coutures, et où elles vont
 - [code-layout.md](code-layout.md) — où va un fichier neuf, ce qu'il peut importer
-- [carte-du-code.md](carte-du-code.md) — quel fichier porte quel comportement
+- [code-map.md](code-map.md) — quel fichier porte quel comportement
 - [glossary.md](glossary.md) — les mots, et ce qu'ils veulent dire ici
 - [sketch.md](sketch.md) — dessiner, coter, et la règle d'échelle
-- [historique.md](historique.md) — opérations, annulation, format de fichier
+- [history.md](history.md) — opérations, annulation, format de fichier
 - [interface.md](interface.md) — barre d'outils détachable, panneaux
 - [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
 - [render.md](render.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
@@ -100,7 +100,7 @@ reconstruite en rejouant l'historique, ce qui fait de l'annulation, du
 rétablissement et du retour à une étape la même opération. Les fichiers écrits
 au format précédent (un JSON unique) ne sont pas lus : l'outil a trop changé
 pour qu'une conversion soit digne de confiance, et rien de précieux n'a été
-dessiné avec ces versions. Voir [historique.md](historique.md).
+dessiné avec ces versions. Voir [history.md](history.md).
 
 ## Pistes non prioritaires (à débattre plus tard)
 

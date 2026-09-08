@@ -1,12 +1,12 @@
 ---
-name: carte-du-code
+name: code-map
 description: Trouver où intervenir dans le code CAO. À utiliser dès qu'on cherche quel fichier ou quelle fonction porte un comportement — esquisse, cotation, solveur, contraintes, extrusion, révolution, booléens, historique, annulation, viewport, caméra, cube d'orientation, grille, rendu wgpu, réglages, profils, raccourcis, barre d'outils, format .caopart, menu de démarrage.
 ---
 
 # Où vit quoi
 
 `docs/` raconte ce que fait le logiciel. Ce skill dit où c'est écrit.
-La référence complète, lisible aussi par un humain : `docs/carte-du-code.md`.
+La référence complète, lisible aussi par un humain : `docs/code-map.md`.
 
 Ici on cherche **où un comportement est déjà écrit**. Pour savoir **où poser un
 fichier neuf** — quel dossier, ce qu'il a le droit d'importer —, c'est

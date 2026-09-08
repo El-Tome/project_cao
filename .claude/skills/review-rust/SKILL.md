@@ -1,5 +1,5 @@
 ---
-name: revue-rust
+name: review-rust
 description: Review Rust before committing it on this CAO repository. Use before any commit, when reading a diff, when wondering whether a file has grown too large, or to check that a change respects the project's rules.
 ---
 
@@ -104,12 +104,12 @@ What the test cannot see:
 ## Before validating
 
 ```sh
-scripts/verifier.sh
+scripts/verify.sh
 ```
 
 `cargo fmt --all --check`, `clippy -D warnings`, then `cargo test --workspace`,
 ~12 s. The gate will do it again at commit time, but running it first saves a round trip.
 
-For an independent read, the `revue-archi-rust` subagent applies this skill and
+For an independent read, the `review-architecture-rust` subagent applies this skill and
 `architecture-rust` to a diff, in a separate context — whoever just wrote the
 code is badly placed to judge it.

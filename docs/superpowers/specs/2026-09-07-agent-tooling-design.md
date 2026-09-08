@@ -115,13 +115,13 @@ le critère de tri de tout ce qui suit.
 .claude/
 ├── settings.json                       versionné : hooks + permissions
 ├── skills/
-│   ├── carte-du-code/SKILL.md
+│   ├── code-map/SKILL.md
 │   ├── rust-tdd/SKILL.md
 │   ├── architecture-rust/SKILL.md
-│   ├── revue-rust/SKILL.md
-│   └── ouvrir-une-tache/SKILL.md
+│   ├── review-rust/SKILL.md
+│   └── open-a-task/SKILL.md
 ├── agents/
-│   └── revue-archi-rust.md
+│   └── review-architecture-rust.md
 └── hooks/
     ├── session-start.sh
     └── gate-commit.sh
@@ -132,7 +132,7 @@ rustfmt.toml
 clippy.toml
 .github/workflows/ci.yml
 CLAUDE.md                               refondu
-docs/carte-du-code.md                   nouveau
+docs/code-map.md                   nouveau
 .gitignore                              + .claude/settings.local.json
 ```
 
@@ -146,7 +146,7 @@ Les skills sont rédigés en **français**, comme `CLAUDE.md` et `docs/`. Le cod
 et les noms de tests restent en anglais, conformément à l'usage établi du
 dépôt (`a_crash_is_written_down_with_its_hour_and_its_stack`).
 
-### 5.1 `carte-du-code`
+### 5.1 `code-map`
 
 Le pont manquant entre `docs/` et les 40 fichiers de `crates/`.
 
@@ -201,7 +201,7 @@ SOLID et ports & adapters appliqués à ce workspace.
   `recents.rs`, `settings.rs` et `storage.rs`. Ces endroits sont de la dette
   connue et ne doivent jamais servir de modèle à recopier.
 
-### 5.4 `revue-rust`
+### 5.4 `review-rust`
 
 Checklist de relecture avant commit.
 
@@ -214,7 +214,7 @@ Checklist de relecture avant commit.
 - Erreurs : `thiserror`, jamais une variante portant une `String` libre.
 - Allocation à l'intérieur d'une boucle de rendu.
 
-### 5.5 `ouvrir-une-tache`
+### 5.5 `open-a-task`
 
 La procédure que `CLAUDE.md` demande sans l'outiller.
 
@@ -226,8 +226,8 @@ tangences tenues, plantages tracés ».
 
 ## 6. Le sous-agent
 
-`.claude/agents/revue-archi-rust.md` — sous-agent en lecture seule qui applique
-`revue-rust` et `architecture-rust` à un diff et rend une liste de constats
+`.claude/agents/review-architecture-rust.md` — sous-agent en lecture seule qui applique
+`review-rust` et `architecture-rust` à un diff et rend une liste de constats
 classés par gravité. Outils : lecture, recherche, `cargo` en lecture seule. Il
 ne modifie rien.
 
@@ -272,7 +272,7 @@ Si `cargo` est introuvable : refus explicite, message « rustup non installé,
 gate non vérifiable », et non un `command not found` avalé.
 
 Soupape : si `CAO_SKIP_GATE=1` est présent dans l'environnement, le gate
-s'efface en le signalant. Le skill `ouvrir-une-tache` porte la consigne que
+s'efface en le signalant. Le skill `open-a-task` porte la consigne que
 l'agent ne pose jamais cette variable de lui-même — elle appartient à
 l'humain, pour ses travaux en cours.
 
@@ -366,9 +366,9 @@ couche application. La formulation est corrigée dans `CLAUDE.md` ;
 `ARCHITECTURE.md` n'est pas touché, le périmètre l'exclut, et le point est
 consigné dans `architecture-rust` comme dette connue.
 
-### `docs/carte-du-code.md`
+### `docs/code-map.md`
 
-Le contenu de référence du skill `carte-du-code`, sous une forme lisible aussi
+Le contenu de référence du skill `code-map`, sous une forme lisible aussi
 par un humain qui arrive sur le projet.
 
 ## 11. Hors périmètre

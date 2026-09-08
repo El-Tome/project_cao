@@ -145,7 +145,7 @@ chantier séparé.
 
 ## Avant de commiter
 
-`scripts/verifier.sh` lance `cargo fmt --all --check`, `clippy -D warnings` puis
+`scripts/verify.sh` lance `cargo fmt --all --check`, `clippy -D warnings` puis
 `cargo test --workspace`.
 Le gate le fait tout seul au commit ; le lancer à la main avant fait gagner un
 aller-retour.

@@ -5,7 +5,7 @@ any structural change, [`docs/contexts.md`](docs/contexts.md) for where the
 seams are and where they are going, [`docs/code-layout.md`](docs/code-layout.md)
 for where a new file goes and what it may import,
 [`docs/glossary.md`](docs/glossary.md) for the words, and
-[`docs/carte-du-code.md`](docs/carte-du-code.md) to find where things live.
+[`docs/code-map.md`](docs/code-map.md) to find where things live.
 
 ## How to work
 
@@ -13,14 +13,14 @@ Six skills carry the detail, in `.claude/skills/`:
 
 | Skill | When |
 | --- | --- |
-| `ouvrir-une-tache` | at the very start, before reading any code |
-| `carte-du-code` | to find where to act |
+| `open-a-task` | at the very start, before reading any code |
+| `code-map` | to find where to act |
 | `rust-tdd` | to write the test before the code |
 | `refactor-rust` | to move code that already works, without changing it |
 | `architecture-rust` | before adding a crate, a module, a dependency, or any I/O |
-| `revue-rust` | before committing |
+| `review-rust` | before committing |
 
-The `revue-archi-rust` subagent reads a diff in a separate context.
+The `review-architecture-rust` subagent reads a diff in a separate context.
 
 On a fresh clone, enable the git hook once:
 

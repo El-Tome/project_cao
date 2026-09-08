@@ -1,5 +1,5 @@
 ---
-name: ouvrir-une-tache
+name: open-a-task
 description: Open and close a task on this CAO repository. Use at the very start, before reading any code, to check whether the work is already under way somewhere, to branch correctly, and at the end to say what was done and what was not.
 ---
 
@@ -78,7 +78,7 @@ the parent branch. `CLAUDE.md` §How work is delivered has the commands.
 
 The test before the code — see `rust-tdd`. Moving code that already works
 without changing it — see `refactor-rust`. To find where to act,
-`carte-du-code`. Before committing, `revue-rust`.
+`code-map`. Before committing, `review-rust`.
 
 For an API question on `egui`, `wgpu` or `glam`, **use `context7`** rather than
 memory: this project is on `egui 0.36`, `wgpu 30` and `glam 0.33`, crates whose

@@ -222,9 +222,6 @@ does not. Where the two disagree, this file and the architecture test win.
   commit that writes it and false at the next one — a `cargo fmt` was enough.
   Say the order of magnitude, or name the largest. The only lengths that carry a
   rule live in `crates/app/tests/architecture.rs`, which fails when they drift.
-  A counter that *is* the point of a document — the wording budget in
-  `docs/contexts.md`, which the test lets fall and never rise — is the
-  exception.
 - Ask, at any point, when something is unclear, when the request is ambiguous,
   or when information is missing — before acting.
 - Before starting a task, pull, and check whether an existing branch already

@@ -26,6 +26,7 @@ pub fn say(error: &PartFileError) -> String {
             "L'archive de cette pièce n'a pas pu être traitée.".to_string()
         }
         PartFileError::Json(_) => "Le contenu de cette pièce n'a pas pu être traité.".to_string(),
+        PartFileError::BlankName => "Une pièce a besoin d'un nom.".to_string(),
     }
 }
 
@@ -42,6 +43,16 @@ mod tests {
         assert!(
             said.contains("piece.json"),
             "the reader is told which entry is missing: {said}",
+        );
+    }
+
+    #[test]
+    fn a_part_named_with_blanks_alone_is_told_what_it_is_missing() {
+        let said = say(&PartFileError::BlankName);
+
+        assert!(
+            said.contains("nom"),
+            "the reader is told a name is wanted: {said}"
         );
     }
 

@@ -291,9 +291,17 @@ weight.
 named case — `ExtrusionMode::Cut`, `StorageError::MissingEntry` — and the
 interface decides how it is said, and later in which language.
 
-This is what makes i18n a wiring job rather than a rewrite. It is not true yet:
-2 lines of French still sit below `cao_app`, both of them in `cao_part`. The
-architecture test holds the count per file so that it can only fall.
+This is what makes i18n a wiring job rather than a rewrite, and it holds: the
+architecture test refuses any string literal below `cao_app` that reads as
+something said to a reader. What it goes by is shape, not vocabulary — an
+accent, two words side by side, or a single capitalised word. Machine tokens
+pass because they have none of those: `part.json`, `cao_scene_pipeline_layout`,
+`{wanted} {suffix}`, `mm`.
+
+A sentence aimed at whoever reads the crash is exempt where it sits —
+`#[error(…)]`, `expect`, `panic!`, an assertion — because it reaches no user.
+An accent fails even there. The rule stops at `#[cfg(test)]`; French assertion
+messages inside test modules are #129.
 
 ## SOLID, applied here
 

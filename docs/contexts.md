@@ -144,10 +144,16 @@ reason.
 **Named case → wording.** A layer below `cao_app` returns
 `ExtrusionMode::Cut`, not "Enlèvement de matière". The interface decides how a
 case is said, and later in which language. This one now holds for everything
-the user reads: no sentence of the interface is left below `cao_app`, and
-`crates/app/tests/architecture.rs` holds the count at zero so none comes back.
-The count stops at `#[cfg(test)]`, so it says nothing about test code, where
-French assertion messages still sit below the line.
+the user reads, and `crates/app/tests/architecture.rs` no longer counts lines
+per file: it refuses outright any string literal below `cao_app` that reads as
+something said to a reader — an accent, two words side by side, or a single
+capitalised word. A sentence aimed at whoever reads the crash rather than at
+whoever uses the software is exempt where it sits: `#[error(…)]`, `expect`,
+`panic!`, an assertion. An accent fails even there.
+
+The rule stops at `#[cfg(test)]`, so it says nothing about test code, where
+French assertion messages still sit below the line — #129 is where that is
+settled.
 
 ## What is deliberately not its own context
 

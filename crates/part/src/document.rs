@@ -126,7 +126,7 @@ impl PartDocument {
         now: DateTime<Utc>,
     ) -> Result<(Self, PathBuf), PartFileError> {
         let mut doc = Self::new(name, now);
-        let (free, path) = file_name::free_in(files, dir, doc.name());
+        let (free, path) = file_name::free_in(files, dir, doc.name())?;
         doc.metadata.name = free;
         doc.save(files, &path, now)?;
         Ok((doc, path))

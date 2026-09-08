@@ -141,7 +141,7 @@ Read both before deciding where something lives. The short version:
 - **`cao_render` — the picture**, **`cao_app` — the shell**.
 - **`cao_core` is two contexts, not one.** The part (`history`, `state`,
   `document`) and the preferences (`settings`, `theme`, `shortcuts`, `toolbar`,
-  `recents`, `config`, `command`) share a manifest and nothing else: 1 796 of
+  `recents`, `config`, `command`) share a manifest and nothing else: 2 031 of
   its 4 328 lines never mention the geometry. The preferences are meant to leave
   as `cao_prefs`.
 

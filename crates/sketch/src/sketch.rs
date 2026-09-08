@@ -394,6 +394,12 @@ impl Sketch {
         point == Self::ORIGIN
     }
 
+    /// A point neither coordinate of which can move, whatever the drawing says:
+    /// the origin, and anything erased.
+    fn out_of_play(&self, point: PointId) -> bool {
+        self.is_origin(point) || self.is_erased_point(point)
+    }
+
     /// Whether the user is holding this point under the cursor right now.
     pub(crate) fn is_held_still(&self, point: PointId) -> bool {
         self.held.contains(&point)
@@ -824,18 +830,14 @@ impl Sketch {
     /// Coordinates that no constraint holds, worked out from the rank of the
     /// system: how many independent things the dimensions actually say.
     ///
-    /// Points pinned to the origin are taken out of the count outright, since
-    /// neither of their coordinates can move.
+    /// Points out of play are taken out of the count outright, since neither of
+    /// their coordinates can move.
     pub fn freedom(&self, millimeters_per_unit: f64) -> Freedom {
-        // What the drawing can still move: two coordinates per point, plus one
-        // size per circle. Only the origin is out of play — a **Fixe** holds a
-        // point still while the drawing settles, but it anchors it to nothing,
-        // and a figure it alone holds could be anywhere on the plane.
+        // Two coordinates per point, plus one size per circle. A **Fixe** is
+        // not out of play: it holds a point while the drawing settles but
+        // anchors it to nothing, and a figure it alone holds could be anywhere.
         let loose = (0..self.points.len())
-            .filter(|index| {
-                let point = PointId(*index);
-                !self.is_origin(point) && !self.is_erased_point(point)
-            })
+            .filter(|index| !self.out_of_play(PointId(*index)))
             .count();
         let unknowns = loose * 2 + self.live_circles().count();
         let held = solver::rank(&self.anchored_system(millimeters_per_unit)).min(unknowns);
@@ -905,11 +907,6 @@ impl Sketch {
         probe.equations(millimeters_per_unit).into_iter().next()
     }
 
-    /// Whether the drawing has any freedom left, as a whole.
-    pub fn is_settled(&self, millimeters_per_unit: f64) -> bool {
-        self.is_fully_constrained(millimeters_per_unit)
-    }
-
     /// Which points can no longer move at all.
     ///
     /// A drawing is rarely all-or-nothing: one contour can be nailed down while
@@ -918,7 +915,7 @@ impl Sketch {
     pub fn settled_points(&self, millimeters_per_unit: f64) -> Vec<bool> {
         let variables = self.variables();
         let pinned: Vec<bool> = (0..self.points.len())
-            .map(|index| self.is_origin(PointId(index)))
+            .map(|index| self.out_of_play(PointId(index)))
             .collect();
         let free = solver::null_space(
             &self.anchored_system(millimeters_per_unit),

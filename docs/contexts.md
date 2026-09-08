@@ -1,9 +1,9 @@
 # Bounded contexts
 
-Where the seams are, where they should be, and what has to be translated when
+Where the seams are, why they fall there, and what has to be translated when
 something crosses one. [`ARCHITECTURE.md`](ARCHITECTURE.md) says which crate may
-depend on which; this says why the lines fall where they do, and it is the
-target the refactor works towards. The words used here are in
+depend on which; this says why the lines fall where they do, and what the
+refactor has left to move. The words used here are in
 [`glossary.md`](glossary.md).
 
 A context is a stretch of code where one word means one thing. Two contexts may
@@ -13,12 +13,15 @@ translates at the boundary. What is not fine is a boundary nobody drew.
 ## Today
 
 ```
-cao_app  ──►  cao_core  ──►  cao_sketch
-   │             └────────►  cao_solid
-   └──────────►  cao_render
+cao_app  ──►  cao_part   ──►  cao_sketch
+   │             └─────────►  cao_solid
+   ├──────►  cao_prefs
+   └──────►  cao_render
 ```
 
-Four of these are one context each and are in the right place:
+Six crates, one context each. `cao_app` also reaches `cao_sketch` and
+`cao_solid` directly, which the arrows leave out: the route through `cao_part`
+is the one that carries a part, not an exclusive one.
 
 - **`cao_sketch` — the drawing.** Points, segments, circles, dimensions,
   constraints, the solver, closed regions. Pure mathematics: no disk, no clock,
@@ -28,97 +31,60 @@ Four of these are one context each and are in the right place:
   nothing of `cao_sketch`.
 - **`cao_render` — the picture.** Camera, orientation cube, vertex buffers,
   wgpu. Knows no interface framework.
+- **`cao_part` — the part.** `Operation`, `History`, `PartState`,
+  `PartDocument`. Its language is operation, replay, step, part. Its invariant
+  is that the geometry is never stored, only replayed, and that an operation's
+  meaning is frozen the moment a file is written with it. It is versioned inside
+  a `.caopart`.
+- **`cao_prefs` — the preferences.** Themes, shortcuts, toolbar layout,
+  profiles, recent files. Its language is profile, theme, chord, layout. It
+  shares no invariant with the part, its lifetime is the installation rather
+  than the document, and it lives under the user's config directory.
 - **`cao_app` — the shell.** Window, routing between modes, gestures, wording.
 
-## The seam that is missing
+## The seam that was drawn
 
-`cao_core` is not one context. It is 4 328 lines that share a manifest and
-nothing else — measured at `ced22d5`, the reading this section was written
-against:
+`cao_part` and `cao_prefs` shared one crate, `cao_core`, and shared nothing
+else: no
+invariant, no vocabulary, no lifetime. Nothing on the preferences side ever
+reached for the part. They were already decoupled; the crate boundary simply had
+not been drawn where the decoupling was. Move 1 (#26) drew it. Move 2 (#28)
+renamed what was left after what it holds — it never was the domain, it depends
+on both domains and orchestrates them, and the old name made that
+misunderstanding on every reading.
 
-| File | Lines | Mentions of `cao_sketch` / `cao_solid` |
+Two decisions shaped the cut, and both outlive it.
+
+### `command.rs` went with the preferences
+
+It is the one file where membership was a choice rather than a reading. Its
+vocabulary is the part's — `NewSketch`, `Undo`, `ExtrusionCut` — but `Command`
+is the vocabulary of *intent*, not of what the part records: nothing replays a
+`Command`, and no `.caopart` mentions one. Its only two consumers are
+`toolbar.rs` and `shortcuts.rs`, which bind it to a gesture and to a chord, and
+`toolbar.rs` serialises it into the profile. Leaving it behind would have
+pointed `cao_prefs` at `cao_part`, the one edge the graph forbids.
+
+### `storage.rs` was cut three ways rather than moved
+
+It was imported from both sides: `document.rs` took `StorageError` from it,
+`settings.rs` and `recents.rs` took `StorageError` **and** `project_dirs()`. It
+also held three unrelated things:
+
+| What | Went to | Why |
 | --- | --- | --- |
-| `state.rs` | 1 297 | 33 |
-| `history.rs` | 539 | 3 |
-| `document.rs` | 339 | 4 |
-| `storage.rs` | 95 | 0 |
-| `toolbar.rs` | 475 | **0** |
-| `shortcuts.rs` | 342 | **0** |
-| `config.rs` | 315 | **0** |
-| `settings.rs` | 307 | **0** |
-| `theme.rs` | 283 | **0** |
-| `command.rs` | 235 | **0** |
-| `recents.rs` | 74 | **0** |
-| `lib.rs` | 27 | 0 |
-
-The seven rows in bold — 2 031 lines, 47 % of the crate — are the preferences,
-and never mention the geometry. `storage.rs` and `lib.rs` do not either and
-belong to neither side: `lib.rs` only lists modules, and `storage.rs` has a
-section of its own below. Two contexts, held together by the accident of being
-neither interface nor mathematics:
-
-`command.rs` is counted in that figure, and it is the one row where that was a
-choice rather than a reading. Its vocabulary is the part's — `NewSketch`,
-`Undo`, `ExtrusionCut` — but `Command` is the vocabulary of *intent*, not of
-what the part records: nothing replays a `Command`, and no `.caopart` mentions
-one. Its only two consumers are `toolbar.rs` and `shortcuts.rs`, which bind it
-to a gesture and to a chord, and `toolbar.rs` serialises it into the profile. It
-goes with the preferences. Leaving it behind would point `cao_prefs` at
-`cao_core`, the one edge the target forbids.
-
-**The part.** `Operation`, `History`, `PartState`, `PartDocument`. Its language
-is operation, replay, step, part. Its invariant is that the geometry is never
-stored, only replayed, and that an operation's meaning is frozen the moment a
-file is written with it. It is versioned inside a `.caopart`.
-
-**The preferences.** Themes, shortcuts, toolbar layout, profiles, recent files.
-Its language is profile, theme, chord, layout. It shares no invariant with the
-part, its lifetime is the installation rather than the document, and it lives
-under the user's config directory.
-
-Nothing in the second reaches for the first. They are already decoupled; the
-crate boundary simply has not been drawn where the decoupling is.
-
-### The one file that straddles the seam
-
-`storage.rs` is the exception, and the only one. It is imported from both sides:
-`document.rs` takes `StorageError` from it, `settings.rs` and `recents.rs` take
-`StorageError` **and** `project_dirs()`. It also holds three unrelated things,
-so it is cut three ways rather than moved:
-
-| What | Goes to | Why |
-| --- | --- | --- |
-| `StorageError` | split in two | The part keeps `Archive` and `MissingEntry`, the preferences keep `NoProjectDirs`; `Io`, `Json` and `UnsupportedVersion` are duplicated. |
+| `StorageError` | split in two | `cao_part` got `PartFileError`, with `Archive` and `MissingEntry`; `cao_prefs` kept `StorageError`, with `NoProjectDirs`. `Io`, `Json` and `UnsupportedVersion` sit on both. |
 | `project_dirs()` | `cao_prefs` | `document.rs` never calls it — it takes the directory as a parameter. Every caller is a preference. |
-| `default_projects_dir()` | `cao_app` | Where parts land is a choice of the shell, made once in `app.rs`. |
-| `crash_log_path()`, `record_panics()` | `cao_app` | The crash log belongs to neither context. It is called from `main.rs` and nowhere else. |
+| `default_projects_dir()`, `crash_log_path()`, `record_panics()` | `cao_prefs` | Planned for `cao_app`, and they stayed: all three go through `project_dirs()`, so moving them up would have exported it. `cao_app` calls them from `app.rs` and `main.rs`. |
 
-The cost of the cut is one variant and two `#[from]` duplicated. The three
-alternatives all cost more: moving `storage.rs` whole would make `cao_part`
-depend on `cao_prefs`, leaving it behind would make `cao_prefs` depend on
-`cao_part`, and a third plumbing crate is a crate nobody asked for.
+The cut cost one variant and two `#[from]` duplicated. The three alternatives
+all cost more: moving `storage.rs` whole would have made `cao_part` depend on
+`cao_prefs`, leaving it behind would have made `cao_prefs` depend on `cao_part`,
+and a third plumbing crate is a crate nobody asked for.
 
-`ProjectDirs::from("dev", "cao", "cao")` is moved, never retyped. The smallest
+`ProjectDirs::from("dev", "cao", "cao")` was moved, never retyped. The smallest
 difference in that triple relocates the user's configuration directory and loses
 them their profiles, their shortcuts and their recent files.
-
-## The target
-
-```
-cao_app  ──►  cao_part   ──►  cao_sketch
-   │             └─────────►  cao_solid
-   ├──────►  cao_prefs
-   └──────►  cao_render
-```
-
-`cao_core` becomes `cao_part`, and the preferences leave as `cao_prefs`, which
-depends on nothing of the geometry. A crate rather than a module, because a
-crate boundary is the one the compiler checks — and the whole point of this
-work is rules that are executed rather than promised.
-
-`cao_core` also stops being called core. It never was the domain: it depends on
-both domains and orchestrates them. Naming it after what it holds ends a
-misunderstanding the current name creates on every reading.
 
 ## The folders appear where the role appears
 
@@ -134,7 +100,7 @@ carries the rule that settles it: *a folder appears only where the role
 exists.* The layout above is a destination, not a scaffold to erect now and
 fill later.
 
-So move 1 was eight flat `git mv`, one file each, and move 2 will be the same.
+So moves 1 and 2 were flat `git mv`s, one file each, and no folder appeared.
 `cao_prefs` earns a `ports/` and an `adapters/` when #42, #43 and #44 give
 `storage.rs` and `recents.rs` a trait to sit behind. Drawing the folders before
 that is guessing where the seam falls, over files that have just moved once
@@ -144,7 +110,8 @@ Two rules follow all the same, and they are the ones that keep a seam findable:
 
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder in need of subheadings — it is the signal
-  that the crate is two crates, which is what `cao_core` was until move 1.
+  that the crate is two crates, which is what `cao_core` was until move 1 took
+  the preferences out of it.
 - **A context never reaches into another one's `model/`.** It goes through a
   port, or the translation is named and lives at the seam. The three that exist
   are described just below.

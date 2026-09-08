@@ -158,9 +158,11 @@ porte une logique métier non triviale, il devient son propre crate.
 | `sketch/src/constraints.rs` | 0 |
 | `crates/app/src/` | 0 |
 
-`crates/app/tests/architecture.rs` est le seul fichier de tests de la crate, et
-il porte sur la forme du dépôt — graphe des crates, dossiers, budget de lignes,
-français sous l'interface — pas sur l'interface elle-même.
+Les deux fichiers de tests de la crate portent sur le dépôt, pas sur
+l'interface : `crates/app/tests/architecture.rs` en teste la forme — graphe des
+crates, dossiers, budget de lignes, français sous l'interface — et
+`crates/app/tests/gate.rs` vérifie que `scripts/verifier.sh` et
+`.github/workflows/ci.yml` contrôlent bien les mêmes choses.
 
 Le solveur est le cœur algorithmique et l'essentiel de son historique est fait
 de correctifs successifs (`git log -- crates/sketch/src/solver.rs`), sans aucun

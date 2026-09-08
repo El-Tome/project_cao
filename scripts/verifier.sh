@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 # The two local hooks call this script: .claude/hooks/gate-commit.sh and
 # .githooks/pre-commit. The CI does not — .github/workflows/ci.yml replays the
-# same two commands as separate jobs, deliberately: for the per-job annotations,
-# for the parallelism, and so that CAO_SKIP_GATE cannot reach them.
+# same commands as separate jobs, deliberately: for the per-job annotations, for
+# the parallelism, and so that CAO_SKIP_GATE cannot reach them. What keeps the
+# two lists from drifting apart is crates/app/tests/gate.rs.
 set -u
 
 export PATH="$HOME/.cargo/bin:$PATH"

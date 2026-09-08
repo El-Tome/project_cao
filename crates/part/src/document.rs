@@ -8,11 +8,9 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::errors::PartFileError;
+use crate::file_name;
 use crate::history::{History, Operation};
 use crate::state::{DimensionOutcome, PartState};
-
-/// File extension used for a CAO part document.
-pub const PART_EXTENSION: &str = "caopart";
 
 /// Bumped whenever the layout of a saved part changes.
 ///
@@ -128,11 +126,9 @@ impl PartDocument {
         name: impl Into<String>,
     ) -> Result<(Self, PathBuf), PartFileError> {
         fs::create_dir_all(dir)?;
-        let doc = Self::new(name);
-        let path = dir.join(format!(
-            "{}.{PART_EXTENSION}",
-            sanitize_filename(doc.name())
-        ));
+        let mut doc = Self::new(name);
+        let (free, path) = file_name::free_in(dir, doc.name());
+        doc.metadata.name = free;
         doc.save(&path)?;
         Ok((doc, path))
     }
@@ -220,25 +216,6 @@ fn read_entry<R: Read + std::io::Seek>(
     let mut text = String::new();
     entry.read_to_string(&mut text)?;
     Ok(text)
-}
-
-fn sanitize_filename(name: &str) -> String {
-    let cleaned: String = name
-        .chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect();
-    let trimmed = cleaned.trim();
-    if trimmed.is_empty() {
-        "Sans titre".to_string()
-    } else {
-        trimmed.to_string()
-    }
 }
 
 #[cfg(test)]
@@ -354,6 +331,23 @@ mod tests {
 
         let error = PartDocument::load(&path).expect_err("must be refused");
         assert!(matches!(error, PartFileError::UnsupportedVersion(2)));
+
+        fs::remove_dir_all(&directory).ok();
+    }
+
+    #[test]
+    fn a_second_part_of_the_same_name_does_not_destroy_the_first() {
+        let directory = temp_dir();
+        let (first, first_path) = PartDocument::create_in(&directory, "Support").expect("creates");
+        let (second, second_path) =
+            PartDocument::create_in(&directory, "Support").expect("creates a second");
+
+        let reopened = PartDocument::load(&first_path).expect("the first one is still there");
+
+        assert_ne!(first_path, second_path);
+        assert_eq!(second.name(), "Support 2");
+        assert_eq!(reopened.metadata.id, first.metadata.id);
+        assert_eq!(reopened.name(), "Support");
 
         fs::remove_dir_all(&directory).ok();
     }

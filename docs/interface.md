@@ -1,45 +1,46 @@
-# La barre d'outils et les panneaux
+# The toolbar and the panels
 
-Voir aussi : [esquisse](esquisse.md) · [historique](historique.md)
+See also: [sketch](sketch.md) · [history](historique.md)
 
-## Disposition
+## Layout
 
 ```
 ┌──────────────────────────────────────────────┐
-│ ⌂ Accueil │ nom de la pièce │ vue │ message…  │  barre de titre
+│ ⌂ Accueil │ part name │ view │ message…       │  title bar
 ├──────────────────────────────────────────────┤
-│ Esquisse │ Extrusion │ Assemblage             │  catégories
+│ Esquisse │ Extrusion │        Historique │ ⚙ │  tabs
 │ ─────────────────────────────────────────────│
-│ Nouvelle esquisse │ Ligne │ Cote │ Annuler…   │  outils de la catégorie
+│ Nouvelle esquisse │ Dessin… │ Édition…        │  entries of the open tab
 ├───────────┬──────────────────────────────────┤
-│ Historique│                                  │
-│  Esquisse │           viewport               │
-│   1. Trait│                                  │
+│ History   │                                  │
+│  Sketch   │           viewport               │
+│   1. Line │                                  │
 └───────────┴──────────────────────────────────┘
 ```
 
-## La barre d'outils est détachable
+## The toolbar goes where the user wants it
 
-Elle est **ancrée en haut par défaut**, et le bouton ⏏ la détache en une petite
-fenêtre qu'on déplace où l'on veut ; 📌 la ré-ancre. C'est le même contenu dans
-les deux cas — une seule fonction dessine l'intérieur, la seule différence est
-le conteneur.
+It attaches **at the top, at the bottom, on the left or on the right**, or
+floats in a small window one moves about. The choice is made in the settings
+screen and travels with the profile. One single function draws the inside in
+all five cases — the only difference is the container, and the direction it
+imposes on the rows.
 
-Deux rangées : les **catégories** (Esquisse, Extrusion, Assemblage) puis les
-**outils** de celle qui est choisie. Les catégories sans outils sont grisées et
-le disent au survol ; elles sont affichées quand même pour que la structure du
-logiciel soit visible, et pour qu'en ajouter une revienne à remplir sa liste
-d'outils.
+Its contents are a **tree the user arranges**, not a fixed list: the groups at
+the first level are the tabs, those one level down are spread out where they
+are with their name beside them, deeper still they become menus that open on
+click. The detail is in [configuration.md](configuration.md). Every button
+shows its shortcut in brackets when it has one, and is greyed out when the
+command makes no sense where one is.
 
-## Le panneau Historique
+## The History panel
 
-À gauche, redimensionnable, masquable par le bouton « Historique » de la barre
-d'outils. Son contenu est décrit dans [historique.md](historique.md).
+On the left, resizable, hidden by the "Historique" button of the toolbar. Its
+contents are described in [historique.md](historique.md).
 
-## Ce qui manque
+## What is missing
 
-- Le ré-ancrage ne se fait qu'au bouton : faire glisser la fenêtre jusqu'en
-  haut ne la rattache pas toute seule.
-- La position de la fenêtre détachée et l'état des panneaux ne sont pas
-  enregistrés d'une session à l'autre.
-- Il n'y a pas de raccourcis clavier pour les outils.
+- The place is chosen in the settings: dragging the floating window to an edge
+  does not dock it there by itself.
+- The state of the panels — which tab the bar is open on, whether the history
+  is hidden — is not saved from one session to the next.

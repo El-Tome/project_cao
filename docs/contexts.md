@@ -93,15 +93,15 @@ Inside a crate, a file's role is carried by the folder that holds it —
 `screens/<mode>/`. [`code-layout.md`](code-layout.md) says what each one means
 and what it may import.
 
-**None of them exists yet.** No crate in the workspace holds one, and the
-workspace declares no trait at all — so `ports/` has no member it could take,
-and `adapters/` has nothing to sit opposite. `CLAUDE.md` §Where a file goes
-carries the rule that settles it: *a folder appears only where the role
-exists.* The layout above is a destination, not a scaffold to erect now and
-fill later.
+**The first two appeared with #42.** `cao_part` holds a `ports/` — `trait Files`,
+the whole of what a part asks of a filesystem — and an `adapters/` where its
+in-memory double sits; the real one, `DiskFiles`, is in the shell. No other
+crate holds either folder yet, and `CLAUDE.md` §Where a file goes carries the
+rule that settles it: *a folder appears only where the role exists.* The layout
+above is a destination, not a scaffold to erect now and fill later.
 
 So moves 1 and 2 were flat `git mv`s, one file each, and no folder appeared.
-`cao_prefs` earns a `ports/` and an `adapters/` when #42, #43 and #44 give
+`cao_prefs` earns its own `ports/` and `adapters/` when #43 and #44 give
 `storage.rs` and `recents.rs` a trait to sit behind. Drawing the folders before
 that is guessing where the seam falls, over files that have just moved once
 already.

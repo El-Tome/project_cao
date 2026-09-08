@@ -1,7 +1,7 @@
 # Extrusion : de l'aire dessinée au volume
 
 Voir aussi : [esquisse](sketch.md) · [historique](historique.md) ·
-[rendu](rendu.md) · [architecture](ARCHITECTURE.md)
+[rendu](render.md) · [architecture](ARCHITECTURE.md)
 
 ## Le déroulé
 

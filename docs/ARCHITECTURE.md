@@ -43,7 +43,7 @@ Un crate = une responsabilité, sans dépendance dans le mauvais sens :
   prisme, opérations booléennes (ajout et enlèvement de matière). Ni rendu ni
   interface. Voir [extrusion.md](extrusion.md).
 - `cao_render` : rendu GPU du viewport (`wgpu`), sans dépendance interface.
-  Voir [rendu.md](rendu.md).
+  Voir [render.md](render.md).
 - `cao_app` : shell applicatif desktop (`eframe`). Contient l'état de
   l'application et le routage entre écrans/modes.
 
@@ -87,7 +87,7 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 - [historique.md](historique.md) — opérations, annulation, format de fichier
 - [interface.md](interface.md) — barre d'outils détachable, panneaux
 - [viewport.md](viewport.md) — les deux modes du canvas, la grille, le cube
-- [rendu.md](rendu.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
+- [render.md](render.md) — le crate `cao_render`, pipelines wgpu, lignes épaisses
 - [navigation.md](navigation.md) — gestes souris, comportement de la caméra
 - [configuration.md](configuration.md) — ce qui est réglable, et ce qui ne l'est pas encore
 - [build.md](build.md) — compiler, exécutable Windows

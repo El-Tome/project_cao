@@ -82,7 +82,7 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 - [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
 - [Interface](docs/interface.md) — barre d'outils détachable, panneaux
 - [Viewport](docs/viewport.md) — les deux modes du canvas, la grille, le cube
-- [Rendu](docs/rendu.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
+- [Rendu](docs/render.md) — pipelines wgpu, lignes épaisses, rendu hors fenêtre
 - [Navigation](docs/navigation.md) — gestes souris, caméra
 - [Configuration](docs/configuration.md) — réglages disponibles
 - [Compilation](docs/build.md) — exécutable Windows, autres plateformes

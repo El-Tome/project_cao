@@ -68,10 +68,9 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 3] = [
     "crates/prefs/src/storage.rs",
 ];
 
-const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 7] = [
+const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 6] = [
     ("crates/part/src/errors.rs", 2),
     ("crates/part/src/history.rs", 19),
-    ("crates/prefs/src/command.rs", 39),
     ("crates/prefs/src/settings.rs", 1),
     ("crates/prefs/src/toolbar.rs", 1),
     ("crates/sketch/src/constraints.rs", 4),

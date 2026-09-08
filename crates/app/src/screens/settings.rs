@@ -453,16 +453,16 @@ fn shortcuts_section(
         touched = true;
     }
 
-    let mut family = "";
+    let mut family = None;
     let shortcuts = profiles.active().shortcuts.clone();
     for command in Command::ALL {
-        if command.family() != family {
-            family = command.family();
+        if family != Some(command.family()) {
+            family = Some(command.family());
             ui.add_space(8.0);
-            ui.heading(family);
+            ui.heading(crate::wording::command::family_heading(command.family()));
         }
         ui.horizontal(|ui| {
-            ui.label(command.label());
+            ui.label(crate::wording::command::label(command));
             let recording = editor.recording == Some(command);
             let label = if recording {
                 "… appuyez sur une touche".to_string()
@@ -620,14 +620,14 @@ fn toolbar_section(
         .max_height(160.0)
         .id_salt("command_palette")
         .show(ui, |ui| {
-            let mut family = "";
+            let mut family = None;
             for command in Command::ALL {
-                if command.family() != family {
-                    family = command.family();
+                if family != Some(command.family()) {
+                    family = Some(command.family());
                     ui.add_space(6.0);
-                    ui.weak(family);
+                    ui.weak(crate::wording::command::family_heading(command.family()));
                 }
-                if ui.button(command.label()).clicked() {
+                if ui.button(crate::wording::command::label(command)).clicked() {
                     let into = group_path(layout, &editor.selected);
                     layout.push_into(&into, Item::Command(command));
                 }

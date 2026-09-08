@@ -33,7 +33,13 @@ const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
     ("prefs", &[]),
     (
         "app",
-        &["cao_core", "cao_render", "cao_sketch", "cao_solid"],
+        &[
+            "cao_core",
+            "cao_prefs",
+            "cao_render",
+            "cao_sketch",
+            "cao_solid",
+        ],
     ),
 ];
 
@@ -50,18 +56,18 @@ const REACHES_OUTSIDE: [&str; 6] = [
 
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 4] = [
     "crates/core/src/document.rs",
-    "crates/core/src/recents.rs",
-    "crates/core/src/settings.rs",
-    "crates/core/src/storage.rs",
+    "crates/prefs/src/recents.rs",
+    "crates/prefs/src/settings.rs",
+    "crates/prefs/src/storage.rs",
 ];
 
 const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 8] = [
-    ("crates/core/src/command.rs", 39),
     ("crates/core/src/errors.rs", 2),
     ("crates/core/src/history.rs", 19),
-    ("crates/core/src/settings.rs", 1),
-    ("crates/core/src/shortcuts.rs", 5),
-    ("crates/core/src/toolbar.rs", 4),
+    ("crates/prefs/src/command.rs", 39),
+    ("crates/prefs/src/settings.rs", 1),
+    ("crates/prefs/src/shortcuts.rs", 5),
+    ("crates/prefs/src/toolbar.rs", 4),
     ("crates/sketch/src/constraints.rs", 4),
     ("crates/sketch/src/plane.rs", 1),
 ];
@@ -79,7 +85,7 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
     ("crates/app/src/screens/viewport.rs", 4234),
     ("crates/core/src/history.rs", 539),
     ("crates/core/src/state.rs", 1297),
-    ("crates/core/src/toolbar.rs", 475),
+    ("crates/prefs/src/toolbar.rs", 475),
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/geometry.rs", 556),
     ("crates/render/src/renderer.rs", 426),

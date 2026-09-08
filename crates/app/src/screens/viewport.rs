@@ -1,8 +1,8 @@
 use cao_core::PartDocument;
-use cao_core::ViewportConfig;
-use cao_core::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
 use cao_core::history::{Operation, PointRef};
-use cao_core::theme::{Background, Rgba, Theme};
+use cao_prefs::ViewportConfig;
+use cao_prefs::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
+use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{
     AxisStyle, BackgroundShape, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewTransition,

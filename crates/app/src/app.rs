@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use cao_core::history::Operation;
-use cao_core::{Command, PartDocument, Profiles, RecentList};
+use cao_core::{Operation, PartDocument};
+use cao_prefs::{Command, Profiles, RecentList};
 use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
 use glam::DVec3;
@@ -61,7 +61,7 @@ impl CaoApp {
     }
 
     fn create_new_part(&mut self, name: String) {
-        let dir = match cao_core::default_projects_dir() {
+        let dir = match cao_prefs::default_projects_dir() {
             Ok(dir) => dir,
             Err(err) => {
                 self.error = Some(err.to_string());
@@ -418,7 +418,7 @@ fn run(
 ///
 /// Nothing is read while a text field has the keyboard: typing "50" into a
 /// dimension must not also fire whatever those keys are bound to.
-fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_core::Settings) -> Vec<Command> {
+fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_prefs::Settings) -> Vec<Command> {
     if ui.ctx().egui_wants_keyboard_input() {
         return Vec::new();
     }
@@ -437,7 +437,7 @@ fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_core::Settings) -> Vec<Comman
     })
 }
 
-fn modifiers(chord: cao_core::Chord) -> egui::Modifiers {
+fn modifiers(chord: cao_prefs::Chord) -> egui::Modifiers {
     let mut modifiers = egui::Modifiers::NONE;
     if chord.command {
         modifiers = modifiers.plus(egui::Modifiers::COMMAND);
@@ -451,8 +451,8 @@ fn modifiers(chord: cao_core::Chord) -> egui::Modifiers {
     modifiers
 }
 
-fn to_egui_key(key: cao_core::Key) -> Option<egui::Key> {
-    use cao_core::Key as K;
+fn to_egui_key(key: cao_prefs::Key) -> Option<egui::Key> {
+    use cao_prefs::Key as K;
     use egui::Key as E;
     Some(match key {
         K::A => E::A,

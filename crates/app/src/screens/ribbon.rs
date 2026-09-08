@@ -1,5 +1,5 @@
-use cao_core::toolbar::{Edge, Item, ToolbarLayout};
-use cao_core::{Command, PartDocument, Settings};
+use cao_core::PartDocument;
+use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};

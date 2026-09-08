@@ -38,6 +38,12 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_core`,
 | `cao_core` | `cao_sketch`, `cao_solid`, `serde`, `zip`, `chrono`, `directories`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
 | `cao_app` | everything above, `egui`, `eframe` | — |
 
+**A dependency for the tests counts.** `crates/app/tests/architecture.rs` reads
+every table that declares an edge — `[dev-dependencies]` and
+`[target.'cfg(…)'.dependencies]` alongside `[dependencies]` — so `egui` under
+`[dev-dependencies]` of a crate below the shell fails the same way it would
+above the line. Only `cao_render` and `cao_prefs` declare any today.
+
 **`cao_core` without UI is not negotiable**: it is the condition for a future
 tablet or web front-end to reuse it as it stands.
 

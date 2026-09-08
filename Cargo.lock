@@ -552,6 +552,7 @@ dependencies = [
  "cao_sketch",
  "cao_solid",
  "chrono",
+ "directories",
  "eframe",
  "egui",
  "egui-wgpu",
@@ -580,7 +581,6 @@ name = "cao_prefs"
 version = "0.1.0"
 dependencies = [
  "chrono",
- "directories",
  "serde",
  "serde_json",
  "thiserror 1.0.69",

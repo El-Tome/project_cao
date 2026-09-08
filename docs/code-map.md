@@ -23,7 +23,7 @@ cao_app  ──►  cao_part  ──►  cao_sketch
 | `cao_solid` | mesh, extrusion, booleans | `glam`, `serde` |
 | `cao_render` | GPU rendering of the viewport | `wgpu`, `glam`, `bytemuck` |
 | `cao_part` | document, history, persistence of a part | both domains |
-| `cao_prefs` | theme, shortcuts, toolbar, profiles, recents | `serde`, `directories` |
+| `cao_prefs` | theme, shortcuts, toolbar, profiles, recents | `serde`, `chrono` |
 | `cao_app` | desktop shell, routing between modes | everything |
 
 An arrow to the left is forbidden: `cao_sketch` will never know `cao_part`,
@@ -84,7 +84,11 @@ What it does: [`extrusion.md`](extrusion.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
-| Paths, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| Where the platform keeps things | `prefs/src/locations.rs` | `Locations`, `default_projects_dir` |
+| Asking the platform where that is | `app/src/adapters/locations.rs` | `discover` |
+| What the installation remembers, and where | `app/src/remembered.rs` | `Remembered` |
+| The crash log | `app/src/crash.rs` | `record_panics` |
+| What can go wrong with the settings | `prefs/src/storage.rs` | `StorageError` |
 | What the preferences ask of a filesystem | `prefs/src/ports/files.rs` | `Files`, `FileError` |
 | A filesystem for tests | `prefs/src/adapters/in_memory_files.rs` | `InMemoryFiles`, behind `test-support` |
 | Commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily` |

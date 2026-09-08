@@ -2,6 +2,14 @@ use cao_prefs::{FileError, StorageError};
 
 use crate::wording::file;
 
+/// A platform that gave no directory to keep the settings in.
+///
+/// The case is named by the shell, which is where asking the platform now
+/// happens; only the sentence is decided here.
+pub fn nowhere_to_keep_settings() -> String {
+    "Ce poste n'offre aucun dossier où garder les réglages.".to_string()
+}
+
 /// The only place a settings failure is turned into a sentence.
 ///
 /// `cao_prefs` names the case; this decides how it reads. What it carries from
@@ -10,9 +18,6 @@ use crate::wording::file;
 /// reported.
 pub fn say(error: &StorageError) -> String {
     match error {
-        StorageError::NoProjectDirs => {
-            "Ce poste n'offre aucun dossier où garder les réglages.".to_string()
-        }
         StorageError::File(fate) => match fate {
             FileError::Absent(path) => file::absent(path),
             FileError::Refused(path) => file::refused(path),
@@ -36,7 +41,7 @@ mod tests {
 
     #[test]
     fn a_platform_with_nowhere_to_keep_settings_says_so_rather_than_naming_a_directory_kind() {
-        let said = say(&StorageError::NoProjectDirs);
+        let said = nowhere_to_keep_settings();
 
         assert!(!said.is_empty(), "the reader is left with nothing to read");
         assert!(

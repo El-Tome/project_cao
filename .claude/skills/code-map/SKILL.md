@@ -71,7 +71,10 @@ there. See the `architecture-rust` skill.
 | What one is after | File | Way in |
 | --- | --- | --- |
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
-| Paths, parts folder, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| Where the platform keeps things | `prefs/src/locations.rs` | `Locations`, `default_projects_dir` |
+| Asking the platform where that is | `app/src/adapters/locations.rs` | `discover` |
+| What the installation remembers, and where | `app/src/remembered.rs` | `Remembered` |
+| The crash log | `app/src/crash.rs` | `record_panics` |
 | The commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily`, `family` — what a command is *called* is in `app/src/wording/command.rs` |
 | Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |

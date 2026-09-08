@@ -1,11 +1,12 @@
 use std::path::PathBuf;
 
 use cao_part::{Operation, PartDocument};
-use cao_prefs::{Command, Profiles, RecentList};
+use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
 use glam::DVec3;
 
+use crate::remembered::Remembered;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
     self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
@@ -16,10 +17,7 @@ use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wordin
 
 pub struct CaoApp {
     screen: Screen,
-    recents: RecentList,
-    /// Every set of settings the user has, and which one is in use. Held here
-    /// rather than in the open part: settings outlive the part being drawn.
-    profiles: Profiles,
+    remembered: Remembered,
     settings_open: bool,
     settings_editor: crate::screens::settings::SettingsEditor,
     new_part_name: String,
@@ -27,7 +25,7 @@ pub struct CaoApp {
 }
 
 impl CaoApp {
-    pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
+    pub fn new(cc: &eframe::CreationContext<'_>, locations: Option<Locations>) -> Self {
         if let Some(render_state) = &cc.wgpu_render_state {
             let renderer = SceneRenderer::new(
                 &render_state.device,
@@ -41,12 +39,9 @@ impl CaoApp {
                 .insert(renderer);
         }
 
-        let mut recents = RecentList::load(&DiskFiles).unwrap_or_default();
-        recents.prune_missing(&DiskFiles);
         Self {
             screen: Screen::StartMenu,
-            recents,
-            profiles: Profiles::load(&DiskFiles),
+            remembered: Remembered::read(locations),
             settings_open: false,
             settings_editor: crate::screens::settings::SettingsEditor::default(),
             new_part_name: String::new(),
@@ -55,18 +50,17 @@ impl CaoApp {
     }
 
     fn save_settings(&mut self) {
-        if let Err(err) = self.profiles.save(&DiskFiles) {
+        if self.remembered.has_nowhere_to_keep() {
+            self.error = Some(wording::storage::nowhere_to_keep_settings());
+        } else if let Some(err) = self.remembered.save_profiles() {
             self.error = Some(wording::storage::say(&err));
         }
     }
 
     fn create_new_part(&mut self, name: String) {
-        let dir = match cao_prefs::default_projects_dir() {
-            Ok(dir) => dir,
-            Err(err) => {
-                self.error = Some(wording::storage::say(&err));
-                return;
-            }
+        let Some(dir) = self.remembered.projects_dir() else {
+            self.error = Some(wording::storage::nowhere_to_keep_settings());
+            return;
         };
         match PartDocument::create_in(&DiskFiles, &dir, name, chrono::Utc::now()) {
             Ok((doc, path)) => self.open_document(doc, path),
@@ -82,9 +76,9 @@ impl CaoApp {
     }
 
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
-        self.recents
-            .push(path.clone(), doc.name().to_string(), chrono::Utc::now());
-        let failure = self.recents.save(&DiskFiles).err();
+        let failure = self
+            .remembered
+            .remember_part(&path, doc.name(), chrono::Utc::now());
         self.error = failure.as_ref().map(wording::storage::say);
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
@@ -100,7 +94,7 @@ impl CaoApp {
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
         let action = egui::CentralPanel::default_margins()
             .show(ui, |ui| {
-                screens::start_menu::show(ui, self.recents.entries(), &mut self.new_part_name)
+                screens::start_menu::show(ui, self.remembered.recents(), &mut self.new_part_name)
             })
             .inner;
 
@@ -112,7 +106,7 @@ impl CaoApp {
     }
 
     fn show_part(&mut self, ui: &mut egui::Ui) {
-        let settings = self.profiles.active().clone();
+        let settings = self.remembered.profiles.active().clone();
         let Screen::PartOpened(part) = &mut self.screen else {
             return;
         };
@@ -225,8 +219,11 @@ impl CaoApp {
             .default_size([720.0, 560.0])
             .vscroll(true)
             .show(ui.ctx(), |ui| {
-                touched =
-                    screens::settings::show(ui, &mut self.profiles, &mut self.settings_editor);
+                touched = screens::settings::show(
+                    ui,
+                    &mut self.remembered.profiles,
+                    &mut self.settings_editor,
+                );
             });
 
         self.settings_open = open;

@@ -38,7 +38,7 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_part`,
 | `cao_render` | `wgpu`, `glam`, `bytemuck` | any interface framework |
 | `cao_part` | `cao_sketch`, `cao_solid`, `glam`, `zip`, `serde`, `serde_json`, `chrono`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
 | `cao_prefs` | `serde`, `serde_json`, `directories`, `chrono`, `thiserror` | **any UI crate**, `wgpu`, the geometry |
-| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam` | — |
+| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam`, `chrono` | — |
 
 `cao_prefs` is the only crate that names `directories`: where the platform keeps
 things is a preferences concern, and #44 will put it behind a port.
@@ -204,16 +204,16 @@ holds.
 ### I/O is hardwired below the boundary
 
 In `crates/prefs/src/`, `recents.rs`, `settings.rs` and `storage.rs` call
-`std::fs`, `directories::ProjectDirs` and `chrono::Utc::now()` directly.
-`crates/part/src/document.rs` was the fourth until #42 gave it the `Files`
-port; only `Utc::now()` is left there, and it leaves with #41.
+`std::fs`, `directories::ProjectDirs` and `chrono::Local::now()` directly.
+`crates/part/src/document.rs` was the fourth: #42 gave it the `Files` port and
+#41 handed it the hour, and it is off the list.
 
 It shows in the tests: they write into `std::env::temp_dir()`, create real
 directories and delete them with `remove_dir_all`. They are slow, they depend on
 the environment, and two tests landing on the same directory tread on each
 other.
 
-The architecture test lists those four files and refuses a fifth.
+The architecture test lists those three files and refuses a fourth.
 
 ## The rule of ports
 

@@ -78,8 +78,9 @@ authority; this section is the summary.
 - `cao_sketch` and `cao_solid` take nothing but `glam` and `serde`. They are the
   real domains; a geometry rule goes in one of them.
 - No `std::fs`, `directories` or `Utc::now()` below a domain boundary without a
-  trait. Four files predate the rule and are named in the test; there will be
-  no fifth.
+  trait. Three files predate the rule and are named in the test; there will be
+  no fourth. `document.rs` was a fourth until #42 gave it a port and #41 handed
+  it the hour.
 - A new mode (sketching, assembly, …) is a new `Screen` variant
   (`crates/app/src/screens/mod.rs`) plus its own module in `screens/`. Never
   several modes piled into one file or one match.

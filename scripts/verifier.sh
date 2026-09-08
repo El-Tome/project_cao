@@ -41,7 +41,8 @@ etape() {
     exit 1
 }
 
+etape 'format (cargo fmt --all corrige)' cargo fmt --all --check
 etape 'clippy (-D warnings)' cargo clippy --workspace --all-targets -- -D warnings
 etape 'cargo test --workspace' cargo test --workspace
 
-printf '✓ clippy et tests au vert.\n' >&2
+printf '✓ format, clippy et tests au vert.\n' >&2

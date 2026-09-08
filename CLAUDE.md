@@ -28,7 +28,7 @@ On a fresh clone, enable the git hook once:
 git config core.hooksPath .githooks
 ```
 
-`git commit` then runs `clippy -D warnings` followed by
+`git commit` then runs `cargo fmt --all --check`, `clippy -D warnings` and
 `cargo test --workspace` (~12 s). On failure the commit does not happen. The
 `CAO_SKIP_GATE=1` valve exists for work in progress: it belongs to the human, an
 agent never reaches for it on its own.

@@ -172,7 +172,7 @@ Ailleurs le dépôt est testé, et chaque test vit dans le fichier qu'il couvre.
 ## Vérifier
 
 ```sh
-scripts/verifier.sh          # clippy -D warnings puis cargo test --workspace, ~12 s
+scripts/verifier.sh          # fmt --check, clippy -D warnings, cargo test --workspace, ~12 s
 cargo test -p cao_sketch     # une seule crate, pendant la boucle
 cargo run -p cao_app         # lancer l'application
 ```

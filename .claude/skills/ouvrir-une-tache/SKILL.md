@@ -122,7 +122,8 @@ rewritten for a naming rule.
 
 ## The gate
 
-`git commit` runs `clippy -D warnings` then `cargo test --workspace` (~12 s).
+`git commit` runs `cargo fmt --all --check`, then `clippy -D warnings`, then
+`cargo test --workspace` (~12 s).
 On failure the commit does not happen and the index is untouched: fix it and go
 again.
 

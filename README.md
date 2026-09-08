@@ -94,8 +94,9 @@ cargo test --workspace
 cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
 ```
 
-`scripts/verifier.sh` enchaîne `clippy -D warnings` puis `cargo test
---workspace` ; les deux hooks locaux l'appellent avant chaque commit.
+`scripts/verifier.sh` enchaîne `cargo fmt --all --check`, `clippy -D warnings`
+puis `cargo test --workspace` ; les deux hooks locaux l'appellent avant chaque
+commit.
 `crates/app/tests/architecture.rs` y vérifie les règles d'architecture — graphe
 des crates, dossiers, budget de 400 lignes par fichier.
 

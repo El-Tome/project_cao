@@ -9,8 +9,11 @@
 pub mod command;
 pub mod constraints;
 pub mod dimension;
+pub mod file;
 pub mod history;
+pub mod part_file;
 pub mod plane;
 pub mod settings;
 pub mod shortcuts;
+pub mod storage;
 pub mod toolbar;

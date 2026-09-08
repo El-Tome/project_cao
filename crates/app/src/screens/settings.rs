@@ -148,7 +148,7 @@ fn profiles_section(
             let path = std::path::PathBuf::from(editor.profile_path.trim());
             match profiles.active_profile().export(&DiskFiles, &path) {
                 Ok(()) => editor.notice = Some(format!("Écrit dans {}", path.display())),
-                Err(err) => editor.notice = Some(err.to_string()),
+                Err(err) => editor.notice = Some(crate::wording::storage::say(&err)),
             }
         }
         if ui.button("Importer").clicked() {
@@ -159,7 +159,7 @@ fn profiles_section(
                     editor.notice = Some(format!("Profil « {name} » importé."));
                     touched = true;
                 }
-                Err(err) => editor.notice = Some(err.to_string()),
+                Err(err) => editor.notice = Some(crate::wording::storage::say(&err)),
             }
         }
     });

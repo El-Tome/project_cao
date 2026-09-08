@@ -64,7 +64,10 @@ how an `Edge` and an `Item` do, `wording/history.rs` how a step of the part's
 history reads, `wording/dimension.rs` what a dimension measures,
 `wording/constraints.rs` how a rule of the drawing reads and what mark it is
 given, `wording/plane.rs` how a `PlaneKind` is called,
-`wording/settings.rs` what a profile is called. One file per source so that no
+`wording/settings.rs` what a profile is called, `wording/part_file.rs` and
+`wording/storage.rs` what went wrong with a part or with the settings, and
+`wording/file.rs` the three ways the disk can refuse, said once for the two
+ports that report them. One file per source so that no
 single one gathers the whole application, and so that the eventual translation
 system has one directory to pass under.
 

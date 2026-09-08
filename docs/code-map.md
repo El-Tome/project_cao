@@ -131,15 +131,18 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a profile is called | `app/src/wording/settings.rs` | `profile` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
+| What went wrong with a part file | `app/src/wording/part_file.rs` | `say` |
+| What went wrong with the settings | `app/src/wording/storage.rs` | `say` |
+| The three ways the disk can refuse | `app/src/wording/file.rs` | `absent`, `refused`, `interrupted` |
 
 What they do: [`interface.md`](interface.md),
 [`navigation.md`](navigation.md).
 
 `app/src/wording/` holds the sentences the user reads, one file per source.
 A layer below `cao_app` returns a named case and this is where it is decided
-how that case is said, which is what will make translation a wiring job. The
-sources still saying their own sentences are counted by
-`crates/app/tests/architecture.rs`, and that count only falls.
+how that case is said, which is what will make translation a wiring job. No
+source below `cao_app` says its own sentences any more, and
+`crates/app/tests/architecture.rs` holds that count at zero.
 
 ## The invariants
 

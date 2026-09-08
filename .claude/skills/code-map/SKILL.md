@@ -111,6 +111,9 @@ there. See the `architecture-rust` skill.
 | What a profile is called | `app/src/wording/settings.rs` | `profile` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
+| What went wrong with a part file | `app/src/wording/part_file.rs` | `say` |
+| What went wrong with the settings | `app/src/wording/storage.rs` | `say` |
+| The three ways the disk can refuse | `app/src/wording/file.rs` | `absent`, `refused`, `interrupted` |
 
 ## The invariants — do not break them
 

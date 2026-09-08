@@ -1,11 +1,12 @@
 use cao_prefs::{Chord, Key};
 
-/// What a key is called on screen.
+/// The only place a `Key` is turned into a name.
 ///
-/// The names are French, and the arrows are the glyphs themselves: this is the
-/// only place that decides how a `Key` reads, so a shortcut written into a
-/// profile stays a named case and travels between front-ends unchanged.
-pub fn key(key: Key) -> &'static str {
+/// The names are French and the arrows are the glyphs themselves. Private on
+/// purpose: `&'static str` is what keeps this file clear of the interface, and
+/// the day a translation system wants a `Cow` back there is one caller to
+/// follow rather than a screen that reached in.
+fn key(key: Key) -> &'static str {
     match key {
         Key::A => "A",
         Key::B => "B",
@@ -94,15 +95,26 @@ pub fn chord(chord: Chord) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeMap;
+
     use super::*;
 
     #[test]
-    fn every_key_offered_when_recording_can_be_named() {
+    fn no_two_keys_offered_when_recording_read_the_same() {
+        let mut seen: BTreeMap<&str, Key> = BTreeMap::new();
+
         for offered in Key::ALL {
             assert!(
                 !key(offered).is_empty(),
-                "{offered:?} has no label, so a shortcut using it reads as blank",
+                "{offered:?} has no name, so a shortcut using it reads as blank",
             );
+            if let Some(taken) = seen.insert(key(offered), offered) {
+                panic!(
+                    "{taken:?} and {offered:?} both read {:?}: the settings screen \
+                     shows two shortcuts a user cannot tell apart",
+                    key(offered),
+                );
+            }
         }
     }
 

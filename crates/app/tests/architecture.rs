@@ -385,6 +385,28 @@ fn a_primitive_knows_the_interface_and_nothing_else() {
 }
 
 #[test]
+fn a_word_the_user_reads_is_said_without_drawing_it() {
+    for (path, source) in sources_of("app") {
+        if !path.starts_with("crates/app/src/wording/") {
+            continue;
+        }
+
+        for line in imports(&source) {
+            assert!(
+                !line.contains("egui"),
+                "{path} imports the interface: {line}. Wording turns a named case \
+                 into a sentence and hands it back as text; how it is styled and \
+                 where it is drawn is the screen's business.",
+            );
+            assert!(
+                !line.contains("screens"),
+                "{path} imports a screen: {line}. The arrow runs the other way.",
+            );
+        }
+    }
+}
+
+#[test]
 fn a_presenter_never_takes_the_interface() {
     for (path, source) in sources_of("app") {
         if !path.ends_with("/state.rs") && !path.ends_with("/presenter.rs") {

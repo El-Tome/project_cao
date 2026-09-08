@@ -116,7 +116,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
 | Settings screen | `app/src/screens/settings.rs` | `show(...)` |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
-| What a key and a chord are called | `app/src/wording/shortcuts.rs` | `key`, `chord` |
+| What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 
 What they do: [`interface.md`](interface.md),
 [`navigation.md`](navigation.md).

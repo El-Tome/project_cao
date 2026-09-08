@@ -70,6 +70,7 @@ Each line is a test, not a wish.
 | A file under | may reach for | never |
 | --- | --- | --- |
 | `ui/**` | `egui`, `std` | any `cao_*` crate, `crate::screens` |
+| `wording/**` | the `cao_*` case it names | `egui` — it says, it never draws |
 | `screens/**/view.rs` | `crate::ui`, `egui`, its presenter | dressing a widget by hand |
 | `screens/**/state.rs` | the business crates | `egui::Ui` — **it does not draw** |
 | `model/**` | `std`, the pure domains | `crate::ports`, `crate::adapters` |

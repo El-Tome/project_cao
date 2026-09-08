@@ -64,8 +64,6 @@ const REACHES_OUTSIDE: [&str; 6] = [
 /// code that needs it.
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 
-const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 0] = [];
-
 /// Past this, a file is holding more than one responsibility. The figure is
 /// arbitrary; what is not is that every file above it can be named.
 const LINE_BUDGET: usize = 400;
@@ -87,6 +85,17 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 16] = [
     ("crates/sketch/src/solver.rs", 1362),
     ("crates/solid/src/boolean.rs", 449),
     ("crates/solid/src/mesh.rs", 627),
+];
+
+const SPOKEN_TO_A_DEVELOPER: [&str; 8] = [
+    "#[error(",
+    ".expect(",
+    "panic!(",
+    "assert!(",
+    "assert_eq!(",
+    "assert_ne!(",
+    "unreachable!(",
+    "todo!(",
 ];
 
 const BUCKETS_NAMED_AFTER_NOTHING: [&str; 11] = [
@@ -239,27 +248,20 @@ fn only_the_named_files_reach_for_the_disk_the_clock_or_the_environment() {
 
 #[test]
 fn text_meant_for_a_reader_never_sinks_below_the_interface() {
-    let mut budget: BTreeMap<&str, usize> = READER_TEXT_LEFT_BELOW_THE_INTERFACE
-        .iter()
-        .copied()
-        .collect();
+    let mut said_too_low: Vec<String> = Vec::new();
 
     for (path, source) in sources_below_the_interface() {
-        let found = reader_text_lines(&source);
-        let left = budget.remove(path.as_str()).unwrap_or(0);
-
-        assert_eq!(
-            found, left,
-            "{path} holds {found} lines of wording meant for a reader, {left} were left to it. \
-             A layer below cao_app returns a named case, never a sentence; \
-             once one is moved up, lower the figure here.",
-        );
+        for (number, literal) in reader_text_in(&source) {
+            said_too_low.push(format!("{path}:{number}  \"{literal}\""));
+        }
     }
 
     assert!(
-        budget.is_empty(),
-        "these files are gone but still hold a budget: {:?}",
-        budget.keys().collect::<Vec<_>>(),
+        said_too_low.is_empty(),
+        "a layer below cao_app is choosing words a reader will see:\n  {}\n\
+         Return a named case and let cao_app say it. That is what makes \
+         translation a wiring job rather than a rewrite.",
+        said_too_low.join("\n  "),
     );
 }
 
@@ -581,21 +583,23 @@ fn production(source: &str) -> &str {
     }
 }
 
-fn reader_text_lines(source: &str) -> usize {
-    production(source)
-        .lines()
-        .filter(|line| holds_reader_text(line))
-        .count()
+fn reader_text_in(source: &str) -> Vec<(usize, String)> {
+    let mut found = Vec::new();
+    for (index, line) in production(source).lines().enumerate() {
+        for literal in literals_of(line) {
+            if is_reader_text(literal, line) {
+                found.push((index + 1, literal.to_string()));
+            }
+        }
+    }
+    found
 }
 
-fn holds_reader_text(line: &str) -> bool {
+fn literals_of(line: &str) -> Vec<&str> {
     if line.trim_start().starts_with("//") {
-        return false;
+        return Vec::new();
     }
-    line.split('"')
-        .skip(1)
-        .step_by(2)
-        .any(|literal| literal.chars().any(is_a_french_letter))
+    line.split('"').skip(1).step_by(2).collect()
 }
 
 fn is_a_french_letter(character: char) -> bool {
@@ -620,4 +624,90 @@ fn is_a_french_letter(character: char) -> bool {
             | '«'
             | '»'
     )
+}
+
+fn is_reader_text(literal: &str, line: &str) -> bool {
+    if speaks_to_a_developer(line) {
+        return false;
+    }
+    literal.chars().any(is_a_french_letter)
+        || is_a_capitalised_word(literal)
+        || holds_two_words(literal)
+}
+
+/// Where a sentence is aimed at whoever is reading the crash, not at whoever is
+/// using the software. `language.rs` is what keeps those in English.
+fn speaks_to_a_developer(line: &str) -> bool {
+    SPOKEN_TO_A_DEVELOPER
+        .iter()
+        .any(|position| line.contains(position))
+}
+
+fn holds_two_words(text: &str) -> bool {
+    text.split(' ').filter(|word| is_a_word(word)).count() > 1
+}
+
+fn is_a_word(text: &str) -> bool {
+    text.chars().count() > 1 && text.chars().all(char::is_alphabetic)
+}
+
+fn is_a_capitalised_word(text: &str) -> bool {
+    let mut characters = text.chars();
+    matches!(characters.next(), Some(first) if first.is_uppercase())
+        && characters.all(char::is_lowercase)
+}
+
+#[test]
+fn a_french_label_with_no_accent_is_still_text_a_reader_sees() {
+    assert!(is_reader_text(
+        "Enregistrer",
+        "    let _ = \"Enregistrer\";"
+    ));
+}
+
+#[test]
+fn two_words_side_by_side_are_text_a_reader_sees() {
+    assert!(is_reader_text(
+        "Sans titre",
+        "        \"Sans titre\".to_string()"
+    ));
+}
+
+#[test]
+fn a_sentence_only_a_developer_reads_stays_where_it_is() {
+    assert!(!is_reader_text(
+        "part file has no entry named {0}",
+        "    #[error(\"part file has no entry named {0}\")]",
+    ));
+    assert!(!is_reader_text(
+        "a cube tangent always points at another face",
+        "        .expect(\"a cube tangent always points at another face\");",
+    ));
+}
+
+#[test]
+fn one_accented_word_on_its_own_is_text_a_reader_sees() {
+    assert!(is_reader_text("créé", "    let _ = \"créé\";"));
+}
+
+#[test]
+fn what_only_a_machine_reads_is_left_where_it_is() {
+    for token in [
+        "part.json",
+        "caopart",
+        "cao_scene_pipeline_layout",
+        "shaders/scene.wgsl",
+        "Theme::default_fixed",
+        "test-support",
+        "default_segment_snap_pixels",
+        "{wanted} {suffix}",
+        "{value:.1}",
+        "CAO",
+        "mm",
+    ] {
+        assert!(
+            !is_reader_text(token, &format!("        \"{token}\"")),
+            "{token} is a machine token and the rule took it for a sentence",
+        );
+    }
 }

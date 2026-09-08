@@ -231,12 +231,11 @@ fn lay_out(
 }
 
 fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
-    let label = match state.settings.shortcuts.chord_for(command) {
-        Some(chord) => format!("{} ({})", command.label(), chord.label()),
-        None => command.label().to_string(),
-    };
     let label = if state.settings.toolbar.show_labels {
-        label
+        match state.settings.shortcuts.chord_for(command) {
+            Some(chord) => format!("{} ({})", command.label(), chord.label()),
+            None => command.label().to_string(),
+        }
     } else {
         command.label().chars().take(2).collect()
     };

@@ -1,18 +1,18 @@
 ---
 name: code-map
-description: Trouver où intervenir dans le code CAO. À utiliser dès qu'on cherche quel fichier ou quelle fonction porte un comportement — esquisse, cotation, solveur, contraintes, extrusion, révolution, booléens, historique, annulation, viewport, caméra, cube d'orientation, grille, rendu wgpu, réglages, profils, raccourcis, barre d'outils, format .caopart, menu de démarrage.
+description: Find where to act in the CAO code. Use as soon as one is looking for which file or which function carries a behaviour — sketching, dimensioning, solver, constraints, extrusion, revolution, booleans, history, undo, viewport, camera, orientation cube, grid, wgpu rendering, settings, profiles, shortcuts, toolbar, .caopart format, start menu.
 ---
 
-# Où vit quoi
+# Where what lives
 
-`docs/` raconte ce que fait le logiciel. Ce skill dit où c'est écrit.
-La référence complète, lisible aussi par un humain : `docs/code-map.md`.
+`docs/` tells what the software does. This skill says where it is written. The
+complete reference, readable by a human too: `docs/code-map.md`.
 
-Ici on cherche **où un comportement est déjà écrit**. Pour savoir **où poser un
-fichier neuf** — quel dossier, ce qu'il a le droit d'importer —, c'est
-`docs/code-layout.md`, et le test d'architecture le vérifie.
+Here one looks for **where a behaviour is already written**. To know **where a
+new file goes** — which folder, what it may import — that is
+`docs/code-layout.md`, and the architecture test checks it.
 
-## Les six crates et le sens des dépendances
+## The six crates and the direction of the dependencies
 
 ```
 cao_app  ──►  cao_core  ──►  cao_sketch
@@ -21,125 +21,126 @@ cao_app  ──►  cao_core  ──►  cao_sketch
    └──────────►  cao_render
 ```
 
-`cao_sketch` et `cao_solid` ne dépendent de rien d'autre que `glam` et `serde`.
-`cao_render` ne connaît que `wgpu`, `glam` et `bytemuck` — aucun framework
-d'interface. `cao_prefs` ne connaît ni la géométrie ni l'interface. `cao_app`
-est le seul à voir `egui`/`eframe`.
+`cao_sketch` and `cao_solid` depend on nothing but `glam` and `serde`.
+`cao_render` knows only `wgpu`, `glam` and `bytemuck` — no interface framework.
+`cao_prefs` knows neither the geometry nor the interface. `cao_app` is the only
+one that sees `egui`/`eframe`.
 
-**Attention au nom.** `cao_core` se présente comme « les types de domaine »,
-mais il dépend de `cao_sketch` et `cao_solid` et orchestre esquisse, solide,
-historique et persistance : c'est la couche **application**. Les vrais domaines
-sont `cao_sketch` et `cao_solid`. Voir le skill `architecture-rust`.
+**Mind the name.** `cao_core` presents itself as "the domain types", but it
+depends on `cao_sketch` and `cao_solid` and orchestrates sketch, solid, history
+and persistence: it is the **application** layer. The real domains are
+`cao_sketch` and `cao_solid`. See the `architecture-rust` skill.
 
-## Comportement → fichier
+## Behaviour → file
 
-### Dessiner et coter — `cao_sketch`
+### Drawing and dimensioning — `cao_sketch`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| Le modèle d'esquisse, points, traits, cercles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
-| Effacer un élément et ses dépendants | `sketch/src/sketch.rs` | `Sketch::erase`, `Erased` |
-| Poser ou retirer une contrainte | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
-| Les types de contraintes et de cotes | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
-| **Le solveur** — rendre toutes les valeurs vraies ensemble | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
-| Les cinq constructions de cercle | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
-| Le plan de travail, 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
-| Les aires fermées, pour extruder | `sketch/src/regions.rs` | `Sketch::regions()` → `Vec<Region>` |
+| The sketch model, points, traits, circles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase`, `Erased` |
+| Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
+| The kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
+| **The solver** — making every value true together | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
+| The work plane, 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
+| The closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` → `Vec<Region>` |
 
 ### Volumes — `cao_solid`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| Le maillage, les faces, le lancer de rayon | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruder une aire en prisme | `solid/src/mesh.rs` | `prism(...)` |
-| Faire tourner une aire autour d'un axe | `solid/src/mesh.rs` | `revolution(...)` |
-| Ajouter ou enlever de la matière | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (arbre BSP) |
+| The mesh, the faces, the ray cast | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
+| Extruding an area into a prism | `solid/src/mesh.rs` | `prism(...)` |
+| Turning an area around an axis | `solid/src/mesh.rs` | `revolution(...)` |
+| Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 
-### Historique et persistance — `cao_core`
+### History and persistence — `cao_core`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| La liste des opérations, annuler, refaire | `core/src/history.rs` | `History`, `Operation`, `applied_operations` |
-| **Rejouer l'historique pour obtenir la géométrie** | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
-| Le fichier `.caopart` (zip), lecture et écriture | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
-| Ce qui rate à l'ouverture d'une pièce | `core/src/errors.rs` | `PartFileError` |
+| The list of operations, undo, redo | `core/src/history.rs` | `History`, `Operation`, `applied_operations` |
+| **Replaying the history to get the geometry** | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| The `.caopart` file (zip), reading and writing | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| What fails when opening a part | `core/src/errors.rs` | `PartFileError` |
 
-## Réglages, profils et récents — `cao_prefs`
+## Settings, profiles and recents — `cao_prefs`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| Les dix pièces récentes | `prefs/src/recents.rs` | `RecentList` |
-| Chemins, dossier des pièces, journal de plantage | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
-| Les commandes de l'interface | `prefs/src/command.rs` | `Command`, `label`, `hint`, `family` |
-| Réglages et profils nommés | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
-| Réglages du viewport et de la navigation | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
-| Couleurs, dégradés | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
-| Raccourcis clavier | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
-| Arrangement de la barre d'outils | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
+| The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
+| Paths, parts folder, crash log | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| The commands of the interface | `prefs/src/command.rs` | `Command`, `label`, `hint`, `family` |
+| Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
+| Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
+| Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
+| Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
+| Arrangement of the toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
 
-### Rendu GPU — `cao_render`
+### GPU rendering — `cao_render`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| Les pipelines wgpu, la passe de rendu | `render/src/renderer.rs` | `SceneRenderer::prepare`, `paint`, `SceneFrame` |
-| Caméra orbite, transitions de vue | `render/src/camera.rs` | `OrbitCamera`, `ViewTransition`, `view_angles_towards` |
-| Le cube d'orientation, faces/arêtes/coins | `render/src/cube.rs` | `push_faces`, `zone_at`, `is_visible` |
-| Axes, grille adaptative, fond, solides | `render/src/geometry.rs` | `push_axes`, `push_grid`, `push_background`, `push_solid`, `adaptive_step` |
-| Rendu hors fenêtre, contrôle visuel | `render/examples/offscreen.rs` | `cargo run -p cao_render --example offscreen -- /tmp` |
+| The wgpu pipelines, the render pass | `render/src/renderer.rs` | `SceneRenderer::prepare`, `paint`, `SceneFrame` |
+| Orbit camera, view transitions | `render/src/camera.rs` | `OrbitCamera`, `ViewTransition`, `view_angles_towards` |
+| The orientation cube, faces/edges/corners | `render/src/cube.rs` | `push_faces`, `zone_at`, `is_visible` |
+| Axes, adaptive grid, background, solids | `render/src/geometry.rs` | `push_axes`, `push_grid`, `push_background`, `push_solid`, `adaptive_step` |
+| Offscreen rendering, visual check | `render/examples/offscreen.rs` | `cargo run -p cao_render --example offscreen -- /tmp` |
 
 ### Interface — `cao_app`
 
-| Ce qu'on cherche | Fichier | Point d'entrée |
+| What one is after | File | Way in |
 | --- | --- | --- |
-| L'état de l'application, la boucle de trame | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
-| Le routage entre modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| **Le canvas : gestes, hit-test, dessin** | `app/src/screens/viewport.rs` — le plus gros fichier du dépôt | `show(ui, state, sketch)`, `ViewportState`, `ViewMode` |
-| L'outil d'esquisse, saisie au clavier | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode`, `Selection` |
-| Le placement des cotes à l'écran | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
-| Extrusion et révolution, côté interface | `app/src/screens/extrusion.rs` | `ExtrusionState` |
-| Le panneau Historique | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
-| La barre d'outils | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
-| L'écran de réglages | `app/src/screens/settings.rs` | `show(ui, profiles, editor)` |
-| Le menu de démarrage | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
+| The application state, the frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
+| The routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
+| **The canvas: gestures, hit test, drawing** | `app/src/screens/viewport.rs` — the largest file in the repository | `show(ui, state, sketch)`, `ViewportState`, `ViewMode` |
+| The sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode`, `Selection` |
+| The placing of dimensions on screen | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
+| Extrusion and revolution, interface side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
+| The History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
+| The toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
+| The settings screen | `app/src/screens/settings.rs` | `show(ui, profiles, editor)` |
+| The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 
-## Les invariants — ne pas les casser
+## The invariants — do not break them
 
-**Les nombres.** Le noyau — esquisse, solveur, solide, booléens — calcule en
-`f64`. La caméra, le rendu et l'interface sont en `f32`, parce que c'est ce que
-le GPU et `egui` prennent. La conversion se fait **au dernier moment**, à chaque
-passage de frontière. Le `f32` ne garde que sept chiffres : une pièce d'un mètre
-décrite en millimètres n'a plus qu'un pas de 6·10⁻⁵ mm, et l'erreur s'accumule
-dans les booléens — c'est ce qui avait fait boucler la partition de l'espace.
+**The numbers.** The core — sketch, solver, solid, booleans — computes in
+`f64`. The camera, the rendering and the interface are in `f32`, because that
+is what the GPU and `egui` take. The conversion happens **at the last moment**,
+at each crossing of the boundary. `f32` keeps only seven digits: a part one
+metre long described in millimetres has a step of no better than 6·10⁻⁵ mm, and
+the error accumulates in the booleans — that is what once sent the partition of
+space into a loop.
 
-**La géométrie n'est jamais enregistrée.** Un `.caopart` contient les
-métadonnées et l'historique des opérations, rien d'autre. La géométrie est
-reconstruite par `PartState::rebuild`, qui rejoue les opérations. C'est ce qui
-fait de l'annulation, du rétablissement et du retour à une étape la même
-opération. Toute géométrie qu'on garderait à côté finirait par diverger de
-l'historique : il n'y a **qu'un seul** endroit où la géométrie est produite,
-`PartState::apply`.
+**The geometry is never saved.** A `.caopart` holds the metadata and the
+history of operations, nothing else. The geometry is rebuilt by
+`PartState::rebuild`, which replays the operations. That is what makes undo,
+redo and going back to a step one and the same operation. Any geometry kept
+alongside would end up diverging from the history: there is **one single** place
+where geometry is produced, `PartState::apply`.
 
-**Un mode = une variante de `Screen`.** Un nouveau mode (assemblage, ...) ajoute
-une variante à `enum Screen` et son propre module dans `screens/`. Jamais une
-branche greffée sur un module existant.
+**One mode = one variant of `Screen`.** A new mode (assembly, …) adds a variant
+to `enum Screen` and its own module in `screens/`. Never a branch grafted onto
+an existing module.
 
-**`cao_core` ne dépend d'aucune crate UI.** C'est la condition pour qu'un futur
-front-end tablette ou web le réutilise tel quel. Ni `egui`, ni `eframe`, ni
-`winit`, ni `wgpu`.
+**`cao_core` depends on no UI crate.** That is the condition for a future
+tablet or web front-end to reuse it as it is. No `egui`, no `eframe`, no
+`winit`, no `wgpu`.
 
-**`cao_app` doit rester un shell fin** — fenêtre et routage entre modes. C'est
-une visée, pas un constat : c'est la plus grosse crate du dépôt. Dès qu'un mode
-porte une logique métier non triviale, il devient son propre crate.
+**`cao_app` is to stay a thin shell** — window and routing between modes. That
+is an aim, not an observation: it is the largest crate in the repository. As
+soon as a mode carries non-trivial business logic, it becomes its own crate.
 
-## Les zones sans filet
+## The places with no net
 
-Trois endroits n'ont **aucun test** :
+Three places have **no test at all**:
 
-- `sketch/src/solver.rs` — le cœur algorithmique, dont l'historique est fait de
-  correctifs successifs (`git log -- crates/sketch/src/solver.rs`) ;
-- `sketch/src/constraints.rs` ;
-- `crates/app/src/` — les deux fichiers de `crates/app/tests/` testent le
-  dépôt (sa forme, et l'accord entre le gate local et la CI), pas l'interface.
+- `sketch/src/solver.rs` — the algorithmic heart, whose history is made of
+  successive fixes (`git log -- crates/sketch/src/solver.rs`);
+- `sketch/src/constraints.rs`;
+- `crates/app/src/` — the files in `crates/app/tests/` test the repository (its
+  shape, the agreement between the local gate and the CI, and the language it
+  is written in), not the interface.
 
-Y intervenir demande d'écrire d'abord un test qui caractérise l'existant. Voir
-le skill `rust-tdd`.
+Working in them means first writing a test that characterises what is there.
+See the `rust-tdd` skill.

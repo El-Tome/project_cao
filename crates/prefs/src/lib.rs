@@ -14,7 +14,7 @@ mod storage;
 pub mod theme;
 pub mod toolbar;
 
-pub use command::Command;
+pub use command::{Command, CommandFamily};
 pub use config::ViewportConfig;
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
 pub use settings::{PROFILE_EXTENSION, Profile, Profiles, Settings};

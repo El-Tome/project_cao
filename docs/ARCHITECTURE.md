@@ -105,6 +105,20 @@ precious was drawn with those versions. See [history.md](history.md).
   network and sync architecture is not to be anticipated before that.
 - **A professional licence**: a commercial offering on top of the dual
   MIT/Apache-2.0 licence, terms undefined.
+- **A per-operation geometry cache.** Not implemented: today's `.caopart` holds
+  a single `history.json` replayed in full on open (see
+  [`crates/part/src/document.rs`](../crates/part/src/document.rs)). The idea,
+  if opening a large part ever gets slow, is to keep the JSON of each
+  operation as the source of truth and add a `.bin` cache next to it — the
+  geometry already computed for that step, written once the operation
+  settles, so opening a part displays quickly without replaying everything.
+  Editing an operation would invalidate its `.bin`, regenerated on the next
+  save and always rebuildable from the JSON. A `part.bin` would play the same
+  role at the whole-part level.
+- **Stress simulation**: likely through an external library. Running a
+  simulation would duplicate the geometry snapshot to freeze the state at
+  that moment, independent of edits made to the part afterward — mechanism,
+  library and result format (mesh, stored where) not decided.
 
 ## The numbers
 
@@ -123,3 +137,13 @@ cannot write, and two different paths of computation can still give two results
 a hair apart. Answering that would mean storing the values typed as integers
 (the picometre as the unit, the micro-degree for angles) at the moment they
 enter the history, while going on computing in `f64`. It is not done.
+
+For now, the point that matters is not exactness but **robustness**:
+guaranteeing that a geometric test (a point to the left, inside, on the
+surface) always returns the same sign, including in near-degenerate cases that
+make a boolean loop — the bug mentioned above. This is achievable without
+changing representation, with adaptive-precision geometric predicates
+(Shewchuk's method: a fast `f64` computation paired with a known error bound,
+which only falls back to exact arithmetic on ambiguous cases). This track is
+not implemented; it would be confined to the boolean operations' decision
+points. See [extrusion.md](extrusion.md).

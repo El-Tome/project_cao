@@ -163,21 +163,33 @@ The branch and its commits survive; the body and the review thread do not. That
 is how #74 had to come back as #78. The order that works:
 
 ```sh
-gh pr merge <parent> --squash            # no --delete-branch
-git checkout <child> && git rebase main  # the squash gave the parent new hashes
+gh pr merge <parent> --squash                 # no --delete-branch
+git checkout <child>
+git rebase --onto main <parent-branch>        # replay the child's commits only
 git push --force-with-lease
 gh pr edit <child> --base main
-git push origin --delete <parent-branch> # only now, then repeat one level up
+git push origin --delete <parent-branch>      # only now, then repeat one level up
 ```
+
+**Plain `git rebase main` is the wrong command on a stacked child**, and it is
+the one that looks right. The squash gave `main` a commit that shares no hash
+with the parent's, so the merge base stays where the *parent* branched: git
+replays the parent's commits a second time onto a `main` that already holds
+their content, and every one of them conflicts. That is what #96 hit behind
+#94. `--onto main <parent-branch>` starts above the parent's old tip instead —
+a second reason not to delete that branch yet, since its name is the reference
+point.
 
 Retargeting every child to `main` before merging anything works just as well. A
 merge commit or a rebase merge skips the replay step altogether, which is an
 argument for not squashing a stack.
 
-**`git rebase --onto main $(git merge-base HEAD @{u})` is a trap** on a branch
-level with its upstream: the merge base is `HEAD`, so nothing is replayed and
-the branch ends up on `main` with its own commit gone from the tip. The reflog
-gets it back. Plain `git rebase main` is what is wanted.
+**On a solo branch it is the other way round**, and
+`git rebase --onto main $(git merge-base HEAD @{u})` is the trap there: level
+with its upstream, the merge base is `HEAD`, so nothing is replayed and the
+branch ends up on `main` with its own commit gone from the tip. The reflog gets
+it back. Plain `git rebase main` is what is wanted, on that branch and not on a
+stacked one.
 
 **Three labels carry the state of an issue** — `todo` for ready to start,
 `backlog` for waiting on something, `in-progress` for a branch that exists.

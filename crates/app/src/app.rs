@@ -7,6 +7,7 @@ use cao_sketch::WorkPlane;
 use glam::DVec3;
 
 use crate::MSAA_SAMPLES;
+use crate::autosave::Autosave;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::history_tree::HistoryAction;
 use crate::screens::ribbon::Ribbon;
@@ -91,6 +92,7 @@ impl CaoApp {
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,
+            autosave: Autosave::default(),
             viewport: ViewportState::default(),
             editor: SketchEditor::default(),
             extrusion: ExtrusionState::default(),
@@ -120,6 +122,7 @@ impl CaoApp {
         let OpenPart {
             doc,
             path,
+            autosave,
             viewport,
             editor,
             extrusion,
@@ -199,10 +202,12 @@ impl CaoApp {
         });
 
         if changed {
-            let (doc, path) = (doc.clone(), path.clone());
-            self.save_part(&doc, &path);
+            autosave.touched();
         }
-
+        let at_rest = back_to_menu || !ui.ctx().input(|input| input.pointer.any_down());
+        if let Some(message) = autosave.write_if_due(doc, path, at_rest) {
+            self.error = Some(message);
+        }
         if back_to_menu {
             self.screen = Screen::StartMenu;
         }
@@ -230,12 +235,6 @@ impl CaoApp {
         self.settings_open = open;
         if touched {
             self.save_settings();
-        }
-    }
-
-    fn save_part(&mut self, doc: &PartDocument, path: &std::path::Path) {
-        if let Err(err) = doc.save(path) {
-            self.error = Some(err.to_string());
         }
     }
 }
@@ -517,5 +516,11 @@ impl eframe::App for CaoApp {
             self.show_part(ui);
         }
         self.show_settings(ui);
+    }
+
+    fn on_exit(&mut self) {
+        if let Screen::PartOpened(part) = &mut self.screen {
+            part.autosave.write_if_due(&part.doc, &part.path, true);
+        }
     }
 }

@@ -469,7 +469,7 @@ fn shortcuts_section(
             } else {
                 shortcuts
                     .chord_for(command)
-                    .map(Chord::label)
+                    .map(crate::wording::shortcuts::chord)
                     .unwrap_or_else(|| "—".to_string())
             };
             if ui.selectable_label(recording, label).clicked() {

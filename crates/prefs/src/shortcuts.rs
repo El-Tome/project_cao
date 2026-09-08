@@ -144,77 +144,6 @@ impl Key {
         Self::Comma,
         Self::Period,
     ];
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::A => "A",
-            Self::B => "B",
-            Self::C => "C",
-            Self::D => "D",
-            Self::E => "E",
-            Self::F => "F",
-            Self::G => "G",
-            Self::H => "H",
-            Self::I => "I",
-            Self::J => "J",
-            Self::K => "K",
-            Self::L => "L",
-            Self::M => "M",
-            Self::N => "N",
-            Self::O => "O",
-            Self::P => "P",
-            Self::Q => "Q",
-            Self::R => "R",
-            Self::S => "S",
-            Self::T => "T",
-            Self::U => "U",
-            Self::V => "V",
-            Self::W => "W",
-            Self::X => "X",
-            Self::Y => "Y",
-            Self::Z => "Z",
-            Self::Num0 => "0",
-            Self::Num1 => "1",
-            Self::Num2 => "2",
-            Self::Num3 => "3",
-            Self::Num4 => "4",
-            Self::Num5 => "5",
-            Self::Num6 => "6",
-            Self::Num7 => "7",
-            Self::Num8 => "8",
-            Self::Num9 => "9",
-            Self::F1 => "F1",
-            Self::F2 => "F2",
-            Self::F3 => "F3",
-            Self::F4 => "F4",
-            Self::F5 => "F5",
-            Self::F6 => "F6",
-            Self::F7 => "F7",
-            Self::F8 => "F8",
-            Self::F9 => "F9",
-            Self::F10 => "F10",
-            Self::F11 => "F11",
-            Self::F12 => "F12",
-            Self::Escape => "Échap",
-            Self::Tab => "Tab",
-            Self::Space => "Espace",
-            Self::Enter => "Entrée",
-            Self::Backspace => "Retour arrière",
-            Self::Delete => "Suppr",
-            Self::Home => "Début",
-            Self::End => "Fin",
-            Self::PageUp => "Page préc.",
-            Self::PageDown => "Page suiv.",
-            Self::Left => "←",
-            Self::Right => "→",
-            Self::Up => "↑",
-            Self::Down => "↓",
-            Self::Plus => "+",
-            Self::Minus => "-",
-            Self::Comma => ",",
-            Self::Period => ".",
-        }
-    }
 }
 
 /// A key plus the modifiers held with it.
@@ -256,21 +185,6 @@ impl Chord {
     pub const fn alt(mut self) -> Self {
         self.alt = true;
         self
-    }
-
-    pub fn label(self) -> String {
-        let mut text = String::new();
-        if self.command {
-            text.push_str("Cmd+");
-        }
-        if self.shift {
-            text.push_str("Maj+");
-        }
-        if self.alt {
-            text.push_str("Alt+");
-        }
-        text.push_str(self.key.label());
-        text
     }
 }
 
@@ -338,32 +252,5 @@ impl Default for Shortcuts {
                 (C::OpenSettings, Chord::new(Key::Comma).cmd()),
             ],
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn every_key_offered_when_recording_can_be_named() {
-        for key in Key::ALL {
-            assert!(
-                !key.label().is_empty(),
-                "{key:?} has no label, so a shortcut using it reads as blank",
-            );
-        }
-    }
-
-    #[test]
-    fn a_chord_names_its_modifiers_before_its_key_and_always_in_the_same_order() {
-        assert_eq!(Chord::new(Key::Z).label(), "Z");
-        assert_eq!(Chord::new(Key::Z).cmd().label(), "Cmd+Z");
-        assert_eq!(Chord::new(Key::Z).shift().label(), "Maj+Z");
-        assert_eq!(Chord::new(Key::Z).alt().label(), "Alt+Z");
-        assert_eq!(
-            Chord::new(Key::Z).alt().shift().cmd().label(),
-            "Cmd+Maj+Alt+Z",
-        );
     }
 }

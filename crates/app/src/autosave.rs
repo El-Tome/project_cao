@@ -36,7 +36,7 @@ impl Autosave {
                 self.pending = false;
                 None
             }
-            Err(error) => Some(error.to_string()),
+            Err(error) => Some(crate::wording::part_file::say(&error)),
         }
     }
 }

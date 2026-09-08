@@ -17,6 +17,10 @@ egui-wgpu.workspace = true
 glam.workspace = true
 wgpu.workspace = true
 
+[dev-dependencies]
+cao_part = { path = "../part", features = ["test-support"] }
+cao_prefs = { path = "../prefs", features = ["test-support"] }
+
 [[bin]]
 name = "cao"
 path = "src/main.rs"

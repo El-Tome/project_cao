@@ -11,8 +11,8 @@ pub enum PartFileError {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Archive(#[from] zip::result::ZipError),
-    #[error("le fichier de pièce ne contient pas « {0} »")]
+    #[error("part file has no entry named {0}")]
     MissingEntry(String),
-    #[error("pièce enregistrée dans une version antérieure (v{0}), non prise en charge")]
+    #[error("part written by an unsupported schema version (v{0})")]
     UnsupportedVersion(u32),
 }

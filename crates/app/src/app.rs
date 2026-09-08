@@ -6,14 +6,13 @@ use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
 use glam::DVec3;
 
-use crate::screens::extrusion::ExtrusionState;
-use crate::screens::history_tree::HistoryAction;
-use crate::screens::ribbon::Ribbon;
-use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewMode, ViewportState};
-use crate::screens::{self, OpenPart, Screen, start_menu::StartMenuAction};
+use crate::screens::{
+    self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
+    sketch::SketchEditor, start_menu::StartMenuAction,
+};
 use crate::shortcuts::shortcuts_pressed;
-use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording::plane};
+use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
 
 pub struct CaoApp {
     screen: Screen,
@@ -57,7 +56,7 @@ impl CaoApp {
 
     fn save_settings(&mut self) {
         if let Err(err) = self.profiles.save(&DiskFiles) {
-            self.error = Some(err.to_string());
+            self.error = Some(wording::storage::say(&err));
         }
     }
 
@@ -65,27 +64,28 @@ impl CaoApp {
         let dir = match cao_prefs::default_projects_dir() {
             Ok(dir) => dir,
             Err(err) => {
-                self.error = Some(err.to_string());
+                self.error = Some(wording::storage::say(&err));
                 return;
             }
         };
         match PartDocument::create_in(&DiskFiles, &dir, name, chrono::Utc::now()) {
             Ok((doc, path)) => self.open_document(doc, path),
-            Err(err) => self.error = Some(err.to_string()),
+            Err(err) => self.error = Some(wording::part_file::say(&err)),
         }
     }
 
     fn open_part(&mut self, path: PathBuf) {
         match PartDocument::load(&DiskFiles, &path) {
             Ok(doc) => self.open_document(doc, path),
-            Err(err) => self.error = Some(err.to_string()),
+            Err(err) => self.error = Some(wording::part_file::say(&err)),
         }
     }
 
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
         self.recents
             .push(path.clone(), doc.name().to_string(), chrono::Utc::now());
-        self.error = self.recents.save(&DiskFiles).err().map(|e| e.to_string());
+        let failure = self.recents.save(&DiskFiles).err();
+        self.error = failure.as_ref().map(wording::storage::say);
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,
@@ -491,7 +491,7 @@ fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -
 fn mode_label(mode: ViewMode) -> &'static str {
     match mode {
         ViewMode::Free => "Vue 3D libre",
-        ViewMode::Plane(work_plane) => plane::label(work_plane.kind()),
+        ViewMode::Plane(work_plane) => wording::plane::label(work_plane.kind()),
     }
 }
 

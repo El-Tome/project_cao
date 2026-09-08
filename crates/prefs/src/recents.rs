@@ -160,6 +160,28 @@ mod tests {
     }
 
     #[test]
+    fn a_list_that_cannot_be_read_says_so_rather_than_opening_empty() {
+        let at = Locations {
+            config: "/config".into(),
+            data: "/data".into(),
+            documents: None,
+        };
+        let files = InMemoryFiles::default();
+        files
+            .write(Path::new("/config/recents.json"), b"{ half a file")
+            .expect("writes");
+
+        let read = RecentList::load(&files, &at);
+
+        assert!(
+            matches!(read, Err(StorageError::Json(_))),
+            "a list that was written and then damaged is not the same thing as \
+             one that was never written, and quietly forgetting the parts the \
+             user opened is the wrong answer to it",
+        );
+    }
+
+    #[test]
     fn a_part_that_moved_away_stops_being_offered() {
         let files = InMemoryFiles::default();
         files

@@ -80,6 +80,21 @@ impl Equation {
         self.gradient[at] += value;
     }
 
+    /// The squared gradient below which the equation has nothing left to push
+    /// on, in the units its own gradient is written in.
+    ///
+    /// A length reads as a length over a length and does not answer to the size
+    /// of the drawing; an angle reads as radians over a length and does, so the
+    /// same corner in a drawing a million units across is written with a
+    /// gradient a million times smaller. An absolute figure here declares the
+    /// large drawing's angles flat and leaves them where they are.
+    pub(crate) fn flat_below(&self, scale: f64) -> f64 {
+        match self.angular {
+            true => 1e-12 / (scale * scale),
+            false => 1e-12,
+        }
+    }
+
     pub(crate) fn norm_squared(&self) -> f64 {
         self.gradient.iter().map(|value| value * value).sum()
     }

@@ -48,6 +48,7 @@ pub(crate) fn rigidify(
     blocks: &[Block],
     owner: &[Option<usize>],
     pinned: &[bool],
+    scale: f64,
 ) {
     for (index, block) in blocks.iter().enumerate() {
         let held = |point: &PointId| pinned[point.0] || owner[point.0] != Some(index);
@@ -75,7 +76,10 @@ pub(crate) fn rigidify(
             torque += arm.perp_dot(moves[point.0] - carried);
             spread += arm.length_squared();
         }
-        let turn = if spread > 1e-12 { torque / spread } else { 0.0 };
+        // Arms, so a size squared: below a millionth of the drawing there is
+        // nothing to turn about, whatever the units are called.
+        let flat = scale * scale * 1e-12;
+        let turn = if spread > flat { torque / spread } else { 0.0 };
         // A tangent, not an angle: laid on the perpendicular it stretches every arm.
         let spin = DVec2::from_angle(turn.atan());
         for point in &block.points {
@@ -94,11 +98,15 @@ mod tests {
 
     /// A square, and a quarter of it turned about its lower left corner.
     fn square() -> [DVec2; 4] {
+        square_of(10.0)
+    }
+
+    fn square_of(side: f64) -> [DVec2; 4] {
         [
             DVec2::new(0.0, 0.0),
-            DVec2::new(10.0, 0.0),
-            DVec2::new(10.0, 10.0),
-            DVec2::new(0.0, 10.0),
+            DVec2::new(side, 0.0),
+            DVec2::new(side, side),
+            DVec2::new(0.0, side),
         ]
     }
 
@@ -121,7 +129,14 @@ mod tests {
         moves[1] = turned(positions[1]) - positions[1];
         let owner = vec![Some(1), Some(1), Some(0), Some(0)];
 
-        rigidify(&positions, &mut moves, &[block_of(4)], &owner, &[false; 4]);
+        rigidify(
+            &positions,
+            &mut moves,
+            &[block_of(4)],
+            &owner,
+            &[false; 4],
+            10.0,
+        );
 
         for rank in [2, 3] {
             let landed = positions[rank] + moves[rank];
@@ -144,7 +159,14 @@ mod tests {
         moves[0] = DVec2::new(3.0, 0.0);
         let owner = vec![Some(1), Some(0), Some(0), Some(0)];
 
-        rigidify(&positions, &mut moves, &[block_of(4)], &owner, &[false; 4]);
+        rigidify(
+            &positions,
+            &mut moves,
+            &[block_of(4)],
+            &owner,
+            &[false; 4],
+            10.0,
+        );
 
         assert_eq!(
             moves[0],
@@ -158,6 +180,38 @@ mod tests {
                     .abs()
                     < 1e-9,
                 "the side from {one} to {other} was stretched",
+            );
+        }
+    }
+
+    #[test]
+    fn a_block_turns_whatever_the_units_of_the_drawing_are() {
+        let side = 1e-6;
+        let positions = square_of(side);
+        let spin = DVec2::from_angle(0.2_f64.atan());
+        let turned = |point: DVec2| spin.rotate(point - positions[0]) + positions[0];
+
+        let mut moves = vec![DVec2::ZERO; 4];
+        moves[1] = turned(positions[1]) - positions[1];
+        let owner = vec![Some(1), Some(1), Some(0), Some(0)];
+
+        rigidify(
+            &positions,
+            &mut moves,
+            &[block_of(4)],
+            &owner,
+            &[false; 4],
+            side,
+        );
+
+        for rank in [2, 3] {
+            let landed = positions[rank] + moves[rank];
+            let asked = turned(positions[rank]);
+            assert!(
+                landed.distance(asked) < side / 100.0,
+                "corner {rank} landed at {landed} instead of {asked}: a drawing \
+                 this small has its arms read as no arms at all, and the block \
+                 is carried without being turned",
             );
         }
     }

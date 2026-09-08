@@ -1,5 +1,7 @@
 use cao_sketch::{DimensionTarget, SketchAxis};
 
+use crate::wording::constraints;
+
 /// The only place a dimension is turned into a name.
 ///
 /// The value is millimetres for a length or a radius, degrees for an angle.
@@ -8,7 +10,7 @@ pub fn label(target: &DimensionTarget, value: f64) -> String {
     match target {
         DimensionTarget::Angle { .. } => format!("Angle {value}°"),
         DimensionTarget::AxisAngle { axis, .. } => {
-            format!("Angle {value}° / {}", axis.label())
+            format!("Angle {value}° / {}", constraints::axis(*axis))
         }
         DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
         DimensionTarget::Diameter(_) => format!("Diamètre {value} mm"),
@@ -34,13 +36,18 @@ pub fn spans(target: &DimensionTarget) -> String {
             format!("traits {} et {}", first.0, second.0)
         }
         DimensionTarget::AxisAngle { segment, axis } => {
-            format!("trait {} / {}", segment.0, axis.label())
+            format!("trait {} / {}", segment.0, constraints::axis(*axis))
         }
         DimensionTarget::PointToSegment { point, segment } => {
             format!("point {} au trait {}", point.0, segment.0)
         }
         DimensionTarget::Projected { from, to, axis } => {
-            format!("points {} et {} sur l'{}", from.0, to.0, axis.label())
+            format!(
+                "points {} et {} sur l'{}",
+                from.0,
+                to.0,
+                constraints::axis(*axis)
+            )
         }
         DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
             format!("cercle {}", circle.0)

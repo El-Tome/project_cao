@@ -64,11 +64,7 @@ const REACHES_OUTSIDE: [&str; 6] = [
 /// code that needs it.
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 1] = ["crates/prefs/src/storage.rs"];
 
-const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 3] = [
-    ("crates/part/src/errors.rs", 2),
-    ("crates/sketch/src/constraints.rs", 4),
-    ("crates/sketch/src/plane.rs", 1),
-];
+const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 1] = [("crates/part/src/errors.rs", 2)];
 
 /// Past this, a file is holding more than one responsibility. The figure is
 /// arbitrary; what is not is that every file above it can be named.

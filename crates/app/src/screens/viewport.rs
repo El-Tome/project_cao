@@ -14,11 +14,11 @@ use cao_sketch::{
 };
 use glam::{DVec2, DVec3};
 
-use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{
     ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, Rule, RulePick, Selection,
     SketchEditor, Tool,
 };
+use crate::{screens::extrusion::ExtrusionState, wording::constraints};
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: Rgba) -> [f32; 4] {
@@ -1780,7 +1780,7 @@ fn measure(
         context.editor.first_axis = Some(axis);
         context.editor.message = Some(format!(
             "{} choisi, cliquez maintenant un trait",
-            axis.label()
+            constraints::axis(axis)
         ));
         return false;
     }
@@ -3672,7 +3672,7 @@ fn paint_rule_marks(
             painter.text(
                 position,
                 egui::Align2::CENTER_CENTER,
-                constraint.mark(),
+                constraints::mark(*constraint),
                 egui::FontId::proportional(13.0),
                 match held {
                     true => tint_to_color(state.theme.highlight),

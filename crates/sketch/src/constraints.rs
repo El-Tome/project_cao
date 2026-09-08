@@ -22,13 +22,6 @@ impl SketchAxis {
             Self::V => DVec2::Y,
         }
     }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::U => "axe horizontal",
-            Self::V => "axe vertical",
-        }
-    }
 }
 
 /// What a dimension measures.
@@ -188,38 +181,6 @@ impl Constraint {
                 second: first,
             },
             other => other,
-        }
-    }
-
-    /// How it reads in the history and on the drawing.
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Perpendicular { .. } => "Perpendiculaire",
-            Self::Parallel { .. } => "Parallèle",
-            Self::Equal { .. } | Self::EqualRadius { .. } => "Égalité",
-            Self::OnSegment { .. } | Self::OnCircle { .. } => "Coïncidence",
-            Self::Collinear { .. } | Self::AxisCollinear { .. } => "Colinéaire",
-            Self::Tangent { .. } => "Tangence",
-            Self::Midpoint { .. } => "Milieu",
-            Self::Fixed { .. } => "Fixe",
-        }
-    }
-
-    /// The mark drawn next to what it holds.
-    ///
-    /// Plain letters and punctuation: the drawing symbols of the trade —
-    /// ⊥, ∥, ½ — are not in the fonts the interface ships with, and a mark that
-    /// comes out as an empty box says less than nothing.
-    pub fn mark(self) -> &'static str {
-        match self {
-            Self::Perpendicular { .. } => "|_",
-            Self::Parallel { .. } => "//",
-            Self::Equal { .. } | Self::EqualRadius { .. } => "=",
-            Self::OnSegment { .. } | Self::OnCircle { .. } => "+",
-            Self::Collinear { .. } | Self::AxisCollinear { .. } => "--",
-            Self::Tangent { .. } => "T",
-            Self::Midpoint { .. } => "1/2",
-            Self::Fixed { .. } => "X",
         }
     }
 }

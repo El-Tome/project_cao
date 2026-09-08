@@ -3,7 +3,7 @@ use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};
-use crate::wording::{command as wording, shortcuts, toolbar::group};
+use crate::wording::{command as wording, constraints, shortcuts, toolbar::group};
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
@@ -392,8 +392,8 @@ fn extrusion_row(
             );
             ui.label("Autour de :");
             for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
-                let chosen = extrusion.axis == cao_part::RevolutionAxis::Sketch(axis);
-                if ui.selectable_label(chosen, axis.label()).clicked() {
+                let held = extrusion.axis == cao_part::RevolutionAxis::Sketch(axis);
+                if ui.selectable_label(held, constraints::axis(axis)).clicked() {
                     extrusion.axis = cao_part::RevolutionAxis::Sketch(axis);
                 }
             }

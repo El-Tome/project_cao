@@ -1,21 +1,21 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
 use cao_sketch::Element;
 
-use crate::wording::dimension;
+use crate::wording::{constraints, dimension, plane};
 
 /// The only place a history step is turned into a name.
 ///
 /// Short, because the history tree shows one per line.
 pub fn label(operation: &Operation) -> String {
     match operation {
-        Operation::CreateSketch { plane } => format!("Esquisse — {}", plane.label()),
+        Operation::CreateSketch { plane } => format!("Esquisse — {}", plane::label(plane)),
         Operation::AddPoint { .. } => "Point".to_string(),
         Operation::AddSegment { .. } => "Trait".to_string(),
         Operation::AddRectangle { .. } => "Rectangle".to_string(),
         Operation::AddCircle { .. } => "Cercle".to_string(),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => "Déplacement".to_string(),
         Operation::MoveDimension { .. } => "Cote déplacée".to_string(),
-        Operation::Constrain { constraint, .. } => constraint.label().to_string(),
+        Operation::Constrain { constraint, .. } => constraints::label(*constraint).to_string(),
         Operation::EraseMany {
             elements,
             dimensions,
@@ -30,7 +30,7 @@ pub fn label(operation: &Operation) -> String {
             ([Element::Segment(_)], [], []) => "Trait supprimé".to_string(),
             ([Element::Circle(_)], [], []) => "Cercle supprimé".to_string(),
             ([], [_], []) => "Cote supprimée".to_string(),
-            ([], [], [rule]) => format!("{} supprimée", rule.label()),
+            ([], [], [rule]) => format!("{} supprimée", constraints::label(*rule)),
             _ => format!(
                 "{} éléments supprimés",
                 elements.len() + dimensions.len() + constraints.len()
@@ -108,7 +108,7 @@ pub fn detail(operation: &Operation) -> String {
             format!("Esquisse {sketch} · {} aire(s)", picks.len())
         }
         Operation::Constrain { sketch, constraint } => {
-            format!("Esquisse {sketch} · {}", constraint.label())
+            format!("Esquisse {sketch} · {}", constraints::label(*constraint))
         }
         Operation::EraseMany {
             sketch,
@@ -145,7 +145,7 @@ pub fn detail(operation: &Operation) -> String {
 /// The only place an axis of revolution is turned into a name.
 fn revolution_axis(axis: RevolutionAxis) -> String {
     match axis {
-        RevolutionAxis::Sketch(axis) => axis.label().to_string(),
+        RevolutionAxis::Sketch(axis) => constraints::axis(axis).to_string(),
         RevolutionAxis::Segment(segment) => format!("trait {}", segment.0),
     }
 }

@@ -1,9 +1,10 @@
 name: CI
 
+# Every branch, and pull_request deliberately absent: with both, each push to a
+# branch under review would run the whole workflow twice.
 on:
   push:
-    branches: [main]
-  pull_request:
+    branches: ['**']
 
 env:
   CARGO_TERM_COLOR: always

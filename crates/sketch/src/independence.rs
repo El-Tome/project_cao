@@ -1,8 +1,8 @@
 //! What a set of equations genuinely says, and what it leaves free.
 //!
-//! Linear algebra, kept apart from the solver that runs it: Gram–Schmidt over
-//! the gradients answers both questions, it knows nothing of what is drawn,
-//! and it is worth testing on its own.
+//! Gram–Schmidt over the gradients answers both questions. It reads nothing of
+//! an equation but its gradient — never the error, never what is drawn — so it
+//! is kept apart from the solver that runs it, and tested on its own.
 
 use crate::solver::Equation;
 
@@ -115,11 +115,9 @@ pub(crate) fn norm(row: &[f64]) -> f64 {
 mod tests {
     use super::*;
 
-    /// Two points, so a system has four unknowns: x0, y0, x1, y1.
-    const UNKNOWNS: usize = 4;
+    const POINTS: usize = 2;
+    const UNKNOWNS: usize = POINTS * 2;
 
-    /// Only the gradient is under test here. How far off an equation currently
-    /// is says nothing about whether it repeats what another one already says.
     fn saying(gradient: [f64; UNKNOWNS]) -> Equation {
         Equation {
             error: 0.0,
@@ -220,7 +218,9 @@ mod tests {
             saying([0.0, 1.0, 1.0, 0.0]),
             saying([1.0, 1.0, 0.0, 0.0]),
         ]);
-        assert_eq!(forwards, backwards);
+
+        assert_eq!(forwards, 2);
+        assert_eq!(backwards, forwards);
     }
 
     #[test]
@@ -306,6 +306,33 @@ mod tests {
                 "and no direction asks the pinned point to budge",
             );
         }
+    }
+
+    #[test]
+    fn a_row_a_shade_off_one_the_basis_holds_is_dust_rather_than_information() {
+        let held = [saying([1.0, 0.0, 0.0, 0.0])];
+
+        assert!(
+            is_dependent(&held, &saying([1.0, 1e-6, 0.0, 0.0])),
+            "what is left over is judged against the row it came from, not              against an absolute size: a millionth of a unit is rounding",
+        );
+        assert!(!is_dependent(&held, &saying([1.0, 0.1, 0.0, 0.0])));
+    }
+
+    #[test]
+    fn the_size_of_a_circle_is_free_though_only_points_can_be_pinned() {
+        let circles = 1;
+        let free = null_space(&[], &[true, false], UNKNOWNS + circles);
+
+        assert_eq!(
+            free.len(),
+            3,
+            "the loose point moves two ways, and the radius is a third",
+        );
+        assert!(
+            free.iter().any(|direction| direction[UNKNOWNS].abs() > 0.5),
+            "a column past the last point is nobody's coordinate, and free",
+        );
     }
 
     #[test]

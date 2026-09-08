@@ -1,11 +1,10 @@
-use std::fs;
-use std::io::Write;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{StorageError, project_dirs, replace_whole};
+use crate::ports::Files;
+use crate::storage::{StorageError, project_dirs};
 
 /// How many recent parts we remember and show in the start menu.
 pub const MAX_RECENTS: usize = 10;
@@ -30,19 +29,17 @@ impl RecentList {
         Ok(project_dirs()?.config_dir().join("recents.json"))
     }
 
-    pub fn load() -> Result<Self, StorageError> {
+    pub fn load(files: &impl Files) -> Result<Self, StorageError> {
         let path = Self::state_path()?;
-        if !path.exists() {
+        if !files.exists(&path) {
             return Ok(Self::default());
         }
-        let json = fs::read_to_string(path)?;
-        Ok(serde_json::from_str(&json)?)
+        Ok(serde_json::from_slice(&files.read(&path)?)?)
     }
 
-    pub fn save(&self) -> Result<(), StorageError> {
+    pub fn save(&self, files: &impl Files) -> Result<(), StorageError> {
         let json = serde_json::to_string_pretty(self)?;
-        replace_whole(&Self::state_path()?, |file| file.write_all(json.as_bytes()))?;
-        Ok(())
+        Ok(files.write(&Self::state_path()?, json.as_bytes())?)
     }
 
     pub fn entries(&self) -> &[RecentEntry] {
@@ -65,15 +62,18 @@ impl RecentList {
         self.entries.truncate(MAX_RECENTS);
     }
 
-    /// Drops entries whose file no longer exists on disk.
-    pub fn prune_missing(&mut self) {
-        self.entries.retain(|e| e.path.exists());
+    /// Drops entries whose file is no longer where it was opened from.
+    pub fn prune_missing(&mut self, files: &impl Files) {
+        self.entries.retain(|e| files.exists(&e.path));
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::path::Path;
+
     use super::*;
+    use crate::adapters::InMemoryFiles;
 
     fn at(text: &str) -> DateTime<Utc> {
         text.parse().expect("a date")
@@ -112,6 +112,26 @@ mod tests {
                 &PathBuf::from("/parts/bride.caopart"),
             ],
         );
+    }
+
+    #[test]
+    fn a_part_that_moved_away_stops_being_offered() {
+        let files = InMemoryFiles::default();
+        files
+            .write(Path::new("/parts/support.caopart"), b"PK")
+            .expect("writes");
+        let mut recents = RecentList::default();
+        recents.push("/parts/bride.caopart", "Bride", at("2026-01-02T09:00:00Z"));
+        recents.push(
+            "/parts/support.caopart",
+            "Support",
+            at("2026-01-02T09:01:00Z"),
+        );
+
+        recents.prune_missing(&files);
+
+        let paths: Vec<&PathBuf> = recents.entries().iter().map(|e| &e.path).collect();
+        assert_eq!(paths, [&PathBuf::from("/parts/support.caopart")]);
     }
 
     #[test]

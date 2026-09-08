@@ -42,12 +42,12 @@ impl CaoApp {
                 .insert(renderer);
         }
 
-        let mut recents = RecentList::load().unwrap_or_default();
-        recents.prune_missing();
+        let mut recents = RecentList::load(&DiskFiles).unwrap_or_default();
+        recents.prune_missing(&DiskFiles);
         Self {
             screen: Screen::StartMenu,
             recents,
-            profiles: Profiles::load(),
+            profiles: Profiles::load(&DiskFiles),
             settings_open: false,
             settings_editor: crate::screens::settings::SettingsEditor::default(),
             new_part_name: String::new(),
@@ -56,7 +56,7 @@ impl CaoApp {
     }
 
     fn save_settings(&mut self) {
-        if let Err(err) = self.profiles.save() {
+        if let Err(err) = self.profiles.save(&DiskFiles) {
             self.error = Some(err.to_string());
         }
     }
@@ -85,7 +85,7 @@ impl CaoApp {
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
         self.recents
             .push(path.clone(), doc.name().to_string(), chrono::Utc::now());
-        self.error = self.recents.save().err().map(|err| err.to_string());
+        self.error = self.recents.save(&DiskFiles).err().map(|e| e.to_string());
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,

@@ -38,7 +38,6 @@ jobs:
   build-windows:
     name: Exécutable Windows
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
     steps:
       - uses: actions/checkout@v4
       - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends mingw-w64
@@ -46,6 +45,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: ./scripts/build-windows.sh
       - uses: actions/upload-artifact@v4
+        if: github.ref == 'refs/heads/main'
         with:
           name: cao-windows
           path: target/x86_64-pc-windows-gnu/release/cao.exe

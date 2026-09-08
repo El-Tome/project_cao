@@ -30,6 +30,11 @@ const MAX_ITERATIONS: usize = 400;
 /// and it is what makes a tangent circle settle at the drop rather than
 /// staying out of shape until something else was touched.
 const ROUNDS: usize = 12;
+/// How many times the shapes are put back and the drawing settled again around
+/// them. The loop leaves as soon as a pass is found to have bent nothing, which
+/// is the usual case; the bound is there for the drawing where putting a shape
+/// back is what breaks the next equation.
+const WELDS: usize = 4;
 /// How much of the error a round must clear to be worth another one.
 const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
@@ -100,9 +105,17 @@ impl Sketch {
 
         let mut outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
         if !blocks.is_empty() {
-            // A block still bends where its shared and pinned points are left behind.
+            // A block still bends where its shared and pinned points are left
+            // behind, so it is put back and the drawing settled around it
+            // again — until a pass is found to have bent nothing, which is what
+            // makes the shape that comes out the one that went in.
             self.weld(&before, &blocks);
-            outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
+            for _ in 0..WELDS {
+                outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
+                if self.weld(&before, &blocks) < scale * TOLERANCE {
+                    break;
+                }
+            }
 
             // Keeping the shapes is not always possible — the values may want
             // the very thing that was being held. The drawing is then solved
@@ -308,57 +321,6 @@ impl Sketch {
         // What cannot move is put back first, so the rest settles around it.
         kept.sort_by_key(|block| (!block.anchored, block.points[0].0));
         kept
-    }
-
-    /// Puts every untouched block back to the shape it had, in the place the
-    /// solve moved it to.
-    ///
-    /// The blocks are welded in order: what cannot move first, then each block
-    /// hinged on the point it shares with those already in place. A block is
-    /// only carried and turned, never bent. Returns how far the furthest point
-    /// had to be put back, which is how the loop knows it has settled.
-    fn weld(&mut self, before: &[DVec2], blocks: &[Block]) -> f64 {
-        let mut placed = vec![false; self.points().len()];
-        let pinned = self.pinned_points();
-        let mut worst = 0.0f64;
-
-        for Block { points, .. } in blocks {
-            let hinge = points
-                .iter()
-                .find(|point| placed[point.0] || pinned[point.0])
-                .copied();
-            let (was, is) = match hinge {
-                Some(point) => (before[point.0], self.point(point)),
-                None => (
-                    points.iter().map(|point| before[point.0]).sum::<DVec2>() / points.len() as f64,
-                    points.iter().map(|point| self.point(*point)).sum::<DVec2>()
-                        / points.len() as f64,
-                ),
-            };
-
-            // The turn that best lines the shape up with where the solve put
-            // it: nothing else about the block is allowed to change.
-            let (mut across, mut along) = (0.0, 0.0);
-            for point in points {
-                let then = before[point.0] - was;
-                let now = self.point(*point) - is;
-                across += then.perp_dot(now);
-                along += then.dot(now);
-            }
-            let turn = DVec2::from_angle(across.atan2(along));
-
-            for point in points {
-                if pinned[point.0] {
-                    placed[point.0] = true;
-                    continue;
-                }
-                let landing = is + turn.rotate(before[point.0] - was);
-                worst = worst.max(landing.distance(self.point(*point)));
-                self.place_point(*point, landing);
-                placed[point.0] = true;
-            }
-        }
-        worst
     }
 
     /// How far off the drawing is, as a fraction of its own size.

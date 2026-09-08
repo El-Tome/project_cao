@@ -197,10 +197,7 @@ mod tests {
         );
         assert!((found.centre.x - 60.0).abs() < 1e-9);
         assert!((found.radius - 20.0).abs() < 1e-9);
-        assert!(
-            found.anchor.is_none(),
-            "deux parallèles n'ont pas de sommet"
-        );
+        assert!(found.anchor.is_none(), "two parallels meet at no corner");
     }
 
     #[test]
@@ -223,7 +220,7 @@ mod tests {
         let c = DVec2::new(0.0, 3.0);
         let (centre, radius) = circle_touching_three((a, b), (b, c), (c, a)).unwrap();
 
-        assert!((radius - 1.0).abs() < 1e-9, "rayon = {radius}");
+        assert!((radius - 1.0).abs() < 1e-9, "radius = {radius}");
         assert!(
             centre.distance(DVec2::new(1.0, 1.0)) < 1e-9,
             "centre = {centre:?}"

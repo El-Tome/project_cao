@@ -485,20 +485,20 @@ mod tests {
         rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(15.0, 15.0));
         let regions = sketch.regions();
 
-        assert_eq!(regions[0].holes.len(), 1, "le contour extérieur est percé");
+        assert_eq!(regions[0].holes.len(), 1, "the outer contour is pierced");
         assert!(regions[1].holes.is_empty());
 
         let ring = area(&regions[0].face_triangles());
         assert!((ring - 300.0).abs() < 1e-2, "area of the ring: {ring}");
         assert!(
             (area(&regions[0].triangles) - 400.0).abs() < 1e-2,
-            "teinte pleine"
+            "the solid fill ignores the hole"
         );
 
         assert!(regions[0].contains(DVec2::new(2.0, 2.0)));
         assert!(
             !regions[0].contains(DVec2::new(10.0, 10.0)),
-            "le trou est vide"
+            "the hole is empty"
         );
         assert!(regions[1].contains(DVec2::new(10.0, 10.0)));
     }
@@ -532,7 +532,7 @@ mod tests {
         let expected = std::f64::consts::PI * (8.0f64.powi(2) - 5.0f64.powi(2));
         assert!(
             (ring - expected).abs() / expected < 0.02,
-            "anneau {ring}, attendu ~{expected}"
+            "ring {ring}, expected ~{expected}"
         );
         assert!(!regions[0].contains(DVec2::new(10.0, 10.0)));
     }

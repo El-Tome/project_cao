@@ -443,11 +443,11 @@ mod tests {
     /// land the way round they are drawn.
     #[test]
     fn a_top_view_is_not_turned_half_a_turn() {
-        for (direction, name) in [(Vec3::Z, "dessus"), (Vec3::NEG_Z, "dessous")] {
+        for (direction, name) in [(Vec3::Z, "top"), (Vec3::NEG_Z, "bottom")] {
             let (yaw, _) = view_angles_towards(direction);
             assert!(
                 yaw.abs() < 1e-4,
-                "{name}: yaw {} au lieu de 0",
+                "{name}: yaw {} instead of 0",
                 yaw.to_degrees()
             );
         }
@@ -457,7 +457,7 @@ mod tests {
         camera.set_view_angles(yaw, pitch);
         assert!(
             (camera.right() - Vec3::X).length() < 1e-4,
-            "X doit aller vers la droite, pas {:?}",
+            "X must point right, not {:?}",
             camera.right()
         );
         assert!((camera.up() - Vec3::Y).length() < 1e-4);

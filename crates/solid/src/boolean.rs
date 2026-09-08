@@ -422,8 +422,8 @@ mod tests {
             glam::DVec2::Y,
             std::f64::consts::TAU,
         )
-        .expect("un cylindre");
-        assert!(cylinder.polygons.len() > steps, "assez de facettes");
+        .expect("a cylinder");
+        assert!(cylinder.polygons.len() > steps, "enough facets");
 
         let tool = box_of(3.0, 30.0, DVec3::new(4.0, 1.0, -15.0));
         let cut = cylinder.difference(&tool);

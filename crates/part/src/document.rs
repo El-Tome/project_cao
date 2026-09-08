@@ -344,7 +344,7 @@ mod tests {
         let files = InMemoryFiles::default();
         let path = Path::new("/parts/piece.caopart");
 
-        PartDocument::new("Ancienne", at("2026-01-02T09:00:00Z"))
+        PartDocument::new("Older", at("2026-01-02T09:00:00Z"))
             .save(&files, path, at("2026-01-02T09:00:00Z"))
             .expect("saves");
         let mut document = PartDocument::load(&files, path).expect("loads");

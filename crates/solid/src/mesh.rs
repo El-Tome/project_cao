@@ -419,14 +419,14 @@ pub(crate) mod tests {
     #[test]
     fn a_face_with_no_area_is_refused() {
         let flat = vec![DVec3::ZERO, DVec3::X, DVec3::X * 2.0];
-        assert!(Polygon::new(flat).is_none(), "trois points alignés");
+        assert!(Polygon::new(flat).is_none(), "three points in a line");
         assert!(
             Polygon::new(vec![DVec3::ZERO, DVec3::X]).is_none(),
-            "deux points"
+            "two points"
         );
         assert!(
             Polygon::new(vec![DVec3::ZERO; 4]).is_none(),
-            "quatre fois le même"
+            "the same point four times"
         );
     }
 
@@ -448,7 +448,7 @@ pub(crate) mod tests {
             DVec2::Y,
             std::f64::consts::TAU,
         )
-        .expect("un profil d'un seul côté de l'axe");
+        .expect("a profile on one side of the axis");
 
         let expected = std::f64::consts::TAU * 4.0 * 4.0;
         let made = volume(&solid);
@@ -471,7 +471,7 @@ pub(crate) mod tests {
             DVec2::Y,
             std::f64::consts::FRAC_PI_2,
         )
-        .expect("un quart de tour");
+        .expect("a quarter turn");
 
         let expected = std::f64::consts::FRAC_PI_2 * 4.0 * 4.0;
         let made = volume(&solid);
@@ -494,7 +494,7 @@ pub(crate) mod tests {
             DVec2::Y,
             -std::f64::consts::FRAC_PI_2,
         )
-        .expect("un quart de tour à l'envers");
+        .expect("a quarter turn the other way");
         assert!(volume(&solid) > 0.0, "{}", volume(&solid));
     }
 
@@ -523,18 +523,15 @@ pub(crate) mod tests {
         // Straight down onto the top of the box, from well above it.
         let hit = solid
             .ray_hit(DVec3::new(5.0, 5.0, 20.0), DVec3::NEG_Z)
-            .expect("la face du dessus");
+            .expect("the top face");
         assert!((hit.distance - 16.0).abs() < 1e-3, "{}", hit.distance);
-        assert!(
-            hit.polygon.normal().dot(DVec3::Z) > 0.99,
-            "elle regarde en haut"
-        );
+        assert!(hit.polygon.normal().dot(DVec3::Z) > 0.99, "it faces up");
 
         assert!(
             solid
                 .ray_hit(DVec3::new(50.0, 50.0, 20.0), DVec3::NEG_Z)
                 .is_none(),
-            "à côté de la pièce"
+            "beside the part"
         );
     }
 

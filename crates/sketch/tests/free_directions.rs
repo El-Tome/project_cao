@@ -11,12 +11,18 @@
 //! changes remove, and it does not answer to what else the machine is doing.
 
 use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 use cao_sketch::{Sketch, WorkPlane};
 use glam::DVec2;
 
 static ALLOCATIONS: AtomicUsize = AtomicUsize::new(0);
+
+// The counter above is process-wide, and cargo runs the tests of one binary
+// on several threads at once: without this, one test's allocations land in
+// the other's window and the count answers to whichever happened to overlap.
+static ONE_TEST_AT_A_TIME: Mutex<()> = Mutex::new(());
 
 struct Counting;
 
@@ -71,6 +77,7 @@ fn allocations_reading_what_is_settled(segments: usize) -> usize {
 
 #[test]
 fn twice_the_drawing_costs_twice_the_allocations_and_not_four_times() {
+    let _alone = ONE_TEST_AT_A_TIME.lock().unwrap();
     let small = allocations_reading_what_is_settled(40);
     let large = allocations_reading_what_is_settled(80);
 
@@ -83,6 +90,7 @@ fn twice_the_drawing_costs_twice_the_allocations_and_not_four_times() {
 
 #[test]
 fn reading_the_same_drawing_twice_only_works_the_once() {
+    let _alone = ONE_TEST_AT_A_TIME.lock().unwrap();
     let sketch = chain(80);
 
     let first = allocations(|| sketch.settled_points(SCALE));

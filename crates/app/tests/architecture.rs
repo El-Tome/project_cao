@@ -153,6 +153,40 @@ fn a_crate_only_reaches_for_the_crates_the_graph_allows() {
 }
 
 #[test]
+fn a_crate_reached_only_by_the_tests_is_still_read_off_the_manifest() {
+    let manifest = "\
+[package]
+name = \"probe\"
+
+[dependencies]
+glam = \"0.33\"
+
+[dev-dependencies]
+egui = \"0.36\"
+
+[build-dependencies]
+cc = \"1\"
+
+[target.'cfg(windows)'.dependencies]
+winit = \"0.30\"
+
+[dependencies.serde]
+version = \"1\"
+features = [\"derive\"]
+
+[[bin]]
+name = \"probe\"
+";
+
+    let expected: BTreeSet<String> = ["cc", "egui", "glam", "serde", "winit"]
+        .iter()
+        .map(|name| name.to_string())
+        .collect();
+
+    assert_eq!(declared_dependencies(manifest), expected);
+}
+
+#[test]
 fn the_two_geometry_crates_stay_alone_with_their_maths() {
     let expected: BTreeSet<String> = ["glam", "serde"]
         .iter()
@@ -412,14 +446,20 @@ fn manifest(directory: &str) -> String {
     fs::read_to_string(&path).unwrap_or_else(|_| panic!("the manifest at {}", path.display()))
 }
 
+/// Every table that declares an edge, not just `[dependencies]`: a crate reached
+/// only by the tests or only on one platform is still a crate this manifest
+/// pulls in, and the rules below have nothing to say about it if it is invisible.
 fn declared_dependencies(manifest: &str) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     let mut inside = false;
 
     for line in manifest.lines() {
         let line = line.trim();
-        if line.starts_with('[') {
-            inside = line == "[dependencies]";
+        if let Some(header) = table_header(line) {
+            inside = declares_dependencies(header);
+            if let Some(name) = dependency_given_its_own_table(header) {
+                names.insert(name.to_string());
+            }
             continue;
         }
         if !inside || line.is_empty() || line.starts_with('#') {
@@ -438,6 +478,22 @@ fn declared_dependencies(manifest: &str) -> BTreeSet<String> {
         }
     }
     names
+}
+
+fn table_header(line: &str) -> Option<&str> {
+    line.strip_prefix('[')?.strip_suffix(']')
+}
+
+fn declares_dependencies(header: &str) -> bool {
+    matches!(
+        header.rsplit('.').next(),
+        Some("dependencies" | "dev-dependencies" | "build-dependencies")
+    )
+}
+
+fn dependency_given_its_own_table(header: &str) -> Option<&str> {
+    let (table, name) = header.rsplit_once('.')?;
+    declares_dependencies(table).then_some(name)
 }
 
 fn sources_below_the_interface() -> Vec<(String, String)> {

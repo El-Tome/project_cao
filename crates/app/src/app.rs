@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cao_core::{Operation, PartDocument};
+use cao_part::{Operation, PartDocument};
 use cao_prefs::{Command, Profiles, RecentList};
 use cao_render::SceneRenderer;
 use cao_sketch::WorkPlane;
@@ -375,11 +375,11 @@ fn run(
             false
         }
         Command::ExtrusionAdd => {
-            extrusion.arm(cao_core::ExtrusionMode::Add);
+            extrusion.arm(cao_part::ExtrusionMode::Add);
             false
         }
         Command::ExtrusionCut => {
-            extrusion.arm(cao_core::ExtrusionMode::Cut);
+            extrusion.arm(cao_part::ExtrusionMode::Cut);
             false
         }
         Command::ExtrusionStraight => {
@@ -560,8 +560,8 @@ fn apply_extrusion(doc: &mut PartDocument, extrusion: &mut ExtrusionState) -> bo
             (_, true) => {
                 "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
             }
-            (cao_core::ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
-            (cao_core::ExtrusionMode::Cut, false) => {
+            (cao_part::ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
+            (cao_part::ExtrusionMode::Cut, false) => {
                 "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
             }
         }

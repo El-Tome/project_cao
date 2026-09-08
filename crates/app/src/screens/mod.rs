@@ -9,7 +9,7 @@ pub mod viewport;
 
 use std::path::PathBuf;
 
-use cao_core::PartDocument;
+use cao_part::PartDocument;
 
 use extrusion::ExtrusionState;
 use ribbon::Ribbon;

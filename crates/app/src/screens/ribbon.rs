@@ -1,4 +1,4 @@
-use cao_core::PartDocument;
+use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
@@ -289,8 +289,8 @@ fn active(command: Command, state: &Context<'_>) -> bool {
         Command::DimensionLength => mode == DimensionMode::Length,
         Command::DimensionAngle => mode == DimensionMode::Angle,
         Command::DimensionRadius => mode == DimensionMode::Radius,
-        Command::ExtrusionAdd => state.extrusion.mode == Some(cao_core::ExtrusionMode::Add),
-        Command::ExtrusionCut => state.extrusion.mode == Some(cao_core::ExtrusionMode::Cut),
+        Command::ExtrusionAdd => state.extrusion.mode == Some(cao_part::ExtrusionMode::Add),
+        Command::ExtrusionCut => state.extrusion.mode == Some(cao_part::ExtrusionMode::Cut),
         Command::ExtrusionStraight => state.extrusion.shape == Shape::Straight,
         Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
         _ => false,
@@ -392,12 +392,12 @@ fn extrusion_row(
             );
             ui.label("Autour de :");
             for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
-                let chosen = extrusion.axis == cao_core::RevolutionAxis::Sketch(axis);
+                let chosen = extrusion.axis == cao_part::RevolutionAxis::Sketch(axis);
                 if ui.selectable_label(chosen, axis.label()).clicked() {
-                    extrusion.axis = cao_core::RevolutionAxis::Sketch(axis);
+                    extrusion.axis = cao_part::RevolutionAxis::Sketch(axis);
                 }
             }
-            if let cao_core::RevolutionAxis::Segment(segment) = extrusion.axis {
+            if let cao_part::RevolutionAxis::Segment(segment) = extrusion.axis {
                 ui.selectable_label(true, format!("trait {}", segment.0))
                     .on_hover_text("Cliquer un autre trait de l'esquisse pour en changer");
             } else {

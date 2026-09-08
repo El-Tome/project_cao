@@ -1,4 +1,4 @@
-use cao_core::{ExtrusionMode, RevolutionAxis};
+use cao_part::{ExtrusionMode, RevolutionAxis};
 use cao_sketch::SketchAxis;
 use glam::DVec2;
 

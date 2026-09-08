@@ -4,7 +4,7 @@
 //! sends a coordinate to infinity or takes the application down, which is what
 //! a solver fed contradictory values is apt to do.
 
-use cao_core::{Operation, PartDocument, PointRef};
+use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 

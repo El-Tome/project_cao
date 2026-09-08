@@ -42,19 +42,31 @@ For an API question on `egui`, `wgpu` or `glam`, use `context7` rather than
 memory: this project is on `egui 0.36`, `wgpu 30` and `glam 0.33`, crates whose
 API breaks on every minor release.
 
-## Language
+## Language — not negotiable
 
-Code, test names, documentation, branch names and commit messages are in
-**English**.
+`crates/app/tests/language.rs` enforces what follows, in the gate. It is the
+authority; this section is the summary.
 
-Text the user reads is in **French**, and lives only in `cao_app`. Layers below
-return a named case — `ExtrusionMode::Cut`, not "Enlèvement de matière" — and
-the interface decides how it is said. That is what will make translation a
-wiring job rather than a rewrite; the i18n system itself is still to come.
+**Everything a developer reads is in English.** Documentation, comments,
+assertion messages, test names, commit messages, branch names — and **file and
+folder names**: `docs/render.md`, not `docs/rendu.md`; `scripts/verify.sh`, not
+`scripts/verifier.sh`. There is no "when it is touched anyway" clause: that
+clause is what kept half of this repository French, because a document nobody
+has a reason to open never gets touched.
 
-Documents and commits written before this rule are in French. They are
-translated when touched anyway, never in a sweep of their own, and history is
-not rewritten.
+**The one exception is the interface.** Text the user reads is in **French**,
+and lives only in `cao_app`. Layers below return a named case —
+`ExtrusionMode::Cut`, not "Enlèvement de matière" — and the interface decides
+how it is said. That is what will make translation a wiring job rather than a
+rewrite; the i18n system itself is still to come. A separate rule, in
+`architecture.rs`, keeps those sentences from sinking any lower.
+
+A document quoting such a string word for word keeps it quoted: writing that a
+button reads "Nouvelle esquisse" is not writing in French, and the test skips
+what sits between quotes or backticks.
+
+Git history is not rewritten: the commits that predate the rule stay as they
+are.
 
 ## Modularity — not negotiable
 

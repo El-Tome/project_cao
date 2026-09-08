@@ -279,19 +279,19 @@ impl Default for ToolbarLayout {
             show_labels: true,
             items: vec![
                 Item::group(
-                    "Esquisse",
+                    "sketch",
                     vec![
                         Item::Command(C::NewSketch),
                         Item::Separator,
                         Item::group(
-                            "Dessin",
+                            "drawing",
                             vec![
                                 Item::Command(C::ToolSelect),
                                 Item::Command(C::ToolLine),
                                 Item::Command(C::ToolRectangle),
                                 Item::Command(C::ToolCircle),
                                 Item::group(
-                                    "Cercles",
+                                    "circles",
                                     vec![
                                         Item::Command(C::CircleCenter),
                                         Item::Command(C::CircleTwoPoints),
@@ -306,7 +306,7 @@ impl Default for ToolbarLayout {
                                 // being spread out: nine rules laid on the bar
                                 // would push everything else off it.
                                 Item::group(
-                                    "Contraintes",
+                                    "constraints",
                                     vec![
                                         Item::Command(C::RulePerpendicular),
                                         Item::Command(C::RuleParallel),
@@ -324,14 +324,11 @@ impl Default for ToolbarLayout {
                         Item::Command(C::RecenterOnSketch),
                         Item::Command(C::FinishSketch),
                         Item::Separator,
-                        Item::group(
-                            "Édition",
-                            vec![Item::Command(C::Undo), Item::Command(C::Redo)],
-                        ),
+                        Item::group("edit", vec![Item::Command(C::Undo), Item::Command(C::Redo)]),
                     ],
                 ),
                 Item::group(
-                    "Extrusion",
+                    "extrusion",
                     vec![
                         Item::Command(C::ExtrusionAdd),
                         Item::Command(C::ExtrusionCut),
@@ -353,9 +350,9 @@ mod tests {
         // constraints group not yet invented and a button moved by hand.
         let mut saved = ToolbarLayout {
             items: vec![Item::group(
-                "Esquisse",
+                "sketch",
                 vec![Item::group(
-                    "Dessin",
+                    "drawing",
                     vec![Item::Command(Command::ToolLine)],
                 )],
             )],
@@ -450,8 +447,8 @@ mod tests {
     #[test]
     fn only_a_group_can_be_renamed() {
         let mut layout = layout();
-        assert!(layout.rename(&[1], "Autre".to_string()));
-        assert!(matches!(layout.at(&[1]), Some(Item::Group { name, .. }) if name == "Autre"));
+        assert!(layout.rename(&[1], "Other".to_string()));
+        assert!(matches!(layout.at(&[1]), Some(Item::Group { name, .. }) if name == "Other"));
         assert!(!layout.rename(&[0], "Rien".to_string()));
     }
 }

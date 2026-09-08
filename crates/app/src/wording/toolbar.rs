@@ -15,6 +15,23 @@ pub fn edge(edge: Edge) -> &'static str {
     }
 }
 
+/// The only place a group of the standard toolbar is turned into a name.
+///
+/// The standard groups are keyed, because a new command finds its place by
+/// matching the key. A group the user made or renamed carries their own words
+/// and is handed back untouched.
+pub fn group(name: &str) -> &str {
+    match name {
+        "sketch" => "Esquisse",
+        "drawing" => "Dessin",
+        "circles" => "Cercles",
+        "constraints" => "Contraintes",
+        "edit" => "Édition",
+        "extrusion" => "Extrusion",
+        theirs => theirs,
+    }
+}
+
 /// One entry of the toolbar tree, as the settings screen lists it.
 ///
 /// A borrow rather than a `String`: the settings screen walks the whole tree
@@ -22,7 +39,7 @@ pub fn edge(edge: Edge) -> &'static str {
 pub fn item(item: &Item) -> &str {
     match item {
         Item::Command(chosen) => command::label(*chosen),
-        Item::Group { name, .. } => name,
+        Item::Group { name, .. } => group(name),
         Item::Separator => "— séparateur —",
     }
 }
@@ -31,7 +48,7 @@ pub fn item(item: &Item) -> &str {
 mod tests {
     use std::collections::BTreeMap;
 
-    use cao_prefs::Command;
+    use cao_prefs::{Command, ToolbarLayout};
 
     use super::*;
 
@@ -61,7 +78,39 @@ mod tests {
             command::label(Command::Undo),
             "a command entry says what the command says",
         );
-        assert_eq!(item(&Item::group("Dessin", Vec::new())), "Dessin");
+        assert_eq!(item(&Item::group("drawing", Vec::new())), "Dessin");
         assert_eq!(item(&Item::Separator), "— séparateur —");
+    }
+
+    #[test]
+    fn no_group_of_the_standard_toolbar_is_left_reading_as_its_key() {
+        fn walk(items: &[Item], out: &mut Vec<String>) {
+            for entry in items {
+                if let Item::Group { name, items } = entry {
+                    out.push(name.clone());
+                    walk(items, out);
+                }
+            }
+        }
+
+        let mut keys = Vec::new();
+        walk(&ToolbarLayout::default().items, &mut keys);
+
+        assert!(!keys.is_empty(), "the standard toolbar holds groups");
+        for key in keys {
+            assert_ne!(
+                group(&key),
+                key,
+                "the toolbar shows {key:?} as it is written in the profile, \
+                 which is a key and not a name",
+            );
+        }
+    }
+
+    /// A group the user made, or renamed, carries their own words: the
+    /// interface has nothing to say about it.
+    #[test]
+    fn a_group_the_user_named_reads_as_they_named_it() {
+        assert_eq!(group("Mes outils"), "Mes outils");
     }
 }

@@ -3,7 +3,7 @@ use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 
 use crate::screens::extrusion::{ExtrusionState, Shape};
 use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};
-use crate::wording::{command as wording, shortcuts};
+use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
@@ -144,7 +144,7 @@ impl Ribbon {
                 let Item::Group { name, .. } = item else {
                     continue;
                 };
-                if ui.selectable_label(self.tab == rank, name).clicked() {
+                if ui.selectable_label(self.tab == rank, group(name)).clicked() {
                     self.tab = rank;
                 }
             }
@@ -205,7 +205,7 @@ fn lay_out(
                 Item::Group { name, items } if depth <= 1 => {
                     ui.group(|ui| {
                         let inner = |ui: &mut egui::Ui| {
-                            ui.weak(name);
+                            ui.weak(group(name));
                             lay_out(ui, items, depth + 1, state, asked, vertical);
                         };
                         if vertical {
@@ -216,7 +216,7 @@ fn lay_out(
                     });
                 }
                 Item::Group { name, items } => {
-                    ui.menu_button(name, |ui| {
+                    ui.menu_button(group(name), |ui| {
                         lay_out(ui, items, depth + 1, state, asked, true);
                     });
                 }

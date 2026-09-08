@@ -9,5 +9,6 @@
 pub mod command;
 pub mod dimension;
 pub mod history;
+pub mod settings;
 pub mod shortcuts;
 pub mod toolbar;

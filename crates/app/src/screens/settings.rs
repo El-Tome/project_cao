@@ -1,3 +1,4 @@
+use crate::wording::settings::profile;
 use cao_prefs::command::Command;
 use cao_prefs::config::{
     LengthUnit, NavigationPreset, TrackpadGesture, UnitDisplay, ViewportCorner,
@@ -104,9 +105,9 @@ fn profiles_section(
     let names: Vec<String> = profiles.names().map(str::to_string).collect();
     let active = profiles.active_name().to_string();
     ui.horizontal_wrapped(|ui| {
-        for name in &names {
-            if ui.selectable_label(*name == active, name).clicked() {
-                touched |= profiles.switch_to(name);
+        for key in &names {
+            if ui.selectable_label(*key == active, profile(key)).clicked() {
+                touched |= profiles.switch_to(key);
             }
         }
     });
@@ -120,17 +121,16 @@ fn profiles_section(
         );
         if ui.button("Dupliquer l'actif").clicked() {
             let name = if editor.new_profile_name.trim().is_empty() {
-                format!("{active} (copie)")
+                format!("{} (copie)", profile(&active))
             } else {
                 editor.new_profile_name.trim().to_string()
             };
             let created = profiles.duplicate_active(&name);
-            editor.notice = Some(format!("Profil « {created} » créé."));
+            editor.notice = Some(format!("Profil « {} » créé.", profile(&created)));
             editor.new_profile_name.clear();
             touched = true;
         }
-        let removable = active != DEFAULT_PROFILE;
-        ui.add_enabled_ui(removable, |ui| {
+        ui.add_enabled_ui(active != DEFAULT_PROFILE, |ui| {
             if ui.button("Supprimer l'actif").clicked() {
                 touched |= profiles.remove(&active);
             }
@@ -173,9 +173,8 @@ fn profiles_section(
         .clicked()
     {
         profiles.reset_active();
-        editor.notice = Some(format!(
-            "Profil « {active} » remis à ses valeurs d'origine."
-        ));
+        let named = profile(&active);
+        editor.notice = Some(format!("Profil « {named} » remis à ses valeurs d'origine."));
         touched = true;
     }
 

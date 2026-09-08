@@ -59,9 +59,10 @@ crates/app/src/
 ```
 
 `wording/` is where a named case from a lower crate becomes a sentence:
-`wording/shortcuts.rs` says how a `Key` and a `Chord` read. One file per source
-so that no single one gathers the whole application, and so that the eventual
-translation system has one directory to pass under.
+`wording/shortcuts.rs` says how a `Key` and a `Chord` read, `wording/toolbar.rs`
+how an `Edge` and an `Item` do. One file per source so that no single one
+gathers the whole application, and so that the eventual translation system has
+one directory to pass under.
 
 ## What may import what
 

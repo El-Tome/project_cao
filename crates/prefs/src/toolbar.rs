@@ -22,16 +22,6 @@ impl Edge {
         Self::Floating,
     ];
 
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Top => "En haut",
-            Self::Bottom => "En bas",
-            Self::Left => "À gauche",
-            Self::Right => "À droite",
-            Self::Floating => "Flottante",
-        }
-    }
-
     /// Whether the toolbar runs down the window rather than across it.
     pub fn is_vertical(self) -> bool {
         matches!(self, Self::Left | Self::Right)
@@ -55,14 +45,6 @@ impl Item {
         Self::Group {
             name: name.to_string(),
             items,
-        }
-    }
-
-    pub fn label(&self) -> String {
-        match self {
-            Self::Command(command) => command.label().to_string(),
-            Self::Group { name, .. } => name.clone(),
-            Self::Separator => "— séparateur —".to_string(),
         }
     }
 
@@ -469,7 +451,7 @@ mod tests {
     fn only_a_group_can_be_renamed() {
         let mut layout = layout();
         assert!(layout.rename(&[1], "Autre".to_string()));
-        assert_eq!(layout.at(&[1]).map(Item::label), Some("Autre".to_string()));
+        assert!(matches!(layout.at(&[1]), Some(Item::Group { name, .. }) if name == "Autre"));
         assert!(!layout.rename(&[0], "Rien".to_string()));
     }
 }

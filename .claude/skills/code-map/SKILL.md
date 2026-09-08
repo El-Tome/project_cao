@@ -75,7 +75,7 @@ there. See the `architecture-rust` skill.
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours, gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` — what a chord is *called* is in `app/src/wording/shortcuts.rs` |
-| Arrangement of the toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
+| Arrangement of the toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` — what a placement and an entry are *called* is in `app/src/wording/toolbar.rs` |
 
 ### GPU rendering — `cao_render`
 
@@ -102,6 +102,7 @@ there. See the `architecture-rust` skill.
 | The settings screen | `app/src/screens/settings.rs` | `show(ui, profiles, editor)` |
 | The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
+| What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
 
 ## The invariants — do not break them
 

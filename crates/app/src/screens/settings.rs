@@ -523,7 +523,7 @@ fn toolbar_section(
         ui.label("Emplacement :");
         for edge in Edge::ALL {
             if ui
-                .selectable_label(layout.edge == edge, edge.label())
+                .selectable_label(layout.edge == edge, crate::wording::toolbar::edge(edge))
                 .clicked()
             {
                 layout.edge = edge;
@@ -651,10 +651,10 @@ fn group_path(layout: &cao_prefs::ToolbarLayout, selected: &[usize]) -> Path {
 fn tree(ui: &mut egui::Ui, items: &[Item], path: &mut Path, selected: &mut Path) {
     for (rank, item) in items.iter().enumerate() {
         path.push(rank);
-        let chosen = *path == *selected;
         ui.horizontal(|ui| {
             ui.add_space(12.0 * (path.len() - 1) as f32);
-            if ui.selectable_label(chosen, item.label()).clicked() {
+            let name = crate::wording::toolbar::item(item);
+            if ui.selectable_label(*path == *selected, name).clicked() {
                 *selected = path.clone();
             }
         });

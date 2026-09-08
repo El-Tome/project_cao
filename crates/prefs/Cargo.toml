@@ -10,6 +10,4 @@ serde_json.workspace = true
 directories.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
-
-[dev-dependencies]
 uuid.workspace = true

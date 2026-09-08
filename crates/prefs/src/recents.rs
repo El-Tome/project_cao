@@ -1,10 +1,11 @@
 use std::fs;
+use std::io::Write;
 use std::path::PathBuf;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::storage::{StorageError, project_dirs};
+use crate::storage::{StorageError, project_dirs, replace_whole};
 
 /// How many recent parts we remember and show in the start menu.
 pub const MAX_RECENTS: usize = 10;
@@ -39,11 +40,8 @@ impl RecentList {
     }
 
     pub fn save(&self) -> Result<(), StorageError> {
-        let path = Self::state_path()?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, serde_json::to_string_pretty(self)?)?;
+        let json = serde_json::to_string_pretty(self)?;
+        replace_whole(&Self::state_path()?, |file| file.write_all(json.as_bytes()))?;
         Ok(())
     }
 

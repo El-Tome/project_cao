@@ -1,11 +1,12 @@
 use std::fs;
+use std::io::Write;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
 use crate::config::ViewportConfig;
 use crate::shortcuts::Shortcuts;
-use crate::storage::{StorageError, project_dirs};
+use crate::storage::{StorageError, project_dirs, replace_whole};
 use crate::theme::Theme;
 use crate::toolbar::ToolbarLayout;
 
@@ -54,10 +55,8 @@ impl Profile {
     }
 
     pub fn export(&self, path: &Path) -> Result<(), StorageError> {
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, serde_json::to_string_pretty(self)?)?;
+        let json = serde_json::to_string_pretty(self)?;
+        replace_whole(path, |file| file.write_all(json.as_bytes()))?;
         Ok(())
     }
 }
@@ -120,11 +119,8 @@ impl Profiles {
     }
 
     pub fn save(&self) -> Result<(), StorageError> {
-        let path = Self::state_path()?;
-        if let Some(parent) = path.parent() {
-            fs::create_dir_all(parent)?;
-        }
-        fs::write(path, serde_json::to_string_pretty(self)?)?;
+        let json = serde_json::to_string_pretty(self)?;
+        replace_whole(&Self::state_path()?, |file| file.write_all(json.as_bytes()))?;
         Ok(())
     }
 

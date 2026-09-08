@@ -340,3 +340,30 @@ impl Default for Shortcuts {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_key_offered_when_recording_can_be_named() {
+        for key in Key::ALL {
+            assert!(
+                !key.label().is_empty(),
+                "{key:?} has no label, so a shortcut using it reads as blank",
+            );
+        }
+    }
+
+    #[test]
+    fn a_chord_names_its_modifiers_before_its_key_and_always_in_the_same_order() {
+        assert_eq!(Chord::new(Key::Z).label(), "Z");
+        assert_eq!(Chord::new(Key::Z).cmd().label(), "Cmd+Z");
+        assert_eq!(Chord::new(Key::Z).shift().label(), "Maj+Z");
+        assert_eq!(Chord::new(Key::Z).alt().label(), "Alt+Z");
+        assert_eq!(
+            Chord::new(Key::Z).alt().shift().cmd().label(),
+            "Cmd+Maj+Alt+Z",
+        );
+    }
+}

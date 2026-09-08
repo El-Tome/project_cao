@@ -10,6 +10,7 @@ cao_prefs = { path = "../prefs" }
 cao_render = { path = "../render" }
 cao_sketch = { path = "../sketch" }
 cao_solid = { path = "../solid" }
+chrono.workspace = true
 eframe.workspace = true
 egui.workspace = true
 egui-wgpu.workspace = true

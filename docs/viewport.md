@@ -1,131 +1,128 @@
-# Le viewport 3D
+# The 3D viewport
 
-Ce que l'utilisateur voit quand une pièce est ouverte : un espace 3D avec les
-axes X/Y/Z, un cube d'orientation dans un coin, et une grille quand on est
-posé sur un plan.
+What the user sees when a part is open: a 3D space with the X/Y/Z axes, an
+orientation cube in a corner, and a grid when one is settled on a plane.
 
-Voir aussi : [rendu GPU](rendu.md) · [navigation](navigation.md) ·
+See also: [GPU rendering](render.md) · [navigation](navigation.md) ·
 [configuration](configuration.md)
 
-## Les deux modes
+## The two modes
 
-Le viewport a exactement deux états, décrits par `ViewMode`
-(`crates/app/src/screens/viewport.rs`) :
+The viewport has exactly two states, described by `ViewMode`
+(`crates/app/src/screens/viewport.rs`):
 
-| Mode | Ce qui est affiché | Comment on y entre |
+| Mode | What is shown | How one gets in |
 | --- | --- | --- |
-| `Free` | Seulement les 3 axes colorés | En orbitant (dès qu'on tourne la vue) |
-| `Plane(plan)` | Les axes **et** la grille du plan | En cliquant une **face** du cube d'orientation |
+| `Free` | The 3 coloured axes only | By orbiting (as soon as the view turns) |
+| `Plane(plane)` | The axes **and** the grid of the plane | By clicking a **face** of the orientation cube |
 
-La règle est volontairement simple : orbiter fait forcément sortir du mode
-plan, puisque la vue n'est alors plus alignée sur un plan. En revanche le pan
-et le zoom conservent le mode : cadrer ou zoomer sur un plan est un geste
-normal.
+The rule is deliberately simple: orbiting necessarily leaves plane mode, since
+the view is then no longer aligned on a plane. Pan and zoom, on the other hand,
+keep the mode: framing or zooming on a plane is a normal gesture.
 
-La grille n'apparaît qu'une fois la vue **posée** sur le plan, pas pendant
-l'animation : à mi-chemin la vue est oblique, et une grille de taille finie vue
-de biais se lit comme un disque flottant au milieu de l'écran.
+The grid only appears once the view has **settled** on the plane, not during
+the animation: halfway the view is slanted, and a grid of finite size seen
+edge-on reads as a disc floating in the middle of the screen.
 
-Le cube se clique sur trois types de zones, découpées comme une grille 3×3 sur
-chaque face :
+The cube is clicked on three kinds of zone, cut like a 3×3 grid on each face:
 
-| Zone cliquée | Vue obtenue | Mode |
+| Zone clicked | View obtained | Mode |
 | --- | --- | --- |
-| **Face** (centre) | Vue droite sur le plan | Grille |
-| **Arête** (bord) | Vue à 45° entre deux faces | Traits |
-| **Coin** | Vue isométrique | Traits |
+| **Face** (centre) | Straight view onto the plane | Grid |
+| **Edge** (border) | View at 45° between two faces | Lines |
+| **Corner** | Isometric view | Lines |
 
-Seule une face correspond à un plan de travail : une vue d'arête ou de coin est
-oblique, donc par définition alignée sur aucun plan — elle reste en mode
-traits. Survoler une arête ou un coin le met en surbrillance sur toutes les
-faces qu'il touche à la fois.
+Only a face corresponds to a work plane: an edge or corner view is slanted, so
+by definition aligned on no plane — it stays in line mode. Hovering an edge or
+a corner highlights it on all the faces it touches at once.
 
-| Face cliquée | Vue | Plan de grille |
+| Face clicked | View | Grid plane |
 | --- | --- | --- |
 | DESSUS / DESSOUS | ±Z | XY |
 | FACE / ARRIÈRE | ∓Y | XZ |
 | DROITE / GAUCHE | ±X | YZ |
 
-Le passage à la vue est animé (~0.35 s, voir `ViewTransition`) pour qu'on
-comprenne comment la pièce a tourné plutôt que de subir un saut.
+The move to the view is animated (~0.35 s, see `ViewTransition`) so one
+understands how the part has turned rather than suffering a jump.
 
-## La grille adaptative
+## The adaptive grid
 
-Le pas de la grille suit la suite 1 – 2 – 5 – 10 : c'est le plus petit pas dont
-l'espacement à l'écran reste au-dessus de `grid_pixel_spacing` (48 px par
-défaut). En zoomant, une graduation de 10 devient 5, puis 2, puis 1 ; en
-dézoomant l'inverse. Une ligne sur dix est plus marquée.
+The grid step follows the sequence 1 – 2 – 5 – 10: it is the smallest step
+whose spacing on screen stays above `grid_pixel_spacing` (48 px by default).
+Zooming in, a graduation of 10 becomes 5, then 2, then 1; zooming out, the
+reverse. One line in ten is heavier.
 
-La grille est centrée sur la cible de la caméra (arrondie au pas) et non sur
-l'origine, pour qu'elle suive le pan sans jamais s'arrêter net ; son alpha
-décroît avec la distance au centre, ce qui évite un bord franc. Les lignes qui
-tomberaient exactement sur un axe sont sautées, sinon elles doubleraient la
-ligne colorée de l'axe.
+The grid is centred on the camera target (rounded to the step) and not on the
+origin, so that it follows the pan without ever stopping dead; its alpha falls
+off with the distance to the centre, which avoids a hard edge. Lines that would
+fall exactly on an axis are skipped, otherwise they would double the coloured
+line of the axis.
 
-## Le cube d'orientation
+## The orientation cube
 
-Le cube tourne avec la caméra et indique donc comment on regarde la pièce. Ses
-6 faces portent une étiquette (DESSUS, FACE, DROITE...) dessinée par egui et
-non par le GPU : afficher du texte demanderait un atlas de police côté rendu,
-alors qu'egui en a déjà un.
+The cube turns with the camera and therefore shows how one is looking at the
+part. Its 6 faces carry a label (DESSUS, FACE, DROITE…) drawn by egui and not
+by the GPU: showing text would want a font atlas on the rendering side, where
+egui already has one.
 
-Sa position est configurable (`cube_corner`, coin haut-droit par défaut), tout
-comme sa taille et sa marge. Le survol met la zone visée en surbrillance.
+Its position is configurable (`cube_corner`, top-right corner by default), as
+are its size and its margin. Hovering highlights the zone aimed at.
 
-La détection de la zone survolée est un lancer de rayon sur le CPU
-(`cube::pick_zone`), pas une lecture de pixel GPU : le cube est axis-aligned en
-projection orthographique, l'intersection tient donc en quelques lignes de
-calcul et reste synchrone avec l'affichage.
+Detecting the hovered zone is a ray cast on the CPU (`cube::pick_zone`), not a
+GPU pixel read: the cube is axis-aligned in orthographic projection, so the
+intersection fits in a few lines of arithmetic and stays in step with the
+display.
 
-## La règle (barre d'échelle)
+## The ruler (scale bar)
 
-En bas à gauche, une barre longue d'exactement un carreau de la grille, avec sa
-valeur (« 10 mm »). Elle répond à deux questions d'un coup d'œil : quelle est la
-taille d'un carreau, et à quelle vitesse on zoome — la valeur change en
-sautant de 1 à 2, 5, 10, ce qui rend le zoom lisible.
+Bottom left, a bar exactly one grid square long, with its value ("10 mm"). It
+answers two questions at a glance: how big a square is, and how fast one is
+zooming — the value changes by jumping from 1 to 2, 5, 10, which makes the zoom
+legible.
 
-L'unité s'adapte pour éviter les nombres à rallonge : µm, mm, m puis km selon
-l'échelle, donc « 50 m » et non « 50000 mm ». On peut la figer sur une unité
-précise (`unit: Fixed(…)`).
+The unit adapts to avoid endless numbers: µm, mm, m then km according to the
+scale, so "50 m" and not "50000 mm". It can be pinned to a precise unit
+(`unit: Fixed(…)`).
 
-Le pas est choisi **en millimètres**, puis converti en unités du monde pour
-tracer la grille. C'est l'inverse qui serait naturel, mais faux : une fois la
-première cote posée, une unité du monde ne vaut plus un millimètre, et choisir
-le pas en unités mettait la règle à côté d'exactement ce facteur — l'erreur
-constante et proportionnelle qu'on observait.
+The step is chosen **in millimetres**, then converted into world units to draw
+the grid. The reverse would be the natural way round, but wrong: once the first
+dimension is placed, a world unit is no longer worth a millimetre, and choosing
+the step in units put the ruler out by exactly that factor — the constant,
+proportional error one used to see.
 
-Son coin est configurable (`ruler_corner`), et elle peut être masquée
+Its corner is configurable (`ruler_corner`), and it can be hidden
 (`ruler_visible`).
 
-## L'axe qui pointe vers nous
+## The axis pointing at us
 
-En mode plan, l'axe perpendiculaire au plan n'est pas dessiné : vu de face il
-se réduit à un point posé au milieu du dessin, qu'on lit comme une salissure et
-non comme un axe.
+In plane mode, the axis perpendicular to the plane is not drawn: seen head on
+it comes down to a dot in the middle of the drawing, which reads as a smudge
+and not as an axis.
 
-## Repère et unités
+## Frame and units
 
-Convention **Z vers le haut** (usuelle en CAO mécanique) : le plan XY est le
-plan « du sol », vu de dessus.
+**Z up** convention (the usual one in mechanical CAD): the XY plane is the
+"ground" plane, seen from above.
 
-Une unité du monde vaut **un millimètre** pour l'instant, et la règle affiche
-donc des mm. À terme l'échelle devra s'adapter à la première cote posée : si on
-déclare qu'un trait fait 100 mm, 5 m ou 5 mm, le visuel ne doit pas bouger,
-c'est l'échelle du document qui est redéfinie. Ce n'est pas encore implémenté —
-seul le type `LengthUnit` est en place pour l'accueillir.
+What a world unit is worth in millimetres is a property of the document
+(`millimeters_per_unit`), **undefined as long as no dimension has been
+placed**: it is then worth one millimetre, and the ruler shows mm. The first
+dimension defines it — saying a trait is 100 mm, 5 m or 5 mm deforms nothing,
+it is the scale of the document that is redefined and the picture does not
+move. The following ones are ordinary constraints. See [sketch.md](sketch.md).
 
-## Les axes derrière la pièce
+## The axes behind the part
 
-Les axes X, Y et Z et la grille sont **cachés par la pièce** quand elle est
-devant : sans ça, un trait rouge traversant un volume se lit comme une arête de
-ce volume, et on ne sait plus ce qu'on regarde.
+The X, Y and Z axes and the grid are **hidden by the part** when it is in
+front: without that, a red trait crossing a volume reads as an edge of that
+volume, and one no longer knows what one is looking at.
 
-Ils gardent le test de profondeur sans y écrire, et sont tirés d'un cheveu vers
-la caméra : une grille dessinée sur une face de la pièce est exactement aussi
-loin que cette face, et sans ce décalage les deux se disputeraient chaque pixel.
-Le décalage n'a pas de terme de pente — là où une face est vue par la tranche,
-sa profondeur change énormément d'un pixel à l'autre, et un décalage
-proportionnel y suffirait à faire ressortir le trait au travers.
+They keep the depth test without writing to it, and are pulled a hair towards
+the camera: a grid drawn on a face of the part is exactly as far away as that
+face, and without the nudge the two would fight over every pixel. The nudge has
+no slope term — where a face is seen edge-on its depth changes enormously from
+pixel to pixel, and a slope-scaled nudge there would be enough to drag the
+trait right through.
 
-L'esquisse en cours, ses cotes et le cube d'orientation restent au contraire
-toujours visibles : une cote enterrée dans un bloc serait inutilisable.
+The sketch being edited, its dimensions and the orientation cube stay visible
+throughout, on the contrary: a dimension buried in a block would be unusable.

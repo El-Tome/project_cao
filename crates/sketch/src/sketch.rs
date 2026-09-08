@@ -2,6 +2,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
+use crate::independence::{is_dependent, null_space, rank};
 use crate::plane::WorkPlane;
 use crate::solver::{self, SolveOutcome};
 
@@ -840,7 +841,7 @@ impl Sketch {
             .filter(|index| !self.out_of_play(PointId(*index)))
             .count();
         let unknowns = loose * 2 + self.live_circles().count();
-        let held = solver::rank(&self.anchored_system(millimeters_per_unit)).min(unknowns);
+        let held = rank(&self.anchored_system(millimeters_per_unit)).min(unknowns);
 
         Freedom {
             degrees_of_freedom: unknowns - held,
@@ -866,7 +867,7 @@ impl Sketch {
         let Some(candidate) = self.candidate_equation(target, millimeters_per_unit) else {
             return false;
         };
-        solver::is_dependent(&existing, &candidate)
+        is_dependent(&existing, &candidate)
     }
 
     /// The equation a not-yet-placed dimension would contribute, taken at the
@@ -917,11 +918,8 @@ impl Sketch {
         let pinned: Vec<bool> = (0..self.points.len())
             .map(|index| self.out_of_play(PointId(index)))
             .collect();
-        let free = solver::null_space(
-            &self.anchored_system(millimeters_per_unit),
-            &pinned,
-            variables,
-        );
+        let system = self.anchored_system(millimeters_per_unit);
+        let free = null_space(&system, &pinned, variables);
 
         (0..self.points.len())
             .map(|index| {

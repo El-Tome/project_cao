@@ -6,6 +6,7 @@
 mod constraints;
 pub mod construct;
 mod dimensioning;
+mod independence;
 mod plane;
 mod regions;
 pub mod segment;

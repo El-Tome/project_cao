@@ -41,8 +41,9 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_core`,
 **`cao_core` without UI is not negotiable**: it is the condition for a future
 tablet or web front-end to reuse it as it stands.
 
-**`cao_app` is a thin shell**: window and routing between modes. As soon as a
-mode carries non-trivial business logic it becomes its own crate
+**`cao_app` is meant to stay a thin shell**: window and routing between modes.
+An aim rather than a reading — it is the largest crate in the repository. As
+soon as a mode carries non-trivial business logic it becomes its own crate
 (`cao_assembly`, …) rather than swelling `screens/`.
 
 ## Inside a crate, the role is the folder

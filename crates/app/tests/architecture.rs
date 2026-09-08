@@ -25,6 +25,10 @@ use std::path::{Path, PathBuf};
 
 const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "core", "prefs", "app"];
 
+/// The graph as it is, not a list of permissions. The test compares this with
+/// the `cao_*` dependencies every manifest actually declares, so an edge named
+/// here that no `Cargo.toml` carries fails just as surely as one nobody allowed.
+/// An entry is added in the same commit as the dependency it describes.
 const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
     ("sketch", &[]),
     ("solid", &[]),
@@ -54,6 +58,10 @@ const REACHES_OUTSIDE: [&str; 6] = [
     "std::env::",
 ];
 
+/// An equality too, despite the name: a file listed here that has stopped
+/// reaching outside fails the test. It is a ratchet — the entry disappears in
+/// the commit that gives the file its port, and no entry is added ahead of the
+/// code that needs it.
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 4] = [
     "crates/core/src/document.rs",
     "crates/prefs/src/recents.rs",

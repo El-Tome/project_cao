@@ -94,7 +94,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | What the preferences ask of a filesystem | `prefs/src/ports/files.rs` | `Files`, `FileError` |
 | A filesystem for tests | `prefs/src/adapters/in_memory_files.rs` | `InMemoryFiles`, behind `test-support` |
 | Commands of the interface | `prefs/src/command.rs` | `Command`, `CommandFamily` |
-| Settings and named profiles | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
+| What one profile is | `prefs/src/settings.rs` | `Settings`, `Profile`, `DEFAULT_PROFILE` — what it is *called* is in `app/src/wording/settings.rs` |
+| The set of profiles, read and written | `prefs/src/profiles.rs` | `Profiles` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours and gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |

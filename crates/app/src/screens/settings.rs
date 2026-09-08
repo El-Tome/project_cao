@@ -1,8 +1,8 @@
 use cao_prefs::config::{
     LengthUnit, NavigationPreset, TrackpadGesture, UnitDisplay, ViewportCorner,
 };
-use cao_prefs::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Profiles};
-use cao_prefs::{Background, Chord, Command, Edge, Item, Key, Path, Rgba, Stop, Theme};
+use cao_prefs::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile};
+use cao_prefs::{Background, Chord, Command, Edge, Item, Key, Path, Profiles, Rgba, Stop, Theme};
 
 use crate::adapters::files::DiskFiles;
 use crate::wording::settings::profile;

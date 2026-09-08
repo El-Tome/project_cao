@@ -39,3 +39,51 @@ fn a_shape_turned_four_hundred_times_is_the_same_size_as_when_it_started() {
         "the side no dimension holds went from {side} to {now}"
     );
 }
+
+/// The shape hanging off the corner is held by nothing, so every solve carries
+/// it whole. What comes out of a settle is what the weld put back, never what a
+/// sweep left half corrected.
+#[test]
+fn a_shape_the_solve_only_carries_comes_out_as_it_went_in() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let right = sketch.add_point(DVec2::new(60.0, 0.0));
+    let corner = sketch.add_point(DVec2::new(60.0, 40.0));
+    let left = sketch.add_point(DVec2::new(0.0, 40.0));
+    let base = sketch.add_segment(Sketch::ORIGIN, right);
+    let side = sketch.add_segment(right, corner);
+    let top = sketch.add_segment(corner, left);
+    sketch.add_segment(left, Sketch::ORIGIN);
+
+    let one = sketch.add_point(DVec2::new(100.0, 10.0));
+    let two = sketch.add_point(DVec2::new(130.0, 30.0));
+    let three = sketch.add_point(DVec2::new(100.0, 50.0));
+    sketch.add_segment(corner, one);
+    sketch.add_segment(one, two);
+    sketch.add_segment(two, three);
+    sketch.add_segment(three, corner);
+
+    sketch.set_dimension(DimensionTarget::Length(base), 60.0, false);
+    sketch.set_dimension(DimensionTarget::Length(top), 60.0, false);
+    sketch.set_dimension(DimensionTarget::Length(side), 40.0, false);
+    sketch.resolve(SCALE);
+
+    let carried = [(one, two), (two, three), (three, one)];
+    let was: Vec<f64> = carried
+        .iter()
+        .map(|(from, to)| sketch.point(*from).distance(sketch.point(*to)))
+        .collect();
+
+    for height in [55.0, 32.0, 71.0, 40.0] {
+        sketch.set_dimension(DimensionTarget::Length(side), height, false);
+        sketch.resolve(SCALE);
+    }
+
+    for (rank, (from, to)) in carried.iter().enumerate() {
+        let now = sketch.point(*from).distance(sketch.point(*to));
+        assert!(
+            (now - was[rank]).abs() < 1e-12 * was[rank],
+            "side {rank} of the carried shape went from {} to {now}",
+            was[rank],
+        );
+    }
+}

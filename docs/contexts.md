@@ -33,7 +33,8 @@ Four of these are one context each and are in the right place:
 ## The seam that is missing
 
 `cao_core` is not one context. It is 4 328 lines that share a manifest and
-nothing else:
+nothing else — measured at `ced22d5`, the reading this section was written
+against:
 
 | File | Lines | Mentions of `cao_sketch` / `cao_solid` |
 | --- | --- | --- |
@@ -48,9 +49,13 @@ nothing else:
 | `theme.rs` | 283 | **0** |
 | `command.rs` | 235 | **0** |
 | `recents.rs` | 74 | **0** |
+| `lib.rs` | 27 | 0 |
 
-2 031 lines — 47 % of the crate — never mention the geometry. Two contexts, held
-together by the accident of being neither interface nor mathematics:
+The seven rows in bold — 2 031 lines, 47 % of the crate — are the preferences,
+and never mention the geometry. `storage.rs` and `lib.rs` do not either and
+belong to neither side: `lib.rs` only lists modules, and `storage.rs` has a
+section of its own below. Two contexts, held together by the accident of being
+neither interface nor mathematics:
 
 `command.rs` is counted in that figure, and it is the one row where that was a
 choice rather than a reading. Its vocabulary is the part's — `NewSketch`,

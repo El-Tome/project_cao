@@ -150,7 +150,7 @@ the thing it serves; if it genuinely serves several, it gets a name of its own â
 
 ## Per context, not per crate
 
-`cao_core` is two contexts sharing a manifest: 1 796 of its 4 328 lines never
+`cao_core` is two contexts sharing a manifest: 2 031 of its 4 328 lines never
 mention the geometry ([`contexts.md`](contexts.md)). The folders above belong to
 the **context**, not to the crate that currently holds it.
 

@@ -12,17 +12,19 @@ Ici on cherche **où un comportement est déjà écrit**. Pour savoir **où pose
 fichier neuf** — quel dossier, ce qu'il a le droit d'importer —, c'est
 `docs/code-layout.md`, et le test d'architecture le vérifie.
 
-## Les cinq crates et le sens des dépendances
+## Les six crates et le sens des dépendances
 
 ```
 cao_app  ──►  cao_core  ──►  cao_sketch
    │             └────────►  cao_solid
+   ├──────────►  cao_prefs
    └──────────►  cao_render
 ```
 
 `cao_sketch` et `cao_solid` ne dépendent de rien d'autre que `glam` et `serde`.
 `cao_render` ne connaît que `wgpu`, `glam` et `bytemuck` — aucun framework
-d'interface. `cao_app` est le seul à voir `egui`/`eframe`.
+d'interface. `cao_prefs` ne connaît ni la géométrie ni l'interface. `cao_app`
+est le seul à voir `egui`/`eframe`.
 
 **Attention au nom.** `cao_core` se présente comme « les types de domaine »,
 mais il dépend de `cao_sketch` et `cao_solid` et orchestre esquisse, solide,
@@ -60,14 +62,20 @@ sont `cao_sketch` et `cao_solid`. Voir le skill `architecture-rust`.
 | La liste des opérations, annuler, refaire | `core/src/history.rs` | `History`, `Operation`, `applied_operations` |
 | **Rejouer l'historique pour obtenir la géométrie** | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
 | Le fichier `.caopart` (zip), lecture et écriture | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
-| Les dix pièces récentes | `core/src/recents.rs` | `RecentList` |
-| Chemins, dossier des pièces, journal de plantage | `core/src/storage.rs` | `default_projects_dir`, `record_panics` |
-| Les commandes de l'interface | `core/src/command.rs` | `Command`, `label`, `hint`, `family` |
-| Réglages et profils nommés | `core/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
-| Réglages du viewport et de la navigation | `core/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
-| Couleurs, dégradés | `core/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
-| Raccourcis clavier | `core/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
-| Arrangement de la barre d'outils | `core/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
+| Ce qui rate à l'ouverture d'une pièce | `core/src/errors.rs` | `PartFileError` |
+
+## Réglages, profils et récents — `cao_prefs`
+
+| Ce qu'on cherche | Fichier | Point d'entrée |
+| --- | --- | --- |
+| Les dix pièces récentes | `prefs/src/recents.rs` | `RecentList` |
+| Chemins, dossier des pièces, journal de plantage | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| Les commandes de l'interface | `prefs/src/command.rs` | `Command`, `label`, `hint`, `family` |
+| Réglages et profils nommés | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
+| Réglages du viewport et de la navigation | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
+| Couleurs, dégradés | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
+| Raccourcis clavier | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
+| Arrangement de la barre d'outils | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
 
 ### Rendu GPU — `cao_render`
 
@@ -119,18 +127,19 @@ branche greffée sur un module existant.
 front-end tablette ou web le réutilise tel quel. Ni `egui`, ni `eframe`, ni
 `winit`, ni `wgpu`.
 
-**`cao_app` est un shell fin.** Fenêtre et routage entre modes. Dès qu'un mode
+**`cao_app` doit rester un shell fin** — fenêtre et routage entre modes. C'est
+une visée, pas un constat : c'est la plus grosse crate du dépôt. Dès qu'un mode
 porte une logique métier non triviale, il devient son propre crate.
 
 ## Les zones sans filet
 
 Trois endroits n'ont **aucun test** :
 
-- `sketch/src/solver.rs` — le cœur algorithmique, et quatre correctifs récents
-  portent dessus (`fix/solver-anchoring`, `fix/tangent-circles`,
-  `fix/circle-handling`, `fix/dimension-handling`) ;
+- `sketch/src/solver.rs` — le cœur algorithmique, dont l'historique est fait de
+  correctifs successifs (`git log -- crates/sketch/src/solver.rs`) ;
 - `sketch/src/constraints.rs` ;
-- `crates/app/` entier.
+- `crates/app/src/` — `crates/app/tests/architecture.rs` teste la forme du
+  dépôt, pas l'interface.
 
 Y intervenir demande d'écrire d'abord un test qui caractérise l'existant. Voir
 le skill `rust-tdd`.

@@ -8,11 +8,12 @@ Elle répond à « où est-ce déjà écrit ». Pour « où poser un fichier neu
 dossier, ce qu'il a le droit d'importer, quelle taille il ne dépasse pas —,
 c'est [`code-layout.md`](code-layout.md), et le test d'architecture le vérifie.
 
-## Les cinq crates
+## Les six crates
 
 ```
 cao_app  ──►  cao_core  ──►  cao_sketch
    │             └────────►  cao_solid
+   ├──────────►  cao_prefs
    └──────────►  cao_render
 ```
 
@@ -21,7 +22,8 @@ cao_app  ──►  cao_core  ──►  cao_sketch
 | `cao_sketch` | modèle d'esquisse, contraintes, solveur | `glam`, `serde` |
 | `cao_solid` | maillage, extrusion, booléens | `glam`, `serde` |
 | `cao_render` | rendu GPU du viewport | `wgpu`, `glam`, `bytemuck` |
-| `cao_core` | document, historique, réglages, persistance | les deux domaines |
+| `cao_core` | document, historique, persistance d'une pièce | les deux domaines |
+| `cao_prefs` | thème, raccourcis, barre d'outils, profils, récents | `serde`, `directories` |
 | `cao_app` | shell desktop, routage entre modes | tout |
 
 Une flèche vers la gauche est interdite : `cao_sketch` ne connaîtra jamais
@@ -72,14 +74,20 @@ Détail fonctionnel : [`extrusion.md`](extrusion.md).
 | Liste des opérations, annuler, refaire | `core/src/history.rs` | `History`, `Operation` |
 | Rejouer l'historique pour la géométrie | `core/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
 | Fichier `.caopart` (zip) | `core/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
-| Les dix pièces récentes | `core/src/recents.rs` | `RecentList` |
-| Chemins, journal de plantage | `core/src/storage.rs` | `default_projects_dir`, `record_panics` |
-| Commandes de l'interface | `core/src/command.rs` | `Command` |
-| Réglages et profils nommés | `core/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
-| Réglages viewport et navigation | `core/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
-| Couleurs et dégradés | `core/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
-| Raccourcis clavier | `core/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
-| Barre d'outils | `core/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
+| Ce qui rate à l'ouverture d'une pièce | `core/src/errors.rs` | `PartFileError` |
+
+## Réglages, profils et récents — `cao_prefs`
+
+| Ce qu'on cherche | Fichier | Point d'entrée |
+| --- | --- | --- |
+| Les dix pièces récentes | `prefs/src/recents.rs` | `RecentList` |
+| Chemins, journal de plantage | `prefs/src/storage.rs` | `project_dirs`, `default_projects_dir`, `record_panics` |
+| Commandes de l'interface | `prefs/src/command.rs` | `Command` |
+| Réglages et profils nommés | `prefs/src/settings.rs` | `Settings`, `Profile`, `Profiles` |
+| Réglages viewport et navigation | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
+| Couleurs et dégradés | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
+| Raccourcis clavier | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
+| Barre d'outils | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
 
 Détail fonctionnel : [`historique.md`](historique.md),
 [`configuration.md`](configuration.md).
@@ -137,8 +145,10 @@ sur un module existant.
 **`cao_core` ne dépend d'aucune crate UI.** C'est la condition pour qu'un futur
 front-end tablette ou web le réutilise tel quel.
 
-**`cao_app` est un shell fin.** Dès qu'un mode porte une logique métier non
-triviale, il devient son propre crate.
+**`cao_app` doit rester un shell fin.** C'est une visée, pas un constat : c'est
+la plus grosse crate du dépôt, et `viewport.rs` y tient à lui seul la caméra, le
+hit-test, le clavier, les gestes et le dessin des annotations. Dès qu'un mode
+porte une logique métier non triviale, il devient son propre crate.
 
 ## Ce qui n'a pas de tests
 
@@ -146,14 +156,18 @@ triviale, il devient son propre crate.
 | --- | ---: |
 | `sketch/src/solver.rs` | 0 |
 | `sketch/src/constraints.rs` | 0 |
-| `crates/app/` (entier) | 0 |
+| `crates/app/src/` | 0 |
 
-Le solveur concentre quatre correctifs récents (`fix/solver-anchoring`,
-`fix/tangent-circles`, `fix/circle-handling`, `fix/dimension-handling`) sans
-aucun filet. Y intervenir demande d'écrire d'abord un test qui caractérise
-l'existant.
+`crates/app/tests/architecture.rs` est le seul fichier de tests de la crate, et
+il porte sur la forme du dépôt — graphe des crates, dossiers, budget de lignes,
+français sous l'interface — pas sur l'interface elle-même.
 
-Ailleurs, 176 tests : `sketch.rs` en compte 62, `state.rs` 26, `camera.rs` 11.
+Le solveur est le cœur algorithmique et l'essentiel de son historique est fait
+de correctifs successifs (`git log -- crates/sketch/src/solver.rs`), sans aucun
+filet. Y intervenir demande d'écrire d'abord un test qui caractérise l'existant.
+
+Ailleurs le dépôt est testé, et chaque test vit dans le fichier qu'il couvre.
+`cargo test --workspace` en donne le compte du jour.
 
 ## Vérifier
 

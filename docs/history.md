@@ -1,117 +1,113 @@
-# Historique, annulation et format de fichier
+# History, undo and the file format
 
-Voir aussi : [esquisse](sketch.md) · [architecture](ARCHITECTURE.md)
+See also: [sketch](sketch.md) · [architecture](ARCHITECTURE.md)
 
-## Le principe : la pièce est sa liste d'opérations
+## The principle: a part is its list of operations
 
-La géométrie d'une pièce n'est **pas** stockée. Ce qui est stocké, c'est la
-suite des opérations qui l'ont produite : « esquisse sur le plan XY », « trait
-de A à B », « cote de 100 mm ». La géométrie est reconstruite en rejouant cette
-liste.
+The geometry of a part is **not** stored. What is stored is the run of
+operations that produced it: "sketch on the XY plane", "trait from A to B",
+"dimension of 100 mm". The geometry is rebuilt by replaying that list.
 
-Ce choix rend trois fonctions identiques, au lieu de trois mécanismes séparés
-qui finiraient par se contredire :
+That choice makes three functions identical, instead of three separate
+mechanisms that would end up contradicting each other:
 
-| Ce que fait l'utilisateur | Ce qui se passe |
+| What the user does | What happens |
 | --- | --- |
-| Annuler | Le curseur recule d'un cran |
-| Rétablir | Le curseur avance d'un cran |
-| Cliquer une étape de l'historique | Le curseur va à cette position |
+| Undo | The cursor steps back one notch |
+| Redo | The cursor steps forward one notch |
+| Click a step of the history | The cursor goes to that position |
 
-Dans les trois cas, la pièce est ensuite reconstruite depuis le début. Il n'y a
-donc aucun moyen que l'affichage et l'historique divergent.
+In all three cases the part is then rebuilt from the beginning. There is
+therefore no way for the display and the history to diverge.
 
-Un test vérifie explicitement qu'appliquer une opération en direct donne le même
-résultat que la rejouer : sans quoi un dessin pourrait changer d'aspect au
-simple fait de fermer et rouvrir la pièce.
+A test checks explicitly that applying an operation live gives the same result
+as replaying it: without which a drawing could change its look from the mere
+fact of closing and reopening the part.
 
-Une cote emporte **où son annotation se pose** dans la même opération. Poser une
-cote est un seul geste de l'utilisateur ; lire « Cote 60 mm » puis « Cote
-déplacée » à chaque clic n'aurait rien dit de plus. Un déplacement ultérieur, à
-la souris, reste une opération à part.
+A dimension carries **where its annotation sits** in the same operation.
+Placing a dimension is one single gesture of the user; reading "Dimension
+60 mm" then "Dimension moved" at every click would have said nothing more. A
+later move, with the mouse, stays an operation of its own.
 
-Une sélection supprimée d'un bloc est de même **une seule opération**, avec la
-liste de ce qui part — tracés, cotes et contraintes ensemble. Une étape par
-élément aurait demandé autant d'annulations que d'éléments pour revenir sur un
-seul geste. C'est la seule suppression : il n'y a pas d'opération séparée pour
-n'en effacer qu'un.
+A selection deleted as a block is likewise **one single operation**, with the
+list of what goes — traits, dimensions and constraints together. One step per
+element would have wanted as many undos as elements to take back a single
+gesture. It is the only deletion: there is no separate operation to erase just
+one.
 
-## Le curseur et la branche abandonnée
+## The cursor and the abandoned branch
 
-L'historique retient toutes les opérations et une position : ce qui est avant
-est appliqué, ce qui est après attend d'être rétabli. Cette queue est
-**enregistrée dans le fichier**, donc le « rétablir » survit à la fermeture du
-logiciel.
+The history keeps every operation and one position: what is before is applied,
+what is after waits to be redone. That tail is **saved in the file**, so the
+redo survives closing the program.
 
-Dessiner quelque chose de neuf après une annulation efface cette queue : la
-pièce a pris une autre direction, et garder l'ancienne branche laisserait un
-« rétablir » qui ne découle plus de ce qui est à l'écran.
+Drawing something new after an undo erases that tail: the part has taken
+another direction, and keeping the old branch would leave a redo that no longer
+follows from what is on screen.
 
-## Les points, et pourquoi ils ne sont pas recalculés
+## The points, and why they are not recomputed
 
-Une opération « trait » ne garde pas deux positions mais deux **références** :
-soit un point existant, soit un point à créer à telle position.
+A "trait" operation does not keep two positions but two **references**: either
+an existing point, or a point to be created at such a position.
 
-C'est important : l'accrochage dépend du zoom au moment du clic (10 pixels à
-l'écran valent plus ou moins de millimètres selon la distance). Rejouer
-l'accrochage plus tard pourrait donc souder des points différents et
-reconstruire un autre dessin. La décision est prise une fois, au clic, et
-conservée.
+That matters: snapping depends on the zoom at the moment of the click (10
+pixels on screen are worth more or fewer millimetres depending on the
+distance). Replaying the snapping later could therefore weld different points
+and rebuild another drawing. The decision is taken once, at the click, and
+kept.
 
-## L'arbre
+## The tree
 
-Le panneau de gauche liste les opérations, groupées sous celle qui a ouvert la
-fonction en cours — une ligne par esquisse, dépliable. Les étapes annulées
-apparaissent en grisé sous la position courante. Cliquer une ligne remet la
-pièce dans l'état où elle était juste après cette étape.
+The left panel lists the operations, grouped under the one that opened the
+function under way — one line per sketch, unfoldable. Undone steps appear
+greyed out below the current position. Clicking a line puts the part back in
+the state it was in just after that step.
 
-## L'extrusion dans l'historique
+## Extrusion in the history
 
-Une extrusion est une opération comme une autre : elle ouvre sa propre ligne
-dans l'arbre, et revenir avant elle rend la pièce à l'état de dessin. Le volume
-n'est jamais stocké — il est reconstruit en rejouant les opérations, exactement
-comme la géométrie de l'esquisse.
+An extrusion is an operation like any other: it opens its own line in the tree,
+and going back before it returns the part to the state of a drawing. The volume
+is never stored — it is rebuilt by replaying the operations, exactly like the
+geometry of the sketch.
 
-L'aire extrudée est retenue par **la position cliquée** et non par son rang,
-pour la même raison que les points d'un trait : un rang bougerait dès qu'une
-autre forme est dessinée. Voir [extrusion.md](extrusion.md).
+The extruded area is remembered by **the position clicked** and not by its
+rank, for the same reason as the points of a trait: a rank would move as soon
+as another shape is drawn. See [extrusion.md](extrusion.md).
 
-## Supprimer ne retire rien de la liste
+## Deleting takes nothing out of the list
 
-Une suppression est une opération comme les autres, et elle **marque** ce qui
-disparaît au lieu de le retirer. Sortir un trait du milieu de la liste
-décalerait le rang de tous les suivants, et chaque cote enregistrée contre ces
-rangs désignerait alors un autre morceau du dessin — silencieusement.
+A deletion is an operation like the others, and it **marks** what disappears
+instead of removing it. Taking a trait out of the middle of the list would
+shift the rank of every one after it, and each dimension recorded against those
+ranks would then name another piece of the drawing — silently.
 
-C'est ce qui permet d'annuler une suppression comme n'importe quelle autre
-étape, et de la rejouer à l'identique. Voir [sketch.md](sketch.md).
+That is what allows undoing a deletion like any other step, and replaying it
+identically. See [sketch.md](sketch.md).
 
-## Le format de fichier
+## The file format
 
-Un `.caopart` est une **archive zip**, et non plus un seul objet JSON :
+A `.caopart` is a **zip archive**, and no longer a single JSON object:
 
-| Fichier | Contenu |
+| File | Contents |
 | --- | --- |
-| `part.json` | Identité de la pièce : identifiant, nom, dates, version de schéma |
-| `history.json` | La liste des opérations et la position du curseur |
+| `part.json` | The identity of the part: id, name, dates, schema version |
+| `history.json` | The list of operations and the position of the cursor |
 
-Séparer les fichiers permet de faire évoluer chaque partie indépendamment, et
-laisse la place à ce qui viendra s'ajouter (miniature de la pièce, matériaux,
-maillages exportés) sans réécrire le reste à chaque enregistrement.
+Separating the files allows each part to evolve independently, and leaves room
+for what will come along (a thumbnail of the part, materials, exported meshes)
+without rewriting the rest at every save.
 
-### Les versions antérieures ne sont pas converties
+### Earlier versions are not converted
 
-Un fichier écrit par une version antérieure est **refusé**, avec la raison, au
-lieu d'être converti. Tant que l'outil bouge autant, une conversion aurait plus
-de chances de reconstruire une pièce de travers que de sauver quoi que ce soit
-d'utile.
+A file written by an earlier version is **refused**, with the reason, instead
+of being converted. As long as the tool moves this much, a conversion would be
+likelier to rebuild a part askew than to save anything useful.
 
-## Ce qui manque
+## What is missing
 
-- L'historique n'est pas modifiable : on ne peut ni supprimer une étape au
-  milieu, ni réordonner, ni éditer les paramètres d'une opération passée.
-- Pas de branches : une seule ligne d'historique, avec une seule queue de
-  rétablissement.
-- Une pièce très longue est reconstruite entièrement à chaque déplacement du
-  curseur. C'est instantané aux tailles actuelles ; il faudra des états
-  intermédiaires mis en cache le jour où ça ne le sera plus.
+- The history cannot be edited: a step cannot be removed from the middle, nor
+  reordered, nor can the parameters of a past operation be changed.
+- No branches: one single line of history, with one single redo tail.
+- A very long part is rebuilt entirely at every move of the cursor. That is
+  instantaneous at the current sizes; it will want cached intermediate states
+  the day it is not.

@@ -65,6 +65,29 @@ under the user's config directory.
 Nothing in the second reaches for the first. They are already decoupled; the
 crate boundary simply has not been drawn where the decoupling is.
 
+### The one file that straddles the seam
+
+`storage.rs` is the exception, and the only one. It is imported from both sides:
+`document.rs` takes `StorageError` from it, `settings.rs` and `recents.rs` take
+`StorageError` **and** `project_dirs()`. It also holds three unrelated things,
+so it is cut three ways rather than moved:
+
+| What | Goes to | Why |
+| --- | --- | --- |
+| `StorageError` | split in two | The part keeps `Archive` and `MissingEntry`, the preferences keep `NoProjectDirs`; `Io`, `Json` and `UnsupportedVersion` are duplicated. |
+| `project_dirs()` | `cao_prefs` | `document.rs` never calls it — it takes the directory as a parameter. Every caller is a preference. |
+| `default_projects_dir()` | `cao_app` | Where parts land is a choice of the shell, made once in `app.rs`. |
+| `crash_log_path()`, `record_panics()` | `cao_app` | The crash log belongs to neither context. It is called from `main.rs` and nowhere else. |
+
+The cost of the cut is one variant and two `#[from]` duplicated. The three
+alternatives all cost more: moving `storage.rs` whole would make `cao_part`
+depend on `cao_prefs`, leaving it behind would make `cao_prefs` depend on
+`cao_part`, and a third plumbing crate is a crate nobody asked for.
+
+`ProjectDirs::from("dev", "cao", "cao")` is moved, never retyped. The smallest
+difference in that triple relocates the user's configuration directory and loses
+them their profiles, their shortcuts and their recent files.
+
 ## The target
 
 ```
@@ -138,8 +161,9 @@ of French still sit below `cao_app`, and
 
 ## Order of the moves
 
-1. **`cao_prefs` out of `cao_core`.** A move of whole files, no logic touched,
-   and the architecture test gains an edge.
+1. **`cao_prefs` out of `cao_core`.** A move of whole files, no logic touched —
+   `storage.rs` excepted, which is cut three ways first — and the architecture
+   test gains an edge.
 2. **`cao_core` renamed `cao_part`.** Mechanical, and best done while the crate
    is already being handled.
 3. **Wording up into `cao_app`.** Each file moved lowers a figure in the

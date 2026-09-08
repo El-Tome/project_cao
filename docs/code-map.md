@@ -120,6 +120,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Settings screen | `app/src/screens/settings.rs` | `show(...)` |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
+| What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |
 
 What they do: [`interface.md`](interface.md),
 [`navigation.md`](navigation.md).

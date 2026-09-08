@@ -138,8 +138,8 @@ Trois endroits n'ont **aucun test** :
 - `sketch/src/solver.rs` — le cœur algorithmique, dont l'historique est fait de
   correctifs successifs (`git log -- crates/sketch/src/solver.rs`) ;
 - `sketch/src/constraints.rs` ;
-- `crates/app/src/` — `crates/app/tests/architecture.rs` teste la forme du
-  dépôt, pas l'interface.
+- `crates/app/src/` — les deux fichiers de `crates/app/tests/` testent le
+  dépôt (sa forme, et l'accord entre le gate local et la CI), pas l'interface.
 
 Y intervenir demande d'écrire d'abord un test qui caractérise l'existant. Voir
 le skill `rust-tdd`.

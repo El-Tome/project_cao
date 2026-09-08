@@ -98,7 +98,8 @@ cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
 puis `cargo test --workspace` ; les deux hooks locaux l'appellent avant chaque
 commit.
 `crates/app/tests/architecture.rs` y vérifie les règles d'architecture — graphe
-des crates, dossiers, budget de 400 lignes par fichier.
+des crates, dossiers, budget de 400 lignes par fichier — et
+`crates/app/tests/gate.rs` que la CI contrôle bien les mêmes choses que lui.
 
 ## Licence
 

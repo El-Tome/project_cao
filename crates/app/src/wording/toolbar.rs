@@ -15,13 +15,13 @@ pub fn edge(edge: Edge) -> &'static str {
 
 /// One entry of the toolbar tree, as the settings screen lists it.
 ///
-/// A group carries a name the user chose, so this one hands back an owned
-/// `String` where the rest of the module hands back `&'static str`.
-pub fn item(item: &Item) -> String {
+/// A borrow rather than a `String`: the settings screen walks the whole tree
+/// again on every frame it is open.
+pub fn item(item: &Item) -> &str {
     match item {
-        Item::Command(command) => command.label().to_string(),
-        Item::Group { name, .. } => name.clone(),
-        Item::Separator => "— séparateur —".to_string(),
+        Item::Command(command) => command.label(),
+        Item::Group { name, .. } => name,
+        Item::Separator => "— séparateur —",
     }
 }
 

@@ -7,6 +7,7 @@ mod constraints;
 pub mod construct;
 mod plane;
 mod regions;
+pub mod segment;
 mod sketch;
 mod solver;
 

@@ -113,10 +113,8 @@ pub fn push(
             // lands past the end, a thin line carries the segment out to it, as
             // on a drawing.
             let (start, end) = endpoints(sketch, segment)?;
-            for corner in [start, end] {
-                if (foot - start).dot(foot - end) > 0.0 {
-                    line(out, plane, corner, foot, style);
-                }
+            if let Some(corner) = cao_sketch::segment::overshot_end(start, end, foot) {
+                line(out, plane, corner, foot, style);
             }
             Some(linear(
                 out,

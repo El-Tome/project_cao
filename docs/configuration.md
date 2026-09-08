@@ -29,8 +29,11 @@ no "apply" button, so no setting lost because a window was closed.
 A profile is a **complete set of settings**, with a name. It is the unit of
 everything else: what is saved, what is reset, what is handed to somebody.
 
-- The **Par défaut** profile always exists and cannot be deleted: there is
-  always something to come back to when an experiment goes wrong.
+- The profile the interface calls "Par défaut" always exists and cannot be
+  deleted: there is always something to come back to when an experiment goes
+  wrong. It is stored under the key `default`, never under the sentence the
+  user reads, so translating that sentence moves no identity — the comparison
+  that protects it keeps matching.
 - Two profiles cannot carry the same name — they would be impossible to tell
   apart in the list. A name already taken becomes "… 2".
 - **Resetting everything** touches the active profile only.
@@ -44,6 +47,13 @@ replaces nothing.
 Every field has a default value, so **a profile written by a version that knew
 fewer settings still loads**: the ones it does not know keep their original
 value. Only a different version number is refused.
+
+`settings.json` is at version 2. Version 1 named the profile that always
+exists by a French sentence rather than by the `default` key, so a file
+written by it is not read at all: the settings go back to their defaults. A
+break rather than a migration, taken while there is nobody to migrate — the
+rules for keeping older files readable will be written down when there is
+somebody whose files have to survive.
 
 Shortcuts use a "command" modifier worth Ctrl on Windows and Linux, Cmd on
 macOS. A profile shared between machines therefore reads correctly on both
@@ -105,11 +115,18 @@ The editor allows selecting an entry, moving it up, moving it down, taking it
 into the group just above, taking it back out, removing it, creating groups,
 renaming them, and adding any command from the palette.
 
+The groups of the standard bar are stored under keys too — `sketch`,
+`drawing`, `circles`, `constraints`, `edit`, `extrusion` — and the interface
+says how each one reads. A group the user made or renamed carries their own
+words, and the interface hands them back untouched.
+
 A bar arranged by hand **receives the tools added later**, each in the group
-where the standard bar puts it. Without that, a bar reorganised once would
-never hear of a new tool again: the new buttons would exist for a new profile
-and for nobody else. What the user arranged is not touched; only what is
-missing is added.
+where the standard bar puts it. That is what makes the keys matter: a new
+command finds its place by matching the group's name, so a translated name
+would quietly have built a second group beside the first. Without any of it, a
+bar reorganised once would never hear of a new tool again: the new buttons
+would exist for a new profile and for nobody else. What the user arranged is
+not touched; only what is missing is added.
 
 A place for the **logo** already exists, with its text, until there is a
 picture to put there.

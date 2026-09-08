@@ -291,7 +291,7 @@ named case — `ExtrusionMode::Cut`, `StorageError::MissingEntry` — and the
 interface decides how it is said, and later in which language.
 
 This is what makes i18n a wiring job rather than a rewrite. It is not true yet:
-9 lines of French still sit below `cao_app`, spread over five files, two of
+7 lines of French still sit below `cao_app`, spread over three files, two of
 them in `cao_sketch`. The architecture test holds the count per file so that it
 can only fall.
 

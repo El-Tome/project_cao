@@ -1,4 +1,3 @@
-use std::fs;
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 
@@ -10,6 +9,7 @@ use uuid::Uuid;
 use crate::errors::PartFileError;
 use crate::file_name;
 use crate::history::{History, Operation};
+use crate::ports::Files;
 use crate::state::{DimensionOutcome, PartState};
 
 /// Bumped whenever the layout of a saved part changes.
@@ -122,34 +122,34 @@ impl PartDocument {
 
     /// Creates a new part and writes it to `dir/<name>.caopart`.
     pub fn create_in(
+        files: &impl Files,
         dir: &Path,
         name: impl Into<String>,
     ) -> Result<(Self, PathBuf), PartFileError> {
-        fs::create_dir_all(dir)?;
         let mut doc = Self::new(name);
-        let (free, path) = file_name::free_in(dir, doc.name());
+        let (free, path) = file_name::free_in(files, dir, doc.name());
         doc.metadata.name = free;
-        doc.save(&path)?;
+        doc.save(files, &path)?;
         Ok((doc, path))
     }
 
-    pub fn save(&self, path: &Path) -> Result<(), PartFileError> {
+    pub fn save(&self, files: &impl Files, path: &Path) -> Result<(), PartFileError> {
         let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
 
         archive.start_file(METADATA_ENTRY, options)?;
-        archive.write_all(serde_json::to_string_pretty(&self.metadata)?.as_bytes())?;
+        write_entry(&mut archive, &serde_json::to_string_pretty(&self.metadata)?)?;
         archive.start_file(HISTORY_ENTRY, options)?;
-        archive.write_all(serde_json::to_string_pretty(&self.history)?.as_bytes())?;
+        write_entry(&mut archive, &serde_json::to_string_pretty(&self.history)?)?;
 
         let bytes = archive.finish()?.into_inner();
-        replace_whole(path, |file| file.write_all(&bytes))?;
+        files.write(path, &bytes)?;
         Ok(())
     }
 
-    pub fn load(path: &Path) -> Result<Self, PartFileError> {
-        let bytes = fs::read(path)?;
+    pub fn load(files: &impl Files, path: &Path) -> Result<Self, PartFileError> {
+        let bytes = files.read(path)?;
 
         // Files from before the archive format are not read: the tool changed
         // too much for a conversion to be worth trusting, and nothing of value
@@ -176,34 +176,13 @@ impl PartDocument {
     }
 }
 
-/// Puts `write`'s bytes at `path`, or leaves whatever was there untouched.
-///
-/// The temporary goes in the destination folder because `rename` is only atomic
-/// within one filesystem, and `sync_all` comes before it because some
-/// filesystems otherwise reorder the two and leave the renamed file empty.
-fn replace_whole(
-    path: &Path,
-    write: impl FnOnce(&mut fs::File) -> std::io::Result<()>,
-) -> std::io::Result<()> {
-    let directory = path.parent().unwrap_or_else(|| Path::new("."));
-    let temporary = directory.join(format!(".{}.tmp", Uuid::new_v4()));
-
-    match fill(&temporary, write).and_then(|()| fs::rename(&temporary, path)) {
-        Ok(()) => Ok(()),
-        Err(error) => {
-            fs::remove_file(&temporary).ok();
-            Err(error)
-        }
-    }
-}
-
-fn fill(
-    path: &Path,
-    write: impl FnOnce(&mut fs::File) -> std::io::Result<()>,
-) -> std::io::Result<()> {
-    let mut file = fs::File::create(path)?;
-    write(&mut file)?;
-    file.sync_all()
+fn write_entry<W: Write + std::io::Seek>(
+    archive: &mut zip::ZipWriter<W>,
+    text: &str,
+) -> Result<(), zip::result::ZipError> {
+    archive
+        .write_all(text.as_bytes())
+        .map_err(zip::result::ZipError::from)
 }
 
 fn read_entry<R: Read + std::io::Seek>(
@@ -214,7 +193,9 @@ fn read_entry<R: Read + std::io::Seek>(
         .by_name(name)
         .map_err(|_| PartFileError::MissingEntry(name.to_string()))?;
     let mut text = String::new();
-    entry.read_to_string(&mut text)?;
+    entry
+        .read_to_string(&mut text)
+        .map_err(zip::result::ZipError::from)?;
     Ok(text)
 }
 
@@ -222,6 +203,7 @@ fn read_entry<R: Read + std::io::Seek>(
 mod tests {
     use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 
+    use crate::adapters::InMemoryFiles;
     use crate::history::PointRef;
     use glam::DVec2;
 
@@ -246,47 +228,37 @@ mod tests {
         document
     }
 
-    fn temp_dir() -> PathBuf {
-        let directory = std::env::temp_dir().join(format!("cao_test_{}", Uuid::new_v4()));
-        fs::create_dir_all(&directory).expect("temp dir");
-        directory
-    }
-
     #[test]
     fn a_part_survives_a_save_and_reload() {
-        let directory = temp_dir();
-        let path = directory.join("piece.caopart");
+        let files = InMemoryFiles::default();
+        let path = Path::new("/parts/piece.caopart");
 
         let document = drawn_part();
-        document.save(&path).expect("saves");
-        let reloaded = PartDocument::load(&path).expect("loads");
+        document.save(&files, path).expect("saves");
+        let reloaded = PartDocument::load(&files, path).expect("loads");
 
-        assert!(fs::read(&path).expect("bytes").starts_with(b"PK"), "zip");
+        assert!(files.read(path).expect("bytes").starts_with(b"PK"), "zip");
         assert_eq!(reloaded.name(), "Test");
         assert_eq!(reloaded.history, document.history);
         assert_eq!(reloaded.sketches().len(), 1);
         assert_eq!(reloaded.scale(), 50.0);
-
-        fs::remove_dir_all(&directory).ok();
     }
 
     /// Undone steps are kept in the file, so redo still works after reopening.
     #[test]
     fn the_redo_tail_survives_a_save_and_reload() {
-        let directory = temp_dir();
-        let path = directory.join("piece.caopart");
+        let files = InMemoryFiles::default();
+        let path = Path::new("/parts/piece.caopart");
 
         let mut document = drawn_part();
         document.undo();
-        document.save(&path).expect("saves");
+        document.save(&files, path).expect("saves");
 
-        let mut reloaded = PartDocument::load(&path).expect("loads");
+        let mut reloaded = PartDocument::load(&files, path).expect("loads");
         assert!(reloaded.history.can_redo());
         assert!(!reloaded.has_scale(), "the dimension is undone");
         assert!(reloaded.redo());
         assert_eq!(reloaded.scale(), 50.0);
-
-        fs::remove_dir_all(&directory).ok();
     }
 
     #[test]
@@ -315,75 +287,49 @@ mod tests {
         assert!(document.has_scale());
     }
 
-    /// A part from an older version is refused with a clear reason rather than
-    /// rebuilt into something subtly different.
     #[test]
     fn a_part_from_an_older_version_is_refused() {
-        let directory = temp_dir();
-        let path = directory.join("piece.caopart");
+        let files = InMemoryFiles::default();
+        let path = Path::new("/parts/piece.caopart");
 
-        let older = PartDocument::new("Ancienne");
-        older.save(&path).expect("saves");
-        // Rewrite the metadata as an earlier version.
-        let mut document = PartDocument::load(&path).expect("loads");
+        PartDocument::new("Ancienne")
+            .save(&files, path)
+            .expect("saves");
+        let mut document = PartDocument::load(&files, path).expect("loads");
         document.metadata.schema_version = 2;
-        document.save(&path).expect("saves again");
+        document.save(&files, path).expect("saves again");
 
-        let error = PartDocument::load(&path).expect_err("must be refused");
+        let error = PartDocument::load(&files, path).expect_err("must be refused");
         assert!(matches!(error, PartFileError::UnsupportedVersion(2)));
-
-        fs::remove_dir_all(&directory).ok();
     }
 
     #[test]
     fn a_second_part_of_the_same_name_does_not_destroy_the_first() {
-        let directory = temp_dir();
-        let (first, first_path) = PartDocument::create_in(&directory, "Support").expect("creates");
-        let (second, second_path) =
-            PartDocument::create_in(&directory, "Support").expect("creates a second");
+        let files = InMemoryFiles::default();
+        let directory = Path::new("/parts");
 
-        let reopened = PartDocument::load(&first_path).expect("the first one is still there");
+        let (first, first_path) =
+            PartDocument::create_in(&files, directory, "Support").expect("creates");
+        let (second, second_path) =
+            PartDocument::create_in(&files, directory, "Support").expect("creates a second");
+        let reopened =
+            PartDocument::load(&files, &first_path).expect("the first one is still there");
 
         assert_ne!(first_path, second_path);
         assert_eq!(second.name(), "Support 2");
         assert_eq!(reopened.metadata.id, first.metadata.id);
         assert_eq!(reopened.name(), "Support");
-
-        fs::remove_dir_all(&directory).ok();
-    }
-
-    #[test]
-    fn a_save_interrupted_partway_leaves_the_previous_part_intact() {
-        let directory = temp_dir();
-        let path = directory.join("piece.caopart");
-        drawn_part().save(&path).expect("saves");
-        let before = fs::read(&path).expect("bytes");
-
-        let error = replace_whole(&path, |file| {
-            file.write_all(b"half an archive")?;
-            Err(std::io::Error::other("the write stops here"))
-        })
-        .expect_err("the replacement must fail");
-
-        let after = fs::read(&path).expect("bytes");
-        let beside = fs::read_dir(&directory).expect("directory").count();
-
-        assert_eq!(error.to_string(), "the write stops here");
-        assert_eq!(after, before, "the part is untouched");
-        assert_eq!(beside, 1, "nothing is left beside it");
-
-        fs::remove_dir_all(&directory).ok();
     }
 
     #[test]
     fn a_plain_json_file_is_refused() {
-        let directory = temp_dir();
-        let path = directory.join("piece.caopart");
-        fs::write(&path, br#"{"name":"ancienne"}"#).expect("writes");
+        let files = InMemoryFiles::default();
+        let path = Path::new("/parts/piece.caopart");
+        files
+            .write(path, br#"{"name":"ancienne"}"#)
+            .expect("writes");
 
-        let error = PartDocument::load(&path).expect_err("must be refused");
+        let error = PartDocument::load(&files, path).expect_err("must be refused");
         assert!(matches!(error, PartFileError::UnsupportedVersion(1)));
-
-        fs::remove_dir_all(&directory).ok();
     }
 }

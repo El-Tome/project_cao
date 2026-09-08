@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use crate::ports::Files;
+
 /// File extension used for a CAO part document.
 pub(crate) const PART_EXTENSION: &str = "caopart";
 
@@ -8,8 +10,8 @@ pub(crate) const PART_EXTENSION: &str = "caopart";
 /// A part whose file would land on one already there is stepped past rather
 /// than written over: `create_in` has no second chance to give back what it
 /// overwrote.
-pub(crate) fn free_in(dir: &Path, wanted: &str) -> (String, PathBuf) {
-    let taken = |name: &str| path_in(dir, name).exists();
+pub(crate) fn free_in(files: &impl Files, dir: &Path, wanted: &str) -> (String, PathBuf) {
+    let taken = |name: &str| files.exists(&path_in(dir, name));
     let name = if taken(wanted) {
         (2..)
             .map(|suffix| format!("{wanted} {suffix}"))

@@ -28,11 +28,14 @@ pour la V1 ; il pourra être remis en question si les besoins tactile/stylet
 
 Un crate = une responsabilité, sans dépendance dans le mauvais sens :
 
-- `cao_core` : types de domaine (document de pièce, échelle, liste des
-  récents, chemins de stockage), les réglages — thème, raccourcis, barre
-  d'outils, profils — et la persistance de tout cela. **Aucune dépendance UI.**
-  Doit rester réutilisable tel quel par n'importe quel futur front-end (desktop,
-  web, tablette). Voir [configuration.md](configuration.md).
+- `cao_core` : la couche applicative. Dépend de `cao_sketch` et de `cao_solid`,
+  et orchestre esquisse, solide, historique et persistance — ce n'est pas le
+  domaine, malgré son nom. **Aucune dépendance UI**, pour rester réutilisable
+  tel quel par n'importe quel futur front-end (desktop, web, tablette). Doit
+  devenir `cao_part` : voir [contexts.md](contexts.md).
+- `cao_prefs` : thème, raccourcis, barre d'outils, profils, fichiers récents, et
+  la persistance de tout cela. Ne connaît ni la géométrie ni l'interface.
+  Voir [configuration.md](configuration.md).
 - `cao_sketch` : modèle d'esquisse (plan de travail, points, traits, cotes) et
   la règle qui applique une longueur. Ni rendu ni interface.
   Voir [esquisse.md](esquisse.md).
@@ -53,7 +56,9 @@ rester qu'un shell fin : fenêtre, routage entre modes, rien de plus.
 `model/`, `ports/`, `adapters/`, `services/`, et dans le shell `ui/` et
 `screens/<mode>/`. Ce que chacun veut dire, ce qu'il a le droit d'importer, et
 le budget de 400 lignes par fichier : [code-layout.md](code-layout.md).
-`crates/app/tests/architecture.rs` le vérifie dans le gate.
+`crates/app/tests/architecture.rs` le vérifie, et `scripts/verifier.sh` — clippy
+puis `cargo test --workspace`, appelé par les deux hooks locaux avant chaque
+commit — refuse le commit qui l'enfreint.
 
 ## Système de modes
 
@@ -74,6 +79,10 @@ dans `screens/`, jamais une branche ajoutée à un module existant.
 
 ## Documentation par sujet
 
+- [contexts.md](contexts.md) — où sont les coutures, et où elles vont
+- [code-layout.md](code-layout.md) — où va un fichier neuf, ce qu'il peut importer
+- [carte-du-code.md](carte-du-code.md) — quel fichier porte quel comportement
+- [glossary.md](glossary.md) — les mots, et ce qu'ils veulent dire ici
 - [esquisse.md](esquisse.md) — dessiner, coter, et la règle d'échelle
 - [historique.md](historique.md) — opérations, annulation, format de fichier
 - [interface.md](interface.md) — barre d'outils détachable, panneaux

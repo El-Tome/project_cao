@@ -47,9 +47,12 @@ cargo run -p cao_app
 
 ## Structure du workspace
 
-- `crates/core` (`cao_core`) — types de domaine, persistance et configuration,
-  sans aucune dépendance UI. Réutilisable tel quel par un futur front-end
-  web/tablette.
+- `crates/core` (`cao_core`) — la couche applicative : elle orchestre esquisse,
+  solide, historique et persistance. Ce n'est pas le domaine, malgré son nom.
+  Sans aucune dépendance UI, donc réutilisable telle quelle par un futur
+  front-end web/tablette.
+- `crates/prefs` (`cao_prefs`) — thème, raccourcis, barre d'outils, profils,
+  fichiers récents, sans géométrie ni UI.
 - `crates/sketch` (`cao_sketch`) — modèle d'esquisse et application des cotes,
   sans rendu ni UI.
 - `crates/solid` (`cao_solid`) — volumes, extrusion et opérations booléennes,
@@ -71,6 +74,10 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 ## Documentation
 
 - [Architecture](docs/ARCHITECTURE.md) — vision, découpage, feuille de route
+- [Contextes](docs/contexts.md) — où sont les coutures, et où elles vont
+- [Où va un fichier](docs/code-layout.md) — les dossiers, ce qu'ils importent
+- [Carte du code](docs/carte-du-code.md) — quel fichier porte quel comportement
+- [Glossaire](docs/glossary.md) — les mots, et ce qu'ils veulent dire ici
 - [Esquisse](docs/esquisse.md) — dessiner, coter, la règle d'échelle
 - [Historique](docs/historique.md) — opérations, annulation, format `.caopart`
 - [Interface](docs/interface.md) — barre d'outils détachable, panneaux
@@ -86,6 +93,11 @@ Produit un `.exe` autonome depuis macOS ou Linux — voir
 cargo test --workspace
 cargo run -p cao_render --example offscreen -- /tmp   # rend 3 PNG de contrôle
 ```
+
+`scripts/verifier.sh` enchaîne `clippy -D warnings` puis `cargo test
+--workspace` ; les deux hooks locaux l'appellent avant chaque commit.
+`crates/app/tests/architecture.rs` y vérifie les règles d'architecture — graphe
+des crates, dossiers, budget de 400 lignes par fichier.
 
 ## Licence
 

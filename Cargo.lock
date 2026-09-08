@@ -574,6 +574,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cao_prefs"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "directories",
+ "serde",
+ "serde_json",
+ "thiserror 1.0.69",
+ "uuid",
+]
+
+[[package]]
 name = "cao_render"
 version = "0.1.0"
 dependencies = [

@@ -23,13 +23,14 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const CRATE_DIRECTORIES: [&str; 5] = ["sketch", "solid", "render", "core", "app"];
+const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "core", "prefs", "app"];
 
-const ALLOWED_EDGES: [(&str, &[&str]); 5] = [
+const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
     ("sketch", &[]),
     ("solid", &[]),
     ("render", &[]),
     ("core", &["cao_sketch", "cao_solid"]),
+    ("prefs", &[]),
     (
         "app",
         &["cao_core", "cao_render", "cao_sketch", "cao_solid"],
@@ -155,7 +156,7 @@ fn the_two_geometry_crates_stay_alone_with_their_maths() {
 
 #[test]
 fn no_interface_crate_is_ever_pulled_in_below_the_shell() {
-    for directory in ["sketch", "solid", "render", "core"] {
+    for directory in ["sketch", "solid", "render", "core", "prefs"] {
         let declared = declared_dependencies(&manifest(directory));
         for interface in INTERFACE_CRATES {
             assert!(
@@ -165,7 +166,7 @@ fn no_interface_crate_is_ever_pulled_in_below_the_shell() {
         }
     }
 
-    for directory in ["sketch", "solid", "core"] {
+    for directory in ["sketch", "solid", "core", "prefs"] {
         assert!(
             !declared_dependencies(&manifest(directory)).contains("wgpu"),
             "crates/{directory} depends on wgpu: the GPU stops at cao_render",

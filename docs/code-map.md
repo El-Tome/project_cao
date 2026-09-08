@@ -48,6 +48,7 @@ in one of the two domains, never there.
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | The solver | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
@@ -179,8 +180,10 @@ things, and `crates/app/tests/language.rs` that nothing a developer reads is
 written in French.
 
 The solver is the algorithmic heart and most of its history is made of
-successive fixes (`git log -- crates/sketch/src/solver.rs`), with no net at
-all. Working in it means first writing a test that characterises what is there.
+successive fixes (`git log -- crates/sketch/src/solver.rs`). Working in it means
+first writing a test that characterises what is there. The linear algebra it
+rests on is the exception: `independence.rs` is covered, so a claim about how
+much of a drawing is held down can be checked without opening a window.
 
 Elsewhere the repository is tested, and each test lives in the file it covers.
 `cargo test --workspace` gives the count of the day.

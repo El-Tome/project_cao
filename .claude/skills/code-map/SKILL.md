@@ -42,6 +42,7 @@ there. See the `architecture-rust` skill.
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | The kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | **The solver** — making every value true together | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
 | The work plane, 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | The closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` → `Vec<Region>` |

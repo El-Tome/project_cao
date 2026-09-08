@@ -149,8 +149,7 @@ impl Sketch {
 
         let mut outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
         if !blocks.is_empty() {
-            // The steps keep the shapes to first order only; welding them back
-            // exactly leaves a little to settle, which one more pass takes.
+            // A block still bends where its shared and pinned points are left behind.
             self.weld(&before, &blocks);
             outcome = self.sweeps(millimeters_per_unit, scale, &blocks);
 
@@ -266,13 +265,14 @@ impl Sketch {
                 spread += arm.length_squared();
             }
             let turn = if spread > 1e-12 { torque / spread } else { 0.0 };
-
+            // A tangent, not an angle: laid on the perpendicular it stretches every arm.
+            let spin = DVec2::from_angle(turn.atan());
             for point in &block.points {
                 if pinned[point.0] || owner[point.0] != Some(index) {
                     continue;
                 }
                 let arm = self.point(*point) - center;
-                moves[point.0] = carried + DVec2::new(-arm.y, arm.x) * turn;
+                moves[point.0] = carried + spin.rotate(arm) - arm;
             }
         }
     }

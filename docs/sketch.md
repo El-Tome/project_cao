@@ -802,6 +802,14 @@ block a group that nothing orients leaves all its dimensions exactly as they
 were — that is the very definition of "free to turn" — so the drawing is set
 straight without anything it measures changing.
 
+A block also used to **grow** from being turned, more quietly. The turn is read
+off as a torque over a spread, which is the *tangent* of the angle and not the
+angle: laid along the perpendicular of each arm, it leaves that arm
+`sqrt(1 + turn²)` longer. The error is one-sided — never shorter — so a figure
+turned four hundred times came out measurably larger than it went in. The arm
+is now turned rather than nudged sideways, and the block keeps its size however
+often it is swung.
+
 ### What it is not
 
 The solver is of the projection kind, not Newton: it converges well on drawings

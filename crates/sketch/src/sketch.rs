@@ -1734,7 +1734,7 @@ mod tests {
         let now = shape_of(&sketch);
         for (before, after) in was_far.iter().zip(now.iter()) {
             assert!(
-                (before - after).abs() < 1e-3 * before.abs().max(1.0),
+                (before - after).abs() < 1e-9 * before.abs().max(1.0),
                 "la figure éloignée s'est déformée : {was_far:?} puis {now:?}"
             );
         }

@@ -392,7 +392,7 @@ mod tests {
         assert_eq!(layout.at(&[0]), Some(&Item::Command(Command::Undo)));
         assert_eq!(layout.at(&[1, 0]), Some(&Item::Command(Command::Redo)));
         assert_eq!(layout.at(&[9]), None);
-        assert_eq!(layout.at(&[0, 0]), None, "une commande n'a pas d'enfants");
+        assert_eq!(layout.at(&[0, 0]), None, "a command has no children");
     }
 
     #[test]
@@ -400,7 +400,7 @@ mod tests {
         let mut layout = layout();
         assert_eq!(layout.shift(&[0], true), Some(vec![1]));
         assert_eq!(layout.at(&[1]), Some(&Item::Command(Command::Undo)));
-        assert_eq!(layout.shift(&[0], false), None, "rien avant le premier");
+        assert_eq!(layout.shift(&[0], false), None, "nothing before the first");
     }
 
     /// Groups within groups within groups : nesting has no floor.
@@ -415,8 +415,8 @@ mod tests {
             ..ToolbarLayout::default()
         };
 
-        assert_eq!(layout.nest(&[2]), Some(vec![1, 0]), "dans B");
-        assert_eq!(layout.nest(&[1]), Some(vec![0, 0]), "B dans A");
+        assert_eq!(layout.nest(&[2]), Some(vec![1, 0]), "into B");
+        assert_eq!(layout.nest(&[1]), Some(vec![0, 0]), "B into A");
         assert_eq!(layout.at(&[0, 0, 0]), Some(&Item::Command(Command::Undo)));
     }
 
@@ -426,19 +426,21 @@ mod tests {
         assert_eq!(layout.unnest(&[1, 0]), Some(vec![2]));
         assert_eq!(layout.at(&[2]), Some(&Item::Command(Command::Redo)));
         assert_eq!(layout.at(&[3]), Some(&Item::Command(Command::NewSketch)));
-        assert_eq!(layout.unnest(&[0]), None, "déjà à la racine");
+        assert_eq!(layout.unnest(&[0]), None, "already at the root");
     }
 
     #[test]
     fn nesting_needs_a_group_to_go_into() {
         let mut layout = layout();
-        assert_eq!(layout.nest(&[1]), None, "avant lui est une commande");
+        assert_eq!(layout.nest(&[1]), None, "what comes before it is a command");
     }
 
     #[test]
     fn an_entry_can_be_taken_out_and_put_back() {
         let mut layout = layout();
-        let taken = layout.remove(&[1, 0]).expect("la commande du groupe");
+        let taken = layout
+            .remove(&[1, 0])
+            .expect("the command inside the group");
         assert_eq!(taken, Item::Command(Command::Redo));
         assert!(layout.push_into(&[1], taken));
         assert_eq!(layout.at(&[1, 0]), Some(&Item::Command(Command::Redo)));
@@ -449,6 +451,6 @@ mod tests {
         let mut layout = layout();
         assert!(layout.rename(&[1], "Other".to_string()));
         assert!(matches!(layout.at(&[1]), Some(Item::Group { name, .. }) if name == "Other"));
-        assert!(!layout.rename(&[0], "Rien".to_string()));
+        assert!(!layout.rename(&[0], "Nothing".to_string()));
     }
 }

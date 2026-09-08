@@ -50,6 +50,12 @@ const FRENCH_IN_A_NAME: [&str; 20] = [
     "sortie",
 ];
 
+/// French a short sentence leans on even with no article and no accent. Only
+/// words with no English reading: a test message counts things and denies them.
+const FRENCH_WITH_NO_ARTICLE: [&str; 11] = [
+    "un", "deux", "trois", "quatre", "cinq", "de", "et", "il", "ne", "pas", "rien",
+];
+
 /// Three of them in one file is prose, not a quoted interface string.
 const FRENCH_WORDS_A_FILE_MAY_HOLD: usize = 2;
 
@@ -79,6 +85,34 @@ fn no_document_and_no_comment_is_written_in_french() {
         "French prose: {guilty:#?}\n\
          Everything a developer reads is English — see CLAUDE.md, Language. The\n\
          interface is the exception, and it is a string literal, never a comment.",
+    );
+}
+
+/// Below `cao_app` no sentence is ever aimed at a user, so a French one is a
+/// developer being spoken to in French — an assertion message, most of the
+/// time. `architecture.rs` guards what ships; this guards what fails.
+#[test]
+fn no_string_below_the_interface_is_written_in_french() {
+    let mut guilty = Vec::new();
+
+    for path in files_worth_reading() {
+        if !sits_below_the_interface(&path) {
+            continue;
+        }
+        let text = fs::read_to_string(&path).unwrap_or_default();
+        let relative = relative(&path);
+
+        for (number, literal) in french_literals_in(&text) {
+            guilty.push(format!("{relative}:{number}  \"{literal}\""));
+        }
+    }
+
+    assert!(
+        guilty.is_empty(),
+        "French below cao_app:\n  {}\n\
+         An assertion message is read by a developer, so it is English — see\n\
+         CLAUDE.md, Language. French lives in cao_app and nowhere else.",
+        guilty.join("\n  "),
     );
 }
 
@@ -191,6 +225,90 @@ fn french_words_in(prose: &str) -> BTreeSet<String> {
         .map(|word| word.to_lowercase())
         .filter(|word| french.contains(word.as_str()))
         .collect()
+}
+
+/// Every crate but `cao_app`, which is where the interface says things.
+fn sits_below_the_interface(path: &Path) -> bool {
+    let relative = relative(path).replace('\\', "/");
+    extension(path) == Some("rs")
+        && relative.starts_with("crates/")
+        && !relative.starts_with("crates/app/")
+}
+
+fn french_literals_in(text: &str) -> Vec<(usize, String)> {
+    let mut found = Vec::new();
+
+    for (index, line) in text.lines().enumerate() {
+        if line.trim_start().starts_with("//") {
+            continue;
+        }
+        for literal in line.split('"').skip(1).step_by(2) {
+            if is_written_in_french(literal) {
+                found.push((index + 1, literal.to_string()));
+            }
+        }
+    }
+
+    found
+}
+
+/// A French sentence is caught by its grammar — an accent, an article, a
+/// numeral, a negation. A lone French noun such as `rayon` still gets through,
+/// and review is what catches that one.
+fn is_written_in_french(literal: &str) -> bool {
+    literal.chars().any(is_a_french_letter)
+        || !french_words_in(literal).is_empty()
+        || words_of(literal).any(|word| FRENCH_WITH_NO_ARTICLE.contains(&word.as_str()))
+}
+
+fn words_of(text: &str) -> impl Iterator<Item = String> + '_ {
+    text.split(|c: char| !c.is_alphabetic())
+        .filter(|word| !word.is_empty())
+        .map(|word| word.to_lowercase())
+}
+
+fn is_a_french_letter(character: char) -> bool {
+    matches!(
+        character,
+        'é' | 'è'
+            | 'ê'
+            | 'ë'
+            | 'à'
+            | 'â'
+            | 'ç'
+            | 'ù'
+            | 'û'
+            | 'ô'
+            | 'î'
+            | 'ï'
+            | 'œ'
+            | 'É'
+            | 'È'
+            | 'À'
+            | 'Ç'
+            | '«'
+            | '»'
+    )
+}
+
+#[test]
+fn a_message_with_no_accent_is_french_all_the_same() {
+    assert!(is_written_in_french("les deux traits tiennent"));
+}
+
+#[test]
+fn an_english_message_is_left_where_it_is() {
+    for message in [
+        "both segments still hold the shared corner",
+        "seed {seed}: point {rank} drifted to {point}",
+        "a cube tangent always points at another face",
+        "part.json",
+    ] {
+        assert!(
+            !is_written_in_french(message),
+            "{message} is English and the rule took it for French",
+        );
+    }
 }
 
 fn files_worth_reading() -> Vec<PathBuf> {

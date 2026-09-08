@@ -927,8 +927,8 @@ mod extrusion_tests {
 
         let state = PartState::rebuild(&history);
         assert!((volume(&state.body) - 800.0).abs() < 1.0);
-        let (min, max) = state.body.bounds().expect("un volume");
-        assert!((max.z - min.z - 4.0).abs() < 1e-3, "hauteur");
+        let (min, max) = state.body.bounds().expect("a volume");
+        assert!((max.z - min.z - 4.0).abs() < 1e-3, "the height");
     }
 
     /// The clicked area is found again by the point, not by its rank: drawing
@@ -947,8 +947,8 @@ mod extrusion_tests {
 
         let state = PartState::rebuild(&history);
         assert!((volume(&state.body) - 400.0).abs() < 1.0, "the second area");
-        let (min, _) = state.body.bounds().expect("un volume");
-        assert!(min.x > 39.0, "au bon endroit : {min}");
+        let (min, _) = state.body.bounds().expect("a volume");
+        assert!(min.x > 39.0, "in the right place: {min}");
     }
 
     /// Two circles one inside the other make a tube: the tool does not fill the
@@ -1175,7 +1175,7 @@ mod extrusion_tests {
         assert_eq!(
             state.sketches[0].live_segments().count(),
             2,
-            "les deux traits tiennent toujours au sommet commun"
+            "both segments still hold the shared corner"
         );
     }
 
@@ -1242,7 +1242,7 @@ mod extrusion_tests {
         assert!(state.sketches[0].regions().is_empty(), "the area is open");
         assert!(
             (volume(&state.body) - before).abs() < 1.0,
-            "le volume déjà fabriqué reste"
+            "the volume already made stays"
         );
 
         // And the cursor brought back before the deletion returns the outline.
@@ -1286,7 +1286,7 @@ mod extrusion_tests {
         });
 
         let state = PartState::rebuild(&history);
-        let (min, max) = state.body.bounds().expect("un volume");
+        let (min, max) = state.body.bounds().expect("a volume");
         let height_millimetres = (max.z - min.z) * state.scale();
         assert!(
             (height_millimetres - 25.0).abs() < 1e-3,

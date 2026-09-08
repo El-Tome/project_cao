@@ -253,8 +253,8 @@ mod tests {
     #[test]
     fn a_new_profile_becomes_the_active_one() {
         let mut profiles = Profiles::default();
-        profiles.add(Profile::new("Atelier", changed()));
-        assert_eq!(profiles.active_name(), "Atelier");
+        profiles.add(Profile::new("Workshop", changed()));
+        assert_eq!(profiles.active_name(), "Workshop");
         assert_eq!(profiles.active().viewport.cube_size, 42.0);
 
         assert!(profiles.switch_to(DEFAULT_PROFILE));
@@ -273,20 +273,20 @@ mod tests {
     #[test]
     fn resetting_only_touches_the_profile_in_use() {
         let mut profiles = Profiles::default();
-        profiles.add(Profile::new("Atelier", changed()));
+        profiles.add(Profile::new("Workshop", changed()));
         profiles.reset_active();
 
         assert_eq!(profiles.active(), &Settings::default());
-        assert!(profiles.switch_to("Atelier"));
+        assert!(profiles.switch_to("Workshop"));
     }
 
     #[test]
     fn the_default_profile_cannot_be_removed() {
         let mut profiles = Profiles::default();
-        profiles.add(Profile::new("Atelier", changed()));
+        profiles.add(Profile::new("Workshop", changed()));
 
         assert!(!profiles.remove(DEFAULT_PROFILE));
-        assert!(profiles.remove("Atelier"));
+        assert!(profiles.remove("Workshop"));
         assert_eq!(profiles.active_name(), DEFAULT_PROFILE);
         assert!(!profiles.remove(DEFAULT_PROFILE), "only one is left");
     }
@@ -294,8 +294,8 @@ mod tests {
     #[test]
     fn a_profile_survives_being_written_and_read_back() {
         let files = InMemoryFiles::default();
-        let path = PathBuf::from(format!("/shared/atelier.{PROFILE_EXTENSION}"));
-        let profile = Profile::new("Atelier", changed());
+        let path = PathBuf::from(format!("/shared/workshop.{PROFILE_EXTENSION}"));
+        let profile = Profile::new("Workshop", changed());
 
         profile.export(&files, &path).expect("writes");
 
@@ -311,7 +311,7 @@ mod tests {
         };
         let files = InMemoryFiles::default();
         let mut profiles = Profiles::default();
-        profiles.add(Profile::new("Atelier", changed()));
+        profiles.add(Profile::new("Workshop", changed()));
 
         profiles
             .save(&files, &at)
@@ -321,7 +321,7 @@ mod tests {
             files.exists(Path::new("/config/settings.json")),
             "the platform decides where, not the library",
         );
-        assert_eq!(Profiles::load(&files, &at).active_name(), "Atelier");
+        assert_eq!(Profiles::load(&files, &at).active_name(), "Workshop");
     }
 
     #[test]

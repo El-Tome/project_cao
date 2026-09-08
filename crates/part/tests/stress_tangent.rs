@@ -125,11 +125,11 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
             for (rank, point) in sketch.points().iter().enumerate() {
                 assert!(
                     point.is_finite(),
-                    "seed {seed}: le point {rank} est parti a {point}"
+                    "seed {seed}: point {rank} drifted to {point}"
                 );
             }
             for round in sketch.circles() {
-                assert!(round.radius.is_finite(), "seed {seed}: rayon");
+                assert!(round.radius.is_finite(), "seed {seed}: radius");
             }
             let _ = sketch.settled_points(doc.scale());
             let _ = sketch.freedom(doc.scale());

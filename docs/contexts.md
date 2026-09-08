@@ -151,9 +151,14 @@ capitalised word. A sentence aimed at whoever reads the crash rather than at
 whoever uses the software is exempt where it sits: `#[error(…)]`, `expect`,
 `panic!`, an assertion. An accent fails even there.
 
-The rule stops at `#[cfg(test)]`, so it says nothing about test code, where
-French assertion messages still sit below the line — #129 is where that is
-settled.
+The rule stops at `#[cfg(test)]`, and deliberately so: a sentence in a test
+reaches no user. What a test says is read by a developer, and that is the other
+rule's business — `crates/app/tests/language.rs` refuses any string literal
+written in French below `cao_app`, in a test as much as anywhere else, since
+nothing down there ever speaks to a user. It reads a sentence as French by its
+grammar: an accent, an article, a numeral, a negation. A lone French noun still
+gets through, and review is what catches that one. Inside `cao_app` the French
+is the interface itself, so the rule stops at the crate boundary.
 
 ## What is deliberately not its own context
 

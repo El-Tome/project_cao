@@ -1069,8 +1069,8 @@ mod tests {
 
         let width = sketch.projected_gap(start, end, SketchAxis::U).unwrap();
         let height = sketch.projected_gap(start, end, SketchAxis::V).unwrap();
-        assert!((width - 60.0).abs() < 1e-2, "largeur = {width}");
-        assert!((height - 30.0).abs() < 1e-2, "hauteur = {height}");
+        assert!((width - 60.0).abs() < 1e-2, "width = {width}");
+        assert!((height - 30.0).abs() < 1e-2, "height = {height}");
     }
 
     #[test]
@@ -1096,7 +1096,7 @@ mod tests {
         let landed = sketch.point(end);
         assert!(
             (landed - DVec2::new(80.0, 15.0)).length() < 1e-2,
-            "arrivée = {landed:?}"
+            "landed at {landed:?}"
         );
     }
 
@@ -1133,7 +1133,7 @@ mod tests {
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
         let across = direction(&sketch, first).perp_dot(direction(&sketch, second));
-        assert!(across.abs() < 1e-6, "produit vectoriel = {across}");
+        assert!(across.abs() < 1e-6, "cross product = {across}");
     }
 
     #[test]
@@ -1143,7 +1143,7 @@ mod tests {
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
         let gap = sketch.segment_length(first) - sketch.segment_length(second);
-        assert!(gap.abs() < 1e-4, "écart de longueur = {gap}");
+        assert!(gap.abs() < 1e-4, "length gap = {gap}");
     }
 
     #[test]
@@ -1161,7 +1161,7 @@ mod tests {
         assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
         let gap = sketch.point_to_segment(floating, line).unwrap();
-        assert!(gap < 1e-6, "le point est à {gap} de la droite");
+        assert!(gap < 1e-6, "the point is {gap} away from the line");
     }
 
     #[test]
@@ -1209,7 +1209,7 @@ mod tests {
         let round = sketch.circle(circle);
         assert!(
             (round.radius - 30.0).abs() < 1e-3,
-            "le rayon a rejoint la droite : {}",
+            "the radius reached the line: {}",
             round.radius
         );
     }
@@ -1238,7 +1238,7 @@ mod tests {
         assert_eq!(
             sketch.freedom(1.0).degrees_of_freedom,
             3,
-            "fixer un coin ne rattache à rien"
+            "pinning one corner ties nothing down"
         );
     }
 
@@ -1265,7 +1265,7 @@ mod tests {
         assert_eq!(
             sketch.freedom(1.0).degrees_of_freedom,
             1,
-            "il reste à dire dans quel sens elle est posée"
+            "which way up it lies is still to be said"
         );
 
         // Said with an angle against an axis, and there is nothing left.
@@ -1278,7 +1278,7 @@ mod tests {
             false,
         );
         sketch.resolve(1.0);
-        assert!(sketch.is_fully_constrained(1.0), "et là elle est posée");
+        assert!(sketch.is_fully_constrained(1.0), "and now it is laid down");
     }
 
     #[test]
@@ -1325,13 +1325,13 @@ mod tests {
         let wanted = sketch.circle(circle).radius;
         assert!(
             (wanted - 50.0).abs() < 0.5,
-            "le cercle garde sa taille : {wanted}"
+            "the circle keeps its size: {wanted}"
         );
         for (rank, side) in sides.iter().enumerate() {
             let gap = sketch.point_to_segment(center, *side).unwrap();
             assert!(
                 (gap - wanted).abs() < 0.5,
-                "le côté {rank} touche toujours : {gap} au lieu de {wanted}"
+                "side {rank} still touches: {gap} instead of {wanted}"
             );
         }
     }
@@ -1375,13 +1375,13 @@ mod tests {
         for (rank, point) in ids.iter().enumerate() {
             assert!(
                 sketch.point(*point).distance(corners[rank] + step) < 1e-6,
-                "le coin {rank} a été porté tel quel"
+                "corner {rank} was carried across as it was"
             );
         }
         for (rank, side) in sides.iter().enumerate() {
             assert!(
                 (sketch.segment_length(*side) - before[rank]).abs() < 1e-6,
-                "et le côté {rank} n'a pas été étiré"
+                "and side {rank} was not stretched"
             );
         }
     }
@@ -1410,14 +1410,11 @@ mod tests {
             .find(|rule| matches!(rule, Constraint::Tangent { .. }))
             .copied()
         else {
-            panic!("la tangence n'a pas de point de contact");
+            panic!("the tangency has no contact point");
         };
         let contact = sketch.point(touch);
         let foot = sketch.foot_on_segment(center, line).unwrap();
-        assert!(
-            contact.distance(foot) < 1e-3,
-            "le contact a glissé : {contact}"
-        );
+        assert!(contact.distance(foot) < 1e-3, "the contact slid: {contact}");
 
         // The line moved out from under it: the contact follows, it does not
         // stay behind on the old spot.
@@ -1440,15 +1437,15 @@ mod tests {
 
         assert!(
             sketch.point(rim).distance(DVec2::new(30.0, 0.0)) < 1e-9,
-            "le point lâché ne bouge plus"
+            "the dropped point does not move any more"
         );
         let round = sketch.circle(circle);
         let reach = sketch.point(rim).distance(sketch.point(round.center));
         assert!(
             (reach - round.radius).abs() < 1e-3,
-            "le point est resté sur le bord"
+            "the point stayed on the rim"
         );
-        assert!(round.radius > 10.0, "le cercle a grandi : {}", round.radius);
+        assert!(round.radius > 10.0, "the circle grew: {}", round.radius);
     }
 
     #[test]
@@ -1470,13 +1467,13 @@ mod tests {
 
         assert!(
             sketch.point(center).distance(dropped) < 1e-9,
-            "le centre a glissé sous le curseur : {}",
+            "the centre slid under the cursor: {}",
             sketch.point(center)
         );
         let gap = sketch.point_to_segment(center, line).unwrap();
         assert!(
             (gap - sketch.circle(circle).radius).abs() < 1e-2,
-            "et la tangence tient toujours"
+            "and the tangency still holds"
         );
     }
 
@@ -1501,10 +1498,10 @@ mod tests {
         let gap = sketch.point_to_segment(center, line).unwrap();
         assert!(
             (gap - sketch.circle(circle).radius).abs() < 1e-6,
-            "le cercle ne touche pas : {gap} contre {}",
+            "the circle does not touch: {gap} against {}",
             sketch.circle(circle).radius
         );
-        assert!(sketch.circle(circle).radius > 20.0, "il a bien grandi");
+        assert!(sketch.circle(circle).radius > 20.0, "it did grow");
     }
 
     #[test]
@@ -1526,9 +1523,9 @@ mod tests {
 
         // The size is the decision now, so the circle comes down to the line.
         let held = sketch.circle(circle).radius;
-        assert!((held - 20.0).abs() < 1e-3, "rayon = {held}");
+        assert!((held - 20.0).abs() < 1e-3, "radius = {held}");
         let gap = sketch.point_to_segment(center, line).unwrap();
-        assert!((gap - 20.0).abs() < 1e-3, "distance au centre = {gap}");
+        assert!((gap - 20.0).abs() < 1e-3, "distance to the centre = {gap}");
     }
 
     #[test]
@@ -1566,7 +1563,7 @@ mod tests {
             let gap = sketch.point_to_segment(center, segment).unwrap();
             assert!(
                 (gap - held).abs() < 0.05,
-                "le cercle est à {gap} d'un côté pour un rayon de {held}"
+                "the circle is {gap} from a side for a radius of {held}"
             );
         }
         assert!((sketch.segment_length(sides[0]) - 300.0).abs() < 0.05);
@@ -1600,7 +1597,7 @@ mod tests {
 
         assert!(
             (sketch.segment_length(first) - wanted).abs() < 1e-9,
-            "le premier trait a bougé"
+            "the first segment moved"
         );
         assert!((sketch.segment_length(second) - wanted).abs() < 1e-4);
     }
@@ -1704,7 +1701,7 @@ mod tests {
         // The side hanging off the origin has not budged...
         assert!(
             sketch.point(a).distance(was_anchored) < 1e-6,
-            "le côté ancré a bougé : {:?}",
+            "the anchored side moved: {:?}",
             sketch.point(a)
         );
         // ...and the far side kept its shape, corner included, rather than
@@ -1713,11 +1710,11 @@ mod tests {
         for (before, after) in was_far.iter().zip(now.iter()) {
             assert!(
                 (before - after).abs() < 1e-9 * before.abs().max(1.0),
-                "la figure éloignée s'est déformée : {was_far:?} puis {now:?}"
+                "the far shape was deformed: {was_far:?} then {now:?}"
             );
         }
         let angle = sketch.angle_between(first, second).unwrap();
-        assert!((angle - 60.0).abs() < 1e-3, "angle obtenu : {angle}");
+        assert!((angle - 60.0).abs() < 1e-3, "angle came out at {angle}");
     }
 
     #[test]
@@ -1756,7 +1753,7 @@ mod tests {
         let base = sketch.point(right) - sketch.point(corner);
         assert!(
             base.y.atan2(base.x).to_degrees().abs() < 0.05,
-            "le rectangle s'est incliné : {base:?}"
+            "the rectangle leaned over: {base:?}"
         );
         assert!((sketch.point(far) - sketch.point(right)).length() - 80.0 < 0.05);
     }
@@ -2003,7 +2000,7 @@ mod tests {
 
         let (found, at) = sketch
             .nearest_on_segment(DVec2::new(30.0, 2.0), 5.0)
-            .expect("le trait attire");
+            .expect("the segment pulls");
         assert_eq!(found, side);
         assert!(at.distance(DVec2::new(30.0, 0.0)) < 1e-4, "{at:?}");
 
@@ -2011,7 +2008,7 @@ mod tests {
         // Past the end, the pull stops at the end rather than off in space.
         let (_, beyond) = sketch
             .nearest_on_segment(DVec2::new(104.0, 0.0), 5.0)
-            .expect("le bout attire encore");
+            .expect("the end still pulls");
         assert!(beyond.distance(DVec2::new(100.0, 0.0)) < 1e-4);
     }
 
@@ -2023,7 +2020,7 @@ mod tests {
 
         let (found, at) = sketch
             .nearest_midpoint(DVec2::new(48.0, 3.0), 5.0)
-            .expect("le milieu attire");
+            .expect("the midpoint pulls");
         assert_eq!(found, side);
         assert_eq!(at, DVec2::new(50.0, 0.0));
         assert_eq!(sketch.nearest_midpoint(DVec2::new(20.0, 0.0), 5.0), None);
@@ -2045,7 +2042,7 @@ mod tests {
         assert!(sketch.is_erased_point(twin));
         assert_eq!(sketch.segments()[second.0].start, meeting);
         assert_eq!(sketch.segments()[first.0].end, meeting);
-        assert_eq!(sketch.live_segments().count(), 2, "les deux traits restent");
+        assert_eq!(sketch.live_segments().count(), 2, "both segments stay");
     }
 
     /// A segment whose two ends became one has no length and no direction.
@@ -2100,7 +2097,7 @@ mod tests {
                     to: kept,
                 })
                 .is_some(),
-            "la cote suit le point conservé"
+            "the dimension follows the point that was kept"
         );
     }
 
@@ -2120,7 +2117,7 @@ mod tests {
             sketch
                 .dimension_of(DimensionTarget::Length(third))
                 .is_some(),
-            "la cote du troisième côté est intacte"
+            "the dimension on the third side is untouched"
         );
         assert_eq!(sketch.nearest_segment(DVec2::new(50.0, 0.0), 1.0), None);
     }
@@ -2151,7 +2148,7 @@ mod tests {
         assert!(sketch.is_erased_segment(touching));
         assert!(sketch.is_erased_segment(apart));
         assert_eq!(sketch.live_circles().count(), 0);
-        assert!(!sketch.is_erased_point(far), "le point d'en face reste");
+        assert!(!sketch.is_erased_point(far), "the point opposite stays");
     }
 
     /// The origin is what everything else is measured from.

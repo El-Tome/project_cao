@@ -61,7 +61,7 @@ mod tests {
 
     #[test]
     fn a_name_a_filesystem_would_refuse_becomes_one_it_accepts() {
-        assert_eq!(sanitize("Bras/gauche"), "Bras_gauche");
+        assert_eq!(sanitize("Arm/left"), "Arm_left");
         assert_eq!(sanitize(" Support 12 "), "Support 12");
     }
 

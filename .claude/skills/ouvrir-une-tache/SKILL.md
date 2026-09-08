@@ -23,20 +23,51 @@ you are behind `origin/main`, catch up before starting.
 **If an existing branch looks like it is doing the work, say so and ask** rather
 than starting again. `git log origin/feat/xxx --oneline` usually says enough.
 
+The issues say the same thing faster. Three labels carry their state:
+
+```sh
+gh issue list --label todo          # ready to start, nothing blocks it
+gh issue list --label in-progress   # a branch exists and a pull request is open
+gh issue list --label backlog       # waiting on a decision or on another issue
+```
+
+An epic carries none of the three — it is tracked by its sub-issues. Move the
+label as you go: `in-progress` when the branch is made, off it when the pull
+request is opened and the work is handed back.
+
 ## The branch
 
-From an up-to-date `main`:
+One issue, one branch, one pull request. The branch is created **from the
+issue**, never with a bare `git checkout -b`, so that GitHub links the two and
+the issue shows what is being done about it:
 
 ```sh
 git checkout main && git pull
-git checkout -b feat/short-description
+gh issue develop <n> --base main --name <type>/<n>-<short-description> --checkout
 ```
 
-`feat/` for a feature, `fix/` for a correction. **English, hyphenated, short** —
-`feat/circles`, `feat/oriented-dimensions`, `fix/solver-anchoring`,
-`fix/tangent-circles`. A French branch name is a slip, not a variant.
+The name is a **conventional commit** prefix, the issue number, and a short
+description: `refactor/24-storage-error-becomes-two-errors`,
+`fix/17-dimension-leader`, `feat/circles`. **English, hyphenated, short.** A
+French branch name is a slip, not a variant.
+
+If there is no issue yet, open one first. It is where the reasoning goes, and
+it is what the next person reads before touching the same file.
 
 Never work on `main` directly.
+
+### Stacking
+
+An issue whose dependency is still in review does **not** wait for a merge. It
+branches off that branch and targets it as base:
+
+```sh
+gh issue develop <n> --base <parent-branch> --name <type>/<n>-<description> --checkout
+gh pr create --base <parent-branch>
+```
+
+The pull request body says what it sits on. GitHub retargets the base to `main`
+by itself once the parent lands.
 
 ## While you work
 
@@ -59,15 +90,20 @@ sweep of their own.
 
 ## The commit message
 
-One title line, an evocative sentence that says **what the software can do
-now** — not what you typed:
+A **conventional commit** prefix, then an evocative sentence that says **what
+the software can do now** — not what you typed. The prefix does not replace the
+sentence, it precedes it:
 
 ```
-The architecture is a test now, and the debt cannot grow
-Circles: handles, tangencies held, crashes written down
-Only the origin anchors, and a leaning shape has to say which way up
-The solver starts again while it is still gaining, and a figure moves whole
+feat(sketch): circles hold their tangencies, and a crash is written down
+fix(sketch): only the origin anchors, and a leaning shape says which way up
+refactor(core): a part archive and a configuration file fail apart
+perf(sketch): the solver starts again while it is still gaining
+docs(contexts): Command is the vocabulary of intent, and goes with the preferences
 ```
+
+`feat`, `fix`, `refactor`, `perf`, `docs`, `test`, `build`, `ci`, `chore`. The
+scope is the crate when the change has one, and is left out when it does not.
 
 A body only if it carries something: the why, an alternative that was tried and
 dropped, a consequence that is not obvious. Never the list of files touched —
@@ -98,10 +134,19 @@ git config core.hooksPath .githooks
 
 ## Closing
 
+Push, then open the pull request. Its title carries the same conventional
+commit prefix as the commits, and it **always has a body**:
+
 ```sh
-git push -u origin feat/short-description
+git push -u origin <branch>
+gh pr create --base main --title "<type>(<scope>): <sentence>" --body "..."
 ```
 
-Then say what was done, and above all what was **not**: a part left aside, a
-decision deferred, a test you could not write. What is not said at that moment
-is lost.
+The body says what changed, what was decided and what was set aside, how it was
+verified — the gate, the test count, the command whose output you read — and
+ends on `Closes #n`. Never the list of files touched: `git` already has it. A
+pull request with no body is one nobody can review a month later.
+
+Then move the issue's label from `in-progress`, and say to the human what was
+done and above all what was **not**: a part left aside, a decision deferred, a
+test you could not write. What is not said at that moment is lost.

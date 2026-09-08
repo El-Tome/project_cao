@@ -66,8 +66,13 @@ gh issue develop <n> --base <parent-branch> --name <type>/<n>-<description> --ch
 gh pr create --base <parent-branch>
 ```
 
-The pull request body says what it sits on. GitHub retargets the base to `main`
-by itself once the parent lands.
+The pull request body says what it sits on.
+
+**Merging the stack is where it goes wrong.** Deleting the parent branch closes
+every pull request based on it, and a closed pull request cannot be retargeted
+or reopened. Merge the bottom **without** `--delete-branch`, rebase the child on
+`main` and force-push it, `gh pr edit <child> --base main`, and only then delete
+the parent branch. `CLAUDE.md` §How work is delivered has the commands.
 
 ## While you work
 

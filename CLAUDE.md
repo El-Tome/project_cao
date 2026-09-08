@@ -137,8 +137,30 @@ no body is one nobody can review a month later.
 
 **Stack rather than wait.** An issue whose dependency is still in review
 branches off *that* branch and targets it as base, instead of blocking on a
-merge. The body names what it sits on, and the base moves back to `main` on its
-own once the parent lands.
+merge. The body names what it sits on.
+
+**Merge a stack from the bottom, and delete nothing on the way.** Deleting the
+branch a pull request is based on does not retarget that pull request — GitHub
+**closes** it, and a closed pull request can be neither retargeted nor reopened.
+The branch and its commits survive; the body and the review thread do not. That
+is how #74 had to come back as #78. The order that works:
+
+```sh
+gh pr merge <parent> --squash            # no --delete-branch
+git checkout <child> && git rebase main  # the squash gave the parent new hashes
+git push --force-with-lease
+gh pr edit <child> --base main
+git push origin --delete <parent-branch> # only now, then repeat one level up
+```
+
+Retargeting every child to `main` before merging anything works just as well. A
+merge commit or a rebase merge skips the replay step altogether, which is an
+argument for not squashing a stack.
+
+**`git rebase --onto main $(git merge-base HEAD @{u})` is a trap** on a branch
+level with its upstream: the merge base is `HEAD`, so nothing is replayed and
+the branch ends up on `main` with its own commit gone from the tip. The reflog
+gets it back. Plain `git rebase main` is what is wanted.
 
 **Three labels carry the state of an issue** — `todo` for ready to start,
 `backlog` for waiting on something, `in-progress` for a branch that exists.

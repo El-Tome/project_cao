@@ -1,5 +1,6 @@
 use std::path::{Path, PathBuf};
 
+use crate::PartFileError;
 use crate::ports::Files;
 
 /// File extension used for a CAO part document.
@@ -10,7 +11,17 @@ pub(crate) const PART_EXTENSION: &str = "caopart";
 /// A part whose file would land on one already there is stepped past rather
 /// than written over: `create_in` has no second chance to give back what it
 /// overwrote.
-pub(crate) fn free_in(files: &impl Files, dir: &Path, wanted: &str) -> (String, PathBuf) {
+///
+/// A name nothing survives is refused rather than replaced: which word an
+/// untitled part carries is the interface's to choose, not this crate's.
+pub(crate) fn free_in(
+    files: &impl Files,
+    dir: &Path,
+    wanted: &str,
+) -> Result<(String, PathBuf), PartFileError> {
+    if sanitize(wanted).is_empty() {
+        return Err(PartFileError::BlankName);
+    }
     let taken = |name: &str| files.exists(&path_in(dir, name));
     let name = if taken(wanted) {
         (2..)
@@ -21,7 +32,7 @@ pub(crate) fn free_in(files: &impl Files, dir: &Path, wanted: &str) -> (String, 
         wanted.to_string()
     };
     let path = path_in(dir, &name);
-    (name, path)
+    Ok((name, path))
 }
 
 fn path_in(dir: &Path, name: &str) -> PathBuf {
@@ -39,22 +50,27 @@ fn sanitize(name: &str) -> String {
             }
         })
         .collect();
-    let trimmed = cleaned.trim();
-    if trimmed.is_empty() {
-        "Sans titre".to_string()
-    } else {
-        trimmed.to_string()
-    }
+    cleaned.trim().to_string()
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    use crate::adapters::InMemoryFiles;
+
     #[test]
     fn a_name_a_filesystem_would_refuse_becomes_one_it_accepts() {
         assert_eq!(sanitize("Bras/gauche"), "Bras_gauche");
-        assert_eq!(sanitize("  "), "Sans titre");
         assert_eq!(sanitize(" Support 12 "), "Support 12");
+    }
+
+    #[test]
+    fn a_name_that_is_only_blanks_is_refused_rather_than_replaced_here() {
+        let files = InMemoryFiles::default();
+        assert!(matches!(
+            free_in(&files, Path::new("/parts"), "   "),
+            Err(PartFileError::BlankName)
+        ));
     }
 }

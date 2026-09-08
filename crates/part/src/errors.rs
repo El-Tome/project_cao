@@ -15,4 +15,6 @@ pub enum PartFileError {
     MissingEntry(String),
     #[error("part written by an unsupported schema version (v{0})")]
     UnsupportedVersion(u32),
+    #[error("a part file cannot be named with blanks alone")]
+    BlankName,
 }

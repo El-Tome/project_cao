@@ -5,7 +5,7 @@
 //! The angles never repeat the same pair, so a drift that wandered instead of
 //! leaning one way would be caught too.
 
-use cao_sketch::{DimensionTarget, Sketch, WorkPlane};
+use cao_sketch::{Constraint, DimensionTarget, Element, LengthOutcome, Sketch, WorkPlane};
 use glam::DVec2;
 
 const SCALE: f64 = 1.0;
@@ -86,4 +86,60 @@ fn a_shape_the_solve_only_carries_comes_out_as_it_went_in() {
             was[rank],
         );
     }
+}
+
+/// A chain fixed at both ends: the two outer arms are each free to turn about
+/// their own anchor, and the elbow between them is cut from both. Its two
+/// ends are hinges owned by two different blocks, neither of which answers
+/// for the other's turn — a shape no single rotation can keep, since the two
+/// arms are free to turn to angles that leave the elbow's own corners further
+/// apart than it is long.
+///
+/// Measured: with the weld in place, the drawing notices it cannot keep the
+/// elbow and settles the whole chain around it instead, the elbow's own
+/// traits growing to at most 2.5 times their drawn length. Without the weld
+/// the block-preserving pass reports itself satisfied while the elbow alone
+/// stretches past 3.5 times — the far arm kept exactly rigid throughout, so
+/// nothing else gives any sign that the elbow was ever bent.
+#[test]
+fn a_trait_hinged_to_two_other_blocks_settles_instead_of_multiplying_in_length() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let o = Sketch::ORIGIN;
+    let a = sketch.add_point(DVec2::new(40.0, 5.0));
+    let b = sketch.add_point(DVec2::new(70.0, 45.0));
+    let m = sketch.add_point(DVec2::new(85.0, 55.0));
+    let c = sketch.add_point(DVec2::new(95.0, 70.0));
+    let e = sketch.add_point(DVec2::new(130.0, 80.0));
+    let far = sketch.add_point(DVec2::new(160.0, 120.0));
+
+    sketch.add_segment(o, a);
+    let first = sketch.add_segment(a, b);
+    let elbow_in = sketch.add_segment(b, m);
+    let elbow_out = sketch.add_segment(m, c);
+    let second = sketch.add_segment(c, e);
+    sketch.add_segment(e, far);
+
+    sketch.add_constraint(Constraint::Fixed {
+        element: Element::Point(far),
+    });
+    sketch.add_constraint(Constraint::Perpendicular {
+        first,
+        second: elbow_in,
+    });
+    sketch.add_constraint(Constraint::Perpendicular {
+        first: elbow_out,
+        second,
+    });
+
+    let bm = sketch.point(b).distance(sketch.point(m));
+    let mc = sketch.point(m).distance(sketch.point(c));
+    assert_eq!(sketch.resolve(SCALE), LengthOutcome::Exact);
+
+    let now_bm = sketch.point(b).distance(sketch.point(m));
+    let now_mc = sketch.point(m).distance(sketch.point(c));
+    assert!(
+        now_bm < bm * 2.5 && now_mc < mc * 2.5,
+        "the elbow multiplied in length rather than the drawing settling around it: \
+         ({bm}, {mc}) then ({now_bm}, {now_mc})",
+    );
 }

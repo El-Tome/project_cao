@@ -1,141 +1,137 @@
-# Réglages, profils et personnalisation
+# Settings, profiles and customisation
 
-Voir aussi : [navigation](navigation.md) · [viewport](viewport.md) ·
+See also: [navigation](navigation.md) · [viewport](viewport.md) ·
 [interface](interface.md) · [architecture](ARCHITECTURE.md)
 
-L'objectif du projet est que le maximum de choses soit réglable plutôt que codé
-en dur. Tout vit dans `cao_core`, sans dépendance à l'interface, et tout est
-sérialisable : un réglage qui ne peut pas être écrit dans un fichier ne peut ni
-être conservé ni être partagé.
+The aim of the project is that as much as possible be configurable rather than
+hard-coded. It all lives in `cao_prefs`, with no dependency on the interface,
+and it is all serialisable: a setting that cannot be written to a file can
+neither be kept nor shared.
 
-## L'écran de préférences
+## The preferences screen
 
-Bouton ⚙ de la barre d'outils, ou `Cmd/Ctrl + ,`. Six sections :
+The ⚙ button of the toolbar, or `Cmd/Ctrl + ,`. Six sections:
 
-| Section | Ce qu'on y règle |
+| Section | What is set there |
 | --- | --- |
-| **Profils** | Changer, dupliquer, supprimer, importer, exporter, tout remettre par défaut |
-| **Viewport** | Cube d'orientation, grille et aimants, règle, limites de la caméra |
-| **Navigation** | Habitudes souris, sensibilités, gestes du trackpad |
-| **Apparence** | Le fond, et toutes les couleurs et épaisseurs |
-| **Raccourcis** | La touche de chaque commande |
-| **Barre d'outils** | L'emplacement, le logo, et l'arrangement des boutons |
+| **Profils** | Switch, duplicate, delete, import, export, reset everything |
+| **Viewport** | Orientation cube, grid and magnets, ruler, camera bounds |
+| **Navigation** | Mouse habits, sensitivities, trackpad gestures |
+| **Apparence** | The background, and every colour and width |
+| **Raccourcis** | The key of each command |
+| **Barre d'outils** | The place, the logo, and the arrangement of the buttons |
 
-Tout est appliqué immédiatement et écrit sur disque dans la foulée : il n'y a
-pas de bouton « valider », donc pas de réglage perdu parce qu'on a fermé la
-fenêtre.
+Everything is applied at once and written to disk in the same breath: there is
+no "apply" button, so no setting lost because a window was closed.
 
-## Les profils
+## The profiles
 
-Un profil est un **jeu de réglages complet**, avec un nom. C'est l'unité de
-tout le reste : ce qu'on enregistre, ce qu'on remet à zéro, ce qu'on donne à
-quelqu'un.
+A profile is a **complete set of settings**, with a name. It is the unit of
+everything else: what is saved, what is reset, what is handed to somebody.
 
-- Le profil **Par défaut** existe toujours et ne peut pas être supprimé : il
-  reste de quoi revenir quand une expérience tourne mal.
-- Deux profils ne peuvent pas porter le même nom — ils seraient impossibles à
-  distinguer dans la liste. Un nom déjà pris devient « … 2 ».
-- **Tout remettre par défaut** ne touche que le profil actif.
+- The **Par défaut** profile always exists and cannot be deleted: there is
+  always something to come back to when an experiment goes wrong.
+- Two profiles cannot carry the same name — they would be impossible to tell
+  apart in the list. A name already taken becomes "… 2".
+- **Resetting everything** touches the active profile only.
 
-### Partager
+### Sharing
 
-Un profil s'exporte dans un fichier `.caoprofile` (du JSON), et s'importe
-depuis un tel fichier — y compris celui de quelqu'un d'autre. Un profil importé
-arrive comme un profil de plus, il ne remplace rien.
+A profile exports to a `.caoprofile` file (JSON), and imports from such a file
+— somebody else's included. An imported profile arrives as one more profile, it
+replaces nothing.
 
-Chaque champ a une valeur par défaut, donc **un profil écrit par une version qui
-connaissait moins de réglages se charge quand même** : ceux qu'il ignore gardent
-leur valeur d'origine. Seul un numéro de version différent est refusé.
+Every field has a default value, so **a profile written by a version that knew
+fewer settings still loads**: the ones it does not know keep their original
+value. Only a different version number is refused.
 
-Les raccourcis utilisent un modificateur « commande » qui vaut Ctrl sur Windows
-et Linux, Cmd sur macOS. Un profil partagé entre machines se lit donc
-correctement des deux côtés.
+Shortcuts use a "command" modifier worth Ctrl on Windows and Linux, Cmd on
+macOS. A profile shared between machines therefore reads correctly on both
+sides.
 
-Tout est écrit dans `settings.json`, dans le dossier de configuration de l'OS.
-Un fichier illisible n'empêche pas l'application de démarrer : elle repart des
-valeurs par défaut, faute de quoi l'utilisateur n'aurait aucun moyen d'entrer
-pour le réparer.
+It is all written to `settings.json`, in the configuration folder of the OS. An
+unreadable file does not stop the application from starting: it goes back to
+the default values, failing which the user would have no way in to repair it.
 
-## L'apparence
+## Appearance
 
-### Le fond
+### The background
 
-Uni, dégradé linéaire à n'importe quel angle, ou dégradé radial dont on place le
-centre et le rayon. Dans les deux cas la couleur est décrite par une **liste
-d'arrêts** — on en ajoute et on en retire à volonté. Les dégradés à deux
-couleurs sont ce qu'on demande en premier et ceux à trois juste après ; une
-liste ne coûte pas plus cher à dessiner.
+Plain, a linear gradient at any angle, or a radial gradient whose centre and
+radius one places. In both cases the colour is described by a **list of
+stops** — they are added and removed at will. Two-colour gradients are what one
+asks for first and three-colour ones just after; a list costs no more to draw.
 
-Le fond est émis en coordonnées écran, sans caméra : il ne bouge pas quand la
-vue tourne. Changer de type de dégradé conserve les couleurs déjà choisies,
-sinon essayer les trois serait fastidieux.
+The background is emitted in screen coordinates, with no camera: it does not
+move when the view turns. Changing the kind of gradient keeps the colours
+already chosen, otherwise trying all three would be tedious.
 
-### Les couleurs
+### The colours
 
-Tout ce que le viewport dessine : les trois axes et leur épaisseur, les deux
-niveaux de grille, les trois états d'une esquisse (libre, contrainte, autre
-esquisse), les cotes, la teinte des aires, la matière, le survol, et les deux
-couleurs d'extrusion. Plus aucune couleur du viewport n'est codée en dur : une
-couleur qui vit dans une constante quelque part est une couleur que personne ne
-peut changer.
+Everything the viewport draws: the three axes and their width, the two levels
+of grid, the three states of a sketch (free, constrained, another sketch), the
+dimensions and the ones that only report, what a rule holds in place, the marks
+of those rules, the tint of the areas, the matter, the hover, and the two
+extrusion colours. No colour of the viewport is hard-coded any more: a colour
+that lives in a constant somewhere is a colour nobody can change.
 
-Les couleurs sont stockées en sRGB — l'espace des sélecteurs de couleur — et
-converties une fois, là où la géométrie est construite.
+Colours are stored in sRGB — the space of colour pickers — and converted once,
+where the geometry is built.
 
-## Les raccourcis
+## The shortcuts
 
-Cliquer un raccourci puis appuyer sur la touche voulue ; les modificateurs tenus
-au moment de la frappe sont pris avec. Une touche déjà utilisée est **retirée à
-l'autre commande** : deux commandes sur la même touche en rendraient une
-inatteignable sans dire pourquoi.
+Click a shortcut then press the wanted key; the modifiers held at the moment of
+the keystroke are taken with it. A key already in use is **taken away from the
+other command**: two commands on the same key would make one of them
+unreachable without saying why.
 
-Un raccourci ne part jamais pendant qu'un champ de texte a le clavier : taper
-« 50 » dans une cote ne doit pas aussi déclencher ce à quoi 5 et 0 sont liés. Et
-un raccourci dont le bouton est grisé ne fait rien non plus.
+A shortcut never fires while a text field has the keyboard: typing "50" into a
+dimension must not also trigger whatever 5 and 0 are bound to. And a shortcut
+whose button is greyed out does nothing either.
 
-## La barre d'outils
+## The toolbar
 
-L'emplacement est libre : en haut, en bas, à gauche, à droite, ou flottante.
+The place is free: at the top, at the bottom, on the left, on the right, or
+floating.
 
-Les boutons sont un **arbre**. Un groupe contient des commandes, des séparateurs
-et **d'autres groupes, aussi profond qu'on veut**. Les groupes du premier niveau
-sont les onglets ; un niveau plus bas, un groupe est étalé sur place avec son nom
-à côté ; plus profond encore, il devient un menu qui s'ouvre au clic — étaler un
-troisième niveau pousserait tout le reste hors de la barre, et il n'y a pas de
-fond à la profondeur possible.
+The buttons are a **tree**. A group holds commands, separators and **other
+groups, as deep as one likes**. The groups of the first level are the tabs; one
+level down, a group is spread out where it is with its name beside it; deeper
+still, it becomes a menu that opens on click — spreading out a third level
+would push everything else off the bar, and there is no bottom to the possible
+depth.
 
-L'éditeur permet de sélectionner une entrée, la monter, la descendre, la faire
-entrer dans le groupe juste au-dessus, l'en sortir, la retirer, créer des
-groupes, les renommer, et ajouter n'importe quelle commande depuis la palette.
+The editor allows selecting an entry, moving it up, moving it down, taking it
+into the group just above, taking it back out, removing it, creating groups,
+renaming them, and adding any command from the palette.
 
-Une barre arrangée à la main **reçoit les outils ajoutés plus tard**, chacun
-dans le groupe où la barre standard le place. Sans cela, une barre réorganisée
-une fois n'entendrait plus jamais parler d'un nouvel outil : les boutons neufs
-existeraient pour un profil neuf et pour personne d'autre. Ce que l'utilisateur
-a arrangé n'est pas touché ; seul ce qui manque est ajouté.
+A bar arranged by hand **receives the tools added later**, each in the group
+where the standard bar puts it. Without that, a bar reorganised once would
+never hear of a new tool again: the new buttons would exist for a new profile
+and for nobody else. What the user arranged is not touched; only what is
+missing is added.
 
-Un emplacement pour le **logo** existe déjà, avec son texte, en attendant qu'il
-y ait une image à y mettre.
+A place for the **logo** already exists, with its text, until there is a
+picture to put there.
 
-## Une seule liste de commandes
+## One single list of commands
 
-Un bouton et un raccourci sont deux façons de demander la même chose, donc il
-n'y a qu'une liste : `cao_core::Command`. Les deux chemins aboutissent à la même
-fonction. Deux chemins séparés finiraient par diverger, et un raccourci qui fait
-*presque* ce que fait son bouton est pire que pas de raccourci.
+A button and a shortcut are two ways of asking the same thing, so there is only
+one list: `cao_prefs::Command`. Both paths end at the same function. Two
+separate paths would end up diverging, and a shortcut that does *almost* what
+its button does is worse than no shortcut.
 
-C'est aussi ce qui fait qu'ajouter une commande est un seul geste : elle
-apparaît d'elle-même dans la palette de la barre d'outils et dans la liste des
-raccourcis.
+That is also what makes adding a command a single gesture: it appears by itself
+in the palette of the toolbar and in the list of shortcuts.
 
-## Ce qui n'est pas encore réglable
+## What is not configurable yet
 
-- La durée de l'animation de changement de vue (0,35 s) et le champ de vision de
-  la caméra (45°).
-- La largeur des bords du cube qui sélectionnent une arête ou un coin (22 %).
-- Le logo est un texte : il n'y a pas encore de fichier image à charger.
-- Les couleurs de l'interface elle-même (panneaux, boutons) sont celles d'egui ;
-  seul le viewport suit le thème.
-- Les gestes souris passent par des préréglages (Fusion, SolidWorks, Blender) et
-  ne se règlent pas bouton par bouton.
-- Aucun réglage n'est propre à une pièce : tout est global.
+- The duration of the view-change animation (0.35 s) and the field of view of
+  the camera (45°).
+- The width of the cube borders that select an edge or a corner (22 %).
+- The logo is a text: there is no image file to load yet.
+- The colours of the interface itself (panels, buttons) are egui's; only the
+  viewport follows the theme.
+- Mouse gestures go through presets (Fusion, SolidWorks, Blender) and are not
+  set button by button.
+- No setting belongs to a part: everything is global.

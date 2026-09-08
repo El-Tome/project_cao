@@ -54,7 +54,7 @@ Les vrais domaines, ceux qui ne dépendent de rien, sont `cao_sketch` et
 | Plan de travail, passage 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection` |
 | Aires fermées, pour extruder | `sketch/src/regions.rs` | `Sketch::regions()` |
 
-Détail fonctionnel : [`esquisse.md`](esquisse.md).
+Détail fonctionnel : [`sketch.md`](sketch.md).
 
 ## Volumes — `cao_solid`
 
@@ -102,7 +102,7 @@ Détail fonctionnel : [`historique.md`](historique.md),
 | Axes, grille, fond, solides | `render/src/geometry.rs` | `push_axes`, `push_grid`, `push_background`, `push_solid` |
 | Contrôle visuel hors fenêtre | `render/examples/offscreen.rs` | `cargo run -p cao_render --example offscreen -- /tmp` |
 
-Détail fonctionnel : [`rendu.md`](rendu.md), [`viewport.md`](viewport.md).
+Détail fonctionnel : [`render.md`](render.md), [`viewport.md`](viewport.md).
 
 ## Interface — `cao_app`
 

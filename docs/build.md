@@ -1,65 +1,85 @@
-# Compiler et distribuer
+# Building and shipping
 
-Voir aussi : [architecture](ARCHITECTURE.md)
+See also: [architecture](ARCHITECTURE.md)
 
-## Lancer en développement
+## Running in development
 
 ```sh
 cargo run -p cao_app
 ```
 
-## Exécutable Windows depuis macOS
+## A Windows executable from macOS
 
-Le projet se compile de façon croisée vers Windows sans machine Windows.
+The project cross-compiles to Windows without a Windows machine.
 
-Prérequis, une seule fois :
+Prerequisites, once:
 
 ```sh
 rustup target add x86_64-pc-windows-gnu
-brew install mingw-w64          # Debian/Ubuntu : apt install mingw-w64
+brew install mingw-w64          # Debian/Ubuntu: apt install mingw-w64
 ```
 
-Puis :
+Then:
 
 ```sh
 ./scripts/build-windows.sh
 ```
 
-L'exécutable sort dans `target/x86_64-pc-windows-gnu/release/cao.exe`
-(~29 Mo). Il ne dépend que des DLL système de Windows — pas de DLL mingw à
-copier à côté : le fichier `.exe` seul suffit, on le copie sur la machine
-Windows et on double-clique.
+The executable comes out at `target/x86_64-pc-windows-gnu/release/cao.exe`
+(~29 MB). It depends on nothing but the system DLLs of Windows — no mingw DLL
+to carry alongside: the `.exe` on its own is enough, copied onto the Windows
+machine and double-clicked.
 
-Le linker est déjà configuré dans `.cargo/config.toml`, donc
-`cargo build --release -p cao_app --target x86_64-pc-windows-gnu` fonctionne
-aussi directement.
+The linker is already set up in `.cargo/config.toml`, so
+`cargo build --release -p cao_app --target x86_64-pc-windows-gnu` works
+directly too.
 
-### Détails
+### Details
 
-- En release, l'exécutable est marqué comme application graphique
-  (`windows_subsystem = "windows"`) : pas de fenêtre de console noire au
-  lancement. En debug la console reste, pour voir les panics et les logs.
-- La cible utilisée est `gnu` (mingw) et non `msvc`, parce que `msvc` demande
-  les en-têtes et bibliothèques Microsoft, qui ne sont pas librement
-  redistribuables. Le rendu passe par DX12 ou Vulkan dans les deux cas.
+- In release the executable is marked as a graphical application
+  (`windows_subsystem = "windows"`): no black console window on launch. In
+  debug the console stays, so panics and logs can be read.
+- The target is `gnu` (mingw) rather than `msvc`, because `msvc` wants the
+  Microsoft headers and libraries, which are not freely redistributable.
+  Rendering goes through DX12 or Vulkan either way.
 
-## Quand ça plante
+## When it crashes
 
-Une application graphique sous Windows n'ouvre pas de console : un panic n'y
-laisse rien à lire, et « ça a planté » est tout ce qu'on a. Chaque panic est
-donc écrit à la suite dans un fichier :
+A graphical application on Windows opens no console: a panic leaves nothing to
+read, and "it crashed" is all one gets. Every panic is therefore appended to a
+file:
 
-| Système | Fichier |
+| System | File |
 | --- | --- |
 | macOS | `~/Library/Application Support/dev.cao.cao/plantages.log` |
 | Windows | `%APPDATA%\cao\cao\data\plantages.log` |
 | Linux | `~/.local/share/cao/plantages.log` |
 
-Il contient l'heure, le message et la pile d'appels. Le message part aussi vers
-le terminal quand il y en a un.
+It holds the time, the message and the call stack. The message also goes to the
+terminal when there is one.
 
-## Autres plateformes
+## Continuous integration
 
-Linux et macOS se compilent nativement avec `cargo build --release -p cao_app`.
-Il n'y a pas encore d'intégration continue ni de paquets d'installation
-(`.msi`, `.dmg`, AppImage) : c'est à faire quand le logiciel sera distribué.
+`.github/workflows/ci.yml` runs on **every push, on any branch** — pull request
+or not. Four jobs in parallel: formatting (`cargo fmt --all --check`), Clippy
+(`--workspace --all-targets`, `-D warnings`), the tests
+(`cargo test --workspace`), and the cross-compilation to Windows through the
+very same `scripts/build-windows.sh` as above.
+
+That last job **publishes the executable as an artefact** (`cao-windows`), but
+only from `main`: keeping one `.exe` per branch push would serve nobody and
+fill the quota.
+
+What is checked is the **tip of the branch**, not its merge with `main`: a
+branch that went green last week can still break `main` today, and that is what
+the rebase before a merge is for.
+
+The first three also run locally before every commit
+(`scripts/verifier.sh`, called by `.githooks/pre-commit`), and
+`crates/app/tests/gate.rs` fails if the two lists stop agreeing.
+
+## Other platforms
+
+Linux and macOS compile natively with `cargo build --release -p cao_app`. There
+are no installer packages yet (`.msi`, `.dmg`, AppImage): that comes when the
+software is distributed.

@@ -1,6 +1,6 @@
 # Historique, annulation et format de fichier
 
-Voir aussi : [esquisse](esquisse.md) · [architecture](ARCHITECTURE.md)
+Voir aussi : [esquisse](sketch.md) · [architecture](ARCHITECTURE.md)
 
 ## Le principe : la pièce est sa liste d'opérations
 
@@ -84,7 +84,7 @@ décalerait le rang de tous les suivants, et chaque cote enregistrée contre ces
 rangs désignerait alors un autre morceau du dessin — silencieusement.
 
 C'est ce qui permet d'annuler une suppression comme n'importe quelle autre
-étape, et de la rejouer à l'identique. Voir [esquisse.md](esquisse.md).
+étape, et de la rejouer à l'identique. Voir [sketch.md](sketch.md).
 
 ## Le format de fichier
 

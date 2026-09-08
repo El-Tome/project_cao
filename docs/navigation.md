@@ -1,77 +1,73 @@
-# Naviguer dans la vue
+# Moving around the view
 
-Voir aussi : [viewport](viewport.md) · [configuration](configuration.md)
+See also: [viewport](viewport.md) · [configuration](configuration.md)
 
-## À la souris (préréglage Fusion 360)
+## With a mouse (Fusion 360 habits)
 
-| Geste | Action |
+| Gesture | Action |
 | --- | --- |
-| Molette | Zoom |
-| Clic molette + glisser | Déplacement (pan) |
-| Maj + clic molette + glisser | Orbite |
-| Clic sur le cube | Voir [viewport](viewport.md) |
+| Wheel | Zoom |
+| Middle click + drag | Pan |
+| Shift + middle click + drag | Orbit |
+| Click on the cube | See [viewport](viewport.md) |
 
-## Au trackpad
+## On a trackpad
 
-| Geste | Action |
+| Gesture | Action |
 | --- | --- |
-| Deux doigts | Déplacement (pan) |
-| Maj + deux doigts | Orbite |
-| Pincer | Zoom |
-| Alt + clic gauche + glisser | Orbite |
-| Alt + Maj + clic gauche + glisser | Déplacement |
+| Two fingers | Pan |
+| Shift + two fingers | Orbit |
+| Pinch | Zoom |
+| Alt + left click + drag | Orbit |
+| Alt + Shift + left click + drag | Pan |
 
-Molette de souris et défilement à deux doigts arrivent dans le même flux
-d'événements ; ils sont distingués par leur unité (lignes pour une molette,
-pixels pour un trackpad), ce qui permet de garder « molette = zoom » sans que
-le trackpad zoome à toute vitesse.
+A mouse wheel and a two-finger scroll arrive in the same stream of events; they
+are told apart by their unit (lines for a wheel, pixels for a trackpad), which
+is what keeps "wheel = zoom" without the trackpad zooming at full tilt.
 
-C'est aussi pour ça que la molette a **sa propre sensibilité**
-(`wheel_zoom_sensitivity`) : un cran de molette vaut *une ligne*, quand un
-geste de trackpad vaut des centaines de *pixels*. Partager un même réglage
-rendait forcément l'un des deux inutilisable — la molette avançait d'un
-demi-pourcent par cran pendant que Ctrl + molette faisait des bonds.
+That is also why the wheel has a **sensitivity of its own**
+(`wheel_zoom_sensitivity`): one notch of a wheel is worth *one line*, where a
+trackpad gesture is worth hundreds of *pixels*. Sharing a single setting was
+bound to make one of the two unusable — the wheel crept half a percent per
+notch while Ctrl + wheel leapt.
 
-Ctrl (ou Cmd) + molette et Ctrl + deux doigts zooment aussi, à la même vitesse
-que le geste sans modificateur : ce n'est plus un raccourci « turbo ».
+Ctrl (or Cmd) + wheel and Ctrl + two fingers zoom too, at the same speed as the
+gesture without the modifier: it is no longer a "turbo" shortcut.
 
-Les gestes du trackpad sont réglables (`TrackpadConfig`) : chacun des deux
-défilements peut être `Pan`, `Orbit`, `Zoom` ou `Ignore`.
+The trackpad gestures are configurable (`TrackpadConfig`): each of the two
+scrolls can be `Pan`, `Orbit`, `Zoom` or `Ignore`.
 
-## Autres préréglages
+## Other habits
 
-`NavigationPreset` propose aussi `SolidWorks` (clic molette = orbite, Ctrl +
-clic molette = pan) et `Blender` (clic molette = orbite, Maj + clic molette =
-pan). Le préréglage est un champ de la configuration du viewport ; il n'y a pas
-encore d'écran de préférences pour en changer.
+`NavigationPreset` also offers `SolidWorks` (middle click = orbit, Ctrl +
+middle click = pan) and `Blender` (middle click = orbit, Shift + middle click =
+pan). The preset is a field of the viewport configuration, and the settings
+screen offers the three as buttons, under "Habitudes".
 
-## Comportement de la caméra
+## How the camera behaves
 
-La caméra est **orbitale** : elle tourne autour d'un point cible, avec un
-lacet (yaw), un tangage (pitch) et une distance. Elle ne peut donc jamais
-rouler, et le tangage est borné à ±90°.
+The camera is **orbital**: it turns around a target point, with a yaw, a pitch
+and a distance. It can therefore never roll, and the pitch is bounded to ±90°.
 
-Ce paramétrage évite un piège classique : avec une matrice `look_at` et un
-vecteur « haut » fixe, regarder droit vers le bas est une position dégénérée
-qui fait basculer l'image. Ici, la vue de dessus est un angle comme un autre.
+This parametrisation avoids a classic trap: with a `look_at` matrix and a fixed
+"up" vector, looking straight down is a degenerate position that flips the
+image. Here the top view is one angle like any other.
 
-- **Zoom** : exponentiel, donc un cran de molette a le même effet visuel qu'on
-  soit à 1 mm ou à 10 m de la pièce. Les plans proche et lointain suivent la
-  distance, ce qui garde la précision de profondeur utilisable à toute échelle.
-  La distance est bornée (`min_distance`, `max_distance`, par défaut 1 µm à
-  1 000 km) : une borne doit exister, la caméra et le rendu travaillant en
-  `f32`, mais elle
-  est réglable et assez lointaine pour cadrer un assemblage entier.
-- **Pan** : converti en unités monde selon la distance, pour que la pièce suive
-  exactement le curseur.
-- **Orbite** : fait toujours repasser en vue 3D libre (voir
-  [viewport](viewport.md)).
+- **Zoom**: exponential, so one notch of the wheel has the same visual effect
+  whether one is 1 mm or 10 m from the part. The near and far planes follow the
+  distance, which keeps depth precision usable at every scale. The distance is
+  bounded (`min_distance`, `max_distance`, 1 µm to 1 000 km by default): a bound
+  has to exist, the camera and the rendering working in `f32`, but it is
+  configurable and far enough out to frame a whole assembly.
+- **Pan**: converted into world units according to the distance, so the part
+  follows the cursor exactly.
+- **Orbit**: always returns to the free 3D view (see [viewport](viewport.md)).
 
-Une orbite ou un pan commencé sur le canvas continue même si le curseur en
-sort, comme dans tout logiciel de CAO.
+An orbit or a pan begun on the canvas carries on even if the cursor leaves it,
+as in every CAD program.
 
-## Ce qui n'existe pas encore
+## What does not exist yet
 
-Le tactile et le stylet ne sont pas gérés : c'est prévu pour le portage
-tablette, et cela demandera un vrai jeu de gestes (pincer pour zoomer, deux
-doigts pour orbiter) en plus des liaisons souris décrites ici.
+Touch and stylus are not handled: that is meant for the tablet port, and it
+will want a real set of gestures (pinch to zoom, two fingers to orbit) on top
+of the mouse bindings described here.

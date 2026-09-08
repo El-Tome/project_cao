@@ -107,9 +107,10 @@ pub fn show(ui: &mut egui::Ui, editor: &mut SketchEditor) -> Vec<Command> { /* .
 ```
 
 `SketchEditor`, `ViewportState` and `Ribbon` are already presenters. They have
-simply not been separated from their views yet: `viewport.rs` is 4 234 lines
-where the camera, hit-testing, the keyboard, gestures and annotation drawing
-share one file, and none of it can be exercised without opening a window.
+simply not been separated from their views yet: `viewport.rs`, the largest file
+in the repository, is where the camera, hit-testing, the keyboard, gestures and
+annotation drawing share one file, and none of it can be exercised without
+opening a window.
 
 ## Primitives
 

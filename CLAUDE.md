@@ -191,6 +191,12 @@ does not. Where the two disagree, this file and the architecture test win.
   pushing to the remote is fine.
 - Keep the documentation spread over several files rather than one, so that
   finding the part that covers a given file stays easy.
+- **No line count in prose.** A figure written in a document is exact at the
+  commit that writes it and false at the next one — a `cargo fmt` was enough.
+  Say the order of magnitude, or name the largest. The only lengths that carry a
+  rule live in `crates/app/tests/architecture.rs`, which fails when they drift.
+  A counter that *is* the point of a document — the split of `cao_core` in
+  `docs/contexts.md`, the wording budget — is the exception, and it earns a test.
 - Ask, at any point, when something is unclear, when the request is ambiguous,
   or when information is missing — before acting.
 - Before starting a task, pull, and check whether an existing branch already

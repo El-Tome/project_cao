@@ -95,8 +95,8 @@ faire passer un test rouge cache un bug — c'est le moment de s'arrêter.
 
 ## Les zones sans filet
 
-`sketch/src/solver.rs` (1 470 lignes), `sketch/src/constraints.rs` (283) et tout
-`crates/app/` (~6 400) n'ont **aucun test**. Le solveur concentre à lui seul
+`sketch/src/solver.rs`, `sketch/src/constraints.rs` et tout `crates/app/` n'ont
+**aucun test**. Le solveur concentre à lui seul
 quatre correctifs récents.
 
 Y toucher se fait en trois temps :

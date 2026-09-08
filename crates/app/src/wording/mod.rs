@@ -7,3 +7,4 @@
 //! directory to pass under rather than a hunt.
 
 pub mod shortcuts;
+pub mod toolbar;

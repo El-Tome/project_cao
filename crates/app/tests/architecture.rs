@@ -73,7 +73,7 @@ const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 7] = [
     ("crates/part/src/history.rs", 19),
     ("crates/prefs/src/command.rs", 39),
     ("crates/prefs/src/settings.rs", 1),
-    ("crates/prefs/src/toolbar.rs", 4),
+    ("crates/prefs/src/toolbar.rs", 1),
     ("crates/sketch/src/constraints.rs", 4),
     ("crates/sketch/src/plane.rs", 1),
 ];
@@ -91,7 +91,7 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
     ("crates/app/src/screens/viewport.rs", 4234),
     ("crates/part/src/history.rs", 539),
     ("crates/part/src/state.rs", 1297),
-    ("crates/prefs/src/toolbar.rs", 475),
+    ("crates/prefs/src/toolbar.rs", 457),
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/geometry.rs", 556),
     ("crates/render/src/renderer.rs", 426),

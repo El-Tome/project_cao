@@ -22,16 +22,6 @@ impl Edge {
         Self::Floating,
     ];
 
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Top => "En haut",
-            Self::Bottom => "En bas",
-            Self::Left => "À gauche",
-            Self::Right => "À droite",
-            Self::Floating => "Flottante",
-        }
-    }
-
     /// Whether the toolbar runs down the window rather than across it.
     pub fn is_vertical(self) -> bool {
         matches!(self, Self::Left | Self::Right)
@@ -55,14 +45,6 @@ impl Item {
         Self::Group {
             name: name.to_string(),
             items,
-        }
-    }
-
-    pub fn label(&self) -> String {
-        match self {
-            Self::Command(command) => command.label().to_string(),
-            Self::Group { name, .. } => name.clone(),
-            Self::Separator => "— séparateur —".to_string(),
         }
     }
 

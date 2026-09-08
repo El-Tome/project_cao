@@ -36,7 +36,9 @@ pub(crate) fn null_space(
     }
 
     // Anything left once the constraints have had their say is free movement.
-    let mut free: Vec<Vec<f64>> = Vec::new();
+    // The free directions join the basis they are reduced against, which is
+    // why one growing array does for both: the two are never read apart.
+    let held = basis.len();
     for index in 0..variables {
         // A pinned point cannot move, so it is not a direction to consider.
         if pinned.get(index / 2).copied().unwrap_or(false) {
@@ -45,13 +47,11 @@ pub(crate) fn null_space(
         let mut candidate = vec![0.0; variables];
         candidate[index] = 1.0;
 
-        let mut combined = basis.clone();
-        combined.extend(free.iter().cloned());
-        if let Some(direction) = reduce(&candidate, &combined) {
-            free.push(direction);
+        if let Some(direction) = reduce(&candidate, &basis) {
+            basis.push(direction);
         }
     }
-    free
+    basis.split_off(held)
 }
 
 /// True when `candidate` says nothing the others do not already say.

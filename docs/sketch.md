@@ -652,6 +652,15 @@ What is counted opposite are the **unknowns**: two per point, one per circle.
 Only the origin is not among them — it is the one point known in advance not to
 move.
 
+Both answers come out of the same Gram–Schmidt pass: each direction is stripped
+of what the equations already hold, and whatever survives is a move still
+possible. A direction found that way is itself something the next one must be
+stripped of, so it joins the basis instead of being kept beside it — the two
+were once held apart and reconciled by copying the basis on every column, which
+cost as many copies as the drawing has unknowns squared. The arithmetic behind
+the answer is cubic and stays cubic; a drawing of a few hundred points is read
+in tens of milliseconds.
+
 ### A frozen point no longer moves with the mouse
 
 A green vertex does not answer the Selection tool. Pulling it would silently

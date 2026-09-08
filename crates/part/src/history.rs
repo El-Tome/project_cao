@@ -22,22 +22,6 @@ pub enum ExtrusionMode {
     Cut,
 }
 
-impl ExtrusionMode {
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Add => "Ajout de matière",
-            Self::Cut => "Enlèvement de matière",
-        }
-    }
-
-    pub fn hint(self) -> &'static str {
-        match self {
-            Self::Add => "Sélectionner des aires fermées, donner une hauteur",
-            Self::Cut => "Sélectionner des aires fermées, donner une profondeur",
-        }
-    }
-}
-
 /// What a face is swept around.
 ///
 /// Either one of the sketch's own axes, or a line the user drew. A drawn line
@@ -47,15 +31,6 @@ impl ExtrusionMode {
 pub enum RevolutionAxis {
     Sketch(SketchAxis),
     Segment(SegmentId),
-}
-
-impl RevolutionAxis {
-    pub fn label(self) -> String {
-        match self {
-            Self::Sketch(axis) => axis.label().to_string(),
-            Self::Segment(segment) => format!("trait {}", segment.0),
-        }
-    }
 }
 
 /// One step of the part's history. Replaying the list from the start rebuilds
@@ -171,197 +146,7 @@ pub enum Operation {
     },
 }
 
-/// A value as it reads in the history: a dimension taken from the drawing
-/// itself is a full float, and "Cote 60.878967 mm" is unreadable.
-fn short(value: f64) -> String {
-    let text = format!("{value:.2}");
-    match text.contains('.') {
-        true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
-        false => text,
-    }
-}
-
 impl Operation {
-    /// Short name for the history tree.
-    pub fn label(&self) -> String {
-        match self {
-            Self::CreateSketch { plane } => format!("Esquisse — {}", plane.label()),
-            Self::AddPoint { .. } => "Point".to_string(),
-            Self::AddSegment { .. } => "Trait".to_string(),
-            Self::AddRectangle { .. } => "Rectangle".to_string(),
-            Self::AddCircle { .. } => "Cercle".to_string(),
-            Self::MovePoint { .. } | Self::MoveMany { .. } => "Déplacement".to_string(),
-            Self::MoveDimension { .. } => "Cote déplacée".to_string(),
-            Self::Constrain { constraint, .. } => constraint.label().to_string(),
-            Self::EraseMany {
-                elements,
-                dimensions,
-                constraints,
-                ..
-            } => match (
-                elements.as_slice(),
-                dimensions.as_slice(),
-                constraints.as_slice(),
-            ) {
-                ([Element::Point(_)], [], []) => "Point supprimé".to_string(),
-                ([Element::Segment(_)], [], []) => "Trait supprimé".to_string(),
-                ([Element::Circle(_)], [], []) => "Cercle supprimé".to_string(),
-                ([], [_], []) => "Cote supprimée".to_string(),
-                ([], [], [rule]) => format!("{} supprimée", rule.label()),
-                _ => format!(
-                    "{} éléments supprimés",
-                    elements.len() + dimensions.len() + constraints.len()
-                ),
-            },
-            Self::MergePoints { .. } => "Sommets fusionnés".to_string(),
-            Self::Revolve { angle, mode, .. } => {
-                let verb = match mode {
-                    ExtrusionMode::Add => "Révolution",
-                    ExtrusionMode::Cut => "Révolution creusée",
-                };
-                format!("{verb} {angle}°")
-            }
-            Self::Extrude { distance, mode, .. } => {
-                let verb = match mode {
-                    ExtrusionMode::Add => "Extrusion",
-                    ExtrusionMode::Cut => "Enlèvement",
-                };
-                format!("{verb} {distance} mm")
-            }
-            Self::SetDimension { target, value, .. } => {
-                let value = short(*value);
-                match target {
-                    DimensionTarget::Angle { .. } => format!("Angle {value}°"),
-                    DimensionTarget::AxisAngle { axis, .. } => {
-                        format!("Angle {value}° / {}", axis.label())
-                    }
-                    DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-                    DimensionTarget::Diameter(_) => format!("Diamètre {value} mm"),
-                    DimensionTarget::Projected { axis, .. } => match axis {
-                        cao_sketch::SketchAxis::U => format!("Largeur {value} mm"),
-                        cao_sketch::SketchAxis::V => format!("Hauteur {value} mm"),
-                    },
-                    DimensionTarget::PointToSegment { .. }
-                    | DimensionTarget::Length(_)
-                    | DimensionTarget::Distance { .. } => format!("Cote {value} mm"),
-                }
-            }
-        }
-    }
-
-    /// The line shown when a history entry is unfolded.
-    pub fn detail(&self) -> String {
-        match self {
-            Self::CreateSketch { plane } => format!(
-                "Plan d'origine ({:.0}, {:.0}, {:.0})",
-                plane.normal().x,
-                plane.normal().y,
-                plane.normal().z
-            ),
-            Self::AddPoint { sketch, position } => {
-                format!("Esquisse {sketch} · ({:.1}, {:.1})", position.x, position.y)
-            }
-            Self::AddSegment { sketch, start, end } => {
-                format!(
-                    "Esquisse {sketch} · {} → {}",
-                    point_label(start),
-                    point_label(end)
-                )
-            }
-            Self::AddRectangle {
-                sketch,
-                corner,
-                opposite,
-            } => format!(
-                "Esquisse {sketch} · {} → {}",
-                point_label(corner),
-                point_label(opposite)
-            ),
-            Self::AddCircle { sketch, radius, .. } => {
-                format!("Esquisse {sketch} · rayon {radius:.2}")
-            }
-            Self::MovePoint {
-                sketch,
-                point,
-                position,
-            } => format!(
-                "Esquisse {sketch} · point {} vers ({:.1}, {:.1})",
-                point.0, position.x, position.y
-            ),
-            Self::MoveMany { sketch, points, by } => format!(
-                "Esquisse {sketch} · {} points de ({:.1}, {:.1})",
-                points.len(),
-                by.x,
-                by.y
-            ),
-            Self::MoveDimension { sketch, offset, .. } => format!(
-                "Esquisse {sketch} · décalage ({:.1}, {:.1})",
-                offset.x, offset.y
-            ),
-            Self::Extrude { sketch, picks, .. } => {
-                format!("Esquisse {sketch} · {} aire(s)", picks.len())
-            }
-            Self::Constrain { sketch, constraint } => {
-                format!("Esquisse {sketch} · {}", constraint.label())
-            }
-            Self::EraseMany {
-                sketch,
-                elements,
-                dimensions,
-                constraints,
-            } => format!(
-                "Esquisse {sketch} · {} tracé(s), {} cote(s), {} contrainte(s)",
-                elements.len(),
-                dimensions.len(),
-                constraints.len()
-            ),
-            Self::MergePoints {
-                sketch,
-                kept,
-                dropped,
-            } => format!("Esquisse {sketch} · points {} et {}", kept.0, dropped.0),
-            Self::Revolve {
-                sketch,
-                picks,
-                axis,
-                ..
-            } => format!(
-                "Esquisse {sketch} · {} aire(s) autour de {}",
-                picks.len(),
-                axis.label()
-            ),
-            Self::SetDimension { sketch, target, .. } => match target {
-                DimensionTarget::Distance { from, to } => {
-                    format!("Esquisse {sketch} · points {} et {}", from.0, to.0)
-                }
-                DimensionTarget::Length(segment) => {
-                    format!("Esquisse {sketch} · trait {}", segment.0)
-                }
-                DimensionTarget::Angle { first, second } => {
-                    format!("Esquisse {sketch} · traits {} et {}", first.0, second.0)
-                }
-                DimensionTarget::AxisAngle { segment, axis } => {
-                    format!("Esquisse {sketch} · trait {} / {}", segment.0, axis.label())
-                }
-                DimensionTarget::PointToSegment { point, segment } => {
-                    format!(
-                        "Esquisse {sketch} · point {} au trait {}",
-                        point.0, segment.0
-                    )
-                }
-                DimensionTarget::Projected { from, to, axis } => format!(
-                    "Esquisse {sketch} · points {} et {} sur l'{}",
-                    from.0,
-                    to.0,
-                    axis.label()
-                ),
-                DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
-                    format!("Esquisse {sketch} · cercle {}", circle.0)
-                }
-            },
-        }
-    }
-
     /// True for the operations that open a new feature in the tree, and under
     /// which the following ones are grouped.
     pub(crate) fn starts_feature(&self) -> bool {
@@ -369,13 +154,6 @@ impl Operation {
             self,
             Self::CreateSketch { .. } | Self::Extrude { .. } | Self::Revolve { .. }
         )
-    }
-}
-
-fn point_label(point: &PointRef) -> String {
-    match point {
-        PointRef::Existing(id) => format!("point {}", id.0),
-        PointRef::New(position) => format!("({:.1}, {:.1})", position.x, position.y),
     }
 }
 

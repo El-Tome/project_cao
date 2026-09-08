@@ -2,6 +2,8 @@ use cao_part::PartDocument;
 use cao_part::feature::Feature;
 use cao_part::history::Operation;
 
+use crate::wording;
+
 /// The history panel: everything done to the part, newest last, with the steps
 /// that have been undone shown greyed out below the current position.
 ///
@@ -51,9 +53,10 @@ pub fn show(ui: &mut egui::Ui, document: &PartDocument) -> HistoryAction {
         }
 
         for feature in &features {
-            let header = egui::CollapsingHeader::new(operations[feature.start].label())
-                .id_salt(feature.start)
-                .default_open(true);
+            let header =
+                egui::CollapsingHeader::new(wording::history::label(&operations[feature.start]))
+                    .id_salt(feature.start)
+                    .default_open(true);
             let response = header.show(ui, |ui| {
                 // Only overwrite on an actual click: a later group with
                 // nothing clicked must not erase an earlier one.
@@ -120,13 +123,17 @@ fn entry(ui: &mut egui::Ui, operation: &Operation, step: usize, applied: usize) 
     let is_current = step + 1 == applied;
     let undone = step >= applied;
 
-    let mut text = egui::RichText::new(format!("{}. {}", step + 1, operation.label()));
+    let mut text = egui::RichText::new(format!(
+        "{}. {}",
+        step + 1,
+        wording::history::label(operation)
+    ));
     if undone {
         text = text.weak().italics();
     }
 
     let response = ui
         .selectable_label(is_current, text)
-        .on_hover_text(operation.detail());
+        .on_hover_text(wording::history::detail(operation));
     response.clicked()
 }

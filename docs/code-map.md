@@ -11,7 +11,7 @@ which folder, what it may import, what size it does not exceed — that is
 ## The six crates
 
 ```
-cao_app  ──►  cao_core  ──►  cao_sketch
+cao_app  ──►  cao_part  ──►  cao_sketch
    │             └────────►  cao_solid
    ├──────────►  cao_prefs
    └──────────►  cao_render
@@ -22,11 +22,11 @@ cao_app  ──►  cao_core  ──►  cao_sketch
 | `cao_sketch` | sketch model, constraints, solver | `glam`, `serde` |
 | `cao_solid` | mesh, extrusion, booleans | `glam`, `serde` |
 | `cao_render` | GPU rendering of the viewport | `wgpu`, `glam`, `bytemuck` |
-| `cao_core` | document, history, persistence of a part | both domains |
+| `cao_part` | document, history, persistence of a part | both domains |
 | `cao_prefs` | theme, shortcuts, toolbar, profiles, recents | `serde`, `directories` |
 | `cao_app` | desktop shell, routing between modes | everything |
 
-An arrow to the left is forbidden: `cao_sketch` will never know `cao_core`,
+An arrow to the left is forbidden: `cao_sketch` will never know `cao_part`,
 `cao_render` will never know `cao_app`.
 
 No length is written down here: a figure in prose is exact at the commit that
@@ -34,11 +34,10 @@ writes it and false at the next. The only lengths that carry a rule — the file
 over the budget of 400 lines — are held by `crates/app/tests/architecture.rs`,
 which fails when they move.
 
-**A warning about the name.** `cao_core` presents itself as "the domain types",
-but it depends on `cao_sketch` and `cao_solid` and orchestrates sketch, solid,
-history and persistence: it is in truth the **application** layer. The real
-domains, the ones that depend on nothing, are `cao_sketch` and `cao_solid`. A
-geometry rule goes in one of the two, not in `cao_core`.
+**The real domains are `cao_sketch` and `cao_solid`** — they are the two that
+depend on nothing. `cao_part` depends on both and orchestrates sketch, solid,
+history and persistence: it is the **application** layer. A geometry rule goes
+in one of the two domains, never there.
 
 ## Drawing and dimensioning — `cao_sketch`
 
@@ -66,7 +65,7 @@ What it does: [`sketch.md`](sketch.md).
 
 What it does: [`extrusion.md`](extrusion.md).
 
-## History and persistence — `cao_core`
+## History and persistence — `cao_part`
 
 | What one is after | File | Way in |
 | --- | --- | --- |
@@ -138,7 +137,7 @@ would end up diverging.
 `enum Screen` and its own module in `screens/`, never a branch grafted onto an
 existing module.
 
-**`cao_core` depends on no UI crate.** That is the condition for a future
+**`cao_part` depends on no UI crate.** That is the condition for a future
 tablet or web front-end to reuse it as it is.
 
 **`cao_app` is to stay a thin shell.** That is an aim, not an observation: it is

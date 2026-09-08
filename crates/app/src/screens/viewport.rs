@@ -1,5 +1,5 @@
-use cao_core::PartDocument;
-use cao_core::history::{Operation, PointRef};
+use cao_part::PartDocument;
+use cao_part::history::{Operation, PointRef};
 use cao_prefs::ViewportConfig;
 use cao_prefs::config::{Binding, PointerButton, TrackpadGesture, ViewportCorner};
 use cao_prefs::theme::{Background, Rgba, Theme};
@@ -1064,7 +1064,7 @@ fn pick_areas(
         && response.clicked()
         && let Some(segment) = sketch.nearest_segment(cursor, scale.world_size_of(8.0))
     {
-        context.extrusion.axis = cao_core::RevolutionAxis::Segment(segment);
+        context.extrusion.axis = cao_part::RevolutionAxis::Segment(segment);
         return;
     }
 
@@ -1504,7 +1504,7 @@ fn draw_circle(
         CircleMode::ThreePoints => places.clone(),
         CircleMode::TwoTangents | CircleMode::ThreeTangents => Vec::new(),
     };
-    let rim: Vec<cao_core::PointRef> = rim
+    let rim: Vec<cao_part::PointRef> = rim
         .into_iter()
         .filter(|place| place.distance(found.center) > 1e-6)
         .map(|place| point_ref_at(context, index, place, snap))
@@ -1850,7 +1850,7 @@ fn place_dimension(
     });
 
     context.editor.select(Some(target), Some(value));
-    context.editor.message = matches!(outcome, Some(cao_core::DimensionOutcome::Reference))
+    context.editor.message = matches!(outcome, Some(cao_part::DimensionOutcome::Reference))
         .then(|| REDUNDANT_WARNING.to_string());
     true
 }
@@ -2758,7 +2758,7 @@ fn push_chosen_areas(
         return;
     };
 
-    let cutting = context.extrusion.mode == Some(cao_core::ExtrusionMode::Cut);
+    let cutting = context.extrusion.mode == Some(cao_part::ExtrusionMode::Cut);
     let chosen = if cutting {
         tint(theme.extrusion_cut)
     } else {
@@ -2807,8 +2807,8 @@ fn push_revolution_axis(
     context: &SketchContext<'_>,
 ) {
     let (origin, direction) = match context.extrusion.axis {
-        cao_core::RevolutionAxis::Sketch(axis) => (DVec2::ZERO, axis.direction()),
-        cao_core::RevolutionAxis::Segment(segment) => {
+        cao_part::RevolutionAxis::Sketch(axis) => (DVec2::ZERO, axis.direction()),
+        cao_part::RevolutionAxis::Segment(segment) => {
             if segment.0 >= sketch.segments().len() {
                 return;
             }
@@ -4069,7 +4069,7 @@ fn apply_dimension_value(
         value,
         placement: None,
     }) {
-        Some(cao_core::DimensionOutcome::ScaleDefined {
+        Some(cao_part::DimensionOutcome::ScaleDefined {
             millimeters_per_unit,
         }) => {
             context.editor.message = Some(format!(
@@ -4077,16 +4077,16 @@ fn apply_dimension_value(
             ));
             true
         }
-        Some(cao_core::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact)) => {
+        Some(cao_part::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact)) => {
             context.editor.message = None;
             true
         }
-        Some(cao_core::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::BestEffort)) => {
+        Some(cao_part::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::BestEffort)) => {
             context.editor.message =
                 Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
             true
         }
-        Some(cao_core::DimensionOutcome::Reference) => {
+        Some(cao_part::DimensionOutcome::Reference) => {
             context.editor.message = Some(REDUNDANT_WARNING.to_string());
             true
         }

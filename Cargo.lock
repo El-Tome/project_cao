@@ -546,7 +546,7 @@ dependencies = [
 name = "cao_app"
 version = "0.1.0"
 dependencies = [
- "cao_core",
+ "cao_part",
  "cao_prefs",
  "cao_render",
  "cao_sketch",
@@ -559,7 +559,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "cao_core"
+name = "cao_part"
 version = "0.1.0"
 dependencies = [
  "cao_sketch",

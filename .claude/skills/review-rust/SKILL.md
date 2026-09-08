@@ -78,7 +78,7 @@ What the test cannot see:
       **English**. Text the user reads in **French**, and only in `cao_app`.
 - [ ] No new French wording below `cao_app` — the layer underneath returns a
       named case.
-- [ ] `cao_core` imports no interface crate.
+- [ ] `cao_part` imports no interface crate.
 - [ ] Files and folders in **snake_case**, and none of them named `utils`,
       `helpers`, `common`, `misc`, `shared`, `manager` or `handler`. A name that
       says nothing is where responsibilities come to hide.

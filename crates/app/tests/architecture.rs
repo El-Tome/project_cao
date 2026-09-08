@@ -23,7 +23,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "core", "prefs", "app"];
+const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "part", "prefs", "app"];
 
 /// The graph as it is, not a list of permissions. The test compares this with
 /// the `cao_*` dependencies every manifest actually declares, so an edge named
@@ -33,12 +33,12 @@ const ALLOWED_EDGES: [(&str, &[&str]); 6] = [
     ("sketch", &[]),
     ("solid", &[]),
     ("render", &[]),
-    ("core", &["cao_sketch", "cao_solid"]),
+    ("part", &["cao_sketch", "cao_solid"]),
     ("prefs", &[]),
     (
         "app",
         &[
-            "cao_core",
+            "cao_part",
             "cao_prefs",
             "cao_render",
             "cao_sketch",
@@ -63,15 +63,15 @@ const REACHES_OUTSIDE: [&str; 6] = [
 /// the commit that gives the file its port, and no entry is added ahead of the
 /// code that needs it.
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 4] = [
-    "crates/core/src/document.rs",
+    "crates/part/src/document.rs",
     "crates/prefs/src/recents.rs",
     "crates/prefs/src/settings.rs",
     "crates/prefs/src/storage.rs",
 ];
 
 const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 8] = [
-    ("crates/core/src/errors.rs", 2),
-    ("crates/core/src/history.rs", 19),
+    ("crates/part/src/errors.rs", 2),
+    ("crates/part/src/history.rs", 19),
     ("crates/prefs/src/command.rs", 39),
     ("crates/prefs/src/settings.rs", 1),
     ("crates/prefs/src/shortcuts.rs", 5),
@@ -91,8 +91,8 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
     ("crates/app/src/screens/settings.rs", 801),
     ("crates/app/src/screens/sketch.rs", 432),
     ("crates/app/src/screens/viewport.rs", 4234),
-    ("crates/core/src/history.rs", 539),
-    ("crates/core/src/state.rs", 1297),
+    ("crates/part/src/history.rs", 539),
+    ("crates/part/src/state.rs", 1297),
     ("crates/prefs/src/toolbar.rs", 475),
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/geometry.rs", 556),
@@ -204,7 +204,7 @@ fn the_two_geometry_crates_stay_alone_with_their_maths() {
 
 #[test]
 fn no_interface_crate_is_ever_pulled_in_below_the_shell() {
-    for directory in ["sketch", "solid", "render", "core", "prefs"] {
+    for directory in ["sketch", "solid", "render", "part", "prefs"] {
         let declared = declared_dependencies(&manifest(directory));
         for interface in INTERFACE_CRATES {
             assert!(
@@ -214,7 +214,7 @@ fn no_interface_crate_is_ever_pulled_in_below_the_shell() {
         }
     }
 
-    for directory in ["sketch", "solid", "core", "prefs"] {
+    for directory in ["sketch", "solid", "part", "prefs"] {
         assert!(
             !declared_dependencies(&manifest(directory)).contains("wgpu"),
             "crates/{directory} depends on wgpu: the GPU stops at cao_render",

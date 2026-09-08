@@ -42,7 +42,7 @@ mod tests {
 
 **Integration**, in `crates/<crate>/tests/`, when the test crosses several
 modules or hammers the system. An existing model:
-`crates/core/tests/stress_tangent.rs`.
+`crates/part/tests/stress_tangent.rs`.
 
 Test names are **complete English sentences** that say the behaviour, not the
 function called. That is the established usage:
@@ -63,7 +63,7 @@ The whole workspace takes ~12 s. During the red/green loop, aim narrower:
 ```sh
 cargo test -p cao_sketch                      # one crate
 cargo test -p cao_sketch tangent              # the tests whose name holds "tangent"
-cargo test -p cao_core --test stress_tangent  # one integration file
+cargo test -p cao_part --test stress_tangent  # one integration file
 ```
 
 The whole workspace once, before committing — the gate will do it anyway.
@@ -109,7 +109,7 @@ On the solver, prefer **properties** to hard-coded values: after solving, a
 tangency still holds, an equality constraint stays true, an entirely
 constrained figure no longer moves. The exact numbers of an iterative solver
 change at the slightest adjustment; the properties do not.
-`crates/core/tests/stress_tangent.rs` gives the model: a pseudo-random
+`crates/part/tests/stress_tangent.rs` gives the model: a pseudo-random
 generator hammers a configuration and checks it never falls apart.
 
 ## What is tested, and how

@@ -1,5 +1,5 @@
-use cao_core::PartDocument;
-use cao_core::history::Operation;
+use cao_part::PartDocument;
+use cao_part::history::Operation;
 
 /// The history panel: everything done to the part, newest last, with the steps
 /// that have been undone shown greyed out below the current position.

@@ -15,7 +15,7 @@ new file goes** — which folder, what it may import — that is
 ## The six crates and the direction of the dependencies
 
 ```
-cao_app  ──►  cao_core  ──►  cao_sketch
+cao_app  ──►  cao_part  ──►  cao_sketch
    │             └────────►  cao_solid
    ├──────────►  cao_prefs
    └──────────►  cao_render
@@ -26,10 +26,10 @@ cao_app  ──►  cao_core  ──►  cao_sketch
 `cao_prefs` knows neither the geometry nor the interface. `cao_app` is the only
 one that sees `egui`/`eframe`.
 
-**Mind the name.** `cao_core` presents itself as "the domain types", but it
-depends on `cao_sketch` and `cao_solid` and orchestrates sketch, solid, history
-and persistence: it is the **application** layer. The real domains are
-`cao_sketch` and `cao_solid`. See the `architecture-rust` skill.
+**The real domains are `cao_sketch` and `cao_solid`** — they depend on nothing.
+`cao_part` depends on both and orchestrates sketch, solid, history and
+persistence: it is the **application** layer, and a geometry rule never goes
+there. See the `architecture-rust` skill.
 
 ## Behaviour → file
 
@@ -55,7 +55,7 @@ and persistence: it is the **application** layer. The real domains are
 | Turning an area around an axis | `solid/src/mesh.rs` | `revolution(...)` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 
-### History and persistence — `cao_core`
+### History and persistence — `cao_part`
 
 | What one is after | File | Way in |
 | --- | --- | --- |
@@ -123,7 +123,7 @@ where geometry is produced, `PartState::apply`.
 to `enum Screen` and its own module in `screens/`. Never a branch grafted onto
 an existing module.
 
-**`cao_core` depends on no UI crate.** That is the condition for a future
+**`cao_part` depends on no UI crate.** That is the condition for a future
 tablet or web front-end to reuse it as it is. No `egui`, no `eframe`, no
 `winit`, no `wgpu`.
 

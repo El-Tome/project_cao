@@ -46,10 +46,10 @@ cargo run -p cao_app
 
 ## The shape of the workspace
 
-- `crates/core` (`cao_core`) — the application layer: it orchestrates sketch,
-  solid, history and persistence. It is not the domain, whatever its name
-  suggests. With no UI dependency at all, so reusable as it is by a future
-  web or tablet front-end.
+- `crates/part` (`cao_part`) — the application layer: it orchestrates sketch,
+  solid, history and persistence. It is not a domain; the two domains are
+  `cao_sketch` and `cao_solid`. With no UI dependency at all, so reusable as it
+  is by a future web or tablet front-end.
 - `crates/prefs` (`cao_prefs`) — theme, shortcuts, toolbar, profiles, recent
   files, with no geometry and no UI.
 - `crates/sketch` (`cao_sketch`) — the sketch model and the application of

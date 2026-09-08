@@ -1,5 +1,5 @@
 [package]
-name = "cao_core"
+name = "cao_part"
 version.workspace = true
 edition.workspace = true
 license.workspace = true

@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use crate::locations::Locations;
 use crate::ports::Files;
-use crate::storage::{StorageError, project_dirs};
+use crate::storage::StorageError;
 
 /// How many recent parts we remember and show in the start menu.
 pub const MAX_RECENTS: usize = 10;
@@ -25,21 +26,21 @@ pub struct RecentList {
 }
 
 impl RecentList {
-    fn state_path() -> Result<PathBuf, StorageError> {
-        Ok(project_dirs()?.config_dir().join("recents.json"))
+    fn state_path(at: &Locations) -> PathBuf {
+        at.config.join("recents.json")
     }
 
-    pub fn load(files: &impl Files) -> Result<Self, StorageError> {
-        let path = Self::state_path()?;
+    pub fn load(files: &impl Files, at: &Locations) -> Result<Self, StorageError> {
+        let path = Self::state_path(at);
         if !files.exists(&path) {
             return Ok(Self::default());
         }
         Ok(serde_json::from_slice(&files.read(&path)?)?)
     }
 
-    pub fn save(&self, files: &impl Files) -> Result<(), StorageError> {
+    pub fn save(&self, files: &impl Files, at: &Locations) -> Result<(), StorageError> {
         let json = serde_json::to_string_pretty(self)?;
-        Ok(files.write(&Self::state_path()?, json.as_bytes())?)
+        Ok(files.write(&Self::state_path(at), json.as_bytes())?)
     }
 
     pub fn entries(&self) -> &[RecentEntry] {
@@ -75,13 +76,13 @@ mod tests {
     use super::*;
     use crate::adapters::InMemoryFiles;
 
-    fn at(text: &str) -> DateTime<Utc> {
+    fn at_hour(text: &str) -> DateTime<Utc> {
         text.parse().expect("a date")
     }
 
     #[test]
     fn a_recent_part_carries_the_hour_it_was_handed() {
-        let opened = at("2026-01-02T09:00:00Z");
+        let opened = at_hour("2026-01-02T09:00:00Z");
         let mut recents = RecentList::default();
 
         recents.push("/parts/support.caopart", "Support", opened);
@@ -95,13 +96,17 @@ mod tests {
         recents.push(
             "/parts/support.caopart",
             "Support",
-            at("2026-01-02T09:00:00Z"),
+            at_hour("2026-01-02T09:00:00Z"),
         );
-        recents.push("/parts/bride.caopart", "Bride", at("2026-01-02T09:01:00Z"));
+        recents.push(
+            "/parts/bride.caopart",
+            "Bride",
+            at_hour("2026-01-02T09:01:00Z"),
+        );
         recents.push(
             "/parts/support.caopart",
             "Support",
-            at("2026-01-02T09:02:00Z"),
+            at_hour("2026-01-02T09:02:00Z"),
         );
 
         let paths: Vec<&PathBuf> = recents.entries().iter().map(|e| &e.path).collect();
@@ -115,17 +120,61 @@ mod tests {
     }
 
     #[test]
+    fn the_recent_parts_are_written_where_the_platform_says_and_read_back_from_there() {
+        let at = Locations {
+            config: "/config".into(),
+            data: "/data".into(),
+            documents: None,
+        };
+        let files = InMemoryFiles::default();
+        let mut recents = RecentList::default();
+        recents.push(
+            "/parts/support.caopart",
+            "Support",
+            at_hour("2026-01-02T09:00:00Z"),
+        );
+
+        recents.save(&files, &at).expect("the list is written");
+
+        assert!(
+            files.exists(Path::new("/config/recents.json")),
+            "the platform decides where, not the library",
+        );
+        assert_eq!(
+            RecentList::load(&files, &at).expect("reads").entries()[0].name,
+            "Support",
+        );
+    }
+
+    #[test]
+    fn a_list_nobody_has_written_yet_opens_empty() {
+        let at = Locations {
+            config: "/config".into(),
+            data: "/data".into(),
+            documents: None,
+        };
+
+        let recents = RecentList::load(&InMemoryFiles::default(), &at).expect("nothing to read");
+
+        assert!(recents.entries().is_empty());
+    }
+
+    #[test]
     fn a_part_that_moved_away_stops_being_offered() {
         let files = InMemoryFiles::default();
         files
             .write(Path::new("/parts/support.caopart"), b"PK")
             .expect("writes");
         let mut recents = RecentList::default();
-        recents.push("/parts/bride.caopart", "Bride", at("2026-01-02T09:00:00Z"));
+        recents.push(
+            "/parts/bride.caopart",
+            "Bride",
+            at_hour("2026-01-02T09:00:00Z"),
+        );
         recents.push(
             "/parts/support.caopart",
             "Support",
-            at("2026-01-02T09:01:00Z"),
+            at_hour("2026-01-02T09:01:00Z"),
         );
 
         recents.prune_missing(&files);
@@ -142,7 +191,7 @@ mod tests {
             recents.push(
                 format!("/parts/piece-{index}.caopart"),
                 "Piece",
-                at("2026-01-02T09:00:00Z"),
+                at_hour("2026-01-02T09:00:00Z"),
             );
         }
 

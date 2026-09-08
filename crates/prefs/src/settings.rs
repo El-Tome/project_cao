@@ -3,9 +3,10 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use crate::config::ViewportConfig;
+use crate::locations::Locations;
 use crate::ports::Files;
 use crate::shortcuts::Shortcuts;
-use crate::storage::{StorageError, project_dirs};
+use crate::storage::StorageError;
 use crate::theme::Theme;
 use crate::toolbar::ToolbarLayout;
 
@@ -95,8 +96,8 @@ impl Default for Profiles {
 pub const DEFAULT_PROFILE: &str = "default";
 
 impl Profiles {
-    fn state_path() -> Result<PathBuf, StorageError> {
-        Ok(project_dirs()?.config_dir().join("settings.json"))
+    fn state_path(at: &Locations) -> PathBuf {
+        at.config.join("settings.json")
     }
 
     /// Reads the settings, falling back to the defaults rather than failing.
@@ -104,12 +105,12 @@ impl Profiles {
     /// A settings file that cannot be read must not stop the application from
     /// starting: the user would be left with no way in, and no way to fix it
     /// from inside.
-    pub fn load(files: &impl Files) -> Self {
-        Self::read(files).unwrap_or_default()
+    pub fn load(files: &impl Files, at: &Locations) -> Self {
+        Self::read(files, at).unwrap_or_default()
     }
 
-    fn read(files: &impl Files) -> Result<Self, StorageError> {
-        let path = Self::state_path()?;
+    fn read(files: &impl Files, at: &Locations) -> Result<Self, StorageError> {
+        let path = Self::state_path(at);
         if !files.exists(&path) {
             return Ok(Self::default());
         }
@@ -126,9 +127,9 @@ impl Profiles {
         Ok(profiles)
     }
 
-    pub fn save(&self, files: &impl Files) -> Result<(), StorageError> {
+    pub fn save(&self, files: &impl Files, at: &Locations) -> Result<(), StorageError> {
         let json = serde_json::to_string_pretty(self)?;
-        Ok(files.write(&Self::state_path()?, json.as_bytes())?)
+        Ok(files.write(&Self::state_path(at), json.as_bytes())?)
     }
 
     pub fn names(&self) -> impl Iterator<Item = &str> {
@@ -299,6 +300,42 @@ mod tests {
         profile.export(&files, &path).expect("writes");
 
         assert_eq!(Profile::import(&files, &path).expect("reads"), profile);
+    }
+
+    #[test]
+    fn the_profiles_are_written_where_the_platform_says_and_read_back_from_there() {
+        let at = Locations {
+            config: "/config".into(),
+            data: "/data".into(),
+            documents: None,
+        };
+        let files = InMemoryFiles::default();
+        let mut profiles = Profiles::default();
+        profiles.add(Profile::new("Atelier", changed()));
+
+        profiles
+            .save(&files, &at)
+            .expect("the settings are written");
+
+        assert!(
+            files.exists(Path::new("/config/settings.json")),
+            "the platform decides where, not the library",
+        );
+        assert_eq!(Profiles::load(&files, &at).active_name(), "Atelier");
+    }
+
+    #[test]
+    fn settings_nobody_has_written_yet_open_on_the_defaults() {
+        let at = Locations {
+            config: "/config".into(),
+            data: "/data".into(),
+            documents: None,
+        };
+
+        assert_eq!(
+            Profiles::load(&InMemoryFiles::default(), &at),
+            Profiles::default(),
+        );
     }
 
     #[test]

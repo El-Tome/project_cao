@@ -5,6 +5,8 @@
 mod adapters;
 mod app;
 mod autosave;
+mod crash;
+mod remembered;
 mod screens;
 mod shortcuts;
 mod wording;
@@ -15,7 +17,10 @@ mod wording;
 pub const MSAA_SAMPLES: u16 = 4;
 
 fn main() -> eframe::Result<()> {
-    cao_prefs::record_panics();
+    let locations = adapters::locations::discover();
+    if let Some(at) = &locations {
+        crash::record_panics(at);
+    }
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default().with_inner_size([1280.0, 800.0]),
         multisampling: MSAA_SAMPLES,
@@ -28,6 +33,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "CAO",
         options,
-        Box::new(|cc| Ok(Box::new(app::CaoApp::new(cc)))),
+        Box::new(|cc| Ok(Box::new(app::CaoApp::new(cc, locations)))),
     )
 }

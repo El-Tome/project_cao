@@ -73,9 +73,10 @@ also held three unrelated things:
 
 | What | Went to | Why |
 | --- | --- | --- |
-| `StorageError` | split in two | `cao_part` got `PartFileError`, with `Archive` and `MissingEntry`; `cao_prefs` kept `StorageError`, with `NoProjectDirs`. `Io`, `Json` and `UnsupportedVersion` sit on both. |
-| `project_dirs()` | `cao_prefs` | `document.rs` never calls it — it takes the directory as a parameter. Every caller is a preference. |
-| `default_projects_dir()`, `crash_log_path()`, `record_panics()` | `cao_prefs` | Planned for `cao_app`, and they stayed: all three go through `project_dirs()`, so moving them up would have exported it. `cao_app` calls them from `app.rs` and `main.rs`. |
+| `StorageError` | split in two | `cao_part` got `PartFileError`, with `Archive` and `MissingEntry`; `cao_prefs` kept `StorageError`. `Io`, `Json` and `UnsupportedVersion` sit on both. |
+| `project_dirs()` | `cao_prefs`, then `cao_app` | It stayed one move longer than planned because every caller was a preference. #44 turned what it answers into a `Locations` value, and the asking became `app/src/adapters/locations.rs`. |
+| `default_projects_dir()` | `cao_prefs` | A pure function of a `Locations` since #44, and testable for the first time. |
+| `crash_log_path()`, `record_panics()` | `cao_app` | Planned for the shell, held back by `project_dirs()`, and moved with it in #44: a panic hook is a process concern and its timestamp is presentation. |
 
 The cut cost one variant and two `#[from]` duplicated. The three alternatives
 all cost more: moving `storage.rs` whole would have made `cao_part` depend on
@@ -102,7 +103,8 @@ scaffold to erect now and fill later.
 
 So moves 1 and 2 were flat `git mv`s, one file each, and no folder appeared.
 `cao_prefs` earned the same two folders with #43, which put `settings.rs` and
-`recents.rs` behind a trait; #44 still owes it the directories they write into.
+`recents.rs` behind a trait, and #44 handed them the directories they write
+into.
 
 **Its `trait Files` is its own, not the part's, and the three methods are the
 same three.** The graph forbids `cao_prefs` from reaching into `cao_part`, and a

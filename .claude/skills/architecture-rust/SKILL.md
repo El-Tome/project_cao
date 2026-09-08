@@ -37,11 +37,11 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_part`,
 | `cao_solid` | `glam`, `serde` — nothing else | everything else |
 | `cao_render` | `wgpu`, `glam`, `bytemuck` | any interface framework |
 | `cao_part` | `cao_sketch`, `cao_solid`, `glam`, `zip`, `serde`, `serde_json`, `chrono`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
-| `cao_prefs` | `serde`, `serde_json`, `directories`, `chrono`, `thiserror` | **any UI crate**, `wgpu`, the geometry |
-| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam`, `chrono` | — |
+| `cao_prefs` | `serde`, `serde_json`, `chrono`, `thiserror` | **any UI crate**, `wgpu`, the geometry |
+| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam`, `chrono`, `directories` | — |
 
-`cao_prefs` is the only crate that names `directories`: where the platform keeps
-things is a preferences concern, and #44 will put it behind a port.
+`cao_app` is the only crate that names `directories`, since #44: the shell asks
+the platform once, at startup, and hands the answer down as a `Locations`.
 
 **A dependency for the tests counts.** `crates/app/tests/architecture.rs` reads
 every table that declares an edge — `[dev-dependencies]` and
@@ -201,19 +201,20 @@ as an example. A second one — a crate called `cao_core` whose documentation
 claimed "domain types" — was closed by #28, which renamed it after what it
 holds.
 
-### I/O is hardwired below the boundary
+### I/O is hardwired below the boundary — settled
 
-In `crates/prefs/src/`, `recents.rs`, `settings.rs` and `storage.rs` call
-`std::fs`, `directories::ProjectDirs` and `chrono::Local::now()` directly.
-`crates/part/src/document.rs` was the fourth: #42 gave it the `Files` port and
-#41 handed it the hour, and it is off the list.
+`crates/prefs/src/` called `std::fs`, `directories::ProjectDirs` and
+`chrono::Local::now()` from `recents.rs`, `settings.rs` and `storage.rs`;
+`crates/part/src/document.rs` was a fourth. #41 handed the hour over, #42 and
+#43 gave the `Files` port, and #44 turned the directories into a `Locations`
+value the shell reads. `FILES_ALLOWED_TO_REACH_OUTSIDE` is empty, and the
+architecture test now fails on the first file added back to it.
 
-It shows in the tests: they write into `std::env::temp_dir()`, create real
-directories and delete them with `remove_dir_all`. They are slow, they depend on
-the environment, and two tests landing on the same directory tread on each
-other.
-
-The architecture test lists those three files and refuses a fourth.
+It used to show in the tests: they wrote into `std::env::temp_dir()`, created
+real directories and deleted them with `remove_dir_all` — slow, dependent on
+the environment, and two of them landing on the same directory trod on each
+other. What is left of that is the crash log, which is a real file by nature
+and lives in the shell.
 
 ## The rule of ports
 

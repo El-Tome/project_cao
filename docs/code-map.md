@@ -124,12 +124,9 @@ Détail fonctionnel : [`interface.md`](interface.md),
 
 ## Les invariants
 
-**Les nombres.** Le noyau — esquisse, solveur, solide, booléens — calcule en
-`f64`. La caméra, le rendu et l'interface sont en `f32`, parce que c'est ce que
-le GPU et `egui` prennent. La conversion se fait au dernier moment, à chaque
-passage de frontière. Le `f32` ne garde que sept chiffres : une pièce d'un mètre
-décrite en millimètres n'a plus qu'un pas de 6·10⁻⁵ mm, et l'erreur s'accumule
-dans les booléens — c'est ce qui avait fait boucler la partition de l'espace.
+**Les nombres.** Le noyau calcule en `f64`, la caméra et le rendu en `f32`, et
+la conversion se fait à chaque passage de frontière. Le raisonnement est dans
+[`ARCHITECTURE.md`](ARCHITECTURE.md), en un seul exemplaire.
 
 **La géométrie n'est jamais enregistrée.** Un `.caopart` contient ses
 métadonnées et son historique d'opérations, rien d'autre. La géométrie est

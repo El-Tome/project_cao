@@ -5,6 +5,7 @@
 
 mod document;
 mod errors;
+pub mod feature;
 mod file_name;
 pub mod history;
 mod state;

@@ -84,7 +84,7 @@ contributeurs qui n'ont pas configuré leurs hooks.
 | --- | --- | --- |
 | Hook Claude Code | l'agent | rien |
 | Hook git `pre-commit` | tout commit local | `git commit --no-verify` |
-| CI GitHub | toute PR | rien |
+| CI GitHub | toute branche poussée | rien |
 
 **Un seul MCP.** Le projet dépend d'`egui 0.36`, `wgpu 30` et `glam 0.33` —
 des crates dont l'API casse à chaque version mineure et sur lesquelles la
@@ -308,8 +308,8 @@ besoin pour son avertissement, et leur présence fixe le style visé.
 
 ### `.github/workflows/ci.yml`
 
-Sur push `main` et sur chaque PR. Toolchain épinglée par `rust-toolchain.toml`,
-cache `Swatinem/rust-cache`.
+Sur chaque push, quelle que soit la branche. Toolchain épinglée par
+`rust-toolchain.toml`, cache `Swatinem/rust-cache`.
 
 | Job | Commande | Bloquant |
 | --- | --- | --- |
@@ -319,8 +319,16 @@ cache `Swatinem/rust-cache`.
 | `build-windows` | `scripts/build-windows.sh` | oui |
 
 Amendé le 2026-09-08 (#57) : `build-windows` ne tournait que sur `main`, donc
-jamais avant une fusion. Il tourne maintenant sur chaque PR ; seul l'envoi de
+jamais avant une fusion. Il tourne maintenant sur chaque push ; seul l'envoi de
 l'artefact reste réservé à `main`.
+
+Amendé le 2026-09-08 (#58) : `on: push` couvrait `main` seulement, donc une
+branche poussée sans PR ouverte n'était vérifiée nulle part. Il couvre
+maintenant toute branche, et `on: pull_request` disparaît en échange — les deux
+ensemble feraient tourner le workflow deux fois à chaque push. Ce qui est cédé :
+GitHub vérifiait la branche *fusionnée* avec sa base, il vérifie maintenant sa
+tête. Une branche verte mais en retard sur `main` reste possible ; c'est le
+rebase avant fusion qui la rattrape.
 
 Le runner Ubuntu reçoit une étape `apt-get` installant les dépendances système
 de `winit`/`wgpu` (`libxkbcommon-dev`, `libwayland-dev`, `libxcb*`) : `eframe`

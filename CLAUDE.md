@@ -33,6 +33,11 @@ git config core.hooksPath .githooks
 `CAO_SKIP_GATE=1` valve exists for work in progress: it belongs to the human, an
 agent never reaches for it on its own.
 
+**Every branch you push is checked**, pull request or not: the CI triggers on
+push, on any branch. What that does not check is the branch *merged with* `main`
+— only its own tip. A branch that went green a week ago can still break `main`,
+which is what the rebase before a merge is for.
+
 For an API question on `egui`, `wgpu` or `glam`, use `context7` rather than
 memory: this project is on `egui 0.36`, `wgpu 30` and `glam 0.33`, crates whose
 API breaks on every minor release.

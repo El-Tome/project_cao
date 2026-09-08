@@ -652,6 +652,15 @@ What is counted opposite are the **unknowns**: two per point, one per circle.
 Only the origin is not among them — it is the one point known in advance not to
 move.
 
+The reading is taken **once per state of the drawing**, not once per image
+drawn. Painting the sketch asks which points are held on every frame, and the
+answer costs a cubic pass over the whole drawing — tens of milliseconds on a
+few hundred points, which is several frames' worth. It is kept until the
+drawing it was read from changes, and the drawing is recognised by a print
+taken of everything the reading answers to. Positions are part of that print:
+a trait lying square to the sketch is what lets its group keep the direction it
+was drawn in without being told, so moving one point can settle another.
+
 Both answers come out of the same Gram–Schmidt pass: each direction is stripped
 of what the equations already hold, and whatever survives is a move still
 possible. A direction found that way is itself something the next one must be

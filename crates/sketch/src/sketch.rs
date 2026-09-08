@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -75,6 +77,11 @@ pub struct Sketch {
     /// gesture.
     #[serde(skip)]
     held: Vec<PointId>,
+    /// The last reading of which points can no longer move, against a print of
+    /// the drawing it was read from. Worked out from everything else, so it is
+    /// never saved and never read back.
+    #[serde(skip)]
+    settled: RefCell<Option<(u64, Vec<bool>)>>,
 }
 
 /// The ranks that no longer count.
@@ -102,7 +109,7 @@ impl Erased {
 }
 
 /// One thing a sketch is made of, for deleting it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Element {
     Point(PointId),
     Segment(SegmentId),
@@ -127,7 +134,28 @@ impl Sketch {
             constraints: Vec::new(),
             erased: Erased::default(),
             held: Vec::new(),
+            settled: RefCell::default(),
         }
+    }
+
+    /// The verdict remembered for this print, if it is the one still standing.
+    ///
+    /// The cell never leaves this method: a borrow held across a reading would
+    /// meet the one taken to record the answer, and that is a panic.
+    pub(crate) fn settled_read_from(&self, print: u64) -> Option<Vec<bool>> {
+        match self.settled.borrow().as_ref() {
+            Some((was, verdict)) if *was == print => Some(verdict.clone()),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn remember_settled(&self, print: u64, verdict: Vec<bool>) {
+        *self.settled.borrow_mut() = Some((print, verdict));
+    }
+
+    #[cfg(test)]
+    pub(crate) fn forget_what_is_settled(&self) {
+        *self.settled.borrow_mut() = None;
     }
 
     pub fn is_erased_point(&self, point: PointId) -> bool {

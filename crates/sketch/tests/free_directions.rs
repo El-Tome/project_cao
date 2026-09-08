@@ -4,8 +4,11 @@
 //! allocated once per row it already held, so the count followed the square of
 //! the drawing.
 //!
-//! Allocations rather than milliseconds: the count is exactly what the change
-//! removes, and it does not answer to what else the machine is doing.
+//! The same reading is also asked for on every frame that paints the sketch,
+//! though nothing about the drawing changed between two of them.
+//!
+//! Allocations rather than milliseconds: the count is exactly what these
+//! changes remove, and it does not answer to what else the machine is doing.
 
 use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::atomic::{AtomicUsize, Ordering};
@@ -46,15 +49,24 @@ fn chain(segments: usize) -> Sketch {
     sketch
 }
 
+fn allocations<T>(work: impl FnOnce() -> T) -> usize {
+    let before = ALLOCATIONS.load(Ordering::Relaxed);
+    let outcome = work();
+    let after = ALLOCATIONS.load(Ordering::Relaxed);
+    drop(outcome);
+    after - before
+}
+
 fn allocations_reading_what_is_settled(segments: usize) -> usize {
     let sketch = chain(segments);
+    let read = allocations(|| sketch.settled_points(SCALE));
 
-    let before = ALLOCATIONS.load(Ordering::Relaxed);
-    let settled = sketch.settled_points(SCALE);
-    let after = ALLOCATIONS.load(Ordering::Relaxed);
-
-    assert_eq!(settled.len(), segments + 1, "the whole chain was read");
-    after - before
+    assert_eq!(
+        sketch.settled_points(SCALE).len(),
+        segments + 1,
+        "the whole chain was read",
+    );
+    read
 }
 
 #[test]
@@ -66,5 +78,19 @@ fn twice_the_drawing_costs_twice_the_allocations_and_not_four_times() {
         large * 2 < small * 5,
         "twice the drawing allocated {large} against {small}: \
          the count is following the square of the drawing, not its size",
+    );
+}
+
+#[test]
+fn reading_the_same_drawing_twice_only_works_the_once() {
+    let sketch = chain(80);
+
+    let first = allocations(|| sketch.settled_points(SCALE));
+    let second = allocations(|| sketch.settled_points(SCALE));
+
+    assert!(
+        second <= 1,
+        "the second reading allocated {second} against the first's {first}: \
+         nothing changed in between, so all it owes is the verdict it hands back",
     );
 }

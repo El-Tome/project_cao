@@ -22,12 +22,13 @@ full; what follows is what you need before writing.
 ## The allowed graph
 
 ```
-cao_app  ──►  cao_core  ──►  cao_sketch
-   │             └────────►  cao_solid
-   └──────────►  cao_render
+cao_app  ──►  cao_part   ──►  cao_sketch
+   │             └─────────►  cao_solid
+   ├──────►  cao_prefs
+   └──────►  cao_render
 ```
 
-An arrow to the left is forbidden. `cao_sketch` will never know `cao_core`,
+An arrow to the left is forbidden. `cao_sketch` will never know `cao_part`,
 `cao_render` will never know `cao_app`.
 
 | Crate | Dependencies | Forbidden |
@@ -35,8 +36,12 @@ An arrow to the left is forbidden. `cao_sketch` will never know `cao_core`,
 | `cao_sketch` | `glam`, `serde` — nothing else | everything else |
 | `cao_solid` | `glam`, `serde` — nothing else | everything else |
 | `cao_render` | `wgpu`, `glam`, `bytemuck` | any interface framework |
-| `cao_core` | `cao_sketch`, `cao_solid`, `serde`, `zip`, `chrono`, `directories`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
-| `cao_app` | everything above, `egui`, `eframe` | — |
+| `cao_part` | `cao_sketch`, `cao_solid`, `glam`, `zip`, `serde`, `serde_json`, `chrono`, `uuid`, `thiserror` | **any UI crate**, `wgpu` |
+| `cao_prefs` | `serde`, `serde_json`, `directories`, `chrono`, `thiserror` | **any UI crate**, `wgpu`, the geometry |
+| `cao_app` | everything above, `egui`, `eframe`, `egui-wgpu`, `wgpu`, `glam` | — |
+
+`cao_prefs` is the only crate that names `directories`: where the platform keeps
+things is a preferences concern, and #44 will put it behind a port.
 
 **A dependency for the tests counts.** `crates/app/tests/architecture.rs` reads
 every table that declares an edge — `[dev-dependencies]` and
@@ -44,8 +49,9 @@ every table that declares an edge — `[dev-dependencies]` and
 `[dev-dependencies]` of a crate below the shell fails the same way it would
 above the line. Only `cao_render` and `cao_prefs` declare any today.
 
-**`cao_core` without UI is not negotiable**: it is the condition for a future
-tablet or web front-end to reuse it as it stands.
+**No crate below `cao_app` depends on a UI crate, and that is not
+negotiable**: it is the condition for a future tablet or web front-end to reuse
+them as they stand.
 
 **`cao_app` is meant to stay a thin shell**: window and routing between modes.
 An aim rather than a reading — it is the largest crate in the repository. As
@@ -64,8 +70,7 @@ There are three topologies, and a folder appears only where its role exists.
 `adapters/`, no `services/`. It does mathematics; the abstraction would remove
 no disk, no clock, no network.
 
-**A context that coordinates** — `cao_core`, tomorrow `cao_part` and
-`cao_prefs`:
+**A context that coordinates** — `cao_part`, `cao_prefs`:
 
 ```
 model/       what the context is about: Operation, History, PartState
@@ -147,11 +152,11 @@ Read both before deciding where something lives. The short version:
 - **`cao_sketch` — the drawing**, and **`cao_solid` — the matter**, are the two
   real domains. Pure mathematics. A geometry rule belongs in one of them.
 - **`cao_render` — the picture**, **`cao_app` — the shell**.
-- **`cao_core` is two contexts, not one.** The part (`history`, `state`,
-  `document`) and the preferences (`settings`, `theme`, `shortcuts`, `toolbar`,
-  `recents`, `config`, `command`) share a manifest and nothing else: 2 031 of
-  its 4 328 lines never mention the geometry. The preferences are meant to leave
-  as `cao_prefs`.
+- **`cao_part` — the part**, and **`cao_prefs` — the preferences**, are two
+  contexts and two crates. They shared a manifest and nothing else until #26
+  separated them; `docs/contexts.md` holds the reading that led to it.
+  `history`, `state` and `document` are the part; `settings`, `theme`,
+  `shortcuts`, `toolbar`, `recents`, `config` and `command` are the preferences.
 
 The folders above belong to the **context**, not to the crate that happens to
 hold it. Three consequences:
@@ -191,23 +196,16 @@ The `f64` → `f32` narrowing towards `cao_render` is the other one.
 
 ## The known gaps — debt, not models
 
-Two places contradict the above. They are written down here so they are never
-copied as examples.
-
-### `cao_core` is not the domain
-
-Its documentation says "domain types". That is false: it depends on
-`cao_sketch` and `cao_solid` and orchestrates sketch, solid, history and
-persistence. It is the **application** layer.
-
-In practice: when you look for "where does this geometry rule go", the answer is
-`cao_sketch` or `cao_solid`, never `cao_core`. `cao_core` takes what
-**coordinates** — the history, the document, the replayed state.
+One place contradicts the above. It is written down here so it is never copied
+as an example. A second one — a crate called `cao_core` whose documentation
+claimed "domain types" — was closed by #28, which renamed it after what it
+holds.
 
 ### I/O is hardwired below the boundary
 
-`document.rs`, `recents.rs`, `settings.rs` and `storage.rs` call `std::fs`,
-`directories::ProjectDirs`, `zip` and `chrono::Utc::now()` directly.
+`crates/part/src/document.rs` and, in `crates/prefs/src/`, `recents.rs`,
+`settings.rs` and `storage.rs` call `std::fs`, `directories::ProjectDirs`,
+`zip` and `chrono::Utc::now()` directly.
 
 It shows in the tests: they write into `std::env::temp_dir()`, create real
 directories and delete them with `remove_dir_all`. They are slow, they depend on
@@ -228,7 +226,7 @@ The port is a trait, in `ports/` of the layer that needs it — never beside the
 implementation:
 
 ```rust
-// crates/core/src/ports/part_repository.rs
+// crates/part/src/ports/part_repository.rs
 pub trait PartRepository {
     fn load(&self, path: &Path) -> Result<PartDocument, StorageError>;
     fn save(&self, path: &Path, document: &PartDocument) -> Result<(), StorageError>;
@@ -243,7 +241,7 @@ The real adapter goes in `adapters/`, named after the technology and the need,
 and **it alone** may call `std::fs`:
 
 ```rust
-// crates/core/src/adapters/zip_part_repository.rs
+// crates/part/src/adapters/zip_part_repository.rs
 pub struct ZipPartRepository;
 
 impl PartRepository for ZipPartRepository {
@@ -256,7 +254,7 @@ It is a **working** implementation, not an empty stub: it stores in a `HashMap`
 and really behaves like a repository.
 
 ```rust
-// crates/core/src/adapters/in_memory_parts.rs
+// crates/part/src/adapters/in_memory_parts.rs
 #[derive(Default)]
 struct InMemoryParts(RefCell<HashMap<PathBuf, PartDocument>>);
 ```

@@ -1,11 +1,10 @@
 use std::fs;
 use std::io::Write;
 use std::path::Path;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use cao_part::{FileError, Files};
 
-/// The filesystem itself, which is what the port exists to keep out of the
-/// layers below.
 pub struct DiskFiles;
 
 impl Files for DiskFiles {
@@ -71,14 +70,12 @@ fn fill(
 }
 
 fn beside(path: &Path) -> String {
-    let stamp = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .map(|since| since.as_nanos())
-        .unwrap_or_default();
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     format!(
-        ".{}.{}.{stamp}.tmp",
+        ".{}.{}.{}.tmp",
         path.file_name().unwrap_or_default().to_string_lossy(),
         std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed),
     )
 }
 
@@ -87,9 +84,42 @@ mod tests {
     use super::*;
 
     fn temp_dir() -> std::path::PathBuf {
-        let directory = std::env::temp_dir().join(format!("cao_files{}", beside(Path::new(""))));
+        let directory = std::env::temp_dir().join(format!(
+            "cao_files_{}_{}",
+            std::process::id(),
+            NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed),
+        ));
         fs::create_dir_all(&directory).expect("temp dir");
         directory
+    }
+
+    static NEXT_DIRECTORY: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn a_write_makes_the_folder_it_lands_in_and_reads_back_whole() {
+        let root = temp_dir();
+        let path = root.join("parts").join("drafts").join("piece.caopart");
+
+        assert!(!DiskFiles.exists(&path));
+        DiskFiles.write(&path, b"the whole thing").expect("writes");
+
+        assert!(DiskFiles.exists(&path));
+        assert_eq!(DiskFiles.read(&path).expect("reads"), b"the whole thing");
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn reading_a_file_that_was_never_written_says_it_is_absent() {
+        let root = temp_dir();
+
+        let error = DiskFiles
+            .read(&root.join("nothing.caopart"))
+            .expect_err("nothing there");
+
+        assert!(matches!(error, FileError::Absent(_)));
+
+        fs::remove_dir_all(&root).ok();
     }
 
     #[test]

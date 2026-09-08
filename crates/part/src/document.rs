@@ -139,9 +139,13 @@ impl PartDocument {
             .compression_method(zip::CompressionMethod::Deflated);
 
         archive.start_file(METADATA_ENTRY, options)?;
-        write_entry(&mut archive, &serde_json::to_string_pretty(&self.metadata)?)?;
+        archive
+            .write_all(serde_json::to_string_pretty(&self.metadata)?.as_bytes())
+            .map_err(zip::result::ZipError::from)?;
         archive.start_file(HISTORY_ENTRY, options)?;
-        write_entry(&mut archive, &serde_json::to_string_pretty(&self.history)?)?;
+        archive
+            .write_all(serde_json::to_string_pretty(&self.history)?.as_bytes())
+            .map_err(zip::result::ZipError::from)?;
 
         let bytes = archive.finish()?.into_inner();
         files.write(path, &bytes)?;
@@ -174,15 +178,6 @@ impl PartDocument {
             state,
         })
     }
-}
-
-fn write_entry<W: Write + std::io::Seek>(
-    archive: &mut zip::ZipWriter<W>,
-    text: &str,
-) -> Result<(), zip::result::ZipError> {
-    archive
-        .write_all(text.as_bytes())
-        .map_err(zip::result::ZipError::from)
 }
 
 fn read_entry<R: Read + std::io::Seek>(
@@ -244,7 +239,6 @@ mod tests {
         assert_eq!(reloaded.scale(), 50.0);
     }
 
-    /// Undone steps are kept in the file, so redo still works after reopening.
     #[test]
     fn the_redo_tail_survives_a_save_and_reload() {
         let files = InMemoryFiles::default();

@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-/// The whole of what a part needs from a filesystem.
 pub trait Files {
     fn read(&self, path: &Path) -> Result<Vec<u8>, FileError>;
 

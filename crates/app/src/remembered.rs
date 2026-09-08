@@ -19,12 +19,12 @@ pub struct Remembered {
 
 impl Remembered {
     pub fn read(at: Option<Locations>) -> Self {
-        let read = at.as_ref();
-        let mut recents = read
+        let place = at.as_ref();
+        let mut recents = place
             .and_then(|at| RecentList::load(&DiskFiles, at).ok())
             .unwrap_or_default();
         recents.prune_missing(&DiskFiles);
-        let profiles = read.map_or_else(Profiles::default, |at| Profiles::load(&DiskFiles, at));
+        let profiles = place.map_or_else(Profiles::default, |at| Profiles::load(&DiskFiles, at));
         Self {
             at,
             profiles,
@@ -42,7 +42,7 @@ impl Remembered {
     }
 
     /// Whether the platform offered nowhere at all, in which case nothing is
-    /// ever written and the two `save` below have nothing to report.
+    /// ever written and the two methods below have nothing to report.
     pub fn has_nowhere_to_keep(&self) -> bool {
         self.at.is_none()
     }

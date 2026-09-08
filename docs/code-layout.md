@@ -157,9 +157,10 @@ the **context**, not to the crate that currently holds it.
 
 Three consequences:
 
-- When `cao_prefs` leaves, it takes its own `model/`, `ports/` and `adapters/`
-  with it. The split becomes a `git mv` of whole folders rather than a
-  file-by-file sort.
+- **A folder appears only where the role exists.** None of them exists in the
+  workspace, and no crate declares a trait — so `ports/` has no member it could
+  take. A context moving is a flat `git mv` per file, and earns its folders when
+  a port gives it a role to name.
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder that needs subheadings; it is two crates
   that have not been separated.

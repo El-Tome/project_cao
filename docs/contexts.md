@@ -120,24 +120,31 @@ work is rules that are executed rather than promised.
 both domains and orchestrates them. Naming it after what it holds ends a
 misunderstanding the current name creates on every reading.
 
-## The folders travel with the context
+## The folders appear where the role appears
 
 Inside a crate, a file's role is carried by the folder that holds it —
 `model/`, `ports/`, `adapters/`, `services/`, and in the shell `ui/` and
 `screens/<mode>/`. [`code-layout.md`](code-layout.md) says what each one means
 and what it may import.
 
-Those folders belong to the **context**, not to the crate that currently holds
-it, and that is what makes the split above cheap: when `cao_prefs` leaves, it
-takes its own `model/`, `ports/` and `adapters/` with it. A `git mv` of whole
-folders rather than a file-by-file sort of eleven files nobody has looked at in
-months.
+**None of them exists yet.** No crate in the workspace holds one, and the
+workspace declares no trait at all — so `ports/` has no member it could take,
+and `adapters/` has nothing to sit opposite. `CLAUDE.md` §Where a file goes
+carries the rule that settles it: *a folder appears only where the role
+exists.* The layout above is a destination, not a scaffold to erect now and
+fill later.
 
-Two rules follow, and they are the ones that keep a seam findable:
+So move 1 was eight flat `git mv`, one file each, and move 2 will be the same.
+`cao_prefs` earns a `ports/` and an `adapters/` when #42, #43 and #44 give
+`storage.rs` and `recents.rs` a trait to sit behind. Drawing the folders before
+that is guessing where the seam falls, over files that have just moved once
+already.
+
+Two rules follow all the same, and they are the ones that keep a seam findable:
 
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder in need of subheadings — it is the signal
-  that the crate is two crates, exactly as `cao_core` is today.
+  that the crate is two crates, which is what `cao_core` was until move 1.
 - **A context never reaches into another one's `model/`.** It goes through a
   port, or the translation is named and lives at the seam. The three that exist
   are described just below.

@@ -10,6 +10,7 @@ mod independence;
 mod plane;
 mod regions;
 pub mod segment;
+mod settled;
 mod sketch;
 mod snap;
 mod solver;

@@ -7,7 +7,7 @@ use crate::sketch::{CircleId, Element, PointId, SegmentId};
 ///
 /// Without it a drawing can always be spun about its anchor: pinning a point
 /// takes away the two ways it can slide, never the way it can turn.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SketchAxis {
     /// The sketch's horizontal axis.
     U,
@@ -25,7 +25,7 @@ impl SketchAxis {
 }
 
 /// What a dimension measures.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DimensionTarget {
     /// Length of a segment.
     Length(SegmentId),
@@ -88,7 +88,7 @@ impl DimensionTarget {
 /// counted the same way when working out what is still loose — they are kept
 /// apart only because one carries a value the user types and the other does
 /// not.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Constraint {
     /// Two traits meeting at a right angle, without saying which way up.
     Perpendicular {

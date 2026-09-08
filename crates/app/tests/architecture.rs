@@ -86,7 +86,7 @@ const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
     ("crates/app/src/app.rs", 526),
-    ("crates/app/src/screens/annotations.rs", 519),
+    ("crates/app/src/screens/annotations.rs", 517),
     ("crates/app/src/screens/ribbon.rs", 428),
     ("crates/app/src/screens/settings.rs", 801),
     ("crates/app/src/screens/sketch.rs", 432),

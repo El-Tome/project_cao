@@ -268,7 +268,7 @@ pub struct SketchEditor {
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
     /// What the cursor has been pulled onto, so the drawing can say so.
-    pub snap: Option<crate::screens::viewport::Snap>,
+    pub snap: Option<cao_sketch::Snap>,
     /// The whole sketch as it would settle if the point were let go here.
     ///
     /// Drawing only the point under the cursor and leaving the rest where it

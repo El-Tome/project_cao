@@ -62,8 +62,7 @@ const REACHES_OUTSIDE: [&str; 6] = [
 /// reaching outside fails the test. It is a ratchet — the entry disappears in
 /// the commit that gives the file its port, and no entry is added ahead of the
 /// code that needs it.
-const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 4] = [
-    "crates/part/src/document.rs",
+const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 3] = [
     "crates/prefs/src/recents.rs",
     "crates/prefs/src/settings.rs",
     "crates/prefs/src/storage.rs",
@@ -85,7 +84,7 @@ const READER_TEXT_LEFT_BELOW_THE_INTERFACE: [(&str, usize); 8] = [
 const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 17] = [
-    ("crates/app/src/app.rs", 526),
+    ("crates/app/src/app.rs", 524),
     ("crates/app/src/screens/annotations.rs", 517),
     ("crates/app/src/screens/ribbon.rs", 428),
     ("crates/app/src/screens/settings.rs", 801),

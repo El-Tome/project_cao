@@ -47,8 +47,7 @@ pub struct PartDocument {
 }
 
 impl PartDocument {
-    pub fn new(name: impl Into<String>) -> Self {
-        let now = Utc::now();
+    pub fn new(name: impl Into<String>, now: DateTime<Utc>) -> Self {
         Self {
             metadata: PartMetadata {
                 id: Uuid::new_v4(),
@@ -97,7 +96,6 @@ impl PartDocument {
     pub fn apply(&mut self, operation: Operation) -> Option<DimensionOutcome> {
         let outcome = self.state.apply(&operation);
         self.history.push(operation);
-        self.metadata.modified_at = Utc::now();
         outcome
     }
 
@@ -125,22 +123,34 @@ impl PartDocument {
         files: &impl Files,
         dir: &Path,
         name: impl Into<String>,
+        now: DateTime<Utc>,
     ) -> Result<(Self, PathBuf), PartFileError> {
-        let mut doc = Self::new(name);
+        let mut doc = Self::new(name, now);
         let (free, path) = file_name::free_in(files, dir, doc.name());
         doc.metadata.name = free;
-        doc.save(files, &path)?;
+        doc.save(files, &path, now)?;
         Ok((doc, path))
     }
 
-    pub fn save(&self, files: &impl Files, path: &Path) -> Result<(), PartFileError> {
+    /// Writes the part whole. `now` goes into the file and nowhere else: what a
+    /// part carries in memory is still the hour it was built with.
+    pub fn save(
+        &self,
+        files: &impl Files,
+        path: &Path,
+        now: DateTime<Utc>,
+    ) -> Result<(), PartFileError> {
+        let metadata = PartMetadata {
+            modified_at: now,
+            ..self.metadata.clone()
+        };
         let mut archive = zip::ZipWriter::new(Cursor::new(Vec::new()));
         let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default()
             .compression_method(zip::CompressionMethod::Deflated);
 
         archive.start_file(METADATA_ENTRY, options)?;
         archive
-            .write_all(serde_json::to_string_pretty(&self.metadata)?.as_bytes())
+            .write_all(serde_json::to_string_pretty(&metadata)?.as_bytes())
             .map_err(zip::result::ZipError::from)?;
         archive.start_file(HISTORY_ENTRY, options)?;
         archive
@@ -204,8 +214,12 @@ mod tests {
 
     use super::*;
 
+    fn at(text: &str) -> DateTime<Utc> {
+        text.parse().expect("a date")
+    }
+
     fn drawn_part() -> PartDocument {
-        let mut document = PartDocument::new("Test");
+        let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
         document.apply(Operation::CreateSketch {
             plane: WorkPlane::XY,
         });
@@ -224,12 +238,54 @@ mod tests {
     }
 
     #[test]
+    fn a_part_is_stamped_with_the_hour_it_is_handed() {
+        let opened = at("2026-01-02T09:00:00Z");
+        let document = PartDocument::new("Support", opened);
+
+        assert_eq!(document.metadata.created_at, opened);
+        assert_eq!(document.metadata.modified_at, opened);
+    }
+
+    #[test]
+    fn drawing_in_a_part_does_not_pass_for_writing_it_down() {
+        let opened = at("2026-01-02T09:00:00Z");
+        let mut document = PartDocument::new("Support", opened);
+
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+
+        assert_eq!(document.metadata.modified_at, opened);
+    }
+
+    #[test]
+    fn a_saved_part_carries_the_hour_it_was_written_at() {
+        let files = InMemoryFiles::default();
+        let path = Path::new("/parts/piece.caopart");
+
+        let opened = at("2026-01-02T09:00:00Z");
+        let written = at("2026-01-02T17:30:00Z");
+        let document = PartDocument::new("Support", opened);
+        document.save(&files, path, written).expect("saves");
+
+        let reloaded = PartDocument::load(&files, path).expect("loads");
+        assert_eq!(reloaded.metadata.created_at, opened);
+        assert_eq!(reloaded.metadata.modified_at, written);
+        assert_eq!(
+            document.metadata.modified_at, opened,
+            "the hour goes into the file, not back onto the part",
+        );
+    }
+
+    #[test]
     fn a_part_survives_a_save_and_reload() {
         let files = InMemoryFiles::default();
         let path = Path::new("/parts/piece.caopart");
 
         let document = drawn_part();
-        document.save(&files, path).expect("saves");
+        document
+            .save(&files, path, at("2026-01-02T09:05:00Z"))
+            .expect("saves");
         let reloaded = PartDocument::load(&files, path).expect("loads");
 
         assert!(files.read(path).expect("bytes").starts_with(b"PK"), "zip");
@@ -246,7 +302,9 @@ mod tests {
 
         let mut document = drawn_part();
         document.undo();
-        document.save(&files, path).expect("saves");
+        document
+            .save(&files, path, at("2026-01-02T09:05:00Z"))
+            .expect("saves");
 
         let mut reloaded = PartDocument::load(&files, path).expect("loads");
         assert!(reloaded.history.can_redo());
@@ -286,12 +344,14 @@ mod tests {
         let files = InMemoryFiles::default();
         let path = Path::new("/parts/piece.caopart");
 
-        PartDocument::new("Ancienne")
-            .save(&files, path)
+        PartDocument::new("Ancienne", at("2026-01-02T09:00:00Z"))
+            .save(&files, path, at("2026-01-02T09:00:00Z"))
             .expect("saves");
         let mut document = PartDocument::load(&files, path).expect("loads");
         document.metadata.schema_version = 2;
-        document.save(&files, path).expect("saves again");
+        document
+            .save(&files, path, at("2026-01-02T09:00:00Z"))
+            .expect("saves again");
 
         let error = PartDocument::load(&files, path).expect_err("must be refused");
         assert!(matches!(error, PartFileError::UnsupportedVersion(2)));
@@ -303,9 +363,11 @@ mod tests {
         let directory = Path::new("/parts");
 
         let (first, first_path) =
-            PartDocument::create_in(&files, directory, "Support").expect("creates");
+            PartDocument::create_in(&files, directory, "Support", at("2026-01-02T09:00:00Z"))
+                .expect("creates");
         let (second, second_path) =
-            PartDocument::create_in(&files, directory, "Support").expect("creates a second");
+            PartDocument::create_in(&files, directory, "Support", at("2026-01-02T09:01:00Z"))
+                .expect("creates a second");
         let reopened =
             PartDocument::load(&files, &first_path).expect("the first one is still there");
 

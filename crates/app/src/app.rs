@@ -69,7 +69,7 @@ impl CaoApp {
                 return;
             }
         };
-        match PartDocument::create_in(&DiskFiles, &dir, name) {
+        match PartDocument::create_in(&DiskFiles, &dir, name, chrono::Utc::now()) {
             Ok((doc, path)) => self.open_document(doc, path),
             Err(err) => self.error = Some(err.to_string()),
         }
@@ -83,11 +83,9 @@ impl CaoApp {
     }
 
     fn open_document(&mut self, doc: PartDocument, path: PathBuf) {
-        self.recents.push(path.clone(), doc.name().to_string());
-        if let Err(err) = self.recents.save() {
-            self.error = Some(err.to_string());
-        }
-        self.error = None;
+        self.recents
+            .push(path.clone(), doc.name().to_string(), chrono::Utc::now());
+        self.error = self.recents.save().err().map(|err| err.to_string());
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,

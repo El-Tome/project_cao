@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use cao_part::{Files, PartDocument};
+use chrono::Utc;
 
 /// Whether what is on screen still matches what is on disk.
 ///
@@ -30,7 +31,7 @@ impl Autosave {
         if !self.pending || !at_rest {
             return None;
         }
-        match document.save(files, path) {
+        match document.save(files, path, Utc::now()) {
             Ok(()) => {
                 self.pending = false;
                 None
@@ -46,6 +47,10 @@ mod tests {
     use crate::adapters::files::DiskFiles;
     use cao_part::PartDocument;
 
+    fn at(text: &str) -> chrono::DateTime<Utc> {
+        text.parse().expect("a date")
+    }
+
     fn temp_dir(name: &str) -> std::path::PathBuf {
         let directory = std::env::temp_dir().join(format!("cao_autosave_{name}"));
         std::fs::remove_dir_all(&directory).ok();
@@ -57,7 +62,7 @@ mod tests {
     fn a_part_is_written_once_the_hand_comes_off() {
         let directory = temp_dir("hand_off");
         let path = directory.join("piece.caopart");
-        let document = PartDocument::new("Support");
+        let document = PartDocument::new("Support", at("2026-01-02T09:00:00Z"));
         let mut autosave = Autosave::default();
 
         autosave.touched();
@@ -82,7 +87,7 @@ mod tests {
     fn a_part_that_has_not_changed_is_not_written_again() {
         let directory = temp_dir("unchanged");
         let path = directory.join("piece.caopart");
-        let document = PartDocument::new("Support");
+        let document = PartDocument::new("Support", at("2026-01-02T09:00:00Z"));
         let mut autosave = Autosave::default();
 
         autosave.touched();

@@ -156,9 +156,11 @@ of French still sit below `cao_app`, and
    with `git mv`, no public type renamed, no ratchet figure changed.
 3. **Wording up into `cao_app`.** Each file moved lowers a figure in the
    architecture test. Unblocks i18n without building it.
-4. **Ports for disk and clock.** Removes the last entries from the other
-   ratchet, and lets the persistence tests stop writing to a temporary
-   directory.
+4. **A port for the disk, and the clock read above it.** The filesystem is a
+   behaviour and earns a trait; the hour is a reading and is passed down as a
+   value — #41 settled that, and no `trait Clock` was built. Removes the last
+   entries from the other ratchet, and lets the persistence tests stop writing
+   to a temporary directory.
 5. **The drawing rules out of `viewport.rs` into `cao_sketch`.** The largest
    piece, and the reason for the four before it: it needs somewhere correct to
    land.

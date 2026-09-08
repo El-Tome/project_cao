@@ -551,6 +551,7 @@ dependencies = [
  "cao_render",
  "cao_sketch",
  "cao_solid",
+ "chrono",
  "eframe",
  "egui",
  "egui-wgpu",

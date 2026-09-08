@@ -30,7 +30,7 @@ impl Rng {
 fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
     for seed in 1..16u64 {
         let mut rng = Rng(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15).max(1));
-        let mut doc = PartDocument::new("stress");
+        let mut doc = PartDocument::new("stress", "2026-01-02T09:00:00Z".parse().expect("a date"));
         doc.apply(Operation::CreateSketch {
             plane: WorkPlane::XY,
         });

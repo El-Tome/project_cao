@@ -150,9 +150,10 @@ the thing it serves; if it genuinely serves several, it gets a name of its own �
 
 ## Per context, not per crate
 
-`cao_core` is two contexts sharing a manifest: 2 031 of its 4 328 lines never
-mention the geometry ([`contexts.md`](contexts.md)). The folders above belong to
-the **context**, not to the crate that currently holds it.
+The folders above belong to the **context**, not to the crate that happens to
+hold it. Every crate in the workspace is one context today: #26 took the
+preferences out as `cao_prefs`, and #28 renamed what was left `cao_part`. So the
+rule reads as a way of staying there, not as a split still to make.
 
 Three consequences:
 
@@ -162,7 +163,8 @@ Three consequences:
   a port gives it a role to name.
 - **A folder never straddles two contexts.** A `model/` holding both a `Theme`
   and an `Operation` is not a folder that needs subheadings; it is two crates
-  that have not been separated.
+  that have not been separated. That is what `cao_core` was, and
+  [`contexts.md`](contexts.md) records how it came apart.
 - **A context never reaches into another one's `model/`.** It goes through a
   port, or the translation at the seam is named and lives at the seam. The three
   that already exist — `PointRef::{Existing, New}`, the `f64` → `f32` narrowing,

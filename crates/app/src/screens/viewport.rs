@@ -10,7 +10,8 @@ use cao_render::{
     srgb,
 };
 use cao_sketch::{
-    CircleId, Constraint, DimensionTarget, Element, PointId, SegmentId, Sketch, WorkPlane,
+    CircleId, Constraint, DimensionTarget, Element, PointId, SegmentId, Sketch, Snap, SnapSettings,
+    WorkPlane,
 };
 use glam::{DVec2, DVec3};
 
@@ -305,6 +306,24 @@ impl ViewScale {
     fn world_size_of(&self, pixels: f64) -> f64 {
         self.units_per_pixel * pixels
     }
+
+    /// How far each magnet reaches, in the units the drawing reasons in.
+    ///
+    /// The tolerances are chosen in physical pixels — a magnet that widened as
+    /// one zoomed in would be unusable — and the drawing knows nothing of
+    /// pixels, so the conversion happens here and nowhere lower. The grid is
+    /// drawn every `step`; snapping to a fraction of it keeps the magnet useful
+    /// without forcing everything onto the coarse lines.
+    fn snapping(&self, config: &ViewportConfig) -> SnapSettings {
+        SnapSettings {
+            point_reach: self.world_size_of(PICK_PIXELS),
+            segment_reach: self.world_size_of(config.segment_snap_pixels as f64),
+            grid_step: config
+                .grid_snap
+                .then(|| self.step / config.grid_snap_divisions.max(1) as f64),
+            grid_reach: self.world_size_of(config.grid_snap_pixels as f64),
+        }
+    }
 }
 
 fn corner_origin(
@@ -514,7 +533,8 @@ fn handle_sketch_input(
 
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(PICK_PIXELS);
-    let (cursor, snapped_to) = magnetise(cursor, scale, &state.config, context, index, snap);
+    let magnets = scale.snapping(&state.config);
+    let (cursor, snapped_to) = context.document.sketches()[index].magnetise(cursor, &magnets);
     context.editor.snap = snapped_to;
 
     context.editor.cursor = Some(cursor);
@@ -554,7 +574,11 @@ fn handle_sketch_input(
                     .ray(to_ndc(position, rect), rect.width() / rect.height());
                 plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
             })
-            .map(|position| magnetise(position, scale, &state.config, context, index, snap).0)
+            .map(|position| {
+                context.document.sketches()[index]
+                    .magnetise(position, &magnets)
+                    .0
+            })
             .unwrap_or(cursor);
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
@@ -2132,67 +2156,6 @@ fn refine(
 
 /// Shown when a value would add nothing to a shape that is already settled.
 pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
-
-/// Pulls the cursor onto whatever it is near: an existing point first, then the
-/// grid.
-///
-/// The grid magnet is what makes drawing on the origin, or a right angle by
-/// following the lines, a matter of aiming roughly rather than exactly. It only
-/// bites within a few pixels, so a deliberate free position is still possible.
-fn magnetise(
-    cursor: DVec2,
-    scale: ViewScale,
-    config: &ViewportConfig,
-    context: &SketchContext<'_>,
-    index: usize,
-    snap: f64,
-) -> (DVec2, Option<Snap>) {
-    let sketch = &context.document.sketches()[index];
-    if let Some(point) = sketch.nearest_point(cursor, snap) {
-        return (sketch.point(point), Some(Snap::Point));
-    }
-
-    // A line already drawn pulls harder than the grid, and its middle harder
-    // still: joining the middle of a side is a thing one aims at, and landing a
-    // hair off it leaves geometry that only looks joined.
-    let reach = scale.world_size_of(config.segment_snap_pixels as f64);
-    if let Some((_, middle)) = sketch.nearest_midpoint(cursor, reach) {
-        return (middle, Some(Snap::Midpoint(middle)));
-    }
-    if let Some((_, at)) = sketch.nearest_on_segment(cursor, reach) {
-        return (at, Some(Snap::OnSegment(at)));
-    }
-
-    if !config.grid_snap {
-        return (cursor, None);
-    }
-
-    // The grid is drawn every `step`; snapping to a fraction of it keeps the
-    // magnet useful without forcing everything onto the coarse lines.
-    let step = scale.step / config.grid_snap_divisions.max(1) as f64;
-    if step <= 0.0 {
-        return (cursor, None);
-    }
-    let snapped = DVec2::new(
-        (cursor.x / step).round() * step,
-        (cursor.y / step).round() * step,
-    );
-    if snapped.distance(cursor) <= scale.world_size_of(config.grid_snap_pixels as f64) {
-        (snapped, None)
-    } else {
-        (cursor, None)
-    }
-}
-
-/// What the cursor has been pulled onto, when it is worth saying so.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Snap {
-    Point,
-    /// The middle of a line, which needs a mark of its own: nothing else on
-    /// screen says the cursor is exactly halfway along.
-    Midpoint(DVec2),
-    OnSegment(DVec2),
-}
 
 /// One click of the line tool. The first click only remembers where the chain
 /// starts; the second turns the pair into a segment in the history.

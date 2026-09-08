@@ -316,7 +316,11 @@ cache `Swatinem/rust-cache`.
 | `fmt` | `cargo fmt --all --check` | non — avertissement |
 | `clippy` | `cargo clippy --workspace --all-targets -- -D warnings` | oui |
 | `test` | `cargo test --workspace` | oui |
-| `build-windows` | `scripts/build-windows.sh`, sur `main` seulement | oui |
+| `build-windows` | `scripts/build-windows.sh` | oui |
+
+Amendé le 2026-09-08 (#57) : `build-windows` ne tournait que sur `main`, donc
+jamais avant une fusion. Il tourne maintenant sur chaque PR ; seul l'envoi de
+l'artefact reste réservé à `main`.
 
 Le runner Ubuntu reçoit une étape `apt-get` installant les dépendances système
 de `winit`/`wgpu` (`libxkbcommon-dev`, `libwayland-dev`, `libxcb*`) : `eframe`

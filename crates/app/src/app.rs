@@ -491,7 +491,7 @@ fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -
 fn mode_label(mode: ViewMode) -> &'static str {
     match mode {
         ViewMode::Free => "Vue 3D libre",
-        ViewMode::Plane(work_plane) => plane::label(&work_plane),
+        ViewMode::Plane(work_plane) => plane::label(work_plane.kind()),
     }
 }
 

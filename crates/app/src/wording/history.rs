@@ -8,7 +8,7 @@ use crate::wording::{constraints, dimension, plane};
 /// Short, because the history tree shows one per line.
 pub fn label(operation: &Operation) -> String {
     match operation {
-        Operation::CreateSketch { plane } => format!("Esquisse — {}", plane::label(plane)),
+        Operation::CreateSketch { plane } => format!("Esquisse — {}", plane::label(plane.kind())),
         Operation::AddPoint { .. } => "Point".to_string(),
         Operation::AddSegment { .. } => "Trait".to_string(),
         Operation::AddRectangle { .. } => "Rectangle".to_string(),

@@ -20,13 +20,15 @@ pub struct WorkPlane {
 /// is said.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PlaneKind {
-    /// A plane lying on the part rather than through the world origin.
-    PartFace,
+    /// Anywhere but through the world origin. Which is all the geometry
+    /// establishes: a face of the part, a plane offset by hand and a face of a
+    /// second body all answer this.
+    OffOrigin,
     OriginXY,
     OriginXZ,
     OriginYZ,
     /// Through the origin, but square to none of the three axes.
-    Slanted,
+    OriginSlanted,
 }
 
 impl WorkPlane {
@@ -100,7 +102,7 @@ impl WorkPlane {
     /// would say the drawing sits somewhere it does not.
     pub fn kind(&self) -> PlaneKind {
         if self.origin.length_squared() > 1e-9 {
-            return PlaneKind::PartFace;
+            return PlaneKind::OffOrigin;
         }
         let normal = self.normal().abs();
         if normal.z > 0.999 {
@@ -110,7 +112,7 @@ impl WorkPlane {
         } else if normal.x > 0.999 {
             PlaneKind::OriginYZ
         } else {
-            PlaneKind::Slanted
+            PlaneKind::OriginSlanted
         }
     }
 }
@@ -173,7 +175,7 @@ mod tests {
             (WorkPlane::YZ, PlaneKind::OriginYZ),
             (
                 WorkPlane::from_normal(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0)),
-                PlaneKind::Slanted,
+                PlaneKind::OriginSlanted,
             ),
         ];
 
@@ -183,9 +185,9 @@ mod tests {
     }
 
     #[test]
-    fn a_plane_parallel_to_an_axis_plane_but_off_the_origin_is_a_face() {
+    fn a_plane_parallel_to_an_axis_plane_but_off_the_origin_is_not_that_plane() {
         let raised = WorkPlane::from_normal(DVec3::Z * 12.0, DVec3::Z);
 
-        assert_eq!(raised.kind(), PlaneKind::PartFace);
+        assert_eq!(raised.kind(), PlaneKind::OffOrigin);
     }
 }

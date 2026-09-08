@@ -42,6 +42,8 @@ pub fn axis(axis: SketchAxis) -> &'static str {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::BTreeSet;
+
     use cao_sketch::{CircleId, Element, PointId, SegmentId};
 
     use super::*;
@@ -49,79 +51,110 @@ mod tests {
     const FIRST: SegmentId = SegmentId(0);
     const SECOND: SegmentId = SegmentId(1);
 
-    fn every_rule() -> [Constraint; 11] {
+    /// Every rule, next to how it reads, so that adding a variant without
+    /// saying how it reads cannot slip past the way two parallel lists would.
+    fn named_rules() -> [(Constraint, &'static str); 11] {
         [
-            Constraint::Perpendicular {
-                first: FIRST,
-                second: SECOND,
-            },
-            Constraint::Parallel {
-                first: FIRST,
-                second: SECOND,
-            },
-            Constraint::Equal {
-                first: FIRST,
-                second: SECOND,
-            },
-            Constraint::EqualRadius {
-                first: CircleId(0),
-                second: CircleId(1),
-            },
-            Constraint::OnSegment {
-                point: PointId(1),
-                segment: FIRST,
-            },
-            Constraint::OnCircle {
-                point: PointId(1),
-                circle: CircleId(0),
-            },
-            Constraint::Collinear {
-                first: FIRST,
-                second: SECOND,
-            },
-            Constraint::AxisCollinear {
-                segment: FIRST,
-                axis: SketchAxis::U,
-            },
-            Constraint::Tangent {
-                circle: CircleId(0),
-                segment: FIRST,
-                at: None,
-            },
-            Constraint::Midpoint {
-                point: PointId(1),
-                segment: FIRST,
-            },
-            Constraint::Fixed {
-                element: Element::Point(PointId(1)),
-            },
+            (
+                Constraint::Perpendicular {
+                    first: FIRST,
+                    second: SECOND,
+                },
+                "Perpendiculaire",
+            ),
+            (
+                Constraint::Parallel {
+                    first: FIRST,
+                    second: SECOND,
+                },
+                "Parallèle",
+            ),
+            (
+                Constraint::Equal {
+                    first: FIRST,
+                    second: SECOND,
+                },
+                "Égalité",
+            ),
+            (
+                Constraint::EqualRadius {
+                    first: CircleId(0),
+                    second: CircleId(1),
+                },
+                "Égalité",
+            ),
+            (
+                Constraint::OnSegment {
+                    point: PointId(1),
+                    segment: FIRST,
+                },
+                "Coïncidence",
+            ),
+            (
+                Constraint::OnCircle {
+                    point: PointId(1),
+                    circle: CircleId(0),
+                },
+                "Coïncidence",
+            ),
+            (
+                Constraint::Collinear {
+                    first: FIRST,
+                    second: SECOND,
+                },
+                "Colinéaire",
+            ),
+            (
+                Constraint::AxisCollinear {
+                    segment: FIRST,
+                    axis: SketchAxis::U,
+                },
+                "Colinéaire",
+            ),
+            (
+                Constraint::Tangent {
+                    circle: CircleId(0),
+                    segment: FIRST,
+                    at: None,
+                },
+                "Tangence",
+            ),
+            (
+                Constraint::Midpoint {
+                    point: PointId(1),
+                    segment: FIRST,
+                },
+                "Milieu",
+            ),
+            (
+                Constraint::Fixed {
+                    element: Element::Point(PointId(1)),
+                },
+                "Fixe",
+            ),
         ]
     }
 
     #[test]
     fn rules_that_say_the_same_thing_read_the_same_and_the_others_do_not() {
-        let names = [
-            "Perpendiculaire",
-            "Parallèle",
-            "Égalité",
-            "Égalité",
-            "Coïncidence",
-            "Coïncidence",
-            "Colinéaire",
-            "Colinéaire",
-            "Tangence",
-            "Milieu",
-            "Fixe",
-        ];
+        let named = named_rules();
 
-        for (rule, reads) in every_rule().iter().zip(names) {
-            assert_eq!(label(*rule), reads, "{rule:?} reads {reads:?}");
+        for (rule, reads) in named {
+            assert_eq!(label(rule), reads, "{rule:?} reads {reads:?}");
         }
+
+        let read: BTreeSet<&str> = named.iter().map(|(_, reads)| *reads).collect();
+
+        assert_eq!(
+            read.len(),
+            8,
+            "eleven rules read as eight names, three of them shared: {read:?}",
+        );
     }
 
     #[test]
     fn every_mark_is_drawable_in_the_fonts_the_interface_ships_with() {
-        for rule in every_rule() {
+        for (rule, _) in named_rules() {
             let drawn = mark(rule);
 
             assert!(

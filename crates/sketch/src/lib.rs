@@ -11,6 +11,7 @@ mod independence;
 mod plane;
 mod regions;
 mod rigid;
+mod rule_marks;
 pub mod segment;
 mod settled;
 mod sketch;

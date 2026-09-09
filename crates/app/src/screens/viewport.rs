@@ -745,24 +745,7 @@ fn pick(
     if let Some(target) = nearest_annotation(context, index, cursor, snap * 1.5, pixel) {
         return Some(Selection::Dimension(target));
     }
-    nearest_rule(sketch, cursor, snap * 1.5).map(Selection::Rule)
-}
-
-/// The rule whose nearest mark sits under the cursor.
-fn nearest_rule(sketch: &Sketch, cursor: DVec2, tolerance: f64) -> Option<Constraint> {
-    sketch
-        .constraints()
-        .iter()
-        .filter_map(|constraint| {
-            let nearest = rule_marks(sketch, *constraint)
-                .into_iter()
-                .map(|at| at.distance(cursor))
-                .min_by(f64::total_cmp)?;
-            Some((*constraint, nearest))
-        })
-        .filter(|(_, distance)| *distance <= tolerance)
-        .min_by(|a, b| a.1.total_cmp(&b.1))
-        .map(|(constraint, _)| constraint)
+    sketch.nearest_rule(cursor, snap * 1.5).map(Selection::Rule)
 }
 
 /// Points the constraint tool at something, and lays the rule down as soon as
@@ -3508,84 +3491,6 @@ fn live_field(
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
 }
 
-/// Where a rule's marks are written: on each of the things it holds, so that
-/// pointing at one of them says what it is caught up in.
-///
-/// A right angle is the exception: its mark belongs *in* the corner, which is
-/// the only place it reads as an angle rather than as a note about two traits.
-fn rule_marks(sketch: &Sketch, constraint: Constraint) -> Vec<DVec2> {
-    let middle = |segment: SegmentId| {
-        (segment.0 < sketch.segments().len() && !sketch.is_erased_segment(segment)).then(|| {
-            let (start, end) = sketch.endpoints(segment);
-            (start + end) * 0.5
-        })
-    };
-    let point = |id: PointId| (id.0 < sketch.points().len()).then(|| sketch.point(id));
-    let circle = |id: CircleId| {
-        (id.0 < sketch.circles().len()).then(|| {
-            let round = sketch.circle(id);
-            sketch.point(round.center) + DVec2::splat(round.radius * 0.7)
-        })
-    };
-    let both = |first: SegmentId, second: SegmentId| {
-        [middle(first), middle(second)]
-            .into_iter()
-            .flatten()
-            .collect()
-    };
-
-    match constraint {
-        Constraint::Perpendicular { first, second } => match corner_of(sketch, first, second) {
-            Some(at) => vec![at],
-            None => both(first, second),
-        },
-        Constraint::Parallel { first, second }
-        | Constraint::Equal { first, second }
-        | Constraint::Collinear { first, second } => both(first, second),
-        Constraint::EqualRadius { first, second } => [circle(first), circle(second)]
-            .into_iter()
-            .flatten()
-            .collect(),
-        Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
-        Constraint::OnSegment { point: held, .. } | Constraint::Midpoint { point: held, .. } => {
-            point(held).into_iter().collect()
-        }
-        // Where the circle actually touches, not somewhere beside it: three
-        // tangencies of one circle would otherwise all land on the same spot.
-        Constraint::Tangent {
-            circle: round,
-            segment,
-            at,
-        } => at
-            .and_then(point)
-            .or_else(|| {
-                (round.0 < sketch.circles().len())
-                    .then(|| sketch.foot_on_segment(sketch.circle(round).center, segment))
-                    .flatten()
-            })
-            .into_iter()
-            .collect(),
-        Constraint::OnCircle { point: held, .. } => point(held).into_iter().collect(),
-        Constraint::Fixed { element } => match element {
-            Element::Point(held) => point(held).into_iter().collect(),
-            Element::Segment(held) => middle(held).into_iter().collect(),
-            Element::Circle(held) => circle(held).into_iter().collect(),
-        },
-    }
-}
-
-/// Just inside the corner two traits make, along the bisector.
-///
-/// They have to actually meet: two traits held square without touching have no
-/// corner to write in, and the marks then go on the traits themselves.
-fn corner_of(sketch: &Sketch, first: SegmentId, second: SegmentId) -> Option<DVec2> {
-    let (pivot, a, b) = sketch.corner_points(first, second)?;
-    let reach = (a.distance(pivot).min(b.distance(pivot))) * 0.25;
-    let inward =
-        ((a - pivot).normalize_or_zero() + (b - pivot).normalize_or_zero()).normalize_or(DVec2::X);
-    Some(pivot + inward * reach)
-}
-
 /// The marks of the rules, written beside what they hold.
 ///
 /// Text rather than drawn symbols: a rule has no size and no direction of its
@@ -3620,7 +3525,7 @@ fn paint_rule_marks(
     let mut taken: Vec<egui::Pos2> = Vec::new();
     for constraint in sketch.constraints() {
         let held = context.editor.is_selected(Selection::Rule(*constraint));
-        for at in rule_marks(sketch, *constraint) {
+        for at in sketch.rule_marks(*constraint) {
             let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
                 continue;
             };

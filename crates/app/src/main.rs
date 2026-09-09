@@ -9,6 +9,7 @@ mod crash;
 mod remembered;
 mod screens;
 mod shortcuts;
+mod ui;
 mod wording;
 
 /// Multisampling for the whole surface: the viewport is drawn with thin lines,

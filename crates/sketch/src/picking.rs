@@ -6,6 +6,7 @@
 
 use glam::DVec2;
 
+use crate::annotation::AnnotationMetrics;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::sketch::{Element, PointId, Sketch};
 
@@ -29,14 +30,11 @@ impl Sketch {
     /// A point before a trait before a circle before an annotation: the smaller
     /// the target, the harder it is to hit on purpose, so the smaller one wins.
     /// The origin is never picked — it is there to be measured from, not moved.
-    ///
-    /// `anchors` says where each annotation is drawn, which only the front-end
-    /// knows.
     pub fn pick(
         &self,
         cursor: DVec2,
         tolerance: f64,
-        anchors: &[(DimensionTarget, DVec2)],
+        metrics: AnnotationMetrics,
     ) -> Option<Selection> {
         if let Some(point) = self
             .nearest_point(cursor, tolerance)
@@ -51,7 +49,7 @@ impl Sketch {
             return Some(Selection::Element(Element::Circle(circle)));
         }
         let wide = tolerance * WIDE_TARGET_REACH;
-        if let Some(target) = self.nearest_dimension(anchors, cursor, wide) {
+        if let Some(target) = self.nearest_dimension(cursor, wide, metrics) {
             return Some(Selection::Dimension(target));
         }
         self.nearest_rule(cursor, wide).map(Selection::Rule)
@@ -66,7 +64,7 @@ impl Sketch {
         &self,
         from: DVec2,
         to: DVec2,
-        anchors: &[(DimensionTarget, DVec2)],
+        metrics: AnnotationMetrics,
     ) -> Vec<Selection> {
         let (low, high) = (from.min(to), from.max(to));
         let inside = |point: DVec2| point.cmpge(low).all() && point.cmple(high).all();
@@ -89,9 +87,9 @@ impl Sketch {
                 caught.push(Selection::Element(Element::Circle(id)));
             }
         }
-        for (target, at) in anchors {
-            if inside(*at) {
-                caught.push(Selection::Dimension(*target));
+        for (target, at) in self.anchors(metrics) {
+            if inside(at) {
+                caught.push(Selection::Dimension(target));
             }
         }
         caught
@@ -137,6 +135,14 @@ mod tests {
     use super::*;
     use crate::plane::WorkPlane;
 
+    const METRICS: AnnotationMetrics = AnnotationMetrics {
+        offset_pixels: 22.0,
+        arrow_pixels: 8.0,
+        arc_pixels: 34.0,
+        pixel: 1.0,
+        nudge: DVec2::ZERO,
+    };
+
     #[test]
     fn a_point_wins_over_the_trait_it_sits_on() {
         let mut sketch = Sketch::new(WorkPlane::XY);
@@ -144,7 +150,7 @@ mod tests {
         let end = sketch.add_point(DVec2::new(50.0, 0.0));
         sketch.add_segment(start, end);
 
-        let picked = sketch.pick(DVec2::new(10.2, 0.0), 1.0, &[]);
+        let picked = sketch.pick(DVec2::new(10.2, 0.0), 1.0, METRICS);
 
         assert_eq!(
             picked,
@@ -159,7 +165,7 @@ mod tests {
         let outside = sketch.add_point(DVec2::new(90.0, 10.0));
         let held = sketch.add_segment(inside, outside);
 
-        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), &[]);
+        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), METRICS);
 
         assert!(
             caught.contains(&Selection::Element(Element::Point(inside))),
@@ -179,7 +185,7 @@ mod tests {
         let spilling = sketch.add_point(DVec2::new(25.0, 45.0));
         let over_the_edge = sketch.add_circle(spilling, 20.0);
 
-        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), &[]);
+        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), METRICS);
 
         assert!(
             caught.contains(&Selection::Element(Element::Circle(held))),
@@ -196,7 +202,7 @@ mod tests {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let drawn = sketch.add_point(DVec2::new(10.0, 10.0));
 
-        let caught = sketch.inside_band(DVec2::new(-10.0, -10.0), DVec2::new(50.0, 50.0), &[]);
+        let caught = sketch.inside_band(DVec2::new(-10.0, -10.0), DVec2::new(50.0, 50.0), METRICS);
 
         assert!(
             caught.contains(&Selection::Element(Element::Point(drawn))),
@@ -218,12 +224,17 @@ mod tests {
             from: start,
             to: end,
         };
-        let anchors = [
-            (measured, DVec2::new(25.0, 20.0)),
-            (elsewhere, DVec2::new(25.0, 90.0)),
-        ];
+        sketch.set_dimension(measured, 30.0, false);
+        sketch.set_dimension(elsewhere, 30.0, false);
+        // Dragged well clear of the box, and recorded there.
+        sketch.offset_dimension(elsewhere, DVec2::new(1000.0, 1000.0));
+        let written_at = sketch.place(measured, METRICS).unwrap().text_at;
 
-        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), &anchors);
+        let caught = sketch.inside_band(
+            written_at - DVec2::splat(5.0),
+            written_at + DVec2::splat(5.0),
+            METRICS,
+        );
 
         assert!(
             caught.contains(&Selection::Dimension(measured)),
@@ -274,17 +285,17 @@ mod tests {
         let start = sketch.add_point(DVec2::new(0.0, 0.0));
         let end = sketch.add_point(DVec2::new(40.0, 0.0));
         let measured = DimensionTarget::Length(sketch.add_segment(start, end));
-        let written_at = DVec2::new(20.0, 20.0);
-        let anchors = [(measured, written_at)];
+        sketch.set_dimension(measured, 40.0, false);
+        let written_at = sketch.place(measured, METRICS).unwrap().text_at;
 
-        let just_off = DVec2::new(20.0, 21.2);
+        let just_off = written_at + DVec2::new(0.0, 1.2);
         assert_eq!(
-            sketch.pick(just_off, 1.0, &anchors),
+            sketch.pick(just_off, 1.0, METRICS),
             Some(Selection::Dimension(measured)),
             "an annotation is read rather than aimed at, so it answers past the reach"
         );
         assert_eq!(
-            sketch.pick(DVec2::new(20.0, 1.2), 1.0, &anchors),
+            sketch.pick(DVec2::new(20.0, 1.2), 1.0, METRICS),
             None,
             "the geometry itself answers only within the reach"
         );
@@ -295,7 +306,7 @@ mod tests {
         let sketch = Sketch::new(WorkPlane::XY);
 
         assert_eq!(
-            sketch.pick(DVec2::new(0.1, 0.0), 1.0, &[]),
+            sketch.pick(DVec2::new(0.1, 0.0), 1.0, METRICS),
             None,
             "the origin is there to be measured from, not taken hold of"
         );

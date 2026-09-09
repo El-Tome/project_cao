@@ -3,6 +3,7 @@ use std::cell::RefCell;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::annotation::AnnotationMetrics;
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
 use crate::independence::is_dependent;
 use crate::plane::WorkPlane;
@@ -514,17 +515,16 @@ impl Sketch {
     }
 
     /// The dimension whose annotation sits nearest `position`, within
-    /// `tolerance`. Needs where each one is drawn, which only the front-end
-    /// knows.
+    /// `tolerance`.
     pub fn nearest_dimension(
         &self,
-        anchors: &[(DimensionTarget, DVec2)],
         position: DVec2,
         tolerance: f64,
+        metrics: AnnotationMetrics,
     ) -> Option<DimensionTarget> {
-        anchors
-            .iter()
-            .map(|(target, at)| (*target, at.distance(position)))
+        self.anchors(metrics)
+            .into_iter()
+            .map(|(target, at)| (target, at.distance(position)))
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(target, _)| target)
@@ -2274,5 +2274,35 @@ mod tests {
         // The origin is a point like any other as far as framing goes.
         assert_eq!(min, DVec2::new(-3.0, -1.0));
         assert_eq!(max, DVec2::new(12.0, 7.0));
+    }
+
+    #[test]
+    fn nearest_dimension_no_longer_needs_anchors_from_the_caller() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(0.0, 0.0));
+        let end = sketch.add_point(DVec2::new(40.0, 0.0));
+        let segment = sketch.add_segment(start, end);
+        let target = DimensionTarget::Length(segment);
+        sketch.set_dimension(target, 40.0, false);
+
+        let metrics = AnnotationMetrics {
+            offset_pixels: 22.0,
+            arrow_pixels: 8.0,
+            arc_pixels: 34.0,
+            pixel: 1.0,
+            nudge: DVec2::ZERO,
+        };
+        let written_at = sketch.place(target, metrics).unwrap().text_at;
+
+        assert_eq!(
+            sketch.nearest_dimension(written_at, 1.0, metrics),
+            Some(target),
+            "the sketch works out where its own dimension is written, with no \
+             anchors passed in from outside"
+        );
+        assert_eq!(
+            sketch.nearest_dimension(DVec2::new(1000.0, 1000.0), 1.0, metrics),
+            None,
+        );
     }
 }

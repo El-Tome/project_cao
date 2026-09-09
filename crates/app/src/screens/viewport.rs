@@ -10,13 +10,13 @@ use cao_render::{
     srgb,
 };
 use cao_sketch::{
-    CircleId, DimensionTarget, Element, PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch,
-    Snap, SnapSettings, WorkPlane, rule_intent,
+    CircleId, DimensionTarget, Element, PointId, Rule, RuleIntent, RulePick, SegmentId, Selection,
+    Sketch, Snap, SnapSettings, WorkPlane, rule_intent,
 };
 use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::{
-    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, Selection, SketchEditor, Tool,
+    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, SketchEditor, Tool,
 };
 use crate::{screens::extrusion::ExtrusionState, wording::constraints};
 
@@ -716,10 +716,8 @@ fn plane_under(
         .map(|(_, index)| PlaneChoice::Origin(index))
 }
 
-/// What the cursor is over, in the order a click should take it.
-///
-/// A point before a line before a circle before a dimension: the smaller the
-/// target, the harder it is to hit on purpose, so the smaller one wins.
+/// What the cursor is over. The order and the reaches are the drawing's own
+/// rule; all this adds is where each annotation was drawn.
 fn pick(
     context: &SketchContext<'_>,
     index: usize,
@@ -728,23 +726,7 @@ fn pick(
     pixel: f64,
 ) -> Option<Selection> {
     let sketch = context.document.sketches().get(index)?;
-
-    if let Some(point) = sketch
-        .nearest_point(cursor, snap)
-        .filter(|point| !sketch.is_origin(*point))
-    {
-        return Some(Selection::Element(Element::Point(point)));
-    }
-    if let Some(segment) = sketch.nearest_segment(cursor, snap) {
-        return Some(Selection::Element(Element::Segment(segment)));
-    }
-    if let Some(circle) = sketch.nearest_circle(cursor, snap) {
-        return Some(Selection::Element(Element::Circle(circle)));
-    }
-    if let Some(target) = nearest_annotation(context, index, cursor, snap * 1.5, pixel) {
-        return Some(Selection::Dimension(target));
-    }
-    sketch.nearest_rule(cursor, snap * 1.5).map(Selection::Rule)
+    sketch.pick(cursor, snap, &annotation_anchors(context, index, pixel))
 }
 
 /// Points the constraint tool at something, and lays the rule down as soon as
@@ -850,37 +832,11 @@ fn band_select(
     }
     context.editor.band = None;
 
-    let (low, high) = (from.min(to), from.max(to));
-    let inside = |point: DVec2| point.cmpge(low).all() && point.cmple(high).all();
+    let anchors = annotation_anchors(context, index, pixel);
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-
-    let mut caught: Vec<Selection> = Vec::new();
-    for (id, point) in sketch.live_points() {
-        if inside(point) && !sketch.is_origin(id) {
-            caught.push(Selection::Element(Element::Point(id)));
-        }
-    }
-    for (id, segment) in sketch.live_segments() {
-        if inside(sketch.point(segment.start)) && inside(sketch.point(segment.end)) {
-            caught.push(Selection::Element(Element::Segment(id)));
-        }
-    }
-    for (id, circle) in sketch.live_circles() {
-        let center = sketch.point(circle.center);
-        let reach = DVec2::splat(circle.radius);
-        if inside(center - reach) && inside(center + reach) {
-            caught.push(Selection::Element(Element::Circle(id)));
-        }
-    }
-    for dimension in sketch.dimensions() {
-        if annotation_home(context, index, dimension.target, pixel)
-            .is_some_and(|(text_at, _)| inside(text_at))
-        {
-            caught.push(Selection::Dimension(dimension.target));
-        }
-    }
+    let caught = sketch.inside_band(from, to, &anchors);
 
     if !adding {
         context.editor.selection.clear();
@@ -1110,33 +1066,7 @@ fn grabbed_group(
     let Some(sketch) = context.document.sketches().get(index) else {
         return Vec::new();
     };
-
-    let mut points: Vec<PointId> = Vec::new();
-    let mut take = |point: PointId| {
-        if !sketch.is_origin(point) && !points.contains(&point) {
-            points.push(point);
-        }
-    };
-    for held in &context.editor.selection {
-        let Selection::Element(element) = held else {
-            continue;
-        };
-        match element {
-            Element::Point(id) => take(*id),
-            Element::Segment(id) => {
-                if let Some(segment) = sketch.segments().get(id.0) {
-                    take(segment.start);
-                    take(segment.end);
-                }
-            }
-            Element::Circle(id) => {
-                if let Some(circle) = sketch.circles().get(id.0) {
-                    take(circle.center);
-                }
-            }
-        }
-    }
-    points
+    sketch.points_of(&context.editor.selection)
 }
 
 /// Moving a whole selection at once. Same rule as a point: shown following the
@@ -1232,15 +1162,29 @@ fn nearest_annotation(
     pixel: f64,
 ) -> Option<DimensionTarget> {
     let sketch = context.document.sketches().get(index)?;
-    // Only where the annotation lands matters here; its vertices are thrown
-    // away, so the theme's colours never come into it. The scale, on the other
-    // hand, has to be the real one: an annotation sits a fixed number of pixels
-    // off what it measures, so guessing it puts the target somewhere the
-    // annotation is not.
+    let anchors = annotation_anchors(context, index, pixel);
+    sketch.nearest_dimension(&anchors, cursor, tolerance)
+}
+
+/// Where every annotation of a sketch is written, which the drawing code alone
+/// works out.
+///
+/// Only where each one lands matters, so its vertices are thrown away and the
+/// theme's colours never come into it. The scale, on the other hand, has to be
+/// the real one: an annotation sits a fixed number of pixels off what it
+/// measures, so guessing it puts the target somewhere the annotation is not.
+fn annotation_anchors(
+    context: &SketchContext<'_>,
+    index: usize,
+    pixel: f64,
+) -> Vec<(DimensionTarget, DVec2)> {
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return Vec::new();
+    };
     let style = crate::screens::annotations::Style::driving(&Theme::default());
     let mut discarded = Vec::new();
 
-    let anchors: Vec<_> = sketch
+    sketch
         .dimensions()
         .iter()
         .filter_map(|dimension| {
@@ -1254,9 +1198,7 @@ fn nearest_annotation(
             )
             .map(|placement| (dimension.target, placement.text_at))
         })
-        .collect();
-
-    sketch.nearest_dimension(&anchors, cursor, tolerance)
+        .collect()
 }
 
 /// A point already there, or a new one where the cursor is.

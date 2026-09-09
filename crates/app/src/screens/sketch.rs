@@ -1,15 +1,7 @@
 use cao_sketch::{
-    Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, SketchAxis, WorkPlane,
+    DimensionTarget, PointId, Rule, RulePick, SegmentId, Selection, SketchAxis, WorkPlane,
 };
 use glam::DVec2;
-
-/// What the selection tool is holding, and what pressing Suppr would delete.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Selection {
-    Element(Element),
-    Dimension(DimensionTarget),
-    Rule(Constraint),
-}
 
 /// One of the two values that can be typed while a shape is being drawn.
 ///

@@ -80,6 +80,59 @@ impl Sketch {
             _ => None,
         }
     }
+
+    /// The second half a dimension in hand can still take: another segment
+    /// makes it an angle, a point makes it a distance to a line, an axis a
+    /// direction.
+    ///
+    /// Without this, clicking a segment could only ever mean its length, and
+    /// an angle between two traits had to be asked for through the dimension
+    /// mode picker — which is exactly what one expects the smart dimension to
+    /// do on its own.
+    pub fn refine(
+        &self,
+        target: DimensionTarget,
+        cursor: DVec2,
+        snap: f64,
+    ) -> Option<DimensionTarget> {
+        // A diameter taken back to the centre is a radius: it is the one
+        // thing the centre can add to a circle already picked.
+        if let DimensionTarget::Diameter(circle) = target {
+            let center = self.circles().get(circle.0)?.center;
+            return self
+                .nearest_point(cursor, snap * 0.8)
+                .filter(|point| *point == center)
+                .map(|_| DimensionTarget::Radius(circle));
+        }
+
+        let DimensionTarget::Length(first) = target else {
+            return None;
+        };
+
+        if let Some(second) = self.nearest_segment(cursor, snap)
+            && second != first
+            && self.angle_between(first, second).is_some()
+        {
+            return Some(DimensionTarget::Angle { first, second }.normalised());
+        }
+        if let Some(point) = self.nearest_point(cursor, snap * 0.8)
+            && !self.segment_touches(first, point)
+        {
+            return Some(DimensionTarget::PointToSegment {
+                point,
+                segment: first,
+            });
+        }
+        if self.nearest_segment(cursor, snap).is_none()
+            && let Some(axis) = axis_under(cursor, snap)
+        {
+            return Some(DimensionTarget::AxisAngle {
+                segment: first,
+                axis,
+            });
+        }
+        None
+    }
 }
 
 /// Which sketch axis the cursor is on, if either. The axes are drawn as lines
@@ -243,5 +296,60 @@ mod tests {
     #[test]
     fn a_cursor_off_both_axes_is_on_neither() {
         assert_eq!(axis_under(DVec2::new(30.0, 30.0), 0.5), None);
+    }
+
+    fn right_angle_pair() -> (Sketch, SegmentId, SegmentId) {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(0.0, 0.0));
+        let b = sketch.add_point(DVec2::new(40.0, 0.0));
+        let c = sketch.add_point(DVec2::new(40.0, 40.0));
+        let first = sketch.add_segment(a, b);
+        let second = sketch.add_segment(b, c);
+        (sketch, first, second)
+    }
+
+    #[test]
+    fn a_length_clicked_twice_is_read_as_an_angle_when_a_second_trait_is_under_the_cursor() {
+        let (sketch, first, second) = right_angle_pair();
+        let target = DimensionTarget::Length(first);
+
+        let refined = sketch
+            .refine(target, DVec2::new(40.0, 20.0), 1.0)
+            .expect("a second trait under the cursor refines the reading");
+
+        assert_eq!(
+            refined,
+            DimensionTarget::Angle { first, second }.normalised()
+        );
+    }
+
+    #[test]
+    fn a_length_clicked_with_nothing_else_under_the_cursor_stays_a_length() {
+        let (sketch, first, _second) = right_angle_pair();
+
+        assert_eq!(
+            sketch.refine(
+                DimensionTarget::Length(first),
+                DVec2::new(500.0, 500.0),
+                1.0
+            ),
+            None,
+        );
+    }
+
+    #[test]
+    fn a_diameter_taken_back_to_the_centre_is_read_as_a_radius() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let center = sketch.add_point(DVec2::new(100.0, 100.0));
+        let circle = sketch.add_circle(center, 10.0);
+
+        assert_eq!(
+            sketch.refine(
+                DimensionTarget::Diameter(circle),
+                DVec2::new(100.05, 100.0),
+                1.0
+            ),
+            Some(DimensionTarget::Radius(circle)),
+        );
     }
 }

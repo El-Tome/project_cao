@@ -1,10 +1,7 @@
-use cao_sketch::{
-    ChainAnchor, DimensionTarget, LockedInput, PointId, Rule, RulePick, SegmentId, Selection,
-    SketchAxis, WorkPlane,
-};
+use cao_sketch::{DimensionTarget, PointId, Rule, Selection, ToolState, WorkPlane};
 use glam::DVec2;
 
-pub use cao_sketch::CircleMode;
+pub use cao_sketch::{CircleMode, DimensionMode};
 
 /// One of the two values that can be typed while a shape is being drawn.
 ///
@@ -42,13 +39,9 @@ impl LiveInput {
         self.focus = true;
     }
 
-    pub fn is_locked(&self) -> bool {
-        self.first.locked.is_some() || self.second.locked.is_some()
-    }
-
     /// The two decisions, as the drawing reads them.
-    pub fn locked(&self) -> LockedInput {
-        LockedInput {
+    pub fn locked(&self) -> cao_sketch::LockedInput {
+        cao_sketch::LockedInput {
             first: self.first.locked,
             second: self.second.locked,
         }
@@ -83,32 +76,6 @@ pub enum Tool {
     Constrain(Rule),
 }
 
-/// What the smart dimension tool is allowed to measure.
-///
-/// `Auto` takes whatever is under the cursor, which covers most of the work.
-/// The others force one kind, for when two things overlap and the wrong one
-/// keeps winning.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum DimensionMode {
-    #[default]
-    Auto,
-    /// Between two points, joined or not.
-    PointToPoint,
-    /// The length of a segment, by clicking the segment itself.
-    Length,
-    /// Between two segments, or a segment and a sketch axis.
-    Angle,
-    /// The radius of a circle.
-    Radius,
-}
-
-impl DimensionMode {
-    /// Whether this mode may pick a point.
-    pub fn takes_points(self) -> bool {
-        matches!(self, Self::Auto | Self::PointToPoint)
-    }
-}
-
 /// Where the sketch workflow currently stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SketchPhase {
@@ -121,6 +88,17 @@ pub enum SketchPhase {
     Editing(usize),
 }
 
+/// A dimension already on the drawing, opened for editing: its value, typed
+/// into the field beside it.
+pub struct DimensionEdit {
+    pub target: DimensionTarget,
+    pub input: String,
+    /// Set when the dimension has just been opened, so its field takes the
+    /// keyboard on its own: reaching it with Tab means walking through every
+    /// button of the toolbar first.
+    pub focus: bool,
+}
+
 /// Everything the sketch workflow needs to remember between frames. The sketch
 /// data itself lives in the part document; this is only the editing state.
 #[derive(Default)]
@@ -130,76 +108,31 @@ pub struct SketchEditor {
     /// The plane a sketch is being drawn on, kept here so the view can be
     /// re-aligned with it at any time.
     pub plane: Option<WorkPlane>,
-    /// Where the polyline in progress carries on from.
-    pub chain: Option<ChainAnchor>,
     pub hovered_plane: Option<PlaneChoice>,
-    /// What the dimension tool is pointing at, once it is placed.
-    pub selected: Option<DimensionTarget>,
-    /// The dimension chosen but not yet put down: it follows the cursor until
-    /// a second click says where it goes.
-    pub placing: Option<DimensionTarget>,
-    /// Which kind of measurement the dimension tool is forcing.
-    pub dimension_mode: DimensionMode,
-    /// First segment picked by the angle mode, waiting for the second.
-    pub first_angle_segment: Option<SegmentId>,
-    /// First point picked by the point-to-point mode.
-    pub first_point: Option<PointId>,
-    /// Point being dragged with the selection tool, and where it currently
-    /// sits. Nothing is recorded until it is let go: a drag produces one entry
-    /// in the history, not one per frame.
-    pub dragged_point: Option<PointId>,
-    /// Every point of the selection when a whole block is being moved at once.
-    pub dragged_group: Vec<PointId>,
-    /// Annotation being dragged out of the way.
-    pub dragged_dimension: Option<DimensionTarget>,
-    /// Where the drag began, to measure how far it has travelled.
-    pub drag_origin: Option<DVec2>,
-    pub drag_position: Option<DVec2>,
-    /// Axis picked first by the dimension tool, waiting for a segment.
-    pub first_axis: Option<SketchAxis>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
     /// What the cursor has been pulled onto, so the drawing can say so.
     pub snap: Option<cao_sketch::Snap>,
-    /// The whole sketch as it would settle if the point were let go here.
-    ///
-    /// Drawing only the point under the cursor and leaving the rest where it
-    /// was showed a shape torn out of shape, and nothing of where it was
-    /// actually going to land.
-    pub drag_preview: Option<cao_sketch::Sketch>,
-    /// What the constraint tool has been pointed at so far.
-    pub rule_picks: Vec<RulePick>,
-    /// How the circle tool is drawing, and what it has been shown so far.
-    pub circle_mode: CircleMode,
-    pub circle_points: Vec<DVec2>,
-    pub circle_segments: Vec<SegmentId>,
-    /// Everything the selection tool is holding, ready to be deleted.
-    pub selection: Vec<Selection>,
-    /// The box being pulled across the drawing, in sketch coordinates: where it
-    /// started and where the cursor is now.
-    pub band: Option<(DVec2, DVec2)>,
-    /// The last segment the line tool drew, which the next one may square up
-    /// against.
-    pub chain_previous: Option<SegmentId>,
-    /// The corner where a right angle is about to be made, so it can be shown
-    /// before it is committed to.
-    pub square_corner: Option<DVec2>,
-    /// Where the line being drawn would actually end, once what the user typed
-    /// and the right-angle snap have had their say. The preview shows this and
-    /// not the raw cursor, so what is drawn is what a click would record.
-    pub aimed: Option<DVec2>,
-    pub live: LiveInput,
-    /// First corner of a rectangle, or the centre of a circle.
-    pub pending_start: Option<DVec2>,
-    /// Text being typed into the dimension field.
-    pub dimension_input: String,
-    /// Set when a dimension has just been picked, so its field takes the
-    /// keyboard on its own: reaching it with Tab means walking through every
-    /// button of the toolbar first.
-    pub focus_dimension_field: bool,
     /// Where the next point would land, snapped. Drives the preview line.
     pub cursor: Option<DVec2>,
     pub message: Option<String>,
+    /// How the circle tool is drawing. Not reset between shapes: a mode
+    /// chosen stays chosen until another is.
+    pub circle_mode: CircleMode,
+    /// Which kind of measurement the dimension tool is forcing. Not reset
+    /// between shapes, for the same reason.
+    pub dimension_mode: DimensionMode,
+    pub live: LiveInput,
+    /// Where the shape being drawn actually ends, once what was typed and the
+    /// right-angle snap have had their say. Recomputed every frame from
+    /// `tool_state` and `cursor`; the preview shows this and not the raw
+    /// cursor, so what is drawn is what a click would record.
+    pub aimed: Option<cao_sketch::Aim>,
+    /// A dimension already on the drawing, opened for editing.
+    pub editing: Option<DimensionEdit>,
+    /// How far the shape, dimension or rule the tool in hand is drawing has
+    /// gotten. See `cao_sketch::ToolState`.
+    pub tool_state: ToolState,
 }
 
 /// What the cursor is offering to sketch on.
@@ -244,31 +177,15 @@ impl SketchEditor {
         self.message = Some("Choisissez un plan d'esquisse".to_string());
     }
 
-    /// Drops everything half-finished: the polyline in progress, the first
-    /// corner of a shape, the segment waiting for its partner.
+    /// Drops everything half-finished: the shape in progress, the dimension
+    /// being placed, the rule waiting for its next pick.
     pub fn reset_pending(&mut self) {
-        self.chain = None;
-        self.chain_previous = None;
-        self.square_corner = None;
-        self.aimed = None;
+        self.tool_state = match self.tool {
+            Tool::Select => ToolState::Select(Box::default()),
+            _ => ToolState::None,
+        };
         self.live.clear();
-        self.selection.clear();
-        self.band = None;
-        self.rule_picks.clear();
-        self.circle_points.clear();
-        self.circle_segments.clear();
-        self.pending_start = None;
-        self.first_angle_segment = None;
-        self.first_point = None;
-        self.first_axis = None;
-        self.placing = None;
-        self.dragged_point = None;
-        self.dragged_group.clear();
-        self.drag_preview = None;
-        self.dragged_dimension = None;
-        self.drag_origin = None;
-        self.drag_position = None;
-        self.selected = None;
+        self.editing = None;
     }
 
     pub fn begin_editing(&mut self, sketch: usize, plane: WorkPlane) {
@@ -280,18 +197,120 @@ impl SketchEditor {
         self.message = None;
     }
 
+    /// What the selection tool is holding, ready to be deleted.
+    pub fn selection(&self) -> &[Selection] {
+        match &self.tool_state {
+            ToolState::Select(state) => &state.held,
+            _ => &[],
+        }
+    }
+
+    /// The selection tool's own state, when it is the tool in hand.
+    pub fn select_state(&mut self) -> Option<&mut cao_sketch::SelectState> {
+        match &mut self.tool_state {
+            ToolState::Select(state) => Some(state),
+            _ => None,
+        }
+    }
+
+    /// The whole drawing settled as it would be if a drag in progress were
+    /// let go right now, standing in for the recorded sketch while it lasts.
+    pub fn drag_preview(&self) -> Option<&cao_sketch::Sketch> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.drag_preview.as_ref(),
+            _ => None,
+        }
+    }
+
+    pub fn dragged_point(&self) -> Option<PointId> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.dragged_point,
+            _ => None,
+        }
+    }
+
+    pub fn drag_position(&self) -> Option<DVec2> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.drag_position,
+            _ => None,
+        }
+    }
+
+    pub fn dragged_dimension(&self) -> Option<DimensionTarget> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.dragged_dimension,
+            _ => None,
+        }
+    }
+
+    pub fn drag_origin(&self) -> Option<DVec2> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.drag_origin,
+            _ => None,
+        }
+    }
+
+    pub fn band(&self) -> Option<(DVec2, DVec2)> {
+        match &self.tool_state {
+            ToolState::Select(state) => state.band,
+            _ => None,
+        }
+    }
+
+    /// The dimension chosen but not yet put down: it follows the cursor until
+    /// a second click says where it goes.
+    pub fn placing(&self) -> Option<DimensionTarget> {
+        match &self.tool_state {
+            ToolState::Dimension { placing, .. } => *placing,
+            _ => None,
+        }
+    }
+
+    /// The first point picked by the point-to-point mode of the dimension
+    /// tool, waiting for the second.
+    pub fn first_point(&self) -> Option<PointId> {
+        match &self.tool_state {
+            ToolState::Dimension { picks, .. } => picks.first_point,
+            _ => None,
+        }
+    }
+
+    /// Where the polyline in progress carries on from.
+    pub fn chain(&self) -> Option<cao_sketch::ChainAnchor> {
+        match &self.tool_state {
+            ToolState::Line { anchor, .. } => Some(*anchor),
+            _ => None,
+        }
+    }
+
+    /// First corner of a rectangle being drawn.
+    pub fn pending_start(&self) -> Option<DVec2> {
+        match &self.tool_state {
+            ToolState::Rectangle { start } => Some(*start),
+            _ => None,
+        }
+    }
+
+    /// The dimension already on the drawing, open for editing.
+    pub fn selected(&self) -> Option<DimensionTarget> {
+        self.editing.as_ref().map(|editing| editing.target)
+    }
+
     /// Whether something is part of what the selection tool is holding.
     pub fn is_selected(&self, what: Selection) -> bool {
-        self.selection.contains(&what)
+        self.selection().contains(&what)
     }
 
     /// Adds or removes one thing, the way holding the modifier does.
     pub fn toggle(&mut self, what: Selection) {
-        match self.selection.iter().position(|held| *held == what) {
+        let ToolState::Select(state) = &mut self.tool_state else {
+            return;
+        };
+        match state.held.iter().position(|held| *held == what) {
             Some(index) => {
-                self.selection.remove(index);
+                state.held.remove(index);
             }
-            None => self.selection.push(what),
+            None => state.held.push(what),
         }
     }
 
@@ -300,14 +319,24 @@ impl SketchEditor {
     }
 
     pub fn select(&mut self, target: Option<DimensionTarget>, measured: Option<f64>) {
-        self.focus_dimension_field = target.is_some() && target != self.selected;
-        self.selected = target;
-        self.dimension_input = match measured {
-            Some(length) => format!("{length:.2}")
-                .trim_end_matches('0')
-                .trim_end_matches('.')
-                .to_string(),
-            None => String::new(),
+        let Some(target) = target else {
+            self.editing = None;
+            return;
         };
+        let same = self
+            .editing
+            .as_ref()
+            .is_some_and(|editing| editing.target == target);
+        self.editing = Some(DimensionEdit {
+            target,
+            input: match measured {
+                Some(length) => format!("{length:.2}")
+                    .trim_end_matches('0')
+                    .trim_end_matches('.')
+                    .to_string(),
+                None => String::new(),
+            },
+            focus: !same,
+        });
     }
 }

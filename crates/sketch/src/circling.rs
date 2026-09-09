@@ -10,6 +10,7 @@ use crate::construct::{
     CircleMode, Line, centre_through, centre_through_at, centre_touching_two,
     circle_touching_three, resize_touching,
 };
+use crate::sketch::{SegmentId, Sketch};
 
 /// A circle about to be drawn.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -111,9 +112,144 @@ pub fn rim_of(mode: CircleMode, places: &[DVec2], cursor: DVec2, centre: DVec2) 
         .collect()
 }
 
+/// What one click of the circle tool does, before enough has been picked to
+/// know which circle is meant.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum CircleProgress {
+    /// A construction touching traits still needs one, and none is under the
+    /// cursor.
+    NeedsSegment,
+    /// The trait under the cursor is one already picked.
+    AlreadyPicked,
+    /// One more point is enough to remember; the circle still waits.
+    AddPoint(DVec2),
+    /// One more trait is enough to remember; the circle still waits.
+    AddSegment(SegmentId),
+    /// Enough has been picked for the click to settle what circle is meant.
+    Ready,
+}
+
+/// Whether a click adds to what a circle needs, or is enough to draw it.
+///
+/// The order mirrors what each construction needs: a mode built from traits
+/// asks for one before it looks at points, since that is the only thing it
+/// can ever ask for.
+pub fn circle_progress(
+    mode: CircleMode,
+    points: &[DVec2],
+    segments: &[SegmentId],
+    sketch: &Sketch,
+    cursor: DVec2,
+    snap: f64,
+) -> CircleProgress {
+    if mode.touches_traits() && segments.len() < mode.wants() - 1 {
+        return match sketch.nearest_segment(cursor, snap) {
+            None => CircleProgress::NeedsSegment,
+            Some(segment) if segments.contains(&segment) => CircleProgress::AlreadyPicked,
+            Some(segment) => CircleProgress::AddSegment(segment),
+        };
+    }
+    if !mode.touches_traits() && points.len() < mode.wants() - 1 {
+        return CircleProgress::AddPoint(cursor);
+    }
+    CircleProgress::Ready
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::plane::WorkPlane;
+
+    #[test]
+    fn a_three_point_circle_waits_for_two_places_before_it_draws() {
+        let sketch = Sketch::new(WorkPlane::XY);
+        let cursor = DVec2::new(10.0, 10.0);
+
+        assert_eq!(
+            circle_progress(CircleMode::ThreePoints, &[], &[], &sketch, cursor, 1.0),
+            CircleProgress::AddPoint(cursor),
+            "the first of three places only waits for the next",
+        );
+        assert_eq!(
+            circle_progress(
+                CircleMode::ThreePoints,
+                &[DVec2::new(0.0, 0.0)],
+                &[],
+                &sketch,
+                cursor,
+                1.0,
+            ),
+            CircleProgress::AddPoint(cursor),
+            "the second of three places still only waits",
+        );
+        assert_eq!(
+            circle_progress(
+                CircleMode::ThreePoints,
+                &[DVec2::new(0.0, 0.0), DVec2::new(20.0, 0.0)],
+                &[],
+                &sketch,
+                cursor,
+                1.0,
+            ),
+            CircleProgress::Ready,
+            "the third click has enough to settle a circle",
+        );
+    }
+
+    #[test]
+    fn a_construction_built_from_traits_asks_for_one_when_none_is_under_the_cursor() {
+        let sketch = Sketch::new(WorkPlane::XY);
+
+        assert_eq!(
+            circle_progress(
+                CircleMode::ThreeTangents,
+                &[],
+                &[],
+                &sketch,
+                DVec2::new(10.0, 10.0),
+                1.0,
+            ),
+            CircleProgress::NeedsSegment,
+        );
+    }
+
+    #[test]
+    fn a_trait_already_picked_is_told_apart_from_one_freshly_found() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let a = sketch.add_point(DVec2::new(0.0, 0.0));
+        let b = sketch.add_point(DVec2::new(20.0, 0.0));
+        let segment = sketch.add_segment(a, b);
+        let midpoint = DVec2::new(10.0, 0.0);
+
+        assert_eq!(
+            circle_progress(
+                CircleMode::TwoTangents,
+                &[],
+                &[segment],
+                &sketch,
+                midpoint,
+                1.0
+            ),
+            CircleProgress::AlreadyPicked,
+        );
+    }
+
+    #[test]
+    fn a_two_point_construction_is_ready_as_soon_as_it_has_its_first_point() {
+        let sketch = Sketch::new(WorkPlane::XY);
+
+        assert_eq!(
+            circle_progress(
+                CircleMode::TwoPoints,
+                &[DVec2::new(0.0, 0.0)],
+                &[],
+                &sketch,
+                DVec2::new(10.0, 10.0),
+                1.0,
+            ),
+            CircleProgress::Ready,
+        );
+    }
 
     #[test]
     fn a_diameter_too_small_to_reach_both_points_is_held_at_the_smallest_that_does() {

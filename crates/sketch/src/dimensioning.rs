@@ -86,9 +86,9 @@ impl Sketch {
     /// direction.
     ///
     /// Without this, clicking a segment could only ever mean its length, and
-    /// an angle between two traits had to be asked for through the Mesurer
-    /// row — which is exactly what one expects the smart dimension to do on
-    /// its own.
+    /// an angle between two traits had to be asked for through the dimension
+    /// mode picker — which is exactly what one expects the smart dimension to
+    /// do on its own.
     pub fn refine(
         &self,
         target: DimensionTarget,

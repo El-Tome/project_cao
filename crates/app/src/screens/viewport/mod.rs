@@ -18,7 +18,10 @@ use glam::DVec3;
 
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
-use input::{draw_circle, draw_line_point, handle_sketch_input, pick_areas, two_click_shape};
+use input::{
+    draw_circle, draw_line_point, handle_sketch_input, pick_areas, rectangle_corner,
+    two_click_shape,
+};
 use render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
     paint_live_input, paint_rule_marks, paint_ruler,
@@ -201,14 +204,20 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     );
     if drawing && paint_live_input(ui, sketch) {
         // Enter finishes the shape from the keyboard, without having to find
-        // the canvas again with the mouse.
+        // the canvas again with the mouse. What the shape ends at follows the
+        // same reading as a click would: the line's aim, or the rectangle's
+        // corner once what was typed has had its say.
         if let Some(index) = sketch.editor.active_sketch() {
-            let cursor = sketch
-                .editor
-                .aimed
-                .map(|aimed| aimed.position)
-                .or(sketch.editor.cursor)
-                .unwrap_or_default();
+            let raw_cursor = sketch.editor.cursor.unwrap_or_default();
+            let cursor = match sketch.editor.tool {
+                Tool::Line => sketch
+                    .editor
+                    .aimed
+                    .map(|aimed| aimed.position)
+                    .unwrap_or(raw_cursor),
+                Tool::Rectangle => rectangle_corner(sketch, raw_cursor),
+                _ => raw_cursor,
+            };
             let snap = scale.world_size_of(PICK_PIXELS);
             changed |= match sketch.editor.tool {
                 Tool::Line => draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel),
@@ -235,10 +244,14 @@ fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
     }
     let editor = &mut context.editor;
     let busy = editor.editing.is_some() || editor.tool_state.is_busy();
-    editor.reset_pending();
+    // The tool changes first: reset_pending() reads it to decide the right
+    // idle tool_state, and giving Select back after clearing would leave it
+    // with none, silently disabling the selection tool until it is chosen
+    // again by hand.
     if !busy {
         editor.tool = Tool::Select;
     }
+    editor.reset_pending();
 }
 
 /// How much of the world one pixel covers right now, and the grid step that

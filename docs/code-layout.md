@@ -194,8 +194,7 @@ Three consequences:
 
 **400 lines.** Past that, a file is holding more than one responsibility.
 
-Seventeen files are already over it. They are listed by name in the architecture
-test with the length they had the day the rule landed, and none of them may
-grow. Once one falls back under 400, its entry has to go — the test says so,
-because a list of exceptions nobody prunes stops being a debt and becomes a
-second standard.
+The files already over it are listed by name in the architecture test with the
+length they had the day the rule landed, and none of them may grow. Once one
+falls back under 400, its entry has to go — the test says so, because a list of
+exceptions nobody prunes stops being a debt and becomes a second standard.

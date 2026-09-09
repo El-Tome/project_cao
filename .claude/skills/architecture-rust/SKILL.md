@@ -135,11 +135,12 @@ window.
 
 A primitive in `ui/` is the same inversion applied to the interface. It takes a
 `&str`, an `f32`, a `bool`, and hands back what the user did; it knows no part
-and no sketch. `settings.rs` dresses 22 `egui::Slider` and 4 `egui::TextEdit` by
-hand — each re-deciding the same width, step and unit. That is what `ui/` is
-for, and the test holds the count at 31 so it can only fall. Layout containers
-(`Frame`, `Area`, `ScrollArea`, the panels) are not primitives: arranging a
-screen is the screen's own business.
+and no sketch. `settings/viewport.rs` used to dress 22 `egui::Slider` and 4
+`egui::TextEdit` by hand across the settings screen — each re-deciding the same
+width, step and unit. `ui/slider.rs` and `ui/text_edit.rs` ended that; the test
+holds what is left so it can only fall. Layout containers (`Frame`, `Area`,
+`ScrollArea`, the panels) are not primitives: arranging a screen is the
+screen's own business.
 
 ## Bounded contexts
 
@@ -345,8 +346,9 @@ commit.
 folder `screens/<mode>/`, holding at least `state.rs` and `view.rs`. Never a
 branch grafted onto an existing module.
 
-**A widget** — in `ui/`, if a second screen could ever want it. `settings.rs`
-holds 26 that were written where they were needed.
+**A widget** — in `ui/`, if a second screen could ever want it.
+`settings/viewport.rs` still holds 3 that need something a plain value can't
+carry, a logarithmic scale or a custom clamp — the rest moved to `ui/`.
 
 **A dependency** — in `[workspace.dependencies]` at the root, with the version,
 then referenced with `.workspace = true`. Check first that it does not break the

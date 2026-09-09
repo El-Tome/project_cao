@@ -105,7 +105,7 @@ there. See the `architecture-rust` skill.
 | Extrusion and revolution, interface side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | The History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
 | The toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
-| The settings screen | `app/src/screens/settings.rs` | `show(ui, profiles, editor)` |
+| The settings screen | `app/src/screens/settings/` | `show(ui, profiles, editor)`, one file per section |
 | The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |

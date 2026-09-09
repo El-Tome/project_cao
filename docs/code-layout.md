@@ -137,10 +137,13 @@ what the user did. It knows no part, no sketch, no history. That is the same
 inversion as a port, applied to the interface: `ui/` is a vocabulary, and the
 screen is what has something to say.
 
-The measure of what this is for: `settings.rs` builds **22 `egui::Slider` and
-4 `egui::TextEdit` by hand**. Every one of them re-decides the same width, the
-same step, the same way of showing a unit. One `ui/slider.rs` ends that, and the
-architecture test holds the count at 31 across `cao_app` so it can only fall.
+What this bought: `settings.rs` used to build 22 `egui::Slider` and 4
+`egui::TextEdit` by hand, each re-deciding the same width, the same step, the
+same way of showing a unit. `ui/slider.rs` and `ui/text_edit.rs` ended that —
+the few sliders that genuinely need something a plain value can't carry, a
+logarithmic scale or a custom clamp, still call `egui::Slider` directly. The
+architecture test holds what is left across `cao_app` so the count can only
+fall.
 
 Layout containers — `Frame`, `Area`, `ScrollArea`, the panels — are not
 primitives. Arranging a screen is the screen's own business.

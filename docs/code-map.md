@@ -43,12 +43,15 @@ in one of the two domains, never there.
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| Sketch model: points, traits, circles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| Sketch model: points, traits, circles | `sketch/src/sketch.rs` — the largest file in the repository | `Sketch`, `live_points`, `live_segments`, `live_circles` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
+| What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
 | Where a rule's mark is written, and the nearest one to a cursor | `sketch/src/rule_marks.rs` | `Sketch::rule_marks`, `Sketch::nearest_rule` |
 | The solver | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
+| One equation of the system, linearised around the drawing's current shape | `sketch/src/equation.rs` | `Equation` |
+| The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
@@ -59,7 +62,11 @@ in one of the two domains, never there.
 | What a click takes hold of, what a box catches, what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::inside_band`, `Sketch::points_of`, `Selection` |
 | Where a dimension's annotation is drawn, and where its value belongs | `sketch/src/annotation.rs` | `Sketch::place`, `AnnotationMetrics`, `Placement` |
 | Where a trait being drawn ends, and the four-degree square snap | `sketch/src/aim.rs` | `Sketch::aim`, `rectangle_corner`, `LockedInput`, `ChainAnchor` |
+| One click of the line tool | `sketch/src/chain.rs` | `chain_click`, `ChainClick` |
 | Which circle the clicks gathered so far mean | `sketch/src/circling.rs` | `circle_from`, `rim_of`, `Found` |
+| What one click of the smart dimension tool measures | `sketch/src/measuring.rs` | `measure_pick`, `DimensionMode`, `DimensionPick` |
+| The dimensions a freshly-drawn rectangle or line earns on its own | `sketch/src/shape_dimensions.rs` | `rectangle_dimensions`, `line_dimensions` |
+| What each tool remembers between one click and the next | `sketch/src/tool.rs` | `ToolState`, `SelectState` |
 
 What it does: [`sketch.md`](sketch.md).
 
@@ -127,7 +134,9 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | --- | --- | --- |
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| Canvas: gestures, hit test, drawing | `app/src/screens/viewport.rs` — the largest file in the repository | `show(...)`, `ViewportState`, `ViewMode` |
+| Canvas: state, camera navigation, entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
+| Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
+| Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `face_label` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
@@ -189,9 +198,11 @@ These places carry no test of their own:
 - `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
   is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);
 - `crates/sketch/src/constraints.rs`;
-- `crates/app/src/screens/` — the canvas and the modes drawn on it: gestures,
-  hit test, drawing. It is the code being carried out into `cao_sketch`, where
-  a drawing rule can be tested without opening a window.
+- `crates/app/src/screens/` — the canvas and the modes drawn on it: gesture
+  dispatch, pixel ↔ world conversion, and pushing the result to egui and the
+  GPU. The drawing rules it calls into — hit test, magnetism, dimensioning —
+  moved to `cao_sketch`, where each is tested without opening a window; what
+  is left here is glue no headless test would exercise.
 
 **This list is the only copy.** The skills that warn about these places name
 this section rather than restating it, and `crates/app/tests/architecture.rs`

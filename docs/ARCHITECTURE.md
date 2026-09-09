@@ -35,8 +35,9 @@ The dependencies go one way only, and each crate is one context since #26 and
 - `cao_prefs`: theme, shortcuts, toolbar, profiles, recent files, and the
   persistence of all of it. Knows neither the geometry nor the interface. See
   [configuration.md](configuration.md).
-- `cao_sketch`: the sketch model (work plane, points, traits, dimensions) and
-  the rule that applies a length. No rendering, no interface. See
+- `cao_sketch`: the sketch model (work plane, points, traits, dimensions,
+  constraints, the solver) and the rules a gesture is judged against — hit
+  test, magnetism, aiming, what a click means. No rendering, no interface. See
   [sketch.md](sketch.md).
 - `cao_solid`: the volumes — a polygon mesh, the extrusion of an area into a
   prism, boolean operations (adding and taking away matter). No rendering, no
@@ -46,9 +47,10 @@ The dependencies go one way only, and each crate is one context since #26 and
 - `cao_app`: the desktop application shell (`eframe`). Holds the state of the
   application and the routing between screens and modes.
 
-As the modes (sketch, extrusion, assembly…) grow, they are to become their own
-crates (`cao_sketch`, `cao_assembly`, …) rather than piling up in `cao_app`,
-which must stay a thin shell: window, routing between modes, nothing more.
+As a mode's logic outgrows a single screen, it moves into its own crate —
+`cao_sketch` did, carrying out the drawing rules that used to sit in
+`cao_app`'s viewport — rather than piling up in `cao_app`, which must stay a
+thin shell: window, routing between modes, nothing more.
 
 Inside a crate, the role of a file is carried by its folder — `model/`,
 `ports/`, `adapters/`, `services/`, and in the shell `ui/` and

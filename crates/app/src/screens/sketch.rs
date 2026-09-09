@@ -1,4 +1,6 @@
-use cao_sketch::{Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    Constraint, DimensionTarget, Element, PointId, Rule, RulePick, SegmentId, SketchAxis, WorkPlane,
+};
 use glam::DVec2;
 
 /// What the selection tool is holding, and what pressing Suppr would delete.
@@ -104,71 +106,6 @@ impl CircleMode {
         match self {
             Self::Center | Self::TwoPoints => 2,
             Self::ThreePoints | Self::TwoTangents | Self::ThreeTangents => 3,
-        }
-    }
-}
-
-/// What the constraint tool has been pointed at: a piece of the drawing, or
-/// one of the sketch's own axes.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum RulePick {
-    Element(Element),
-    Axis(SketchAxis),
-}
-
-/// Which rule the constraint tool is about to lay down.
-///
-/// A rule is placed by pointing at what it speaks of: two traits for a right
-/// angle, a point and a trait for a coincidence. The tool holds what has been
-/// picked so far and lays the rule down as soon as it has enough.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Rule {
-    Perpendicular,
-    Parallel,
-    Equal,
-    Coincident,
-    Collinear,
-    Tangent,
-    Midpoint,
-    Fixed,
-    Concentric,
-}
-
-impl Rule {
-    /// How many things it needs before it can be laid down.
-    pub fn wants(self) -> usize {
-        match self {
-            Self::Fixed => 1,
-            _ => 2,
-        }
-    }
-
-    pub fn label(self) -> &'static str {
-        match self {
-            Self::Perpendicular => "Perpendiculaire",
-            Self::Parallel => "Parallèle",
-            Self::Equal => "Égalité",
-            Self::Coincident => "Coïncidence",
-            Self::Collinear => "Colinéaire",
-            Self::Tangent => "Tangence",
-            Self::Midpoint => "Milieu",
-            Self::Fixed => "Fixe",
-            Self::Concentric => "Concentrique",
-        }
-    }
-
-    /// What to point at, said in the title bar while the tool waits.
-    pub fn asks_for(self) -> &'static str {
-        match self {
-            Self::Perpendicular => "Cliquez deux traits à mettre d'équerre",
-            Self::Parallel => "Cliquez deux traits à rendre parallèles",
-            Self::Equal => "Cliquez deux traits, ou deux cercles, à égaliser",
-            Self::Coincident => "Cliquez un point puis un trait, ou deux points",
-            Self::Collinear => "Cliquez deux traits à coucher sur la même droite",
-            Self::Tangent => "Cliquez un cercle puis un trait",
-            Self::Midpoint => "Cliquez un point puis le trait qui le portera",
-            Self::Fixed => "Cliquez le point à fixer",
-            Self::Concentric => "Cliquez deux cercles à ramener sur le même centre",
         }
     }
 }

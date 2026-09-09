@@ -1,9 +1,9 @@
+use crate::screens::extrusion::{ExtrusionState, Shape};
+use crate::screens::sketch::{CircleMode, DimensionMode, SketchEditor, Tool};
+use crate::wording::{command as wording, constraints, shortcuts, toolbar::group};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
-
-use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::sketch::{CircleMode, DimensionMode, Rule, SketchEditor, Tool};
-use crate::wording::{command as wording, constraints, shortcuts, toolbar::group};
+use cao_sketch::Rule;
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;

@@ -10,14 +10,13 @@ use cao_render::{
     srgb,
 };
 use cao_sketch::{
-    CircleId, Constraint, DimensionTarget, Element, PointId, SegmentId, Sketch, Snap, SnapSettings,
-    WorkPlane,
+    CircleId, DimensionTarget, Element, PointId, Rule, RuleIntent, RulePick, SegmentId, Sketch,
+    Snap, SnapSettings, WorkPlane, rule_intent,
 };
 use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::{
-    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, Rule, RulePick, Selection,
-    SketchEditor, Tool,
+    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, Selection, SketchEditor, Tool,
 };
 use crate::{screens::extrusion::ExtrusionState, wording::constraints};
 
@@ -788,155 +787,42 @@ fn constrain(
         return false;
     }
     context.editor.rule_picks.push(picked);
-    if context.editor.rule_picks.len() < rule.wants() {
-        context.editor.message = Some(rule.asks_for().to_string());
+    if context.editor.rule_picks.len() < rule.arity() {
+        context.editor.message = Some(constraints::rule_asks_for(rule).to_string());
         return false;
     }
 
     let picks = std::mem::take(&mut context.editor.rule_picks);
-    if let Some(Operation::Constrain { constraint, .. }) =
-        rule_operation(rule, index, &picks, sketch)
+    let Some(intent) = rule_intent(rule, &picks, sketch) else {
+        context.editor.message = Some(format!(
+            "{} : {}",
+            constraints::rule_asks_for(rule),
+            "pas ces éléments-là"
+        ));
+        return false;
+    };
+    if let RuleIntent::Constrain(constraint) = intent
         && sketch.constraints().contains(&constraint.normalised())
     {
         // The drawing already carries it; recording the step again would fill
         // the history with entries that change nothing.
-        context.editor.message = Some(format!("{} : déjà posée", rule.label()));
+        context.editor.message = Some(format!("{} : déjà posée", constraints::rule_label(rule)));
         return false;
     }
-    let Some(operation) = rule_operation(rule, index, &picks, sketch) else {
-        context.editor.message = Some(format!("{} : {}", rule.asks_for(), "pas ces éléments-là"));
-        return false;
-    };
-    context.document.apply(operation);
-    context.editor.message = Some(rule.asks_for().to_string());
-    true
-}
-
-/// The step a rule becomes, once it has been shown what it speaks of.
-///
-/// Two of them are not rules at all but merges: two points made one, or two
-/// circles brought onto a single centre. Holding them apart with an equation
-/// would leave two points sitting on top of each other for ever, which is
-/// exactly what the drawing does not want.
-fn rule_operation(
-    rule: Rule,
-    index: usize,
-    picks: &[RulePick],
-    sketch: &Sketch,
-) -> Option<Operation> {
-    // The order is kept: for an equality, the first trait clicked is the one
-    // whose length the other takes.
-    let segments: Vec<SegmentId> = picks
-        .iter()
-        .filter_map(|pick| match pick {
-            RulePick::Element(Element::Segment(id)) => Some(*id),
-            _ => None,
-        })
-        .collect();
-    let points: Vec<PointId> = picks
-        .iter()
-        .filter_map(|pick| match pick {
-            RulePick::Element(Element::Point(id)) => Some(*id),
-            _ => None,
-        })
-        .collect();
-    let circles: Vec<CircleId> = picks
-        .iter()
-        .filter_map(|pick| match pick {
-            RulePick::Element(Element::Circle(id)) => Some(*id),
-            _ => None,
-        })
-        .collect();
-    let axes: Vec<cao_sketch::SketchAxis> = picks
-        .iter()
-        .filter_map(|pick| match pick {
-            RulePick::Axis(axis) => Some(*axis),
-            _ => None,
-        })
-        .collect();
-
-    let constraint = |constraint: Constraint| {
-        Some(Operation::Constrain {
+    let operation = match intent {
+        RuleIntent::Constrain(constraint) => Operation::Constrain {
             sketch: index,
             constraint,
-        })
+        },
+        RuleIntent::Merge { kept, dropped } => Operation::MergePoints {
+            sketch: index,
+            kept,
+            dropped,
+        },
     };
-    let pair = |list: &[SegmentId]| (list.len() == 2).then(|| (list[0], list[1]));
-
-    match rule {
-        Rule::Perpendicular => pair(&segments)
-            .and_then(|(first, second)| constraint(Constraint::Perpendicular { first, second })),
-        Rule::Parallel => pair(&segments)
-            .and_then(|(first, second)| constraint(Constraint::Parallel { first, second })),
-        Rule::Collinear => match (pair(&segments), segments.as_slice(), axes.as_slice()) {
-            (Some((first, second)), _, _) => constraint(Constraint::Collinear { first, second }),
-            // A trait laid on one of the sketch's own axes, which is the same
-            // rule against a line that cannot move.
-            (None, [segment], [axis]) => constraint(Constraint::AxisCollinear {
-                segment: *segment,
-                axis: *axis,
-            }),
-            _ => None,
-        },
-        Rule::Equal => match (pair(&segments), circles.as_slice()) {
-            (Some((first, second)), _) => constraint(Constraint::Equal { first, second }),
-            (None, [first, second]) => constraint(Constraint::EqualRadius {
-                first: *first,
-                second: *second,
-            }),
-            _ => None,
-        },
-        Rule::Tangent => match (circles.as_slice(), segments.as_slice()) {
-            ([circle], [segment]) => constraint(Constraint::Tangent {
-                at: None,
-                circle: *circle,
-                segment: *segment,
-            }),
-            _ => None,
-        },
-        Rule::Midpoint => match (points.as_slice(), segments.as_slice()) {
-            ([point], [segment]) => constraint(Constraint::Midpoint {
-                point: *point,
-                segment: *segment,
-            }),
-            _ => None,
-        },
-        Rule::Fixed => match picks {
-            [RulePick::Element(element)] => constraint(Constraint::Fixed { element: *element }),
-            _ => None,
-        },
-        Rule::Coincident => match (points.as_slice(), segments.as_slice()) {
-            ([point], [segment]) => constraint(Constraint::OnSegment {
-                point: *point,
-                segment: *segment,
-            }),
-            // Two points asked to coincide are one point: the origin is never
-            // the one that gives way.
-            ([first, second], []) => {
-                let (kept, dropped) = match sketch.is_origin(*second) {
-                    true => (*second, *first),
-                    false => (*first, *second),
-                };
-                Some(Operation::MergePoints {
-                    sketch: index,
-                    kept,
-                    dropped,
-                })
-            }
-            _ => None,
-        },
-        Rule::Concentric => match circles.as_slice() {
-            [first, second] => {
-                let (kept, dropped) = (sketch.circle(*first).center, sketch.circle(*second).center);
-                (kept != dropped).then_some(Operation::MergePoints {
-                    sketch: index,
-                    kept,
-                    dropped,
-                })
-            }
-            _ => None,
-        },
-    }
+    context.document.apply(operation);
+    context.editor.message = Some(constraints::rule_asks_for(rule).to_string());
+    true
 }
 
 /// Pulls a box across the drawing and takes everything inside it.

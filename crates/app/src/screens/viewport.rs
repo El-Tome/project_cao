@@ -725,7 +725,11 @@ fn pick(
     pixel: f64,
 ) -> Option<Selection> {
     let sketch = context.document.sketches().get(index)?;
-    sketch.pick(cursor, snap, &annotation_anchors(context, index, pixel))
+    sketch.pick(
+        cursor,
+        snap,
+        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
+    )
 }
 
 /// Points the constraint tool at something, and lays the rule down as soon as
@@ -831,11 +835,14 @@ fn band_select(
     }
     context.editor.band = None;
 
-    let anchors = annotation_anchors(context, index, pixel);
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let caught = sketch.inside_band(from, to, &anchors);
+    let caught = sketch.inside_band(
+        from,
+        to,
+        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
+    );
 
     if !adding {
         context.editor.selection.clear();
@@ -1136,8 +1143,8 @@ fn drag_annotation(
 
     // Where the annotation sits right now, whether that was recorded before or
     // is still the standing-off distance it was drawn with.
-    let previous = annotation_home(context, index, target, pixel)
-        .map(|(_, offset)| offset)
+    let previous = annotation_position(context, index, target, pixel)
+        .map(|placement| placement.offset)
         .unwrap_or_default();
 
     context.editor.dragged_dimension = None;
@@ -1151,8 +1158,8 @@ fn drag_annotation(
     true
 }
 
-/// Which annotation sits under the cursor. Their positions are worked out by
-/// the drawing code, so they are asked for rather than guessed.
+/// Which annotation sits under the cursor. Asked straight of the sketch: it
+/// is the one that knows where each of its dimensions is drawn.
 fn nearest_annotation(
     context: &SketchContext<'_>,
     index: usize,
@@ -1160,44 +1167,28 @@ fn nearest_annotation(
     tolerance: f64,
     pixel: f64,
 ) -> Option<DimensionTarget> {
-    let sketch = context.document.sketches().get(index)?;
-    let anchors = annotation_anchors(context, index, pixel);
-    sketch.nearest_dimension(&anchors, cursor, tolerance)
+    context.document.sketches().get(index)?.nearest_dimension(
+        cursor,
+        tolerance,
+        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
+    )
 }
 
-/// Where every annotation of a sketch is written, which the drawing code alone
-/// works out.
+/// Where an annotation's value sits right now, and the offset that would
+/// record it there.
 ///
-/// Only where each one lands matters, so its vertices are thrown away and the
-/// theme's colours never come into it. The scale, on the other hand, has to be
-/// the real one: an annotation sits a fixed number of pixels off what it
-/// measures, so guessing it puts the target somewhere the annotation is not.
-fn annotation_anchors(
+/// Asked straight of `sketch.place`: no colour needed just to find a
+/// position, so no theme has to be made up to get one.
+fn annotation_position(
     context: &SketchContext<'_>,
     index: usize,
+    target: DimensionTarget,
     pixel: f64,
-) -> Vec<(DimensionTarget, DVec2)> {
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return Vec::new();
-    };
-    let style = crate::screens::annotations::Style::driving(&Theme::default());
-    let mut discarded = Vec::new();
-
-    sketch
-        .dimensions()
-        .iter()
-        .filter_map(|dimension| {
-            crate::screens::annotations::push(
-                &mut discarded,
-                sketch,
-                dimension.target,
-                &style,
-                pixel,
-                DVec2::ZERO,
-            )
-            .map(|placement| (dimension.target, placement.text_at))
-        })
-        .collect()
+) -> Option<cao_sketch::Placement> {
+    context.document.sketches().get(index)?.place(
+        target,
+        crate::screens::annotations::metrics(pixel, DVec2::ZERO),
+    )
 }
 
 /// A point already there, or a new one where the cursor is.
@@ -1355,7 +1346,8 @@ fn draw_circle(
                 sketch: index,
                 target,
                 value: diameter,
-                placement: annotation_home(context, index, target, pixel).map(|(_, at)| at),
+                placement: annotation_position(context, index, target, pixel)
+                    .map(|placement| placement.offset),
             });
         }
     }
@@ -1436,7 +1428,8 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
             sketch: index,
             target,
             value,
-            placement: annotation_home(context, index, target, pixel).map(|(_, offset)| offset),
+            placement: annotation_position(context, index, target, pixel)
+                .map(|placement| placement.offset),
         });
     }
 }
@@ -1598,55 +1591,21 @@ fn place_dimension(
         sketch: index,
         target,
         value,
-        placement: Some(annotation_offset(context, index, target, cursor, pixel)),
+        // What the annotation has to be moved by for its value to land on the
+        // cursor: a linear or angular annotation follows its offset exactly,
+        // so the gap between where the value is and where the cursor is *is*
+        // the movement.
+        placement: Some(
+            annotation_position(context, index, target, pixel)
+                .map(|placement| placement.offset + (cursor - placement.text_at))
+                .unwrap_or_default(),
+        ),
     });
 
     context.editor.select(Some(target), Some(value));
     context.editor.message = matches!(outcome, Some(cao_part::DimensionOutcome::Reference))
         .then(|| REDUNDANT_WARNING.to_string());
     true
-}
-
-/// Where an annotation currently writes its value, and the offset that holds it
-/// there. Asked of the drawing code itself: two ways of working out where an
-/// annotation sits would eventually disagree.
-fn annotation_home(
-    context: &SketchContext<'_>,
-    index: usize,
-    target: DimensionTarget,
-    pixel: f64,
-) -> Option<(DVec2, DVec2)> {
-    let sketch = context.document.sketches().get(index)?;
-    let mut ignored = Vec::new();
-    // Only the shape of the annotation matters here, never its colours.
-    let style = crate::screens::annotations::Style::driving(&Theme::default());
-    let placement = crate::screens::annotations::push(
-        &mut ignored,
-        sketch,
-        target,
-        &style,
-        pixel,
-        DVec2::ZERO,
-    )?;
-    Some((placement.text_at, placement.offset))
-}
-
-/// What the annotation has to be moved by for its value to land on the cursor,
-/// and the offset that would record that.
-///
-/// A linear or angular annotation follows its offset exactly, so the gap
-/// between where the value is and where the cursor is *is* the movement.
-fn annotation_offset(
-    context: &SketchContext<'_>,
-    index: usize,
-    target: DimensionTarget,
-    cursor: DVec2,
-    pixel: f64,
-) -> DVec2 {
-    match annotation_home(context, index, target, pixel) {
-        Some((text_at, offset)) => offset + (cursor - text_at),
-        None => DVec2::ZERO,
-    }
 }
 
 /// The dimension a click would place right now, without placing it.
@@ -2017,7 +1976,8 @@ fn dimension_the_line(
             sketch: index,
             target,
             value,
-            placement: annotation_home(context, index, target, pixel).map(|(_, offset)| offset),
+            placement: annotation_position(context, index, target, pixel)
+                .map(|placement| placement.offset),
         });
     }
 }
@@ -2783,8 +2743,8 @@ fn pending_annotation(
         // The preview is nudged from where the annotation stands today, not
         // moved to an absolute offset: `push` adds a nudge on top of whatever
         // the dimension already carries.
-        let nudge = annotation_home(context, index, target, pixel)
-            .map(|(text_at, _)| cursor - text_at)
+        let nudge = annotation_position(context, index, target, pixel)
+            .map(|placement| cursor - placement.text_at)
             .unwrap_or_default();
         return Some((target, nudge));
     }
@@ -3290,7 +3250,7 @@ fn paint_dimension_labels(
         // dimension line instead of floating near the geometry.
         let mut ignored = Vec::new();
         let style = crate::screens::annotations::Style::driving(&state.theme);
-        let Some(placement) = crate::screens::annotations::push(
+        let Some(text_at) = crate::screens::annotations::push(
             &mut ignored,
             sketch,
             dimension.target,
@@ -3300,11 +3260,8 @@ fn paint_dimension_labels(
         ) else {
             continue;
         };
-        let Some(position) = to_screen(
-            sketch.plane.to_world(placement.text_at),
-            view_projection,
-            rect,
-        ) else {
+        let Some(position) = to_screen(sketch.plane.to_world(text_at), view_projection, rect)
+        else {
             continue;
         };
         let value = if dimension.driven {
@@ -3345,7 +3302,7 @@ fn paint_dimension_labels(
         && let Some((target, nudge)) =
             pending_annotation(context, index, cursor, pixel * PICK_PIXELS, pixel)
         && let Some(value) = context.document.measured(index, target)
-        && let Some(placement) = crate::screens::annotations::push(
+        && let Some(text_at) = crate::screens::annotations::push(
             &mut Vec::new(),
             sketch,
             target,
@@ -3353,11 +3310,7 @@ fn paint_dimension_labels(
             pixel,
             nudge,
         )
-        && let Some(position) = to_screen(
-            sketch.plane.to_world(placement.text_at),
-            view_projection,
-            rect,
-        )
+        && let Some(position) = to_screen(sketch.plane.to_world(text_at), view_projection, rect)
     {
         painter.text(
             position,
@@ -3454,7 +3407,7 @@ fn annotation_screen_position(
 ) -> Option<egui::Pos2> {
     let sketch = context.document.sketches().get(index)?;
     let mut ignored = Vec::new();
-    let placement = crate::screens::annotations::push(
+    let text_at = crate::screens::annotations::push(
         &mut ignored,
         sketch,
         target,
@@ -3463,7 +3416,7 @@ fn annotation_screen_position(
         live_offset(context, target),
     )?;
     to_screen(
-        sketch.plane.to_world(placement.text_at),
+        sketch.plane.to_world(text_at),
         state
             .camera
             .view_projection(rect.width() / rect.height().max(1.0)),

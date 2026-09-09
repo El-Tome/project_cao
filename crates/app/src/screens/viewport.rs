@@ -10,14 +10,12 @@ use cao_render::{
     srgb,
 };
 use cao_sketch::{
-    CircleId, DimensionTarget, Element, PointId, Rule, RuleIntent, RulePick, SegmentId, Selection,
-    Sketch, Snap, SnapSettings, WorkPlane, rule_intent,
+    Aim, ChainAnchor, CircleId, CircleMode, DimensionTarget, Element, Found, PointId, Rule,
+    RuleIntent, RulePick, SegmentId, Selection, Sketch, Snap, SnapSettings, WorkPlane, rule_intent,
 };
 use glam::{DVec2, DVec3};
 
-use crate::screens::sketch::{
-    ChainAnchor, CircleMode, DimensionMode, LiveField, PlaneChoice, SketchEditor, Tool,
-};
+use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, SketchEditor, Tool};
 use crate::{screens::extrusion::ExtrusionState, wording::constraints};
 
 /// A colour from the theme, turned into the space the shader blends in.
@@ -547,7 +545,8 @@ fn handle_sketch_input(
             let sketch = &context.document.sketches()[index];
             let corner = aimed
                 .square_with
-                .and_then(|_| anchor_position(sketch, context));
+                .and(context.editor.chain)
+                .and_then(|anchor| sketch.anchor_position(anchor));
             (Some(aimed.position), corner)
         }
         Tool::Rectangle if context.editor.pending_start.is_some() => {
@@ -1256,26 +1255,16 @@ fn two_click_shape(
     true
 }
 
-/// The far corner of the rectangle being drawn, once the sizes typed have had
-/// their say. A size left alone follows the cursor; one typed only fixes that
-/// side, so the other can still be dragged out.
 fn rectangle_corner(context: &SketchContext<'_>, cursor: DVec2) -> DVec2 {
     let Some(start) = context.editor.pending_start else {
         return cursor;
     };
-    let scale = context.document.scale().max(1e-9);
-    let span = cursor - start;
-    // The sign follows the cursor: 40 typed means 40 the way the user is
-    // dragging, not 40 the other way.
-    let side = |locked: Option<f64>, current: f64| match locked {
-        Some(millimeters) => (millimeters / scale).copysign(current),
-        None => current,
-    };
-    start
-        + DVec2::new(
-            side(context.editor.live.first.locked, span.x),
-            side(context.editor.live.second.locked, span.y),
-        )
+    cao_sketch::rectangle_corner(
+        start,
+        cursor,
+        context.editor.live.locked(),
+        context.document.scale(),
+    )
 }
 
 /// One click of the circle tool: takes what was pointed at, and draws the
@@ -1299,14 +1288,14 @@ fn draw_circle(
             context.editor.circle_segments.push(segment);
             context.editor.live.open();
         }
-        context.editor.message = Some(mode.asks_for().to_string());
+        context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
         return false;
     }
 
     if !mode.touches_traits() && context.editor.circle_points.len() < mode.wants() - 1 {
         context.editor.circle_points.push(cursor);
         context.editor.live.open();
-        context.editor.message = Some(mode.asks_for().to_string());
+        context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
         return false;
     }
 
@@ -1327,21 +1316,9 @@ fn draw_circle(
 
     // The centre reuses a point already drawn when one is under it, as
     // everywhere else, so shapes hang together instead of stacking points.
-    let center = point_ref_at(context, index, found.center, snap);
-    // The places clicked on the rim stay as points of the drawing, held on the
-    // circle: they are what it can afterwards be grabbed and measured by.
-    let rim: Vec<DVec2> = match mode {
-        CircleMode::Center => vec![cursor],
-        CircleMode::TwoPoints => match places.first() {
-            Some(first) => vec![*first, found.center * 2.0 - *first],
-            None => Vec::new(),
-        },
-        CircleMode::ThreePoints => places.clone(),
-        CircleMode::TwoTangents | CircleMode::ThreeTangents => Vec::new(),
-    };
-    let rim: Vec<cao_part::PointRef> = rim
+    let center = point_ref_at(context, index, found.centre, snap);
+    let rim: Vec<cao_part::PointRef> = cao_sketch::rim_of(mode, &places, cursor, found.centre)
         .into_iter()
-        .filter(|place| place.distance(found.center) > 1e-6)
         .map(|place| point_ref_at(context, index, place, snap))
         .collect();
     context.document.apply(Operation::AddCircle {
@@ -1384,14 +1361,13 @@ fn draw_circle(
     }
 
     context.editor.live.clear();
-    context.editor.message = Some(mode.asks_for().to_string());
+    context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
     true
 }
 
-/// The circle the picks so far and the cursor make, if they make one.
-///
-/// The same reading is used for the preview and for the click, so what is shown
-/// is what gets drawn.
+/// The circle the picks so far and the cursor make. The reading is the
+/// drawing's; the third trait of an inscribed circle is picked here, since only
+/// the canvas knows what the cursor is over.
 fn circle_from(
     context: &SketchContext<'_>,
     index: usize,
@@ -1399,87 +1375,24 @@ fn circle_from(
     snap: f64,
 ) -> Option<Found> {
     let sketch = context.document.sketches().get(index)?;
-    let scale = context.document.scale().max(1e-9);
-    let wanted = context
-        .editor
-        .live
-        .first
-        .locked
-        .map(|diameter| diameter / (2.0 * scale));
-    let places = &context.editor.circle_points;
-    let line = |segment: &SegmentId| sketch.endpoints(*segment);
+    let mode = context.editor.circle_mode;
+    let mut segments = context.editor.circle_segments.clone();
+    if mode == CircleMode::ThreeTangents {
+        segments.push(sketch.nearest_segment(cursor, snap)?);
+    }
+    let lines: Vec<_> = segments
+        .iter()
+        .map(|segment| sketch.endpoints(*segment))
+        .collect();
 
-    let found = match context.editor.circle_mode {
-        CircleMode::Center => {
-            let center = *places.first()?;
-            Found {
-                center,
-                radius: center.distance(cursor),
-            }
-        }
-        CircleMode::TwoPoints => {
-            let first = *places.first()?;
-            // A size typed pushes the far point out along the same direction.
-            let far = match wanted {
-                Some(radius) => first + (cursor - first).normalize_or(DVec2::X) * radius * 2.0,
-                None => cursor,
-            };
-            Found {
-                center: (first + far) * 0.5,
-                radius: first.distance(far) * 0.5,
-            }
-        }
-        CircleMode::ThreePoints => {
-            let (first, second) = (*places.first()?, *places.get(1)?);
-            let center = match wanted {
-                // A size too small to reach both points is held at the smallest
-                // that does. Typing 150 goes through 1 and 15 on the way, and a
-                // circle that vanishes at the first keystroke takes the field
-                // being typed into with it.
-                Some(radius) => cao_sketch::construct::centre_through_at(
-                    first,
-                    second,
-                    cursor,
-                    radius.max(first.distance(second) * 0.5),
-                )?,
-                None => cao_sketch::construct::centre_through(first, second, cursor)?,
-            };
-            Found {
-                center,
-                radius: center.distance(first),
-            }
-        }
-        CircleMode::TwoTangents => {
-            let mut touching = cao_sketch::construct::centre_touching_two(
-                line(context.editor.circle_segments.first()?),
-                line(context.editor.circle_segments.get(1)?),
-                cursor,
-            )?;
-            if let Some(radius) = wanted {
-                touching = cao_sketch::construct::resize_touching(touching, radius);
-            }
-            Found {
-                center: touching.centre,
-                radius: touching.radius,
-            }
-        }
-        CircleMode::ThreeTangents => {
-            let (center, radius) = cao_sketch::construct::circle_touching_three(
-                line(context.editor.circle_segments.first()?),
-                line(context.editor.circle_segments.get(1)?),
-                line(&sketch.nearest_segment(cursor, snap)?),
-            )?;
-            Found { center, radius }
-        }
-    };
-    (found.radius > 1e-9).then_some(found)
-}
-
-/// A circle about to be drawn.
-#[derive(Clone, Copy)]
-struct Found {
-    center: DVec2,
-    radius: f64,
+    cao_sketch::circle_from(
+        mode,
+        &context.editor.circle_points,
+        &lines,
+        cursor,
+        context.editor.live.first.locked,
+        context.document.scale(),
+    )
 }
 
 /// Places on a fresh rectangle what makes it a rectangle, and its two sizes.
@@ -2032,19 +1945,8 @@ fn draw_line_point(
     true
 }
 
-/// Where the line being drawn actually ends, and what that implies.
-#[derive(Clone, Copy)]
-struct Aim {
-    position: DVec2,
-    /// The segment this one has just been squared up against.
-    square_with: Option<SegmentId>,
-}
-
-/// Applies to the cursor everything the user has already decided.
-///
-/// A locked angle leaves the line free to lengthen along that direction; a
-/// locked length leaves it free to turn at that distance; both leave nothing to
-/// the cursor at all. That is the point of locking one and not the other.
+/// Applies to the cursor everything the user has already decided. The rules are
+/// the drawing's; what this adds is the state the tool is holding.
 fn aim(context: &SketchContext<'_>, index: usize, cursor: DVec2) -> Aim {
     let nowhere = Aim {
         position: cursor,
@@ -2053,93 +1955,16 @@ fn aim(context: &SketchContext<'_>, index: usize, cursor: DVec2) -> Aim {
     let Some(sketch) = context.document.sketches().get(index) else {
         return nowhere;
     };
-    let Some(from) = anchor_position(sketch, context) else {
+    let Some(anchor) = context.editor.chain else {
         return nowhere;
     };
-
-    let scale = context.document.scale().max(1e-9);
-    let (locked_length, locked_angle) = (
-        context.editor.live.first.locked,
-        context.editor.live.second.locked,
-    );
-    let span = cursor - from;
-
-    let mut direction = span.normalize_or(DVec2::X);
-    let mut square_with = None;
-
-    if let Some(degrees) = locked_angle {
-        // The sign follows the cursor: 30° typed means the 30° the user is
-        // pointing at, not the one below the axis they are not.
-        let wanted = DVec2::from_angle(degrees.to_radians());
-        direction = if wanted.dot(direction) >= 0.0 {
-            wanted
-        } else {
-            -wanted
-        };
-    } else if let Some((perpendicular, previous)) = right_angle(sketch, context, from, span) {
-        direction = perpendicular;
-        square_with = Some(previous);
-    }
-
-    let length = match locked_length {
-        Some(millimeters) => millimeters / scale,
-        None => span.dot(direction).max(0.0),
-    };
-
-    Aim {
-        position: from + direction * length.max(1e-6),
-        square_with,
-    }
-}
-
-/// Half the width of the band, in degrees, inside which a corner is taken as
-/// square. Wide enough to be easy to hit, narrow enough that an angle really
-/// meant to be 80° is not stolen.
-const SQUARE_TOLERANCE_DEGREES: f64 = 4.0;
-
-/// The direction that squares this line up against the one before it, when the
-/// cursor is close enough to it.
-fn right_angle(
-    sketch: &Sketch,
-    context: &SketchContext<'_>,
-    from: DVec2,
-    span: DVec2,
-) -> Option<(DVec2, SegmentId)> {
-    let previous = context.editor.chain_previous?;
-    if previous.0 >= sketch.segments().len() || sketch.is_erased_segment(previous) {
-        return None;
-    }
-    let (start, end) = sketch.endpoints(previous);
-    // The arm runs from the shared corner outwards, whichever way it was drawn.
-    let arm = if start.distance(from) < end.distance(from) {
-        end - start
-    } else {
-        start - end
-    }
-    .normalize_or_zero();
-    let direction = span.normalize_or_zero();
-    if arm == DVec2::ZERO || direction == DVec2::ZERO {
-        return None;
-    }
-
-    let off_square = direction.dot(arm).abs().asin().to_degrees();
-    if off_square > SQUARE_TOLERANCE_DEGREES {
-        return None;
-    }
-    let square = DVec2::new(-arm.y, arm.x);
-    let towards = if square.dot(direction) >= 0.0 {
-        square
-    } else {
-        -square
-    };
-    Some((towards, previous))
-}
-
-fn anchor_position(sketch: &Sketch, context: &SketchContext<'_>) -> Option<DVec2> {
-    match context.editor.chain? {
-        ChainAnchor::Pending(position) => Some(position),
-        ChainAnchor::Point(id) => (id.0 < sketch.points().len()).then(|| sketch.point(id)),
-    }
+    sketch.aim(
+        anchor,
+        context.editor.chain_previous,
+        cursor,
+        context.editor.live.locked(),
+        context.document.scale(),
+    )
 }
 
 /// Places on the line just drawn whatever the user typed, and the right angle
@@ -3061,11 +2886,11 @@ fn push_preview(
         && let Some(index) = context.editor.active_sketch()
         && let Some(found) = circle_from(context, index, cursor, scale.world_size_of(PICK_PIXELS))
     {
-        push_circle_at(out, sketch, found.center, found.radius, preview, 1.5);
+        push_circle_at(out, sketch, found.centre, found.radius, preview, 1.5);
         push_point_marker(
             out,
             sketch,
-            found.center,
+            found.centre,
             scale.world_size_of(3.0),
             preview,
             1.5,
@@ -3225,7 +3050,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             (["mm", ""], [across, 0.0])
         }
         Tool::Line => {
-            let from = anchor_position(sketch, context)?;
+            let from = sketch.anchor_position(context.editor.chain?)?;
             let span = cursor - from;
             (
                 ["mm", "°"],

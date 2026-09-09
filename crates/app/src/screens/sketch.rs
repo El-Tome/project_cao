@@ -1,7 +1,10 @@
 use cao_sketch::{
-    DimensionTarget, PointId, Rule, RulePick, SegmentId, Selection, SketchAxis, WorkPlane,
+    ChainAnchor, DimensionTarget, LockedInput, PointId, Rule, RulePick, SegmentId, Selection,
+    SketchAxis, WorkPlane,
 };
 use glam::DVec2;
+
+pub use cao_sketch::CircleMode;
 
 /// One of the two values that can be typed while a shape is being drawn.
 ///
@@ -43,6 +46,14 @@ impl LiveInput {
         self.first.locked.is_some() || self.second.locked.is_some()
     }
 
+    /// The two decisions, as the drawing reads them.
+    pub fn locked(&self) -> LockedInput {
+        LockedInput {
+            first: self.first.locked,
+            second: self.second.locked,
+        }
+    }
+
     /// Reads a field the user has just changed. An emptied field goes back to
     /// being a readout.
     pub fn read(text: &str) -> Option<f64> {
@@ -51,54 +62,6 @@ impl LiveInput {
             .parse::<f64>()
             .ok()
             .filter(|value| value.is_finite())
-    }
-}
-
-/// How a circle is being drawn.
-///
-/// Every one of them ends the same way — a centre and a radius — but what the
-/// user points at to get there differs, and so does what is known after each
-/// click.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum CircleMode {
-    /// The centre, then a point of the rim.
-    #[default]
-    Center,
-    /// Two opposite points of the rim.
-    TwoPoints,
-    /// Two points of the rim, then the centre — which can only sit on their
-    /// perpendicular bisector, so the click is brought back onto it.
-    ThreePoints,
-    /// Two traits it must touch, then the centre on their bisector.
-    TwoTangents,
-    /// Three traits it must touch: the circle inscribed between them, with
-    /// nothing left to choose.
-    ThreeTangents,
-}
-
-impl CircleMode {
-    /// What to point at, said in the title bar while the tool waits.
-    pub fn asks_for(self) -> &'static str {
-        match self {
-            Self::Center => "Cliquez le centre, puis un point du bord",
-            Self::TwoPoints => "Cliquez deux points opposés du bord",
-            Self::ThreePoints => "Cliquez deux points du bord, puis le centre",
-            Self::TwoTangents => "Cliquez deux droites, puis le centre",
-            Self::ThreeTangents => "Cliquez trois droites",
-        }
-    }
-
-    /// Whether it is drawn by pointing at traits rather than at places.
-    pub fn touches_traits(self) -> bool {
-        matches!(self, Self::TwoTangents | Self::ThreeTangents)
-    }
-
-    /// How many things it needs before the circle is settled.
-    pub fn wants(self) -> usize {
-        match self {
-            Self::Center | Self::TwoPoints => 2,
-            Self::ThreePoints | Self::TwoTangents | Self::ThreeTangents => 3,
-        }
     }
 }
 
@@ -260,17 +223,6 @@ impl PlaneChoice {
             Self::Face(plane) => plane,
         }
     }
-}
-
-/// The point a polyline continues from.
-///
-/// The first click of a chain has nothing to attach to yet, and creating a
-/// lone point would put a step in the history that draws nothing. So it is held
-/// here until the second click, which turns the pair into one segment.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum ChainAnchor {
-    Pending(DVec2),
-    Point(PointId),
 }
 
 impl SketchEditor {

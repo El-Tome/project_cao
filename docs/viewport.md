@@ -9,7 +9,11 @@ See also: [GPU rendering](render.md) · [navigation](navigation.md) ·
 ## The two modes
 
 The viewport has exactly two states, described by `ViewMode`
-(`crates/app/src/screens/viewport.rs`):
+(`crates/app/src/screens/viewport/mod.rs`). The camera and the gestures that
+change it are handled there and in `input.rs`; `render.rs` pushes the axes,
+the grid and the cube it draws below to the GPU. What the canvas draws *of the
+sketch* — points, traits, dimensions — is decided by `cao_sketch` and only
+carried here; see [sketch.md](sketch.md) for that half.
 
 | Mode | What is shown | How one gets in |
 | --- | --- | --- |

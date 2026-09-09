@@ -40,8 +40,10 @@ immediately. That is the whole point: it is not a specification, it is a
 witness. Anything it fails to pin down is something you are free to break
 without noticing.
 
-`crates/app/` has no tests at all. Nothing moves out of it before a
-characterisation test exists for the piece being moved.
+Some of what the current moves are carrying has no test at all —
+`docs/code-map.md` says which places, under **What has no net**. Nothing comes
+out of one of those before a characterisation test exists for the piece being
+moved. The rest of the repository is covered, and re-testing it is not the job.
 
 **2. Move.** One thing at a time, and let the compiler carry it. Cut the
 function, paste it, fix what goes red. Rust is unusually good at this: an

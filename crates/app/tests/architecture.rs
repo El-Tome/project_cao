@@ -25,6 +25,10 @@ use std::path::{Path, PathBuf};
 
 const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "part", "prefs", "app"];
 
+/// The heading in `docs/code-map.md` under which the uncovered places are
+/// listed, one per bullet, each named by a path from the workspace root.
+const NO_NET_HEADING: &str = "## What has no net";
+
 /// The graph as it is, not a list of permissions. The test compares this with
 /// the `cao_*` dependencies every manifest actually declares, so an edge named
 /// here that no `Cargo.toml` carries fails just as surely as one nobody allowed.
@@ -435,6 +439,71 @@ fn the_layers_of_a_context_only_reach_downwards() {
             }
         }
     }
+}
+
+#[test]
+fn a_place_said_to_carry_no_test_carries_none() {
+    let places = places_with_no_net();
+    assert!(
+        !places.is_empty(),
+        "docs/code-map.md lists nothing under \"{NO_NET_HEADING}\". Either the \
+         section moved and this test follows it, or the last uncovered place \
+         got a test and the section goes.",
+    );
+
+    for place in places {
+        let path = workspace_root().join(&place);
+        assert!(
+            path.exists(),
+            "docs/code-map.md says {place} carries no test, and no such path is \
+             left. Take the line out.",
+        );
+
+        let files = if path.is_dir() {
+            rust_files(&path)
+        } else {
+            vec![path]
+        };
+        let covered: Vec<String> = files
+            .iter()
+            .filter(|file| {
+                fs::read_to_string(file)
+                    .unwrap_or_default()
+                    .contains("#[test]")
+            })
+            .map(|file| file.display().to_string())
+            .collect();
+
+        assert!(
+            covered.is_empty(),
+            "docs/code-map.md says {place} carries no test, and these carry one: \
+             {}. The net is there now — narrow the line or drop it, and the \
+             skills pointing at it stop warning about a place that is covered.",
+            covered.join(", "),
+        );
+    }
+}
+
+/// The list `docs/code-map.md` keeps under [`NO_NET_HEADING`]. One document
+/// names the uncovered places and the skills point at it, because the previous
+/// arrangement — the same names written out in the map and in each skill that
+/// warned about them — drifted the day a test landed, in every copy at once.
+fn places_with_no_net() -> Vec<String> {
+    let map = fs::read_to_string(workspace_root().join("docs").join("code-map.md"))
+        .expect("a readable docs/code-map.md");
+    let below = map
+        .split_once(NO_NET_HEADING)
+        .unwrap_or_else(|| panic!("{NO_NET_HEADING} in docs/code-map.md"))
+        .1;
+    let section = below.split_once("\n## ").map_or(below, |(above, _)| above);
+
+    section
+        .lines()
+        .filter_map(|line| line.trim_start().strip_prefix("- `"))
+        .filter_map(|rest| rest.split_once('`'))
+        .map(|(path, _)| path.to_string())
+        .filter(|path| path.starts_with("crates/"))
+        .collect()
 }
 
 fn workspace_root() -> PathBuf {

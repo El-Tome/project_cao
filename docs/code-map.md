@@ -182,26 +182,36 @@ the largest crate in the repository, and `viewport.rs` alone holds the camera,
 the hit test, the keyboard, the gestures and the drawing of the annotations. As
 soon as a mode carries non-trivial business logic, it becomes its own crate.
 
-## What has no tests
+## What has no net
 
-| Area | Tests |
-| --- | ---: |
-| `sketch/src/solver.rs` | 0 |
-| `sketch/src/constraints.rs` | 0 |
-| `crates/app/src/` | 0 |
+These places carry no test of their own:
 
-The test files of that crate are about the repository, not about the
-interface: `crates/app/tests/architecture.rs` tests its shape — crate graph,
-folders, line budget, French below the interface — `crates/app/tests/gate.rs`
-checks that `scripts/verify.sh` and `.github/workflows/ci.yml` check the same
-things, and `crates/app/tests/language.rs` that nothing a developer reads is
+- `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
+  is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);
+- `crates/sketch/src/constraints.rs`;
+- `crates/app/src/screens/` — the canvas and the modes drawn on it: gestures,
+  hit test, drawing. It is the code being carried out into `cao_sketch`, where
+  a drawing rule can be tested without opening a window.
+
+**This list is the only copy.** The skills that warn about these places name
+this section rather than restating it, and `crates/app/tests/architecture.rs`
+holds it against the code: the day one of them grows a `#[test]`, the test
+fails and the line comes out. Keeping the same sentence in four places is how
+the previous version of it went on claiming the whole of `crates/app/` was
+uncovered, for a day after it had stopped being true.
+
+The rest of `crates/app/src/` is covered: the French the interface says is
+held word by word in `wording/`, and `adapters/`, `autosave.rs` and `crash.rs`
+carry their own tests. The three files in `crates/app/tests/` are about the
+repository rather than the interface — `architecture.rs` its shape,
+`gate.rs` the agreement between `scripts/verify.sh` and
+`.github/workflows/ci.yml`, `language.rs` that nothing a developer reads is
 written in French.
 
-The solver is the algorithmic heart and most of its history is made of
-successive fixes (`git log -- crates/sketch/src/solver.rs`). Working in it means
-first writing a test that characterises what is there. The linear algebra it
-rests on is the exception: `independence.rs` is covered, so a claim about how
-much of a drawing is held down can be checked without opening a window.
+Working in them means first writing a test that characterises what is there —
+the `rust-tdd` skill says how. The linear algebra the solver rests on is the
+exception: `independence.rs` is covered, so a claim about how much of a drawing
+is held down can be checked without opening a window.
 
 Elsewhere the repository is tested, and each test lives in the file it covers.
 `cargo test --workspace` gives the count of the day.

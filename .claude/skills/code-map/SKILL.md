@@ -150,14 +150,13 @@ soon as a mode carries non-trivial business logic, it becomes its own crate.
 
 ## The places with no net
 
-Three places have **no test at all**:
+`docs/code-map.md` names them, under **What has no net**, and
+`crates/app/tests/architecture.rs` holds that list against the code: the day one
+of those places grows a `#[test]`, the test fails and the line comes out.
 
-- `sketch/src/solver.rs` — the algorithmic heart, whose history is made of
-  successive fixes (`git log -- crates/sketch/src/solver.rs`);
-- `sketch/src/constraints.rs`;
-- `crates/app/src/` — the files in `crates/app/tests/` test the repository (its
-  shape, the agreement between the local gate and the CI, and the language it
-  is written in), not the interface.
+Read it there rather than from memory. The copy that used to sit here said the
+whole of `crates/app/` was uncovered, and went on saying it long after the
+first colocated tests had landed.
 
 Working in them means first writing a test that characterises what is there.
 See the `rust-tdd` skill.

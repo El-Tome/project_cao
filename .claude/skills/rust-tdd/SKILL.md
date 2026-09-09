@@ -93,9 +93,15 @@ that is the moment to stop.
 
 ## The places with no net
 
-`sketch/src/solver.rs`, `sketch/src/constraints.rs` and the whole of
-`crates/app/` have **no test at all**. The solver alone gathers four recent
-fixes.
+Part of the repository carries no test of its own — the solver above all, whose
+history is four recent fixes deep. `docs/code-map.md` says which places, under
+**What has no net**, and `crates/app/tests/architecture.rs` fails the day one of
+them grows a `#[test]`.
+
+Do not carry that list in your head. The last copy of it claimed the whole of
+`crates/app/` was uncovered, and stayed in three skills saying so after the
+tests had landed — which is the shape of mistake that sends you writing a
+characterisation test for code that already has one.
 
 Touching them goes in three moves:
 

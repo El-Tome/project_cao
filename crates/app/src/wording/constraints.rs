@@ -1,4 +1,4 @@
-use cao_sketch::{Constraint, SketchAxis};
+use cao_sketch::{Constraint, Rule, SketchAxis};
 
 /// The only place a rule of the drawing is turned into a name.
 pub fn label(rule: Constraint) -> &'static str {
@@ -37,6 +37,36 @@ pub fn axis(axis: SketchAxis) -> &'static str {
     match axis {
         SketchAxis::U => "axe horizontal",
         SketchAxis::V => "axe vertical",
+    }
+}
+
+/// The only place the constraint tool's own rule is turned into a name.
+pub fn rule_label(rule: Rule) -> &'static str {
+    match rule {
+        Rule::Perpendicular => "Perpendiculaire",
+        Rule::Parallel => "Parallèle",
+        Rule::Equal => "Égalité",
+        Rule::Coincident => "Coïncidence",
+        Rule::Collinear => "Colinéaire",
+        Rule::Tangent => "Tangence",
+        Rule::Midpoint => "Milieu",
+        Rule::Fixed => "Fixe",
+        Rule::Concentric => "Concentrique",
+    }
+}
+
+/// What to point at, said in the title bar while the constraint tool waits.
+pub fn rule_asks_for(rule: Rule) -> &'static str {
+    match rule {
+        Rule::Perpendicular => "Cliquez deux traits à mettre d'équerre",
+        Rule::Parallel => "Cliquez deux traits à rendre parallèles",
+        Rule::Equal => "Cliquez deux traits, ou deux cercles, à égaliser",
+        Rule::Coincident => "Cliquez un point puis un trait, ou deux points",
+        Rule::Collinear => "Cliquez deux traits à coucher sur la même droite",
+        Rule::Tangent => "Cliquez un cercle puis un trait",
+        Rule::Midpoint => "Cliquez un point puis le trait qui le portera",
+        Rule::Fixed => "Cliquez le point à fixer",
+        Rule::Concentric => "Cliquez deux cercles à ramener sur le même centre",
     }
 }
 
@@ -168,5 +198,34 @@ mod tests {
     fn the_two_axes_of_a_sketch_read_differently() {
         assert_eq!(axis(SketchAxis::U), "axe horizontal");
         assert_eq!(axis(SketchAxis::V), "axe vertical");
+    }
+
+    #[test]
+    fn every_rule_of_the_constraint_tool_names_itself_and_says_what_it_wants() {
+        let rules = [
+            Rule::Perpendicular,
+            Rule::Parallel,
+            Rule::Equal,
+            Rule::Coincident,
+            Rule::Collinear,
+            Rule::Tangent,
+            Rule::Midpoint,
+            Rule::Fixed,
+            Rule::Concentric,
+        ];
+
+        let labels: BTreeSet<&str> = rules.iter().map(|rule| rule_label(*rule)).collect();
+        let asks: BTreeSet<&str> = rules.iter().map(|rule| rule_asks_for(*rule)).collect();
+
+        assert_eq!(
+            labels.len(),
+            rules.len(),
+            "each rule of the constraint tool reads under its own name",
+        );
+        assert_eq!(
+            asks.len(),
+            rules.len(),
+            "each rule tells the title bar what to point at, and none share the wording",
+        );
     }
 }

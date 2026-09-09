@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use cao_part::{Operation, PartDocument};
 use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
-use cao_sketch::WorkPlane;
+use cao_sketch::{Rule, WorkPlane};
 use glam::DVec3;
 
 use crate::remembered::Remembered;
@@ -247,7 +247,7 @@ fn run(
     viewport: &mut ViewportState,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{CircleMode, DimensionMode, Rule, Tool};
+    use crate::screens::sketch::{CircleMode, DimensionMode, Tool};
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -365,7 +365,7 @@ fn run(
                 _ => Rule::Perpendicular,
             };
             tool(editor, Tool::Constrain(rule));
-            editor.message = Some(rule.asks_for().to_string());
+            editor.message = Some(wording::constraints::rule_asks_for(rule).to_string());
             false
         }
         Command::ExtrusionAdd => {

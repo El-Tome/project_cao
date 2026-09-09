@@ -11,6 +11,7 @@ mod independence;
 mod plane;
 mod regions;
 mod rigid;
+mod rule_intent;
 mod rule_marks;
 pub mod segment;
 mod settled;
@@ -22,6 +23,7 @@ pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxi
 pub use dimensioning::axis_under;
 pub use plane::{PlaneKind, WorkPlane};
 pub use regions::Region;
+pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};
 pub use sketch::{Circle, CircleId, Element, LengthOutcome, PointId, Segment, SegmentId, Sketch};
 pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;

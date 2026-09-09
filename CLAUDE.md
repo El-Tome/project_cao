@@ -120,8 +120,8 @@ and buys nothing.
 - **`adapters/` is the only place allowed to reach the disk or the clock.**
 - **No `utils`, `helpers`, `common`, `misc`, `shared`, `manager`, `handler`.** A
   name that says nothing is where responsibilities come to hide.
-- **400 lines per file.** Seventeen files are already over and are named in the
-  test with their current length; none of them may grow.
+- **400 lines per file.** The files already over it are named in the test with
+  the length they had the day the rule landed; none of them may grow.
 
 ## How work is delivered
 
@@ -221,7 +221,10 @@ does not. Where the two disagree, this file and the architecture test win.
 - **No line count in prose.** A figure written in a document is exact at the
   commit that writes it and false at the next one — a `cargo fmt` was enough.
   Say the order of magnitude, or name the largest. The only lengths that carry a
-  rule live in `crates/app/tests/architecture.rs`, which fails when they drift.
+  rule live in `crates/app/tests/architecture.rs`, which fails when they drift —
+  and that includes how many files are over the budget. The budget itself, 400,
+  is a decision rather than an observation: it is written out where it is
+  needed, and moves only when someone moves the constant.
 - Ask, at any point, when something is unclear, when the request is ambiguous,
   or when information is missing — before acting.
 - Before starting a task, pull, and check whether an existing branch already

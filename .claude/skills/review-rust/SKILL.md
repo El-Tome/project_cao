@@ -14,8 +14,9 @@ The budget is **400 lines**, held by the gate. The files already over it are
 named in `FILES_ALLOWED_TO_REACH_OUTSIDE`'s neighbour
 `FILES_OVER_THE_LINE_BUDGET`, each with the length it had the day the rule
 landed; none of them may grow. Read that list to calibrate against, rather than
-a figure written here that a `cargo fmt` would falsify — `viewport.rs`,
-`sketch.rs`, `solver.rs` and `state.rs` are the four largest, in that order.
+a figure written here that a `cargo fmt` would falsify — it also says which
+files are the largest, and it is the only place that says so without going
+stale.
 
 - [ ] Is the file I touched growing again? If so, could what I am adding live
       elsewhere?

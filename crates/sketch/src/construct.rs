@@ -151,6 +151,43 @@ fn distance_to(point: DVec2, line: Line) -> f64 {
     }
 }
 
+/// How a circle is being drawn.
+///
+/// Every one of them ends the same way — a centre and a radius — but what the
+/// user points at to get there differs, and so does what is known after each
+/// click.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CircleMode {
+    /// The centre, then a point of the rim.
+    #[default]
+    Center,
+    /// Two opposite points of the rim.
+    TwoPoints,
+    /// Two points of the rim, then the centre — which can only sit on their
+    /// perpendicular bisector, so the click is brought back onto it.
+    ThreePoints,
+    /// Two traits it must touch, then the centre on their bisector.
+    TwoTangents,
+    /// Three traits it must touch: the circle inscribed between them, with
+    /// nothing left to choose.
+    ThreeTangents,
+}
+
+impl CircleMode {
+    /// Whether it is drawn by pointing at traits rather than at places.
+    pub fn touches_traits(self) -> bool {
+        matches!(self, Self::TwoTangents | Self::ThreeTangents)
+    }
+
+    /// How many things it needs before the circle is settled.
+    pub fn wants(self) -> usize {
+        match self {
+            Self::Center | Self::TwoPoints => 2,
+            Self::ThreePoints | Self::TwoTangents | Self::ThreeTangents => 3,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

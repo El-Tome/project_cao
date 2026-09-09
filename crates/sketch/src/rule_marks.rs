@@ -1,5 +1,6 @@
-//! Where a rule's marks are written: on each of the things it holds, so that
-//! pointing at one of them says what it is caught up in.
+//! Where a constraint's own mark belongs, so the drawing can say it without a
+//! window: which of the things it holds carries the mark, the exception the
+//! right angle makes, and which rule sits nearest a point on the drawing.
 
 use glam::DVec2;
 

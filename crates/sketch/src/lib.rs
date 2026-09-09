@@ -8,6 +8,7 @@ pub mod construct;
 mod dimensioning;
 mod equation;
 mod independence;
+mod picking;
 mod plane;
 mod regions;
 mod rigid;
@@ -21,6 +22,7 @@ mod solver;
 
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
 pub use dimensioning::axis_under;
+pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use regions::Region;
 pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};

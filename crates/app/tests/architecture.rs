@@ -73,7 +73,7 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 15] = [
     ("crates/app/src/screens/annotations.rs", 517),
     ("crates/app/src/screens/ribbon.rs", 428),
     ("crates/app/src/screens/settings.rs", 799),
-    ("crates/app/src/screens/viewport.rs", 3846),
+    ("crates/app/src/screens/viewport.rs", 3671),
     ("crates/part/src/state.rs", 1297),
     ("crates/prefs/src/toolbar.rs", 457),
     ("crates/render/src/camera.rs", 528),

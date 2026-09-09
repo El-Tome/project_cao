@@ -3,6 +3,8 @@
 //! rendering and no UI, so the same model backs any front-end and can be saved
 //! straight into a part file.
 
+mod aim;
+mod circling;
 mod constraints;
 pub mod construct;
 mod dimensioning;
@@ -20,7 +22,10 @@ mod sketch;
 mod snap;
 mod solver;
 
+pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
+pub use circling::{Found, circle_from, rim_of};
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
+pub use construct::CircleMode;
 pub use dimensioning::axis_under;
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};

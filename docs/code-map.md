@@ -51,12 +51,14 @@ in one of the two domains, never there.
 | The solver | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
-| The five circle constructions | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three` |
+| The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |
 | What a click takes hold of, what a box catches, what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::inside_band`, `Sketch::points_of`, `Selection` |
+| Where a trait being drawn ends, and the four-degree square snap | `sketch/src/aim.rs` | `Sketch::aim`, `rectangle_corner`, `LockedInput`, `ChainAnchor` |
+| Which circle the clicks gathered so far mean | `sketch/src/circling.rs` | `circle_from`, `rim_of`, `Found` |
 
 What it does: [`sketch.md`](sketch.md).
 
@@ -125,7 +127,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: gestures, hit test, drawing | `app/src/screens/viewport.rs` — the largest file in the repository | `show(...)`, `ViewportState`, `ViewMode` |
-| Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput`, `CircleMode` |
+| Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | Placing dimensions on screen | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
@@ -136,6 +138,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
+| What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |
 | What a work plane is called | `app/src/wording/plane.rs` | `label` |
 | What a profile is called | `app/src/wording/settings.rs` | `profile` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |

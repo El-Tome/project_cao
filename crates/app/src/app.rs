@@ -341,7 +341,7 @@ fn run(
                 _ => CircleMode::Center,
             };
             tool(editor, Tool::Circle);
-            editor.message = Some(editor.circle_mode.asks_for().to_string());
+            editor.message = Some(crate::wording::circle::asks_for(editor.circle_mode).to_string());
             false
         }
         Command::RulePerpendicular

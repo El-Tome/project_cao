@@ -6,6 +6,7 @@
 //! application's wording, and so that a translation system later has one
 //! directory to pass under rather than a hunt.
 
+pub mod circle;
 pub mod command;
 pub mod constraints;
 pub mod dimension;

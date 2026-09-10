@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::annotation::AnnotationMetrics;
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
+use crate::erased::Erased;
 use crate::independence::is_dependent;
+use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 use crate::solver::SolveOutcome;
 
@@ -24,6 +26,8 @@ pub struct CircleId(pub usize);
 pub struct Circle {
     pub center: PointId,
     pub radius: f64,
+    #[serde(default)]
+    pub construction: bool,
 }
 
 /// A straight line between two points. Points are shared: chaining a polyline
@@ -33,19 +37,8 @@ pub struct Circle {
 pub struct Segment {
     pub start: PointId,
     pub end: PointId,
-}
-
-/// What happened when a length was applied.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LengthOutcome {
-    /// The segment now has exactly the requested length, and whatever hung off
-    /// its far end moved rigidly with it.
-    Exact,
-    /// The far end could not move freely because the geometry loops back to the
-    /// fixed end. Only the far end moved, so the shapes around it are distorted.
-    BestEffort,
-    /// The segment has no direction to stretch along.
-    Degenerate,
+    #[serde(default)]
+    pub construction: bool,
 }
 
 /// A 2D sketch on a plane. Everything is stored in the plane's own coordinates
@@ -74,8 +67,7 @@ pub struct Sketch {
     ///
     /// They do not give: the drawing settles *around* them rather than pulling
     /// them back, which is what makes a shape follow the mouse instead of
-    /// squirming away from it. Nothing to save — they live only as long as the
-    /// gesture.
+    /// squirming away from it. Nothing to save — they live only as long as the gesture.
     #[serde(skip)]
     held: Vec<PointId>,
     /// The last reading of which points can no longer move, against a print of
@@ -85,37 +77,7 @@ pub struct Sketch {
     settled: RefCell<Option<(u64, Vec<bool>)>>,
 }
 
-/// The ranks that no longer count.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Erased {
-    #[serde(default)]
-    points: Vec<bool>,
-    #[serde(default)]
-    segments: Vec<bool>,
-    #[serde(default)]
-    circles: Vec<bool>,
-}
-
-impl Erased {
-    fn holds(list: &[bool], rank: usize) -> bool {
-        list.get(rank).copied().unwrap_or(false)
-    }
-
-    fn mark(list: &mut Vec<bool>, rank: usize) {
-        if list.len() <= rank {
-            list.resize(rank + 1, false);
-        }
-        list[rank] = true;
-    }
-}
-
-/// One thing a sketch is made of, for deleting it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Element {
-    Point(PointId),
-    Segment(SegmentId),
-    Circle(CircleId),
-}
+pub use crate::element::Element;
 
 impl Sketch {
     /// Every sketch owns a point at its origin from the moment it is created.
@@ -466,7 +428,20 @@ impl Sketch {
     }
 
     pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.circles.push(Circle { center, radius });
+        self.push_circle(center, radius, false)
+    }
+
+    /// Excluded from the area of any region it happens to sit inside or across.
+    pub fn add_construction_circle(&mut self, center: PointId, radius: f64) -> CircleId {
+        self.push_circle(center, radius, true)
+    }
+
+    fn push_circle(&mut self, center: PointId, radius: f64, construction: bool) -> CircleId {
+        self.circles.push(Circle {
+            center,
+            radius,
+            construction,
+        });
         CircleId(self.circles.len() - 1)
     }
 
@@ -514,8 +489,7 @@ impl Sketch {
         }
     }
 
-    /// The dimension whose annotation sits nearest `position`, within
-    /// `tolerance`.
+    /// The dimension whose annotation sits nearest `position`, within `tolerance`.
     pub fn nearest_dimension(
         &self,
         position: DVec2,
@@ -540,9 +514,8 @@ impl Sketch {
         }
     }
 
-    /// Reuses an existing point when one is within `tolerance`, so that clicking
-    /// back onto a corner joins the geometry there instead of laying a second
-    /// point on top of it.
+    /// Reuses an existing point when one is within `tolerance`, so that clicking back onto a corner
+    /// joins the geometry there instead of laying a second point on top of it.
     pub fn point_at(&mut self, position: DVec2, tolerance: f64) -> PointId {
         match self.nearest_point(position, tolerance) {
             Some(id) => id,
@@ -674,7 +647,20 @@ impl Sketch {
     }
 
     pub fn add_segment(&mut self, start: PointId, end: PointId) -> SegmentId {
-        self.segments.push(Segment { start, end });
+        self.push_segment(start, end, false)
+    }
+
+    /// Excluded from the area of any region it happens to sit inside or across.
+    pub fn add_construction_segment(&mut self, start: PointId, end: PointId) -> SegmentId {
+        self.push_segment(start, end, true)
+    }
+
+    fn push_segment(&mut self, start: PointId, end: PointId, construction: bool) -> SegmentId {
+        self.segments.push(Segment {
+            start,
+            end,
+            construction,
+        });
         SegmentId(self.segments.len() - 1)
     }
 

@@ -17,6 +17,7 @@ pub fn label(command: Command) -> &'static str {
         Command::ToolCircle => "Cercle",
         Command::ToolPoint => "Point",
         Command::ToolDimension => "Cote",
+        Command::ToggleConstruction => "Construction",
         Command::CircleCenter => "Centre et diamètre",
         Command::CircleTwoPoints => "Deux points du bord",
         Command::CircleThreePoints => "Deux points puis le centre",
@@ -63,6 +64,9 @@ pub fn hint(command: Command) -> &'static str {
         Command::ToolCircle => "Deux clics : centre puis rayon",
         Command::ToolPoint => "Un clic pose un point",
         Command::ToolDimension => "Cote intelligente : cliquer ce qu'on veut mesurer",
+        Command::ToggleConstruction => {
+            "Ce qui va être dessiné aide à construire, sans compter dans l'aire"
+        }
         Command::CircleCenter => "Le centre, puis un point du bord",
         Command::CircleTwoPoints => "Deux points opposés du bord",
         Command::CircleThreePoints => "Deux points du bord, puis le centre sur leur médiatrice",

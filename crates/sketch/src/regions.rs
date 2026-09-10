@@ -46,12 +46,12 @@ impl Sketch {
     /// segment belongs to two areas when two shapes share a side.
     pub fn regions(&self) -> Vec<Region> {
         let mut outlines = self.closed_outlines();
-        outlines.extend(self.live_circles().map(|(_, circle)| {
-            let center = self.point(circle.center);
+        let circles = self.live_circles().filter(|(_, c)| !c.construction);
+        outlines.extend(circles.map(|(_, c)| {
             (0..CIRCLE_STEPS)
                 .map(|step| {
                     let angle = std::f64::consts::TAU * step as f64 / CIRCLE_STEPS as f64;
-                    center + DVec2::from_angle(angle) * circle.radius
+                    self.point(c.center) + DVec2::from_angle(angle) * c.radius
                 })
                 .collect()
         }));
@@ -111,10 +111,10 @@ impl Sketch {
     /// Walks the segment graph and returns each area it encloses, as a loop of
     /// positions turning counter-clockwise.
     fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
-        // Only what is still drawn: a deleted side must not close an area that
-        // is no longer there.
+        // Only what is still drawn: a deleted side must not close an area that is no longer there.
         let ends: Vec<(usize, usize)> = self
             .live_segments()
+            .filter(|(_, segment)| !segment.construction)
             .flat_map(|(_, segment)| {
                 [
                     (segment.start.0, segment.end.0),

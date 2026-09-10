@@ -70,7 +70,9 @@ pub fn detail(operation: &Operation) -> String {
         Operation::AddPoint { sketch, position } => {
             format!("Esquisse {sketch} · ({:.1}, {:.1})", position.x, position.y)
         }
-        Operation::AddSegment { sketch, start, end } => {
+        Operation::AddSegment {
+            sketch, start, end, ..
+        } => {
             format!(
                 "Esquisse {sketch} · {} → {}",
                 point_label(start),
@@ -81,6 +83,7 @@ pub fn detail(operation: &Operation) -> String {
             sketch,
             corner,
             opposite,
+            ..
         } => format!(
             "Esquisse {sketch} · {} → {}",
             point_label(corner),
@@ -225,17 +228,20 @@ mod tests {
                 sketch: 0,
                 start: here,
                 end: PointRef::New(AWAY),
+                construction: false,
             },
             Operation::AddRectangle {
                 sketch: 0,
                 corner: here,
                 opposite: PointRef::New(AWAY),
+                construction: false,
             },
             Operation::AddCircle {
                 sketch: 0,
                 center: here,
                 radius: 5.0,
                 rim: Vec::new(),
+                construction: false,
             },
             Operation::MovePoint {
                 sketch: 0,
@@ -282,12 +288,10 @@ mod tests {
         assert_eq!(said(&raised(ExtrusionMode::Cut)), "Enlèvement 12 mm");
         assert_eq!(said(&turn(ExtrusionMode::Add)), "Révolution 90°");
         assert_eq!(said(&turn(ExtrusionMode::Cut)), "Révolution creusée 90°");
-        assert_eq!(
-            said(&Operation::CreateSketch {
-                plane: WorkPlane::XY,
-            }),
-            "Esquisse — Plan XY",
-        );
+        let origin = Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        };
+        assert_eq!(said(&origin), "Esquisse — Plan XY");
         assert_eq!(
             said(&Operation::Constrain {
                 sketch: 0,
@@ -344,6 +348,7 @@ mod tests {
                     sketch: 0,
                     start: PointRef::Existing(PointId(7)),
                     end: PointRef::New(DVec2::new(2.0, 4.0)),
+                    construction: false,
                 },
                 "Esquisse 0 · point 7 → (2.0, 4.0)",
             ),
@@ -353,6 +358,7 @@ mod tests {
                     center: PointRef::New(DVec2::ZERO),
                     radius: 5.0,
                     rim: Vec::new(),
+                    construction: false,
                 },
                 "Esquisse 1 · rayon 5.00",
             ),

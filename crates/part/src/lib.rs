@@ -6,6 +6,7 @@
 mod adapters;
 mod document;
 mod errors;
+mod extrusion;
 pub mod feature;
 mod file_name;
 pub mod history;

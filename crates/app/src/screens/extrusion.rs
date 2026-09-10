@@ -125,3 +125,50 @@ fn signed(input: &str, reversed: bool) -> Option<f64> {
         .filter(|value| value.abs() > 1e-6)?;
     Some(if reversed { -value } else { value })
 }
+
+/// Turns the chosen areas into matter, or takes them out of it.
+pub fn apply_extrusion(doc: &mut cao_part::PartDocument, extrusion: &mut ExtrusionState) -> bool {
+    let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
+        return false;
+    };
+    if !extrusion.is_ready() {
+        return false;
+    }
+
+    let before = doc.body().clone();
+    let picks = std::mem::take(&mut extrusion.picks);
+    let operation = if extrusion.is_revolving() {
+        cao_part::Operation::Revolve {
+            sketch,
+            picks,
+            axis: extrusion.axis,
+            angle: extrusion.angle().unwrap_or_default(),
+            mode,
+        }
+    } else {
+        cao_part::Operation::Extrude {
+            sketch,
+            picks,
+            distance: extrusion.distance().unwrap_or_default(),
+            mode,
+        }
+    };
+    doc.apply(operation);
+
+    // An extrusion that changes nothing is worth saying out loud: a cut that
+    // misses the matter looks exactly like a tool that did not work.
+    extrusion.message = (doc.body() == &before).then(|| {
+        match (mode, extrusion.is_revolving()) {
+            (_, true) => {
+                "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
+            }
+            (ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
+            (ExtrusionMode::Cut, false) => {
+                "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
+            }
+        }
+        .to_string()
+    });
+    extrusion.mode = None;
+    true
+}

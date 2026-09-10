@@ -59,9 +59,8 @@ impl Ribbon {
                     asked = self.contents(ui, settings, document, editor, extrusion);
                 });
             }
-            // A side bar has to be told how wide to start: left to itself it
-            // takes the room its widest button asks for, which on a wide
-            // window is the whole window.
+            // A side bar has to be told how wide to start: left to itself it takes the room its
+            // widest button asks for, which on a wide window is the whole window.
             Edge::Left => {
                 egui::Panel::left("ribbon")
                     .resizable(true)
@@ -264,6 +263,7 @@ fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolCircle => tool == Tool::Circle,
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
+        Command::ToggleConstruction => state.editor.construction,
         Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
         Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
         Command::CircleThreePoints => {

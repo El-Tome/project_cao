@@ -44,6 +44,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                 sketch: 0,
                 start: PointRef::New(corners[pair.0]),
                 end: PointRef::New(corners[pair.1]),
+                construction: false,
             });
         }
         doc.apply(Operation::AddCircle {
@@ -51,6 +52,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
             center: PointRef::New(DVec2::new(2.0, -5.0)),
             radius: 25.0,
             rim: Vec::new(),
+            construction: false,
         });
         let circle = cao_sketch::CircleId(0);
         let tangents = 2 + rng.range(2);

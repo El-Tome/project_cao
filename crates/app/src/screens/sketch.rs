@@ -124,6 +124,7 @@ pub struct SketchEditor {
     /// Which kind of measurement the dimension tool is forcing. Not reset
     /// between shapes, for the same reason.
     pub dimension_mode: DimensionMode,
+    pub construction: bool,
     pub live: LiveInput,
     /// Where the shape being drawn actually ends, once what was typed and the
     /// right-angle snap have had their say. Recomputed every frame from

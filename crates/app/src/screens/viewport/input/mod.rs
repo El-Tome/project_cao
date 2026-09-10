@@ -838,6 +838,7 @@ pub(crate) fn two_click_shape(
         sketch: index,
         corner,
         opposite,
+        construction: context.editor.construction,
     });
     dimension_the_rectangle(context, index, pixel);
     context.editor.live.clear();
@@ -929,6 +930,7 @@ pub(crate) fn draw_circle(
                 center,
                 radius: found.radius,
                 rim,
+                construction: context.editor.construction,
             });
             let drawn = CircleId(
                 context.document.sketches()[index]
@@ -1287,6 +1289,7 @@ pub(crate) fn draw_line_point(
                 sketch: index,
                 start: point_ref(start),
                 end: point_ref(end),
+                construction: context.editor.construction,
             });
 
             // The far end of the segment just drawn becomes the next anchor.

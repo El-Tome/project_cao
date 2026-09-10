@@ -9,6 +9,7 @@ mod chain;
 mod circling;
 mod constraints;
 pub mod construct;
+mod crossing;
 mod dimensioning;
 mod equation;
 mod independence;

@@ -182,7 +182,7 @@ impl Sketch {
                 sorted.dedup();
                 sorted.len() == loop_edges.len()
             };
-            if distinct && signed_area(&outline) > 1e-9 {
+            if distinct && signed_area(&outline) > 1e-9 && crate::crossing::is_simple(&outline) {
                 outlines.push(outline);
             }
         }

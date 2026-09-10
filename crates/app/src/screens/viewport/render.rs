@@ -1074,11 +1074,8 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let index = context.editor.active_sketch()?;
     let sketch = context.document.sketches().get(index)?;
     let raw_cursor = context.editor.cursor?;
-    let cursor = context
-        .editor
-        .aimed
-        .map(|aimed| aimed.position)
-        .unwrap_or(raw_cursor);
+    let aim = context.editor.aimed;
+    let cursor = aim.map_or(raw_cursor, |aimed| aimed.position);
     let scale = context.document.scale();
 
     // A line is a length and an angle, a rectangle its two sides, a circle its
@@ -1483,11 +1480,12 @@ pub(crate) fn paint_dimension_field(
             });
         });
 
-    let applied = applied && apply_dimension_value(context.document, context.editor, index, target);
-    if applied {
-        context.editor.editing = None;
+    let lang = context.lang;
+    if !applied || !apply_dimension_value(context.document, context.editor, index, target, lang) {
+        return false;
     }
-    applied
+    context.editor.editing = None;
+    true
 }
 
 /// Where an annotation writes its value, on screen.

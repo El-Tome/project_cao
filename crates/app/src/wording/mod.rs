@@ -2,9 +2,12 @@
 //!
 //! A layer below `cao_app` returns a named case — `Key::Escape`,
 //! `ExtrusionMode::Cut` — and this is where it is decided how that case is
-//! said. One file per source, so that no single one accumulates the whole
+//! said. One module per source, so that no single one accumulates the whole
 //! application's wording, and so that a translation system later has one
 //! directory to pass under rather than a hunt.
+//!
+//! What a key says lives in [`crate::lang`], not here: this decides which key
+//! a case of the domain earns.
 
 pub mod circle;
 pub mod command;

@@ -1,4 +1,3 @@
-use crate::wording::dimension::REDUNDANT_WARNING;
 use cao_part::{DimensionOutcome, PartDocument, history::Operation};
 use cao_sketch::{DimensionTarget, LengthOutcome, PointId, Rule, Selection, ToolState, WorkPlane};
 use glam::DVec2;
@@ -351,6 +350,7 @@ pub(crate) fn apply_dimension_value(
     editor: &mut SketchEditor,
     index: usize,
     target: DimensionTarget,
+    lang: &crate::lang::Catalogue,
 ) -> bool {
     let Some(typed) = editor.editing.as_ref().map(|editing| editing.input.clone()) else {
         return false;
@@ -390,7 +390,7 @@ pub(crate) fn apply_dimension_value(
             true
         }
         Some(DimensionOutcome::Reference) => {
-            editor.message = Some(REDUNDANT_WARNING.to_string());
+            editor.message = Some(crate::wording::dimension::redundant_warning(lang));
             true
         }
         _ => {

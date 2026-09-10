@@ -1,60 +1,90 @@
 use cao_sketch::{DimensionTarget, SketchAxis};
 
+use crate::lang::Catalogue;
 use crate::wording::constraints;
 
 /// Shown when a value would add nothing to a shape that is already settled.
-pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
+pub fn redundant_warning(lang: &Catalogue) -> String {
+    lang.t("dimension.redundant")
+}
 
 /// The only place a dimension is turned into a name.
 ///
 /// The value is millimetres for a length or a radius, degrees for an angle.
-pub fn label(target: &DimensionTarget, value: f64) -> String {
+/// It is rounded here rather than in the language file, so that a translation
+/// never has to carry a format specifier.
+pub fn label(lang: &Catalogue, target: &DimensionTarget, value: f64) -> String {
     let value = short(value);
+    let measured = &[("value", value.as_str())];
     match target {
-        DimensionTarget::Angle { .. } => format!("Angle {value}°"),
-        DimensionTarget::AxisAngle { axis, .. } => {
-            format!("Angle {value}° / {}", constraints::axis(*axis))
-        }
-        DimensionTarget::Radius(_) => format!("Rayon {value} mm"),
-        DimensionTarget::Diameter(_) => format!("Diamètre {value} mm"),
+        DimensionTarget::Angle { .. } => lang.t_with("dimension.label.angle", measured),
+        DimensionTarget::AxisAngle { axis, .. } => lang.t_with(
+            "dimension.label.axis_angle",
+            &[
+                ("value", value.as_str()),
+                ("axis", &constraints::axis(lang, *axis)),
+            ],
+        ),
+        DimensionTarget::Radius(_) => lang.t_with("dimension.label.radius", measured),
+        DimensionTarget::Diameter(_) => lang.t_with("dimension.label.diameter", measured),
         DimensionTarget::Projected { axis, .. } => match axis {
-            SketchAxis::U => format!("Largeur {value} mm"),
-            SketchAxis::V => format!("Hauteur {value} mm"),
+            SketchAxis::U => lang.t_with("dimension.label.width", measured),
+            SketchAxis::V => lang.t_with("dimension.label.height", measured),
         },
         DimensionTarget::PointToSegment { .. }
         | DimensionTarget::Length(_)
-        | DimensionTarget::Distance { .. } => format!("Cote {value} mm"),
+        | DimensionTarget::Distance { .. } => lang.t_with("dimension.label.length", measured),
     }
 }
 
 /// What the dimension is taken across, as the history says it once it knows
 /// which sketch the drawing belongs to.
-pub fn spans(target: &DimensionTarget) -> String {
+pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
     match target {
-        DimensionTarget::Distance { from, to } => {
-            format!("points {} et {}", from.0, to.0)
-        }
-        DimensionTarget::Length(segment) => format!("trait {}", segment.0),
-        DimensionTarget::Angle { first, second } => {
-            format!("traits {} et {}", first.0, second.0)
-        }
-        DimensionTarget::AxisAngle { segment, axis } => {
-            format!("trait {} / {}", segment.0, constraints::axis(*axis))
-        }
-        DimensionTarget::PointToSegment { point, segment } => {
-            format!("point {} au trait {}", point.0, segment.0)
-        }
-        DimensionTarget::Projected { from, to, axis } => {
-            format!(
-                "points {} et {} sur l'{}",
-                from.0,
-                to.0,
-                constraints::axis(*axis)
-            )
-        }
-        DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
-            format!("cercle {}", circle.0)
-        }
+        DimensionTarget::Distance { from, to } => lang.t_with(
+            "dimension.spans.points",
+            &[
+                ("first", &from.0.to_string()),
+                ("second", &to.0.to_string()),
+            ],
+        ),
+        DimensionTarget::Length(segment) => lang.t_with(
+            "dimension.spans.segment",
+            &[("segment", &segment.0.to_string())],
+        ),
+        DimensionTarget::Angle { first, second } => lang.t_with(
+            "dimension.spans.segments",
+            &[
+                ("first", &first.0.to_string()),
+                ("second", &second.0.to_string()),
+            ],
+        ),
+        DimensionTarget::AxisAngle { segment, axis } => lang.t_with(
+            "dimension.spans.segment_to_axis",
+            &[
+                ("segment", &segment.0.to_string()),
+                ("axis", &constraints::axis(lang, *axis)),
+            ],
+        ),
+        DimensionTarget::PointToSegment { point, segment } => lang.t_with(
+            "dimension.spans.point_to_segment",
+            &[
+                ("point", &point.0.to_string()),
+                ("segment", &segment.0.to_string()),
+            ],
+        ),
+        DimensionTarget::Projected { from, to, axis } => lang.t_with(
+            "dimension.spans.points_along_axis",
+            &[
+                ("first", &from.0.to_string()),
+                ("second", &to.0.to_string()),
+                ("axis", &constraints::axis(lang, *axis)),
+            ],
+        ),
+        DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => lang.t_with(
+            "dimension.spans.circle",
+            &[("circle", &circle.0.to_string())],
+        ),
     }
 }
 
@@ -85,9 +115,17 @@ mod tests {
         }
     }
 
+    fn named(target: &DimensionTarget, value: f64) -> String {
+        label(&Catalogue::french(), target, value)
+    }
+
+    fn across(target: &DimensionTarget) -> String {
+        spans(&Catalogue::french(), target)
+    }
+
     #[test]
     fn a_dimension_is_named_after_what_it_measures() {
-        let named = [
+        let measured = [
             (
                 DimensionTarget::Angle {
                     first: SegmentId(0),
@@ -123,8 +161,8 @@ mod tests {
             ),
         ];
 
-        for (target, reads) in named {
-            assert_eq!(label(&target, 60.0), reads, "{target:?} reads {reads:?}");
+        for (target, reads) in measured {
+            assert_eq!(named(&target, 60.0), reads, "{target:?} reads {reads:?}");
         }
     }
 
@@ -132,10 +170,10 @@ mod tests {
     fn a_measured_value_is_cut_to_two_decimals_and_keeps_no_trailing_zero() {
         let length = DimensionTarget::Length(SEGMENT);
 
-        assert_eq!(label(&length, 60.878_967), "Cote 60.88 mm");
-        assert_eq!(label(&length, 60.0), "Cote 60 mm");
-        assert_eq!(label(&length, 60.1), "Cote 60.1 mm");
-        assert_eq!(label(&length, 0.001), "Cote 0 mm");
+        assert_eq!(named(&length, 60.878_967), "Cote 60.88 mm");
+        assert_eq!(named(&length, 60.0), "Cote 60 mm");
+        assert_eq!(named(&length, 60.1), "Cote 60.1 mm");
+        assert_eq!(named(&length, 0.001), "Cote 0 mm");
     }
 
     #[test]
@@ -176,7 +214,15 @@ mod tests {
         ];
 
         for (target, reads) in spanned {
-            assert_eq!(spans(&target), reads, "{target:?} reads {reads:?}");
+            assert_eq!(across(&target), reads, "{target:?} reads {reads:?}");
         }
+    }
+
+    #[test]
+    fn a_value_that_measures_nothing_new_says_so_in_the_language_file() {
+        assert!(
+            redundant_warning(&Catalogue::french()).starts_with("Cette cote n'apporte rien"),
+            "the warning comes from the catalogue, not from a constant",
+        );
     }
 }

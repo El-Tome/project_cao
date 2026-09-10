@@ -1,6 +1,7 @@
 use cao_part::PartDocument;
 use cao_prefs::Command;
 
+use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::wording::constraints;
 
@@ -13,6 +14,7 @@ pub(super) fn extrusion_row(
     document: &PartDocument,
     extrusion: &mut ExtrusionState,
     asked: &mut Vec<Command>,
+    lang: &Catalogue,
 ) {
     if extrusion.sketch.is_none() {
         if document.sketches().is_empty() {
@@ -43,7 +45,8 @@ pub(super) fn extrusion_row(
             ui.label("Autour de :");
             for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
                 let held = extrusion.axis == cao_part::RevolutionAxis::Sketch(axis);
-                if ui.selectable_label(held, constraints::axis(axis)).clicked() {
+                let name = constraints::axis(lang, axis);
+                if ui.selectable_label(held, name).clicked() {
                     extrusion.axis = cao_part::RevolutionAxis::Sketch(axis);
                 }
             }

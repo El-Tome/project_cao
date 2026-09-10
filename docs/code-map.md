@@ -146,8 +146,9 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
+| What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `fr.json` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
-| What a history step and its unfolded line say | `app/src/wording/history.rs` | `label`, `detail` |
+| What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
 | What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |

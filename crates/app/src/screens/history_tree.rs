@@ -154,6 +154,6 @@ fn entry(
 
     let response = ui
         .selectable_label(is_current, text)
-        .on_hover_text(wording::history::detail(operation));
+        .on_hover_text(wording::history::detail(lang, operation));
     response.clicked()
 }

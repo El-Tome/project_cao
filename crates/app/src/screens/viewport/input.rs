@@ -1001,12 +1001,13 @@ pub(crate) fn circle_from(
     )
 }
 
-/// Places on a fresh rectangle what makes it a rectangle, and its two sizes.
+/// Places on a fresh rectangle what makes it a rectangle, and whichever of its
+/// two sizes the user typed while dragging it.
 ///
 /// Drawing one and then having to say four times that its corners are square is
 /// busywork: that is what a rectangle *is*. Three right angles are enough — the
-/// fourth follows — plus a length on two neighbouring sides, which is exactly
-/// what pins it down.
+/// fourth follows. A side left untyped stays at whatever length the cursor gave
+/// it, undimensioned.
 fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel: f64) {
     let count = context.document.sketches()[index].segments().len();
     let Some(first) = count.checked_sub(4) else {
@@ -1015,8 +1016,9 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
     let sides: [SegmentId; 4] = std::array::from_fn(|offset| SegmentId(first + offset));
 
     let scale = context.document.scale();
+    let locked = context.editor.live.locked();
     let wanted =
-        cao_sketch::rectangle_dimensions(&context.document.sketches()[index], sides, scale);
+        cao_sketch::rectangle_dimensions(&context.document.sketches()[index], sides, locked, scale);
 
     for (target, value) in wanted {
         // Pinned down where it is drawn, in sketch units: left to stand off by

@@ -169,6 +169,12 @@ how that case is said, which is what will make translation a wiring job. No
 source below `cao_app` says its own sentences any more, and
 `crates/app/tests/architecture.rs` holds that count at zero.
 
+A key names a sentence but does not carry it, and `Catalogue::t` answers with
+the key itself when `lang/fr.json` has no entry for it — so a typo would show
+on screen rather than at build time. `crates/app/tests/language_keys.rs` closes
+that: a key named in Rust with no entry fails the gate, and so does an entry no
+Rust file names, which is what a rename leaves behind.
+
 ## The invariants
 
 **The numbers.** The core computes in `f64`, the camera and the rendering in

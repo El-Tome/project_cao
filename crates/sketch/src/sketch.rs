@@ -959,13 +959,13 @@ impl Sketch {
         self.circles.clone_from(&kept.1);
         place(self);
         let outcome = self.resolve(millimeters_per_unit);
-        if !self.has_a_collapsed_trait(self.drawing_size()) {
+        if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
             return outcome;
         }
 
-        // Neither way leaves a drawing worth keeping: a trait has been squeezed
-        // down to nothing. The gesture is refused rather than the shape broken
-        // — the point simply does not go there.
+        // Neither way leaves a drawing worth keeping: a trait may have collapsed,
+        // or a tangency's contact slid off its segment. The gesture is refused
+        // rather than the shape broken — the point simply does not go there.
         (self.points, self.circles) = kept;
         LengthOutcome::BestEffort
     }

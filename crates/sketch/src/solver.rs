@@ -75,10 +75,10 @@ impl Sketch {
             before = left;
         }
 
-        // A trait pulled down to nothing is not geometry: its equations cannot
-        // even be written, so the system would call itself solved while the
-        // drawing had quietly fallen apart.
-        match self.has_a_collapsed_trait(scale) {
+        // A trait pulled down to nothing, or a tangency whose contact has slid
+        // off its segment, is not geometry: the system would call itself
+        // solved while the drawing had quietly fallen apart.
+        match self.has_a_collapsed_trait(scale) || self.has_a_flipped_tangent() {
             true => SolveOutcome::Residual,
             false => outcome,
         }
@@ -931,7 +931,7 @@ impl Sketch {
     }
 
     /// A point a rule names, when it is still drawn.
-    fn live_point(&self, point: Option<PointId>) -> Option<PointId> {
+    pub(crate) fn live_point(&self, point: Option<PointId>) -> Option<PointId> {
         point.filter(|id| id.0 < self.points().len() && !self.is_erased_point(*id))
     }
 

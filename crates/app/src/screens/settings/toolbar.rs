@@ -18,7 +18,10 @@ pub(super) fn section(
         ui.label("Emplacement :");
         for edge in Edge::ALL {
             if ui
-                .selectable_label(layout.edge == edge, crate::wording::toolbar::edge(edge))
+                .selectable_label(
+                    layout.edge == edge,
+                    crate::wording::toolbar::edge(lang, edge),
+                )
                 .clicked()
             {
                 layout.edge = edge;

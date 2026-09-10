@@ -23,7 +23,10 @@ pub(super) fn section(
     let active = profiles.active_name().to_string();
     ui.horizontal_wrapped(|ui| {
         for key in &names {
-            if ui.selectable_label(*key == active, profile(key)).clicked() {
+            if ui
+                .selectable_label(*key == active, profile(lang, key))
+                .clicked()
+            {
                 touched |= profiles.switch_to(key);
             }
         }
@@ -34,12 +37,12 @@ pub(super) fn section(
         text_edit(ui, &mut editor.new_profile_name, 160.0, "nom du profil");
         if ui.button("Dupliquer l'actif").clicked() {
             let name = if editor.new_profile_name.trim().is_empty() {
-                format!("{} (copie)", profile(&active))
+                format!("{} (copie)", profile(lang, &active))
             } else {
                 editor.new_profile_name.trim().to_string()
             };
             let created = profiles.duplicate_active(&name);
-            editor.notice = Some(format!("Profil « {} » créé.", profile(&created)));
+            editor.notice = Some(format!("Profil « {} » créé.", profile(lang, &created)));
             editor.new_profile_name.clear();
             touched = true;
         }
@@ -87,7 +90,7 @@ pub(super) fn section(
         .clicked()
     {
         profiles.reset_active();
-        let named = profile(&active);
+        let named = profile(lang, &active);
         editor.notice = Some(format!("Profil « {named} » remis à ses valeurs d'origine."));
         touched = true;
     }

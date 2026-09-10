@@ -25,6 +25,7 @@ mod shape_dimensions;
 mod sketch;
 mod snap;
 mod solver;
+mod tangency;
 mod tool;
 
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};

@@ -14,7 +14,7 @@ use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::{DimensionMode, PlaneChoice, Tool};
 use crate::wording::constraints;
-use crate::wording::dimension::REDUNDANT_WARNING;
+use crate::wording::dimension;
 
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
@@ -335,7 +335,7 @@ fn constrain(
     picks.push(picked);
     if picks.len() < rule.arity() {
         context.editor.tool_state = ToolState::Constrain { picks };
-        context.editor.message = Some(constraints::rule_asks_for(rule).to_string());
+        context.editor.message = Some(constraints::rule_asks_for(context.lang, rule));
         return false;
     }
 
@@ -343,7 +343,7 @@ fn constrain(
     let Some(intent) = rule_intent(rule, &picks, sketch) else {
         context.editor.message = Some(format!(
             "{} : {}",
-            constraints::rule_asks_for(rule),
+            constraints::rule_asks_for(context.lang, rule),
             "pas ces éléments-là"
         ));
         return false;
@@ -353,7 +353,10 @@ fn constrain(
     {
         // The drawing already carries it; recording the step again would fill
         // the history with entries that change nothing.
-        context.editor.message = Some(format!("{} : déjà posée", constraints::rule_label(rule)));
+        context.editor.message = Some(format!(
+            "{} : déjà posée",
+            constraints::rule_label(context.lang, rule)
+        ));
         return false;
     }
     let operation = match intent {
@@ -368,7 +371,7 @@ fn constrain(
         },
     };
     context.document.apply(operation);
-    context.editor.message = Some(constraints::rule_asks_for(rule).to_string());
+    context.editor.message = Some(constraints::rule_asks_for(context.lang, rule));
     true
 }
 
@@ -884,7 +887,7 @@ pub(crate) fn draw_circle(
             false
         }
         cao_sketch::CircleProgress::AlreadyPicked => {
-            context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
+            context.editor.message = Some(crate::wording::circle::asks_for(context.lang, mode));
             false
         }
         cao_sketch::CircleProgress::AddPoint(point) => {
@@ -892,7 +895,7 @@ pub(crate) fn draw_circle(
             points.push(point);
             context.editor.tool_state = ToolState::Circle { points, segments };
             context.editor.live.open();
-            context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
+            context.editor.message = Some(crate::wording::circle::asks_for(context.lang, mode));
             false
         }
         cao_sketch::CircleProgress::AddSegment(segment) => {
@@ -900,7 +903,7 @@ pub(crate) fn draw_circle(
             segments.push(segment);
             context.editor.tool_state = ToolState::Circle { points, segments };
             context.editor.live.open();
-            context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
+            context.editor.message = Some(crate::wording::circle::asks_for(context.lang, mode));
             false
         }
         cao_sketch::CircleProgress::Ready => {
@@ -972,7 +975,7 @@ pub(crate) fn draw_circle(
             }
 
             context.editor.live.clear();
-            context.editor.message = Some(crate::wording::circle::asks_for(mode).to_string());
+            context.editor.message = Some(crate::wording::circle::asks_for(context.lang, mode));
             true
         }
     }
@@ -1085,7 +1088,7 @@ fn measure(
         cao_sketch::DimensionPick::WaitingForTraitAfterAxis(axis) => {
             context.editor.message = Some(format!(
                 "{} choisi, cliquez maintenant un trait",
-                constraints::axis(axis)
+                constraints::axis(context.lang, axis)
             ));
         }
         cao_sketch::DimensionPick::TraitsDoNotTouch => {
@@ -1150,7 +1153,7 @@ fn place_dimension(
 
     context.editor.select(Some(target), Some(value));
     context.editor.message = matches!(outcome, Some(cao_part::DimensionOutcome::Reference))
-        .then(|| REDUNDANT_WARNING.to_string());
+        .then(|| dimension::redundant_warning(context.lang));
     true
 }
 
@@ -1215,7 +1218,7 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
     let scale = context.document.scale();
     context.editor.message = Some(
         if context.document.sketches()[index].would_be_redundant(target, scale) {
-            REDUNDANT_WARNING.to_string()
+            dimension::redundant_warning(context.lang)
         } else {
             PLACE_PROMPT.to_string()
         },

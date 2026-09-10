@@ -16,6 +16,7 @@ use cao_render::{OrbitCamera, SceneFrame, ViewTransition, adaptive_step, cube};
 use cao_sketch::{SnapSettings, ToolState, WorkPlane};
 use glam::DVec3;
 
+use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
 use input::{
@@ -145,6 +146,7 @@ pub struct SketchContext<'a> {
     pub document: &'a mut PartDocument,
     pub editor: &'a mut SketchEditor,
     pub extrusion: &'a mut ExtrusionState,
+    pub lang: &'a Catalogue,
 }
 
 /// Returns true when the part was modified and should be saved.
@@ -209,12 +211,9 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         // corner once what was typed has had its say.
         if let Some(index) = sketch.editor.active_sketch() {
             let raw_cursor = sketch.editor.cursor.unwrap_or_default();
+            let aim = sketch.editor.aimed;
             let cursor = match sketch.editor.tool {
-                Tool::Line => sketch
-                    .editor
-                    .aimed
-                    .map(|aimed| aimed.position)
-                    .unwrap_or(raw_cursor),
+                Tool::Line => aim.map_or(raw_cursor, |aimed| aimed.position),
                 Tool::Rectangle => rectangle_corner(sketch, raw_cursor),
                 _ => raw_cursor,
             };

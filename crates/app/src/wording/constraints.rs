@@ -1,24 +1,31 @@
 use cao_sketch::{Constraint, Rule, SketchAxis};
 
+use crate::lang::Catalogue;
+
 /// The only place a rule of the drawing is turned into a name.
-pub fn label(rule: Constraint) -> &'static str {
-    match rule {
-        Constraint::Perpendicular { .. } => "Perpendiculaire",
-        Constraint::Parallel { .. } => "Parallèle",
-        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "Égalité",
-        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => "Coïncidence",
-        Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "Colinéaire",
-        Constraint::Tangent { .. } => "Tangence",
-        Constraint::Midpoint { .. } => "Milieu",
-        Constraint::Fixed { .. } => "Fixe",
-    }
+pub fn label(lang: &Catalogue, rule: Constraint) -> String {
+    lang.t(match rule {
+        Constraint::Perpendicular { .. } => "constraints.label.perpendicular",
+        Constraint::Parallel { .. } => "constraints.label.parallel",
+        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "constraints.label.equal",
+        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
+            "constraints.label.coincident"
+        }
+        Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
+            "constraints.label.collinear"
+        }
+        Constraint::Tangent { .. } => "constraints.label.tangent",
+        Constraint::Midpoint { .. } => "constraints.label.midpoint",
+        Constraint::Fixed { .. } => "constraints.label.fixed",
+    })
 }
 
 /// The mark drawn next to what a rule holds.
 ///
 /// Plain letters and punctuation: the drawing symbols of the trade —
 /// ⊥, ∥, ½ — are not in the fonts the interface ships with, and a mark that
-/// comes out as an empty box says less than nothing.
+/// comes out as an empty box says less than nothing. They stay out of the
+/// language file for the same reason a digit does: they are drawn, not read.
 pub fn mark(rule: Constraint) -> &'static str {
     match rule {
         Constraint::Perpendicular { .. } => "|_",
@@ -33,41 +40,45 @@ pub fn mark(rule: Constraint) -> &'static str {
 }
 
 /// The only place one of the sketch's own axes is turned into a name.
-pub fn axis(axis: SketchAxis) -> &'static str {
-    match axis {
-        SketchAxis::U => "axe horizontal",
-        SketchAxis::V => "axe vertical",
-    }
+pub fn axis(lang: &Catalogue, axis: SketchAxis) -> String {
+    lang.t(match axis {
+        SketchAxis::U => "constraints.axis.horizontal",
+        SketchAxis::V => "constraints.axis.vertical",
+    })
 }
 
 /// The only place the constraint tool's own rule is turned into a name.
-pub fn rule_label(rule: Rule) -> &'static str {
-    match rule {
-        Rule::Perpendicular => "Perpendiculaire",
-        Rule::Parallel => "Parallèle",
-        Rule::Equal => "Égalité",
-        Rule::Coincident => "Coïncidence",
-        Rule::Collinear => "Colinéaire",
-        Rule::Tangent => "Tangence",
-        Rule::Midpoint => "Milieu",
-        Rule::Fixed => "Fixe",
-        Rule::Concentric => "Concentrique",
-    }
+///
+/// A rule in hand and a rule already laid down read the same, so they take
+/// their name from the same key rather than from two that must be kept in
+/// step by hand.
+pub fn rule_label(lang: &Catalogue, rule: Rule) -> String {
+    lang.t(match rule {
+        Rule::Perpendicular => "constraints.label.perpendicular",
+        Rule::Parallel => "constraints.label.parallel",
+        Rule::Equal => "constraints.label.equal",
+        Rule::Coincident => "constraints.label.coincident",
+        Rule::Collinear => "constraints.label.collinear",
+        Rule::Tangent => "constraints.label.tangent",
+        Rule::Midpoint => "constraints.label.midpoint",
+        Rule::Fixed => "constraints.label.fixed",
+        Rule::Concentric => "constraints.label.concentric",
+    })
 }
 
 /// What to point at, said in the title bar while the constraint tool waits.
-pub fn rule_asks_for(rule: Rule) -> &'static str {
-    match rule {
-        Rule::Perpendicular => "Cliquez deux traits à mettre d'équerre",
-        Rule::Parallel => "Cliquez deux traits à rendre parallèles",
-        Rule::Equal => "Cliquez deux traits, ou deux cercles, à égaliser",
-        Rule::Coincident => "Cliquez un point puis un trait, ou deux points",
-        Rule::Collinear => "Cliquez deux traits à coucher sur la même droite",
-        Rule::Tangent => "Cliquez un cercle puis un trait",
-        Rule::Midpoint => "Cliquez un point puis le trait qui le portera",
-        Rule::Fixed => "Cliquez le point à fixer",
-        Rule::Concentric => "Cliquez deux cercles à ramener sur le même centre",
-    }
+pub fn rule_asks_for(lang: &Catalogue, rule: Rule) -> String {
+    lang.t(match rule {
+        Rule::Perpendicular => "constraints.asks_for.perpendicular",
+        Rule::Parallel => "constraints.asks_for.parallel",
+        Rule::Equal => "constraints.asks_for.equal",
+        Rule::Coincident => "constraints.asks_for.coincident",
+        Rule::Collinear => "constraints.asks_for.collinear",
+        Rule::Tangent => "constraints.asks_for.tangent",
+        Rule::Midpoint => "constraints.asks_for.midpoint",
+        Rule::Fixed => "constraints.asks_for.fixed",
+        Rule::Concentric => "constraints.asks_for.concentric",
+    })
 }
 
 #[cfg(test)]
@@ -167,10 +178,11 @@ mod tests {
 
     #[test]
     fn rules_that_say_the_same_thing_read_the_same_and_the_others_do_not() {
+        let lang = Catalogue::french();
         let named = named_rules();
 
         for (rule, reads) in named {
-            assert_eq!(label(rule), reads, "{rule:?} reads {reads:?}");
+            assert_eq!(label(&lang, rule), reads, "{rule:?} reads {reads:?}");
         }
 
         let read: BTreeSet<&str> = named.iter().map(|(_, reads)| *reads).collect();
@@ -196,12 +208,15 @@ mod tests {
 
     #[test]
     fn the_two_axes_of_a_sketch_read_differently() {
-        assert_eq!(axis(SketchAxis::U), "axe horizontal");
-        assert_eq!(axis(SketchAxis::V), "axe vertical");
+        let lang = Catalogue::french();
+
+        assert_eq!(axis(&lang, SketchAxis::U), "axe horizontal");
+        assert_eq!(axis(&lang, SketchAxis::V), "axe vertical");
     }
 
     #[test]
     fn every_rule_of_the_constraint_tool_names_itself_and_says_what_it_wants() {
+        let lang = Catalogue::french();
         let rules = [
             Rule::Perpendicular,
             Rule::Parallel,
@@ -214,8 +229,11 @@ mod tests {
             Rule::Concentric,
         ];
 
-        let labels: BTreeSet<&str> = rules.iter().map(|rule| rule_label(*rule)).collect();
-        let asks: BTreeSet<&str> = rules.iter().map(|rule| rule_asks_for(*rule)).collect();
+        let labels: BTreeSet<String> = rules.iter().map(|rule| rule_label(&lang, *rule)).collect();
+        let asks: BTreeSet<String> = rules
+            .iter()
+            .map(|rule| rule_asks_for(&lang, *rule))
+            .collect();
 
         assert_eq!(
             labels.len(),
@@ -227,5 +245,16 @@ mod tests {
             rules.len(),
             "each rule tells the title bar what to point at, and none share the wording",
         );
+    }
+
+    #[test]
+    fn a_rule_in_hand_and_the_same_rule_laid_down_read_the_same() {
+        let lang = Catalogue::french();
+        let laid_down = Constraint::Parallel {
+            first: FIRST,
+            second: SECOND,
+        };
+
+        assert_eq!(rule_label(&lang, Rule::Parallel), label(&lang, laid_down));
     }
 }

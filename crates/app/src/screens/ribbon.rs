@@ -127,7 +127,7 @@ impl Ribbon {
             }
         }
 
-        extrusion_row(ui, document, extrusion, &mut asked);
+        extrusion_row(ui, document, extrusion, &mut asked, lang);
         asked
     }
 

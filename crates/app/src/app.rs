@@ -6,6 +6,7 @@ use cao_render::SceneRenderer;
 use cao_sketch::{Rule, WorkPlane};
 use glam::DVec3;
 
+use crate::lang::Catalogue;
 use crate::remembered::Remembered;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
@@ -116,6 +117,7 @@ impl CaoApp {
 
     fn show_part(&mut self, ui: &mut egui::Ui) {
         let settings = self.remembered.profiles.active().clone();
+        let lang = self.remembered.lang();
         let Screen::PartOpened(part) = &mut self.screen else {
             return;
         };
@@ -145,7 +147,7 @@ impl CaoApp {
                 ui.strong(doc.name())
                     .on_hover_text(path.display().to_string());
                 ui.separator();
-                ui.weak(mode_label(viewport.mode()));
+                ui.weak(mode_label(lang, viewport.mode()));
                 for message in [&editor.message, &extrusion.message].into_iter().flatten() {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
@@ -153,14 +155,7 @@ impl CaoApp {
             });
         });
 
-        asked.extend(ribbon.show(
-            ui,
-            &settings,
-            doc,
-            editor,
-            extrusion,
-            self.remembered.lang(),
-        ));
+        asked.extend(ribbon.show(ui, &settings, doc, editor, extrusion, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings)
                 .into_iter()
@@ -173,13 +168,13 @@ impl CaoApp {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
                 _ => {
-                    changed |= run(command, doc, editor, extrusion, ribbon, viewport);
+                    changed |= run(command, doc, editor, extrusion, ribbon, viewport, lang);
                 }
             }
         }
 
         if ribbon.history_open {
-            match screens::history_tree::panel(ui, doc, self.remembered.lang()) {
+            match screens::history_tree::panel(ui, doc, lang) {
                 HistoryAction::RewindTo(step) => {
                     doc.rewind_to(step);
                     clamp_editor_to_document(editor, doc);
@@ -201,6 +196,7 @@ impl CaoApp {
                 document: doc,
                 editor,
                 extrusion,
+                lang,
             };
             changed |= screens::viewport::show(ui, viewport, &mut context);
         });
@@ -209,9 +205,7 @@ impl CaoApp {
             autosave.touched();
         }
         let at_rest = back_to_menu || !ui.ctx().input(|input| input.pointer.any_down());
-        if let Some(message) =
-            autosave.write_if_due(&DiskFiles, doc, path, at_rest, self.remembered.lang())
-        {
+        if let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest, lang) {
             self.error = Some(message);
         }
         if back_to_menu {
@@ -257,6 +251,7 @@ fn run(
     extrusion: &mut ExtrusionState,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
+    lang: &Catalogue,
 ) -> bool {
     use crate::screens::extrusion::Shape;
     use crate::screens::sketch::{CircleMode, DimensionMode, Tool};
@@ -357,7 +352,7 @@ fn run(
                 _ => CircleMode::Center,
             };
             tool(editor, Tool::Circle);
-            editor.message = Some(crate::wording::circle::asks_for(editor.circle_mode).to_string());
+            editor.message = Some(crate::wording::circle::asks_for(lang, editor.circle_mode));
             false
         }
         Command::RulePerpendicular
@@ -381,7 +376,7 @@ fn run(
                 _ => Rule::Perpendicular,
             };
             tool(editor, Tool::Constrain(rule));
-            editor.message = Some(wording::constraints::rule_asks_for(rule).to_string());
+            editor.message = Some(wording::constraints::rule_asks_for(lang, rule));
             false
         }
         Command::ExtrusionAdd => {
@@ -454,10 +449,10 @@ fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -
     }
 }
 
-fn mode_label(mode: ViewMode) -> &'static str {
+fn mode_label(lang: &Catalogue, mode: ViewMode) -> String {
     match mode {
-        ViewMode::Free => "Vue 3D libre",
-        ViewMode::Plane(work_plane) => wording::plane::label(work_plane.kind()),
+        ViewMode::Free => "Vue 3D libre".to_string(),
+        ViewMode::Plane(work_plane) => wording::plane::label(lang, work_plane.kind()),
     }
 }
 

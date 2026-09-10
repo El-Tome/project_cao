@@ -52,7 +52,8 @@ crates/part/src/
 ```
 crates/app/src/
 ├── ui/                  primitives: egui, and nothing of the workspace
-├── wording/             what the user reads, one file per source below
+├── lang/                what a key says, one file per language
+├── wording/             which key a case earns, one module per source below
 └── screens/<mode>/
     ├── state.rs         the presenter — holds, decides, never draws
     └── view.rs          the drawing, through ui/ primitives
@@ -60,16 +61,20 @@ crates/app/src/
 
 `wording/` is where a named case from a lower crate becomes a sentence:
 `wording/shortcuts.rs` says how a `Key` and a `Chord` read, `wording/toolbar.rs`
-how an `Edge` and an `Item` do, `wording/history.rs` how a step of the part's
-history reads, `wording/dimension.rs` what a dimension measures,
+how an `Edge` and an `Item` do, `wording/history/` how a step of the part's
+history reads and what its unfolded line says, `wording/dimension.rs` what a dimension measures,
 `wording/constraints.rs` how a rule of the drawing reads and what mark it is
 given, `wording/plane.rs` how a `PlaneKind` is called,
 `wording/settings.rs` what a profile is called, `wording/part_file.rs` and
 `wording/storage.rs` what went wrong with a part or with the settings, and
 `wording/file.rs` the three ways the disk can refuse, said once for the two
-ports that report them. One file per source so that no
+ports that report them. One module per source so that no
 single one gathers the whole application, and so that the eventual translation
 system has one directory to pass under.
+
+A `wording/` module names a key; it no longer holds the sentence. What the key
+says lives in `lang/fr.json`, embedded in the binary, with any other language
+read from `<config>/lang/<code>.json` at start-up.
 
 A name a lower crate stores and compares against is a **key** — `default`,
 `sketch`, `drawing` — never the sentence the user reads. Translating a

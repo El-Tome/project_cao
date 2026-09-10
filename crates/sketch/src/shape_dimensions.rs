@@ -6,12 +6,15 @@ use crate::constraints::{DimensionTarget, SketchAxis};
 use crate::sketch::{SegmentId, Sketch};
 
 /// The dimensions a freshly-drawn rectangle earns on its own: three right
-/// angles — the fourth follows — plus the length of two neighbouring sides,
-/// which is exactly what pins it down. One already redundant with what the
-/// drawing holds is left out.
+/// angles — the fourth follows — plus the length of whichever of the two
+/// neighbouring sides the user actually typed a size for. A side left
+/// untyped stays at whatever length the cursor gave it, undimensioned, the
+/// same as a line drawn with no value entered. One already redundant with
+/// what the drawing holds is left out.
 pub fn rectangle_dimensions(
     sketch: &Sketch,
     sides: [SegmentId; 4],
+    locked: LockedInput,
     scale: f64,
 ) -> Vec<(DimensionTarget, f64)> {
     let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
@@ -24,11 +27,13 @@ pub fn rectangle_dimensions(
             90.0,
         ));
     }
-    for side in sides.iter().take(2) {
-        wanted.push((
-            DimensionTarget::Length(*side),
-            sketch.segment_length(*side) * scale,
-        ));
+    for (side, typed) in sides.iter().take(2).zip([locked.first, locked.second]) {
+        if typed.is_some() {
+            wanted.push((
+                DimensionTarget::Length(*side),
+                sketch.segment_length(*side) * scale,
+            ));
+        }
     }
     settled(sketch, wanted, scale)
 }
@@ -99,8 +104,7 @@ mod tests {
         (sketch, first, second)
     }
 
-    #[test]
-    fn a_rectangle_drawn_gets_three_right_angles_and_two_lengths() {
+    fn rectangle_sides() -> (Sketch, [SegmentId; 4]) {
         let mut sketch = Sketch::new(WorkPlane::XY);
         let a = sketch.add_point(DVec2::new(0.0, 0.0));
         let b = sketch.add_point(DVec2::new(40.0, 0.0));
@@ -112,8 +116,18 @@ mod tests {
             sketch.add_segment(c, d),
             sketch.add_segment(d, a),
         ];
+        (sketch, sides)
+    }
 
-        let wanted = rectangle_dimensions(&sketch, sides, 1.0);
+    #[test]
+    fn a_rectangle_typed_on_both_sides_gets_three_right_angles_and_two_lengths() {
+        let (sketch, sides) = rectangle_sides();
+        let locked = LockedInput {
+            first: Some(40.0),
+            second: Some(20.0),
+        };
+
+        let wanted = rectangle_dimensions(&sketch, sides, locked, 1.0);
 
         let angles = wanted
             .iter()
@@ -132,6 +146,43 @@ mod tests {
             "two neighbouring lengths pin the rectangle down"
         );
         assert!(wanted.iter().all(|(_, value)| *value > 0.0));
+    }
+
+    #[test]
+    fn a_rectangle_dragged_with_nothing_typed_gets_no_length() {
+        let (sketch, sides) = rectangle_sides();
+
+        let wanted = rectangle_dimensions(&sketch, sides, LockedInput::default(), 1.0);
+
+        assert!(
+            wanted
+                .iter()
+                .all(|(target, _)| !matches!(target, DimensionTarget::Length(_))),
+            "a side nobody typed a value for stays undimensioned"
+        );
+    }
+
+    #[test]
+    fn a_rectangle_typed_on_one_side_only_dimensions_that_side() {
+        let (sketch, sides) = rectangle_sides();
+        let locked = LockedInput {
+            first: Some(40.0),
+            second: None,
+        };
+
+        let wanted = rectangle_dimensions(&sketch, sides, locked, 1.0);
+
+        assert!(
+            wanted
+                .iter()
+                .any(|(target, _)| *target == DimensionTarget::Length(sides[0]))
+        );
+        assert!(
+            !wanted
+                .iter()
+                .any(|(target, _)| *target == DimensionTarget::Length(sides[1])),
+            "the untyped side earns no dimension"
+        );
     }
 
     #[test]

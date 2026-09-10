@@ -493,10 +493,8 @@ fn push_sketch(
         } else {
             crate::screens::annotations::Style::driving(theme)
         };
-        if context
-            .editor
-            .is_selected(Selection::Dimension(dimension.target))
-        {
+        let target = Selection::Dimension(dimension.target);
+        if context.editor.is_selected(target) || context.editor.hovered == Some(target) {
             style.color = tint_at(theme.highlight, 1.0);
             style.width *= 2.0;
         }
@@ -622,8 +620,9 @@ fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> DVec2 {
     }
 }
 
-/// Draws what the selection tool is holding differently, so it is clear what
-/// pressing Suppr would take away.
+/// Draws what the selection tool is holding, or is about to, differently — so
+/// it is clear both what pressing Suppr would take away and what a click
+/// right now would take hold of.
 fn mark_selected(
     context: &SketchContext<'_>,
     theme: &Theme,
@@ -631,7 +630,7 @@ fn mark_selected(
     color: [f32; 4],
     width: f32,
 ) -> ([f32; 4], f32) {
-    if context.editor.is_selected(element) {
+    if context.editor.is_selected(element) || context.editor.hovered == Some(element) {
         (tint_at(theme.highlight, 1.0), width * 1.8)
     } else {
         (color, width)
@@ -1221,7 +1220,8 @@ pub(crate) fn paint_rule_marks(
     // — so marks that would land on each other are set side by side.
     let mut taken: Vec<egui::Pos2> = Vec::new();
     for constraint in sketch.constraints() {
-        let held = context.editor.is_selected(Selection::Rule(*constraint));
+        let rule = Selection::Rule(*constraint);
+        let held = context.editor.is_selected(rule) || context.editor.hovered == Some(rule);
         for at in sketch.rule_marks(*constraint) {
             let Some(position) = to_screen(sketch.plane.to_world(at), view_projection, rect) else {
                 continue;

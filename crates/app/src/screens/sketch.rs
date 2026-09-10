@@ -113,6 +113,7 @@ pub struct SketchEditor {
     pub hovered_plane: Option<PlaneChoice>,
     /// Point under the cursor, highlighted so it is clear what a click takes.
     pub hovered_point: Option<PointId>,
+    pub hovered: Option<Selection>,
     /// What the cursor has been pulled onto, so the drawing can say so.
     pub snap: Option<cao_sketch::Snap>,
     /// Where the next point would land, snapped. Drives the preview line.

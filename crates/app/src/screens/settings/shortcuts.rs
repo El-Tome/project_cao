@@ -11,7 +11,7 @@ pub(super) fn section(
     lang: &Catalogue,
 ) -> bool {
     let mut touched = false;
-    ui.label("Cliquer un raccourci, puis appuyer sur la touche voulue. Les modificateurs tenus au moment de la frappe sont pris avec.");
+    ui.label(lang.t("settings.shortcuts.intro"));
     ui.add_space(6.0);
 
     // A key pressed while recording is read here, before any widget sees it.
@@ -37,7 +37,7 @@ pub(super) fn section(
             ui.label(crate::wording::command::label(lang, command));
             let recording = editor.recording == Some(command);
             let label = if recording {
-                "… appuyez sur une touche".to_string()
+                lang.t("settings.shortcuts.recording")
             } else {
                 shortcuts
                     .chord_for(command)
@@ -55,7 +55,7 @@ pub(super) fn section(
     }
 
     ui.add_space(10.0);
-    if ui.button("↺ Raccourcis par défaut").clicked() {
+    if ui.button(lang.t("settings.shortcuts.reset")).clicked() {
         profiles.active_mut().shortcuts = Default::default();
         touched = true;
     }

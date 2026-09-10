@@ -98,7 +98,7 @@ impl Ribbon {
         let mut asked = Vec::new();
         let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
 
-        self.header(ui, layout, &mut asked, vertical);
+        self.header(ui, layout, &mut asked, vertical, lang);
         ui.separator();
 
         let state = Context {
@@ -138,6 +138,7 @@ impl Ribbon {
         layout: &ToolbarLayout,
         asked: &mut Vec<Command>,
         vertical: bool,
+        lang: &Catalogue,
     ) {
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {
@@ -148,7 +149,10 @@ impl Ribbon {
                 let Item::Group { name, .. } = item else {
                     continue;
                 };
-                if ui.selectable_label(self.tab == rank, group(name)).clicked() {
+                if ui
+                    .selectable_label(self.tab == rank, group(lang, name))
+                    .clicked()
+                {
                     self.tab = rank;
                 }
             }
@@ -210,7 +214,7 @@ fn lay_out(
                 Item::Group { name, items } if depth <= 1 => {
                     ui.group(|ui| {
                         let inner = |ui: &mut egui::Ui| {
-                            ui.weak(group(name));
+                            ui.weak(group(state.lang, name));
                             lay_out(ui, items, depth + 1, state, asked, vertical);
                         };
                         if vertical {
@@ -221,7 +225,7 @@ fn lay_out(
                     });
                 }
                 Item::Group { name, items } => {
-                    ui.menu_button(group(name), |ui| {
+                    ui.menu_button(group(state.lang, name), |ui| {
                         lay_out(ui, items, depth + 1, state, asked, true);
                     });
                 }
@@ -240,7 +244,7 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
     let name = wording::label(state.lang, command);
     let label = if state.settings.toolbar.show_labels {
         match state.settings.shortcuts.chord_for(command) {
-            Some(chord) => format!("{name} ({})", shortcuts::chord(chord)),
+            Some(chord) => format!("{name} ({})", shortcuts::chord(state.lang, chord)),
             None => name,
         }
     } else {

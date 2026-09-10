@@ -6,14 +6,14 @@ use crate::wording::command;
 /// The only place an `Edge` is turned into a name.
 ///
 /// The settings screen offers these five as the placements of the toolbar.
-pub fn edge(edge: Edge) -> &'static str {
-    match edge {
-        Edge::Top => "En haut",
-        Edge::Bottom => "En bas",
-        Edge::Left => "À gauche",
-        Edge::Right => "À droite",
-        Edge::Floating => "Flottante",
-    }
+pub fn edge(lang: &Catalogue, edge: Edge) -> String {
+    lang.t(match edge {
+        Edge::Top => "toolbar.edge.top",
+        Edge::Bottom => "toolbar.edge.bottom",
+        Edge::Left => "toolbar.edge.left",
+        Edge::Right => "toolbar.edge.right",
+        Edge::Floating => "toolbar.edge.floating",
+    })
 }
 
 /// The only place a group of the standard toolbar is turned into a name.
@@ -21,15 +21,15 @@ pub fn edge(edge: Edge) -> &'static str {
 /// The standard groups are keyed, because a new command finds its place by
 /// matching the key. A group the user made or renamed carries their own words
 /// and is handed back untouched.
-pub fn group(name: &str) -> &str {
+pub fn group(lang: &Catalogue, name: &str) -> String {
     match name {
-        "sketch" => "Esquisse",
-        "drawing" => "Dessin",
-        "circles" => "Cercles",
-        "constraints" => "Contraintes",
-        "edit" => "Édition",
-        "extrusion" => "Extrusion",
-        theirs => theirs,
+        "sketch" => lang.t("toolbar.group.sketch"),
+        "drawing" => lang.t("toolbar.group.drawing"),
+        "circles" => lang.t("toolbar.group.circles"),
+        "constraints" => lang.t("toolbar.group.constraints"),
+        "edit" => lang.t("toolbar.group.edit"),
+        "extrusion" => lang.t("toolbar.group.extrusion"),
+        theirs => theirs.to_string(),
     }
 }
 
@@ -37,8 +37,8 @@ pub fn group(name: &str) -> &str {
 pub fn item(lang: &Catalogue, item: &Item) -> String {
     match item {
         Item::Command(chosen) => command::label(lang, *chosen),
-        Item::Group { name, .. } => group(name).to_string(),
-        Item::Separator => "— séparateur —".to_string(),
+        Item::Group { name, .. } => group(lang, name),
+        Item::Separator => lang.t("toolbar.separator"),
     }
 }
 
@@ -52,18 +52,19 @@ mod tests {
 
     #[test]
     fn no_two_edges_offered_by_the_settings_screen_read_the_same() {
-        let mut seen: BTreeMap<&str, Edge> = BTreeMap::new();
+        let lang = Catalogue::french();
+        let mut seen: BTreeMap<String, Edge> = BTreeMap::new();
 
         for offered in Edge::ALL {
             assert!(
-                !edge(offered).is_empty(),
+                !edge(&lang, offered).is_empty(),
                 "{offered:?} has no name, so the settings screen offers a blank",
             );
-            if let Some(taken) = seen.insert(edge(offered), offered) {
+            if let Some(taken) = seen.insert(edge(&lang, offered), offered) {
                 panic!(
                     "{taken:?} and {offered:?} both read {:?}: the settings screen \
                      offers two placements a user cannot tell apart",
-                    edge(offered),
+                    edge(&lang, offered),
                 );
             }
         }
@@ -93,13 +94,14 @@ mod tests {
             }
         }
 
+        let lang = Catalogue::french();
         let mut keys = Vec::new();
         walk(&ToolbarLayout::default().items, &mut keys);
 
         assert!(!keys.is_empty(), "the standard toolbar holds groups");
         for key in keys {
             assert_ne!(
-                group(&key),
+                group(&lang, &key),
                 key,
                 "the toolbar shows {key:?} as it is written in the profile, \
                  which is a key and not a name",
@@ -111,6 +113,6 @@ mod tests {
     /// interface has nothing to say about it.
     #[test]
     fn a_group_the_user_named_reads_as_they_named_it() {
-        assert_eq!(group("Mes outils"), "Mes outils");
+        assert_eq!(group(&Catalogue::french(), "Mes outils"), "Mes outils");
     }
 }

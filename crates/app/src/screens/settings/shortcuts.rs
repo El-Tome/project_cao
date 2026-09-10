@@ -41,7 +41,7 @@ pub(super) fn section(
             } else {
                 shortcuts
                     .chord_for(command)
-                    .map(crate::wording::shortcuts::chord)
+                    .map(|chord| crate::wording::shortcuts::chord(lang, chord))
                     .unwrap_or_else(|| "—".to_string())
             };
             if ui.selectable_label(recording, label).clicked() {

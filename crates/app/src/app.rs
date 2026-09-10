@@ -163,24 +163,21 @@ impl CaoApp {
         }
 
         if ribbon.history_open {
-            egui::Panel::left("history_panel")
-                .resizable(true)
-                .default_size(220.0)
-                .show(ui, |ui| match screens::history_tree::show(ui, doc) {
-                    HistoryAction::RewindTo(step) => {
-                        doc.rewind_to(step);
-                        clamp_editor_to_document(editor, doc);
-                        changed = true;
+            match screens::history_tree::panel(ui, doc, self.remembered.lang()) {
+                HistoryAction::RewindTo(step) => {
+                    doc.rewind_to(step);
+                    clamp_editor_to_document(editor, doc);
+                    changed = true;
+                }
+                HistoryAction::EditSketch(sketch) => {
+                    if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
+                        editor.begin_editing(sketch, plane);
+                        let (center, radius) = sketch_framing(doc, Some(sketch), plane);
+                        viewport.look_at_plane(plane, center, radius);
                     }
-                    HistoryAction::EditSketch(sketch) => {
-                        if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                            editor.begin_editing(sketch, plane);
-                            let (center, radius) = sketch_framing(doc, Some(sketch), plane);
-                            viewport.look_at_plane(plane, center, radius);
-                        }
-                    }
-                    HistoryAction::None => {}
-                });
+                }
+                HistoryAction::None => {}
+            }
         }
 
         egui::CentralPanel::no_frame().show(ui, |ui| {

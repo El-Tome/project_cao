@@ -2,6 +2,7 @@ use cao_part::PartDocument;
 use cao_part::feature::Feature;
 use cao_part::history::Operation;
 
+use crate::lang::Catalogue;
 use crate::wording;
 
 /// The history panel: everything done to the part, newest last, with the steps
@@ -18,7 +19,17 @@ pub enum HistoryAction {
     EditSketch(usize),
 }
 
-pub fn show(ui: &mut egui::Ui, document: &PartDocument) -> HistoryAction {
+/// The panel the history is shown in, chrome and all, so that how wide it
+/// opens is settled here rather than by whoever puts it on screen.
+pub fn panel(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> HistoryAction {
+    egui::Panel::left("history_panel")
+        .resizable(true)
+        .default_size(220.0)
+        .show(ui, |ui| show(ui, document, lang))
+        .inner
+}
+
+fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> HistoryAction {
     let mut action = HistoryAction::None;
     let mut rewind_to = None;
     let operations = document.history.operations();
@@ -48,20 +59,22 @@ pub fn show(ui: &mut egui::Ui, document: &PartDocument) -> HistoryAction {
         let first = features
             .first()
             .map_or(operations.len(), |feature| feature.start);
-        if let Some(step) = clicked_step(ui, operations, 0, first, applied) {
+        if let Some(step) = clicked_step(ui, operations, 0, first, applied, lang) {
             rewind_to = Some(step);
         }
 
         for feature in &features {
-            let header =
-                egui::CollapsingHeader::new(wording::history::label(&operations[feature.start]))
-                    .id_salt(feature.start)
-                    .default_open(true);
+            let header = egui::CollapsingHeader::new(wording::history::label(
+                lang,
+                &operations[feature.start],
+            ))
+            .id_salt(feature.start)
+            .default_open(true);
             let response = header.show(ui, |ui| {
                 // Only overwrite on an actual click: a later group with
                 // nothing clicked must not erase an earlier one.
                 if let Some(step) =
-                    clicked_step(ui, operations, feature.start, feature.end, applied)
+                    clicked_step(ui, operations, feature.start, feature.end, applied, lang)
                 {
                     rewind_to = Some(step);
                 }
@@ -107,11 +120,12 @@ fn clicked_step(
     start: usize,
     end: usize,
     applied: usize,
+    lang: &Catalogue,
 ) -> Option<usize> {
     let mut clicked = None;
     for (offset, operation) in operations[start..end].iter().enumerate() {
         let step = start + offset;
-        if entry(ui, operation, step, applied) {
+        if entry(ui, operation, step, applied, lang) {
             clicked = Some(step + 1);
         }
     }
@@ -119,14 +133,20 @@ fn clicked_step(
 }
 
 /// One line of the history. Returns true when it was clicked.
-fn entry(ui: &mut egui::Ui, operation: &Operation, step: usize, applied: usize) -> bool {
+fn entry(
+    ui: &mut egui::Ui,
+    operation: &Operation,
+    step: usize,
+    applied: usize,
+    lang: &Catalogue,
+) -> bool {
     let is_current = step + 1 == applied;
     let undone = step >= applied;
 
     let mut text = egui::RichText::new(format!(
         "{}. {}",
         step + 1,
-        wording::history::label(operation)
+        wording::history::label(lang, operation)
     ));
     if undone {
         text = text.weak().italics();

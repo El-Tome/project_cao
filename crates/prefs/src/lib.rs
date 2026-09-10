@@ -26,7 +26,7 @@ pub use locations::{Locations, default_projects_dir};
 pub use ports::{FileError, Files};
 pub use profiles::Profiles;
 pub use recents::{MAX_RECENTS, RecentEntry, RecentList};
-pub use settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Settings};
+pub use settings::{DEFAULT_LANGUAGE, DEFAULT_PROFILE, PROFILE_EXTENSION, Profile, Settings};
 pub use shortcuts::{Chord, Key, Shortcuts};
 pub use storage::StorageError;
 pub use theme::{Background, Rgba, Stop, Theme};

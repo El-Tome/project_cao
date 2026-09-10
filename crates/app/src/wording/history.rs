@@ -1,15 +1,18 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
 use cao_sketch::Element;
 
+use crate::lang::Catalogue;
 use crate::wording::{constraints, dimension, plane};
 
 /// The only place a history step is turned into a name.
 ///
 /// Short, because the history tree shows one per line.
-pub fn label(operation: &Operation) -> String {
+pub fn label(lang: &Catalogue, operation: &Operation) -> String {
     match operation {
-        Operation::CreateSketch { plane } => format!("Esquisse — {}", plane::label(plane.kind())),
-        Operation::AddPoint { .. } => "Point".to_string(),
+        Operation::CreateSketch { plane } => {
+            lang.t_with("history.sketch", &[("plane", plane::label(plane.kind()))])
+        }
+        Operation::AddPoint { .. } => lang.t("history.point"),
         Operation::AddSegment { .. } => "Trait".to_string(),
         Operation::AddRectangle { .. } => "Rectangle".to_string(),
         Operation::AddCircle { .. } => "Cercle".to_string(),
@@ -166,6 +169,10 @@ mod tests {
 
     use super::*;
 
+    fn said(operation: &Operation) -> String {
+        label(&Catalogue::french(), operation)
+    }
+
     const SEGMENT: SegmentId = SegmentId(0);
     const CIRCLE: CircleId = CircleId(3);
     const AWAY: DVec2 = DVec2::new(3.0, 0.0);
@@ -263,7 +270,7 @@ mod tests {
         ];
 
         for (operation, reads) in drawn.iter().zip(names) {
-            assert_eq!(label(operation), reads, "{operation:?} reads {reads:?}");
+            assert_eq!(said(operation), reads, "{operation:?} reads {reads:?}");
         }
     }
 
@@ -271,18 +278,18 @@ mod tests {
     fn a_step_says_which_plane_which_rule_and_which_way_matter_went() {
         let turn = |mode| swept(RevolutionAxis::Sketch(SketchAxis::V), mode);
 
-        assert_eq!(label(&raised(ExtrusionMode::Add)), "Extrusion 12 mm");
-        assert_eq!(label(&raised(ExtrusionMode::Cut)), "Enlèvement 12 mm");
-        assert_eq!(label(&turn(ExtrusionMode::Add)), "Révolution 90°");
-        assert_eq!(label(&turn(ExtrusionMode::Cut)), "Révolution creusée 90°");
+        assert_eq!(said(&raised(ExtrusionMode::Add)), "Extrusion 12 mm");
+        assert_eq!(said(&raised(ExtrusionMode::Cut)), "Enlèvement 12 mm");
+        assert_eq!(said(&turn(ExtrusionMode::Add)), "Révolution 90°");
+        assert_eq!(said(&turn(ExtrusionMode::Cut)), "Révolution creusée 90°");
         assert_eq!(
-            label(&Operation::CreateSketch {
+            said(&Operation::CreateSketch {
                 plane: WorkPlane::XY,
             }),
             "Esquisse — Plan XY",
         );
         assert_eq!(
-            label(&Operation::Constrain {
+            said(&Operation::Constrain {
                 sketch: 0,
                 constraint: RULE,
             }),
@@ -295,19 +302,19 @@ mod tests {
         let one = |element| erased(vec![element], Vec::new(), Vec::new());
         let measure = DimensionTarget::Length(SEGMENT);
 
-        assert_eq!(label(&one(Element::Point(PointId(1)))), "Point supprimé");
-        assert_eq!(label(&one(Element::Segment(SEGMENT))), "Trait supprimé");
-        assert_eq!(label(&one(Element::Circle(CIRCLE))), "Cercle supprimé");
+        assert_eq!(said(&one(Element::Point(PointId(1)))), "Point supprimé");
+        assert_eq!(said(&one(Element::Segment(SEGMENT))), "Trait supprimé");
+        assert_eq!(said(&one(Element::Circle(CIRCLE))), "Cercle supprimé");
         assert_eq!(
-            label(&erased(Vec::new(), vec![measure], Vec::new())),
+            said(&erased(Vec::new(), vec![measure], Vec::new())),
             "Cote supprimée",
         );
         assert_eq!(
-            label(&erased(Vec::new(), Vec::new(), vec![RULE])),
+            said(&erased(Vec::new(), Vec::new(), vec![RULE])),
             "Parallèle supprimée",
         );
         assert_eq!(
-            label(&erased(
+            said(&erased(
                 vec![Element::Point(PointId(1)), Element::Point(PointId(2))],
                 vec![measure],
                 vec![RULE],

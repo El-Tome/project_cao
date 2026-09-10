@@ -16,6 +16,7 @@ eframe.workspace = true
 egui.workspace = true
 egui-wgpu.workspace = true
 glam.workspace = true
+serde_json.workspace = true
 wgpu.workspace = true
 
 [dev-dependencies]

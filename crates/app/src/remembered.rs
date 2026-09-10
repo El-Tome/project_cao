@@ -4,6 +4,7 @@ use cao_prefs::{Locations, Profiles, RecentEntry, RecentList, StorageError};
 use chrono::{DateTime, Utc};
 
 use crate::adapters::files::DiskFiles;
+use crate::lang::Catalogue;
 
 /// What the installation remembers — the settings and the parts lately
 /// opened — together with the place the platform gave to keep them.
@@ -15,6 +16,7 @@ pub struct Remembered {
     at: Option<Locations>,
     pub profiles: Profiles,
     recents: RecentList,
+    lang: Catalogue,
 }
 
 impl Remembered {
@@ -25,11 +27,25 @@ impl Remembered {
             .unwrap_or_default();
         recents.prune_missing(&DiskFiles);
         let profiles = place.map_or_else(Profiles::default, |at| Profiles::load(&DiskFiles, at));
+        let lang = place.map_or_else(Catalogue::french, |at| {
+            Catalogue::load(
+                &DiskFiles,
+                &at.config.join("lang"),
+                &profiles.active().language,
+            )
+        });
         Self {
             at,
             profiles,
             recents,
+            lang,
         }
+    }
+
+    /// What the interface says things with, in the language the settings ask
+    /// for. A language dropped in by hand lands in `<config>/lang`.
+    pub fn lang(&self) -> &Catalogue {
+        &self.lang
     }
 
     pub fn recents(&self) -> &[RecentEntry] {

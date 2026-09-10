@@ -20,14 +20,33 @@ pub const SETTINGS_VERSION: u32 = 2;
 
 /// Everything the user can set. One value, so a profile is one thing to save,
 /// to reset, and to hand to somebody else.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Settings {
     pub viewport: ViewportConfig,
     pub theme: Theme,
     pub shortcuts: Shortcuts,
     pub toolbar: ToolbarLayout,
+    /// Which language file the interface reads. A code naming the file, never
+    /// a sentence: what it stands for is decided in `cao_app`.
+    pub language: String,
 }
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            viewport: ViewportConfig::default(),
+            theme: Theme::default(),
+            shortcuts: Shortcuts::default(),
+            toolbar: ToolbarLayout::default(),
+            language: DEFAULT_LANGUAGE.to_string(),
+        }
+    }
+}
+
+/// The language the interface falls back on, and the only one carrying a
+/// complete set of entries today.
+pub const DEFAULT_LANGUAGE: &str = "fr";
 
 /// A named set of settings, as written to disk and as shared.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -100,6 +119,23 @@ mod tests {
         profile.export(&files, &path).expect("writes");
 
         assert_eq!(Profile::import(&files, &path).expect("reads"), profile);
+    }
+
+    #[test]
+    fn a_profile_written_before_languages_existed_reads_in_french() {
+        let files = InMemoryFiles::default();
+        let path = PathBuf::from(format!("/shared/older.{PROFILE_EXTENSION}"));
+        files
+            .write(
+                &path,
+                format!(r#"{{"version":{SETTINGS_VERSION},"name":"Older","settings":{{}}}}"#)
+                    .as_bytes(),
+            )
+            .expect("writes");
+
+        let read = Profile::import(&files, &path).expect("reads");
+
+        assert_eq!(read.settings.language, DEFAULT_LANGUAGE);
     }
 
     #[test]

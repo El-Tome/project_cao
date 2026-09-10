@@ -1,5 +1,6 @@
 use cao_prefs::{Command, Edge, Item, Path, Profiles, ToolbarLayout};
 
+use crate::lang::Catalogue;
 use crate::ui::text_edit::text_edit;
 
 use super::SettingsEditor;
@@ -8,6 +9,7 @@ pub(super) fn section(
     ui: &mut egui::Ui,
     profiles: &mut Profiles,
     editor: &mut SettingsEditor,
+    lang: &Catalogue,
 ) -> bool {
     let before = profiles.active().toolbar.clone();
     let layout = &mut profiles.active_mut().toolbar;
@@ -96,7 +98,7 @@ pub(super) fn section(
         .id_salt("toolbar_tree")
         .show(ui, |ui| {
             let items = layout.items.clone();
-            tree(ui, &items, &mut Vec::new(), &mut editor.selected);
+            tree(ui, &items, &mut Vec::new(), &mut editor.selected, lang);
         });
 
     ui.separator();
@@ -110,9 +112,15 @@ pub(super) fn section(
                 if family != Some(command.family()) {
                     family = Some(command.family());
                     ui.add_space(6.0);
-                    ui.weak(crate::wording::command::family_heading(command.family()));
+                    ui.weak(crate::wording::command::family_heading(
+                        lang,
+                        command.family(),
+                    ));
                 }
-                if ui.button(crate::wording::command::label(command)).clicked() {
+                if ui
+                    .button(crate::wording::command::label(lang, command))
+                    .clicked()
+                {
                     let into = group_path(layout, &editor.selected);
                     layout.push_into(&into, Item::Command(command));
                 }
@@ -133,18 +141,18 @@ fn group_path(layout: &ToolbarLayout, selected: &[usize]) -> Path {
     parent
 }
 
-fn tree(ui: &mut egui::Ui, items: &[Item], path: &mut Path, selected: &mut Path) {
+fn tree(ui: &mut egui::Ui, items: &[Item], path: &mut Path, selected: &mut Path, lang: &Catalogue) {
     for (rank, item) in items.iter().enumerate() {
         path.push(rank);
         ui.horizontal(|ui| {
             ui.add_space(12.0 * (path.len() - 1) as f32);
-            let name = crate::wording::toolbar::item(item);
+            let name = crate::wording::toolbar::item(lang, item);
             if ui.selectable_label(*path == *selected, name).clicked() {
                 *selected = path.clone();
             }
         });
         if let Item::Group { items, .. } = item {
-            tree(ui, items, path, selected);
+            tree(ui, items, path, selected, lang);
         }
         path.pop();
     }

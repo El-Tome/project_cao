@@ -1,5 +1,6 @@
 pub mod annotations;
 pub mod extrusion;
+mod extrusion_row;
 pub mod history_tree;
 pub mod ribbon;
 pub mod settings;

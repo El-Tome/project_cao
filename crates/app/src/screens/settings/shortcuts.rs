@@ -1,11 +1,14 @@
 use cao_prefs::{Chord, Command, Key, Profiles};
 
+use crate::lang::Catalogue;
+
 use super::SettingsEditor;
 
 pub(super) fn section(
     ui: &mut egui::Ui,
     profiles: &mut Profiles,
     editor: &mut SettingsEditor,
+    lang: &Catalogue,
 ) -> bool {
     let mut touched = false;
     ui.label("Cliquer un raccourci, puis appuyer sur la touche voulue. Les modificateurs tenus au moment de la frappe sont pris avec.");
@@ -25,10 +28,13 @@ pub(super) fn section(
         if family != Some(command.family()) {
             family = Some(command.family());
             ui.add_space(8.0);
-            ui.heading(crate::wording::command::family_heading(command.family()));
+            ui.heading(crate::wording::command::family_heading(
+                lang,
+                command.family(),
+            ));
         }
         ui.horizontal(|ui| {
-            ui.label(crate::wording::command::label(command));
+            ui.label(crate::wording::command::label(lang, command));
             let recording = editor.recording == Some(command);
             let label = if recording {
                 "… appuyez sur une touche".to_string()

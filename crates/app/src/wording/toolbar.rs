@@ -1,5 +1,6 @@
 use cao_prefs::{Edge, Item};
 
+use crate::lang::Catalogue;
 use crate::wording::command;
 
 /// The only place an `Edge` is turned into a name.
@@ -33,14 +34,11 @@ pub fn group(name: &str) -> &str {
 }
 
 /// One entry of the toolbar tree, as the settings screen lists it.
-///
-/// A borrow rather than a `String`: the settings screen walks the whole tree
-/// again on every frame it is open.
-pub fn item(item: &Item) -> &str {
+pub fn item(lang: &Catalogue, item: &Item) -> String {
     match item {
-        Item::Command(chosen) => command::label(*chosen),
-        Item::Group { name, .. } => group(name),
-        Item::Separator => "— séparateur —",
+        Item::Command(chosen) => command::label(lang, *chosen),
+        Item::Group { name, .. } => group(name).to_string(),
+        Item::Separator => "— séparateur —".to_string(),
     }
 }
 
@@ -73,13 +71,15 @@ mod tests {
 
     #[test]
     fn an_entry_of_the_tree_reads_as_its_command_its_group_or_a_separator() {
+        let lang = Catalogue::french();
+
         assert_eq!(
-            item(&Item::Command(Command::Undo)),
-            command::label(Command::Undo),
+            item(&lang, &Item::Command(Command::Undo)),
+            command::label(&lang, Command::Undo),
             "a command entry says what the command says",
         );
-        assert_eq!(item(&Item::group("drawing", Vec::new())), "Dessin");
-        assert_eq!(item(&Item::Separator), "— séparateur —");
+        assert_eq!(item(&lang, &Item::group("drawing", Vec::new())), "Dessin");
+        assert_eq!(item(&lang, &Item::Separator), "— séparateur —");
     }
 
     #[test]

@@ -3,6 +3,8 @@ use std::path::Path;
 use cao_part::{Files, PartDocument};
 use chrono::Utc;
 
+use crate::lang::Catalogue;
+
 /// Whether what is on screen still matches what is on disk.
 ///
 /// Writing a part is linear in the length of its history — measured at 2.29 ms
@@ -27,6 +29,7 @@ impl Autosave {
         document: &PartDocument,
         path: &Path,
         at_rest: bool,
+        lang: &Catalogue,
     ) -> Option<String> {
         if !self.pending || !at_rest {
             return None;
@@ -36,7 +39,7 @@ impl Autosave {
                 self.pending = false;
                 None
             }
-            Err(error) => Some(crate::wording::part_file::say(&error)),
+            Err(error) => Some(crate::wording::part_file::say(lang, &error)),
         }
     }
 }
@@ -68,14 +71,14 @@ mod tests {
         autosave.touched();
         assert!(
             autosave
-                .write_if_due(&DiskFiles, &document, &path, false)
+                .write_if_due(&DiskFiles, &document, &path, false, &Catalogue::french())
                 .is_none()
         );
         assert!(!path.exists(), "a drag does not write the file");
 
         assert!(
             autosave
-                .write_if_due(&DiskFiles, &document, &path, true)
+                .write_if_due(&DiskFiles, &document, &path, true, &Catalogue::french())
                 .is_none()
         );
         assert!(path.exists(), "letting go writes it");
@@ -91,12 +94,12 @@ mod tests {
         let mut autosave = Autosave::default();
 
         autosave.touched();
-        autosave.write_if_due(&DiskFiles, &document, &path, true);
+        autosave.write_if_due(&DiskFiles, &document, &path, true, &Catalogue::french());
         std::fs::remove_file(&path).expect("removes");
 
         assert!(
             autosave
-                .write_if_due(&DiskFiles, &document, &path, true)
+                .write_if_due(&DiskFiles, &document, &path, true, &Catalogue::french())
                 .is_none()
         );
         assert!(!path.exists(), "nothing changed, so nothing is written");

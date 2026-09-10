@@ -83,7 +83,7 @@ pub fn show(
     ui.separator();
 
     match editor.section {
-        Section::Profiles => touched |= profiles::section(ui, profiles, editor),
+        Section::Profiles => touched |= profiles::section(ui, profiles, editor, lang),
         Section::Viewport => touched |= viewport::section(ui, profiles),
         Section::Navigation => touched |= navigation::section(ui, profiles),
         Section::Appearance => touched |= appearance::section(ui, profiles),

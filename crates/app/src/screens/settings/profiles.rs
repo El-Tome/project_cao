@@ -2,6 +2,7 @@ use cao_prefs::Profiles;
 use cao_prefs::settings::{DEFAULT_PROFILE, PROFILE_EXTENSION, Profile};
 
 use crate::adapters::files::DiskFiles;
+use crate::lang::Catalogue;
 use crate::ui::text_edit::text_edit;
 use crate::wording::settings::profile;
 
@@ -11,6 +12,7 @@ pub(super) fn section(
     ui: &mut egui::Ui,
     profiles: &mut Profiles,
     editor: &mut SettingsEditor,
+    lang: &Catalogue,
 ) -> bool {
     let mut touched = false;
 
@@ -61,7 +63,7 @@ pub(super) fn section(
             let path = std::path::PathBuf::from(editor.profile_path.trim());
             match profiles.active_profile().export(&DiskFiles, &path) {
                 Ok(()) => editor.notice = Some(format!("Écrit dans {}", path.display())),
-                Err(err) => editor.notice = Some(crate::wording::storage::say(&err)),
+                Err(err) => editor.notice = Some(crate::wording::storage::say(lang, &err)),
             }
         }
         if ui.button("Importer").clicked() {
@@ -72,7 +74,7 @@ pub(super) fn section(
                     editor.notice = Some(format!("Profil « {name} » importé."));
                     touched = true;
                 }
-                Err(err) => editor.notice = Some(crate::wording::storage::say(&err)),
+                Err(err) => editor.notice = Some(crate::wording::storage::say(lang, &err)),
             }
         }
     });

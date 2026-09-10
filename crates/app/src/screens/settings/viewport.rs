@@ -1,48 +1,78 @@
 use cao_prefs::Profiles;
 use cao_prefs::config::{LengthUnit, UnitDisplay, ViewportCorner};
 
+use crate::lang::Catalogue;
 use crate::ui::slider::slider;
 
-pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
+pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalogue) -> bool {
     let before = profiles.active().viewport;
     let config = &mut profiles.active_mut().viewport;
 
-    ui.heading("Cube d'orientation");
-    corner_picker(ui, "Coin", &mut config.cube_corner);
-    slider(ui, &mut config.cube_size, 40.0..=200.0, "Taille");
-    slider(ui, &mut config.cube_margin, 0.0..=64.0, "Marge");
+    ui.heading(lang.t("settings.viewport.cube"));
+    corner_picker(
+        ui,
+        &lang.t("settings.viewport.corner"),
+        &mut config.cube_corner,
+    );
+    slider(
+        ui,
+        &mut config.cube_size,
+        40.0..=200.0,
+        &lang.t("settings.viewport.cube_size"),
+    );
+    slider(
+        ui,
+        &mut config.cube_margin,
+        0.0..=64.0,
+        &lang.t("settings.viewport.cube_margin"),
+    );
 
     ui.add_space(10.0);
-    ui.heading("Grille");
+    ui.heading(lang.t("settings.viewport.grid"));
     slider(
         ui,
         &mut config.grid_pixel_spacing,
         12.0..=160.0,
-        "Espacement minimal",
+        &lang.t("settings.viewport.grid_spacing"),
     );
-    ui.checkbox(&mut config.grid_snap, "Aimantation sur la grille");
-    slider(ui, &mut config.grid_snap_divisions, 1..=16, "Subdivisions");
+    ui.checkbox(&mut config.grid_snap, lang.t("settings.viewport.grid_snap"));
+    slider(
+        ui,
+        &mut config.grid_snap_divisions,
+        1..=16,
+        &lang.t("settings.viewport.grid_divisions"),
+    );
     slider(
         ui,
         &mut config.grid_snap_pixels,
         1.0..=48.0,
-        "Portée de l'aimant",
+        &lang.t("settings.viewport.grid_snap_reach"),
     );
     ui.add(
         egui::Slider::new(&mut config.segment_snap_pixels, 1.0..=48.0)
-            .text("Portée des traits")
+            .text(lang.t("settings.viewport.segment_snap_reach"))
             .clamping(egui::SliderClamping::Never),
     )
-    .on_hover_text("Un trait déjà dessiné attire plus fort que la grille");
+    .on_hover_text(lang.t("settings.viewport.segment_snap_hint"));
 
     ui.add_space(10.0);
-    ui.heading("Règle");
-    ui.checkbox(&mut config.ruler_visible, "Afficher la barre d'échelle");
-    corner_picker(ui, "Coin", &mut config.ruler_corner);
+    ui.heading(lang.t("settings.viewport.ruler"));
+    ui.checkbox(
+        &mut config.ruler_visible,
+        lang.t("settings.viewport.ruler_visible"),
+    );
+    corner_picker(
+        ui,
+        &lang.t("settings.viewport.corner"),
+        &mut config.ruler_corner,
+    );
     ui.horizontal(|ui| {
-        ui.label("Unité :");
+        ui.label(lang.t("settings.viewport.unit"));
         let mut automatic = matches!(config.unit, UnitDisplay::Auto);
-        if ui.selectable_label(automatic, "Auto").clicked() {
+        if ui
+            .selectable_label(automatic, lang.t("settings.viewport.unit_auto"))
+            .clicked()
+        {
             config.unit = UnitDisplay::Auto;
             automatic = true;
         }
@@ -61,16 +91,16 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
     });
 
     ui.add_space(10.0);
-    ui.heading("Caméra");
+    ui.heading(lang.t("settings.viewport.camera"));
     ui.add(
         egui::Slider::new(&mut config.min_distance, 1e-4..=1.0)
             .logarithmic(true)
-            .text("Distance minimale"),
+            .text(lang.t("settings.viewport.min_distance")),
     );
     ui.add(
         egui::Slider::new(&mut config.max_distance, 1e3..=1e10)
             .logarithmic(true)
-            .text("Distance maximale"),
+            .text(lang.t("settings.viewport.max_distance")),
     );
 
     before != profiles.active().viewport

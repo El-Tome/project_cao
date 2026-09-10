@@ -84,8 +84,8 @@ pub fn show(
 
     match editor.section {
         Section::Profiles => touched |= profiles::section(ui, profiles, editor, lang),
-        Section::Viewport => touched |= viewport::section(ui, profiles),
-        Section::Navigation => touched |= navigation::section(ui, profiles),
+        Section::Viewport => touched |= viewport::section(ui, profiles, lang),
+        Section::Navigation => touched |= navigation::section(ui, profiles, lang),
         Section::Appearance => touched |= appearance::section(ui, profiles),
         Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor, lang),
         Section::Toolbar => touched |= toolbar::section(ui, profiles, editor, lang),

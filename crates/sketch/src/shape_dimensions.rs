@@ -2,31 +2,31 @@
 //! types anything.
 
 use crate::aim::LockedInput;
-use crate::constraints::{DimensionTarget, SketchAxis};
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::sketch::{SegmentId, Sketch};
 
-/// The dimensions a freshly-drawn rectangle earns on its own: three right
-/// angles — the fourth follows — plus the length of whichever of the two
-/// neighbouring sides the user actually typed a size for. A side left
-/// untyped stays at whatever length the cursor gave it, undimensioned, the
-/// same as a line drawn with no value entered. One already redundant with
-/// what the drawing holds is left out.
+/// What a freshly-drawn rectangle earns on its own: three right angles — the
+/// fourth follows — held as constraints rather than dimensions, since a right
+/// angle is a relationship the rectangle holds by construction, not a
+/// measurement someone typed and could retype. Alongside them, the length of
+/// whichever of the two neighbouring sides the user actually typed a size
+/// for. A side left untyped stays at whatever length the cursor gave it,
+/// undimensioned, the same as a line drawn with no value entered. A length
+/// already redundant with what the drawing holds is left out.
 pub fn rectangle_dimensions(
     sketch: &Sketch,
     sides: [SegmentId; 4],
     locked: LockedInput,
     scale: f64,
-) -> Vec<(DimensionTarget, f64)> {
+) -> (Vec<Constraint>, Vec<(DimensionTarget, f64)>) {
+    let corners = (0..3)
+        .map(|corner| Constraint::Perpendicular {
+            first: sides[corner],
+            second: sides[corner + 1],
+        })
+        .collect();
+
     let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
-    for corner in 0..3 {
-        wanted.push((
-            DimensionTarget::Angle {
-                first: sides[corner],
-                second: sides[corner + 1],
-            },
-            90.0,
-        ));
-    }
     for (side, typed) in sides.iter().take(2).zip([locked.first, locked.second]) {
         if typed.is_some() {
             wanted.push((
@@ -35,7 +35,7 @@ pub fn rectangle_dimensions(
             ));
         }
     }
-    settled(sketch, wanted, scale)
+    (corners, settled(sketch, wanted, scale))
 }
 
 /// Places on the line just drawn whatever the user typed, and the right angle
@@ -120,30 +120,39 @@ mod tests {
     }
 
     #[test]
-    fn a_rectangle_typed_on_both_sides_gets_three_right_angles_and_two_lengths() {
+    fn a_rectangle_typed_on_both_sides_gets_three_perpendiculars_and_two_lengths() {
         let (sketch, sides) = rectangle_sides();
         let locked = LockedInput {
             first: Some(40.0),
             second: Some(20.0),
         };
 
-        let wanted = rectangle_dimensions(&sketch, sides, locked, 1.0);
+        let (corners, wanted) = rectangle_dimensions(&sketch, sides, locked, 1.0);
 
-        let angles = wanted
-            .iter()
-            .filter(|(target, _)| matches!(target, DimensionTarget::Angle { .. }))
-            .count();
+        assert_eq!(
+            corners.len(),
+            3,
+            "the fourth right angle follows from the other three"
+        );
+        for corner in 0..3 {
+            assert!(corners.contains(&Constraint::Perpendicular {
+                first: sides[corner],
+                second: sides[corner + 1],
+            }));
+        }
         let lengths = wanted
             .iter()
             .filter(|(target, _)| matches!(target, DimensionTarget::Length(_)))
             .count();
         assert_eq!(
-            angles, 3,
-            "the fourth right angle follows from the other three"
-        );
-        assert_eq!(
             lengths, 2,
             "two neighbouring lengths pin the rectangle down"
+        );
+        assert!(
+            wanted
+                .iter()
+                .all(|(target, _)| !matches!(target, DimensionTarget::Angle { .. })),
+            "a right angle is held by construction, not by a dimension someone could retype"
         );
         assert!(wanted.iter().all(|(_, value)| *value > 0.0));
     }
@@ -152,8 +161,13 @@ mod tests {
     fn a_rectangle_dragged_with_nothing_typed_gets_no_length() {
         let (sketch, sides) = rectangle_sides();
 
-        let wanted = rectangle_dimensions(&sketch, sides, LockedInput::default(), 1.0);
+        let (corners, wanted) = rectangle_dimensions(&sketch, sides, LockedInput::default(), 1.0);
 
+        assert_eq!(
+            corners.len(),
+            3,
+            "square corners hold by construction whether or not a size was typed"
+        );
         assert!(
             wanted
                 .iter()
@@ -170,8 +184,13 @@ mod tests {
             second: None,
         };
 
-        let wanted = rectangle_dimensions(&sketch, sides, locked, 1.0);
+        let (corners, wanted) = rectangle_dimensions(&sketch, sides, locked, 1.0);
 
+        assert_eq!(
+            corners.len(),
+            3,
+            "typing only one side still squares all corners"
+        );
         assert!(
             wanted
                 .iter()

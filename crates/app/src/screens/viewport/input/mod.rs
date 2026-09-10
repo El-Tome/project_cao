@@ -838,19 +838,8 @@ pub(crate) fn two_click_shape(
         sketch: index,
         corner,
         opposite,
+        construction: context.editor.construction,
     });
-    if context.editor.construction {
-        // A rectangle always draws its four sides fresh, whatever corners it
-        // reused, so they are the last four segments of the sketch — flagged
-        // together, in the one step that drew them.
-        let after = context.document.sketches()[index].segments().len();
-        let sides = (after - 4..after)
-            .map(|rank| cao_sketch::Element::Segment(cao_sketch::SegmentId(rank)))
-            .collect();
-        context
-            .document
-            .apply(Operation::SetConstruction(index, sides, true));
-    }
     dimension_the_rectangle(context, index, pixel);
     context.editor.live.clear();
     true
@@ -941,6 +930,7 @@ pub(crate) fn draw_circle(
                 center,
                 radius: found.radius,
                 rim,
+                construction: context.editor.construction,
             });
             let drawn = CircleId(
                 context.document.sketches()[index]
@@ -948,12 +938,6 @@ pub(crate) fn draw_circle(
                     .len()
                     .saturating_sub(1),
             );
-            if context.editor.construction {
-                let circle = vec![cao_sketch::Element::Circle(drawn)];
-                context
-                    .document
-                    .apply(Operation::SetConstruction(index, circle, true));
-            }
 
             // A circle drawn against traits stays against them: the tangency
             // is the whole point of having pointed at them.
@@ -1305,6 +1289,7 @@ pub(crate) fn draw_line_point(
                 sketch: index,
                 start: point_ref(start),
                 end: point_ref(end),
+                construction: context.editor.construction,
             });
 
             // The far end of the segment just drawn becomes the next anchor.
@@ -1315,12 +1300,6 @@ pub(crate) fn draw_line_point(
                 ChainAnchor::Point(id) => id,
                 ChainAnchor::Pending(_) => PointId(sketch.points().len().saturating_sub(1)),
             });
-            if context.editor.construction {
-                let segment = vec![cao_sketch::Element::Segment(drawn)];
-                context
-                    .document
-                    .apply(Operation::SetConstruction(index, segment, true));
-            }
 
             dimension_the_line(context, index, drawn, aimed, pixel);
             context.editor.tool_state = ToolState::Line {

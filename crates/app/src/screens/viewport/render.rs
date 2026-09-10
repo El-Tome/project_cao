@@ -264,8 +264,7 @@ fn push_chosen_areas(
             tint_at(theme.highlight, theme.highlight.a * 0.5)
         };
 
-        // Holes stay empty here too: what is shown filled is exactly what will
-        // become matter.
+        // Holes stay empty here too: what is shown filled is exactly what will become matter.
         for [a, b, c] in region.face_triangles() {
             for corner in [a, b, c] {
                 surfaces.push(cao_render::Vertex::solid(
@@ -318,8 +317,7 @@ fn push_revolution_axis(
 /// rather than four separate lines.
 ///
 /// A shape drawn inside another is tinted more heavily: without that, an
-/// outline and the pocket in it wash into one another and the eye cannot tell
-/// which is which.
+/// outline and the pocket in it wash into one another and the eye cannot tell which is which.
 fn push_regions(
     surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -346,8 +344,7 @@ fn push_regions(
     }
 }
 
-/// Lights up the face of the part under the cursor, so it is clear what a click
-/// would sketch on.
+/// Lights up the face of the part under the cursor, so it is clear what a click would sketch on.
 fn push_hovered_face(
     surfaces: &mut Vec<cao_render::Vertex>,
     theme: &Theme,
@@ -489,8 +486,7 @@ fn push_sketch(
     push_point_markers(out, sketch, theme, scale, &settled, context);
 
     // Every dimension is drawn where it applies, with extension lines, arrows
-    // and arcs, so the drawing says what holds it rather than just carrying a
-    // number.
+    // and arcs, so the drawing says what holds it rather than just carrying a number.
     for dimension in sketch.dimensions() {
         let mut style = if dimension.driven {
             crate::screens::annotations::Style::driven(theme)
@@ -796,7 +792,15 @@ fn push_preview(
             .aimed
             .map(|aimed| aimed.position)
             .unwrap_or(cursor);
-        push_preview_line(out, sketch, from, to, preview);
+        push_preview_line(
+            out,
+            sketch,
+            from,
+            to,
+            preview,
+            context.editor.construction,
+            scale,
+        );
 
         // The little square of a right angle, drawn before it is committed to
         // so the constraint is never a surprise. Its two arms are the line
@@ -821,8 +825,7 @@ fn push_preview(
     }
 
     // The dimension a click would place, drawn faintly where it would land —
-    // then, once it is chosen, the same annotation following the cursor to the
-    // spot it will sit on.
+    // then, once it is chosen, the same annotation following the cursor to the spot it will sit on.
     if context.editor.tool == Tool::Dimension
         && let Some(index) = context.editor.active_sketch()
         && let Some((target, nudge)) = pending_annotation(
@@ -906,28 +909,32 @@ fn push_preview(
                 corners[index],
                 corners[(index + 1) % 4],
                 preview,
+                context.editor.construction,
+                scale,
             );
         }
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn push_preview_line(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     from: DVec2,
     to: DVec2,
     color: [f32; 4],
+    construction: bool,
+    scale: ViewScale,
 ) {
-    out.push(cao_render::Vertex::line(
-        sketch.plane.to_world(from).as_vec3(),
+    push_line(
+        out,
+        sketch.plane.to_world(from),
+        sketch.plane.to_world(to),
         color,
         1.5,
-    ));
-    out.push(cao_render::Vertex::line(
-        sketch.plane.to_world(to).as_vec3(),
-        color,
-        1.5,
-    ));
+        construction,
+        scale,
+    );
 }
 
 /// How long each dash and the gap after it are on screen, so the pattern
@@ -992,8 +999,7 @@ fn push_circle_at(
         return;
     }
     // How many sides make up one dash: kept a constant size on screen, the
-    // same way a construction line's dashes are, rather than growing with
-    // the circle's own radius.
+    // same way a construction line's dashes are, rather than growing with the circle's own radius.
     let side_length = std::f64::consts::TAU * radius / SIDES as f64;
     let dash_group = ((DASH_PIXELS * scale.units_per_pixel / side_length).round() as usize).max(1);
     let mut previous = None;
@@ -1450,8 +1456,7 @@ pub(crate) fn paint_dimension_field(
                 ui.horizontal(|ui| {
                     if driven {
                         // A readout cannot be edited: changing it would mean
-                        // nothing, since it reports the geometry rather than
-                        // deciding it.
+                        // nothing, since it reports the geometry rather than deciding it.
                         let measured = context.document.measured(index, target).unwrap_or_default();
                         let suffix = if angle { "°" } else { "mm" };
                         ui.weak(format!("{measured:.2} {suffix} (lecture seule)"));

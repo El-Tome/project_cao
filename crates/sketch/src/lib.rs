@@ -13,6 +13,7 @@ mod crossing;
 mod dimensioning;
 mod element;
 mod equation;
+mod erased;
 mod independence;
 mod length;
 mod measuring;

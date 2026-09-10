@@ -48,6 +48,10 @@ pub enum Operation {
         sketch: usize,
         start: PointRef,
         end: PointRef,
+        /// Helps build the drawing without becoming part of it: excluded from
+        /// area.
+        #[serde(default)]
+        construction: bool,
     },
     /// Four corners and four sides in one step, so the history reads as one
     /// rectangle rather than four unrelated lines.
@@ -55,6 +59,8 @@ pub enum Operation {
         sketch: usize,
         corner: PointRef,
         opposite: PointRef,
+        #[serde(default)]
+        construction: bool,
     },
     AddCircle {
         sketch: usize,
@@ -66,12 +72,9 @@ pub enum Operation {
         /// point behind.
         #[serde(default)]
         rim: Vec<PointRef>,
+        #[serde(default)]
+        construction: bool,
     },
-    /// Flags one or several shapes as construction geometry, or takes the flag
-    /// back off — several at once, so a rectangle's four sides flag together
-    /// in the one step that drew them, rather than one that undo could split.
-    /// Sketch, elements, whether they are now construction.
-    SetConstruction(usize, Vec<Element>, bool),
     /// Dragging a point to a new place.
     MovePoint {
         sketch: usize,
@@ -249,6 +252,7 @@ mod tests {
             sketch,
             start: PointRef::New(DVec2::ZERO),
             end: PointRef::New(DVec2::X),
+            construction: false,
         }
     }
 

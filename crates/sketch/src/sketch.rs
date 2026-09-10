@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::annotation::AnnotationMetrics;
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
+use crate::erased::Erased;
 use crate::independence::is_dependent;
 use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
@@ -66,8 +67,7 @@ pub struct Sketch {
     ///
     /// They do not give: the drawing settles *around* them rather than pulling
     /// them back, which is what makes a shape follow the mouse instead of
-    /// squirming away from it. Nothing to save — they live only as long as the
-    /// gesture.
+    /// squirming away from it. Nothing to save — they live only as long as the gesture.
     #[serde(skip)]
     held: Vec<PointId>,
     /// The last reading of which points can no longer move, against a print of
@@ -75,30 +75,6 @@ pub struct Sketch {
     /// never saved and never read back.
     #[serde(skip)]
     settled: RefCell<Option<(u64, Vec<bool>)>>,
-}
-
-/// The ranks that no longer count.
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-struct Erased {
-    #[serde(default)]
-    points: Vec<bool>,
-    #[serde(default)]
-    segments: Vec<bool>,
-    #[serde(default)]
-    circles: Vec<bool>,
-}
-
-impl Erased {
-    fn holds(list: &[bool], rank: usize) -> bool {
-        list.get(rank).copied().unwrap_or(false)
-    }
-
-    fn mark(list: &mut Vec<bool>, rank: usize) {
-        if list.len() <= rank {
-            list.resize(rank + 1, false);
-        }
-        list[rank] = true;
-    }
 }
 
 pub use crate::element::Element;
@@ -452,10 +428,19 @@ impl Sketch {
     }
 
     pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
+        self.push_circle(center, radius, false)
+    }
+
+    /// Excluded from the area of any region it happens to sit inside or across.
+    pub fn add_construction_circle(&mut self, center: PointId, radius: f64) -> CircleId {
+        self.push_circle(center, radius, true)
+    }
+
+    fn push_circle(&mut self, center: PointId, radius: f64, construction: bool) -> CircleId {
         self.circles.push(Circle {
             center,
             radius,
-            construction: false,
+            construction,
         });
         CircleId(self.circles.len() - 1)
     }
@@ -662,20 +647,21 @@ impl Sketch {
     }
 
     pub fn add_segment(&mut self, start: PointId, end: PointId) -> SegmentId {
+        self.push_segment(start, end, false)
+    }
+
+    /// Excluded from the area of any region it happens to sit inside or across.
+    pub fn add_construction_segment(&mut self, start: PointId, end: PointId) -> SegmentId {
+        self.push_segment(start, end, true)
+    }
+
+    fn push_segment(&mut self, start: PointId, end: PointId, construction: bool) -> SegmentId {
         self.segments.push(Segment {
             start,
             end,
-            construction: false,
+            construction,
         });
         SegmentId(self.segments.len() - 1)
-    }
-
-    pub fn set_construction(&mut self, element: Element, construction: bool) {
-        match element {
-            Element::Segment(id) => self.segments[id.0].construction = construction,
-            Element::Circle(id) => self.circles[id.0].construction = construction,
-            Element::Point(_) => {}
-        }
     }
 
     pub fn segment_length(&self, id: SegmentId) -> f64 {

@@ -68,12 +68,21 @@ impl PartState {
                 self.sketches.get_mut(*sketch)?.add_point(*position);
                 None
             }
-            Operation::AddSegment { sketch, start, end } => {
+            Operation::AddSegment {
+                sketch,
+                start,
+                end,
+                construction,
+            } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
                 let start = resolve(sketch, start);
                 let end = resolve(sketch, end);
                 if start != end {
-                    sketch.add_segment(start, end);
+                    if *construction {
+                        sketch.add_construction_segment(start, end);
+                    } else {
+                        sketch.add_segment(start, end);
+                    }
                 }
                 None
             }
@@ -81,6 +90,7 @@ impl PartState {
                 sketch,
                 corner,
                 opposite,
+                construction,
             } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
                 // The two given corners may reuse points already drawn; the
@@ -93,14 +103,12 @@ impl PartState {
 
                 let corners = [first, second, third, fourth];
                 for index in 0..4 {
-                    sketch.add_segment(corners[index], corners[(index + 1) % 4]);
-                }
-                None
-            }
-            Operation::SetConstruction(sketch, elements, construction) => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                for element in elements {
-                    sketch.set_construction(*element, *construction);
+                    let (from, to) = (corners[index], corners[(index + 1) % 4]);
+                    if *construction {
+                        sketch.add_construction_segment(from, to);
+                    } else {
+                        sketch.add_segment(from, to);
+                    }
                 }
                 None
             }
@@ -122,10 +130,15 @@ impl PartState {
                 center,
                 radius,
                 rim,
+                construction,
             } => {
                 let sketch = self.sketches.get_mut(*sketch)?;
                 let center = resolve(sketch, center);
-                let circle = sketch.add_circle(center, *radius);
+                let circle = if *construction {
+                    sketch.add_construction_circle(center, *radius)
+                } else {
+                    sketch.add_circle(center, *radius)
+                };
                 for place in rim {
                     let point = resolve(sketch, place);
                     sketch.add_constraint(cao_sketch::Constraint::OnCircle { point, circle });
@@ -357,12 +370,14 @@ mod tests {
             sketch: 0,
             start: PointRef::New(DVec2::ZERO),
             end: PointRef::New(DVec2::new(2.0, 0.0)),
+            construction: false,
         });
         history.push(Operation::AddSegment {
             sketch: 0,
             // Point 0 is the sketch origin, so the corner just drawn is 2.
             start: PointRef::Existing(cao_sketch::PointId(2)),
             end: PointRef::New(DVec2::new(2.0, 1.0)),
+            construction: false,
         });
         history
     }
@@ -480,6 +495,7 @@ mod tests {
                 sketch: 3,
                 start: PointRef::New(DVec2::ZERO),
                 end: PointRef::New(DVec2::X),
+                construction: false,
             }),
             None
         );
@@ -504,6 +520,7 @@ mod extra_tests {
             sketch: 0,
             corner: PointRef::New(DVec2::ZERO),
             opposite: PointRef::New(DVec2::new(40.0, 20.0)),
+            construction: false,
         });
 
         let sketch = &state.sketches[0];
@@ -512,6 +529,28 @@ mod extra_tests {
         assert_eq!(sketch.segments().len(), 4);
         assert!((sketch.segment_length(SegmentId(0)) - 40.0).abs() < 1e-4);
         assert!((sketch.segment_length(SegmentId(1)) - 20.0).abs() < 1e-4);
+    }
+
+    #[test]
+    fn a_construction_rectangle_flags_all_four_sides_in_the_one_step_that_drew_them() {
+        let mut history = History::default();
+        history.push(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        history.push(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(DVec2::ZERO),
+            opposite: PointRef::New(DVec2::new(40.0, 20.0)),
+            construction: true,
+        });
+
+        let state = PartState::rebuild(&history);
+        let sketch = &state.sketches[0];
+        assert!(sketch.segments().iter().all(|segment| segment.construction));
+
+        history.undo();
+        let after_undo = PartState::rebuild(&history);
+        assert!(after_undo.sketches[0].segments().is_empty());
     }
 
     #[test]
@@ -525,6 +564,7 @@ mod extra_tests {
             center: PointRef::New(DVec2::ZERO),
             radius: 4.0,
             rim: Vec::new(),
+            construction: false,
         });
 
         // First value in the part: it sets the scale rather than resizing.
@@ -554,11 +594,13 @@ mod extra_tests {
             sketch: 0,
             start: PointRef::New(DVec2::ZERO),
             end: PointRef::New(DVec2::new(10.0, 0.0)),
+            construction: false,
         });
         state.apply(&Operation::AddSegment {
             sketch: 0,
             start: PointRef::Existing(cao_sketch::PointId(1)),
             end: PointRef::New(DVec2::new(0.0, 10.0)),
+            construction: false,
         });
 
         let outcome = state.apply(&Operation::SetDimension {
@@ -593,6 +635,7 @@ mod extra_tests {
             sketch: 0,
             corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             opposite: PointRef::New(DVec2::new(70.0, 30.0)),
+            construction: false,
         });
 
         let sketch = &state.sketches[0];
@@ -660,6 +703,7 @@ mod extra_tests {
             sketch: 0,
             corner: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             opposite: PointRef::New(DVec2::new(70.0, 30.0)),
+            construction: false,
         });
         // Two sides, the three right angles a rectangle needs, and the
         // direction of one side against an axis.
@@ -730,6 +774,7 @@ mod extra_tests {
             sketch: 0,
             start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             end: PointRef::New(DVec2::new(10.0, 0.0)),
+            construction: false,
         });
         state.apply(&Operation::SetDimension {
             sketch: 0,
@@ -753,6 +798,7 @@ mod extra_tests {
             sketch: 0,
             start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
             end: PointRef::Existing(cao_sketch::PointId(1)),
+            construction: false,
         });
 
         let outcome = state.apply(&Operation::SetDimension {
@@ -795,6 +841,7 @@ mod extrusion_tests {
             sketch: 0,
             corner: PointRef::New(min),
             opposite: PointRef::New(max),
+            construction: false,
         });
     }
 
@@ -853,12 +900,14 @@ mod extrusion_tests {
             center: PointRef::New(DVec2::ZERO),
             radius: 10.0,
             rim: Vec::new(),
+            construction: false,
         });
         history.push(Operation::AddCircle {
             sketch: 0,
             center: PointRef::Existing(cao_sketch::PointId(1)),
             radius: 6.0,
             rim: Vec::new(),
+            construction: false,
         });
         history.push(Operation::Extrude {
             sketch: 0,
@@ -895,6 +944,7 @@ mod extrusion_tests {
             sketch: 1,
             corner: PointRef::New(DVec2::new(2.0, 2.0)),
             opposite: PointRef::New(DVec2::new(4.0, 4.0)),
+            construction: false,
         });
         history.push(Operation::Extrude {
             sketch: 1,
@@ -955,6 +1005,7 @@ mod extrusion_tests {
             sketch: 0,
             start: PointRef::New(DVec2::new(0.0, -10.0)),
             end: PointRef::New(DVec2::new(0.0, 10.0)),
+            construction: false,
         });
         rectangle(&mut history, DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
         history.push(Operation::Revolve {
@@ -1024,6 +1075,7 @@ mod extrusion_tests {
             sketch: 1,
             corner: PointRef::New(DVec2::new(-25.0, 32.5)),
             opposite: PointRef::New(DVec2::new(12.5, -7.5)),
+            construction: false,
         });
         history.push(Operation::Extrude {
             sketch: 1,
@@ -1046,11 +1098,13 @@ mod extrusion_tests {
             sketch: 0,
             start: PointRef::New(DVec2::new(-10.0, 0.0)),
             end: PointRef::New(DVec2::new(0.0, 10.0)),
+            construction: false,
         });
         history.push(Operation::AddSegment {
             sketch: 0,
             start: PointRef::New(DVec2::new(0.0, 10.0)),
             end: PointRef::New(DVec2::new(10.0, 0.0)),
+            construction: false,
         });
 
         let before = PartState::rebuild(&history);

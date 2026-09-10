@@ -50,6 +50,7 @@ mod tests {
             sketch,
             start: PointRef::New(DVec2::ZERO),
             end: PointRef::New(DVec2::X),
+            construction: false,
         }
     }
 

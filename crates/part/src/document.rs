@@ -227,6 +227,7 @@ mod tests {
             sketch: 0,
             start: PointRef::New(DVec2::ZERO),
             end: PointRef::New(DVec2::new(2.0, 0.0)),
+            construction: false,
         });
         document.apply(Operation::SetDimension {
             sketch: 0,

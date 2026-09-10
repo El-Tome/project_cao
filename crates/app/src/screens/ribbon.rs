@@ -1,6 +1,8 @@
+use crate::lang::Catalogue;
 use crate::screens::extrusion::{ExtrusionState, Shape};
+use crate::screens::extrusion_row::extrusion_row;
 use crate::screens::sketch::{CircleMode, DimensionMode, SketchEditor, Tool};
-use crate::wording::{command as wording, constraints, shortcuts, toolbar::group};
+use crate::wording::{command as wording, shortcuts, toolbar::group};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
 use cao_sketch::Rule;
@@ -36,6 +38,7 @@ impl Ribbon {
         document: &PartDocument,
         editor: &SketchEditor,
         extrusion: &mut ExtrusionState,
+        lang: &Catalogue,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
         let mut asked = Vec::new();
@@ -46,17 +49,17 @@ impl Ribbon {
                     .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
                     .resizable(false)
                     .show(ui.ctx(), |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion);
+                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
                     });
             }
             Edge::Top => {
                 egui::Panel::top("ribbon").show(ui, |ui| {
-                    asked = self.contents(ui, settings, document, editor, extrusion);
+                    asked = self.contents(ui, settings, document, editor, extrusion, lang);
                 });
             }
             Edge::Bottom => {
                 egui::Panel::bottom("ribbon").show(ui, |ui| {
-                    asked = self.contents(ui, settings, document, editor, extrusion);
+                    asked = self.contents(ui, settings, document, editor, extrusion, lang);
                 });
             }
             // A side bar has to be told how wide to start: left to itself it takes the room its
@@ -66,7 +69,7 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion);
+                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
                     });
             }
             Edge::Right => {
@@ -74,7 +77,7 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion);
+                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
                     });
             }
         }
@@ -89,6 +92,7 @@ impl Ribbon {
         document: &PartDocument,
         editor: &SketchEditor,
         extrusion: &mut ExtrusionState,
+        lang: &Catalogue,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
         let mut asked = Vec::new();
@@ -102,6 +106,7 @@ impl Ribbon {
             document,
             editor,
             extrusion: &*extrusion,
+            lang,
         };
 
         // The open tab, then whatever sits at the top level outside any group.
@@ -178,6 +183,7 @@ struct Context<'a> {
     document: &'a PartDocument,
     editor: &'a SketchEditor,
     extrusion: &'a ExtrusionState,
+    lang: &'a Catalogue,
 }
 
 /// Draws a run of entries, at the depth they sit in the tree.
@@ -231,13 +237,14 @@ fn lay_out(
 }
 
 fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut Vec<Command>) {
+    let name = wording::label(state.lang, command);
     let label = if state.settings.toolbar.show_labels {
         match state.settings.shortcuts.chord_for(command) {
-            Some(chord) => format!("{} ({})", wording::label(command), shortcuts::chord(chord)),
-            None => wording::label(command).to_string(),
+            Some(chord) => format!("{name} ({})", shortcuts::chord(chord)),
+            None => name,
         }
     } else {
-        wording::label(command).chars().take(2).collect()
+        name.chars().take(2).collect()
     };
 
     let response = ui
@@ -245,7 +252,7 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
             ui.selectable_label(active(command, state), label)
         })
         .inner
-        .on_hover_text(wording::hint(command));
+        .on_hover_text(wording::hint(state.lang, command));
     if response.clicked() {
         asked.push(command);
     }
@@ -352,77 +359,4 @@ pub fn is_enabled(
         Command::ExtrusionCancel => extrusion.is_active(),
         _ => true,
     }
-}
-
-/// The values an extrusion needs, shown only while one is being set up.
-///
-/// These are not commands: they are numbers being typed, and a toolbar entry
-/// cannot stand for a field the user is in the middle of filling in.
-fn extrusion_row(
-    ui: &mut egui::Ui,
-    document: &PartDocument,
-    extrusion: &mut ExtrusionState,
-    asked: &mut Vec<Command>,
-) {
-    if extrusion.sketch.is_none() {
-        if document.sketches().is_empty() {
-            return;
-        }
-        ui.horizontal_wrapped(|ui| {
-            ui.label("Extruder l'esquisse :");
-            for index in 0..document.sketches().len() {
-                if ui.button(format!("{}", index + 1)).clicked() {
-                    extrusion.offer(index);
-                }
-            }
-        });
-        return;
-    }
-    if !extrusion.is_active() {
-        return;
-    }
-
-    ui.horizontal_wrapped(|ui| {
-        if extrusion.is_revolving() {
-            ui.label("Angle :");
-            ui.add(
-                egui::TextEdit::singleline(&mut extrusion.angle_input)
-                    .desired_width(60.0)
-                    .hint_text("°"),
-            );
-            ui.label("Autour de :");
-            for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
-                let held = extrusion.axis == cao_part::RevolutionAxis::Sketch(axis);
-                if ui.selectable_label(held, constraints::axis(axis)).clicked() {
-                    extrusion.axis = cao_part::RevolutionAxis::Sketch(axis);
-                }
-            }
-            if let cao_part::RevolutionAxis::Segment(segment) = extrusion.axis {
-                ui.selectable_label(true, format!("trait {}", segment.0))
-                    .on_hover_text("Cliquer un autre trait de l'esquisse pour en changer");
-            } else {
-                ui.weak("ou cliquer un trait");
-            }
-        } else {
-            ui.label("Hauteur :");
-            ui.add(
-                egui::TextEdit::singleline(&mut extrusion.distance_input)
-                    .desired_width(70.0)
-                    .hint_text("mm"),
-            );
-        }
-        ui.checkbox(&mut extrusion.reversed, "Sens inverse")
-            .on_hover_text("Pousser la matière de l'autre côté du plan");
-
-        ui.separator();
-        ui.weak(format!("{} aire(s)", extrusion.picks.len()));
-        ui.add_enabled_ui(extrusion.is_ready(), |ui| {
-            if ui.button("Appliquer").clicked() {
-                asked.push(Command::ExtrusionApply);
-            }
-        });
-        if ui.button("Annuler").clicked() {
-            asked.push(Command::ExtrusionCancel);
-        }
-    });
 }

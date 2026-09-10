@@ -7,6 +7,8 @@ mod viewport;
 
 use cao_prefs::{Command, Path, Profiles};
 
+use crate::lang::Catalogue;
+
 /// Which part of the preferences is open.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 enum Section {
@@ -59,7 +61,12 @@ pub struct SettingsEditor {
 
 /// Draws the preferences. Returns true when something changed and the profiles
 /// should be written back to disk.
-pub fn show(ui: &mut egui::Ui, profiles: &mut Profiles, editor: &mut SettingsEditor) -> bool {
+pub fn show(
+    ui: &mut egui::Ui,
+    profiles: &mut Profiles,
+    editor: &mut SettingsEditor,
+    lang: &Catalogue,
+) -> bool {
     let mut touched = false;
 
     ui.horizontal_wrapped(|ui| {
@@ -80,8 +87,8 @@ pub fn show(ui: &mut egui::Ui, profiles: &mut Profiles, editor: &mut SettingsEdi
         Section::Viewport => touched |= viewport::section(ui, profiles),
         Section::Navigation => touched |= navigation::section(ui, profiles),
         Section::Appearance => touched |= appearance::section(ui, profiles),
-        Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor),
-        Section::Toolbar => touched |= toolbar::section(ui, profiles, editor),
+        Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor, lang),
+        Section::Toolbar => touched |= toolbar::section(ui, profiles, editor, lang),
     }
 
     if let Some(notice) = &editor.notice {

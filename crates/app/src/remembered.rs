@@ -48,6 +48,12 @@ impl Remembered {
         &self.lang
     }
 
+    /// `profiles` and `lang` borrowed apart, for a caller that edits one while
+    /// reading the other — a single method call would borrow all of `self`.
+    pub fn profiles_and_lang(&mut self) -> (&mut Profiles, &Catalogue) {
+        (&mut self.profiles, &self.lang)
+    }
+
     pub fn recents(&self) -> &[RecentEntry] {
         self.recents.entries()
     }

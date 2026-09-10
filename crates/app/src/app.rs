@@ -148,7 +148,14 @@ impl CaoApp {
             });
         });
 
-        asked.extend(ribbon.show(ui, &settings, doc, editor, extrusion));
+        asked.extend(ribbon.show(
+            ui,
+            &settings,
+            doc,
+            editor,
+            extrusion,
+            self.remembered.lang(),
+        ));
         asked.extend(
             shortcuts_pressed(ui, &settings)
                 .into_iter()
@@ -220,11 +227,8 @@ impl CaoApp {
             .default_size([720.0, 560.0])
             .vscroll(true)
             .show(ui.ctx(), |ui| {
-                touched = screens::settings::show(
-                    ui,
-                    &mut self.remembered.profiles,
-                    &mut self.settings_editor,
-                );
+                let (profiles, lang) = self.remembered.profiles_and_lang();
+                touched = screens::settings::show(ui, profiles, &mut self.settings_editor, lang);
             });
 
         self.settings_open = open;

@@ -86,7 +86,7 @@ pub fn show(
         Section::Profiles => touched |= profiles::section(ui, profiles, editor, lang),
         Section::Viewport => touched |= viewport::section(ui, profiles, lang),
         Section::Navigation => touched |= navigation::section(ui, profiles, lang),
-        Section::Appearance => touched |= appearance::section(ui, profiles),
+        Section::Appearance => touched |= appearance::section(ui, profiles, lang),
         Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor, lang),
         Section::Toolbar => touched |= toolbar::section(ui, profiles, editor, lang),
     }

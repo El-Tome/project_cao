@@ -1,57 +1,117 @@
 use cao_prefs::{Background, Profiles, Rgba, Stop, Theme};
 
+use crate::lang::Catalogue;
 use crate::ui::slider::slider;
 
-pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
+pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalogue) -> bool {
     let before = profiles.active().theme.clone();
     let theme = &mut profiles.active_mut().theme;
 
-    ui.heading("Fond");
-    background_editor(ui, &mut theme.background);
+    ui.heading(lang.t("settings.appearance.background"));
+    background_editor(ui, &mut theme.background, lang);
 
     ui.add_space(10.0);
-    ui.heading("Axes et grille");
-    color_row(ui, "Axe X", &mut theme.axis_x);
-    color_row(ui, "Axe Y", &mut theme.axis_y);
-    color_row(ui, "Axe Z", &mut theme.axis_z);
-    slider(ui, &mut theme.axis_width, 0.5..=8.0, "Épaisseur des axes");
-    color_row(ui, "Grille fine", &mut theme.grid_minor);
-    color_row(ui, "Grille principale", &mut theme.grid_major);
-    slider(ui, &mut theme.grid_minor_width, 0.5..=6.0, "Épaisseur fine");
+    ui.heading(lang.t("settings.appearance.axes_and_grid"));
+    color_row(ui, &lang.t("settings.appearance.axis_x"), &mut theme.axis_x);
+    color_row(ui, &lang.t("settings.appearance.axis_y"), &mut theme.axis_y);
+    color_row(ui, &lang.t("settings.appearance.axis_z"), &mut theme.axis_z);
+    slider(
+        ui,
+        &mut theme.axis_width,
+        0.5..=8.0,
+        &lang.t("settings.appearance.axis_width"),
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.grid_minor"),
+        &mut theme.grid_minor,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.grid_major"),
+        &mut theme.grid_major,
+    );
+    slider(
+        ui,
+        &mut theme.grid_minor_width,
+        0.5..=6.0,
+        &lang.t("settings.appearance.grid_minor_width"),
+    );
     slider(
         ui,
         &mut theme.grid_major_width,
         0.5..=6.0,
-        "Épaisseur principale",
+        &lang.t("settings.appearance.grid_major_width"),
     );
-    slider(ui, &mut theme.grid_major_every, 2..=20, "Une ligne sur");
+    slider(
+        ui,
+        &mut theme.grid_major_every,
+        2..=20,
+        &lang.t("settings.appearance.grid_major_every"),
+    );
 
     ui.add_space(10.0);
-    ui.heading("Esquisse");
-    color_row(ui, "Libre", &mut theme.sketch_free);
-    color_row(ui, "Contraint", &mut theme.sketch_settled);
-    color_row(ui, "Autre esquisse", &mut theme.sketch_inactive);
+    ui.heading(lang.t("settings.appearance.sketch"));
+    color_row(
+        ui,
+        &lang.t("settings.appearance.sketch_free"),
+        &mut theme.sketch_free,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.sketch_settled"),
+        &mut theme.sketch_settled,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.sketch_inactive"),
+        &mut theme.sketch_inactive,
+    );
     slider(
         ui,
         &mut theme.sketch_width,
         0.5..=8.0,
-        "Épaisseur des traits",
+        &lang.t("settings.appearance.sketch_width"),
     );
-    color_row(ui, "Cote", &mut theme.dimension);
-    color_row(ui, "Cote en lecture seule", &mut theme.dimension_driven);
-    color_row(ui, "Élément fixé", &mut theme.fixed);
-    color_row(ui, "Marque de contrainte", &mut theme.rule);
-    color_row(ui, "Teinte des aires", &mut theme.region_fill);
+    color_row(
+        ui,
+        &lang.t("settings.appearance.dimension"),
+        &mut theme.dimension,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.dimension_driven"),
+        &mut theme.dimension_driven,
+    );
+    color_row(ui, &lang.t("settings.appearance.fixed"), &mut theme.fixed);
+    color_row(ui, &lang.t("settings.appearance.rule"), &mut theme.rule);
+    color_row(
+        ui,
+        &lang.t("settings.appearance.region_fill"),
+        &mut theme.region_fill,
+    );
 
     ui.add_space(10.0);
-    ui.heading("Volume");
-    color_row(ui, "Matière", &mut theme.solid);
-    color_row(ui, "Survol", &mut theme.highlight);
-    color_row(ui, "Ajout de matière", &mut theme.extrusion_add);
-    color_row(ui, "Enlèvement", &mut theme.extrusion_cut);
+    ui.heading(lang.t("settings.appearance.volume"));
+    color_row(ui, &lang.t("settings.appearance.solid"), &mut theme.solid);
+    color_row(
+        ui,
+        &lang.t("settings.appearance.highlight"),
+        &mut theme.highlight,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.extrusion_add"),
+        &mut theme.extrusion_add,
+    );
+    color_row(
+        ui,
+        &lang.t("settings.appearance.extrusion_cut"),
+        &mut theme.extrusion_cut,
+    );
 
     ui.add_space(10.0);
-    if ui.button("↺ Couleurs par défaut").clicked() {
+    if ui.button(lang.t("settings.appearance.reset")).clicked() {
         *theme = Theme::default();
     }
 
@@ -59,12 +119,12 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles) -> bool {
 }
 
 /// The background editor: the kind of gradient, then its stops.
-fn background_editor(ui: &mut egui::Ui, background: &mut Background) {
+fn background_editor(ui: &mut egui::Ui, background: &mut Background, lang: &Catalogue) {
     ui.horizontal_wrapped(|ui| {
         let kinds = [
-            ("Uni", 0usize),
-            ("Dégradé linéaire", 1),
-            ("Dégradé radial", 2),
+            ("settings.appearance.kind.solid", 0usize),
+            ("settings.appearance.kind.linear", 1),
+            ("settings.appearance.kind.radial", 2),
         ];
         let current = match background {
             Background::Solid(_) => 0,
@@ -72,7 +132,7 @@ fn background_editor(ui: &mut egui::Ui, background: &mut Background) {
             Background::Radial { .. } => 2,
         };
         for (name, kind) in kinds {
-            if ui.selectable_label(current == kind, name).clicked() && current != kind {
+            if ui.selectable_label(current == kind, lang.t(name)).clicked() && current != kind {
                 // The colours already chosen are kept across a change of kind:
                 // starting from black again every time would make trying the
                 // three of them tedious.
@@ -94,23 +154,43 @@ fn background_editor(ui: &mut egui::Ui, background: &mut Background) {
     });
 
     match background {
-        Background::Solid(color) => color_row(ui, "Couleur", color),
+        Background::Solid(color) => color_row(ui, &lang.t("settings.appearance.color"), color),
         Background::Linear {
             angle_degrees,
             stops,
         } => {
-            slider(ui, angle_degrees, 0.0..=360.0, "Angle");
-            stops_editor(ui, stops);
+            slider(
+                ui,
+                angle_degrees,
+                0.0..=360.0,
+                &lang.t("settings.appearance.angle"),
+            );
+            stops_editor(ui, stops, lang);
         }
         Background::Radial {
             center,
             radius,
             stops,
         } => {
-            slider(ui, &mut center[0], 0.0..=1.0, "Centre X");
-            slider(ui, &mut center[1], 0.0..=1.0, "Centre Y");
-            slider(ui, radius, 0.05..=2.0, "Rayon");
-            stops_editor(ui, stops);
+            slider(
+                ui,
+                &mut center[0],
+                0.0..=1.0,
+                &lang.t("settings.appearance.center_x"),
+            );
+            slider(
+                ui,
+                &mut center[1],
+                0.0..=1.0,
+                &lang.t("settings.appearance.center_y"),
+            );
+            slider(
+                ui,
+                radius,
+                0.05..=2.0,
+                &lang.t("settings.appearance.radius"),
+            );
+            stops_editor(ui, stops, lang);
         }
     }
 }
@@ -126,7 +206,7 @@ fn keep_stops(background: &Background) -> Vec<Stop> {
     }
 }
 
-fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>) {
+fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>, lang: &Catalogue) {
     let mut remove = None;
     for (rank, stop) in stops.iter_mut().enumerate() {
         ui.horizontal(|ui| {
@@ -134,7 +214,12 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>) {
             if ui.color_edit_button_srgba(&mut color).changed() {
                 stop.color = from_egui_color(color);
             }
-            slider(ui, &mut stop.at, 0.0..=1.0, "position");
+            slider(
+                ui,
+                &mut stop.at,
+                0.0..=1.0,
+                &lang.t("settings.appearance.stop_position"),
+            );
             if ui.button("✕").clicked() {
                 remove = Some(rank);
             }
@@ -145,7 +230,7 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>) {
     {
         stops.remove(rank);
     }
-    if ui.button("+ Ajouter une couleur").clicked() {
+    if ui.button(lang.t("settings.appearance.add_color")).clicked() {
         let color = stops
             .last()
             .map(|stop| stop.color)

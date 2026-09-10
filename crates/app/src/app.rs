@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use cao_part::{Operation, PartDocument};
+use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
 use cao_render::SceneRenderer;
 use cao_sketch::{Rule, WorkPlane};
@@ -9,8 +9,12 @@ use glam::DVec3;
 use crate::remembered::Remembered;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
-    self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
-    sketch::SketchEditor, start_menu::StartMenuAction,
+    self, OpenPart, Screen,
+    extrusion::{ExtrusionState, apply_extrusion},
+    history_tree::HistoryAction,
+    ribbon::Ribbon,
+    sketch::SketchEditor,
+    start_menu::StartMenuAction,
 };
 use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
@@ -310,6 +314,10 @@ fn run(
             tool(editor, Tool::Dimension);
             false
         }
+        Command::ToggleConstruction => {
+            editor.construction = !editor.construction;
+            false
+        }
         Command::DimensionAuto
         | Command::DimensionPointToPoint
         | Command::DimensionLength
@@ -403,53 +411,6 @@ fn run(
         }
         Command::ToggleToolbarDocked => false,
     }
-}
-
-/// Turns the chosen areas into matter, or takes them out of it.
-fn apply_extrusion(doc: &mut PartDocument, extrusion: &mut ExtrusionState) -> bool {
-    let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
-        return false;
-    };
-    if !extrusion.is_ready() {
-        return false;
-    }
-
-    let before = doc.body().clone();
-    let picks = std::mem::take(&mut extrusion.picks);
-    let operation = if extrusion.is_revolving() {
-        Operation::Revolve {
-            sketch,
-            picks,
-            axis: extrusion.axis,
-            angle: extrusion.angle().unwrap_or_default(),
-            mode,
-        }
-    } else {
-        Operation::Extrude {
-            sketch,
-            picks,
-            distance: extrusion.distance().unwrap_or_default(),
-            mode,
-        }
-    };
-    doc.apply(operation);
-
-    // An extrusion that changes nothing is worth saying out loud: a cut that
-    // misses the matter looks exactly like a tool that did not work.
-    extrusion.message = (doc.body() == &before).then(|| {
-        match (mode, extrusion.is_revolving()) {
-            (_, true) => {
-                "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
-            }
-            (cao_part::ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
-            (cao_part::ExtrusionMode::Cut, false) => {
-                "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
-            }
-        }
-        .to_string()
-    });
-    extrusion.mode = None;
-    true
 }
 
 /// After the history moves, the sketch being edited may no longer exist. The

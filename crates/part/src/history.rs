@@ -67,6 +67,11 @@ pub enum Operation {
         #[serde(default)]
         rim: Vec<PointRef>,
     },
+    /// Flags one or several shapes as construction geometry, or takes the flag
+    /// back off — several at once, so a rectangle's four sides flag together
+    /// in the one step that drew them, rather than one that undo could split.
+    /// Sketch, elements, whether they are now construction.
+    SetConstruction(usize, Vec<Element>, bool),
     /// Dragging a point to a new place.
     MovePoint {
         sketch: usize,

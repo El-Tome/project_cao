@@ -693,6 +693,19 @@ always turning as tightly as possible, and the walk comes back on itself around
 exactly one area. Counting the traits would not do — one and the same side
 belongs to two areas when two shapes share it.
 
+### Construction geometry
+
+The **Construction** toggle, next to the drawing tools, marks the next shape a
+tool places as construction: still real, still draggable, still solved and
+snapped onto like any other trait or circle, but excluded from the area of any
+region it sits inside or across, drawn dashed to say so. It stays pressed
+across shapes — off again is a second click — the same way a circle mode
+stays chosen until another is picked.
+
+It is there to help build a profile without becoming part of it: a
+symmetry line, a construction axis to dimension an angle against, a helper
+circle to centre a pattern on.
+
 ### The value field is on the dimension
 
 Once placed, the dimension carries its input field **right beside it**, in the

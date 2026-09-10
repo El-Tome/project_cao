@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::annotation::AnnotationMetrics;
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
 use crate::independence::is_dependent;
+use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 use crate::solver::SolveOutcome;
 
@@ -24,6 +25,8 @@ pub struct CircleId(pub usize);
 pub struct Circle {
     pub center: PointId,
     pub radius: f64,
+    #[serde(default)]
+    pub construction: bool,
 }
 
 /// A straight line between two points. Points are shared: chaining a polyline
@@ -33,19 +36,8 @@ pub struct Circle {
 pub struct Segment {
     pub start: PointId,
     pub end: PointId,
-}
-
-/// What happened when a length was applied.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LengthOutcome {
-    /// The segment now has exactly the requested length, and whatever hung off
-    /// its far end moved rigidly with it.
-    Exact,
-    /// The far end could not move freely because the geometry loops back to the
-    /// fixed end. Only the far end moved, so the shapes around it are distorted.
-    BestEffort,
-    /// The segment has no direction to stretch along.
-    Degenerate,
+    #[serde(default)]
+    pub construction: bool,
 }
 
 /// A 2D sketch on a plane. Everything is stored in the plane's own coordinates
@@ -109,13 +101,7 @@ impl Erased {
     }
 }
 
-/// One thing a sketch is made of, for deleting it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
-pub enum Element {
-    Point(PointId),
-    Segment(SegmentId),
-    Circle(CircleId),
-}
+pub use crate::element::Element;
 
 impl Sketch {
     /// Every sketch owns a point at its origin from the moment it is created.
@@ -466,7 +452,11 @@ impl Sketch {
     }
 
     pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.circles.push(Circle { center, radius });
+        self.circles.push(Circle {
+            center,
+            radius,
+            construction: false,
+        });
         CircleId(self.circles.len() - 1)
     }
 
@@ -514,8 +504,7 @@ impl Sketch {
         }
     }
 
-    /// The dimension whose annotation sits nearest `position`, within
-    /// `tolerance`.
+    /// The dimension whose annotation sits nearest `position`, within `tolerance`.
     pub fn nearest_dimension(
         &self,
         position: DVec2,
@@ -540,9 +529,8 @@ impl Sketch {
         }
     }
 
-    /// Reuses an existing point when one is within `tolerance`, so that clicking
-    /// back onto a corner joins the geometry there instead of laying a second
-    /// point on top of it.
+    /// Reuses an existing point when one is within `tolerance`, so that clicking back onto a corner
+    /// joins the geometry there instead of laying a second point on top of it.
     pub fn point_at(&mut self, position: DVec2, tolerance: f64) -> PointId {
         match self.nearest_point(position, tolerance) {
             Some(id) => id,
@@ -674,8 +662,20 @@ impl Sketch {
     }
 
     pub fn add_segment(&mut self, start: PointId, end: PointId) -> SegmentId {
-        self.segments.push(Segment { start, end });
+        self.segments.push(Segment {
+            start,
+            end,
+            construction: false,
+        });
         SegmentId(self.segments.len() - 1)
+    }
+
+    pub fn set_construction(&mut self, element: Element, construction: bool) {
+        match element {
+            Element::Segment(id) => self.segments[id.0].construction = construction,
+            Element::Circle(id) => self.circles[id.0].construction = construction,
+            Element::Point(_) => {}
+        }
     }
 
     pub fn segment_length(&self, id: SegmentId) -> f64 {

@@ -455,8 +455,7 @@ fn push_sketch(
         let end = sketch
             .plane
             .to_world(shown_position(sketch, segment.end, context));
-        out.push(cao_render::Vertex::line(start.as_vec3(), color, width));
-        out.push(cao_render::Vertex::line(end.as_vec3(), color, width));
+        push_line(out, start, end, color, width, segment.construction, scale);
     }
 
     for (id, circle) in sketch.live_circles() {
@@ -471,7 +470,16 @@ fn push_sketch(
             color,
             width,
         );
-        push_circle(out, sketch, circle.center, circle.radius, color, width);
+        push_circle_at(
+            out,
+            sketch,
+            sketch.point(circle.center),
+            circle.radius,
+            color,
+            width,
+            circle.construction,
+            scale,
+        );
     }
 
     if !active {
@@ -860,7 +868,16 @@ fn push_preview(
         && let Some(index) = context.editor.active_sketch()
         && let Some(found) = circle_from(context, index, cursor, scale.world_size_of(PICK_PIXELS))
     {
-        push_circle_at(out, sketch, found.centre, found.radius, preview, 1.5);
+        push_circle_at(
+            out,
+            sketch,
+            found.centre,
+            found.radius,
+            preview,
+            1.5,
+            context.editor.construction,
+            scale,
+        );
         push_point_marker(
             out,
             sketch,
@@ -913,19 +930,53 @@ fn push_preview_line(
     ));
 }
 
-fn push_circle(
+/// How long each dash and the gap after it are on screen, so the pattern
+/// stays readable at any zoom instead of vanishing or clumping together.
+const DASH_PIXELS: f64 = 6.0;
+
+/// A straight line, plain or, for construction geometry, broken into dashes
+/// of a constant size on screen.
+fn push_line(
     out: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    center: PointId,
-    radius: f64,
+    start: DVec3,
+    end: DVec3,
     color: [f32; 4],
     width: f32,
+    construction: bool,
+    scale: ViewScale,
 ) {
-    push_circle_at(out, sketch, sketch.point(center), radius, color, width);
+    let span = end - start;
+    let length = span.length();
+    let dash = DASH_PIXELS * scale.units_per_pixel;
+    if !construction || length < dash {
+        out.push(cao_render::Vertex::line(start.as_vec3(), color, width));
+        out.push(cao_render::Vertex::line(end.as_vec3(), color, width));
+        return;
+    }
+    let direction = span / length;
+    let mut walked = 0.0;
+    while walked < length {
+        let dash_end = (walked + dash).min(length);
+        out.push(cao_render::Vertex::line(
+            (start + direction * walked).as_vec3(),
+            color,
+            width,
+        ));
+        out.push(cao_render::Vertex::line(
+            (start + direction * dash_end).as_vec3(),
+            color,
+            width,
+        ));
+        walked += dash * 2.0;
+    }
 }
 
 /// Circles are drawn as a many-sided polygon: the line renderer only knows
 /// about segments, and at this many sides the corners are invisible.
+///
+/// Construction geometry skips every other group of sides, which is what
+/// turns the same polygon into a dashed circle.
+#[allow(clippy::too_many_arguments)]
 fn push_circle_at(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -933,17 +984,25 @@ fn push_circle_at(
     radius: f64,
     color: [f32; 4],
     width: f32,
+    construction: bool,
+    scale: ViewScale,
 ) {
     const SIDES: usize = 96;
     if radius <= 0.0 {
         return;
     }
+    // How many sides make up one dash: kept a constant size on screen, the
+    // same way a construction line's dashes are, rather than growing with
+    // the circle's own radius.
+    let side_length = std::f64::consts::TAU * radius / SIDES as f64;
+    let dash_group = ((DASH_PIXELS * scale.units_per_pixel / side_length).round() as usize).max(1);
     let mut previous = None;
     for step in 0..=SIDES {
         let angle = step as f64 / SIDES as f64 * std::f64::consts::TAU;
         let point = center + DVec2::new(angle.cos(), angle.sin()) * radius;
         let world = sketch.plane.to_world(point);
-        if let Some(previous) = previous {
+        let drawn = !construction || (step / dash_group).is_multiple_of(2);
+        if let (Some(previous), true) = (previous, drawn) {
             out.push(cao_render::Vertex::line(previous, color, width));
             out.push(cao_render::Vertex::line(world.as_vec3(), color, width));
         }

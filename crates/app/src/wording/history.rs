@@ -16,6 +16,8 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::AddSegment { .. } => "Trait".to_string(),
         Operation::AddRectangle { .. } => "Rectangle".to_string(),
         Operation::AddCircle { .. } => "Cercle".to_string(),
+        Operation::SetConstruction(.., true) => "Devient construction".to_string(),
+        Operation::SetConstruction(.., false) => "N'est plus construction".to_string(),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => "Déplacement".to_string(),
         Operation::MoveDimension { .. } => "Cote déplacée".to_string(),
         Operation::Constrain { constraint, .. } => constraints::label(*constraint).to_string(),
@@ -89,6 +91,7 @@ pub fn detail(operation: &Operation) -> String {
         Operation::AddCircle { sketch, radius, .. } => {
             format!("Esquisse {sketch} · rayon {radius:.2}")
         }
+        Operation::SetConstruction(sketch, ..) => format!("Esquisse {sketch}"),
         Operation::MovePoint {
             sketch,
             point,

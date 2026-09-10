@@ -283,5 +283,12 @@
   "toolbar.group.extrusion": "Extrusion",
   "toolbar.separator": "— séparateur —",
 
-  "settings.profile.default": "Par défaut"
+  "settings.profile.default": "Par défaut",
+
+  "settings.section.profiles": "Profils",
+  "settings.section.viewport": "Viewport",
+  "settings.section.navigation": "Navigation",
+  "settings.section.appearance": "Apparence",
+  "settings.section.shortcuts": "Raccourcis",
+  "settings.section.toolbar": "Barre d'outils"
 }

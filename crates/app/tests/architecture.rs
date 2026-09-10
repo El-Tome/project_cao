@@ -127,14 +127,13 @@ const WIDGETS_A_SCREEN_SHOULD_NOT_DRESS: [&str; 11] = [
 /// #203 is the issue that empties it: every figure falls to zero and the entry
 /// goes with it. A single character is not counted — a glyph is drawn rather
 /// than read, which is why `wording/constraints.rs` keeps its marks.
-const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 16] = [
+const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 15] = [
     ("crates/app/src/app.rs", 3),
     ("crates/app/src/screens/extrusion.rs", 3),
     ("crates/app/src/screens/extrusion_row.rs", 7),
     ("crates/app/src/screens/history_tree.rs", 6),
     ("crates/app/src/screens/ribbon.rs", 5),
     ("crates/app/src/screens/settings/appearance.rs", 31),
-    ("crates/app/src/screens/settings/mod.rs", 5),
     ("crates/app/src/screens/settings/navigation.rs", 14),
     ("crates/app/src/screens/settings/profiles.rs", 12),
     ("crates/app/src/screens/settings/shortcuts.rs", 3),

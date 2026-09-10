@@ -31,15 +31,15 @@ impl Section {
         Self::Toolbar,
     ];
 
-    fn label(self) -> &'static str {
-        match self {
-            Self::Profiles => "Profils",
-            Self::Viewport => "Viewport",
-            Self::Navigation => "Navigation",
-            Self::Appearance => "Apparence",
-            Self::Shortcuts => "Raccourcis",
-            Self::Toolbar => "Barre d'outils",
-        }
+    fn label(self, lang: &Catalogue) -> String {
+        lang.t(match self {
+            Self::Profiles => "settings.section.profiles",
+            Self::Viewport => "settings.section.viewport",
+            Self::Navigation => "settings.section.navigation",
+            Self::Appearance => "settings.section.appearance",
+            Self::Shortcuts => "settings.section.shortcuts",
+            Self::Toolbar => "settings.section.toolbar",
+        })
     }
 }
 
@@ -72,7 +72,7 @@ pub fn show(
     ui.horizontal_wrapped(|ui| {
         for section in Section::ALL {
             if ui
-                .selectable_label(editor.section == section, section.label())
+                .selectable_label(editor.section == section, section.label(lang))
                 .clicked()
             {
                 editor.section = section;

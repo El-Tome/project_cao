@@ -4,7 +4,6 @@
 //!
 //! What a click decides lives in [`super::input`].
 
-use cao_part::history::Operation;
 use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::{
@@ -16,12 +15,10 @@ use cao_sketch::{
 };
 use glam::{DVec2, DVec3};
 
-use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool};
+use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
-use super::input::{
-    REDUNDANT_WARNING, annotation_position, circle_from, measure_preview, rectangle_corner, refine,
-};
+use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
 };
@@ -1422,7 +1419,11 @@ pub(crate) fn paint_dimension_field(
             });
         });
 
-    applied && apply_dimension_value(context, index, target)
+    let applied = applied && apply_dimension_value(context.document, context.editor, index, target);
+    if applied {
+        context.editor.editing = None;
+    }
+    applied
 }
 
 /// Where an annotation writes its value, on screen.
@@ -1451,71 +1452,6 @@ fn annotation_screen_position(
             .view_projection(rect.width() / rect.height().max(1.0)),
         rect,
     )
-}
-
-/// Records what the user typed into the value field.
-fn apply_dimension_value(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    target: DimensionTarget,
-) -> bool {
-    let Some(typed) = context
-        .editor
-        .editing
-        .as_ref()
-        .map(|editing| editing.input.clone())
-    else {
-        return false;
-    };
-    let Ok(value) = typed.trim().replace(',', ".").parse::<f64>() else {
-        context.editor.message = Some("Valeur invalide".to_string());
-        return false;
-    };
-
-    // Only the value changes here: where the annotation sits was decided when it
-    // was put down, and retyping a number must not send it back to its default.
-    // A value that is already the one in force changes nothing, and clicking
-    // ✔ twice must not leave two identical steps in the history.
-    if context.document.sketches()[index]
-        .dimension_of(target)
-        .is_some_and(|dimension| (dimension.value - value).abs() < 1e-4)
-    {
-        context.editor.message = None;
-        return false;
-    }
-
-    match context.document.apply(Operation::SetDimension {
-        sketch: index,
-        target,
-        value,
-        placement: None,
-    }) {
-        Some(cao_part::DimensionOutcome::ScaleDefined {
-            millimeters_per_unit,
-        }) => {
-            context.editor.message = Some(format!(
-                "Échelle définie : 1 unité = {millimeters_per_unit:.4} mm"
-            ));
-            true
-        }
-        Some(cao_part::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact)) => {
-            context.editor.message = None;
-            true
-        }
-        Some(cao_part::DimensionOutcome::Geometry(cao_sketch::LengthOutcome::BestEffort)) => {
-            context.editor.message =
-                Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
-            true
-        }
-        Some(cao_part::DimensionOutcome::Reference) => {
-            context.editor.message = Some(REDUNDANT_WARNING.to_string());
-            true
-        }
-        _ => {
-            context.editor.message = Some("Cote impossible ici".to_string());
-            false
-        }
-    }
 }
 
 fn face_label(face: cao_render::CubeFace) -> &'static str {

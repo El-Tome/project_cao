@@ -1,4 +1,6 @@
-use cao_sketch::{DimensionTarget, PointId, Rule, Selection, ToolState, WorkPlane};
+use crate::wording::dimension::REDUNDANT_WARNING;
+use cao_part::{DimensionOutcome, PartDocument, history::Operation};
+use cao_sketch::{DimensionTarget, LengthOutcome, PointId, Rule, Selection, ToolState, WorkPlane};
 use glam::DVec2;
 
 pub use cao_sketch::{CircleMode, DimensionMode};
@@ -338,5 +340,60 @@ impl SketchEditor {
             },
             focus: !same,
         });
+    }
+}
+
+/// `placement: None` leaves the annotation where it was put down, not reset.
+pub(crate) fn apply_dimension_value(
+    document: &mut PartDocument,
+    editor: &mut SketchEditor,
+    index: usize,
+    target: DimensionTarget,
+) -> bool {
+    let Some(typed) = editor.editing.as_ref().map(|editing| editing.input.clone()) else {
+        return false;
+    };
+    let Ok(value) = typed.trim().replace(',', ".").parse::<f64>() else {
+        editor.message = Some("Valeur invalide".to_string());
+        return false;
+    };
+
+    // The same value twice must not repeat an identical step in the history.
+    if document.sketches()[index]
+        .dimension_of(target)
+        .is_some_and(|dimension| (dimension.value - value).abs() < 1e-4)
+    {
+        editor.message = None;
+        return false;
+    }
+
+    match document.apply(Operation::SetDimension {
+        sketch: index,
+        target,
+        value,
+        placement: None,
+    }) {
+        Some(DimensionOutcome::ScaleDefined {
+            millimeters_per_unit: mm,
+        }) => {
+            editor.message = Some(format!("Échelle définie : 1 unité = {mm:.4} mm"));
+            true
+        }
+        Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => {
+            editor.message = None;
+            true
+        }
+        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => {
+            editor.message = Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
+            true
+        }
+        Some(DimensionOutcome::Reference) => {
+            editor.message = Some(REDUNDANT_WARNING.to_string());
+            true
+        }
+        _ => {
+            editor.message = Some("Cote impossible ici".to_string());
+            false
+        }
     }
 }

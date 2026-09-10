@@ -14,6 +14,7 @@ use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::{DimensionMode, PlaneChoice, Tool};
 use crate::wording::constraints;
+use crate::wording::dimension::REDUNDANT_WARNING;
 
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
@@ -1277,9 +1278,6 @@ pub(crate) fn refine(
         .get(index)?
         .refine(target, cursor, snap)
 }
-
-/// Shown when a value would add nothing to a shape that is already settled.
-pub(crate) const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
 
 /// One click of the line tool. The first click only remembers where the chain
 /// starts; the second turns the pair into a segment in the history.

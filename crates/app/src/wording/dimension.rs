@@ -2,6 +2,9 @@ use cao_sketch::{DimensionTarget, SketchAxis};
 
 use crate::wording::constraints;
 
+/// Shown when a value would add nothing to a shape that is already settled.
+pub const REDUNDANT_WARNING: &str = "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.";
+
 /// The only place a dimension is turned into a name.
 ///
 /// The value is millimetres for a length or a radius, degrees for an angle.

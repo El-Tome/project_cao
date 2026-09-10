@@ -55,27 +55,31 @@ impl CaoApp {
 
     fn save_settings(&mut self) {
         if self.remembered.has_nowhere_to_keep() {
-            self.error = Some(wording::storage::nowhere_to_keep_settings());
+            self.error = Some(wording::storage::nowhere_to_keep_settings(
+                self.remembered.lang(),
+            ));
         } else if let Some(err) = self.remembered.save_profiles() {
-            self.error = Some(wording::storage::say(&err));
+            self.error = Some(wording::storage::say(self.remembered.lang(), &err));
         }
     }
 
     fn create_new_part(&mut self, name: String) {
         let Some(dir) = self.remembered.projects_dir() else {
-            self.error = Some(wording::storage::nowhere_to_keep_settings());
+            self.error = Some(wording::storage::nowhere_to_keep_settings(
+                self.remembered.lang(),
+            ));
             return;
         };
         match PartDocument::create_in(&DiskFiles, &dir, name, chrono::Utc::now()) {
             Ok((doc, path)) => self.open_document(doc, path),
-            Err(err) => self.error = Some(wording::part_file::say(&err)),
+            Err(err) => self.error = Some(wording::part_file::say(self.remembered.lang(), &err)),
         }
     }
 
     fn open_part(&mut self, path: PathBuf) {
         match PartDocument::load(&DiskFiles, &path) {
             Ok(doc) => self.open_document(doc, path),
-            Err(err) => self.error = Some(wording::part_file::say(&err)),
+            Err(err) => self.error = Some(wording::part_file::say(self.remembered.lang(), &err)),
         }
     }
 
@@ -83,7 +87,8 @@ impl CaoApp {
         let failure = self
             .remembered
             .remember_part(&path, doc.name(), chrono::Utc::now());
-        self.error = failure.as_ref().map(wording::storage::say);
+        let lang = self.remembered.lang();
+        self.error = failure.as_ref().map(|err| wording::storage::say(lang, err));
         self.screen = Screen::PartOpened(Box::new(OpenPart {
             doc,
             path,
@@ -204,7 +209,9 @@ impl CaoApp {
             autosave.touched();
         }
         let at_rest = back_to_menu || !ui.ctx().input(|input| input.pointer.any_down());
-        if let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest) {
+        if let Some(message) =
+            autosave.write_if_due(&DiskFiles, doc, path, at_rest, self.remembered.lang())
+        {
             self.error = Some(message);
         }
         if back_to_menu {
@@ -476,8 +483,13 @@ impl eframe::App for CaoApp {
 
     fn on_exit(&mut self) {
         if let Screen::PartOpened(part) = &mut self.screen {
-            part.autosave
-                .write_if_due(&DiskFiles, &part.doc, &part.path, true);
+            part.autosave.write_if_due(
+                &DiskFiles,
+                &part.doc,
+                &part.path,
+                true,
+                self.remembered.lang(),
+            );
         }
     }
 }

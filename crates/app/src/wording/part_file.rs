@@ -1,5 +1,6 @@
 use cao_part::{FileError, PartFileError};
 
+use crate::lang::Catalogue;
 use crate::wording::file;
 
 /// The only place a part file failure is turned into a sentence.
@@ -8,25 +9,23 @@ use crate::wording::file;
 /// carries from below — a file, a zip, a JSON document — say nothing a user
 /// can act on, so what is said here is what went wrong with their part, not
 /// what the library reported.
-pub fn say(error: &PartFileError) -> String {
+pub fn say(lang: &Catalogue, error: &PartFileError) -> String {
     match error {
         PartFileError::MissingEntry(entry) => {
-            format!("Le fichier de pièce ne contient pas « {entry} ».")
+            lang.t_with("part_file.missing_entry", &[("entry", entry)])
         }
-        PartFileError::UnsupportedVersion(version) => format!(
-            "Cette pièce a été enregistrée dans une autre version du logiciel (v{version}) \
-             et ne peut pas être ouverte."
+        PartFileError::UnsupportedVersion(version) => lang.t_with(
+            "part_file.unsupported_version",
+            &[("version", &version.to_string())],
         ),
         PartFileError::File(fate) => match fate {
-            FileError::Absent(path) => file::absent(path),
-            FileError::Refused(path) => file::refused(path),
-            FileError::Interrupted(path) => file::interrupted(path),
+            FileError::Absent(path) => file::absent(lang, path),
+            FileError::Refused(path) => file::refused(lang, path),
+            FileError::Interrupted(path) => file::interrupted(lang, path),
         },
-        PartFileError::Archive(_) => {
-            "L'archive de cette pièce n'a pas pu être traitée.".to_string()
-        }
-        PartFileError::Json(_) => "Le contenu de cette pièce n'a pas pu être traité.".to_string(),
-        PartFileError::BlankName => "Une pièce a besoin d'un nom.".to_string(),
+        PartFileError::Archive(_) => lang.t("part_file.archive_unreadable"),
+        PartFileError::Json(_) => lang.t("part_file.json_unreadable"),
+        PartFileError::BlankName => lang.t("part_file.blank_name"),
     }
 }
 
@@ -38,7 +37,10 @@ mod tests {
 
     #[test]
     fn an_archive_missing_an_entry_says_which_one_is_missing() {
-        let said = say(&PartFileError::MissingEntry("piece.json".into()));
+        let said = say(
+            &Catalogue::french(),
+            &PartFileError::MissingEntry("piece.json".into()),
+        );
 
         assert!(
             said.contains("piece.json"),
@@ -48,7 +50,7 @@ mod tests {
 
     #[test]
     fn a_part_named_with_blanks_alone_is_told_what_it_is_missing() {
-        let said = say(&PartFileError::BlankName);
+        let said = say(&Catalogue::french(), &PartFileError::BlankName);
 
         assert!(
             said.contains("nom"),
@@ -58,7 +60,7 @@ mod tests {
 
     #[test]
     fn a_part_from_an_older_schema_says_which_version_wrote_it() {
-        let said = say(&PartFileError::UnsupportedVersion(1));
+        let said = say(&Catalogue::french(), &PartFileError::UnsupportedVersion(1));
 
         assert!(
             said.contains("v1"),
@@ -74,9 +76,10 @@ mod tests {
             FileError::Interrupted("/parts/a.caopart".into()),
         ];
 
+        let lang = Catalogue::french();
         let said: BTreeSet<String> = fates
             .into_iter()
-            .map(|fate| say(&PartFileError::File(fate)))
+            .map(|fate| say(&lang, &PartFileError::File(fate)))
             .inspect(|said| assert!(said.contains("/parts/a.caopart"), "{said}"))
             .collect();
 
@@ -103,19 +106,24 @@ mod tests {
             matches!(error, PartFileError::Archive(_)),
             "the guard in PartDocument::load changed and this no longer reaches the zip: {error:?}",
         );
+        let lang = Catalogue::french();
         assert_ne!(
-            say(&error),
+            say(&lang, &error),
             error.to_string(),
             "the reader is shown what the zip library said",
         );
-        assert!(say(&error).contains("archive"), "{}", say(&error));
+        assert!(
+            say(&lang, &error).contains("archive"),
+            "{}",
+            say(&lang, &error)
+        );
     }
 
     #[test]
     fn contents_that_are_not_readable_json_say_so_without_the_words_of_the_parser() {
         let broken = serde_json::from_str::<u32>("not json at all").expect_err("a parse error");
 
-        let said = say(&PartFileError::Json(broken));
+        let said = say(&Catalogue::french(), &PartFileError::Json(broken));
 
         assert!(
             said.contains("pièce"),

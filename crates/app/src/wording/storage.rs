@@ -1,13 +1,14 @@
 use cao_prefs::{FileError, StorageError};
 
+use crate::lang::Catalogue;
 use crate::wording::file;
 
 /// A platform that gave no directory to keep the settings in.
 ///
 /// The case is named by the shell, which is where asking the platform now
 /// happens; only the sentence is decided here.
-pub fn nowhere_to_keep_settings() -> String {
-    "Ce poste n'offre aucun dossier où garder les réglages.".to_string()
+pub fn nowhere_to_keep_settings(lang: &Catalogue) -> String {
+    lang.t("storage.nowhere_to_keep")
 }
 
 /// The only place a settings failure is turned into a sentence.
@@ -16,20 +17,18 @@ pub fn nowhere_to_keep_settings() -> String {
 /// below — a file, a JSON document — says nothing a user can act on, so what
 /// is said here is what went wrong with their settings, not what the library
 /// reported.
-pub fn say(error: &StorageError) -> String {
+pub fn say(lang: &Catalogue, error: &StorageError) -> String {
     match error {
         StorageError::File(fate) => match fate {
-            FileError::Absent(path) => file::absent(path),
-            FileError::Refused(path) => file::refused(path),
-            FileError::Interrupted(path) => file::interrupted(path),
+            FileError::Absent(path) => file::absent(lang, path),
+            FileError::Refused(path) => file::refused(lang, path),
+            FileError::Interrupted(path) => file::interrupted(lang, path),
         },
-        StorageError::UnsupportedVersion(version) => format!(
-            "Ce profil a été enregistré dans une autre version du logiciel (v{version}) \
-             et ne peut pas être ouvert."
+        StorageError::UnsupportedVersion(version) => lang.t_with(
+            "storage.unsupported_version",
+            &[("version", &version.to_string())],
         ),
-        StorageError::Json(_) => {
-            "Le contenu de ce fichier de réglages n'a pas pu être traité.".to_string()
-        }
+        StorageError::Json(_) => lang.t("storage.unreadable_json"),
     }
 }
 
@@ -41,7 +40,7 @@ mod tests {
 
     #[test]
     fn a_platform_with_nowhere_to_keep_settings_says_so_rather_than_naming_a_directory_kind() {
-        let said = nowhere_to_keep_settings();
+        let said = nowhere_to_keep_settings(&Catalogue::french());
 
         assert!(!said.is_empty(), "the reader is left with nothing to read");
         assert!(
@@ -58,9 +57,10 @@ mod tests {
             FileError::Interrupted("/etc/cao.json".into()),
         ];
 
+        let lang = Catalogue::french();
         let said: BTreeSet<String> = fates
             .into_iter()
-            .map(|fate| say(&StorageError::File(fate)))
+            .map(|fate| say(&lang, &StorageError::File(fate)))
             .inspect(|said| assert!(said.contains("/etc/cao.json"), "{said}"))
             .collect();
 
@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn a_profile_from_an_older_settings_version_says_which_version_wrote_it() {
-        let said = say(&StorageError::UnsupportedVersion(2));
+        let said = say(&Catalogue::french(), &StorageError::UnsupportedVersion(2));
 
         assert!(
             said.contains("v2"),
@@ -91,7 +91,10 @@ mod tests {
             .write(path, b"not json at all")
             .expect("the file is written");
 
-        let said = say(&cao_prefs::Profile::import(&files, path).expect_err("not json"));
+        let said = say(
+            &Catalogue::french(),
+            &cao_prefs::Profile::import(&files, path).expect_err("not json"),
+        );
 
         assert!(
             said.contains("réglages"),

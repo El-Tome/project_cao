@@ -2,6 +2,20 @@
   "history.point": "Point",
   "history.sketch": "Esquisse — {plane}",
 
+  "file.absent": "Aucun fichier à {path}.",
+  "file.refused": "Le système a refusé l'accès à {path}.",
+  "file.interrupted": "L'échange avec {path} s'est arrêté en chemin.",
+
+  "storage.nowhere_to_keep": "Ce poste n'offre aucun dossier où garder les réglages.",
+  "storage.unsupported_version": "Ce profil a été enregistré dans une autre version du logiciel (v{version}) et ne peut pas être ouvert.",
+  "storage.unreadable_json": "Le contenu de ce fichier de réglages n'a pas pu être traité.",
+
+  "part_file.missing_entry": "Le fichier de pièce ne contient pas « {entry} ».",
+  "part_file.unsupported_version": "Cette pièce a été enregistrée dans une autre version du logiciel (v{version}) et ne peut pas être ouverte.",
+  "part_file.archive_unreadable": "L'archive de cette pièce n'a pas pu être traitée.",
+  "part_file.json_unreadable": "Le contenu de cette pièce n'a pas pu être traité.",
+  "part_file.blank_name": "Une pièce a besoin d'un nom.",
+
   "command.label.new_sketch": "Nouvelle esquisse",
   "command.label.finish_sketch": "Terminer",
   "command.label.recenter_on_sketch": "Recadrer",

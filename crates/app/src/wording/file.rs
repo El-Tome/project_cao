@@ -6,14 +6,16 @@
 
 use std::path::Path;
 
-pub fn absent(path: &Path) -> String {
-    format!("Aucun fichier à {}.", path.display())
+use crate::lang::Catalogue;
+
+pub fn absent(lang: &Catalogue, path: &Path) -> String {
+    lang.t_with("file.absent", &[("path", &path.display().to_string())])
 }
 
-pub fn refused(path: &Path) -> String {
-    format!("Le système a refusé l'accès à {}.", path.display())
+pub fn refused(lang: &Catalogue, path: &Path) -> String {
+    lang.t_with("file.refused", &[("path", &path.display().to_string())])
 }
 
-pub fn interrupted(path: &Path) -> String {
-    format!("L'échange avec {} s'est arrêté en chemin.", path.display())
+pub fn interrupted(lang: &Catalogue, path: &Path) -> String {
+    lang.t_with("file.interrupted", &[("path", &path.display().to_string())])
 }

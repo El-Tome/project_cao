@@ -173,11 +173,11 @@ impl SketchEditor {
         self.phase == SketchPhase::ChoosingPlane
     }
 
-    pub fn start_choosing_plane(&mut self) {
+    pub fn start_choosing_plane(&mut self, lang: &crate::lang::Catalogue) {
         self.phase = SketchPhase::ChoosingPlane;
         self.tool = Tool::None;
         self.reset_pending();
-        self.message = Some("Choisissez un plan d'esquisse".to_string());
+        self.message = Some(lang.t("sketch.choose_a_plane"));
     }
 
     /// Drops everything half-finished: the shape in progress, the dimension
@@ -356,7 +356,7 @@ pub(crate) fn apply_dimension_value(
         return false;
     };
     let Ok(value) = typed.trim().replace(',', ".").parse::<f64>() else {
-        editor.message = Some("Valeur invalide".to_string());
+        editor.message = Some(lang.t("sketch.invalid_value"));
         return false;
     };
 
@@ -378,7 +378,7 @@ pub(crate) fn apply_dimension_value(
         Some(DimensionOutcome::ScaleDefined {
             millimeters_per_unit: mm,
         }) => {
-            editor.message = Some(format!("Échelle définie : 1 unité = {mm:.4} mm"));
+            editor.message = Some(lang.t_with("sketch.scale_set", &[("mm", &format!("{mm:.4}"))]));
             true
         }
         Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => {
@@ -386,7 +386,7 @@ pub(crate) fn apply_dimension_value(
             true
         }
         Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => {
-            editor.message = Some("Contour fermé : seul le point d'arrivée a bougé".to_string());
+            editor.message = Some(lang.t("sketch.closed_outline"));
             true
         }
         Some(DimensionOutcome::Reference) => {
@@ -394,7 +394,7 @@ pub(crate) fn apply_dimension_value(
             true
         }
         _ => {
-            editor.message = Some("Cote impossible ici".to_string());
+            editor.message = Some(lang.t("sketch.no_dimension_here"));
             false
         }
     }

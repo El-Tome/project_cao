@@ -64,7 +64,8 @@ crates/app/src/
 how an `Edge` and an `Item` do, `wording/history/` how a step of the part's
 history reads and what its unfolded line says, `wording/dimension.rs` what a dimension measures,
 `wording/constraints.rs` how a rule of the drawing reads and what mark it is
-given, `wording/plane.rs` how a `PlaneKind` is called,
+given, `wording/plane.rs` how a `PlaneKind` is called, `wording/cube.rs` how a
+`CubeFace` is,
 `wording/settings.rs` what a profile is called, `wording/part_file.rs` and
 `wording/storage.rs` what went wrong with a part or with the settings, and
 `wording/file.rs` the three ways the disk can refuse, said once for the two

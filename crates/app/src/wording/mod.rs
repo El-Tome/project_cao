@@ -12,6 +12,7 @@
 pub mod circle;
 pub mod command;
 pub mod constraints;
+pub mod cube;
 pub mod dimension;
 pub mod file;
 pub mod history;

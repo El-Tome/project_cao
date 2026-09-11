@@ -446,5 +446,30 @@
 
   "viewport.read_only": "{value} {unit} (lecture seule)",
   "viewport.degrees": "degrés",
-  "viewport.apply": "Appliquer"
+  "viewport.apply": "Appliquer",
+
+  "app.home": "⌂ Accueil",
+  "app.free_view": "Vue 3D libre",
+  "app.settings": "⚙ Préférences",
+  "app.settings_window": "Préférences",
+
+  "ribbon.tools": "Outils",
+  "ribbon.history": "Historique",
+  "ribbon.settings": "Préférences",
+
+  "history_tree.title": "Historique",
+  "history_tree.empty": "Rien encore. Commencez par une esquisse.",
+  "history_tree.empty_part": "Pièce vide",
+  "history_tree.empty_part_hint": "Revenir avant la première opération",
+  "history_tree.edit": "✏ Modifier",
+  "history_tree.edit_hint": "Rouvrir cette esquisse pour y dessiner",
+  "history_tree.edit_sketch": "Modifier cette esquisse",
+
+  "start_menu.title": "CAO",
+  "start_menu.subtitle": "Nouvelle pièce ou reprise d'une pièce récente",
+  "start_menu.new_part": "Nouvelle pièce",
+  "start_menu.name": "Nom :",
+  "start_menu.create": "Créer",
+  "start_menu.recents": "Pièces récentes",
+  "start_menu.no_recents": "Aucune pièce ouverte pour le moment."
 }

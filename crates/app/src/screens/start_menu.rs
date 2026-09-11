@@ -2,6 +2,8 @@ use std::path::PathBuf;
 
 use cao_prefs::RecentEntry;
 
+use crate::lang::Catalogue;
+
 pub enum StartMenuAction {
     None,
     CreateNew(String),
@@ -12,13 +14,14 @@ pub fn show(
     ui: &mut egui::Ui,
     recents: &[RecentEntry],
     new_part_name: &mut String,
+    lang: &Catalogue,
 ) -> StartMenuAction {
     let mut action = StartMenuAction::None;
 
     ui.vertical_centered(|ui| {
         ui.add_space(24.0);
-        ui.heading("CAO");
-        ui.label("Nouvelle pièce ou reprise d'une pièce récente");
+        ui.heading(lang.t("start_menu.title"));
+        ui.label(lang.t("start_menu.subtitle"));
         ui.add_space(24.0);
     });
 
@@ -26,16 +29,16 @@ pub fn show(
 
     ui.columns(2, |columns| {
         columns[0].vertical(|ui| {
-            ui.heading("Nouvelle pièce");
+            ui.heading(lang.t("start_menu.new_part"));
             ui.add_space(8.0);
             ui.horizontal(|ui| {
-                ui.label("Nom :");
+                ui.label(lang.t("start_menu.name"));
                 ui.text_edit_singleline(new_part_name);
             });
             ui.add_space(8.0);
             let can_create = !new_part_name.trim().is_empty();
             if ui
-                .add_enabled(can_create, egui::Button::new("Créer"))
+                .add_enabled(can_create, egui::Button::new(lang.t("start_menu.create")))
                 .clicked()
             {
                 action = StartMenuAction::CreateNew(new_part_name.trim().to_string());
@@ -44,10 +47,10 @@ pub fn show(
         });
 
         columns[1].vertical(|ui| {
-            ui.heading("Pièces récentes");
+            ui.heading(lang.t("start_menu.recents"));
             ui.add_space(8.0);
             if recents.is_empty() {
-                ui.weak("Aucune pièce ouverte pour le moment.");
+                ui.weak(lang.t("start_menu.no_recents"));
             } else {
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     for entry in recents {

@@ -35,18 +35,18 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> History
     let operations = document.history.operations();
     let applied = document.history.applied();
 
-    ui.heading("Historique");
+    ui.heading(lang.t("history_tree.title"));
     ui.add_space(4.0);
 
     if operations.is_empty() {
-        ui.weak("Rien encore. Commencez par une esquisse.");
+        ui.weak(lang.t("history_tree.empty"));
         return HistoryAction::None;
     }
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         if ui
-            .selectable_label(applied == 0, "Pièce vide")
-            .on_hover_text("Revenir avant la première opération")
+            .selectable_label(applied == 0, lang.t("history_tree.empty_part"))
+            .on_hover_text(lang.t("history_tree.empty_part_hint"))
             .clicked()
         {
             rewind_to = Some(0);
@@ -88,7 +88,7 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> History
             // to a part, so it gets a button of its own rather than hiding
             // behind a right-click.
             response.header_response.context_menu(|ui| {
-                if ui.button("Modifier cette esquisse").clicked() {
+                if ui.button(lang.t("history_tree.edit_sketch")).clicked() {
                     action = HistoryAction::EditSketch(sketch);
                     ui.close();
                 }
@@ -96,8 +96,8 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> History
             ui.horizontal(|ui| {
                 ui.add_space(18.0);
                 if ui
-                    .small_button("✏ Modifier")
-                    .on_hover_text("Rouvrir cette esquisse pour y dessiner")
+                    .small_button(lang.t("history_tree.edit"))
+                    .on_hover_text(lang.t("history_tree.edit_hint"))
                     .clicked()
                 {
                     action = HistoryAction::EditSketch(sketch);

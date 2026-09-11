@@ -123,16 +123,12 @@ const WIDGETS_A_SCREEN_SHOULD_NOT_DRESS: [&str; 11] = [
     "egui::Hyperlink::",
 ];
 
-/// Sentences `cao_app` still writes out instead of naming a key. A ratchet, and
-/// #203 is the issue that empties it: every figure falls to zero and the entry
-/// goes with it. A single character is not counted — a glyph is drawn rather
-/// than read, which is why `wording/constraints.rs` keeps its marks.
-const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 4] = [
-    ("crates/app/src/app.rs", 3),
-    ("crates/app/src/screens/history_tree.rs", 6),
-    ("crates/app/src/screens/ribbon.rs", 5),
-    ("crates/app/src/screens/start_menu.rs", 5),
-];
+/// Sentences `cao_app` still writes out instead of naming a key. #203 emptied
+/// it, so the rule it was ratcheting towards now stands on its own: a file
+/// added here is a sentence out of a translator's reach. A single character is
+/// not counted — a glyph is drawn rather than read, which is why
+/// `wording/constraints.rs` keeps its marks.
+const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),

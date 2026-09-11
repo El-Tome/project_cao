@@ -1,35 +1,18 @@
-use crate::lang::Catalogue;
-use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::extrusion_row::extrusion_row;
-use crate::screens::sketch::{CircleMode, DimensionMode, SketchEditor, Tool};
-use crate::wording::{command as wording, shortcuts, toolbar::group};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
-use cao_sketch::Rule;
+
+use crate::lang::Catalogue;
+use crate::screens::extrusion::ExtrusionState;
+use crate::screens::extrusion_row::extrusion_row;
+use crate::screens::sketch::SketchEditor;
+use crate::wording::{command as wording, shortcuts, toolbar::group};
+
+use super::state::{Context, Ribbon, active, enabled};
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
 
-/// The toolbar, drawn from the arrangement the user has set.
-///
-/// Nothing about which buttons exist or where they sit is decided here: the
-/// tree comes from the settings, and this only knows how to draw a tree. That
-/// is what lets the arrangement be changed, saved and handed to somebody else.
-#[derive(Default)]
-pub struct Ribbon {
-    /// Which top-level group is open, by rank.
-    pub tab: usize,
-    pub history_open: bool,
-}
-
 impl Ribbon {
-    pub fn new() -> Self {
-        Self {
-            tab: 0,
-            history_open: true,
-        }
-    }
-
     /// Draws the bar and returns every command the user asked for this frame.
     pub fn show(
         &mut self,
@@ -52,20 +35,20 @@ impl Ribbon {
                         asked = self.contents(ui, settings, document, editor, extrusion, lang);
                     });
             }
+            // egui remembers a panel's size under its id, and a bar along the top remembers a
+            // height where one down a side reads a width: a placement each, or they share one.
             Edge::Top => {
-                egui::Panel::top("ribbon").show(ui, |ui| {
+                egui::Panel::top("ribbon_top").show(ui, |ui| {
                     asked = self.contents(ui, settings, document, editor, extrusion, lang);
                 });
             }
             Edge::Bottom => {
-                egui::Panel::bottom("ribbon").show(ui, |ui| {
+                egui::Panel::bottom("ribbon_bottom").show(ui, |ui| {
                     asked = self.contents(ui, settings, document, editor, extrusion, lang);
                 });
             }
-            // A side bar has to be told how wide to start: left to itself it takes the room its
-            // widest button asks for, which on a wide window is the whole window.
             Edge::Left => {
-                egui::Panel::left("ribbon")
+                egui::Panel::left("ribbon_left")
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
@@ -73,7 +56,7 @@ impl Ribbon {
                     });
             }
             Edge::Right => {
-                egui::Panel::right("ribbon")
+                egui::Panel::right("ribbon_right")
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
@@ -189,15 +172,6 @@ impl Ribbon {
     }
 }
 
-/// What the toolbar needs to know to draw a button in the right state.
-struct Context<'a> {
-    settings: &'a Settings,
-    document: &'a PartDocument,
-    editor: &'a SketchEditor,
-    extrusion: &'a ExtrusionState,
-    lang: &'a Catalogue,
-}
-
 /// Draws a run of entries, at the depth they sit in the tree.
 ///
 /// A group one level in is spread out where it is, with its name beside it; any
@@ -270,105 +244,132 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
     }
 }
 
-/// Whether the command is the one currently in force, so its button shows as
-/// pressed.
-fn active(command: Command, state: &Context<'_>) -> bool {
-    let tool = state.editor.tool;
-    let mode = state.editor.dimension_mode;
-    match command {
-        Command::ToolSelect => tool == Tool::Select,
-        Command::ToolLine => tool == Tool::Line,
-        Command::ToolRectangle => tool == Tool::Rectangle,
-        Command::ToolCircle => tool == Tool::Circle,
-        Command::ToolPoint => tool == Tool::Point,
-        Command::ToolDimension => tool == Tool::Dimension,
-        Command::ToggleConstruction => state.editor.construction,
-        Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
-        Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
-        Command::CircleThreePoints => {
-            tool == Tool::Circle && mode_is(state, CircleMode::ThreePoints)
-        }
-        Command::CircleTwoTangents => {
-            tool == Tool::Circle && mode_is(state, CircleMode::TwoTangents)
-        }
-        Command::CircleThreeTangents => {
-            tool == Tool::Circle && mode_is(state, CircleMode::ThreeTangents)
-        }
-        Command::RulePerpendicular => tool == Tool::Constrain(Rule::Perpendicular),
-        Command::RuleParallel => tool == Tool::Constrain(Rule::Parallel),
-        Command::RuleEqual => tool == Tool::Constrain(Rule::Equal),
-        Command::RuleCoincident => tool == Tool::Constrain(Rule::Coincident),
-        Command::RuleCollinear => tool == Tool::Constrain(Rule::Collinear),
-        Command::RuleTangent => tool == Tool::Constrain(Rule::Tangent),
-        Command::RuleMidpoint => tool == Tool::Constrain(Rule::Midpoint),
-        Command::RuleFixed => tool == Tool::Constrain(Rule::Fixed),
-        Command::RuleConcentric => tool == Tool::Constrain(Rule::Concentric),
-        Command::DimensionAuto => mode == DimensionMode::Auto,
-        Command::DimensionPointToPoint => mode == DimensionMode::PointToPoint,
-        Command::DimensionLength => mode == DimensionMode::Length,
-        Command::DimensionAngle => mode == DimensionMode::Angle,
-        Command::DimensionRadius => mode == DimensionMode::Radius,
-        Command::ExtrusionAdd => state.extrusion.mode == Some(cao_part::ExtrusionMode::Add),
-        Command::ExtrusionCut => state.extrusion.mode == Some(cao_part::ExtrusionMode::Cut),
-        Command::ExtrusionStraight => state.extrusion.shape == Shape::Straight,
-        Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
-        _ => false,
+#[cfg(test)]
+mod tests {
+    use chrono::Utc;
+
+    use super::*;
+
+    const WINDOW: egui::Vec2 = egui::vec2(1280.0, 800.0);
+
+    /// One frame of the part screen, laid out the way `app.rs` lays it out: the
+    /// toolbar, then the history panel, then whatever is left for the part.
+    /// Answers how wide the history panel came out and how wide the part did.
+    fn a_frame(ctx: &egui::Context, ribbon: &mut Ribbon, edge: Edge) -> (f32, f32) {
+        a_frame_with(ctx, ribbon, edge, Vec::new())
     }
-}
 
-fn mode_is(state: &Context<'_>, mode: CircleMode) -> bool {
-    state.editor.circle_mode == mode
-}
+    fn a_frame_with(
+        ctx: &egui::Context,
+        ribbon: &mut Ribbon,
+        edge: Edge,
+        events: Vec<egui::Event>,
+    ) -> (f32, f32) {
+        let mut settings = Settings::default();
+        settings.toolbar.edge = edge;
+        let document = PartDocument::new("part", Utc::now());
+        let editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        let (mut history, mut part) = (0.0, 0.0);
 
-fn enabled(command: Command, state: &Context<'_>) -> bool {
-    is_enabled(command, state.document, state.editor, state.extrusion)
-}
+        let input = egui::RawInput {
+            screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, WINDOW)),
+            events,
+            ..Default::default()
+        };
+        let mut output = ctx.run_ui(input, |ui| {
+            ribbon.show(ui, &settings, &document, &editor, &mut extrusion, &lang);
+            let before = ui.available_rect_before_wrap().width();
+            let _ = crate::screens::history_tree::panel(ui, &document, &lang);
+            history = before - ui.available_rect_before_wrap().width();
+            egui::CentralPanel::no_frame().show(ui, |ui| part = ui.max_rect().width());
+        });
+        output.textures_delta.clear();
 
-/// Whether a command can be carried out right now.
-///
-/// Shared with the keyboard: a shortcut for a command whose button is greyed
-/// out must do nothing either, or Enter would "finish" a sketch that is not
-/// open.
-pub fn is_enabled(
-    command: Command,
-    document: &PartDocument,
-    editor: &SketchEditor,
-    extrusion: &ExtrusionState,
-) -> bool {
-    let drawing = editor.active_sketch().is_some();
-    match command {
-        Command::Undo => document.history.can_undo(),
-        Command::Redo => document.history.can_redo(),
-        Command::FinishSketch | Command::RecenterOnSketch => drawing,
-        Command::ToolSelect
-        | Command::ToolLine
-        | Command::ToolRectangle
-        | Command::ToolCircle
-        | Command::ToolPoint
-        | Command::ToolDimension => drawing,
-        Command::DimensionAuto
-        | Command::DimensionPointToPoint
-        | Command::DimensionLength
-        | Command::DimensionAngle
-        | Command::DimensionRadius => drawing && editor.tool == Tool::Dimension,
-        Command::CircleCenter
-        | Command::CircleTwoPoints
-        | Command::CircleThreePoints
-        | Command::CircleTwoTangents
-        | Command::CircleThreeTangents => drawing,
-        Command::RulePerpendicular
-        | Command::RuleParallel
-        | Command::RuleEqual
-        | Command::RuleCoincident
-        | Command::RuleCollinear
-        | Command::RuleTangent
-        | Command::RuleMidpoint
-        | Command::RuleFixed
-        | Command::RuleConcentric => drawing,
-        Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
-        Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
-        Command::ExtrusionApply => extrusion.is_ready(),
-        Command::ExtrusionCancel => extrusion.is_active(),
-        _ => true,
+        (history, part)
+    }
+
+    fn toolbar_width((history, part): (f32, f32)) -> f32 {
+        WINDOW.x - history - part
+    }
+
+    fn press(at: egui::Pos2) -> egui::Event {
+        egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: true,
+            modifiers: egui::Modifiers::default(),
+        }
+    }
+
+    fn release(at: egui::Pos2) -> egui::Event {
+        egui::Event::PointerButton {
+            pos: at,
+            button: egui::PointerButton::Primary,
+            pressed: false,
+            modifiers: egui::Modifiers::default(),
+        }
+    }
+
+    #[test]
+    fn a_toolbar_moved_to_a_side_leaves_room_for_the_part() {
+        let ctx = egui::Context::default();
+        let mut ribbon = Ribbon::new();
+        a_frame(&ctx, &mut ribbon, Edge::Top);
+
+        for edge in [Edge::Left, Edge::Right] {
+            let (_, part) = a_frame(&ctx, &mut ribbon, edge);
+
+            assert!(
+                part > WINDOW.x / 2.0,
+                "{edge:?} leaves the part {part} of {} points wide",
+                WINDOW.x,
+            );
+        }
+    }
+
+    #[test]
+    fn coming_back_from_a_side_leaves_the_history_panel_as_wide_as_it_was() {
+        let ctx = egui::Context::default();
+        let mut ribbon = Ribbon::new();
+        a_frame(&ctx, &mut ribbon, Edge::Top);
+        let (before, _) = a_frame(&ctx, &mut ribbon, Edge::Top);
+
+        a_frame(&ctx, &mut ribbon, Edge::Left);
+        a_frame(&ctx, &mut ribbon, Edge::Top);
+        let (after, _) = a_frame(&ctx, &mut ribbon, Edge::Top);
+
+        assert_eq!(after, before);
+    }
+
+    #[test]
+    fn a_side_toolbar_pulled_wider_is_that_wide_the_next_time_it_is_chosen() {
+        let ctx = egui::Context::default();
+        let mut ribbon = Ribbon::new();
+        let before = toolbar_width(a_frame(&ctx, &mut ribbon, Edge::Left));
+
+        let grip = egui::pos2(before, WINDOW.y / 2.0);
+        let pulled = grip + egui::vec2(80.0, 0.0);
+        a_frame_with(&ctx, &mut ribbon, Edge::Left, vec![press(grip)]);
+        a_frame_with(
+            &ctx,
+            &mut ribbon,
+            Edge::Left,
+            vec![egui::Event::PointerMoved(pulled)],
+        );
+        let widened = toolbar_width(a_frame_with(
+            &ctx,
+            &mut ribbon,
+            Edge::Left,
+            vec![release(pulled)],
+        ));
+
+        assert_eq!(widened, before + 80.0, "the drag did not widen the toolbar");
+
+        a_frame(&ctx, &mut ribbon, Edge::Top);
+        let back = toolbar_width(a_frame(&ctx, &mut ribbon, Edge::Left));
+
+        assert_eq!(back, widened);
     }
 }

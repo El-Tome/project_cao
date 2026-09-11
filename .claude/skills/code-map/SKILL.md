@@ -104,7 +104,7 @@ there. See the `architecture-rust` skill.
 | The placing of dimensions on screen | `app/src/screens/annotations.rs` | `push(...)`, `Placement`, `Style` |
 | Extrusion and revolution, interface side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | The History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
-| The toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
+| The toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in |
 | The settings screen | `app/src/screens/settings/` | `show(ui, profiles, editor)`, one file per section |
 | The start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |

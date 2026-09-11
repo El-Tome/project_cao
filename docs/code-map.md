@@ -144,7 +144,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
-| Toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
+| Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |
@@ -218,11 +218,21 @@ These places carry no test of their own:
 - `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
   is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);
 - `crates/sketch/src/constraints.rs`;
-- `crates/app/src/screens/` — the canvas and the modes drawn on it: gesture
-  dispatch, pixel ↔ world conversion, and pushing the result to egui and the
-  GPU. The drawing rules it calls into — hit test, magnetism, dimensioning —
-  moved to `cao_sketch`, where each is tested without opening a window; what
-  is left here is glue no headless test would exercise.
+- the canvas and the modes drawn on it — gesture dispatch, pixel ↔ world
+  conversion, and pushing the result to egui and the GPU. The drawing rules
+  they call into — hit test, magnetism, dimensioning — moved to `cao_sketch`,
+  where each is tested without opening a window; what is left is glue. The
+  toolbar came out of this list when it was split into a presenter and a view,
+  which is the move each of these is waiting for:
+  - `crates/app/src/screens/viewport/`;
+  - `crates/app/src/screens/settings/`;
+  - `crates/app/src/screens/sketch.rs`;
+  - `crates/app/src/screens/extrusion.rs`;
+  - `crates/app/src/screens/extrusion_row.rs`;
+  - `crates/app/src/screens/history_tree.rs`;
+  - `crates/app/src/screens/annotations.rs`;
+  - `crates/app/src/screens/start_menu.rs`;
+  - `crates/app/src/screens/mod.rs`.
 
 **This list is the only copy.** The skills that warn about these places name
 this section rather than restating it, and `crates/app/tests/architecture.rs`

@@ -419,5 +419,21 @@
   "sketch.invalid_value": "Valeur invalide",
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
   "sketch.closed_outline": "Contour fermé : seul le point d'arrivée a bougé",
-  "sketch.no_dimension_here": "Cote impossible ici"
+  "sketch.no_dimension_here": "Cote impossible ici",
+
+  "extrusion.pick_a_sketch": "Extruder l'esquisse :",
+  "extrusion.height": "Hauteur :",
+  "extrusion.angle": "Angle :",
+  "extrusion.around": "Autour de :",
+  "extrusion.segment_axis": "trait {segment}",
+  "extrusion.change_the_axis_trait": "Cliquer un autre trait de l'esquisse pour en changer",
+  "extrusion.or_click_a_trait": "ou cliquer un trait",
+  "extrusion.reversed": "Sens inverse",
+  "extrusion.reversed_hint": "Pousser la matière de l'autre côté du plan",
+  "extrusion.areas_chosen": "{count} aire(s)",
+  "extrusion.apply": "Appliquer",
+  "extrusion.cancel": "Annuler",
+  "extrusion.nothing_added": "L'extrusion n'a rien ajouté.",
+  "extrusion.nothing_removed": "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »).",
+  "extrusion.nothing_from_revolution": "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
 }

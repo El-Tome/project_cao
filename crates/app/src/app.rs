@@ -401,7 +401,7 @@ fn run(
             false
         }
         Command::ExtrusionApply => {
-            let changed = apply_extrusion(doc, extrusion);
+            let changed = apply_extrusion(doc, extrusion, lang);
             if changed {
                 // Seen from straight above its own plane, a new prism looks
                 // exactly like the drawing it came from.

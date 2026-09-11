@@ -2,6 +2,8 @@ use cao_part::{ExtrusionMode, RevolutionAxis};
 use cao_sketch::SketchAxis;
 use glam::DVec2;
 
+use crate::lang::Catalogue;
+
 /// How the matter is made from the chosen areas.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum Shape {
@@ -127,7 +129,11 @@ fn signed(input: &str, reversed: bool) -> Option<f64> {
 }
 
 /// Turns the chosen areas into matter, or takes them out of it.
-pub fn apply_extrusion(doc: &mut cao_part::PartDocument, extrusion: &mut ExtrusionState) -> bool {
+pub fn apply_extrusion(
+    doc: &mut cao_part::PartDocument,
+    extrusion: &mut ExtrusionState,
+    lang: &Catalogue,
+) -> bool {
     let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
         return false;
     };
@@ -158,16 +164,11 @@ pub fn apply_extrusion(doc: &mut cao_part::PartDocument, extrusion: &mut Extrusi
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work.
     extrusion.message = (doc.body() == &before).then(|| {
-        match (mode, extrusion.is_revolving()) {
-            (_, true) => {
-                "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
-            }
-            (ExtrusionMode::Add, false) => "L'extrusion n'a rien ajouté.",
-            (ExtrusionMode::Cut, false) => {
-                "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »)."
-            }
-        }
-        .to_string()
+        lang.t(match (mode, extrusion.is_revolving()) {
+            (_, true) => "extrusion.nothing_from_revolution",
+            (ExtrusionMode::Add, false) => "extrusion.nothing_added",
+            (ExtrusionMode::Cut, false) => "extrusion.nothing_removed",
+        })
     });
     extrusion.mode = None;
     true

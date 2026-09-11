@@ -1,35 +1,18 @@
-use crate::lang::Catalogue;
-use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::extrusion_row::extrusion_row;
-use crate::screens::sketch::{CircleMode, DimensionMode, SketchEditor, Tool};
-use crate::wording::{command as wording, shortcuts, toolbar::group};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Edge, Item, Settings, ToolbarLayout};
-use cao_sketch::Rule;
+
+use crate::lang::Catalogue;
+use crate::screens::extrusion::ExtrusionState;
+use crate::screens::extrusion_row::extrusion_row;
+use crate::screens::sketch::SketchEditor;
+use crate::wording::{command as wording, shortcuts, toolbar::group};
+
+use super::state::{Context, Ribbon, active, enabled};
 
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
 
-/// The toolbar, drawn from the arrangement the user has set.
-///
-/// Nothing about which buttons exist or where they sit is decided here: the
-/// tree comes from the settings, and this only knows how to draw a tree. That
-/// is what lets the arrangement be changed, saved and handed to somebody else.
-#[derive(Default)]
-pub struct Ribbon {
-    /// Which top-level group is open, by rank.
-    pub tab: usize,
-    pub history_open: bool,
-}
-
 impl Ribbon {
-    pub fn new() -> Self {
-        Self {
-            tab: 0,
-            history_open: true,
-        }
-    }
-
     /// Draws the bar and returns every command the user asked for this frame.
     pub fn show(
         &mut self,
@@ -189,15 +172,6 @@ impl Ribbon {
     }
 }
 
-/// What the toolbar needs to know to draw a button in the right state.
-struct Context<'a> {
-    settings: &'a Settings,
-    document: &'a PartDocument,
-    editor: &'a SketchEditor,
-    extrusion: &'a ExtrusionState,
-    lang: &'a Catalogue,
-}
-
 /// Draws a run of entries, at the depth they sit in the tree.
 ///
 /// A group one level in is spread out where it is, with its name beside it; any
@@ -267,108 +241,5 @@ fn button(ui: &mut egui::Ui, command: Command, state: &Context<'_>, asked: &mut 
         .on_hover_text(wording::hint(state.lang, command));
     if response.clicked() {
         asked.push(command);
-    }
-}
-
-/// Whether the command is the one currently in force, so its button shows as
-/// pressed.
-fn active(command: Command, state: &Context<'_>) -> bool {
-    let tool = state.editor.tool;
-    let mode = state.editor.dimension_mode;
-    match command {
-        Command::ToolSelect => tool == Tool::Select,
-        Command::ToolLine => tool == Tool::Line,
-        Command::ToolRectangle => tool == Tool::Rectangle,
-        Command::ToolCircle => tool == Tool::Circle,
-        Command::ToolPoint => tool == Tool::Point,
-        Command::ToolDimension => tool == Tool::Dimension,
-        Command::ToggleConstruction => state.editor.construction,
-        Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
-        Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
-        Command::CircleThreePoints => {
-            tool == Tool::Circle && mode_is(state, CircleMode::ThreePoints)
-        }
-        Command::CircleTwoTangents => {
-            tool == Tool::Circle && mode_is(state, CircleMode::TwoTangents)
-        }
-        Command::CircleThreeTangents => {
-            tool == Tool::Circle && mode_is(state, CircleMode::ThreeTangents)
-        }
-        Command::RulePerpendicular => tool == Tool::Constrain(Rule::Perpendicular),
-        Command::RuleParallel => tool == Tool::Constrain(Rule::Parallel),
-        Command::RuleEqual => tool == Tool::Constrain(Rule::Equal),
-        Command::RuleCoincident => tool == Tool::Constrain(Rule::Coincident),
-        Command::RuleCollinear => tool == Tool::Constrain(Rule::Collinear),
-        Command::RuleTangent => tool == Tool::Constrain(Rule::Tangent),
-        Command::RuleMidpoint => tool == Tool::Constrain(Rule::Midpoint),
-        Command::RuleFixed => tool == Tool::Constrain(Rule::Fixed),
-        Command::RuleConcentric => tool == Tool::Constrain(Rule::Concentric),
-        Command::DimensionAuto => mode == DimensionMode::Auto,
-        Command::DimensionPointToPoint => mode == DimensionMode::PointToPoint,
-        Command::DimensionLength => mode == DimensionMode::Length,
-        Command::DimensionAngle => mode == DimensionMode::Angle,
-        Command::DimensionRadius => mode == DimensionMode::Radius,
-        Command::ExtrusionAdd => state.extrusion.mode == Some(cao_part::ExtrusionMode::Add),
-        Command::ExtrusionCut => state.extrusion.mode == Some(cao_part::ExtrusionMode::Cut),
-        Command::ExtrusionStraight => state.extrusion.shape == Shape::Straight,
-        Command::ExtrusionRevolution => state.extrusion.shape == Shape::Revolution,
-        _ => false,
-    }
-}
-
-fn mode_is(state: &Context<'_>, mode: CircleMode) -> bool {
-    state.editor.circle_mode == mode
-}
-
-fn enabled(command: Command, state: &Context<'_>) -> bool {
-    is_enabled(command, state.document, state.editor, state.extrusion)
-}
-
-/// Whether a command can be carried out right now.
-///
-/// Shared with the keyboard: a shortcut for a command whose button is greyed
-/// out must do nothing either, or Enter would "finish" a sketch that is not
-/// open.
-pub fn is_enabled(
-    command: Command,
-    document: &PartDocument,
-    editor: &SketchEditor,
-    extrusion: &ExtrusionState,
-) -> bool {
-    let drawing = editor.active_sketch().is_some();
-    match command {
-        Command::Undo => document.history.can_undo(),
-        Command::Redo => document.history.can_redo(),
-        Command::FinishSketch | Command::RecenterOnSketch => drawing,
-        Command::ToolSelect
-        | Command::ToolLine
-        | Command::ToolRectangle
-        | Command::ToolCircle
-        | Command::ToolPoint
-        | Command::ToolDimension => drawing,
-        Command::DimensionAuto
-        | Command::DimensionPointToPoint
-        | Command::DimensionLength
-        | Command::DimensionAngle
-        | Command::DimensionRadius => drawing && editor.tool == Tool::Dimension,
-        Command::CircleCenter
-        | Command::CircleTwoPoints
-        | Command::CircleThreePoints
-        | Command::CircleTwoTangents
-        | Command::CircleThreeTangents => drawing,
-        Command::RulePerpendicular
-        | Command::RuleParallel
-        | Command::RuleEqual
-        | Command::RuleCoincident
-        | Command::RuleCollinear
-        | Command::RuleTangent
-        | Command::RuleMidpoint
-        | Command::RuleFixed
-        | Command::RuleConcentric => drawing,
-        Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
-        Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
-        Command::ExtrusionApply => extrusion.is_ready(),
-        Command::ExtrusionCancel => extrusion.is_active(),
-        _ => true,
     }
 }

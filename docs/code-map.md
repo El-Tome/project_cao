@@ -164,13 +164,13 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 What they do: [`interface.md`](interface.md),
 [`navigation.md`](navigation.md).
 
-`app/src/wording/` holds the sentences the user reads, one file per source.
-A layer below `cao_app` returns a named case and this is where it is decided
-how that case is said, which is what will make translation a wiring job. No
-source below `cao_app` says its own sentences any more, and
-`crates/app/tests/architecture.rs` holds that count at zero. Inside `cao_app`
-the same test counts the sentences a screen still writes out instead of naming
-a key, file by file; the figures only fall.
+`app/src/wording/` decides which key a case from a lower crate earns, one file
+per source; what that key says lives in `app/src/lang/fr.json`. A sentence a
+screen writes itself — a heading, a prompt, a button — names its key on the
+spot instead, since it translates no case of anything. No source below
+`cao_app` says its own sentences, and none inside it writes one out either:
+`crates/app/tests/architecture.rs` holds both counts at zero, and the first
+file to write a sentence back in fails the gate.
 
 A key names a sentence but does not carry it, and `Catalogue::t` answers with
 the key itself when `lang/fr.json` has no entry for it — so a typo would show

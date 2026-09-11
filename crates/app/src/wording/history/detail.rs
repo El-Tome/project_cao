@@ -230,7 +230,7 @@ mod tests {
                     end: PointRef::New(DVec2::new(2.0, 4.0)),
                     construction: false,
                 },
-                "Esquisse 0 · point 7 → (2.0, 4.0)",
+                "Esquisse 0 · de point 7 à (2.0, 4.0)",
             ),
             (
                 Operation::AddCircle {

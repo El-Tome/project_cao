@@ -220,7 +220,10 @@ fn stops_editor(ui: &mut egui::Ui, stops: &mut Vec<Stop>, lang: &Catalogue) {
                 0.0..=1.0,
                 &lang.t("settings.appearance.stop_position"),
             );
-            if ui.button("✕").clicked() {
+            if ui
+                .button(lang.t("settings.appearance.remove_color"))
+                .clicked()
+            {
                 remove = Some(rank);
             }
         });

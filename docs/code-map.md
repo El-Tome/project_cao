@@ -227,7 +227,6 @@ These places carry no test of their own:
   - `crates/app/src/screens/viewport/`;
   - `crates/app/src/screens/settings/`;
   - `crates/app/src/screens/sketch.rs`;
-  - `crates/app/src/screens/extrusion.rs`;
   - `crates/app/src/screens/extrusion_row.rs`;
   - `crates/app/src/screens/history_tree.rs`;
   - `crates/app/src/screens/annotations.rs`;

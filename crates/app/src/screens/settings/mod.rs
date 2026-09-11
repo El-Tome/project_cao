@@ -31,15 +31,15 @@ impl Section {
         Self::Toolbar,
     ];
 
-    fn label(self) -> &'static str {
-        match self {
-            Self::Profiles => "Profils",
-            Self::Viewport => "Viewport",
-            Self::Navigation => "Navigation",
-            Self::Appearance => "Apparence",
-            Self::Shortcuts => "Raccourcis",
-            Self::Toolbar => "Barre d'outils",
-        }
+    fn label(self, lang: &Catalogue) -> String {
+        lang.t(match self {
+            Self::Profiles => "settings.section.profiles",
+            Self::Viewport => "settings.section.viewport",
+            Self::Navigation => "settings.section.navigation",
+            Self::Appearance => "settings.section.appearance",
+            Self::Shortcuts => "settings.section.shortcuts",
+            Self::Toolbar => "settings.section.toolbar",
+        })
     }
 }
 
@@ -72,7 +72,7 @@ pub fn show(
     ui.horizontal_wrapped(|ui| {
         for section in Section::ALL {
             if ui
-                .selectable_label(editor.section == section, section.label())
+                .selectable_label(editor.section == section, section.label(lang))
                 .clicked()
             {
                 editor.section = section;
@@ -84,9 +84,9 @@ pub fn show(
 
     match editor.section {
         Section::Profiles => touched |= profiles::section(ui, profiles, editor, lang),
-        Section::Viewport => touched |= viewport::section(ui, profiles),
-        Section::Navigation => touched |= navigation::section(ui, profiles),
-        Section::Appearance => touched |= appearance::section(ui, profiles),
+        Section::Viewport => touched |= viewport::section(ui, profiles, lang),
+        Section::Navigation => touched |= navigation::section(ui, profiles, lang),
+        Section::Appearance => touched |= appearance::section(ui, profiles, lang),
         Section::Shortcuts => touched |= shortcuts::section(ui, profiles, editor, lang),
         Section::Toolbar => touched |= toolbar::section(ui, profiles, editor, lang),
     }

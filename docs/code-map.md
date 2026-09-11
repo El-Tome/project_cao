@@ -167,7 +167,9 @@ What they do: [`interface.md`](interface.md),
 A layer below `cao_app` returns a named case and this is where it is decided
 how that case is said, which is what will make translation a wiring job. No
 source below `cao_app` says its own sentences any more, and
-`crates/app/tests/architecture.rs` holds that count at zero.
+`crates/app/tests/architecture.rs` holds that count at zero. Inside `cao_app`
+the same test counts the sentences a screen still writes out instead of naming
+a key, file by file; the figures only fall.
 
 A key names a sentence but does not carry it, and `Catalogue::t` answers with
 the key itself when `lang/fr.json` has no entry for it — so a typo would show

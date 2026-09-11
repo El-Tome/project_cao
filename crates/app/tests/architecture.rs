@@ -123,6 +123,22 @@ const WIDGETS_A_SCREEN_SHOULD_NOT_DRESS: [&str; 11] = [
     "egui::Hyperlink::",
 ];
 
+/// Sentences `cao_app` still writes out instead of naming a key. A ratchet, and
+/// #203 is the issue that empties it: every figure falls to zero and the entry
+/// goes with it. A single character is not counted — a glyph is drawn rather
+/// than read, which is why `wording/constraints.rs` keeps its marks.
+const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 9] = [
+    ("crates/app/src/app.rs", 3),
+    ("crates/app/src/screens/extrusion.rs", 3),
+    ("crates/app/src/screens/extrusion_row.rs", 7),
+    ("crates/app/src/screens/history_tree.rs", 6),
+    ("crates/app/src/screens/ribbon.rs", 5),
+    ("crates/app/src/screens/sketch.rs", 5),
+    ("crates/app/src/screens/start_menu.rs", 5),
+    ("crates/app/src/screens/viewport/input/mod.rs", 11),
+    ("crates/app/src/screens/viewport/render.rs", 3),
+];
+
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),
     ("crates/app/src/screens/history_tree.rs", 1),
@@ -265,6 +281,36 @@ fn text_meant_for_a_reader_never_sinks_below_the_interface() {
          Return a named case and let cao_app say it. That is what makes \
          translation a wiring job rather than a rewrite.",
         said_too_low.join("\n  "),
+    );
+}
+
+#[test]
+fn a_sentence_the_interface_shows_is_named_rather_than_written_out() {
+    let mut left: BTreeMap<&str, usize> = SENTENCES_STILL_WRITTEN_OUT.iter().copied().collect();
+
+    for (path, source) in sources_of("app") {
+        let written_out = sentences_written_out(&source);
+        let allowed = left.remove(path.as_str()).unwrap_or(0);
+
+        assert_eq!(
+            written_out.len(),
+            allowed,
+            "{path} writes out {} sentences, {allowed} were left to it:\n  {}\n\
+             A sentence the user reads belongs in crates/app/src/lang/fr.json under \
+             a key the code names. Once one is moved, lower the figure here.",
+            written_out.len(),
+            written_out
+                .iter()
+                .map(|(number, literal)| format!("{path}:{number}  \"{literal}\""))
+                .collect::<Vec<_>>()
+                .join("\n  "),
+        );
+    }
+
+    assert!(
+        left.is_empty(),
+        "these files are gone but are still owed sentences: {:?}",
+        left.keys().collect::<Vec<_>>(),
     );
 }
 
@@ -661,6 +707,16 @@ fn reader_text_in(source: &str) -> Vec<(usize, String)> {
         }
     }
     found
+}
+
+/// What [`reader_text_in`] finds, minus the lone glyphs: `mark()` draws `T` for
+/// a tangency and `X` for a fixed point, and a language file has nothing to say
+/// about either.
+fn sentences_written_out(source: &str) -> Vec<(usize, String)> {
+    reader_text_in(source)
+        .into_iter()
+        .filter(|(_, literal)| literal.chars().count() > 1)
+        .collect()
 }
 
 fn literals_of(line: &str) -> Vec<&str> {

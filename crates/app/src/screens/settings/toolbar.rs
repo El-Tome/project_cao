@@ -15,7 +15,7 @@ pub(super) fn section(
     let layout = &mut profiles.active_mut().toolbar;
 
     ui.horizontal_wrapped(|ui| {
-        ui.label("Emplacement :");
+        ui.label(lang.t("settings.toolbar.edge"));
         for edge in Edge::ALL {
             if ui
                 .selectable_label(
@@ -29,13 +29,18 @@ pub(super) fn section(
         }
     });
     ui.horizontal(|ui| {
-        ui.checkbox(&mut layout.show_logo, "Logo");
-        text_edit(ui, &mut layout.logo_text, 140.0, "texte du logo");
-        ui.checkbox(&mut layout.show_labels, "Noms des boutons");
+        ui.checkbox(&mut layout.show_logo, lang.t("settings.toolbar.logo"));
+        text_edit(
+            ui,
+            &mut layout.logo_text,
+            140.0,
+            &lang.t("settings.toolbar.logo_text"),
+        );
+        ui.checkbox(&mut layout.show_labels, lang.t("settings.toolbar.labels"));
     });
 
     ui.add_space(8.0);
-    ui.label("Les groupes de premier niveau sont les onglets. Un groupe peut en contenir d'autres, sans limite.");
+    ui.label(lang.t("settings.toolbar.intro"));
     ui.add_space(6.0);
 
     let selected = editor.selected.clone();
@@ -52,19 +57,19 @@ pub(super) fn section(
                 editor.selected = moved;
             }
             if ui
-                .button("→ Grouper")
-                .on_hover_text("Entrer dans le groupe juste au-dessus")
+                .button(lang.t("settings.toolbar.nest"))
+                .on_hover_text(lang.t("settings.toolbar.nest_hint"))
                 .clicked()
                 && let Some(moved) = layout.nest(&selected)
             {
                 editor.selected = moved;
             }
-            if ui.button("← Sortir").clicked()
+            if ui.button(lang.t("settings.toolbar.unnest")).clicked()
                 && let Some(moved) = layout.unnest(&selected)
             {
                 editor.selected = moved;
             }
-            if ui.button("✕ Retirer").clicked() {
+            if ui.button(lang.t("settings.toolbar.remove")).clicked() {
                 layout.remove(&selected);
                 editor.selected.clear();
             }
@@ -72,24 +77,34 @@ pub(super) fn section(
     });
 
     ui.horizontal(|ui| {
-        text_edit(ui, &mut editor.new_group_name, 140.0, "nom du groupe");
-        if ui.button("+ Groupe").clicked() {
+        text_edit(
+            ui,
+            &mut editor.new_group_name,
+            140.0,
+            &lang.t("settings.toolbar.group_name"),
+        );
+        if ui.button(lang.t("settings.toolbar.add_group")).clicked() {
             let name = if editor.new_group_name.trim().is_empty() {
-                "Groupe".to_string()
+                lang.t("settings.toolbar.new_group")
             } else {
                 editor.new_group_name.trim().to_string()
             };
             layout.items.push(Item::group(&name, Vec::new()));
             editor.new_group_name.clear();
         }
-        if ui.button("+ Séparateur").clicked() {
+        if ui
+            .button(lang.t("settings.toolbar.add_separator"))
+            .clicked()
+        {
             layout.items.push(Item::Separator);
         }
-        if ui.button("Renommer").clicked() && !editor.new_group_name.trim().is_empty() {
+        if ui.button(lang.t("settings.toolbar.rename")).clicked()
+            && !editor.new_group_name.trim().is_empty()
+        {
             layout.rename(&selected, editor.new_group_name.trim().to_string());
             editor.new_group_name.clear();
         }
-        if ui.button("↺ Barre par défaut").clicked() {
+        if ui.button(lang.t("settings.toolbar.reset")).clicked() {
             *layout = Default::default();
             editor.selected.clear();
         }
@@ -105,7 +120,7 @@ pub(super) fn section(
         });
 
     ui.separator();
-    ui.label("Ajouter une commande dans la sélection (ou à la racine) :");
+    ui.label(lang.t("settings.toolbar.add_command"));
     egui::ScrollArea::vertical()
         .max_height(160.0)
         .id_salt("command_palette")

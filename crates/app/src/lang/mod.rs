@@ -12,7 +12,7 @@ use std::path::Path;
 
 use cao_prefs::Files;
 use chrono::format::{Item, StrftimeItems};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, FixedOffset, TimeZone, Utc};
 
 /// The French entries, built into the binary rather than read from disk: it is
 /// the fallback every other language leans on, so it has to exist before
@@ -64,8 +64,11 @@ impl Catalogue {
             .unwrap_or_else(|| key.to_string())
     }
 
-    /// The moment `at`, shaped by the `chrono` pattern `key` holds.
-    pub fn t_moment(&self, key: &str, at: DateTime<Utc>) -> String {
+    /// The moment `at`, shaped by the `chrono` pattern `key` holds and read on
+    /// the clock of `zone`: the language file says how a moment is written, and
+    /// it is the machine, not the file, that says which hour it is.
+    pub fn t_moment(&self, key: &str, at: DateTime<Utc>, zone: &impl TimeZone) -> String {
+        let at = at.with_timezone(zone).fixed_offset();
         shaped(&self.t(key), at).unwrap_or_else(|| at.format(A_MOMENT_NOBODY_SHAPED).to_string())
     }
 
@@ -82,7 +85,7 @@ impl Catalogue {
 
 /// Nothing, unless `pattern` both reads as `strftime` and names something a
 /// clock or a calendar answers — text alone is a mistake, never a date.
-fn shaped(pattern: &str, at: DateTime<Utc>) -> Option<String> {
+fn shaped(pattern: &str, at: DateTime<FixedOffset>) -> Option<String> {
     let items = StrftimeItems::new(pattern).parse().ok()?;
     if !items
         .iter()
@@ -106,7 +109,7 @@ fn entries_of(json: &str) -> Entries {
 #[cfg(test)]
 mod tests {
     use cao_prefs::InMemoryFiles;
-    use chrono::TimeZone;
+    use chrono::{FixedOffset, TimeZone};
 
     use super::*;
 
@@ -135,8 +138,18 @@ mod tests {
     #[test]
     fn a_moment_is_written_the_way_the_french_file_shapes_it() {
         assert_eq!(
-            Catalogue::french().t_moment("start_menu.recent_date", a_moment()),
+            Catalogue::french().t_moment("start_menu.recent_date", a_moment(), &Utc),
             "11/09/2026 14:30",
+        );
+    }
+
+    #[test]
+    fn a_moment_is_written_on_the_clock_of_whoever_reads_it() {
+        let two_hours_east = FixedOffset::east_opt(2 * 3600).expect("a zone two hours east");
+
+        assert_eq!(
+            Catalogue::french().t_moment("start_menu.recent_date", a_moment(), &two_hours_east),
+            "11/09/2026 16:30",
         );
     }
 
@@ -152,7 +165,7 @@ mod tests {
         let catalogue = Catalogue::load(&files, Path::new("/config/lang"), "en");
 
         assert_eq!(
-            catalogue.t_moment("start_menu.recent_date", a_moment()),
+            catalogue.t_moment("start_menu.recent_date", a_moment(), &Utc),
             "2026-09-11 14:30",
         );
     }
@@ -162,7 +175,7 @@ mod tests {
         let never_written = ["start_menu", "recent_date", "unwritten"].join(".");
 
         assert_eq!(
-            Catalogue::french().t_moment(&never_written, a_moment()),
+            Catalogue::french().t_moment(&never_written, a_moment(), &Utc),
             "2026-09-11 14:30",
         );
     }
@@ -179,7 +192,7 @@ mod tests {
         let catalogue = Catalogue::load(&files, Path::new("/config/lang"), "en");
 
         assert_eq!(
-            catalogue.t_moment("start_menu.recent_date", a_moment()),
+            catalogue.t_moment("start_menu.recent_date", a_moment(), &Utc),
             "2026-09-11 14:30",
         );
     }

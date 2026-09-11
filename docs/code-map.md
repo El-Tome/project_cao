@@ -102,6 +102,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | The ten recent parts | `prefs/src/recents.rs` | `RecentList` |
 | Where the platform keeps things | `prefs/src/locations.rs` | `Locations`, `default_projects_dir` |
 | Asking the platform where that is | `app/src/adapters/locations.rs` | `discover` |
+| Which clock a moment is read on | `app/src/adapters/clock.rs` | `reader_zone` |
 | What the installation remembers, and where | `app/src/remembered.rs` | `Remembered` |
 | The crash log | `app/src/crash.rs` | `record_panics` |
 | What can go wrong with the settings | `prefs/src/storage.rs` | `StorageError` |
@@ -146,7 +147,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Toolbar | `app/src/screens/ribbon.rs` | `Ribbon::show`, `is_enabled` |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
-| What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `fr.json` |
+| What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
@@ -225,7 +226,10 @@ uncovered, for a day after it had stopped being true.
 
 The rest of `crates/app/src/` is covered: the French the interface says is
 held word by word in `wording/`, and `adapters/`, `autosave.rs` and `crash.rs`
-carry their own tests. The three files in `crates/app/tests/` are about the
+carry their own tests — `adapters/clock.rs` apart, which asks the machine which
+zone it is set to and could assert nothing but the machine's own answer handed
+back to it. What that zone then does to an hour is held in `lang/`, against a
+zone the test names itself. The three files in `crates/app/tests/` are about the
 repository rather than the interface — `architecture.rs` its shape,
 `gate.rs` the agreement between `scripts/verify.sh` and
 `.github/workflows/ci.yml`, `language.rs` that nothing a developer reads is

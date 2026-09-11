@@ -2,6 +2,7 @@ use std::path::PathBuf;
 
 use cao_prefs::RecentEntry;
 
+use crate::adapters::clock;
 use crate::lang::Catalogue;
 
 pub enum StartMenuAction {
@@ -52,13 +53,18 @@ pub fn show(
             if recents.is_empty() {
                 ui.weak(lang.t("start_menu.no_recents"));
             } else {
+                let zone = clock::reader_zone();
                 egui::ScrollArea::vertical().show(ui, |ui| {
                     for entry in recents {
                         ui.horizontal(|ui| {
                             if ui.button(&entry.name).clicked() {
                                 action = StartMenuAction::Open(entry.path.clone());
                             }
-                            ui.weak(lang.t_moment("start_menu.recent_date", entry.opened_at));
+                            ui.weak(lang.t_moment(
+                                "start_menu.recent_date",
+                                entry.opened_at,
+                                &zone,
+                            ));
                         });
                     }
                 });

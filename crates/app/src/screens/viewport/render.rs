@@ -15,6 +15,7 @@ use cao_sketch::{
 };
 use glam::{DVec2, DVec3};
 
+use crate::lang::Catalogue;
 use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
@@ -1026,7 +1027,12 @@ fn to_physical(rect: egui::Rect, pixels_per_point: f32) -> ViewportRect {
 
 /// The cube's labels are drawn by egui rather than the GPU: text needs a font
 /// atlas, and egui already has one.
-pub(crate) fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect: egui::Rect) {
+pub(crate) fn paint_face_labels(
+    ui: &egui::Ui,
+    state: &ViewportState,
+    cube_rect: egui::Rect,
+    lang: &Catalogue,
+) {
     let painter = ui.painter_at(cube_rect);
     let view_projection = cube::view_projection(state.camera.rotation());
     let forward = state.camera.forward();
@@ -1049,7 +1055,7 @@ pub(crate) fn paint_face_labels(ui: &egui::Ui, state: &ViewportState, cube_rect:
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
-            face_label(face),
+            crate::wording::cube::face(lang, face),
             font.clone(),
             color,
         );
@@ -1445,6 +1451,7 @@ pub(crate) fn paint_dimension_field(
     );
 
     let mut applied = false;
+    let lang = context.lang;
     egui::Area::new(egui::Id::new("dimension_field"))
         .fixed_pos(at + egui::vec2(16.0, 12.0))
         .order(egui::Order::Foreground)
@@ -1455,19 +1462,22 @@ pub(crate) fn paint_dimension_field(
                         // A readout cannot be edited: changing it would mean
                         // nothing, since it reports the geometry rather than deciding it.
                         let measured = context.document.measured(index, target).unwrap_or_default();
-                        let suffix = if angle { "°" } else { "mm" };
-                        ui.weak(format!("{measured:.2} {suffix} (lecture seule)"));
+                        let unit = if angle { "°" } else { "mm" };
+                        let value = format!("{measured:.2}");
+                        let holes = [("value", value.as_str()), ("unit", unit)];
+                        ui.weak(lang.t_with("viewport.read_only", &holes));
                         return;
                     }
                     let Some(editing) = context.editor.editing.as_mut() else {
                         return;
                     };
-                    let field = value_field(
-                        ui,
-                        &mut editing.input,
-                        if angle { "degrés" } else { "mm" },
-                        std::mem::take(&mut editing.focus),
-                    );
+                    let hint = if angle {
+                        lang.t("viewport.degrees")
+                    } else {
+                        "mm".to_string()
+                    };
+                    let focus = std::mem::take(&mut editing.focus);
+                    let field = value_field(ui, &mut editing.input, &hint, focus);
                     // Enter is eaten here: the field has just given the keyboard
                     // back, so the same press would otherwise also fire the
                     // shortcut bound to it — and end the sketch.
@@ -1475,12 +1485,12 @@ pub(crate) fn paint_dimension_field(
                         && ui.input_mut(|input| {
                             input.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
                         });
-                    applied = ui.button("✔").on_hover_text("Appliquer").clicked() || submitted;
+                    let apply = ui.button("✔").on_hover_text(lang.t("viewport.apply"));
+                    applied = apply.clicked() || submitted;
                 });
             });
         });
 
-    let lang = context.lang;
     if !applied || !apply_dimension_value(context.document, context.editor, index, target, lang) {
         return false;
     }
@@ -1514,17 +1524,6 @@ fn annotation_screen_position(
             .view_projection(rect.width() / rect.height().max(1.0)),
         rect,
     )
-}
-
-fn face_label(face: cao_render::CubeFace) -> &'static str {
-    match face {
-        cao_render::CubeFace::PlusX => "DROITE",
-        cao_render::CubeFace::MinusX => "GAUCHE",
-        cao_render::CubeFace::PlusY => "ARRIÈRE",
-        cao_render::CubeFace::MinusY => "FACE",
-        cao_render::CubeFace::PlusZ => "DESSUS",
-        cao_render::CubeFace::MinusZ => "DESSOUS",
-    }
 }
 
 /// A scale bar: one grid step long, labelled with the length it represents.

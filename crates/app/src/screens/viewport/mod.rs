@@ -191,7 +191,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         ViewportCallback { frame },
     ));
 
-    paint_face_labels(ui, state, cube_rect);
+    paint_face_labels(ui, state, cube_rect, sketch.lang);
     paint_band(ui, state, rect, sketch);
     paint_rule_marks(ui, state, rect, sketch);
     paint_dimension_labels(ui, state, rect, sketch);

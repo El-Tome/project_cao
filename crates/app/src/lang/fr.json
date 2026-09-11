@@ -41,6 +41,13 @@
   "plane.origin_yz": "Plan YZ",
   "plane.origin_slanted": "Plan d'esquisse",
 
+  "cube.front": "FACE",
+  "cube.back": "ARRIÈRE",
+  "cube.right": "DROITE",
+  "cube.left": "GAUCHE",
+  "cube.top": "DESSUS",
+  "cube.bottom": "DESSOUS",
+
   "circle.asks_for.center": "Cliquez le centre, puis un point du bord",
   "circle.asks_for.two_points": "Cliquez deux points opposés du bord",
   "circle.asks_for.three_points": "Cliquez deux points du bord, puis le centre",
@@ -435,5 +442,9 @@
   "extrusion.cancel": "Annuler",
   "extrusion.nothing_added": "L'extrusion n'a rien ajouté.",
   "extrusion.nothing_removed": "Rien enlevé : la matière n'est pas de ce côté du plan (essayez « Sens inverse »).",
-  "extrusion.nothing_from_revolution": "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même."
+  "extrusion.nothing_from_revolution": "Rien produit : l'aire est peut-être à cheval sur l'axe, ce qui la ferait passer à travers elle-même.",
+
+  "viewport.read_only": "{value} {unit} (lecture seule)",
+  "viewport.degrees": "degrés",
+  "viewport.apply": "Appliquer"
 }

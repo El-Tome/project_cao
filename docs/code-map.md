@@ -138,7 +138,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: state, camera navigation, entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
-| Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `face_label` |
+| Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
@@ -153,6 +153,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
 | What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |
 | What a work plane is called | `app/src/wording/plane.rs` | `label` |
+| What a face of the orientation cube is called | `app/src/wording/cube.rs` | `face` |
 | What a profile is called | `app/src/wording/settings.rs` | `profile` |
 | What a key and a chord are called | `app/src/wording/shortcuts.rs` | `chord` |
 | What a toolbar placement and a tree entry are called | `app/src/wording/toolbar.rs` | `edge`, `item` |

@@ -38,7 +38,6 @@ pub struct ExtrusionState {
     pub distance_input: String,
     /// Whether the matter goes the other way along the plane.
     pub reversed: bool,
-    pub message: Option<String>,
 }
 
 impl Default for ExtrusionState {
@@ -54,7 +53,6 @@ impl Default for ExtrusionState {
             angle_input: String::new(),
             distance_input: String::new(),
             reversed: false,
-            message: None,
         }
     }
 }
@@ -82,7 +80,6 @@ impl ExtrusionState {
 
     pub fn arm(&mut self, mode: ExtrusionMode) {
         self.mode = Some(mode);
-        self.message = None;
         if self.distance_input.trim().is_empty() {
             self.distance_input = "10".to_string();
         }
@@ -129,9 +126,14 @@ fn signed(input: &str, reversed: bool) -> Option<f64> {
 }
 
 /// Turns the chosen areas into matter, or takes them out of it.
+///
+/// `notice` is the one sentence the screen shows, whoever wrote it last. A
+/// sentence of the extrusion's own outlived the extrusion, and stood beside
+/// whatever the drawing was saying.
 pub fn apply_extrusion(
     doc: &mut cao_part::PartDocument,
     extrusion: &mut ExtrusionState,
+    notice: &mut Option<String>,
     lang: &Catalogue,
 ) -> bool {
     let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
@@ -163,7 +165,7 @@ pub fn apply_extrusion(
 
     // An extrusion that changes nothing is worth saying out loud: a cut that
     // misses the matter looks exactly like a tool that did not work.
-    extrusion.message = (doc.body() == &before).then(|| {
+    *notice = (doc.body() == &before).then(|| {
         lang.t(match (mode, extrusion.is_revolving()) {
             (_, true) => "extrusion.nothing_from_revolution",
             (ExtrusionMode::Add, false) => "extrusion.nothing_added",
@@ -172,4 +174,79 @@ pub fn apply_extrusion(
     });
     extrusion.mode = None;
     true
+}
+
+#[cfg(test)]
+mod tests {
+    use cao_part::{Operation, PartDocument, PointRef};
+    use cao_sketch::WorkPlane;
+    use chrono::Utc;
+
+    use super::*;
+
+    fn a_part_with_a_square() -> PartDocument {
+        let mut document = PartDocument::new("part", Utc::now());
+        document.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        document.apply(Operation::AddRectangle {
+            sketch: 0,
+            corner: PointRef::New(DVec2::new(-10.0, -10.0)),
+            opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+            construction: false,
+        });
+        document
+    }
+
+    fn armed_on(picks: Vec<DVec2>) -> ExtrusionState {
+        let mut extrusion = ExtrusionState::default();
+        extrusion.offer(0);
+        extrusion.picks = picks;
+        extrusion.arm(ExtrusionMode::Add);
+        extrusion
+    }
+
+    #[test]
+    fn an_extrusion_that_made_no_matter_says_so_in_the_sentence_it_was_handed() {
+        let lang = Catalogue::french();
+        let mut document = a_part_with_a_square();
+        let mut extrusion = armed_on(vec![DVec2::new(500.0, 500.0)]);
+        let mut notice = None;
+
+        assert!(apply_extrusion(
+            &mut document,
+            &mut extrusion,
+            &mut notice,
+            &lang
+        ));
+        assert_eq!(notice, Some(lang.t("extrusion.nothing_added")));
+    }
+
+    #[test]
+    fn an_extrusion_that_made_matter_leaves_nothing_to_say() {
+        let lang = Catalogue::french();
+        let mut document = a_part_with_a_square();
+        let mut extrusion = armed_on(vec![DVec2::ZERO]);
+        let mut notice = None;
+
+        assert!(apply_extrusion(
+            &mut document,
+            &mut extrusion,
+            &mut notice,
+            &lang
+        ));
+        assert_eq!(notice, None);
+    }
+
+    #[test]
+    fn an_extrusion_speaks_where_the_drawing_did_rather_than_beside_it() {
+        let lang = Catalogue::french();
+        let mut document = a_part_with_a_square();
+        let mut extrusion = armed_on(vec![DVec2::ZERO]);
+        let mut notice = Some(lang.t("sketch.click_a_trait"));
+
+        apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
+
+        assert_eq!(notice, None);
+    }
 }

@@ -153,7 +153,7 @@ impl CaoApp {
                     .on_hover_text(path.display().to_string());
                 ui.separator();
                 ui.weak(mode_label(lang, viewport.mode()));
-                for message in [&editor.message, &extrusion.message].into_iter().flatten() {
+                if let Some(message) = &editor.message {
                     ui.separator();
                     ui.colored_label(egui::Color32::from_rgb(250, 220, 120), message);
                 }
@@ -265,6 +265,8 @@ fn run(
         editor.tool = wanted;
         editor.reset_pending();
     };
+
+    editor.message = None;
 
     match command {
         Command::OpenSettings | Command::BackToMenu => false,
@@ -406,7 +408,7 @@ fn run(
             false
         }
         Command::ExtrusionApply => {
-            let changed = apply_extrusion(doc, extrusion, lang);
+            let changed = apply_extrusion(doc, extrusion, &mut editor.message, lang);
             if changed {
                 // Seen from straight above its own plane, a new prism looks
                 // exactly like the drawing it came from.

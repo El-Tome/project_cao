@@ -46,12 +46,12 @@ pub(super) fn section(
     let selected = editor.selected.clone();
     ui.horizontal(|ui| {
         ui.add_enabled_ui(!selected.is_empty(), |ui| {
-            if ui.button("↑").clicked()
+            if ui.button(lang.t("settings.toolbar.move_up")).clicked()
                 && let Some(moved) = layout.shift(&selected, false)
             {
                 editor.selected = moved;
             }
-            if ui.button("↓").clicked()
+            if ui.button(lang.t("settings.toolbar.move_down")).clicked()
                 && let Some(moved) = layout.shift(&selected, true)
             {
                 editor.selected = moved;

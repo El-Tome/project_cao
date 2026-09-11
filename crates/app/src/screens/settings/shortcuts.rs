@@ -47,7 +47,7 @@ pub(super) fn section(
             if ui.selectable_label(recording, label).clicked() {
                 editor.recording = if recording { None } else { Some(command) };
             }
-            if ui.button("✕").clicked() {
+            if ui.button(lang.t("settings.shortcuts.unbind")).clicked() {
                 profiles.active_mut().shortcuts.unbind(command);
                 touched = true;
             }

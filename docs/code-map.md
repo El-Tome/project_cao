@@ -179,6 +179,13 @@ on screen rather than at build time. `crates/app/tests/language_keys.rs` closes
 that: a key named in Rust with no entry fails the gate, and so does an entry no
 Rust file names, which is what a rename leaves behind.
 
+A sentence still has to be drawable. The fonts `egui` ships with carry no glyph
+for `⌂`, `✕` or the four plain arrows, and what they draw instead is an empty
+box — five buttons in a row once read as the same square.
+`crates/app/tests/glyphs.rs` asks those fonts, for every entry of the language
+file and every literal of `cao_app`, so a mark nobody can draw cannot reach a
+screen.
+
 ## The invariants
 
 **The numbers.** The core computes in `f64`, the camera and the rendering in
@@ -229,11 +236,12 @@ held word by word in `wording/`, and `adapters/`, `autosave.rs` and `crash.rs`
 carry their own tests — `adapters/clock.rs` apart, which asks the machine which
 zone it is set to and could assert nothing but the machine's own answer handed
 back to it. What that zone then does to an hour is held in `lang/`, against a
-zone the test names itself. The three files in `crates/app/tests/` are about the
+zone the test names itself. The files in `crates/app/tests/` are about the
 repository rather than the interface — `architecture.rs` its shape,
 `gate.rs` the agreement between `scripts/verify.sh` and
 `.github/workflows/ci.yml`, `language.rs` that nothing a developer reads is
-written in French.
+written in French, `language_keys.rs` that a key and an entry name each other,
+and `glyphs.rs` that every mark shown is one the fonts can draw.
 
 Working in them means first writing a test that characterises what is there —
 the `rust-tdd` skill says how. The linear algebra the solver rests on is the

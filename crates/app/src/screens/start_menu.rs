@@ -58,7 +58,7 @@ pub fn show(
                             if ui.button(&entry.name).clicked() {
                                 action = StartMenuAction::Open(entry.path.clone());
                             }
-                            ui.weak(entry.opened_at.format("%Y-%m-%d %H:%M").to_string());
+                            ui.weak(lang.t_moment("start_menu.recent_date", entry.opened_at));
                         });
                     }
                 });

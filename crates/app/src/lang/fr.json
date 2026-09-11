@@ -471,5 +471,6 @@
   "start_menu.name": "Nom :",
   "start_menu.create": "Créer",
   "start_menu.recents": "Pièces récentes",
-  "start_menu.no_recents": "Aucune pièce ouverte pour le moment."
+  "start_menu.no_recents": "Aucune pièce ouverte pour le moment.",
+  "start_menu.recent_date": "%d/%m/%Y %H:%M"
 }

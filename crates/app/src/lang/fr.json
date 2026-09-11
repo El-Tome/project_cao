@@ -402,5 +402,22 @@
   "settings.toolbar.add_separator": "+ Séparateur",
   "settings.toolbar.rename": "Renommer",
   "settings.toolbar.reset": "↺ Barre par défaut",
-  "settings.toolbar.add_command": "Ajouter une commande dans la sélection (ou à la racine) :"
+  "settings.toolbar.add_command": "Ajouter une commande dans la sélection (ou à la racine) :",
+
+  "sketch.choose_a_plane": "Choisissez un plan d'esquisse",
+  "sketch.click_a_trait": "Cliquez un trait",
+  "sketch.no_circle_from_these": "Ces éléments ne donnent pas de cercle",
+  "sketch.nothing_to_constrain": "Rien à contraindre ici",
+  "sketch.rule_refused": "{asks} : pas ces éléments-là",
+  "sketch.rule_already_there": "{rule} : déjà posée",
+  "sketch.place_the_dimension": "Cliquez où poser la cote, ou une seconde entité",
+  "sketch.choose_second_point": "Choisissez le second point",
+  "sketch.choose_second_trait_or_axis": "Choisissez le second trait, ou un axe de l'esquisse",
+  "sketch.axis_chosen": "{axis} choisi, cliquez maintenant un trait",
+  "sketch.traits_do_not_touch": "Ces deux traits ne se touchent pas",
+  "sketch.nothing_to_measure": "Rien à mesurer ici",
+  "sketch.invalid_value": "Valeur invalide",
+  "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
+  "sketch.closed_outline": "Contour fermé : seul le point d'arrivée a bougé",
+  "sketch.no_dimension_here": "Cote impossible ici"
 }

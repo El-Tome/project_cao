@@ -265,7 +265,7 @@ fn run(
         Command::OpenSettings | Command::BackToMenu => false,
         Command::NewSketch => {
             extrusion.close();
-            editor.start_choosing_plane();
+            editor.start_choosing_plane(lang);
             false
         }
         // Finishing a drawing is where an extrusion naturally begins, so the

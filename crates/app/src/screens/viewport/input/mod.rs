@@ -322,7 +322,7 @@ fn constrain(
         });
 
     let Some(picked) = picked else {
-        context.editor.message = Some("Rien à contraindre ici".to_string());
+        context.editor.message = Some(context.lang.t("sketch.nothing_to_constrain"));
         return false;
     };
     let mut picks = match &context.editor.tool_state {
@@ -341,11 +341,12 @@ fn constrain(
 
     context.editor.tool_state = ToolState::None;
     let Some(intent) = rule_intent(rule, &picks, sketch) else {
-        context.editor.message = Some(format!(
-            "{} : {}",
-            constraints::rule_asks_for(context.lang, rule),
-            "pas ces éléments-là"
-        ));
+        let asks = constraints::rule_asks_for(context.lang, rule);
+        context.editor.message = Some(
+            context
+                .lang
+                .t_with("sketch.rule_refused", &[("asks", &asks)]),
+        );
         return false;
     };
     if let RuleIntent::Constrain(constraint) = intent
@@ -353,10 +354,12 @@ fn constrain(
     {
         // The drawing already carries it; recording the step again would fill
         // the history with entries that change nothing.
-        context.editor.message = Some(format!(
-            "{} : déjà posée",
-            constraints::rule_label(context.lang, rule)
-        ));
+        let label = constraints::rule_label(context.lang, rule);
+        context.editor.message = Some(
+            context
+                .lang
+                .t_with("sketch.rule_already_there", &[("rule", &label)]),
+        );
         return false;
     }
     let operation = match intent {
@@ -883,7 +886,7 @@ pub(crate) fn draw_circle(
 
     match cao_sketch::circle_progress(mode, &points, &segments, sketch, cursor, snap) {
         cao_sketch::CircleProgress::NeedsSegment => {
-            context.editor.message = Some("Cliquez un trait".to_string());
+            context.editor.message = Some(context.lang.t("sketch.click_a_trait"));
             false
         }
         cao_sketch::CircleProgress::AlreadyPicked => {
@@ -908,7 +911,7 @@ pub(crate) fn draw_circle(
         }
         cao_sketch::CircleProgress::Ready => {
             let Some(found) = circle_from(context, index, cursor, snap) else {
-                context.editor.message = Some("Ces éléments ne donnent pas de cercle".to_string());
+                context.editor.message = Some(context.lang.t("sketch.no_circle_from_these"));
                 return false;
             };
             context.editor.tool_state = ToolState::None;
@@ -1042,7 +1045,7 @@ fn measure(
             if let ToolState::Dimension { placing, .. } = &mut context.editor.tool_state {
                 *placing = Some(refined);
             }
-            context.editor.message = Some(PLACE_PROMPT.to_string());
+            context.editor.message = Some(context.lang.t("sketch.place_the_dimension"));
             return false;
         }
         if let ToolState::Dimension { placing, .. } = &mut context.editor.tool_state {
@@ -1079,25 +1082,26 @@ fn measure(
     match outcome {
         cao_sketch::DimensionPick::Target(target) => select_target(context, index, target),
         cao_sketch::DimensionPick::WaitingForSecondPoint => {
-            context.editor.message = Some("Choisissez le second point".to_string());
+            context.editor.message = Some(context.lang.t("sketch.choose_second_point"));
         }
         cao_sketch::DimensionPick::WaitingForSecondTraitOrAxis => {
-            context.editor.message =
-                Some("Choisissez le second trait, ou un axe de l'esquisse".to_string());
+            context.editor.message = Some(context.lang.t("sketch.choose_second_trait_or_axis"));
         }
         cao_sketch::DimensionPick::WaitingForTraitAfterAxis(axis) => {
-            context.editor.message = Some(format!(
-                "{} choisi, cliquez maintenant un trait",
-                constraints::axis(context.lang, axis)
-            ));
+            let axis = constraints::axis(context.lang, axis);
+            context.editor.message = Some(
+                context
+                    .lang
+                    .t_with("sketch.axis_chosen", &[("axis", &axis)]),
+            );
         }
         cao_sketch::DimensionPick::TraitsDoNotTouch => {
             context.editor.select(None, None);
-            context.editor.message = Some("Ces deux traits ne se touchent pas".to_string());
+            context.editor.message = Some(context.lang.t("sketch.traits_do_not_touch"));
         }
         cao_sketch::DimensionPick::Nothing => {
             context.editor.select(None, None);
-            context.editor.message = Some("Rien à mesurer ici".to_string());
+            context.editor.message = Some(context.lang.t("sketch.nothing_to_measure"));
         }
         cao_sketch::DimensionPick::Unchanged => {}
     }
@@ -1180,8 +1184,6 @@ pub(crate) fn measure_preview(
     }
 }
 
-pub const PLACE_PROMPT: &str = "Cliquez où poser la cote, ou une seconde entité";
-
 /// Takes hold of what was clicked; the annotation then follows the cursor until
 /// a second click says where it goes.
 ///
@@ -1220,7 +1222,7 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
         if context.document.sketches()[index].would_be_redundant(target, scale) {
             dimension::redundant_warning(context.lang)
         } else {
-            PLACE_PROMPT.to_string()
+            context.lang.t("sketch.place_the_dimension")
         },
     );
 }

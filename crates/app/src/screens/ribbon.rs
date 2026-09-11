@@ -45,7 +45,7 @@ impl Ribbon {
 
         match layout.edge {
             Edge::Floating => {
-                egui::Window::new("Outils")
+                egui::Window::new(lang.t("ribbon.tools"))
                     .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
                     .resizable(false)
                     .show(ui.ctx(), |ui| {
@@ -161,8 +161,12 @@ impl Ribbon {
         if vertical {
             ui.vertical(|ui| row(ui));
             ui.horizontal_wrapped(|ui| {
-                ui.toggle_value(&mut self.history_open, "Historique");
-                if ui.button("⚙").on_hover_text("Préférences").clicked() {
+                ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
+                if ui
+                    .button("⚙")
+                    .on_hover_text(lang.t("ribbon.settings"))
+                    .clicked()
+                {
                     asked.push(Command::OpenSettings);
                 }
             });
@@ -172,10 +176,14 @@ impl Ribbon {
         ui.horizontal(|ui| {
             row(ui);
             ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
-                if ui.button("⚙").on_hover_text("Préférences").clicked() {
+                if ui
+                    .button("⚙")
+                    .on_hover_text(lang.t("ribbon.settings"))
+                    .clicked()
+                {
                     asked.push(Command::OpenSettings);
                 }
-                ui.toggle_value(&mut self.history_open, "Historique");
+                ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
             });
         });
     }

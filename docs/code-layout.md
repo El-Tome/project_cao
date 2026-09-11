@@ -85,8 +85,8 @@ A screen also writes prose of its own — a heading, a placeholder, an empty
 state — that names no case of any crate. It asks the catalogue for a key on the
 spot, rather than through a `wording/` module that would be a function whose
 whole body is one `lang.t` call. Both land in `lang/fr.json` all the same, and
-`architecture.rs` counts the sentences `cao_app` still writes out, a figure that
-only falls.
+`architecture.rs` counts the sentences `cao_app` writes out instead. That count
+is zero since #203, so the first one written back in fails the gate.
 
 ## What may import what
 

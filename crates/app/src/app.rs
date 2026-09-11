@@ -104,7 +104,12 @@ impl CaoApp {
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
         let action = egui::CentralPanel::default_margins()
             .show(ui, |ui| {
-                screens::start_menu::show(ui, self.remembered.recents(), &mut self.new_part_name)
+                screens::start_menu::show(
+                    ui,
+                    self.remembered.recents(),
+                    &mut self.new_part_name,
+                    self.remembered.lang(),
+                )
             })
             .inner;
 
@@ -142,7 +147,7 @@ impl CaoApp {
 
         egui::Panel::top("part_title_bar").show(ui, |ui| {
             ui.horizontal(|ui| {
-                back_to_menu = ui.button("⌂ Accueil").clicked();
+                back_to_menu = ui.button(lang.t("app.home")).clicked();
                 ui.separator();
                 ui.strong(doc.name())
                     .on_hover_text(path.display().to_string());
@@ -223,7 +228,7 @@ impl CaoApp {
         let mut open = true;
         let mut touched = false;
 
-        egui::Window::new("Préférences")
+        egui::Window::new(self.remembered.lang().t("app.settings_window"))
             .open(&mut open)
             .default_size([720.0, 560.0])
             .vscroll(true)
@@ -451,7 +456,7 @@ fn sketch_framing(doc: &PartDocument, sketch: Option<usize>, plane: WorkPlane) -
 
 fn mode_label(lang: &Catalogue, mode: ViewMode) -> String {
     match mode {
-        ViewMode::Free => "Vue 3D libre".to_string(),
+        ViewMode::Free => lang.t("app.free_view"),
         ViewMode::Plane(work_plane) => wording::plane::label(lang, work_plane.kind()),
     }
 }
@@ -467,7 +472,10 @@ impl eframe::App for CaoApp {
 
         if matches!(self.screen, Screen::StartMenu) {
             self.show_start_menu(ui);
-            if ui.button("⚙ Préférences").clicked() {
+            if ui
+                .button(self.remembered.lang().t("app.settings"))
+                .clicked()
+            {
                 self.settings_open = true;
             }
         } else {

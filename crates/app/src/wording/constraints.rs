@@ -20,6 +20,28 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
     })
 }
 
+/// What the history writes when a rule is taken away.
+///
+/// A full sentence per rule, not a hole filled with `label`: the participle
+/// agrees with the rule's own gender, and `Milieu` is masculine where every
+/// other rule reads feminine.
+pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
+    lang.t(match rule {
+        Constraint::Perpendicular { .. } => "constraints.erased.perpendicular",
+        Constraint::Parallel { .. } => "constraints.erased.parallel",
+        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "constraints.erased.equal",
+        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
+            "constraints.erased.coincident"
+        }
+        Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
+            "constraints.erased.collinear"
+        }
+        Constraint::Tangent { .. } => "constraints.erased.tangent",
+        Constraint::Midpoint { .. } => "constraints.erased.midpoint",
+        Constraint::Fixed { .. } => "constraints.erased.fixed",
+    })
+}
+
 /// The mark drawn next to what a rule holds.
 ///
 /// Plain letters and punctuation: the drawing symbols of the trade —
@@ -47,22 +69,21 @@ pub fn axis(lang: &Catalogue, axis: SketchAxis) -> String {
     })
 }
 
-/// The only place the constraint tool's own rule is turned into a name.
+/// What is said when the rule in hand already sits on the drawing.
 ///
-/// A rule in hand and a rule already laid down read the same, so they take
-/// their name from the same key rather than from two that must be kept in
-/// step by hand.
-pub fn rule_label(lang: &Catalogue, rule: Rule) -> String {
+/// A full sentence per rule, for the same reason as `erased_label`: `Milieu`
+/// does not take the same ending as the rules around it.
+pub fn already_there_label(lang: &Catalogue, rule: Rule) -> String {
     lang.t(match rule {
-        Rule::Perpendicular => "constraints.label.perpendicular",
-        Rule::Parallel => "constraints.label.parallel",
-        Rule::Equal => "constraints.label.equal",
-        Rule::Coincident => "constraints.label.coincident",
-        Rule::Collinear => "constraints.label.collinear",
-        Rule::Tangent => "constraints.label.tangent",
-        Rule::Midpoint => "constraints.label.midpoint",
-        Rule::Fixed => "constraints.label.fixed",
-        Rule::Concentric => "constraints.label.concentric",
+        Rule::Perpendicular => "constraints.already_there.perpendicular",
+        Rule::Parallel => "constraints.already_there.parallel",
+        Rule::Equal => "constraints.already_there.equal",
+        Rule::Coincident => "constraints.already_there.coincident",
+        Rule::Collinear => "constraints.already_there.collinear",
+        Rule::Tangent => "constraints.already_there.tangent",
+        Rule::Midpoint => "constraints.already_there.midpoint",
+        Rule::Fixed => "constraints.already_there.fixed",
+        Rule::Concentric => "constraints.already_there.concentric",
     })
 }
 
@@ -229,16 +250,19 @@ mod tests {
             Rule::Concentric,
         ];
 
-        let labels: BTreeSet<String> = rules.iter().map(|rule| rule_label(&lang, *rule)).collect();
+        let already_there: BTreeSet<String> = rules
+            .iter()
+            .map(|rule| already_there_label(&lang, *rule))
+            .collect();
         let asks: BTreeSet<String> = rules
             .iter()
             .map(|rule| rule_asks_for(&lang, *rule))
             .collect();
 
         assert_eq!(
-            labels.len(),
+            already_there.len(),
             rules.len(),
-            "each rule of the constraint tool reads under its own name",
+            "each rule says it is already there under its own name",
         );
         assert_eq!(
             asks.len(),
@@ -248,13 +272,28 @@ mod tests {
     }
 
     #[test]
-    fn a_rule_in_hand_and_the_same_rule_laid_down_read_the_same() {
+    fn a_masculine_rule_name_and_a_feminine_one_each_agree_with_their_own_sentence() {
         let lang = Catalogue::french();
-        let laid_down = Constraint::Parallel {
+        let midpoint = Constraint::Midpoint {
+            point: PointId(1),
+            segment: FIRST,
+        };
+
+        assert_eq!(erased_label(&lang, midpoint), "Milieu supprimé");
+        assert_eq!(
+            already_there_label(&lang, Rule::Midpoint),
+            "Milieu : déjà posé"
+        );
+
+        let parallel = Constraint::Parallel {
             first: FIRST,
             second: SECOND,
         };
 
-        assert_eq!(rule_label(&lang, Rule::Parallel), label(&lang, laid_down));
+        assert_eq!(erased_label(&lang, parallel), "Parallèle supprimée");
+        assert_eq!(
+            already_there_label(&lang, Rule::Parallel),
+            "Parallèle : déjà posée",
+        );
     }
 }

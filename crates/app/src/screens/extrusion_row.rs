@@ -1,4 +1,4 @@
-use cao_part::PartDocument;
+use cao_part::{ExtrusionMode, PartDocument};
 use cao_prefs::Command;
 
 use crate::lang::Catalogue;
@@ -61,7 +61,11 @@ pub(super) fn extrusion_row(
                 ui.weak(lang.t("extrusion.or_click_a_trait"));
             }
         } else {
-            ui.label(lang.t("extrusion.height"));
+            let key = match extrusion.mode {
+                Some(ExtrusionMode::Cut) => "extrusion.depth",
+                _ => "extrusion.height",
+            };
+            ui.label(lang.t(key));
             ui.add(
                 egui::TextEdit::singleline(&mut extrusion.distance_input)
                     .desired_width(70.0)

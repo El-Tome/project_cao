@@ -29,6 +29,7 @@ mod shape_dimensions;
 mod sketch;
 mod snap;
 mod solver;
+mod symmetric;
 mod tangency;
 mod tool;
 
@@ -45,8 +46,9 @@ pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use regions::Region;
 pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};
-pub use shape_dimensions::{line_dimensions, rectangle_dimensions};
+pub use shape_dimensions::{line_dimensions, rectangle_dimensions, symmetric_segment_dimensions};
 pub use sketch::{Circle, CircleId, Element, PointId, Segment, SegmentId, Sketch};
 pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
+pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};

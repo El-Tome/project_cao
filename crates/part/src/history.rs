@@ -53,6 +53,17 @@ pub enum Operation {
         #[serde(default)]
         construction: bool,
     },
+    /// A trait growing equally on both sides of `middle`, one step holding the
+    /// segment and the constraint that keeps `middle` at its centre — so the
+    /// history reads as one symmetric line rather than a segment and a rule
+    /// added by hand afterwards.
+    AddSymmetricSegment {
+        sketch: usize,
+        middle: PointRef,
+        end: PointRef,
+        #[serde(default)]
+        construction: bool,
+    },
     /// Four corners and four sides in one step, so the history reads as one
     /// rectangle rather than four unrelated lines.
     AddRectangle {

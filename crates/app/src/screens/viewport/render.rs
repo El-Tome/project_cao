@@ -19,6 +19,8 @@ use crate::lang::Catalogue;
 use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
+mod symmetric_line;
+
 use super::cube_labels;
 use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
 use super::{
@@ -400,8 +402,7 @@ fn sketch_colors(theme: &Theme, active: bool, constrained: bool) -> ([f32; 4], f
     }
 }
 
-/// Where a point is shown: at the cursor while it is being dragged, at its
-/// recorded place otherwise.
+/// Where a point is shown: at the cursor while it is being dragged, at its recorded place otherwise.
 fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> DVec2 {
     // The settled preview already has the point where the cursor put it, and
     // everything else where it followed; moving it again would put it twice.
@@ -819,6 +820,8 @@ fn push_preview(
         }
     }
 
+    symmetric_line::push_preview(out, sketch, context, cursor, preview, scale);
+
     // The point tool has nothing pending, yet placing a point blind is exactly
     // as uncomfortable as the rest.
     if context.editor.tool == Tool::Point {
@@ -1077,8 +1080,7 @@ pub(crate) fn paint_live_input(ui: &mut egui::Ui, context: &mut SketchContext<'_
     paint_live_fields(ui, context).unwrap_or(false)
 }
 
-/// The same, written where a missing piece simply means there is nothing to
-/// show yet.
+/// The same, written where a missing piece simply means there is nothing to show yet.
 fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Option<bool> {
     let index = context.editor.active_sketch()?;
     let sketch = context.document.sketches().get(index)?;
@@ -1112,6 +1114,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             let span = far - start;
             (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
         }
+        Tool::LineSymmetric => symmetric_line::live_fields(context, sketch, raw_cursor)?,
         _ => return None,
     };
 
@@ -1183,8 +1186,7 @@ fn live_field(
     let response = value_field(ui, &mut field.text, &format!("{measured:.2}"), focus);
     ui.label(suffix);
 
-    // Typing is what turns a readout into a decision. Emptying the field takes
-    // the decision back.
+    // Typing is what turns a readout into a decision. Emptying the field takes the decision back.
     if response.changed() {
         field.locked = crate::screens::sketch::LiveInput::read(&field.text);
     }
@@ -1254,8 +1256,7 @@ pub(crate) fn paint_rule_marks(
     }
 }
 
-/// How far apart two marks are set when they would otherwise land on top of
-/// each other, in points.
+/// How far apart two marks are set when they would otherwise land on top of each other, in points.
 const MARK_SPACING: f32 = 16.0;
 
 /// The box being pulled across the drawing./// The box being pulled across the drawing.

@@ -31,6 +31,19 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
         Operation::AddSegment {
             sketch, start, end, ..
         } => between(lang, *sketch, start, end),
+        Operation::AddSymmetricSegment {
+            sketch,
+            middle,
+            end,
+            ..
+        } => lang.t_with(
+            "history.detail.symmetric_segment",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("middle", &point_label(lang, middle)),
+                ("end", &point_label(lang, end)),
+            ],
+        ),
         Operation::AddRectangle {
             sketch,
             corner,
@@ -231,6 +244,15 @@ mod tests {
                     construction: false,
                 },
                 "Esquisse 0 · de point 7 à (2.0, 4.0)",
+            ),
+            (
+                Operation::AddSymmetricSegment {
+                    sketch: 0,
+                    middle: PointRef::Existing(PointId(3)),
+                    end: PointRef::New(DVec2::new(20.0, 0.0)),
+                    construction: false,
+                },
+                "Esquisse 0 · centré en point 3, jusqu'à (20.0, 0.0)",
             ),
             (
                 Operation::AddCircle {

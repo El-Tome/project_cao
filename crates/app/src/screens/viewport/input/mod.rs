@@ -21,6 +21,9 @@ use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_siz
 mod rectangle;
 use rectangle::dimension_the_rectangle;
 
+mod symmetric_line;
+pub(crate) use symmetric_line::draw_symmetric_line_point;
+
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
     state: &mut ViewportState,
@@ -220,6 +223,9 @@ pub(crate) fn handle_sketch_input(
 
     match context.editor.tool {
         Tool::Line => draw_line_point(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::LineSymmetric => {
+            draw_symmetric_line_point(context, index, cursor, snap, scale.units_per_pixel)
+        }
         Tool::Point => {
             context.document.apply(Operation::AddPoint {
                 sketch: index,

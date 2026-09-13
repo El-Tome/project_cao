@@ -124,8 +124,7 @@ impl ToolbarLayout {
         Some(items)
     }
 
-    /// Moves an entry one place earlier or later among its siblings, and
-    /// returns where it ended up.
+    /// Moves an entry one place earlier or later among its siblings, and returns where it ended up.
     pub fn shift(&mut self, path: &[usize], later: bool) -> Option<Path> {
         let &last = path.last()?;
         let items = self.siblings_mut(path)?;
@@ -288,6 +287,7 @@ impl Default for ToolbarLayout {
                             vec![
                                 Item::Command(C::ToolSelect),
                                 Item::Command(C::ToolLine),
+                                Item::Command(C::ToolLineSymmetric),
                                 Item::Command(C::ToolRectangle),
                                 Item::Command(C::ToolCircle),
                                 Item::group(

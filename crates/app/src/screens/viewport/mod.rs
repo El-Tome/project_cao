@@ -4,6 +4,7 @@
 //! What a click does with a tool lives in [`input`]; what ends up painted
 //! lives in [`render`].
 
+mod cube_labels;
 mod input;
 mod render;
 

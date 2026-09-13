@@ -47,7 +47,8 @@ fn tangents(face: CubeFace) -> (Vec3, Vec3) {
     }
 }
 
-fn corners(face: CubeFace) -> [Vec3; 4] {
+/// The face's four corners in cube space, in order around the face.
+pub fn corners(face: CubeFace) -> [Vec3; 4] {
     let (u, v) = tangents(face);
     let center = face_center(face);
     [

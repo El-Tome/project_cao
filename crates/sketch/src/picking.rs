@@ -7,6 +7,7 @@
 use glam::DVec2;
 
 use crate::annotation::AnnotationMetrics;
+use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::sketch::{Element, PointId, Sketch};
 
@@ -111,22 +112,42 @@ impl Sketch {
             let Selection::Element(element) = held else {
                 continue;
             };
-            match element {
-                Element::Point(id) => take(*id),
-                Element::Segment(id) => {
-                    if let Some(segment) = self.segments().get(id.0) {
-                        take(segment.start);
-                        take(segment.end);
-                    }
-                }
-                Element::Circle(id) => {
-                    if let Some(circle) = self.circles().get(id.0) {
-                        take(circle.center);
-                    }
-                }
+            for point in self.points_it_leans_on(*element) {
+                take(point);
             }
         }
         points
+    }
+
+    /// How far a place sits from an arc's curve itself.
+    ///
+    /// Beyond either end the answer is the distance to that end, not to the
+    /// circle the arc is a piece of: the rest of that circle is not drawn, and a
+    /// click out there must find nothing.
+    pub fn distance_to_arc(&self, id: ArcId, position: DVec2) -> f64 {
+        let arc = self.arc(id);
+        let centre = self.point(arc.center);
+        let reach = position - centre;
+        if reach.length() < 1e-9 {
+            return self.arc_radius(id);
+        }
+        let from = (self.point(arc.start) - centre).to_angle();
+        let along = (reach.to_angle() - from).rem_euclid(std::f64::consts::TAU);
+        match along <= self.arc_sweep(id) {
+            true => (reach.length() - self.arc_radius(id)).abs(),
+            false => position
+                .distance(self.point(arc.start))
+                .min(position.distance(self.point(arc.end))),
+        }
+    }
+
+    /// The arc whose curve passes closest to `position`.
+    pub fn nearest_arc(&self, position: DVec2, tolerance: f64) -> Option<ArcId> {
+        self.live_arcs()
+            .map(|(id, _)| (id, self.distance_to_arc(id, position)))
+            .filter(|(_, distance)| *distance <= tolerance)
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .map(|(id, _)| id)
     }
 }
 
@@ -134,6 +155,48 @@ impl Sketch {
 mod tests {
     use super::*;
     use crate::plane::WorkPlane;
+
+    const TOLERANCE: f64 = 1e-9;
+
+    fn quarter() -> (Sketch, ArcId) {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::ZERO);
+        let east = sketch.add_point(DVec2::new(10.0, 0.0));
+        let north = sketch.add_point(DVec2::new(0.0, 10.0));
+        let arc = sketch.add_arc(centre, east, north);
+        (sketch, arc)
+    }
+
+    #[test]
+    fn a_click_on_the_part_of_the_circle_the_arc_does_not_draw_finds_nothing() {
+        let (sketch, arc) = quarter();
+        let corner = DVec2::splat(10.0 / 2.0_f64.sqrt());
+
+        assert_eq!(sketch.nearest_arc(corner, 0.5), Some(arc));
+        assert_eq!(sketch.nearest_arc(DVec2::new(-10.0, 0.0), 0.5), None);
+        assert_eq!(sketch.nearest_arc(DVec2::new(0.0, -10.0), 0.5), None);
+    }
+
+    #[test]
+    fn past_its_end_an_arc_is_as_far_away_as_that_end_is() {
+        let (sketch, arc) = quarter();
+        let beyond = DVec2::new(13.0, -4.0);
+        let distance = sketch.distance_to_arc(arc, beyond);
+
+        let to_the_end = beyond.distance(DVec2::new(10.0, 0.0));
+        assert!(
+            (distance - to_the_end).abs() < TOLERANCE,
+            "{distance} away, where its end is {to_the_end} away",
+        );
+    }
+
+    #[test]
+    fn an_erased_arc_is_not_under_the_cursor_any_more() {
+        let (mut sketch, arc) = quarter();
+        sketch.erase(Element::Arc(arc));
+
+        assert_eq!(sketch.nearest_arc(DVec2::new(10.0, 0.0), 0.5), None);
+    }
 
     const METRICS: AnnotationMetrics = AnnotationMetrics {
         offset_pixels: 22.0,

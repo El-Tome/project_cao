@@ -1,10 +1,11 @@
 use glam::DVec2;
 
+use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
-use crate::equation::Equation;
+use crate::equation::{Equation, Row, row_at};
 use crate::independence::norm;
 use crate::rigid::{Block, ownership, rigidify};
-use crate::sketch::{Element, PointId, SegmentId, Sketch};
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// How the solve went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -236,13 +237,13 @@ impl Sketch {
             }
             // Where the drawing is allowed to give: a corner opens between its
             // two traits, a length stretches its own.
-            match index.checked_sub(self.dimension_count()) {
-                None => match self.dimensions()[index].target {
+            match self.row(index) {
+                Row::Dimension(at) => match self.dimensions()[at].target {
                     DimensionTarget::Angle { first, second } => opened.push((first, second)),
                     DimensionTarget::Length(segment) => stretched.push(segment),
                     _ => {}
                 },
-                Some(rule) => match self.constraints()[rule] {
+                Row::Rule(at) => match self.constraints()[at] {
                     Constraint::Perpendicular { first, second }
                     | Constraint::Parallel { first, second }
                     | Constraint::Collinear { first, second } => opened.push((first, second)),
@@ -254,6 +255,7 @@ impl Sketch {
                     | Constraint::AxisCollinear { segment, .. } => stretched.push(segment),
                     _ => {}
                 },
+                Row::Arc(_) => {}
             }
         }
         if hot.is_empty() {
@@ -428,20 +430,7 @@ impl Sketch {
             let Constraint::Fixed { element } = constraint else {
                 continue;
             };
-            // Holding a trait means holding both its ends; holding a circle
-            // means holding its centre and nothing else — its radius is free.
-            let held: Vec<PointId> = match element {
-                Element::Point(point) => vec![*point],
-                Element::Segment(segment) => match self.segments().get(segment.0) {
-                    Some(segment) => vec![segment.start, segment.end],
-                    None => Vec::new(),
-                },
-                Element::Circle(circle) => match self.circles().get(circle.0) {
-                    Some(circle) => vec![circle.center],
-                    None => Vec::new(),
-                },
-            };
-            for point in held {
+            for point in self.points_it_leans_on(*element) {
                 if point.0 < pinned.len() {
                     pinned[point.0] = true;
                 }
@@ -604,13 +593,18 @@ impl Sketch {
         for index in 0..self.constraints().len() {
             self.rule_equations(index, pinned, &mut equations);
         }
+        self.arc_equations(pinned, &mut equations);
         equations
     }
 
-    /// How many equations the drawing is made of, dimensions and rules alike.
-    /// The rules come after the dimensions, and a rule may bring more than one.
+    /// How many equations the drawing is made of: dimensions, then rules, then
+    /// one apiece for the arcs. A rule may bring more than one.
     fn equation_count(&self) -> usize {
-        self.dimension_count() + self.constraints().len()
+        self.dimension_count() + self.constraints().len() + self.arcs().len()
+    }
+
+    fn row(&self, index: usize) -> Row {
+        row_at(index, self.dimension_count(), self.constraints().len())
     }
 
     /// The equations of one entry, whichever kind it is, appended to what the
@@ -623,9 +617,10 @@ impl Sketch {
         pinned: &[bool],
         into: &mut Vec<Equation>,
     ) {
-        match index.checked_sub(self.dimension_count()) {
-            Some(rule) => self.rule_equations(rule, pinned, into),
-            None => into.extend(self.equation(index, millimeters_per_unit, pinned)),
+        match self.row(index) {
+            Row::Rule(at) => self.rule_equations(at, pinned, into),
+            Row::Arc(at) => self.arc_equation(ArcId(at), pinned, into),
+            Row::Dimension(_) => into.extend(self.equation(index, millimeters_per_unit, pinned)),
         }
     }
 

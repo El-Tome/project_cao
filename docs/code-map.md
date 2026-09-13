@@ -223,8 +223,14 @@ These places carry no test of their own:
   they call into — hit test, magnetism, dimensioning — moved to `cao_sketch`,
   where each is tested without opening a window; what is left is glue. The
   toolbar came out of this list when it was split into a presenter and a view,
-  which is the move each of these is waiting for:
-  - `crates/app/src/screens/viewport/`;
+  which is the move each of these is waiting for.
+  `crates/app/src/screens/viewport/cube_labels.rs` came out of it already:
+  fitting a face's label to its own projected shape is pure geometry, once the
+  projecting and the measuring are done, and that part is tested without a
+  window.
+  - `crates/app/src/screens/viewport/mod.rs`;
+  - `crates/app/src/screens/viewport/render.rs`;
+  - `crates/app/src/screens/viewport/input/`;
   - `crates/app/src/screens/settings/`;
   - `crates/app/src/screens/sketch.rs`;
   - `crates/app/src/screens/extrusion_row.rs`;

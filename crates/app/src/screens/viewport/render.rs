@@ -19,6 +19,7 @@ use crate::lang::Catalogue;
 use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
+use super::cube_labels;
 use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
@@ -1026,7 +1027,8 @@ fn to_physical(rect: egui::Rect, pixels_per_point: f32) -> ViewportRect {
 }
 
 /// The cube's labels are drawn by egui rather than the GPU: text needs a font
-/// atlas, and egui already has one.
+/// atlas, and egui already has one. Sizing them to the face they sit on,
+/// rather than to the cube, is [`super::cube_labels`]'s job.
 pub(crate) fn paint_face_labels(
     ui: &egui::Ui,
     state: &ViewportState,
@@ -1036,17 +1038,18 @@ pub(crate) fn paint_face_labels(
     let painter = ui.painter_at(cube_rect);
     let view_projection = cube::view_projection(state.camera.rotation());
     let forward = state.camera.forward();
-    let font = egui::FontId::proportional((state.config.cube_size * 0.11).max(8.0));
+    let preferred = (state.config.cube_size * 0.11).max(cube_labels::MINIMUM_READABLE_FONT);
 
     for face in cao_render::CubeFace::ALL {
         if !cube::is_visible(face, forward) {
             continue;
         }
-        let clip = view_projection * cube::face_center(face).extend(1.0);
-        let position = egui::pos2(
-            cube_rect.center().x + clip.x / clip.w * cube_rect.width() * 0.5,
-            cube_rect.center().y - clip.y / clip.w * cube_rect.height() * 0.5,
-        );
+        let text = crate::wording::cube::face(lang, face);
+        let label =
+            cube_labels::face_label(&painter, view_projection, cube_rect, face, &text, preferred);
+        let Some((position, font_size)) = label else {
+            continue;
+        };
         let color = if state.hovered_zone == Some(CubeZone::Face(face)) {
             egui::Color32::WHITE
         } else {
@@ -1055,8 +1058,8 @@ pub(crate) fn paint_face_labels(
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
-            crate::wording::cube::face(lang, face),
-            font.clone(),
+            text,
+            egui::FontId::proportional(font_size),
             color,
         );
     }

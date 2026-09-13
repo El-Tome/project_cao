@@ -22,7 +22,7 @@ mod rectangle;
 use rectangle::dimension_the_rectangle;
 
 mod symmetric_line;
-use symmetric_line::draw_symmetric_line_point;
+pub(crate) use symmetric_line::draw_symmetric_line_point;
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,

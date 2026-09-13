@@ -21,8 +21,8 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
 use input::{
-    draw_circle, draw_line_point, handle_sketch_input, pick_areas, rectangle_corner,
-    two_click_shape,
+    draw_circle, draw_line_point, draw_symmetric_line_point, handle_sketch_input, pick_areas,
+    rectangle_corner, two_click_shape,
 };
 use render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
@@ -90,9 +90,8 @@ impl ViewportState {
         self.mode
     }
 
-    /// Turns the camera to look straight at a plane and frames `radius` around
-    /// `center`, which is what both starting a sketch and the re-align button
-    /// do.
+    /// Turns the camera to look straight at a plane and frames `radius` around `center`, which is
+    /// what both starting a sketch and the re-align button do.
     pub fn look_at_plane(&mut self, plane: WorkPlane, center: DVec3, radius: f64) {
         let (yaw, pitch) = view_angles_towards(plane.normal().as_vec3());
         self.transition = Some(ViewTransition::to_angles(&self.camera, yaw, pitch));
@@ -101,10 +100,9 @@ impl ViewportState {
         self.mode = ViewMode::Plane(plane);
     }
 
-    /// Turns to an oblique view and frames the whole part, which is how a
-    /// freshly extruded volume is actually seen: straight down on its own
-    /// sketch plane, a prism is indistinguishable from the drawing it came
-    /// from.
+    /// Turns to an oblique view and frames the whole part, which is how a freshly extruded volume
+    /// is actually seen: straight down on its own sketch plane, a prism is indistinguishable from
+    /// the drawing it came from.
     pub fn look_at_part(&mut self, center: DVec3, radius: f64) {
         let corner = CubeZone::corner(
             cao_render::CubeFace::PlusX,
@@ -141,8 +139,7 @@ impl ViewportState {
     }
 }
 
-/// What the viewport is allowed to read and change about the part while the
-/// user draws on it.
+/// What the viewport is allowed to read and change about the part while the user draws on it.
 pub struct SketchContext<'a> {
     pub document: &'a mut PartDocument,
     pub editor: &'a mut SketchEditor,
@@ -182,10 +179,9 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         handle_sketch_input(ui, state, &response, rect, scale, sketch)
     };
 
-    // The scene goes down first. Everything egui paints — the values of the
-    // dimensions, the scale bar, the labels — is added to the same layer, in
-    // order, and the scene now fills the viewport with its background: put it
-    // last and it wipes all of them out.
+    // The scene goes down first. Everything egui paints — the values of the dimensions, the scale
+    // bar, the labels — is added to the same layer, in order, and the scene now fills the viewport
+    // with its background: put it last and it wipes all of them out.
     let frame = build_frame(state, rect, cube_rect, scale, sketch);
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
@@ -203,13 +199,15 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
 
     let drawing = matches!(
         sketch.editor.tool_state,
-        ToolState::Line { .. } | ToolState::Rectangle { .. } | ToolState::Circle { .. }
+        ToolState::Line { .. }
+            | ToolState::SymmetricLine { .. }
+            | ToolState::Rectangle { .. }
+            | ToolState::Circle { .. }
     );
     if drawing && paint_live_input(ui, sketch) {
-        // Enter finishes the shape from the keyboard, without having to find
-        // the canvas again with the mouse. What the shape ends at follows the
-        // same reading as a click would: the line's aim, or the rectangle's
-        // corner once what was typed has had its say.
+        // Enter finishes the shape from the keyboard, without having to find the canvas again with
+        // the mouse. What the shape ends at follows the same reading as a click would: the line's
+        // aim, or the rectangle's corner once what was typed has had its say.
         if let Some(index) = sketch.editor.active_sketch() {
             let raw_cursor = sketch.editor.cursor.unwrap_or_default();
             let aim = sketch.editor.aimed;
@@ -221,6 +219,9 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
             let snap = scale.world_size_of(PICK_PIXELS);
             changed |= match sketch.editor.tool {
                 Tool::Line => draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel),
+                Tool::LineSymmetric => {
+                    draw_symmetric_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
+                }
                 Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
                 _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
             };
@@ -244,10 +245,9 @@ fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
     }
     let editor = &mut context.editor;
     let busy = editor.editing.is_some() || editor.tool_state.is_busy();
-    // The tool changes first: reset_pending() reads it to decide the right
-    // idle tool_state, and giving Select back after clearing would leave it
-    // with none, silently disabling the selection tool until it is chosen
-    // again by hand.
+    // The tool changes first: reset_pending() reads it to decide the right idle tool_state, and
+    // giving Select back after clearing would leave it with none, silently disabling the selection
+    // tool until it is chosen again by hand.
     if !busy {
         editor.tool = Tool::Select;
     }

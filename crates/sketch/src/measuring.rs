@@ -213,6 +213,15 @@ pub fn measure_pick(
         );
     }
 
+    if mode != DimensionMode::Length
+        && let Some(arc) = sketch.nearest_arc(cursor, snap)
+    {
+        return (
+            picks,
+            DimensionPick::Target(DimensionTarget::ArcRadius(arc)),
+        );
+    }
+
     (picks, DimensionPick::Nothing)
 }
 
@@ -296,5 +305,27 @@ mod tests {
             kept, picks,
             "a click on empty ground says nothing to measure, but does not forget the point already picked",
         );
+    }
+
+    #[test]
+    fn a_click_on_an_arc_measures_its_radius() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::ZERO);
+        let start = sketch.add_point(DVec2::new(10.0, 0.0));
+        let end = sketch.add_point(DVec2::new(0.0, 10.0));
+        let arc = sketch.add_arc(centre, start, end);
+
+        let (_, pick) = measure_pick(
+            &sketch,
+            DimensionMode::Auto,
+            DimensionPicks::default(),
+            DVec2::new(
+                10.0 * std::f64::consts::FRAC_1_SQRT_2,
+                10.0 * std::f64::consts::FRAC_1_SQRT_2,
+            ),
+            1.0,
+        );
+
+        assert_eq!(pick, DimensionPick::Target(DimensionTarget::ArcRadius(arc)));
     }
 }

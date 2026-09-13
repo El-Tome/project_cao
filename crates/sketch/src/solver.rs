@@ -6,6 +6,7 @@ use crate::equation::{Equation, Row, row_at};
 use crate::independence::norm;
 use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
+mod arc_solver;
 
 /// How the solve went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -686,17 +687,11 @@ impl Sketch {
                 }
             }
             Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
-            Constraint::EqualRadius { first, second } => {
-                let (Some(one), Some(other)) =
-                    (self.radius_column(first), self.radius_column(second))
-                else {
-                    return;
-                };
-                let mut equation = Equation::new(self.variables());
-                equation.error = self.circles()[second.0].radius - self.circles()[first.0].radius;
-                equation.add_radius(other, 1.0);
-                equation.add_radius(one, -1.0);
-                into.push(equation);
+            Constraint::EqualRadius { .. } | Constraint::EqualRadiusArc { .. } => {
+                into.extend(self.equal_radius_equations(constraint))
+            }
+            Constraint::ArcTangent { arc, segment, at } => {
+                into.extend(self.arc_tangent_equations(arc, segment, at))
             }
             Constraint::Midpoint { point, segment } => {
                 self.midpoint_equations(point, segment, into)
@@ -995,6 +990,9 @@ impl Sketch {
             }
             DimensionTarget::Diameter(circle) => {
                 self.size_equation(circle, dimension.value / (2.0 * scale))?
+            }
+            DimensionTarget::ArcRadius(_) | DimensionTarget::ArcSweep(_) => {
+                self.arc_dimension_equation(dimension, scale)?
             }
         };
 

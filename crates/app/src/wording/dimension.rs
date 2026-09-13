@@ -44,7 +44,9 @@ pub fn label(lang: &Catalogue, target: &DimensionTarget, value: f64) -> String {
     let value = short(value);
     let measured = &[("value", value.as_str())];
     match target {
-        DimensionTarget::Angle { .. } => lang.t_with("dimension.label.angle", measured),
+        DimensionTarget::Angle { .. } | DimensionTarget::ArcSweep(_) => {
+            lang.t_with("dimension.label.angle", measured)
+        }
         DimensionTarget::AxisAngle { axis, .. } => lang.t_with(
             "dimension.label.axis_angle",
             &[
@@ -52,7 +54,9 @@ pub fn label(lang: &Catalogue, target: &DimensionTarget, value: f64) -> String {
                 ("axis", &constraints::axis(lang, *axis)),
             ],
         ),
-        DimensionTarget::Radius(_) => lang.t_with("dimension.label.radius", measured),
+        DimensionTarget::Radius(_) | DimensionTarget::ArcRadius(_) => {
+            lang.t_with("dimension.label.radius", measured)
+        }
         DimensionTarget::Diameter(_) => lang.t_with("dimension.label.diameter", measured),
         DimensionTarget::Projected { axis, .. } => match axis {
             SketchAxis::U => lang.t_with("dimension.label.width", measured),
@@ -112,6 +116,9 @@ pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
             "dimension.spans.circle",
             &[("circle", &circle.0.to_string())],
         ),
+        DimensionTarget::ArcRadius(arc) | DimensionTarget::ArcSweep(arc) => {
+            lang.t_with("dimension.spans.arc", &[("arc", &arc.0.to_string())])
+        }
     }
 }
 
@@ -127,12 +134,13 @@ fn short(value: f64) -> String {
 
 #[cfg(test)]
 mod tests {
-    use cao_sketch::{CircleId, PointId, SegmentId};
+    use cao_sketch::{ArcId, CircleId, PointId, SegmentId};
 
     use super::*;
 
     const SEGMENT: SegmentId = SegmentId(0);
     const CIRCLE: CircleId = CircleId(3);
+    const ARC: ArcId = ArcId(2);
 
     fn along(axis: SketchAxis) -> DimensionTarget {
         DimensionTarget::Projected {
@@ -171,6 +179,8 @@ mod tests {
             (along(SketchAxis::V), "Hauteur 60 mm"),
             (DimensionTarget::Radius(CIRCLE), "Rayon 60 mm"),
             (DimensionTarget::Diameter(CIRCLE), "Diamètre 60 mm"),
+            (DimensionTarget::ArcRadius(ARC), "Rayon 60 mm"),
+            (DimensionTarget::ArcSweep(ARC), "Angle 60°"),
             (DimensionTarget::Length(SEGMENT), "Cote 60 mm"),
             (
                 DimensionTarget::Distance {
@@ -238,6 +248,8 @@ mod tests {
             (along(SketchAxis::V), "points 1 et 2 sur l'axe vertical"),
             (DimensionTarget::Radius(CIRCLE), "cercle 3"),
             (DimensionTarget::Diameter(CIRCLE), "cercle 3"),
+            (DimensionTarget::ArcRadius(ARC), "arc 2"),
+            (DimensionTarget::ArcSweep(ARC), "arc 2"),
         ];
 
         for (target, reads) in spanned {

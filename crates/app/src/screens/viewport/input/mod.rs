@@ -7,8 +7,8 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_sketch::{
-    Aim, ChainAnchor, CircleId, CircleMode, DimensionTarget, Element, Found, PointId, Rule,
-    RuleIntent, RulePick, SegmentId, Selection, ToolState, WorkPlane, rule_intent,
+    Aim, ChainAnchor, CircleId, CircleMode, DimensionTarget, Found, PointId, Rule, RuleIntent,
+    SegmentId, Selection, ToolState, WorkPlane, rule_intent,
 };
 use glam::{DVec2, DVec3};
 
@@ -20,6 +20,9 @@ use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_siz
 
 mod arcs;
 pub(crate) use arcs::{aimed as arc_aimed, arc_centre_group, arc_preview, draw_arc};
+
+mod constrain;
+use constrain::nearest_rule_pick;
 
 mod rectangle;
 use rectangle::dimension_the_rectangle;
@@ -315,23 +318,7 @@ fn constrain(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    // Smallest target first, as everywhere else: a point is harder to hit on
-    // purpose than the trait it sits on. The axes of the sketch come last,
-    // being the widest thing on screen.
-    let picked = sketch
-        .nearest_point(cursor, snap * 0.8)
-        .filter(|point| !sketch.is_origin(*point) || rule == Rule::Coincident)
-        .map(Element::Point)
-        .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))
-        .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle))
-        .map(RulePick::Element)
-        .or_else(|| {
-            (rule == Rule::Collinear)
-                .then(|| cao_sketch::axis_under(cursor, snap).map(RulePick::Axis))
-                .flatten()
-        });
-
-    let Some(picked) = picked else {
+    let Some(picked) = nearest_rule_pick(sketch, cursor, snap, rule) else {
         context.editor.message = Some(context.lang.t("sketch.nothing_to_constrain"));
         return false;
     };

@@ -8,6 +8,7 @@ use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, PI, TAU};
 
 use glam::DVec2;
 
+use crate::arc_annotation;
 use crate::constraints::DimensionTarget;
 use crate::segment::overshot_end;
 use crate::sketch::Sketch;
@@ -95,7 +96,13 @@ impl Sketch {
             DimensionTarget::Radius(circle) => {
                 let circle = *self.circles().get(circle.0)?;
                 let center = *self.points().get(circle.center.0)?;
-                radial(&mut shape, center, circle.radius, by, metrics)
+                arc_annotation::radial(&mut shape, center, circle.radius, by, metrics)
+            }
+            DimensionTarget::ArcRadius(arc) => {
+                arc_annotation::radius(self, arc, by, metrics, &mut shape)?
+            }
+            DimensionTarget::ArcSweep(arc) => {
+                arc_annotation::sweep(self, arc, by, metrics, &mut shape)?
             }
         };
         Some(Placement {
@@ -122,9 +129,9 @@ impl Sketch {
 /// Where an annotation sits: what was recorded for it, if anything, plus what
 /// a drag in progress is adding on top.
 #[derive(Clone, Copy)]
-struct Moved {
-    placed: Option<DVec2>,
-    nudge: DVec2,
+pub(crate) struct Moved {
+    pub(crate) placed: Option<DVec2>,
+    pub(crate) nudge: DVec2,
 }
 
 impl Moved {
@@ -254,7 +261,7 @@ fn linear(
 /// Text is much wider than it is tall, so clearing it sideways — which is
 /// what a vertical dimension needs — takes far more room than clearing it
 /// upwards.
-fn text_clearance(normal: DVec2) -> f64 {
+pub(crate) fn text_clearance(normal: DVec2) -> f64 {
     12.0 + 24.0 * normal.x.abs()
 }
 
@@ -362,33 +369,14 @@ fn across(
     )
 }
 
-/// A radius: a line from the centre out to the circle, arrow on the rim.
-fn radial(
-    out: &mut Vec<(DVec2, DVec2)>,
-    center: DVec2,
-    radius: f64,
-    by: Moved,
-    metrics: AnnotationMetrics,
-) -> (DVec2, DVec2) {
-    // A radius is always drawn from the centre outwards, so dragging it turns
-    // the leader about the circle rather than detaching it.
-    let default = DVec2::splat(FRAC_1_SQRT_2);
-    let placed = by.placed.unwrap_or(default * radius) + by.nudge;
-    let direction = placed.normalize_or(default);
-    let rim = center + direction * radius;
-    out.push((center, rim));
-    arrow(out, rim, -direction, metrics);
-
-    let aside = DVec2::new(-direction.y, direction.x);
-    (
-        center + direction * radius * 0.55 + aside * text_clearance(aside) * metrics.pixel,
-        direction * radius,
-    )
-}
-
 /// An arrowhead at `tip`, opening along `direction` (which points away from
 /// the tip, back down the line).
-fn arrow(out: &mut Vec<(DVec2, DVec2)>, tip: DVec2, direction: DVec2, metrics: AnnotationMetrics) {
+pub(crate) fn arrow(
+    out: &mut Vec<(DVec2, DVec2)>,
+    tip: DVec2,
+    direction: DVec2,
+    metrics: AnnotationMetrics,
+) {
     let length = metrics.arrow_pixels * metrics.pixel;
     let back = direction.normalize_or(DVec2::X) * length;
     let side = DVec2::new(-back.y, back.x) * 0.35;

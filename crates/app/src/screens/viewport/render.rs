@@ -1386,7 +1386,9 @@ pub(crate) fn paint_dimension_labels(
             egui::Align2::CENTER_CENTER,
             if matches!(
                 target,
-                DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+                DimensionTarget::Angle { .. }
+                    | DimensionTarget::AxisAngle { .. }
+                    | DimensionTarget::ArcSweep(_)
             ) {
                 format!("{value:.1}°")
             } else {
@@ -1425,7 +1427,9 @@ pub(crate) fn paint_dimension_field(
         .is_some_and(|dimension| dimension.driven);
     let angle = matches!(
         target,
-        DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+        DimensionTarget::Angle { .. }
+            | DimensionTarget::AxisAngle { .. }
+            | DimensionTarget::ArcSweep(_)
     );
 
     let mut applied = false;

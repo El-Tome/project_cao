@@ -4,6 +4,7 @@
 
 use glam::DVec2;
 
+use crate::arc::ArcId;
 use crate::constraints::Constraint;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
@@ -34,6 +35,7 @@ impl Sketch {
                 .flatten()
                 .collect()
         };
+        let arc = |id: ArcId| (id.0 < self.arcs().len()).then(|| self.arc_midpoint(id));
 
         match constraint {
             Constraint::Perpendicular { first, second } => match self.corner_of(first, second) {
@@ -47,6 +49,9 @@ impl Sketch {
                 .into_iter()
                 .flatten()
                 .collect(),
+            Constraint::EqualRadiusArc { first, second } => {
+                [arc(first), arc(second)].into_iter().flatten().collect()
+            }
             Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
             Constraint::OnSegment { point: held, .. }
             | Constraint::Midpoint { point: held, .. } => point(held).into_iter().collect(),
@@ -61,6 +66,19 @@ impl Sketch {
                 .or_else(|| {
                     (round.0 < self.circles().len())
                         .then(|| self.foot_on_segment(self.circle(round).center, segment))
+                        .flatten()
+                })
+                .into_iter()
+                .collect(),
+            Constraint::ArcTangent {
+                arc: curve,
+                segment,
+                at,
+            } => at
+                .and_then(point)
+                .or_else(|| {
+                    (curve.0 < self.arcs().len())
+                        .then(|| self.foot_on_segment(self.arc(curve).center, segment))
                         .flatten()
                 })
                 .into_iter()

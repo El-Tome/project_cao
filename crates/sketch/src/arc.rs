@@ -3,6 +3,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::arcing::{ArcDraft, places_along, steps_along, sweep_of};
 use crate::equation::Equation;
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, Sketch};
@@ -34,24 +35,44 @@ pub struct Arc {
 
 impl Sketch {
     pub fn add_arc(&mut self, center: PointId, start: PointId, end: PointId) -> ArcId {
+        self.push_arc(center, start, end, false)
+    }
+
+    /// Helps place the rest of the drawing without becoming part of it:
+    /// excluded from the area of any region it borders.
+    pub fn add_construction_arc(&mut self, center: PointId, start: PointId, end: PointId) -> ArcId {
+        self.push_arc(center, start, end, true)
+    }
+
+    fn push_arc(
+        &mut self,
+        center: PointId,
+        start: PointId,
+        end: PointId,
+        construction: bool,
+    ) -> ArcId {
         self.arcs.push(Arc {
             center,
             start,
             end,
-            construction: false,
+            construction,
         });
         ArcId(self.arcs.len() - 1)
     }
 
-    /// How far round the arc goes, in radians, always between zero and a full
-    /// turn: the way round is carried by the order of the ends, so the answer
-    /// never needs a sign to say it.
+    /// How far round the arc goes, in radians.
     pub fn arc_sweep(&self, id: ArcId) -> f64 {
+        sweep_of(self.arc_draft(id))
+    }
+
+    /// The three places the arc stands on, which is all the curve is made of.
+    pub fn arc_draft(&self, id: ArcId) -> ArcDraft {
         let arc = self.arcs[id.0];
-        let centre = self.point(arc.center);
-        let from = (self.point(arc.start) - centre).to_angle();
-        let to = (self.point(arc.end) - centre).to_angle();
-        (to - from).rem_euclid(std::f64::consts::TAU)
+        ArcDraft {
+            centre: self.point(arc.center),
+            start: self.point(arc.start),
+            end: self.point(arc.end),
+        }
     }
 
     pub fn arcs(&self) -> &[Arc] {
@@ -91,23 +112,8 @@ impl Sketch {
     }
 
     /// The curve as a run of places, ends included.
-    ///
-    /// How many places is read from the sweep rather than fixed, so that a
-    /// small fillet does not become a visible polygon and a long arc does not
-    /// cost what a whole circle costs.
     pub fn arc_polyline(&self, id: ArcId) -> Vec<DVec2> {
-        let arc = self.arcs[id.0];
-        let centre = self.point(arc.center);
-        let radius = self.arc_radius(id);
-        let sweep = self.arc_sweep(id);
-        let from = (self.point(arc.start) - centre).to_angle();
-        let steps = self.arc_steps(id);
-        (0..=steps)
-            .map(|step| {
-                let angle = from + sweep * step as f64 / steps as f64;
-                centre + DVec2::from_angle(angle) * radius
-            })
-            .collect()
+        places_along(self.arc_draft(id))
     }
 
     /// Halfway along the curve, which is where a mark about the whole arc
@@ -121,13 +127,9 @@ impl Sketch {
     }
 
     pub fn arc_steps(&self, id: ArcId) -> usize {
-        let turns = self.arc_sweep(id) / std::f64::consts::TAU;
-        ((turns * FULL_CIRCLE_STEPS as f64).ceil() as usize).max(2)
+        steps_along(self.arc_draft(id))
     }
 }
-
-/// How finely a whole turn would be cut up. An arc takes its share of it.
-const FULL_CIRCLE_STEPS: usize = 48;
 
 impl Sketch {
     /// What being an arc asks of the drawing, one equation per arc.
@@ -220,6 +222,16 @@ mod tests {
             (sweep - std::f64::consts::FRAC_PI_2).abs() < TOLERANCE,
             "a quarter turn expected, got {sweep}",
         );
+    }
+
+    #[test]
+    fn a_guide_arc_says_it_is_one_and_an_ordinary_arc_does_not() {
+        let (mut sketch, drawn) = quarter();
+        let arc = sketch.arc(drawn);
+        let guide = sketch.add_construction_arc(arc.center, arc.start, arc.end);
+
+        assert!(!sketch.arc(drawn).construction);
+        assert!(sketch.arc(guide).construction);
     }
 
     #[test]

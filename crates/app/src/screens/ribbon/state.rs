@@ -46,6 +46,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolLineSymmetric => tool == Tool::LineSymmetric,
         Command::ToolRectangle => tool == Tool::Rectangle,
         Command::ToolCircle => tool == Tool::Circle,
+        Command::ToolArc => tool == Tool::Arc,
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
         Command::ToggleConstruction => state.editor.construction,
@@ -111,6 +112,7 @@ pub fn is_enabled(
         | Command::ToolLineSymmetric
         | Command::ToolRectangle
         | Command::ToolCircle
+        | Command::ToolArc
         | Command::ToolPoint
         | Command::ToolDimension => drawing,
         Command::DimensionAuto

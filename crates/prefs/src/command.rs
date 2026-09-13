@@ -18,6 +18,7 @@ pub enum Command {
     ToolLineSymmetric,
     ToolRectangle,
     ToolCircle,
+    ToolArc,
     ToolPoint,
     ToolDimension,
     ToggleConstruction,
@@ -76,7 +77,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 40] = [
+    pub const ALL: [Self; 41] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -87,6 +88,7 @@ impl Command {
         Self::ToolLineSymmetric,
         Self::ToolRectangle,
         Self::ToolCircle,
+        Self::ToolArc,
         Self::ToolPoint,
         Self::ToolDimension,
         Self::ToggleConstruction,
@@ -130,6 +132,7 @@ impl Command {
             | Self::ToolLineSymmetric
             | Self::ToolRectangle
             | Self::ToolCircle
+            | Self::ToolArc
             | Self::ToolPoint
             | Self::ToolDimension
             | Self::ToggleConstruction => CommandFamily::DrawingTools,

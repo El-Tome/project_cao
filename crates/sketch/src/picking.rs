@@ -28,7 +28,7 @@ const WIDE_TARGET_REACH: f64 = 1.5;
 impl Sketch {
     /// What the cursor is over, in the order a click should take it.
     ///
-    /// A point before a trait before a circle before an annotation: the smaller
+    /// A point before a trait before a curve before an annotation: the smaller
     /// the target, the harder it is to hit on purpose, so the smaller one wins.
     /// The origin is never picked — it is there to be measured from, not moved.
     pub fn pick(
@@ -48,6 +48,9 @@ impl Sketch {
         }
         if let Some(circle) = self.nearest_circle(cursor, tolerance) {
             return Some(Selection::Element(Element::Circle(circle)));
+        }
+        if let Some(arc) = self.nearest_arc(cursor, tolerance) {
+            return Some(Selection::Element(Element::Arc(arc)));
         }
         let wide = tolerance * WIDE_TARGET_REACH;
         if let Some(target) = self.nearest_dimension(cursor, wide, metrics) {
@@ -205,6 +208,17 @@ mod tests {
         pixel: 1.0,
         nudge: DVec2::ZERO,
     };
+
+    #[test]
+    fn a_click_on_the_curve_of_an_arc_takes_hold_of_the_arc() {
+        let (sketch, arc) = quarter();
+        let on_the_curve = DVec2::splat(10.0 / 2.0_f64.sqrt());
+
+        assert_eq!(
+            sketch.pick(on_the_curve, 1.0, METRICS),
+            Some(Selection::Element(Element::Arc(arc))),
+        );
+    }
 
     #[test]
     fn a_point_wins_over_the_trait_it_sits_on() {

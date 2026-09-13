@@ -57,6 +57,21 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("radius", &rounded(*radius, 2)),
             ],
         ),
+        Operation::AddArc {
+            sketch,
+            center,
+            start,
+            end,
+            ..
+        } => lang.t_with(
+            "history.detail.arc",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("center", &point_label(lang, center)),
+                ("start", &point_label(lang, start)),
+                ("end", &point_label(lang, end)),
+            ],
+        ),
         Operation::MovePoint {
             sketch,
             point,

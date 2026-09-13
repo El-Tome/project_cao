@@ -25,6 +25,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::AddSymmetricSegment { .. } => lang.t("history.symmetric_segment"),
         Operation::AddRectangle { .. } => lang.t("history.rectangle"),
         Operation::AddCircle { .. } => lang.t("history.circle"),
+        Operation::AddArc { .. } => lang.t("history.arc"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),
         Operation::MoveDimension { .. } => lang.t("history.dimension_moved"),
         Operation::Constrain { constraint, .. } => constraints::label(lang, *constraint),
@@ -65,6 +66,7 @@ fn erased(
         ([Element::Point(_)], [], []) => lang.t("history.point_erased"),
         ([Element::Segment(_)], [], []) => lang.t("history.segment_erased"),
         ([Element::Circle(_)], [], []) => lang.t("history.circle_erased"),
+        ([Element::Arc(_)], [], []) => lang.t("history.arc_erased"),
         ([], [_], []) => lang.t("history.dimension_erased"),
         ([], [], [rule]) => constraints::erased_label(lang, *rule),
         _ => lang.t_with(

@@ -54,6 +54,9 @@ pub enum ToolState {
         points: Vec<DVec2>,
         segments: Vec<SegmentId>,
     },
+    Arc {
+        places: Vec<DVec2>,
+    },
     Dimension {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,

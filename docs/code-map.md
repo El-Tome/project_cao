@@ -44,6 +44,8 @@ in one of the two domains, never there.
 | What one is after | File | Way in |
 | --- | --- | --- |
 | Sketch model: points, traits, circles | `sketch/src/sketch.rs` — the largest file in the repository | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| A piece of a circle, and what keeps it round | `sketch/src/arc.rs` | `Arc`, `Sketch::add_arc`, `arc_sweep`, `arc_polyline`, `arc_equations` |
+| Which arc the clicks gathered so far mean, and the curve they make | `sketch/src/arcing.rs` | `arc_from`, `ArcMode`, `ArcDraft`, `places_along`, `sweep_of` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
@@ -89,6 +91,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | --- | --- | --- |
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
 | Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 | What a part asks of a filesystem | `part/src/ports/files.rs` | `Files`, `FileError` |
@@ -114,7 +117,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours and gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
 | Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
-| Toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge` |
+| Toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge`, `adopt_new_commands` |
+| Which buttons a fresh installation shows | `prefs/src/toolbar/standard.rs` | `impl Default for ToolbarLayout` |
 
 What they do: [`history.md`](history.md),
 [`configuration.md`](configuration.md).
@@ -140,7 +144,10 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: state, camera navigation, entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
 | Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
+| Canvas: a circle, an arc or a dashed line as straight steps | `app/src/screens/viewport/render/curves.rs` | `push_line`, `push_circle_at`, `push_arc_at` |
+| Canvas: one click of the arc tool, and what it shows in between | `app/src/screens/viewport/input/arcs.rs` | `draw_arc`, `arc_preview` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
+| A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
@@ -153,6 +160,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
 | What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |
+| What a way of drawing an arc asks for | `app/src/wording/arc.rs` | `asks_for` |
 | What a work plane is called | `app/src/wording/plane.rs` | `label` |
 | What a face of the orientation cube is called | `app/src/wording/cube.rs` | `face` |
 | What a profile is called | `app/src/wording/settings.rs` | `profile` |

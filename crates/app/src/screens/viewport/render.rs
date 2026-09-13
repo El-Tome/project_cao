@@ -19,10 +19,15 @@ use crate::lang::Catalogue;
 use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
+mod curves;
 mod symmetric_line;
 
+use curves::{push_arc_at, push_circle_at, push_line};
+
 use super::cube_labels;
-use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
+use super::input::{
+    annotation_position, arc_preview, circle_from, measure_preview, rectangle_corner, refine,
+};
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
 };
@@ -482,6 +487,29 @@ fn push_sketch(
         );
     }
 
+    for (id, arc) in sketch.live_arcs() {
+        let (color, width) = match sketch.is_held(Element::Arc(id)) {
+            true => (tint(theme.fixed), theme.sketch_width),
+            false => sketch_colors(theme, active, holds(arc.center)),
+        };
+        let (color, width) = mark_selected(
+            context,
+            theme,
+            Selection::Element(Element::Arc(id)),
+            color,
+            width,
+        );
+        push_arc_at(
+            out,
+            sketch,
+            sketch.arc_draft(id),
+            color,
+            width,
+            arc.construction,
+            scale,
+        );
+    }
+
     if !active {
         return;
     }
@@ -895,6 +923,35 @@ fn push_preview(
         );
     }
 
+    // An arc given only its centre is not a curve yet, so what follows the
+    // cursor is the reach it is about to be drawn at: clicking into an empty
+    // canvas should never be clicking into the dark.
+    if context.editor.tool == Tool::Arc {
+        let marker = scale.world_size_of(3.0);
+        match arc_preview(context, cursor) {
+            Some(drawn) => {
+                push_arc_at(
+                    out,
+                    sketch,
+                    drawn,
+                    preview,
+                    1.5,
+                    context.editor.construction,
+                    scale,
+                );
+                for place in [drawn.centre, drawn.start, drawn.end] {
+                    push_point_marker(out, sketch, place, marker, preview, 1.5);
+                }
+            }
+            None => {
+                if let Some(centre) = context.editor.arc_places().first().copied() {
+                    push_preview_line(out, sketch, centre, cursor, preview, false, scale);
+                    push_point_marker(out, sketch, centre, marker, preview, 1.5);
+                }
+            }
+        }
+    }
+
     let Some(start) = context.editor.pending_start() else {
         return;
     };
@@ -939,85 +996,6 @@ fn push_preview_line(
         construction,
         scale,
     );
-}
-
-/// How long each dash and the gap after it are on screen, so the pattern
-/// stays readable at any zoom instead of vanishing or clumping together.
-const DASH_PIXELS: f64 = 6.0;
-
-/// A straight line, plain or, for construction geometry, broken into dashes
-/// of a constant size on screen.
-fn push_line(
-    out: &mut Vec<cao_render::Vertex>,
-    start: DVec3,
-    end: DVec3,
-    color: [f32; 4],
-    width: f32,
-    construction: bool,
-    scale: ViewScale,
-) {
-    let span = end - start;
-    let length = span.length();
-    let dash = DASH_PIXELS * scale.units_per_pixel;
-    if !construction || length < dash {
-        out.push(cao_render::Vertex::line(start.as_vec3(), color, width));
-        out.push(cao_render::Vertex::line(end.as_vec3(), color, width));
-        return;
-    }
-    let direction = span / length;
-    let mut walked = 0.0;
-    while walked < length {
-        let dash_end = (walked + dash).min(length);
-        out.push(cao_render::Vertex::line(
-            (start + direction * walked).as_vec3(),
-            color,
-            width,
-        ));
-        out.push(cao_render::Vertex::line(
-            (start + direction * dash_end).as_vec3(),
-            color,
-            width,
-        ));
-        walked += dash * 2.0;
-    }
-}
-
-/// Circles are drawn as a many-sided polygon: the line renderer only knows
-/// about segments, and at this many sides the corners are invisible.
-///
-/// Construction geometry skips every other group of sides, which is what
-/// turns the same polygon into a dashed circle.
-#[allow(clippy::too_many_arguments)]
-fn push_circle_at(
-    out: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    center: DVec2,
-    radius: f64,
-    color: [f32; 4],
-    width: f32,
-    construction: bool,
-    scale: ViewScale,
-) {
-    const SIDES: usize = 96;
-    if radius <= 0.0 {
-        return;
-    }
-    // How many sides make up one dash: kept a constant size on screen, the
-    // same way a construction line's dashes are, rather than growing with the circle's own radius.
-    let side_length = std::f64::consts::TAU * radius / SIDES as f64;
-    let dash_group = ((DASH_PIXELS * scale.units_per_pixel / side_length).round() as usize).max(1);
-    let mut previous = None;
-    for step in 0..=SIDES {
-        let angle = step as f64 / SIDES as f64 * std::f64::consts::TAU;
-        let point = center + DVec2::new(angle.cos(), angle.sin()) * radius;
-        let world = sketch.plane.to_world(point);
-        let drawn = !construction || (step / dash_group).is_multiple_of(2);
-        if let (Some(previous), true) = (previous, drawn) {
-            out.push(cao_render::Vertex::line(previous, color, width));
-            out.push(cao_render::Vertex::line(world.as_vec3(), color, width));
-        }
-        previous = Some(world.as_vec3());
-    }
 }
 
 fn to_physical(rect: egui::Rect, pixels_per_point: f32) -> ViewportRect {

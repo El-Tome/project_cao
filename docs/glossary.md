@@ -12,7 +12,7 @@ wording. Where a term carries a rule, the rule is on the line under it.
 
 | Code | Interface | What it names |
 | --- | --- | --- |
-| `Sketch` | esquisse | A 2D drawing on one plane, with its points, segments, circles, dimensions and constraints. |
+| `Sketch` | esquisse | A 2D drawing on one plane, with its points, segments, circles, arcs, dimensions and constraints. |
 
 > **The aggregate.** Nothing inside a `Sketch` is valid on its own — the solver
 > resolves the whole of it at once. Its fields are private and stay private:
@@ -22,10 +22,11 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | Code | Interface | What it names |
 | --- | --- | --- |
 | `WorkPlane` | plan de travail | The plane a sketch is drawn on, and the frame its coordinates are given in. |
-| `PointId`, `SegmentId`, `CircleId` | — | A rank in the sketch's own list. Not an identity that survives anything else. |
+| `PointId`, `SegmentId`, `CircleId`, `ArcId` | — | A rank in the sketch's own list. Not an identity that survives anything else. |
 | `Segment` | trait | A straight piece between two points. Never called "line": a `Line` in `construct` is an infinite one used for tangency. |
 | `Circle` | cercle | A centre and a radius. The radius is an unknown of the solver, like any coordinate. |
-| `Element` | élément | Whichever of point, segment or circle a rule is about. |
+| `Arc` | arc | A piece of a circle, as a centre and the two ends it runs between — three ordinary points of the drawing, shared like a segment's. No radius of its own: it is read off the end the curve starts at, which leaves the way round a consequence of the order of the two ends. |
+| `Element` | élément | Whichever of point, segment, circle or arc a rule is about. |
 | `Region` | aire | A closed loop of the drawing, the thing an extrusion can be raised from. |
 | `Dimension` | cote | A rule that carries a number: length, angle, radius, diameter, distance. |
 | `Constraint` | contrainte | A rule that carries no number: perpendicular, parallel, equal, tangent, on-segment. |

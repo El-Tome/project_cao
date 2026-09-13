@@ -2,6 +2,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::command::Command;
 
+mod standard;
+
 /// Which edge of the window the toolbar is attached to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Edge {
@@ -265,81 +267,6 @@ fn seat_for<'a>(items: &'a mut Vec<Item>, path: &[String]) -> &'a mut Vec<Item> 
     match &mut items[index] {
         Item::Group { items, .. } => seat_for(items, rest),
         _ => unreachable!("the entry was just found or made as a group"),
-    }
-}
-
-impl Default for ToolbarLayout {
-    fn default() -> Self {
-        use Command as C;
-        Self {
-            edge: Edge::Top,
-            show_logo: false,
-            logo_text: "CAO".to_string(),
-            show_labels: true,
-            items: vec![
-                Item::group(
-                    "sketch",
-                    vec![
-                        Item::Command(C::NewSketch),
-                        Item::Separator,
-                        Item::group(
-                            "drawing",
-                            vec![
-                                Item::Command(C::ToolSelect),
-                                Item::Command(C::ToolLine),
-                                Item::Command(C::ToolLineSymmetric),
-                                Item::Command(C::ToolRectangle),
-                                Item::Command(C::ToolCircle),
-                                Item::group(
-                                    "circles",
-                                    vec![
-                                        Item::Command(C::CircleCenter),
-                                        Item::Command(C::CircleTwoPoints),
-                                        Item::Command(C::CircleThreePoints),
-                                        Item::Command(C::CircleTwoTangents),
-                                        Item::Command(C::CircleThreeTangents),
-                                    ],
-                                ),
-                                Item::Command(C::ToolPoint),
-                                Item::Command(C::ToolDimension),
-                                Item::Command(C::ToggleConstruction),
-                                // A third level opens as a menu rather than
-                                // being spread out: nine rules laid on the bar
-                                // would push everything else off it.
-                                Item::group(
-                                    "constraints",
-                                    vec![
-                                        Item::Command(C::RulePerpendicular),
-                                        Item::Command(C::RuleParallel),
-                                        Item::Command(C::RuleEqual),
-                                        Item::Command(C::RuleCoincident),
-                                        Item::Command(C::RuleCollinear),
-                                        Item::Command(C::RuleTangent),
-                                        Item::Command(C::RuleMidpoint),
-                                        Item::Command(C::RuleFixed),
-                                        Item::Command(C::RuleConcentric),
-                                    ],
-                                ),
-                            ],
-                        ),
-                        Item::Command(C::RecenterOnSketch),
-                        Item::Command(C::FinishSketch),
-                        Item::Separator,
-                        Item::group("edit", vec![Item::Command(C::Undo), Item::Command(C::Redo)]),
-                    ],
-                ),
-                Item::group(
-                    "extrusion",
-                    vec![
-                        Item::Command(C::ExtrusionAdd),
-                        Item::Command(C::ExtrusionCut),
-                        Item::Separator,
-                        Item::Command(C::ExtrusionStraight),
-                        Item::Command(C::ExtrusionRevolution),
-                    ],
-                ),
-            ],
-        }
     }
 }
 

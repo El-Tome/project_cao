@@ -1,8 +1,10 @@
-use cao_part::{DimensionOutcome, PartDocument, history::Operation};
-use cao_sketch::{DimensionTarget, LengthOutcome, PointId, Rule, Selection, ToolState, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, Rule, Selection, ToolState, WorkPlane};
 use glam::DVec2;
 
-pub use cao_sketch::{CircleMode, DimensionMode};
+mod typed_dimension;
+
+pub use cao_sketch::{ArcMode, CircleMode, DimensionMode};
+pub(crate) use typed_dimension::apply_dimension_value;
 
 /// One of the two values that can be typed while a shape is being drawn.
 ///
@@ -70,6 +72,7 @@ pub enum Tool {
     LineSymmetric,
     Rectangle,
     Circle,
+    Arc,
     Point,
     /// Smart dimension: measures whatever is clicked.
     Dimension,
@@ -121,6 +124,8 @@ pub struct SketchEditor {
     /// How the circle tool is drawing. Not reset between shapes: a mode
     /// chosen stays chosen until another is.
     pub circle_mode: CircleMode,
+    /// How the arc tool is drawing, kept across shapes for the same reason.
+    pub arc_mode: ArcMode,
     /// Which kind of measurement the dimension tool is forcing. Not reset
     /// between shapes, for the same reason.
     pub dimension_mode: DimensionMode,
@@ -286,6 +291,14 @@ impl SketchEditor {
         }
     }
 
+    /// The places the arc being drawn has been given so far.
+    pub fn arc_places(&self) -> &[DVec2] {
+        match &self.tool_state {
+            ToolState::Arc { places } => places,
+            _ => &[],
+        }
+    }
+
     /// First corner of a rectangle being drawn.
     pub fn pending_start(&self) -> Option<DVec2> {
         match &self.tool_state {
@@ -341,61 +354,5 @@ impl SketchEditor {
             },
             focus: !same,
         });
-    }
-}
-
-/// `placement: None` leaves the annotation where it was put down, not reset.
-pub(crate) fn apply_dimension_value(
-    document: &mut PartDocument,
-    editor: &mut SketchEditor,
-    index: usize,
-    target: DimensionTarget,
-    lang: &crate::lang::Catalogue,
-) -> bool {
-    let Some(typed) = editor.editing.as_ref().map(|editing| editing.input.clone()) else {
-        return false;
-    };
-    let Ok(value) = typed.trim().replace(',', ".").parse::<f64>() else {
-        editor.message = Some(lang.t("sketch.invalid_value"));
-        return false;
-    };
-
-    // The same value twice must not repeat an identical step in the history.
-    if document.sketches()[index]
-        .dimension_of(target)
-        .is_some_and(|dimension| (dimension.value - value).abs() < 1e-4)
-    {
-        editor.message = None;
-        return false;
-    }
-
-    match document.apply(Operation::SetDimension {
-        sketch: index,
-        target,
-        value,
-        placement: None,
-    }) {
-        Some(DimensionOutcome::ScaleDefined {
-            millimeters_per_unit: mm,
-        }) => {
-            editor.message = Some(lang.t_with("sketch.scale_set", &[("mm", &format!("{mm:.4}"))]));
-            true
-        }
-        Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => {
-            editor.message = None;
-            true
-        }
-        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => {
-            editor.message = Some(lang.t("sketch.closed_outline"));
-            true
-        }
-        Some(DimensionOutcome::Reference) => {
-            editor.message = Some(crate::wording::dimension::redundant_warning(lang));
-            true
-        }
-        _ => {
-            editor.message = Some(lang.t("sketch.no_dimension_here"));
-            false
-        }
     }
 }

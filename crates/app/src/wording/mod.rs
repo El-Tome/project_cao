@@ -9,6 +9,7 @@
 //! What a key says lives in [`crate::lang`], not here: this decides which key
 //! a case of the domain earns.
 
+pub mod arc;
 pub mod circle;
 pub mod command;
 pub mod constraints;

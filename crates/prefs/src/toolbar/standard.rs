@@ -38,6 +38,7 @@ impl Default for ToolbarLayout {
                                         Item::Command(C::CircleThreeTangents),
                                     ],
                                 ),
+                                Item::Command(C::ToolArc),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToggleConstruction),

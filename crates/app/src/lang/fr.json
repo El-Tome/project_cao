@@ -52,6 +52,8 @@
   "cube.top": "DESSUS",
   "cube.bottom": "DESSOUS",
 
+  "arc.asks_for.by_center": "Cliquez le centre, puis le départ de la courbe, puis son arrivée",
+
   "circle.asks_for.center": "Cliquez le centre, puis un point du bord",
   "circle.asks_for.two_points": "Cliquez deux points opposés du bord",
   "circle.asks_for.three_points": "Cliquez deux points du bord, puis le centre",
@@ -141,6 +143,7 @@
   "command.label.tool_line_symmetric": "Ligne symétrique",
   "command.label.tool_rectangle": "Rectangle",
   "command.label.tool_circle": "Cercle",
+  "command.label.tool_arc": "Arc",
   "command.label.tool_point": "Point",
   "command.label.tool_dimension": "Cote",
   "command.label.toggle_construction": "Construction",
@@ -184,6 +187,7 @@
   "command.hint.tool_line_symmetric": "Un centre, puis un bout : l'autre suit en miroir",
   "command.hint.tool_rectangle": "Deux clics : deux coins opposés",
   "command.hint.tool_circle": "Deux clics : centre puis rayon",
+  "command.hint.tool_arc": "Trois clics : centre, départ, puis arrivée",
   "command.hint.tool_point": "Un clic pose un point",
   "command.hint.tool_dimension": "Cote intelligente : cliquer ce qu'on veut mesurer",
   "command.hint.toggle_construction": "Ce qui va être dessiné aide à construire, sans compter dans l'aire",
@@ -442,6 +446,7 @@
   "sketch.choose_a_plane": "Choisissez un plan d'esquisse",
   "sketch.click_a_trait": "Cliquez un trait",
   "sketch.no_circle_from_these": "Ces éléments ne donnent pas de cercle",
+  "sketch.no_arc_from_these": "Ces points ne donnent pas d'arc",
   "sketch.nothing_to_constrain": "Rien à contraindre ici",
   "sketch.rule_refused": "{asks} : pas ces éléments-là",
   "sketch.place_the_dimension": "Cliquez où poser la cote, ou une seconde entité",

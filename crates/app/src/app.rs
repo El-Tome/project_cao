@@ -323,6 +323,11 @@ fn run(
             tool(editor, Tool::Circle);
             false
         }
+        Command::ToolArc => {
+            tool(editor, Tool::Arc);
+            editor.message = Some(crate::wording::arc::asks_for(lang, editor.arc_mode));
+            false
+        }
         Command::ToolPoint => {
             tool(editor, Tool::Point);
             false

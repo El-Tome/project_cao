@@ -1,6 +1,6 @@
 //! What one click of a tool does: picking a plane, drawing a line, a
-//! rectangle or a circle, measuring a dimension, laying down a rule, dragging
-//! a point or a selection.
+//! rectangle, a circle or an arc, measuring a dimension, laying down a rule,
+//! dragging a point or a selection.
 //!
 //! What is painted from the state this leaves behind lives in
 //! [`super::render`].
@@ -17,6 +17,9 @@ use crate::wording::constraints;
 use crate::wording::dimension;
 
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
+
+mod arcs;
+pub(crate) use arcs::{arc_preview, draw_arc};
 
 mod rectangle;
 use rectangle::dimension_the_rectangle;
@@ -238,6 +241,7 @@ pub(crate) fn handle_sketch_input(
             two_click_shape(context, index, corner, snap, scale.units_per_pixel)
         }
         Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Arc => draw_arc(context, index, cursor, snap),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
@@ -814,7 +818,12 @@ pub(crate) fn annotation_position(
 }
 
 /// A point already there, or a new one where the cursor is.
-fn point_ref_at(context: &SketchContext<'_>, index: usize, position: DVec2, snap: f64) -> PointRef {
+pub(super) fn point_ref_at(
+    context: &SketchContext<'_>,
+    index: usize,
+    position: DVec2,
+    snap: f64,
+) -> PointRef {
     match context.document.sketches()[index].nearest_point(position, snap) {
         Some(point) => PointRef::Existing(point),
         None => PointRef::New(position),

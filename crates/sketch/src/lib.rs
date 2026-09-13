@@ -38,7 +38,7 @@ mod tool;
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
 pub use annotation::{AnnotationMetrics, Placement};
 pub use arc::{Arc, ArcId};
-pub use arcing::{ArcDraft, ArcMode, arc_from};
+pub use arcing::{ArcDraft, ArcMode, arc_from, places_along, steps_along, sweep_of};
 pub use chain::{ChainClick, chain_click};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};

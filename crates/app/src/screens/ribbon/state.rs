@@ -43,6 +43,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
     match command {
         Command::ToolSelect => tool == Tool::Select,
         Command::ToolLine => tool == Tool::Line,
+        Command::ToolLineSymmetric => tool == Tool::LineSymmetric,
         Command::ToolRectangle => tool == Tool::Rectangle,
         Command::ToolCircle => tool == Tool::Circle,
         Command::ToolPoint => tool == Tool::Point,
@@ -107,6 +108,7 @@ pub fn is_enabled(
         Command::FinishSketch | Command::RecenterOnSketch => drawing,
         Command::ToolSelect
         | Command::ToolLine
+        | Command::ToolLineSymmetric
         | Command::ToolRectangle
         | Command::ToolCircle
         | Command::ToolPoint

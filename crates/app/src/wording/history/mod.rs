@@ -22,6 +22,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         ),
         Operation::AddPoint { .. } => lang.t("history.point"),
         Operation::AddSegment { .. } => lang.t("history.segment"),
+        Operation::AddSymmetricSegment { .. } => lang.t("history.symmetric_segment"),
         Operation::AddRectangle { .. } => lang.t("history.rectangle"),
         Operation::AddCircle { .. } => lang.t("history.circle"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),

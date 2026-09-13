@@ -107,6 +107,23 @@ impl Sketch {
         }
     }
 
+    /// The two ends of a trait growing equally in both directions from
+    /// `middle`, as the symmetric line tool draws one. A length typed reads
+    /// the same way the plain line tool reads it: the distance from the
+    /// anchor — here, the middle — to the edge being aimed at.
+    pub fn symmetric_ends(
+        &self,
+        middle: DVec2,
+        cursor: DVec2,
+        locked: LockedInput,
+        scale: f64,
+    ) -> (DVec2, DVec2) {
+        let end = self
+            .aim(ChainAnchor::Pending(middle), None, cursor, locked, scale)
+            .position;
+        (middle * 2.0 - end, end)
+    }
+
     /// Where a chain being drawn starts from, when that place still exists.
     pub fn anchor_position(&self, anchor: ChainAnchor) -> Option<DVec2> {
         match anchor {
@@ -289,6 +306,49 @@ mod tests {
             pointing_down.position.normalize().distance(-thirty) < TOLERANCE,
             "pointing the other way, it is the thirty degrees the cursor is on: {}",
             pointing_down.position,
+        );
+    }
+
+    #[test]
+    fn a_symmetric_trait_grows_equally_on_both_sides_of_its_middle() {
+        let sketch = Sketch::new(WorkPlane::XY);
+        let middle = DVec2::new(10.0, 0.0);
+
+        let (start, end) = sketch.symmetric_ends(
+            middle,
+            middle + DVec2::new(30.0, 0.0),
+            LockedInput::default(),
+            1.0,
+        );
+
+        assert!(
+            middle.distance((start + end) * 0.5) < TOLERANCE,
+            "the middle should sit halfway between the two ends: got {start} and {end}",
+        );
+        assert!((end.x - 40.0).abs() < TOLERANCE, "end = {end}");
+        assert!((start.x + 20.0).abs() < TOLERANCE, "start = {start}");
+    }
+
+    #[test]
+    fn a_length_typed_for_a_symmetric_trait_is_the_distance_to_the_edge_it_aims_at() {
+        let sketch = Sketch::new(WorkPlane::XY);
+        let middle = DVec2::ZERO;
+        let locked = LockedInput {
+            first: Some(50.0),
+            second: None,
+        };
+
+        let (start, end) = sketch.symmetric_ends(middle, DVec2::new(200.0, 0.0), locked, 1.0);
+
+        assert!(
+            (middle.distance(end) - 50.0).abs() < TOLERANCE,
+            "50 typed reaches the edge, the way the plain line tool reads its own anchor: got {}",
+            middle.distance(end),
+        );
+        assert!(
+            (start.distance(end) - 100.0).abs() < TOLERANCE,
+            "the far side mirrors it, so the whole trait spans twice as much: got {}",
+            start.distance(end),
         );
     }
 

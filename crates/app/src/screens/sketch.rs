@@ -48,8 +48,7 @@ impl LiveInput {
         }
     }
 
-    /// Reads a field the user has just changed. An emptied field goes back to
-    /// being a readout.
+    /// Reads a field the user has just changed. An emptied field goes back to being a readout.
     pub fn read(text: &str) -> Option<f64> {
         text.trim()
             .replace(',', ".")
@@ -68,6 +67,7 @@ pub enum Tool {
     /// Pick points and drag them.
     Select,
     Line,
+    LineSymmetric,
     Rectangle,
     Circle,
     Point,

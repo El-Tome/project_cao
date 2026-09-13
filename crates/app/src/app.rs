@@ -311,6 +311,10 @@ fn run(
             tool(editor, Tool::Line);
             false
         }
+        Command::ToolLineSymmetric => {
+            tool(editor, Tool::LineSymmetric);
+            false
+        }
         Command::ToolRectangle => {
             tool(editor, Tool::Rectangle);
             false

@@ -44,6 +44,9 @@ pub enum ToolState {
         anchor: ChainAnchor,
         previous: Option<SegmentId>,
     },
+    SymmetricLine {
+        middle: ChainAnchor,
+    },
     Rectangle {
         start: DVec2,
     },

@@ -75,6 +75,34 @@ pub fn line_dimensions(
     settled(sketch, wanted, scale)
 }
 
+/// Places on a freshly-drawn symmetric segment its own length — read from the
+/// drawing rather than repeated from what was typed, since a length typed only
+/// reaches one of its two edges — and the angle it was drawn at.
+pub fn symmetric_segment_dimensions(
+    sketch: &Sketch,
+    segment: SegmentId,
+    locked: LockedInput,
+    scale: f64,
+) -> Vec<(DimensionTarget, f64)> {
+    let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
+    if locked.first.is_some() {
+        wanted.push((
+            DimensionTarget::Length(segment),
+            sketch.segment_length(segment) * scale,
+        ));
+    }
+    if let Some(angle) = locked.second {
+        wanted.push((
+            DimensionTarget::AxisAngle {
+                segment,
+                axis: SketchAxis::U,
+            },
+            angle.abs(),
+        ));
+    }
+    settled(sketch, wanted, scale)
+}
+
 /// Normalises and drops whatever is already redundant with the drawing.
 fn settled(
     sketch: &Sketch,
@@ -201,6 +229,28 @@ mod tests {
                 .iter()
                 .any(|(target, _)| *target == DimensionTarget::Length(sides[1])),
             "the untyped side earns no dimension"
+        );
+    }
+
+    #[test]
+    fn a_symmetric_segment_is_dimensioned_by_its_own_length_rather_than_the_typed_half() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(DVec2::new(-20.0, 0.0));
+        let end = sketch.add_point(DVec2::new(20.0, 0.0));
+        let segment = sketch.add_segment(start, end);
+        let locked = LockedInput {
+            first: Some(20.0),
+            second: None,
+        };
+
+        let wanted = symmetric_segment_dimensions(&sketch, segment, locked, 1.0);
+
+        assert!(
+            wanted.iter().any(
+                |(target, value)| *target == DimensionTarget::Length(segment)
+                    && (*value - 40.0).abs() < 1e-9
+            ),
+            "20 typed only reaches one edge; the segment itself spans both: got {wanted:?}",
         );
     }
 

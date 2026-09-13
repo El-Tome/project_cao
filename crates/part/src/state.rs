@@ -86,6 +86,30 @@ impl PartState {
                 }
                 None
             }
+            Operation::AddSymmetricSegment {
+                sketch,
+                middle,
+                end,
+                construction,
+            } => {
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let middle = resolve(sketch, middle);
+                let end = resolve(sketch, end);
+                let mirrored = sketch.point(middle) * 2.0 - sketch.point(end);
+                if mirrored.distance(sketch.point(end)) > 1e-9 {
+                    let start = sketch.add_point(mirrored);
+                    let segment = if *construction {
+                        sketch.add_construction_segment(start, end)
+                    } else {
+                        sketch.add_segment(start, end)
+                    };
+                    sketch.add_constraint(cao_sketch::Constraint::Midpoint {
+                        point: middle,
+                        segment,
+                    });
+                }
+                None
+            }
             Operation::AddRectangle {
                 sketch,
                 corner,
@@ -551,6 +575,36 @@ mod extra_tests {
         history.undo();
         let after_undo = PartState::rebuild(&history);
         assert!(after_undo.sketches[0].segments().is_empty());
+    }
+
+    #[test]
+    fn a_symmetric_segment_is_one_step_holding_its_middle() {
+        let mut state = PartState::default();
+        state.apply(&Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        state.apply(&Operation::AddSymmetricSegment {
+            sketch: 0,
+            middle: PointRef::New(DVec2::new(10.0, 0.0)),
+            end: PointRef::New(DVec2::new(40.0, 0.0)),
+            construction: false,
+        });
+
+        let sketch = &state.sketches[0];
+        // The origin, the middle, the end, and its mirror image.
+        assert_eq!(sketch.points().len(), 4);
+        assert_eq!(sketch.segments().len(), 1);
+        assert!(
+            (sketch.segment_length(SegmentId(0)) - 60.0).abs() < 1e-4,
+            "30 each way"
+        );
+        assert!(
+            sketch.constraints().iter().any(|constraint| matches!(
+                constraint,
+                cao_sketch::Constraint::Midpoint { segment, .. } if *segment == SegmentId(0)
+            )),
+            "the middle point is held at the segment's midpoint",
+        );
     }
 
     #[test]

@@ -6,11 +6,12 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::dimensioning::DimensionOutcome;
 use crate::errors::PartFileError;
 use crate::file_name;
 use crate::history::{History, Operation};
 use crate::ports::Files;
-use crate::state::{DimensionOutcome, PartState};
+use crate::state::PartState;
 
 /// Bumped whenever the layout of a saved part changes.
 ///

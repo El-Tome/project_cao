@@ -4,6 +4,7 @@
 //! as-is by a future tablet or web shell.
 
 mod adapters;
+pub(crate) mod dimensioning;
 mod document;
 mod errors;
 mod extrusion;
@@ -15,8 +16,9 @@ mod state;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;
+pub use dimensioning::DimensionOutcome;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
 pub use errors::PartFileError;
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use ports::{FileError, Files};
-pub use state::{DimensionOutcome, PartState};
+pub use state::PartState;

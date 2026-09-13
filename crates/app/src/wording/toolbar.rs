@@ -26,6 +26,7 @@ pub fn group(lang: &Catalogue, name: &str) -> String {
         "sketch" => lang.t("toolbar.group.sketch"),
         "drawing" => lang.t("toolbar.group.drawing"),
         "circles" => lang.t("toolbar.group.circles"),
+        "arcs" => lang.t("toolbar.group.arcs"),
         "constraints" => lang.t("toolbar.group.constraints"),
         "edit" => lang.t("toolbar.group.edit"),
         "extrusion" => lang.t("toolbar.group.extrusion"),

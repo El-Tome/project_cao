@@ -19,7 +19,7 @@ use crate::wording::dimension;
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
 mod arcs;
-pub(crate) use arcs::{arc_preview, draw_arc};
+pub(crate) use arcs::{aimed as arc_aimed, arc_preview, draw_arc};
 
 mod rectangle;
 use rectangle::dimension_the_rectangle;

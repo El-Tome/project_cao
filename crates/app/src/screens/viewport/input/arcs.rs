@@ -1,7 +1,7 @@
 //! What one click of the arc tool does, and what the canvas shows in between.
 
 use cao_part::Operation;
-use cao_sketch::{ArcDraft, ToolState, arc_from};
+use cao_sketch::{ArcDraft, ToolState, arc_aimed, arc_from};
 use glam::DVec2;
 
 use super::point_ref_at;
@@ -18,10 +18,12 @@ pub(crate) fn draw_arc(
     let mode = context.editor.arc_mode;
     let mut places = places_so_far(context);
     let asks_for = crate::wording::arc::asks_for(context.lang, mode);
+    let cursor = aimed(context, &places, cursor);
 
     if places.len() + 1 < mode.wants() {
         places.push(cursor);
         context.editor.tool_state = ToolState::Arc { places };
+        context.editor.live.open();
         context.editor.message = Some(asks_for);
         return false;
     }
@@ -46,13 +48,16 @@ pub(crate) fn draw_arc(
         end,
         construction: context.editor.construction,
     });
+    context.editor.live.clear();
     context.editor.message = Some(asks_for);
     true
 }
 
 /// The arc a click right now would draw, for the canvas to show first.
 pub(crate) fn arc_preview(context: &SketchContext<'_>, cursor: DVec2) -> Option<ArcDraft> {
-    arc_from(context.editor.arc_mode, &places_so_far(context), cursor)
+    let places = places_so_far(context);
+    let cursor = aimed(context, &places, cursor);
+    arc_from(context.editor.arc_mode, &places, cursor)
 }
 
 fn places_so_far(context: &SketchContext<'_>) -> Vec<DVec2> {
@@ -60,4 +65,17 @@ fn places_so_far(context: &SketchContext<'_>) -> Vec<DVec2> {
         ToolState::Arc { places } => places.clone(),
         _ => Vec::new(),
     }
+}
+
+/// The cursor, once a value typed into the live field has had its say. What
+/// that value means at each stage is `cao_sketch`'s to decide; this only
+/// hands over what has been picked so far and what was typed.
+pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> DVec2 {
+    arc_aimed(
+        context.editor.arc_mode,
+        places,
+        cursor,
+        context.editor.live.first.locked,
+        context.document.scale(),
+    )
 }

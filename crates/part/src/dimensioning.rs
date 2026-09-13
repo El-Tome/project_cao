@@ -92,7 +92,12 @@ impl PartState {
             DimensionTarget::Projected { from, to, axis } => {
                 sketch.projected_gap(from, to, axis)?
             }
-            DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. } => return None,
+            DimensionTarget::ArcRadius(arc) => {
+                (arc.0 < sketch.arcs().len()).then(|| sketch.arc_radius(arc))?
+            }
+            DimensionTarget::Angle { .. }
+            | DimensionTarget::AxisAngle { .. }
+            | DimensionTarget::ArcSweep(_) => return None,
         };
         (units > 1e-6).then_some(units)
     }
@@ -120,6 +125,12 @@ impl PartState {
             DimensionTarget::Projected { from, to, axis } => sketch
                 .projected_gap(from, to, axis)
                 .map(|units| self.to_millimeters(units)),
+            DimensionTarget::ArcRadius(arc) => {
+                (arc.0 < sketch.arcs().len()).then(|| self.to_millimeters(sketch.arc_radius(arc)))
+            }
+            DimensionTarget::ArcSweep(arc) => {
+                (arc.0 < sketch.arcs().len()).then(|| sketch.arc_sweep(arc).to_degrees())
+            }
         }
     }
 }

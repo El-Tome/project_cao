@@ -1,6 +1,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::arc::ArcId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
 /// One of the sketch's own axes, usable as the fixed reference of an angle.
@@ -56,6 +57,11 @@ pub enum DimensionTarget {
     /// means: it is the size a hole is drilled to and the size a round bar is
     /// turned to, and a radius is what one asks for on purpose.
     Diameter(CircleId),
+    /// Radius of an arc, taken from its centre out to either end — the same
+    /// reach as the other, by construction.
+    ArcRadius(ArcId),
+    /// How far round an arc runs, from its start to its end.
+    ArcSweep(ArcId),
 }
 
 impl DimensionTarget {
@@ -109,6 +115,11 @@ pub enum Constraint {
         first: CircleId,
         second: CircleId,
     },
+    /// Two arcs of the same radius.
+    EqualRadiusArc {
+        first: ArcId,
+        second: ArcId,
+    },
     /// A point held on the line a trait lies on, wherever the trait goes.
     OnSegment {
         point: PointId,
@@ -127,6 +138,13 @@ pub enum Constraint {
         /// so it can be grabbed, dimensioned and snapped to. It is held both on
         /// the line and square under the centre, which is what keeps it at the
         /// contact instead of sliding along the line.
+        #[serde(default)]
+        at: Option<PointId>,
+    },
+    /// An arc brushing a line: the line grazes it and no more.
+    ArcTangent {
+        arc: ArcId,
+        segment: SegmentId,
         #[serde(default)]
         at: Option<PointId>,
     },
@@ -176,6 +194,10 @@ impl Constraint {
                 first: second,
                 second: first,
             },
+            Self::EqualRadiusArc { first, second } if second.0 < first.0 => Self::EqualRadiusArc {
+                first: second,
+                second: first,
+            },
             Self::Collinear { first, second } if second.0 < first.0 => Self::Collinear {
                 first: second,
                 second: first,
@@ -211,7 +233,9 @@ impl Dimension {
     pub fn is_angle(&self) -> bool {
         matches!(
             self.target,
-            DimensionTarget::Angle { .. } | DimensionTarget::AxisAngle { .. }
+            DimensionTarget::Angle { .. }
+                | DimensionTarget::AxisAngle { .. }
+                | DimensionTarget::ArcSweep(_)
         )
     }
 

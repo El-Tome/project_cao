@@ -235,6 +235,9 @@ impl Sketch {
             DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => {
                 !self.is_erased_circle(circle)
             }
+            DimensionTarget::ArcRadius(arc) | DimensionTarget::ArcSweep(arc) => {
+                !self.is_erased_arc(arc)
+            }
         }
     }
 
@@ -351,6 +354,9 @@ impl Sketch {
             }
             Constraint::EqualRadius { first, second } => {
                 first != second && circle(first) && circle(second)
+            }
+            Constraint::EqualRadiusArc { .. } | Constraint::ArcTangent { .. } => {
+                self.arc_rule_holds_up(constraint)
             }
             Constraint::OnSegment {
                 point: held,
@@ -892,6 +898,8 @@ impl Sketch {
             DimensionTarget::Diameter(circle) => {
                 self.circles.get(circle.0)?.radius * 2.0 * millimeters_per_unit.max(1e-9)
             }
+            DimensionTarget::ArcRadius(arc) => self.arc_radius_value(arc, millimeters_per_unit)?,
+            DimensionTarget::ArcSweep(arc) => self.arc_sweep_value(arc)?,
         };
 
         let mut probe = self.clone();

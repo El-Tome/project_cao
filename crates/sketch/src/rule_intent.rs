@@ -8,6 +8,7 @@
 //! keeps that apart from `Constraint` so the caller, which does know how a
 //! merge is recorded, can tell the two apart.
 
+use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
@@ -83,6 +84,13 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             _ => None,
         })
         .collect();
+    let arcs: Vec<ArcId> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            RulePick::Element(Element::Arc(id)) => Some(*id),
+            _ => None,
+        })
+        .collect();
     let axes: Vec<SketchAxis> = picks
         .iter()
         .filter_map(|pick| match pick {
@@ -109,18 +117,27 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             }),
             _ => None,
         },
-        Rule::Equal => match (pair(&segments), circles.as_slice()) {
-            (Some((first, second)), _) => constrain(Constraint::Equal { first, second }),
-            (None, [first, second]) => constrain(Constraint::EqualRadius {
+        Rule::Equal => match (pair(&segments), circles.as_slice(), arcs.as_slice()) {
+            (Some((first, second)), _, _) => constrain(Constraint::Equal { first, second }),
+            (None, [first, second], []) => constrain(Constraint::EqualRadius {
+                first: *first,
+                second: *second,
+            }),
+            (None, [], [first, second]) => constrain(Constraint::EqualRadiusArc {
                 first: *first,
                 second: *second,
             }),
             _ => None,
         },
-        Rule::Tangent => match (circles.as_slice(), segments.as_slice()) {
-            ([circle], [segment]) => constrain(Constraint::Tangent {
+        Rule::Tangent => match (circles.as_slice(), segments.as_slice(), arcs.as_slice()) {
+            ([circle], [segment], []) => constrain(Constraint::Tangent {
                 at: None,
                 circle: *circle,
+                segment: *segment,
+            }),
+            ([], [segment], [arc]) => constrain(Constraint::ArcTangent {
+                at: None,
+                arc: *arc,
                 segment: *segment,
             }),
             _ => None,
@@ -275,6 +292,72 @@ mod tests {
                 kept: first_center,
                 dropped: second_center
             }),
+        );
+    }
+
+    #[test]
+    fn two_arcs_shown_equal_ask_for_the_same_radius() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let (centre_one, start_one, end_one) = (
+            sketch.add_point(glam::DVec2::ZERO),
+            sketch.add_point(glam::DVec2::new(10.0, 0.0)),
+            sketch.add_point(glam::DVec2::new(0.0, 10.0)),
+        );
+        let one = sketch.add_arc(centre_one, start_one, end_one);
+        let (centre_two, start_two, end_two) = (
+            sketch.add_point(glam::DVec2::new(50.0, 0.0)),
+            sketch.add_point(glam::DVec2::new(60.0, 0.0)),
+            sketch.add_point(glam::DVec2::new(50.0, 10.0)),
+        );
+        let two = sketch.add_arc(centre_two, start_two, end_two);
+
+        let intent = rule_intent(
+            Rule::Equal,
+            &[
+                RulePick::Element(Element::Arc(one)),
+                RulePick::Element(Element::Arc(two)),
+            ],
+            &sketch,
+        );
+
+        assert_eq!(
+            intent,
+            Some(RuleIntent::Constrain(Constraint::EqualRadiusArc {
+                first: one,
+                second: two,
+            })),
+        );
+    }
+
+    #[test]
+    fn an_arc_and_a_trait_shown_tangent_brush_each_other() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let start = sketch.add_point(glam::DVec2::new(-40.0, 20.0));
+        let end = sketch.add_point(glam::DVec2::new(40.0, 20.0));
+        let segment = sketch.add_segment(start, end);
+        let (centre, arc_start, arc_end) = (
+            sketch.add_point(glam::DVec2::ZERO),
+            sketch.add_point(glam::DVec2::new(8.0, 0.0)),
+            sketch.add_point(glam::DVec2::new(0.0, 8.0)),
+        );
+        let arc = sketch.add_arc(centre, arc_start, arc_end);
+
+        let intent = rule_intent(
+            Rule::Tangent,
+            &[
+                RulePick::Element(Element::Arc(arc)),
+                RulePick::Element(Element::Segment(segment)),
+            ],
+            &sketch,
+        );
+
+        assert_eq!(
+            intent,
+            Some(RuleIntent::Constrain(Constraint::ArcTangent {
+                arc,
+                segment,
+                at: None,
+            })),
         );
     }
 

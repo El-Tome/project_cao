@@ -7,14 +7,16 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
         Constraint::Perpendicular { .. } => "constraints.label.perpendicular",
         Constraint::Parallel { .. } => "constraints.label.parallel",
-        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "constraints.label.equal",
+        Constraint::Equal { .. }
+        | Constraint::EqualRadius { .. }
+        | Constraint::EqualRadiusArc { .. } => "constraints.label.equal",
         Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
             "constraints.label.coincident"
         }
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.label.collinear"
         }
-        Constraint::Tangent { .. } => "constraints.label.tangent",
+        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "constraints.label.tangent",
         Constraint::Midpoint { .. } => "constraints.label.midpoint",
         Constraint::Fixed { .. } => "constraints.label.fixed",
     })
@@ -29,14 +31,16 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
         Constraint::Perpendicular { .. } => "constraints.erased.perpendicular",
         Constraint::Parallel { .. } => "constraints.erased.parallel",
-        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "constraints.erased.equal",
+        Constraint::Equal { .. }
+        | Constraint::EqualRadius { .. }
+        | Constraint::EqualRadiusArc { .. } => "constraints.erased.equal",
         Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
             "constraints.erased.coincident"
         }
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.erased.collinear"
         }
-        Constraint::Tangent { .. } => "constraints.erased.tangent",
+        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "constraints.erased.tangent",
         Constraint::Midpoint { .. } => "constraints.erased.midpoint",
         Constraint::Fixed { .. } => "constraints.erased.fixed",
     })
@@ -52,10 +56,12 @@ pub fn mark(rule: Constraint) -> &'static str {
     match rule {
         Constraint::Perpendicular { .. } => "|_",
         Constraint::Parallel { .. } => "//",
-        Constraint::Equal { .. } | Constraint::EqualRadius { .. } => "=",
+        Constraint::Equal { .. }
+        | Constraint::EqualRadius { .. }
+        | Constraint::EqualRadiusArc { .. } => "=",
         Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => "+",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "--",
-        Constraint::Tangent { .. } => "T",
+        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "T",
         Constraint::Midpoint { .. } => "1/2",
         Constraint::Fixed { .. } => "X",
     }
@@ -106,7 +112,7 @@ pub fn rule_asks_for(lang: &Catalogue, rule: Rule) -> String {
 mod tests {
     use std::collections::BTreeSet;
 
-    use cao_sketch::{CircleId, Element, PointId, SegmentId};
+    use cao_sketch::{ArcId, CircleId, Element, PointId, SegmentId};
 
     use super::*;
 
@@ -115,7 +121,7 @@ mod tests {
 
     /// Every rule, next to how it reads, so that adding a variant without
     /// saying how it reads cannot slip past the way two parallel lists would.
-    fn named_rules() -> [(Constraint, &'static str); 11] {
+    fn named_rules() -> [(Constraint, &'static str); 13] {
         [
             (
                 Constraint::Perpendicular {
@@ -142,6 +148,13 @@ mod tests {
                 Constraint::EqualRadius {
                     first: CircleId(0),
                     second: CircleId(1),
+                },
+                "Égalité",
+            ),
+            (
+                Constraint::EqualRadiusArc {
+                    first: ArcId(0),
+                    second: ArcId(1),
                 },
                 "Égalité",
             ),
@@ -182,6 +195,14 @@ mod tests {
                 "Tangence",
             ),
             (
+                Constraint::ArcTangent {
+                    arc: ArcId(0),
+                    segment: FIRST,
+                    at: None,
+                },
+                "Tangence",
+            ),
+            (
                 Constraint::Midpoint {
                     point: PointId(1),
                     segment: FIRST,
@@ -211,7 +232,7 @@ mod tests {
         assert_eq!(
             read.len(),
             8,
-            "eleven rules read as eight names, three of them shared: {read:?}",
+            "thirteen rules read as eight names, five of them shared: {read:?}",
         );
     }
 

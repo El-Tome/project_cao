@@ -105,6 +105,16 @@ impl Sketch {
                 .map(|_| DimensionTarget::Radius(circle));
         }
 
+        // A radius taken on to one of the arc's own ends asks for the sweep
+        // instead: the one other thing there is to know about an arc.
+        if let DimensionTarget::ArcRadius(arc) = target {
+            let drawn = *self.arcs().get(arc.0)?;
+            return self
+                .nearest_point(cursor, snap * 0.8)
+                .filter(|point| *point == drawn.start || *point == drawn.end)
+                .map(|_| DimensionTarget::ArcSweep(arc));
+        }
+
         let DimensionTarget::Length(first) = target else {
             return None;
         };
@@ -350,6 +360,29 @@ mod tests {
                 1.0
             ),
             Some(DimensionTarget::Radius(circle)),
+        );
+    }
+
+    #[test]
+    fn a_radius_taken_on_to_one_of_the_arcs_own_ends_is_read_as_the_sweep() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::ZERO);
+        let start = sketch.add_point(DVec2::new(10.0, 0.0));
+        let end = sketch.add_point(DVec2::new(0.0, 10.0));
+        let arc = sketch.add_arc(centre, start, end);
+
+        assert_eq!(
+            sketch.refine(DimensionTarget::ArcRadius(arc), DVec2::new(10.05, 0.0), 1.0),
+            Some(DimensionTarget::ArcSweep(arc)),
+        );
+        assert_eq!(
+            sketch.refine(
+                DimensionTarget::ArcRadius(arc),
+                DVec2::new(500.0, 500.0),
+                1.0
+            ),
+            None,
+            "a click nowhere near either end asks for nothing more",
         );
     }
 }

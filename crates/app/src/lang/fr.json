@@ -119,6 +119,7 @@
   "dimension.spans.point_to_segment": "point {point} au trait {segment}",
   "dimension.spans.points_along_axis": "points {first} et {second} sur l'{axis}",
   "dimension.spans.circle": "cercle {circle}",
+  "dimension.spans.arc": "arc {arc}",
 
   "file.absent": "Aucun fichier à {path}.",
   "file.refused": "Le système a refusé l'accès à {path}.",

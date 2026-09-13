@@ -7,6 +7,7 @@ use cao_sketch::SegmentId;
 
 use super::annotation_position;
 use crate::screens::viewport::SketchContext;
+use crate::wording::dimension;
 
 /// Places on a fresh rectangle what makes it a rectangle, and whichever of its
 /// two sizes the user typed while dragging it.
@@ -39,12 +40,15 @@ pub(crate) fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: us
         // Pinned down where it is drawn, in sketch units: left to stand off by
         // a distance in pixels, an annotation slides back over the drawing as
         // soon as one zooms out.
-        context.document.apply(Operation::SetDimension {
+        let outcome = context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
             placement: annotation_position(context, index, target, pixel)
                 .map(|placement| placement.offset),
         });
+        if let Some(message) = dimension::outcome_message(context.lang, outcome) {
+            context.editor.message = Some(message);
+        }
     }
 }

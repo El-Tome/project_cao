@@ -1481,13 +1481,12 @@ pub(crate) fn paint_dimension_field(
                     };
                     let focus = std::mem::take(&mut editing.focus);
                     let field = value_field(ui, &mut editing.input, &hint, focus);
+                    ui.weak(&hint); // the field opens pre-filled, so its own hint_text never draws
                     // Enter is eaten here: the field has just given the keyboard
                     // back, so the same press would otherwise also fire the
                     // shortcut bound to it — and end the sketch.
                     let submitted = field.lost_focus()
-                        && ui.input_mut(|input| {
-                            input.consume_key(egui::Modifiers::NONE, egui::Key::Enter)
-                        });
+                        && ui.input_mut(|i| i.consume_key(egui::Modifiers::NONE, egui::Key::Enter));
                     let apply = ui.button("✔").on_hover_text(lang.t("viewport.apply"));
                     applied = apply.clicked() || submitted;
                 });

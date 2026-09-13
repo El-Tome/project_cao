@@ -107,87 +107,6 @@ impl Sketch {
         }
         regions
     }
-
-    /// Walks the segment graph and returns each area it encloses, as a loop of
-    /// positions turning counter-clockwise.
-    fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
-        // Only what is still drawn: a deleted side must not close an area that is no longer there.
-        let ends: Vec<(usize, usize)> = self
-            .live_segments()
-            .filter(|(_, segment)| !segment.construction)
-            .flat_map(|(_, segment)| {
-                [
-                    (segment.start.0, segment.end.0),
-                    (segment.end.0, segment.start.0),
-                ]
-            })
-            .collect();
-        if ends.is_empty() {
-            return Vec::new();
-        }
-
-        let mut leaving: Vec<Vec<usize>> = vec![Vec::new(); self.points().len()];
-        for (half, (from, to)) in ends.iter().enumerate() {
-            if from != to {
-                leaving[*from].push(half);
-            }
-        }
-        for (vertex, half_edges) in leaving.iter_mut().enumerate() {
-            let from = self.points()[vertex];
-            half_edges.sort_by(|a, b| {
-                let angle = |half: usize| (self.points()[ends[half].1] - from).to_angle();
-                angle(*a).total_cmp(&angle(*b))
-            });
-        }
-
-        let next = |half: usize| -> Option<usize> {
-            let twin = half ^ 1;
-            let around = &leaving[ends[half].1];
-            let position = around.iter().position(|candidate| *candidate == twin)?;
-            // The neighbour just clockwise of the way we came: turning as
-            // tightly as possible is what keeps the walk hugging one area.
-            Some(around[(position + around.len() - 1) % around.len()])
-        };
-
-        let mut visited = vec![false; ends.len()];
-        let mut outlines = Vec::new();
-        for start in 0..ends.len() {
-            if visited[start] || ends[start].0 == ends[start].1 {
-                continue;
-            }
-            let mut loop_edges = Vec::new();
-            let mut half = start;
-            loop {
-                if visited[half] {
-                    break;
-                }
-                visited[half] = true;
-                loop_edges.push(ends[half].0);
-                let Some(following) = next(half) else { break };
-                half = following;
-                if half == start {
-                    break;
-                }
-            }
-
-            let outline: Vec<DVec2> = loop_edges
-                .iter()
-                .map(|vertex| self.points()[*vertex])
-                .collect();
-            // A dead-end branch is walked out and back, and the outermost walk
-            // runs clockwise: neither encloses anything.
-            let distinct = loop_edges.len() >= 3 && {
-                let mut sorted = loop_edges.clone();
-                sorted.sort_unstable();
-                sorted.dedup();
-                sorted.len() == loop_edges.len()
-            };
-            if distinct && signed_area(&outline) > 1e-9 && crate::crossing::is_simple(&outline) {
-                outlines.push(outline);
-            }
-        }
-        outlines
-    }
 }
 
 /// A point inside the area and right up against its edge.
@@ -221,7 +140,7 @@ fn inside(region: &Region) -> DVec2 {
     here + bisector * reach
 }
 
-fn signed_area(outline: &[DVec2]) -> f64 {
+pub(crate) fn signed_area(outline: &[DVec2]) -> f64 {
     let mut total = 0.0;
     for index in 0..outline.len() {
         let current = outline[index];

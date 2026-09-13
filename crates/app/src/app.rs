@@ -259,7 +259,7 @@ fn run(
     lang: &Catalogue,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{CircleMode, DimensionMode, Tool};
+    use crate::screens::sketch::{ArcMode, CircleMode, DimensionMode, Tool};
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -369,6 +369,15 @@ fn run(
             };
             tool(editor, Tool::Circle);
             editor.message = Some(crate::wording::circle::asks_for(lang, editor.circle_mode));
+            false
+        }
+        Command::ArcByCenter | Command::ArcByEnds => {
+            editor.arc_mode = match command {
+                Command::ArcByEnds => ArcMode::ByEnds,
+                _ => ArcMode::ByCenter,
+            };
+            tool(editor, Tool::Arc);
+            editor.message = Some(crate::wording::arc::asks_for(lang, editor.arc_mode));
             false
         }
         Command::RulePerpendicular

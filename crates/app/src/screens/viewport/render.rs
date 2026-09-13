@@ -19,6 +19,8 @@ use crate::lang::Catalogue;
 use crate::screens::sketch::{DimensionMode, LiveField, PlaneChoice, Tool, apply_dimension_value};
 use crate::wording::constraints;
 
+mod arc;
+mod circle;
 mod curves;
 mod symmetric_line;
 
@@ -1070,14 +1072,8 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     // A line is a length and an angle, a rectangle its two sides, a circle its
     // diameter and nothing else — so its second field is left out.
     let (labels, measured): ([&str; 2], [f64; 2]) = match context.editor.tool {
-        Tool::Circle => {
-            // Shown whether or not the picks make a circle just now: a field
-            // that disappears while being typed into cannot be typed into.
-            let across = circle_from(context, index, cursor, f64::MAX)
-                .map(|found| found.radius * 2.0 * scale)
-                .unwrap_or_default();
-            (["mm", ""], [across, 0.0])
-        }
+        Tool::Circle => circle::live_fields(context, index, cursor, scale)?,
+        Tool::Arc => arc::live_fields(context, cursor)?,
         Tool::Line => {
             let from = sketch.anchor_position(context.editor.chain()?)?;
             let span = cursor - from;

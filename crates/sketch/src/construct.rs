@@ -132,6 +132,26 @@ pub fn circle_touching_three(first: Line, second: Line, third: Line) -> Option<(
     Some((centre, distance_to(centre, first)))
 }
 
+/// The centre of the circle running through all three points exactly — the
+/// point every one of their perpendicular bisectors agrees on.
+///
+/// Built from the same `crossing` two lines already use to meet: each
+/// bisector is carried as the two points that describe it, so no new way of
+/// intersecting anything is needed.
+pub fn circumcentre(a: DVec2, b: DVec2, c: DVec2) -> Option<DVec2> {
+    crossing(perpendicular_bisector(a, b)?, perpendicular_bisector(b, c)?)
+}
+
+/// The perpendicular bisector of two points, as a line through its midpoint.
+fn perpendicular_bisector(a: DVec2, b: DVec2) -> Option<Line> {
+    let span = b - a;
+    if span.length() < 1e-9 {
+        return None;
+    }
+    let middle = (a + b) * 0.5;
+    Some((middle, middle + DVec2::new(-span.y, span.x)))
+}
+
 /// Where two lines meet, or nothing when they run alongside each other.
 fn crossing(first: Line, second: Line) -> Option<DVec2> {
     let (u, v) = (first.1 - first.0, second.1 - second.0);
@@ -247,6 +267,27 @@ mod tests {
             "centre = {centre:?}"
         );
         assert!(centre_through_at(a, b, DVec2::new(3.0, 10.0), 2.0).is_none());
+    }
+
+    #[test]
+    fn a_circumcentre_is_equally_far_from_all_three_points() {
+        let a = DVec2::new(0.0, 0.0);
+        let b = DVec2::new(40.0, 0.0);
+        let c = DVec2::new(35.0, 30.0);
+        let centre = circumcentre(a, b, c).unwrap();
+
+        let (to_a, to_b, to_c) = (centre.distance(a), centre.distance(b), centre.distance(c));
+        assert!((to_a - to_b).abs() < 1e-9, "a = {to_a}, b = {to_b}");
+        assert!((to_a - to_c).abs() < 1e-9, "a = {to_a}, c = {to_c}");
+    }
+
+    #[test]
+    fn three_points_on_a_line_circumscribe_no_circle() {
+        let a = DVec2::new(0.0, 0.0);
+        let b = DVec2::new(10.0, 0.0);
+        let c = DVec2::new(20.0, 0.0);
+
+        assert_eq!(circumcentre(a, b, c), None);
     }
 
     #[test]

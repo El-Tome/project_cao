@@ -19,7 +19,7 @@ use crate::wording::dimension;
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
 mod arcs;
-pub(crate) use arcs::{arc_preview, draw_arc};
+pub(crate) use arcs::{aimed as arc_aimed, arc_centre_group, arc_preview, draw_arc};
 
 mod rectangle;
 use rectangle::dimension_the_rectangle;
@@ -545,7 +545,6 @@ fn drag_point(
     pixel: f64,
 ) -> bool {
     let sketch = &context.document.sketches()[index];
-
     if response.drag_started() {
         // Pressing on something already picked moves the whole selection, the
         // way a desktop moves a group of icons. It comes first: what is held is
@@ -563,19 +562,22 @@ fn drag_point(
             return false;
         }
 
-        // Nothing that is already held in place can be dragged: a value the
-        // user typed must not be silently undone by a slip of the mouse. The
-        // way to move a settled point is to change what settles it.
+        // A settled point cannot be dragged, and the centre of an arc carries
+        // its two ends along, the way a circle's centre carries its rim.
         let settled = sketch.settled_points(context.document.scale());
-
-        // A point first, then an annotation: the point is the smaller target
-        // and the one a drag is usually after.
         let dragged_point = sketch
             .nearest_point(pressed, snap)
             .filter(|point| !sketch.is_origin(*point))
             .filter(|point| !settled.get(point.0).copied().unwrap_or(false));
+        let arc_group = dragged_point.and_then(|point| arc_centre_group(sketch, point));
         if let Some(state) = context.editor.select_state() {
-            state.dragged_point = dragged_point;
+            match arc_group {
+                Some(group) => {
+                    state.dragged_group = group;
+                    state.drag_origin = Some(pressed);
+                }
+                None => state.dragged_point = dragged_point,
+            }
         }
 
         if dragged_point.is_none() {

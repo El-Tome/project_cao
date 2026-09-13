@@ -29,6 +29,9 @@ pub enum Command {
     CircleTwoTangents,
     CircleThreeTangents,
 
+    ArcByCenter,
+    ArcByEnds,
+
     DimensionAuto,
     DimensionPointToPoint,
     DimensionLength,
@@ -69,6 +72,7 @@ pub enum CommandFamily {
     Editing,
     DrawingTools,
     Circles,
+    Arcs,
     Dimensions,
     Constraints,
     Extrusion,
@@ -77,7 +81,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 41] = [
+    pub const ALL: [Self; 43] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -97,6 +101,8 @@ impl Command {
         Self::CircleThreePoints,
         Self::CircleTwoTangents,
         Self::CircleThreeTangents,
+        Self::ArcByCenter,
+        Self::ArcByEnds,
         Self::DimensionAuto,
         Self::DimensionPointToPoint,
         Self::DimensionLength,
@@ -141,6 +147,7 @@ impl Command {
             | Self::CircleThreePoints
             | Self::CircleTwoTangents
             | Self::CircleThreeTangents => CommandFamily::Circles,
+            Self::ArcByCenter | Self::ArcByEnds => CommandFamily::Arcs,
             Self::DimensionAuto
             | Self::DimensionPointToPoint
             | Self::DimensionLength

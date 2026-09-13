@@ -1,6 +1,6 @@
 use crate::lang::Catalogue;
 use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::sketch::{CircleMode, DimensionMode, SketchEditor, Tool};
+use crate::screens::sketch::{ArcMode, CircleMode, DimensionMode, SketchEditor, Tool};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
@@ -61,6 +61,8 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::CircleThreeTangents => {
             tool == Tool::Circle && mode_is(state, CircleMode::ThreeTangents)
         }
+        Command::ArcByCenter => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByCenter,
+        Command::ArcByEnds => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByEnds,
         Command::RulePerpendicular => tool == Tool::Constrain(Rule::Perpendicular),
         Command::RuleParallel => tool == Tool::Constrain(Rule::Parallel),
         Command::RuleEqual => tool == Tool::Constrain(Rule::Equal),
@@ -125,6 +127,7 @@ pub fn is_enabled(
         | Command::CircleThreePoints
         | Command::CircleTwoTangents
         | Command::CircleThreeTangents => drawing,
+        Command::ArcByCenter | Command::ArcByEnds => drawing,
         Command::RulePerpendicular
         | Command::RuleParallel
         | Command::RuleEqual

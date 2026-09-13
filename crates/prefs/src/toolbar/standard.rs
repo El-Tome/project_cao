@@ -39,6 +39,13 @@ impl Default for ToolbarLayout {
                                     ],
                                 ),
                                 Item::Command(C::ToolArc),
+                                Item::group(
+                                    "arcs",
+                                    vec![
+                                        Item::Command(C::ArcByCenter),
+                                        Item::Command(C::ArcByEnds),
+                                    ],
+                                ),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToggleConstruction),

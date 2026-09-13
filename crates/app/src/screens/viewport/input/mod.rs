@@ -354,12 +354,7 @@ fn constrain(
     {
         // The drawing already carries it; recording the step again would fill
         // the history with entries that change nothing.
-        let label = constraints::rule_label(context.lang, rule);
-        context.editor.message = Some(
-            context
-                .lang
-                .t_with("sketch.rule_already_there", &[("rule", &label)]),
-        );
+        context.editor.message = Some(constraints::already_there_label(context.lang, rule));
         return false;
     }
     let operation = match intent {

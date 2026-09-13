@@ -65,10 +65,7 @@ fn erased(
         ([Element::Segment(_)], [], []) => lang.t("history.segment_erased"),
         ([Element::Circle(_)], [], []) => lang.t("history.circle_erased"),
         ([], [_], []) => lang.t("history.dimension_erased"),
-        ([], [], [rule]) => lang.t_with(
-            "history.rule_erased",
-            &[("rule", &constraints::label(lang, *rule))],
-        ),
+        ([], [], [rule]) => constraints::erased_label(lang, *rule),
         _ => lang.t_with(
             "history.many_erased",
             &[(

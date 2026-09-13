@@ -34,11 +34,27 @@ pub struct Arc {
 
 impl Sketch {
     pub fn add_arc(&mut self, center: PointId, start: PointId, end: PointId) -> ArcId {
+        self.push_arc(center, start, end, false)
+    }
+
+    /// Helps place the rest of the drawing without becoming part of it:
+    /// excluded from the area of any region it borders.
+    pub fn add_construction_arc(&mut self, center: PointId, start: PointId, end: PointId) -> ArcId {
+        self.push_arc(center, start, end, true)
+    }
+
+    fn push_arc(
+        &mut self,
+        center: PointId,
+        start: PointId,
+        end: PointId,
+        construction: bool,
+    ) -> ArcId {
         self.arcs.push(Arc {
             center,
             start,
             end,
-            construction: false,
+            construction,
         });
         ArcId(self.arcs.len() - 1)
     }
@@ -220,6 +236,16 @@ mod tests {
             (sweep - std::f64::consts::FRAC_PI_2).abs() < TOLERANCE,
             "a quarter turn expected, got {sweep}",
         );
+    }
+
+    #[test]
+    fn a_guide_arc_says_it_is_one_and_an_ordinary_arc_does_not() {
+        let (mut sketch, drawn) = quarter();
+        let arc = sketch.arc(drawn);
+        let guide = sketch.add_construction_arc(arc.center, arc.start, arc.end);
+
+        assert!(!sketch.arc(drawn).construction);
+        assert!(sketch.arc(guide).construction);
     }
 
     #[test]

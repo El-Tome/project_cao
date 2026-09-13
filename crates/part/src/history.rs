@@ -86,6 +86,17 @@ pub enum Operation {
         #[serde(default)]
         construction: bool,
     },
+    /// A piece of a circle, as the three places it stands on. No radius: it is
+    /// read off the end the curve starts at, so a rebuild cannot produce an
+    /// arc whose ends disagree with the size it was saved under.
+    AddArc {
+        sketch: usize,
+        center: PointRef,
+        start: PointRef,
+        end: PointRef,
+        #[serde(default)]
+        construction: bool,
+    },
     /// Dragging a point to a new place.
     MovePoint {
         sketch: usize,

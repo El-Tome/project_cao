@@ -156,6 +156,21 @@ impl PartState {
                 }
                 None
             }
+            Operation::AddArc {
+                sketch,
+                center,
+                start,
+                end,
+                construction,
+            } => {
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let [center, start, end] = [center, start, end].map(|place| resolve(sketch, place));
+                match *construction {
+                    true => sketch.add_construction_arc(center, start, end),
+                    false => sketch.add_arc(center, start, end),
+                };
+                None
+            }
             Operation::MoveMany { sketch, points, by } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
@@ -417,10 +432,52 @@ mod tests {
 
 #[cfg(test)]
 mod drawn_shapes {
-    use cao_sketch::{SegmentId, WorkPlane};
+    use cao_sketch::{ArcId, SegmentId, WorkPlane};
     use glam::DVec2;
 
     use super::*;
+
+    fn a_quarter_turn(construction: bool) -> History {
+        let mut history = History::default();
+        history.push(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        });
+        history.push(Operation::AddArc {
+            sketch: 0,
+            center: PointRef::New(DVec2::ZERO),
+            start: PointRef::New(DVec2::new(10.0, 0.0)),
+            end: PointRef::New(DVec2::new(0.0, 10.0)),
+            construction,
+        });
+        history
+    }
+
+    #[test]
+    fn an_arc_is_rebuilt_from_its_step_and_undo_takes_it_back_off() {
+        let mut history = a_quarter_turn(false);
+
+        let state = PartState::rebuild(&history);
+        assert_eq!(state.sketches[0].arcs().len(), 1);
+        // The origin, plus the centre and the two ends.
+        assert_eq!(state.sketches[0].points().len(), 4);
+        let sweep = state.sketches[0].arc_sweep(ArcId(0));
+        assert!(
+            (sweep - std::f64::consts::FRAC_PI_2).abs() < 1e-6,
+            "a quarter turn expected, got {sweep}",
+        );
+
+        history.undo();
+        assert!(PartState::rebuild(&history).sketches[0].arcs().is_empty());
+    }
+
+    #[test]
+    fn a_guide_arc_is_rebuilt_as_a_guide() {
+        let drawn = PartState::rebuild(&a_quarter_turn(false));
+        let guide = PartState::rebuild(&a_quarter_turn(true));
+
+        assert!(!drawn.sketches[0].arc(ArcId(0)).construction);
+        assert!(guide.sketches[0].arc(ArcId(0)).construction);
+    }
 
     #[test]
     fn a_rectangle_is_one_step_with_four_sides() {

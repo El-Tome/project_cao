@@ -7,6 +7,28 @@ use glam::DVec2;
 
 use crate::sketch::PointId;
 
+/// Which family a row of the system belongs to.
+///
+/// The order is the one the equations are written in, and it is read back in
+/// more than one place. Naming it once is what stops a second reader from going
+/// on believing there are only dimensions and rules.
+pub(crate) enum Row {
+    Dimension(usize),
+    Rule(usize),
+    Arc(usize),
+}
+
+/// The row an index names, given how many of the first two families there are.
+pub(crate) fn row_at(index: usize, dimensions: usize, rules: usize) -> Row {
+    let Some(past_dimensions) = index.checked_sub(dimensions) else {
+        return Row::Dimension(index);
+    };
+    match past_dimensions.checked_sub(rules) {
+        Some(arc) => Row::Arc(arc),
+        None => Row::Rule(past_dimensions),
+    }
+}
+
 /// One equation the drawing has to satisfy, linearised around its current
 /// shape: how far off it is, and how each coordinate would change that.
 ///

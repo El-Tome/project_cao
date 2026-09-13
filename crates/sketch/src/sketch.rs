@@ -4,6 +4,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::annotation::AnnotationMetrics;
+use crate::arc::Arc;
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
 use crate::erased::Erased;
 use crate::independence::is_dependent;
@@ -51,6 +52,8 @@ pub struct Sketch {
     segments: Vec<Segment>,
     #[serde(default)]
     circles: Vec<Circle>,
+    #[serde(default)]
+    pub(crate) arcs: Vec<Arc>,
     dimensions: Vec<Dimension>,
     /// The rules that carry no value: perpendicular, parallel, equal…
     #[serde(default)]
@@ -62,7 +65,7 @@ pub struct Sketch {
     /// every dimension already recorded against those ranks would silently
     /// start pointing at a different piece of the drawing.
     #[serde(default)]
-    erased: Erased,
+    pub(crate) erased: Erased,
     /// The points the user is holding under the cursor, while a drag lasts.
     ///
     /// They do not give: the drawing settles *around* them rather than pulling
@@ -93,6 +96,7 @@ impl Sketch {
             points: vec![DVec2::ZERO],
             segments: Vec::new(),
             circles: Vec::new(),
+            arcs: Vec::new(),
             dimensions: Vec::new(),
             constraints: Vec::new(),
             erased: Erased::default(),
@@ -179,6 +183,7 @@ impl Sketch {
                             .filter(|(_, circle)| circle.center == point)
                             .map(|(id, _)| Element::Circle(id)),
                     )
+                    .chain(self.arcs_leaning_on(point))
                     .collect();
                 for element in touched {
                     self.erase(element);
@@ -186,6 +191,7 @@ impl Sketch {
             }
             Element::Segment(segment) => Erased::mark(&mut self.erased.segments, segment.0),
             Element::Circle(circle) => Erased::mark(&mut self.erased.circles, circle.0),
+            Element::Arc(arc) => Erased::mark(&mut self.erased.arcs, arc.0),
         }
         let dimensions = std::mem::take(&mut self.dimensions);
         self.dimensions = dimensions
@@ -315,16 +321,11 @@ impl Sketch {
     /// Whether a piece of the drawing is held in place by a rule.
     ///
     /// A trait held still holds its two ends; a circle held still holds its
-    /// centre, so both read as fixed although only one of them was named.
+    /// centre, an arc all three of its own — so each reads as fixed although
+    /// only one of them was named.
     pub fn is_held(&self, element: Element) -> bool {
-        let holds_point = |point: PointId, held: Element| match held {
-            Element::Point(id) => id == point,
-            Element::Segment(id) => self
-                .segments
-                .get(id.0)
-                .is_some_and(|segment| segment.start == point || segment.end == point),
-            Element::Circle(id) => self.circles.get(id.0).is_some_and(|c| c.center == point),
-        };
+        let holds_point =
+            |point: PointId, held: Element| self.points_it_leans_on(held).contains(&point);
         self.constraints.iter().any(|constraint| {
             let Constraint::Fixed { element: held } = constraint else {
                 return false;
@@ -373,6 +374,7 @@ impl Sketch {
                 Element::Point(held) => point(held),
                 Element::Segment(held) => segment(held),
                 Element::Circle(held) => circle(held),
+                Element::Arc(held) => held.0 < self.arcs.len() && !self.is_erased_arc(held),
             },
         }
     }

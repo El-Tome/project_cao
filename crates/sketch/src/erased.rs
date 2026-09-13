@@ -9,6 +9,8 @@ pub(crate) struct Erased {
     pub(crate) segments: Vec<bool>,
     #[serde(default)]
     pub(crate) circles: Vec<bool>,
+    #[serde(default)]
+    pub(crate) arcs: Vec<bool>,
 }
 
 impl Erased {

@@ -70,6 +70,10 @@ impl Sketch {
                 Element::Point(held) => point(held).into_iter().collect(),
                 Element::Segment(held) => middle(held).into_iter().collect(),
                 Element::Circle(held) => circle(held).into_iter().collect(),
+                Element::Arc(held) => match held.0 < self.arcs().len() {
+                    true => vec![self.arc_midpoint(held)],
+                    false => Vec::new(),
+                },
             },
         }
     }

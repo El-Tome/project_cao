@@ -1,7 +1,7 @@
 //! What one click of the arc tool does, and what the canvas shows in between.
 
 use cao_part::Operation;
-use cao_sketch::{ArcDraft, ToolState, arc_aimed, arc_from};
+use cao_sketch::{ArcDraft, PointId, Sketch, ToolState, arc_aimed, arc_from};
 use glam::DVec2;
 
 use super::point_ref_at;
@@ -78,4 +78,17 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         context.editor.live.first.locked,
         context.document.scale(),
     )
+}
+
+/// The points a drag on `point` would carry along, when it is the centre of
+/// an arc: the centre and its two ends move as one, the way a circle's rim
+/// follows a dragged centre. `None` for a point that is nobody's centre, so a
+/// plain drag of it stays a plain drag.
+pub(crate) fn arc_centre_group(sketch: &Sketch, point: PointId) -> Option<Vec<PointId>> {
+    let ends = sketch.arc_ends_around(point);
+    (!ends.is_empty()).then(|| {
+        let mut group = vec![point];
+        group.extend(ends);
+        group
+    })
 }

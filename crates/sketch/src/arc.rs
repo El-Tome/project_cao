@@ -105,6 +105,16 @@ impl Sketch {
             .collect()
     }
 
+    /// The two ends of every arc centred on `point`, which are meant to move
+    /// with it the way a circle's rim follows its centre: dragging the centre
+    /// alone would otherwise leave the ends behind and stretch the curve.
+    pub fn arc_ends_around(&self, point: PointId) -> Vec<PointId> {
+        self.live_arcs()
+            .filter(|(_, arc)| arc.center == point)
+            .flat_map(|(_, arc)| [arc.start, arc.end])
+            .collect()
+    }
+
     /// How far the curve sits from its centre, read off the end it starts at.
     pub fn arc_radius(&self, id: ArcId) -> f64 {
         let arc = self.arcs[id.0];
@@ -297,6 +307,35 @@ mod tests {
             sketch.point(dragged),
         );
         assert_round(&sketch, arc);
+    }
+
+    #[test]
+    fn a_point_that_is_nobodys_centre_carries_no_end_with_it() {
+        let (sketch, arc) = quarter();
+        let end = sketch.arc(arc).end;
+
+        assert_eq!(sketch.arc_ends_around(end), Vec::new());
+    }
+
+    #[test]
+    fn dragging_the_centre_of_an_arc_would_carry_both_of_its_ends() {
+        let (sketch, arc) = quarter();
+        let drawn = sketch.arc(arc);
+
+        let mut ends = sketch.arc_ends_around(drawn.center);
+        ends.sort_by_key(|point| point.0);
+        let mut expected = [drawn.start, drawn.end];
+        expected.sort_by_key(|point| point.0);
+        assert_eq!(ends, expected);
+    }
+
+    #[test]
+    fn an_erased_arc_carries_nothing_from_its_old_centre_any_more() {
+        let (mut sketch, arc) = quarter();
+        let centre = sketch.arc(arc).center;
+        sketch.erase(Element::Arc(arc));
+
+        assert_eq!(sketch.arc_ends_around(centre), Vec::new());
     }
 
     #[test]

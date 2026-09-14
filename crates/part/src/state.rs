@@ -260,6 +260,20 @@ impl PartState {
                 sketch.resolve(scale);
                 None
             }
+            Operation::Trim {
+                sketch,
+                segment,
+                from,
+                to,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.trim(*segment, *from, *to);
+                // What the trait held is no longer asked of it, so the rest of
+                // the drawing settles into what the remaining values still say.
+                sketch.resolve(scale);
+                None
+            }
             Operation::Revolve {
                 sketch,
                 picks,

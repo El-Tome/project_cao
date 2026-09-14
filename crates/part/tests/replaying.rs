@@ -4,7 +4,7 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{DimensionOutcome, History, PartState};
-use cao_sketch::{DimensionTarget, LengthOutcome, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, LengthOutcome, PointId, SegmentId, WorkPlane};
 use glam::DVec2;
 
 fn chain_history() -> History {
@@ -146,4 +146,46 @@ fn an_operation_on_a_missing_sketch_is_ignored() {
         None
     );
     assert!(state.sketches.is_empty());
+}
+
+#[test]
+fn trimming_a_trait_in_the_history_leaves_its_two_ends() {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+    });
+    history.push(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 1.0)),
+        end: PointRef::New(DVec2::new(10.0, 1.0)),
+        construction: false,
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(3.0, 1.0),
+    });
+    history.push(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(7.0, 1.0),
+    });
+    history.push(Operation::Trim {
+        sketch: 0,
+        segment: SegmentId(0),
+        from: PointId(3),
+        to: PointId(4),
+    });
+
+    let state = PartState::rebuild(&history);
+
+    let kept: Vec<(DVec2, DVec2)> = state.sketches[0]
+        .live_segments()
+        .map(|(id, _)| state.sketches[0].endpoints(id))
+        .collect();
+    assert_eq!(
+        kept,
+        vec![
+            (DVec2::new(0.0, 1.0), DVec2::new(3.0, 1.0)),
+            (DVec2::new(7.0, 1.0), DVec2::new(10.0, 1.0)),
+        ],
+    );
 }

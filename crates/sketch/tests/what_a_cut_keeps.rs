@@ -1,8 +1,9 @@
-//! What a cut keeps of the rules and the values that spoke of the trait, and
-//! what it hands back as the price of the ones it could not.
+//! What a cut keeps of the rules and the values that spoke of the trait.
 //!
-//! Only what is said about *direction* survives: the pieces lie on the line
-//! the trait lay on. A length measures a trait that is no longer there.
+//! What is said about *direction* survives whole: the pieces lie on the line
+//! the trait lay on. What is fastened to a place on that line follows the
+//! piece that place fell on. A length measures a trait that is no longer
+//! there.
 
 use cao_sketch::{
     CircleId, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, WorkPlane,
@@ -192,84 +193,6 @@ fn a_length_typed_on_a_trait_measures_neither_piece() {
             .any(|value| matches!(value.target, DimensionTarget::Length(_))),
         "the pieces are shorter than what was typed",
     );
-}
-
-#[test]
-fn a_cut_counts_the_rules_it_could_not_carry_over() {
-    let (mut sketch, cut, other, [first, second]) = a_trait_alongside_another();
-    sketch.add_constraint(Constraint::Parallel {
-        first: cut,
-        second: other,
-    });
-    sketch.add_constraint(Constraint::Equal {
-        first: cut,
-        second: other,
-    });
-
-    let trimmed = sketch
-        .trim(cut, first, second)
-        .expect("a cut that can be made");
-
-    assert_eq!(
-        trimmed.rules_dropped, 1,
-        "the equal lengths went, the parallel followed both pieces",
-    );
-}
-
-#[test]
-fn a_cut_counts_the_values_it_could_not_carry_over() {
-    let (mut sketch, cut, _, [first, second]) = a_trait_alongside_another();
-    sketch.set_dimension(DimensionTarget::Length(cut), 40.0, false);
-    sketch.set_dimension(
-        DimensionTarget::AxisAngle {
-            segment: cut,
-            axis: SketchAxis::U,
-        },
-        0.0,
-        false,
-    );
-
-    let trimmed = sketch
-        .trim(cut, first, second)
-        .expect("a cut that can be made");
-
-    assert_eq!(
-        trimmed.values_dropped, 1,
-        "the length went, the angle to the axis followed both pieces",
-    );
-}
-
-#[test]
-fn a_cut_that_takes_the_whole_trait_loses_everything_that_spoke_of_it() {
-    let (mut sketch, cut, other, [_, _]) = a_trait_alongside_another();
-    let (start, end) = (sketch.segments()[cut.0].start, sketch.segments()[cut.0].end);
-    sketch.add_constraint(Constraint::Parallel {
-        first: cut,
-        second: other,
-    });
-    sketch.set_dimension(DimensionTarget::Length(cut), 40.0, false);
-
-    let trimmed = sketch
-        .trim(cut, start, end)
-        .expect("a cut that can be made");
-
-    assert_eq!(trimmed.pieces, Vec::new(), "nothing of the trait is left");
-    assert_eq!((trimmed.rules_dropped, trimmed.values_dropped), (1, 1));
-}
-
-#[test]
-fn a_cut_nothing_was_said_about_costs_nothing() {
-    let (mut sketch, cut, other, [first, second]) = a_trait_alongside_another();
-    sketch.add_constraint(Constraint::AxisCollinear {
-        segment: other,
-        axis: SketchAxis::U,
-    });
-
-    let trimmed = sketch
-        .trim(cut, first, second)
-        .expect("a cut that can be made");
-
-    assert_eq!((trimmed.rules_dropped, trimmed.values_dropped), (0, 0));
 }
 
 fn a_circle_brushing_a_long_trait() -> (Sketch, SegmentId, CircleId, PointId) {

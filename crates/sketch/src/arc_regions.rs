@@ -7,17 +7,20 @@ use crate::sketch::Sketch;
 impl Sketch {
     /// Walks the segment and arc graph and returns each area it encloses, as
     /// a loop of positions turning counter-clockwise.
-    /// Walks the segment and arc graph and returns each area it encloses, as
-    /// a loop of positions turning counter-clockwise.
+    ///
+    /// A circle nothing cuts never reaches the graph, and comes back from
+    /// `crossed` as the closed loop it already is.
     pub(crate) fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
         let Crossed {
             places,
             ends,
             split,
             arcs,
+            whole,
         } = self.crossed();
+        let mut outlines = whole;
         if ends.is_empty() {
-            return Vec::new();
+            return outlines;
         }
 
         let departure = |half: usize| -> DVec2 {
@@ -50,7 +53,6 @@ impl Sketch {
         };
 
         let mut visited = vec![false; ends.len()];
-        let mut outlines = Vec::new();
         for start in 0..ends.len() {
             if visited[start] || ends[start].0 == ends[start].1 {
                 continue;

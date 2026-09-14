@@ -74,18 +74,18 @@ const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 13] = [
     ("crates/app/src/app.rs", 518),
-    ("crates/app/src/screens/viewport/input/mod.rs", 1411),
+    ("crates/app/src/screens/viewport/input/mod.rs", 1398),
     ("crates/app/src/screens/viewport/mod.rs", 594),
     ("crates/app/src/screens/viewport/render.rs", 1523),
     ("crates/part/src/state.rs", 975),
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/geometry.rs", 556),
     ("crates/render/src/renderer.rs", 426),
-    ("crates/sketch/src/regions.rs", 549),
-    ("crates/sketch/src/sketch.rs", 2308),
-    ("crates/sketch/src/solver.rs", 1206),
+    ("crates/sketch/src/regions.rs", 455),
+    ("crates/sketch/src/sketch.rs", 2304),
+    ("crates/sketch/src/solver.rs", 1199),
     ("crates/solid/src/boolean.rs", 449),
-    ("crates/solid/src/mesh.rs", 627),
+    ("crates/solid/src/mesh.rs", 624),
 ];
 
 const SPOKEN_TO_A_DEVELOPER: [&str; 8] = [

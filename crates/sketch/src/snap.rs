@@ -27,6 +27,11 @@ pub struct SnapSettings {
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Snap {
     Point,
+    /// Where two curves run through the same place without the drawing having
+    /// a point there. It carries its position for the same reason a midpoint
+    /// does: at a shallow angle nothing on screen tells a crossing from a near
+    /// miss.
+    Crossing(DVec2),
     /// The middle of a line, which needs a mark of its own: nothing else on
     /// screen says the cursor is exactly halfway along.
     Midpoint(DVec2),
@@ -35,7 +40,8 @@ pub enum Snap {
 
 impl Sketch {
     /// Pulls the cursor onto whatever it is near: an existing point first, then
-    /// the middle of a trait, then the trait itself, then the grid.
+    /// a crossing, then the middle of a trait, then the trait itself, then the
+    /// grid.
     ///
     /// The grid magnet is what makes drawing on the origin, or a right angle by
     /// following the lines, a matter of aiming roughly rather than exactly. It
@@ -44,6 +50,13 @@ impl Sketch {
     pub fn magnetise(&self, cursor: DVec2, settings: &SnapSettings) -> (DVec2, Option<Snap>) {
         if let Some(point) = self.nearest_point(cursor, settings.point_reach) {
             return (self.point(point), Some(Snap::Point));
+        }
+
+        // A crossing ranks under a drawn point and over a midpoint: the drawing
+        // names the one and merely happens to make the other, and between the
+        // two of them the crossing is the place a person was aiming at.
+        if let Some(at) = self.nearest_crossing(cursor, settings.point_reach) {
+            return (at, Some(Snap::Crossing(at)));
         }
 
         // A line already drawn pulls harder than the grid, and its middle harder
@@ -68,6 +81,16 @@ impl Sketch {
             false => (cursor, None),
         }
     }
+
+    fn nearest_crossing(&self, cursor: DVec2, reach: f64) -> Option<DVec2> {
+        self.crossings()
+            .into_iter()
+            .filter(|at| at.distance(cursor) <= reach)
+            .min_by(|left, right| {
+                left.distance_squared(cursor)
+                    .total_cmp(&right.distance_squared(cursor))
+            })
+    }
 }
 
 #[cfg(test)]
@@ -82,6 +105,66 @@ mod tests {
             grid_step: Some(10.0),
             grid_reach: 2.0,
         }
+    }
+
+    fn with_two_crossing_traits() -> Sketch {
+        let mut sketch = with_a_trait(DVec2::new(0.0, 0.0), DVec2::new(10.0, 0.0));
+        let from = sketch.add_point(DVec2::new(4.0, -2.0));
+        let to = sketch.add_point(DVec2::new(4.0, 6.0));
+        sketch.add_segment(from, to);
+        sketch
+    }
+
+    /// The two traits above cross here, and no point of the drawing stands on
+    /// it — which is what makes it a crossing rather than a point.
+    const WHERE_THEY_CROSS: DVec2 = DVec2::new(4.0, 0.0);
+
+    const TOLERANCE: f64 = 1e-9;
+
+    fn caught_the_crossing(at: DVec2, caught: Option<Snap>) {
+        assert!(
+            matches!(caught, Some(Snap::Crossing(_))),
+            "the crossing at {WHERE_THEY_CROSS} was there to be caught, and the cursor met {caught:?}",
+        );
+        assert!(
+            at.distance(WHERE_THEY_CROSS) < TOLERANCE,
+            "and it is pulled onto {WHERE_THEY_CROSS}, not to {at}",
+        );
+    }
+
+    #[test]
+    fn the_cursor_is_pulled_onto_the_place_two_traits_cross() {
+        let sketch = with_two_crossing_traits();
+
+        let (at, caught) = sketch.magnetise(DVec2::new(4.2, 0.15), &settings());
+
+        caught_the_crossing(at, caught);
+    }
+
+    #[test]
+    fn a_crossing_holds_the_cursor_against_a_midpoint_that_is_nearer() {
+        let sketch = with_two_crossing_traits();
+
+        let (at, caught) = sketch.magnetise(DVec2::new(4.8, 0.1), &settings());
+
+        caught_the_crossing(at, caught);
+    }
+
+    #[test]
+    fn a_crossing_the_drawing_already_has_a_point_on_is_that_point() {
+        let mut sketch = with_two_crossing_traits();
+        sketch.add_point(WHERE_THEY_CROSS);
+
+        assert!(
+            sketch.crossings().is_empty(),
+            "the place is named, so there is nothing left to invent: {:?}",
+            sketch.crossings(),
+        );
+
+        let (at, caught) = sketch.magnetise(DVec2::new(4.2, 0.15), &settings());
+
+        assert_eq!(caught, Some(Snap::Point));
+        assert!(at.distance(WHERE_THEY_CROSS) < TOLERANCE, "got {at}");
     }
 
     fn with_a_trait(start: DVec2, end: DVec2) -> Sketch {

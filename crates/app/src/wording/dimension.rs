@@ -1,5 +1,4 @@
-use cao_part::DimensionOutcome;
-use cao_sketch::{DimensionTarget, LengthOutcome, SketchAxis};
+use cao_sketch::{DimensionTarget, SketchAxis};
 
 use crate::lang::Catalogue;
 use crate::wording::constraints;
@@ -22,25 +21,6 @@ pub fn scale_defined(lang: &Catalogue, millimeters_per_unit: f64) -> String {
         "sketch.scale_set",
         &[("mm", &format!("{millimeters_per_unit:.4}"))],
     )
-}
-
-/// What a dimension just applied on the user's behalf — rather than typed by
-/// hand into an open field — is worth telling them about: a scale it just
-/// fixed, a value it turned out to add nothing to, or one it could not fully
-/// honour.
-///
-/// A dimension placed by a click, or carried by a freshly drawn shape, is
-/// applied without a field open to read a message in, so whichever of those
-/// call sites triggered it is also the only place that can say so.
-pub fn outcome_message(lang: &Catalogue, outcome: Option<DimensionOutcome>) -> Option<String> {
-    match outcome {
-        Some(DimensionOutcome::ScaleDefined {
-            millimeters_per_unit,
-        }) => Some(scale_defined(lang, millimeters_per_unit)),
-        Some(DimensionOutcome::Reference) => Some(redundant_warning(lang)),
-        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => Some(conflict_warning(lang)),
-        _ => None,
-    }
 }
 
 /// The only place a dimension is turned into a name.
@@ -274,53 +254,10 @@ mod tests {
     }
 
     #[test]
-    fn a_dimension_that_fixes_the_scale_says_so_whichever_call_site_applied_it() {
-        let lang = Catalogue::french();
-        let outcome = Some(DimensionOutcome::ScaleDefined {
-            millimeters_per_unit: 2.5,
-        });
-
-        assert_eq!(
-            outcome_message(&lang, outcome).as_deref(),
-            Some("Échelle définie : 1 unité = 2.5000 mm"),
-        );
-    }
-
-    #[test]
-    fn a_redundant_dimension_applied_without_an_open_field_still_warns() {
-        let lang = Catalogue::french();
-
-        assert_eq!(
-            outcome_message(&lang, Some(DimensionOutcome::Reference)).as_deref(),
-            Some(redundant_warning(&lang).as_str()),
-        );
-    }
-
-    #[test]
-    fn an_ordinary_dimension_says_nothing() {
-        let lang = Catalogue::french();
-        let ordinary = Some(DimensionOutcome::Geometry(cao_sketch::LengthOutcome::Exact));
-
-        assert_eq!(outcome_message(&lang, ordinary), None);
-        assert_eq!(outcome_message(&lang, None), None);
-    }
-
-    #[test]
     fn a_value_a_fixed_dimension_already_rules_out_says_so_in_the_language_file() {
         assert!(
             conflict_warning(&Catalogue::french()).starts_with("Cette valeur est impossible"),
             "the warning comes from the catalogue, not from a constant",
-        );
-    }
-
-    #[test]
-    fn a_value_the_drawing_could_only_approach_warns_whichever_call_site_applied_it() {
-        let lang = Catalogue::french();
-        let outcome = Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort));
-
-        assert_eq!(
-            outcome_message(&lang, outcome).as_deref(),
-            Some(conflict_warning(&lang).as_str()),
         );
     }
 }

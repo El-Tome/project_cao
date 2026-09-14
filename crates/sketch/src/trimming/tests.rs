@@ -52,7 +52,8 @@ fn trimming_a_stretch_leaves_the_rest_of_the_trait_standing() {
 
     let kept = sketch
         .trim(segment, near, far)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     assert!(
         sketch.is_erased_segment(segment),
@@ -77,7 +78,10 @@ fn trimming_a_stretch_leaves_the_rest_of_the_trait_standing() {
 fn trimming_a_trait_nothing_sits_on_takes_the_whole_trait() {
     let (mut sketch, segment, [start, _, _, end]) = a_trait_with_two_points_on_it();
 
-    assert_eq!(sketch.trim(segment, start, end), Some(Vec::new()));
+    assert_eq!(
+        sketch.trim(segment, start, end).map(|cut| cut.pieces),
+        Some(Vec::new()),
+    );
     assert!(sketch.is_erased_segment(segment));
 }
 
@@ -87,7 +91,8 @@ fn naming_one_point_twice_cuts_the_trait_there_and_takes_nothing() {
 
     let pieces = sketch
         .trim(segment, near, near)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     let ends: Vec<(PointId, PointId)> = pieces
         .iter()
@@ -109,7 +114,8 @@ fn a_trait_that_only_helps_build_the_drawing_still_only_helps_once_trimmed() {
 
     let pieces = sketch
         .trim(segment, middle, end)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     assert_eq!(pieces.len(), 1);
     assert!(sketch.segments()[pieces[0].0].construction);
@@ -131,7 +137,8 @@ fn a_point_held_on_a_trait_is_held_on_the_piece_it_lands_on() {
 
     let pieces = sketch
         .trim(segment, from, to)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     assert!(
         sketch.constraints().contains(&Constraint::OnSegment {
@@ -171,7 +178,8 @@ fn a_piece_of_no_length_is_never_left_behind() {
 
     let pieces = sketch
         .trim(segment, twin, near)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     let ends: Vec<(PointId, PointId)> = pieces
         .iter()
@@ -216,7 +224,8 @@ fn a_trait_cut_where_a_circle_brushes_it_still_stands_on_that_place() {
 
     let pieces = sketch
         .trim(segment, start, contact)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     assert!(!sketch.is_erased_point(contact), "the piece stands on it");
     assert_eq!(sketch.segments()[pieces[0].0].start, contact);

@@ -5,6 +5,7 @@ use glam::DVec2;
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
+use crate::trimming::carrying::{Carried, Piece, gone, still_holds, still_measured, targets};
 
 /// Below this, the two ends of a piece are the same place and the piece is no
 /// trait at all. Far under anything a drawing tells apart: a gap this small
@@ -18,6 +19,22 @@ const NO_LENGTH: f64 = 1e-9;
 /// another point, and no amount of zooming out should turn it into an end of
 /// this trait — which is what a cut makes of it.
 const ON_THE_TRAIT: f64 = 1e-9;
+
+/// What a cut left standing, and what it cost.
+///
+/// A rule or a value that spoke of the trait and of neither piece goes with the
+/// trait. It is counted rather than named: the drawing loses it either way, and
+/// what the user needs to know is that something was lost at all.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Trimmed {
+    /// The pieces still drawn, in order from the trait's start. Empty when the
+    /// whole trait went.
+    pub pieces: Vec<SegmentId>,
+    /// Rules that spoke of the trait and of neither piece.
+    pub rules_dropped: usize,
+    /// Values that measured the trait and measure neither piece.
+    pub values_dropped: usize,
+}
 
 impl Sketch {
     /// The points sitting on a trait, each with how far along it they sit, in
@@ -71,19 +88,20 @@ impl Sketch {
     /// Nothing when the cut cannot be made: a trait or a point the drawing does
     /// not have, a point that does not fall between the trait's own ends, or a
     /// cut that would take nothing away and hand back the whole trait.
-    pub fn trim(
-        &mut self,
-        segment: SegmentId,
-        from: PointId,
-        to: PointId,
-    ) -> Option<Vec<SegmentId>> {
+    pub fn trim(&mut self, segment: SegmentId, from: PointId, to: PointId) -> Option<Trimmed> {
         let cut = self.segments().get(segment.0).copied()?;
+        let rules = self.constraints().to_vec();
+        let values = self.dimensions().to_vec();
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();
         if reach == 0.0 {
             self.erase(Element::Segment(segment));
-            return Some(Vec::new());
+            return Some(Trimmed {
+                pieces: Vec::new(),
+                rules_dropped: gone(&rules, self.constraints()).len(),
+                values_dropped: gone(&targets(&values), &targets(self.dimensions())).len(),
+            });
         }
         let along = |place: DVec2| (place - start).dot(span) / reach;
 
@@ -107,25 +125,13 @@ impl Sketch {
             return None;
         }
 
-        let held: Vec<(f64, PointId)> = self
-            .constraints()
-            .iter()
-            .filter_map(|rule| match rule {
-                Constraint::OnSegment { point, segment: on } if *on == segment => {
-                    Some((along(self.points().get(point.0).copied()?), *point))
-                }
-                _ => None,
-            })
-            .collect();
+        let carried = self.carried_by(segment, rules, values);
 
-        let rules = self.constraints().to_vec();
-        let values = self.dimensions().to_vec();
-        let corner = self.corner_of_an_angle_on(segment, &values);
+        let corner = self.corner_of_an_angle_on(segment, &carried.values);
 
         // A tangency carries its contact point away when it goes, since the
-        // point would be left in mid-air. Stopping a cut on that contact is
-        // the case where it would not: it is an end of a trait now, and that
-        // is what holds it.
+        // point would be left in mid-air. A cut stopping on that contact, or a
+        // piece inheriting the tangency, is what puts it back.
         let standing: Vec<PointId> = [cut.start, low, high, cut.end]
             .into_iter()
             .filter(|point| !self.is_erased_point(*point))
@@ -136,34 +142,140 @@ impl Sketch {
         for point in standing {
             Erased::unmark(&mut self.erased.points, point.0);
         }
+        let dropped = gone(&carried.rules, self.constraints());
+        let dropped_values = gone(&targets(&carried.values), &targets(self.dimensions()));
 
         let below = keeps_below.then(|| self.piece(cut.start, low, cut.construction));
         let above = keeps_above.then(|| self.piece(high, cut.end, cut.construction));
 
-        for (fraction, point) in held {
+        for (fraction, point) in &carried.held {
             let piece = match fraction {
-                _ if fraction < opens => below,
-                _ if fraction > closes => above,
+                _ if *fraction < opens => below,
+                _ if *fraction > closes => above,
                 _ => None,
             };
             if let Some(segment) = piece {
-                self.add_constraint(Constraint::OnSegment { point, segment });
+                self.add_constraint(Constraint::OnSegment {
+                    point: *point,
+                    segment,
+                });
             }
         }
 
-        for piece in [below, above].into_iter().flatten() {
-            let reaches_the_corner = corner.is_some_and(|corner| {
-                let stops_at = self.segments()[piece.0];
+        let pieces: Vec<Piece> = [
+            below.map(|id| (id, (0.0, opens))),
+            above.map(|id| (id, (closes, 1.0))),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|(id, spans)| Piece {
+            id,
+            spans,
+            reaches_the_corner: corner.is_some_and(|corner| {
+                let stops_at = self.segments()[id.0];
                 stops_at.start == corner || stops_at.end == corner
-            });
-            for rule in &rules {
-                if let Some(moved) = about_direction(*rule, segment, piece) {
+            }),
+        })
+        .collect();
+
+        self.hand_over(segment, &pieces, &carried);
+
+        let rules_dropped = dropped
+            .iter()
+            .filter(|rule| {
+                !self.stands_on_a_piece(**rule, segment, &pieces, carried.place_of(**rule))
+            })
+            .count();
+        let values_dropped = dropped_values
+            .iter()
+            .filter(|value| {
+                !self.measured_on_a_piece(
+                    **value,
+                    segment,
+                    &pieces,
+                    carried.place_measured(**value),
+                )
+            })
+            .count();
+        Some(Trimmed {
+            pieces: pieces.iter().map(|piece| piece.id).collect(),
+            rules_dropped,
+            values_dropped,
+        })
+    }
+
+    /// Everything standing that spoke of a trait, and where along it the ones
+    /// fastened to a place on it sat.
+    fn carried_by(
+        &self,
+        segment: SegmentId,
+        rules: Vec<Constraint>,
+        values: Vec<Dimension>,
+    ) -> Carried {
+        let (start, end) = self.endpoints(segment);
+        let span = end - start;
+        let reach = span.length_squared();
+        let along = |place: DVec2| (place - start).dot(span) / reach;
+        let place_of_point = |point: PointId| Some(along(self.points().get(point.0).copied()?));
+
+        Carried {
+            held: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::OnSegment { point, segment: on } if *on == segment => {
+                        Some((place_of_point(*point)?, *point))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            fastened: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::Tangent {
+                        segment: on,
+                        at: Some(point),
+                        ..
+                    } if *on == segment => Some((*rule, place_of_point(*point)?)),
+                    _ => None,
+                })
+                .collect(),
+            measured_at: values
+                .iter()
+                .filter_map(|value| match value.target {
+                    DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
+                        Some((value.target, place_of_point(point)?))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            rules,
+            values,
+        }
+    }
+
+    /// Puts back on the pieces everything the trait carried that follows them,
+    /// the contact point of an inherited tangency included — the erasing of the
+    /// trait took it away.
+    fn hand_over(&mut self, cut: SegmentId, pieces: &[Piece], carried: &Carried) {
+        for (rule, at) in &carried.fastened {
+            if let Constraint::Tangent {
+                at: Some(point), ..
+            } = rule
+                && pieces.iter().any(|piece| piece.holds(*at))
+            {
+                Erased::unmark(&mut self.erased.points, point.0);
+            }
+        }
+
+        for piece in pieces {
+            for rule in &carried.rules {
+                if let Some(moved) = still_holds(*rule, cut, piece, carried.place_of(*rule)) {
                     self.add_constraint(moved);
                 }
             }
-            for value in &values {
-                let Some(target) = still_measured(value.target, segment, piece, reaches_the_corner)
-                else {
+            for value in &carried.values {
+                let place = carried.place_measured(value.target);
+                let Some(target) = still_measured(value.target, cut, piece, place) else {
                     continue;
                 };
                 self.set_dimension(target, value.value, value.driven);
@@ -172,8 +284,43 @@ impl Sketch {
                 }
             }
         }
+    }
 
-        Some(below.into_iter().chain(above).collect())
+    /// Whether a rule the cut took away came back on one of the pieces, under
+    /// the piece's name.
+    fn stands_on_a_piece(
+        &self,
+        rule: Constraint,
+        cut: SegmentId,
+        pieces: &[Piece],
+        place: Option<f64>,
+    ) -> bool {
+        pieces.iter().any(|piece| {
+            let moved = match rule {
+                Constraint::OnSegment { point, segment } if segment == cut => {
+                    Some(Constraint::OnSegment {
+                        point,
+                        segment: piece.id,
+                    })
+                }
+                other => still_holds(other, cut, piece, place),
+            };
+            moved.is_some_and(|moved| self.constraints().contains(&moved.normalised()))
+        })
+    }
+
+    /// Whether a value the cut took away is read again on one of the pieces.
+    fn measured_on_a_piece(
+        &self,
+        value: DimensionTarget,
+        cut: SegmentId,
+        pieces: &[Piece],
+        place: Option<f64>,
+    ) -> bool {
+        pieces.iter().any(|piece| {
+            still_measured(value, cut, piece, place)
+                .is_some_and(|moved| self.dimension_of(moved).is_some())
+        })
     }
 
     /// The place an angle measured against this trait is taken at: the point
@@ -228,80 +375,6 @@ impl Sketch {
     }
 }
 
+mod carrying;
 #[cfg(test)]
 mod tests;
-
-/// The same rule, said of a piece of the trait it named.
-///
-/// Only what a rule says about *direction* survives a cut: the pieces lie on
-/// the line the trait lay on, so they stand to everything else exactly as it
-/// did. A rule about its length speaks of a trait that is no longer there.
-fn about_direction(rule: Constraint, cut: SegmentId, piece: SegmentId) -> Option<Constraint> {
-    let moved = |id: SegmentId| match id == cut {
-        true => piece,
-        false => id,
-    };
-    match rule {
-        Constraint::Perpendicular { first, second } if first == cut || second == cut => {
-            Some(Constraint::Perpendicular {
-                first: moved(first),
-                second: moved(second),
-            })
-        }
-        Constraint::Parallel { first, second } if first == cut || second == cut => {
-            Some(Constraint::Parallel {
-                first: moved(first),
-                second: moved(second),
-            })
-        }
-        Constraint::Collinear { first, second } if first == cut || second == cut => {
-            Some(Constraint::Collinear {
-                first: moved(first),
-                second: moved(second),
-            })
-        }
-        Constraint::AxisCollinear { segment, axis } if segment == cut => {
-            Some(Constraint::AxisCollinear {
-                segment: piece,
-                axis,
-            })
-        }
-        _ => None,
-    }
-}
-
-/// What a value measured against the trait still measures, once the trait is a
-/// piece of itself.
-///
-/// An angle against an axis is read off the direction, which both pieces
-/// inherit. An angle at a corner belongs to whichever piece still reaches that
-/// corner. A length measures a trait that is shorter than what was typed, and
-/// says nothing about either piece.
-fn still_measured(
-    value: DimensionTarget,
-    cut: SegmentId,
-    piece: SegmentId,
-    reaches_the_corner: bool,
-) -> Option<DimensionTarget> {
-    let moved = |id: SegmentId| match id == cut {
-        true => piece,
-        false => id,
-    };
-    match value {
-        DimensionTarget::AxisAngle { segment, axis } if segment == cut => {
-            Some(DimensionTarget::AxisAngle {
-                segment: piece,
-                axis,
-            })
-        }
-        DimensionTarget::Angle { first, second }
-            if (first == cut || second == cut) && reaches_the_corner =>
-        {
-            Some(DimensionTarget::Angle {
-                first: moved(first),
-                second: moved(second),
-            })
-        }
-        _ => None,
-    }
-}

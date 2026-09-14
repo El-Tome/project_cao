@@ -19,7 +19,64 @@ pub struct Split {
     pub values_dropped: usize,
 }
 
+/// What stands at the place a click fell on, for a division to act upon.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Crossing {
+    /// Traits crossing with no point of the drawing standing there, and the
+    /// place they cross at.
+    Traits { at: DVec2, segments: Vec<SegmentId> },
+    /// A curve runs through the crossing too. A division cuts traits and
+    /// nothing else yet, and cutting only the straight halves of a crossing
+    /// would leave the drawing saying something nobody asked for.
+    Curved,
+}
+
 impl Sketch {
+    /// What a click at this place offers a division, within the reach given.
+    ///
+    /// The nearest crossing rather than the one clicked exactly: the cursor is
+    /// magnetised onto a crossing before it gets here, but a drawing whose
+    /// magnets are off should still be divisible.
+    pub fn crossing_at(&self, at: DVec2, reach: f64) -> Option<Crossing> {
+        let place = self
+            .crossings()
+            .into_iter()
+            .filter(|place| place.distance(at) <= reach)
+            .min_by(|left, right| {
+                left.distance_squared(at)
+                    .total_cmp(&right.distance_squared(at))
+            })?;
+
+        let segments: Vec<SegmentId> = self
+            .live_segments()
+            .filter(|(id, segment)| !segment.construction && self.runs_through(*id, place))
+            .map(|(id, _)| id)
+            .collect();
+
+        if self.a_curve_runs_through(place) {
+            return Some(Crossing::Curved);
+        }
+        (segments.len() >= 2).then_some(Crossing::Traits {
+            at: place,
+            segments,
+        })
+    }
+
+    /// Whether a circle or an arc of the drawing passes through this place.
+    ///
+    /// Construction curves are left out, as they are left out of the sweep
+    /// that found the crossing in the first place.
+    fn a_curve_runs_through(&self, at: DVec2) -> bool {
+        let on_a_circle = self.live_circles().any(|(_, circle)| {
+            !circle.construction
+                && (at.distance(self.point(circle.center)) - circle.radius).abs() <= ON_THE_TRAIT
+        });
+        let on_an_arc = self
+            .live_arcs()
+            .any(|(id, arc)| !arc.construction && self.distance_to_arc(id, at) <= ON_THE_TRAIT);
+        on_a_circle || on_an_arc
+    }
+
     /// Drops a point where the named traits cross and cuts each of them in two
     /// there, so that the crossing becomes something to dimension, to
     /// constrain and to drag.
@@ -174,6 +231,71 @@ mod tests {
         assert!(
             !measured.contains(&DimensionTarget::Length(across)),
             "the trait it measured is gone, and it measured neither piece: {measured:?}"
+        );
+    }
+
+    #[test]
+    fn the_traits_running_through_a_crossing_are_the_ones_a_division_cuts() {
+        let (sketch, [across, up], crossing) = two_traits_crossing();
+
+        let found = sketch.crossing_at(crossing + DVec2::new(0.2, 0.1), 1.0);
+
+        assert_eq!(
+            found,
+            Some(Crossing::Traits {
+                at: crossing,
+                segments: vec![across, up],
+            }),
+            "a click near the crossing names the place and both traits through it"
+        );
+    }
+
+    #[test]
+    fn a_click_nowhere_near_a_crossing_names_none() {
+        let (sketch, _, crossing) = two_traits_crossing();
+
+        assert_eq!(
+            sketch.crossing_at(crossing + DVec2::new(3.0, 3.0), 1.0),
+            None
+        );
+    }
+
+    #[test]
+    fn a_crossing_a_curve_runs_through_is_refused_rather_than_half_divided() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::new(0.0, 0.0));
+        sketch.add_circle(centre, 5.0);
+        let west = sketch.add_point(DVec2::new(-10.0, 0.0));
+        let east = sketch.add_point(DVec2::new(10.0, 0.0));
+        sketch.add_segment(west, east);
+
+        let found = sketch.crossing_at(DVec2::new(5.0, 0.0), 1.0);
+
+        assert_eq!(
+            found,
+            Some(Crossing::Curved),
+            "the trait could be cut there, but the circle it crosses could not"
+        );
+    }
+
+    #[test]
+    fn two_traits_crossing_where_a_curve_also_runs_are_left_alone_together() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::new(0.0, 0.0));
+        sketch.add_circle(centre, 5.0);
+        let west = sketch.add_point(DVec2::new(-10.0, 0.0));
+        let east = sketch.add_point(DVec2::new(10.0, 0.0));
+        sketch.add_segment(west, east);
+        let below = sketch.add_point(DVec2::new(5.0, -3.0));
+        let above = sketch.add_point(DVec2::new(5.0, 3.0));
+        sketch.add_segment(below, above);
+
+        let found = sketch.crossing_at(DVec2::new(5.0, 0.0), 0.5);
+
+        assert_eq!(
+            found,
+            Some(Crossing::Curved),
+            "cutting the two traits and leaving the circle whole is the half-division nobody asked for"
         );
     }
 

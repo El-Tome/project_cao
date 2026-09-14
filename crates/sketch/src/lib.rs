@@ -67,7 +67,7 @@ pub use shape_dimensions::{line_dimensions, rectangle_dimensions, symmetric_segm
 pub use sketch::{Circle, CircleId, Element, PointId, Segment, SegmentId, Sketch};
 pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
-pub use splitting::Split;
+pub use splitting::{Crossing, Split};
 pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};
 pub use trimming::Trimmed;

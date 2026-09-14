@@ -20,7 +20,7 @@ pub(crate) fn trim(
     };
     let cut = sketch
         .nearest_segment(cursor, snap)
-        .and_then(|segment| Some((segment, sketch.stretch_at(segment, cursor, snap)?)));
+        .and_then(|segment| Some((segment, sketch.stretch_at(segment, cursor)?)));
     let Some((segment, (from, to))) = cut else {
         return false;
     };

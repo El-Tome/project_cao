@@ -2,7 +2,7 @@
 //!
 //! Aiming with a mouse is never exact, so the drawing pulls the cursor onto
 //! what it is nearly on. Which of those magnets wins is a rule about the
-//! drawing — a point already there is worth more than a line, and a line more
+//! drawing — a point already there is worth more than a curve, and a curve more
 //! than the grid behind it — and it belongs with the drawing rather than with
 //! the interface showing it. How far each one reaches is the other way round:
 //! the interface measures that in pixels and hands it over in world units.
@@ -41,7 +41,7 @@ pub enum Snap {
 
 impl Sketch {
     /// Pulls the cursor onto whatever it is near: an existing point first, then
-    /// a crossing, then the middle of a trait, then the trait itself, then the
+    /// a crossing, then the middle of a trait, then any drawn curve, then the
     /// grid.
     ///
     /// The grid magnet is what makes drawing on the origin, or a right angle by
@@ -60,13 +60,13 @@ impl Sketch {
             return (at, Some(Snap::Crossing(at)));
         }
 
-        // A line already drawn pulls harder than the grid, and its middle harder
-        // still: joining the middle of a side is a thing one aims at, and
+        // A curve already drawn pulls harder than the grid, and a trait's middle
+        // harder still: joining the middle of a side is a thing one aims at, and
         // landing a hair off it leaves geometry that only looks joined.
         if let Some((_, middle)) = self.nearest_midpoint(cursor, settings.curve_reach) {
             return (middle, Some(Snap::Midpoint(middle)));
         }
-        if let Some((_, at)) = self.nearest_on_segment(cursor, settings.curve_reach) {
+        if let Some(at) = self.nearest_on_curve(cursor, settings.curve_reach) {
             return (at, Some(Snap::OnCurve(at)));
         }
 
@@ -83,6 +83,28 @@ impl Sketch {
         }
     }
 
+    /// The place on a drawn curve nearest the cursor, whichever kind of curve
+    /// it turns out to be: between a trait, a circle and an arc, the nearer one
+    /// wins.
+    fn nearest_on_curve(&self, cursor: DVec2, reach: f64) -> Option<DVec2> {
+        let on_traits = self.nearest_on_segment(cursor, reach).map(|(_, at)| at);
+        let on_circles = self
+            .live_circles()
+            .filter_map(|(_, circle)| onto_rim(cursor, self.point(circle.center), circle.radius));
+        let on_arcs = self
+            .live_arcs()
+            .map(|(id, _)| self.place_on_arc(id, cursor));
+        on_traits
+            .into_iter()
+            .chain(on_circles)
+            .chain(on_arcs)
+            .filter(|at| at.distance(cursor) <= reach)
+            .min_by(|left, right| {
+                left.distance_squared(cursor)
+                    .total_cmp(&right.distance_squared(cursor))
+            })
+    }
+
     fn nearest_crossing(&self, cursor: DVec2, reach: f64) -> Option<DVec2> {
         self.crossings()
             .into_iter()
@@ -92,6 +114,14 @@ impl Sketch {
                     .total_cmp(&right.distance_squared(cursor))
             })
     }
+}
+
+/// Where a place lands when pulled straight onto a rim of that centre and
+/// radius. Dead on the centre it lands nowhere: every place on the rim is as
+/// near as every other, and picking one of them would be inventing a direction.
+pub(crate) fn onto_rim(from: DVec2, centre: DVec2, radius: f64) -> Option<DVec2> {
+    let reach = from - centre;
+    (reach.length() > 1e-9).then(|| centre + reach.normalize() * radius)
 }
 
 #[cfg(test)]
@@ -166,6 +196,101 @@ mod tests {
 
         assert_eq!(caught, Some(Snap::Point));
         assert!(at.distance(WHERE_THEY_CROSS) < TOLERANCE, "got {at}");
+    }
+
+    fn caught_on_curve(at: DVec2, caught: Option<Snap>, expected: DVec2) {
+        assert!(
+            matches!(caught, Some(Snap::OnCurve(_))),
+            "the curve was there to be caught, and the cursor met {caught:?}",
+        );
+        assert!(
+            at.distance(expected) < TOLERANCE,
+            "and it is pulled onto {expected}, not to {at}",
+        );
+    }
+
+    fn with_a_circle(at: DVec2, radius: f64) -> Sketch {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(at);
+        sketch.add_circle(centre, radius);
+        sketch
+    }
+
+    #[test]
+    fn a_cursor_near_a_circle_is_pulled_onto_its_rim() {
+        let sketch = with_a_circle(DVec2::new(30.0, 30.0), 9.0);
+
+        let (at, caught) = sketch.magnetise(DVec2::new(30.0, 20.6), &settings());
+
+        caught_on_curve(at, caught, DVec2::new(30.0, 21.0));
+    }
+
+    /// A trait along y = 20, and a circle whose nearest place is (30, 21): one
+    /// unit apart, so a cursor between them is nearer whichever it is put next
+    /// to.
+    fn with_a_trait_under_a_circle() -> Sketch {
+        let mut sketch = with_a_trait(DVec2::new(0.0, 20.0), DVec2::new(40.0, 20.0));
+        let centre = sketch.add_point(DVec2::new(30.0, 30.0));
+        sketch.add_circle(centre, 9.0);
+        sketch
+    }
+
+    #[test]
+    fn a_cursor_nearer_the_circle_than_the_trait_lands_on_the_circle() {
+        let sketch = with_a_trait_under_a_circle();
+
+        let (at, caught) = sketch.magnetise(DVec2::new(30.0, 20.6), &settings());
+
+        caught_on_curve(at, caught, DVec2::new(30.0, 21.0));
+    }
+
+    #[test]
+    fn a_cursor_nearer_the_trait_than_the_circle_lands_on_the_trait() {
+        let sketch = with_a_trait_under_a_circle();
+
+        let (at, caught) = sketch.magnetise(DVec2::new(30.0, 20.2), &settings());
+
+        caught_on_curve(at, caught, DVec2::new(30.0, 20.0));
+    }
+
+    fn with_a_quarter_arc() -> Sketch {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let east = sketch.add_point(DVec2::new(7.0, 0.0));
+        let north = sketch.add_point(DVec2::new(0.0, 7.0));
+        sketch.add_arc(Sketch::ORIGIN, east, north);
+        sketch
+    }
+
+    #[test]
+    fn a_cursor_near_an_arc_is_pulled_onto_it() {
+        let sketch = with_a_quarter_arc();
+        let northeast = DVec2::new(1.0, 1.0).normalize();
+
+        let (at, caught) = sketch.magnetise(northeast * 7.3, &settings());
+
+        caught_on_curve(at, caught, northeast * 7.0);
+    }
+
+    #[test]
+    fn a_cursor_beyond_an_arc_is_not_pulled_onto_the_rest_of_its_circle() {
+        let sketch = with_a_quarter_arc();
+        let due_west = DVec2::new(-7.2, 0.0);
+
+        assert_eq!(
+            sketch.magnetise(due_west, &settings()),
+            (due_west, None),
+            "the quarter turn stops due north, and what lies on past it is not drawn",
+        );
+    }
+
+    #[test]
+    fn the_centre_of_a_circle_pulls_like_any_other_point() {
+        let sketch = with_a_circle(DVec2::new(30.0, 30.0), 9.0);
+
+        let (at, caught) = sketch.magnetise(DVec2::new(30.4, 30.0), &settings());
+
+        assert_eq!(caught, Some(Snap::Point));
+        assert_eq!(at, DVec2::new(30.0, 30.0));
     }
 
     fn with_a_trait(start: DVec2, end: DVec2) -> Sketch {

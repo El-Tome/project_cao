@@ -10,6 +10,7 @@ use crate::errors::PartFileError;
 use crate::file_name;
 use crate::history::{History, Operation};
 use crate::outcome::Outcome;
+use crate::picture::Picture;
 use crate::ports::Files;
 use crate::state::PartState;
 
@@ -22,6 +23,10 @@ pub const SCHEMA_VERSION: u32 = 3;
 
 const METADATA_ENTRY: &str = "part.json";
 const HISTORY_ENTRY: &str = "history.json";
+/// How big the picture is. Kept apart from its bytes so that neither entry has
+/// to carry a header the other could contradict.
+const PICTURE_SHAPE_ENTRY: &str = "picture.json";
+const PICTURE_PIXELS_ENTRY: &str = "picture.rgba";
 
 /// What a part is, as opposed to what has been done to it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +50,14 @@ pub struct PartDocument {
     pub metadata: PartMetadata,
     pub history: History,
     state: PartState,
+    picture: Option<Picture>,
+}
+
+/// How big a picture is, beside the bytes that fill it.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+struct PictureShape {
+    width: u32,
+    height: u32,
 }
 
 impl PartDocument {
@@ -59,7 +72,19 @@ impl PartDocument {
             },
             history: History::default(),
             state: PartState::default(),
+            picture: None,
         }
+    }
+
+    /// What the part looked like when it was last put away, if anybody has
+    /// taken its picture. Read by a panel listing a folder, which must not
+    /// replay a history to show a row.
+    pub fn picture(&self) -> Option<&Picture> {
+        self.picture.as_ref()
+    }
+
+    pub fn set_picture(&mut self, picture: Picture) {
+        self.picture = Some(picture);
     }
 
     pub fn name(&self) -> &str {
@@ -165,6 +190,21 @@ impl PartDocument {
             .write_all(serde_json::to_string_pretty(&self.history)?.as_bytes())
             .map_err(zip::result::ZipError::from)?;
 
+        if let Some(picture) = &self.picture {
+            let shape = PictureShape {
+                width: picture.width(),
+                height: picture.height(),
+            };
+            archive.start_file(PICTURE_SHAPE_ENTRY, options)?;
+            archive
+                .write_all(serde_json::to_string(&shape)?.as_bytes())
+                .map_err(zip::result::ZipError::from)?;
+            archive.start_file(PICTURE_PIXELS_ENTRY, options)?;
+            archive
+                .write_all(picture.pixels())
+                .map_err(zip::result::ZipError::from)?;
+        }
+
         let bytes = archive.finish()?.into_inner();
         files.write(path, &bytes)?;
         Ok(())
@@ -194,8 +234,26 @@ impl PartDocument {
             metadata,
             history,
             state,
+            picture: read_picture(&mut archive),
         })
     }
+}
+
+/// The picture, when the archive holds a whole one.
+///
+/// A part written before pictures existed carries neither entry, and a part
+/// whose picture is damaged is a part with no picture — never a part that
+/// refuses to open. Nothing of the drawing is in there.
+fn read_picture<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>) -> Option<Picture> {
+    let shape: PictureShape =
+        serde_json::from_str(&read_entry(archive, PICTURE_SHAPE_ENTRY).ok()?).ok()?;
+    let mut pixels = Vec::new();
+    archive
+        .by_name(PICTURE_PIXELS_ENTRY)
+        .ok()?
+        .read_to_end(&mut pixels)
+        .ok()?;
+    Picture::new(shape.width, shape.height, pixels)
 }
 
 fn read_entry<R: Read + std::io::Seek>(

@@ -101,6 +101,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| The picture a part carries of itself | `part/src/picture.rs` | `Picture` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 | What a part asks of a filesystem | `part/src/ports/files.rs` | `Files`, `FileError` |
 | What browsing a folder of parts asks of it | `part/src/ports/folders.rs` | `Folders`, `Entry` |

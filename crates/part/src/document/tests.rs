@@ -1,4 +1,5 @@
 use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+use std::path::Path;
 
 use crate::adapters::InMemoryFiles;
 use crate::history::PointRef;
@@ -179,4 +180,63 @@ fn a_plain_json_file_is_refused() {
 
     let error = PartDocument::load(&files, path).expect_err("must be refused");
     assert!(matches!(error, PartFileError::UnsupportedVersion(1)));
+}
+
+fn a_drawn_picture() -> Picture {
+    Picture::new(2, 2, (0..16).collect()).expect("the pixels fill the size")
+}
+
+#[test]
+fn a_part_hands_back_the_picture_it_was_written_with() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut document = drawn_part();
+    document.set_picture(a_drawn_picture());
+
+    document
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    assert_eq!(
+        PartDocument::load(&files, path).expect("reads").picture(),
+        Some(&a_drawn_picture()),
+    );
+}
+
+#[test]
+fn a_part_nobody_has_taken_the_picture_of_opens_without_one() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    drawn_part()
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    assert_eq!(
+        PartDocument::load(&files, path).expect("reads").picture(),
+        None,
+        "a part written before pictures existed must open exactly as it did",
+    );
+}
+
+#[test]
+fn a_picture_survives_a_save_that_did_not_take_it() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut document = drawn_part();
+    document.set_picture(a_drawn_picture());
+    document
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+    reopened
+        .save(&files, path, at("2026-01-02T11:00:00Z"))
+        .expect("the part is written again");
+
+    assert_eq!(
+        PartDocument::load(&files, path).expect("reads").picture(),
+        Some(&a_drawn_picture()),
+        "save rebuilds the whole archive, and autosave calls it at the end of \
+         every gesture: a picture it did not write is a picture gone",
+    );
 }

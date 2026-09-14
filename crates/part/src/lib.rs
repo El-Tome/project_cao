@@ -14,6 +14,7 @@ mod file_name;
 pub mod history;
 pub mod library;
 mod outcome;
+mod picture;
 pub mod ports;
 mod state;
 
@@ -25,5 +26,6 @@ pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
 pub use errors::PartFileError;
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use outcome::Outcome;
+pub use picture::Picture;
 pub use ports::{Entry, FileError, Files, Folders};
 pub use state::PartState;

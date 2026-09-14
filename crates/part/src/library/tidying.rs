@@ -297,6 +297,25 @@ mod tests {
     }
 
     #[test]
+    fn a_renamed_part_keeps_its_picture() {
+        let (files, path) = library_with("Support");
+        let mut document = PartDocument::load(&files, &path).expect("reads");
+        let picture = crate::Picture::new(2, 2, (0..16).collect()).expect("a picture");
+        document.set_picture(picture.clone());
+        document
+            .save(&files, &path, at("2026-01-02T09:00:00Z"))
+            .expect("the part is written");
+
+        let moved = rename_part(&files, &files, &path, "Bride").expect("the part is renamed");
+
+        assert_eq!(
+            PartDocument::load(&files, &moved).expect("reads").picture(),
+            Some(&picture),
+            "a rename reads the part and writes it back, and would drop it",
+        );
+    }
+
+    #[test]
     fn a_part_thrown_away_is_gone_from_the_library() {
         let (files, path) = library_with("Support");
 

@@ -92,10 +92,31 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
 | --- | --- |
 | `part.json` | The identity of the part: id, name, dates, schema version |
 | `history.json` | The list of operations and the position of the cursor |
+| `picture.json` | How big the picture below is, when there is one |
+| `picture.rgba` | A picture of the part, rows of pixels, four bytes each |
 
 Separating the files allows each part to evolve independently, and leaves room
-for what will come along (a thumbnail of the part, materials, exported meshes)
-without rewriting the rest at every save.
+for what will come along (materials, exported meshes) without rewriting the rest
+at every save.
+
+### The picture is kept, because the geometry is not
+
+The two `picture` entries hold what the part looked like when it was last put
+away, so the files panel can show a folder without opening what is in it. That
+is the whole reason they are there: no geometry is saved, so a picture drawn
+while listing means replaying every history in the folder — measured at fifteen
+times the cost on parts averaging seven operations, and linear in them after
+that.
+
+No image format. The archive already deflates what it holds, and a rendering is
+mostly flat ground with a few strokes on it: a 128×128 picture is 64 KB of
+pixels and about 3 KB in the file. A codec would buy nothing and cost a
+dependency.
+
+A part written before this carries neither entry and opens exactly as it did,
+so no version was bumped for it. A picture that cannot be read whole is a part
+with no picture, never a part that refuses to open: nothing of the drawing is
+in there.
 
 ### Earlier versions are not converted
 

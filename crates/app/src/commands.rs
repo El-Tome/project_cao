@@ -218,6 +218,10 @@ pub(crate) fn run(
             ribbon.history_open = !ribbon.history_open;
             false
         }
+        Command::ToggleExplorer => {
+            ribbon.explorer_open = !ribbon.explorer_open;
+            false
+        }
         Command::ToggleToolbarDocked => false,
     }
 }

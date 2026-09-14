@@ -1,4 +1,5 @@
 pub mod annotations;
+pub mod explorer;
 pub mod extrusion;
 mod extrusion_row;
 pub mod history_tree;

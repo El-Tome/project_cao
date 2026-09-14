@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
@@ -7,6 +7,7 @@ use cao_render::SceneRenderer;
 use crate::commands;
 use crate::lang::Catalogue;
 use crate::remembered::Remembered;
+use crate::screens::explorer::{Explorer, ExplorerAction};
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
     self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
@@ -22,10 +23,17 @@ pub struct CaoApp {
     settings_editor: crate::screens::settings::SettingsEditor,
     new_part_name: String,
     error: Option<String>,
+    /// The library panel, held by the shell rather than by a screen: the same
+    /// browsing serves the start menu and the part being drawn.
+    explorer: Explorer,
 }
 
 impl CaoApp {
-    pub fn new(cc: &eframe::CreationContext<'_>, locations: Option<Locations>) -> Self {
+    pub fn new(
+        cc: &eframe::CreationContext<'_>,
+        locations: Option<Locations>,
+        opening: Option<PathBuf>,
+    ) -> Self {
         if let Some(render_state) = &cc.wgpu_render_state {
             let renderer = SceneRenderer::new(
                 &render_state.device,
@@ -39,14 +47,21 @@ impl CaoApp {
                 .insert(renderer);
         }
 
-        Self {
+        let remembered = Remembered::read(locations);
+        let explorer = Explorer::at(remembered.projects_dir().unwrap_or_default());
+        let mut app = Self {
             screen: Screen::StartMenu,
-            remembered: Remembered::read(locations),
+            remembered,
             settings_open: false,
             settings_editor: crate::screens::settings::SettingsEditor::default(),
             new_part_name: String::new(),
             error: None,
+            explorer,
+        };
+        if let Some(part) = opening {
+            app.open_part(part);
         }
+        app
     }
 
     fn save_settings(&mut self) {
@@ -67,7 +82,10 @@ impl CaoApp {
             return;
         };
         match PartDocument::create_in(&DiskFiles, &dir, name, chrono::Utc::now()) {
-            Ok((doc, path)) => self.open_document(doc, path),
+            Ok((doc, path)) => {
+                self.explorer.went_stale();
+                self.open_document(doc, path)
+            }
             Err(err) => self.error = Some(wording::part_file::say(self.remembered.lang(), &err)),
         }
     }
@@ -97,6 +115,10 @@ impl CaoApp {
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
+        if let Some(part) = browse(&mut self.explorer, ui, self.remembered.lang(), None) {
+            self.open_part(part);
+            return;
+        }
         let action = egui::CentralPanel::default_margins()
             .show(ui, |ui| {
                 screens::start_menu::show(
@@ -174,6 +196,11 @@ impl CaoApp {
             }
         }
 
+        let mut open_elsewhere = None;
+        if ribbon.explorer_open {
+            open_elsewhere = browse(&mut self.explorer, ui, lang, Some(path.clone()));
+        }
+
         if ribbon.history_open {
             match screens::history_tree::panel(ui, doc, &mut ribbon.history_compact_confirm, lang) {
                 HistoryAction::RewindTo(step) => {
@@ -217,6 +244,11 @@ impl CaoApp {
         if back_to_menu {
             self.screen = Screen::StartMenu;
         }
+        if let Some(part) = open_elsewhere
+            && !crate::adapters::window::open_another(&part)
+        {
+            self.error = Some(self.remembered.lang().t("app.no_second_window"));
+        }
     }
 
     /// The preferences, in a window over whatever is open. Kept out of the
@@ -243,6 +275,39 @@ impl CaoApp {
             self.save_settings();
         }
     }
+}
+
+/// Puts the library panel on screen and carries out what was asked of it,
+/// handing back a part to open when one was double-clicked.
+///
+/// A free function rather than a method: the part being drawn is already
+/// borrowed out of `self` when the panel goes up beside it.
+fn browse(
+    explorer: &mut Explorer,
+    ui: &mut egui::Ui,
+    lang: &Catalogue,
+    in_use: Option<PathBuf>,
+) -> Option<PathBuf> {
+    explorer.in_use = in_use;
+    explorer.refresh_if_stale(&DiskFiles);
+
+    let mut opening = None;
+    match screens::explorer::panel(ui, explorer, lang) {
+        ExplorerAction::Open(part) => opening = Some(part),
+        ExplorerAction::ConfirmNaming => explorer.confirm_naming(&DiskFiles, &DiskFiles),
+        ExplorerAction::Discard => explorer.ask_to_discard(),
+        ExplorerAction::Refresh => explorer.went_stale(),
+        ExplorerAction::None => {}
+    }
+
+    if let Some(path) = explorer.confirming().map(Path::to_path_buf) {
+        match screens::explorer::discard_confirm(ui, &path, lang) {
+            Some(true) => explorer.discard(&DiskFiles),
+            Some(false) => explorer.cancel_discard(),
+            None => {}
+        }
+    }
+    opening
 }
 
 fn mode_label(lang: &Catalogue, mode: ViewMode) -> String {

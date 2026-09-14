@@ -20,6 +20,9 @@ mod wording;
 pub const MSAA_SAMPLES: u16 = 4;
 
 fn main() -> eframe::Result<()> {
+    // A part named on the command line is the part this window opens: that is
+    // how the library panel puts a second part beside the first one.
+    let opening = std::env::args().nth(1).map(std::path::PathBuf::from);
     let locations = adapters::locations::discover();
     if let Some(at) = &locations {
         crash::record_panics(at);
@@ -36,6 +39,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "CAO",
         options,
-        Box::new(|cc| Ok(Box::new(app::CaoApp::new(cc, locations)))),
+        Box::new(|cc| Ok(Box::new(app::CaoApp::new(cc, locations, opening)))),
     )
 }

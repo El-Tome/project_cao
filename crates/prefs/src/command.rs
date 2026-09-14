@@ -58,6 +58,7 @@ pub enum Command {
     ExtrusionCancel,
 
     ToggleHistory,
+    ToggleExplorer,
     ToggleToolbarDocked,
     OpenSettings,
     BackToMenu,
@@ -83,7 +84,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 45] = [
+    pub const ALL: [Self; 46] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -128,6 +129,7 @@ impl Command {
         Self::ExtrusionApply,
         Self::ExtrusionCancel,
         Self::ToggleHistory,
+        Self::ToggleExplorer,
         Self::ToggleToolbarDocked,
     ];
 
@@ -174,6 +176,7 @@ impl Command {
             | Self::ExtrusionApply
             | Self::ExtrusionCancel => CommandFamily::Extrusion,
             Self::ToggleHistory
+            | Self::ToggleExplorer
             | Self::ToggleToolbarDocked
             | Self::OpenSettings
             | Self::BackToMenu => CommandFamily::Window,

@@ -249,6 +249,7 @@ impl Default for Shortcuts {
                 (C::ExtrusionCut, Chord::new(Key::E).shift()),
                 (C::ExtrusionApply, Chord::new(Key::Enter).cmd()),
                 (C::ToggleHistory, Chord::new(Key::H)),
+                (C::ToggleExplorer, Chord::new(Key::B)),
                 (C::OpenSettings, Chord::new(Key::Comma).cmd()),
             ],
         }

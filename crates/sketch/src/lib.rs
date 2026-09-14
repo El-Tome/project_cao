@@ -7,6 +7,7 @@ mod aim;
 mod annotation;
 mod arc;
 mod arc_annotation;
+mod arc_dimensions;
 mod arc_placing;
 mod arc_regions;
 mod arc_rules;
@@ -45,6 +46,7 @@ mod trimming;
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
 pub use annotation::{AnnotationMetrics, Placement};
 pub use arc::{Arc, ArcId};
+pub use arc_dimensions::arc_dimensions;
 pub use arc_placing::{
     ArcMode, aimed as arc_aimed, angle_reference as arc_angle_reference, arc_from,
 };
@@ -66,3 +68,4 @@ pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
 pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};
+pub use trimming::Trimmed;

@@ -3,7 +3,7 @@
 //! Checked from outside: every door these tests go through is a public one.
 
 use cao_part::history::{Operation, PointRef};
-use cao_part::{DimensionOutcome, History, PartState};
+use cao_part::{DimensionOutcome, History, Outcome, PartState};
 use cao_sketch::{DimensionTarget, LengthOutcome, PointId, SegmentId, WorkPlane};
 use glam::DVec2;
 
@@ -101,9 +101,9 @@ fn the_first_dimension_sets_the_scale_without_moving_anything() {
 
     assert_eq!(
         outcome,
-        Some(DimensionOutcome::ScaleDefined {
+        Some(Outcome::Dimension(DimensionOutcome::ScaleDefined {
             millimeters_per_unit: 50.0
-        })
+        }))
     );
     assert_eq!(state.sketches[0].points(), before.as_slice());
 }
@@ -127,7 +127,9 @@ fn later_dimensions_move_the_geometry() {
 
     assert_eq!(
         outcome,
-        Some(DimensionOutcome::Geometry(LengthOutcome::Exact))
+        Some(Outcome::Dimension(DimensionOutcome::Geometry(
+            LengthOutcome::Exact
+        )))
     );
     let length = state.to_millimeters(state.sketches[0].segment_length(SegmentId(1)));
     assert!((length - 100.0).abs() < 1e-2, "got {length} mm");

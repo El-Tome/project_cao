@@ -150,6 +150,7 @@ mod tests {
 
     use super::*;
     use crate::history::{Operation, PointRef};
+    use crate::outcome::Outcome;
     use crate::state::PartState;
 
     #[test]
@@ -175,9 +176,9 @@ mod tests {
         });
         assert_eq!(
             outcome,
-            Some(DimensionOutcome::ScaleDefined {
+            Some(Outcome::Dimension(DimensionOutcome::ScaleDefined {
                 millimeters_per_unit: 5.0
-            })
+            }))
         );
         assert!((state.sketches[0].circle(CircleId(0)).radius - 4.0).abs() < 1e-4);
     }
@@ -212,7 +213,10 @@ mod tests {
             placement: None,
         });
 
-        assert!(matches!(outcome, Some(DimensionOutcome::Geometry(_))));
+        assert!(matches!(
+            outcome,
+            Some(Outcome::Dimension(DimensionOutcome::Geometry(_)))
+        ));
         assert!(!state.has_scale());
         let measured = state.sketches[0]
             .angle_between(SegmentId(0), SegmentId(1))
@@ -320,7 +324,10 @@ mod tests {
             placement: None,
         });
 
-        assert_eq!(outcome, Some(DimensionOutcome::Reference));
+        assert_eq!(
+            outcome,
+            Some(Outcome::Dimension(DimensionOutcome::Reference))
+        );
     }
 
     /// A value on an already-settled shape becomes a readout, and the readout
@@ -370,7 +377,10 @@ mod tests {
             placement: None,
         });
 
-        assert_eq!(outcome, Some(DimensionOutcome::Reference));
+        assert_eq!(
+            outcome,
+            Some(Outcome::Dimension(DimensionOutcome::Reference))
+        );
         let stored = state.sketches[0]
             .dimension_of(DimensionTarget::Length(SegmentId(1)))
             .expect("a readout was placed");

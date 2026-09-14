@@ -104,7 +104,7 @@ pub fn symmetric_segment_dimensions(
 }
 
 /// Normalises and drops whatever is already redundant with the drawing.
-fn settled(
+pub(crate) fn settled(
     sketch: &Sketch,
     wanted: Vec<(DimensionTarget, f64)>,
     scale: f64,

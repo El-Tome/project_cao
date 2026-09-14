@@ -1,7 +1,7 @@
 //! A value typed into a dimension already on the drawing, and what the part
 //! makes of it.
 
-use cao_part::{DimensionOutcome, PartDocument, history::Operation};
+use cao_part::{DimensionOutcome, Outcome, PartDocument, history::Operation};
 use cao_sketch::{DimensionTarget, LengthOutcome};
 
 use super::SketchEditor;
@@ -37,21 +37,21 @@ pub(crate) fn apply_dimension_value(
         value,
         placement: None,
     }) {
-        Some(DimensionOutcome::ScaleDefined {
+        Some(Outcome::Dimension(DimensionOutcome::ScaleDefined {
             millimeters_per_unit: mm,
-        }) => {
+        })) => {
             editor.message = Some(lang.t_with("sketch.scale_set", &[("mm", &format!("{mm:.4}"))]));
             true
         }
-        Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => {
+        Some(Outcome::Dimension(DimensionOutcome::Geometry(LengthOutcome::Exact))) => {
             editor.message = None;
             true
         }
-        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => {
+        Some(Outcome::Dimension(DimensionOutcome::Geometry(LengthOutcome::BestEffort))) => {
             editor.message = Some(crate::wording::dimension::conflict_warning(lang));
             false
         }
-        Some(DimensionOutcome::Reference) => {
+        Some(Outcome::Dimension(DimensionOutcome::Reference)) => {
             editor.message = Some(crate::wording::dimension::redundant_warning(lang));
             true
         }

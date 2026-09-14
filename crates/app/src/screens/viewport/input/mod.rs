@@ -14,7 +14,7 @@ use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::{DimensionMode, PlaneChoice, Tool};
 use crate::wording::constraints;
-use crate::wording::dimension;
+use crate::wording::{dimension, outcome};
 
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
@@ -250,7 +250,7 @@ pub(crate) fn handle_sketch_input(
             two_click_shape(context, index, corner, snap, scale.units_per_pixel)
         }
         Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
-        Tool::Arc => draw_arc(context, index, cursor, snap),
+        Tool::Arc => draw_arc(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
@@ -997,7 +997,7 @@ fn place_dimension(
     let Some(value) = context.document.measured(index, target) else {
         return false;
     };
-    let outcome = context.document.apply(Operation::SetDimension {
+    let applied = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
         value,
@@ -1013,7 +1013,7 @@ fn place_dimension(
     });
 
     context.editor.select(Some(target), Some(value));
-    context.editor.message = dimension::outcome_message(context.lang, outcome);
+    context.editor.message = outcome::message(context.lang, applied);
     true
 }
 
@@ -1229,14 +1229,14 @@ fn dimension_the_line(
         // Pinned down where it is drawn, in sketch units: left to stand off by
         // a distance in pixels, an annotation slides back over the drawing as
         // soon as one zooms out.
-        let outcome = context.document.apply(Operation::SetDimension {
+        let applied = context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
             placement: annotation_position(context, index, target, pixel)
                 .map(|placement| placement.offset),
         });
-        if let Some(message) = dimension::outcome_message(context.lang, outcome) {
+        if let Some(message) = outcome::message(context.lang, applied) {
             context.editor.message = Some(message);
         }
     }

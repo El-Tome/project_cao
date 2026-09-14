@@ -6,10 +6,10 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use crate::dimensioning::DimensionOutcome;
 use crate::errors::PartFileError;
 use crate::file_name;
 use crate::history::{History, Operation};
+use crate::outcome::Outcome;
 use crate::ports::Files;
 use crate::state::PartState;
 
@@ -94,7 +94,7 @@ impl PartDocument {
 
     /// Records an operation and applies it. Recording and applying go together
     /// so the two can never fall out of step.
-    pub fn apply(&mut self, operation: Operation) -> Option<DimensionOutcome> {
+    pub fn apply(&mut self, operation: Operation) -> Option<Outcome> {
         let outcome = self.state.apply(&operation);
         self.history.push(operation);
         outcome

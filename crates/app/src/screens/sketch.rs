@@ -301,7 +301,7 @@ impl SketchEditor {
     /// The places the arc being drawn has been given so far.
     pub fn arc_places(&self) -> &[DVec2] {
         match &self.tool_state {
-            ToolState::Arc { places } => places,
+            ToolState::Arc { places, .. } => places,
             _ => &[],
         }
     }

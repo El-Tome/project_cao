@@ -1,5 +1,5 @@
 use cao_part::DimensionOutcome;
-use cao_sketch::{DimensionTarget, SketchAxis};
+use cao_sketch::{DimensionTarget, LengthOutcome, SketchAxis};
 
 use crate::lang::Catalogue;
 use crate::wording::constraints;
@@ -7,6 +7,12 @@ use crate::wording::constraints;
 /// Shown when a value would add nothing to a shape that is already settled.
 pub fn redundant_warning(lang: &Catalogue) -> String {
     lang.t("dimension.redundant")
+}
+
+/// Shown when a value cannot be held alongside what is already fixed: it is
+/// refused, and the drawing stays exactly as it was.
+pub fn conflict_warning(lang: &Catalogue) -> String {
+    lang.t("dimension.conflict")
 }
 
 /// Shown once, when a dimension is the first a sketch ever gets and fixes its
@@ -19,18 +25,20 @@ pub fn scale_defined(lang: &Catalogue, millimeters_per_unit: f64) -> String {
 }
 
 /// What a dimension just applied on the user's behalf — rather than typed by
-/// hand into an open field — is worth telling them about.
+/// hand into an open field — is worth telling them about: a scale it just
+/// fixed, a value it turned out to add nothing to, or one it could not fully
+/// honour.
 ///
 /// A dimension placed by a click, or carried by a freshly drawn shape, is
 /// applied without a field open to read a message in, so whichever of those
-/// call sites is first to fix the sketch's scale is also the only place that
-/// can say so.
+/// call sites triggered it is also the only place that can say so.
 pub fn outcome_message(lang: &Catalogue, outcome: Option<DimensionOutcome>) -> Option<String> {
     match outcome {
         Some(DimensionOutcome::ScaleDefined {
             millimeters_per_unit,
         }) => Some(scale_defined(lang, millimeters_per_unit)),
         Some(DimensionOutcome::Reference) => Some(redundant_warning(lang)),
+        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort)) => Some(conflict_warning(lang)),
         _ => None,
     }
 }
@@ -295,5 +303,24 @@ mod tests {
 
         assert_eq!(outcome_message(&lang, ordinary), None);
         assert_eq!(outcome_message(&lang, None), None);
+    }
+
+    #[test]
+    fn a_value_a_fixed_dimension_already_rules_out_says_so_in_the_language_file() {
+        assert!(
+            conflict_warning(&Catalogue::french()).starts_with("Cette valeur est impossible"),
+            "the warning comes from the catalogue, not from a constant",
+        );
+    }
+
+    #[test]
+    fn a_value_the_drawing_could_only_approach_warns_whichever_call_site_applied_it() {
+        let lang = Catalogue::french();
+        let outcome = Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort));
+
+        assert_eq!(
+            outcome_message(&lang, outcome).as_deref(),
+            Some(conflict_warning(&lang).as_str()),
+        );
     }
 }

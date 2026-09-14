@@ -65,11 +65,19 @@ impl PartState {
         }
 
         let sketch = self.sketches.get_mut(index)?;
+        let before = sketch.clone();
         sketch.set_dimension(target, value, false);
 
         // A radius stands on its own; everything else moves the points, so the
-        // whole system is re-solved to keep the earlier values true.
-        Some(DimensionOutcome::Geometry(sketch.resolve(scale)))
+        // whole system is re-solved to keep the earlier values true. A value
+        // that cannot be fully honoured is refused rather than half-applied:
+        // the drawing goes back to what it was, the same way a drag the
+        // solver cannot satisfy already reverts in `settle_around_all`.
+        let outcome = sketch.resolve(scale);
+        if outcome != LengthOutcome::Exact {
+            self.sketches[index] = before;
+        }
+        Some(DimensionOutcome::Geometry(outcome))
     }
 
     /// The length a dimension refers to, in world units, or `None` for an angle

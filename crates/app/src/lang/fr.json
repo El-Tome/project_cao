@@ -103,6 +103,7 @@
   "constraints.axis.vertical": "axe vertical",
 
   "dimension.redundant": "Cette cote n'apporte rien : ce qu'elle mesure est déjà tenu. Elle sera posée en simple lecture.",
+  "dimension.conflict": "Cette valeur est impossible avec ce qui est déjà fixé. Rien n'a changé.",
 
   "dimension.label.angle": "Angle {value}°",
   "dimension.label.axis_angle": "Angle {value}° / {axis}",
@@ -465,7 +466,6 @@
   "sketch.nothing_to_measure": "Rien à mesurer ici",
   "sketch.invalid_value": "Valeur invalide",
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
-  "sketch.closed_outline": "Contour fermé : seul le point d'arrivée a bougé",
   "sketch.no_dimension_here": "Cote impossible ici",
 
   "extrusion.pick_a_sketch": "Extruder l'esquisse :",

@@ -1,4 +1,6 @@
-use cao_sketch::{Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    ArcId, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+};
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -174,6 +176,14 @@ pub enum Operation {
     Trim {
         sketch: usize,
         segment: SegmentId,
+        from: PointId,
+        to: PointId,
+    },
+    /// The same, on a curve: what is left of the arc stays as arcs around the
+    /// centre it already turned about.
+    TrimArc {
+        sketch: usize,
+        arc: ArcId,
         from: PointId,
         to: PointId,
     },

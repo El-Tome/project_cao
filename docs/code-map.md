@@ -50,6 +50,7 @@ in one of the two domains, never there.
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
 | What a cut carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
+| Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |

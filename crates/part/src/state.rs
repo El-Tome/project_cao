@@ -275,6 +275,21 @@ impl PartState {
                     values: trimmed.values_dropped,
                 })
             }
+            Operation::TrimArc {
+                sketch,
+                arc,
+                from,
+                to,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let trimmed = sketch.trim_arc(*arc, *from, *to)?;
+                sketch.resolve(scale);
+                Some(Outcome::Cut {
+                    rules: trimmed.rules_dropped,
+                    values: trimmed.values_dropped,
+                })
+            }
             Operation::Revolve {
                 sketch,
                 picks,

@@ -144,6 +144,20 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("to", &to.0.to_string()),
             ],
         ),
+        Operation::TrimArc {
+            sketch,
+            arc,
+            from,
+            to,
+        } => lang.t_with(
+            "history.detail.arc_trimmed",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("arc", &arc.0.to_string()),
+                ("from", &from.0.to_string()),
+                ("to", &to.0.to_string()),
+            ],
+        ),
         Operation::MergePoints {
             sketch,
             kept,

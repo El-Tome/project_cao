@@ -7,6 +7,7 @@ mod aim;
 mod annotation;
 mod arc;
 mod arc_annotation;
+mod arc_placing;
 mod arc_regions;
 mod arc_rules;
 mod arcing;
@@ -41,9 +42,10 @@ mod tool;
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
 pub use annotation::{AnnotationMetrics, Placement};
 pub use arc::{Arc, ArcId};
-pub use arcing::{
-    ArcDraft, ArcMode, aimed as arc_aimed, arc_from, places_along, steps_along, sweep_of,
+pub use arc_placing::{
+    ArcMode, aimed as arc_aimed, angle_reference as arc_angle_reference, arc_from,
 };
+pub use arcing::{ArcDraft, places_along, steps_along, sweep_of};
 pub use chain::{ChainClick, chain_click};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};

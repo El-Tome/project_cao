@@ -23,6 +23,7 @@ mod arc;
 mod circle;
 mod curves;
 mod dimensions;
+mod emphasis;
 mod symmetric_line;
 
 use curves::{push_arc_at, push_circle_at, push_line};
@@ -449,7 +450,7 @@ fn push_sketch(
             true => (tint(theme.fixed), theme.sketch_width),
             false => sketch_colors(theme, active, held),
         };
-        let (color, width) = mark_selected(
+        let (color, width) = emphasis::mark(
             context,
             theme,
             Selection::Element(Element::Segment(id)),
@@ -470,7 +471,7 @@ fn push_sketch(
             true => (tint(theme.fixed), theme.sketch_width),
             false => sketch_colors(theme, active, holds(circle.center)),
         };
-        let (color, width) = mark_selected(
+        let (color, width) = emphasis::mark(
             context,
             theme,
             Selection::Element(Element::Circle(id)),
@@ -494,7 +495,7 @@ fn push_sketch(
             true => (tint(theme.fixed), theme.sketch_width),
             false => sketch_colors(theme, active, holds(arc.center)),
         };
-        let (color, width) = mark_selected(
+        let (color, width) = emphasis::mark(
             context,
             theme,
             Selection::Element(Element::Arc(id)),
@@ -517,6 +518,7 @@ fn push_sketch(
     }
 
     push_point_markers(out, sketch, theme, scale, &settled, context);
+    emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
 
     // Every dimension is drawn where it applies, with extension lines, arrows
     // and arcs, so the drawing says what holds it rather than just carrying a number.
@@ -592,7 +594,7 @@ fn push_point_markers(
             || context.editor.first_point() == Some(point);
         let color = if hovered { highlight } else { base };
         let width = if hovered { 2.5 } else { 1.5 };
-        let (color, width) = mark_selected(
+        let (color, width) = emphasis::mark(
             context,
             theme,
             Selection::Element(Element::Point(point)),
@@ -650,23 +652,6 @@ fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> DVec2 {
     ) {
         (Some(dragged), Some(origin), Some(position)) if dragged == target => position - origin,
         _ => DVec2::ZERO,
-    }
-}
-
-/// Draws what the selection tool is holding, or is about to, differently — so
-/// it is clear both what pressing Suppr would take away and what a click
-/// right now would take hold of.
-fn mark_selected(
-    context: &SketchContext<'_>,
-    theme: &Theme,
-    element: Selection,
-    color: [f32; 4],
-    width: f32,
-) -> ([f32; 4], f32) {
-    if context.editor.is_selected(element) || context.editor.hovered == Some(element) {
-        (tint_at(theme.highlight, 1.0), width * 1.8)
-    } else {
-        (color, width)
     }
 }
 

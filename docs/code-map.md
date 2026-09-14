@@ -149,6 +149,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
 | Canvas: the value a dimension carries, and the field that edits it | `app/src/screens/viewport/render/dimensions.rs` | `paint_dimension_labels`, `paint_dimension_field` |
 | Canvas: a circle, an arc or a dashed line as straight steps | `app/src/screens/viewport/render/curves.rs` | `push_line`, `push_circle_at`, `push_arc_at` |
+| Canvas: what the selection, the cursor or a rule already holds, drawn apart | `app/src/screens/viewport/render/emphasis.rs` | `mark`, `push_picked_axes` |
 | Canvas: one click of the arc tool, and what it shows in between | `app/src/screens/viewport/input/arcs.rs` | `draw_arc`, `arc_preview` |
 | Canvas: the arc tool's fields, its preview and the leg its angle opens from | `app/src/screens/viewport/render/arc.rs` | `live_fields`, `push_preview` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |

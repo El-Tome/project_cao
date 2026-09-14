@@ -63,6 +63,13 @@ impl ArcHalfEdge {
     }
 }
 
+/// The drawing cut apart, before the half-edges are read off it.
+struct Cut {
+    curves: Vec<Curve>,
+    places: Vec<DVec2>,
+    cuts: Vec<Vec<(f64, usize)>>,
+}
+
 /// The drawing as a graph with every crossing standing on a vertex of its own.
 ///
 /// `places` is the drawing's own points, then one more for each crossing.
@@ -207,7 +214,20 @@ fn pieces(curve: &Curve, cuts: &[(f64, usize)]) -> Vec<(usize, usize)> {
 }
 
 impl Sketch {
-    pub(crate) fn crossed(&self) -> Crossed {
+    /// Every place two curves of the drawing run through without a point of
+    /// the drawing's own standing there.
+    ///
+    /// These are the vertices `crossed` invents, and nothing else: a crossing
+    /// a point already occupies is that point, and is not reported twice.
+    pub fn crossings(&self) -> Vec<DVec2> {
+        let drawn = self.points().len();
+        self.cut().places.split_off(drawn)
+    }
+
+    /// Which curves are drawn, the places they run through — the drawing's own
+    /// points first, then one for each crossing — and where each of them has
+    /// to be cut apart.
+    fn cut(&self) -> Cut {
         let mut places = self.points().to_vec();
         let curves: Vec<Curve> = self
             .live_segments()
@@ -256,6 +276,20 @@ impl Sketch {
                 }
             }
         }
+
+        Cut {
+            curves,
+            places,
+            cuts,
+        }
+    }
+
+    pub(crate) fn crossed(&self) -> Crossed {
+        let Cut {
+            curves,
+            places,
+            cuts,
+        } = self.cut();
 
         let mut ends = Vec::new();
         let straight = curves

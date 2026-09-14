@@ -1,7 +1,7 @@
 //! What a cut carries over to the pieces it leaves, and what it cannot.
 
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
-use crate::sketch::SegmentId;
+use crate::sketch::{PointId, SegmentId};
 
 /// One of the pieces a cut left, and what of the trait's own rules it can
 /// still answer for.
@@ -21,9 +21,32 @@ impl Piece {
     }
 }
 
-/// Where on the trait a rule or a value was fastened, when it was fastened to
-/// a place at all.
-pub(super) fn place_of<T: Copy + PartialEq>(fastened: &[(T, f64)], of: T) -> Option<f64> {
+/// What a trait carried before it was cut: everything standing that spoke of
+/// it, and where along it the ones fastened to a place sat.
+///
+/// A tangency is held at the point where the circle touches; a distance to the
+/// line, at the foot of the point it measures from. Both are places on the
+/// line, and each follows the piece its place fell on.
+pub(super) struct Carried {
+    pub(super) rules: Vec<Constraint>,
+    pub(super) values: Vec<Dimension>,
+    /// The points a rule holds on the trait, and where along it they sit.
+    pub(super) held: Vec<(f64, PointId)>,
+    pub(super) fastened: Vec<(Constraint, f64)>,
+    pub(super) measured_at: Vec<(DimensionTarget, f64)>,
+}
+
+impl Carried {
+    pub(super) fn place_of(&self, rule: Constraint) -> Option<f64> {
+        place_in(&self.fastened, rule)
+    }
+
+    pub(super) fn place_measured(&self, value: DimensionTarget) -> Option<f64> {
+        place_in(&self.measured_at, value)
+    }
+}
+
+fn place_in<T: Copy + PartialEq>(fastened: &[(T, f64)], of: T) -> Option<f64> {
     fastened
         .iter()
         .find(|(held, _)| *held == of)

@@ -5,7 +5,7 @@ use glam::DVec2;
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
-use crate::trimming::carrying::{Piece, gone, place_of, still_holds, still_measured, targets};
+use crate::trimming::carrying::{Carried, Piece, gone, still_holds, still_measured, targets};
 
 /// Below this, the two ends of a piece are the same place and the piece is no
 /// trait at all. Far under anything a drawing tells apart: a gap this small
@@ -125,47 +125,13 @@ impl Sketch {
             return None;
         }
 
-        let held: Vec<(f64, PointId)> = self
-            .constraints()
-            .iter()
-            .filter_map(|rule| match rule {
-                Constraint::OnSegment { point, segment: on } if *on == segment => {
-                    Some((along(self.points().get(point.0).copied()?), *point))
-                }
-                _ => None,
-            })
-            .collect();
+        let carried = self.carried_by(segment, rules, values);
 
-        // What a tangency and a distance to the line are fastened to is a
-        // place on that line, and the piece that place falls on is the one
-        // they follow.
-        let fastened: Vec<(Constraint, f64)> = rules
-            .iter()
-            .filter_map(|rule| match rule {
-                Constraint::Tangent {
-                    segment: on,
-                    at: Some(point),
-                    ..
-                } if *on == segment => Some((*rule, along(self.points().get(point.0).copied()?))),
-                _ => None,
-            })
-            .collect();
-        let measured_at: Vec<(DimensionTarget, f64)> = values
-            .iter()
-            .filter_map(|value| match value.target {
-                DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
-                    Some((value.target, along(self.points().get(point.0).copied()?)))
-                }
-                _ => None,
-            })
-            .collect();
-
-        let corner = self.corner_of_an_angle_on(segment, &values);
+        let corner = self.corner_of_an_angle_on(segment, &carried.values);
 
         // A tangency carries its contact point away when it goes, since the
-        // point would be left in mid-air. Stopping a cut on that contact is
-        // the case where it would not: it is an end of a trait now, and that
-        // is what holds it.
+        // point would be left in mid-air. A cut stopping on that contact, or a
+        // piece inheriting the tangency, is what puts it back.
         let standing: Vec<PointId> = [cut.start, low, high, cut.end]
             .into_iter()
             .filter(|point| !self.is_erased_point(*point))
@@ -176,20 +142,23 @@ impl Sketch {
         for point in standing {
             Erased::unmark(&mut self.erased.points, point.0);
         }
-        let dropped = gone(&rules, self.constraints());
-        let dropped_values = gone(&targets(&values), &targets(self.dimensions()));
+        let dropped = gone(&carried.rules, self.constraints());
+        let dropped_values = gone(&targets(&carried.values), &targets(self.dimensions()));
 
         let below = keeps_below.then(|| self.piece(cut.start, low, cut.construction));
         let above = keeps_above.then(|| self.piece(high, cut.end, cut.construction));
 
-        for (fraction, point) in held {
+        for (fraction, point) in &carried.held {
             let piece = match fraction {
-                _ if fraction < opens => below,
-                _ if fraction > closes => above,
+                _ if *fraction < opens => below,
+                _ if *fraction > closes => above,
                 _ => None,
             };
             if let Some(segment) = piece {
-                self.add_constraint(Constraint::OnSegment { point, segment });
+                self.add_constraint(Constraint::OnSegment {
+                    point: *point,
+                    segment,
+                });
             }
         }
 
@@ -209,41 +178,12 @@ impl Sketch {
         })
         .collect();
 
-        // A tangency took its contact point with it when the trait went. The
-        // piece that inherits the tangency stands on that point.
-        for (rule, at) in &fastened {
-            if let Constraint::Tangent {
-                at: Some(point), ..
-            } = rule
-                && pieces.iter().any(|piece| piece.holds(*at))
-            {
-                Erased::unmark(&mut self.erased.points, point.0);
-            }
-        }
-
-        for piece in &pieces {
-            for rule in &rules {
-                if let Some(moved) = still_holds(*rule, segment, piece, place_of(&fastened, *rule))
-                {
-                    self.add_constraint(moved);
-                }
-            }
-            for value in &values {
-                let place = place_of(&measured_at, value.target);
-                let Some(target) = still_measured(value.target, segment, piece, place) else {
-                    continue;
-                };
-                self.set_dimension(target, value.value, value.driven);
-                if let Some(offset) = value.offset {
-                    self.offset_dimension(target, offset);
-                }
-            }
-        }
+        self.hand_over(segment, &pieces, &carried);
 
         let rules_dropped = dropped
             .iter()
             .filter(|rule| {
-                !self.stands_on_a_piece(**rule, segment, &pieces, place_of(&fastened, **rule))
+                !self.stands_on_a_piece(**rule, segment, &pieces, carried.place_of(**rule))
             })
             .count();
         let values_dropped = dropped_values
@@ -253,7 +193,7 @@ impl Sketch {
                     **value,
                     segment,
                     &pieces,
-                    place_of(&measured_at, **value),
+                    carried.place_measured(**value),
                 )
             })
             .count();
@@ -262,6 +202,88 @@ impl Sketch {
             rules_dropped,
             values_dropped,
         })
+    }
+
+    /// Everything standing that spoke of a trait, and where along it the ones
+    /// fastened to a place on it sat.
+    fn carried_by(
+        &self,
+        segment: SegmentId,
+        rules: Vec<Constraint>,
+        values: Vec<Dimension>,
+    ) -> Carried {
+        let (start, end) = self.endpoints(segment);
+        let span = end - start;
+        let reach = span.length_squared();
+        let along = |place: DVec2| (place - start).dot(span) / reach;
+        let place_of_point = |point: PointId| Some(along(self.points().get(point.0).copied()?));
+
+        Carried {
+            held: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::OnSegment { point, segment: on } if *on == segment => {
+                        Some((place_of_point(*point)?, *point))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            fastened: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::Tangent {
+                        segment: on,
+                        at: Some(point),
+                        ..
+                    } if *on == segment => Some((*rule, place_of_point(*point)?)),
+                    _ => None,
+                })
+                .collect(),
+            measured_at: values
+                .iter()
+                .filter_map(|value| match value.target {
+                    DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
+                        Some((value.target, place_of_point(point)?))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            rules,
+            values,
+        }
+    }
+
+    /// Puts back on the pieces everything the trait carried that follows them,
+    /// the contact point of an inherited tangency included — the erasing of the
+    /// trait took it away.
+    fn hand_over(&mut self, cut: SegmentId, pieces: &[Piece], carried: &Carried) {
+        for (rule, at) in &carried.fastened {
+            if let Constraint::Tangent {
+                at: Some(point), ..
+            } = rule
+                && pieces.iter().any(|piece| piece.holds(*at))
+            {
+                Erased::unmark(&mut self.erased.points, point.0);
+            }
+        }
+
+        for piece in pieces {
+            for rule in &carried.rules {
+                if let Some(moved) = still_holds(*rule, cut, piece, carried.place_of(*rule)) {
+                    self.add_constraint(moved);
+                }
+            }
+            for value in &carried.values {
+                let place = carried.place_measured(value.target);
+                let Some(target) = still_measured(value.target, cut, piece, place) else {
+                    continue;
+                };
+                self.set_dimension(target, value.value, value.driven);
+                if let Some(offset) = value.offset {
+                    self.offset_dimension(target, offset);
+                }
+            }
+        }
     }
 
     /// Whether a rule the cut took away came back on one of the pieces, under

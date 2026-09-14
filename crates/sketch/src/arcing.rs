@@ -23,7 +23,7 @@ pub fn sweep_of(drawn: ArcDraft) -> f64 {
 }
 
 /// How finely a whole turn would be cut up. An arc takes its share of it.
-const FULL_CIRCLE_STEPS: usize = 48;
+pub(crate) const FULL_CIRCLE_STEPS: usize = 48;
 
 /// Into how many straight steps the curve is cut.
 ///

@@ -14,6 +14,7 @@
 use glam::DVec2;
 
 use crate::arcing::{ArcDraft, places_along, sweep_of};
+use crate::circle_edges::Round;
 use crate::crossing::{
     round_arc, where_arcs_cross, where_segment_crosses_arc, where_segments_cross,
 };
@@ -68,6 +69,7 @@ struct Cut {
     curves: Vec<Curve>,
     places: Vec<DVec2>,
     cuts: Vec<Vec<(f64, usize)>>,
+    whole: Vec<Vec<DVec2>>,
 }
 
 /// The drawing as a graph with every crossing standing on a vertex of its own.
@@ -81,6 +83,10 @@ pub(crate) struct Crossed {
     pub(crate) ends: Vec<(usize, usize)>,
     pub(crate) split: usize,
     pub(crate) arcs: Vec<ArcHalfEdge>,
+    /// The circles nothing cut, each sampled as the closed loop it still is.
+    /// They never enter the graph: a curve with no end has no vertex, and the
+    /// walk turns at vertices.
+    pub(crate) whole: Vec<Vec<DVec2>>,
 }
 
 enum Curve {
@@ -200,6 +206,32 @@ fn vertex_for(places: &mut Vec<DVec2>, place: DVec2) -> usize {
     }
 }
 
+/// The arcs a circle becomes, once every turn something runs through it stands
+/// on a vertex — and nothing when fewer than two of them are distinct, which
+/// leaves the loop whole. The vertices are made either way: a circle a single
+/// run enters is still one loop, and that place is still a crossing to catch.
+fn broken(round: &Round, places: &mut Vec<DVec2>) -> Vec<Curve> {
+    let mut vertices: Vec<usize> = round
+        .turns
+        .iter()
+        .map(|turn| vertex_for(places, round.place_at(*turn)))
+        .collect();
+    vertices.dedup();
+    if vertices.len() > 1 && vertices.first() == vertices.last() {
+        vertices.pop();
+    }
+    if vertices.len() < 2 {
+        return Vec::new();
+    }
+    (0..vertices.len())
+        .map(|step| Curve::Bent {
+            centre: round.centre,
+            from: vertices[step],
+            to: vertices[(step + 1) % vertices.len()],
+        })
+        .collect()
+}
+
 /// The curve cut into the runs between its crossings, each as the two vertices
 /// it joins.
 fn pieces(curve: &Curve, cuts: &[(f64, usize)]) -> Vec<(usize, usize)> {
@@ -228,8 +260,9 @@ impl Sketch {
     /// points first, then one for each crossing — and where each of them has
     /// to be cut apart.
     fn cut(&self) -> Cut {
+        let drawn = self.points().len();
         let mut places = self.points().to_vec();
-        let curves: Vec<Curve> = self
+        let mut curves: Vec<Curve> = self
             .live_segments()
             .filter(|(_, segment)| !segment.construction)
             .map(|(_, segment)| Curve::Straight {
@@ -247,17 +280,32 @@ impl Sketch {
             )
             .collect();
 
+        let mut whole = Vec::new();
+        for round in self.rounds() {
+            let pieces = broken(&round, &mut places);
+            match pieces.is_empty() {
+                true => whole.push(round.sampled()),
+                false => curves.extend(pieces),
+            }
+        }
+
         let held = |fraction: f64| fraction > CLOSE_TO_AN_END && fraction < 1.0 - CLOSE_TO_AN_END;
         let mut cuts: Vec<Vec<(f64, usize)>> = vec![Vec::new(); curves.len()];
 
-        for (point, place) in self.live_points() {
+        let cutting: Vec<usize> = self
+            .live_points()
+            .map(|(point, _)| point.0)
+            .chain(drawn..places.len())
+            .collect();
+        for point in cutting {
+            let place = places[point];
             for (index, curve) in curves.iter().enumerate() {
                 let (from, to) = curve.ends();
-                if point.0 == from || point.0 == to {
+                if point == from || point == to {
                     continue;
                 }
                 if let Some(fraction) = curve.fraction_at(&places, place).filter(|at| held(*at)) {
-                    cuts[index].push((fraction, point.0));
+                    cuts[index].push((fraction, point));
                 }
             }
         }
@@ -281,6 +329,7 @@ impl Sketch {
             curves,
             places,
             cuts,
+            whole,
         }
     }
 
@@ -289,6 +338,7 @@ impl Sketch {
             curves,
             places,
             cuts,
+            whole,
         } = self.cut();
 
         let mut ends = Vec::new();
@@ -332,6 +382,7 @@ impl Sketch {
             ends,
             split,
             arcs,
+            whole,
         }
     }
 }

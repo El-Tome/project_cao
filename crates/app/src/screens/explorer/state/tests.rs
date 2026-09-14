@@ -212,9 +212,15 @@ fn the_folder_holding_the_part_this_window_is_drawing_cannot_be_thrown_away_eith
 }
 
 #[test]
+fn a_panel_is_showing_before_anybody_asks_for_it() {
+    assert!(Explorer::at("/CAO".into()).is_open());
+}
+
+#[test]
 fn opening_the_panel_reads_the_library_again() {
     let files = library_of(&["/CAO/support.caopart"]);
     let mut explorer = panel_on(&files);
+    explorer.toggle();
     files
         .write(Path::new("/CAO/bride.caopart"), b"PK")
         .expect("another window writes a part");
@@ -222,6 +228,7 @@ fn opening_the_panel_reads_the_library_again() {
     explorer.toggle();
     explorer.refresh_if_stale(&files);
 
+    assert!(explorer.is_open());
     assert_eq!(explorer.library().parts.len(), 2);
 }
 

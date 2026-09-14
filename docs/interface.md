@@ -8,7 +8,7 @@ See also: [sketch](sketch.md) · [history](history.md)
 ┌──────────────────────────────────────────────┐
 │ ⌂ Accueil │ part name │ view │ message…       │  title bar
 ├──────────────────────────────────────────────┤
-│ Esquisse │ Extrusion │ Panneaux │           ⚙ │  tabs
+│ Esquisse │ Extrusion │ Fichiers │ Historique │ ⚙│  tabs, then the panels
 │ ─────────────────────────────────────────────│
 │ Nouvelle esquisse │ Dessin… │ Édition…        │  entries of the open tab
 ├──────────┬──────────┬────────────────────────┤
@@ -40,8 +40,10 @@ contents are described in [history.md](history.md).
 
 ## The Files panel
 
-On the left too, resizable, opened by the "Panneaux" group of the toolbar or by
-its shortcut. It lists the folders and the parts of the parts folder — the one
+On the left too, resizable, and showing before anybody asks for it. Its toggle
+sits beside the History one, at the far end of the tab row, which is where a
+panel is reached from — never from the tree of the toolbar, which is for
+tools. `B` does the same. It lists the folders and the parts of the parts folder — the one
 new parts land in — and nothing else: a file that is not a `.caopart` is left
 out, and so is a symbolic link, which is what keeps a folder pointing at one of
 its own parents from being walked for ever.

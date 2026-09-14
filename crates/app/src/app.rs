@@ -115,16 +115,16 @@ impl CaoApp {
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
-        if self.explorer.is_open()
-            && let Some(part) = screens::explorer::run(
-                &mut self.explorer,
-                ui,
-                self.remembered.lang(),
-                &DiskFiles,
-                &DiskFiles,
-                None,
-            )
-        {
+        // Always here, whatever the panel is doing beside a drawing: choosing
+        // a part is the whole of what this screen is for.
+        if let Some(part) = screens::explorer::run(
+            &mut self.explorer,
+            ui,
+            self.remembered.lang(),
+            &DiskFiles,
+            &DiskFiles,
+            None,
+        ) {
             self.open_part(part);
             return;
         }
@@ -186,7 +186,13 @@ impl CaoApp {
             });
         });
 
-        asked.extend(ribbon.show(ui, &settings, doc, editor, extrusion, lang));
+        let mut drawn = screens::ribbon::Drawn {
+            document: doc,
+            editor,
+            extrusion,
+            explorer_open: self.explorer.is_open(),
+        };
+        asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
             shortcuts_pressed(ui, &settings)
                 .into_iter()

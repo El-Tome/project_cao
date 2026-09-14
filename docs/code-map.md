@@ -127,7 +127,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | The set of profiles, read and written | `prefs/src/profiles.rs` | `Profiles` |
 | Viewport and navigation settings | `prefs/src/config.rs` | `ViewportConfig`, `Binding`, `NavigationPreset` |
 | Colours and gradients | `prefs/src/theme.rs` | `Theme`, `Background`, `Rgba`, `Stop` |
-| Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key` |
+| Keyboard shortcuts | `prefs/src/shortcuts.rs` | `Shortcuts`, `Chord`, `Key`, `adopt_new_bindings` |
 | Toolbar | `prefs/src/toolbar.rs` | `ToolbarLayout`, `Item`, `Edge`, `adopt_new_commands` |
 | Which buttons a fresh installation shows | `prefs/src/toolbar/standard.rs` | `impl Default for ToolbarLayout` |
 
@@ -171,7 +171,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
 | Starting a second window on another part | `app/src/adapters/window.rs` | `open_another` |
-| Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in |
+| Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |
 | What a key actually says, in French and in any language dropped in | `app/src/lang/` | `Catalogue::french`, `load`, `t`, `t_with`, `t_moment`, `fr.json` |

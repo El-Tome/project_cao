@@ -336,7 +336,6 @@
   "toolbar.group.constraints": "Contraintes",
   "toolbar.group.edit": "Édition",
   "toolbar.group.extrusion": "Extrusion",
-  "toolbar.group.panels": "Panneaux",
   "toolbar.separator": "— séparateur —",
 
   "settings.profile.default": "Par défaut",
@@ -513,6 +512,7 @@
   "app.settings_window": "Préférences",
 
   "ribbon.tools": "Outils",
+  "ribbon.files": "Fichiers",
   "ribbon.history": "Historique",
   "ribbon.settings": "Préférences",
 

@@ -30,7 +30,6 @@ pub fn group(lang: &Catalogue, name: &str) -> String {
         "constraints" => lang.t("toolbar.group.constraints"),
         "edit" => lang.t("toolbar.group.edit"),
         "extrusion" => lang.t("toolbar.group.extrusion"),
-        "panels" => lang.t("toolbar.group.panels"),
         theirs => theirs.to_string(),
     }
 }

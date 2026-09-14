@@ -56,7 +56,7 @@ impl Explorer {
             confirming: None,
             trouble: None,
             in_use: None,
-            open: false,
+            open: true,
             stale: true,
         }
     }

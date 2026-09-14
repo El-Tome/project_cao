@@ -85,13 +85,6 @@ impl Default for ToolbarLayout {
                         Item::Command(C::ExtrusionRevolution),
                     ],
                 ),
-                Item::group(
-                    "panels",
-                    vec![
-                        Item::Command(C::ToggleExplorer),
-                        Item::Command(C::ToggleHistory),
-                    ],
-                ),
             ],
         }
     }

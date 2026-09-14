@@ -18,7 +18,7 @@ use crate::sketch::Sketch;
 #[derive(Clone, Copy, Debug)]
 pub struct SnapSettings {
     pub point_reach: f64,
-    pub segment_reach: f64,
+    pub curve_reach: f64,
     pub grid_step: Option<f64>,
     pub grid_reach: f64,
 }
@@ -35,7 +35,8 @@ pub enum Snap {
     /// The middle of a line, which needs a mark of its own: nothing else on
     /// screen says the cursor is exactly halfway along.
     Midpoint(DVec2),
-    OnSegment(DVec2),
+    /// Somewhere along a drawn curve, its ends included.
+    OnCurve(DVec2),
 }
 
 impl Sketch {
@@ -62,11 +63,11 @@ impl Sketch {
         // A line already drawn pulls harder than the grid, and its middle harder
         // still: joining the middle of a side is a thing one aims at, and
         // landing a hair off it leaves geometry that only looks joined.
-        if let Some((_, middle)) = self.nearest_midpoint(cursor, settings.segment_reach) {
+        if let Some((_, middle)) = self.nearest_midpoint(cursor, settings.curve_reach) {
             return (middle, Some(Snap::Midpoint(middle)));
         }
-        if let Some((_, at)) = self.nearest_on_segment(cursor, settings.segment_reach) {
-            return (at, Some(Snap::OnSegment(at)));
+        if let Some((_, at)) = self.nearest_on_segment(cursor, settings.curve_reach) {
+            return (at, Some(Snap::OnCurve(at)));
         }
 
         let Some(step) = settings.grid_step.filter(|step| *step > 0.0) else {
@@ -101,7 +102,7 @@ mod tests {
     fn settings() -> SnapSettings {
         SnapSettings {
             point_reach: 1.0,
-            segment_reach: 1.0,
+            curve_reach: 1.0,
             grid_step: Some(10.0),
             grid_reach: 2.0,
         }
@@ -206,7 +207,7 @@ mod tests {
 
         let (at, caught) = sketch.magnetise(DVec2::new(33.0, 40.2), &settings());
 
-        assert_eq!(caught, Some(Snap::OnSegment(DVec2::new(33.0, 40.0))));
+        assert_eq!(caught, Some(Snap::OnCurve(DVec2::new(33.0, 40.0))));
         assert_eq!(at, DVec2::new(33.0, 40.0));
     }
 

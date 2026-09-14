@@ -326,7 +326,7 @@ impl ViewScale {
     fn snapping(&self, config: &ViewportConfig) -> SnapSettings {
         SnapSettings {
             point_reach: self.world_size_of(PICK_PIXELS),
-            segment_reach: self.world_size_of(config.segment_snap_pixels as f64),
+            curve_reach: self.world_size_of(config.segment_snap_pixels as f64),
             grid_step: config
                 .grid_snap
                 .then(|| self.step / config.grid_snap_divisions.max(1) as f64),

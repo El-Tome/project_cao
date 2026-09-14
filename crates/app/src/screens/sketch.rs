@@ -76,6 +76,8 @@ pub enum Tool {
     Point,
     /// Smart dimension: measures whatever is clicked.
     Dimension,
+    /// Takes the stretch of a trait a click falls in out of it.
+    Trim,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }

@@ -165,6 +165,18 @@ pub enum Operation {
         #[serde(default)]
         constraints: Vec<Constraint>,
     },
+    /// Takes a stretch out of a trait, between two of the points sitting on
+    /// it. What is left of the trait stays, as traits of its own.
+    ///
+    /// The two points are recorded rather than worked out again on replay:
+    /// which points count as sitting on a trait depends on the reach the
+    /// cursor had at the time, so re-deriving it later could cut elsewhere.
+    Trim {
+        sketch: usize,
+        segment: SegmentId,
+        from: PointId,
+        to: PointId,
+    },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
         sketch: usize,

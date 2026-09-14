@@ -40,6 +40,7 @@ mod solver;
 mod symmetric;
 mod tangency;
 mod tool;
+mod trimming;
 
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
 pub use annotation::{AnnotationMetrics, Placement};

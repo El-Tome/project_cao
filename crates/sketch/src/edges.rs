@@ -1,15 +1,22 @@
 //! Every segment and arc still drawn, as the half-edges a face walk can turn
-//! at — cut apart wherever two of them cross.
+//! at — cut apart wherever two of them cross, and wherever a drawn point sits
+//! on one without being an end of it.
 //!
 //! The walk reads nothing but the vertices and the angular order of the edges
 //! leaving each one, so two edges meeting in space with no vertex of their own
 //! are invisible to it. Giving that meeting a vertex here is what lets the walk
 //! stay as it is and still find the areas a bowtie bounds.
+//!
+//! A crossing has no vertex until one is invented for it; a point landing in
+//! the middle of a curve already is one, and what it lacks is the cut. Both
+//! end as an entry in the same table of cuts.
 
 use glam::DVec2;
 
 use crate::arcing::{ArcDraft, places_along, sweep_of};
-use crate::crossing::{where_arcs_cross, where_segment_crosses_arc, where_segments_cross};
+use crate::crossing::{
+    round_arc, where_arcs_cross, where_segment_crosses_arc, where_segments_cross,
+};
 use crate::sketch::Sketch;
 
 /// One end of one arc, as a graph half-edge: where it leaves from, the tangent
@@ -99,6 +106,30 @@ impl Curve {
         }
     }
 
+    /// How far along the curve a place stands, when it stands on it at all.
+    fn fraction_at(&self, places: &[DVec2], place: DVec2) -> Option<f64> {
+        let off = off_by(place);
+        match self.draft(places) {
+            None => {
+                let (from, to) = self.ends();
+                let (start, along) = (places[from], places[to] - places[from]);
+                let span = along.length_squared();
+                if span <= 0.0 {
+                    return None;
+                }
+                let fraction = (place - start).dot(along) / span;
+                let aside = place.distance(start + along * fraction);
+                (aside <= off).then_some(fraction)
+            }
+            Some(drawn) => {
+                let radius = drawn.centre.distance(drawn.start);
+                ((place.distance(drawn.centre) - radius).abs() <= off)
+                    .then(|| round_arc(drawn, place))
+                    .flatten()
+            }
+        }
+    }
+
     fn place_at(&self, places: &[DVec2], fraction: f64) -> DVec2 {
         let (from, to) = self.ends();
         match self.draft(places) {
@@ -138,13 +169,18 @@ fn between(first: &Curve, second: &Curve, places: &[DVec2]) -> Vec<(f64, f64)> {
 /// otherwise cut off is shorter than the arithmetic that found it.
 const CLOSE_TO_AN_END: f64 = 1e-9;
 
-/// Two crossings this near each other are the same one, as they are where
-/// three curves run through a single place. Relative to how far out the place
-/// stands, so the drawing can be measured in anything.
+/// Nearer than this and two places are one: where three curves run through a
+/// single point, and where a drawn point sits on a curve rather than beside it.
 const THE_SAME_PLACE: f64 = 1e-9;
 
+/// Read against how far out the place stands, so the drawing can be measured
+/// in anything.
+fn off_by(place: DVec2) -> f64 {
+    THE_SAME_PLACE * (1.0 + place.abs().max_element())
+}
+
 fn vertex_for(places: &mut Vec<DVec2>, place: DVec2) -> usize {
-    let tolerance = THE_SAME_PLACE * (1.0 + place.abs().max_element());
+    let tolerance = off_by(place);
     match places
         .iter()
         .position(|known| known.distance(place) < tolerance)
@@ -193,6 +229,19 @@ impl Sketch {
 
         let held = |fraction: f64| fraction > CLOSE_TO_AN_END && fraction < 1.0 - CLOSE_TO_AN_END;
         let mut cuts: Vec<Vec<(f64, usize)>> = vec![Vec::new(); curves.len()];
+
+        for (point, place) in self.live_points() {
+            for (index, curve) in curves.iter().enumerate() {
+                let (from, to) = curve.ends();
+                if point.0 == from || point.0 == to {
+                    continue;
+                }
+                if let Some(fraction) = curve.fraction_at(&places, place).filter(|at| held(*at)) {
+                    cuts[index].push((fraction, point.0));
+                }
+            }
+        }
+
         for first in 0..curves.len() {
             for second in (first + 1)..curves.len() {
                 for (along_first, along_second) in between(&curves[first], &curves[second], &places)

@@ -47,7 +47,7 @@ pub(crate) fn advance_on_enter(
             draw_symmetric_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
         }
         Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
-        Tool::Arc => draw_arc(sketch, index, cursor, snap),
+        Tool::Arc => draw_arc(sketch, index, cursor, snap, scale.units_per_pixel),
         _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
     }
 }

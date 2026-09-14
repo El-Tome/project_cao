@@ -60,13 +60,19 @@ pub(crate) fn push_preview(
                 push_point_marker(out, sketch, place, marker, preview, 1.5);
             }
         }
-        // An arc given only its centre is not a curve yet, so what follows the
-        // cursor is the reach it is about to be drawn at: clicking into an empty
-        // canvas should never be clicking into the dark.
+        // A by-centre arc given only its centre is not a curve yet, so what
+        // follows the cursor is the reach it is about to be drawn at:
+        // clicking into an empty canvas should never be clicking into the
+        // dark. A by-ends arc has no centre at that stage — its first place
+        // is an end, not a reach to preview — and past it, `None` means the
+        // three places chosen do not bend into an arc at all, which the
+        // blocking message already says; nothing here should look like one.
         None => {
-            if let Some(centre) = context.editor.arc_places().first().copied() {
-                push_preview_line(out, sketch, centre, cursor, preview, false, scale);
-                push_point_marker(out, sketch, centre, marker, preview, 1.5);
+            if let (ArcMode::ByCenter, [centre]) =
+                (context.editor.arc_mode, context.editor.arc_places())
+            {
+                push_preview_line(out, sketch, *centre, cursor, preview, false, scale);
+                push_point_marker(out, sketch, *centre, marker, preview, 1.5);
             }
         }
     }
@@ -155,7 +161,10 @@ mod tests {
         let mut extrusion = ExtrusionState::default();
         let lang = Catalogue::french();
         editor.arc_mode = mode;
-        editor.tool_state = ToolState::Arc { places };
+        editor.tool_state = ToolState::Arc {
+            places,
+            first_typed: false,
+        };
 
         let millimetres = document.scale();
         let context = SketchContext {

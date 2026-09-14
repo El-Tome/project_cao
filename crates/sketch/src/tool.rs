@@ -56,6 +56,11 @@ pub enum ToolState {
     },
     Arc {
         places: Vec<DVec2>,
+        /// Whether a value was typed for the first leg — the radius for
+        /// `ByCenter`, the distance between the two ends for `ByEnds` — kept
+        /// here because the live field that held it is cleared and reused for
+        /// the second leg before the arc is settled enough to be dimensioned.
+        first_typed: bool,
     },
     Dimension {
         placing: Option<DimensionTarget>,

@@ -1,7 +1,7 @@
 //! A typed value that a dimension already fixed rules out: refused rather
 //! than bent to whatever the solver could reach.
 
-use cao_part::{DimensionOutcome, Operation, PartState, PointRef};
+use cao_part::{DimensionOutcome, Operation, Outcome, PartState, PointRef};
 use cao_sketch::{ArcId, DimensionTarget, LengthOutcome, Sketch, WorkPlane};
 use glam::DVec2;
 
@@ -40,7 +40,9 @@ fn a_radius_a_fixed_chord_rules_out_is_refused_rather_than_bent_to_fit() {
 
     assert_eq!(
         outcome,
-        Some(DimensionOutcome::Geometry(LengthOutcome::BestEffort))
+        Some(Outcome::Dimension(DimensionOutcome::Geometry(
+            LengthOutcome::BestEffort
+        )))
     );
     assert!(
         state.sketches[0]

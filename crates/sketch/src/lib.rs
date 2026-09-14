@@ -68,3 +68,4 @@ pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
 pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};
+pub use trimming::Trimmed;

@@ -17,6 +17,7 @@ pub mod cube;
 pub mod dimension;
 pub mod file;
 pub mod history;
+pub mod outcome;
 pub mod part_file;
 pub mod plane;
 pub mod settings;

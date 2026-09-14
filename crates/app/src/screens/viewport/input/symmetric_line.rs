@@ -8,7 +8,7 @@ use glam::DVec2;
 
 use super::annotation_position;
 use crate::screens::viewport::SketchContext;
-use crate::wording::dimension;
+use crate::wording::outcome;
 
 pub(crate) fn draw_symmetric_line_point(
     context: &mut SketchContext<'_>,
@@ -73,14 +73,14 @@ fn dimension_the_symmetric_line(
     );
 
     for (target, value) in wanted {
-        let outcome = context.document.apply(Operation::SetDimension {
+        let applied = context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
             placement: annotation_position(context, index, target, pixel)
                 .map(|placement| placement.offset),
         });
-        if let Some(message) = dimension::outcome_message(context.lang, outcome) {
+        if let Some(message) = outcome::message(context.lang, applied) {
             context.editor.message = Some(message);
         }
     }

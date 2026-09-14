@@ -48,7 +48,8 @@ in one of the two domains, never there.
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
-| Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::points_along`, `stretch_at`, `trim` |
+| Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
+| What a cut carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -94,7 +95,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
-| Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
+| What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
@@ -167,6 +169,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
+| What an operation just did, said to the user | `app/src/wording/outcome.rs` | `message` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
 | What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |
 | What a way of drawing an arc asks for | `app/src/wording/arc.rs` | `asks_for` |

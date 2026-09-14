@@ -12,6 +12,7 @@ mod extrusion;
 pub mod feature;
 mod file_name;
 pub mod history;
+mod outcome;
 pub mod ports;
 mod state;
 
@@ -22,5 +23,6 @@ pub use dimensioning::DimensionOutcome;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
 pub use errors::PartFileError;
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
+pub use outcome::Outcome;
 pub use ports::{FileError, Files};
 pub use state::PartState;

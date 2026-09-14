@@ -109,6 +109,11 @@ pub(crate) fn run(
             tool(editor, Tool::Dimension);
             false
         }
+        Command::ToolTrim => {
+            tool(editor, Tool::Trim);
+            editor.message = Some(lang.t("sketch.click_a_stretch"));
+            false
+        }
         Command::ToggleConstruction => {
             editor.construction = !editor.construction;
             false

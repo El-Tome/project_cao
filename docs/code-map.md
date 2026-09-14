@@ -48,6 +48,7 @@ in one of the two domains, never there.
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
+| Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::points_along`, `stretch_at`, `trim` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -145,13 +146,15 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: state, camera navigation, entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
-| Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
+| Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
 | Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
 | Canvas: the value a dimension carries, and the field that edits it | `app/src/screens/viewport/render/dimensions.rs` | `paint_dimension_labels`, `paint_dimension_field` |
 | Canvas: a circle, an arc or a dashed line as straight steps | `app/src/screens/viewport/render/curves.rs` | `push_line`, `push_circle_at`, `push_arc_at` |
 | Canvas: what the selection, the cursor or a rule already holds, drawn apart | `app/src/screens/viewport/render/emphasis.rs` | `mark`, `push_picked_axes` |
 | Canvas: one click of the arc tool, and what it shows in between | `app/src/screens/viewport/input/arcs.rs` | `draw_arc`, `arc_preview` |
 | Canvas: the arc tool's fields, its preview and the leg its angle opens from | `app/src/screens/viewport/render/arc.rs` | `live_fields`, `push_preview` |
+| Canvas: one click of the circle tool, and the circle the picks so far make | `app/src/screens/viewport/input/circles.rs` | `draw_circle`, `circle_from` |
+| Canvas: one click of the trim tool | `app/src/screens/viewport/input/trim.rs` | `trim` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |

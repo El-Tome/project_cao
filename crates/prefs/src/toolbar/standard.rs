@@ -48,6 +48,7 @@ impl Default for ToolbarLayout {
                                 ),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
+                                Item::Command(C::ToolTrim),
                                 Item::Command(C::ToggleConstruction),
                                 // A third level opens as a menu rather than
                                 // being spread out: nine rules laid on the bar

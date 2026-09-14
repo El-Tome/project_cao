@@ -80,17 +80,19 @@ impl Sketch {
     /// Drops a point where the named traits cross and cuts each of them in two
     /// there, so that the crossing becomes something to dimension, to
     /// constrain and to drag.
+    /// Built on a copy and kept only once every trait has been cut, each one
+    /// asked again of the copy rather than of the drawing as it came in. What
+    /// held of a trait before the first cut need not hold after it: a cut
+    /// carries a point away with a tangency it drops, and `trim` will happily
+    /// cut a trait a previous pass already erased. A drawing divided halfway is
+    /// worse than one not divided at all.
     pub fn split(&mut self, segments: &[SegmentId], at: DVec2) -> Option<Split> {
         if self.stands_on(at) {
             return None;
         }
-        if !segments
-            .iter()
-            .all(|segment| self.runs_through(*segment, at))
-        {
-            return None;
-        }
-        let point = self.add_point(at);
+
+        let mut divided = self.clone();
+        let point = divided.add_point(at);
         let mut split = Split {
             point,
             pieces: Vec::new(),
@@ -98,11 +100,16 @@ impl Sketch {
             values_dropped: 0,
         };
         for segment in segments {
-            let cut = self.trim(*segment, point, point)?;
+            if !divided.runs_through(*segment, at) {
+                return None;
+            }
+            let cut = divided.trim(*segment, point, point)?;
             split.pieces.extend(cut.pieces);
             split.rules_dropped += cut.rules_dropped;
             split.values_dropped += cut.values_dropped;
         }
+
+        *self = divided;
         Some(split)
     }
 
@@ -196,6 +203,22 @@ mod tests {
             !sketch.is_erased_segment(across) && !sketch.is_erased_segment(up),
             "a refused division cuts neither trait"
         );
+    }
+
+    #[test]
+    fn a_division_that_fails_on_its_second_trait_undoes_the_first() {
+        let (mut sketch, [across, _], crossing) = two_traits_crossing();
+        let before = sketch.clone();
+
+        let refused = sketch.split(&[across, across], crossing);
+
+        assert_eq!(refused, None, "the trait was already cut by the first pass");
+        assert!(
+            !sketch.is_erased_segment(across),
+            "a drawing divided halfway is worse than one not divided at all"
+        );
+        assert_eq!(sketch.points().len(), before.points().len());
+        assert_eq!(sketch.live_segments().count(), 2);
     }
 
     #[test]

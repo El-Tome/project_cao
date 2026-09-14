@@ -17,6 +17,7 @@ mod constraints;
 pub mod construct;
 mod crossing;
 mod dimensioning;
+mod edges;
 mod element;
 mod equation;
 mod erased;

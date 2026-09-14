@@ -11,32 +11,53 @@ use crate::sketch::{Element, PointId, SegmentId, Sketch};
 /// only ever comes of a cut landing on a point already sitting at an end.
 const NO_LENGTH: f64 = 1e-9;
 
+/// How far off the line a point may be and still be *on* the trait.
+///
+/// A fact about the drawing, never about the view. A point put on a trait
+/// lands on it to within rounding; one a person merely placed nearby is
+/// another point, and no amount of zooming out should turn it into an end of
+/// this trait — which is what a cut makes of it.
+const ON_THE_TRAIT: f64 = 1e-9;
+
 impl Sketch {
     /// The points sitting on a trait, each with how far along it they sit, in
     /// order from its start to its end.
     ///
-    /// Its own two ends are the first and the last of them; anything held on
-    /// its body — a rule, a crossing given a point, a place that simply landed
-    /// there — falls between the two.
-    fn sitting_along(&self, segment: SegmentId, tolerance: f64) -> Vec<(f64, PointId)> {
+    /// Its own two ends are the first and the last of them. Between the two
+    /// falls anything a rule holds on its body, wherever the solver left it,
+    /// and anything that genuinely lies on it — but never the sketch origin on
+    /// that second count alone: every drawing owns one, it is not drawn like
+    /// the others, and nobody put it there.
+    fn sitting_along(&self, segment: SegmentId) -> Vec<(f64, PointId)> {
+        let Some(trait_) = self.segments().get(segment.0).copied() else {
+            return Vec::new();
+        };
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();
         if reach == 0.0 {
             return Vec::new();
         }
+        let ends = [trait_.start, trait_.end];
 
         let mut sitting: Vec<(f64, PointId)> = self
             .live_points()
             .filter_map(|(id, place)| {
                 let fraction = (place - start).dot(span) / reach;
                 let foot = start + span * fraction;
-                ((0.0..=1.0).contains(&fraction) && place.distance(foot) <= tolerance)
-                    .then_some((fraction, id))
+                let sits = ends.contains(&id)
+                    || self.is_held_on(id, segment)
+                    || (!self.is_origin(id) && place.distance(foot) <= ON_THE_TRAIT);
+                ((0.0..=1.0).contains(&fraction) && sits).then_some((fraction, id))
             })
             .collect();
         sitting.sort_by(|first, second| first.0.total_cmp(&second.0));
         sitting
+    }
+
+    fn is_held_on(&self, point: PointId, segment: SegmentId) -> bool {
+        self.constraints()
+            .contains(&Constraint::OnSegment { point, segment })
     }
 
     /// Takes the stretch between `from` and `to` out of a trait, and leaves
@@ -146,12 +167,7 @@ impl Sketch {
     ///
     /// Nothing when the trait carries no stretch at all — a trait with no
     /// length, which is the one case where there is nothing to run between.
-    pub fn stretch_at(
-        &self,
-        segment: SegmentId,
-        at: DVec2,
-        tolerance: f64,
-    ) -> Option<(PointId, PointId)> {
+    pub fn stretch_at(&self, segment: SegmentId, at: DVec2) -> Option<(PointId, PointId)> {
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();
@@ -162,7 +178,7 @@ impl Sketch {
         // Clamped, so that a click read as just past an end still asks for the
         // stretch that ends there rather than for nothing at all.
         let fraction = ((at - start).dot(span) / reach).clamp(0.0, 1.0);
-        self.sitting_along(segment, tolerance)
+        self.sitting_along(segment)
             .windows(2)
             .find(|stretch| fraction <= stretch[1].0)
             .map(|stretch| (stretch[0].1, stretch[1].1))

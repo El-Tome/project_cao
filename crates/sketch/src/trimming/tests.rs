@@ -3,8 +3,6 @@ use crate::plane::WorkPlane;
 
 use super::*;
 
-const NEAR: f64 = 1e-6;
-
 #[test]
 fn the_points_sitting_on_a_trait_come_in_order_from_its_start() {
     let mut sketch = Sketch::new(WorkPlane::XY);
@@ -18,7 +16,7 @@ fn the_points_sitting_on_a_trait_come_in_order_from_its_start() {
     sketch.add_point(DVec2::new(14.0, 1.0));
 
     let sitting: Vec<PointId> = sketch
-        .sitting_along(segment, NEAR)
+        .sitting_along(segment)
         .into_iter()
         .map(|(_, id)| id)
         .collect();
@@ -44,11 +42,7 @@ fn a_click_names_the_stretch_it_fell_in() {
         (DVec2::new(5.0, 1.2), (near, far)),
         (DVec2::new(9.0, 1.0), (far, end)),
     ] {
-        assert_eq!(
-            sketch.stretch_at(segment, at, NEAR),
-            Some(expected),
-            "at {at}"
-        );
+        assert_eq!(sketch.stretch_at(segment, at), Some(expected), "at {at}");
     }
 }
 
@@ -228,8 +222,73 @@ fn a_trait_cut_where_a_circle_brushes_it_still_stands_on_that_place() {
     assert_eq!(sketch.segments()[pieces[0].0].start, contact);
     assert!(
         sketch
-            .stretch_at(pieces[0], DVec2::new(10.0, 4.0), 1e-3)
+            .stretch_at(pieces[0], DVec2::new(10.0, 4.0))
             .is_some(),
         "and the piece can be cut again",
+    );
+}
+
+#[test]
+fn the_sketch_origin_is_not_one_of_a_traits_own_points() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(-10.0, 0.0));
+    let end = sketch.add_point(DVec2::new(10.0, 0.0));
+    let segment = sketch.add_segment(start, end);
+
+    assert_eq!(
+        sketch.stretch_at(segment, DVec2::new(1.0, 0.0)),
+        Some((start, end)),
+        "a centreline drawn across the origin is one stretch, not two",
+    );
+}
+
+#[test]
+fn a_point_beside_a_trait_is_not_sitting_on_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(0.0, 1.0));
+    let end = sketch.add_point(DVec2::new(10.0, 1.0));
+    let segment = sketch.add_segment(start, end);
+    sketch.add_point(DVec2::new(5.0, 1.4));
+
+    assert_eq!(
+        sketch.stretch_at(segment, DVec2::new(2.0, 1.0)),
+        Some((start, end)),
+        "how far the view is zoomed out decides nothing here",
+    );
+}
+
+#[test]
+fn a_point_a_rule_holds_on_a_trait_sits_on_it_wherever_the_solver_left_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(0.0, 1.0));
+    let end = sketch.add_point(DVec2::new(10.0, 1.0));
+    let segment = sketch.add_segment(start, end);
+    let held = sketch.add_point(DVec2::new(5.0, 1.0 + 1e-7));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: held,
+        segment,
+    });
+
+    assert_eq!(
+        sketch.stretch_at(segment, DVec2::new(2.0, 1.0)),
+        Some((start, held)),
+    );
+}
+
+#[test]
+fn the_origin_a_rule_holds_on_a_trait_does_cut_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(-10.0, 0.0));
+    let end = sketch.add_point(DVec2::new(10.0, 0.0));
+    let segment = sketch.add_segment(start, end);
+    sketch.add_constraint(Constraint::OnSegment {
+        point: Sketch::ORIGIN,
+        segment,
+    });
+
+    assert_eq!(
+        sketch.stretch_at(segment, DVec2::new(1.0, 0.0)),
+        Some((Sketch::ORIGIN, end)),
+        "asked for on purpose, it counts like any other point",
     );
 }

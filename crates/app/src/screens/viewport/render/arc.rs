@@ -64,17 +64,20 @@ pub(crate) fn push_preview(
         // follows the cursor is the reach it is about to be drawn at:
         // clicking into an empty canvas should never be clicking into the
         // dark. A by-ends arc has no centre at that stage — its first place
-        // is an end, not a reach to preview — and past it, `None` means the
-        // three places chosen do not bend into an arc at all, which the
-        // blocking message already says; nothing here should look like one.
-        None => {
-            if let (ArcMode::ByCenter, [centre]) =
-                (context.editor.arc_mode, context.editor.arc_places())
-            {
+        // is an end, marked but with no line to preview — and past it, `None`
+        // means the three places chosen do not bend into an arc at all, which
+        // the blocking message already says; nothing here should look like
+        // one.
+        None => match (context.editor.arc_mode, context.editor.arc_places()) {
+            (ArcMode::ByCenter, [centre]) => {
                 push_preview_line(out, sketch, *centre, cursor, preview, false, scale);
                 push_point_marker(out, sketch, *centre, marker, preview, 1.5);
             }
-        }
+            (ArcMode::ByEnds, [first_end]) => {
+                push_point_marker(out, sketch, *first_end, marker, preview, 1.5);
+            }
+            _ => {}
+        },
     }
     if let Some((centre, towards)) =
         arc_angle_reference(context.editor.arc_mode, context.editor.arc_places())
@@ -280,6 +283,25 @@ mod tests {
             "the reach runs from {:?} to {:?} instead of the centre to the cursor",
             reach[0].from,
             reach[0].to,
+        );
+    }
+
+    #[test]
+    fn an_arc_given_only_its_first_end_marks_it_but_previews_no_reach() {
+        let (first_end, cursor) = (DVec2::new(-50.0, 0.0), DVec2::new(50.0, 0.0));
+
+        let painted = a_preview(ArcMode::ByEnds, vec![first_end], cursor);
+
+        assert!(
+            along(&painted, first_end, cursor).is_empty(),
+            "a by-ends arc has no centre yet to preview a reach from",
+        );
+        assert!(
+            painted
+                .iter()
+                .any(|step| step.from.distance(first_end) < 10.0
+                    && step.to.distance(first_end) < 10.0),
+            "nothing marks the first end, so the click that placed it leaves no trace",
         );
     }
 }

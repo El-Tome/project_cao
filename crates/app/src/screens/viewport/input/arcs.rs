@@ -6,7 +6,7 @@ use glam::DVec2;
 
 use super::{annotation_position, point_ref_at};
 use crate::screens::viewport::SketchContext;
-use crate::wording::dimension;
+use crate::wording::outcome;
 
 /// One click of the arc tool: takes the place pointed at, and draws the arc as
 /// soon as enough of it is known.
@@ -115,14 +115,14 @@ fn dimension_the_arc(
         scale,
     );
     for (target, value) in wanted {
-        let outcome = context.document.apply(Operation::SetDimension {
+        let applied = context.document.apply(Operation::SetDimension {
             sketch: index,
             target,
             value,
             placement: annotation_position(context, index, target, pixel)
                 .map(|placement| placement.offset),
         });
-        if let Some(message) = dimension::outcome_message(context.lang, outcome) {
+        if let Some(message) = outcome::message(context.lang, applied) {
             context.editor.message = Some(message);
         }
     }

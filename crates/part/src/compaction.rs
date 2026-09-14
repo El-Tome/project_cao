@@ -10,7 +10,7 @@
 
 use std::collections::HashSet;
 
-use cao_sketch::{ArcId, CircleId, PointId, Segment, SegmentId, Sketch};
+use cao_sketch::{ArcId, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
 
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
@@ -217,21 +217,45 @@ fn compact_sketch(
         }
     }
 
+    let mut bundled_rim_points = HashSet::new();
     for (old_id, circle) in old_sketch.live_circles() {
         let center = point_ref(circle.center, old_sketch, &map);
+        // A point clicked on the rim while drawing is kept on it by an
+        // `OnCircle` constraint added in the very same step, not a separate
+        // one — what makes the point a handle the circle can be grabbed and
+        // resized by rather than a coincidence that happens to line up.
+        let rim_old: Vec<PointId> = old_sketch
+            .constraints()
+            .iter()
+            .filter_map(|constraint| match constraint {
+                Constraint::OnCircle {
+                    point,
+                    circle: held,
+                } if *held == old_id => Some(*point),
+                _ => None,
+            })
+            .collect();
+        let rim: Vec<PointRef> = rim_old
+            .iter()
+            .map(|&point| point_ref(point, old_sketch, &map))
+            .collect();
         let mut next = new_state.sketches[sketch_index].points().len();
         record(
             Operation::AddCircle {
                 sketch: sketch_index,
                 center,
                 radius: circle.radius,
-                rim: Vec::new(),
+                rim: rim.clone(),
                 construction: circle.construction,
             },
             new_history,
             new_state,
         );
         claim(circle.center, center, &mut map, &mut next);
+        for (&old_point, &reference) in rim_old.iter().zip(rim.iter()) {
+            claim(old_point, reference, &mut map, &mut next);
+            bundled_rim_points.insert((old_point, old_id));
+        }
         let new_id = CircleId(new_state.sketches[sketch_index].circles().len() - 1);
         map.circles.insert(old_id, new_id);
     }
@@ -280,6 +304,11 @@ fn compact_sketch(
     }
 
     for constraint in old_sketch.constraints() {
+        if let Constraint::OnCircle { point, circle } = constraint
+            && bundled_rim_points.contains(&(*point, *circle))
+        {
+            continue;
+        }
         record(
             Operation::Constrain {
                 sketch: sketch_index,

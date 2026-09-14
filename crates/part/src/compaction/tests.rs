@@ -270,3 +270,49 @@ fn a_revolution_around_a_segment_erased_afterwards_still_compacts() {
 
     assert!((after - before).abs() / before < 0.02, "{after} / {before}");
 }
+
+/// Drawing a circle keeps the place clicked on its rim as a point of the
+/// drawing, held there by an `OnCircle` constraint added in the very same
+/// step — not a separate one, the way `cao_sketch::rim_of` describes it for
+/// every circle mode.
+#[test]
+fn a_circles_rim_point_stays_bundled_in_its_own_step_after_compacting() {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+    });
+    history.push(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 5.0,
+        rim: vec![PointRef::New(DVec2::new(5.0, 0.0))],
+        construction: false,
+    });
+
+    let compacted = compact(&history);
+
+    assert_eq!(
+        compacted.operations().len(),
+        history.operations().len(),
+        "the rim point and its constraint came back as their own steps \
+         instead of staying inside the circle's",
+    );
+    let after = PartState::rebuild(&compacted);
+    let sketch = &after.sketches[0];
+    assert_eq!(
+        sketch.drawn_points().count(),
+        2,
+        "the centre and the rim point"
+    );
+    let rim_point = PointId(2);
+    assert!(
+        sketch
+            .constraints()
+            .contains(&cao_sketch::Constraint::OnCircle {
+                point: rim_point,
+                circle: cao_sketch::CircleId(0),
+            }),
+        "the rim point no longer holds the circle: {:?}",
+        sketch.constraints()
+    );
+}

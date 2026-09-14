@@ -250,7 +250,7 @@ pub(crate) fn handle_sketch_input(
             two_click_shape(context, index, corner, snap, scale.units_per_pixel)
         }
         Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
-        Tool::Arc => draw_arc(context, index, cursor, snap),
+        Tool::Arc => draw_arc(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),

@@ -83,6 +83,34 @@ fn a_division_replayed_rebuilds_the_drawing_it_left_behind() {
 }
 
 #[test]
+fn the_pieces_stand_exactly_where_the_traits_ran() {
+    let mut state = replay(&drawing_two_traits_crossing());
+
+    state.apply(&Operation::Split {
+        sketch: 0,
+        segments: vec![ACROSS, UP],
+        at: CROSSING,
+    });
+
+    let sketch = &state.sketches[0];
+    let mut ends: Vec<(f64, f64)> = sketch
+        .live_segments()
+        .flat_map(|(id, _)| {
+            let (from, to) = sketch.endpoints(id);
+            [(from.x, from.y), (to.x, to.y)]
+        })
+        .collect();
+    ends.sort_by(|left, right| left.partial_cmp(right).expect("no place is nowhere"));
+    ends.dedup();
+
+    assert_eq!(
+        ends,
+        vec![(0.0, 0.0), (5.0, -5.0), (5.0, 0.0), (5.0, 5.0), (10.0, 0.0),],
+        "the four ends the traits had, and the crossing they now stop at"
+    );
+}
+
+#[test]
 fn a_division_says_what_the_traits_it_cut_took_with_them() {
     let mut operations = drawing_two_traits_crossing();
     operations.push(Operation::SetDimension {

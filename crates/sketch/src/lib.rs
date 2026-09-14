@@ -12,6 +12,7 @@ mod arc_regions;
 mod arc_rules;
 mod arcing;
 mod chain;
+mod circle_edges;
 mod circling;
 mod constraints;
 pub mod construct;

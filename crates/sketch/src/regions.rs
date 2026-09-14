@@ -34,9 +34,6 @@ impl Region {
     }
 }
 
-/// How finely a circle is cut up when it is treated as a closed area.
-const CIRCLE_STEPS: usize = 48;
-
 impl Sketch {
     /// Every closed area the drawing encloses, innermost last.
     ///
@@ -45,18 +42,8 @@ impl Sketch {
     /// around exactly one area. Counting segments could not do this — the same
     /// segment belongs to two areas when two shapes share a side.
     pub fn regions(&self) -> Vec<Region> {
-        let mut outlines = self.closed_outlines();
-        let circles = self.live_circles().filter(|(_, c)| !c.construction);
-        outlines.extend(circles.map(|(_, c)| {
-            (0..CIRCLE_STEPS)
-                .map(|step| {
-                    let angle = std::f64::consts::TAU * step as f64 / CIRCLE_STEPS as f64;
-                    self.point(c.center) + DVec2::from_angle(angle) * c.radius
-                })
-                .collect()
-        }));
-
-        let mut regions: Vec<Region> = outlines
+        let mut regions: Vec<Region> = self
+            .closed_outlines()
             .into_iter()
             .filter_map(|outline| {
                 let triangles = triangulate(&outline);

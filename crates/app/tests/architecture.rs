@@ -81,7 +81,7 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 13] = [
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/geometry.rs", 556),
     ("crates/render/src/renderer.rs", 426),
-    ("crates/sketch/src/regions.rs", 468),
+    ("crates/sketch/src/regions.rs", 455),
     ("crates/sketch/src/sketch.rs", 2304),
     ("crates/sketch/src/solver.rs", 1199),
     ("crates/solid/src/boolean.rs", 449),

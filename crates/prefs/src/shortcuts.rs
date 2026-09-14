@@ -255,3 +255,22 @@ impl Default for Shortcuts {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn no_two_commands_answer_to_the_same_chord_on_a_fresh_installation() {
+        let mut taken: Vec<(Chord, Command)> = Vec::new();
+
+        for (command, chord) in Shortcuts::default().bindings {
+            if let Some((_, first)) = taken.iter().find(|(bound, _)| *bound == chord) {
+                panic!(
+                    "{chord:?} answers for both {first:?} and {command:?}: the second is unreachable and says nothing about why"
+                );
+            }
+            taken.push((chord, command));
+        }
+    }
+}

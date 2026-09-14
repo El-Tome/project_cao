@@ -27,9 +27,7 @@ mod symmetric_line;
 use curves::{push_arc_at, push_circle_at, push_line};
 
 use super::cube_labels;
-use super::input::{
-    annotation_position, arc_preview, circle_from, measure_preview, rectangle_corner, refine,
-};
+use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
 };
@@ -925,33 +923,8 @@ fn push_preview(
         );
     }
 
-    // An arc given only its centre is not a curve yet, so what follows the
-    // cursor is the reach it is about to be drawn at: clicking into an empty
-    // canvas should never be clicking into the dark.
     if context.editor.tool == Tool::Arc {
-        let marker = scale.world_size_of(3.0);
-        match arc_preview(context, cursor) {
-            Some(drawn) => {
-                push_arc_at(
-                    out,
-                    sketch,
-                    drawn,
-                    preview,
-                    1.5,
-                    context.editor.construction,
-                    scale,
-                );
-                for place in [drawn.centre, drawn.start, drawn.end] {
-                    push_point_marker(out, sketch, place, marker, preview, 1.5);
-                }
-            }
-            None => {
-                if let Some(centre) = context.editor.arc_places().first().copied() {
-                    push_preview_line(out, sketch, centre, cursor, preview, false, scale);
-                    push_point_marker(out, sketch, centre, marker, preview, 1.5);
-                }
-            }
-        }
+        arc::push_preview(out, context, sketch, cursor, preview, scale);
     }
 
     let Some(start) = context.editor.pending_start() else {

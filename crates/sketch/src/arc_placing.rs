@@ -65,12 +65,11 @@ pub fn arc_from(mode: ArcMode, places: &[DVec2], cursor: DVec2) -> Option<ArcDra
 }
 
 /// The cursor, once a value typed into the live field has had its say: a
-/// radius or a distance while the second place is being picked, an angle in
-/// degrees while the third is — the latter only for `ByCenter`, since a
-/// `ByEnds` arc is bent to where the cursor points, not to an angle. Left
-/// alone, the cursor decides everything, the way it always has. `scale` is
-/// how many millimetres a unit of the drawing is worth, since a typed radius
-/// or distance arrives in millimetres.
+/// radius or a distance while the second place is being picked, and while the
+/// third is, an angle in degrees for `ByCenter` or the curve's own radius for
+/// `ByEnds`. Left alone, the cursor decides everything, the way it always has.
+/// `scale` is how many millimetres a unit of the drawing is worth, since a
+/// typed radius or distance arrives in millimetres.
 pub fn aimed(
     mode: ArcMode,
     places: &[DVec2],
@@ -91,6 +90,9 @@ pub fn aimed(
             let base = (start - centre).to_angle();
             centre + DVec2::from_angle(base + locked.to_radians()) * radius
         }
+        (ArcMode::ByEnds, 2) => {
+            bent_through(places[0], places[1], cursor, locked / scale.max(1e-9)).unwrap_or(cursor)
+        }
         (ArcMode::ByCenter, 1) | (ArcMode::ByEnds, 1) => {
             let radius = locked / scale.max(1e-9);
             match radius > 1e-9 {
@@ -102,9 +104,45 @@ pub fn aimed(
     }
 }
 
+/// The leg a typed angle opens from, as the two places it runs between: the
+/// centre, and the end already picked, which is the direction [`aimed`]
+/// measures those degrees against. `None` wherever nothing is being read as an
+/// angle, so that a canvas asking what to draw is told rather than guessing.
+pub fn angle_reference(mode: ArcMode, places: &[DVec2]) -> Option<(DVec2, DVec2)> {
+    match (mode, places.len()) {
+        (ArcMode::ByCenter, 2) => Some((places[0], places[1])),
+        _ => None,
+    }
+}
+
+/// The place a curve of that radius, hung on those two ends, has to be bent
+/// through. The cursor keeps everything the radius does not say: which side of
+/// the chord the curve bulges to, and — by standing further off the chord than
+/// half of it is long — whether it takes the short way round or the long one.
+///
+/// `None` when no such curve exists: a radius shorter than half the chord
+/// reaches neither end, and a cursor on the chord itself names no side.
+fn bent_through(a: DVec2, b: DVec2, cursor: DVec2, radius: f64) -> Option<DVec2> {
+    let chord = b - a;
+    let half = chord.length() / 2.0;
+    let middle = (a + b) / 2.0;
+    let across = chord.perp().normalize_or_zero();
+    let side = (cursor - middle).dot(across);
+    if half < 1e-9 || radius < half || side.abs() < 1e-9 {
+        return None;
+    }
+    let reach = (radius * radius - half * half).sqrt();
+    let rise = match side.abs() > half {
+        true => radius + reach,
+        false => radius - reach,
+    };
+    Some(middle + across * side.signum() * rise)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::arcing::sweep_of;
 
     const TOLERANCE: f64 = 1e-9;
 
@@ -245,14 +283,104 @@ mod tests {
     }
 
     #[test]
-    fn a_by_ends_arc_has_nothing_to_type_while_placing_the_point_it_is_bent_through() {
-        let (a, b) = (DVec2::new(-10.0, 0.0), DVec2::new(10.0, 0.0));
-        let cursor = DVec2::new(0.0, 5.0);
+    fn a_radius_typed_while_bending_a_by_ends_arc_holds_however_near_the_cursor_stays() {
+        let (a, b) = (DVec2::new(-30.0, 0.0), DVec2::new(30.0, 0.0));
+        let barely_above_the_chord = DVec2::new(0.0, 1.0);
+
+        let bent = aimed(
+            ArcMode::ByEnds,
+            &[a, b],
+            barely_above_the_chord,
+            Some(100.0),
+            2.0,
+        );
+        let drawn =
+            arc_from(ArcMode::ByEnds, &[a, b], bent).expect("a radius that reaches both ends");
+
+        assert!(
+            (drawn.centre.distance(drawn.start) - 50.0).abs() < TOLERANCE,
+            "100 mm at a scale of 2 mm per unit is 50 units: the curve came out at {}",
+            drawn.centre.distance(drawn.start),
+        );
+        assert!(
+            bent.y > 0.0,
+            "the cursor still says which side it bends to: got {bent:?}",
+        );
+    }
+
+    #[test]
+    fn a_cursor_dragged_well_clear_of_the_chord_bends_that_radius_the_long_way_round() {
+        let (a, b) = (DVec2::new(-30.0, 0.0), DVec2::new(30.0, 0.0));
+        let well_above_the_chord = DVec2::new(0.0, 100.0);
+
+        let bent = aimed(
+            ArcMode::ByEnds,
+            &[a, b],
+            well_above_the_chord,
+            Some(50.0),
+            1.0,
+        );
+        let drawn =
+            arc_from(ArcMode::ByEnds, &[a, b], bent).expect("a radius that reaches both ends");
+
+        assert!(
+            (drawn.centre.distance(drawn.start) - 50.0).abs() < TOLERANCE,
+            "the curve came out at {}, not the 50 that was typed",
+            drawn.centre.distance(drawn.start),
+        );
+        assert!(
+            sweep_of(drawn) > std::f64::consts::PI,
+            "a cursor that far out asks for the major arc: it runs {} radians",
+            sweep_of(drawn),
+        );
+    }
+
+    #[test]
+    fn a_radius_too_short_to_reach_both_ends_is_refused_rather_than_stretched_to_fit() {
+        let (a, b) = (DVec2::new(-30.0, 0.0), DVec2::new(30.0, 0.0));
+        let cursor = DVec2::new(0.0, 10.0);
 
         assert_eq!(
-            aimed(ArcMode::ByEnds, &[a, b], cursor, Some(42.0), 1.0),
+            aimed(ArcMode::ByEnds, &[a, b], cursor, Some(10.0), 1.0),
             cursor,
-            "a by-ends arc is bent to where the cursor points, not to a typed value",
+            "no curve 10 wide reaches ends 60 apart, so the cursor goes on deciding",
+        );
+    }
+
+    #[test]
+    fn the_leg_an_angle_opens_from_points_where_an_angle_of_zero_would_land() {
+        let centre = DVec2::new(4.0, -2.0);
+        let start = DVec2::new(4.0, 8.0);
+
+        let (from, to) = angle_reference(ArcMode::ByCenter, &[centre, start])
+            .expect("a by-centre arc reads its third click as an angle");
+        let no_angle_at_all = aimed(
+            ArcMode::ByCenter,
+            &[centre, start],
+            DVec2::new(-50.0, -50.0),
+            Some(0.0),
+            1.0,
+        );
+
+        assert_eq!(from, centre, "the angle opens from the centre");
+        assert!(
+            (to - from)
+                .normalize()
+                .distance((no_angle_at_all - from).normalize())
+                < TOLERANCE,
+            "the leg runs towards {to:?} while an angle of zero lands at {no_angle_at_all:?}",
+        );
+    }
+
+    #[test]
+    fn an_arc_placed_by_its_ends_measures_no_angle_and_so_opens_from_nothing() {
+        let (a, b) = (DVec2::new(-10.0, 0.0), DVec2::new(10.0, 0.0));
+
+        assert_eq!(angle_reference(ArcMode::ByEnds, &[a, b]), None);
+        assert_eq!(
+            angle_reference(ArcMode::ByCenter, &[a]),
+            None,
+            "a centre on its own is not yet measuring anything",
         );
     }
 

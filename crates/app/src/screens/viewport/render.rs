@@ -881,14 +881,14 @@ fn push_preview(
         );
     }
 
-    // What the cursor has been caught by. The middle of a line is the one that
-    // has to be said out loud: nothing else on screen tells you that you are
-    // exactly halfway along it.
+    // What the cursor has been caught by. A midpoint has a mark of its own; a
+    // crossing borrows the one a trait's body wears, for want of a line to
+    // spend on a glyph of its own in a file already over its budget.
     match context.editor.snap {
         Some(Snap::Midpoint(at)) => {
             push_midpoint_mark(out, sketch, at, scale, tint_at(theme.highlight, 1.0))
         }
-        Some(Snap::OnSegment(at)) => push_point_marker(
+        Some(Snap::OnSegment(at) | Snap::Crossing(at)) => push_point_marker(
             out,
             sketch,
             at,

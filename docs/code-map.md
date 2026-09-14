@@ -62,7 +62,7 @@ in one of the two domains, never there.
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
 | Where two curves of the drawing cross | `sketch/src/crossing.rs` | `where_segments_cross`, `where_segment_crosses_arc`, `where_arcs_cross` |
-| The drawing as half-edges a face walk can turn at, cut wherever two curves cross and wherever a point sits on one | `sketch/src/edges.rs` | `Sketch::crossed`, `Crossed`, `ArcHalfEdge` |
+| The drawing as half-edges a face walk can turn at, cut wherever two curves cross and wherever a point sits on one | `sketch/src/edges.rs` | `Sketch::crossed`, `Sketch::crossings`, `Crossed`, `ArcHalfEdge` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |
 | What a click takes hold of, what a box catches, what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::inside_band`, `Sketch::points_of`, `Selection` |

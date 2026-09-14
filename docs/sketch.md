@@ -693,6 +693,14 @@ always turning as tightly as possible, and the walk comes back on itself around
 exactly one area. Counting the traits would not do — one and the same side
 belongs to two areas when two shapes share it.
 
+The walk reads nothing but the points and the order the traits leave each of
+them in, so two traits meeting in mid-air are invisible to it. They are given a
+point of their own before the walk starts, one the drawing does not hold and
+nothing can take hold of: a shape folded over on itself is tinted as the areas
+its crossing actually bounds, a square dragged into a bowtie becoming two
+triangles rather than nothing at all. A trait crossing a curve, and two curves
+crossing each other, are cut apart the same way.
+
 ### Construction geometry
 
 The **Construction** toggle, next to the drawing tools, marks the next shape a
@@ -863,6 +871,5 @@ allows going straight back to any step. See [history.md](history.md).
 
 - No snapping to the alignments (horizontal, vertical) of an existing point:
   the magnets hold only to points, midpoints, the body of a trait and the grid.
-- An outline that crosses itself is not tinted.
 - The solver does not say *which* dimensions contradict each other when it does
   not get there.

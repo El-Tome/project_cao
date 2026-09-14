@@ -1,121 +1,34 @@
-//! The half-edge walk that finds a drawing's closed outlines, and an arc as
-//! the two half-edges it contributes to it: kept apart from `regions.rs`,
-//! which turns outlines already found into nested, triangulated `Region`s and
-//! has no need to know a walk found them or a tangent bent one.
-
 use glam::DVec2;
 
-use crate::arcing::{ArcDraft, places_along};
+use crate::edges::Crossed;
 use crate::regions::signed_area;
 use crate::sketch::Sketch;
-
-/// One end of one arc, as a graph half-edge: where it leaves from, the
-/// tangent it leaves along — not the straight line to its far end, which is
-/// what tells the region walk apart from a plain segment's — and which way
-/// round the curve it walks.
-struct ArcHalfEdge {
-    from: usize,
-    to: usize,
-    center: DVec2,
-    /// Whether this half leaves the arc's own `start`, curving the way it was
-    /// drawn, or leaves `end` and so walks the same curve backwards.
-    forward: bool,
-}
-
-/// Every arc still drawn, as the two half-edges it contributes to the walk.
-fn arc_half_edges(sketch: &Sketch) -> Vec<ArcHalfEdge> {
-    sketch
-        .live_arcs()
-        .filter(|(_, arc)| !arc.construction)
-        .flat_map(|(_, arc)| {
-            let center = sketch.point(arc.center);
-            [
-                ArcHalfEdge {
-                    from: arc.start.0,
-                    to: arc.end.0,
-                    center,
-                    forward: true,
-                },
-                ArcHalfEdge {
-                    from: arc.end.0,
-                    to: arc.start.0,
-                    center,
-                    forward: false,
-                },
-            ]
-        })
-        .collect()
-}
-
-impl ArcHalfEdge {
-    /// The direction it leaves `from` in: perpendicular to the reach from the
-    /// centre, turned the way the curve actually bends at that end.
-    fn departure(&self, from: DVec2) -> DVec2 {
-        let reach = from - self.center;
-        match self.forward {
-            true => DVec2::new(-reach.y, reach.x),
-            false => DVec2::new(reach.y, -reach.x),
-        }
-    }
-
-    /// The curve this half contributes to an outline: sampled from its own
-    /// `from` up to, but not including, `to` — the same convention a
-    /// segment's single point already follows, so the next half-edge, or the
-    /// walk closing, supplies the rest.
-    fn points_along(&self, from: DVec2, to: DVec2) -> Vec<DVec2> {
-        let (start, end) = match self.forward {
-            true => (from, to),
-            false => (to, from),
-        };
-        let mut sampled = places_along(ArcDraft {
-            centre: self.center,
-            start,
-            end,
-        });
-        if !self.forward {
-            sampled.reverse();
-        }
-        sampled.pop();
-        sampled
-    }
-}
 
 impl Sketch {
     /// Walks the segment and arc graph and returns each area it encloses, as
     /// a loop of positions turning counter-clockwise.
+    /// Walks the segment and arc graph and returns each area it encloses, as
+    /// a loop of positions turning counter-clockwise.
     pub(crate) fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
-        // Only what is still drawn: a deleted side must not close an area that is no longer there.
-        let segment_ends: Vec<(usize, usize)> = self
-            .live_segments()
-            .filter(|(_, segment)| !segment.construction)
-            .flat_map(|(_, segment)| {
-                [
-                    (segment.start.0, segment.end.0),
-                    (segment.end.0, segment.start.0),
-                ]
-            })
-            .collect();
-        let arcs = arc_half_edges(self);
-        let split = segment_ends.len();
-        let ends: Vec<(usize, usize)> = segment_ends
-            .into_iter()
-            .chain(arcs.iter().map(|edge| (edge.from, edge.to)))
-            .collect();
+        let Crossed {
+            places,
+            ends,
+            split,
+            arcs,
+        } = self.crossed();
         if ends.is_empty() {
             return Vec::new();
         }
 
-        // An arc leaves a point along its tangent, not the straight line to
-        // its far end — that is what tells the walk apart from a segment's.
         let departure = |half: usize| -> DVec2 {
-            let from = self.points()[ends[half].0];
+            let from = places[ends[half].0];
             match half.checked_sub(split) {
-                None => self.points()[ends[half].1] - from,
+                None => places[ends[half].1] - from,
                 Some(arc) => arcs[arc].departure(from),
             }
         };
 
-        let mut leaving: Vec<Vec<usize>> = vec![Vec::new(); self.points().len()];
+        let mut leaving: Vec<Vec<usize>> = vec![Vec::new(); places.len()];
         for (half, (from, to)) in ends.iter().enumerate() {
             if from != to {
                 leaving[*from].push(half);
@@ -133,8 +46,6 @@ impl Sketch {
             let twin = half ^ 1;
             let around = &leaving[ends[half].1];
             let position = around.iter().position(|candidate| *candidate == twin)?;
-            // The neighbour just clockwise of the way we came: turning as
-            // tightly as possible is what keeps the walk hugging one area.
             Some(around[(position + around.len() - 1) % around.len()])
         };
 
@@ -154,17 +65,12 @@ impl Sketch {
                 }
                 visited[half] = true;
                 loop_edges.push(ends[half].0);
-                let (from, to) = (self.points()[ends[half].0], self.points()[ends[half].1]);
+                let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => outline.push(from),
                     Some(arc) => outline.extend(arcs[arc].points_along(from, to)),
                 }
                 let Some(following) = next(half) else { break };
-                // Nothing else left this vertex: the walk can only bounce
-                // straight back the way it came, which is a spur, not an
-                // area. Caught here, structurally, rather than by the shoelace
-                // sum landing on exactly zero — which a sampled curve walked
-                // out and back is not guaranteed to do, only a straight one is.
                 if following == (half ^ 1) {
                     dead_end = true;
                     break;
@@ -181,11 +87,7 @@ impl Sketch {
                 sorted.dedup();
                 sorted.len() == loop_edges.len()
             };
-            if !dead_end
-                && distinct
-                && signed_area(&outline) > 1e-9
-                && crate::crossing::is_simple(&outline)
-            {
+            if !dead_end && distinct && signed_area(&outline) > 1e-9 {
                 outlines.push(outline);
             }
         }

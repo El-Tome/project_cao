@@ -5,6 +5,7 @@
 mod adapters;
 mod app;
 mod autosave;
+mod commands;
 mod crash;
 mod lang;
 mod remembered;

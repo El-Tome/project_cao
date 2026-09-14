@@ -40,7 +40,8 @@ fn a_frame_with(
     let mut output = ctx.run_ui(input, |ui| {
         ribbon.show(ui, &settings, &document, &editor, &mut extrusion, &lang);
         let before = ui.available_rect_before_wrap().width();
-        let _ = crate::screens::history_tree::panel(ui, &document, &lang);
+        let mut confirming_compact = false;
+        let _ = crate::screens::history_tree::panel(ui, &document, &mut confirming_compact, &lang);
         history = before - ui.available_rect_before_wrap().width();
         egui::CentralPanel::no_frame().show(ui, |ui| part = ui.max_rect().width());
     });

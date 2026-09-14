@@ -238,6 +238,12 @@ These places carry no test of their own:
   fitting a face's label to its own projected shape is pure geometry, once the
   projecting and the measuring are done, and that part is tested without a
   window.
+  `crates/app/src/screens/viewport/render/arc.rs` never was on the list, and
+  now earns being off it: what a painter pushes is a
+  `Vec<cao_render::Vertex>`, two vertices to a straight step, and those steps
+  read back onto the sketch's plane say what was drawn with no window and no
+  GPU. The other children of `render/` go the same way whenever someone writes
+  their tests; only `render.rs` itself is named below.
   - `crates/app/src/screens/viewport/mod.rs`;
   - `crates/app/src/screens/viewport/render.rs`;
   - `crates/app/src/screens/viewport/input/`;

@@ -76,3 +76,201 @@ pub(crate) fn push_preview(
         push_preview_line(out, sketch, centre, towards, preview, true, scale);
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use cao_part::PartDocument;
+    use cao_prefs::config::ViewportConfig;
+    use cao_render::camera::OrbitCamera;
+    use cao_sketch::{ToolState, WorkPlane};
+    use chrono::Utc;
+    use glam::Vec3;
+
+    use super::*;
+    use crate::lang::Catalogue;
+    use crate::screens::extrusion::ExtrusionState;
+    use crate::screens::sketch::SketchEditor;
+
+    /// How far two places may be apart and still count as one, and how far off
+    /// a line one may sit and still count as on it. Well under the few pixels a
+    /// point marker's square is wide, so a marker beside a leg is never
+    /// mistaken for part of it.
+    const TOLERANCE: f64 = 1e-6;
+
+    /// One straight step of what was painted, in sketch coordinates.
+    #[derive(Clone, Copy, Debug)]
+    struct Step {
+        from: DVec2,
+        to: DVec2,
+    }
+
+    /// Every step a run of vertices holds.
+    fn steps(painted: &[cao_render::Vertex], sketch: &Sketch) -> Vec<Step> {
+        painted
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|[from, to]| Step {
+                from: place(*from, sketch),
+                to: place(*to, sketch),
+            })
+            .collect()
+    }
+
+    /// The steps that run along the way from one place to another: on that line,
+    /// and within its span. A dashed leg comes back as several of them, a plain
+    /// one as a single step.
+    fn along(steps: &[Step], from: DVec2, to: DVec2) -> Vec<Step> {
+        let span = to - from;
+        let length = span.length();
+        if length < TOLERANCE {
+            return Vec::new();
+        }
+        let direction = span / length;
+        steps
+            .iter()
+            .copied()
+            .filter(|step| {
+                [step.from, step.to].into_iter().all(|place| {
+                    let offset = place - from;
+                    let reach = offset.dot(direction);
+                    (offset - direction * reach).length() < TOLERANCE
+                        && (-TOLERANCE..=length + TOLERANCE).contains(&reach)
+                })
+            })
+            .collect()
+    }
+
+    fn place(vertex: cao_render::Vertex, sketch: &Sketch) -> DVec2 {
+        sketch
+            .plane
+            .to_local(Vec3::from(vertex.position).as_dvec3())
+    }
+
+    /// What one frame of the canvas paints for an arc part-way through being
+    /// placed, read back as the straight steps it is made of.
+    fn a_preview(mode: ArcMode, places: Vec<DVec2>, cursor: DVec2) -> Vec<Step> {
+        let mut document = PartDocument::new("part", Utc::now());
+        let mut editor = SketchEditor::default();
+        let mut extrusion = ExtrusionState::default();
+        let lang = Catalogue::french();
+        editor.arc_mode = mode;
+        editor.tool_state = ToolState::Arc { places };
+
+        let millimetres = document.scale();
+        let context = SketchContext {
+            document: &mut document,
+            editor: &mut editor,
+            extrusion: &mut extrusion,
+            lang: &lang,
+        };
+        let scale = ViewScale::of(
+            &OrbitCamera::default(),
+            egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(1280.0, 800.0)),
+            1.0,
+            &ViewportConfig::default(),
+            millimetres,
+        );
+
+        let sketch = Sketch::new(WorkPlane::XY);
+        let mut out = Vec::new();
+        push_preview(&mut out, &context, &sketch, cursor, [1.0; 4], scale);
+        steps(&out, &sketch)
+    }
+
+    #[test]
+    fn a_by_centre_arc_waiting_for_its_sweep_shows_the_leg_that_angle_opens_from() {
+        let (centre, start) = (DVec2::ZERO, DVec2::new(100.0, 0.0));
+
+        let painted = a_preview(
+            ArcMode::ByCenter,
+            vec![centre, start],
+            DVec2::new(0.0, 80.0),
+        );
+        let leg = along(&painted, centre, start);
+
+        assert!(
+            !leg.is_empty(),
+            "nothing runs from the centre to the end already picked",
+        );
+        assert!(
+            leg.len() > 1,
+            "the leg came out whole, so it is drawn solid rather than dashed",
+        );
+        assert!(
+            leg.iter()
+                .any(|step| step.from.distance(centre) < TOLERANCE),
+            "no dash starts at the centre, so the angle opens from nowhere",
+        );
+    }
+
+    #[test]
+    fn an_arc_bent_by_its_ends_shows_no_such_leg_because_it_measures_no_angle() {
+        let (a, b) = (DVec2::new(-50.0, 0.0), DVec2::new(50.0, 0.0));
+
+        let painted = a_preview(ArcMode::ByEnds, vec![a, b], DVec2::new(0.0, 40.0));
+
+        assert!(
+            along(&painted, a, b).is_empty(),
+            "something was drawn along the chord, and a by-ends arc opens from nothing",
+        );
+    }
+
+    #[test]
+    fn the_curve_shown_before_the_last_click_runs_at_one_reach_from_the_centre() {
+        let (centre, start) = (DVec2::ZERO, DVec2::new(100.0, 0.0));
+        let radius = centre.distance(start);
+
+        let painted = a_preview(
+            ArcMode::ByCenter,
+            vec![centre, start],
+            DVec2::new(0.0, 80.0),
+        );
+        let curve: Vec<Step> = painted
+            .iter()
+            .copied()
+            .filter(|step| {
+                (step.from.distance(centre) - radius).abs() < TOLERANCE
+                    && (step.to.distance(centre) - radius).abs() < TOLERANCE
+            })
+            .collect();
+
+        assert!(
+            curve.len() > 1,
+            "the curve came out in {} step(s), which is no curve",
+            curve.len(),
+        );
+        assert!(
+            curve
+                .iter()
+                .any(|step| step.from.distance(start) < TOLERANCE),
+            "the curve does not set off from the end already picked",
+        );
+        assert!(
+            curve
+                .iter()
+                .any(|step| step.to.distance(DVec2::new(0.0, radius)) < TOLERANCE),
+            "the curve does not reach round to where the cursor points",
+        );
+    }
+
+    #[test]
+    fn an_arc_given_only_its_centre_shows_the_reach_it_is_about_to_be_drawn_at() {
+        let (centre, cursor) = (DVec2::ZERO, DVec2::new(60.0, 0.0));
+
+        let painted = a_preview(ArcMode::ByCenter, vec![centre], cursor);
+        let reach = along(&painted, centre, cursor);
+
+        assert_eq!(
+            reach.len(),
+            1,
+            "the reach is not one plain step: a curve is not settled enough to be dashed",
+        );
+        assert!(
+            reach[0].from.distance(centre) < TOLERANCE && reach[0].to.distance(cursor) < TOLERANCE,
+            "the reach runs from {:?} to {:?} instead of the centre to the cursor",
+            reach[0].from,
+            reach[0].to,
+        );
+    }
+}

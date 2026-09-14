@@ -103,6 +103,9 @@ What it does: [`extrusion.md`](extrusion.md).
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 | What a part asks of a filesystem | `part/src/ports/files.rs` | `Files`, `FileError` |
+| What browsing a folder of parts asks of it | `part/src/ports/folders.rs` | `Folders`, `Entry` |
+| The tree of folders and parts under a root | `part/src/library/mod.rs` | `read`, `Folder`, `Part` |
+| Making a folder, renaming, throwing away | `part/src/library/tidying.rs` | `create_folder`, `rename_folder`, `rename_part`, `discard` |
 | A filesystem for tests | `part/src/adapters/in_memory_files.rs` | `InMemoryFiles`, behind `test-support` |
 | The real filesystem, atomic writes | `app/src/adapters/files.rs` | `DiskFiles` |
 
@@ -165,6 +168,9 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
+| Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
+| Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
+| Starting a second window on another part | `app/src/adapters/window.rs` | `open_another` |
 | Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |

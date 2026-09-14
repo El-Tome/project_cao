@@ -165,6 +165,9 @@ pub struct Theme {
     /// The marks of the rules, written beside what they hold.
     #[serde(default = "Theme::default_rule")]
     pub rule: Rgba,
+    /// What a rule half laid down has already been shown.
+    #[serde(default = "Theme::default_picked")]
+    pub picked: Rgba,
 
     /// Tint of a closed area of a sketch. Deeper areas get more of it.
     pub region_fill: Rgba,
@@ -186,6 +189,12 @@ impl Theme {
     /// compete with the drawing.
     fn default_rule() -> Rgba {
         Rgba::new(0.55, 0.75, 0.95, 1.0)
+    }
+
+    /// A hue nothing else in the drawing uses, because this one has to be told
+    /// apart from the blue the cursor already paints under itself.
+    fn default_picked() -> Rgba {
+        Rgba::new(0.85, 0.40, 0.95, 1.0)
     }
 }
 
@@ -223,6 +232,7 @@ impl Default for Theme {
             solid: Rgba::opaque(0.78, 0.80, 0.84),
             fixed: Theme::default_fixed(),
             rule: Theme::default_rule(),
+            picked: Theme::default_picked(),
             highlight: Rgba::new(0.30, 0.60, 0.95, 0.40),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),

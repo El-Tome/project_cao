@@ -290,6 +290,20 @@ impl PartState {
                     values: trimmed.values_dropped,
                 })
             }
+            Operation::Split {
+                sketch,
+                segments,
+                at,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let split = sketch.split(segments, *at)?;
+                sketch.resolve(scale);
+                Some(Outcome::Cut {
+                    rules: split.rules_dropped,
+                    values: split.values_dropped,
+                })
+            }
             Operation::Revolve {
                 sketch,
                 picks,

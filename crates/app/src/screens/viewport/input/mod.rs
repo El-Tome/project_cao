@@ -8,11 +8,11 @@
 use cao_part::history::{Operation, PointRef};
 use cao_sketch::{
     Aim, ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
-    WorkPlane, rule_intent,
+    rule_intent,
 };
-use glam::{DVec2, DVec3};
+use glam::DVec2;
 
-use crate::screens::sketch::{DimensionMode, PlaneChoice, Tool};
+use crate::screens::sketch::{DimensionMode, Tool};
 use crate::wording::constraints;
 use crate::wording::{dimension, outcome};
 
@@ -30,8 +30,14 @@ use constrain::nearest_rule_pick;
 mod rectangle;
 use rectangle::dimension_the_rectangle;
 
+mod planes;
+use planes::plane_under;
+
 mod symmetric_line;
 pub(crate) use symmetric_line::draw_symmetric_line_point;
+
+mod split;
+use split::split;
 
 mod trim;
 use trim::trim;
@@ -253,43 +259,10 @@ pub(crate) fn handle_sketch_input(
         Tool::Arc => draw_arc(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Trim => trim(context, index, cursor, snap),
+        Tool::Split => split(context, index, cursor, snap),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }
-}
-
-/// What is offered to sketch on under the cursor: a face of the part where
-/// there is one, otherwise the nearest of the three planes of the origin.
-///
-/// The part comes first rather than whatever is nearest the camera. The three
-/// planes are unbounded sheets running right through the part, so nearest-wins
-/// would leave them covering the very faces one usually wants — while they
-/// stay reachable everywhere the part is not.
-fn plane_under(
-    state: &ViewportState,
-    context: &SketchContext<'_>,
-    origin: DVec3,
-    direction: DVec3,
-) -> Option<PlaneChoice> {
-    if let Some(hit) = context.document.body().ray_hit(origin, direction) {
-        // The sketch's own origin lands where the world origin projects onto
-        // the face, so that a drawing on a face is still measured from
-        // somewhere the user can point at.
-        let normal = hit.polygon.normal();
-        let plane = WorkPlane::from_normal(normal * hit.polygon.plane_offset(), normal);
-        return Some(PlaneChoice::Face(plane));
-    }
-
-    let half_size = plane_half_size(state);
-    WorkPlane::ORIGIN_PLANES
-        .iter()
-        .enumerate()
-        .filter_map(|(index, plane)| {
-            let local = plane_hit(plane, origin, direction, half_size)?;
-            Some(((plane.to_world(local) - origin).length(), index))
-        })
-        .min_by(|a, b| a.0.total_cmp(&b.0))
-        .map(|(_, index)| PlaneChoice::Origin(index))
 }
 
 /// What the cursor is over. The order and the reaches are the drawing's own
@@ -1244,10 +1217,3 @@ fn dimension_the_line(
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.
 pub const DEFAULT_SKETCH_RADIUS: f64 = 100.0;
-
-/// Where a ray crosses a plane patch, in plane coordinates, if it lands inside
-/// the square actually drawn.
-fn plane_hit(plane: &WorkPlane, origin: DVec3, direction: DVec3, half_size: f64) -> Option<DVec2> {
-    let hit = plane.ray_intersection(origin, direction)?;
-    (hit.x.abs() <= half_size && hit.y.abs() <= half_size).then_some(hit)
-}

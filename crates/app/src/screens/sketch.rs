@@ -78,6 +78,8 @@ pub enum Tool {
     Dimension,
     /// Takes the stretch of a trait a click falls in out of it.
     Trim,
+    /// Drops a point where traits cross and cuts each of them there.
+    Split,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }

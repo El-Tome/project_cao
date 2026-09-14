@@ -33,6 +33,9 @@ use rectangle::dimension_the_rectangle;
 mod symmetric_line;
 pub(crate) use symmetric_line::draw_symmetric_line_point;
 
+mod trim;
+use trim::trim;
+
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
     state: &mut ViewportState,
@@ -102,7 +105,7 @@ pub(crate) fn handle_sketch_input(
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
     // Previewing a click's target only where a click takes hold of existing
     // geometry — a drawing tool placing a fresh point keeps its plain cursor.
-    context.editor.hovered = (context.editor.tool == Tool::Select)
+    context.editor.hovered = matches!(context.editor.tool, Tool::Select | Tool::Trim)
         .then(|| pick(context, index, cursor, snap, scale.units_per_pixel))
         .flatten();
 
@@ -249,6 +252,7 @@ pub(crate) fn handle_sketch_input(
         Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Arc => draw_arc(context, index, cursor, snap),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Trim => trim(context, index, cursor, snap),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }

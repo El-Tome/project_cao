@@ -152,6 +152,7 @@
   "command.label.tool_arc": "Arc",
   "command.label.tool_point": "Point",
   "command.label.tool_dimension": "Cote",
+  "command.label.tool_trim": "Ajuster",
   "command.label.toggle_construction": "Construction",
   "command.label.circle_center": "Centre et diamètre",
   "command.label.circle_two_points": "Deux points du bord",
@@ -199,6 +200,7 @@
   "command.hint.tool_arc": "Trois clics : centre, départ, puis arrivée",
   "command.hint.tool_point": "Un clic pose un point",
   "command.hint.tool_dimension": "Cote intelligente : cliquer ce qu'on veut mesurer",
+  "command.hint.tool_trim": "Cliquer un trait entre deux de ses points : la portion disparaît",
   "command.hint.toggle_construction": "Ce qui va être dessiné aide à construire, sans compter dans l'aire",
   "command.hint.circle_center": "Le centre, puis un point du bord",
   "command.hint.circle_two_points": "Deux points opposés du bord",
@@ -459,6 +461,7 @@
 
   "sketch.choose_a_plane": "Choisissez un plan d'esquisse",
   "sketch.click_a_trait": "Cliquez un trait",
+  "sketch.click_a_stretch": "Cliquez un trait entre deux de ses points",
   "sketch.no_circle_from_these": "Ces éléments ne donnent pas de cercle",
   "sketch.no_arc_from_these": "Ces points ne donnent pas d'arc",
   "sketch.nothing_to_constrain": "Rien à contraindre ici",

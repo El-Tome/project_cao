@@ -26,6 +26,10 @@ pub fn say(lang: &Catalogue, error: &PartFileError) -> String {
         PartFileError::Archive(_) => lang.t("part_file.archive_unreadable"),
         PartFileError::Json(_) => lang.t("part_file.json_unreadable"),
         PartFileError::BlankName => lang.t("part_file.blank_name"),
+        PartFileError::NameTaken(path) => lang.t_with(
+            "part_file.name_taken",
+            &[("name", &crate::wording::file::name_of(path))],
+        ),
     }
 }
 
@@ -55,6 +59,20 @@ mod tests {
         assert!(
             said.contains("nom"),
             "the reader is told a name is wanted: {said}"
+        );
+    }
+
+    #[test]
+    fn a_name_already_taken_names_it_rather_than_the_whole_road_to_it() {
+        let said = say(
+            &Catalogue::french(),
+            &PartFileError::NameTaken("/CAO/drafts/Bride.caopart".into()),
+        );
+
+        assert!(said.contains("Bride"), "{said}");
+        assert!(
+            !said.contains("/CAO/drafts"),
+            "the reader is shown a path where a name was enough: {said}",
         );
     }
 

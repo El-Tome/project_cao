@@ -35,6 +35,19 @@ pub(crate) fn free_in(
     Ok((name, path))
 }
 
+/// Where a part called `wanted` would go in `dir`, or nothing when the name
+/// is one no file can carry.
+pub(crate) fn asked_for(dir: &Path, wanted: &str) -> Option<PathBuf> {
+    (!sanitize(wanted).is_empty()).then(|| path_in(dir, wanted))
+}
+
+/// Where a folder called `wanted` would go under `dir`, or nothing when the
+/// name is one no folder can carry.
+pub(crate) fn folder_asked_for(dir: &Path, wanted: &str) -> Option<PathBuf> {
+    let cleaned = sanitize(wanted);
+    (!cleaned.is_empty()).then(|| dir.join(cleaned))
+}
+
 fn path_in(dir: &Path, name: &str) -> PathBuf {
     dir.join(format!("{}.{PART_EXTENSION}", sanitize(name)))
 }

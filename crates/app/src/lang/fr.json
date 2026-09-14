@@ -139,6 +139,7 @@
   "part_file.archive_unreadable": "L'archive de cette pièce n'a pas pu être traitée.",
   "part_file.json_unreadable": "Le contenu de cette pièce n'a pas pu être traité.",
   "part_file.blank_name": "Une pièce a besoin d'un nom.",
+  "part_file.name_taken": "« {name} » est déjà pris à cet endroit.",
 
   "command.label.new_sketch": "Nouvelle esquisse",
   "command.label.finish_sketch": "Terminer",

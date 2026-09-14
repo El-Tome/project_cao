@@ -17,4 +17,6 @@ pub enum PartFileError {
     UnsupportedVersion(u32),
     #[error("a part file cannot be named with blanks alone")]
     BlankName,
+    #[error("{0} is already taken")]
+    NameTaken(std::path::PathBuf),
 }

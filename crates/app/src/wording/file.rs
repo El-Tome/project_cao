@@ -19,3 +19,11 @@ pub fn refused(lang: &Catalogue, path: &Path) -> String {
 pub fn interrupted(lang: &Catalogue, path: &Path) -> String {
     lang.t_with("file.interrupted", &[("path", &path.display().to_string())])
 }
+
+/// What a path is called, without the road that leads to it: a message about
+/// a name the user has just typed has no use for the folders above it.
+pub fn name_of(path: &Path) -> String {
+    path.file_stem()
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_else(|| path.display().to_string())
+}

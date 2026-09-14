@@ -5,7 +5,7 @@ use glam::DVec2;
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
-use crate::trimming::carrying::{about_direction, gone, still_measured, targets};
+use crate::trimming::carrying::{Piece, gone, place_of, still_holds, still_measured, targets};
 
 /// Below this, the two ends of a piece are the same place and the piece is no
 /// trait at all. Far under anything a drawing tells apart: a gap this small
@@ -136,6 +136,30 @@ impl Sketch {
             })
             .collect();
 
+        // What a tangency and a distance to the line are fastened to is a
+        // place on that line, and the piece that place falls on is the one
+        // they follow.
+        let fastened: Vec<(Constraint, f64)> = rules
+            .iter()
+            .filter_map(|rule| match rule {
+                Constraint::Tangent {
+                    segment: on,
+                    at: Some(point),
+                    ..
+                } if *on == segment => Some((*rule, along(self.points().get(point.0).copied()?))),
+                _ => None,
+            })
+            .collect();
+        let measured_at: Vec<(DimensionTarget, f64)> = values
+            .iter()
+            .filter_map(|value| match value.target {
+                DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
+                    Some((value.target, along(self.points().get(point.0).copied()?)))
+                }
+                _ => None,
+            })
+            .collect();
+
         let corner = self.corner_of_an_angle_on(segment, &values);
 
         // A tangency carries its contact point away when it goes, since the
@@ -169,22 +193,44 @@ impl Sketch {
             }
         }
 
-        let pieces: Vec<SegmentId> = [below, above].into_iter().flatten().collect();
-        let mut reaching: Vec<(SegmentId, bool)> = Vec::new();
-        for piece in pieces.iter().copied() {
-            let reaches_the_corner = corner.is_some_and(|corner| {
-                let stops_at = self.segments()[piece.0];
+        let pieces: Vec<Piece> = [
+            below.map(|id| (id, (0.0, opens))),
+            above.map(|id| (id, (closes, 1.0))),
+        ]
+        .into_iter()
+        .flatten()
+        .map(|(id, spans)| Piece {
+            id,
+            spans,
+            reaches_the_corner: corner.is_some_and(|corner| {
+                let stops_at = self.segments()[id.0];
                 stops_at.start == corner || stops_at.end == corner
-            });
-            reaching.push((piece, reaches_the_corner));
+            }),
+        })
+        .collect();
+
+        // A tangency took its contact point with it when the trait went. The
+        // piece that inherits the tangency stands on that point.
+        for (rule, at) in &fastened {
+            if let Constraint::Tangent {
+                at: Some(point), ..
+            } = rule
+                && pieces.iter().any(|piece| piece.holds(*at))
+            {
+                Erased::unmark(&mut self.erased.points, point.0);
+            }
+        }
+
+        for piece in &pieces {
             for rule in &rules {
-                if let Some(moved) = about_direction(*rule, segment, piece) {
+                if let Some(moved) = still_holds(*rule, segment, piece, place_of(&fastened, *rule))
+                {
                     self.add_constraint(moved);
                 }
             }
             for value in &values {
-                let Some(target) = still_measured(value.target, segment, piece, reaches_the_corner)
-                else {
+                let place = place_of(&measured_at, value.target);
+                let Some(target) = still_measured(value.target, segment, piece, place) else {
                     continue;
                 };
                 self.set_dimension(target, value.value, value.driven);
@@ -196,14 +242,23 @@ impl Sketch {
 
         let rules_dropped = dropped
             .iter()
-            .filter(|rule| !self.stands_on_a_piece(**rule, segment, &pieces))
+            .filter(|rule| {
+                !self.stands_on_a_piece(**rule, segment, &pieces, place_of(&fastened, **rule))
+            })
             .count();
         let values_dropped = dropped_values
             .iter()
-            .filter(|value| !self.measured_on_a_piece(**value, segment, &reaching))
+            .filter(|value| {
+                !self.measured_on_a_piece(
+                    **value,
+                    segment,
+                    &pieces,
+                    place_of(&measured_at, **value),
+                )
+            })
             .count();
         Some(Trimmed {
-            pieces,
+            pieces: pieces.iter().map(|piece| piece.id).collect(),
             rules_dropped,
             values_dropped,
         })
@@ -211,16 +266,22 @@ impl Sketch {
 
     /// Whether a rule the cut took away came back on one of the pieces, under
     /// the piece's name.
-    fn stands_on_a_piece(&self, rule: Constraint, cut: SegmentId, pieces: &[SegmentId]) -> bool {
+    fn stands_on_a_piece(
+        &self,
+        rule: Constraint,
+        cut: SegmentId,
+        pieces: &[Piece],
+        place: Option<f64>,
+    ) -> bool {
         pieces.iter().any(|piece| {
             let moved = match rule {
                 Constraint::OnSegment { point, segment } if segment == cut => {
                     Some(Constraint::OnSegment {
                         point,
-                        segment: *piece,
+                        segment: piece.id,
                     })
                 }
-                other => about_direction(other, cut, *piece),
+                other => still_holds(other, cut, piece, place),
             };
             moved.is_some_and(|moved| self.constraints().contains(&moved.normalised()))
         })
@@ -231,10 +292,11 @@ impl Sketch {
         &self,
         value: DimensionTarget,
         cut: SegmentId,
-        reaching: &[(SegmentId, bool)],
+        pieces: &[Piece],
+        place: Option<f64>,
     ) -> bool {
-        reaching.iter().any(|(piece, reaches_the_corner)| {
-            still_measured(value, cut, *piece, *reaches_the_corner)
+        pieces.iter().any(|piece| {
+            still_measured(value, cut, piece, place)
                 .is_some_and(|moved| self.dimension_of(moved).is_some())
         })
     }

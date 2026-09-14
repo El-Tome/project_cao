@@ -60,24 +60,21 @@ pub(crate) fn push_preview(
                 push_point_marker(out, sketch, place, marker, preview, 1.5);
             }
         }
-        // A by-centre arc given only its centre is not a curve yet, so what
-        // follows the cursor is the reach it is about to be drawn at:
-        // clicking into an empty canvas should never be clicking into the
-        // dark. A by-ends arc has no centre at that stage — its first place
-        // is an end, marked but with no line to preview — and past it, `None`
-        // means the three places chosen do not bend into an arc at all, which
-        // the blocking message already says; nothing here should look like
-        // one.
-        None => match (context.editor.arc_mode, context.editor.arc_places()) {
-            (ArcMode::ByCenter, [centre]) => {
-                push_preview_line(out, sketch, *centre, cursor, preview, false, scale);
-                push_point_marker(out, sketch, *centre, marker, preview, 1.5);
+        // A single place given so far is not a curve yet, whichever mode: a
+        // centre alone has no radius, and one end alone has no distance to
+        // the other. What follows the cursor — aimed, so a typed value bends
+        // it exactly as far as the field says rather than wherever the mouse
+        // happens to sit — is the reach the next click is about to fix.
+        // Past two places, `None` means the places chosen do not bend into an
+        // arc at all, which the blocking message already says; nothing here
+        // should look like one.
+        None => {
+            if let [only] = context.editor.arc_places() {
+                let reach = arc_aimed(context, context.editor.arc_places(), cursor);
+                push_preview_line(out, sketch, *only, reach, preview, false, scale);
+                push_point_marker(out, sketch, *only, marker, preview, 1.5);
             }
-            (ArcMode::ByEnds, [first_end]) => {
-                push_point_marker(out, sketch, *first_end, marker, preview, 1.5);
-            }
-            _ => {}
-        },
+        }
     }
     if let Some((centre, towards)) =
         arc_angle_reference(context.editor.arc_mode, context.editor.arc_places())
@@ -159,6 +156,17 @@ mod tests {
     /// What one frame of the canvas paints for an arc part-way through being
     /// placed, read back as the straight steps it is made of.
     fn a_preview(mode: ArcMode, places: Vec<DVec2>, cursor: DVec2) -> Vec<Step> {
+        a_preview_locked(mode, places, cursor, None)
+    }
+
+    /// The same, with a value typed into the live field as the next click
+    /// would find it.
+    fn a_preview_locked(
+        mode: ArcMode,
+        places: Vec<DVec2>,
+        cursor: DVec2,
+        locked: Option<f64>,
+    ) -> Vec<Step> {
         let mut document = PartDocument::new("part", Utc::now());
         let mut editor = SketchEditor::default();
         let mut extrusion = ExtrusionState::default();
@@ -168,6 +176,7 @@ mod tests {
             places,
             first_typed: false,
         };
+        editor.live.first.locked = locked;
 
         let millimetres = document.scale();
         let context = SketchContext {
@@ -287,14 +296,15 @@ mod tests {
     }
 
     #[test]
-    fn an_arc_given_only_its_first_end_marks_it_but_previews_no_reach() {
+    fn an_arc_given_only_its_first_end_shows_the_reach_its_second_end_would_land_at() {
         let (first_end, cursor) = (DVec2::new(-50.0, 0.0), DVec2::new(50.0, 0.0));
 
         let painted = a_preview(ArcMode::ByEnds, vec![first_end], cursor);
+        let reach = along(&painted, first_end, cursor);
 
         assert!(
-            along(&painted, first_end, cursor).is_empty(),
-            "a by-ends arc has no centre yet to preview a reach from",
+            !reach.is_empty(),
+            "nothing shows where the second end would land before it is placed",
         );
         assert!(
             painted
@@ -302,6 +312,25 @@ mod tests {
                 .any(|step| step.from.distance(first_end) < 10.0
                     && step.to.distance(first_end) < 10.0),
             "nothing marks the first end, so the click that placed it leaves no trace",
+        );
+    }
+
+    #[test]
+    fn a_radius_typed_with_only_the_centre_placed_bends_the_reach_to_it_rather_than_the_cursor() {
+        let centre = DVec2::ZERO;
+        let cursor = DVec2::new(200.0, 0.0);
+
+        let painted = a_preview_locked(ArcMode::ByCenter, vec![centre], cursor, Some(30.0));
+
+        assert!(
+            !painted
+                .iter()
+                .any(|step| step.to.distance(cursor) < TOLERANCE),
+            "the reach still reaches all the way to the cursor, ignoring the typed radius",
+        );
+        assert!(
+            !along(&painted, centre, DVec2::new(30.0, 0.0)).is_empty(),
+            "the reach does not stop at the 30 mm the field was typed with",
         );
     }
 }

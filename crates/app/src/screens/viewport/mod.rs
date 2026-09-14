@@ -167,7 +167,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         &state.config,
         sketch.document.scale(),
     );
-    let changed = if handled_cube {
+    let mut changed = if handled_cube {
         false
     } else if sketch.extrusion.is_active() {
         // Picking areas takes the whole canvas: no drawing tool is in hand
@@ -177,6 +177,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     } else {
         handle_sketch_input(ui, state, &response, rect, scale, sketch)
     };
+
+    // Read before the scene below is built from it: a value typed this very frame has to be what
+    // the preview reflects, not what it was a frame ago. The live field's own popup asks for the
+    // egui::Order::Foreground layer regardless of when it is painted, so moving this earlier does
+    // not move it behind anything.
+    changed |= advance_on_enter(ui, sketch, scale);
 
     // The scene goes down first. Everything egui paints — the values of the dimensions, the scale
     // bar, the labels — is added to the same layer, in order, and the scene now fills the viewport
@@ -194,7 +200,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
-    changed | paint_dimension_field(ui, state, rect, sketch) | advance_on_enter(ui, sketch, scale)
+    changed | paint_dimension_field(ui, state, rect, sketch)
 }
 
 /// Escape steps back out of whatever is going on: the shape in progress, the

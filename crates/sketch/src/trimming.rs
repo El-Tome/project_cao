@@ -5,20 +5,18 @@ use glam::DVec2;
 use crate::constraints::Constraint;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
+/// Below this, the two ends of a piece are the same place and the piece is no
+/// trait at all. Far under anything a drawing tells apart: a gap this small
+/// only ever comes of a cut landing on a point already sitting at an end.
+const NO_LENGTH: f64 = 1e-9;
+
 impl Sketch {
-    /// The points sitting on a trait, in order from its start to its end.
+    /// The points sitting on a trait, each with how far along it they sit, in
+    /// order from its start to its end.
     ///
     /// Its own two ends are the first and the last of them; anything held on
     /// its body — a rule, a crossing given a point, a place that simply landed
     /// there — falls between the two.
-    pub fn points_along(&self, segment: SegmentId, tolerance: f64) -> Vec<PointId> {
-        self.sitting_along(segment, tolerance)
-            .into_iter()
-            .map(|(_, id)| id)
-            .collect()
-    }
-
-    /// The same, each point with how far along the trait it sits.
     fn sitting_along(&self, segment: SegmentId, tolerance: f64) -> Vec<(f64, PointId)> {
         let (start, end) = self.endpoints(segment);
         let span = end - start;
@@ -47,30 +45,52 @@ impl Sketch {
     /// the same point twice, nothing is taken away and the trait is merely cut
     /// in two there — which is what a fillet, a chamfer and a split each need
     /// of a trait before they can do their own work.
-    pub fn trim(&mut self, segment: SegmentId, from: PointId, to: PointId) -> Vec<SegmentId> {
-        let Some(cut) = self.segments().get(segment.0).copied() else {
-            return Vec::new();
-        };
+    ///
+    /// Nothing when the cut cannot be made: a trait or a point the drawing does
+    /// not have, a point that does not fall between the trait's own ends, or a
+    /// cut that would take nothing away and hand back the whole trait.
+    pub fn trim(
+        &mut self,
+        segment: SegmentId,
+        from: PointId,
+        to: PointId,
+    ) -> Option<Vec<SegmentId>> {
+        let cut = self.segments().get(segment.0).copied()?;
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();
         if reach == 0.0 {
             self.erase(Element::Segment(segment));
-            return Vec::new();
+            return Some(Vec::new());
         }
         let along = |place: DVec2| (place - start).dot(span) / reach;
 
-        let (low, high) = match along(self.point(from)) <= along(self.point(to)) {
+        let from_at = along(self.points().get(from.0).copied()?);
+        let to_at = along(self.points().get(to.0).copied()?);
+        if !(0.0..=1.0).contains(&from_at) || !(0.0..=1.0).contains(&to_at) {
+            return None;
+        }
+        let (low, high) = match from_at <= to_at {
             true => (from, to),
             false => (to, from),
         };
-        let (opens, closes) = (along(self.point(low)), along(self.point(high)));
+        let (opens, closes) = (from_at.min(to_at), from_at.max(to_at));
+
+        let keeps_below = self.is_a_piece(cut.start, low);
+        let keeps_above = self.is_a_piece(high, cut.end);
+        let hands_the_trait_back =
+            (keeps_below && !keeps_above && self.point(low).distance(end) <= NO_LENGTH)
+                || (keeps_above && !keeps_below && self.point(high).distance(start) <= NO_LENGTH);
+        if hands_the_trait_back {
+            return None;
+        }
+
         let held: Vec<(f64, PointId)> = self
             .constraints()
             .iter()
             .filter_map(|rule| match rule {
                 Constraint::OnSegment { point, segment: on } if *on == segment => {
-                    Some((along(self.point(*point)), *point))
+                    Some((along(self.points().get(point.0).copied()?), *point))
                 }
                 _ => None,
             })
@@ -78,8 +98,8 @@ impl Sketch {
 
         self.erase(Element::Segment(segment));
 
-        let below = (cut.start != low).then(|| self.piece(cut.start, low, cut.construction));
-        let above = (high != cut.end).then(|| self.piece(high, cut.end, cut.construction));
+        let below = keeps_below.then(|| self.piece(cut.start, low, cut.construction));
+        let above = keeps_above.then(|| self.piece(high, cut.end, cut.construction));
 
         for (fraction, point) in held {
             let piece = match fraction {
@@ -92,7 +112,12 @@ impl Sketch {
             }
         }
 
-        below.into_iter().chain(above).collect()
+        Some(below.into_iter().chain(above).collect())
+    }
+
+    /// Whether what runs between these two points is a trait at all.
+    fn is_a_piece(&self, from: PointId, to: PointId) -> bool {
+        from != to && self.point(from).distance(self.point(to)) > NO_LENGTH
     }
 
     fn piece(&mut self, from: PointId, to: PointId, construction: bool) -> SegmentId {
@@ -150,10 +175,12 @@ mod tests {
         sketch.add_point(DVec2::new(5.0, 4.0));
         sketch.add_point(DVec2::new(14.0, 1.0));
 
-        assert_eq!(
-            sketch.points_along(segment, NEAR),
-            vec![start, near, far, end],
-        );
+        let sitting: Vec<PointId> = sketch
+            .sitting_along(segment, NEAR)
+            .into_iter()
+            .map(|(_, id)| id)
+            .collect();
+        assert_eq!(sitting, vec![start, near, far, end]);
     }
 
     fn a_trait_with_two_points_on_it() -> (Sketch, SegmentId, [PointId; 4]) {
@@ -187,7 +214,9 @@ mod tests {
     fn trimming_a_stretch_leaves_the_rest_of_the_trait_standing() {
         let (mut sketch, segment, [start, near, far, end]) = a_trait_with_two_points_on_it();
 
-        let kept = sketch.trim(segment, near, far);
+        let kept = sketch
+            .trim(segment, near, far)
+            .expect("a cut that can be made");
 
         assert!(
             sketch.is_erased_segment(segment),
@@ -212,7 +241,7 @@ mod tests {
     fn trimming_a_trait_nothing_sits_on_takes_the_whole_trait() {
         let (mut sketch, segment, [start, _, _, end]) = a_trait_with_two_points_on_it();
 
-        assert!(sketch.trim(segment, start, end).is_empty());
+        assert_eq!(sketch.trim(segment, start, end), Some(Vec::new()));
         assert!(sketch.is_erased_segment(segment));
     }
 
@@ -220,7 +249,9 @@ mod tests {
     fn naming_one_point_twice_cuts_the_trait_there_and_takes_nothing() {
         let (mut sketch, segment, [start, near, _, end]) = a_trait_with_two_points_on_it();
 
-        let pieces = sketch.trim(segment, near, near);
+        let pieces = sketch
+            .trim(segment, near, near)
+            .expect("a cut that can be made");
 
         let ends: Vec<(PointId, PointId)> = pieces
             .iter()
@@ -240,7 +271,9 @@ mod tests {
         let segment = sketch.add_construction_segment(start, end);
         let middle = sketch.add_point(DVec2::new(5.0, 1.0));
 
-        let pieces = sketch.trim(segment, middle, end);
+        let pieces = sketch
+            .trim(segment, middle, end)
+            .expect("a cut that can be made");
 
         assert_eq!(pieces.len(), 1);
         assert!(sketch.segments()[pieces[0].0].construction);
@@ -260,7 +293,9 @@ mod tests {
         let from = sketch.add_point(DVec2::new(5.0, 1.0));
         let to = sketch.add_point(DVec2::new(8.0, 1.0));
 
-        let pieces = sketch.trim(segment, from, to);
+        let pieces = sketch
+            .trim(segment, from, to)
+            .expect("a cut that can be made");
 
         assert!(
             sketch.constraints().contains(&Constraint::OnSegment {
@@ -271,5 +306,54 @@ mod tests {
             pieces[0],
             sketch.constraints(),
         );
+    }
+
+    #[test]
+    fn a_trait_is_never_cut_at_a_point_the_drawing_does_not_have() {
+        let (mut sketch, segment, [_, _, _, end]) = a_trait_with_two_points_on_it();
+
+        assert_eq!(sketch.trim(segment, PointId(99), end), None);
+        assert!(
+            !sketch.is_erased_segment(segment),
+            "a cut that cannot be made leaves the trait alone",
+        );
+    }
+
+    #[test]
+    fn a_point_past_the_end_never_makes_the_trait_longer() {
+        let (mut sketch, segment, [_, _, _, end]) = a_trait_with_two_points_on_it();
+        let beyond = sketch.add_point(DVec2::new(-20.0, 1.0));
+
+        assert_eq!(sketch.trim(segment, beyond, end), None);
+        assert!(!sketch.is_erased_segment(segment));
+    }
+
+    #[test]
+    fn a_piece_of_no_length_is_never_left_behind() {
+        let (mut sketch, segment, [start, near, _, end]) = a_trait_with_two_points_on_it();
+        let twin = sketch.add_point(sketch.point(start));
+
+        let pieces = sketch
+            .trim(segment, twin, near)
+            .expect("a cut that can be made");
+
+        let ends: Vec<(PointId, PointId)> = pieces
+            .iter()
+            .map(|piece| {
+                let piece = sketch.segments()[piece.0];
+                (piece.start, piece.end)
+            })
+            .collect();
+        assert_eq!(ends, vec![(near, end)]);
+    }
+
+    #[test]
+    fn cutting_a_trait_at_one_of_its_own_ends_hands_nothing_back() {
+        let (mut sketch, segment, [start, _, _, end]) = a_trait_with_two_points_on_it();
+
+        for at in [start, end] {
+            assert_eq!(sketch.trim(segment, at, at), None, "cut at {at:?}");
+        }
+        assert!(!sketch.is_erased_segment(segment));
     }
 }

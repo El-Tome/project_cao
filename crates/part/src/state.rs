@@ -268,8 +268,9 @@ impl PartState {
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.trim(*segment, *from, *to);
-                sketch.resolve(scale);
+                if sketch.trim(*segment, *from, *to).is_some() {
+                    sketch.resolve(scale);
+                }
                 None
             }
             Operation::Revolve {

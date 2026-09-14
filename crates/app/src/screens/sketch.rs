@@ -1,4 +1,4 @@
-use cao_sketch::{DimensionTarget, PointId, Rule, Selection, ToolState, WorkPlane};
+use cao_sketch::{DimensionTarget, PointId, Rule, RulePick, Selection, ToolState, WorkPlane};
 use glam::DVec2;
 
 mod typed_dimension;
@@ -289,6 +289,11 @@ impl SketchEditor {
             ToolState::Line { anchor, .. } => Some(*anchor),
             _ => None,
         }
+    }
+
+    /// What the rule being laid down has already been pointed at.
+    pub fn rule_picks(&self) -> &[RulePick] {
+        self.tool_state.rule_picks()
     }
 
     /// The places the arc being drawn has been given so far.

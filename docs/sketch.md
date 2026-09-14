@@ -311,6 +311,15 @@ The order of the clicks is free: a point and a trait make the same coincidence
 either way round. What counts is **what** was clicked, so the rule is built
 from the types gathered and not from their order.
 
+Between the first click and the last, **what the rule has already been shown is
+drawn in a colour of its own**, set in the appearance settings like the rest.
+It is not the colour the cursor paints under itself: an element already taken
+would otherwise read as one the next click is about to take, which is the one
+thing that cannot be told apart by trying. An axis of the frame shown to a
+**Collinear** is drawn out past the whole drawing, so that it reads as an axis
+rather than as one more trait. All of it goes when the rule lands, when the
+tool is left, or when `Échap` empties what was picked.
+
 **One exception: equality.** The first trait clicked is the one whose length
 suits; the second comes to take it. A rule that moved both would leave neither
 at the size asked for. A corner the two share does not move either, otherwise

@@ -77,6 +77,15 @@ impl ToolState {
             _ => true,
         }
     }
+
+    /// What the rule being laid down has already been pointed at, and nothing
+    /// at all when the tool in hand is laying no rule down.
+    pub fn rule_picks(&self) -> &[RulePick] {
+        match self {
+            Self::Constrain { picks } => picks,
+            _ => &[],
+        }
+    }
 }
 
 #[cfg(test)]
@@ -130,5 +139,19 @@ mod tests {
 
         assert!(half_circle.is_busy());
         assert!(half_rule.is_busy());
+    }
+
+    #[test]
+    fn a_rule_half_laid_down_hands_back_what_it_has_been_pointed_at() {
+        let trait_picked = RulePick::Element(Element::Segment(SegmentId(2)));
+        let half_rule = ToolState::Constrain {
+            picks: vec![trait_picked],
+        };
+
+        assert_eq!(half_rule.rule_picks(), [trait_picked]);
+        assert!(
+            ToolState::None.rule_picks().is_empty(),
+            "a tool laying no rule down has been shown nothing to draw differently"
+        );
     }
 }

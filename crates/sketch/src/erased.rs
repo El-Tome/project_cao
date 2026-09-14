@@ -24,4 +24,10 @@ impl Erased {
         }
         list[rank] = true;
     }
+
+    pub(crate) fn unmark(list: &mut [bool], rank: usize) {
+        if let Some(gone) = list.get_mut(rank) {
+            *gone = false;
+        }
+    }
 }

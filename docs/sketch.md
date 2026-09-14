@@ -387,12 +387,18 @@ The cursor is pulled, in this order:
 | What pulls | Why it comes first |
 | --- | --- |
 | **An existing point** | It is what one aims at most often, and missing by a hair leaves geometry that only looks joined from afar |
+| **A crossing** | Where two curves run through the same place without the drawing naming it, that place is what one was aiming at |
 | **The middle of a trait** | One aims at it on purpose, and nothing on screen says one is exactly halfway: a **little triangle** announces it |
-| **The body of a trait** | Drawing on a trait already there is far more common than drawing beside it |
+| **The body of a curve** | Drawing on a trait, a circle or an arc already there is far more common than drawing beside it |
 | **The grid** | The safety net, with the shortest reach |
 
-A trait already drawn therefore pulls **harder than the grid**: its reach is
+A curve already drawn therefore pulls **harder than the grid**: its reach is
 configurable separately ([configuration.md](configuration.md)).
+
+An arc pulls only across its own sweep. Past either end it gives that end, and
+never the far side of the circle it is a piece of — that part is not drawn. The
+centre of a circle or of an arc needs no magnet of its own: it is a point of the
+drawing, and the first line of the table already holds it.
 
 The reach of a **click** (what is grabbed, what is dimensioned) is 18 physical
 pixels, that is 9 points on a high-density screen. At ten, a point had to be
@@ -870,6 +876,9 @@ allows going straight back to any step. See [history.md](history.md).
 ## What is still missing
 
 - No snapping to the alignments (horizontal, vertical) of an existing point:
-  the magnets hold only to points, midpoints, the body of a trait and the grid.
+  the magnets hold only to points, crossings, the middle of a trait, the body of
+  a curve and the grid.
+- No snapping to the quadrants of a circle (0°, 90°, …), and no tangent snapping
+  while drawing.
 - The solver does not say *which* dimensions contradict each other when it does
   not get there.

@@ -130,6 +130,20 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("constraints", &constraints.len().to_string()),
             ],
         ),
+        Operation::Trim {
+            sketch,
+            segment,
+            from,
+            to,
+        } => lang.t_with(
+            "history.detail.trimmed",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("segment", &segment.0.to_string()),
+                ("from", &from.0.to_string()),
+                ("to", &to.0.to_string()),
+            ],
+        ),
         Operation::MergePoints {
             sketch,
             kept,

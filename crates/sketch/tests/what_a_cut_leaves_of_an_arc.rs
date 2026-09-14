@@ -81,26 +81,66 @@ fn a_click_on_an_arc_takes_out_the_stretch_it_fell_in_and_no_other() {
 }
 
 #[test]
-fn a_reach_typed_on_an_arc_is_read_again_on_both_pieces_and_a_sweep_on_neither() {
+fn the_two_pieces_a_cut_leaves_are_held_the_same_reach_as_each_other() {
     let (mut sketch, arc, [first, second]) = a_half_turn();
-    sketch.set_dimension(DimensionTarget::ArcRadius(arc), 10.0, false);
+
+    let trimmed = sketch
+        .trim_arc(arc, first, second)
+        .expect("a cut that can be made");
+
+    let [below, above] = [trimmed.pieces[0], trimmed.pieces[1]];
+    assert!(
+        sketch.constraints().contains(
+            &Constraint::EqualRadiusArc {
+                first: below,
+                second: above,
+            }
+            .normalised()
+        ),
+        "the two pieces came off one circle and no longer say so",
+    );
+}
+
+#[test]
+fn a_reach_typed_on_an_arc_is_read_once_after_a_cut_and_moves_both_pieces() {
+    let (mut sketch, arc, [first, second]) = a_half_turn();
+    sketch.set_dimension(DimensionTarget::ArcRadius(arc), REACH, false);
     sketch.set_dimension(DimensionTarget::ArcSweep(arc), 180.0, false);
 
     let trimmed = sketch
         .trim_arc(arc, first, second)
         .expect("a cut that can be made");
 
-    for piece in &trimmed.pieces {
-        assert!(
+    let measured: Vec<ArcId> = trimmed
+        .pieces
+        .iter()
+        .copied()
+        .filter(|piece| {
             sketch
                 .dimension_of(DimensionTarget::ArcRadius(*piece))
-                .is_some(),
-            "a cut takes nothing off the reach",
+                .is_some()
+        })
+        .collect();
+    assert_eq!(
+        measured.len(),
+        1,
+        "one curve was cut, and the drawing reads its reach {} time(s)",
+        measured.len(),
+    );
+
+    sketch.set_dimension(DimensionTarget::ArcRadius(measured[0]), 20.0, false);
+    sketch.resolve(1.0);
+
+    for piece in &trimmed.pieces {
+        let reach = sketch.arc_radius(*piece);
+        assert!(
+            (reach - 20.0).abs() < 1e-2,
+            "a piece stayed at {reach} while the typed reach went to 20",
         );
     }
     assert_eq!(
         trimmed.values_dropped, 1,
-        "the sweep went, the reach followed both pieces",
+        "the sweep went, the reach followed the cut",
     );
 }
 
@@ -229,4 +269,30 @@ fn cutting_a_guide_arc_leaves_guides() {
     for piece in trimmed.pieces {
         assert!(sketch.arc(piece).construction, "a guide became a drawn arc");
     }
+}
+
+#[test]
+fn a_click_just_short_of_where_an_arc_starts_asks_for_the_stretch_that_starts_there() {
+    let (sketch, arc, [first, _]) = a_half_turn();
+
+    let clicked = sketch
+        .arc_stretch_at(arc, DVec2::from_angle((-2f64).to_radians()) * REACH)
+        .expect("a stretch under the click");
+
+    assert_eq!(
+        clicked,
+        (sketch.arc(arc).start, first),
+        "the click fell off the near end, not the far one",
+    );
+}
+
+#[test]
+fn a_click_just_past_where_an_arc_ends_asks_for_the_stretch_that_ends_there() {
+    let (sketch, arc, [_, second]) = a_half_turn();
+
+    let clicked = sketch
+        .arc_stretch_at(arc, DVec2::from_angle(182f64.to_radians()) * REACH)
+        .expect("a stretch under the click");
+
+    assert_eq!(clicked, (second, sketch.arc(arc).end));
 }

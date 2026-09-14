@@ -33,9 +33,11 @@ pub(crate) fn trim(
 
 /// Which cut the click is asking for.
 ///
-/// The straight trait first, since a trait running into a curve puts the two
-/// within reach of one another and a click meant for the corner would otherwise
-/// pick whichever came out of the drawing first.
+/// The straight trait first, then the curve — the order `Sketch::pick` and the
+/// constraint tool already read a click in. Where a trait runs into a curve
+/// both are within reach of the same click, and a tool that answered with
+/// whichever came out of the drawing first would cut a different element
+/// depending on the order they were drawn in.
 fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<Operation> {
     if let Some(segment) = sketch.nearest_segment(cursor, snap)
         && let Some((from, to)) = sketch.stretch_at(segment, cursor)
@@ -55,4 +57,48 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
         from,
         to,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use cao_sketch::WorkPlane;
+
+    /// A trait laid across the top of a curve that grazes it, so that one click
+    /// is within reach of both.
+    fn a_trait_touching_a_curve() -> Sketch {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let left = sketch.add_point(DVec2::ZERO);
+        let right = sketch.add_point(DVec2::new(10.0, 0.0));
+        sketch.add_segment(left, right);
+        let centre = sketch.add_point(DVec2::new(5.0, -5.0));
+        let east = sketch.add_point(DVec2::new(10.0, -5.0));
+        let west = sketch.add_point(DVec2::new(0.0, -5.0));
+        sketch.add_arc(centre, east, west);
+        sketch
+    }
+
+    #[test]
+    fn a_click_within_reach_of_both_a_trait_and_a_curve_cuts_the_trait() {
+        let sketch = a_trait_touching_a_curve();
+
+        let cut = cut_under(&sketch, 0, DVec2::new(5.0, 0.0), 0.5);
+
+        assert!(
+            matches!(cut, Some(Operation::Trim { .. })),
+            "the click cut {cut:?}",
+        );
+    }
+
+    #[test]
+    fn a_click_the_trait_is_out_of_reach_of_cuts_the_curve() {
+        let sketch = a_trait_touching_a_curve();
+
+        let cut = cut_under(&sketch, 0, DVec2::new(1.47, -1.47), 0.5);
+
+        assert!(
+            matches!(cut, Some(Operation::TrimArc { .. })),
+            "the click cut {cut:?}",
+        );
+    }
 }

@@ -49,8 +49,9 @@ in one of the two domains, never there.
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
-| What a cut carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
+| What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
+| What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -257,7 +258,12 @@ These places carry no test of their own:
   their tests; only `render.rs` itself is named below.
   - `crates/app/src/screens/viewport/mod.rs`;
   - `crates/app/src/screens/viewport/render.rs`;
-  - `crates/app/src/screens/viewport/input/`;
+  - `crates/app/src/screens/viewport/input/mod.rs`;
+  - `crates/app/src/screens/viewport/input/arcs.rs`;
+  - `crates/app/src/screens/viewport/input/circles.rs`;
+  - `crates/app/src/screens/viewport/input/constrain.rs`;
+  - `crates/app/src/screens/viewport/input/rectangle.rs`;
+  - `crates/app/src/screens/viewport/input/symmetric_line.rs`;
   - `crates/app/src/screens/settings/`;
   - `crates/app/src/screens/sketch.rs`;
   - `crates/app/src/screens/extrusion_row.rs`;

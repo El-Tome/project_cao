@@ -4,10 +4,11 @@ use std::f64::consts::TAU;
 
 use glam::DVec2;
 
+use super::arc_carrying::{Carried, Piece, still_holds, still_measured};
 use super::carrying::{gone, targets};
 use super::{NO_LENGTH, ON_THE_TRAIT};
 use crate::arc::ArcId;
-use crate::constraints::{Constraint, Dimension, DimensionTarget};
+use crate::constraints::Constraint;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
 /// Below this an arc runs nowhere at all: its two ends are the same direction
@@ -28,37 +29,6 @@ pub struct ArcTrimmed {
     pub rules_dropped: usize,
     /// Values that measured the arc and measure neither piece.
     pub values_dropped: usize,
-}
-
-/// One of the arcs a cut left, and the stretch of the old sweep it covers.
-struct Piece {
-    id: ArcId,
-    spans: (f64, f64),
-}
-
-impl Piece {
-    fn holds(&self, place: f64) -> bool {
-        (self.spans.0..=self.spans.1).contains(&place)
-    }
-}
-
-/// What an arc carried before it was cut: everything standing that spoke of
-/// it, and where round it the ones fastened to a place sat.
-struct Carried {
-    rules: Vec<Constraint>,
-    values: Vec<Dimension>,
-    /// A tangency is held at the point where the line touches, which is a place
-    /// on the curve and follows the piece that place fell on.
-    fastened: Vec<(Constraint, f64)>,
-}
-
-impl Carried {
-    fn place_of(&self, rule: Constraint) -> Option<f64> {
-        self.fastened
-            .iter()
-            .find(|(held, _)| *held == rule)
-            .map(|(_, place)| *place)
-    }
 }
 
 impl Sketch {
@@ -129,13 +99,30 @@ impl Sketch {
     /// Nothing when the curve runs nowhere, which is the one case where there
     /// is nothing to run between.
     pub fn arc_stretch_at(&self, id: ArcId, at: DVec2) -> Option<(PointId, PointId)> {
-        // Clamped, so that a click read as just past an end still asks for the
-        // stretch that ends there rather than for nothing at all.
-        let round = self.round_the_arc(id, at)?.min(1.0);
+        let round = self.brought_onto(id, self.round_the_arc(id, at)?);
         self.sitting_round(id)
             .windows(2)
             .find(|stretch| round <= stretch[1].0)
             .map(|stretch| (stretch[0].1, stretch[1].1))
+    }
+
+    /// A place read off the whole circle, brought back onto the arc.
+    ///
+    /// A click read as just past an end asks for the stretch that ends there
+    /// rather than for nothing at all. Which end it went past is the whole
+    /// question, and a line never has to ask it: the rest of the circle counts
+    /// on from the arc's end round to its start, so the halfway mark of that
+    /// gap is what says whether the click fell off the far end or short of the
+    /// near one.
+    fn brought_onto(&self, id: ArcId, round: f64) -> f64 {
+        if round <= 1.0 {
+            return round;
+        }
+        let whole = TAU / self.arc_sweep(id);
+        match round < (1.0 + whole) * 0.5 {
+            true => 1.0,
+            false => 0.0,
+        }
     }
 
     /// Takes the stretch between `from` and `to` out of an arc, and leaves what
@@ -190,9 +177,20 @@ impl Sketch {
         ]
         .into_iter()
         .flatten()
-        .map(|(id, spans)| Piece { id, spans })
+        .enumerate()
+        .map(|(rank, (id, spans))| Piece {
+            id,
+            spans,
+            carries_the_reach: rank == 0,
+        })
         .collect();
 
+        if let (Some(below), Some(above)) = (below, above) {
+            self.add_constraint(Constraint::EqualRadiusArc {
+                first: below,
+                second: above,
+            });
+        }
         self.hand_round(id, &pieces, &carried);
 
         let rules_dropped = dropped
@@ -280,52 +278,5 @@ impl Sketch {
             true => self.add_construction_arc(centre, from, to),
             false => self.add_arc(centre, from, to),
         }
-    }
-}
-
-/// The same rule, said of a piece of the arc it named.
-///
-/// What a rule says about the *reach* survives whole: a cut takes nothing off
-/// the radius, so each piece stands to the rest of the drawing exactly as the
-/// arc did. A tangency is fastened to the point where the line touches, and
-/// follows the piece that point fell on.
-fn still_holds(
-    rule: Constraint,
-    cut: ArcId,
-    piece: &Piece,
-    place: Option<f64>,
-) -> Option<Constraint> {
-    let moved = |id: ArcId| match id == cut {
-        true => piece.id,
-        false => id,
-    };
-    match rule {
-        Constraint::EqualRadiusArc { first, second } if first == cut || second == cut => {
-            Some(Constraint::EqualRadiusArc {
-                first: moved(first),
-                second: moved(second),
-            })
-        }
-        Constraint::ArcTangent { arc, segment, at }
-            if arc == cut && place.is_some_and(|place| piece.holds(place)) =>
-        {
-            Some(Constraint::ArcTangent {
-                arc: piece.id,
-                segment,
-                at,
-            })
-        }
-        _ => None,
-    }
-}
-
-/// What a value read on the arc still reads, once the arc is a piece of itself.
-///
-/// A radius is the same reach on either piece. A sweep says how far round the
-/// whole curve went, which is further than either piece goes.
-fn still_measured(value: DimensionTarget, cut: ArcId, piece: &Piece) -> Option<DimensionTarget> {
-    match value {
-        DimensionTarget::ArcRadius(arc) if arc == cut => Some(DimensionTarget::ArcRadius(piece.id)),
-        _ => None,
     }
 }

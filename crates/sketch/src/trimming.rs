@@ -376,6 +376,7 @@ impl Sketch {
 }
 
 pub(crate) mod arc;
+mod arc_carrying;
 mod carrying;
 #[cfg(test)]
 mod tests;

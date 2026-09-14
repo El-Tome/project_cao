@@ -2,7 +2,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::Constraint;
+use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
@@ -118,6 +118,10 @@ impl Sketch {
             })
             .collect();
 
+        let rules = self.constraints().to_vec();
+        let values = self.dimensions().to_vec();
+        let corner = self.corner_of_an_angle_on(segment, &values);
+
         // A tangency carries its contact point away when it goes, since the
         // point would be left in mid-air. Stopping a cut on that contact is
         // the case where it would not: it is an end of a trait now, and that
@@ -147,7 +151,46 @@ impl Sketch {
             }
         }
 
+        for piece in [below, above].into_iter().flatten() {
+            let reaches_the_corner = corner.is_some_and(|corner| {
+                let stops_at = self.segments()[piece.0];
+                stops_at.start == corner || stops_at.end == corner
+            });
+            for rule in &rules {
+                if let Some(moved) = about_direction(*rule, segment, piece) {
+                    self.add_constraint(moved);
+                }
+            }
+            for value in &values {
+                let Some(target) = still_measured(value.target, segment, piece, reaches_the_corner)
+                else {
+                    continue;
+                };
+                self.set_dimension(target, value.value, value.driven);
+                if let Some(offset) = value.offset {
+                    self.offset_dimension(target, offset);
+                }
+            }
+        }
+
         Some(below.into_iter().chain(above).collect())
+    }
+
+    /// The place an angle measured against this trait is taken at: the point
+    /// the two traits share. Only the piece that still reaches it keeps the
+    /// angle, since that is where it was read.
+    fn corner_of_an_angle_on(&self, segment: SegmentId, values: &[Dimension]) -> Option<PointId> {
+        values.iter().find_map(|value| match value.target {
+            DimensionTarget::Angle { first, second } if first == segment || second == segment => {
+                let other = match first == segment {
+                    true => second,
+                    false => first,
+                };
+                self.shared_corner(segment, other)
+                    .map(|(corner, _, _)| corner)
+            }
+            _ => None,
+        })
     }
 
     /// Whether what runs between these two points is a trait at all.
@@ -187,3 +230,78 @@ impl Sketch {
 
 #[cfg(test)]
 mod tests;
+
+/// The same rule, said of a piece of the trait it named.
+///
+/// Only what a rule says about *direction* survives a cut: the pieces lie on
+/// the line the trait lay on, so they stand to everything else exactly as it
+/// did. A rule about its length speaks of a trait that is no longer there.
+fn about_direction(rule: Constraint, cut: SegmentId, piece: SegmentId) -> Option<Constraint> {
+    let moved = |id: SegmentId| match id == cut {
+        true => piece,
+        false => id,
+    };
+    match rule {
+        Constraint::Perpendicular { first, second } if first == cut || second == cut => {
+            Some(Constraint::Perpendicular {
+                first: moved(first),
+                second: moved(second),
+            })
+        }
+        Constraint::Parallel { first, second } if first == cut || second == cut => {
+            Some(Constraint::Parallel {
+                first: moved(first),
+                second: moved(second),
+            })
+        }
+        Constraint::Collinear { first, second } if first == cut || second == cut => {
+            Some(Constraint::Collinear {
+                first: moved(first),
+                second: moved(second),
+            })
+        }
+        Constraint::AxisCollinear { segment, axis } if segment == cut => {
+            Some(Constraint::AxisCollinear {
+                segment: piece,
+                axis,
+            })
+        }
+        _ => None,
+    }
+}
+
+/// What a value measured against the trait still measures, once the trait is a
+/// piece of itself.
+///
+/// An angle against an axis is read off the direction, which both pieces
+/// inherit. An angle at a corner belongs to whichever piece still reaches that
+/// corner. A length measures a trait that is shorter than what was typed, and
+/// says nothing about either piece.
+fn still_measured(
+    value: DimensionTarget,
+    cut: SegmentId,
+    piece: SegmentId,
+    reaches_the_corner: bool,
+) -> Option<DimensionTarget> {
+    let moved = |id: SegmentId| match id == cut {
+        true => piece,
+        false => id,
+    };
+    match value {
+        DimensionTarget::AxisAngle { segment, axis } if segment == cut => {
+            Some(DimensionTarget::AxisAngle {
+                segment: piece,
+                axis,
+            })
+        }
+        DimensionTarget::Angle { first, second }
+            if (first == cut || second == cut) && reaches_the_corner =>
+        {
+            Some(DimensionTarget::Angle {
+                first: moved(first),
+                second: moved(second),
+            })
+        }
+        _ => None,
+    }
+}

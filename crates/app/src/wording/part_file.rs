@@ -28,7 +28,7 @@ pub fn say(lang: &Catalogue, error: &PartFileError) -> String {
         PartFileError::BlankName => lang.t("part_file.blank_name"),
         PartFileError::NameTaken(path) => lang.t_with(
             "part_file.name_taken",
-            &[("name", &crate::wording::file::name_of(path))],
+            &[("name", &cao_part::library::name_of(path))],
         ),
     }
 }

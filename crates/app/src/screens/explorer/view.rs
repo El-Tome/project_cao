@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use cao_part::library::Folder;
+use cao_part::library::{self, Folder};
 
 use crate::lang::Catalogue;
 use crate::ui::text_edit::text_edit;
@@ -170,7 +170,7 @@ fn contents(
             touched.select = Some(part.path.clone());
         }
         if response.double_clicked() {
-            touched.open = Some(part.path.clone());
+            touched.open = explorer.asked_to_open(&part.path);
         }
     }
 
@@ -201,7 +201,7 @@ pub fn discard_confirm(ui: &mut egui::Ui, path: &Path, lang: &Catalogue) -> Opti
         ui.heading(lang.t("explorer.discard_confirm_title"));
         ui.label(lang.t_with(
             "explorer.discard_confirm_body",
-            &[("name", &wording::file::name_of(path))],
+            &[("name", &library::name_of(path))],
         ));
         ui.add_space(8.0);
         ui.horizontal(|ui| {

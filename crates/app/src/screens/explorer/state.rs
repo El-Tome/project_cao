@@ -160,7 +160,7 @@ impl Explorer {
             return;
         }
         self.naming = Some(Naming::Rename {
-            typed: crate::wording::file::name_of(&path),
+            typed: library::name_of(&path),
             path,
         });
     }
@@ -192,6 +192,12 @@ impl Explorer {
                 self.naming = Some(naming);
             }
         }
+    }
+
+    /// The part a double-click asks for, unless this window is already drawing
+    /// it: a second window on the same file would give it two autosaves.
+    pub fn asked_to_open(&self, part: &Path) -> Option<PathBuf> {
+        (!self.busy_with(part)).then(|| part.to_path_buf())
     }
 
     pub fn ask_to_discard(&mut self) {

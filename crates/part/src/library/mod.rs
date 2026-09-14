@@ -65,9 +65,10 @@ fn is_a_part(path: &Path) -> bool {
         .is_some_and(|extension| extension.eq_ignore_ascii_case(PART_EXTENSION))
 }
 
-/// What a path is called on screen: a part without its extension, a folder
-/// without the road that leads to it.
-fn name_of(path: &Path) -> String {
+/// What a path is called: a part without its extension, a folder without the
+/// road that leads to it. The one place that decides, so the panel, the field
+/// a rename starts from and a message about a name taken all agree.
+pub fn name_of(path: &Path) -> String {
     let stem = if is_a_part(path) {
         path.file_stem()
     } else {

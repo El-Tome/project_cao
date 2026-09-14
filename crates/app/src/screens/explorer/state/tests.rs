@@ -178,6 +178,23 @@ fn the_part_this_window_is_drawing_cannot_be_thrown_away_from_the_panel() {
 }
 
 #[test]
+fn the_part_this_window_is_drawing_is_not_opened_a_second_time() {
+    let files = library_of(&["/CAO/support.caopart", "/CAO/bride.caopart"]);
+    let mut explorer = panel_on(&files);
+    explorer.in_use = Some("/CAO/support.caopart".into());
+
+    assert_eq!(
+        explorer.asked_to_open(Path::new("/CAO/support.caopart")),
+        None,
+        "a second window on the same file would give it two autosaves",
+    );
+    assert_eq!(
+        explorer.asked_to_open(Path::new("/CAO/bride.caopart")),
+        Some(PathBuf::from("/CAO/bride.caopart")),
+    );
+}
+
+#[test]
 fn nothing_is_thrown_away_before_the_question_is_answered() {
     let files = library_of(&["/CAO/support.caopart"]);
     let mut explorer = panel_on(&files);

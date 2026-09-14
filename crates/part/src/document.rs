@@ -114,6 +114,13 @@ impl PartDocument {
         self.rebuild();
     }
 
+    /// Rewrites the history down to the steps that still describe the part,
+    /// dropping the redo tail with it.
+    pub fn compact_history(&mut self) {
+        self.history = crate::compaction::compact(&self.history);
+        self.rebuild();
+    }
+
     fn rebuild(&mut self) -> bool {
         self.state = PartState::rebuild(&self.history);
         true

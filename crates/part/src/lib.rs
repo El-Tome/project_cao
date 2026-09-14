@@ -4,6 +4,7 @@
 //! as-is by a future tablet or web shell.
 
 mod adapters;
+pub mod compaction;
 pub(crate) mod dimensioning;
 mod document;
 mod errors;
@@ -16,6 +17,7 @@ mod state;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;
+pub use compaction::compact;
 pub use dimensioning::DimensionOutcome;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
 pub use errors::PartFileError;

@@ -2,8 +2,8 @@ use cao_sketch::Sketch;
 use cao_solid::Mesh;
 use glam::DVec2;
 
-use crate::dimensioning::DimensionOutcome;
 use crate::history::{History, Operation, PointRef};
+use crate::outcome::Outcome;
 
 /// The geometry of a part at a given point in its history.
 ///
@@ -45,7 +45,7 @@ impl PartState {
 
     /// Runs one operation. This is the only place geometry is produced, so a
     /// replay and a live edit can never disagree.
-    pub fn apply(&mut self, operation: &Operation) -> Option<DimensionOutcome> {
+    pub fn apply(&mut self, operation: &Operation) -> Option<Outcome> {
         match operation {
             Operation::CreateSketch { plane } => {
                 self.sketches.push(Sketch::new(*plane));
@@ -209,7 +209,7 @@ impl PartState {
                 if let (Some(offset), Some(drawing)) = (placement, self.sketches.get_mut(*sketch)) {
                     drawing.offset_dimension(*target, *offset);
                 }
-                outcome
+                outcome.map(Outcome::Dimension)
             }
             Operation::Extrude {
                 sketch,
@@ -268,10 +268,12 @@ impl PartState {
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                if sketch.trim(*segment, *from, *to).is_some() {
-                    sketch.resolve(scale);
-                }
-                None
+                let trimmed = sketch.trim(*segment, *from, *to)?;
+                sketch.resolve(scale);
+                Some(Outcome::Cut {
+                    rules: trimmed.rules_dropped,
+                    values: trimmed.values_dropped,
+                })
             }
             Operation::Revolve {
                 sketch,

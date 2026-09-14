@@ -4,6 +4,7 @@ use cao_part::Operation;
 use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
+use crate::wording::outcome;
 
 /// One click of the trim tool: takes out the stretch of trait the click fell
 /// in, between the two points sitting on either side of it.
@@ -25,11 +26,14 @@ pub(crate) fn trim(
         return false;
     };
 
-    context.document.apply(Operation::Trim {
+    let applied = context.document.apply(Operation::Trim {
         sketch: index,
         segment,
         from,
         to,
     });
+    if let Some(message) = outcome::message(context.lang, applied) {
+        context.editor.message = Some(message);
+    }
     true
 }

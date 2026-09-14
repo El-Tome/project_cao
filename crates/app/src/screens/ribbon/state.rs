@@ -15,6 +15,10 @@ pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
     pub history_open: bool,
+    /// Whether the history panel is asking to confirm a compaction. Held here
+    /// rather than only in the panel's own frame, so the warning survives to
+    /// the next one instead of closing the moment the mouse moves.
+    pub history_compact_confirm: bool,
 }
 
 impl Ribbon {
@@ -22,6 +26,7 @@ impl Ribbon {
         Self {
             tab: 0,
             history_open: true,
+            history_compact_confirm: false,
         }
     }
 }
@@ -108,6 +113,7 @@ pub fn is_enabled(
     match command {
         Command::Undo => document.history.can_undo(),
         Command::Redo => document.history.can_redo(),
+        Command::CompactHistory => !document.history.is_empty(),
         Command::FinishSketch | Command::RecenterOnSketch => drawing,
         Command::ToolSelect
         | Command::ToolLine
@@ -188,6 +194,12 @@ mod tests {
 
         assert!(!is_enabled(Command::Undo, &part, &editor, &extrusion));
         assert!(!is_enabled(Command::Redo, &part, &editor, &extrusion));
+        assert!(!is_enabled(
+            Command::CompactHistory,
+            &part,
+            &editor,
+            &extrusion
+        ));
     }
 
     #[test]

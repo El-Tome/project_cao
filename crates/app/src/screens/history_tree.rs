@@ -17,26 +17,58 @@ pub enum HistoryAction {
     RewindTo(usize),
     /// Reopen this sketch for drawing.
     EditSketch(usize),
+    /// Rewrite the history down to the steps that still describe the part.
+    CompactHistory,
 }
 
 /// The panel the history is shown in, chrome and all, so that how wide it
 /// opens is settled here rather than by whoever puts it on screen.
-pub fn panel(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> HistoryAction {
+///
+/// `confirming_compact` survives from one frame to the next in the caller, so
+/// the warning it opens stays up while the user reads it.
+pub fn panel(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    confirming_compact: &mut bool,
+    lang: &Catalogue,
+) -> HistoryAction {
     egui::Panel::left("history_panel")
         .resizable(true)
         .default_size(220.0)
-        .show(ui, |ui| show(ui, document, lang))
+        .show(ui, |ui| show(ui, document, confirming_compact, lang))
         .inner
 }
 
-fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> HistoryAction {
+fn show(
+    ui: &mut egui::Ui,
+    document: &PartDocument,
+    confirming_compact: &mut bool,
+    lang: &Catalogue,
+) -> HistoryAction {
     let mut action = HistoryAction::None;
     let mut rewind_to = None;
     let operations = document.history.operations();
     let applied = document.history.applied();
 
-    ui.heading(lang.t("history_tree.title"));
+    ui.horizontal(|ui| {
+        ui.heading(lang.t("history_tree.title"));
+        if !operations.is_empty()
+            && ui
+                .small_button(lang.t("history_tree.compact"))
+                .on_hover_text(lang.t("history_tree.compact_hint"))
+                .clicked()
+        {
+            *confirming_compact = true;
+        }
+    });
     ui.add_space(4.0);
+
+    if *confirming_compact && let Some(confirmed) = compact_confirm(ui, lang) {
+        *confirming_compact = false;
+        if confirmed {
+            action = HistoryAction::CompactHistory;
+        }
+    }
 
     if operations.is_empty() {
         ui.weak(lang.t("history_tree.empty"));
@@ -110,6 +142,36 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> History
         (HistoryAction::None, Some(step)) => HistoryAction::RewindTo(step),
         (action, _) => action,
     }
+}
+
+/// The compaction warning: `Some(true)` once confirmed, `Some(false)` once
+/// backed out of (including by the backdrop or Escape), `None` while the user
+/// has not yet decided.
+fn compact_confirm(ui: &mut egui::Ui, lang: &Catalogue) -> Option<bool> {
+    let mut decision = None;
+    let modal = egui::Modal::new(egui::Id::new("history_compact_confirm")).show(ui.ctx(), |ui| {
+        ui.heading(lang.t("history_tree.compact_confirm_title"));
+        ui.label(lang.t("history_tree.compact_confirm_body"));
+        ui.add_space(8.0);
+        ui.horizontal(|ui| {
+            if ui
+                .button(lang.t("history_tree.compact_confirm_ok"))
+                .clicked()
+            {
+                decision = Some(true);
+            }
+            if ui
+                .button(lang.t("history_tree.compact_confirm_cancel"))
+                .clicked()
+            {
+                decision = Some(false);
+            }
+        });
+    });
+    if decision.is_none() && modal.should_close() {
+        decision = Some(false);
+    }
+    decision
 }
 
 /// Shows a run of history lines, returning where to rewind to if one was

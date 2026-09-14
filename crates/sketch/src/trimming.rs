@@ -19,6 +19,22 @@ const NO_LENGTH: f64 = 1e-9;
 /// this trait — which is what a cut makes of it.
 const ON_THE_TRAIT: f64 = 1e-9;
 
+/// What a cut left standing, and what it cost.
+///
+/// A rule or a value that spoke of the trait and of neither piece goes with the
+/// trait. It is counted rather than named: the drawing loses it either way, and
+/// what the user needs to know is that something was lost at all.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Trimmed {
+    /// The pieces still drawn, in order from the trait's start. Empty when the
+    /// whole trait went.
+    pub pieces: Vec<SegmentId>,
+    /// Rules that spoke of the trait and of neither piece.
+    pub rules_dropped: usize,
+    /// Values that measured the trait and measure neither piece.
+    pub values_dropped: usize,
+}
+
 impl Sketch {
     /// The points sitting on a trait, each with how far along it they sit, in
     /// order from its start to its end.
@@ -71,19 +87,20 @@ impl Sketch {
     /// Nothing when the cut cannot be made: a trait or a point the drawing does
     /// not have, a point that does not fall between the trait's own ends, or a
     /// cut that would take nothing away and hand back the whole trait.
-    pub fn trim(
-        &mut self,
-        segment: SegmentId,
-        from: PointId,
-        to: PointId,
-    ) -> Option<Vec<SegmentId>> {
+    pub fn trim(&mut self, segment: SegmentId, from: PointId, to: PointId) -> Option<Trimmed> {
         let cut = self.segments().get(segment.0).copied()?;
+        let rules = self.constraints().to_vec();
+        let values = self.dimensions().to_vec();
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();
         if reach == 0.0 {
             self.erase(Element::Segment(segment));
-            return Some(Vec::new());
+            return Some(Trimmed {
+                pieces: Vec::new(),
+                rules_dropped: gone(&rules, self.constraints()).len(),
+                values_dropped: gone(&targets(&values), &targets(self.dimensions())).len(),
+            });
         }
         let along = |place: DVec2| (place - start).dot(span) / reach;
 
@@ -118,8 +135,6 @@ impl Sketch {
             })
             .collect();
 
-        let rules = self.constraints().to_vec();
-        let values = self.dimensions().to_vec();
         let corner = self.corner_of_an_angle_on(segment, &values);
 
         // A tangency carries its contact point away when it goes, since the
@@ -136,6 +151,8 @@ impl Sketch {
         for point in standing {
             Erased::unmark(&mut self.erased.points, point.0);
         }
+        let dropped = gone(&rules, self.constraints());
+        let dropped_values = gone(&targets(&values), &targets(self.dimensions()));
 
         let below = keeps_below.then(|| self.piece(cut.start, low, cut.construction));
         let above = keeps_above.then(|| self.piece(high, cut.end, cut.construction));
@@ -151,11 +168,14 @@ impl Sketch {
             }
         }
 
-        for piece in [below, above].into_iter().flatten() {
+        let pieces: Vec<SegmentId> = [below, above].into_iter().flatten().collect();
+        let mut reaching: Vec<(SegmentId, bool)> = Vec::new();
+        for piece in pieces.iter().copied() {
             let reaches_the_corner = corner.is_some_and(|corner| {
                 let stops_at = self.segments()[piece.0];
                 stops_at.start == corner || stops_at.end == corner
             });
+            reaching.push((piece, reaches_the_corner));
             for rule in &rules {
                 if let Some(moved) = about_direction(*rule, segment, piece) {
                     self.add_constraint(moved);
@@ -173,7 +193,49 @@ impl Sketch {
             }
         }
 
-        Some(below.into_iter().chain(above).collect())
+        let rules_dropped = dropped
+            .iter()
+            .filter(|rule| !self.stands_on_a_piece(**rule, segment, &pieces))
+            .count();
+        let values_dropped = dropped_values
+            .iter()
+            .filter(|value| !self.measured_on_a_piece(**value, segment, &reaching))
+            .count();
+        Some(Trimmed {
+            pieces,
+            rules_dropped,
+            values_dropped,
+        })
+    }
+
+    /// Whether a rule the cut took away came back on one of the pieces, under
+    /// the piece's name.
+    fn stands_on_a_piece(&self, rule: Constraint, cut: SegmentId, pieces: &[SegmentId]) -> bool {
+        pieces.iter().any(|piece| {
+            let moved = match rule {
+                Constraint::OnSegment { point, segment } if segment == cut => {
+                    Some(Constraint::OnSegment {
+                        point,
+                        segment: *piece,
+                    })
+                }
+                other => about_direction(other, cut, *piece),
+            };
+            moved.is_some_and(|moved| self.constraints().contains(&moved.normalised()))
+        })
+    }
+
+    /// Whether a value the cut took away is read again on one of the pieces.
+    fn measured_on_a_piece(
+        &self,
+        value: DimensionTarget,
+        cut: SegmentId,
+        reaching: &[(SegmentId, bool)],
+    ) -> bool {
+        reaching.iter().any(|(piece, reaches_the_corner)| {
+            still_measured(value, cut, *piece, *reaches_the_corner)
+                .is_some_and(|moved| self.dimension_of(moved).is_some())
+        })
     }
 
     /// The place an angle measured against this trait is taken at: the point
@@ -230,6 +292,20 @@ impl Sketch {
 
 #[cfg(test)]
 mod tests;
+
+/// What was standing before the trait went and is not standing after: what
+/// spoke of it.
+fn gone<T: Copy + PartialEq>(before: &[T], after: &[T]) -> Vec<T> {
+    before
+        .iter()
+        .copied()
+        .filter(|held| !after.contains(held))
+        .collect()
+}
+
+fn targets(values: &[Dimension]) -> Vec<DimensionTarget> {
+    values.iter().map(|value| value.target).collect()
+}
 
 /// The same rule, said of a piece of the trait it named.
 ///

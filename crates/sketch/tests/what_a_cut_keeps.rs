@@ -1,4 +1,5 @@
-//! What a cut keeps of the rules and the values that spoke of the trait.
+//! What a cut keeps of the rules and the values that spoke of the trait, and
+//! what it hands back as the price of the ones it could not.
 //!
 //! Only what is said about *direction* survives: the pieces lie on the line
 //! the trait lay on. A length measures a trait that is no longer there.
@@ -29,7 +30,8 @@ fn a_rule_about_a_traits_direction_holds_on_both_of_its_pieces() {
 
     let pieces = sketch
         .trim(cut, first, second)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     for piece in pieces {
         assert!(
@@ -82,7 +84,8 @@ fn a_trait_laid_on_an_axis_leaves_both_pieces_on_it() {
 
     let pieces = sketch
         .trim(cut, first, second)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     for piece in pieces {
         assert!(
@@ -106,7 +109,8 @@ fn an_angle_to_an_axis_is_still_read_on_both_pieces() {
 
     let pieces = sketch
         .trim(cut, first, second)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     for piece in pieces {
         let kept = sketch.dimension_of(DimensionTarget::AxisAngle {
@@ -138,7 +142,8 @@ fn an_angle_at_a_corner_follows_the_piece_that_still_reaches_it() {
 
     let pieces = sketch
         .trim(cut, first, second)
-        .expect("a cut that can be made");
+        .expect("a cut that can be made")
+        .pieces;
 
     let measured: Vec<SegmentId> = pieces
         .iter()
@@ -185,4 +190,82 @@ fn a_length_typed_on_a_trait_measures_neither_piece() {
             .any(|value| matches!(value.target, DimensionTarget::Length(_))),
         "the pieces are shorter than what was typed",
     );
+}
+
+#[test]
+fn a_cut_counts_the_rules_it_could_not_carry_over() {
+    let (mut sketch, cut, other, [first, second]) = a_trait_alongside_another();
+    sketch.add_constraint(Constraint::Parallel {
+        first: cut,
+        second: other,
+    });
+    sketch.add_constraint(Constraint::Equal {
+        first: cut,
+        second: other,
+    });
+
+    let trimmed = sketch
+        .trim(cut, first, second)
+        .expect("a cut that can be made");
+
+    assert_eq!(
+        trimmed.rules_dropped, 1,
+        "the equal lengths went, the parallel followed both pieces",
+    );
+}
+
+#[test]
+fn a_cut_counts_the_values_it_could_not_carry_over() {
+    let (mut sketch, cut, _, [first, second]) = a_trait_alongside_another();
+    sketch.set_dimension(DimensionTarget::Length(cut), 40.0, false);
+    sketch.set_dimension(
+        DimensionTarget::AxisAngle {
+            segment: cut,
+            axis: SketchAxis::U,
+        },
+        0.0,
+        false,
+    );
+
+    let trimmed = sketch
+        .trim(cut, first, second)
+        .expect("a cut that can be made");
+
+    assert_eq!(
+        trimmed.values_dropped, 1,
+        "the length went, the angle to the axis followed both pieces",
+    );
+}
+
+#[test]
+fn a_cut_that_takes_the_whole_trait_loses_everything_that_spoke_of_it() {
+    let (mut sketch, cut, other, [_, _]) = a_trait_alongside_another();
+    let (start, end) = (sketch.segments()[cut.0].start, sketch.segments()[cut.0].end);
+    sketch.add_constraint(Constraint::Parallel {
+        first: cut,
+        second: other,
+    });
+    sketch.set_dimension(DimensionTarget::Length(cut), 40.0, false);
+
+    let trimmed = sketch
+        .trim(cut, start, end)
+        .expect("a cut that can be made");
+
+    assert_eq!(trimmed.pieces, Vec::new(), "nothing of the trait is left");
+    assert_eq!((trimmed.rules_dropped, trimmed.values_dropped), (1, 1));
+}
+
+#[test]
+fn a_cut_nothing_was_said_about_costs_nothing() {
+    let (mut sketch, cut, other, [first, second]) = a_trait_alongside_another();
+    sketch.add_constraint(Constraint::AxisCollinear {
+        segment: other,
+        axis: SketchAxis::U,
+    });
+
+    let trimmed = sketch
+        .trim(cut, first, second)
+        .expect("a cut that can be made");
+
+    assert_eq!((trimmed.rules_dropped, trimmed.values_dropped), (0, 0));
 }

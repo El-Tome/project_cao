@@ -62,7 +62,7 @@ pub(crate) fn where_segment_crosses_arc(a1: DVec2, a2: DVec2, arc: ArcDraft) -> 
 /// How far round its own sweep the arc stands at that place, or `None` when
 /// the place is on the rest of the circle — the part the arc does not run
 /// over — or on one of its two ends.
-fn round_arc(arc: ArcDraft, place: DVec2) -> Option<f64> {
+pub(crate) fn round_arc(arc: ArcDraft, place: DVec2) -> Option<f64> {
     let sweep = sweep_of(arc);
     let from = (arc.start - arc.centre).to_angle();
     let turned = ((place - arc.centre).to_angle() - from).rem_euclid(std::f64::consts::TAU);

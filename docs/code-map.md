@@ -139,6 +139,7 @@ What they do: [`history.md`](history.md),
 | Orbit camera, transitions | `render/src/camera.rs` | `OrbitCamera`, `ViewTransition` |
 | Orientation cube | `render/src/cube.rs` | `push_faces`, `zone_at`, `is_visible` |
 | Axes, grid, background, solids | `render/src/geometry.rs` | `push_axes`, `push_grid`, `push_background`, `push_solid` |
+| Drawing into an image, with no window | `render/src/offscreen.rs` | `draw`, `Size` |
 | Visual check without a window | `render/examples/offscreen.rs` | `cargo run -p cao_render --example offscreen -- /tmp` |
 
 What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).

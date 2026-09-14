@@ -219,93 +219,23 @@ fn render(
     frame: &SceneFrame,
     path: &std::path::Path,
 ) {
-    let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("offscreen_target"),
-        size: wgpu::Extent3d {
+    let pixels = cao_render::draw(
+        device,
+        queue,
+        renderer,
+        frame,
+        cao_render::Size {
             width: WIDTH,
             height: HEIGHT,
-            depth_or_array_layers: 1,
+            format: FORMAT,
         },
-        mip_level_count: 1,
-        sample_count: 1,
-        dimension: wgpu::TextureDimension::D2,
-        format: FORMAT,
-        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
-        view_formats: &[],
-    });
-    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
-
-    let bytes_per_row = WIDTH * 4;
-    let readback = device.create_buffer(&wgpu::BufferDescriptor {
-        label: Some("offscreen_readback"),
-        size: (bytes_per_row * HEIGHT) as u64,
-        usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
-        mapped_at_creation: false,
-    });
-
-    renderer.prepare(device, queue, frame);
-
-    let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor::default());
-    {
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("offscreen_pass"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                depth_slice: None,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color {
-                        r: 0.11,
-                        g: 0.12,
-                        b: 0.14,
-                        a: 1.0,
-                    }),
-                    store: wgpu::StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-            multiview_mask: None,
-        });
-        renderer.paint(&mut pass);
-    }
-
-    encoder.copy_texture_to_buffer(
-        wgpu::TexelCopyTextureInfo {
-            texture: &texture,
-            mip_level: 0,
-            origin: wgpu::Origin3d::ZERO,
-            aspect: wgpu::TextureAspect::All,
-        },
-        wgpu::TexelCopyBufferInfo {
-            buffer: &readback,
-            layout: wgpu::TexelCopyBufferLayout {
-                offset: 0,
-                bytes_per_row: Some(bytes_per_row),
-                rows_per_image: Some(HEIGHT),
-            },
-        },
-        wgpu::Extent3d {
-            width: WIDTH,
-            height: HEIGHT,
-            depth_or_array_layers: 1,
+        wgpu::Color {
+            r: 0.11,
+            g: 0.12,
+            b: 0.14,
+            a: 1.0,
         },
     );
-    queue.submit([encoder.finish()]);
-
-    readback.slice(..).map_async(wgpu::MapMode::Read, |result| {
-        result.expect("failed to map readback buffer");
-    });
-    device
-        .poll(wgpu::PollType::wait_indefinitely())
-        .expect("poll failed");
-
-    let pixels = readback
-        .slice(..)
-        .get_mapped_range()
-        .expect("readback buffer not mapped")
-        .to_vec();
     image::save_buffer(path, &pixels, WIDTH, HEIGHT, image::ColorType::Rgba8)
         .expect("failed to write PNG");
     println!("wrote {}", path.display());

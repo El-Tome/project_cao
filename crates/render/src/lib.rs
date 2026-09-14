@@ -5,6 +5,7 @@
 pub mod camera;
 pub mod cube;
 pub mod geometry;
+pub mod offscreen;
 mod renderer;
 
 pub use camera::{CubeFace, CubeZone, OrbitCamera, ViewTransition};
@@ -12,4 +13,5 @@ pub use geometry::{
     AxisStyle, BackgroundShape, GridStyle, Vertex, adaptive_step, push_axes, push_background,
     push_grid, push_plane_outline, push_plane_quad, push_solid, srgb,
 };
+pub use offscreen::{Size, draw};
 pub use renderer::{SceneFrame, SceneRenderer, ViewportRect};

@@ -5,6 +5,7 @@
 //! lives in [`render`].
 
 mod cube_labels;
+mod finish;
 mod input;
 mod render;
 
@@ -14,19 +15,17 @@ use cao_prefs::config::{Binding, TrackpadGesture, ViewportCorner};
 use cao_prefs::theme::Theme;
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{OrbitCamera, SceneFrame, ViewTransition, adaptive_step, cube};
-use cao_sketch::{SnapSettings, ToolState, WorkPlane};
+use cao_sketch::{SnapSettings, WorkPlane};
 use glam::DVec3;
 
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::{SketchEditor, Tool};
-use input::{
-    draw_circle, draw_line_point, draw_symmetric_line_point, handle_sketch_input, pick_areas,
-    rectangle_corner, two_click_shape,
-};
+use finish::advance_on_enter;
+use input::{handle_sketch_input, pick_areas};
 use render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_live_input, paint_rule_marks, paint_ruler,
+    paint_rule_marks, paint_ruler,
 };
 
 pub use input::DEFAULT_SKETCH_RADIUS;
@@ -195,40 +194,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }
-    let mut changed = changed | paint_dimension_field(ui, state, rect, sketch);
-
-    let drawing = matches!(
-        sketch.editor.tool_state,
-        ToolState::Line { .. }
-            | ToolState::SymmetricLine { .. }
-            | ToolState::Rectangle { .. }
-            | ToolState::Circle { .. }
-    );
-    if drawing && paint_live_input(ui, sketch) {
-        // Enter finishes the shape from the keyboard, without having to find the canvas again with
-        // the mouse. What the shape ends at follows the same reading as a click would: the line's
-        // aim, or the rectangle's corner once what was typed has had its say.
-        if let Some(index) = sketch.editor.active_sketch() {
-            let raw_cursor = sketch.editor.cursor.unwrap_or_default();
-            let aim = sketch.editor.aimed;
-            let cursor = match sketch.editor.tool {
-                Tool::Line => aim.map_or(raw_cursor, |aimed| aimed.position),
-                Tool::Rectangle => rectangle_corner(sketch, raw_cursor),
-                _ => raw_cursor,
-            };
-            let snap = scale.world_size_of(PICK_PIXELS);
-            changed |= match sketch.editor.tool {
-                Tool::Line => draw_line_point(sketch, index, cursor, snap, scale.units_per_pixel),
-                Tool::LineSymmetric => {
-                    draw_symmetric_line_point(sketch, index, cursor, snap, scale.units_per_pixel)
-                }
-                Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
-                _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
-            };
-        }
-    }
-
-    changed
+    changed | paint_dimension_field(ui, state, rect, sketch) | advance_on_enter(ui, sketch, scale)
 }
 
 /// Escape steps back out of whatever is going on: the shape in progress, the

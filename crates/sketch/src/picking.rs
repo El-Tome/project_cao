@@ -10,6 +10,7 @@ use crate::annotation::AnnotationMetrics;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::sketch::{Element, PointId, Sketch};
+use crate::snap::onto_rim;
 
 /// What the selection tool is holding, and what pressing the delete key would
 /// take away.
@@ -122,26 +123,32 @@ impl Sketch {
         points
     }
 
-    /// How far a place sits from an arc's curve itself.
+    /// Where an arc takes a place near it.
     ///
-    /// Beyond either end the answer is the distance to that end, not to the
-    /// circle the arc is a piece of: the rest of that circle is not drawn, and a
-    /// click out there must find nothing.
-    pub fn distance_to_arc(&self, id: ArcId, position: DVec2) -> f64 {
+    /// Beyond either end it is that end, not the far side of the circle the arc
+    /// is a piece of: the rest of that circle is not drawn, and a click out
+    /// there must find nothing.
+    pub fn place_on_arc(&self, id: ArcId, position: DVec2) -> DVec2 {
         let arc = self.arc(id);
         let centre = self.point(arc.center);
-        let reach = position - centre;
-        if reach.length() < 1e-9 {
-            return self.arc_radius(id);
+        let (start, end) = (self.point(arc.start), self.point(arc.end));
+        let Some(on_rim) = onto_rim(position, centre, self.arc_radius(id)) else {
+            return start;
+        };
+        let along = ((position - centre).to_angle() - (start - centre).to_angle())
+            .rem_euclid(std::f64::consts::TAU);
+        if along <= self.arc_sweep(id) {
+            return on_rim;
         }
-        let from = (self.point(arc.start) - centre).to_angle();
-        let along = (reach.to_angle() - from).rem_euclid(std::f64::consts::TAU);
-        match along <= self.arc_sweep(id) {
-            true => (reach.length() - self.arc_radius(id)).abs(),
-            false => position
-                .distance(self.point(arc.start))
-                .min(position.distance(self.point(arc.end))),
+        match position.distance(start) <= position.distance(end) {
+            true => start,
+            false => end,
         }
+    }
+
+    /// How far a place sits from an arc's curve itself.
+    pub fn distance_to_arc(&self, id: ArcId, position: DVec2) -> f64 {
+        self.place_on_arc(id, position).distance(position)
     }
 
     /// The arc whose curve passes closest to `position`.

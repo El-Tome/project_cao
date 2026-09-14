@@ -126,7 +126,7 @@ fn the_cursor_catches_the_place_a_run_enters_a_circle() {
 
     let magnets = SnapSettings {
         point_reach: 1.0,
-        segment_reach: 1.0,
+        curve_reach: 1.0,
         grid_step: None,
         grid_reach: 0.0,
     };

@@ -15,7 +15,6 @@ pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
     pub history_open: bool,
-    pub explorer_open: bool,
     /// Whether the history panel is asking to confirm a compaction. Held here
     /// rather than only in the panel's own frame, so the warning survives to
     /// the next one instead of closing the moment the mouse moves.
@@ -27,7 +26,6 @@ impl Ribbon {
         Self {
             tab: 0,
             history_open: true,
-            explorer_open: false,
             history_compact_confirm: false,
         }
     }

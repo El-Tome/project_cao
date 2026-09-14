@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use cao_part::PartDocument;
 use cao_prefs::{Command, Locations};
@@ -7,7 +7,7 @@ use cao_render::SceneRenderer;
 use crate::commands;
 use crate::lang::Catalogue;
 use crate::remembered::Remembered;
-use crate::screens::explorer::{Explorer, ExplorerAction};
+use crate::screens::explorer::Explorer;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
     self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
@@ -115,7 +115,16 @@ impl CaoApp {
     }
 
     fn show_start_menu(&mut self, ui: &mut egui::Ui) {
-        if let Some(part) = browse(&mut self.explorer, ui, self.remembered.lang(), None) {
+        if self.explorer.is_open()
+            && let Some(part) = screens::explorer::run(
+                &mut self.explorer,
+                ui,
+                self.remembered.lang(),
+                &DiskFiles,
+                &DiskFiles,
+                None,
+            )
+        {
             self.open_part(part);
             return;
         }
@@ -189,6 +198,7 @@ impl CaoApp {
             match command {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
+                Command::ToggleExplorer => self.explorer.toggle(),
                 _ => {
                     changed |=
                         commands::run(command, doc, editor, extrusion, ribbon, viewport, lang);
@@ -197,8 +207,15 @@ impl CaoApp {
         }
 
         let mut open_elsewhere = None;
-        if ribbon.explorer_open {
-            open_elsewhere = browse(&mut self.explorer, ui, lang, Some(path.clone()));
+        if self.explorer.is_open() {
+            open_elsewhere = screens::explorer::run(
+                &mut self.explorer,
+                ui,
+                lang,
+                &DiskFiles,
+                &DiskFiles,
+                Some(path),
+            );
         }
 
         if ribbon.history_open {
@@ -275,39 +292,6 @@ impl CaoApp {
             self.save_settings();
         }
     }
-}
-
-/// Puts the library panel on screen and carries out what was asked of it,
-/// handing back a part to open when one was double-clicked.
-///
-/// A free function rather than a method: the part being drawn is already
-/// borrowed out of `self` when the panel goes up beside it.
-fn browse(
-    explorer: &mut Explorer,
-    ui: &mut egui::Ui,
-    lang: &Catalogue,
-    in_use: Option<PathBuf>,
-) -> Option<PathBuf> {
-    explorer.in_use = in_use;
-    explorer.refresh_if_stale(&DiskFiles);
-
-    let mut opening = None;
-    match screens::explorer::panel(ui, explorer, lang) {
-        ExplorerAction::Open(part) => opening = Some(part),
-        ExplorerAction::ConfirmNaming => explorer.confirm_naming(&DiskFiles, &DiskFiles),
-        ExplorerAction::Discard => explorer.ask_to_discard(),
-        ExplorerAction::Refresh => explorer.went_stale(),
-        ExplorerAction::None => {}
-    }
-
-    if let Some(path) = explorer.confirming().map(Path::to_path_buf) {
-        match screens::explorer::discard_confirm(ui, &path, lang) {
-            Some(true) => explorer.discard(&DiskFiles),
-            Some(false) => explorer.cancel_discard(),
-            None => {}
-        }
-    }
-    opening
 }
 
 fn mode_label(lang: &Catalogue, mode: ViewMode) -> String {

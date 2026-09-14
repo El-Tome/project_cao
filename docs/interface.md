@@ -67,6 +67,9 @@ changed — never every frame. The ↺ button reads it again.
 - The state of the panels — which tab the bar is open on, whether the history
   is hidden — is not saved from one session to the next.
 - The Files panel browses the parts folder and cannot be pointed anywhere else.
+- It walks the whole tree at once, folded folders included, rather than reading
+  a folder when it is unfolded. On a parts folder held on a network share, that
+  walk is felt.
 - Two windows on two parts share one settings file and one recent list: the
   last one to write a change is the one that stands.
 - Nothing stops a part being renamed or thrown away from one window while

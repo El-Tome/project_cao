@@ -39,6 +39,10 @@ pub fn rename_folder(
 /// and the title bar reads the archive's, and a rename that moved only one of
 /// them would leave the part answering to two names at once.
 ///
+/// The file is moved rather than copied and thrown away: a copy would leave
+/// one in the bin per rename, and would stand as two files on the disk for as
+/// long as it took the second write to fail.
+///
 /// The part is written back under the hour it already carried: giving
 /// something a new name is not working on it.
 pub fn rename_part(
@@ -52,15 +56,15 @@ pub fn rename_part(
     if path == part {
         return Ok(path);
     }
-    if files.exists(&path) {
-        return Err(PartFileError::NameTaken(path));
+    if !the_same_file(&path, part) {
+        refuse_if_taken(folders, inside, &path)?;
     }
 
     let mut document = PartDocument::load(files, part)?;
-    document.metadata.name = super::name_of(&path);
     let untouched_since = document.metadata.modified_at;
+    folders.rename(part, &path)?;
+    document.metadata.name = super::name_of(&path);
     document.save(files, &path, untouched_since)?;
-    folders.discard(part)?;
     Ok(path)
 }
 
@@ -83,11 +87,22 @@ fn refuse_if_taken(
     let taken = folders
         .entries(inside)?
         .into_iter()
-        .any(|entry| entry.path == wanted);
+        .any(|entry| the_same_file(&entry.path, wanted));
     if taken {
         return Err(PartFileError::NameTaken(wanted.to_path_buf()));
     }
     Ok(())
+}
+
+/// Whether two paths would land on one file. Case is ignored, because the
+/// filesystem this runs on most often ignores it: a `Brides` already there
+/// answers to `brides`, and a folder made under the second name would quietly
+/// be the first one. The answer must not change with the disk the parts folder
+/// happens to sit on.
+fn the_same_file(one: &Path, other: &Path) -> bool {
+    one == other
+        || one.as_os_str().to_string_lossy().to_lowercase()
+            == other.as_os_str().to_string_lossy().to_lowercase()
 }
 
 #[cfg(test)]
@@ -241,6 +256,44 @@ mod tests {
 
         assert_eq!(moved, path);
         assert!(PartDocument::load(&files, &path).is_ok());
+    }
+
+    #[test]
+    fn a_renamed_part_is_moved_rather_than_copied_and_thrown_away() {
+        let (files, path) = library_with("Support");
+
+        rename_part(&files, &files, &path, "Bride").expect("the part is renamed");
+
+        assert!(
+            !files.exists(Path::new("/CAO/Support.caopart")),
+            "a copy of the part is left behind at every rename",
+        );
+    }
+
+    #[test]
+    fn a_folder_whose_name_differs_only_in_case_is_refused() {
+        let files = InMemoryFiles::default();
+        create_folder(&files, Path::new("/CAO"), "Brides").expect("the folder is made");
+
+        let again = create_folder(&files, Path::new("/CAO"), "brides");
+
+        assert!(
+            matches!(again, Err(PartFileError::NameTaken(_))),
+            "a filesystem that ignores case would hand back the folder already there",
+        );
+    }
+
+    #[test]
+    fn a_part_can_be_renamed_to_the_name_it_has_in_another_case() {
+        let (files, path) = library_with("Support");
+
+        let moved = rename_part(&files, &files, &path, "support").expect("the part is renamed");
+
+        assert_eq!(moved, PathBuf::from("/CAO/support.caopart"));
+        assert_eq!(
+            PartDocument::load(&files, &moved).expect("reads").name(),
+            "support",
+        );
     }
 
     #[test]

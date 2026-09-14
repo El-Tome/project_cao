@@ -35,7 +35,9 @@ pub(crate) fn run(
     editor.message = None;
 
     match command {
-        Command::OpenSettings | Command::BackToMenu => false,
+        // The shell keeps these: they are about the window, not about the
+        // part, and the state they turn is not the part's to hold.
+        Command::OpenSettings | Command::BackToMenu | Command::ToggleExplorer => false,
         Command::NewSketch => {
             extrusion.close();
             editor.start_choosing_plane(lang);
@@ -216,10 +218,6 @@ pub(crate) fn run(
         }
         Command::ToggleHistory => {
             ribbon.history_open = !ribbon.history_open;
-            false
-        }
-        Command::ToggleExplorer => {
-            ribbon.explorer_open = !ribbon.explorer_open;
             false
         }
         Command::ToggleToolbarDocked => false,

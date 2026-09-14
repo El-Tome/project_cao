@@ -15,6 +15,10 @@ pub enum ExplorerAction {
     None,
     /// Open this part, in this window or another.
     Open(PathBuf),
+    /// Ask for the name of a folder that does not exist yet.
+    NewFolder,
+    /// Ask for another name for what is selected.
+    Rename,
     /// Write down the name being typed.
     ConfirmNaming,
     /// Throw away what the question was about.
@@ -60,11 +64,11 @@ fn show(ui: &mut egui::Ui, explorer: &mut Explorer, lang: &Catalogue) -> Explore
     });
     ui.horizontal(|ui| {
         if ui.small_button(lang.t("explorer.new_folder")).clicked() {
-            explorer.start_new_folder();
+            action = ExplorerAction::NewFolder;
         }
         ui.add_enabled_ui(explorer.may_tidy(), |ui| {
             if ui.small_button(lang.t("explorer.rename")).clicked() {
-                explorer.start_rename();
+                action = ExplorerAction::Rename;
             }
             if ui.small_button(lang.t("explorer.discard")).clicked() {
                 action = ExplorerAction::Discard;
@@ -188,7 +192,12 @@ fn being_renamed(naming: &Option<Naming>, path: &Path) -> bool {
 fn field(ui: &mut egui::Ui, naming: &mut Option<Naming>, lang: &Catalogue) {
     let Some(naming) = naming else { return };
     let response = text_edit(ui, naming.typed_mut(), NAME_WIDTH, &lang.t("explorer.name"));
-    response.request_focus();
+    // Only when nothing else has the keyboard: asking every frame takes focus
+    // back the frame after the user clicks anywhere else, and the field can
+    // then only be left by Entrée or Échap.
+    if ui.memory(|memory| memory.focused().is_none()) {
+        response.request_focus();
+    }
 }
 
 /// The question asked before a part or a folder is thrown away.

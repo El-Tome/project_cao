@@ -153,7 +153,7 @@ fn a_rename_starts_from_the_name_the_thing_already_has() {
 fn the_part_this_window_is_drawing_cannot_be_renamed_from_the_panel() {
     let files = library_of(&["/CAO/support.caopart"]);
     let mut explorer = panel_on(&files);
-    explorer.in_use = Some("/CAO/support.caopart".into());
+    explorer.drawing(Some(Path::new("/CAO/support.caopart")));
     explorer.select(Path::new("/CAO/support.caopart"));
 
     explorer.start_rename();
@@ -169,7 +169,7 @@ fn the_part_this_window_is_drawing_cannot_be_renamed_from_the_panel() {
 fn the_part_this_window_is_drawing_cannot_be_thrown_away_from_the_panel() {
     let files = library_of(&["/CAO/support.caopart"]);
     let mut explorer = panel_on(&files);
-    explorer.in_use = Some("/CAO/support.caopart".into());
+    explorer.drawing(Some(Path::new("/CAO/support.caopart")));
     explorer.select(Path::new("/CAO/support.caopart"));
 
     explorer.ask_to_discard();
@@ -181,7 +181,7 @@ fn the_part_this_window_is_drawing_cannot_be_thrown_away_from_the_panel() {
 fn the_part_this_window_is_drawing_is_not_opened_a_second_time() {
     let files = library_of(&["/CAO/support.caopart", "/CAO/bride.caopart"]);
     let mut explorer = panel_on(&files);
-    explorer.in_use = Some("/CAO/support.caopart".into());
+    explorer.drawing(Some(Path::new("/CAO/support.caopart")));
 
     assert_eq!(
         explorer.asked_to_open(Path::new("/CAO/support.caopart")),
@@ -192,6 +192,37 @@ fn the_part_this_window_is_drawing_is_not_opened_a_second_time() {
         explorer.asked_to_open(Path::new("/CAO/bride.caopart")),
         Some(PathBuf::from("/CAO/bride.caopart")),
     );
+}
+
+#[test]
+fn the_folder_holding_the_part_this_window_is_drawing_cannot_be_thrown_away_either() {
+    let files = library_of(&["/CAO/drafts/support.caopart"]);
+    let mut explorer = panel_on(&files);
+    explorer.drawing(Some(Path::new("/CAO/drafts/support.caopart")));
+    explorer.select(Path::new("/CAO/drafts"));
+
+    explorer.ask_to_discard();
+
+    assert!(
+        explorer.confirming().is_none(),
+        "the next autosave would make the folder and that one part again, and \
+         leave everything else it held in the bin",
+    );
+    assert!(!explorer.may_tidy());
+}
+
+#[test]
+fn opening_the_panel_reads_the_library_again() {
+    let files = library_of(&["/CAO/support.caopart"]);
+    let mut explorer = panel_on(&files);
+    files
+        .write(Path::new("/CAO/bride.caopart"), b"PK")
+        .expect("another window writes a part");
+
+    explorer.toggle();
+    explorer.refresh_if_stale(&files);
+
+    assert_eq!(explorer.library().parts.len(), 2);
 }
 
 #[test]

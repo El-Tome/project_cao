@@ -35,7 +35,8 @@ pub struct Explorer {
     trouble: Option<PartFileError>,
     /// The part this window has open, which cannot be renamed or thrown away
     /// from here: it is being written to behind the panel's back.
-    pub in_use: Option<PathBuf>,
+    in_use: Option<PathBuf>,
+    open: bool,
     stale: bool,
 }
 
@@ -55,8 +56,28 @@ impl Explorer {
             confirming: None,
             trouble: None,
             in_use: None,
+            open: false,
             stale: true,
         }
+    }
+
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
+
+    /// Opening the panel reads the library again: another window may have made
+    /// a part since it was last looked at.
+    pub fn toggle(&mut self) {
+        self.open = !self.open;
+        if self.open {
+            self.went_stale();
+        }
+    }
+
+    /// The part this window is drawing, told to the panel rather than asked
+    /// for, so the rule about what it may not touch lives in one place.
+    pub fn drawing(&mut self, part: Option<&Path>) {
+        self.in_use = part.map(Path::to_path_buf);
     }
 
     pub fn library(&self) -> &Folder {
@@ -227,10 +248,15 @@ impl Explorer {
         }
     }
 
-    /// Whether the panel must keep its hands off `path`: nothing selected, or
-    /// the very part this window is writing to.
+    /// Whether the panel must keep its hands off `path`: the part this window
+    /// is writing to, or any folder holding it. Throwing away that folder
+    /// would take the open part with it, and the next autosave would make the
+    /// folder and that one part again — leaving everything else that was in it
+    /// in the bin, with nothing on screen saying so.
     pub fn busy_with(&self, path: &Path) -> bool {
-        self.in_use.as_deref() == Some(path)
+        self.in_use
+            .as_deref()
+            .is_some_and(|open| open.starts_with(path))
     }
 
     pub fn may_tidy(&self) -> bool {

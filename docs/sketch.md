@@ -792,6 +792,10 @@ of six is a step of thirty. Saying it that way composes — the total is the ste
 times what is left of the count — where a total would have to be divided by a
 number the user also typed.
 
+The two fields **open on a quarter turn, four times round** — the ring anyone
+draws when they draw one at all — so the first thing typed is a value being
+corrected rather than one guessed at.
+
 The centre is **a point of the drawing**, for the reason the mirror's axis is a
 trait of it: a point follows the drawing when it moves.
 
@@ -815,12 +819,18 @@ pattern does not run in, which leaves a single row; one both ways is no pattern
 at all, and neither is a step of zero, which would pile every copy on the one
 before it.
 
-All four values are typed, none is read off the cursor — a pattern is only ever
-what it was told, the same way the circular one is.
+The four fields **open on the room what is held takes up**: each step on the
+widest span of the hold, each count on two. The click naming the direction comes
+after the fields appear, so the extent along that direction cannot be read yet —
+the widest way round is the one number no direction can make too small, and a
+lone circle opens on its own diameter. Nothing is read off the cursor for all
+that: a pattern is only ever what it was told, the same way the circular one is.
 
 **What a pattern does not do yet**: nothing stops one from running over itself,
 and each element is repeated where it stands rather than by the room it takes
-up, so two elements far apart make a grid as wide as the gap between them.
+up, so two elements far apart open on a step as wide as the gap between them.
+A circle and an arc are read as a square around their centre rather than by
+their real shape.
 
 ### A corner is cut off straight
 

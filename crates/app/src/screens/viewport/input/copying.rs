@@ -9,6 +9,7 @@ use crate::screens::viewport::SketchContext;
 
 use super::pick;
 
+mod opening;
 mod preview;
 pub(crate) use preview::previewed;
 
@@ -77,12 +78,7 @@ pub(crate) fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
         held: held.clone(),
         naming_the_target: true,
     };
-    if matches!(
-        context.editor.tool,
-        Tool::CircularPattern | Tool::RectangularPattern
-    ) {
-        context.editor.live.open();
-    }
+    opening::fields_open_on(context);
     let said = asking(context);
     context.editor.message = Some(context.lang.t(said));
     true

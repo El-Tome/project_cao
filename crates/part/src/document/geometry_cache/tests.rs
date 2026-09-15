@@ -154,38 +154,172 @@ fn corners(mesh: &cao_solid::Mesh) -> Vec<glam::DVec3> {
     mesh.triangles().iter().flatten().copied().collect()
 }
 
+fn a_part_of_every_kind_of_drawing() -> PartDocument {
+    use cao_sketch::{
+        Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis,
+    };
+
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(40.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(10.0, 10.0)),
+        radius: 3.0,
+        rim: vec![PointRef::New(DVec2::new(13.0, 10.0))],
+        construction: false,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(30.0, 10.0)),
+        start: PointRef::New(DVec2::new(34.0, 10.0)),
+        end: PointRef::New(DVec2::new(30.0, 14.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 25.0)),
+        end: PointRef::New(DVec2::new(20.0, 25.0)),
+        construction: true,
+    });
+    document.apply(Operation::AddSymmetricSegment {
+        sketch: 0,
+        middle: PointRef::New(DVec2::new(0.0, 30.0)),
+        end: PointRef::New(DVec2::new(10.0, 30.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(2)),
+        value: 50.0,
+        placement: Some(DVec2::new(20.0, -5.0)),
+    });
+    document.apply(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Equal {
+            first: SegmentId(4),
+            second: SegmentId(5),
+        },
+    });
+    document.apply(Operation::Chamfer {
+        sketch: 0,
+        first: SegmentId(0),
+        second: SegmentId(1),
+        mode: Chamfer::Equal(2.0),
+    });
+    document.apply(Operation::Mirror {
+        sketch: 0,
+        elements: vec![Element::Arc(cao_sketch::ArcId(0))],
+        axis: ChosenAxis::Sketch(SketchAxis::V),
+    });
+    document.apply(Operation::CircularPattern {
+        sketch: 0,
+        elements: vec![Element::Circle(cao_sketch::CircleId(0))],
+        centre: PointId(0),
+        degrees: 45.0,
+        count: 3,
+    });
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(5))],
+        dimensions: vec![],
+        constraints: vec![],
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        picks: vec![DVec2::new(20.0, 5.0)],
+        distance: 6.0,
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(2.0, 2.0)),
+        opposite: PointRef::New(DVec2::new(6.0, 6.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        picks: vec![DVec2::new(4.0, 4.0)],
+        distance: 10.0,
+        mode: ExtrusionMode::Cut,
+    });
+    document
+}
+
+/// Everything a sketch carries, to the nearest nanometre.
+///
+/// The solver settles the same drawing a hair differently depending on whether
+/// it was walked step by step or replayed in one go — a couple of last bits of
+/// an `f64`, far under anything a part is drawn to.
+fn rounded(sketch: &cao_sketch::Sketch) -> serde_json::Value {
+    fn round(value: &mut serde_json::Value) {
+        match value {
+            serde_json::Value::Number(number) => {
+                if let Some(held) = number.as_f64() {
+                    *value = serde_json::json!((held * 1e9).round() / 1e9);
+                }
+            }
+            serde_json::Value::Array(items) => items.iter_mut().for_each(round),
+            serde_json::Value::Object(fields) => fields.values_mut().for_each(round),
+            _ => {}
+        }
+    }
+    let mut drawn = serde_json::to_value(sketch).expect("a sketch");
+    round(&mut drawn);
+    drawn
+}
+
 #[test]
-fn the_geometry_read_back_is_the_one_replaying_the_design_would_give() {
-    const TOLERANCE: f64 = 1e-12;
+fn a_drawing_of_every_kind_comes_back_from_the_cache_as_the_replay_leaves_it() {
+    const TOLERANCE: f64 = 1e-9;
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    saved(&files, path);
+    let document = a_part_of_every_kind_of_drawing();
+    let drawn = &document.sketches()[0];
+    assert!(
+        !drawn.circles().is_empty()
+            && !drawn.arcs().is_empty()
+            && !drawn.dimensions().is_empty()
+            && !drawn.constraints().is_empty(),
+        "the part is meant to hold one of everything a sketch can carry",
+    );
+    document
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
 
     let cached = PartDocument::load(&files, path).expect("reads");
     let mut replayed = cached.clone();
     replayed.rewind_to(replayed.history.applied());
 
+    for (index, (read, rebuilt)) in cached
+        .sketches()
+        .iter()
+        .zip(replayed.sketches())
+        .enumerate()
+    {
+        assert_eq!(
+            rounded(read),
+            rounded(rebuilt),
+            "sketch {index} came back from the cache other than the replay \
+             leaves it",
+        );
+    }
     let (read, rebuilt) = (corners(cached.body()), corners(replayed.body()));
     assert_eq!(read.len(), rebuilt.len(), "the same matter, face for face");
     for (read, rebuilt) in read.iter().zip(&rebuilt) {
         assert!(
             read.distance(*rebuilt) < TOLERANCE,
             "a corner read back at {read} where the replay puts it at {rebuilt}",
-        );
-    }
-    let (read, rebuilt) = (
-        cached.sketches()[0].points().to_vec(),
-        replayed.sketches()[0].points().to_vec(),
-    );
-    assert_eq!(
-        read.len(),
-        rebuilt.len(),
-        "the same drawing, point for point"
-    );
-    for (read, rebuilt) in read.iter().zip(&rebuilt) {
-        assert!(
-            read.distance(*rebuilt) < TOLERANCE,
-            "a point read back at {read} where the replay puts it at {rebuilt}",
         );
     }
 }

@@ -232,6 +232,73 @@ fn opening_the_panel_reads_the_library_again() {
     assert_eq!(explorer.library().parts.len(), 2);
 }
 
+fn part_with_a_picture(files: &InMemoryFiles, inside: &str, name: &str) -> PathBuf {
+    let path = written_part(files, inside, name);
+    let mut document = PartDocument::load(files, &path).expect("reads");
+    document.set_picture(cao_part::Picture::new(2, 2, (0..16).collect()).expect("a picture"));
+    document
+        .save(
+            files,
+            &path,
+            "2026-01-02T09:00:00Z".parse().expect("a date"),
+        )
+        .expect("the part is written");
+    path
+}
+
+#[test]
+fn only_the_parts_a_row_was_drawn_for_are_read_off_the_disk() {
+    let files = InMemoryFiles::default();
+    let shown = part_with_a_picture(&files, "/CAO", "Support");
+    let unseen = part_with_a_picture(&files, "/CAO", "Bride");
+    let mut explorer = panel_on(&files);
+
+    explorer.wants_pictures_of(vec![shown.clone()]);
+    explorer.read_pictures(&files);
+
+    assert!(explorer.picture_of(&shown).is_some());
+    assert!(
+        explorer.picture_of(&unseen).is_none(),
+        "a folder of a thousand parts would be a thousand reads and a thousand textures",
+    );
+}
+
+#[test]
+fn a_part_that_carries_no_picture_is_not_read_again_the_next_frame() {
+    let files = InMemoryFiles::default();
+    let bare = written_part(&files, "/CAO", "Support");
+    let mut explorer = panel_on(&files);
+
+    explorer.wants_pictures_of(vec![bare.clone()]);
+    explorer.read_pictures(&files);
+    files
+        .write(Path::new("/CAO/Support.caopart"), b"not an archive at all")
+        .expect("writes");
+    explorer.wants_pictures_of(vec![bare.clone()]);
+    explorer.read_pictures(&files);
+
+    assert!(
+        explorer.picture_of(&bare).is_none(),
+        "having none is remembered, so the archive is opened once and not once a frame",
+    );
+}
+
+#[test]
+fn reading_the_library_again_forgets_the_pictures_it_had_read() {
+    let files = InMemoryFiles::default();
+    let part = part_with_a_picture(&files, "/CAO", "Support");
+    let mut explorer = panel_on(&files);
+    explorer.wants_pictures_of(vec![part.clone()]);
+    explorer.read_pictures(&files);
+
+    explorer.refresh(&files);
+
+    assert!(
+        explorer.picture_of(&part).is_none(),
+        "a part renamed or drawn on since would keep showing what it used to look like",
+    );
+}
+
 #[test]
 fn nothing_is_thrown_away_before_the_question_is_answered() {
     let files = library_of(&["/CAO/support.caopart"]);

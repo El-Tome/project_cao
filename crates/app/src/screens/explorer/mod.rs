@@ -38,6 +38,8 @@ pub fn run(
         ExplorerAction::None => {}
     }
 
+    explorer.read_pictures(files);
+
     if let Some(path) = explorer.confirming().map(Path::to_path_buf) {
         match view::discard_confirm(ui, &path, lang) {
             Some(true) => explorer.discard(folders),

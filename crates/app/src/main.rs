@@ -8,6 +8,7 @@ mod autosave;
 mod commands;
 mod crash;
 mod lang;
+mod picture;
 mod remembered;
 mod screens;
 mod shortcuts;

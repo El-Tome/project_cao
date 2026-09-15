@@ -26,6 +26,8 @@ pub struct CaoApp {
     /// The library panel, held by the shell rather than by a screen: the same
     /// browsing serves the start menu and the part being drawn.
     explorer: Explorer,
+    /// What takes a part's picture. Nothing when the platform gave no GPU.
+    painter: Option<crate::picture::Painter>,
 }
 
 impl CaoApp {
@@ -47,6 +49,7 @@ impl CaoApp {
                 .insert(renderer);
         }
 
+        let painter = crate::picture::Painter::new(cc.wgpu_render_state.as_ref());
         let remembered = Remembered::read(locations);
         let explorer = Explorer::at(remembered.projects_dir().unwrap_or_default());
         let mut app = Self {
@@ -57,6 +60,7 @@ impl CaoApp {
             new_part_name: String::new(),
             error: None,
             explorer,
+            painter,
         };
         if let Some(part) = opening {
             app.open_part(part);
@@ -260,17 +264,57 @@ impl CaoApp {
         if changed {
             autosave.touched();
         }
-        let at_rest = back_to_menu || !ui.ctx().input(|input| input.pointer.any_down());
-        if let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest, lang) {
+        // On the way out the writing is left to `put_the_part_away`, which has
+        // the part's fresh picture to write with it.
+        let at_rest = !ui.ctx().input(|input| input.pointer.any_down());
+        if !back_to_menu
+            && let Some(message) = autosave.write_if_due(&DiskFiles, doc, path, at_rest, lang)
+        {
             self.error = Some(message);
         }
         if back_to_menu {
+            self.put_the_part_away();
             self.screen = Screen::StartMenu;
         }
         if let Some(part) = open_elsewhere
             && !crate::adapters::window::open_another(&part)
         {
             self.error = Some(self.remembered.lang().t("app.no_second_window"));
+        }
+    }
+
+    /// Writes the part down with a picture of itself, on the way out of it.
+    ///
+    /// Here rather than in the autosave because the autosave runs at the end of
+    /// every gesture, and a render with a readback at every gesture is the cost
+    /// the picture exists to avoid. Once a part is closed is enough: nothing
+    /// looks at the picture until a panel lists the folder.
+    fn put_the_part_away(&mut self) {
+        let Screen::PartOpened(part) = &mut self.screen else {
+            return;
+        };
+
+        let taken = self
+            .painter
+            .as_mut()
+            .and_then(|painter| painter.take(&part.doc));
+        // A part only looked at and closed again comes out of the renderer
+        // exactly as it went in, and writing it would move its hour for
+        // nothing.
+        if let Some(picture) = taken
+            && part.doc.picture() != Some(&picture)
+        {
+            part.doc.set_picture(picture);
+            part.autosave.touched();
+            self.explorer.went_stale();
+        }
+
+        let lang = self.remembered.lang();
+        if let Some(message) = part
+            .autosave
+            .write_if_due(&DiskFiles, &part.doc, &part.path, true, lang)
+        {
+            self.error = Some(message);
         }
     }
 
@@ -331,14 +375,6 @@ impl eframe::App for CaoApp {
     }
 
     fn on_exit(&mut self) {
-        if let Screen::PartOpened(part) = &mut self.screen {
-            part.autosave.write_if_due(
-                &DiskFiles,
-                &part.doc,
-                &part.path,
-                true,
-                self.remembered.lang(),
-            );
-        }
+        self.put_the_part_away();
     }
 }

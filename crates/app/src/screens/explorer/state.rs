@@ -1,8 +1,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
+use std::collections::BTreeMap;
+
 use cao_part::library::{self, Folder};
-use cao_part::{Files, Folders, PartFileError};
+use cao_part::{Files, Folders, PartDocument, PartFileError};
 
 /// A name being typed, either over one that is already there or for a folder
 /// that does not exist yet.
@@ -38,6 +40,11 @@ pub struct Explorer {
     in_use: Option<PathBuf>,
     open: bool,
     stale: bool,
+    /// The picture of each part that has been asked for, and `None` for one
+    /// that carries none — remembered either way, so a row is not read off the
+    /// disk again every frame.
+    pictures: BTreeMap<PathBuf, Option<cao_part::Picture>>,
+    wanted: Vec<PathBuf>,
 }
 
 impl Explorer {
@@ -58,6 +65,8 @@ impl Explorer {
             in_use: None,
             open: true,
             stale: true,
+            pictures: BTreeMap::new(),
+            wanted: Vec::new(),
         }
     }
 
@@ -84,8 +93,36 @@ impl Explorer {
         &self.library
     }
 
+    /// The picture of a part, if it has been read yet.
+    pub fn picture_of(&self, part: &Path) -> Option<&cao_part::Picture> {
+        self.pictures.get(part)?.as_ref()
+    }
+
+    /// Notes the parts a row was drawn for, so their pictures are read once
+    /// the panel is no longer being walked.
+    pub fn wants_pictures_of(&mut self, parts: Vec<PathBuf>) {
+        self.wanted = parts;
+    }
+
+    /// Reads the picture of each part named that has not been read yet.
+    ///
+    /// Only the rows the panel is actually showing are handed in: a folder of
+    /// a thousand parts must not be a thousand reads and a thousand textures.
+    pub fn read_pictures(&mut self, files: &impl Files) {
+        for part in std::mem::take(&mut self.wanted) {
+            if let std::collections::btree_map::Entry::Vacant(seat) = self.pictures.entry(part) {
+                let picture = PartDocument::picture_in(files, seat.key());
+                seat.insert(picture);
+            }
+        }
+    }
+
     pub fn refresh(&mut self, folders: &impl Folders) {
         self.stale = false;
+        // A part may have been renamed, thrown away or drawn on since: what
+        // was read of it says nothing about what is there now.
+        self.pictures.clear();
+        self.wanted.clear();
         match library::read(folders, &self.root) {
             Ok(library) => self.library = library,
             Err(fate) => self.trouble = Some(PartFileError::File(fate)),

@@ -37,6 +37,9 @@ struct Touched {
     select: Option<PathBuf>,
     open: Option<PathBuf>,
     fold: Option<(PathBuf, bool)>,
+    /// The parts a row was drawn for this frame. Their pictures are read after
+    /// the walk, so only what is on screen is ever read off the disk.
+    shown: Vec<PathBuf>,
 }
 
 /// The panel the library is browsed in, chrome and all.
@@ -114,6 +117,7 @@ fn show(ui: &mut egui::Ui, explorer: &mut Explorer, lang: &Catalogue) -> Explore
     if let Some(path) = touched.open {
         action = ExplorerAction::Open(path);
     }
+    explorer.wants_pictures_of(touched.shown);
     if explorer.naming().is_some() {
         if ui.input(|input| input.key_pressed(egui::Key::Enter)) {
             action = ExplorerAction::ConfirmNaming;
@@ -167,8 +171,13 @@ fn contents(
             field(ui, naming, lang);
             continue;
         }
+        touched.shown.push(part.path.clone());
         let response = ui
-            .selectable_label(explorer.selected() == Some(&part.path), &part.name)
+            .horizontal(|ui| {
+                thumbnail(ui, explorer.picture_of(&part.path));
+                ui.selectable_label(explorer.selected() == Some(&part.path), &part.name)
+            })
+            .inner
             .on_hover_text(lang.t("explorer.open_hint"));
         if response.clicked() {
             touched.select = Some(part.path.clone());
@@ -183,6 +192,43 @@ fn contents(
     {
         field(ui, naming, lang);
     }
+}
+
+/// How wide a part's picture is drawn beside its name.
+const THUMBNAIL: f32 = 28.0;
+
+/// The part's picture, or the room it will take once it has one.
+///
+/// A quiet frame rather than nothing, so a folder half of whose parts have
+/// been put away since does not read as two columns.
+fn thumbnail(ui: &mut egui::Ui, picture: Option<&cao_part::Picture>) {
+    let side = egui::vec2(THUMBNAIL, THUMBNAIL);
+    let Some(picture) = picture else {
+        let (rect, _) = ui.allocate_exact_size(side, egui::Sense::hover());
+        ui.painter()
+            .rect_filled(rect, 2.0, ui.visuals().faint_bg_color);
+        return;
+    };
+    ui.add(egui::Image::new(&texture(ui, picture)).fit_to_exact_size(side));
+}
+
+/// The part's pixels as something the GPU can draw, kept in egui's own store
+/// between frames: uploading a texture every frame for every row on screen is
+/// the one way to make a picture cost more than the drawing it stands for.
+fn texture(ui: &egui::Ui, picture: &cao_part::Picture) -> egui::TextureHandle {
+    let id = egui::Id::new(("explorer_thumbnail", picture.pixels().as_ptr() as usize));
+    if let Some(held) = ui.data(|data| data.get_temp::<egui::TextureHandle>(id)) {
+        return held;
+    }
+    let image = egui::ColorImage::from_rgba_unmultiplied(
+        [picture.width() as usize, picture.height() as usize],
+        picture.pixels(),
+    );
+    let made = ui
+        .ctx()
+        .load_texture("explorer_thumbnail", image, egui::TextureOptions::LINEAR);
+    ui.data_mut(|data| data.insert_temp(id, made.clone()));
+    made
 }
 
 fn being_renamed(naming: &Option<Naming>, path: &Path) -> bool {

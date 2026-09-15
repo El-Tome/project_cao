@@ -140,6 +140,10 @@ fn a_tests_file_nobody_declared_under_cfg_test_is_not_taken_for_tests() {
         is_nothing_but_tests("crates/app/src/screens/explorer/state/tests.rs"),
         "the file beside state.rs is declared under #[cfg(test)] and is tests",
     );
+    assert!(
+        is_nothing_but_tests("crates/part/src/document/tests.rs"),
+        "the rule holds below the shell too, where the strictest of these tests runs",
+    );
     assert!(!is_nothing_but_tests("crates/app/src/app.rs"));
     assert!(
         !is_nothing_but_tests("crates/app/src/screens/nothing/tests.rs"),
@@ -272,6 +276,9 @@ fn text_meant_for_a_reader_never_sinks_below_the_interface() {
     let mut said_too_low: Vec<String> = Vec::new();
 
     for (path, source) in sources_below_the_interface() {
+        if is_nothing_but_tests(&path) {
+            continue;
+        }
         for (number, literal) in reader_text_in(&source) {
             said_too_low.push(format!("{path}:{number}  \"{literal}\""));
         }

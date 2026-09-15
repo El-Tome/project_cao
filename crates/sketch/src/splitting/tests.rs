@@ -21,7 +21,7 @@ fn splitting_a_crossing_leaves_four_pieces_meeting_at_one_point() {
     let (mut sketch, [across, up], crossing) = two_traits_crossing();
 
     let split = sketch
-        .split(&[across, up], crossing)
+        .split(&[across, up], &[], crossing)
         .expect("a crossing that can be split");
 
     assert!(
@@ -43,7 +43,7 @@ fn a_division_that_cannot_be_made_leaves_the_drawing_as_it_was() {
     let (mut sketch, [across, up], _) = two_traits_crossing();
     let before = sketch.clone();
 
-    let refused = sketch.split(&[across, up], DVec2::new(5.0, 3.0));
+    let refused = sketch.split(&[across, up], &[], DVec2::new(5.0, 3.0));
 
     assert_eq!(
         refused, None,
@@ -65,7 +65,7 @@ fn a_division_that_fails_on_its_second_trait_undoes_the_first() {
     let (mut sketch, [across, _], crossing) = two_traits_crossing();
     let before = sketch.clone();
 
-    let refused = sketch.split(&[across, across], crossing);
+    let refused = sketch.split(&[across, across], &[], crossing);
 
     assert_eq!(refused, None, "the trait was already cut by the first pass");
     assert!(
@@ -82,7 +82,7 @@ fn a_crossing_a_point_already_stands_on_is_not_divided_again() {
     sketch.add_point(crossing);
     let points = sketch.points().len();
 
-    let refused = sketch.split(&[across, up], crossing);
+    let refused = sketch.split(&[across, up], &[], crossing);
 
     assert_eq!(refused, None, "there is nothing left to drop there");
     assert_eq!(
@@ -98,7 +98,7 @@ fn a_length_measured_over_the_whole_trait_does_not_survive_its_division() {
     sketch.set_dimension(DimensionTarget::Length(across), 10.0, false);
 
     sketch
-        .split(&[across, up], crossing)
+        .split(&[across, up], &[], crossing)
         .expect("a crossing that can be split");
 
     let measured: Vec<DimensionTarget> = sketch
@@ -120,9 +120,10 @@ fn the_traits_running_through_a_crossing_are_the_ones_a_division_cuts() {
 
     assert_eq!(
         found,
-        Some(Crossing::Traits {
+        Some(Crossing::Curves {
             at: crossing,
             segments: vec![across, up],
+            arcs: Vec::new(),
         }),
         "a click near the crossing names the place and both traits through it"
     );
@@ -139,7 +140,7 @@ fn a_click_nowhere_near_a_crossing_names_none() {
 }
 
 #[test]
-fn a_crossing_a_curve_runs_through_is_refused_rather_than_half_divided() {
+fn a_crossing_a_circle_runs_through_is_refused_rather_than_half_divided() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let centre = sketch.add_point(DVec2::new(0.0, 0.0));
     sketch.add_circle(centre, 5.0);
@@ -151,13 +152,13 @@ fn a_crossing_a_curve_runs_through_is_refused_rather_than_half_divided() {
 
     assert_eq!(
         found,
-        Some(Crossing::Curved),
+        Some(Crossing::Round),
         "the trait could be cut there, but the circle it crosses could not"
     );
 }
 
 #[test]
-fn two_traits_crossing_where_a_curve_also_runs_are_left_alone_together() {
+fn two_traits_crossing_where_a_circle_also_runs_are_left_alone_together() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let centre = sketch.add_point(DVec2::new(0.0, 0.0));
     sketch.add_circle(centre, 5.0);
@@ -172,7 +173,7 @@ fn two_traits_crossing_where_a_curve_also_runs_are_left_alone_together() {
 
     assert_eq!(
         found,
-        Some(Crossing::Curved),
+        Some(Crossing::Round),
         "cutting the two traits and leaving the circle whole is the half-division nobody asked for"
     );
 }
@@ -192,9 +193,10 @@ fn a_drawing_far_from_the_origin_is_divisible_too() {
 
     assert_eq!(
         found,
-        Some(Crossing::Traits {
+        Some(Crossing::Curves {
             at: DVec2::new(far, 0.0),
             segments: vec![across, up],
+            arcs: Vec::new(),
         }),
     );
 }
@@ -206,11 +208,117 @@ fn a_division_says_what_it_cost() {
     sketch.set_dimension(DimensionTarget::Length(up), 10.0, false);
 
     let split = sketch
-        .split(&[across, up], crossing)
+        .split(&[across, up], &[], crossing)
         .expect("a crossing that can be split");
 
     assert_eq!(
         split.values_dropped, 2,
         "one length measured over each of the two traits divided"
     );
+}
+
+fn a_trait_crossing_a_quarter_arc() -> (Sketch, SegmentId, ArcId, DVec2) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(0.0, 0.0));
+    let east = sketch.add_point(DVec2::new(5.0, 0.0));
+    let north = sketch.add_point(DVec2::new(0.0, 5.0));
+    let arc = sketch.add_arc(centre, east, north);
+    let below = sketch.add_point(DVec2::new(3.0, -1.0));
+    let above = sketch.add_point(DVec2::new(3.0, 10.0));
+    let up = sketch.add_segment(below, above);
+    (sketch, up, arc, DVec2::new(3.0, 4.0))
+}
+
+#[test]
+fn an_arc_a_trait_runs_across_is_named_along_with_it() {
+    let (sketch, up, arc, crossing) = a_trait_crossing_a_quarter_arc();
+
+    let found = sketch.crossing_at(crossing + DVec2::new(0.05, 0.05), 1.0);
+
+    let Some(Crossing::Curves { at, segments, arcs }) = found else {
+        panic!("a crossing a division can cut, got {found:?}");
+    };
+    assert!(
+        at.distance(crossing) <= 1e-9,
+        "the place named is where the two run through, got {at:?}"
+    );
+    assert_eq!(segments, vec![up]);
+    assert_eq!(
+        arcs,
+        vec![arc],
+        "the arc is cut there too, now that it can be"
+    );
+}
+
+#[test]
+fn two_arcs_crossing_each_other_are_both_named() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(0.0, 0.0));
+    let left_start = sketch.add_point(DVec2::new(5.0, 0.0));
+    let left_end = sketch.add_point(DVec2::new(-5.0, 0.0));
+    let first = sketch.add_arc(left, left_start, left_end);
+    let right = sketch.add_point(DVec2::new(6.0, 0.0));
+    let right_start = sketch.add_point(DVec2::new(11.0, 0.0));
+    let right_end = sketch.add_point(DVec2::new(1.0, 0.0));
+    let second = sketch.add_arc(right, right_start, right_end);
+
+    let found = sketch.crossing_at(DVec2::new(3.0, 4.0), 1.0);
+
+    let Some(Crossing::Curves { segments, arcs, .. }) = found else {
+        panic!("two arcs crossing, got {found:?}");
+    };
+    assert_eq!(segments, Vec::new());
+    assert_eq!(arcs, vec![first, second]);
+}
+
+#[test]
+fn an_arc_is_cut_in_two_where_a_trait_runs_across_it() {
+    let (mut sketch, up, arc, crossing) = a_trait_crossing_a_quarter_arc();
+
+    let split = sketch
+        .split(&[up], &[arc], crossing)
+        .expect("a crossing that can be split");
+
+    assert!(
+        sketch.is_erased_arc(arc),
+        "the arc is gone, replaced by its halves"
+    );
+    assert_eq!(split.arc_pieces.len(), 2, "two halves out of the one curve");
+    assert_eq!(split.pieces.len(), 2, "two pieces out of the trait");
+    for piece in &split.arc_pieces {
+        let piece = sketch.arc(*piece);
+        assert!(
+            piece.start == split.point || piece.end == split.point,
+            "every half stops at the point dropped at the crossing"
+        );
+    }
+}
+
+#[test]
+fn a_division_refused_by_an_arc_leaves_the_trait_it_already_cut_alone() {
+    let (mut sketch, up, arc, crossing) = a_trait_crossing_a_quarter_arc();
+    let before = sketch.clone();
+
+    let refused = sketch.split(&[up], &[arc, arc], crossing);
+
+    assert_eq!(refused, None, "the arc was already cut by the first pass");
+    assert!(
+        !sketch.is_erased_arc(arc),
+        "a drawing divided halfway is worse than one not divided at all"
+    );
+    assert!(!sketch.is_erased_segment(up));
+    assert_eq!(sketch.points().len(), before.points().len());
+}
+
+#[test]
+fn a_place_short_of_an_arc_is_not_a_place_that_arc_is_divided_at() {
+    let (mut sketch, up, arc, _) = a_trait_crossing_a_quarter_arc();
+
+    let refused = sketch.split(&[up], &[arc], DVec2::new(3.0, 2.0));
+
+    assert_eq!(
+        refused, None,
+        "the place named is on the trait, and well inside the arc"
+    );
+    assert!(!sketch.is_erased_arc(arc));
 }

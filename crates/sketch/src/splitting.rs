@@ -2,6 +2,7 @@
 
 use glam::DVec2;
 
+use crate::arc::ArcId;
 use crate::edges::off_by;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -15,6 +16,9 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 pub struct Split {
     pub point: PointId,
     pub pieces: Vec<SegmentId>,
+    /// What the curves cut there were left as, around the centres they already
+    /// turned about.
+    pub arc_pieces: Vec<ArcId>,
     pub rules_dropped: usize,
     pub values_dropped: usize,
 }
@@ -22,13 +26,20 @@ pub struct Split {
 /// What stands at the place a click fell on, for a division to act upon.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Crossing {
-    /// Traits crossing with no point of the drawing standing there, and the
-    /// place they cross at.
-    Traits { at: DVec2, segments: Vec<SegmentId> },
-    /// A curve runs through the crossing too. A division cuts traits and
-    /// nothing else yet, and cutting only the straight halves of a crossing
-    /// would leave the drawing saying something nobody asked for.
-    Curved,
+    /// Traits and arcs running through the crossing with no point of the
+    /// drawing standing there, and the place they run through. A division cuts
+    /// every one of them in two.
+    Curves {
+        at: DVec2,
+        segments: Vec<SegmentId>,
+        arcs: Vec<ArcId>,
+    },
+    /// A circle runs through the crossing. A circle has no ends: one point
+    /// divides it into nothing at all, and the two a division of it would want
+    /// are another gesture entirely. Cutting the rest of the crossing and
+    /// leaving the circle round would say something nobody asked for, so the
+    /// whole crossing is refused.
+    Round,
 }
 
 impl Sketch {
@@ -47,41 +58,44 @@ impl Sketch {
                     .total_cmp(&right.distance_squared(at))
             })?;
 
+        if self.a_circle_runs_through(place) {
+            return Some(Crossing::Round);
+        }
+
         let segments: Vec<SegmentId> = self
             .live_segments()
             .filter(|(id, segment)| !segment.construction && self.runs_through(*id, place))
             .map(|(id, _)| id)
             .collect();
+        let arcs: Vec<ArcId> = self
+            .live_arcs()
+            .filter(|(id, arc)| !arc.construction && self.runs_round(*id, place))
+            .map(|(id, _)| id)
+            .collect();
 
-        if self.a_curve_runs_through(place) {
-            return Some(Crossing::Curved);
-        }
-        (segments.len() >= 2).then_some(Crossing::Traits {
+        (segments.len() + arcs.len() >= 2).then_some(Crossing::Curves {
             at: place,
             segments,
+            arcs,
         })
     }
 
-    /// Whether a circle or an arc of the drawing passes through this place.
+    /// Whether a circle of the drawing passes through this place.
     ///
     /// Judged by the sweep's own yardstick rather than a figure of its own.
     /// The sweep merges places nearer than that into one vertex, so a crossing
     /// it reports can sit exactly on whichever pair of curves it happened to
     /// see first and a whole `off_by` away from the circle it swallowed. Asked
-    /// any more strictly, the division would cut the traits and leave that
-    /// circle round.
+    /// any more strictly, the division would cut the rest and leave that circle
+    /// round.
     ///
-    /// Construction curves are left out, as they are left out of the sweep.
-    fn a_curve_runs_through(&self, at: DVec2) -> bool {
+    /// Construction circles are left out, as they are left out of the sweep.
+    fn a_circle_runs_through(&self, at: DVec2) -> bool {
         let reach = off_by(at);
-        let on_a_circle = self.live_circles().any(|(_, circle)| {
+        self.live_circles().any(|(_, circle)| {
             !circle.construction
                 && (at.distance(self.point(circle.center)) - circle.radius).abs() <= reach
-        });
-        let on_an_arc = self
-            .live_arcs()
-            .any(|(id, arc)| !arc.construction && self.distance_to_arc(id, at) <= reach);
-        on_a_circle || on_an_arc
+        })
     }
 
     /// Drops a point where the named traits cross and cuts each of them in two
@@ -93,7 +107,7 @@ impl Sketch {
     /// not hold after it: a cut carries a point away with a tangency it drops,
     /// and `trim` cuts a trait a previous pass already erased rather than
     /// refusing it.
-    pub fn split(&mut self, segments: &[SegmentId], at: DVec2) -> Option<Split> {
+    pub fn split(&mut self, segments: &[SegmentId], arcs: &[ArcId], at: DVec2) -> Option<Split> {
         if self.stands_on(at) {
             return None;
         }
@@ -103,6 +117,7 @@ impl Sketch {
         let mut split = Split {
             point,
             pieces: Vec::new(),
+            arc_pieces: Vec::new(),
             rules_dropped: 0,
             values_dropped: 0,
         };
@@ -112,6 +127,15 @@ impl Sketch {
             }
             let cut = divided.trim(*segment, point, point)?;
             split.pieces.extend(cut.pieces);
+            split.rules_dropped += cut.rules_dropped;
+            split.values_dropped += cut.values_dropped;
+        }
+        for arc in arcs {
+            if !divided.runs_round(*arc, at) {
+                return None;
+            }
+            let cut = divided.trim_arc(*arc, point, point)?;
+            split.arc_pieces.extend(cut.pieces);
             split.rules_dropped += cut.rules_dropped;
             split.values_dropped += cut.values_dropped;
         }
@@ -149,6 +173,21 @@ impl Sketch {
             && at.distance(start + span * along) <= near_enough
             && at.distance(start) > near_enough
             && at.distance(end) > near_enough
+    }
+
+    /// The same of an arc: whether the curve passes through this place, short
+    /// of either of its own ends.
+    fn runs_round(&self, arc: ArcId, at: DVec2) -> bool {
+        if self.is_erased_arc(arc) || arc.0 >= self.arcs().len() {
+            return false;
+        }
+        let near_enough = off_by(at);
+        if self.distance_to_arc(arc, at) > near_enough {
+            return false;
+        }
+        let curve = self.arc(arc);
+        at.distance(self.point(curve.start)) > near_enough
+            && at.distance(self.point(curve.end)) > near_enough
     }
 }
 

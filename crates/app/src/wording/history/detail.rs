@@ -161,12 +161,13 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
         Operation::Split {
             sketch,
             segments,
+            arcs,
             at,
         } => lang.t_with(
             "history.detail.split",
             &[
                 ("sketch", &sketch.to_string()),
-                ("count", &segments.len().to_string()),
+                ("count", &(segments.len() + arcs.len()).to_string()),
                 ("x", &format!("{:.3}", at.x)),
                 ("y", &format!("{:.3}", at.y)),
             ],

@@ -88,16 +88,45 @@ identically. See [sketch.md](sketch.md).
 
 A `.caopart` is a **zip archive**, and no longer a single JSON object:
 
-| File | Contents |
-| --- | --- |
-| `part.json` | The identity of the part: id, name, dates, schema version |
-| `history.json` | The list of operations and the position of the cursor |
-| `picture.json` | How big the picture below is, when there is one |
-| `picture.rgba` | A picture of the part, rows of pixels, four bytes each |
+```
+.caopart
+├── part.json        the identity of the part: id, name, dates, schema version
+├── picture.json     how big the picture below is, when there is one
+├── picture.rgba     a picture of the part, rows of pixels, four bytes each
+└── design/
+    └── history.json the list of operations and the position of the cursor
+```
 
 Separating the files allows each part to evolve independently, and leaves room
 for what will come along (materials, exported meshes) without rewriting the rest
 at every save.
+
+### What designed the part sits apart from what the part is
+
+`design/` holds how the part was arrived at; the root holds what it is. The
+split is what gives the two things that are coming a place they do not have to
+argue over: the rebuilt geometry of a feature, cached beside the operations
+that produce it, and a `simulation/` folder run against the part as a whole.
+
+A feature that stays cheap to replay — every kind in the catalogue today —
+keeps its operations in `design/history.json` and gets no folder. The day one
+kind is slow enough to be worth caching, that kind gains
+`design/<kind>-<id>/`, holding its own operations and the `.bin` of the
+geometry they rebuild to, and `design/history.json` becomes the ordered index
+naming them. Folders arrive one feature kind at a time, each when it earns one.
+
+**The `<id>` in that name is assigned once, when the feature is created, and
+never reused** — not the rank of the feature in the history. A rank is not a
+name: drawing after an undo throws away the abandoned tail, so what sits at a
+given rank changes from one save to the next while the number stays put, and
+every folder after the cut would have to be renamed on disk.
+
+A whole-part cache lands at the root, as `part.bin`, since it answers to the
+part and not to any one step of its design.
+
+There is no `metadata.json`. `part.json` holds the identity, and a file named
+after no particular content is where fields with nowhere else to go come to
+pile up; the day something concrete needs writing down, it is named then.
 
 ### The picture is kept, because the geometry is not
 
@@ -122,7 +151,10 @@ in there.
 
 A file written by an earlier version is **refused**, with the reason, instead
 of being converted. As long as the tool moves this much, a conversion would be
-likelier to rebuild a part askew than to save anything useful.
+likelier to rebuild a part askew than to save anything useful. The flat layout
+that came before `design/` is one of those: no reader is kept for it, and the
+schema version went up so that a part written under it says so rather than
+opening with no history at all.
 
 ## What is missing
 

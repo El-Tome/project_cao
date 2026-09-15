@@ -272,3 +272,40 @@ fn a_picture_survives_a_save_that_did_not_take_it() {
          every gesture: a picture it did not write is a picture gone",
     );
 }
+
+fn entries_of(files: &InMemoryFiles, path: &Path) -> Vec<String> {
+    let bytes = files.read(path).expect("the archive is there");
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
+    (0..archive.len())
+        .map(|index| {
+            archive
+                .by_index(index)
+                .expect("an entry of the archive")
+                .name()
+                .to_string()
+        })
+        .collect()
+}
+
+#[test]
+fn the_steps_a_part_was_designed_by_live_in_a_folder_of_their_own() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut document = drawn_part();
+    document.set_picture(a_drawn_picture());
+    document
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    assert_eq!(
+        entries_of(&files, path),
+        [
+            "part.json",
+            "design/history.json",
+            "picture.json",
+            "picture.rgba",
+        ],
+        "the design gets a folder a feature can be given a place in, and what \
+         describes the part as a whole stays beside it at the root",
+    );
+}

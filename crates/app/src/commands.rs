@@ -141,6 +141,16 @@ pub(crate) fn run(
             editor.message = Some(lang.t("sketch.click_a_corner_to_round"));
             false
         }
+        Command::ToolMirror => {
+            let held = editor.held_elements();
+            tool(editor, Tool::Mirror);
+            editor.tool_state = cao_sketch::ToolState::Mirror {
+                held,
+                naming_the_axis: false,
+            };
+            editor.message = Some(lang.t("sketch.mirror_take_elements"));
+            false
+        }
         Command::ToggleConstruction => {
             editor.construction = !editor.construction;
             false

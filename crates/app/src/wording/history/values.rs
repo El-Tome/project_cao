@@ -2,7 +2,7 @@
 //! runs between, an axis, a rounded number, what a chamfer took.
 
 use cao_part::history::{PointRef, RevolutionAxis};
-use cao_sketch::Chamfer;
+use cao_sketch::{Chamfer, MirrorAxis};
 
 use crate::lang::Catalogue;
 use crate::wording::constraints;
@@ -64,5 +64,15 @@ pub(super) fn chamfer(lang: &Catalogue, mode: Chamfer) -> String {
             "history.chamfer.angled",
             &[("along", &say(along)), ("degrees", &say(degrees))],
         ),
+    }
+}
+
+/// Which axis a copy was laid across.
+pub(super) fn mirror_axis(lang: &Catalogue, axis: MirrorAxis) -> String {
+    match axis {
+        MirrorAxis::Trait(id) => {
+            lang.t_with("history.mirror.trait", &[("segment", &id.0.to_string())])
+        }
+        MirrorAxis::Sketch(which) => constraints::axis(lang, which),
     }
 }

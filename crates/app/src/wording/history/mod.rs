@@ -42,6 +42,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::Split { .. } => lang.t("history.split"),
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),
+        Operation::Mirror { .. } => lang.t("history.mirrored"),
         Operation::Revolve { angle, mode, .. } => lang.t_with(
             match mode {
                 ExtrusionMode::Add => "history.revolution",

@@ -38,6 +38,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
 | **Chamfer** | Two clicks: the two traits of a corner. What is taken off each is typed, then `Entrée`. |
 | **Fillet** | The same two clicks, then a radius: the corner becomes a curve tangent to both sides. |
+| **Mirror** | Take what is to be copied, `Entrée`, then click the trait or axis to mirror it across. |
 
 ### Taking several things at once
 
@@ -725,6 +726,33 @@ nothing can take hold of: a shape folded over on itself is tinted as the areas
 its crossing actually bounds, a square dragged into a bowtie becoming two
 triangles rather than nothing at all. A trait crossing a curve, and two curves
 crossing each other, are cut apart the same way.
+
+### A copy lands the other side of an axis
+
+The mirror tool lays a second copy of what is held across an axis. It **carries
+over whatever the Selection tool was holding** when it was reached for — taking
+things and then saying what to do with them is the gesture the drawing already
+has, box-select included. Inside the tool, clicking an element adds it or takes
+it back out. `Entrée` says the selection is done, and the click after it names
+the axis.
+
+The axis is **a trait of the drawing or one of the sketch's own two**, never two
+free clicks: a trait follows the drawing when it moves, where a pair of
+positions recorded once would go on meaning the same two places after everything
+around them had moved. A click that is within reach of both a trait and an axis
+takes the trait — it is the smaller target, and the one the user drew.
+
+The trait serving as the axis is never copied: it lies on the mirror line, and a
+copy of it there is one nobody could tell from it.
+
+**The copy comes out as bare geometry** — points, traits, circles and arcs, with
+the joins they had between them, and nothing else. No rule and no dimension
+follows. A pattern lays the same copy down many times (#169, #170), and carrying
+a rule over each time would hand the solver the same figure to hold once per
+copy. What that costs: a mirrored rectangle is no longer held rectangular.
+
+A reflection turns the plane over, so a curve's two ends change places in the
+copy — otherwise the arc would come back sweeping the long way round.
 
 ### A corner is cut off straight
 

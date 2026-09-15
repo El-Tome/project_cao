@@ -5,7 +5,7 @@ use cao_sketch::ToolState;
 
 use super::input::{
     corner_held, cut_the_corner, draw_arc, draw_circle, draw_line_point, draw_symmetric_line_point,
-    rectangle_corner, two_click_shape,
+    hold_is_done, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
 use super::{PICK_PIXELS, SketchContext, ViewScale};
@@ -19,6 +19,12 @@ pub(crate) fn advance_on_enter(
     sketch: &mut SketchContext<'_>,
     scale: ViewScale,
 ) -> bool {
+    // The mirror has no live field for Enter to land in, so the key is read
+    // here rather than handed on by one.
+    if matches!(sketch.editor.tool_state, ToolState::Mirror { .. }) {
+        return ui.input(|input| input.key_pressed(egui::Key::Enter)) && hold_is_done(sketch);
+    }
+
     let drawing = matches!(
         sketch.editor.tool_state,
         ToolState::Line { .. }

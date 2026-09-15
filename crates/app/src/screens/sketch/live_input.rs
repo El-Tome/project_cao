@@ -1,6 +1,6 @@
-//! The two values shown as a shape is drawn, and editable on the spot.
+//! The values shown as a shape is drawn, and editable on the spot.
 
-/// One of the two values that can be typed while a shape is being drawn.
+/// One of the values that can be typed while a shape is being drawn.
 ///
 /// A value left alone is only a readout of what the cursor is doing. A value
 /// typed becomes a decision: the shape can no longer take another, and the
@@ -11,15 +11,15 @@ pub struct LiveField {
     pub locked: Option<f64>,
 }
 
-/// The two values shown as a shape is drawn, editable on the spot: length and
-/// angle for a line, width and height for a rectangle.
+/// The values shown as a shape is drawn, editable on the spot: length and
+/// angle for a line, width and height for a rectangle, the two steps and the
+/// two counts of a rectangular pattern.
 ///
-/// Fixing one of the two still leaves the other free — an angle alone lets the
+/// Fixing one of them still leaves the others free — an angle alone lets the
 /// line be lengthened, a length alone lets it turn.
 #[derive(Default)]
 pub struct LiveInput {
-    pub first: LiveField,
-    pub second: LiveField,
+    fields: Vec<LiveField>,
     /// Set when the fields appear, so the first one takes the keyboard on its
     /// own: reaching it with Tab means walking through the toolbar first.
     pub focus: bool,
@@ -30,17 +30,32 @@ impl LiveInput {
         *self = Self::default();
     }
 
-    /// Starts a fresh pair of fields with the keyboard on the first one.
+    /// Starts a fresh set of fields with the keyboard on the first one.
     pub fn open(&mut self) {
         self.clear();
         self.focus = true;
     }
 
-    /// The two decisions, as the drawing reads them.
+    /// The field of that rank, made on the spot. How many a tool shows is the
+    /// tool's own business: two for a line, four for a rectangular pattern.
+    pub fn field(&mut self, rank: usize) -> &mut LiveField {
+        if self.fields.len() <= rank {
+            self.fields.resize_with(rank + 1, LiveField::default);
+        }
+        &mut self.fields[rank]
+    }
+
+    /// What was typed into the field of that rank, if anything was.
+    pub fn typed(&self, rank: usize) -> Option<f64> {
+        self.fields.get(rank)?.locked
+    }
+
+    /// The first two decisions, as the drawing reads them — the pair every
+    /// shape is drawn to.
     pub fn locked(&self) -> cao_sketch::LockedInput {
         cao_sketch::LockedInput {
-            first: self.first.locked,
-            second: self.second.locked,
+            first: self.typed(0),
+            second: self.typed(1),
         }
     }
 

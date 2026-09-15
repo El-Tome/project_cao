@@ -258,24 +258,24 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
 
     // A line is a length and an angle, a rectangle its two sides, a circle its
     // diameter and nothing else — so its second field is left out.
-    let (labels, measured): ([&str; 2], [f64; 2]) = match context.editor.tool {
-        Tool::Circle => circle::live_fields(context, index, cursor, scale)?,
-        Tool::Arc => arc::live_fields(context, cursor)?,
+    let fields: Vec<(&'static str, f64)> = match context.editor.tool {
+        Tool::Circle => pair(circle::live_fields(context, index, cursor, scale)?),
+        Tool::Arc => pair(arc::live_fields(context, cursor)?),
         Tool::Line => {
             let from = sketch.anchor_position(context.editor.chain()?)?;
             let span = cursor - from;
-            (
+            pair((
                 ["mm", "°"],
                 [span.length() * scale, span.y.atan2(span.x).to_degrees()],
-            )
+            ))
         }
         Tool::Rectangle => {
             let start = context.editor.pending_start()?;
             let far = rectangle_corner(context, raw_cursor);
             let span = far - start;
-            (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
+            pair((["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale]))
         }
-        Tool::LineSymmetric => symmetric_line::live_fields(context, sketch, raw_cursor)?,
+        Tool::LineSymmetric => pair(symmetric_line::live_fields(context, sketch, raw_cursor)?),
         Tool::CircularPattern => match context.editor.tool_state {
             // The step between one copy and the next, and how many stand there
             // in the end. Nothing is read off the cursor: a pattern is only
@@ -283,13 +283,13 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             ToolState::Mirror {
                 naming_the_axis: true,
                 ..
-            } => (["°", "×"], [0.0; 2]),
+            } => pair((["°", "×"], [0.0; 2])),
             _ => return None,
         },
         Tool::Chamfer | Tool::Fillet => match context.editor.tool_state {
             // Nothing is read off the cursor: a corner tool is only ever what
             // is typed, so the fields stand empty until they are.
-            ToolState::Corner { .. } => (corner_units(context.editor), [0.0; 2]),
+            ToolState::Corner { .. } => pair((corner_units(context.editor), [0.0; 2])),
             _ => return None,
         },
         _ => return None,
@@ -309,15 +309,25 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
         .show(ui.ctx(), |ui| {
             egui::Frame::popup(ui.style()).show(ui, |ui| {
                 ui.horizontal(|ui| {
-                    validated |= live_field(ui, labels[0], measured[0], &mut live.first, focus);
-                    if !labels[1].is_empty() {
+                    for (rank, (label, measured)) in fields.into_iter().enumerate() {
+                        let first = rank == 0;
                         validated |=
-                            live_field(ui, labels[1], measured[1], &mut live.second, false);
+                            live_field(ui, label, measured, live.field(rank), focus && first);
                     }
                 });
             });
         });
     Some(validated)
+}
+
+/// The two values a tool shows, ready to draw. A tool with only one of them —
+/// a circle is a diameter and nothing else — leaves the second label empty.
+fn pair((labels, measured): ([&'static str; 2], [f64; 2])) -> Vec<(&'static str, f64)> {
+    labels
+        .into_iter()
+        .zip(measured)
+        .filter(|(label, _)| !label.is_empty())
+        .collect()
 }
 
 /// A number field that takes the keyboard on demand, whole value selected.

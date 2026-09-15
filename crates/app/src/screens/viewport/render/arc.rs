@@ -176,7 +176,7 @@ mod tests {
             places,
             first_typed: false,
         };
-        editor.live.first.locked = locked;
+        editor.live.field(0).locked = locked;
 
         let millimetres = document.scale();
         let context = SketchContext {

@@ -26,7 +26,7 @@ pub(crate) fn draw_arc(
         // The field that decides this leg is about to be cleared and handed
         // to the next: whether it was typed has to be carried forward by
         // hand, or the arc could never be dimensioned for it once settled.
-        let first_typed = context.editor.live.first.locked.is_some();
+        let first_typed = context.editor.live.typed(0).is_some();
         places.push(cursor);
         context.editor.tool_state = ToolState::Arc {
             places,
@@ -41,7 +41,7 @@ pub(crate) fn draw_arc(
         context.editor.message = Some(context.lang.t("sketch.no_arc_from_these"));
         return false;
     };
-    let second_typed = context.editor.live.first.locked.is_some();
+    let second_typed = context.editor.live.typed(0).is_some();
 
     // Each of the three reuses a point already drawn when one is under it, as
     // everywhere else, so an arc hangs off what is there instead of stacking
@@ -151,7 +151,7 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         context.editor.arc_mode,
         places,
         cursor,
-        context.editor.live.first.locked,
+        context.editor.live.typed(0),
         context.document.scale(),
     )
 }

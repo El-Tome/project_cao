@@ -103,7 +103,7 @@ pub(crate) fn draw_circle(
                 });
             }
             // And a size typed by hand becomes the dimension it deserves.
-            if let Some(diameter) = context.editor.live.first.locked {
+            if let Some(diameter) = context.editor.live.typed(0) {
                 let target = DimensionTarget::Diameter(drawn);
                 let scale = context.document.scale();
                 if !context.document.sketches()[index].would_be_redundant(target, scale) {
@@ -155,7 +155,7 @@ pub(crate) fn circle_from(
         &points,
         &lines,
         cursor,
-        context.editor.live.first.locked,
+        context.editor.live.typed(0),
         context.document.scale(),
     )
 }

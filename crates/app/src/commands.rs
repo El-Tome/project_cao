@@ -141,10 +141,11 @@ pub(crate) fn run(
             editor.message = Some(lang.t("sketch.click_a_corner_to_round"));
             false
         }
-        Command::ToolMirror | Command::ToolCircularPattern => {
+        Command::ToolMirror | Command::ToolCircularPattern | Command::ToolRectangularPattern => {
             let held = editor.held_elements();
             let which = match command {
                 Command::ToolCircularPattern => Tool::CircularPattern,
+                Command::ToolRectangularPattern => Tool::RectangularPattern,
                 _ => Tool::Mirror,
             };
             tool(editor, which);
@@ -153,7 +154,7 @@ pub(crate) fn run(
                 naming_the_target: false,
             };
             editor.message = Some(lang.t(match which {
-                Tool::CircularPattern => "sketch.pattern_take_elements",
+                Tool::CircularPattern | Tool::RectangularPattern => "sketch.pattern_take_elements",
                 _ => "sketch.mirror_take_elements",
             }));
             false

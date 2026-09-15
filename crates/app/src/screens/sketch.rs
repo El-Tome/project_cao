@@ -36,6 +36,8 @@ pub enum Tool {
     Mirror,
     /// Repeats what is held around a chosen centre.
     CircularPattern,
+    /// Repeats what is held in rows square to a chosen direction.
+    RectangularPattern,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }

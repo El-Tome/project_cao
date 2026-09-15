@@ -281,7 +281,7 @@ pub(crate) fn handle_sketch_input(
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Split => split(context, index, cursor, snap),
         Tool::Chamfer | Tool::Fillet => corner(context, index, cursor, snap),
-        Tool::Mirror | Tool::CircularPattern => {
+        Tool::Mirror | Tool::CircularPattern | Tool::RectangularPattern => {
             copy(context, index, cursor, snap, scale.units_per_pixel)
         }
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),

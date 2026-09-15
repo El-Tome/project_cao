@@ -131,7 +131,7 @@ const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/history_tree.rs", 1),
     ("crates/app/src/screens/settings/viewport.rs", 3),
     ("crates/app/src/screens/start_menu.rs", 1),
-    ("crates/app/src/screens/viewport/render/dimensions.rs", 1),
+    ("crates/app/src/screens/viewport/render/live_fields.rs", 1),
 ];
 
 #[test]

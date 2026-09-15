@@ -2,7 +2,7 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, SegmentId,
+    ArcId, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats, SegmentId,
     SketchAxis, WorkPlane,
 };
 use glam::DVec2;
@@ -238,6 +238,19 @@ pub enum Operation {
         /// Degrees between one copy and the next.
         degrees: f64,
         count: usize,
+    },
+    /// Repeats what was selected in rows square to a direction of the drawing.
+    /// Each count is how many stand there in the end along its own direction,
+    /// the original among them.
+    RectangularPattern {
+        sketch: usize,
+        elements: Vec<Element>,
+        direction: ChosenAxis,
+        /// Along the direction, its step in millimetres like every other
+        /// length the user types.
+        along: Repeats,
+        /// Square to it, the same.
+        across: Repeats,
     },
     /// Rounds the corner two traits share into a curve tangent to both.
     Fillet {

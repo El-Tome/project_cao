@@ -24,10 +24,12 @@ mod circle;
 mod curves;
 mod dimensions;
 mod emphasis;
+mod live_fields;
 mod symmetric_line;
 
 use curves::{push_arc_at, push_circle_at, push_line};
-pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels, paint_live_input};
+pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
+pub(crate) use live_fields::paint_live_input;
 
 use super::cube_labels;
 use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};

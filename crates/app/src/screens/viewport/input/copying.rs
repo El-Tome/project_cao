@@ -1,5 +1,7 @@
 use cao_part::Operation;
-use cao_sketch::{ChosenAxis, Element, LockedInput, Selection, Sketch, ToolState, axis_under};
+use cao_sketch::{
+    ChosenAxis, Element, LockedInput, Repeats, Selection, Sketch, ToolState, axis_under,
+};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -7,9 +9,9 @@ use crate::screens::viewport::SketchContext;
 
 use super::pick;
 
-/// One click of a tool that lays a copy down — the mirror, or the circular
-/// pattern. Both gather what is held until `Entrée` says the selection is done,
-/// and then name the one thing they each need: an axis, or a centre.
+/// One click of a tool that lays a copy down — the mirror, or either pattern.
+/// All three gather what is held until `Entrée` says the selection is done, and
+/// then name the one thing they each need: an axis, a centre, a direction.
 pub(crate) fn copy(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -31,10 +33,10 @@ pub(crate) fn copy(
 }
 
 /// What a tool laying copies calls the stage it is at, so the drawing says the
-/// right thing whichever of the two is in hand.
+/// right thing whichever of the three is in hand.
 fn gathering(context: &SketchContext<'_>) -> &'static str {
     match context.editor.tool {
-        Tool::CircularPattern => "sketch.pattern_take_elements",
+        Tool::CircularPattern | Tool::RectangularPattern => "sketch.pattern_take_elements",
         _ => "sketch.mirror_take_elements",
     }
 }
@@ -42,12 +44,13 @@ fn gathering(context: &SketchContext<'_>) -> &'static str {
 fn asking(context: &SketchContext<'_>) -> &'static str {
     match context.editor.tool {
         Tool::CircularPattern => "sketch.pattern_click_the_centre",
+        Tool::RectangularPattern => "sketch.pattern_click_the_direction",
         _ => "sketch.mirror_click_the_axis",
     }
 }
 
 /// Starts the tool holding what it is given — whatever the selection tool had
-/// in hand when the mirror was reached for.
+/// in hand when the tool was reached for.
 fn take_hold(context: &mut SketchContext<'_>, held: Vec<Element>) {
     context.editor.tool_state = ToolState::Copying {
         held,
@@ -57,8 +60,9 @@ fn take_hold(context: &mut SketchContext<'_>, held: Vec<Element>) {
     context.editor.message = Some(context.lang.t(said));
 }
 
-/// `Entrée`: what is held is what will be copied, and the next click names the
-/// axis. Nothing held is nothing to mirror, so the tool stays where it is.
+/// `Entrée`: what is held is what will be copied, and the next click names
+/// where it goes. Nothing held is nothing to copy, so the tool stays where it
+/// is.
 pub(crate) fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
     let ToolState::Copying { held, .. } = &context.editor.tool_state else {
         return false;
@@ -70,7 +74,10 @@ pub(crate) fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
         held: held.clone(),
         naming_the_target: true,
     };
-    if context.editor.tool == Tool::CircularPattern {
+    if matches!(
+        context.editor.tool,
+        Tool::CircularPattern | Tool::RectangularPattern
+    ) {
         context.editor.live.open();
     }
     let said = asking(context);
@@ -109,6 +116,7 @@ fn lay_the_copy(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, sn
     let elements = held.clone();
     let asked = match context.editor.tool {
         Tool::CircularPattern => around(context, index, elements, cursor, snap),
+        Tool::RectangularPattern => in_rows(context, index, elements, cursor, snap),
         _ => across(context, index, elements, cursor, snap),
     };
     let Some(operation) = asked else {
@@ -166,6 +174,54 @@ fn around(
         degrees,
         count,
     })
+}
+
+/// The rectangular pattern's: a direction of the drawing to run along, and the
+/// four values typed for it. The second direction is that one square.
+fn in_rows(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    elements: Vec<Element>,
+    cursor: DVec2,
+    snap: f64,
+) -> Option<Operation> {
+    let sketch = context.document.sketches().get(index)?;
+    let Some(direction) = axis_at(sketch, cursor, snap) else {
+        context.editor.message = Some(context.lang.t("sketch.pattern_needs_a_direction"));
+        return None;
+    };
+    let live = &context.editor.live;
+    let typed = [live.typed(0), live.typed(1), live.typed(2), live.typed(3)];
+    let Some((along, across)) = filled(typed) else {
+        context.editor.message = Some(context.lang.t("sketch.pattern_needs_its_steps"));
+        return None;
+    };
+    Some(Operation::RectangularPattern {
+        sketch: index,
+        elements,
+        direction,
+        along,
+        across,
+    })
+}
+
+/// The two steps and the two counts a rectangular pattern was given, once all
+/// four have been typed.
+///
+/// A count is a whole number of copies, so what was typed is rounded to one. A
+/// count of one is a direction the pattern does not run in, which leaves a
+/// single row; one in both directions is no pattern at all.
+fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
+    let run = |step: Option<f64>, count: Option<f64>| {
+        let count = count?.round();
+        (count >= 1.0).then_some(Repeats {
+            step: step?,
+            count: count as usize,
+        })
+    };
+    let along = run(typed[0], typed[1])?;
+    let across = run(typed[2], typed[3])?;
+    (along.count * across.count >= 2).then_some((along, across))
 }
 
 /// The step and the count a pattern was given, once both have been typed.
@@ -251,6 +307,39 @@ mod tests {
         assert_eq!(turned(some(Some(30.0), None)), None);
         assert_eq!(turned(some(None, Some(6.0))), None);
         assert_eq!(turned(some(Some(30.0), Some(6.0))), Some((30.0, 6)));
+    }
+
+    #[test]
+    fn a_grid_waits_for_all_four_of_its_values() {
+        let full = [Some(20.0), Some(4.0), Some(15.0), Some(3.0)];
+
+        assert_eq!(
+            filled(full),
+            Some((
+                Repeats {
+                    step: 20.0,
+                    count: 4
+                },
+                Repeats {
+                    step: 15.0,
+                    count: 3
+                }
+            ))
+        );
+        for rank in 0..4 {
+            let mut missing = full;
+            missing[rank] = None;
+            assert_eq!(filled(missing), None, "value {rank} left empty");
+        }
+    }
+
+    #[test]
+    fn a_grid_of_one_by_one_is_no_pattern_at_all() {
+        assert_eq!(filled([Some(20.0), Some(1.0), Some(15.0), Some(1.0)]), None);
+        assert!(
+            filled([Some(20.0), Some(4.0), Some(15.0), Some(1.0)]).is_some(),
+            "a single row is a pattern like any other"
+        );
     }
 
     #[test]

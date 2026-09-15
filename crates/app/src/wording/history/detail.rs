@@ -203,6 +203,24 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("count", &count.to_string()),
             ],
         ),
+        Operation::RectangularPattern {
+            sketch,
+            elements,
+            direction,
+            along,
+            across,
+        } => lang.t_with(
+            "history.detail.rectangular_pattern",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("elements", &elements.len().to_string()),
+                ("direction", &chosen_axis(lang, *direction)),
+                ("along", &along.count.to_string()),
+                ("along_step", &rounded(along.step, 3)),
+                ("across", &across.count.to_string()),
+                ("across_step", &rounded(across.step, 3)),
+            ],
+        ),
         Operation::TrimArc {
             sketch,
             arc,

@@ -40,6 +40,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Fillet** | The same two clicks, then a radius: the corner becomes a curve tangent to both sides. |
 | **Mirror** | Take what is to be copied, `Entrée`, then click the trait or axis to mirror it across. |
 | **Circular pattern** | The same, then a step and a count, then click the point to turn about. |
+| **Rectangular pattern** | The same, then two steps and two counts, then click the trait or axis to run along. |
 
 ### Taking several things at once
 
@@ -748,7 +749,7 @@ copy of it there is one nobody could tell from it.
 
 **The copy comes out as bare geometry** — points, traits, circles and arcs, with
 the joins they had between them, and nothing else. No rule and no dimension
-follows. A pattern lays the same copy down many times (#169, #170), and carrying
+follows. A pattern lays the same copy down many times, and carrying
 a rule over each time would hand the solver the same figure to hold once per
 copy. What that costs: a mirrored rectangle is no longer held rectangular.
 
@@ -773,6 +774,30 @@ trait of it: a point follows the drawing when it moves.
 
 A turn is not a reflection, so a curve keeps its ends the way round it had them;
 only the mirror swaps them.
+
+### The same copy, in rows
+
+The rectangular pattern takes that same gesture once more and slides it: take
+what is to be repeated, `Entrée`, type a step and a count for the direction and
+a step and a count square to it, then click the trait or axis to run along.
+
+The **direction is a trait of the drawing or one of the sketch's own two**, read
+off the last click exactly as the mirror reads its axis, and the second
+direction is that one turned a quarter. A leaning trait leans the whole grid
+with it, which is what a pattern of holes along a slanted edge wants.
+
+Each **count is how many stand there in the end** along its own direction, the
+original among them, so three by two is six. A count of one is a direction the
+pattern does not run in, which leaves a single row; one both ways is no pattern
+at all, and neither is a step of zero, which would pile every copy on the one
+before it.
+
+All four values are typed, none is read off the cursor — a pattern is only ever
+what it was told, the same way the circular one is.
+
+**What a pattern does not do yet**: nothing stops one from running over itself,
+and each element is repeated where it stands rather than by the room it takes
+up, so two elements far apart make a grid as wide as the gap between them.
 
 ### A corner is cut off straight
 

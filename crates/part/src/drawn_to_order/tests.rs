@@ -1,4 +1,5 @@
 use super::*;
+use crate::history::History;
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -66,9 +67,15 @@ fn the_same_recipe_draws_the_same_part_twice() {
     let again = recipe.drawn("Test", now);
 
     assert_eq!(
-        serde_json::to_string(&once.history).expect("a history"),
-        serde_json::to_string(&again.history).expect("a history"),
+        as_text(&once.history),
+        as_text(&again.history),
         "a figure measured on one part means nothing if the next run draws \
          another",
     );
+}
+
+/// The whole design in one line, so a run that differs says where rather than
+/// printing two parts.
+fn as_text(history: &History) -> String {
+    serde_json::to_string(&(history.index(), history.operations())).expect("a design")
 }

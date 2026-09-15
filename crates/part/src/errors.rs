@@ -13,6 +13,8 @@ pub enum PartFileError {
     Archive(#[from] zip::result::ZipError),
     #[error("part file has no entry named {0}")]
     MissingEntry(String),
+    #[error("the index of the design and the steps beside it do not answer to each other")]
+    BrokenDesign,
     #[error("part written by an unsupported schema version (v{0})")]
     UnsupportedVersion(u32),
     #[error("a part file cannot be named with blanks alone")]

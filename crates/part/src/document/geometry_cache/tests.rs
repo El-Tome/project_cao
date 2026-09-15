@@ -7,9 +7,14 @@ use glam::DVec2;
 
 use super::*;
 use crate::adapters::InMemoryFiles;
-use crate::document::{HISTORY_ENTRY, PartDocument};
+use crate::document::PartDocument;
+use crate::document::design;
 use crate::history::{ExtrusionMode, Operation, PointRef};
 use crate::ports::Files;
+
+fn borrowed(design: &[String]) -> Vec<&str> {
+    design.iter().map(String::as_str).collect()
+}
 
 fn at(text: &str) -> DateTime<Utc> {
     text.parse().expect("a date")
@@ -41,16 +46,12 @@ fn put_away(files: &InMemoryFiles, path: &Path) {
         .expect("the part is written");
 }
 
-fn entry_of(files: &InMemoryFiles, path: &Path, name: &str) -> Vec<u8> {
+/// Every file the design is written as, in the order the print folds them —
+/// the index, then one per step.
+fn design_of(files: &InMemoryFiles, path: &Path) -> Vec<String> {
     let bytes = files.read(path).expect("the archive is there");
     let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
-    let mut entry = Vec::new();
-    archive
-        .by_name(name)
-        .expect("the entry is there")
-        .read_to_end(&mut entry)
-        .expect("the entry is read");
-    entry
+    design::read(&mut archive).expect("a design").1
 }
 
 /// Writes the archive again with one entry replaced, or dropped when there is
@@ -94,8 +95,8 @@ fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_d
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
     put_away(&files, path);
-    let design = String::from_utf8(entry_of(&files, path, HISTORY_ENTRY)).expect("the design");
-    let cached = encoded(&a_foreign_geometry(), &design).expect("a cache");
+    let design = design_of(&files, path);
+    let cached = encoded(&a_foreign_geometry(), &borrowed(&design)).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
 
     let reopened = PartDocument::load(&files, path).expect("reads");
@@ -108,11 +109,36 @@ fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_d
 }
 
 #[test]
+fn a_geometry_cached_before_a_stroke_was_changed_in_its_step_is_left_behind() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let mut design = design_of(&files, path);
+    let drawing = &mut design[1];
+    assert!(
+        drawing.contains("20.0"),
+        "the rectangle is in there: {drawing}"
+    );
+    *drawing = drawing.replace("20.0", "30.0");
+    let cached = encoded(&a_foreign_geometry(), &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert_eq!(
+        reopened.sketches().len(),
+        1,
+        "the print covers what every step holds and not the index alone, \
+         where none of the drawing is",
+    );
+}
+
+#[test]
 fn a_geometry_cached_from_another_design_is_left_behind() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
     put_away(&files, path);
-    let cached = encoded(&a_foreign_geometry(), "a design nobody wrote").expect("a cache");
+    let cached = encoded(&a_foreign_geometry(), &["a design nobody wrote"]).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
 
     let reopened = PartDocument::load(&files, path).expect("reads");
@@ -350,8 +376,8 @@ fn a_part_put_away_carries_the_geometry_it_was_showing() {
     document
         .put_away(&files, path, at("2026-01-02T10:00:00Z"))
         .expect("the part is written");
-    let design = String::from_utf8(entry_of(&files, path, HISTORY_ENTRY)).expect("the design");
-    let cached = encoded(&a_foreign_geometry(), &design).expect("a cache");
+    let design = design_of(&files, path);
+    let cached = encoded(&a_foreign_geometry(), &borrowed(&design)).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
 
     let reopened = PartDocument::load(&files, path).expect("reads");

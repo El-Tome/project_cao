@@ -60,6 +60,7 @@ in one of the two domains, never there.
 | The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |
 | Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror` |
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
+| How wide a held selection stands, whichever way it is measured | `sketch/src/patterning/span.rs` | `Sketch::widest_span` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -183,6 +184,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the cut or the curve a corner would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
 | Canvas: what the mirror and the two patterns take hold of, and the axis, centre or direction they lay the copy against | `app/src/screens/viewport/input/copying.rs` | `copy`, `hold_is_done`, `axis_at`, `turned`, `filled` |
 | Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
+| Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |

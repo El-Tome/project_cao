@@ -118,7 +118,9 @@ fn two((labels, measured): ([&'static str; 2], [f64; 2])) -> ([&'static str; 4],
 ///
 /// Selecting it matters: the field arrives holding the value already there, and
 /// without it the first keystroke lands after it — 40 typed over 60.88 read
-/// 60.8840.
+/// 60.8840. That holds for a field reached with Tab as much as for the one the
+/// keyboard opens on, so the value goes whole there too; a field reached with a
+/// click keeps the place the click named.
 pub(super) fn value_field(
     ui: &mut egui::Ui,
     text: &mut String,
@@ -130,8 +132,12 @@ pub(super) fn value_field(
         .hint_text(hint)
         .show(ui);
     let response = output.response.response;
+    let reached_by_keyboard =
+        focus || (response.gained_focus() && !response.is_pointer_button_down_on());
     if focus {
         response.request_focus();
+    }
+    if reached_by_keyboard {
         let mut state = output.state;
         state
             .cursor

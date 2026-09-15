@@ -36,6 +36,22 @@ impl LiveInput {
         self.focus = true;
     }
 
+    /// Starts a fresh set of fields, each standing on the value a tool
+    /// suggests for it — the ranks it leaves empty stay empty.
+    ///
+    /// A value shown is a value decided: the field holds exactly what it says,
+    /// so what the drawing is laid to is what the user reads.
+    pub fn open_on(&mut self, values: &[Option<f64>]) {
+        self.open();
+        for (rank, value) in values.iter().enumerate() {
+            let Some(value) = value else { continue };
+            let text = shown(*value);
+            let field = self.field(rank);
+            field.locked = Self::read(&text);
+            field.text = text;
+        }
+    }
+
     /// The field of that rank, made on the spot. How many a tool shows is the
     /// tool's own business: two for a line, four for a rectangular pattern.
     pub fn field(&mut self, rank: usize) -> &mut LiveField {
@@ -66,5 +82,14 @@ impl LiveInput {
             .parse::<f64>()
             .ok()
             .filter(|value| value.is_finite())
+    }
+}
+
+/// A suggested value as its field shows it: whole where it can be, to the
+/// hundredth where it cannot.
+fn shown(value: f64) -> String {
+    match value.fract() == 0.0 {
+        true => format!("{value:.0}"),
+        false => format!("{value:.2}"),
     }
 }

@@ -13,6 +13,7 @@ mod arc_regions;
 mod arc_rules;
 mod arcing;
 mod axis;
+mod banding;
 mod chain;
 mod chamfer;
 mod circle_edges;

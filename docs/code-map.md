@@ -115,6 +115,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 4` |
 | The geometry a part is cached with | `part/src/document/geometry_cache.rs` | `write`, `read`, `GEOMETRY_ENTRY` |
+| A part drawn to order, for a test or a measurement | `part/src/drawn_to_order.rs` | `Recipe`, `Recipe::drawn` |
+| Writing one out, and timing what it costs | `part/examples/draw_a_part.rs` | `cargo run --release -p cao_part --features test-support --example draw_a_part -- /tmp/big.caopart sketches=6 storeys=4` |
 | The picture a part carries of itself | `part/src/picture.rs` | `Picture` |
 | Pulling that picture out without replaying | `part/src/document.rs` | `PartDocument::picture_in` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |

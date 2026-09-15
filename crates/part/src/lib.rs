@@ -8,6 +8,8 @@ pub mod compaction;
 mod copying;
 pub(crate) mod dimensioning;
 mod document;
+#[cfg(any(test, feature = "test-support"))]
+mod drawn_to_order;
 mod errors;
 mod extrusion;
 pub mod feature;
@@ -24,6 +26,8 @@ pub use adapters::InMemoryFiles;
 pub use compaction::compact;
 pub use dimensioning::DimensionOutcome;
 pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
+#[cfg(any(test, feature = "test-support"))]
+pub use drawn_to_order::Recipe;
 pub use errors::PartFileError;
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use outcome::Outcome;

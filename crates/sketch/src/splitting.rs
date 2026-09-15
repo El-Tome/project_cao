@@ -2,8 +2,8 @@
 
 use glam::DVec2;
 
+use crate::edges::off_by;
 use crate::sketch::{PointId, SegmentId, Sketch};
-use crate::trimming::{NO_LENGTH, ON_THE_TRAIT};
 
 /// What a division left behind: the point it dropped at the crossing, the
 /// pieces the traits it cut were left as, and what the cut cost.
@@ -64,16 +64,23 @@ impl Sketch {
 
     /// Whether a circle or an arc of the drawing passes through this place.
     ///
-    /// Construction curves are left out, as they are left out of the sweep
-    /// that found the crossing in the first place.
+    /// Judged by the sweep's own yardstick rather than a figure of its own.
+    /// The sweep merges places nearer than that into one vertex, so a crossing
+    /// it reports can sit exactly on whichever pair of curves it happened to
+    /// see first and a whole `off_by` away from the circle it swallowed. Asked
+    /// any more strictly, the division would cut the traits and leave that
+    /// circle round.
+    ///
+    /// Construction curves are left out, as they are left out of the sweep.
     fn a_curve_runs_through(&self, at: DVec2) -> bool {
+        let reach = off_by(at);
         let on_a_circle = self.live_circles().any(|(_, circle)| {
             !circle.construction
-                && (at.distance(self.point(circle.center)) - circle.radius).abs() <= ON_THE_TRAIT
+                && (at.distance(self.point(circle.center)) - circle.radius).abs() <= reach
         });
         let on_an_arc = self
             .live_arcs()
-            .any(|(id, arc)| !arc.construction && self.distance_to_arc(id, at) <= ON_THE_TRAIT);
+            .any(|(id, arc)| !arc.construction && self.distance_to_arc(id, at) <= reach);
         on_a_circle || on_an_arc
     }
 
@@ -118,7 +125,7 @@ impl Sketch {
     /// is one nobody can tell from it.
     fn stands_on(&self, at: DVec2) -> bool {
         self.live_points()
-            .any(|(_, place)| place.distance(at) <= ON_THE_TRAIT)
+            .any(|(_, place)| place.distance(at) <= off_by(at))
     }
 
     /// Whether a trait passes through this place, short of either of its own
@@ -137,10 +144,11 @@ impl Sketch {
             return false;
         }
         let along = (at - start).dot(span) / reach;
+        let near_enough = off_by(at);
         (0.0..=1.0).contains(&along)
-            && at.distance(start + span * along) <= ON_THE_TRAIT
-            && at.distance(start) > NO_LENGTH
-            && at.distance(end) > NO_LENGTH
+            && at.distance(start + span * along) <= near_enough
+            && at.distance(start) > near_enough
+            && at.distance(end) > near_enough
     }
 }
 
@@ -319,6 +327,28 @@ mod tests {
             found,
             Some(Crossing::Curved),
             "cutting the two traits and leaving the circle whole is the half-division nobody asked for"
+        );
+    }
+
+    #[test]
+    fn a_drawing_far_from_the_origin_is_divisible_too() {
+        let far = 1.0e7;
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let west = sketch.add_point(DVec2::new(far - 5.0, 0.0));
+        let east = sketch.add_point(DVec2::new(far + 5.0, 0.0));
+        let across = sketch.add_segment(west, east);
+        let below = sketch.add_point(DVec2::new(far, -5.0));
+        let above = sketch.add_point(DVec2::new(far, 5.0));
+        let up = sketch.add_segment(below, above);
+
+        let found = sketch.crossing_at(DVec2::new(far, 0.0), 1.0);
+
+        assert_eq!(
+            found,
+            Some(Crossing::Traits {
+                at: DVec2::new(far, 0.0),
+                segments: vec![across, up],
+            }),
         );
     }
 

@@ -114,6 +114,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 4` |
+| The geometry a part is cached with | `part/src/document/geometry_cache.rs` | `write`, `read`, `GEOMETRY_ENTRY` |
 | The picture a part carries of itself | `part/src/picture.rs` | `Picture` |
 | Pulling that picture out without replaying | `part/src/document.rs` | `PartDocument::picture_in` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
@@ -249,12 +250,14 @@ screen.
 `f32`, and the conversion happens at each crossing of the boundary. The
 reasoning is in [`ARCHITECTURE.md`](ARCHITECTURE.md), in one copy.
 
-**The geometry is never saved.** A `.caopart` holds its metadata and its
-history of operations, nothing else. The geometry is rebuilt by
-`PartState::rebuild`, which replays the operations — that is what makes undo,
-redo and going back to a step one and the same operation. There is **one single**
-place where geometry is produced: `PartState::apply`. Any copy kept alongside
-would end up diverging.
+**The geometry is never the truth in the file.** A `.caopart` holds its
+metadata and its history of operations; the geometry beside them is a cache
+that names the design it was rebuilt from, and is dropped for a replay as soon
+as it stops answering to it. The geometry is rebuilt by `PartState::rebuild`,
+which replays the operations — that is what makes undo, redo and going back to
+a step one and the same operation. There is **one single** place where geometry
+is produced: `PartState::apply`. A copy that could be read without saying what
+it came from would end up diverging.
 
 **One mode = one variant of `Screen`.** A new mode adds a variant to
 `enum Screen` and its own module in `screens/`, never a branch grafted onto an

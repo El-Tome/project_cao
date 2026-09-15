@@ -11,7 +11,7 @@ use cao_render::{
     push_plane_outline, push_plane_quad, srgb,
 };
 use cao_sketch::{
-    ChainAnchor, DimensionTarget, Element, PointId, Selection, Sketch, Snap, WorkPlane,
+    ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 
@@ -441,7 +441,7 @@ fn what_would_be_laid(
     sketch: &Sketch,
     context: &SketchContext<'_>,
     scale: ViewScale,
-) -> Option<cao_sketch::Preview> {
+) -> Option<Preview> {
     let cursor = context.editor.cursor?;
     let snap = scale.world_size_of(PICK_PIXELS);
     let units = context.document.scale();

@@ -139,7 +139,7 @@ fn fits(
 
 /// The values the tool needs, once they have all been typed. A fillet asks for
 /// a radius and nothing else, whichever mode the chamfer beside it is in.
-pub(super) fn typed(locked: LockedInput, mode: ChamferMode, rounding: bool) -> Option<Chamfer> {
+fn typed(locked: LockedInput, mode: ChamferMode, rounding: bool) -> Option<Chamfer> {
     let first = locked.first?;
     if rounding {
         return Some(Chamfer::Equal(first));
@@ -152,7 +152,7 @@ pub(super) fn typed(locked: LockedInput, mode: ChamferMode, rounding: bool) -> O
 
 /// A chamfer as the drawing measures it, for asking whether it fits: the
 /// values are typed in millimetres, and the sketch works in its own units.
-pub(super) fn in_units(asked: Chamfer, millimeters_per_unit: f64) -> Chamfer {
+fn in_units(asked: Chamfer, millimeters_per_unit: f64) -> Chamfer {
     match asked {
         Chamfer::Equal(reach) => Chamfer::Equal(reach / millimeters_per_unit),
         Chamfer::Sided { first, second } => Chamfer::Sided {

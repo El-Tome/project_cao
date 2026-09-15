@@ -214,7 +214,7 @@ fn in_rows(
 /// A count is a whole number of copies, so what was typed is rounded to one. A
 /// count of one is a direction the pattern does not run in, which leaves a
 /// single row; one in both directions is no pattern at all.
-pub(super) fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
+fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
     let run = |step: Option<f64>, count: Option<f64>| {
         let count = count?.round();
         (count >= 1.0).then_some(Repeats {
@@ -232,7 +232,7 @@ pub(super) fn filled(typed: [Option<f64>; 4]) -> Option<(Repeats, Repeats)> {
 /// A count is a whole number of copies, so what was typed is rounded to one;
 /// under two there is nothing to lay, and the drawing says so rather than
 /// recording a step that does nothing.
-pub(super) fn turned(locked: LockedInput) -> Option<(f64, usize)> {
+fn turned(locked: LockedInput) -> Option<(f64, usize)> {
     let count = locked.second?.round();
     (count >= 2.0).then_some((locked.first?, count as usize))
 }
@@ -240,7 +240,7 @@ pub(super) fn turned(locked: LockedInput) -> Option<(f64, usize)> {
 /// Which axis a click names: a trait of the drawing first, then one of the
 /// sketch's own two — the trait is the smaller target, and the axes run right
 /// through the drawing.
-pub(super) fn axis_at(sketch: &Sketch, cursor: DVec2, snap: f64) -> Option<ChosenAxis> {
+fn axis_at(sketch: &Sketch, cursor: DVec2, snap: f64) -> Option<ChosenAxis> {
     if let Some(segment) = sketch.nearest_segment(cursor, snap) {
         return Some(ChosenAxis::Trait(segment));
     }

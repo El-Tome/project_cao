@@ -63,8 +63,10 @@ there. See the `architecture-rust` skill.
 | What one is after | File | Way in |
 | --- | --- | --- |
 | The list of operations, undo, redo | `part/src/history.rs` | `History`, `Operation`, `applied_operations` — what a step is *called* is in `app/src/wording/history.rs` |
+| The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | **Replaying the history to get the geometry** | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
-| The `.caopart` file (zip), reading and writing | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| The `.caopart` file (zip), reading and writing | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION` |
+| The design folder: its index, one folder per major step | `part/src/document/design.rs` | `laid_out`, `read` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 
 ## Settings, profiles and recents — `cao_prefs`
@@ -129,12 +131,13 @@ metre long described in millimetres has a step of no better than 6·10⁻⁵ mm,
 the error accumulates in the booleans — that is what once sent the partition of
 space into a loop.
 
-**The geometry is never saved.** A `.caopart` holds the metadata and the
-history of operations, nothing else. The geometry is rebuilt by
-`PartState::rebuild`, which replays the operations. That is what makes undo,
-redo and going back to a step one and the same operation. Any geometry kept
-alongside would end up diverging from the history: there is **one single** place
-where geometry is produced, `PartState::apply`.
+**The geometry is never read as the truth.** A `.caopart` carries one when the
+part is put away, and it is a cache: it says which design it was rebuilt from,
+and one that is missing, damaged or answers to another design is dropped for a
+replay. The geometry is rebuilt by `PartState::rebuild`, which replays the
+operations, and that is what makes undo, redo and going back to a step one and
+the same operation. There is **one single** place where geometry is produced,
+`PartState::apply`.
 
 **One mode = one variant of `Screen`.** A new mode (assembly, …) adds a variant
 to `enum Screen` and its own module in `screens/`. Never a branch grafted onto

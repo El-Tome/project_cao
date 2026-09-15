@@ -56,6 +56,29 @@ it is what the next person reads before touching the same file.
 
 Never work on `main` directly.
 
+### What the work will be judged on
+
+**Before the first line of code**, transcribe the issue's **Done when** into the
+module documentation of the test that will answer it — one bullet per criterion,
+each naming the test that holds it or saying `no test:` and why:
+
+```rust
+//! Closes #317.
+//! - a box dragged over an arc takes the arc — `a_box_catches_an_arc`
+//! - the click was never broken — no test: `Sketch::pick` already returns arcs
+```
+
+`crates/app/tests/criteria.rs` refuses a criterion that answers for nothing, a
+name no test in the file carries, and a `Closes #n` with no criterion under it.
+
+At the opening, not at the closing. A list written afterwards is a list of what
+the work did, which is how #314 came to say *"It works, but it is not what was
+asked"* with a green gate behind it. `no test:` covers a thing put off **and** a
+thing settled by something no assertion reaches — say which.
+
+If the issue has no **Done when**, that is the first thing to fix, with the
+human. An issue nobody can be held to is an issue nobody can close.
+
 ### Stacking
 
 An issue whose dependency is still in review does **not** wait for a merge. It
@@ -161,3 +184,9 @@ next issue stacked on this branch instead of waiting.
 Move the issue's label from `in-progress`, and say to the human what was
 done and above all what was **not**: a part left aside, a decision deferred, a
 test you could not write. What is not said at that moment is lost.
+
+**A decision you set aside becomes an issue, in the same breath.** Not a sentence
+in a pull request body — carrying the `decision` label, opened as the pull
+request is. #305 decided to lay a bare mirrored copy and wrote it in its body;
+the human found out by using the tool, and #320 is what it cost. A body is read
+at review time, and review time is where the queue already is.

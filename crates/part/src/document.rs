@@ -19,10 +19,13 @@ use crate::state::PartState;
 /// Older versions are refused rather than converted: while the tool is still
 /// taking shape, a conversion would be more likely to rebuild a part wrongly
 /// than to save anything worth keeping.
-pub const SCHEMA_VERSION: u32 = 3;
+pub const SCHEMA_VERSION: u32 = 4;
 
 const METADATA_ENTRY: &str = "part.json";
-const HISTORY_ENTRY: &str = "history.json";
+/// The design of the part, in a folder of its own. A feature that grows a
+/// rebuilt-geometry cache gets a folder in there; what describes the part as a
+/// whole — its identity, its picture — stays at the root beside it.
+const HISTORY_ENTRY: &str = "design/history.json";
 /// How big the picture is. Kept apart from its bytes so that neither entry has
 /// to carry a header the other could contradict.
 const PICTURE_SHAPE_ENTRY: &str = "picture.json";

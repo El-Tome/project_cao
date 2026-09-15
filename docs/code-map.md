@@ -113,7 +113,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
-| The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
+| The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 4` |
 | The picture a part carries of itself | `part/src/picture.rs` | `Picture` |
 | Pulling that picture out without replaying | `part/src/document.rs` | `PartDocument::picture_in` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |

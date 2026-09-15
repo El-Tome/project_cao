@@ -108,7 +108,7 @@ precious was drawn with those versions. See [history.md](history.md).
 - **A professional licence**: a commercial offering on top of the dual
   MIT/Apache-2.0 licence, terms undefined.
 - **A per-operation geometry cache.** Not implemented: today's `.caopart` holds
-  a single `history.json` replayed in full on open (see
+  a single `design/history.json` replayed in full on open (see
   [`crates/part/src/document.rs`](../crates/part/src/document.rs)). The idea,
   if opening a large part ever gets slow, is to keep the JSON of each
   operation as the source of truth and add a `.bin` cache next to it — the

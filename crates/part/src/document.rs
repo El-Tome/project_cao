@@ -14,6 +14,8 @@ use crate::picture::Picture;
 use crate::ports::Files;
 use crate::state::PartState;
 
+mod geometry_cache;
+
 /// Bumped whenever the layout of a saved part changes.
 ///
 /// Older versions are refused rather than converted: while the tool is still
@@ -30,6 +32,16 @@ const HISTORY_ENTRY: &str = "design/history.json";
 /// to carry a header the other could contradict.
 const PICTURE_SHAPE_ENTRY: &str = "picture.json";
 const PICTURE_PIXELS_ENTRY: &str = "picture.rgba";
+
+/// What a write of the archive is for.
+#[derive(Clone, Copy, PartialEq)]
+enum Writing {
+    /// The end of a gesture: the design alone.
+    AtRest,
+    /// The end of the session with the part: the geometry it is showing goes
+    /// with it.
+    PuttingAway,
+}
 
 /// What a part is, as opposed to what has been done to it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -168,13 +180,39 @@ impl PartDocument {
         Ok((doc, path))
     }
 
-    /// Writes the part whole. `now` goes into the file and nowhere else: what a
-    /// part carries in memory is still the hour it was built with.
+    /// Writes the part at the end of a gesture, its design alone. `now` goes
+    /// into the file and nowhere else: what a part carries in memory is still
+    /// the hour it was built with.
     pub fn save(
         &self,
         files: &impl Files,
         path: &Path,
         now: DateTime<Utc>,
+    ) -> Result<(), PartFileError> {
+        self.write(files, path, now, Writing::AtRest)
+    }
+
+    /// Writes the part on the way out of it, with the geometry it is showing.
+    ///
+    /// Nothing more is coming to make that geometry stale, which is what a
+    /// gesture could never say: the cache exists to save the replay at the
+    /// next open, and writing it again at every stroke would cost more than
+    /// the replay it saves.
+    pub fn put_away(
+        &self,
+        files: &impl Files,
+        path: &Path,
+        now: DateTime<Utc>,
+    ) -> Result<(), PartFileError> {
+        self.write(files, path, now, Writing::PuttingAway)
+    }
+
+    fn write(
+        &self,
+        files: &impl Files,
+        path: &Path,
+        now: DateTime<Utc>,
+        writing: Writing,
     ) -> Result<(), PartFileError> {
         let metadata = PartMetadata {
             modified_at: now,
@@ -188,10 +226,14 @@ impl PartDocument {
         archive
             .write_all(serde_json::to_string_pretty(&metadata)?.as_bytes())
             .map_err(zip::result::ZipError::from)?;
+        let design = serde_json::to_string_pretty(&self.history)?;
         archive.start_file(HISTORY_ENTRY, options)?;
         archive
-            .write_all(serde_json::to_string_pretty(&self.history)?.as_bytes())
+            .write_all(design.as_bytes())
             .map_err(zip::result::ZipError::from)?;
+        if writing == Writing::PuttingAway {
+            geometry_cache::write(&mut archive, options, &self.state, &design)?;
+        }
 
         if let Some(picture) = &self.picture {
             let shape = PictureShape {
@@ -240,8 +282,10 @@ impl PartDocument {
             return Err(PartFileError::UnsupportedVersion(metadata.schema_version));
         }
 
-        let history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
-        let state = PartState::rebuild(&history);
+        let design = read_entry(&mut archive, HISTORY_ENTRY)?;
+        let history: History = serde_json::from_str(&design)?;
+        let state = geometry_cache::read(&mut archive, &design)
+            .unwrap_or_else(|| PartState::rebuild(&history));
 
         Ok(Self {
             metadata,

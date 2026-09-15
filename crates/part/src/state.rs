@@ -1,16 +1,18 @@
 use cao_sketch::{Chamfer, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
+use serde::{Deserialize, Serialize};
 
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
 
 /// The geometry of a part at a given point in its history.
 ///
-/// Never saved: it is rebuilt by replaying the history, which is what keeps
-/// "go back to this step" honest — there is no second copy that could drift
-/// away from the list of operations.
-#[derive(Debug, Clone, Default)]
+/// Rebuilt by replaying the history, which is what keeps "go back to this
+/// step" honest. What a part file holds of it is a cache and says which design
+/// it was rebuilt from, so that the list of operations stays the one thing the
+/// geometry can be read from.
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PartState {
     /// Millimetres one world unit is worth, undefined until the first
     /// dimension is typed.

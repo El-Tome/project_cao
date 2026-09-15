@@ -87,12 +87,12 @@ impl Sketch {
     /// Drops a point where the named traits cross and cuts each of them in two
     /// there, so that the crossing becomes something to dimension, to
     /// constrain and to drag.
+    ///
     /// Built on a copy and kept only once every trait has been cut, each one
-    /// asked again of the copy rather than of the drawing as it came in. What
-    /// held of a trait before the first cut need not hold after it: a cut
-    /// carries a point away with a tangency it drops, and `trim` will happily
-    /// cut a trait a previous pass already erased. A drawing divided halfway is
-    /// worse than one not divided at all.
+    /// asked again of that copy. What held of a trait before the first cut need
+    /// not hold after it: a cut carries a point away with a tangency it drops,
+    /// and `trim` cuts a trait a previous pass already erased rather than
+    /// refusing it.
     pub fn split(&mut self, segments: &[SegmentId], at: DVec2) -> Option<Split> {
         if self.stands_on(at) {
             return None;

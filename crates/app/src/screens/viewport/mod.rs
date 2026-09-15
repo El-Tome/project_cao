@@ -7,6 +7,7 @@
 mod cube_labels;
 mod finish;
 mod input;
+mod matter;
 mod render;
 
 use cao_part::PartDocument;

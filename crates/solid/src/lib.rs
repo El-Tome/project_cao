@@ -3,6 +3,7 @@
 //! no interface, like `cao_sketch`.
 
 mod boolean;
+mod clipping;
 mod mesh;
 
 pub use mesh::{FaceHit, Mesh, Polygon, prism, revolution};

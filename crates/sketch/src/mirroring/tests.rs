@@ -215,3 +215,60 @@ fn a_trait_with_no_length_cannot_be_an_axis() {
 
     assert_eq!(sketch.mirror(&[side], ChosenAxis::Trait(nowhere)), None);
 }
+
+#[test]
+fn a_point_sitting_on_the_axis_is_not_copied_onto_itself() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let on_the_axis = sketch.add_point(DVec2::new(0.0, 2.0));
+    let a = sketch.add_point(DVec2::new(3.0, 1.0));
+    let b = sketch.add_point(DVec2::new(7.0, 1.0));
+    let side = Element::Segment(sketch.add_segment(a, b));
+
+    let made = sketch
+        .mirror(
+            &[Element::Point(on_the_axis), side],
+            ChosenAxis::Sketch(SketchAxis::V),
+        )
+        .expect("an axis to mirror across");
+
+    assert_eq!(
+        made.points.len(),
+        2,
+        "the point lies on the axis, and a copy of it there is one nobody can tell from it"
+    );
+}
+
+#[test]
+fn a_circle_centred_on_the_axis_is_not_copied_onto_itself() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(0.0, 2.0));
+    let round = sketch.add_circle(centre, 1.5);
+
+    let made = sketch
+        .mirror(&[Element::Circle(round)], ChosenAxis::Sketch(SketchAxis::V))
+        .expect("an axis to mirror across");
+
+    assert!(
+        made.circles.is_empty(),
+        "the circle covers itself across the axis, and a second one there is one nobody can see"
+    );
+    assert!(made.points.is_empty(), "nor is its centre laid twice");
+}
+
+#[test]
+fn an_arc_symmetric_about_the_axis_is_not_copied_onto_itself() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let east = sketch.add_point(DVec2::new(3.0, 0.0));
+    let west = sketch.add_point(DVec2::new(-3.0, 0.0));
+    let arc = sketch.add_arc(centre, east, west);
+
+    let made = sketch
+        .mirror(&[Element::Arc(arc)], ChosenAxis::Sketch(SketchAxis::V))
+        .expect("an axis to mirror across");
+
+    assert!(
+        made.arcs.is_empty(),
+        "the curve reads the same either side of the axis, so its copy covers it"
+    );
+}

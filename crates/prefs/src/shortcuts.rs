@@ -224,6 +224,22 @@ impl Shortcuts {
         self.bindings.push((command, chord));
     }
 
+    /// Binds what `reference` offers and this does not hold yet.
+    ///
+    /// A profile saved before a command existed would never hear of it, the
+    /// way a toolbar would not. What the user set stays put, and a chord they
+    /// have already given to something else is left alone: taking it back
+    /// would break a shortcut they use for one they never asked for.
+    pub fn adopt_new_bindings(&mut self, reference: &Self) {
+        for (command, chord) in &reference.bindings {
+            let known = self.bindings.iter().any(|(bound, _)| bound == command);
+            let taken = self.bindings.iter().any(|(_, held)| held == chord);
+            if !known && !taken {
+                self.bindings.push((*command, *chord));
+            }
+        }
+    }
+
     pub fn unbind(&mut self, command: Command) {
         self.bindings.retain(|(bound, _)| *bound != command);
     }
@@ -249,8 +265,66 @@ impl Default for Shortcuts {
                 (C::ExtrusionCut, Chord::new(Key::E).shift()),
                 (C::ExtrusionApply, Chord::new(Key::Enter).cmd()),
                 (C::ToggleHistory, Chord::new(Key::H)),
+                (C::ToggleExplorer, Chord::new(Key::B)),
                 (C::OpenSettings, Chord::new(Key::Comma).cmd()),
             ],
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_profile_saved_before_a_command_existed_still_gets_its_chord() {
+        let mut saved = Shortcuts {
+            bindings: vec![(Command::Undo, Chord::new(Key::Z).cmd())],
+        };
+
+        saved.adopt_new_bindings(&Shortcuts::default());
+
+        assert_eq!(
+            saved.chord_for(Command::ToggleHistory),
+            Some(Chord::new(Key::H)),
+        );
+        assert_eq!(
+            saved.chord_for(Command::Undo),
+            Some(Chord::new(Key::Z).cmd()),
+            "what the user set stays put",
+        );
+    }
+
+    #[test]
+    fn a_chord_the_user_gave_to_something_else_is_not_taken_back() {
+        let mut saved = Shortcuts {
+            bindings: vec![(Command::ToolLine, Chord::new(Key::H))],
+        };
+
+        saved.adopt_new_bindings(&Shortcuts::default());
+
+        assert_eq!(
+            saved.command_for(Chord::new(Key::H)),
+            Some(Command::ToolLine)
+        );
+        assert_eq!(
+            saved.chord_for(Command::ToggleHistory),
+            None,
+            "a shortcut the user uses is broken for one they never asked for",
+        );
+    }
+
+    #[test]
+    fn no_two_commands_answer_to_the_same_chord_on_a_fresh_installation() {
+        let mut taken: Vec<(Chord, Command)> = Vec::new();
+
+        for (command, chord) in Shortcuts::default().bindings {
+            if let Some((_, first)) = taken.iter().find(|(bound, _)| *bound == chord) {
+                panic!(
+                    "{chord:?} answers for both {first:?} and {command:?}: the second is unreachable and says nothing about why"
+                );
+            }
+            taken.push((chord, command));
         }
     }
 }

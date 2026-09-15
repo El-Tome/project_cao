@@ -135,6 +135,21 @@ const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
 ];
 
 #[test]
+fn a_tests_file_nobody_declared_under_cfg_test_is_not_taken_for_tests() {
+    assert!(
+        is_nothing_but_tests("crates/app/src/screens/explorer/state/tests.rs"),
+        "the file beside state.rs is declared under #[cfg(test)] and is tests",
+    );
+    assert!(!is_nothing_but_tests("crates/app/src/app.rs"));
+    assert!(
+        !is_nothing_but_tests("crates/app/src/screens/nothing/tests.rs"),
+        "a tests.rs with no module above it ships",
+    );
+    assert!(!declares_tests_under_cfg("mod tests;"));
+    assert!(declares_tests_under_cfg("#[cfg(test)]\nmod tests;"));
+}
+
+#[test]
 fn a_crate_only_reaches_for_the_crates_the_graph_allows() {
     for (directory, allowed) in ALLOWED_EDGES {
         let declared = declared_dependencies(&manifest(directory));
@@ -276,6 +291,9 @@ fn a_sentence_the_interface_shows_is_named_rather_than_written_out() {
     let mut left: BTreeMap<&str, usize> = SENTENCES_STILL_WRITTEN_OUT.iter().copied().collect();
 
     for (path, source) in sources_of("app") {
+        if is_nothing_but_tests(&path) {
+            continue;
+        }
         let written_out = sentences_written_out(&source);
         let allowed = left.remove(path.as_str()).unwrap_or(0);
 
@@ -365,7 +383,7 @@ fn a_screen_reaches_for_a_primitive_rather_than_dressing_a_widget() {
         RAW_WIDGETS_LEFT_IN_THE_SCREENS.iter().copied().collect();
 
     for (path, source) in sources_of("app") {
-        if path.starts_with("crates/app/src/ui/") {
+        if path.starts_with("crates/app/src/ui/") || is_nothing_but_tests(&path) {
             continue;
         }
         let found = widgets_dressed_by_hand(&source);
@@ -673,6 +691,39 @@ fn rust_files(directory: &Path) -> Vec<PathBuf> {
     }
     files.sort();
     files
+}
+
+/// A file that holds nothing but tests. The convention here is a `#[cfg(test)]`
+/// module at the bottom of the file it checks, which [`production`] cuts at;
+/// a module grown too long for that moves to a `tests.rs` beside it, and the
+/// marker moves with it — to the `mod tests;` line in the file above.
+///
+/// That line is what is read here, rather than the name alone: a `tests.rs`
+/// nobody declared under `#[cfg(test)]` ships, and would be a hole in every
+/// rule below that skips it.
+fn is_nothing_but_tests(path: &str) -> bool {
+    if !path.ends_with("/tests.rs") {
+        return false;
+    }
+    let folder = match path.strip_suffix("/tests.rs") {
+        Some(folder) => folder,
+        None => return false,
+    };
+    [format!("{folder}.rs"), format!("{folder}/mod.rs")]
+        .iter()
+        .filter_map(|above| fs::read_to_string(workspace_root().join(above)).ok())
+        .any(|source| declares_tests_under_cfg(&source))
+}
+
+/// Whether `mod tests;` in this source is behind `#[cfg(test)]`, whatever sits
+/// between the two lines.
+fn declares_tests_under_cfg(source: &str) -> bool {
+    let Some(declaration) = source.find("mod tests;") else {
+        return false;
+    };
+    source[..declaration]
+        .rsplit_once("#[cfg(test)]")
+        .is_some_and(|(_, between)| between.trim().is_empty())
 }
 
 /// What ships, without the tests that check it. A French sentence or a hand-made

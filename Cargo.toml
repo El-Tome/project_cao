@@ -27,3 +27,6 @@ directories = "5"
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1", features = ["v4", "serde"] }
 thiserror = "1"
+# Deleting a part hands it to the platform's bin rather than unlinking it:
+# nothing in the application can undo a file that is gone.
+trash = "5"

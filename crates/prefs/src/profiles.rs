@@ -53,11 +53,14 @@ impl Profiles {
         if profiles.version != SETTINGS_VERSION || profiles.profiles.is_empty() {
             return Ok(Self::default());
         }
-        // A toolbar saved before a tool existed would never hear of it. What
-        // the user arranged stays put; only the new buttons are added.
+        // A toolbar and a set of shortcuts saved before a tool existed would
+        // never hear of it. What the user arranged stays put; only the new
+        // buttons and the free chords are added.
         let standard = crate::toolbar::ToolbarLayout::default();
+        let chords = crate::shortcuts::Shortcuts::default();
         for profile in &mut profiles.profiles {
             profile.settings.toolbar.adopt_new_commands(&standard);
+            profile.settings.shortcuts.adopt_new_bindings(&chords);
         }
         Ok(profiles)
     }

@@ -3,7 +3,7 @@ use std::io::Write;
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use cao_part::{FileError, Files};
+use cao_part::{Entry, FileError, Files, Folders};
 
 pub struct DiskFiles;
 
@@ -21,6 +21,48 @@ impl Files for DiskFiles {
 
     fn exists(&self, path: &Path) -> bool {
         path.exists()
+    }
+}
+
+impl Folders for DiskFiles {
+    fn entries(&self, folder: &Path) -> Result<Vec<Entry>, FileError> {
+        let listing = match fs::read_dir(folder) {
+            Ok(listing) => listing,
+            // A library the user has not started yet is not a failure to
+            // report: the panel shows an empty root, and the first part made
+            // brings the folder into being.
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(error) => return Err(reading(folder, &error)),
+        };
+
+        let mut entries = Vec::new();
+        for entry in listing.flatten() {
+            // `file_type` does not follow a link, which is what keeps a folder
+            // pointing at one of its own parents from being walked for ever:
+            // a link is neither a folder nor a part, and is left out.
+            let Ok(kind) = entry.file_type() else {
+                continue;
+            };
+            if kind.is_dir() || kind.is_file() {
+                entries.push(Entry {
+                    path: entry.path(),
+                    folder: kind.is_dir(),
+                });
+            }
+        }
+        Ok(entries)
+    }
+
+    fn create(&self, folder: &Path) -> Result<(), FileError> {
+        fs::create_dir_all(folder).map_err(|error| writing(folder, &error))
+    }
+
+    fn rename(&self, from: &Path, to: &Path) -> Result<(), FileError> {
+        fs::rename(from, to).map_err(|error| writing(to, &error))
+    }
+
+    fn discard(&self, path: &Path) -> Result<(), FileError> {
+        trash::delete(path).map_err(|_| FileError::Refused(path.to_path_buf()))
     }
 }
 
@@ -142,6 +184,64 @@ mod tests {
             .expect_err("nothing there");
 
         assert!(matches!(error, FileError::Absent(_)));
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_folder_tells_the_folders_it_holds_from_the_files() {
+        let root = temp_dir();
+        DiskFiles
+            .write(&root.join("support.caopart"), b"PK")
+            .expect("writes");
+        DiskFiles.create(&root.join("drafts")).expect("creates");
+
+        let mut entries = DiskFiles.entries(&root).expect("reads");
+        entries.sort();
+
+        assert_eq!(
+            entries,
+            [
+                Entry {
+                    path: root.join("drafts"),
+                    folder: true,
+                },
+                Entry {
+                    path: root.join("support.caopart"),
+                    folder: false,
+                },
+            ],
+        );
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_library_the_user_has_not_started_yet_reads_as_empty_rather_than_failing() {
+        let root = temp_dir();
+
+        let entries = DiskFiles
+            .entries(&root.join("nothing here"))
+            .expect("reads");
+
+        assert!(entries.is_empty());
+
+        fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn a_renamed_folder_takes_the_parts_it_held_with_it() {
+        let root = temp_dir();
+        DiskFiles
+            .write(&root.join("drafts").join("support.caopart"), b"PK")
+            .expect("writes");
+
+        DiskFiles
+            .rename(&root.join("drafts"), &root.join("kept"))
+            .expect("renames");
+
+        assert!(DiskFiles.exists(&root.join("kept").join("support.caopart")));
+        assert!(!DiskFiles.exists(&root.join("drafts")));
 
         fs::remove_dir_all(&root).ok();
     }

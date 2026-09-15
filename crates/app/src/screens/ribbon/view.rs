@@ -9,6 +9,19 @@ use crate::wording::{command as wording, shortcuts, toolbar::group};
 
 use super::state::{Context, Ribbon, active, enabled};
 
+/// What the bar needs to know about the part being drawn.
+///
+/// Gathered rather than passed one by one so that the call that draws the bar
+/// does not grow a parameter every time a panel or a tool is added — which is
+/// what #210 is about, one function along.
+pub struct Drawn<'a> {
+    pub document: &'a PartDocument,
+    pub editor: &'a SketchEditor,
+    pub extrusion: &'a mut ExtrusionState,
+    /// Whether the files panel is showing, so its toggle can report it.
+    pub explorer_open: bool,
+}
+
 /// How wide a toolbar starts when it is down one side.
 const SIDE_WIDTH: f32 = 210.0;
 
@@ -18,9 +31,7 @@ impl Ribbon {
         &mut self,
         ui: &mut egui::Ui,
         settings: &Settings,
-        document: &PartDocument,
-        editor: &SketchEditor,
-        extrusion: &mut ExtrusionState,
+        drawn: &mut Drawn<'_>,
         lang: &Catalogue,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
@@ -32,19 +43,19 @@ impl Ribbon {
                     .default_pos(ui.max_rect().left_top() + egui::vec2(24.0, 80.0))
                     .resizable(false)
                     .show(ui.ctx(), |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
+                        asked = self.contents(ui, settings, drawn, lang);
                     });
             }
             // egui remembers a panel's size under its id, and a bar along the top remembers a
             // height where one down a side reads a width: a placement each, or they share one.
             Edge::Top => {
                 egui::Panel::top("ribbon_top").show(ui, |ui| {
-                    asked = self.contents(ui, settings, document, editor, extrusion, lang);
+                    asked = self.contents(ui, settings, drawn, lang);
                 });
             }
             Edge::Bottom => {
                 egui::Panel::bottom("ribbon_bottom").show(ui, |ui| {
-                    asked = self.contents(ui, settings, document, editor, extrusion, lang);
+                    asked = self.contents(ui, settings, drawn, lang);
                 });
             }
             Edge::Left => {
@@ -52,7 +63,7 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
+                        asked = self.contents(ui, settings, drawn, lang);
                     });
             }
             Edge::Right => {
@@ -60,7 +71,7 @@ impl Ribbon {
                     .resizable(true)
                     .default_size(SIDE_WIDTH)
                     .show(ui, |ui| {
-                        asked = self.contents(ui, settings, document, editor, extrusion, lang);
+                        asked = self.contents(ui, settings, drawn, lang);
                     });
             }
         }
@@ -72,23 +83,21 @@ impl Ribbon {
         &mut self,
         ui: &mut egui::Ui,
         settings: &Settings,
-        document: &PartDocument,
-        editor: &SketchEditor,
-        extrusion: &mut ExtrusionState,
+        drawn: &mut Drawn<'_>,
         lang: &Catalogue,
     ) -> Vec<Command> {
         let layout = &settings.toolbar;
         let mut asked = Vec::new();
         let vertical = layout.edge.is_vertical() || layout.edge == Edge::Floating;
 
-        self.header(ui, layout, &mut asked, vertical, lang);
+        self.header(ui, layout, &mut asked, vertical, drawn.explorer_open, lang);
         ui.separator();
 
         let state = Context {
             settings,
-            document,
-            editor,
-            extrusion: &*extrusion,
+            document: drawn.document,
+            editor: drawn.editor,
+            extrusion: drawn.extrusion,
             lang,
         };
 
@@ -119,7 +128,7 @@ impl Ribbon {
             }
         });
 
-        extrusion_row(ui, document, extrusion, &mut asked, lang);
+        extrusion_row(ui, drawn.document, drawn.extrusion, &mut asked, lang);
         asked
     }
 
@@ -130,8 +139,21 @@ impl Ribbon {
         layout: &ToolbarLayout,
         asked: &mut Vec<Command>,
         vertical: bool,
+        explorer_open: bool,
         lang: &Catalogue,
     ) {
+        // The panel's own state lives in the panel, so the toggle reports
+        // rather than holds: what it is shown is handed back as a command.
+        let files = |ui: &mut egui::Ui, asked: &mut Vec<Command>| {
+            let mut shown = explorer_open;
+            if ui
+                .toggle_value(&mut shown, lang.t("ribbon.files"))
+                .changed()
+            {
+                asked.push(Command::ToggleExplorer);
+            }
+        };
+
         let mut row = |ui: &mut egui::Ui| {
             if layout.show_logo {
                 ui.strong(&layout.logo_text);
@@ -153,6 +175,7 @@ impl Ribbon {
         if vertical {
             ui.vertical(|ui| row(ui));
             ui.horizontal_wrapped(|ui| {
+                files(ui, asked);
                 ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
                 if ui
                     .button("⚙")
@@ -176,6 +199,7 @@ impl Ribbon {
                     asked.push(Command::OpenSettings);
                 }
                 ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
+                files(ui, asked);
             });
         });
     }

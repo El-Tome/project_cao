@@ -38,7 +38,13 @@ fn a_frame_with(
         ..Default::default()
     };
     let mut output = ctx.run_ui(input, |ui| {
-        ribbon.show(ui, &settings, &document, &editor, &mut extrusion, &lang);
+        let mut drawn = Drawn {
+            document: &document,
+            editor: &editor,
+            extrusion: &mut extrusion,
+            explorer_open: false,
+        };
+        ribbon.show(ui, &settings, &mut drawn, &lang);
         let before = ui.available_rect_before_wrap().width();
         let mut confirming_compact = false;
         let _ = crate::screens::history_tree::panel(ui, &document, &mut confirming_compact, &lang);
@@ -154,7 +160,13 @@ fn ribbon_height(ctx: &egui::Context, ribbon: &mut Ribbon, width: f32) -> f32 {
     };
     let mut output = ctx.run_ui(input, |ui| {
         let before = ui.available_rect_before_wrap().height();
-        ribbon.show(ui, &settings, &document, &editor, &mut extrusion, &lang);
+        let mut drawn = Drawn {
+            document: &document,
+            editor: &editor,
+            extrusion: &mut extrusion,
+            explorer_open: false,
+        };
+        ribbon.show(ui, &settings, &mut drawn, &lang);
         height = before - ui.available_rect_before_wrap().height();
     });
     output.textures_delta.clear();

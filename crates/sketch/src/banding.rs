@@ -3,6 +3,7 @@
 use glam::DVec2;
 
 use crate::annotation::AnnotationMetrics;
+use crate::arcing::bounds_of;
 use crate::picking::Selection;
 use crate::sketch::{Element, Sketch};
 
@@ -12,6 +13,10 @@ impl Sketch {
     /// Whole elements only: a trait counts when both its ends are in the box.
     /// Half a trait cannot be deleted, so letting the box claim it would say
     /// something the drawing cannot do.
+    ///
+    /// A circle and an arc are read off the curve rather than off the points
+    /// they stand on: a centre is not part of what is drawn, and a curve can
+    /// swing out of the box between two ends that are both inside it.
     pub fn inside_band(
         &self,
         from: DVec2,
@@ -37,6 +42,12 @@ impl Sketch {
             let reach = DVec2::splat(circle.radius);
             if inside(center - reach) && inside(center + reach) {
                 caught.push(Selection::Element(Element::Circle(id)));
+            }
+        }
+        for (id, _) in self.live_arcs() {
+            let (lowest, highest) = bounds_of(self.arc_draft(id));
+            if inside(lowest) && inside(highest) {
+                caught.push(Selection::Element(Element::Arc(id)));
             }
         }
         for (target, at) in self.anchors(metrics) {
@@ -98,6 +109,39 @@ mod tests {
         assert!(
             !caught.contains(&Selection::Element(Element::Circle(over_the_edge))),
             "a circle whose centre is in the box but whose rim is not stays out: {caught:?}"
+        );
+    }
+
+    #[test]
+    fn an_arc_whose_whole_curve_is_inside_is_taken() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let centre = sketch.add_point(DVec2::new(25.0, 25.0));
+        let east = sketch.add_point(DVec2::new(30.0, 25.0));
+        let north = sketch.add_point(DVec2::new(25.0, 30.0));
+        let held = sketch.add_arc(centre, east, north);
+
+        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), METRICS);
+
+        assert!(
+            caught.contains(&Selection::Element(Element::Arc(held))),
+            "the box holds the curve whole, so it takes the arc and not its points alone: {caught:?}"
+        );
+    }
+
+    #[test]
+    fn an_arc_bulging_out_of_the_box_stays_out_of_it_though_its_ends_are_in() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let reach = 30.0 / 2.0_f64.sqrt();
+        let centre = sketch.add_point(DVec2::new(25.0, 25.0));
+        let below = sketch.add_point(DVec2::new(25.0 + reach, 25.0 - reach));
+        let above = sketch.add_point(DVec2::new(25.0 + reach, 25.0 + reach));
+        let bulging = sketch.add_arc(centre, below, above);
+
+        let caught = sketch.inside_band(DVec2::new(0.0, 0.0), DVec2::new(50.0, 50.0), METRICS);
+
+        assert!(
+            !caught.contains(&Selection::Element(Element::Arc(bulging))),
+            "the curve swings east past the box between its two ends: {caught:?}"
         );
     }
 

@@ -6,6 +6,8 @@ use crate::duplicating::Duplicated;
 use crate::element::Element;
 use crate::sketch::{PointId, Sketch};
 
+mod span;
+
 /// One direction of a rectangular pattern: how far apart the copies stand, and
 /// how many of them there are with the original among them.
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]

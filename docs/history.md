@@ -90,12 +90,20 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
 
 ```
 .caopart
-├── part.json        the identity of the part: id, name, dates, schema version
-├── geometry.json    what replaying the design below came to, a cache
-├── picture.json     how big the picture below is, when there is one
-├── picture.rgba     a picture of the part, rows of pixels, four bytes each
+├── part.json                     the identity of the part: id, name, dates,
+│                                 schema version
+├── geometry.json                 what replaying the design below came to, a
+│                                 cache
+├── picture.json                  how big the picture below is, when there is
+│                                 one
+├── picture.rgba                  a picture of the part, rows of pixels, four
+│                                 bytes each
 └── design/
-    └── history.json the list of operations and the position of the cursor
+    ├── history.json              the ordered index: what each major step is,
+    │                             its number, and what it is raised from
+    ├── sketch-1/steps.json       the operations of that sketch
+    ├── extrusion-2/steps.json
+    └── sketch-3/steps.json
 ```
 
 Separating the files allows each part to evolve independently, and leaves room
@@ -106,29 +114,52 @@ at every save.
 
 `design/` holds how the part was arrived at; the root holds what it is. The
 split is what gives the two things that are coming a place they do not have to
-argue over: the rebuilt geometry of a feature, cached beside the operations
-that produce it, and a `simulation/` folder run against the part as a whole.
+argue over: the rebuilt geometry of a step, cached beside the operations that
+produce it, and a `simulation/` folder run against the part as a whole.
 
-A feature that stays cheap to replay — every kind in the catalogue today —
-keeps its operations in `design/history.json` and gets no folder. The day one
-kind is slow enough to be worth caching, that kind gains
-`design/<kind>-<id>/`, holding its own operations and the `.bin` of the
-geometry they rebuild to, and `design/history.json` becomes the ordered index
-naming them. Folders arrive one feature kind at a time, each when it earns one.
+### The index says what the part is made of, the folders say how
 
-**The `<id>` in that name is assigned once, when the feature is created, and
-never reused** — not the rank of the feature in the history. A rank is not a
-name: drawing after an undo throws away the abandoned tail, so what sits at a
-given rank changes from one save to the next while the number stays put, and
-every folder after the cut would have to be renamed on disk.
+`design/history.json` names the **major steps** in the order they were made —
+today a sketch, an extrusion, a revolution; tomorrow a drilling, a section
+view. Per step it holds three things and nothing else: its kind, its number,
+and the step it is raised from. What a step is made of is not in there: the
+operations live in a folder of its own, `design/sketch-1/steps.json`.
+
+That is what makes the index readable on its own — the shape of the part
+without the strokes — and what gives an edit of a past step one file to
+rewrite instead of the whole design.
+
+**Every major step gets a folder, a one-operation extrusion included.** A short
+step written straight into the index would be a second layout every reader has
+to know, and it would want a folder the day that extrusion's distance is edited
+or its geometry cached.
+
+**The number naming a folder is handed out once and never reused**, not even
+after the step is undone, and not even by the compaction that rewrites the
+design — it goes on counting from where the old one stopped. A rank would not
+do: drawing after an undo throws away the abandoned tail, so what sits at a
+given rank changes from one save to the next, and every folder past the cut
+would have to be renamed on disk.
+
+**Every operation carries a number too**, in the order the user did it, kept in
+the index beside the step holding it. Nothing reads it yet; it is what undo
+will walk the day the tree can be edited, when the order things were done in
+stops being the order the part is rebuilt in.
+
+The kinds are **written out by name**, so a kind added later costs no change of
+format: a part written before that kind existed names only the kinds it knew.
+
+The grouping this describes is no longer worked out from the list of
+operations. The history records it, `Feature::all` turns it into the positions
+the panel speaks, and the panel shows exactly what it showed before.
 
 ### The geometry is cached at the root, and the design stays the truth
 
 `geometry.json` holds what replaying the design last came to — the drawing of
 every sketch and the matter of the part. It sits at the root, since it answers
 to the part as a whole and not to any one step of its design. Opening a part of
-forty features takes some seventy milliseconds of replay against three of
-reading that geometry back.
+240 steps takes some seventy milliseconds of replay against three of reading
+that geometry back.
 
 It is written **when the part is put away** — closed, or left for the start
 menu — and not at the end of every gesture like the rest of the archive. A part
@@ -140,8 +171,9 @@ nothing to invalidate: the entry is either the one the part was put away with,
 or absent.
 
 It is a cache and never the truth. It carries a print of the design it was
-rebuilt from, and a part whose cache is missing, damaged, or answers to another
-design replays its design instead of refusing to open — so a design edited by
+rebuilt from — folded over the index **and** every step's folder, since none of
+the drawing is in the index — and a part whose cache is missing, damaged, or
+answers to another design replays its design instead of refusing to open — so a design edited by
 any hand other than a save can never show a shape the part no longer describes.
 
 It also carries the version of the tool that rebuilt it, bumped by hand the day
@@ -181,15 +213,20 @@ in there.
 
 A file written by an earlier version is **refused**, with the reason, instead
 of being converted. As long as the tool moves this much, a conversion would be
-likelier to rebuild a part askew than to save anything useful. The flat layout
-that came before `design/` is one of those: no reader is kept for it, and the
-schema version went up so that a part written under it says so rather than
+likelier to rebuild a part askew than to save anything useful. The flat list
+that `design/history.json` used to hold is one of those, as was the flat layout
+before `design/` existed: no reader is kept for either, and the schema version
+went up each time so that a part written under one of them says so rather than
 opening with no history at all.
 
 ## What is missing
 
 - The history cannot be edited: a step cannot be removed from the middle, nor
-  reordered, nor can the parameters of a past operation be changed.
+  reordered, nor can the parameters of a past operation be changed. The file is
+  laid out for it — one folder per step, a number that names it for good — but
+  nothing reads that yet beyond writing it back.
+- A sketch started on a face records the plane it was given and stays there.
+  The face can move under it, and nothing says so.
 - No branches: one single line of history, with one single redo tail.
 - A very long part is rebuilt entirely at every move of the cursor. That is
   instantaneous at the current sizes; it will want cached intermediate states

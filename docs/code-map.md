@@ -56,7 +56,8 @@ in one of the two domains, never there.
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
-| Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror`, `MirrorAxis` |
+| The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |
+| Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror` |
 | Repeating a selection round a centre | `sketch/src/patterning.rs` | `Sketch::pattern_around` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |

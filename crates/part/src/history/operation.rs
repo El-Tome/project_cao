@@ -2,7 +2,7 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Chamfer, Constraint, DimensionTarget, Element, MirrorAxis, PointId, SegmentId,
+    ArcId, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, SegmentId,
     SketchAxis, WorkPlane,
 };
 use glam::DVec2;
@@ -226,7 +226,7 @@ pub enum Operation {
     Mirror {
         sketch: usize,
         elements: Vec<Element>,
-        axis: MirrorAxis,
+        axis: ChosenAxis,
     },
     /// Repeats what was selected around a point of the drawing, one step
     /// further round for each copy. The count is how many stand there in the

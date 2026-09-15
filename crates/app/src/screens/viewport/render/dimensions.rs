@@ -280,8 +280,8 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             // The step between one copy and the next, and how many stand there
             // in the end. Nothing is read off the cursor: a pattern is only
             // ever what is typed.
-            ToolState::Mirror {
-                naming_the_axis: true,
+            ToolState::Copying {
+                naming_the_target: true,
                 ..
             } => pair((["°", "×"], [0.0; 2])),
             _ => return None,

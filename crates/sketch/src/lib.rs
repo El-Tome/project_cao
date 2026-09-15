@@ -12,6 +12,7 @@ mod arc_placing;
 mod arc_regions;
 mod arc_rules;
 mod arcing;
+mod axis;
 mod chain;
 mod chamfer;
 mod circle_edges;
@@ -57,6 +58,7 @@ pub use arc_placing::{
     ArcMode, aimed as arc_aimed, angle_reference as arc_angle_reference, arc_from,
 };
 pub use arcing::{ArcDraft, places_along, steps_along, sweep_of};
+pub use axis::ChosenAxis;
 pub use chain::{ChainClick, chain_click};
 pub use chamfer::{Chamfer, ChamferMode, Chamfered};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
@@ -67,7 +69,6 @@ pub use duplicating::Duplicated;
 pub use fillet::Rounded;
 pub use length::LengthOutcome;
 pub use measuring::{DimensionMode, DimensionPick, DimensionPicks, measure_pick};
-pub use mirroring::MirrorAxis;
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use regions::Region;

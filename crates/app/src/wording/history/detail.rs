@@ -2,7 +2,7 @@ use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
 use crate::wording::history::values::{
-    between, chamfer, mirror_axis, point_label, revolution_axis, rounded,
+    between, chamfer, chosen_axis, point_label, revolution_axis, rounded,
 };
 use crate::wording::{constraints, dimension};
 
@@ -184,7 +184,7 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("elements", &elements.len().to_string()),
-                ("axis", &mirror_axis(lang, *axis)),
+                ("axis", &chosen_axis(lang, *axis)),
             ],
         ),
         Operation::CircularPattern {

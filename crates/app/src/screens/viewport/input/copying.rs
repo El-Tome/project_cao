@@ -1,5 +1,5 @@
 use cao_part::Operation;
-use cao_sketch::{Element, LockedInput, MirrorAxis, Selection, Sketch, ToolState, axis_under};
+use cao_sketch::{ChosenAxis, Element, LockedInput, Selection, Sketch, ToolState, axis_under};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -17,14 +17,14 @@ pub(crate) fn copy(
     snap: f64,
     pixel: f64,
 ) -> bool {
-    let ToolState::Mirror {
-        naming_the_axis, ..
+    let ToolState::Copying {
+        naming_the_target, ..
     } = context.editor.tool_state
     else {
         take_hold(context, Vec::new());
         return false;
     };
-    match naming_the_axis {
+    match naming_the_target {
         true => lay_the_copy(context, index, cursor, snap),
         false => gather(context, index, cursor, snap, pixel),
     }
@@ -49,9 +49,9 @@ fn asking(context: &SketchContext<'_>) -> &'static str {
 /// Starts the tool holding what it is given — whatever the selection tool had
 /// in hand when the mirror was reached for.
 fn take_hold(context: &mut SketchContext<'_>, held: Vec<Element>) {
-    context.editor.tool_state = ToolState::Mirror {
+    context.editor.tool_state = ToolState::Copying {
         held,
-        naming_the_axis: false,
+        naming_the_target: false,
     };
     let said = gathering(context);
     context.editor.message = Some(context.lang.t(said));
@@ -60,15 +60,15 @@ fn take_hold(context: &mut SketchContext<'_>, held: Vec<Element>) {
 /// `Entrée`: what is held is what will be copied, and the next click names the
 /// axis. Nothing held is nothing to mirror, so the tool stays where it is.
 pub(crate) fn hold_is_done(context: &mut SketchContext<'_>) -> bool {
-    let ToolState::Mirror { held, .. } = &context.editor.tool_state else {
+    let ToolState::Copying { held, .. } = &context.editor.tool_state else {
         return false;
     };
     if held.is_empty() {
         return false;
     }
-    context.editor.tool_state = ToolState::Mirror {
+    context.editor.tool_state = ToolState::Copying {
         held: held.clone(),
-        naming_the_axis: true,
+        naming_the_target: true,
     };
     if context.editor.tool == Tool::CircularPattern {
         context.editor.live.open();
@@ -88,7 +88,7 @@ fn gather(
     let Some(Selection::Element(element)) = pick(context, index, cursor, snap, pixel) else {
         return false;
     };
-    let ToolState::Mirror { held, .. } = &mut context.editor.tool_state else {
+    let ToolState::Copying { held, .. } = &mut context.editor.tool_state else {
         return false;
     };
     match held.iter().position(|already| *already == element) {
@@ -103,7 +103,7 @@ fn gather(
 }
 
 fn lay_the_copy(context: &mut SketchContext<'_>, index: usize, cursor: DVec2, snap: f64) -> bool {
-    let ToolState::Mirror { held, .. } = &context.editor.tool_state else {
+    let ToolState::Copying { held, .. } = &context.editor.tool_state else {
         return false;
     };
     let elements = held.clone();
@@ -181,11 +181,11 @@ fn turned(locked: LockedInput) -> Option<(f64, usize)> {
 /// Which axis a click names: a trait of the drawing first, then one of the
 /// sketch's own two — the trait is the smaller target, and the axes run right
 /// through the drawing.
-fn axis_at(sketch: &Sketch, cursor: DVec2, snap: f64) -> Option<MirrorAxis> {
+fn axis_at(sketch: &Sketch, cursor: DVec2, snap: f64) -> Option<ChosenAxis> {
     if let Some(segment) = sketch.nearest_segment(cursor, snap) {
-        return Some(MirrorAxis::Trait(segment));
+        return Some(ChosenAxis::Trait(segment));
     }
-    axis_under(cursor, snap).map(MirrorAxis::Sketch)
+    axis_under(cursor, snap).map(ChosenAxis::Sketch)
 }
 
 #[cfg(test)]
@@ -209,7 +209,7 @@ mod tests {
 
         assert_eq!(
             axis_at(&sketch, DVec2::new(4.0, 1.0), 0.5),
-            Some(MirrorAxis::Trait(trait_))
+            Some(ChosenAxis::Trait(trait_))
         );
     }
 
@@ -219,7 +219,7 @@ mod tests {
 
         assert_eq!(
             axis_at(&sketch, DVec2::new(20.0, 0.0), 0.5),
-            Some(MirrorAxis::Sketch(SketchAxis::U))
+            Some(ChosenAxis::Sketch(SketchAxis::U))
         );
     }
 
@@ -232,7 +232,7 @@ mod tests {
 
         assert_eq!(
             axis_at(&sketch, DVec2::new(1.0, 0.0), 0.5),
-            Some(MirrorAxis::Trait(along)),
+            Some(ChosenAxis::Trait(along)),
             "the trait is the smaller target, and the one the user drew"
         );
     }

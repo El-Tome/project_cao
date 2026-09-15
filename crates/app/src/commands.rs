@@ -148,9 +148,9 @@ pub(crate) fn run(
                 _ => Tool::Mirror,
             };
             tool(editor, which);
-            editor.tool_state = cao_sketch::ToolState::Mirror {
+            editor.tool_state = cao_sketch::ToolState::Copying {
                 held,
-                naming_the_axis: false,
+                naming_the_target: false,
             };
             editor.message = Some(lang.t(match which {
                 Tool::CircularPattern => "sketch.pattern_take_elements",

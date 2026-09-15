@@ -141,14 +141,21 @@ pub(crate) fn run(
             editor.message = Some(lang.t("sketch.click_a_corner_to_round"));
             false
         }
-        Command::ToolMirror => {
+        Command::ToolMirror | Command::ToolCircularPattern => {
             let held = editor.held_elements();
-            tool(editor, Tool::Mirror);
+            let which = match command {
+                Command::ToolCircularPattern => Tool::CircularPattern,
+                _ => Tool::Mirror,
+            };
+            tool(editor, which);
             editor.tool_state = cao_sketch::ToolState::Mirror {
                 held,
                 naming_the_axis: false,
             };
-            editor.message = Some(lang.t("sketch.mirror_take_elements"));
+            editor.message = Some(lang.t(match which {
+                Tool::CircularPattern => "sketch.pattern_take_elements",
+                _ => "sketch.mirror_take_elements",
+            }));
             false
         }
         Command::ToggleConstruction => {

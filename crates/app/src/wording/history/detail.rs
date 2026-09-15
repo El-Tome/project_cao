@@ -187,6 +187,22 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("axis", &mirror_axis(lang, *axis)),
             ],
         ),
+        Operation::CircularPattern {
+            sketch,
+            elements,
+            centre,
+            degrees,
+            count,
+        } => lang.t_with(
+            "history.detail.circular_pattern",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("elements", &elements.len().to_string()),
+                ("centre", &centre.0.to_string()),
+                ("degrees", &rounded(*degrees, 3)),
+                ("count", &count.to_string()),
+            ],
+        ),
         Operation::TrimArc {
             sketch,
             arc,

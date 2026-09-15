@@ -276,6 +276,16 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
         }
         Tool::LineSymmetric => symmetric_line::live_fields(context, sketch, raw_cursor)?,
+        Tool::CircularPattern => match context.editor.tool_state {
+            // The step between one copy and the next, and how many stand there
+            // in the end. Nothing is read off the cursor: a pattern is only
+            // ever what is typed.
+            ToolState::Mirror {
+                naming_the_axis: true,
+                ..
+            } => (["°", "×"], [0.0; 2]),
+            _ => return None,
+        },
         Tool::Chamfer | Tool::Fillet => match context.editor.tool_state {
             // Nothing is read off the cursor: a corner tool is only ever what
             // is typed, so the fields stand empty until they are.

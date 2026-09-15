@@ -27,6 +27,7 @@ pub enum Command {
     ToolChamfer,
     ToolFillet,
     ToolMirror,
+    ToolCircularPattern,
     ToggleConstruction,
 
     CircleCenter,
@@ -93,7 +94,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 53] = [
+    pub const ALL: [Self; 54] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -113,6 +114,7 @@ impl Command {
         Self::ToolChamfer,
         Self::ToolFillet,
         Self::ToolMirror,
+        Self::ToolCircularPattern,
         Self::ToggleConstruction,
         Self::CircleCenter,
         Self::CircleTwoPoints,
@@ -168,6 +170,7 @@ impl Command {
             | Self::ToolChamfer
             | Self::ToolFillet
             | Self::ToolMirror
+            | Self::ToolCircularPattern
             | Self::ToggleConstruction => CommandFamily::DrawingTools,
             Self::CircleCenter
             | Self::CircleTwoPoints

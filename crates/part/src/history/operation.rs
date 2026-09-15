@@ -228,6 +228,17 @@ pub enum Operation {
         elements: Vec<Element>,
         axis: MirrorAxis,
     },
+    /// Repeats what was selected around a point of the drawing, one step
+    /// further round for each copy. The count is how many stand there in the
+    /// end, the original among them.
+    CircularPattern {
+        sketch: usize,
+        elements: Vec<Element>,
+        centre: PointId,
+        /// Degrees between one copy and the next.
+        degrees: f64,
+        count: usize,
+    },
     /// Rounds the corner two traits share into a curve tangent to both.
     Fillet {
         sketch: usize,

@@ -43,6 +43,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),
         Operation::Mirror { .. } => lang.t("history.mirrored"),
+        Operation::CircularPattern { .. } => lang.t("history.circular_pattern"),
         Operation::Revolve { angle, mode, .. } => lang.t_with(
             match mode {
                 ExtrusionMode::Add => "history.revolution",

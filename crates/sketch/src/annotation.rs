@@ -4,14 +4,17 @@
 //! and the geometry it measures, into a shape. `cao_app` only turns the
 //! segments this produces into vertices, with a colour.
 
-use std::f64::consts::{FRAC_1_SQRT_2, FRAC_PI_2, PI, TAU};
+use std::f64::consts::FRAC_1_SQRT_2;
 
 use glam::DVec2;
 
+use crate::annotation::angle::{Arm, angular};
 use crate::arc_annotation;
 use crate::constraints::DimensionTarget;
 use crate::segment::overshot_end;
 use crate::sketch::Sketch;
+
+mod angle;
 
 /// The numeric norms an annotation is drawn against — how far it stands off
 /// on its own, how long an arrow or an arc is — together with the pixel scale
@@ -79,14 +82,17 @@ impl Sketch {
             }
             DimensionTarget::Angle { first, second } => {
                 let (pivot, a, b) = self.corner_points(first, second)?;
-                angular(&mut shape, pivot, a, b, by, metrics)
+                angular(&mut shape, pivot, Arm::Drawn(a), b, by, metrics)
             }
             DimensionTarget::AxisAngle { segment, axis } => {
                 let (start, end) = endpoints(self, segment)?;
-                // Measured from the axis direction taken at the segment's
-                // start.
-                let second = start + axis.direction() * start.distance(end);
-                angular(&mut shape, start, second, end, by, metrics)
+                let along = axis.direction();
+                let opens_from = start + along * start.distance(end);
+                let arm = match start.perp_dot(along).abs() <= metrics.pixel {
+                    true => Arm::Drawn(opens_from),
+                    false => Arm::Reference(opens_from),
+                };
+                angular(&mut shape, start, arm, end, by, metrics)
             }
             DimensionTarget::Diameter(circle) => {
                 let circle = *self.circles().get(circle.0)?;
@@ -263,83 +269,6 @@ fn linear(
 /// upwards.
 pub(crate) fn text_clearance(normal: DVec2) -> f64 {
     12.0 + 24.0 * normal.x.abs()
-}
-
-/// An angle: an arc between the two arms, with an arrowhead at each end.
-fn angular(
-    out: &mut Vec<(DVec2, DVec2)>,
-    pivot: DVec2,
-    first: DVec2,
-    second: DVec2,
-    by: Moved,
-    metrics: AnnotationMetrics,
-) -> (DVec2, DVec2) {
-    let start = (first - pivot).to_angle();
-    let mut sweep = (second - pivot).to_angle() - start;
-    // Always draw the smaller way round: that is the angle being talked
-    // about.
-    while sweep > PI {
-        sweep -= TAU;
-    }
-    while sweep < -PI {
-        sweep += TAU;
-    }
-
-    // An arc stays hinged on the corner it measures: what is recorded is
-    // where the value sits relative to that corner, and the arc is drawn
-    // just inside it. Splitting the movement into radius and slide instead
-    // let a value dragged sideways shrink its own arc to nothing.
-    let bisector = DVec2::from_angle(start + sweep * 0.5);
-    let clearance = 14.0 * metrics.pixel;
-    let default = bisector * (metrics.arc_pixels * metrics.pixel + clearance);
-    let reach = by.placed.unwrap_or(default) + by.nudge;
-    let radius = (reach.length() - clearance).max(6.0 * metrics.pixel);
-
-    const STEPS: usize = 24;
-    let mut previous = None;
-    for step in 0..=STEPS {
-        let angle = start + sweep * step as f64 / STEPS as f64;
-        let point = pivot + DVec2::from_angle(angle) * radius;
-        if let Some(previous) = previous {
-            out.push((previous, point));
-        }
-        previous = Some(point);
-    }
-
-    // Arrowheads point along the arc, so they lie tangent to it.
-    let tangent = |angle: f64, sign: f64| DVec2::from_angle(angle + FRAC_PI_2) * sign;
-    let at_start = pivot + DVec2::from_angle(start) * radius;
-    let at_end = pivot + DVec2::from_angle(start + sweep) * radius;
-    arrow(out, at_start, tangent(start, sweep.signum()), metrics);
-    arrow(
-        out,
-        at_end,
-        tangent(start + sweep, -sweep.signum()),
-        metrics,
-    );
-
-    // Dragged outside the two arms, the value has nothing joining it to the
-    // arc it belongs to; a leader says where it comes from.
-    let text_at = pivot + reach;
-    let towards = reach.to_angle();
-    let mut turn = towards - start;
-    while turn > PI {
-        turn -= TAU;
-    }
-    while turn < -PI {
-        turn += TAU;
-    }
-    let fraction = turn / sweep;
-    if !fraction.is_finite() || !(0.0..=1.0).contains(&fraction) {
-        let nearer = if turn.abs() < (turn - sweep).abs() {
-            at_start
-        } else {
-            at_end
-        };
-        out.push((nearer, text_at - reach.normalize_or_zero() * clearance));
-    }
-
-    (text_at, reach)
 }
 
 /// A diameter: the line right across the circle, an arrow at each end.

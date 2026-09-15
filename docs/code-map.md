@@ -102,6 +102,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 3` |
 | The picture a part carries of itself | `part/src/picture.rs` | `Picture` |
+| Pulling that picture out without replaying | `part/src/document.rs` | `PartDocument::picture_in` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |
 | What a part asks of a filesystem | `part/src/ports/files.rs` | `Files`, `FileError` |
 | What browsing a folder of parts asks of it | `part/src/ports/folders.rs` | `Folders`, `Entry` |
@@ -172,6 +173,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
 | Starting a second window on another part | `app/src/adapters/window.rs` | `open_another` |
+| What a part's picture is made of | `app/src/picture/scene.rs` | `of` |
+| Taking that picture | `app/src/picture/mod.rs` | `Painter::take`, `SIDE` |
 | Toolbar | `app/src/screens/ribbon/` | `view.rs` draws, `state.rs` says what a command is in, `Drawn` is what it is told about the part |
 | Settings screen | `app/src/screens/settings/` | `show(...)`, one file per section |
 | Start menu | `app/src/screens/start_menu.rs` | `show(...)` → `StartMenuAction` |

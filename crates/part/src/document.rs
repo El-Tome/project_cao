@@ -210,6 +210,16 @@ impl PartDocument {
         Ok(())
     }
 
+    /// The picture a part carries, pulled out of the archive on its own.
+    ///
+    /// Opening the part would replay its whole history — the cost the picture
+    /// exists to avoid. A panel listing a folder must not pay it once a row.
+    pub fn picture_in(files: &impl Files, path: &Path) -> Option<Picture> {
+        let bytes = files.read(path).ok()?;
+        let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).ok()?;
+        read_picture(&mut archive)
+    }
+
     pub fn load(files: &impl Files, path: &Path) -> Result<Self, PartFileError> {
         let bytes = files.read(path)?;
 

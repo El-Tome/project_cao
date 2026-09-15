@@ -1,7 +1,7 @@
 use cao_part::PartDocument;
 use cao_render::{CubeFace, CubeZone, OrbitCamera, SceneFrame, Vertex, ViewportRect};
 use cao_sketch::{Sketch, sweep_of};
-use glam::{DVec2, DVec3, Vec3};
+use glam::{DVec2, Vec3};
 
 /// What a picture of a part is made of: its matter and its drawings, and
 /// nothing else.
@@ -10,24 +10,25 @@ use glam::{DVec2, DVec3, Vec3};
 /// of the one thing the picture exists to show, and a folder of them would
 /// read as a folder of grids.
 pub fn of(document: &PartDocument, side: u32) -> SceneFrame {
-    let camera = looking_at(document);
-    let mut solids = Vec::new();
-    cao_render::push_solid(
-        &mut solids,
-        &document
-            .body()
-            .triangles()
-            .iter()
-            .map(|corners| corners.map(|corner| corner.as_vec3()))
-            .collect::<Vec<_>>(),
-        MATTER,
-        camera.forward(),
-    );
+    let matter: Vec<[Vec3; 3]> = document
+        .body()
+        .triangles()
+        .iter()
+        .map(|corners| corners.map(|corner| corner.as_vec3()))
+        .collect();
 
     let mut lines = Vec::new();
     for sketch in document.sketches() {
         push_drawing(&mut lines, sketch);
     }
+
+    // Framed on what is drawn, and only on that. A sketch holds points nothing
+    // shows — the centre an arc turns about, the corner a rectangle was pulled
+    // from — and framing on those leaves the drawing a speck in the middle of
+    // a box it never filled.
+    let camera = looking_at(extent(&lines, &matter));
+    let mut solids = Vec::new();
+    cao_render::push_solid(&mut solids, &matter, MATTER, camera.forward());
 
     let whole = ViewportRect {
         x: 0.0,
@@ -61,43 +62,42 @@ const TRAIT_WIDTH: f32 = 1.5;
 /// a few pixels across, and a step finer than a pixel is bytes nobody sees.
 const STEPS_OF_A_TURN: usize = 48;
 
-/// The default 3D view, framed on whatever the part has: its matter, or the
-/// drawings when nothing has been extruded yet, or the origin when it is
-/// empty.
-fn looking_at(document: &PartDocument) -> OrbitCamera {
+/// The default 3D view, looking at the part from the corner the application
+/// opens on.
+fn looking_at((centre, radius): (Vec3, f32)) -> OrbitCamera {
     let mut camera = OrbitCamera::default();
     let corner = CubeZone::corner(CubeFace::PlusX, CubeFace::MinusY, CubeFace::PlusZ);
     let (yaw, pitch) = cao_render::camera::view_angles_towards(corner.direction());
     camera.set_view_angles(yaw, pitch);
-
-    let (centre, radius) = extent(document);
     camera.focus_on(centre, radius, 1.0);
     camera
 }
 
-/// The middle of the part and how far it reaches, in world units.
-fn extent(document: &PartDocument) -> (Vec3, f32) {
-    let mut low = DVec3::splat(f64::INFINITY);
-    let mut high = DVec3::splat(f64::NEG_INFINITY);
+/// The middle of what is drawn and how far it reaches, in world units.
+fn extent(lines: &[Vertex], matter: &[[Vec3; 3]]) -> (Vec3, f32) {
+    let mut low = Vec3::splat(f32::INFINITY);
+    let mut high = Vec3::splat(f32::NEG_INFINITY);
+    let mut seen = |point: Vec3| {
+        low = low.min(point);
+        high = high.max(point);
+    };
 
-    if let Some((min, max)) = document.body().bounds() {
-        low = low.min(min);
-        high = high.max(max);
+    for vertex in lines {
+        seen(Vec3::from(vertex.position));
     }
-    for sketch in document.sketches() {
-        if let Some((min, max)) = sketch.bounds() {
-            low = low.min(sketch.plane.to_world(min));
-            high = high.max(sketch.plane.to_world(max));
+    for corners in matter {
+        for corner in corners {
+            seen(*corner);
         }
     }
 
     if low.x > high.x {
         return (Vec3::ZERO, 1.0);
     }
-    let reach = ((high - low).length() * 0.5) as f32;
-    // A part of no size at all — one point, one circle of nothing — still has
-    // to be looked at from somewhere.
-    (((low + high) * 0.5).as_vec3(), reach.max(f32::EPSILON))
+    // A part of no size at all — a single point, a circle of nothing — still
+    // has to be looked at from somewhere.
+    let reach = ((high - low).length() * 0.5).max(f32::EPSILON);
+    ((low + high) * 0.5, reach)
 }
 
 fn push_drawing(out: &mut Vec<Vertex>, sketch: &Sketch) {
@@ -245,23 +245,69 @@ mod tests {
         );
     }
 
+    fn on_screen(frame: &SceneFrame, point: Vec3) -> glam::Vec2 {
+        let clipped = frame.scene_view_projection * point.extend(1.0);
+        (clipped.truncate() / clipped.w).truncate()
+    }
+
     #[test]
     fn a_drawing_is_framed_so_that_every_corner_of_it_lands_inside_the_picture() {
         let frame = of(&part_with(a_square()), 128);
 
         for corner in [
-            DVec3::ZERO,
-            DVec3::new(10.0, 0.0, 0.0),
-            DVec3::new(10.0, 10.0, 0.0),
-            DVec3::new(0.0, 10.0, 0.0),
+            Vec3::ZERO,
+            Vec3::new(10.0, 0.0, 0.0),
+            Vec3::new(10.0, 10.0, 0.0),
+            Vec3::new(0.0, 10.0, 0.0),
         ] {
-            let clipped = frame.scene_view_projection * corner.as_vec3().extend(1.0);
-            let ndc = clipped.truncate() / clipped.w;
+            let ndc = on_screen(&frame, corner);
             assert!(
                 ndc.x.abs() <= 1.0 && ndc.y.abs() <= 1.0,
                 "the corner at {corner} falls outside the picture, at {ndc}",
             );
         }
+    }
+
+    #[test]
+    fn a_drawing_fills_the_picture_rather_than_sitting_as_a_speck_in_the_middle() {
+        let frame = of(&part_with(a_square()), 128);
+
+        let reach = [
+            Vec3::ZERO,
+            Vec3::new(10.0, 0.0, 0.0),
+            Vec3::new(10.0, 10.0, 0.0),
+            Vec3::new(0.0, 10.0, 0.0),
+        ]
+        .into_iter()
+        .map(|corner| on_screen(&frame, corner).abs().max_element())
+        .fold(0.0f32, f32::max);
+
+        assert!(
+            reach > 0.5,
+            "the drawing reaches only {reach} of the way to the edge: at 128 pixels \
+             that is a few strokes lost in a field of ground",
+        );
+    }
+
+    #[test]
+    fn a_point_nothing_draws_does_not_drag_the_frame_out_to_it() {
+        let mut drawn = a_square();
+        // A sketch holds points no stroke ever reaches — the centre an arc
+        // turns about, the corner a rectangle was pulled from, a point dropped
+        // and left. The picture draws none of them.
+        drawn.push(Operation::AddPoint {
+            sketch: 0,
+            position: DVec2::new(400.0, 400.0),
+        });
+
+        let frame = of(&part_with(drawn), 128);
+        let ndc = on_screen(&frame, Vec3::new(5.0, 5.0, 0.0));
+
+        assert!(
+            ndc.length() < 0.5,
+            "the middle of the square sits at {ndc}, pushed aside by a point \
+             nothing draws",
+        );
     }
 
     #[test]

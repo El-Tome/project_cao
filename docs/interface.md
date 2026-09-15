@@ -13,8 +13,8 @@ See also: [sketch](sketch.md) · [history](history.md)
 │ Nouvelle esquisse │ Dessin… │ Édition…        │  entries of the open tab
 ├──────────┬──────────┬────────────────────────┤
 │ Fichiers │ History  │                        │
-│  Brides  │  Sketch  │        viewport        │
-│  support │   1. Line│                        │
+│ ▫ Brides │  Sketch  │        viewport        │
+│ ▣ support│   1. Line│                        │
 └──────────┴──────────┴────────────────────────┘
 ```
 
@@ -52,6 +52,12 @@ Double-clicking a part opens it: in place when the start menu is showing, in a
 **second window** when a part is already open. Tabs are what that is to become;
 until the shell can hold more than one part at a time, the second window is a
 second process, and what the two share is what the installation remembers.
+
+Each part shows a small picture of itself, as the 3D view frames it — taken
+when the part was last put away and kept in its file, never drawn while the
+folder is being listed. A part nobody has closed since is a quiet empty frame,
+so the rows stay aligned; it gains its picture the next time. Only the rows on
+screen are read and turned into textures.
 
 The panel also makes a folder, renames a part or a folder, and sends one to the
 system bin after a question. Renaming a part writes the new name inside the

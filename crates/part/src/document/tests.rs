@@ -219,6 +219,38 @@ fn a_part_nobody_has_taken_the_picture_of_opens_without_one() {
 }
 
 #[test]
+fn a_picture_is_pulled_out_on_its_own_without_the_history_being_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut document = drawn_part();
+    document.set_picture(a_drawn_picture());
+    document
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    assert_eq!(
+        PartDocument::picture_in(&files, path),
+        Some(a_drawn_picture()),
+    );
+}
+
+#[test]
+fn a_part_with_no_picture_hands_back_none_rather_than_failing_to_be_read() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    drawn_part()
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    assert_eq!(PartDocument::picture_in(&files, path), None);
+    assert_eq!(
+        PartDocument::picture_in(&files, Path::new("/parts/nothing.caopart")),
+        None,
+        "a row the panel is still showing for a part that has just gone",
+    );
+}
+
+#[test]
 fn a_picture_survives_a_save_that_did_not_take_it() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");

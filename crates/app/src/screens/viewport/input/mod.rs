@@ -50,11 +50,14 @@ mod dragging;
 pub(crate) use dragging::annotation_position;
 use dragging::{drag_point, nearest_annotation};
 
+mod areas;
+pub(crate) use areas::pick_areas;
+
 mod selecting;
 use selecting::{band_select, erase};
 
-mod mirror;
-pub(crate) use mirror::{hold_is_done, mirror};
+mod copying;
+pub(crate) use copying::{copy, hold_is_done};
 
 mod corner;
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner};
@@ -278,7 +281,9 @@ pub(crate) fn handle_sketch_input(
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Split => split(context, index, cursor, snap),
         Tool::Chamfer | Tool::Fillet => corner(context, index, cursor, snap),
-        Tool::Mirror => mirror(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Mirror | Tool::CircularPattern => {
+            copy(context, index, cursor, snap, scale.units_per_pixel)
+        }
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }
@@ -369,84 +374,10 @@ fn constrain(
     true
 }
 
-/// Choosing which closed areas of a sketch become matter.
-///
-/// An area is named by a point inside it rather than by its rank, so the choice
-/// still means the same thing after the drawing changes. Clicking an area
-/// already chosen takes it back out.
-pub(crate) fn pick_areas(
-    state: &ViewportState,
-    response: &egui::Response,
-    rect: egui::Rect,
-    scale: ViewScale,
-    context: &mut SketchContext<'_>,
-) {
-    context.extrusion.hovered = None;
-
-    let Some(index) = context.extrusion.sketch else {
-        return;
-    };
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return;
-    };
-    let Some(pointer) = response.hover_pos() else {
-        return;
-    };
-
-    let (origin, direction) = state
-        .camera
-        .ray(to_ndc(pointer, rect), rect.width() / rect.height());
-    let Some(cursor) = sketch
-        .plane
-        .ray_intersection(origin.as_dvec3(), direction.as_dvec3())
-    else {
-        return;
-    };
-
-    // A line is a much smaller target than an area, so it is offered first:
-    // that is how a drawn line becomes the axis a revolution turns around.
-    if context.extrusion.is_revolving()
-        && response.clicked()
-        && let Some(segment) = sketch.nearest_segment(cursor, scale.world_size_of(8.0))
-    {
-        context.extrusion.axis = cao_part::RevolutionAxis::Segment(segment);
-        return;
-    }
-
-    let regions = sketch.regions();
-    // The innermost area wins: inside a shape drawn within another, the click
-    // means the small one, not the one it sits in.
-    let Some(under) = regions
-        .iter()
-        .enumerate()
-        .filter(|(_, region)| region.contains(cursor))
-        .max_by_key(|(_, region)| region.depth)
-        .map(|(index, _)| index)
-    else {
-        return;
-    };
-    context.extrusion.hovered = Some(under);
-
-    if !response.clicked() {
-        return;
-    }
-    let already = context
-        .extrusion
-        .picks
-        .iter()
-        .position(|pick| regions[under].contains(*pick));
-    match already {
-        Some(position) => {
-            context.extrusion.picks.remove(position);
-        }
-        None => context.extrusion.picks.push(cursor),
-    }
-}
-
+/// A point already there, or a new one where the cursor is.
 /// Moving a point by hand. The drawing settles around it afterwards, so the
 /// values already given stay true.
 #[allow(clippy::too_many_arguments)]
-/// A point already there, or a new one where the cursor is.
 pub(super) fn point_ref_at(
     context: &SketchContext<'_>,
     index: usize,

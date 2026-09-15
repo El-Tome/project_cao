@@ -39,6 +39,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Chamfer** | Two clicks: the two traits of a corner. What is taken off each is typed, then `Entrée`. |
 | **Fillet** | The same two clicks, then a radius: the corner becomes a curve tangent to both sides. |
 | **Mirror** | Take what is to be copied, `Entrée`, then click the trait or axis to mirror it across. |
+| **Circular pattern** | The same, then a step and a count, then click the point to turn about. |
 
 ### Taking several things at once
 
@@ -753,6 +754,25 @@ copy. What that costs: a mirrored rectangle is no longer held rectangular.
 
 A reflection turns the plane over, so a curve's two ends change places in the
 copy — otherwise the arc would come back sweeping the long way round.
+
+### The same copy, all the way round
+
+The circular pattern takes the mirror's gesture and turns it instead of
+reflecting it: take what is to be repeated, `Entrée`, type the step and the
+count, then click the point of the drawing to turn about.
+
+The **count is how many stand there in the end**, the original among them, so
+six lays five. The **step is the angle between one copy and the next**, not the
+angle spanned in total: a full ring of six is a step of sixty, and half a ring
+of six is a step of thirty. Saying it that way composes — the total is the step
+times what is left of the count — where a total would have to be divided by a
+number the user also typed.
+
+The centre is **a point of the drawing**, for the reason the mirror's axis is a
+trait of it: a point follows the drawing when it moves.
+
+A turn is not a reflection, so a curve keeps its ends the way round it had them;
+only the mirror swaps them.
 
 ### A corner is cut off straight
 

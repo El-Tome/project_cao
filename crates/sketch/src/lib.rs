@@ -30,6 +30,7 @@ mod independence;
 mod length;
 mod measuring;
 mod mirroring;
+mod patterning;
 mod picking;
 mod plane;
 mod regions;

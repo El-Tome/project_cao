@@ -55,7 +55,9 @@ in one of the two domains, never there.
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
-| Laying a second copy of part of the drawing down, under any transform | `sketch/src/mirroring.rs` | `Sketch::duplicate` → `Duplicated`, `Sketch::mirror`, `MirrorAxis` |
+| Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
+| Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror`, `MirrorAxis` |
+| Repeating a selection round a centre | `sketch/src/patterning.rs` | `Sketch::pattern_around` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -174,7 +176,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the trim tool | `app/src/screens/viewport/input/trim.rs` | `trim` |
 | Canvas: one click of the division tool | `app/src/screens/viewport/input/split.rs` | `split` |
 | Canvas: the two clicks of the chamfer and the fillet, and the values typed between them | `app/src/screens/viewport/input/corner.rs` | `corner`, `cut`, `corner_held` |
-| Canvas: what the mirror tool takes hold of, and the axis it lays the copy across | `app/src/screens/viewport/input/mirror.rs` | `mirror`, `hold_is_done`, `axis_at` |
+| Canvas: what the mirror and the circular pattern take hold of, and the axis or centre they lay the copy against | `app/src/screens/viewport/input/copying.rs` | `copy`, `hold_is_done`, `axis_at`, `turned` |
+| Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |

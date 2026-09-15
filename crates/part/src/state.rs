@@ -346,6 +346,19 @@ impl PartState {
                 sketch.resolve(scale);
                 None
             }
+            Operation::CircularPattern {
+                sketch,
+                elements,
+                centre,
+                degrees,
+                count,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.pattern_around(elements, *centre, *degrees, *count)?;
+                sketch.resolve(scale);
+                None
+            }
             Operation::Revolve {
                 sketch,
                 picks,

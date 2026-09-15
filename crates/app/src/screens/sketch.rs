@@ -34,6 +34,8 @@ pub enum Tool {
     Fillet,
     /// Lays a copy of what is held on the other side of an axis.
     Mirror,
+    /// Repeats what is held around a chosen centre.
+    CircularPattern,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }

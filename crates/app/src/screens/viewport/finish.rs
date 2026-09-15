@@ -21,7 +21,7 @@ pub(crate) fn advance_on_enter(
 ) -> bool {
     // The mirror has no live field for Enter to land in, so the key is read
     // here rather than handed on by one.
-    if matches!(sketch.editor.tool_state, ToolState::Mirror { .. }) {
+    if matches!(sketch.editor.tool_state, ToolState::Copying { .. }) {
         return ui.input(|input| input.key_pressed(egui::Key::Enter)) && hold_is_done(sketch);
     }
 

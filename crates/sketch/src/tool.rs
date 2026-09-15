@@ -67,11 +67,12 @@ pub enum ToolState {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,
     },
-    /// What the mirror tool is holding, and whether the next click names the
-    /// axis rather than adding to what is held.
-    Mirror {
+    /// What a tool that lays copies is holding, and whether the next click
+    /// names the one thing it still needs — an axis, a centre, a direction —
+    /// rather than adding to what is held.
+    Copying {
         held: Vec<Element>,
-        naming_the_axis: bool,
+        naming_the_target: bool,
     },
     /// The sides of a corner the chamfer or fillet tool has been shown so far.
     /// The two gestures are the same; only what is laid across the corner

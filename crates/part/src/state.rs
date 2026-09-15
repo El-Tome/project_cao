@@ -339,26 +339,21 @@ impl PartState {
                 sketch,
                 elements,
                 axis,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.mirror(elements, *axis)?;
-                sketch.resolve(scale);
-                None
-            }
+            } => self.mirror(*sketch, elements, *axis),
             Operation::CircularPattern {
                 sketch,
                 elements,
                 centre,
                 degrees,
                 count,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.pattern_around(elements, *centre, *degrees, *count)?;
-                sketch.resolve(scale);
-                None
-            }
+            } => self.pattern_around(*sketch, elements, *centre, *degrees, *count),
+            Operation::RectangularPattern {
+                sketch,
+                elements,
+                direction,
+                along,
+                across,
+            } => self.pattern_along(*sketch, elements, *direction, *along, *across),
             Operation::Revolve {
                 sketch,
                 picks,

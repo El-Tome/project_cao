@@ -1,9 +1,9 @@
-//! What a part does with a circular pattern: copies stand round a point of the
-//! drawing, and a replay rebuilds the same ring.
+//! What a part does with a pattern: copies stand round a point of the drawing
+//! or in rows square to a direction, and a replay rebuilds the same ones.
 
 use cao_part::PartState;
 use cao_part::history::{Operation, PointRef};
-use cao_sketch::{Element, PointId, SegmentId, WorkPlane};
+use cao_sketch::{ChosenAxis, Element, PointId, Repeats, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 const TOLERANCE: f64 = 1e-9;
@@ -91,4 +91,95 @@ fn a_centre_the_drawing_does_not_have_lays_nothing() {
 
     assert_eq!(said, None);
     assert_eq!(state.sketches[0].live_segments().count(), 1);
+}
+
+fn a_grid_of(along: Repeats, across: Repeats) -> Operation {
+    Operation::RectangularPattern {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(0))],
+        direction: ChosenAxis::Sketch(SketchAxis::U),
+        along,
+        across,
+    }
+}
+
+#[test]
+fn a_grid_of_three_by_two_stands_six_traits_in_two_rows() {
+    let mut state = replay(&a_trait_beside_a_centre());
+
+    state.apply(&a_grid_of(
+        Repeats {
+            step: 10.0,
+            count: 3,
+        },
+        Repeats {
+            step: 5.0,
+            count: 2,
+        },
+    ));
+
+    let sketch = &state.sketches[0];
+    assert_eq!(sketch.live_segments().count(), 6);
+    let rows = sketch
+        .live_segments()
+        .filter(|(id, _)| sketch.endpoints(*id).0.y > 4.9)
+        .count();
+    assert_eq!(
+        rows, 3,
+        "three of the six stand a step across the direction"
+    );
+}
+
+#[test]
+fn a_grid_replayed_rebuilds_the_same_copies() {
+    let mut operations = a_trait_beside_a_centre();
+    operations.push(a_grid_of(
+        Repeats {
+            step: 10.0,
+            count: 3,
+        },
+        Repeats {
+            step: 5.0,
+            count: 2,
+        },
+    ));
+
+    let ends = |state: &PartState| {
+        let sketch = &state.sketches[0];
+        sketch
+            .live_segments()
+            .map(|(id, _)| sketch.endpoints(id))
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(ends(&replay(&operations)), ends(&replay(&operations)));
+    assert_eq!(ends(&replay(&operations)).len(), 6);
+}
+
+#[test]
+fn a_step_is_typed_in_millimetres_and_laid_down_in_units() {
+    let mut state = replay(&a_trait_beside_a_centre());
+    state.millimeters_per_unit = Some(2.0);
+
+    state.apply(&a_grid_of(
+        Repeats {
+            step: 10.0,
+            count: 2,
+        },
+        Repeats {
+            step: 10.0,
+            count: 1,
+        },
+    ));
+
+    let sketch = &state.sketches[0];
+    let laid = sketch
+        .live_segments()
+        .map(|(id, _)| sketch.endpoints(id).0.x)
+        .find(|x| *x > 3.5)
+        .expect("a copy east of the original");
+    assert!(
+        (laid - 8.0).abs() <= TOLERANCE,
+        "ten millimetres at two per unit is five units along, got {laid}"
+    );
 }

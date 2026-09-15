@@ -3,7 +3,10 @@ use std::f64::consts::TAU;
 use glam::DVec2;
 
 use super::*;
+use crate::axis::ChosenAxis;
+use crate::constraints::SketchAxis;
 use crate::plane::WorkPlane;
+use crate::sketch::SegmentId;
 
 const TOLERANCE: f64 = 1e-9;
 
@@ -120,4 +123,208 @@ fn a_pattern_turns_a_curve_without_turning_it_over() {
             sketch.arc_sweep(*copy)
         );
     }
+}
+
+/// A trait a unit long, lying on the U axis with its near end at the origin.
+fn a_trait_on_the_axis() -> (Sketch, Vec<Element>) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let near = sketch.add_point(DVec2::ZERO);
+    let far = sketch.add_point(DVec2::new(1.0, 0.0));
+    let side = Element::Segment(sketch.add_segment(near, far));
+    (sketch, vec![side])
+}
+
+#[test]
+fn a_rectangular_pattern_fills_the_grid_but_for_the_original() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+
+    let made = sketch
+        .pattern_along(
+            &held,
+            ChosenAxis::Sketch(SketchAxis::U),
+            Repeats {
+                step: 10.0,
+                count: 3,
+            },
+            Repeats {
+                step: 5.0,
+                count: 2,
+            },
+        )
+        .expect("a direction to run along");
+
+    assert_eq!(
+        made.segments.len(),
+        5,
+        "the original is one of the six, so five are laid"
+    );
+    assert_eq!(sketch.live_segments().count(), 6);
+}
+
+#[test]
+fn every_copy_stands_a_whole_number_of_steps_along_and_across() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+
+    let made = sketch
+        .pattern_along(
+            &held,
+            ChosenAxis::Sketch(SketchAxis::U),
+            Repeats {
+                step: 10.0,
+                count: 3,
+            },
+            Repeats {
+                step: 5.0,
+                count: 2,
+            },
+        )
+        .expect("a direction to run along");
+
+    let mut places: Vec<DVec2> = made
+        .segments
+        .iter()
+        .map(|id| sketch.endpoints(*id).0)
+        .collect();
+    places.sort_by(|one, other| one.y.total_cmp(&other.y).then(one.x.total_cmp(&other.x)));
+    let wanted = [
+        DVec2::new(10.0, 0.0),
+        DVec2::new(20.0, 0.0),
+        DVec2::new(0.0, 5.0),
+        DVec2::new(10.0, 5.0),
+        DVec2::new(20.0, 5.0),
+    ];
+    for (got, should) in places.iter().zip(wanted) {
+        assert!(
+            got.distance(should) <= TOLERANCE,
+            "a copy starts at {got}, wanted {should}"
+        );
+    }
+}
+
+#[test]
+fn a_trait_of_the_drawing_leans_the_whole_grid() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let low = sketch.add_point(DVec2::ZERO);
+    let high = sketch.add_point(DVec2::new(1.0, 1.0));
+    let diagonal = sketch.add_segment(low, high);
+    let held = sketch.add_point(DVec2::new(5.0, 0.0));
+    let step = 2.0_f64.sqrt();
+
+    let made = sketch
+        .pattern_along(
+            &[Element::Point(held)],
+            ChosenAxis::Trait(diagonal),
+            Repeats { step, count: 2 },
+            Repeats { step, count: 2 },
+        )
+        .expect("a direction to run along");
+
+    let mut places: Vec<DVec2> = made.points.iter().map(|id| sketch.point(*id)).collect();
+    places.sort_by(|one, other| one.y.total_cmp(&other.y).then(one.x.total_cmp(&other.x)));
+    let wanted = [
+        DVec2::new(4.0, 1.0),
+        DVec2::new(6.0, 1.0),
+        DVec2::new(5.0, 2.0),
+    ];
+    for (got, should) in places.iter().zip(wanted) {
+        assert!(
+            got.distance(should) <= TOLERANCE,
+            "a copy stands at {got}, wanted {should}"
+        );
+    }
+}
+
+#[test]
+fn a_grid_of_one_by_one_lays_nothing_at_all() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+    let once = Repeats {
+        step: 10.0,
+        count: 1,
+    };
+
+    assert_eq!(
+        sketch.pattern_along(&held, ChosenAxis::Sketch(SketchAxis::U), once, once),
+        None
+    );
+    assert_eq!(sketch.live_segments().count(), 1);
+}
+
+#[test]
+fn a_grid_stepping_by_nothing_would_pile_its_copies_up_and_is_refused() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+
+    assert_eq!(
+        sketch.pattern_along(
+            &held,
+            ChosenAxis::Sketch(SketchAxis::U),
+            Repeats {
+                step: 0.0,
+                count: 3,
+            },
+            Repeats {
+                step: 5.0,
+                count: 2,
+            },
+        ),
+        None
+    );
+    assert_eq!(sketch.live_segments().count(), 1);
+}
+
+#[test]
+fn a_single_row_still_fills_the_direction_it_has() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+
+    let made = sketch
+        .pattern_along(
+            &held,
+            ChosenAxis::Sketch(SketchAxis::U),
+            Repeats {
+                step: 10.0,
+                count: 4,
+            },
+            Repeats {
+                step: 5.0,
+                count: 1,
+            },
+        )
+        .expect("a direction to run along");
+
+    assert_eq!(made.segments.len(), 3);
+}
+
+#[test]
+fn a_count_of_none_still_leaves_the_row_the_original_stands_in() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+
+    let made = sketch
+        .pattern_along(
+            &held,
+            ChosenAxis::Sketch(SketchAxis::U),
+            Repeats {
+                step: 10.0,
+                count: 3,
+            },
+            Repeats {
+                step: 5.0,
+                count: 0,
+            },
+        )
+        .expect("a direction to run along");
+
+    assert_eq!(made.segments.len(), 2);
+}
+
+#[test]
+fn a_direction_the_drawing_does_not_have_lays_nothing() {
+    let (mut sketch, held) = a_trait_on_the_axis();
+    let twice = Repeats {
+        step: 10.0,
+        count: 2,
+    };
+
+    assert_eq!(
+        sketch.pattern_along(&held, ChosenAxis::Trait(SegmentId(99)), twice, twice),
+        None
+    );
 }

@@ -2,7 +2,7 @@ use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
 use crate::wording::history::values::{
-    between, chamfer, mirror_axis, point_label, revolution_axis, rounded,
+    between, chamfer, chosen_axis, point_label, revolution_axis, rounded,
 };
 use crate::wording::{constraints, dimension};
 
@@ -184,7 +184,7 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             &[
                 ("sketch", &sketch.to_string()),
                 ("elements", &elements.len().to_string()),
-                ("axis", &mirror_axis(lang, *axis)),
+                ("axis", &chosen_axis(lang, *axis)),
             ],
         ),
         Operation::CircularPattern {
@@ -201,6 +201,24 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("centre", &centre.0.to_string()),
                 ("degrees", &rounded(*degrees, 3)),
                 ("count", &count.to_string()),
+            ],
+        ),
+        Operation::RectangularPattern {
+            sketch,
+            elements,
+            direction,
+            along,
+            across,
+        } => lang.t_with(
+            "history.detail.rectangular_pattern",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("elements", &elements.len().to_string()),
+                ("direction", &chosen_axis(lang, *direction)),
+                ("along", &along.count.to_string()),
+                ("along_step", &rounded(along.step, 3)),
+                ("across", &across.count.to_string()),
+                ("across_step", &rounded(across.step, 3)),
             ],
         ),
         Operation::TrimArc {

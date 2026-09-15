@@ -52,6 +52,7 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ToolSplit),
                                 Item::Command(C::ToolMirror),
                                 Item::Command(C::ToolCircularPattern),
+                                Item::Command(C::ToolRectangularPattern),
                                 Item::Command(C::ToolFillet),
                                 Item::Command(C::ToolChamfer),
                                 Item::group(

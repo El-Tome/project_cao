@@ -5,6 +5,7 @@
 
 mod adapters;
 pub mod compaction;
+mod copying;
 pub(crate) mod dimensioning;
 mod document;
 mod errors;

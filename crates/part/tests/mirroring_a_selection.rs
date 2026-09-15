@@ -3,7 +3,7 @@
 
 use cao_part::PartState;
 use cao_part::history::{Operation, PointRef};
-use cao_sketch::{Element, MirrorAxis, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{ChosenAxis, Element, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 const TOLERANCE: f64 = 1e-9;
@@ -34,7 +34,7 @@ fn mirrored() -> Operation {
     Operation::Mirror {
         sketch: 0,
         elements: vec![Element::Segment(SegmentId(0))],
-        axis: MirrorAxis::Sketch(SketchAxis::V),
+        axis: ChosenAxis::Sketch(SketchAxis::V),
     }
 }
 
@@ -83,7 +83,7 @@ fn a_mirror_across_a_trait_the_drawing_does_not_have_does_nothing() {
     let said = state.apply(&Operation::Mirror {
         sketch: 0,
         elements: vec![Element::Point(PointId(1))],
-        axis: MirrorAxis::Trait(SegmentId(9)),
+        axis: ChosenAxis::Trait(SegmentId(9)),
     });
 
     assert_eq!(said, None);

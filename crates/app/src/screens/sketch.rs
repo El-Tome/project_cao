@@ -36,6 +36,8 @@ pub enum Tool {
     Mirror,
     /// Repeats what is held around a chosen centre.
     CircularPattern,
+    /// Repeats what is held in rows square to a chosen direction.
+    RectangularPattern,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }
@@ -300,7 +302,7 @@ impl SketchEditor {
         }
         // The mirror holds its own, so what it has taken is drawn as taken.
         match (what, &self.tool_state) {
-            (Selection::Element(element), ToolState::Mirror { held, .. }) => {
+            (Selection::Element(element), ToolState::Copying { held, .. }) => {
                 held.contains(&element)
             }
             _ => false,

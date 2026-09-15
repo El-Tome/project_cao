@@ -150,6 +150,11 @@ const WIDGETS_A_SCREEN_SHOULD_NOT_DRESS: [&str; 11] = [
 /// `wording/constraints.rs` keeps its marks.
 const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 
+/// Modes under `screens/` that still decide and draw in the same place.
+/// `explorer` and `ribbon` show the shape: a `state.rs` that holds what the
+/// screen knows, a `view.rs` that draws it. The list may only shrink.
+const MODES_WITHOUT_A_PRESENTER: [&str; 3] = ["settings", "sketch", "viewport"];
+
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),
     ("crates/app/src/screens/history_tree.rs", 1),
@@ -495,6 +500,59 @@ fn a_presenter_never_takes_the_interface() {
             );
         }
     }
+}
+
+#[test]
+fn a_mode_keeps_what_it_knows_apart_from_what_it_draws() {
+    let owed: BTreeSet<&str> = MODES_WITHOUT_A_PRESENTER.iter().copied().collect();
+    let screens = workspace_root()
+        .join("crates")
+        .join("app")
+        .join("src")
+        .join("screens");
+
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut folders: Vec<PathBuf> = fs::read_dir(&screens)
+        .expect("a readable crates/app/src/screens")
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    folders.sort();
+
+    for folder in folders {
+        let name = folder
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let split = folder.join("state.rs").exists() && folder.join("view.rs").exists();
+
+        if owed.contains(name.as_str()) {
+            seen.insert(name.clone());
+            assert!(
+                !split,
+                "screens/{name} holds its state.rs and its view.rs now. \
+                 Drop it from MODES_WITHOUT_A_PRESENTER.",
+            );
+            continue;
+        }
+
+        assert!(
+            split,
+            "screens/{name} decides and draws in the same place, so nothing it \
+             decides can be checked without opening a window. A mode carries a \
+             state.rs that holds what the screen knows and a view.rs that draws \
+             it — screens/ribbon is the shape to copy.",
+        );
+    }
+
+    let gone: Vec<&&str> = owed.iter().filter(|name| !seen.contains(**name)).collect();
+    assert!(
+        gone.is_empty(),
+        "{gone:?} are named as owing a presenter and no such mode is left. \
+         Take them out.",
+    );
 }
 
 #[test]

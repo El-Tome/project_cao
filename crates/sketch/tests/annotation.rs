@@ -2,7 +2,7 @@
 //! leader on the end a foot falls outside of, the floor under an angle's arc
 //! radius, and a dragged annotation landing back where it was left.
 
-use cao_sketch::{AnnotationMetrics, DimensionTarget, Sketch, WorkPlane};
+use cao_sketch::{AnnotationMetrics, DimensionTarget, Sketch, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 const METRICS: AnnotationMetrics = AnnotationMetrics {
@@ -118,5 +118,62 @@ fn a_dimension_dragged_and_placed_again_lands_where_it_was_left() {
          where it was left: {:?} vs {:?}",
         first.text_at,
         second.text_at
+    );
+}
+
+fn trait_at(start: DVec2, degrees: f64) -> (Sketch, DimensionTarget) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let from = sketch.add_point(start);
+    let to = sketch.add_point(start + DVec2::from_angle(degrees.to_radians()) * 40.0);
+    let segment = sketch.add_segment(from, to);
+    let target = DimensionTarget::AxisAngle {
+        segment,
+        axis: SketchAxis::U,
+    };
+    sketch.set_dimension(target, degrees, false);
+    (sketch, target)
+}
+
+fn arms_from(placement: &cao_sketch::Placement, pivot: DVec2) -> Vec<DVec2> {
+    placement
+        .shape
+        .iter()
+        .filter(|(from, _)| from.distance(pivot) <= 1e-9)
+        .map(|(from, to)| *to - *from)
+        .collect()
+}
+
+#[test]
+fn an_angle_measured_off_the_axis_draws_the_line_it_opens_from() {
+    let start = DVec2::new(10.0, 10.0);
+    let (sketch, target) = trait_at(start, 30.0);
+
+    let placement = sketch.place(target, METRICS).unwrap();
+
+    let arms = arms_from(&placement, start);
+    assert_eq!(
+        arms.len(),
+        1,
+        "the arc opens from a horizontal the drawing shows nowhere, so the annotation carries it: {:?}",
+        placement.shape
+    );
+    assert!(
+        arms[0].perp_dot(DVec2::X).abs() <= 1e-9 && arms[0].dot(DVec2::X) > 0.0,
+        "the line runs along the axis the angle is measured against, got {:?}",
+        arms[0]
+    );
+}
+
+#[test]
+fn an_angle_measured_on_the_axis_lets_the_axis_speak_for_itself() {
+    let start = DVec2::new(10.0, 0.0);
+    let (sketch, target) = trait_at(start, 30.0);
+
+    let placement = sketch.place(target, METRICS).unwrap();
+
+    assert_eq!(
+        arms_from(&placement, start),
+        Vec::new(),
+        "the axis is drawn right through the vertex, and a second line on top of it says nothing"
     );
 }

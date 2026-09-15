@@ -8,7 +8,7 @@ use std::f64::consts::FRAC_1_SQRT_2;
 
 use glam::DVec2;
 
-use crate::annotation::angle::angular;
+use crate::annotation::angle::{Arm, angular};
 use crate::arc_annotation;
 use crate::constraints::DimensionTarget;
 use crate::segment::overshot_end;
@@ -82,14 +82,17 @@ impl Sketch {
             }
             DimensionTarget::Angle { first, second } => {
                 let (pivot, a, b) = self.corner_points(first, second)?;
-                angular(&mut shape, pivot, a, b, by, metrics)
+                angular(&mut shape, pivot, Arm::Drawn(a), b, by, metrics)
             }
             DimensionTarget::AxisAngle { segment, axis } => {
                 let (start, end) = endpoints(self, segment)?;
-                // Measured from the axis direction taken at the segment's
-                // start.
-                let second = start + axis.direction() * start.distance(end);
-                angular(&mut shape, start, second, end, by, metrics)
+                let along = axis.direction();
+                let opens_from = start + along * start.distance(end);
+                let arm = match start.perp_dot(along).abs() <= metrics.pixel {
+                    true => Arm::Drawn(opens_from),
+                    false => Arm::Reference(opens_from),
+                };
+                angular(&mut shape, start, arm, end, by, metrics)
             }
             DimensionTarget::Diameter(circle) => {
                 let circle = *self.circles().get(circle.0)?;

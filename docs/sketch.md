@@ -547,6 +547,13 @@ This is vector drawing produced by the code, not images: a few segments per
 dimension, which follow the geometry when it moves and stay crisp at any zoom.
 An image would have to be redone for every value and every angle.
 
+An angle read against a sketch axis traces one thing more: a short line out of
+the trait's own start, along the axis, as far as the arc. The axis itself is
+drawn through the origin, which can be nowhere near that vertex — without the
+line the arc would open from nothing. A trait that already starts on the axis
+gets no such line: the axis runs right through the vertex, and a second line on
+top of it says nothing.
+
 A read-only dimension is traced more discreetly, in grey: it reports, it does
 not decide.
 

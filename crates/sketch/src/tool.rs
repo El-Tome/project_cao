@@ -66,9 +66,10 @@ pub enum ToolState {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,
     },
-    /// The sides of a corner the chamfer tool has been shown so far, and what
-    /// has been typed for it.
-    Chamfer {
+    /// The sides of a corner the chamfer or fillet tool has been shown so far.
+    /// The two gestures are the same; only what is laid across the corner
+    /// differs.
+    Corner {
         sides: Vec<SegmentId>,
     },
     Constrain {

@@ -320,6 +320,21 @@ impl PartState {
                     values: chamfered.values_dropped,
                 })
             }
+            Operation::Fillet {
+                sketch,
+                first,
+                second,
+                radius,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let rounded = sketch.fillet(*first, *second, radius / scale)?;
+                sketch.resolve(scale);
+                Some(Outcome::Cut {
+                    rules: rounded.rules_dropped,
+                    values: rounded.values_dropped,
+                })
+            }
             Operation::Revolve {
                 sketch,
                 picks,

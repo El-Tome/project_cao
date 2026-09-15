@@ -82,6 +82,8 @@ pub enum Tool {
     Split,
     /// Cuts the corner two traits share with a straight line.
     Chamfer,
+    /// Rounds the corner two traits share into a curve tangent to both.
+    Fillet,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }

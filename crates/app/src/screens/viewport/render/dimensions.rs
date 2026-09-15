@@ -276,10 +276,10 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
             (["mm", "mm"], [span.x.abs() * scale, span.y.abs() * scale])
         }
         Tool::LineSymmetric => symmetric_line::live_fields(context, sketch, raw_cursor)?,
-        Tool::Chamfer => match context.editor.tool_state {
-            // Nothing is read off the cursor: a chamfer is only ever what is
-            // typed, so the fields stand empty until they are.
-            ToolState::Chamfer { .. } => (chamfer_units(context.editor.chamfer_mode), [0.0; 2]),
+        Tool::Chamfer | Tool::Fillet => match context.editor.tool_state {
+            // Nothing is read off the cursor: a corner tool is only ever what
+            // is typed, so the fields stand empty until they are.
+            ToolState::Corner { .. } => (corner_units(context.editor), [0.0; 2]),
             _ => return None,
         },
         _ => return None,
@@ -365,12 +365,15 @@ fn live_field(
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
 }
 
-/// What the chamfer tool's two fields are measured in, which is what says how
-/// many of them there are.
-fn chamfer_units(mode: ChamferMode) -> [&'static str; 2] {
-    match mode {
-        ChamferMode::Equal => ["mm", ""],
-        ChamferMode::Angled => ["mm", "°"],
-        ChamferMode::Sided => ["mm", "mm"],
+/// What a corner tool's two fields are measured in, which is what says how many
+/// of them there are. A fillet asks for a radius and nothing else.
+fn corner_units(editor: &crate::screens::sketch::SketchEditor) -> [&'static str; 2] {
+    match editor.tool {
+        Tool::Fillet => ["mm", ""],
+        _ => match editor.chamfer_mode {
+            ChamferMode::Equal => ["mm", ""],
+            ChamferMode::Angled => ["mm", "°"],
+            ChamferMode::Sided => ["mm", "mm"],
+        },
     }
 }

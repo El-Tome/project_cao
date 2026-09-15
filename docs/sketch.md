@@ -37,6 +37,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
 | **Chamfer** | Two clicks: the two traits of a corner. What is taken off each is typed, then `Entrée`. |
+| **Fillet** | The same two clicks, then a radius: the corner becomes a curve tangent to both sides. |
 
 ### Taking several things at once
 
@@ -749,6 +750,19 @@ the third, which is what fixes the second distance.
 A chamfer asking for more than a side has to give is refused whole, and so are
 two traits that do not meet. The corner's own point goes with the corner,
 unless something else still runs into it.
+
+### A corner is rounded off
+
+The fillet takes the same two clicks as the chamfer and lays a curve across the
+corner instead of a straight line. One value, the radius. Each side is pulled
+back to where the curve grazes it, at a distance the corner's own opening
+decides — a sharp corner gives ground far sooner than a square one for the same
+radius, which is why a fillet that fits a right angle can be refused next door.
+
+The curve is **held tangent** to both pieces, by a rule laid down with it.
+Without that it would stop being a fillet the moment anything in the drawing
+moved: the arc and the two sides are loose pieces otherwise, exactly as a trim
+leaves them.
 
 ### A crossing becomes a point
 

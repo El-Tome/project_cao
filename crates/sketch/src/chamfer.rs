@@ -159,7 +159,7 @@ impl Sketch {
 
     /// Whether the drawing has anything left standing on a point. A corner cut
     /// off leaves its own point behind, holding nothing up.
-    fn nothing_leans_on(&self, point: PointId) -> bool {
+    pub(crate) fn nothing_leans_on(&self, point: PointId) -> bool {
         !self
             .live_segments()
             .any(|(_, segment)| segment.start == point || segment.end == point)
@@ -170,7 +170,12 @@ impl Sketch {
     }
 
     /// How wide a corner stands open, the shorter way round.
-    fn opening_at(&self, pivot: PointId, far_first: PointId, far_second: PointId) -> f64 {
+    pub(crate) fn opening_at(
+        &self,
+        pivot: PointId,
+        far_first: PointId,
+        far_second: PointId,
+    ) -> f64 {
         let at = self.point(pivot);
         let turn = ((self.point(far_second) - at).to_angle()
             - (self.point(far_first) - at).to_angle())

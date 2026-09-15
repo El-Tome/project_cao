@@ -751,6 +751,28 @@ A chamfer asking for more than a side has to give is refused whole, and so are
 two traits that do not meet. The corner's own point goes with the corner,
 unless something else still runs into it.
 
+### The matter in front stops hiding the drawing
+
+The part is drawn whole in the 3D view, and the solid is the only geometry that
+writes depth — so while a sketch is open, anything standing between the eye and
+the sketch plane hides what is being drawn. One draws inside the part without
+seeing what one draws.
+
+So the body is **cut by the plane of the sketch**, and only the far side is
+drawn. What lies behind stays: that is what one draws against, an edge to line
+up with, a hole to centre on. Hiding the body altogether would trade one problem
+for another.
+
+The plane is the sketch's, never the camera's, so it holds in an oblique view
+too. Which of its two halves counts as *in front* is the one question the camera
+answers: the same matter is in the way from one side and out of the way from the
+other. The face a sketch was started **on** lies in the plane itself, and stays.
+
+The cut is a way of looking. No operation enters the history, the `.caopart` is
+unchanged, and closing the sketch puts the whole body back. Nothing is put back
+to close the surface where the plane went through — the body reads as open,
+which is what a section view (#193) will be for.
+
 ### A corner is rounded off
 
 The fillet takes the same two clicks as the chamfer and lays a curve across the

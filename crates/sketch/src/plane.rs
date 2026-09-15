@@ -71,6 +71,21 @@ impl WorkPlane {
         self.u.cross(self.v).normalize_or(DVec3::Z)
     }
 
+    /// Which way the near side of the plane lies, seen from `eye`, and how far
+    /// along that direction the plane itself sits.
+    ///
+    /// The plane is the sketch's, never the camera's, but which of its two
+    /// halves stands in the way is a question only the camera can answer: the
+    /// same matter is in front from one side and behind from the other.
+    pub fn near_side(&self, eye: DVec3) -> (DVec3, f64) {
+        let normal = self.normal();
+        let towards = match normal.dot(eye - self.origin) < 0.0 {
+            true => -normal,
+            false => normal,
+        };
+        (towards, towards.dot(self.origin))
+    }
+
     pub fn to_world(&self, point: DVec2) -> DVec3 {
         self.origin + self.u * point.x + self.v * point.y
     }
@@ -120,6 +135,8 @@ impl WorkPlane {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const TOLERANCE: f64 = 1e-9;
 
     #[test]
     fn local_and_world_coordinates_round_trip() {
@@ -189,5 +206,37 @@ mod tests {
         let raised = WorkPlane::from_normal(DVec3::Z * 12.0, DVec3::Z);
 
         assert_eq!(raised.kind(), PlaneKind::OffOrigin);
+    }
+
+    #[test]
+    fn the_near_side_is_the_one_the_eye_stands_on() {
+        let plane = WorkPlane::XY;
+
+        let (above, offset) = plane.near_side(DVec3::new(0.0, 0.0, 12.0));
+
+        assert!(above.distance(DVec3::Z) <= TOLERANCE, "got {above:?}");
+        assert!(offset.abs() <= TOLERANCE);
+    }
+
+    #[test]
+    fn looking_from_under_a_plane_turns_its_near_side_over() {
+        let plane = WorkPlane::XY;
+
+        let (below, _) = plane.near_side(DVec3::new(0.0, 0.0, -12.0));
+
+        assert!(below.distance(DVec3::NEG_Z) <= TOLERANCE, "got {below:?}");
+    }
+
+    #[test]
+    fn a_plane_away_from_the_origin_says_how_far_along_it_sits() {
+        let plane = WorkPlane::from_normal(DVec3::new(0.0, 0.0, 4.0), DVec3::Z);
+
+        let (towards, offset) = plane.near_side(DVec3::new(0.0, 0.0, 12.0));
+
+        assert!((towards.dot(DVec3::Z) - 1.0).abs() <= TOLERANCE);
+        assert!(
+            (offset - 4.0).abs() <= TOLERANCE,
+            "the plane stands four units along its own normal, got {offset}"
+        );
     }
 }

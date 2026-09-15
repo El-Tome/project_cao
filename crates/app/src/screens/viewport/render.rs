@@ -31,6 +31,7 @@ pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels, paint
 
 use super::cube_labels;
 use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
+use super::matter;
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
 };
@@ -146,11 +147,10 @@ pub(crate) fn build_frame(
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
 
     let mut solids = Vec::new();
+    let shown = matter::shown_body(context.editor, context.document.body(), camera.eye());
     cao_render::push_solid(
         &mut solids,
-        &context
-            .document
-            .body()
+        &shown
             .triangles()
             .iter()
             .map(|corners| corners.map(|corner| corner.as_vec3()))

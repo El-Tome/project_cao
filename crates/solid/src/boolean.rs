@@ -84,9 +84,9 @@ fn tolerance(scale: f64) -> f64 {
 }
 
 #[derive(Clone, Copy, PartialEq)]
-struct Plane {
-    normal: DVec3,
-    offset: f64,
+pub(crate) struct Plane {
+    pub(crate) normal: DVec3,
+    pub(crate) offset: f64,
 }
 
 impl Plane {
@@ -103,7 +103,7 @@ impl Plane {
     }
 
     /// Sorts a face against the plane, cutting it where it straddles.
-    fn split(&self, polygon: &Polygon, out: &mut Split) {
+    pub(crate) fn split(&self, polygon: &Polygon, out: &mut Split) {
         const COPLANAR: u8 = 0;
         const FRONT: u8 = 1;
         const BACK: u8 = 2;
@@ -162,11 +162,11 @@ impl Plane {
 
 /// Where the pieces of a face land once a plane has cut it.
 #[derive(Default)]
-struct Split {
-    coplanar_front: Vec<Polygon>,
-    coplanar_back: Vec<Polygon>,
-    front: Vec<Polygon>,
-    back: Vec<Polygon>,
+pub(crate) struct Split {
+    pub(crate) coplanar_front: Vec<Polygon>,
+    pub(crate) coplanar_back: Vec<Polygon>,
+    pub(crate) front: Vec<Polygon>,
+    pub(crate) back: Vec<Polygon>,
 }
 
 /// One plane of the partition, with the faces lying on it and the two halves

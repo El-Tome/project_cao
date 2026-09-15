@@ -51,7 +51,8 @@ description: `refactor/24-storage-error-becomes-two-errors`,
 `fix/17-dimension-leader`, `feat/circles`. **English, hyphenated, short.** A
 French branch name is a slip, not a variant.
 
-If there is no issue yet, open one first. It is where the reasoning goes, and
+If there is no issue yet, open one first — through `open-an-issue`, which asks
+and argues before a line of it is written. It is where the reasoning goes, and
 it is what the next person reads before touching the same file.
 
 Never work on `main` directly.

@@ -9,10 +9,11 @@ for where a new file goes and what it may import,
 
 ## How to work
 
-Six skills carry the detail, in `.claude/skills/`:
+Seven skills carry the detail, in `.claude/skills/`:
 
 | Skill | When |
 | --- | --- |
+| `open-an-issue` | before writing an issue — ask and argue first |
 | `open-a-task` | at the very start, before reading any code |
 | `code-map` | to find where to act |
 | `rust-tdd` | to write the test before the code |

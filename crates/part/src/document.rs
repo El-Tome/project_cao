@@ -33,6 +33,16 @@ const HISTORY_ENTRY: &str = "design/history.json";
 const PICTURE_SHAPE_ENTRY: &str = "picture.json";
 const PICTURE_PIXELS_ENTRY: &str = "picture.rgba";
 
+/// What a write of the archive is for.
+#[derive(Clone, Copy, PartialEq)]
+enum Writing {
+    /// The end of a gesture: the design alone.
+    AtRest,
+    /// The end of the session with the part: the geometry it is showing goes
+    /// with it.
+    PuttingAway,
+}
+
 /// What a part is, as opposed to what has been done to it.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PartMetadata {
@@ -170,13 +180,39 @@ impl PartDocument {
         Ok((doc, path))
     }
 
-    /// Writes the part whole. `now` goes into the file and nowhere else: what a
-    /// part carries in memory is still the hour it was built with.
+    /// Writes the part at the end of a gesture, its design alone. `now` goes
+    /// into the file and nowhere else: what a part carries in memory is still
+    /// the hour it was built with.
     pub fn save(
         &self,
         files: &impl Files,
         path: &Path,
         now: DateTime<Utc>,
+    ) -> Result<(), PartFileError> {
+        self.write(files, path, now, Writing::AtRest)
+    }
+
+    /// Writes the part on the way out of it, with the geometry it is showing.
+    ///
+    /// Nothing more is coming to make that geometry stale, which is what a
+    /// gesture could never say: the cache exists to save the replay at the
+    /// next open, and writing it again at every stroke would cost more than
+    /// the replay it saves.
+    pub fn put_away(
+        &self,
+        files: &impl Files,
+        path: &Path,
+        now: DateTime<Utc>,
+    ) -> Result<(), PartFileError> {
+        self.write(files, path, now, Writing::PuttingAway)
+    }
+
+    fn write(
+        &self,
+        files: &impl Files,
+        path: &Path,
+        now: DateTime<Utc>,
+        writing: Writing,
     ) -> Result<(), PartFileError> {
         let metadata = PartMetadata {
             modified_at: now,
@@ -195,7 +231,9 @@ impl PartDocument {
         archive
             .write_all(design.as_bytes())
             .map_err(zip::result::ZipError::from)?;
-        geometry_cache::write(&mut archive, options, &self.state, &design)?;
+        if writing == Writing::PuttingAway {
+            geometry_cache::write(&mut archive, options, &self.state, &design)?;
+        }
 
         if let Some(picture) = &self.picture {
             let shape = PictureShape {

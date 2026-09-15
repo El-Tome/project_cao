@@ -35,9 +35,9 @@ fn a_part_with_matter() -> PartDocument {
     document
 }
 
-fn saved(files: &InMemoryFiles, path: &Path) {
+fn put_away(files: &InMemoryFiles, path: &Path) {
     a_part_with_matter()
-        .save(files, path, at("2026-01-02T10:00:00Z"))
+        .put_away(files, path, at("2026-01-02T10:00:00Z"))
         .expect("the part is written");
 }
 
@@ -93,7 +93,7 @@ fn a_foreign_geometry() -> PartState {
 fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_design() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    saved(&files, path);
+    put_away(&files, path);
     let design = String::from_utf8(entry_of(&files, path, HISTORY_ENTRY)).expect("the design");
     let cached = encoded(&a_foreign_geometry(), &design).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
@@ -111,7 +111,7 @@ fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_d
 fn a_geometry_cached_from_another_design_is_left_behind() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    saved(&files, path);
+    put_away(&files, path);
     let cached = encoded(&a_foreign_geometry(), "a design nobody wrote").expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
 
@@ -129,7 +129,7 @@ fn a_geometry_cached_from_another_design_is_left_behind() {
 fn a_damaged_cache_is_a_part_that_replays_its_design_rather_than_one_that_will_not_open() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    saved(&files, path);
+    put_away(&files, path);
     replacing(&files, path, GEOMETRY_ENTRY, Some(b"half a file"));
 
     let reopened = PartDocument::load(&files, path).expect("reads");
@@ -141,7 +141,7 @@ fn a_damaged_cache_is_a_part_that_replays_its_design_rather_than_one_that_will_n
 fn a_part_written_before_the_cache_existed_opens_by_replaying_its_design() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    saved(&files, path);
+    put_away(&files, path);
     replacing(&files, path, GEOMETRY_ENTRY, None);
 
     let reopened = PartDocument::load(&files, path).expect("reads");
@@ -322,4 +322,42 @@ fn a_drawing_of_every_kind_comes_back_from_the_cache_as_the_replay_leaves_it() {
             "a corner read back at {read} where the replay puts it at {rebuilt}",
         );
     }
+}
+
+#[test]
+fn a_gesture_writes_the_design_alone_and_leaves_the_geometry_for_the_way_out() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    a_part_with_matter()
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+
+    let mut archive =
+        zip::ZipArchive::new(Cursor::new(files.read(path).expect("the archive"))).expect("a zip");
+
+    assert!(
+        archive.by_name(GEOMETRY_ENTRY).is_err(),
+        "the autosave writes at the end of every gesture, and geometry written \
+         there is geometry written again at the next one",
+    );
+}
+
+#[test]
+fn a_part_put_away_carries_the_geometry_it_was_showing() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let document = a_part_with_matter();
+    document
+        .put_away(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+    let design = String::from_utf8(entry_of(&files, path, HISTORY_ENTRY)).expect("the design");
+    let cached = encoded(&a_foreign_geometry(), &design).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        reopened.sketches().is_empty(),
+        "the part opens on the geometry it was put away with",
+    );
 }

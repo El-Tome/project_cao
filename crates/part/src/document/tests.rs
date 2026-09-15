@@ -294,7 +294,7 @@ fn the_steps_a_part_was_designed_by_live_in_a_folder_of_their_own() {
     let mut document = drawn_part();
     document.set_picture(a_drawn_picture());
     document
-        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .put_away(&files, path, at("2026-01-02T10:00:00Z"))
         .expect("the part is written");
 
     assert_eq!(

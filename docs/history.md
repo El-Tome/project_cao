@@ -130,12 +130,19 @@ to the part as a whole and not to any one step of its design. Opening a part of
 forty features takes some seventy milliseconds of replay against three of
 reading that geometry back.
 
+It is written **when the part is put away** — closed, or left for the start
+menu — and not at the end of every gesture like the rest of the archive. A part
+closed is a part nothing more is coming to; a gesture is only ever followed by
+another one, and geometry written there is geometry written again a second
+later. The picture is written at that same moment, for the same reason. A
+gesture that saves the design alone leaves no geometry behind it, so there is
+nothing to invalidate: the entry is either the one the part was put away with,
+or absent.
+
 It is a cache and never the truth. It carries a print of the design it was
 rebuilt from, and a part whose cache is missing, damaged, or answers to another
 design replays its design instead of refusing to open — so a design edited by
 any hand other than a save can never show a shape the part no longer describes.
-Nothing invalidates it in passing: a save rewrites it from the geometry on
-screen, and the autosave writes at the end of every gesture.
 
 It also carries the version of the tool that rebuilt it, bumped by hand the day
 replaying the same design stops giving the same geometry — a fix in the solver,
@@ -145,9 +152,7 @@ go on showing the shape it was cached with until somebody edited it.
 JSON rather than the `.bin` the layout first called for: what the cache saves is
 the rebuild, not the reading, and a binary codec would buy a couple of
 milliseconds on the reading and cost a dependency — the same argument as the
-picture below. The entry takes the lightest compression instead of the default,
-because it is written again at the end of every gesture: 4.6 ms for 394 KB
-against 10.9 ms for 229 KB, on that part of forty features.
+picture below.
 
 There is no `metadata.json`. `part.json` holds the identity, and a file named
 after no particular content is where fields with nowhere else to go come to

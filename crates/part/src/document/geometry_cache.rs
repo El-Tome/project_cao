@@ -7,6 +7,10 @@
 //! no longer answers to the design is dropped and the design replayed — it can
 //! never be the reason a part refuses to open.
 //!
+//! Written when the part is put away, and not at the end of every gesture: a
+//! part closed is a part nothing more is coming to, where a gesture is only
+//! ever followed by another one.
+//!
 //! JSON rather than a binary format: what the cache saves is the rebuild, not
 //! the reading. On a part of forty features the replay takes some seventy
 //! milliseconds where reading its geometry back takes three, so a codec would
@@ -43,10 +47,7 @@ pub(super) fn write<W: Write + Seek>(
     state: &PartState,
     design: &str,
 ) -> Result<(), PartFileError> {
-    // The lightest compression rather than the default: this entry is written
-    // again at the end of every gesture, and on a part of forty features it
-    // costs 4.6 ms for 394 KB where the default asks 10.9 ms for 229 KB.
-    archive.start_file(GEOMETRY_ENTRY, options.compression_level(Some(1)))?;
+    archive.start_file(GEOMETRY_ENTRY, options)?;
     archive
         .write_all(&encoded(state, design)?)
         .map_err(zip::result::ZipError::from)?;

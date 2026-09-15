@@ -283,12 +283,14 @@ impl CaoApp {
         }
     }
 
-    /// Writes the part down with a picture of itself, on the way out of it.
+    /// Writes the part down with a picture of itself and the geometry it is
+    /// showing, on the way out of it.
     ///
     /// Here rather than in the autosave because the autosave runs at the end of
     /// every gesture, and a render with a readback at every gesture is the cost
-    /// the picture exists to avoid. Once a part is closed is enough: nothing
-    /// looks at the picture until a panel lists the folder.
+    /// the picture exists to avoid. Once a part is closed is enough for both:
+    /// nothing looks at the picture until a panel lists the folder, and nothing
+    /// reads the geometry back until the part is opened again.
     fn put_the_part_away(&mut self) {
         let Screen::PartOpened(part) = &mut self.screen else {
             return;
@@ -312,7 +314,7 @@ impl CaoApp {
         let lang = self.remembered.lang();
         if let Some(message) = part
             .autosave
-            .write_if_due(&DiskFiles, &part.doc, &part.path, true, lang)
+            .put_away_if_due(&DiskFiles, &part.doc, &part.path, lang)
         {
             self.error = Some(message);
         }

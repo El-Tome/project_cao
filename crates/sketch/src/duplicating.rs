@@ -21,16 +21,29 @@ pub struct Duplicated {
     pub arcs: Vec<ArcId>,
 }
 
+/// Two places nearer than this are the one place, and a copy laid at the second
+/// is a copy laid on the first.
+const SAME_PLACE: f64 = 1e-9;
+
 impl Sketch {
     /// Lays down a second copy of the elements given, every place they stand on
     /// carried through `by`.
     ///
     /// The copy keeps the original's own joins: two sides that shared a corner
     /// share their copy's corner too, rather than each getting one of its own.
+    ///
+    /// What would land on its original is left out: the drawing gains nothing
+    /// from a second thing nobody can tell from the first.
     pub fn duplicate(&mut self, of: &[Element], by: impl Fn(DVec2) -> DVec2) -> Duplicated {
+        let laid: Vec<Element> = of
+            .iter()
+            .copied()
+            .filter(|held| !self.lands_on_its_original(*held, &by))
+            .collect();
+
         let mut made = Duplicated::default();
         let mut copied: Vec<(PointId, PointId)> = Vec::new();
-        for held in of {
+        for held in &laid {
             for point in self.points_it_leans_on(*held) {
                 if copied.iter().any(|(was, _)| *was == point) {
                     continue;
@@ -47,7 +60,7 @@ impl Sketch {
                 .map(|(_, now)| *now)
         };
 
-        for held in of {
+        for held in &laid {
             match *held {
                 Element::Point(_) => {}
                 Element::Segment(id) => {
@@ -101,6 +114,26 @@ impl Sketch {
             }
         }
         made
+    }
+
+    /// Whether carrying an element through `by` leaves it standing on the very
+    /// places it already stands on.
+    ///
+    /// A trait lying along a mirror axis, a circle centred on one, a point
+    /// turned about itself: the copy covers the original exactly, and two
+    /// things nobody can tell apart is what the drawing is left with.
+    fn lands_on_its_original(&self, held: Element, by: &impl Fn(DVec2) -> DVec2) -> bool {
+        let places: Vec<DVec2> = self
+            .points_it_leans_on(held)
+            .into_iter()
+            .map(|point| self.point(point))
+            .collect();
+        !places.is_empty()
+            && places.iter().all(|place| {
+                places
+                    .iter()
+                    .any(|other| by(*place).distance(*other) <= SAME_PLACE)
+            })
     }
 }
 

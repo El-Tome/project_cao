@@ -762,8 +762,13 @@ positions recorded once would go on meaning the same two places after everything
 around them had moved. A click that is within reach of both a trait and an axis
 takes the trait — it is the smaller target, and the one the user drew.
 
-The trait serving as the axis is never copied: it lies on the mirror line, and a
-copy of it there is one nobody could tell from it.
+**A copy that would land on its original is not laid.** The trait serving as the
+axis lies on the mirror line; a point or a circle centred on that line covers
+itself across it; and the point a circular pattern turns about stays exactly
+where it is, once per copy. In each case the drawing would be left with two
+things nobody could tell apart, and the solver with the same figure to hold
+twice. The rule belongs to the copy rather than to any one tool, so the mirror
+and both patterns follow it without having to say so.
 
 **The copy comes out as bare geometry** — points, traits, circles and arcs, with
 the joins they had between them, and nothing else. No rule and no dimension

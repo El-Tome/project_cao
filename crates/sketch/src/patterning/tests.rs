@@ -328,3 +328,26 @@ fn a_direction_the_drawing_does_not_have_lays_nothing() {
         None
     );
 }
+
+#[test]
+fn the_centre_a_pattern_turns_about_is_not_repeated_onto_itself() {
+    let (mut sketch, centre, mut held) = a_trait_beside_a_centre();
+    held.push(Element::Point(centre));
+
+    let made = sketch
+        .pattern_around(&held, centre, 90.0, 4)
+        .expect("a centre to turn about");
+
+    assert_eq!(
+        made.points.len(),
+        6,
+        "a turn leaves its centre where it is, so only the two ends of the trait are laid"
+    );
+    let at = sketch.point(centre);
+    assert!(
+        made.points
+            .iter()
+            .all(|id| sketch.point(*id).distance(at) > TOLERANCE),
+        "no copy stands on the centre it turned about"
+    );
+}

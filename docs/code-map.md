@@ -54,6 +54,7 @@ in one of the two domains, never there.
 | What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
+| Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
@@ -169,7 +170,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the circle tool, and the circle the picks so far make | `app/src/screens/viewport/input/circles.rs` | `draw_circle`, `circle_from` |
 | Canvas: one click of the trim tool | `app/src/screens/viewport/input/trim.rs` | `trim` |
 | Canvas: one click of the division tool | `app/src/screens/viewport/input/split.rs` | `split` |
-| Canvas: the two clicks of the chamfer tool, and the values typed between them | `app/src/screens/viewport/input/chamfer.rs` | `chamfer`, `cut`, `corner_held` |
+| Canvas: the two clicks of the chamfer and the fillet, and the values typed between them | `app/src/screens/viewport/input/corner.rs` | `corner`, `cut`, `corner_held` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |

@@ -46,8 +46,8 @@ mod measure;
 pub(crate) use measure::measure_preview;
 use measure::{edit_dimension, measure};
 
-mod chamfer;
-pub(crate) use chamfer::{chamfer, corner_held, cut as cut_the_corner};
+mod corner;
+pub(crate) use corner::{corner, corner_held, cut as cut_the_corner};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -267,7 +267,7 @@ pub(crate) fn handle_sketch_input(
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Split => split(context, index, cursor, snap),
-        Tool::Chamfer => chamfer(context, index, cursor, snap),
+        Tool::Chamfer | Tool::Fillet => corner(context, index, cursor, snap),
         Tool::Constrain(rule) => constrain(context, index, rule, cursor, snap),
         Tool::Select | Tool::None => false,
     }

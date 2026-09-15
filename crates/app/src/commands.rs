@@ -136,6 +136,11 @@ pub(crate) fn run(
             editor.message = Some(lang.t("sketch.click_a_corner"));
             false
         }
+        Command::ToolFillet => {
+            tool(editor, Tool::Fillet);
+            editor.message = Some(lang.t("sketch.click_a_corner_to_round"));
+            false
+        }
         Command::ToggleConstruction => {
             editor.construction = !editor.construction;
             false

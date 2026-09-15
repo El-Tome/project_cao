@@ -50,6 +50,7 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToolTrim),
                                 Item::Command(C::ToolSplit),
+                                Item::Command(C::ToolFillet),
                                 Item::Command(C::ToolChamfer),
                                 Item::group(
                                     "chamfers",

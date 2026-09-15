@@ -2,6 +2,7 @@
 //! into.
 
 mod detail;
+mod values;
 
 pub use detail::detail;
 
@@ -40,6 +41,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::TrimArc { .. } => lang.t("history.arc_trimmed"),
         Operation::Split { .. } => lang.t("history.split"),
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
+        Operation::Fillet { .. } => lang.t("history.fillet"),
         Operation::Revolve { angle, mode, .. } => lang.t_with(
             match mode {
                 ExtrusionMode::Add => "history.revolution",

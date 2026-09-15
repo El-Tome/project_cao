@@ -26,7 +26,7 @@ pub(crate) fn advance_on_enter(
             | ToolState::Rectangle { .. }
             | ToolState::Circle { .. }
             | ToolState::Arc { .. }
-            | ToolState::Chamfer { .. }
+            | ToolState::Corner { .. }
     );
     if !drawing || !paint_live_input(ui, sketch) {
         return false;

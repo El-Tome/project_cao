@@ -60,7 +60,7 @@ mod copying;
 pub(crate) use copying::{copy, hold_is_done};
 
 mod corner;
-pub(crate) use corner::{corner, corner_held, cut as cut_the_corner};
+pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,

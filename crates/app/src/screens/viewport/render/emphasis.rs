@@ -3,16 +3,26 @@
 //! rule being laid down.
 
 use cao_prefs::theme::Theme;
-use cao_sketch::{RulePick, Selection, Sketch};
+use cao_sketch::{Element, RulePick, Selection, Sketch};
 
 use super::super::SketchContext;
 use super::tint_at;
+
+/// How faint what a click has not laid yet is drawn: there, and plainly not
+/// there yet.
+const A_PROMISE: f32 = 0.55;
+
+/// The colour of what a tool is only offering to lay.
+pub(super) fn ghost(theme: &Theme) -> [f32; 4] {
+    tint_at(theme.sketch_free, A_PROMISE)
+}
 
 /// The colour and width a piece of the drawing ends up with.
 pub(super) fn mark(
     context: &SketchContext<'_>,
     theme: &Theme,
     what: Selection,
+    laid: &[Element],
     color: [f32; 4],
     width: f32,
 ) -> ([f32; 4], f32) {
@@ -24,7 +34,8 @@ pub(super) fn mark(
         _ => false,
     };
     let held = context.editor.is_selected(what) || context.editor.hovered == Some(what);
-    drawn_as(theme, picked, held, color, width)
+    let only_shown = matches!(what, Selection::Element(element) if laid.contains(&element));
+    drawn_as(theme, picked, held, only_shown, color, width)
 }
 
 /// What a rule has already been shown comes first, and in a colour of its own:
@@ -34,9 +45,13 @@ fn drawn_as(
     theme: &Theme,
     picked_by_a_rule: bool,
     held_or_hovered: bool,
+    only_shown: bool,
     color: [f32; 4],
     width: f32,
 ) -> ([f32; 4], f32) {
+    if only_shown {
+        return (ghost(theme), width);
+    }
     if picked_by_a_rule {
         return (tint_at(theme.picked, 1.0), width * 1.8);
     }
@@ -79,6 +94,20 @@ pub(super) fn push_picked_axes(
 mod tests {
     use super::*;
     use cao_sketch::{Element, SegmentId, SketchAxis, WorkPlane};
+
+    #[test]
+    fn a_piece_the_click_has_not_laid_yet_is_drawn_faint_rather_than_as_itself() {
+        let theme = Theme::default();
+
+        let (shown, width) = drawn_as(&theme, false, false, true, PLAIN, 1.5);
+
+        assert_eq!(
+            shown,
+            ghost(&theme),
+            "what the click would lay reads as a promise, not as drawing already there"
+        );
+        assert_eq!(width, 1.5, "a promise is faint, not thick");
+    }
     use glam::{DVec2, Vec3};
 
     const TOLERANCE: f64 = 1e-9;
@@ -88,8 +117,8 @@ mod tests {
     fn what_a_rule_has_been_shown_is_not_drawn_in_the_colour_the_cursor_paints_with() {
         let theme = Theme::default();
 
-        let (picked, _) = drawn_as(&theme, true, true, PLAIN, 1.0);
-        let (hovered, _) = drawn_as(&theme, false, true, PLAIN, 1.0);
+        let (picked, _) = drawn_as(&theme, true, true, false, PLAIN, 1.0);
+        let (hovered, _) = drawn_as(&theme, false, true, false, PLAIN, 1.0);
 
         assert_eq!(picked, tint_at(theme.picked, 1.0));
         assert_ne!(
@@ -100,7 +129,7 @@ mod tests {
 
     #[test]
     fn a_piece_of_the_drawing_no_one_is_dealing_with_keeps_the_colour_it_came_with() {
-        let (color, width) = drawn_as(&Theme::default(), false, false, PLAIN, 1.5);
+        let (color, width) = drawn_as(&Theme::default(), false, false, false, PLAIN, 1.5);
 
         assert_eq!((color, width), (PLAIN, 1.5));
     }

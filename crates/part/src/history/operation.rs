@@ -270,14 +270,3 @@ pub enum Operation {
         mode: ExtrusionMode,
     },
 }
-
-impl Operation {
-    /// True for the operations that open a new feature in the tree, and under
-    /// which the following ones are grouped.
-    pub(crate) fn starts_feature(&self) -> bool {
-        matches!(
-            self,
-            Self::CreateSketch { .. } | Self::Extrude { .. } | Self::Revolve { .. }
-        )
-    }
-}

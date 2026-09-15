@@ -87,14 +87,7 @@ fn show(
         // Steps are grouped under the feature that opened them, which is what
         // makes a long drawing readable: one line per sketch, unfolded on
         // demand.
-        let features = Feature::all(operations);
-        let first = features
-            .first()
-            .map_or(operations.len(), |feature| feature.start);
-        if let Some(step) = clicked_step(ui, operations, 0, first, applied, lang) {
-            rewind_to = Some(step);
-        }
-
+        let features = Feature::all(&document.history);
         for feature in &features {
             let header = egui::CollapsingHeader::new(wording::history::label(
                 lang,

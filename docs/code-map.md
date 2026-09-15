@@ -109,11 +109,14 @@ What it does: [`extrusion.md`](extrusion.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
+| The major steps of a design, and the numbers naming them | `part/src/history/step.rs` | `Step`, `StepKind` |
+| Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
 | Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
 | What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
-| The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 4` |
+| The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 5` |
+| The design folder, its index and one folder per step | `part/src/document/design.rs` | `laid_out`, `read`, `INDEX_ENTRY` |
 | The geometry a part is cached with | `part/src/document/geometry_cache.rs` | `write`, `read`, `GEOMETRY_ENTRY` |
 | A part drawn to order, for a test or a measurement | `part/src/drawn_to_order.rs` | `Recipe`, `Recipe::drawn` |
 | Writing one out, and timing what it costs | `part/examples/draw_a_part.rs` | `cargo run --release -p cao_part --features test-support --example draw_a_part -- /tmp/big.caopart sketches=6 storeys=4` |

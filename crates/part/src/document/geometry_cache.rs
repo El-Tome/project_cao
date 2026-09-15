@@ -45,7 +45,7 @@ pub(super) fn write<W: Write + Seek>(
     archive: &mut zip::ZipWriter<W>,
     options: zip::write::SimpleFileOptions,
     state: &PartState,
-    design: &str,
+    design: &[&str],
 ) -> Result<(), PartFileError> {
     archive.start_file(GEOMETRY_ENTRY, options)?;
     archive
@@ -56,7 +56,7 @@ pub(super) fn write<W: Write + Seek>(
 
 /// The geometry as the archive carries it: the state itself, and what it was
 /// rebuilt from.
-pub(super) fn encoded(state: &PartState, design: &str) -> Result<Vec<u8>, PartFileError> {
+pub(super) fn encoded(state: &PartState, design: &[&str]) -> Result<Vec<u8>, PartFileError> {
     Ok(serde_json::to_vec(&Cached {
         rebuilt_by: REBUILT_BY,
         design: fingerprint(design),
@@ -68,7 +68,7 @@ pub(super) fn encoded(state: &PartState, design: &str) -> Result<Vec<u8>, PartFi
 /// rebuilds to.
 pub(super) fn read<R: Read + Seek>(
     archive: &mut zip::ZipArchive<R>,
-    design: &str,
+    design: &[&str],
 ) -> Option<PartState> {
     let mut entry = archive.by_name(GEOMETRY_ENTRY).ok()?;
     // Read whole rather than parsed as it inflates: serde_json asks an
@@ -83,14 +83,19 @@ pub(super) fn read<R: Read + Seek>(
 
 /// Enough of the design to tell it apart from another one, in eight bytes.
 ///
-/// Taken over the text as it is written, so that a design edited by any hand
-/// other than a save — the only way the two can fall out of step, since they
-/// are written together — leaves its cache behind rather than showing a shape
-/// the part no longer describes.
-fn fingerprint(design: &str) -> u64 {
-    design.bytes().fold(0xcbf2_9ce4_8422_2325, |print, byte| {
-        (print ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
-    })
+/// Taken over the text of every file the design is written as — the index and
+/// each step's folder, in the order the index names them — so that a design
+/// edited by any hand other than a save, the only way the two can fall out of
+/// step since they are written together, leaves its cache behind rather than
+/// showing a shape the part no longer describes. A print over the index alone
+/// would miss every stroke, which is where the drawing is.
+fn fingerprint(design: &[&str]) -> u64 {
+    design
+        .iter()
+        .flat_map(|text| text.bytes())
+        .fold(0xcbf2_9ce4_8422_2325, |print, byte| {
+            (print ^ u64::from(byte)).wrapping_mul(0x0000_0100_0000_01b3)
+        })
 }
 
 #[cfg(test)]

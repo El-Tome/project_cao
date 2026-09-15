@@ -63,6 +63,7 @@ impl Sketch {
 mod tests {
     use super::*;
     use crate::constraints::DimensionTarget;
+    use crate::element::kinds::{name_of, one_of_every_kind};
     use crate::plane::WorkPlane;
 
     const METRICS: AnnotationMetrics = AnnotationMetrics {
@@ -192,5 +193,21 @@ mod tests {
             !caught.contains(&Selection::Dimension(elsewhere)),
             "an annotation drawn outside the box stays out of it: {caught:?}"
         );
+    }
+
+    #[test]
+    fn a_box_over_the_whole_drawing_catches_one_of_every_kind() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let drawn = one_of_every_kind(&mut sketch);
+
+        let caught = sketch.inside_band(DVec2::ZERO, DVec2::splat(60.0), METRICS);
+
+        for element in drawn {
+            assert!(
+                caught.contains(&Selection::Element(element)),
+                "a {} was inside the box and the box did not take it: {caught:?}",
+                name_of(&element),
+            );
+        }
     }
 }

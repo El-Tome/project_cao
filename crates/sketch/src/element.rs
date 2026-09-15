@@ -1,3 +1,18 @@
+//! What a drawing is made of, and the one place that says how many kinds there
+//! are.
+//!
+//! Closes #336.
+//! - one of every kind is drawn, and a fifth kind stops the build at the match
+//!   rather than at an assertion — `one_of_every_kind`
+//! - erasing answers for every kind — `erasing_answers_for_one_of_every_kind`
+//! - the box, the click and the copy answer for every kind too — no test: each
+//!   test lives beside the sweep it covers, in banding.rs, picking.rs and
+//!   duplicating.rs
+//! - a ratchet names the four sweeps and their tests — no test: it is
+//!   OPERATIONS_THAT_SWEEP_THE_WHOLE_DRAWING, in crates/app/tests/architecture.rs
+//! - the .caopart round trip is written down as owed rather than dropped — no
+//!   test: it is owed, in that same constant's documentation
+
 use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
@@ -33,6 +48,132 @@ impl Sketch {
                 Some(arc) => vec![arc.center, arc.start, arc.end],
                 None => Vec::new(),
             },
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod kinds {
+    use glam::DVec2;
+
+    use super::Element;
+    use crate::sketch::Sketch;
+
+    /// One of every kind of element, drawn well inside a square reaching from
+    /// the origin to (60, 60), each far enough from the others to be picked on
+    /// its own.
+    ///
+    /// The match below has no wildcard arm, so a fifth kind of element stops
+    /// the build here rather than slipping past every sweep that walks this
+    /// list. That is the whole of the idea: the enumeration is the compiler's,
+    /// not a list somebody remembered to keep up.
+    pub(crate) fn one_of_every_kind(sketch: &mut Sketch) -> Vec<Element> {
+        let free = sketch.add_point(DVec2::new(10.0, 10.0));
+
+        let start = sketch.add_point(DVec2::new(20.0, 10.0));
+        let end = sketch.add_point(DVec2::new(30.0, 10.0));
+        let side = sketch.add_segment(start, end);
+
+        let middle = sketch.add_point(DVec2::new(20.0, 25.0));
+        let round = sketch.add_circle(middle, 4.0);
+
+        let centre = sketch.add_point(DVec2::new(40.0, 25.0));
+        let east = sketch.add_point(DVec2::new(45.0, 25.0));
+        let north = sketch.add_point(DVec2::new(40.0, 30.0));
+        let bend = sketch.add_arc(centre, east, north);
+
+        let drawn = vec![
+            Element::Point(free),
+            Element::Segment(side),
+            Element::Circle(round),
+            Element::Arc(bend),
+        ];
+
+        let mut kinds: Vec<&str> = drawn.iter().map(name_of).collect();
+        kinds.sort_unstable();
+        kinds.dedup();
+        assert_eq!(
+            kinds.len(),
+            drawn.len(),
+            "one of every kind means one of each: {kinds:?} for {} drawn",
+            drawn.len(),
+        );
+
+        drawn
+    }
+
+    pub(crate) fn name_of(element: &Element) -> &'static str {
+        match element {
+            Element::Point(_) => "point",
+            Element::Segment(_) => "segment",
+            Element::Circle(_) => "circle",
+            Element::Arc(_) => "arc",
+        }
+    }
+
+    /// A place on the element itself, away from the points it leans on, so
+    /// that a click there finds the element rather than one of its ends.
+    ///
+    /// The bisector is what puts the arc's place on its curve: it is exact for
+    /// the quarter turn drawn above and honest for anything under half a turn.
+    pub(crate) fn somewhere_on(sketch: &Sketch, element: Element) -> DVec2 {
+        match element {
+            Element::Point(id) => sketch.point(id),
+            Element::Segment(id) => {
+                let side = sketch.segments()[id.0];
+                (sketch.point(side.start) + sketch.point(side.end)) / 2.0
+            }
+            Element::Circle(id) => {
+                let round = sketch.circles()[id.0];
+                sketch.point(round.center) + DVec2::new(round.radius, 0.0)
+            }
+            Element::Arc(id) => {
+                let bend = sketch.arcs()[id.0];
+                let centre = sketch.point(bend.center);
+                let out = ((sketch.point(bend.start) - centre).normalize()
+                    + (sketch.point(bend.end) - centre).normalize())
+                .normalize();
+                centre + out * sketch.arc_radius(id)
+            }
+        }
+    }
+
+    /// Whether the drawing still holds the element, kind by kind. A sweep that
+    /// takes something away is read back through this rather than through
+    /// another sweep, so that two of them cannot agree on being wrong.
+    pub(crate) fn still_drawn(sketch: &Sketch, element: Element) -> bool {
+        match element {
+            Element::Point(id) => sketch.live_points().any(|(live, _)| live == id),
+            Element::Segment(id) => sketch.live_segments().any(|(live, _)| live == id),
+            Element::Circle(id) => sketch.live_circles().any(|(live, _)| live == id),
+            Element::Arc(id) => sketch.live_arcs().any(|(live, _)| live == id),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::kinds::{name_of, one_of_every_kind, still_drawn};
+    use crate::plane::WorkPlane;
+    use crate::sketch::Sketch;
+
+    #[test]
+    fn erasing_answers_for_one_of_every_kind() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let drawn = one_of_every_kind(&mut sketch);
+
+        for element in drawn {
+            assert!(
+                still_drawn(&sketch, element),
+                "the fixture drew a {} that the drawing does not hold",
+                name_of(&element),
+            );
+            sketch.erase(element);
+            assert!(
+                !still_drawn(&sketch, element),
+                "a {} was erased and the drawing still holds it",
+                name_of(&element),
+            );
         }
     }
 }

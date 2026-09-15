@@ -124,6 +124,7 @@ impl Sketch {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::element::kinds::{name_of, one_of_every_kind, somewhere_on};
     use crate::plane::WorkPlane;
 
     const TOLERANCE: f64 = 1e-9;
@@ -266,5 +267,23 @@ mod tests {
             None,
             "the origin is there to be measured from, not taken hold of"
         );
+    }
+
+    #[test]
+    fn a_click_on_the_drawing_finds_one_of_every_kind() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let drawn = one_of_every_kind(&mut sketch);
+
+        for element in drawn {
+            let at = somewhere_on(&sketch, element);
+            let found = sketch.pick(at, 1.0, METRICS);
+
+            assert_eq!(
+                found,
+                Some(Selection::Element(element)),
+                "a click on a {} found {found:?}",
+                name_of(&element),
+            );
+        }
     }
 }

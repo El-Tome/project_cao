@@ -9,6 +9,7 @@ use glam::DVec2;
 
 use crate::aim::ChainAnchor;
 use crate::constraints::DimensionTarget;
+use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
 use crate::rule_intent::RulePick;
@@ -65,6 +66,12 @@ pub enum ToolState {
     Dimension {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,
+    },
+    /// What the mirror tool is holding, and whether the next click names the
+    /// axis rather than adding to what is held.
+    Mirror {
+        held: Vec<Element>,
+        naming_the_axis: bool,
     },
     /// The sides of a corner the chamfer or fillet tool has been shown so far.
     /// The two gestures are the same; only what is laid across the corner

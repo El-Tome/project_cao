@@ -1,7 +1,9 @@
 use cao_part::history::Operation;
 
 use crate::lang::Catalogue;
-use crate::wording::history::values::{between, chamfer, point_label, revolution_axis, rounded};
+use crate::wording::history::values::{
+    between, chamfer, mirror_axis, point_label, revolution_axis, rounded,
+};
 use crate::wording::{constraints, dimension};
 
 /// The line shown when a history entry is unfolded.
@@ -171,6 +173,18 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("first", &first.0.to_string()),
                 ("second", &second.0.to_string()),
                 ("radius", &format!("{radius:.3}")),
+            ],
+        ),
+        Operation::Mirror {
+            sketch,
+            elements,
+            axis,
+        } => lang.t_with(
+            "history.detail.mirrored",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("elements", &elements.len().to_string()),
+                ("axis", &mirror_axis(lang, *axis)),
             ],
         ),
         Operation::TrimArc {

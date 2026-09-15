@@ -335,6 +335,17 @@ impl PartState {
                     values: rounded.values_dropped,
                 })
             }
+            Operation::Mirror {
+                sketch,
+                elements,
+                axis,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                sketch.mirror(elements, *axis)?;
+                sketch.resolve(scale);
+                None
+            }
             Operation::Revolve {
                 sketch,
                 picks,

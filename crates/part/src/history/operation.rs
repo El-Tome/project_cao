@@ -2,7 +2,8 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Chamfer, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+    ArcId, Chamfer, Constraint, DimensionTarget, Element, MirrorAxis, PointId, SegmentId,
+    SketchAxis, WorkPlane,
 };
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -216,6 +217,16 @@ pub enum Operation {
         first: SegmentId,
         second: SegmentId,
         mode: Chamfer,
+    },
+    /// Lays a second copy of what was selected on the other side of an axis.
+    ///
+    /// The elements are recorded rather than worked out again on replay, for
+    /// the reason `Trim` records its points: what a click took hold of depends
+    /// on the reach the cursor had at the time.
+    Mirror {
+        sketch: usize,
+        elements: Vec<Element>,
+        axis: MirrorAxis,
     },
     /// Rounds the corner two traits share into a curve tangent to both.
     Fillet {

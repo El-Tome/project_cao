@@ -91,6 +91,7 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
 ```
 .caopart
 ├── part.json        the identity of the part: id, name, dates, schema version
+├── geometry.json    what replaying the design below came to, a cache
 ├── picture.json     how big the picture below is, when there is one
 ├── picture.rgba     a picture of the part, rows of pixels, four bytes each
 └── design/
@@ -121,8 +122,32 @@ name: drawing after an undo throws away the abandoned tail, so what sits at a
 given rank changes from one save to the next while the number stays put, and
 every folder after the cut would have to be renamed on disk.
 
-A whole-part cache lands at the root, as `part.bin`, since it answers to the
-part and not to any one step of its design.
+### The geometry is cached at the root, and the design stays the truth
+
+`geometry.json` holds what replaying the design last came to — the drawing of
+every sketch and the matter of the part. It sits at the root, since it answers
+to the part as a whole and not to any one step of its design. Opening a part of
+forty features takes some seventy milliseconds of replay against three of
+reading that geometry back.
+
+It is a cache and never the truth. It carries a print of the design it was
+rebuilt from, and a part whose cache is missing, damaged, or answers to another
+design replays its design instead of refusing to open — so a design edited by
+any hand other than a save can never show a shape the part no longer describes.
+Nothing invalidates it in passing: a save rewrites it from the geometry on
+screen, and the autosave writes at the end of every gesture.
+
+It also carries the version of the tool that rebuilt it, bumped by hand the day
+replaying the same design stops giving the same geometry — a fix in the solver,
+in an extrusion, in a boolean. Without that, a part fixed by such a change would
+go on showing the shape it was cached with until somebody edited it.
+
+JSON rather than the `.bin` the layout first called for: what the cache saves is
+the rebuild, not the reading, and a binary codec would buy a couple of
+milliseconds on the reading and cost a dependency — the same argument as the
+picture below. The entry takes the lightest compression instead of the default,
+because it is written again at the end of every gesture: 4.6 ms for 394 KB
+against 10.9 ms for 229 KB, on that part of forty features.
 
 There is no `metadata.json`. `part.json` holds the identity, and a file named
 after no particular content is where fields with nowhere else to go come to

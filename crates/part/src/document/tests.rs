@@ -302,10 +302,12 @@ fn the_steps_a_part_was_designed_by_live_in_a_folder_of_their_own() {
         [
             "part.json",
             "design/history.json",
+            "geometry.json",
             "picture.json",
             "picture.rgba",
         ],
         "the design gets a folder a feature can be given a place in, and what \
-         describes the part as a whole stays beside it at the root",
+         describes the part as a whole — its rebuilt geometry, its picture — \
+         stays beside it at the root",
     );
 }

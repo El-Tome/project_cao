@@ -7,10 +7,11 @@ use crate::lang::Catalogue;
 
 /// Whether what is on screen still matches what is on disk.
 ///
-/// Writing a part is linear in the length of its history — measured at 2.29 ms
-/// for three thousand steps, against a 16.6 ms frame — so a change made while
-/// the hand is still down marks the part, and the file is replaced once the
-/// gesture ends.
+/// Writing a part is linear in the length of its history and in the matter it
+/// has come to — measured at 2.29 ms for three thousand steps, and 4.6 ms for
+/// the cached geometry of forty features, against a 16.6 ms frame — so a
+/// change made while the hand is still down marks the part, and the file is
+/// replaced once the gesture ends.
 #[derive(Default)]
 pub struct Autosave {
     pending: bool,

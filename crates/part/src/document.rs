@@ -14,6 +14,8 @@ use crate::picture::Picture;
 use crate::ports::Files;
 use crate::state::PartState;
 
+mod geometry_cache;
+
 /// Bumped whenever the layout of a saved part changes.
 ///
 /// Older versions are refused rather than converted: while the tool is still
@@ -188,10 +190,12 @@ impl PartDocument {
         archive
             .write_all(serde_json::to_string_pretty(&metadata)?.as_bytes())
             .map_err(zip::result::ZipError::from)?;
+        let design = serde_json::to_string_pretty(&self.history)?;
         archive.start_file(HISTORY_ENTRY, options)?;
         archive
-            .write_all(serde_json::to_string_pretty(&self.history)?.as_bytes())
+            .write_all(design.as_bytes())
             .map_err(zip::result::ZipError::from)?;
+        geometry_cache::write(&mut archive, options, &self.state, &design)?;
 
         if let Some(picture) = &self.picture {
             let shape = PictureShape {
@@ -240,8 +244,10 @@ impl PartDocument {
             return Err(PartFileError::UnsupportedVersion(metadata.schema_version));
         }
 
-        let history: History = serde_json::from_str(&read_entry(&mut archive, HISTORY_ENTRY)?)?;
-        let state = PartState::rebuild(&history);
+        let design = read_entry(&mut archive, HISTORY_ENTRY)?;
+        let history: History = serde_json::from_str(&design)?;
+        let state = geometry_cache::read(&mut archive, &design)
+            .unwrap_or_else(|| PartState::rebuild(&history));
 
         Ok(Self {
             metadata,

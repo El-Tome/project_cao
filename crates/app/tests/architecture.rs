@@ -29,6 +29,30 @@ const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "part", "pref
 /// listed, one per bullet, each named by a path from the workspace root.
 const NO_NET_HEADING: &str = "## What has no net";
 
+/// Every place `docs/code-map.md` is allowed to list under [`NO_NET_HEADING`].
+/// The list may only shrink: an entry added here is a place that went into the
+/// repository with no test, which is the one move that empties the rule of
+/// meaning.
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
+    "crates/app/src/screens/annotations.rs",
+    "crates/app/src/screens/extrusion_row.rs",
+    "crates/app/src/screens/history_tree.rs",
+    "crates/app/src/screens/mod.rs",
+    "crates/app/src/screens/settings/",
+    "crates/app/src/screens/sketch.rs",
+    "crates/app/src/screens/start_menu.rs",
+    "crates/app/src/screens/viewport/input/arcs.rs",
+    "crates/app/src/screens/viewport/input/circles.rs",
+    "crates/app/src/screens/viewport/input/constrain.rs",
+    "crates/app/src/screens/viewport/input/mod.rs",
+    "crates/app/src/screens/viewport/input/rectangle.rs",
+    "crates/app/src/screens/viewport/input/symmetric_line.rs",
+    "crates/app/src/screens/viewport/mod.rs",
+    "crates/app/src/screens/viewport/render.rs",
+    "crates/sketch/src/constraints.rs",
+    "crates/sketch/src/solver.rs",
+];
+
 /// The graph as it is, not a list of permissions. The test compares this with
 /// the `cao_*` dependencies every manifest actually declares, so an edge named
 /// here that no `Cargo.toml` carries fails just as surely as one nobody allowed.
@@ -498,6 +522,33 @@ fn the_layers_of_a_context_only_reach_downwards() {
             }
         }
     }
+}
+
+#[test]
+fn the_places_with_no_net_are_the_ones_already_named() {
+    let allowed: BTreeSet<&str> = PLACES_ALLOWED_TO_HAVE_NO_NET.iter().copied().collect();
+    let listed: BTreeSet<String> = places_with_no_net().into_iter().collect();
+
+    let joined: Vec<&String> = listed
+        .iter()
+        .filter(|place| !allowed.contains(place.as_str()))
+        .collect();
+    assert!(
+        joined.is_empty(),
+        "docs/code-map.md has gained {joined:?} under \"{NO_NET_HEADING}\". A place \
+         with no test is not added to this repository: write the test, or say in \
+         PLACES_ALLOWED_TO_HAVE_NO_NET what is owed and why.",
+    );
+
+    let paid: Vec<&&str> = allowed
+        .iter()
+        .filter(|place| !listed.contains(**place))
+        .collect();
+    assert!(
+        paid.is_empty(),
+        "{paid:?} carry a test now, and docs/code-map.md says so. Drop them from \
+         PLACES_ALLOWED_TO_HAVE_NO_NET.",
+    );
 }
 
 #[test]

@@ -3,11 +3,22 @@
 
 use cao_part::PartState;
 use cao_part::history::{Operation, PointRef};
-use cao_sketch::{ChosenAxis, Element, PointId, Repeats, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    AnnotationMetrics, ChosenAxis, Element, PointId, Repeats, SegmentId, Selection, SketchAxis,
+    WorkPlane,
+};
 use glam::DVec2;
 
 const TOLERANCE: f64 = 1e-9;
 const CENTRE: PointId = PointId(1);
+
+const METRICS: AnnotationMetrics = AnnotationMetrics {
+    offset_pixels: 22.0,
+    arrow_pixels: 8.0,
+    arc_pixels: 34.0,
+    pixel: 1.0,
+    nudge: DVec2::ZERO,
+};
 
 fn a_trait_beside_a_centre() -> Vec<Operation> {
     vec![
@@ -91,6 +102,52 @@ fn a_centre_the_drawing_does_not_have_lays_nothing() {
 
     assert_eq!(said, None);
     assert_eq!(state.sketches[0].live_segments().count(), 1);
+}
+
+#[test]
+fn an_arc_a_dragged_box_took_hold_of_stands_round_the_ring_as_an_arc() {
+    let mut state = replay(&[
+        Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        },
+        Operation::AddPoint {
+            sketch: 0,
+            position: DVec2::ZERO,
+        },
+        Operation::AddArc {
+            sketch: 0,
+            center: PointRef::New(DVec2::new(4.0, 0.0)),
+            start: PointRef::New(DVec2::new(5.0, 0.0)),
+            end: PointRef::New(DVec2::new(4.0, 1.0)),
+            construction: false,
+        },
+    ]);
+    let held = state.sketches[0]
+        .inside_band(DVec2::new(2.0, -2.0), DVec2::new(8.0, 4.0), METRICS)
+        .into_iter()
+        .filter_map(|caught| match caught {
+            Selection::Element(element) => Some(element),
+            _ => None,
+        })
+        .collect();
+
+    state.apply(&Operation::CircularPattern {
+        sketch: 0,
+        elements: held,
+        centre: CENTRE,
+        degrees: 90.0,
+        count: 4,
+    });
+
+    let sketch = &state.sketches[0];
+    assert_eq!(sketch.live_arcs().count(), 4, "one at each quarter turn");
+    for (id, _) in sketch.live_arcs() {
+        let radius = sketch.arc_radius(id);
+        assert!(
+            (radius - 1.0).abs() <= TOLERANCE,
+            "every copy is as round as the original, and this one is {radius}"
+        );
+    }
 }
 
 fn a_grid_of(along: Repeats, across: Repeats) -> Operation {

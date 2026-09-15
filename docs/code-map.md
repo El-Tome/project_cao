@@ -46,7 +46,7 @@ in one of the two domains, never there.
 | Sketch model: points, traits, circles | `sketch/src/sketch.rs` — the largest file in the repository | `Sketch`, `live_points`, `live_segments`, `live_circles` |
 | A piece of a circle, and what keeps it round | `sketch/src/arc.rs` | `Arc`, `Sketch::add_arc`, `arc_sweep`, `arc_polyline`, `arc_equations` |
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
-| The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along` |
+| The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along`, `bounds_of` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
 | What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
@@ -79,7 +79,8 @@ in one of the two domains, never there.
 | The drawing as half-edges a face walk can turn at, cut wherever two curves cross and wherever a point sits on one | `sketch/src/edges.rs` | `Sketch::crossed`, `Sketch::crossings`, `Crossed`, `ArcHalfEdge` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |
-| What a click takes hold of, what a box catches, what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::inside_band`, `Sketch::points_of`, `Selection` |
+| What a click takes hold of, and what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::points_of`, `Selection` |
+| What a box dragged across the drawing catches | `sketch/src/banding.rs` | `Sketch::inside_band` |
 | Where a dimension's annotation is drawn, and where its value belongs | `sketch/src/annotation.rs` | `Sketch::place`, `AnnotationMetrics`, `Placement` |
 | The arc an angle is drawn as, and the arm it opens from when nothing else draws one | `sketch/src/annotation/angle.rs` | `angular`, `Arm` |
 | Where a trait being drawn ends, and the four-degree square snap | `sketch/src/aim.rs` | `Sketch::aim`, `rectangle_corner`, `LockedInput`, `ChainAnchor` |

@@ -49,6 +49,10 @@ everything it holds **entirely**: a trait counts when both its ends are in.
 Half a trait cannot be deleted, so letting the box take it would promise
 something the drawing cannot do.
 
+A circle and an arc answer to the same rule, read off the curve rather than off
+the points it stands on: a curve that swings out of the box between its two ends
+is not held entirely, and a curve whose centre lies outside the box still is.
+
 Who answers the drag is decided **when the gesture starts** and stays so to the
 end: a point under the cursor at press time moves, otherwise it is a box.
 Without that the gesture would change nature halfway, the moment the cursor

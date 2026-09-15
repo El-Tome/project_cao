@@ -3,7 +3,7 @@ use glam::DVec2;
 
 mod typed_dimension;
 
-pub use cao_sketch::{ArcMode, CircleMode, DimensionMode};
+pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode};
 pub(crate) use typed_dimension::apply_dimension_value;
 
 /// One of the two values that can be typed while a shape is being drawn.
@@ -80,6 +80,8 @@ pub enum Tool {
     Trim,
     /// Drops a point where traits cross and cuts each of them there.
     Split,
+    /// Cuts the corner two traits share with a straight line.
+    Chamfer,
     /// Lays down a rule with no value.
     Constrain(Rule),
 }
@@ -133,6 +135,9 @@ pub struct SketchEditor {
     /// Which kind of measurement the dimension tool is forcing. Not reset
     /// between shapes, for the same reason.
     pub dimension_mode: DimensionMode,
+    /// How the chamfer tool is saying what it takes, kept across corners for
+    /// the same reason.
+    pub chamfer_mode: ChamferMode,
     pub construction: bool,
     pub live: LiveInput,
     /// Where the shape being drawn actually ends, once what was typed and the

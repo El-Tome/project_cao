@@ -50,6 +50,15 @@ impl Default for ToolbarLayout {
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToolTrim),
                                 Item::Command(C::ToolSplit),
+                                Item::Command(C::ToolChamfer),
+                                Item::group(
+                                    "chamfers",
+                                    vec![
+                                        Item::Command(C::ChamferEqual),
+                                        Item::Command(C::ChamferAngled),
+                                        Item::Command(C::ChamferSided),
+                                    ],
+                                ),
                                 Item::Command(C::ToggleConstruction),
                                 // A third level opens as a menu rather than
                                 // being spread out: nine rules laid on the bar

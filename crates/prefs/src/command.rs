@@ -24,6 +24,7 @@ pub enum Command {
     ToolDimension,
     ToolTrim,
     ToolSplit,
+    ToolChamfer,
     ToggleConstruction,
 
     CircleCenter,
@@ -34,6 +35,10 @@ pub enum Command {
 
     ArcByCenter,
     ArcByEnds,
+
+    ChamferEqual,
+    ChamferAngled,
+    ChamferSided,
 
     DimensionAuto,
     DimensionPointToPoint,
@@ -77,6 +82,7 @@ pub enum CommandFamily {
     DrawingTools,
     Circles,
     Arcs,
+    Chamfers,
     Dimensions,
     Constraints,
     Extrusion,
@@ -85,7 +91,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 47] = [
+    pub const ALL: [Self; 51] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -102,6 +108,7 @@ impl Command {
         Self::ToolDimension,
         Self::ToolTrim,
         Self::ToolSplit,
+        Self::ToolChamfer,
         Self::ToggleConstruction,
         Self::CircleCenter,
         Self::CircleTwoPoints,
@@ -110,6 +117,9 @@ impl Command {
         Self::CircleThreeTangents,
         Self::ArcByCenter,
         Self::ArcByEnds,
+        Self::ChamferEqual,
+        Self::ChamferAngled,
+        Self::ChamferSided,
         Self::DimensionAuto,
         Self::DimensionPointToPoint,
         Self::DimensionLength,
@@ -151,6 +161,7 @@ impl Command {
             | Self::ToolDimension
             | Self::ToolTrim
             | Self::ToolSplit
+            | Self::ToolChamfer
             | Self::ToggleConstruction => CommandFamily::DrawingTools,
             Self::CircleCenter
             | Self::CircleTwoPoints
@@ -158,6 +169,9 @@ impl Command {
             | Self::CircleTwoTangents
             | Self::CircleThreeTangents => CommandFamily::Circles,
             Self::ArcByCenter | Self::ArcByEnds => CommandFamily::Arcs,
+            Self::ChamferEqual | Self::ChamferAngled | Self::ChamferSided => {
+                CommandFamily::Chamfers
+            }
             Self::DimensionAuto
             | Self::DimensionPointToPoint
             | Self::DimensionLength

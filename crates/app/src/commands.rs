@@ -25,7 +25,7 @@ pub(crate) fn run(
     lang: &Catalogue,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{ArcMode, CircleMode, DimensionMode, Tool};
+    use crate::screens::sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, Tool};
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -119,6 +119,21 @@ pub(crate) fn run(
         Command::ToolSplit => {
             tool(editor, Tool::Split);
             editor.message = Some(lang.t("sketch.click_a_crossing"));
+            false
+        }
+        Command::ToolChamfer => {
+            tool(editor, Tool::Chamfer);
+            editor.message = Some(lang.t("sketch.click_a_corner"));
+            false
+        }
+        Command::ChamferEqual | Command::ChamferAngled | Command::ChamferSided => {
+            editor.chamfer_mode = match command {
+                Command::ChamferAngled => ChamferMode::Angled,
+                Command::ChamferSided => ChamferMode::Sided,
+                _ => ChamferMode::Equal,
+            };
+            tool(editor, Tool::Chamfer);
+            editor.message = Some(lang.t("sketch.click_a_corner"));
             false
         }
         Command::ToggleConstruction => {

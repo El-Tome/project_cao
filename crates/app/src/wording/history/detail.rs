@@ -1,4 +1,5 @@
 use cao_part::history::{Operation, PointRef, RevolutionAxis};
+use cao_sketch::Chamfer;
 
 use crate::lang::Catalogue;
 use crate::wording::{constraints, dimension};
@@ -144,6 +145,20 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("to", &to.0.to_string()),
             ],
         ),
+        Operation::Chamfer {
+            sketch,
+            first,
+            second,
+            mode,
+        } => lang.t_with(
+            "history.detail.chamfer",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("first", &first.0.to_string()),
+                ("second", &second.0.to_string()),
+                ("mode", &chamfer(lang, *mode)),
+            ],
+        ),
         Operation::TrimArc {
             sketch,
             arc,
@@ -249,6 +264,22 @@ fn point_label(lang: &Catalogue, point: &PointRef) -> String {
 
 fn rounded(value: f64, places: usize) -> String {
     format!("{value:.places$}")
+}
+
+/// What a chamfer took off each side, in the words of the mode it was cut in.
+fn chamfer(lang: &Catalogue, mode: Chamfer) -> String {
+    let say = |value: f64| format!("{value:.3}");
+    match mode {
+        Chamfer::Equal(reach) => lang.t_with("history.chamfer.equal", &[("reach", &say(reach))]),
+        Chamfer::Sided { first, second } => lang.t_with(
+            "history.chamfer.sided",
+            &[("first", &say(first)), ("second", &say(second))],
+        ),
+        Chamfer::Angled { along, degrees } => lang.t_with(
+            "history.chamfer.angled",
+            &[("along", &say(along)), ("degrees", &say(degrees))],
+        ),
+    }
 }
 
 #[cfg(test)]

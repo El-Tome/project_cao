@@ -66,6 +66,11 @@ pub enum ToolState {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,
     },
+    /// The sides of a corner the chamfer tool has been shown so far, and what
+    /// has been typed for it.
+    Chamfer {
+        sides: Vec<SegmentId>,
+    },
     Constrain {
         picks: Vec<RulePick>,
     },

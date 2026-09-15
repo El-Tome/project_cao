@@ -1,5 +1,5 @@
 use cao_sketch::{
-    ArcId, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+    ArcId, Chamfer, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
 };
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -202,6 +202,17 @@ pub enum Operation {
         #[serde(default)]
         arcs: Vec<ArcId>,
         at: DVec2,
+    },
+    /// Cuts the corner two traits share with a straight line, pulling each of
+    /// them back from it by what the mode asks.
+    ///
+    /// The two traits are recorded rather than worked out again on replay, for
+    /// the reason `Trim` records its points.
+    Chamfer {
+        sketch: usize,
+        first: SegmentId,
+        second: SegmentId,
+        mode: Chamfer,
     },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {

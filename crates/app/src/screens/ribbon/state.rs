@@ -55,6 +55,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
         Command::ToolTrim => tool == Tool::Trim,
+        Command::ToolSplit => tool == Tool::Split,
         Command::ToggleConstruction => state.editor.construction,
         Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
         Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
@@ -124,7 +125,8 @@ pub fn is_enabled(
         | Command::ToolArc
         | Command::ToolPoint
         | Command::ToolDimension
-        | Command::ToolTrim => drawing,
+        | Command::ToolTrim
+        | Command::ToolSplit => drawing,
         Command::DimensionAuto
         | Command::DimensionPointToPoint
         | Command::DimensionLength

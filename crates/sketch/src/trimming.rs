@@ -10,7 +10,7 @@ use crate::trimming::carrying::{Carried, Piece, gone, still_holds, still_measure
 /// Below this, the two ends of a piece are the same place and the piece is no
 /// trait at all. Far under anything a drawing tells apart: a gap this small
 /// only ever comes of a cut landing on a point already sitting at an end.
-const NO_LENGTH: f64 = 1e-9;
+pub(crate) const NO_LENGTH: f64 = 1e-9;
 
 /// How far off the line a point may be and still be *on* the trait.
 ///
@@ -18,7 +18,7 @@ const NO_LENGTH: f64 = 1e-9;
 /// lands on it to within rounding; one a person merely placed nearby is
 /// another point, and no amount of zooming out should turn it into an end of
 /// this trait — which is what a cut makes of it.
-const ON_THE_TRAIT: f64 = 1e-9;
+pub(crate) const ON_THE_TRAIT: f64 = 1e-9;
 
 /// What a cut left standing, and what it cost.
 ///

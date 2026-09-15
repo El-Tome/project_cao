@@ -38,6 +38,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::MergePoints { .. } => lang.t("history.points_merged"),
         Operation::Trim { .. } => lang.t("history.trimmed"),
         Operation::TrimArc { .. } => lang.t("history.arc_trimmed"),
+        Operation::Split { .. } => lang.t("history.split"),
         Operation::Revolve { angle, mode, .. } => lang.t_with(
             match mode {
                 ExtrusionMode::Add => "history.revolution",

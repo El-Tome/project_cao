@@ -188,7 +188,7 @@ const THE_SAME_PLACE: f64 = 1e-9;
 
 /// Read against how far out the place stands, so the drawing can be measured
 /// in anything.
-fn off_by(place: DVec2) -> f64 {
+pub(crate) fn off_by(place: DVec2) -> f64 {
     THE_SAME_PLACE * (1.0 + place.abs().max_element())
 }
 

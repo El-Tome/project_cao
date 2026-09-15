@@ -158,6 +158,19 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("to", &to.0.to_string()),
             ],
         ),
+        Operation::Split {
+            sketch,
+            segments,
+            at,
+        } => lang.t_with(
+            "history.detail.split",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("count", &segments.len().to_string()),
+                ("x", &format!("{:.3}", at.x)),
+                ("y", &format!("{:.3}", at.y)),
+            ],
+        ),
         Operation::MergePoints {
             sketch,
             kept,

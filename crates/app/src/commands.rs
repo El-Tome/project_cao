@@ -116,6 +116,11 @@ pub(crate) fn run(
             editor.message = Some(lang.t("sketch.click_a_stretch"));
             false
         }
+        Command::ToolSplit => {
+            tool(editor, Tool::Split);
+            editor.message = Some(lang.t("sketch.click_a_crossing"));
+            false
+        }
         Command::ToggleConstruction => {
             editor.construction = !editor.construction;
             false

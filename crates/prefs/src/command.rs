@@ -23,6 +23,7 @@ pub enum Command {
     ToolPoint,
     ToolDimension,
     ToolTrim,
+    ToolSplit,
     ToggleConstruction,
 
     CircleCenter,
@@ -84,7 +85,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 46] = [
+    pub const ALL: [Self; 47] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -100,6 +101,7 @@ impl Command {
         Self::ToolPoint,
         Self::ToolDimension,
         Self::ToolTrim,
+        Self::ToolSplit,
         Self::ToggleConstruction,
         Self::CircleCenter,
         Self::CircleTwoPoints,
@@ -148,6 +150,7 @@ impl Command {
             | Self::ToolPoint
             | Self::ToolDimension
             | Self::ToolTrim
+            | Self::ToolSplit
             | Self::ToggleConstruction => CommandFamily::DrawingTools,
             Self::CircleCenter
             | Self::CircleTwoPoints

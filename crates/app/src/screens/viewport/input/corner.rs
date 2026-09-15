@@ -3,8 +3,11 @@ use cao_sketch::{Chamfer, ChamferMode, LockedInput, SegmentId, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
+
+mod preview;
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
+pub(crate) use preview::previewed;
 
 /// One click of the chamfer or the fillet tool: the first names a side of the
 /// corner, the second names the other and cuts it, once the values the tool

@@ -9,6 +9,9 @@ use crate::screens::viewport::SketchContext;
 
 use super::pick;
 
+mod preview;
+pub(crate) use preview::previewed;
+
 /// One click of a tool that lays a copy down — the mirror, or either pattern.
 /// All three gather what is held until `Entrée` says the selection is done, and
 /// then name the one thing they each need: an axis, a centre, a direction.

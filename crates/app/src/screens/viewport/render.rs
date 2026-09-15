@@ -11,7 +11,7 @@ use cao_render::{
     push_plane_outline, push_plane_quad, srgb,
 };
 use cao_sketch::{
-    ChainAnchor, DimensionTarget, Element, PointId, Selection, Sketch, Snap, WorkPlane,
+    ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 
@@ -32,7 +32,10 @@ pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 pub(crate) use live_fields::paint_live_input;
 
 use super::cube_labels;
-use super::input::{annotation_position, circle_from, measure_preview, rectangle_corner, refine};
+use super::input::{
+    annotation_position, circle_from, copying_shows, corner_shows, measure_preview,
+    rectangle_corner, refine,
+};
 use super::matter;
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
@@ -130,20 +133,23 @@ pub(crate) fn build_frame(
 
     for (index, sketch) in context.document.sketches().iter().enumerate() {
         let active = context.editor.active_sketch() == Some(index);
+        // What a tool is offering to lay stands in for the recorded drawing the
+        // same way a drag does, and what is new in it is drawn as a promise.
+        let offered = active
+            .then(|| what_would_be_laid(sketch, context, scale))
+            .flatten();
         // Mid-drag, the settled preview stands in for the recorded drawing.
-        let shown = match (active, context.editor.drag_preview()) {
-            (true, Some(preview)) => preview,
+        let shown = match (offered.as_ref(), active, context.editor.drag_preview()) {
+            (Some(preview), ..) => &preview.sketch,
+            (None, true, Some(preview)) => preview,
             _ => sketch,
         };
-        push_sketch(
-            &mut lines,
-            &mut surfaces,
-            shown,
-            theme,
-            scale,
+        let shown = Shown {
+            sketch: shown,
+            laid: offered.as_ref().map_or(&[][..], |preview| &preview.laid),
             active,
-            context,
-        );
+        };
+        push_sketch(&mut lines, &mut surfaces, &shown, theme, scale, context);
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);
@@ -429,15 +435,41 @@ fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) 
 }
 
 #[allow(clippy::too_many_arguments)]
+/// What the tool in hand would lay if it were clicked right now, read from the
+/// very call the click commits.
+fn what_would_be_laid(
+    sketch: &Sketch,
+    context: &SketchContext<'_>,
+    scale: ViewScale,
+) -> Option<Preview> {
+    let cursor = context.editor.cursor?;
+    let snap = scale.world_size_of(PICK_PIXELS);
+    let units = context.document.scale();
+    corner_shows(sketch, context.editor, cursor, snap, units)
+        .or_else(|| copying_shows(sketch, context.editor, cursor, snap, units))
+}
+
+/// A drawing as this frame paints it: the one on record, or what a tool is
+/// offering in its place, with the pieces that are only offered named.
+struct Shown<'a> {
+    sketch: &'a Sketch,
+    laid: &'a [Element],
+    active: bool,
+}
+
 fn push_sketch(
     out: &mut Vec<cao_render::Vertex>,
     surfaces: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
+    shown: &Shown<'_>,
     theme: &Theme,
     scale: ViewScale,
-    active: bool,
     context: &SketchContext<'_>,
 ) {
+    let Shown {
+        sketch,
+        laid,
+        active,
+    } = *shown;
     push_regions(surfaces, sketch, theme, active);
 
     // Per element, not one verdict for the whole drawing: a contour can be
@@ -456,6 +488,7 @@ fn push_sketch(
             context,
             theme,
             Selection::Element(Element::Segment(id)),
+            laid,
             color,
             width,
         );
@@ -477,6 +510,7 @@ fn push_sketch(
             context,
             theme,
             Selection::Element(Element::Circle(id)),
+            laid,
             color,
             width,
         );
@@ -501,6 +535,7 @@ fn push_sketch(
             context,
             theme,
             Selection::Element(Element::Arc(id)),
+            laid,
             color,
             width,
         );
@@ -519,7 +554,7 @@ fn push_sketch(
         return;
     }
 
-    push_point_markers(out, sketch, theme, scale, &settled, context);
+    push_point_markers(out, sketch, theme, scale, &settled, laid, context);
     emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
 
     // Every dimension is drawn where it applies, with extension lines, arrows
@@ -575,6 +610,7 @@ fn push_point_markers(
     theme: &Theme,
     scale: ViewScale,
     settled: &[bool],
+    laid: &[Element],
     context: &SketchContext<'_>,
 ) {
     let half = scale.world_size_of(4.0);
@@ -600,6 +636,7 @@ fn push_point_markers(
             context,
             theme,
             Selection::Element(Element::Point(point)),
+            laid,
             color,
             width,
         );
@@ -798,7 +835,7 @@ fn push_preview(
     let Some(cursor) = context.editor.cursor else {
         return;
     };
-    let preview = tint_at(theme.sketch_free, 0.55);
+    let preview = emphasis::ghost(theme);
 
     if let Some(anchor) = context.editor.chain() {
         let from = match anchor {

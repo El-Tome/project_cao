@@ -31,7 +31,7 @@ mod rectangle;
 use rectangle::dimension_the_rectangle;
 
 mod planes;
-use planes::plane_under;
+use planes::choose_a_plane;
 
 mod symmetric_line;
 pub(crate) use symmetric_line::draw_symmetric_line_point;
@@ -57,10 +57,10 @@ mod selecting;
 use selecting::{band_select, erase};
 
 mod copying;
-pub(crate) use copying::{copy, hold_is_done};
+pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 
 mod corner;
-pub(crate) use corner::{corner, corner_held, cut as cut_the_corner};
+pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -83,27 +83,7 @@ pub(crate) fn handle_sketch_input(
     let (origin, direction) = (origin.as_dvec3(), direction.as_dvec3());
 
     if context.editor.is_choosing_plane() {
-        context.editor.hovered_plane = plane_under(state, context, origin, direction);
-
-        if response.clicked()
-            && let Some(choice) = context.editor.hovered_plane
-        {
-            let plane = choice.plane();
-            context.document.apply(Operation::CreateSketch { plane });
-            let sketch = context.document.sketches().len() - 1;
-            context.editor.begin_editing(sketch, plane);
-            // A fresh sketch has nothing to frame yet, so we show a patch of
-            // plane big enough to draw in, centred where the click landed. On a
-            // face of the part that matters: the plane's own origin is the world
-            // origin projected onto it, which can be nowhere near the face.
-            let center = plane
-                .ray_intersection(origin, direction)
-                .map(|local| plane.to_world(local))
-                .unwrap_or(plane.origin);
-            state.look_at_plane(plane, center, DEFAULT_SKETCH_RADIUS);
-            return true;
-        }
-        return false;
+        return choose_a_plane(state, context, response.clicked(), origin, direction);
     }
 
     let Some(index) = context.editor.active_sketch() else {

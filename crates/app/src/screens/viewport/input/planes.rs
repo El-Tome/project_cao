@@ -1,11 +1,44 @@
 //! Which plane a click lands on, before there is any sketch to draw in.
 
+use cao_part::history::Operation;
 use cao_sketch::WorkPlane;
 use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::PlaneChoice;
 
-use super::{SketchContext, ViewportState, plane_half_size};
+use super::{DEFAULT_SKETCH_RADIUS, SketchContext, ViewportState, plane_half_size};
+
+/// The step where the cursor is offering planes to draw on, and a click takes
+/// one: a fresh sketch on it, and the view swung round to face it.
+///
+/// Returns true when a sketch was started.
+pub(super) fn choose_a_plane(
+    state: &mut ViewportState,
+    context: &mut SketchContext<'_>,
+    clicked: bool,
+    origin: DVec3,
+    direction: DVec3,
+) -> bool {
+    context.editor.hovered_plane = plane_under(state, context, origin, direction);
+
+    let (true, Some(choice)) = (clicked, context.editor.hovered_plane) else {
+        return false;
+    };
+    let plane = choice.plane();
+    context.document.apply(Operation::CreateSketch { plane });
+    let sketch = context.document.sketches().len() - 1;
+    context.editor.begin_editing(sketch, plane);
+    // A fresh sketch has nothing to frame yet, so we show a patch of plane big
+    // enough to draw in, centred where the click landed. On a face of the part
+    // that matters: the plane's own origin is the world origin projected onto
+    // it, which can be nowhere near the face.
+    let center = plane
+        .ray_intersection(origin, direction)
+        .map(|local| plane.to_world(local))
+        .unwrap_or(plane.origin);
+    state.look_at_plane(plane, center, DEFAULT_SKETCH_RADIUS);
+    true
+}
 
 /// What is offered to sketch on under the cursor: a face of the part where
 /// there is one, otherwise the nearest of the three planes of the origin.
@@ -14,7 +47,7 @@ use super::{SketchContext, ViewportState, plane_half_size};
 /// planes are unbounded sheets running right through the part, so nearest-wins
 /// would leave them covering the very faces one usually wants — while they
 /// stay reachable everywhere the part is not.
-pub(crate) fn plane_under(
+fn plane_under(
     state: &ViewportState,
     context: &SketchContext<'_>,
     origin: DVec3,

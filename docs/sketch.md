@@ -499,6 +499,24 @@ The preview of the dimension is computed by **the same reading of the cursor**
 as the placing itself. Two separate readings would end up diverging, and a
 preview that lies is worse than no preview at all.
 
+### The tools that change the drawing rather than add to it
+
+A chamfer, a fillet, a mirror or a pattern cannot be traced with a couple of
+lines following the cursor: what they would leave is a drawing, not a shape. So
+the drawing is what is shown. `Sketch::preview` runs the very call the click
+commits against a copy of the sketch, and the canvas paints that copy in place
+of the one on record — the corner already rounded, the copies already laid —
+with whatever is new in it drawn faintly, as a promise rather than as drawing
+already there.
+
+That is the same rule as the dimension's, taken to its end: there is no second
+reading to diverge from the first, because there is no second reading. It also
+means nothing is shown for a click the tool would refuse — a corner too tight
+to round shows no curve, and an axis naming no direction shows no copies.
+
+The values are read as they are typed, so the curve of a fillet grows under the
+radius being keyed in, and the grid of a pattern fills out as its count does.
+
 ### While a point is being moved
 
 The point held under the cursor **does not give way**: the drawing settles

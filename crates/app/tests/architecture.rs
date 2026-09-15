@@ -29,6 +29,30 @@ const CRATE_DIRECTORIES: [&str; 6] = ["sketch", "solid", "render", "part", "pref
 /// listed, one per bullet, each named by a path from the workspace root.
 const NO_NET_HEADING: &str = "## What has no net";
 
+/// Every place `docs/code-map.md` is allowed to list under [`NO_NET_HEADING`].
+/// The list may only shrink: an entry added here is a place that went into the
+/// repository with no test, which is the one move that empties the rule of
+/// meaning.
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
+    "crates/app/src/screens/annotations.rs",
+    "crates/app/src/screens/extrusion_row.rs",
+    "crates/app/src/screens/history_tree.rs",
+    "crates/app/src/screens/mod.rs",
+    "crates/app/src/screens/settings/",
+    "crates/app/src/screens/sketch.rs",
+    "crates/app/src/screens/start_menu.rs",
+    "crates/app/src/screens/viewport/input/arcs.rs",
+    "crates/app/src/screens/viewport/input/circles.rs",
+    "crates/app/src/screens/viewport/input/constrain.rs",
+    "crates/app/src/screens/viewport/input/mod.rs",
+    "crates/app/src/screens/viewport/input/rectangle.rs",
+    "crates/app/src/screens/viewport/input/symmetric_line.rs",
+    "crates/app/src/screens/viewport/mod.rs",
+    "crates/app/src/screens/viewport/render.rs",
+    "crates/sketch/src/constraints.rs",
+    "crates/sketch/src/solver.rs",
+];
+
 /// The graph as it is, not a list of permissions. The test compares this with
 /// the `cao_*` dependencies every manifest actually declares, so an edge named
 /// here that no `Cargo.toml` carries fails just as surely as one nobody allowed.
@@ -125,6 +149,11 @@ const WIDGETS_A_SCREEN_SHOULD_NOT_DRESS: [&str; 11] = [
 /// not counted — a glyph is drawn rather than read, which is why
 /// `wording/constraints.rs` keeps its marks.
 const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
+
+/// Modes under `screens/` that still decide and draw in the same place.
+/// `explorer` and `ribbon` show the shape: a `state.rs` that holds what the
+/// screen knows, a `view.rs` that draws it. The list may only shrink.
+const MODES_WITHOUT_A_PRESENTER: [&str; 3] = ["settings", "sketch", "viewport"];
 
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),
@@ -474,6 +503,59 @@ fn a_presenter_never_takes_the_interface() {
 }
 
 #[test]
+fn a_mode_keeps_what_it_knows_apart_from_what_it_draws() {
+    let owed: BTreeSet<&str> = MODES_WITHOUT_A_PRESENTER.iter().copied().collect();
+    let screens = workspace_root()
+        .join("crates")
+        .join("app")
+        .join("src")
+        .join("screens");
+
+    let mut seen: BTreeSet<String> = BTreeSet::new();
+    let mut folders: Vec<PathBuf> = fs::read_dir(&screens)
+        .expect("a readable crates/app/src/screens")
+        .flatten()
+        .map(|entry| entry.path())
+        .filter(|path| path.is_dir())
+        .collect();
+    folders.sort();
+
+    for folder in folders {
+        let name = folder
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let split = folder.join("state.rs").exists() && folder.join("view.rs").exists();
+
+        if owed.contains(name.as_str()) {
+            seen.insert(name.clone());
+            assert!(
+                !split,
+                "screens/{name} holds its state.rs and its view.rs now. \
+                 Drop it from MODES_WITHOUT_A_PRESENTER.",
+            );
+            continue;
+        }
+
+        assert!(
+            split,
+            "screens/{name} decides and draws in the same place, so nothing it \
+             decides can be checked without opening a window. A mode carries a \
+             state.rs that holds what the screen knows and a view.rs that draws \
+             it — screens/ribbon is the shape to copy.",
+        );
+    }
+
+    let gone: Vec<&&str> = owed.iter().filter(|name| !seen.contains(**name)).collect();
+    assert!(
+        gone.is_empty(),
+        "{gone:?} are named as owing a presenter and no such mode is left. \
+         Take them out.",
+    );
+}
+
+#[test]
 fn the_layers_of_a_context_only_reach_downwards() {
     const DOWNWARDS: [(&str, [&str; 2]); 3] = [
         ("/model/", ["ports", "adapters"]),
@@ -498,6 +580,33 @@ fn the_layers_of_a_context_only_reach_downwards() {
             }
         }
     }
+}
+
+#[test]
+fn the_places_with_no_net_are_the_ones_already_named() {
+    let allowed: BTreeSet<&str> = PLACES_ALLOWED_TO_HAVE_NO_NET.iter().copied().collect();
+    let listed: BTreeSet<String> = places_with_no_net().into_iter().collect();
+
+    let joined: Vec<&String> = listed
+        .iter()
+        .filter(|place| !allowed.contains(place.as_str()))
+        .collect();
+    assert!(
+        joined.is_empty(),
+        "docs/code-map.md has gained {joined:?} under \"{NO_NET_HEADING}\". A place \
+         with no test is not added to this repository: write the test, or say in \
+         PLACES_ALLOWED_TO_HAVE_NO_NET what is owed and why.",
+    );
+
+    let paid: Vec<&&str> = allowed
+        .iter()
+        .filter(|place| !listed.contains(**place))
+        .collect();
+    assert!(
+        paid.is_empty(),
+        "{paid:?} carry a test now, and docs/code-map.md says so. Drop them from \
+         PLACES_ALLOWED_TO_HAVE_NO_NET.",
+    );
 }
 
 #[test]

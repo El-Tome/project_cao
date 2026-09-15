@@ -13,6 +13,7 @@ mod arc_regions;
 mod arc_rules;
 mod arcing;
 mod chain;
+mod chamfer;
 mod circle_edges;
 mod circling;
 mod constraints;
@@ -53,6 +54,7 @@ pub use arc_placing::{
 };
 pub use arcing::{ArcDraft, places_along, steps_along, sweep_of};
 pub use chain::{ChainClick, chain_click};
+pub use chamfer::{Chamfer, ChamferMode, Chamfered};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
 pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
 pub use construct::CircleMode;

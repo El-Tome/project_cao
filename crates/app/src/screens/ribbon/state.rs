@@ -1,6 +1,6 @@
 use crate::lang::Catalogue;
 use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::sketch::{ArcMode, CircleMode, DimensionMode, SketchEditor, Tool};
+use crate::screens::sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, SketchEditor, Tool};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
@@ -40,6 +40,11 @@ pub(super) struct Context<'a> {
     pub(super) lang: &'a Catalogue,
 }
 
+/// Whether the chamfer tool is in hand and saying what it takes this way.
+fn chamfering(state: &Context<'_>, mode: ChamferMode) -> bool {
+    state.editor.tool == Tool::Chamfer && state.editor.chamfer_mode == mode
+}
+
 /// Whether the command is the one currently in force, so its button shows as
 /// pressed.
 pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
@@ -56,6 +61,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolDimension => tool == Tool::Dimension,
         Command::ToolTrim => tool == Tool::Trim,
         Command::ToolSplit => tool == Tool::Split,
+        Command::ToolChamfer => tool == Tool::Chamfer,
         Command::ToggleConstruction => state.editor.construction,
         Command::CircleCenter => tool == Tool::Circle && mode_is(state, CircleMode::Center),
         Command::CircleTwoPoints => tool == Tool::Circle && mode_is(state, CircleMode::TwoPoints),
@@ -70,6 +76,9 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         }
         Command::ArcByCenter => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByCenter,
         Command::ArcByEnds => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByEnds,
+        Command::ChamferEqual => chamfering(state, ChamferMode::Equal),
+        Command::ChamferAngled => chamfering(state, ChamferMode::Angled),
+        Command::ChamferSided => chamfering(state, ChamferMode::Sided),
         Command::RulePerpendicular => tool == Tool::Constrain(Rule::Perpendicular),
         Command::RuleParallel => tool == Tool::Constrain(Rule::Parallel),
         Command::RuleEqual => tool == Tool::Constrain(Rule::Equal),
@@ -126,7 +135,9 @@ pub fn is_enabled(
         | Command::ToolPoint
         | Command::ToolDimension
         | Command::ToolTrim
-        | Command::ToolSplit => drawing,
+        | Command::ToolSplit
+        | Command::ToolChamfer => drawing,
+        Command::ChamferEqual | Command::ChamferAngled | Command::ChamferSided => drawing,
         Command::DimensionAuto
         | Command::DimensionPointToPoint
         | Command::DimensionLength

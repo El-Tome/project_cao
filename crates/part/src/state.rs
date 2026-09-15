@@ -1,4 +1,4 @@
-use cao_sketch::Sketch;
+use cao_sketch::{Chamfer, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
 
@@ -305,6 +305,21 @@ impl PartState {
                     values: split.values_dropped,
                 })
             }
+            Operation::Chamfer {
+                sketch,
+                first,
+                second,
+                mode,
+            } => {
+                let scale = self.scale();
+                let sketch = self.sketches.get_mut(*sketch)?;
+                let chamfered = sketch.chamfer(*first, *second, in_units(*mode, scale))?;
+                sketch.resolve(scale);
+                Some(Outcome::Cut {
+                    rules: chamfered.rules_dropped,
+                    values: chamfered.values_dropped,
+                })
+            }
             Operation::Revolve {
                 sketch,
                 picks,
@@ -323,5 +338,22 @@ fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
     match point {
         PointRef::Existing(id) => *id,
         PointRef::New(position) => sketch.add_point(*position),
+    }
+}
+
+/// A chamfer as the drawing measures it. The history records millimetres, the
+/// way every other length the user types is recorded; the sketch works in its
+/// own units, and only the distances convert.
+fn in_units(mode: Chamfer, millimeters_per_unit: f64) -> Chamfer {
+    match mode {
+        Chamfer::Equal(reach) => Chamfer::Equal(reach / millimeters_per_unit),
+        Chamfer::Sided { first, second } => Chamfer::Sided {
+            first: first / millimeters_per_unit,
+            second: second / millimeters_per_unit,
+        },
+        Chamfer::Angled { along, degrees } => Chamfer::Angled {
+            along: along / millimeters_per_unit,
+            degrees,
+        },
     }
 }

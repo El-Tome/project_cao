@@ -4,8 +4,8 @@
 use cao_sketch::ToolState;
 
 use super::input::{
-    draw_arc, draw_circle, draw_line_point, draw_symmetric_line_point, rectangle_corner,
-    two_click_shape,
+    corner_held, cut_the_corner, draw_arc, draw_circle, draw_line_point, draw_symmetric_line_point,
+    rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
 use super::{PICK_PIXELS, SketchContext, ViewScale};
@@ -26,6 +26,7 @@ pub(crate) fn advance_on_enter(
             | ToolState::Rectangle { .. }
             | ToolState::Circle { .. }
             | ToolState::Arc { .. }
+            | ToolState::Chamfer { .. }
     );
     if !drawing || !paint_live_input(ui, sketch) {
         return false;
@@ -33,6 +34,9 @@ pub(crate) fn advance_on_enter(
     let Some(index) = sketch.editor.active_sketch() else {
         return false;
     };
+    if let Some((first, second)) = corner_held(&sketch.editor.tool_state) {
+        return cut_the_corner(sketch, index, first, second);
+    }
     let raw_cursor = sketch.editor.cursor.unwrap_or_default();
     let aim = sketch.editor.aimed;
     let cursor = match sketch.editor.tool {

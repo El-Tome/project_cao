@@ -36,6 +36,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Point** | One click lays a lone point. |
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
+| **Chamfer** | Two clicks: the two traits of a corner. What is taken off each is typed, then `Entrée`. |
 
 ### Taking several things at once
 
@@ -723,6 +724,31 @@ nothing can take hold of: a shape folded over on itself is tinted as the areas
 its crossing actually bounds, a square dragged into a bowtie becoming two
 triangles rather than nothing at all. A trait crossing a curve, and two curves
 crossing each other, are cut apart the same way.
+
+### A corner is cut off straight
+
+The chamfer tool takes a corner two traits share and replaces it with a
+straight line across it. Two clicks name the sides, and what is taken off each
+is typed in the fields that open between them — nothing is read off the cursor,
+because there is nothing being dragged.
+
+Three ways of saying it, chosen alongside the tool the way a circle's five
+constructions are:
+
+| Mode | What is typed |
+| --- | --- |
+| Equal | One distance, taken the same way along both sides |
+| Distance and angle | A distance along the first trait clicked, and the angle the cut leaves it at |
+| Two distances | A distance of its own along each side |
+
+The angle is read where the cut meets the first side, between the cut and the
+stretch of that side still running to the corner — the angle of the triangle
+the cut closes. The corner's own opening and what is left of half a turn give
+the third, which is what fixes the second distance.
+
+A chamfer asking for more than a side has to give is refused whole, and so are
+two traits that do not meet. The corner's own point goes with the corner,
+unless something else still runs into it.
 
 ### A crossing becomes a point
 

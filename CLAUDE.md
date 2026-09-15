@@ -150,6 +150,14 @@ docs/24-storage-error-becomes-two-errors
 what was set aside, how it was verified, and `Closes #n`. A pull request with
 no body is one nobody can review a month later.
 
+**No pull request is merged before a human has reviewed it.** Read it, and for
+anything the user sees, tried it in the app. A green gate is not a review: it
+proves what the tests reach, and the tests do not reach the screen. An agent
+opens the pull request and stops there — it never runs `gh pr merge` on its own
+initiative, whatever the gate says. Merging is the human's call, as
+`CAO_SKIP_GATE` is. #300 to #322 were merged untested, and the first human test
+afterwards opened eight issues.
+
 **Stack rather than wait.** An issue whose dependency is still in review
 branches off *that* branch and targets it as base, instead of blocking on a
 merge. The body names what it sits on.

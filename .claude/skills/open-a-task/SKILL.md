@@ -153,6 +153,11 @@ verified — the gate, the test count, the command whose output you read — and
 ends on `Closes #n`. Never the list of files touched: `git` already has it. A
 pull request with no body is one nobody can review a month later.
 
-Then move the issue's label from `in-progress`, and say to the human what was
+**Then stop: the pull request is not yours to merge.** It waits for a human
+review — read, and tried in the app when the user sees the change. Never run
+`gh pr merge` on your own initiative, even with a green gate; carry on with the
+next issue stacked on this branch instead of waiting.
+
+Move the issue's label from `in-progress`, and say to the human what was
 done and above all what was **not**: a part left aside, a decision deferred, a
 test you could not write. What is not said at that moment is lost.

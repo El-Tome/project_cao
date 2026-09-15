@@ -3,7 +3,7 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{Outcome, PartState};
-use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+use cao_sketch::{ArcId, DimensionTarget, SegmentId, WorkPlane};
 use glam::DVec2;
 
 const ACROSS: SegmentId = SegmentId(0);
@@ -45,6 +45,7 @@ fn dividing_a_crossing_leaves_four_traits_where_there_were_two() {
     let said = state.apply(&Operation::Split {
         sketch: 0,
         segments: vec![ACROSS, UP],
+        arcs: Vec::new(),
         at: CROSSING,
     });
 
@@ -66,6 +67,7 @@ fn a_division_replayed_rebuilds_the_drawing_it_left_behind() {
     operations.push(Operation::Split {
         sketch: 0,
         segments: vec![ACROSS, UP],
+        arcs: Vec::new(),
         at: CROSSING,
     });
 
@@ -89,6 +91,7 @@ fn the_pieces_stand_exactly_where_the_traits_ran() {
     state.apply(&Operation::Split {
         sketch: 0,
         segments: vec![ACROSS, UP],
+        arcs: Vec::new(),
         at: CROSSING,
     });
 
@@ -124,6 +127,7 @@ fn a_division_says_what_the_traits_it_cut_took_with_them() {
     let said = state.apply(&Operation::Split {
         sketch: 0,
         segments: vec![ACROSS, UP],
+        arcs: Vec::new(),
         at: CROSSING,
     });
 
@@ -134,5 +138,97 @@ fn a_division_says_what_the_traits_it_cut_took_with_them() {
             values: 1
         }),
         "the length measured the whole trait, and neither piece is it"
+    );
+}
+
+/// A quarter arc from due east to due north around the origin, with a trait
+/// running up across it at x = 3.
+fn drawing_a_trait_across_an_arc() -> Vec<Operation> {
+    vec![
+        Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        },
+        Operation::AddArc {
+            sketch: 0,
+            center: PointRef::New(DVec2::new(0.0, 0.0)),
+            start: PointRef::New(DVec2::new(5.0, 0.0)),
+            end: PointRef::New(DVec2::new(0.0, 5.0)),
+            construction: false,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(3.0, -1.0)),
+            end: PointRef::New(DVec2::new(3.0, 10.0)),
+            construction: false,
+        },
+    ]
+}
+
+const ON_THE_ARC: DVec2 = DVec2::new(3.0, 4.0);
+
+#[test]
+fn dividing_an_arc_leaves_two_curves_where_there_was_one() {
+    let mut state = replay(&drawing_a_trait_across_an_arc());
+
+    let said = state.apply(&Operation::Split {
+        sketch: 0,
+        segments: vec![SegmentId(0)],
+        arcs: vec![ArcId(0)],
+        at: ON_THE_ARC,
+    });
+
+    let sketch = &state.sketches[0];
+    assert_eq!(sketch.live_arcs().count(), 2, "the curve was cut in two");
+    assert_eq!(sketch.live_segments().count(), 2, "and so was the trait");
+    assert_eq!(
+        said,
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0
+        })
+    );
+}
+
+#[test]
+fn an_arc_divided_and_replayed_comes_back_the_same() {
+    let mut operations = drawing_a_trait_across_an_arc();
+    operations.push(Operation::Split {
+        sketch: 0,
+        segments: vec![SegmentId(0)],
+        arcs: vec![ArcId(0)],
+        at: ON_THE_ARC,
+    });
+
+    let places = |state: &PartState| {
+        let sketch = &state.sketches[0];
+        sketch
+            .live_arcs()
+            .map(|(id, _)| {
+                let draft = sketch.arc_draft(id);
+                (draft.centre, draft.start, draft.end)
+            })
+            .collect::<Vec<_>>()
+    };
+
+    assert_eq!(places(&replay(&operations)), places(&replay(&operations)));
+    assert_eq!(places(&replay(&operations)).len(), 2);
+}
+
+#[test]
+fn a_division_recorded_before_arcs_could_be_cut_still_replays() {
+    let written_by_an_older_version = r#"{
+        "Split": { "sketch": 0, "segments": [0, 1], "at": [5.0, 0.0] }
+    }"#;
+
+    let operation: Operation = serde_json::from_str(written_by_an_older_version)
+        .expect("an operation a past release wrote");
+
+    let mut state = replay(&drawing_two_traits_crossing());
+    state.apply(&operation);
+
+    assert_eq!(
+        state.sketches[0].live_segments().count(),
+        4,
+        "a division with no curves named divides the traits, as it always did"
     );
 }

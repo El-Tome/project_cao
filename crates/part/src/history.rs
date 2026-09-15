@@ -187,15 +187,20 @@ pub enum Operation {
         from: PointId,
         to: PointId,
     },
-    /// Drops a point where traits cross and cuts each of them in two there.
+    /// Drops a point where curves cross and cuts each of them in two there.
     ///
-    /// The traits are recorded rather than worked out again on replay, for the
+    /// The curves are recorded rather than worked out again on replay, for the
     /// reason `Trim` records its points: which curves a click finds depends on
     /// the reach the cursor had at the time, and re-deriving it later could
     /// divide elsewhere.
+    ///
+    /// The arcs came later than the traits, so a division a past release wrote
+    /// names none and divides traits alone, exactly as it did then.
     Split {
         sketch: usize,
         segments: Vec<SegmentId>,
+        #[serde(default)]
+        arcs: Vec<ArcId>,
         at: DVec2,
     },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.

@@ -293,11 +293,12 @@ impl PartState {
             Operation::Split {
                 sketch,
                 segments,
+                arcs,
                 at,
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                let split = sketch.split(segments, *at)?;
+                let split = sketch.split(segments, arcs, *at)?;
                 sketch.resolve(scale);
                 Some(Outcome::Cut {
                     rules: split.rules_dropped,

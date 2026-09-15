@@ -7,7 +7,7 @@ use glam::DVec2;
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
-/// One click of the split tool: drops a point where the traits nearest the
+/// One click of the split tool: drops a point where the curves nearest the
 /// click cross, and cuts each of them in two there.
 pub(crate) fn split(
     context: &mut SketchContext<'_>,
@@ -20,10 +20,10 @@ pub(crate) fn split(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let (at, segments) = match sketch.crossing_at(cursor, snap) {
-        Some(Crossing::Traits { at, segments }) => (at, segments),
-        Some(Crossing::Curved) => {
-            context.editor.message = Some(context.lang.t("sketch.split_needs_traits"));
+    let (at, segments, arcs) = match sketch.crossing_at(cursor, snap) {
+        Some(Crossing::Curves { at, segments, arcs }) => (at, segments, arcs),
+        Some(Crossing::Round) => {
+            context.editor.message = Some(context.lang.t("sketch.split_spares_a_circle"));
             return false;
         }
         None => return false,
@@ -32,6 +32,7 @@ pub(crate) fn split(
     let applied = context.document.apply(Operation::Split {
         sketch: index,
         segments,
+        arcs,
         at,
     });
     if let Some(message) = outcome::message(context.lang, applied) {

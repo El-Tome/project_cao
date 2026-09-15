@@ -35,6 +35,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Circle** | Five ways to lay it down, see below. |
 | **Point** | One click lays a lone point. |
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
+| **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
 
 ### Taking several things at once
 
@@ -715,6 +716,20 @@ nothing can take hold of: a shape folded over on itself is tinted as the areas
 its crossing actually bounds, a square dragged into a bowtie becoming two
 triangles rather than nothing at all. A trait crossing a curve, and two curves
 crossing each other, are cut apart the same way.
+
+### A crossing becomes a point
+
+The division tool turns a crossing into something the drawing names. One click
+where two curves run through the same place lays a point there and cuts each of
+them in two, so the place can be dimensioned, constrained and dragged like any
+other vertex. Traits and arcs are both cut; the pieces are left loose, neither
+held collinear nor held concentric, exactly as a trim leaves them.
+
+A **circle** running through the crossing stops the whole division. A circle has
+no ends: one point divides it into nothing at all, and the two points a division
+of it would need are another gesture. Cutting the traits and leaving the circle
+round would say something nobody asked for, so nothing is cut and the tool says
+so.
 
 ### Construction geometry
 

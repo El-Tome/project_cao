@@ -33,7 +33,8 @@ pub(crate) use live_fields::paint_live_input;
 
 use super::cube_labels;
 use super::input::{
-    annotation_position, circle_from, measure_preview, previewed, rectangle_corner, refine,
+    annotation_position, circle_from, copying_shows, corner_shows, measure_preview,
+    rectangle_corner, refine,
 };
 use super::matter;
 use super::{
@@ -442,13 +443,10 @@ fn what_would_be_laid(
     scale: ViewScale,
 ) -> Option<cao_sketch::Preview> {
     let cursor = context.editor.cursor?;
-    previewed(
-        sketch,
-        context.editor,
-        cursor,
-        scale.world_size_of(PICK_PIXELS),
-        context.document.scale(),
-    )
+    let snap = scale.world_size_of(PICK_PIXELS);
+    let units = context.document.scale();
+    corner_shows(sketch, context.editor, cursor, snap, units)
+        .or_else(|| copying_shows(sketch, context.editor, cursor, snap, units))
 }
 
 /// A drawing as this frame paints it: the one on record, or what a tool is

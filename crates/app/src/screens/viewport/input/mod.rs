@@ -57,10 +57,10 @@ mod selecting;
 use selecting::{band_select, erase};
 
 mod copying;
-pub(crate) use copying::{copy, hold_is_done};
+pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 
 mod corner;
-pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed};
+pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,

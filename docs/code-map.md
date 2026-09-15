@@ -56,6 +56,7 @@ in one of the two domains, never there.
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
 | Laying a second copy of part of the drawing down, under any transform | `sketch/src/duplicating.rs` | `Sketch::duplicate` → `Duplicated` |
+| Running a change against a copy of the drawing, to show it before it is made | `sketch/src/preview.rs` | `Sketch::preview` → `Preview`, `Laid` |
 | The straight line a click names, and the direction it runs in | `sketch/src/axis.rs` | `ChosenAxis`, `Sketch::axis_line` |
 | Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror` |
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
@@ -179,7 +180,9 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the trim tool | `app/src/screens/viewport/input/trim.rs` | `trim` |
 | Canvas: one click of the division tool | `app/src/screens/viewport/input/split.rs` | `split` |
 | Canvas: the two clicks of the chamfer and the fillet, and the values typed between them | `app/src/screens/viewport/input/corner.rs` | `corner`, `cut`, `corner_held` |
+| Canvas: the cut or the curve a corner would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
 | Canvas: what the mirror and the two patterns take hold of, and the axis, centre or direction they lay the copy against | `app/src/screens/viewport/input/copying.rs` | `copy`, `hold_is_done`, `axis_at`, `turned`, `filled` |
+| Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |

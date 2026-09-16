@@ -109,20 +109,15 @@ mod tests {
     }
 
     #[test]
-    fn a_stroke_drawn_before_any_feature_still_belongs_to_one() {
+    fn a_stroke_that_would_belong_to_no_step_is_not_recorded() {
         let history = drawn([segment(0), segment(0)]);
 
-        let features = Feature::all(&history);
-
-        assert_eq!(
-            features,
-            [Feature {
-                start: 0,
-                end: 2,
-                sketch: Some(0),
-            }],
-            "every operation is written in a step's folder, so none of them \
-             can be left outside the index",
+        assert!(
+            Feature::all(&history).is_empty(),
+            "every operation is written in a step's folder, so one that names \
+             a sketch the part does not have has nowhere to go — and the \
+             geometry makes nothing of it either",
         );
+        assert!(history.operations().is_empty());
     }
 }

@@ -308,8 +308,8 @@ fn every_major_step_of_a_design_is_written_in_a_folder_of_its_own() {
         [
             "part.json",
             "design/history.json",
-            "design/sketch-1/steps.json",
-            "design/extrusion-2/steps.json",
+            "design/sketch-0/steps.json",
+            "design/extrusion-0/steps.json",
             "geometry.json",
             "picture.json",
             "picture.rgba",
@@ -327,12 +327,12 @@ fn a_part_whose_index_names_a_step_no_folder_holds_does_not_open() {
     drawn_part()
         .save(&files, path, at("2026-01-02T10:00:00Z"))
         .expect("the part is written");
-    without(&files, path, "design/sketch-1/steps.json");
+    without(&files, path, "design/sketch-0/steps.json");
 
     let error = PartDocument::load(&files, path).expect_err("a step with no folder");
 
     assert!(
-        matches!(&error, PartFileError::MissingEntry(entry) if entry.contains("sketch-1")),
+        matches!(&error, PartFileError::MissingEntry(entry) if entry.contains("sketch-0")),
         "the reader is told which step of the design is missing: {error:?}",
     );
 }

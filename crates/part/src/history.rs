@@ -24,7 +24,6 @@ pub struct History {
     operations: Vec<Operation>,
     steps: Vec<Step>,
     applied: usize,
-    last_step_number: u32,
     last_operation_number: u32,
 }
 
@@ -38,7 +37,6 @@ pub struct History {
 pub(crate) struct Index {
     pub steps: Vec<Step>,
     pub applied: usize,
-    pub last_step_number: u32,
     pub last_operation_number: u32,
 }
 
@@ -66,7 +64,6 @@ impl History {
     /// one of them must not come back naming another.
     pub(crate) fn following(&self) -> Self {
         Self {
-            last_step_number: self.last_step_number,
             last_operation_number: self.last_operation_number,
             ..Self::default()
         }
@@ -77,7 +74,6 @@ impl History {
         Index {
             steps: self.steps.clone(),
             applied: self.applied,
-            last_step_number: self.last_step_number,
             last_operation_number: self.last_operation_number,
         }
     }
@@ -98,7 +94,6 @@ impl History {
             operations,
             steps: index.steps,
             applied: index.applied,
-            last_step_number: index.last_step_number,
             last_operation_number: index.last_operation_number,
         })
     }
@@ -129,45 +124,25 @@ impl History {
     /// a redo that no longer follows from what is on screen.
     pub fn push(&mut self, operation: Operation) {
         self.drop_what_was_undone();
+        let opens = StepKind::opened_by(&operation);
+        // An operation that opens no step names the sketch it belongs to, and
+        // that sketch is the step still open. With none open it names a sketch
+        // the part does not have: `PartState` makes nothing of it either, so
+        // recording it would leave a step in the file with nothing to say what
+        // it stands on. Nothing happened, and the two stay in step.
+        if opens.is_none() && self.steps.is_empty() {
+            return;
+        }
+        if let Some(kind) = opens {
+            self.steps.push(Step::opened(kind));
+        }
         self.last_operation_number += 1;
         let number = self.last_operation_number;
-        match StepKind::opened_by(&operation) {
-            Some(kind) => {
-                let raised_from = self.sketch_raising(&operation);
-                self.last_step_number += 1;
-                self.steps
-                    .push(Step::opened(self.last_step_number, kind, raised_from));
-            }
-            // An operation that opens no step names the sketch it belongs to,
-            // and that sketch is the step still open. A history built by hand
-            // can start on one all the same, and it opens a step of its own
-            // rather than being left with nowhere to be written.
-            None if self.steps.is_empty() => {
-                self.last_step_number += 1;
-                self.steps
-                    .push(Step::opened(self.last_step_number, StepKind::Sketch, None));
-            }
-            None => {}
-        }
         if let Some(step) = self.steps.last_mut() {
             step.record(number);
         }
         self.operations.push(operation);
         self.applied = self.operations.len();
-    }
-
-    /// The number of the step that made the sketch an extrusion or a
-    /// revolution is raised from.
-    fn sketch_raising(&self, operation: &Operation) -> Option<u32> {
-        let sketch = match operation {
-            Operation::Extrude { sketch, .. } | Operation::Revolve { sketch, .. } => *sketch,
-            _ => return None,
-        };
-        self.steps
-            .iter()
-            .filter(|step| step.kind() == StepKind::Sketch)
-            .nth(sketch)
-            .map(Step::number)
     }
 
     fn drop_what_was_undone(&mut self) {

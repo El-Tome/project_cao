@@ -319,9 +319,13 @@ fn a_circles_rim_point_stays_bundled_in_its_own_step_after_compacting() {
 }
 
 #[test]
-fn a_compacted_design_is_still_one_step_per_folder_and_reuses_no_number() {
+fn a_compacted_design_is_still_one_step_per_folder_and_reuses_no_operation_number() {
     let history = dragged_dimensioned_and_extruded();
-    let numbers: Vec<u32> = history.steps().iter().map(Step::number).collect();
+    let numbers: Vec<u32> = history
+        .steps()
+        .iter()
+        .flat_map(|step| step.operations().to_vec())
+        .collect();
 
     let compacted = compact(&history);
 
@@ -331,17 +335,14 @@ fn a_compacted_design_is_still_one_step_per_folder_and_reuses_no_number() {
         compacted.operations().len(),
         "every operation is written in the folder of the step that holds it",
     );
+    let after: Vec<u32> = compacted
+        .steps()
+        .iter()
+        .flat_map(|step| step.operations().to_vec())
+        .collect();
     assert!(
-        compacted
-            .steps()
-            .iter()
-            .all(|step| !numbers.contains(&step.number())),
-        "a number that named a step before the rewrite has come back naming \
-         another: {numbers:?} against {:?}",
-        compacted
-            .steps()
-            .iter()
-            .map(Step::number)
-            .collect::<Vec<u32>>(),
+        after.iter().all(|number| !numbers.contains(number)),
+        "a number that named an operation before the rewrite has come back \
+         naming another: {numbers:?} against {after:?}",
     );
 }

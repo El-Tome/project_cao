@@ -94,8 +94,8 @@ added to an existing module.
 ## The file format
 
 A part is a **zip archive** (`.caopart`) holding its identity and its design:
-an ordered index of the major steps, and one folder per step holding the
-operations that make it up. The geometry is never read from the file as truth:
+an ordered index saying what each major step stands on, and one folder per step
+holding what it does. The geometry is never read from the file as truth:
 it is rebuilt by replaying the design, which makes undo, redo and going back to
 a step one and the same operation. What the archive carries of it is a cache,
 dropped for a replay the moment it stops answering to the design beside it.

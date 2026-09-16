@@ -29,12 +29,11 @@ fn a_sketch_and_the_strokes_on_it_are_one_step_of_the_design() {
 
     assert_eq!(steps.len(), 1);
     assert_eq!(steps[0].kind(), StepKind::Sketch);
-    assert_eq!(steps[0].number(), 1);
     assert_eq!(steps[0].operations(), [1, 2, 3]);
 }
 
 #[test]
-fn an_extrusion_is_a_step_of_its_own_raised_from_the_sketch_it_names() {
+fn an_extrusion_opens_a_step_of_its_own() {
     let mut history = History::default();
     history.push(create_sketch());
     history.push(segment_op(0));
@@ -45,9 +44,7 @@ fn an_extrusion_is_a_step_of_its_own_raised_from_the_sketch_it_names() {
 
     assert_eq!(steps.len(), 3);
     assert_eq!(steps[2].kind(), StepKind::Extrusion);
-    assert_eq!(steps[2].number(), 3);
-    assert_eq!(steps[2].raised_from(), Some(steps[1].number()));
-    assert_eq!(steps[0].raised_from(), None);
+    assert_eq!(steps[2].operations(), [4]);
 }
 
 fn segment_op(sketch: usize) -> Operation {
@@ -107,7 +104,8 @@ fn a_new_operation_drops_what_was_undone() {
 #[test]
 fn rewinding_keeps_everything_for_redo() {
     let mut history = History::default();
-    for _ in 0..5 {
+    history.push(create_sketch());
+    for _ in 0..4 {
         history.push(segment_op(0));
     }
 
@@ -132,12 +130,11 @@ fn a_number_handed_out_is_never_handed_out_again() {
     let steps = history.steps();
     assert_eq!(steps.len(), 1);
     assert_eq!(
-        steps[0].number(),
-        2,
-        "the number names a folder, so the sketch that was undone cannot \
-         leave its own behind for a different one",
+        steps[0].operations(),
+        [3],
+        "undo walks the operations in the order they were done, so a number \
+         handed to one cannot come back naming another",
     );
-    assert_eq!(steps[0].operations(), [3]);
 }
 
 #[test]
@@ -190,7 +187,7 @@ fn a_step_holding_other_operations_than_the_index_says_is_refused() {
 #[test]
 fn rewinding_past_the_end_is_clamped() {
     let mut history = History::default();
-    history.push(segment_op(0));
+    history.push(create_sketch());
     history.rewind_to(99);
     assert_eq!(history.applied(), 1);
 }

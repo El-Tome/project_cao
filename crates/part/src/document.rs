@@ -308,7 +308,7 @@ fn read_picture<R: Read + std::io::Seek>(archive: &mut zip::ZipArchive<R>) -> Op
     Picture::new(shape.width, shape.height, pixels)
 }
 
-fn read_entry<R: Read + std::io::Seek>(
+pub(super) fn read_entry<R: Read + std::io::Seek>(
     archive: &mut zip::ZipArchive<R>,
     name: &str,
 ) -> Result<String, PartFileError> {

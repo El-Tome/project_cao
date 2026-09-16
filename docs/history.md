@@ -99,11 +99,11 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
 ├── picture.rgba                  a picture of the part, rows of pixels, four
 │                                 bytes each
 └── design/
-    ├── history.json              the ordered index: what each major step is,
-    │                             its number, and what it is raised from
-    ├── sketch-1/steps.json       the operations of that sketch
-    ├── extrusion-2/steps.json
-    └── sketch-3/steps.json
+    ├── history.json              the index: what each step is and what it
+    │                             stands on
+    ├── sketch-0/steps.json       what was drawn on that sketch
+    ├── extrusion-0/steps.json    how far it went, and which way
+    └── sketch-1/steps.json
 ```
 
 Separating the files allows each part to evolve independently, and leaves room
@@ -117,34 +117,65 @@ split is what gives the two things that are coming a place they do not have to
 argue over: the rebuilt geometry of a step, cached beside the operations that
 produce it, and a `simulation/` folder run against the part as a whole.
 
-### The index says what the part is made of, the folders say how
+### The index says what each step stands on, the folder says what it does
 
 `design/history.json` names the **major steps** in the order they were made —
 today a sketch, an extrusion, a revolution; tomorrow a drilling, a section
-view. Per step it holds three things and nothing else: its kind, its number,
-and the step it is raised from. What a step is made of is not in there: the
-operations live in a folder of its own, `design/sketch-1/steps.json`.
+view. Per step it holds what that step **stands on**, and the numbers of the
+operations recorded under it. What the step *does* is in its folder.
 
-That is what makes the index readable on its own — the shape of the part
-without the strokes — and what gives an edit of a past step one file to
-rewrite instead of the whole design.
+The line between the two is not a matter of taste:
 
-**Every major step gets a folder, a one-operation extrusion included.** A short
-step written straight into the index would be a second layout every reader has
-to know, and it would want a folder the day that extrusion's distance is edited
-or its geometry cached.
+> **A field belongs in the index when losing what it points at is something
+> the user has to be told about.**
 
-**The number naming a folder is handed out once and never reused**, not even
-after the step is undone, and not even by the compaction that rewrites the
-design — it goes on counting from where the old one stopped. A rank would not
-do: drawing after an undo throws away the abandoned tail, so what sits at a
-given rank changes from one save to the next, and every folder past the cut
-would have to be renamed on disk.
+The plane a sketch is drawn on, the sketch an extrusion lifts, the areas
+clicked, the axis a revolution turns around: all of those name something that
+can be erased, moved or cut away, and the day the history can be edited each of
+them is a warning waiting to be shown. A distance, an angle, a mode point at
+nothing and cannot be lost, so they stay in the folder — which is also what
+keeps the index still while the tools that write those values grow. An
+extrusion that gains a draft angle changes one folder and leaves the index
+exactly as it was.
 
-**Every operation carries a number too**, in the order the user did it, kept in
-the index beside the step holding it. Nothing reads it yet; it is what undo
-will walk the day the tree can be edited, when the order things were done in
-stops being the order the part is rebuilt in.
+```json
+{ "kind": "sketch",    "plane": { "origin": [0,0,0], "u": [1,0,0], "v": [0,1,0] },
+  "operations": [1,2,3,4,5,6] }
+{ "kind": "extrusion", "sketch": 0, "picks": [[4.67, -59.19]],
+  "operations": [7] }
+```
+
+That line cuts the operation that opens a step in two. **A sketch has nothing
+left** once its plane has gone up, so `CreateSketch` disappears from the folder
+and lives on as a line of the index — keeping its number, so that undo can
+still take back the making of the sketch. Six numbers, five entries in
+`sketch-0/steps.json`. An extrusion leaves `{"distance": 10, "mode": "add"}`
+behind. Only `document::design` knows about the cut; above it a history is one
+list of whole operations, and a test takes an operation apart and puts it back
+to hold that.
+
+**Every major step gets a folder**, an extrusion with nothing drawn in it
+included. A short step written straight into the index would be a second layout
+every reader has to know, and it would want a folder the day its geometry is
+cached there.
+
+**The folder is named by the step's rank in its kind, counting from zero** —
+`sketch-0`, `extrusion-0`, `sketch-1`. That is the rank the operations
+themselves already speak in: every operation of a sketch names it by that same
+number, so `sketch-1` is the sketch the operations call 1. There is one
+numbering, not two.
+
+An earlier draft of this gave each step a number handed out once and never
+reused, on the grounds that a rank moves when a step is deleted. It was dropped:
+what a never-reused number buys is a name for a step that survives an edit, and
+nothing outside the design points at a step yet. The day something does — a
+simulation frozen on one extrusion, a note — it comes back as a field designed
+for that, rather than guessed at now.
+
+**Every operation does carry a number of its own**, in the order the user did
+it, kept in the index beside the step holding it. That one is never reused, and
+it is a different thing: the operation number says *when*, so that undo can walk
+the whole tree back in the order things were done; the step's rank says *where*.
 
 The kinds are **written out by name**, so a kind added later costs no change of
 format: a part written before that kind existed names only the kinds it knew.
@@ -171,9 +202,10 @@ nothing to invalidate: the entry is either the one the part was put away with,
 or absent.
 
 It is a cache and never the truth. It carries a print of the design it was
-rebuilt from — folded over the index **and** every step's folder, since none of
-the drawing is in the index — and a part whose cache is missing, damaged, or
-answers to another design replays its design instead of refusing to open — so a design edited by
+rebuilt from — folded over the index **and** every step's folder, since neither
+half says what the part is on its own — and a part whose cache is missing,
+damaged, or answers to another design replays its design instead of refusing to
+open — so a design edited by
 any hand other than a save can never show a shape the part no longer describes.
 
 It also carries the version of the tool that rebuilt it, bumped by hand the day
@@ -227,6 +259,10 @@ opening with no history at all.
   nothing reads that yet beyond writing it back.
 - A sketch started on a face records the plane it was given and stays there.
   The face can move under it, and nothing says so.
+- An area to extrude is named by a point stored inside it, and a drawing pulled
+  about can leave that point outside every area — in which case the extrusion
+  goes silently. Naming an area by the curves that bound it is the next piece
+  of work.
 - No branches: one single line of history, with one single redo tail.
 - A very long part is rebuilt entirely at every move of the cursor. That is
   instantaneous at the current sizes; it will want cached intermediate states

@@ -344,7 +344,13 @@ commit.
 
 **A mode** — a variant of `enum Screen` (`app/src/screens/mod.rs`) and its own
 folder `screens/<mode>/`, holding at least `state.rs` and `view.rs`. Never a
-branch grafted onto an existing module.
+branch grafted onto an existing module. `a_mode_keeps_what_it_knows_apart_from_what_it_draws`
+refuses the folder that has neither, and `MODES_WITHOUT_A_PRESENTER` names the
+modes that predate the rule — a list that only shrinks. Alongside it,
+`PLACES_ALLOWED_TO_HAVE_NO_NET` closes the list `docs/code-map.md` keeps under
+**What has no net**: a place leaves it by earning a test and joins it only in
+front of a reviewer. Both constants are the authority; reading them beats reading
+a copy of them here.
 
 **A widget** — in `ui/`, if a second screen could ever want it.
 `settings/viewport.rs` still holds 3 that need something a plain value can't

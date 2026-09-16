@@ -137,11 +137,23 @@ impl SketchEditor {
 pub fn show(ui: &mut egui::Ui, editor: &mut SketchEditor) -> Vec<Command> { /* ... */ }
 ```
 
-`SketchEditor`, `ViewportState` and `Ribbon` are already presenters. They have
-simply not been separated from their views yet: `viewport.rs`, the largest file
-in the repository, is where the camera, hit-testing, the keyboard, gestures and
-annotation drawing share one file, and none of it can be exercised without
-opening a window.
+`Ribbon` and the explorer have been separated. `SketchEditor` and
+`ViewportState` have not: `screens/viewport/` is where the camera, hit-testing,
+the keyboard, gestures and annotation drawing share one file, and none of it can
+be exercised without opening a window.
+
+**A mode carries both files, and that is now a test.** The modes still owing the
+split are named in `MODES_WITHOUT_A_PRESENTER`, in
+`crates/app/tests/architecture.rs`; a new folder under `screens/` without a
+`state.rs` and a `view.rs` fails it, and a mode that earns the split fails it too
+until its name comes out. The constant is the list, and it only shrinks — do not
+copy it here, which is the mistake **What has no net** was written to stop.
+
+**And the list of places with no test is closed.** `docs/code-map.md` names them
+under **What has no net**, `PLACES_ALLOWED_TO_HAVE_NO_NET` records what is owed,
+and the two have to agree. A file may leave that list by earning a test. Nothing
+joins it without editing the constant in the same change, where a reviewer sees
+it — which is how the section stopped growing.
 
 ## Primitives
 

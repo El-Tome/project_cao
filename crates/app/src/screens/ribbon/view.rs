@@ -176,6 +176,7 @@ impl Ribbon {
             ui.vertical(|ui| row(ui));
             ui.horizontal_wrapped(|ui| {
                 files(ui, asked);
+                ui.toggle_value(&mut self.part_tree_open, lang.t("ribbon.part_tree"));
                 ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
                 if ui
                     .button("⚙")
@@ -199,6 +200,7 @@ impl Ribbon {
                     asked.push(Command::OpenSettings);
                 }
                 ui.toggle_value(&mut self.history_open, lang.t("ribbon.history"));
+                ui.toggle_value(&mut self.part_tree_open, lang.t("ribbon.part_tree"));
                 files(ui, asked);
             });
         });

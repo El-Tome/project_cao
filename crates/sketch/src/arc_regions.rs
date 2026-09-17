@@ -82,11 +82,8 @@ impl Sketch {
                 continue;
             }
 
-            let bounding = without_spurs(&walked);
-            let mut corners = Vec::new();
             let mut outline = Vec::new();
-            for half in bounding {
-                corners.push(ends[half].0);
+            for half in without_spurs(&walked) {
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => outline.push(from),
@@ -94,13 +91,13 @@ impl Sketch {
                 }
             }
 
-            let distinct = corners.len() >= 2 && {
-                let mut sorted = corners.clone();
-                sorted.sort_unstable();
-                sorted.dedup();
-                sorted.len() == corners.len()
-            };
-            if distinct && signed_area(&outline) > 1e-9 {
+            // Turning the other way round the same edges walks the outside of
+            // the drawing, which is not an area: only the face the walk keeps
+            // on its left has a positive signed area. A face pinched at a
+            // point — a bowtie's crossing, a point dropped on a trait — walks
+            // that point twice, quite correctly, so nothing here may ask for
+            // the corners to be distinct.
+            if signed_area(&outline) > 1e-9 {
                 outlines.push(outline);
             }
         }
@@ -200,6 +197,50 @@ mod tests {
         assert!(
             (area(&regions[0].triangles) - whole).abs() < 1e-6,
             "the area was {whole} before the trait was laid and {} after",
+            area(&regions[0].triangles),
+        );
+    }
+
+    #[test]
+    fn a_corner_dropped_exactly_on_a_trait_leaves_the_area_it_pinches() {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corners: Vec<crate::sketch::PointId> = [
+            (25.0, 85.0),
+            (37.5, 115.0),
+            (20.0, 145.0),
+            (-35.0, 130.0),
+            (-50.0, 170.0),
+            (-60.0, 90.0),
+            (-105.0, 50.0),
+            (-35.0, -10.0),
+            (-40.0, 65.0),
+            (-20.0, 40.0),
+        ]
+        .iter()
+        .map(|(x, y)| sketch.add_point(DVec2::new(*x, *y)))
+        .collect();
+        for rank in 0..corners.len() {
+            sketch.add_segment(corners[rank], corners[(rank + 1) % corners.len()]);
+        }
+
+        // A whisker off the trait that runs from (-35, 130) to (-50, 170).
+        sketch.move_point(corners[2], DVec2::new(-42.499, 150.0));
+        let beside = area(&sketch.regions()[0].triangles);
+
+        // And exactly on it, where the face pinches and walks that corner twice.
+        sketch.move_point(corners[2], DVec2::new(-42.5, 150.0));
+
+        let regions = sketch.regions();
+        assert_eq!(
+            regions.len(),
+            1,
+            "a corner laid on a trait pinches the area at that corner; it does \
+             not take it away",
+        );
+        assert!(
+            (area(&regions[0].triangles) - beside).abs() < 1.0,
+            "the area was {beside} a thousandth away from the trait and {} on \
+             it, where it should barely have moved",
             area(&regions[0].triangles),
         );
     }

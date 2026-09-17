@@ -1,7 +1,11 @@
-use crate::history::Operation;
+use crate::history::{History, StepKind};
 
-/// One group of the history: the operation that opens a feature, and the run of
-/// operations recorded under it before the next one opens.
+/// One major step of the design, as the history panel needs it: where it
+/// begins and ends in the list of operations, and which sketch it opened.
+///
+/// The grouping itself is not worked out here — the history records it, and
+/// the file is laid out by it. This turns it into the flat positions the
+/// panel speaks, which are the positions "go back to this step" moves to.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Feature {
     pub start: usize,
@@ -13,28 +17,27 @@ pub struct Feature {
 }
 
 impl Feature {
-    pub fn all(operations: &[Operation]) -> Vec<Self> {
-        let mut features: Vec<Self> = Vec::new();
+    pub fn all(history: &History) -> Vec<Self> {
+        let mut start = 0;
         let mut sketches = 0;
 
-        for (index, operation) in operations.iter().enumerate() {
-            if !operation.starts_feature() {
-                continue;
-            }
-            if let Some(previous) = features.last_mut() {
-                previous.end = index;
-            }
-            let sketch = matches!(operation, Operation::CreateSketch { .. }).then(|| {
-                sketches += 1;
-                sketches - 1
-            });
-            features.push(Self {
-                start: index,
-                end: operations.len(),
-                sketch,
-            });
-        }
-        features
+        history
+            .steps()
+            .iter()
+            .map(|step| {
+                let sketch = (step.kind() == StepKind::Sketch).then(|| {
+                    sketches += 1;
+                    sketches - 1
+                });
+                let feature = Self {
+                    start,
+                    end: start + step.len(),
+                    sketch,
+                };
+                start = feature.end;
+                feature
+            })
+            .collect()
     }
 }
 
@@ -44,6 +47,20 @@ mod tests {
     use crate::history::{Operation, PointRef};
     use cao_sketch::WorkPlane;
     use glam::DVec2;
+
+    fn drawn(operations: impl IntoIterator<Item = Operation>) -> History {
+        let mut history = History::default();
+        for operation in operations {
+            history.push(operation);
+        }
+        history
+    }
+
+    fn sketch() -> Operation {
+        Operation::CreateSketch {
+            plane: WorkPlane::XY,
+        }
+    }
 
     fn segment(sketch: usize) -> Operation {
         Operation::AddSegment {
@@ -65,19 +82,9 @@ mod tests {
 
     #[test]
     fn an_extrusion_between_two_sketches_does_not_shift_the_second_one() {
-        let operations = [
-            Operation::CreateSketch {
-                plane: WorkPlane::XY,
-            },
-            segment(0),
-            extrude(0),
-            Operation::CreateSketch {
-                plane: WorkPlane::XY,
-            },
-            segment(1),
-        ];
+        let history = drawn([sketch(), segment(0), extrude(0), sketch(), segment(1)]);
 
-        let features = Feature::all(&operations);
+        let features = Feature::all(&history);
 
         assert_eq!(features.len(), 3);
         assert_eq!(features[0].sketch, Some(0));
@@ -87,16 +94,9 @@ mod tests {
 
     #[test]
     fn the_steps_that_follow_a_feature_are_grouped_under_it() {
-        let operations = [
-            Operation::CreateSketch {
-                plane: WorkPlane::XY,
-            },
-            segment(0),
-            segment(0),
-            extrude(0),
-        ];
+        let history = drawn([sketch(), segment(0), segment(0), extrude(0)]);
 
-        let features = Feature::all(&operations);
+        let features = Feature::all(&history);
 
         assert_eq!(features.len(), 2);
         assert_eq!((features[0].start, features[0].end), (0, 3));
@@ -104,8 +104,20 @@ mod tests {
     }
 
     #[test]
-    fn steps_before_the_first_feature_belong_to_no_feature() {
-        assert!(Feature::all(&[segment(0)]).is_empty());
-        assert!(Feature::all(&[]).is_empty());
+    fn a_history_with_nothing_in_it_has_no_feature() {
+        assert!(Feature::all(&History::default()).is_empty());
+    }
+
+    #[test]
+    fn a_stroke_that_would_belong_to_no_step_is_not_recorded() {
+        let history = drawn([segment(0), segment(0)]);
+
+        assert!(
+            Feature::all(&history).is_empty(),
+            "every operation is written in a step's folder, so one that names \
+             a sketch the part does not have has nowhere to go — and the \
+             geometry makes nothing of it either",
+        );
+        assert!(history.operations().is_empty());
     }
 }

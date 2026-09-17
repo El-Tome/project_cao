@@ -10,6 +10,7 @@ use cao_sketch::WorkPlane;
 use glam::DVec2;
 
 use super::*;
+use crate::history::Step;
 
 #[test]
 fn a_history_with_nothing_undone_compacts_to_itself_in_shape() {
@@ -314,5 +315,34 @@ fn a_circles_rim_point_stays_bundled_in_its_own_step_after_compacting() {
             }),
         "the rim point no longer holds the circle: {:?}",
         sketch.constraints()
+    );
+}
+
+#[test]
+fn a_compacted_design_is_still_one_step_per_folder_and_reuses_no_operation_number() {
+    let history = dragged_dimensioned_and_extruded();
+    let numbers: Vec<u32> = history
+        .steps()
+        .iter()
+        .flat_map(|step| step.operations().to_vec())
+        .collect();
+
+    let compacted = compact(&history);
+
+    let counted: usize = compacted.steps().iter().map(Step::len).sum();
+    assert_eq!(
+        counted,
+        compacted.operations().len(),
+        "every operation is written in the folder of the step that holds it",
+    );
+    let after: Vec<u32> = compacted
+        .steps()
+        .iter()
+        .flat_map(|step| step.operations().to_vec())
+        .collect();
+    assert!(
+        after.iter().all(|number| !numbers.contains(number)),
+        "a number that named an operation before the rewrite has come back \
+         naming another: {numbers:?} against {after:?}",
     );
 }

@@ -25,6 +25,7 @@ pub fn say(lang: &Catalogue, error: &PartFileError) -> String {
         },
         PartFileError::Archive(_) => lang.t("part_file.archive_unreadable"),
         PartFileError::Json(_) => lang.t("part_file.json_unreadable"),
+        PartFileError::BrokenDesign => lang.t("part_file.broken_design"),
         PartFileError::BlankName => lang.t("part_file.blank_name"),
         PartFileError::NameTaken(path) => lang.t_with(
             "part_file.name_taken",

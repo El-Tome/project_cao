@@ -93,14 +93,15 @@ added to an existing module.
 
 ## The file format
 
-A part is a **zip archive** (`.caopart`) holding its metadata and its history
-of operations. The geometry is never read from the file as truth: it is rebuilt
-by replaying the history, which makes undo, redo and going back to a step one
-and the same operation. What the archive carries of it is a cache, dropped for
-a replay the moment it stops answering to the history beside it. Files written
-in the previous format (a single JSON) are not read:
-the tool has changed too much for a conversion to be trustworthy, and nothing
-precious was drawn with those versions. See [history.md](history.md).
+A part is a **zip archive** (`.caopart`) holding its identity and its design:
+an ordered index saying what each major step stands on, and one folder per step
+holding what it does. The geometry is never read from the file as truth:
+it is rebuilt by replaying the design, which makes undo, redo and going back to
+a step one and the same operation. What the archive carries of it is a cache,
+dropped for a replay the moment it stops answering to the design beside it.
+Files written in an earlier format are not read: the tool has changed too much
+for a conversion to be trustworthy, and nothing precious was drawn with those
+versions. See [history.md](history.md).
 
 ## Not a priority (to be argued later)
 
@@ -109,14 +110,13 @@ precious was drawn with those versions. See [history.md](history.md).
   network and sync architecture is not to be anticipated before that.
 - **A professional licence**: a commercial offering on top of the dual
   MIT/Apache-2.0 licence, terms undefined.
-- **A per-operation geometry cache.** Not implemented. The whole part has one
-  — `geometry.json` at the root of the archive, see
+- **A per-step geometry cache.** Not implemented. The whole part has one —
+  `geometry.json` at the root of the archive, see
   [history.md](history.md#the-geometry-is-cached-at-the-root-and-the-design-stays-the-truth)
-  — but `design/history.json` is still one list replayed from nothing whenever
-  that cache does not answer. The idea, the day one feature kind is slow enough
-  on its own, is to give that kind a folder holding its operations and the
-  geometry they rebuild to, invalidated when its own operations change and
-  always rebuildable from them.
+  — and whenever it does not answer, the whole design is replayed from
+  nothing. Each major step now has a folder of its own in `design/`, which is
+  where the geometry it rebuilds to would go: invalidated when that step's own
+  operations change, and always rebuildable from them.
 - **How much of the drawing is read to know what is settled.** The reading is
   a cubic pass (`settled_points` and `null_space`,
   [`crates/sketch/src/settled.rs`](../crates/sketch/src/settled.rs)). It is now

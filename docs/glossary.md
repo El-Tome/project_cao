@@ -77,15 +77,17 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | Code | Interface | What it names |
 | --- | --- | --- |
 | `Operation` | opération | One thing the user did, recorded. |
-| `History` | historique | The list of them, in order. |
+| `History` | historique | The list of them, in order, grouped into the steps of the design. |
+| `Step` | étape | One major step — a sketch, an extrusion — and the operations under it. |
 | `PartState` | — | The geometry, rebuilt from the history. |
 | `rebuild` | — | Replaying the history from nothing. |
 | `PartDocument` | pièce | The history and its metadata. What a `.caopart` holds. |
 | `PointRef` | — | Which point an operation meant: an existing one, or a position. |
 
-> **The geometry is never saved.** A `.caopart` is a history; `PartState` is a
-> projection of it. Undo, redo and stepping back are the same operation, which
-> is why they cannot disagree.
+> **The geometry is never the truth.** A `.caopart` is a design; `PartState` is
+> a projection of it, cached in the file and dropped for a replay the moment it
+> stops answering to that design. Undo, redo and stepping back are the same
+> operation, which is why they cannot disagree.
 
 > **An `Operation` is immutable once written.** Its meaning is frozen: changing
 > how one replays changes what every existing file draws. A new behaviour is a

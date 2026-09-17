@@ -288,10 +288,16 @@ fn entries_of(files: &InMemoryFiles, path: &Path) -> Vec<String> {
 }
 
 #[test]
-fn the_steps_a_part_was_designed_by_live_in_a_folder_of_their_own() {
+fn every_major_step_of_a_design_is_written_in_a_folder_of_its_own() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
     let mut document = drawn_part();
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        picks: Vec::new(),
+        distance: 4.0,
+        mode: crate::history::ExtrusionMode::Add,
+    });
     document.set_picture(a_drawn_picture());
     document
         .put_away(&files, path, at("2026-01-02T10:00:00Z"))
@@ -302,12 +308,51 @@ fn the_steps_a_part_was_designed_by_live_in_a_folder_of_their_own() {
         [
             "part.json",
             "design/history.json",
+            "design/sketch-0/steps.json",
+            "design/extrusion-0/steps.json",
             "geometry.json",
             "picture.json",
             "picture.rgba",
         ],
-        "the design gets a folder a feature can be given a place in, and what \
-         describes the part as a whole — its rebuilt geometry, its picture — \
-         stays beside it at the root",
+        "the index names the steps in order and each of them holds its own \
+         operations, while what describes the part as a whole — its rebuilt \
+         geometry, its picture — stays beside them at the root",
     );
+}
+
+#[test]
+fn a_part_whose_index_names_a_step_no_folder_holds_does_not_open() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    drawn_part()
+        .save(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is written");
+    without(&files, path, "design/sketch-0/steps.json");
+
+    let error = PartDocument::load(&files, path).expect_err("a step with no folder");
+
+    assert!(
+        matches!(&error, PartFileError::MissingEntry(entry) if entry.contains("sketch-0")),
+        "the reader is told which step of the design is missing: {error:?}",
+    );
+}
+
+/// Writes the archive again with one entry left out.
+fn without(files: &InMemoryFiles, path: &Path, name: &str) {
+    let bytes = files.read(path).expect("the archive is there");
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
+    let mut written = zip::ZipWriter::new(Cursor::new(Vec::new()));
+    let options: zip::write::SimpleFileOptions = zip::write::SimpleFileOptions::default();
+    for index in 0..archive.len() {
+        let mut entry = archive.by_index(index).expect("an entry");
+        let entry_name = entry.name().to_string();
+        let mut held = Vec::new();
+        entry.read_to_end(&mut held).expect("the entry is read");
+        if entry_name != name {
+            written.start_file(entry_name, options).expect("an entry");
+            written.write_all(&held).expect("the entry is written");
+        }
+    }
+    let bytes = written.finish().expect("the archive").into_inner();
+    files.write(path, &bytes).expect("the archive is written");
 }

@@ -57,44 +57,83 @@ impl Sketch {
             if visited[start] || ends[start].0 == ends[start].1 {
                 continue;
             }
-            let mut loop_edges = Vec::new();
-            let mut outline = Vec::new();
+            let mut walked = Vec::new();
             let mut half = start;
-            let mut dead_end = false;
+            let mut closed = false;
             loop {
                 if visited[half] {
                     break;
                 }
                 visited[half] = true;
-                loop_edges.push(ends[half].0);
+                walked.push(half);
+                let Some(following) = next(half) else { break };
+                half = following;
+                if half == start {
+                    closed = true;
+                    break;
+                }
+            }
+
+            // Only a walk that came back on itself bounds anything. One that
+            // ran out of edges, or into edges an earlier face had taken,
+            // leaves an open chain — which used to be kept, and drew a shape
+            // closed by an edge nobody had drawn.
+            if !closed {
+                continue;
+            }
+
+            let bounding = without_spurs(&walked);
+            let mut corners = Vec::new();
+            let mut outline = Vec::new();
+            for half in bounding {
+                corners.push(ends[half].0);
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => outline.push(from),
                     Some(arc) => outline.extend(arcs[arc].points_along(from, to)),
                 }
-                let Some(following) = next(half) else { break };
-                if following == (half ^ 1) {
-                    dead_end = true;
-                    break;
-                }
-                half = following;
-                if half == start {
-                    break;
-                }
             }
 
-            let distinct = loop_edges.len() >= 2 && {
-                let mut sorted = loop_edges.clone();
+            let distinct = corners.len() >= 2 && {
+                let mut sorted = corners.clone();
                 sorted.sort_unstable();
                 sorted.dedup();
-                sorted.len() == loop_edges.len()
+                sorted.len() == corners.len()
             };
-            if !dead_end && distinct && signed_area(&outline) > 1e-9 {
+            if distinct && signed_area(&outline) > 1e-9 {
                 outlines.push(outline);
             }
         }
         outlines
     }
+}
+
+/// The half-edges that really bound the face, with every trait the walk had to
+/// go out along and give straight back taken out.
+///
+/// A trait poking into a face is walked twice, once each way, and bounds
+/// nothing at all: a slit of no width is not a slit. Leaving it in would make
+/// the outline double back on itself, which is the one shape an ear-clipper
+/// cannot cut into triangles.
+///
+/// Cancelling pairs against a stack takes out a whole beard of them and not
+/// just the last hair, since taking one out can leave its neighbours face to
+/// face. The walk is a ring, so the join is closed up too.
+fn without_spurs(walked: &[usize]) -> Vec<usize> {
+    let mut bounding: Vec<usize> = Vec::with_capacity(walked.len());
+    for half in walked {
+        match bounding.last() {
+            Some(previous) if *previous == (half ^ 1) => {
+                bounding.pop();
+            }
+            _ => bounding.push(*half),
+        }
+    }
+    while bounding.len() >= 2 && bounding[0] == (bounding[bounding.len() - 1] ^ 1) {
+        bounding.pop();
+        bounding.remove(0);
+    }
+    bounding
 }
 
 #[cfg(test)]
@@ -108,6 +147,85 @@ mod tests {
             .iter()
             .map(|[a, b, c]| (*b - *a).perp_dot(*c - *a).abs() * 0.5)
             .sum()
+    }
+
+    fn a_closed_shape() -> (Sketch, Vec<crate::sketch::PointId>) {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let corners: Vec<crate::sketch::PointId> = [
+            (0.0, 0.0),
+            (70.0, 25.0),
+            (57.7, 92.7),
+            (25.0, 140.0),
+            (-95.0, 125.0),
+            (10.0, 60.0),
+            (8.1, 33.1),
+        ]
+        .iter()
+        .map(|(x, y)| sketch.add_point(DVec2::new(*x, *y)))
+        .collect();
+        for rank in 0..corners.len() {
+            sketch.add_segment(corners[rank], corners[(rank + 1) % corners.len()]);
+        }
+        (sketch, corners)
+    }
+
+    fn laid(sketch: &mut Sketch, from: DVec2, to: DVec2) {
+        let a = sketch.add_point(from);
+        let b = sketch.add_point(to);
+        sketch.add_segment(a, b);
+    }
+
+    #[test]
+    fn a_trait_poking_into_a_shape_leaves_its_area_whole() {
+        let (mut sketch, _) = a_closed_shape();
+        let alone = sketch.regions();
+        assert_eq!(alone.len(), 1);
+        let whole = area(&alone[0].triangles);
+
+        laid(&mut sketch, DVec2::new(40.0, 90.0), DVec2::new(60.0, 125.0));
+
+        let regions = sketch.regions();
+        assert_eq!(
+            regions.len(),
+            1,
+            "a trait that encloses nothing encloses nothing: it has one end \
+             inside the shape and one outside, so it cuts no second area out \
+             of it",
+        );
+        assert_eq!(
+            regions[0].outline.len(),
+            8,
+            "the shape's seven corners, and the place the trait crosses its side",
+        );
+        assert!(
+            (area(&regions[0].triangles) - whole).abs() < 1e-6,
+            "the area was {whole} before the trait was laid and {} after",
+            area(&regions[0].triangles),
+        );
+    }
+
+    #[test]
+    fn a_trait_laid_right_across_a_shape_still_cuts_it_in_two() {
+        let (mut sketch, _) = a_closed_shape();
+        let whole = area(&sketch.regions()[0].triangles);
+
+        laid(
+            &mut sketch,
+            DVec2::new(-60.0, 130.0),
+            DVec2::new(60.0, 125.0),
+        );
+
+        let regions = sketch.regions();
+        assert_eq!(
+            regions.len(),
+            2,
+            "both ends outside, so it goes clean through"
+        );
+        let cut: f64 = regions.iter().map(|region| area(&region.triangles)).sum();
+        assert!(
+            (cut - whole).abs() < 1e-6,
+            "the two areas together are the one they were cut from: {cut} against {whole}",
+        );
     }
 
     /// The smallest honest test the issue names: one segment for the flat

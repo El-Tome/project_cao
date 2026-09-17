@@ -27,6 +27,10 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::AddRectangle { .. } => lang.t("history.rectangle"),
         Operation::AddCircle { .. } => lang.t("history.circle"),
         Operation::AddArc { .. } => lang.t("history.arc"),
+        Operation::MovePoint {
+            merged_into: Some(_),
+            ..
+        } => lang.t("history.points_merged"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),
         Operation::MoveDimension { .. } => lang.t("history.dimension_moved"),
         Operation::Constrain { constraint, .. } => constraints::label(lang, *constraint),
@@ -171,6 +175,13 @@ mod tests {
                 sketch: 0,
                 point: PointId(1),
                 position: AWAY,
+                merged_into: None,
+            },
+            Operation::MovePoint {
+                sketch: 0,
+                point: PointId(1),
+                position: AWAY,
+                merged_into: Some(PointId(2)),
             },
             Operation::MoveMany {
                 sketch: 0,
@@ -194,6 +205,7 @@ mod tests {
             "Rectangle",
             "Cercle",
             "Déplacement",
+            "Sommets fusionnés",
             "Déplacement",
             "Cote déplacée",
             "Sommets fusionnés",

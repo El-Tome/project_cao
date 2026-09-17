@@ -129,6 +129,7 @@ impl PartState {
                 sketch,
                 point,
                 position,
+                merged_into,
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
@@ -136,6 +137,10 @@ impl PartState {
                 // given, so the drawing settles again around it — around it,
                 // the point itself staying exactly where it was dropped.
                 sketch.settle_around(*point, *position, scale);
+                if let Some(kept) = merged_into {
+                    sketch.merge_points(*kept, *point);
+                    sketch.resolve(scale);
+                }
                 None
             }
             Operation::AddCircle {

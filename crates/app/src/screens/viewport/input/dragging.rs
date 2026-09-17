@@ -109,27 +109,22 @@ pub(super) fn drag_point(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    context.document.apply(Operation::MovePoint {
-        sketch: index,
-        point,
-        position: cursor,
-    });
-
     // Two ends laid on top of each other are one corner, not two. The decision
     // is taken here, at the drop, and recorded: how close is close enough
     // depends on the zoom, so re-deriving it on replay could join a different
     // pair, or none.
-    let sketch = &context.document.sketches()[index];
-    if let Some(other) = sketch
+    //
+    // It rides in the same step as the drag, because dropping a corner on
+    // another is one gesture and one undo has to take the whole of it back.
+    let merged_into = context.document.sketches()[index]
         .nearest_point(cursor, snap)
-        .filter(|other| *other != point)
-    {
-        context.document.apply(Operation::MergePoints {
-            sketch: index,
-            kept: other,
-            dropped: point,
-        });
-    }
+        .filter(|other| *other != point);
+    context.document.apply(Operation::MovePoint {
+        sketch: index,
+        point,
+        position: cursor,
+        merged_into,
+    });
     true
 }
 

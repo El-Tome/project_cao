@@ -35,6 +35,12 @@ element would have wanted as many undos as elements to take back a single
 gesture. It is the only deletion: there is no separate operation to erase just
 one.
 
+And a corner dropped on another carries the joining in the step that moved it.
+Recording the two apart left one undo taking back the joining alone: the corner
+stayed where it had been dropped, the drawing read closed and was not, and its
+area was gone until a second undo. Joining two corners by clicking them is
+still a step of its own — that gesture has no drag in it.
+
 ## The cursor and the abandoned branch
 
 The history keeps every operation and one position: what is before is applied,

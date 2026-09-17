@@ -103,11 +103,25 @@ pub enum Operation {
         #[serde(default)]
         construction: bool,
     },
-    /// Dragging a point to a new place.
+    /// Dragging a point to a new place, and the corner it was laid on top of
+    /// when it landed on one.
+    ///
+    /// The joining is carried by the same step rather than a `MergePoints` of
+    /// its own: dropping a corner on another is one gesture of the user, and
+    /// one undo has to take the whole of it back. Leaving them apart left a
+    /// drawing that read closed and was not, its area gone, and two undos to
+    /// get back to one drag.
+    ///
+    /// Which corner it lands on is decided at the drop and recorded, never
+    /// worked out again on replay: how close is close enough depends on the
+    /// zoom at the time, so re-deriving it later could join a different pair,
+    /// or none.
     MovePoint {
         sketch: usize,
         point: PointId,
         position: DVec2,
+        #[serde(default)]
+        merged_into: Option<PointId>,
     },
     /// Dragging a whole selection: every point named moves by the same step,
     /// so the shapes travel together instead of being pulled apart.

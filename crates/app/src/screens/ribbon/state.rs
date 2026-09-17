@@ -14,6 +14,10 @@ use cao_sketch::Rule;
 pub struct Ribbon {
     /// Which top-level group is open, by rank.
     pub tab: usize,
+    /// The tree of what the part is made of, open by default. The run of
+    /// operations that made it is the other panel, and it waits to be asked
+    /// for.
+    pub part_tree_open: bool,
     pub history_open: bool,
     /// Whether the history panel is asking to confirm a compaction. Held here
     /// rather than only in the panel's own frame, so the warning survives to
@@ -25,7 +29,8 @@ impl Ribbon {
     pub fn new() -> Self {
         Self {
             tab: 0,
-            history_open: true,
+            part_tree_open: true,
+            history_open: false,
             history_compact_confirm: false,
         }
     }

@@ -7,8 +7,8 @@ use std::path::PathBuf;
 
 use cao_render::camera::{CubeFace, CubeZone};
 use cao_render::{
-    AxisStyle, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewportRect, adaptive_step,
-    cube, push_axes, push_grid,
+    AxisStyle, GridPlane, GridStyle, OrbitCamera, SceneFrame, SceneRenderer, ViewportRect,
+    adaptive_step, cube, push_axes, push_grid,
 };
 
 const WIDTH: u32 = 1024;
@@ -161,13 +161,14 @@ fn build_frame(camera: &OrbitCamera, plane: Option<(glam::Vec3, glam::Vec3)>) ->
         let step = adaptive_step(units_per_pixel, 48.0);
         let diagonal = ((WIDTH * WIDTH + HEIGHT * HEIGHT) as f32).sqrt();
         let half_extent = units_per_pixel * diagonal * 1.5;
-        let normal = u.cross(v).normalize();
-        let center = camera.target() - normal * camera.target().dot(normal);
         push_grid(
             &mut lines,
-            u,
-            v,
-            center,
+            GridPlane {
+                origin: glam::Vec3::ZERO,
+                u,
+                v,
+            },
+            camera.target(),
             step,
             half_extent,
             &GridStyle::default(),

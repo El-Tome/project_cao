@@ -7,8 +7,8 @@
 use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::{
-    AxisStyle, BackgroundShape, GridStyle, SceneFrame, ViewportRect, cube, push_axes, push_grid,
-    push_plane_outline, push_plane_quad, srgb,
+    AxisStyle, BackgroundShape, GridPlane, GridStyle, SceneFrame, ViewportRect, cube, push_axes,
+    push_grid, push_plane_outline, push_plane_quad, srgb,
 };
 use cao_sketch::{
     ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
@@ -90,14 +90,14 @@ pub(crate) fn build_frame(
         // It also has to reach past the corners of the screen, or its outer
         // fade shows up as that same disc.
         let half_extent = (scale.units_per_pixel * scale.diagonal_px as f64 * 1.5) as f32;
-        let normal = plane.normal().as_vec3();
-        let origin = plane.origin.as_vec3();
-        let center = camera.target() - normal * (camera.target() - origin).dot(normal);
         push_grid(
             &mut world_lines,
-            plane.u.as_vec3(),
-            plane.v.as_vec3(),
-            center,
+            GridPlane {
+                origin: plane.origin.as_vec3(),
+                u: plane.u.as_vec3(),
+                v: plane.v.as_vec3(),
+            },
+            camera.target(),
             scale.step as f32,
             half_extent,
             &GridStyle {

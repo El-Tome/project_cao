@@ -1,7 +1,7 @@
 //! The adaptive grid drawn on the work plane a sketch is open on.
 //!
-//! It is given a basis rather than one of three named planes, so any work
-//! plane gets a grid — including one lying at an angle on a face of the part.
+//! It is given a plane rather than one of three named ones, so any work plane
+//! gets a grid — including one lying at an angle on a face of the part.
 
 use glam::Vec3;
 
@@ -45,37 +45,62 @@ impl Default for GridStyle {
     }
 }
 
-/// A grid on the plane spanned by `u` and `v`, centred on `center` snapped to
-/// the step so lines stay put while panning, fading out radially instead of
-/// ending on a hard edge.
+/// The plane a grid is drawn on: where its lines are counted from, and the two
+/// directions they run along.
+#[derive(Clone, Copy, Debug)]
+pub struct GridPlane {
+    pub origin: Vec3,
+    pub u: Vec3,
+    pub v: Vec3,
+}
+
+impl GridPlane {
+    /// `center` brought onto the plane and rounded to the nearest crossing of
+    /// the grid, so the lines stay put while the view is panned.
+    ///
+    /// Measured from the world origin rather than from the plane's own, the
+    /// component along the normal is dropped — and that component is the whole
+    /// of what tells a face of the part from the plane through the world
+    /// origin parallel to it.
+    fn snapped(&self, center: Vec3, step: f32) -> Vec3 {
+        let offset = center - self.origin;
+        self.origin
+            + self.u * (offset.dot(self.u) / step).round() * step
+            + self.v * (offset.dot(self.v) / step).round() * step
+    }
+}
+
+/// A grid on `plane`, centred on `center` brought onto it and snapped to the
+/// step so lines stay put while panning, fading out radially instead of ending
+/// on a hard edge.
 ///
-/// Taking the basis rather than one of three named planes means any work plane
+/// Taking a plane rather than one of three named ones means any work plane
 /// gets a grid, including one lying at an angle on a face.
 pub fn push_grid(
     out: &mut Vec<Vertex>,
-    u: Vec3,
-    v: Vec3,
+    plane: GridPlane,
     center: Vec3,
     step: f32,
     half_extent: f32,
     style: &GridStyle,
 ) {
     let lines = (half_extent / step).ceil() as i32;
-    let origin = snap_to_step(center, u, v, step);
+    let center = plane.snapped(center, step);
 
-    for (along, across) in [(u, v), (v, u)] {
+    for (along, across) in [(plane.u, plane.v), (plane.v, plane.u)] {
         for index in -lines..=lines {
             let offset = index as f32 * step;
-            let base = origin + across * offset;
+            let base = center + across * offset;
+            let from_origin = (base - plane.origin).dot(across);
 
-            if base.dot(across).abs() < step * 0.001 {
+            if from_origin.abs() < step * 0.001 {
                 continue;
             }
 
-            // "Major" must follow the world coordinate, not the index: the
-            // index is counted from the panned centre, so using it would make
-            // the heavy lines drift away from the origin as you pan.
-            let steps_from_origin = base.dot(across) / (step * style.major_every as f32);
+            // "Major" must follow the distance to the origin, not the index:
+            // the index is counted from the panned centre, so using it would
+            // make the heavy lines drift away from the axes as you pan.
+            let steps_from_origin = from_origin / (step * style.major_every as f32);
             let major = (steps_from_origin - steps_from_origin.round()).abs() < 1e-3;
             let color = if major { style.major } else { style.minor };
             let width = if major {
@@ -93,15 +118,11 @@ pub fn push_grid(
                     width,
                 },
                 half_extent,
-                origin,
+                center,
                 style.segments,
             );
         }
     }
-}
-
-fn snap_to_step(center: Vec3, u: Vec3, v: Vec3, step: f32) -> Vec3 {
-    u * (center.dot(u) / step).round() * step + v * (center.dot(v) / step).round() * step
 }
 
 /// One grid line, ready to be emitted as segments.
@@ -163,136 +184,4 @@ fn radial_fade(distance: f32, half_extent: f32) -> f32 {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The step must always keep lines at least `target` pixels apart, and
-    /// only ever be a 1, 2 or 5 times a power of ten.
-    #[test]
-    fn adaptive_step_follows_the_1_2_5_sequence() {
-        let target = 48.0;
-        let mut units_per_pixel = 1e-4;
-
-        while units_per_pixel < 1e4 {
-            let step = adaptive_step(units_per_pixel, target);
-            assert!(
-                step >= units_per_pixel * target,
-                "step {step} too small for {units_per_pixel}"
-            );
-
-            let mantissa = step / 10f32.powf(step.log10().floor());
-            assert!(
-                [1.0, 2.0, 5.0]
-                    .iter()
-                    .any(|value| (mantissa - value).abs() < 1e-3),
-                "step {step} is not a 1/2/5 multiple"
-            );
-
-            units_per_pixel *= 1.3;
-        }
-    }
-
-    /// Zooming in never coarsens the grid, zooming out never refines it.
-    #[test]
-    fn adaptive_step_grows_with_distance() {
-        let mut previous = 0.0;
-        for exponent in -4..4 {
-            let step = adaptive_step(10f32.powi(exponent), 48.0);
-            assert!(step >= previous);
-            previous = step;
-        }
-    }
-
-    /// Heavy lines must sit on world multiples of the major step whatever the
-    /// grid is centred on, otherwise they drift away from the axes on a pan.
-    #[test]
-    fn major_lines_stay_anchored_to_the_origin_when_panning() {
-        let style = GridStyle::default();
-        let step = 10.0;
-        let major_step = step * style.major_every as f32;
-
-        for center in [
-            Vec3::ZERO,
-            Vec3::new(37.0, -114.0, 0.0),
-            Vec3::new(-950.0, 620.0, 0.0),
-        ] {
-            let mut vertices = Vec::new();
-            push_grid(&mut vertices, Vec3::X, Vec3::Y, center, step, 300.0, &style);
-
-            let major_lines: Vec<_> = vertices
-                .iter()
-                .filter(|vertex| vertex.width == style.major_width)
-                .collect();
-            assert!(
-                !major_lines.is_empty(),
-                "no major line for centre {center:?}"
-            );
-
-            for vertex in major_lines {
-                // A heavy line runs along one axis, so exactly one of its two
-                // in-plane coordinates is the constant that must land on the
-                // major step.
-                let [x, y, _] = vertex.position;
-                let on_x = (x / major_step - (x / major_step).round()).abs() < 1e-3;
-                let on_y = (y / major_step - (y / major_step).round()).abs() < 1e-3;
-                assert!(
-                    on_x || on_y,
-                    "major line vertex at ({x}, {y}) is off the {major_step} grid"
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn grid_is_opaque_around_its_centre() {
-        let mut vertices = Vec::new();
-        push_grid(
-            &mut vertices,
-            Vec3::X,
-            Vec3::Y,
-            Vec3::ZERO,
-            10.0,
-            300.0,
-            &GridStyle::default(),
-        );
-
-        let near_center = vertices
-            .iter()
-            .filter(|vertex| Vec3::from_array(vertex.position).length() < 100.0)
-            .count();
-        assert!(near_center > 0);
-        assert!(
-            vertices
-                .iter()
-                .filter(|vertex| Vec3::from_array(vertex.position).length() < 100.0)
-                .all(|vertex| vertex.color[3] > 0.2),
-            "the grid must not fade out right next to its centre"
-        );
-    }
-
-    #[test]
-    fn grid_skips_the_lines_the_axes_already_draw() {
-        let mut vertices = Vec::new();
-        push_grid(
-            &mut vertices,
-            Vec3::X,
-            Vec3::Y,
-            Vec3::ZERO,
-            10.0,
-            50.0,
-            &GridStyle::default(),
-        );
-        assert!(!vertices.is_empty());
-
-        // A segment lying flat on an axis would double up the coloured axis
-        // line; individual vertices may still touch an axis when a line
-        // crosses it.
-        for segment in vertices.as_chunks::<2>().0 {
-            let [start, end] = [segment[0].position, segment[1].position];
-            assert!(
-                !(start[0] == 0.0 && end[0] == 0.0) && !(start[1] == 0.0 && end[1] == 0.0),
-                "grid segment {start:?}..{end:?} lies on an axis"
-            );
-        }
-    }
-}
+mod tests;

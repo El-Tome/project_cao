@@ -1,5 +1,17 @@
 //! The architecture rules, in a form that fails the build.
 //!
+//! Closes #362.
+//! - no inline test module is left under a crate's src, and one added back is
+//!   refused — `the_tests_of_a_module_live_in_a_file_of_their_own`
+//! - a file's length says what its code weighs, and camera.rs has left the
+//!   budget — `a_file_that_outgrew_its_budget_has_to_be_split`
+//! - no test file is over the budget without an entry of its own, the budget
+//!   reading every source, tests and code alike —
+//!   `a_file_that_outgrew_its_budget_has_to_be_split`
+//! - the same tests run as before — no test: it is a count, and it was taken
+//!   by hand on either side of the sweep. Eight hundred and ninety-four,
+//!   unchanged, which is the only thing that says no assertion moved
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -96,11 +108,10 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// arbitrary; what is not is that every file above it can be named.
 const LINE_BUDGET: usize = 400;
 
-const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 7] = [
+const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 6] = [
     ("crates/app/src/screens/viewport/input/mod.rs", 565),
     ("crates/app/src/screens/viewport/mod.rs", 594),
     ("crates/app/src/screens/viewport/render.rs", 1286),
-    ("crates/render/src/camera.rs", 528),
     ("crates/render/src/renderer.rs", 426),
     ("crates/sketch/src/sketch.rs", 2304),
     ("crates/sketch/src/solver.rs", 1199),
@@ -407,6 +418,28 @@ fn every_name_is_snake_case_and_none_of_them_is_a_bucket() {
     }
 }
 
+/// Since #362 a module keeps its tests in a file of its own, so that a file's
+/// length says what its code weighs rather than what checks it.
+#[test]
+fn the_tests_of_a_module_live_in_a_file_of_their_own() {
+    let mut inline: Vec<String> = Vec::new();
+
+    for (path, source) in every_source() {
+        if source.contains("#[cfg(test)]\nmod tests {")
+            || source.contains("#[cfg(test)]\npub(crate) mod tests {")
+        {
+            inline.push(path);
+        }
+    }
+
+    assert!(
+        inline.is_empty(),
+        "these keep their tests inline: {inline:?}. A module's tests go in a \
+         tests.rs of its own beside it — `#[cfg(test)] mod tests;` — so that \
+         the length of the file says what its code weighs.",
+    );
+}
+
 #[test]
 fn a_file_that_outgrew_its_budget_has_to_be_split() {
     let budgets: BTreeMap<&str, usize> = FILES_OVER_THE_LINE_BUDGET.iter().copied().collect();
@@ -553,6 +586,11 @@ fn a_mode_keeps_what_it_knows_apart_from_what_it_draws() {
             .unwrap_or_default()
             .to_string_lossy()
             .to_string();
+        // A folder holding nothing but tests.rs is a file's tests, not a mode:
+        // since #362 that is where every module keeps them.
+        if only_tests(&folder) {
+            continue;
+        }
         let split = folder.join("state.rs").exists() && folder.join("view.rs").exists();
 
         if owed.contains(name.as_str()) {
@@ -639,8 +677,13 @@ fn the_places_with_no_net_are_the_ones_already_named() {
 #[test]
 fn a_sweep_of_the_drawing_answers_for_one_of_every_kind() {
     for (path, test) in OPERATIONS_THAT_SWEEP_THE_WHOLE_DRAWING {
-        let source = fs::read_to_string(workspace_root().join(path))
-            .unwrap_or_else(|_| panic!("a readable {path}"));
+        // The sweep is in `path`; since #362 the test that holds it honest is
+        // beside it, in the module's own tests file.
+        let source = [path.to_string(), beside(path)]
+            .iter()
+            .filter_map(|at| fs::read_to_string(workspace_root().join(at)).ok())
+            .collect::<String>();
+        assert!(!source.is_empty(), "a readable {path}");
 
         assert!(
             source.contains(&format!("fn {test}(")),
@@ -857,15 +900,37 @@ fn rust_files(directory: &Path) -> Vec<PathBuf> {
     files
 }
 
-/// A file that holds nothing but tests. The convention here is a `#[cfg(test)]`
-/// module at the bottom of the file it checks, which [`production`] cuts at;
-/// a module grown too long for that moves to a `tests.rs` beside it, and the
-/// marker moves with it — to the `mod tests;` line in the file above.
+/// The tests of a module, which live in a file of its own name since #362.
+fn beside(path: &str) -> String {
+    format!("{}/tests.rs", path.trim_end_matches(".rs"))
+}
+
+/// Whether a folder holds a module's tests and nothing else.
+fn only_tests(folder: &Path) -> bool {
+    fs::read_dir(folder)
+        .map(|entries| {
+            entries
+                .flatten()
+                .all(|entry| entry.file_name() == "tests.rs")
+        })
+        .unwrap_or(false)
+}
+
+/// A file that holds nothing but tests. Since #362 every module keeps them in
+/// a `tests.rs` beside it, and a long one is carved by subject into a `tests/`
+/// folder under that.
 ///
-/// That line is what is read here, rather than the name alone: a `tests.rs`
-/// nobody declared under `#[cfg(test)]` ships, and would be a hole in every
-/// rule below that skips it.
+/// The `mod tests;` line above is what is read, rather than the name alone: a
+/// `tests.rs` nobody declared under `#[cfg(test)]` ships, and would be a hole
+/// in every rule below that skips it.
 fn is_nothing_but_tests(path: &str) -> bool {
+    // A module's tests may be carved by subject, one file each, under the
+    // tests file that declares them — which is how the drawing's own are kept.
+    if let Some((folder, _)) = path.rsplit_once('/')
+        && let Some(above) = folder.strip_suffix("/tests")
+    {
+        return is_nothing_but_tests(&format!("{above}/tests.rs"));
+    }
     if !path.ends_with("/tests.rs") {
         return false;
     }

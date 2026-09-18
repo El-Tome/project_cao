@@ -8,7 +8,7 @@ use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::{
     AxisStyle, BackgroundShape, GridPlane, GridStyle, SceneFrame, ViewportRect, cube, push_axes,
-    push_grid, push_plane_outline, push_plane_quad, srgb,
+    push_grid, push_plane_axes, push_plane_outline, push_plane_quad, srgb,
 };
 use cao_sketch::{
     ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
@@ -64,6 +64,15 @@ fn to_screen(point: DVec3, view_projection: glam::Mat4, rect: egui::Rect) -> Opt
     ))
 }
 
+fn axis_style(theme: &Theme) -> AxisStyle {
+    AxisStyle {
+        x: tint(theme.axis_x),
+        y: tint(theme.axis_y),
+        z: tint(theme.axis_z),
+        width: theme.axis_width,
+    }
+}
+
 pub(crate) fn build_frame(
     state: &ViewportState,
     rect: egui::Rect,
@@ -109,6 +118,14 @@ pub(crate) fn build_frame(
                 ..GridStyle::default()
             },
         );
+        push_plane_axes(
+            &mut world_lines,
+            plane.origin.as_vec3(),
+            plane.u.as_vec3(),
+            plane.v.as_vec3(),
+            camera.distance() * 50.0,
+            &axis_style(theme),
+        );
     }
 
     let facing = match state.mode {
@@ -118,12 +135,7 @@ pub(crate) fn build_frame(
     push_axes(
         &mut world_lines,
         camera.distance() * 50.0,
-        &AxisStyle {
-            x: tint(theme.axis_x),
-            y: tint(theme.axis_y),
-            z: tint(theme.axis_z),
-            width: theme.axis_width,
-        },
+        &axis_style(theme),
         facing,
     );
 

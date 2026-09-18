@@ -1,3 +1,17 @@
+//! Where a sketch is drawn, and which way round it reads.
+//!
+//! Closes #358.
+//! - a sketch on a face has its origin on a corner of it, the face spanning no
+//!   negative size — `a_face_is_read_from_a_corner_and_spans_no_negative_size`
+//! - the face reads the way up it was being looked at —
+//!   `a_face_reads_the_way_up_it_is_looked_at`
+//! - a sketch on one of the three base planes is unchanged —
+//!   `the_planes_of_the_origin_come_back_as_they_are`
+//! - the drawing's own axes are drawn at that origin — no test: emitted by
+//!   `push_plane_axes` in `cao_render`, which holds the assertion for it
+//! - a sketch reopened finds the axes it was created with — no test: the plane
+//!   is stored on `CreateSketch` and read back, and nothing derives it again
+
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
@@ -67,6 +81,25 @@ impl WorkPlane {
         Self { origin, u, v }
     }
 
+    /// The plane a face of the part offers a sketch: its origin on the corner
+    /// the face is read from, and its axes squared with the screen.
+    ///
+    /// `up` is which way is up on screen once the view has swung round to face
+    /// the plane. `v` follows it and `u` runs to the right, so the face lands
+    /// the way up it was just being looked at, and the corner chosen is the
+    /// one that leaves the rest of the face up and to the right of it.
+    pub fn from_face(corners: &[DVec3], normal: DVec3, up: DVec3) -> Self {
+        let normal = normal.normalize_or(DVec3::Z);
+        let seed = Self::from_normal(DVec3::ZERO, normal);
+        let v = (up - normal * up.dot(normal)).normalize_or(seed.v);
+        let u = v.cross(normal);
+        Self {
+            origin: read_from(corners, u, v).unwrap_or(DVec3::ZERO),
+            u,
+            v,
+        }
+    }
+
     pub fn normal(&self) -> DVec3 {
         self.u.cross(self.v).normalize_or(DVec3::Z)
     }
@@ -132,11 +165,112 @@ impl WorkPlane {
     }
 }
 
+/// The corner a face is read from: the one nearest the bottom-left of what the
+/// face spans, so every size taken from it comes out positive.
+///
+/// The bottom-left of the span is a point of no face in general — an L-shaped
+/// face has nothing there — so the nearest real corner is what answers, and
+/// that is the one the user can put a finger on.
+fn read_from(corners: &[DVec3], u: DVec3, v: DVec3) -> Option<DVec3> {
+    let least = |axis: DVec3| {
+        corners
+            .iter()
+            .map(|corner| corner.dot(axis))
+            .fold(f64::INFINITY, f64::min)
+    };
+    let (least_u, least_v) = (least(u), least(v));
+    corners.iter().copied().min_by(|left, right| {
+        let reach = |corner: &DVec3| (corner.dot(u) - least_u).hypot(corner.dot(v) - least_v);
+        reach(left).total_cmp(&reach(right))
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     const TOLERANCE: f64 = 1e-9;
+
+    /// The three planes of the origin are the case everything else is judged
+    /// against: their own corners and their own screen up have to give them
+    /// back exactly as they are written.
+    #[test]
+    fn the_planes_of_the_origin_come_back_as_they_are() {
+        for (plane, up) in [
+            (WorkPlane::XY, DVec3::Y),
+            (WorkPlane::XZ, DVec3::Z),
+            (WorkPlane::YZ, DVec3::Z),
+        ] {
+            let corners: Vec<DVec3> = [(0.0, 0.0), (50.0, 0.0), (50.0, 30.0), (0.0, 30.0)]
+                .into_iter()
+                .map(|(x, y)| plane.to_world(DVec2::new(x, y)))
+                .collect();
+            let read = WorkPlane::from_face(&corners, plane.normal(), up);
+
+            assert!((read.u - plane.u).length() < TOLERANCE, "{read:?}");
+            assert!((read.v - plane.v).length() < TOLERANCE, "{read:?}");
+            assert!(
+                (read.origin - plane.origin).length() < TOLERANCE,
+                "{read:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_face_is_read_from_a_corner_and_spans_no_negative_size() {
+        let height = 40.0;
+        let corners: Vec<DVec3> = [(10.0, 20.0), (70.0, 20.0), (70.0, 55.0), (10.0, 55.0)]
+            .into_iter()
+            .map(|(x, y)| DVec3::new(x, y, height))
+            .collect();
+
+        let plane = WorkPlane::from_face(&corners, DVec3::Z, DVec3::Y);
+
+        assert!(
+            corners.contains(&plane.origin),
+            "the origin has to be a corner of the face, not {:?}",
+            plane.origin,
+        );
+        for corner in &corners {
+            let local = plane.to_local(*corner);
+            assert!(
+                local.x >= -TOLERANCE && local.y >= -TOLERANCE,
+                "{corner:?} sits at {local:?}, behind the corner the face is read from",
+            );
+        }
+    }
+
+    #[test]
+    fn a_face_reads_the_way_up_it_is_looked_at() {
+        let corners = [
+            DVec3::new(0.0, 0.0, 5.0),
+            DVec3::new(60.0, 0.0, 5.0),
+            DVec3::new(60.0, 60.0, 5.0),
+            DVec3::new(0.0, 60.0, 5.0),
+        ];
+
+        let upright = WorkPlane::from_face(&corners, DVec3::Z, DVec3::Y);
+        let turned = WorkPlane::from_face(&corners, DVec3::Z, DVec3::X);
+
+        assert!((upright.v - DVec3::Y).length() < TOLERANCE);
+        assert!((turned.v - DVec3::X).length() < TOLERANCE);
+        assert!(
+            (turned.origin - DVec3::new(0.0, 60.0, 5.0)).length() < TOLERANCE,
+            "turning the view a quarter turn moves the corner it is read from",
+        );
+    }
+
+    /// Looking along the normal leaves nothing of the screen up to square the
+    /// axes with, and a face still has to come back with a usable plane.
+    #[test]
+    fn a_face_looked_at_along_its_own_normal_still_gets_its_axes() {
+        let corners = [DVec3::ZERO, DVec3::X * 10.0, DVec3::new(10.0, 10.0, 0.0)];
+
+        let plane = WorkPlane::from_face(&corners, DVec3::Z, DVec3::Z);
+
+        assert!((plane.normal() - DVec3::Z).length() < 1e-9);
+        assert!(plane.u.dot(plane.v).abs() < TOLERANCE);
+    }
 
     #[test]
     fn local_and_world_coordinates_round_trip() {

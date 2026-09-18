@@ -18,6 +18,7 @@ fn an_extrusion_of_a_d_shape_gives_a_round_edge_to_the_solid() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     let radius = 5.0;
     let (top, bottom) = (DVec2::new(0.0, radius), DVec2::new(0.0, -radius));

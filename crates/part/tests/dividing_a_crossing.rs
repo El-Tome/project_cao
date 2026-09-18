@@ -14,6 +14,7 @@ fn drawing_two_traits_crossing() -> Vec<Operation> {
     vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddSegment {
             sketch: 0,
@@ -147,6 +148,7 @@ fn drawing_a_trait_across_an_arc() -> Vec<Operation> {
     vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddArc {
             sketch: 0,

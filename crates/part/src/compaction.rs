@@ -32,9 +32,12 @@ pub fn compact(history: &History) -> History {
 
     for operation in operations {
         match operation {
-            Operation::CreateSketch { plane } => {
+            Operation::CreateSketch { plane, on } => {
                 record(
-                    Operation::CreateSketch { plane: *plane },
+                    Operation::CreateSketch {
+                        plane: *plane,
+                        on: *on,
+                    },
                     &mut new_history,
                     &mut new_state,
                 );

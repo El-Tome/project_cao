@@ -76,7 +76,11 @@ fn made_of_matter(ui: &mut egui::Ui, body: &Body) {
 
 /// Draws one sketch, and says whether it was asked to be reopened.
 fn drawn(ui: &mut egui::Ui, drawing: &Drawn, lang: &Catalogue) -> bool {
-    let header = egui::CollapsingHeader::new(&drawing.name)
+    let heading = match drawing.adrift {
+        true => lang.t_with("part_tree.adrift", &[("name", &drawing.name)]),
+        false => drawing.name.clone(),
+    };
+    let header = egui::CollapsingHeader::new(heading)
         .id_salt(("sketch", drawing.step))
         .default_open(false)
         .show(ui, |ui| {

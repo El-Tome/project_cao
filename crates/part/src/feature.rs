@@ -59,6 +59,7 @@ mod tests {
     fn sketch() -> Operation {
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         }
     }
 

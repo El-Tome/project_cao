@@ -21,6 +21,7 @@ fn a_curve_measured_twice() -> PartState {
     let mut state = PartState::default();
     state.apply(&Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     state.apply(&Operation::AddArc {
         sketch: 0,

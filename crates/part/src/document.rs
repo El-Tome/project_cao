@@ -112,6 +112,12 @@ impl PartDocument {
         &self.state.body
     }
 
+    /// Whether a drawing has lost the face it was laid on, and is sitting on
+    /// the plane it last had rather than on anything the part still holds.
+    pub fn is_adrift(&self, sketch: usize) -> bool {
+        self.state.adrift.contains(&sketch)
+    }
+
     pub fn scale(&self) -> f64 {
         self.state.scale()
     }

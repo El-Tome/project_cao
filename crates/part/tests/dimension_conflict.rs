@@ -10,6 +10,7 @@ fn a_radius_a_fixed_chord_rules_out_is_refused_rather_than_bent_to_fit() {
     let mut state = PartState::default();
     state.apply(&Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     state.apply(&Operation::AddArc {
         sketch: 0,

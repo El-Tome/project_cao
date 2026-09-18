@@ -11,6 +11,7 @@ fn chain_history() -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,
@@ -155,6 +156,7 @@ fn trimming_a_trait_in_the_history_leaves_its_two_ends() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,

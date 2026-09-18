@@ -12,6 +12,7 @@ fn two_traits() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddSegment {
         sketch: 0,

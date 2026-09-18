@@ -5,7 +5,7 @@ use cao_sketch::{
     ArcId, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats, SegmentId,
     SketchAxis, WorkPlane,
 };
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
 /// Which point an operation refers to.
@@ -39,12 +39,33 @@ pub enum RevolutionAxis {
     Segment(SegmentId),
 }
 
+/// The face of the part a drawing was laid on.
+///
+/// The face number comes out of the replay, which hands the same numbers to
+/// the same part however its sizes change — so a drawing finds its face again
+/// after the part has grown.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct FaceAnchor {
+    pub face: usize,
+    /// Which way was up on screen when the drawing was started. Kept rather
+    /// than worked out again, so that a drawing reopened months later finds
+    /// the axes it was drawn with.
+    pub up: DVec3,
+}
+
 /// One step of the part's history. Replaying the list from the start rebuilds
 /// the whole part, which is what makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
     CreateSketch {
+        /// Where the drawing was laid. On a face it is worked out again at
+        /// every replay from `on`, and this is what is left to fall back on
+        /// when the face is gone.
         plane: WorkPlane,
+        /// The face of the part it was started on, when it was started on one.
+        /// A drawing laid on a face travels with it; one laid on a plane of
+        /// the origin is held by nothing and never moves.
+        on: Option<FaceAnchor>,
     },
     AddPoint {
         sketch: usize,

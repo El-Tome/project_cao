@@ -1,6 +1,6 @@
 //! Which plane a click lands on, before there is any sketch to draw in.
 
-use cao_part::history::Operation;
+use cao_part::history::{FaceAnchor, Operation};
 use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
 use cao_solid::Mesh;
@@ -36,7 +36,19 @@ pub(super) fn choose_a_plane(
     let Some(plane) = choice.plane() else {
         return false;
     };
-    context.document.apply(Operation::CreateSketch { plane });
+    // A drawing laid on a face travels with it: the design records which face,
+    // and the replay works the plane out again from the part as it then
+    // stands. One laid on a plane of the origin is held by nothing.
+    let on = match choice {
+        PlaneChoice::Face { face, .. } => Some(FaceAnchor {
+            face,
+            up: once_facing(state, plane.normal()),
+        }),
+        _ => None,
+    };
+    context
+        .document
+        .apply(Operation::CreateSketch { plane, on });
     let sketch = context.document.sketches().len() - 1;
     context.editor.begin_editing(sketch, plane);
     // A fresh sketch has nothing to frame yet, so we show a patch of plane big

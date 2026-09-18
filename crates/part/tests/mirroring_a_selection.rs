@@ -22,6 +22,7 @@ fn a_trait_east_of_the_axis() -> Vec<Operation> {
     vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddSegment {
             sketch: 0,
@@ -91,6 +92,7 @@ fn an_arc_a_dragged_box_took_hold_of_is_mirrored_as_an_arc() {
     let mut state = replay(&[
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddArc {
             sketch: 0,

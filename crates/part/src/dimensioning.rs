@@ -158,6 +158,7 @@ mod tests {
         let mut state = PartState::default();
         state.apply(&Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         state.apply(&Operation::AddCircle {
             sketch: 0,
@@ -189,6 +190,7 @@ mod tests {
         let mut state = PartState::default();
         state.apply(&Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         state.apply(&Operation::AddSegment {
             sketch: 0,
@@ -230,6 +232,7 @@ mod tests {
         let mut state = PartState::default();
         state.apply(&Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         state.apply(&Operation::AddRectangle {
             sketch: 0,
@@ -337,6 +340,7 @@ mod tests {
         let mut state = PartState::default();
         state.apply(&Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         // Hung off the sketch origin, so only the far point can still move.
         state.apply(&Operation::AddSegment {

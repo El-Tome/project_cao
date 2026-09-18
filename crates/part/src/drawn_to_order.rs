@@ -68,6 +68,7 @@ impl Recipe {
             let middle = DVec2::new(ring as f64 * APART, 0.0);
             document.apply(Operation::CreateSketch {
                 plane: WorkPlane::XY,
+                on: None,
             });
             self.draw(&mut document, ring, middle, REACH);
             document.apply(Operation::Extrude {
@@ -87,6 +88,7 @@ impl Recipe {
             let height = document.body().bounds().map_or(0.0, |(_, top)| top.z);
             document.apply(Operation::CreateSketch {
                 plane: WorkPlane::from_normal(DVec3::new(0.0, 0.0, height), DVec3::Z),
+                on: None,
             });
             let middle = document.sketches()[sketch]
                 .plane

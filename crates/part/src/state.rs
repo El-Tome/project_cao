@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use cao_sketch::{Chamfer, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
@@ -18,6 +20,11 @@ pub struct PartState {
     /// dimension is typed.
     pub millimeters_per_unit: Option<f64>,
     pub sketches: Vec<Sketch>,
+    /// The drawings whose face the part no longer has. They keep the plane
+    /// they last had, and the interface says so rather than letting them
+    /// quietly catch another face.
+    #[serde(default)]
+    pub adrift: BTreeSet<usize>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
@@ -45,12 +52,29 @@ impl PartState {
         units * self.scale()
     }
 
+    /// One of the five ways a curve is replaced by other curves: trimmed,
+    /// trimmed as an arc, split at a crossing, chamfered or rounded. They
+    /// differ only in which cut is made, and each answers with how many rules
+    /// and how many values the cut took away with it.
+    fn cutting(
+        &mut self,
+        sketch: usize,
+        cut: impl FnOnce(&mut Sketch, f64) -> Option<(usize, usize)>,
+    ) -> Option<Outcome> {
+        let scale = self.scale();
+        let drawing = self.sketches.get_mut(sketch)?;
+        let (rules, values) = cut(drawing, scale)?;
+        drawing.resolve(scale);
+        Some(Outcome::Cut { rules, values })
+    }
+
     /// Runs one operation. This is the only place geometry is produced, so a
     /// replay and a live edit can never disagree.
     pub fn apply(&mut self, operation: &Operation) -> Option<Outcome> {
         match operation {
-            Operation::CreateSketch { plane } => {
-                self.sketches.push(Sketch::new(*plane));
+            Operation::CreateSketch { plane, on } => {
+                let plane = self.plane_for(*plane, on);
+                self.sketches.push(Sketch::new(plane));
                 None
             }
             Operation::AddPoint { sketch, position } => {
@@ -272,76 +296,46 @@ impl PartState {
                 segment,
                 from,
                 to,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let trimmed = sketch.trim(*segment, *from, *to)?;
-                sketch.resolve(scale);
-                Some(Outcome::Cut {
-                    rules: trimmed.rules_dropped,
-                    values: trimmed.values_dropped,
-                })
-            }
+            } => self.cutting(*sketch, |drawing, _| {
+                let trimmed = drawing.trim(*segment, *from, *to)?;
+                Some((trimmed.rules_dropped, trimmed.values_dropped))
+            }),
             Operation::TrimArc {
                 sketch,
                 arc,
                 from,
                 to,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let trimmed = sketch.trim_arc(*arc, *from, *to)?;
-                sketch.resolve(scale);
-                Some(Outcome::Cut {
-                    rules: trimmed.rules_dropped,
-                    values: trimmed.values_dropped,
-                })
-            }
+            } => self.cutting(*sketch, |drawing, _| {
+                let trimmed = drawing.trim_arc(*arc, *from, *to)?;
+                Some((trimmed.rules_dropped, trimmed.values_dropped))
+            }),
             Operation::Split {
                 sketch,
                 segments,
                 arcs,
                 at,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let split = sketch.split(segments, arcs, *at)?;
-                sketch.resolve(scale);
-                Some(Outcome::Cut {
-                    rules: split.rules_dropped,
-                    values: split.values_dropped,
-                })
-            }
+            } => self.cutting(*sketch, |drawing, _| {
+                let split = drawing.split(segments, arcs, *at)?;
+                Some((split.rules_dropped, split.values_dropped))
+            }),
             Operation::Chamfer {
                 sketch,
                 first,
                 second,
                 mode,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let chamfered = sketch.chamfer(*first, *second, in_units(*mode, scale))?;
-                sketch.resolve(scale);
-                Some(Outcome::Cut {
-                    rules: chamfered.rules_dropped,
-                    values: chamfered.values_dropped,
-                })
-            }
+            } => self.cutting(*sketch, |drawing, scale| {
+                let chamfered = drawing.chamfer(*first, *second, in_units(*mode, scale))?;
+                Some((chamfered.rules_dropped, chamfered.values_dropped))
+            }),
             Operation::Fillet {
                 sketch,
                 first,
                 second,
                 radius,
-            } => {
-                let scale = self.scale();
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let rounded = sketch.fillet(*first, *second, radius / scale)?;
-                sketch.resolve(scale);
-                Some(Outcome::Cut {
-                    rules: rounded.rules_dropped,
-                    values: rounded.values_dropped,
-                })
-            }
+            } => self.cutting(*sketch, |drawing, scale| {
+                let rounded = drawing.fillet(*first, *second, radius / scale)?;
+                Some((rounded.rules_dropped, rounded.values_dropped))
+            }),
             Operation::Mirror {
                 sketch,
                 elements,

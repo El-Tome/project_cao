@@ -73,6 +73,7 @@
   "part_tree.extrusion": "Extrusion {rank}",
   "part_tree.revolution": "Révolution {rank}",
   "part_tree.sketch": "Esquisse {rank}",
+  "part_tree.adrift": "{name} — face perdue",
   "part_tree.area": "Aire {rank}",
   "part_tree.segment": "Trait {rank}",
   "part_tree.circle": "Cercle {rank}",

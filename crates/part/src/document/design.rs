@@ -28,7 +28,9 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::errors::PartFileError;
-use crate::history::{ExtrusionMode, History, Index, Operation, RevolutionAxis, Step, StepKind};
+use crate::history::{
+    ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, Step, StepKind,
+};
 
 pub(super) const INDEX_ENTRY: &str = "design/history.json";
 
@@ -38,6 +40,8 @@ pub(super) const INDEX_ENTRY: &str = "design/history.json";
 enum Stands {
     Sketch {
         plane: WorkPlane,
+        #[serde(default)]
+        on: Option<FaceAnchor>,
     },
     Extrusion {
         sketch: usize,
@@ -215,7 +219,13 @@ fn kind_of(stands_on: &Stands) -> StepKind {
 /// folder keeps.
 fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFileError> {
     Ok(match opening {
-        Operation::CreateSketch { plane } => (Stands::Sketch { plane: *plane }, None),
+        Operation::CreateSketch { plane, on } => (
+            Stands::Sketch {
+                plane: *plane,
+                on: *on,
+            },
+            None,
+        ),
         Operation::Extrude {
             sketch,
             picks,
@@ -255,7 +265,7 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
 /// The same operation, back in one piece.
 fn put_together(stands_on: Stands, opening: Option<Opening>) -> Result<Operation, PartFileError> {
     Ok(match (stands_on, opening) {
-        (Stands::Sketch { plane }, None) => Operation::CreateSketch { plane },
+        (Stands::Sketch { plane, on }, None) => Operation::CreateSketch { plane, on },
         (Stands::Extrusion { sketch, picks }, Some(Opening::Extrusion { distance, mode })) => {
             Operation::Extrude {
                 sketch,

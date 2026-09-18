@@ -1,8 +1,9 @@
 //! What adding and taking away matter leaves behind.
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
-use crate::mesh::tests::{box_of, volume};
+use crate::mesh::Mesh;
+use crate::mesh::tests::{box_of, fan, volume};
 use crate::sweep::Loop;
 
 #[test]
@@ -108,4 +109,74 @@ fn cutting_everything_away_leaves_nothing() {
     let tool = box_of(30.0, 30.0, DVec3::new(-10.0, -10.0, -10.0));
     let left = volume(&block.difference(&tool));
     assert!(left.abs() < 1.0, "{left}");
+}
+
+fn faces_facing_up(solid: &Mesh, height: f64) -> usize {
+    let mut faces: Vec<usize> = solid
+        .polygons
+        .iter()
+        .filter(|polygon| {
+            polygon.normal().dot(DVec3::Z) > 0.99
+                && polygon
+                    .corners
+                    .iter()
+                    .all(|corner| (corner.z - height).abs() < 1e-6)
+        })
+        .map(|polygon| polygon.face)
+        .collect();
+    faces.sort_unstable();
+    faces.dedup();
+    faces.len()
+}
+
+/// Two bosses of the same height are two faces: a sketch started on one of
+/// them has no business being measured from the other.
+#[test]
+fn two_tops_at_the_same_height_that_never_meet_are_two_faces() {
+    let left = box_of(10.0, 4.0, DVec3::ZERO);
+    let right = box_of(10.0, 4.0, DVec3::X * 40.0);
+
+    let both = left.union(&right);
+
+    assert_eq!(faces_facing_up(&both, 4.0), 2);
+}
+
+/// A face a cut runs across is still one stretch of surface. Cutting a notch
+/// into the side of a block leaves its top whole.
+#[test]
+fn a_cut_across_a_face_leaves_it_one_face() {
+    let block = box_of(20.0, 10.0, DVec3::ZERO);
+    let notch = box_of(4.0, 4.0, DVec3::new(-2.0, 3.0, -2.0));
+
+    let cut = block.difference(&notch);
+
+    assert_eq!(faces_facing_up(&cut, 10.0), 1);
+}
+
+fn slab(min: DVec3, max: DVec3) -> Mesh {
+    let outline = vec![
+        DVec2::new(min.x, min.y),
+        DVec2::new(max.x, min.y),
+        DVec2::new(max.x, max.y),
+        DVec2::new(min.x, max.y),
+    ];
+    crate::sweep::prism(
+        Loop::straight(&outline),
+        &[],
+        &fan(&outline),
+        |point| DVec3::new(point.x, point.y, min.z),
+        DVec3::Z * (max.z - min.z),
+    )
+}
+
+/// A trench cut right across leaves two tops that no longer touch, and they
+/// have to answer as two faces though they came from one.
+#[test]
+fn a_cut_that_leaves_two_pieces_of_one_face_makes_two() {
+    let block = box_of(20.0, 10.0, DVec3::ZERO);
+    let trench = slab(DVec3::new(-5.0, 8.0, 8.0), DVec3::new(25.0, 12.0, 14.0));
+
+    let cut = block.difference(&trench);
+
+    assert_eq!(faces_facing_up(&cut, 10.0), 2);
 }

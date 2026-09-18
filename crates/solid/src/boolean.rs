@@ -22,6 +22,7 @@ impl Mesh {
             return self.clone();
         }
 
+        let other = other.faces_above(self.faces_end());
         let mut a = Tree::of(&self.polygons);
         let mut b = Tree::of(&other.polygons);
         a.clip_to(&b);
@@ -35,7 +36,9 @@ impl Mesh {
 
         let mut polygons = a.polygons();
         polygons.extend(b.polygons());
-        Mesh { polygons }
+        let mut result = Mesh { polygons };
+        result.separate_faces_that_no_longer_touch();
+        result
     }
 
     /// Everything that is in this solid and not in the other.
@@ -44,6 +47,7 @@ impl Mesh {
             return self.clone();
         }
 
+        let other = other.faces_above(self.faces_end());
         let mut a = Tree::of(&self.polygons);
         let mut b = Tree::of(&other.polygons);
         // Taking matter away is adding the *inside* of the tool: turn this
@@ -61,6 +65,7 @@ impl Mesh {
         for polygon in &mut result.polygons {
             *polygon = polygon.flipped();
         }
+        result.separate_faces_that_no_longer_touch();
         result
     }
 }
@@ -153,8 +158,12 @@ impl Plane {
                         behind.push(crossing);
                     }
                 }
-                out.front.extend(Polygon::new(in_front));
-                out.back.extend(Polygon::new(behind));
+                // Both halves are still the same stretch of surface: a face
+                // cut by a plane is one face, not two.
+                out.front
+                    .extend(Polygon::new(in_front).map(|half| half.on_face(polygon.face)));
+                out.back
+                    .extend(Polygon::new(behind).map(|half| half.on_face(polygon.face)));
             }
         }
     }

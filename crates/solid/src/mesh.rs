@@ -142,6 +142,79 @@ impl Mesh {
         nearest
     }
 
+    /// The number no face of this solid answers to, so that another solid's
+    /// faces can be moved above it and the two never collide.
+    pub(crate) fn faces_end(&self) -> usize {
+        self.polygons
+            .iter()
+            .map(|polygon| polygon.face + 1)
+            .max()
+            .unwrap_or(0)
+    }
+
+    /// The same solid with every face number raised past `floor`.
+    pub(crate) fn faces_above(&self, floor: usize) -> Mesh {
+        Mesh {
+            polygons: self
+                .polygons
+                .iter()
+                .map(|polygon| polygon.clone().on_face(polygon.face + floor))
+                .collect(),
+        }
+    }
+
+    /// Gives a fresh number to each piece of a face left in pieces that no
+    /// longer touch.
+    ///
+    /// Cutting matter away can leave the top of a block as two rectangles with
+    /// a trench between them. They came from one face and carry its number,
+    /// but they are two stretches of surface, and a sketch started on one has
+    /// no business being measured from the other.
+    pub(crate) fn separate_faces_that_no_longer_touch(&mut self) {
+        let mut next = self.faces_end();
+        let faces: Vec<usize> = {
+            let mut seen: Vec<usize> = self.polygons.iter().map(|p| p.face).collect();
+            seen.sort_unstable();
+            seen.dedup();
+            seen
+        };
+
+        for face in faces {
+            let pieces: Vec<usize> = (0..self.polygons.len())
+                .filter(|index| self.polygons[*index].face == face)
+                .collect();
+            let mut group: Vec<usize> = (0..pieces.len()).collect();
+            for (a, left) in pieces.iter().enumerate() {
+                for (b, right) in pieces.iter().enumerate().skip(a + 1) {
+                    if share_an_edge(&self.polygons[*left], &self.polygons[*right]) {
+                        let (keep, drop) = (group[a].min(group[b]), group[a].max(group[b]));
+                        for held in group.iter_mut() {
+                            if *held == drop {
+                                *held = keep;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let mut renamed: Vec<(usize, usize)> = Vec::new();
+            for (index, piece) in pieces.iter().enumerate() {
+                if group[index] == group[0] {
+                    continue;
+                }
+                let moved = match renamed.iter().find(|(from, _)| *from == group[index]) {
+                    Some((_, to)) => *to,
+                    None => {
+                        next += 1;
+                        renamed.push((group[index], next - 1));
+                        next - 1
+                    }
+                };
+                self.polygons[*piece].face = moved;
+            }
+        }
+    }
+
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let first = *self.polygons.first()?.corners.first()?;
         Some(
@@ -153,6 +226,27 @@ impl Mesh {
                 }),
         )
     }
+}
+
+/// How close two corners have to be to be the same corner. Cuts land the two
+/// halves of a crossing on the very same arithmetic, so this only has to cover
+/// the noise of a coordinate written twice.
+const SAME_CORNER: f64 = 1e-6;
+
+/// Whether two pieces run along the same stretch of edge, which is what makes
+/// them one surface rather than two lying side by side.
+fn share_an_edge(left: &Polygon, right: &Polygon) -> bool {
+    let touching = left
+        .corners
+        .iter()
+        .filter(|corner| {
+            right
+                .corners
+                .iter()
+                .any(|other| corner.distance(*other) < SAME_CORNER)
+        })
+        .count();
+    touching >= 2
 }
 
 /// A face of the part, and how far along the ray it was met.

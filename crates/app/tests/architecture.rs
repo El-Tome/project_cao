@@ -106,6 +106,37 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 7] = [
     ("crates/sketch/src/solver.rs", 1199),
 ];
 
+/// Sweeps of the whole drawing, each with the test that walks the exhaustive
+/// fixture rather than a list somebody typed. The list may only grow.
+///
+/// `duplicate` — which the mirror and both patterns go through, so it is one
+/// sweep and not three — and `erase` already `match` on `Element` with no
+/// wildcard, and the compiler has been holding them all along. They carry the
+/// test all the same: a sweep held by a match today is a sweep somebody
+/// rewrites as a chain of `if let` tomorrow, which is what `pick` is.
+///
+/// Owed: the `.caopart` round trip. The fixture is `#[cfg(test)]` inside
+/// `cao_sketch`, so `cao_part` cannot see it without a `test-support` feature,
+/// and #327 is building that machinery there.
+const OPERATIONS_THAT_SWEEP_THE_WHOLE_DRAWING: [(&str, &str); 4] = [
+    (
+        "crates/sketch/src/banding.rs",
+        "a_box_over_the_whole_drawing_catches_one_of_every_kind",
+    ),
+    (
+        "crates/sketch/src/duplicating.rs",
+        "a_copy_answers_for_one_of_every_kind",
+    ),
+    (
+        "crates/sketch/src/element.rs",
+        "erasing_answers_for_one_of_every_kind",
+    ),
+    (
+        "crates/sketch/src/picking.rs",
+        "a_click_on_the_drawing_finds_one_of_every_kind",
+    ),
+];
+
 const SPOKEN_TO_A_DEVELOPER: [&str; 8] = [
     "#[error(",
     ".expect(",
@@ -603,6 +634,27 @@ fn the_places_with_no_net_are_the_ones_already_named() {
         "{paid:?} carry a test now, and docs/code-map.md says so. Drop them from \
          PLACES_ALLOWED_TO_HAVE_NO_NET.",
     );
+}
+
+#[test]
+fn a_sweep_of_the_drawing_answers_for_one_of_every_kind() {
+    for (path, test) in OPERATIONS_THAT_SWEEP_THE_WHOLE_DRAWING {
+        let source = fs::read_to_string(workspace_root().join(path))
+            .unwrap_or_else(|_| panic!("a readable {path}"));
+
+        assert!(
+            source.contains(&format!("fn {test}(")),
+            "{path} is said to sweep the whole drawing, and defines no {test}. \
+             Either the test was renamed and this line follows it, or the sweep \
+             lost the one thing that kept it honest.",
+        );
+        assert!(
+            source.contains("one_of_every_kind"),
+            "{path}'s {test} does not walk one_of_every_kind, so it enumerates the \
+             kinds somebody remembered. That is #317, and it is why the fixture \
+             makes the compiler keep the list instead.",
+        );
+    }
 }
 
 #[test]

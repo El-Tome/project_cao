@@ -3,8 +3,15 @@
 //! one — carried through to an extrusion.
 
 use cao_part::{ExtrusionMode, History, Operation, PartState, PointRef};
-use cao_sketch::WorkPlane;
+use cao_sketch::{Area, WorkPlane};
 use glam::DVec2;
+
+/// The areas these places fall in, as the drawing stands — what the
+/// interface works out at the moment of the click, for a test that has no
+/// interface to click in.
+fn clicked(history: &History, sketch: usize, place: DVec2) -> Vec<Area> {
+    PartState::rebuild(history).areas_at(sketch, &[place])
+}
 
 fn volume(mesh: &cao_solid::Mesh) -> f64 {
     mesh.triangles()
@@ -47,7 +54,7 @@ fn an_extrusion_of_a_d_shape_gives_a_round_edge_to_the_solid() {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(2.0, 0.0)]),
+        areas: clicked(&history, 0, DVec2::new(2.0, 0.0)),
         distance: 3.0,
         mode: ExtrusionMode::Add,
     });

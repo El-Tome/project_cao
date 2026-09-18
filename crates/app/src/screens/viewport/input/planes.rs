@@ -1,6 +1,7 @@
 //! Which plane a click lands on, before there is any sketch to draw in.
 
 use cao_part::history::Operation;
+use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
 use cao_solid::Mesh;
 use glam::{DVec2, DVec3};
@@ -63,7 +64,10 @@ fn plane_under(
     origin: DVec3,
     direction: DVec3,
 ) -> Option<PlaneChoice> {
-    if let Some(choice) = what_the_part_offers(context.document.body(), origin, direction) {
+    let offered = what_the_part_offers(context.document.body(), origin, direction, |normal| {
+        once_facing(state, normal)
+    });
+    if let Some(choice) = offered {
         return Some(choice);
     }
 
@@ -86,18 +90,42 @@ fn plane_under(
 /// so a cylinder's wall answers once and answers no — rather than handing back
 /// a plane tangent to whichever facet the ray happened to meet, at an angle
 /// that depends on how finely the wall was cut.
-fn what_the_part_offers(body: &Mesh, origin: DVec3, direction: DVec3) -> Option<PlaneChoice> {
+///
+/// `screen_up` says which way is up on screen once the view has swung round to
+/// face a normal, which is what decides how the face will read.
+fn what_the_part_offers(
+    body: &Mesh,
+    origin: DVec3,
+    direction: DVec3,
+    screen_up: impl Fn(DVec3) -> DVec3,
+) -> Option<PlaneChoice> {
     let hit = body.ray_hit(origin, direction)?;
     let face = hit.polygon.face;
     if !body.is_flat(face) {
         return Some(PlaneChoice::Curved(face));
     }
-    // The sketch's own origin lands where the world origin projects onto the
-    // face, so that a drawing on a face is still measured from somewhere the
-    // user can point at.
+    // The corners of the whole face, not of the piece the ray met: a flat face
+    // is stored as several polygons, and the corner a drawing is read from has
+    // to be one of the face's own.
+    let corners: Vec<DVec3> = body
+        .pieces_of(face)
+        .flat_map(|piece| piece.corners.iter().copied())
+        .collect();
     let normal = hit.polygon.normal();
-    let plane = WorkPlane::from_normal(normal * hit.polygon.plane_offset(), normal);
+    let plane = WorkPlane::from_face(&corners, normal, screen_up(normal));
     Some(PlaneChoice::Face { plane, face })
+}
+
+/// Which way is up on screen once the view has swung round to face `normal`.
+///
+/// The swing is what decides how the face will read, and it is settled by the
+/// normal alone — so the answer is the camera the view is heading for, not the
+/// oblique one the click came from.
+fn once_facing(state: &ViewportState, normal: DVec3) -> DVec3 {
+    let mut facing = state.camera;
+    let (yaw, pitch) = view_angles_towards(normal.as_vec3());
+    facing.set_view_angles(yaw, pitch);
+    facing.up().as_dvec3()
 }
 
 /// Where a ray crosses a plane patch, in plane coordinates, if it lands inside

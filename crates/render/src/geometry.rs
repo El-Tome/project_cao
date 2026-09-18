@@ -1,3 +1,9 @@
+//! Vertices for everything in the scene that is not the part itself.
+//!
+//! Closes #358.
+//! - the drawing's own axes are drawn at the origin its plane was given —
+//!   `the_axes_of_a_plane_cross_at_its_origin`
+
 use bytemuck::{Pod, Zeroable};
 use glam::Vec3;
 
@@ -220,6 +226,35 @@ pub fn push_axes(out: &mut Vec<Vertex>, half_length: f32, style: &AxisStyle, fac
     }
 }
 
+/// The two axes a drawing is measured from, through the origin its own plane
+/// was given.
+///
+/// [`push_axes`] draws the world's three through the world origin. On a face
+/// of the part a sketch is counted from a corner instead, where those no
+/// longer cross — and a drawing with nothing at its origin has nothing to read
+/// its sizes against.
+pub fn push_plane_axes(
+    out: &mut Vec<Vertex>,
+    origin: Vec3,
+    u: Vec3,
+    v: Vec3,
+    half_length: f32,
+    style: &AxisStyle,
+) {
+    for (axis, color) in [(u, style.x), (v, style.y)] {
+        out.push(Vertex::line(
+            origin - axis * half_length,
+            color,
+            style.width,
+        ));
+        out.push(Vertex::line(
+            origin + axis * half_length,
+            color,
+            style.width,
+        ));
+    }
+}
+
 /// A square patch of a plane, centred on `center`, as two triangles. Used to
 /// show the work planes a sketch can start on.
 pub fn push_plane_quad(
@@ -262,5 +297,35 @@ pub fn push_plane_outline(
     for index in 0..4 {
         out.push(Vertex::line(corners[index], color, width));
         out.push(Vertex::line(corners[(index + 1) % 4], color, width));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_axes_of_a_plane_cross_at_its_origin() {
+        let origin = Vec3::new(3.0, -7.0, 12.0);
+        let mut vertices = Vec::new();
+
+        push_plane_axes(
+            &mut vertices,
+            origin,
+            Vec3::X,
+            Vec3::Y,
+            100.0,
+            &AxisStyle::default(),
+        );
+
+        let segments = vertices.as_chunks::<2>().0;
+        assert_eq!(segments.len(), 2);
+        for segment in segments {
+            let [start, end] = segment.map(|vertex| Vec3::from_array(vertex.position));
+            assert!(
+                ((start + end) * 0.5 - origin).length() < 1e-4,
+                "an axis runs from {start:?} to {end:?}, not through {origin:?}",
+            );
+        }
     }
 }

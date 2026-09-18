@@ -144,5 +144,5 @@ fn a_circle_encloses_its_disc() {
     sketch.add_circle(center, 2.0);
     let regions = sketch.regions();
     assert_eq!(regions.len(), 1);
-    assert!(encloses(&regions[0].outline, DVec2::new(3.0, 3.0)));
+    assert!(encloses(&regions[0].outline.points, DVec2::new(3.0, 3.0)));
 }

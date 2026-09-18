@@ -8,4 +8,4 @@ mod mesh;
 mod sweep;
 
 pub use mesh::{FaceHit, Mesh, Polygon};
-pub use sweep::{prism, revolution};
+pub use sweep::{Loop, prism, revolution};

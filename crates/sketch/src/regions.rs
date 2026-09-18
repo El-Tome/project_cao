@@ -2,6 +2,21 @@ use glam::DVec2;
 
 use crate::sketch::Sketch;
 
+/// One closed loop of an area, and what drew each of its segments.
+///
+/// Segment `index` runs from `points[index]` to the point after it, and
+/// `curves[index]` names the curve it was sampled from, `None` for a trait
+/// drawn straight. Segments carrying the same number came from one curve.
+///
+/// The points alone do not say where one curve ends and the next begins, and a
+/// wall raised per sampled point would cut a circle's wall into as many faces
+/// as the circle was sampled into.
+#[derive(Clone, Debug, Default)]
+pub struct Outline {
+    pub points: Vec<DVec2>,
+    pub curves: Vec<Option<usize>>,
+}
+
 /// A closed area of the drawing, ready to be tinted.
 ///
 /// `depth` is how many other areas enclose this one: an outline drawn inside
@@ -9,10 +24,10 @@ use crate::sketch::Sketch;
 /// glance instead of reading as a single blob.
 #[derive(Clone, Debug)]
 pub struct Region {
-    pub outline: Vec<DVec2>,
+    pub outline: Outline,
     /// The outlines drawn directly inside this one. They are what a shape
     /// leaves hollow when it becomes a solid — the middle of a tube.
-    pub holes: Vec<Vec<DVec2>>,
+    pub holes: Vec<Outline>,
     pub depth: usize,
     pub triangles: Vec<[DVec2; 3]>,
 }
@@ -25,12 +40,13 @@ impl Region {
         if self.holes.is_empty() {
             return self.triangles.clone();
         }
-        triangulate(&bridge_holes(&self.outline, &self.holes))
+        triangulate(&bridge_holes(&self.outline.points, &self.holes))
     }
 
     /// Whether the point is in the area itself, holes excluded.
     pub fn contains(&self, point: DVec2) -> bool {
-        encloses(&self.outline, point) && !self.holes.iter().any(|hole| encloses(hole, point))
+        encloses(&self.outline.points, point)
+            && !self.holes.iter().any(|hole| encloses(&hole.points, point))
     }
 }
 
@@ -46,7 +62,7 @@ impl Sketch {
             .closed_outlines()
             .into_iter()
             .filter_map(|outline| {
-                let triangles = triangulate(&outline);
+                let triangles = triangulate(&outline.points);
                 (!triangles.is_empty()).then_some(Region {
                     outline,
                     holes: Vec::new(),
@@ -61,19 +77,21 @@ impl Sketch {
             regions[index].depth = regions
                 .iter()
                 .enumerate()
-                .filter(|(other, region)| *other != index && encloses(&region.outline, *point))
+                .filter(|(other, region)| {
+                    *other != index && encloses(&region.outline.points, *point)
+                })
                 .count();
         }
         regions.sort_by_key(|region| region.depth);
 
         // Only the outlines directly inside count as holes: what sits inside a
         // hole is matter again, and belongs to its own area.
-        let outlines: Vec<(usize, Vec<DVec2>)> = regions
+        let outlines: Vec<(usize, Outline)> = regions
             .iter()
             .map(|region| (region.depth, region.outline.clone()))
             .collect();
         let insides: Vec<DVec2> = regions.iter().map(inside).collect();
-        let holes: Vec<Vec<Vec<DVec2>>> = regions
+        let holes: Vec<Vec<Outline>> = regions
             .iter()
             .enumerate()
             .map(|(index, region)| {
@@ -83,7 +101,7 @@ impl Sketch {
                     .filter(|(other, (depth, _))| {
                         *other != index
                             && *depth == region.depth + 1
-                            && encloses(&region.outline, insides[*other])
+                            && encloses(&region.outline.points, insides[*other])
                     })
                     .map(|(_, (_, outline))| outline.clone())
                     .collect()
@@ -103,7 +121,7 @@ impl Sketch {
 /// itself as nested. The lowest corner is always a convex one, so stepping
 /// just inside along its bisector lands in the area itself.
 fn inside(region: &Region) -> DVec2 {
-    let outline = &region.outline;
+    let outline = &region.outline.points;
     let count = outline.len();
     // `total_cmp` rather than `partial_cmp`: a stray NaN would make the
     // comparison return None, and unwrapping it would take the whole
@@ -159,11 +177,11 @@ fn encloses(outline: &[DVec2], point: DVec2) -> bool {
 /// classic answer is to cut a corridor from the hole out to the outline and
 /// walk down one side and back up the other — the two sides lie on top of each
 /// other, so the corridor has no area and the face is unchanged.
-fn bridge_holes(outline: &[DVec2], holes: &[Vec<DVec2>]) -> Vec<DVec2> {
+fn bridge_holes(outline: &[DVec2], holes: &[Outline]) -> Vec<DVec2> {
     let mut path = counter_clockwise(outline);
     // Rightmost first: a hole further right can only ever bridge to the outline
     // or to a hole already spliced in, never to one still waiting.
-    let mut pending: Vec<Vec<DVec2>> = holes.iter().map(|hole| clockwise(hole)).collect();
+    let mut pending: Vec<Vec<DVec2>> = holes.iter().map(|hole| clockwise(&hole.points)).collect();
     pending.sort_by(|a, b| rightmost(b).x.total_cmp(&rightmost(a).x));
 
     for hole in pending {

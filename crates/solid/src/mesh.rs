@@ -10,6 +10,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Polygon {
     pub corners: Vec<DVec3>,
+    /// Which stretch of surface this piece is part of. Pieces sharing it are
+    /// one face, however many pieces the curve they came from was sampled
+    /// into — a cylinder's wall is one face made of many flats.
+    pub face: usize,
 }
 
 impl Polygon {
@@ -23,7 +27,7 @@ impl Polygon {
         if corners.len() < 3 {
             return None;
         }
-        let candidate = Self { corners };
+        let candidate = Self { corners, face: 0 };
         // Judged against the face's own size rather than in absolute units: a
         // thin wall is a real face at any scale, while a splinter left by a cut
         // has almost no area for the room it takes up. Splinters are what make
@@ -69,10 +73,19 @@ impl Polygon {
         self.normal().dot(self.corners[0])
     }
 
+    /// The same piece, said to belong to `face`.
+    pub fn on_face(mut self, face: usize) -> Self {
+        self.face = face;
+        self
+    }
+
     pub fn flipped(&self) -> Self {
         let mut corners = self.corners.clone();
         corners.reverse();
-        Self { corners }
+        Self {
+            corners,
+            face: self.face,
+        }
     }
 
     /// The face cut into triangles by a fan from its first corner. Faces here
@@ -184,7 +197,7 @@ pub(crate) mod tests {
     use glam::DVec2;
 
     use super::*;
-    use crate::sweep::prism;
+    use crate::sweep::{Loop, prism};
 
     /// The volume a closed surface encloses, from the signed volumes of the
     /// tetrahedra its triangles make with the origin. Negative means the
@@ -214,7 +227,7 @@ pub(crate) mod tests {
     pub(crate) fn box_of(size: f64, height: f64, at: DVec3) -> Mesh {
         let outline = square(size);
         prism(
-            &outline,
+            Loop::straight(&outline),
             &[],
             &fan(&outline),
             |point| at + DVec3::new(point.x, point.y, 0.0),

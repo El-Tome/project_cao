@@ -96,7 +96,7 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// arbitrary; what is not is that every file above it can be named.
 const LINE_BUDGET: usize = 400;
 
-const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 9] = [
+const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 8] = [
     ("crates/app/src/screens/viewport/input/mod.rs", 565),
     ("crates/app/src/screens/viewport/mod.rs", 594),
     ("crates/app/src/screens/viewport/render.rs", 1286),
@@ -104,7 +104,6 @@ const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 9] = [
     ("crates/render/src/renderer.rs", 426),
     ("crates/sketch/src/sketch.rs", 2304),
     ("crates/sketch/src/solver.rs", 1199),
-    ("crates/solid/src/boolean.rs", 449),
 ];
 
 const SPOKEN_TO_A_DEVELOPER: [&str; 8] = [

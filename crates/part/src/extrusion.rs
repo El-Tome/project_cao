@@ -39,9 +39,10 @@ impl PartState {
             else {
                 continue;
             };
+            let (outline, holes) = loops(region);
             let Some(piece) = cao_solid::revolution(
-                &region.outline,
-                &region.holes,
+                outline,
+                &holes,
                 &region.face_triangles(),
                 |point| plane.to_world(point),
                 axis_origin,
@@ -103,9 +104,10 @@ impl PartState {
             else {
                 continue;
             };
+            let (outline, holes) = loops(region);
             let piece = cao_solid::prism(
-                &region.outline,
-                &region.holes,
+                outline,
+                &holes,
                 &region.face_triangles(),
                 |point| plane.to_world(point),
                 travel,
@@ -129,4 +131,20 @@ fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(DVec2, DVec2
             ((end - start).length() > 1e-6).then_some((start, end - start))
         }
     }
+}
+
+/// The loops a region hands the solid: its outline and what it leaves hollow,
+/// each carrying the curve every segment was sampled from so that a wall
+/// raised from one curve comes out as one face.
+fn loops(region: &cao_sketch::Region) -> (cao_solid::Loop<'_>, Vec<cao_solid::Loop<'_>>) {
+    fn borrow(outline: &cao_sketch::Outline) -> cao_solid::Loop<'_> {
+        cao_solid::Loop {
+            points: &outline.points,
+            curves: &outline.curves,
+        }
+    }
+    (
+        borrow(&region.outline),
+        region.holes.iter().map(borrow).collect(),
+    )
 }

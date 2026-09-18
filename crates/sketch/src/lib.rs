@@ -74,7 +74,7 @@ pub use patterning::Repeats;
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use preview::{Laid, Preview};
-pub use regions::Region;
+pub use regions::{Outline, Region};
 pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};
 pub use shape_dimensions::{line_dimensions, rectangle_dimensions, symmetric_segment_dimensions};
 pub use sketch::{Circle, CircleId, Element, PointId, Segment, SegmentId, Sketch};

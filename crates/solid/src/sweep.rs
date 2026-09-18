@@ -5,6 +5,69 @@ use glam::{DVec2, DVec3};
 
 use crate::mesh::{Mesh, Polygon};
 
+/// One closed loop a solid is raised from, and which of its segments came from
+/// the same curve.
+///
+/// Segment `index` runs from `points[index]` to the point after it, and
+/// `curves[index]` names the curve it was sampled from — `None` for a trait
+/// drawn straight. Without it, the wall raised from a circle would come out as
+/// as many faces as the circle was sampled into.
+#[derive(Clone, Copy, Debug)]
+pub struct Loop<'a> {
+    pub points: &'a [DVec2],
+    pub curves: &'a [Option<usize>],
+}
+
+impl<'a> Loop<'a> {
+    /// A loop with no curve in it: every segment is a trait drawn straight.
+    pub fn straight(points: &'a [DVec2]) -> Self {
+        Self {
+            points,
+            curves: &[],
+        }
+    }
+
+    /// The curve a segment was sampled from. A loop given fewer marks than it
+    /// has segments reads as drawn straight rather than refusing to build.
+    fn curve(&self, index: usize) -> Option<usize> {
+        self.curves.get(index).copied().flatten()
+    }
+}
+
+/// Hands out a number per stretch of surface, and remembers which one a curve
+/// already has so that every wall sampled from it lands on the same face.
+#[derive(Default)]
+struct Faces {
+    next: usize,
+    of_curve: Vec<(usize, usize)>,
+}
+
+impl Faces {
+    fn fresh(&mut self) -> usize {
+        self.next += 1;
+        self.next - 1
+    }
+
+    /// The face of a segment: its own when it was drawn straight, the one its
+    /// curve already holds otherwise.
+    fn of(&mut self, curve: Option<usize>) -> usize {
+        let Some(curve) = curve else {
+            return self.fresh();
+        };
+        if let Some((_, face)) = self.of_curve.iter().find(|(known, _)| *known == curve) {
+            return *face;
+        }
+        let face = self.fresh();
+        self.of_curve.push((curve, face));
+        face
+    }
+
+    /// Curves are numbered within one loop, so the next loop starts clean.
+    fn next_loop(&mut self) {
+        self.of_curve.clear();
+    }
+}
+
 /// Turns a flat area into a prism: the face at the bottom, the same face moved
 /// along `direction` at the top, and a wall for every edge between the two.
 ///
@@ -12,13 +75,17 @@ use crate::mesh::{Mesh, Polygon};
 /// places them in space. A hole gets walls too — that is what makes the inside
 /// of a tube a surface rather than an opening.
 pub fn prism(
-    outline: &[DVec2],
-    holes: &[Vec<DVec2>],
+    outline: Loop<'_>,
+    holes: &[Loop<'_>],
     triangles: &[[DVec2; 3]],
     to_world: impl Fn(DVec2) -> DVec3,
     direction: DVec3,
 ) -> Mesh {
     let mut polygons = Vec::new();
+    let mut faces = Faces::default();
+    // Both caps are one face each however many triangles the area was cut
+    // into, which is what a sketch started on one of them needs.
+    let (below, above) = (faces.fresh(), faces.fresh());
 
     for triangle in triangles {
         let bottom: Vec<DVec3> = triangle.iter().map(|corner| to_world(*corner)).collect();
@@ -31,7 +98,7 @@ pub fn prism(
             } else {
                 polygon
             };
-            polygons.push(outward);
+            polygons.push(outward.on_face(below));
         }
         if let Some(polygon) = Polygon::new(top) {
             let outward = if polygon.normal().dot(direction) < 0.0 {
@@ -39,7 +106,7 @@ pub fn prism(
             } else {
                 polygon
             };
-            polygons.push(outward);
+            polygons.push(outward.on_face(above));
         }
     }
 
@@ -51,25 +118,32 @@ pub fn prism(
         .normalize_or(DVec3::Z);
     let along = direction.dot(normal) > 0.0;
 
-    let mut walls = |loop_points: &[DVec2], inward: bool| {
-        for index in 0..loop_points.len() {
-            let a = to_world(loop_points[index]);
-            let b = to_world(loop_points[(index + 1) % loop_points.len()]);
+    let mut walls = |side: Loop<'_>, inward: bool, faces: &mut Faces| {
+        faces.next_loop();
+        let points = side.points;
+        for index in 0..points.len() {
+            let a = to_world(points[index]);
+            let b = to_world(points[(index + 1) % points.len()]);
             let corners = if inward {
                 vec![b, a, a + direction, b + direction]
             } else {
                 vec![a, b, b + direction, a + direction]
             };
+            let face = faces.of(side.curve(index));
             if let Some(polygon) = Polygon::new(corners) {
-                polygons.push(polygon);
+                polygons.push(polygon.on_face(face));
             }
         }
     };
 
-    walls(outline, (signed_area(outline) > 0.0) != along);
+    walls(
+        outline,
+        (signed_area(outline.points) > 0.0) != along,
+        &mut faces,
+    );
     for hole in holes {
         // A hole's wall looks the other way: its matter is on the outside.
-        walls(hole, (signed_area(hole) > 0.0) == along);
+        walls(*hole, (signed_area(hole.points) > 0.0) == along, &mut faces);
     }
 
     Mesh { polygons }
@@ -86,8 +160,8 @@ pub fn prism(
 /// solid inside out through itself, and no amount of care afterwards recovers a
 /// shape from that.
 pub fn revolution(
-    outline: &[DVec2],
-    holes: &[Vec<DVec2>],
+    outline: Loop<'_>,
+    holes: &[Loop<'_>],
     triangles: &[[DVec2; 3]],
     to_world: impl Fn(DVec2) -> DVec3,
     axis_origin: DVec2,
@@ -103,8 +177,9 @@ pub fn revolution(
     // sweep through itself.
     let side = |point: DVec2| along.perp_dot(point - axis_origin);
     let sides: Vec<f64> = outline
+        .points
         .iter()
-        .chain(holes.iter().flatten())
+        .chain(holes.iter().flat_map(|hole| hole.points))
         .map(|point| side(*point))
         .collect();
     let furthest = sides.iter().fold(0.0f64, |far, each| far.max(each.abs()));
@@ -137,27 +212,32 @@ pub fn revolution(
     };
 
     let mut polygons = Vec::new();
+    let mut faces = Faces::default();
 
     // Walls, as triangles rather than quads: a quad swept around an axis is
     // bent, and the boolean operations sort faces by the plane they lie on.
-    let mut wall = |loop_points: &[DVec2], flip: bool| {
-        for index in 0..loop_points.len() {
-            let (a, b) = (
-                loop_points[index],
-                loop_points[(index + 1) % loop_points.len()],
-            );
+    //
+    // Every step of one sweep is the same stretch of surface: what a straight
+    // trait sweeps is a cone, and what a curve sweeps is rounder still.
+    let mut wall = |side: Loop<'_>, flip: bool, faces: &mut Faces| {
+        faces.next_loop();
+        let points = side.points;
+        for index in 0..points.len() {
+            let (a, b) = (points[index], points[(index + 1) % points.len()]);
+            let swept = faces.of(side.curve(index));
             for step in 0..steps {
                 let (a0, b0) = (at(a, step), at(b, step));
                 let (a1, b1) = (at(a, step + 1), at(b, step + 1));
-                let faces = if flip {
+                let corners = if flip {
                     [[a0, b0, b1], [a0, b1, a1]]
                 } else {
                     [[a0, b1, b0], [a0, a1, b1]]
                 };
                 polygons.extend(
-                    faces
+                    corners
                         .into_iter()
-                        .filter_map(|face| Polygon::new(face.to_vec())),
+                        .filter_map(|piece| Polygon::new(piece.to_vec()))
+                        .map(|polygon| polygon.on_face(swept)),
                 );
             }
         }
@@ -165,26 +245,32 @@ pub fn revolution(
 
     // Which way the walls face depends on how the loop turns, which side of the
     // axis it sits on, and which way the sweep goes.
-    let outward = (signed_area(outline) > 0.0) == (sign * turn > 0.0);
-    wall(outline, outward);
+    let outward = (signed_area(outline.points) > 0.0) == (sign * turn > 0.0);
+    wall(outline, outward, &mut faces);
     for hole in holes {
-        wall(hole, (signed_area(hole) > 0.0) != (sign * turn > 0.0));
+        wall(
+            *hole,
+            (signed_area(hole.points) > 0.0) != (sign * turn > 0.0),
+            &mut faces,
+        );
     }
 
     // A full turn closes on itself and needs no ends.
     if !full {
+        let (opening, closing) = (faces.fresh(), faces.fresh());
         for triangle in triangles {
             let start: Vec<DVec3> = triangle.iter().map(|point| at(*point, 0)).collect();
             let end: Vec<DVec3> = triangle.iter().map(|point| at(*point, steps)).collect();
-            for (corners, closing) in [(start, false), (end, true)] {
+            for (corners, at_the_end) in [(start, false), (end, true)] {
                 let Some(polygon) = Polygon::new(corners) else {
                     continue;
                 };
                 let outward = polygon
                     .normal()
                     .dot(axis.cross(polygon.corners[0] - origin));
-                let facing = (outward > 0.0) == closing;
-                polygons.push(if facing { polygon } else { polygon.flipped() });
+                let facing = (outward > 0.0) == at_the_end;
+                let end = if at_the_end { closing } else { opening };
+                polygons.push(if facing { polygon } else { polygon.flipped() }.on_face(end));
             }
         }
     }

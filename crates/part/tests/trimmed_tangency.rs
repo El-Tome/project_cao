@@ -14,6 +14,7 @@ fn a_circle_brushing_a_trait() -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,

@@ -78,6 +78,7 @@ mod tests {
         let mut document = PartDocument::new("part", Utc::now());
         document.apply(Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         document.apply(Operation::AddArc {
             sketch: 0,

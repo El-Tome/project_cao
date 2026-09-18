@@ -6,6 +6,7 @@ use super::*;
 fn create_sketch() -> Operation {
     Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     }
 }
 
@@ -61,6 +62,7 @@ fn undo_and_redo_walk_the_list() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(segment_op(0));
     assert_eq!(history.applied(), 2);
@@ -89,6 +91,7 @@ fn a_new_operation_drops_what_was_undone() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(segment_op(0));
     history.undo();

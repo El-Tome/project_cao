@@ -49,6 +49,8 @@ pub struct Body {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Drawn {
     pub sketch: usize,
+    /// Whether the face this was laid on is gone from the part.
+    pub adrift: bool,
     pub step: usize,
     pub name: String,
     pub areas: Vec<Row>,
@@ -77,8 +79,9 @@ impl PartTree {
                     let Some(drawing) = document.sketches().get(sketch) else {
                         continue;
                     };
-                    tree.sketches
-                        .push(drawn(lang, drawing, sketch, step, tree.sketches.len() + 1));
+                    let mut shown = drawn(lang, drawing, sketch, step, tree.sketches.len() + 1);
+                    shown.adrift = document.is_adrift(sketch);
+                    tree.sketches.push(shown);
                 }
                 Operation::Extrude {
                     sketch,
@@ -198,6 +201,7 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
 
     Drawn {
         sketch: index,
+        adrift: false,
         step,
         name: numbered(lang, "part_tree.sketch", rank),
         areas: (0..sketch.regions().len())

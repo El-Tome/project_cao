@@ -17,7 +17,7 @@ use crate::wording::{constraints, dimension, plane};
 /// Short, because the history tree shows one per line.
 pub fn label(lang: &Catalogue, operation: &Operation) -> String {
     match operation {
-        Operation::CreateSketch { plane } => lang.t_with(
+        Operation::CreateSketch { plane, .. } => lang.t_with(
             "history.sketch",
             &[("plane", &plane::label(lang, plane.kind()))],
         ),
@@ -226,6 +226,7 @@ mod tests {
         assert_eq!(said(&turn(ExtrusionMode::Cut)), "Révolution creusée 90°");
         let origin = Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         };
         assert_eq!(said(&origin), "Esquisse — Plan XY");
         assert_eq!(

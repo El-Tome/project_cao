@@ -176,6 +176,7 @@ mod tests {
         ];
         let mut drawn = vec![Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         }];
         drawn.extend(corners.map(|(start, end)| Operation::AddSegment {
             sketch: 0,
@@ -212,6 +213,7 @@ mod tests {
         let drawn = vec![
             Operation::CreateSketch {
                 plane: WorkPlane::XY,
+                on: None,
             },
             Operation::AddCircle {
                 sketch: 0,
@@ -315,6 +317,7 @@ mod tests {
         let mut drawn = vec![
             Operation::CreateSketch {
                 plane: WorkPlane::XY,
+                on: None,
             },
             Operation::AddRectangle {
                 sketch: 0,

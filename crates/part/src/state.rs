@@ -1,3 +1,5 @@
+use std::collections::BTreeSet;
+
 use cao_sketch::{Chamfer, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
@@ -18,6 +20,11 @@ pub struct PartState {
     /// dimension is typed.
     pub millimeters_per_unit: Option<f64>,
     pub sketches: Vec<Sketch>,
+    /// The drawings whose face the part no longer has. They keep the plane
+    /// they last had, and the interface says so rather than letting them
+    /// quietly catch another face.
+    #[serde(default)]
+    pub adrift: BTreeSet<usize>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
@@ -65,8 +72,9 @@ impl PartState {
     /// replay and a live edit can never disagree.
     pub fn apply(&mut self, operation: &Operation) -> Option<Outcome> {
         match operation {
-            Operation::CreateSketch { plane } => {
-                self.sketches.push(Sketch::new(*plane));
+            Operation::CreateSketch { plane, on } => {
+                let plane = self.plane_for(*plane, on);
+                self.sketches.push(Sketch::new(plane));
                 None
             }
             Operation::AddPoint { sketch, position } => {

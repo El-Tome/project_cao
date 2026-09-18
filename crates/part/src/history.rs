@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 mod operation;
 mod step;
-pub use operation::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
+pub use operation::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 pub use step::{Step, StepKind};
 
 /// Everything done to a part, in order, with a cursor separating what is

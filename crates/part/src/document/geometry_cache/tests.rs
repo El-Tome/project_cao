@@ -24,6 +24,7 @@ fn a_part_with_matter() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddRectangle {
         sketch: 0,
@@ -188,6 +189,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddRectangle {
         sketch: 0,
@@ -266,6 +268,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     });
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddRectangle {
         sketch: 1,

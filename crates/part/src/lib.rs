@@ -4,7 +4,8 @@
 //! as-is by a future tablet or web shell.
 
 mod adapters;
-pub mod compaction;
+pub mod anchoring;
+mod compaction;
 mod copying;
 pub(crate) mod dimensioning;
 mod document;

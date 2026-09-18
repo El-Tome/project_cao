@@ -17,6 +17,7 @@ fn a_history_with_nothing_undone_compacts_to_itself_in_shape() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,
@@ -49,6 +50,7 @@ fn dragged_dimensioned_and_extruded() -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddRectangle {
         sketch: 0,
@@ -143,6 +145,7 @@ fn two_independent_dimensions_keep_their_value_and_driven_state() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddRectangle {
         sketch: 0,
@@ -181,6 +184,7 @@ fn a_merge_and_a_deletion_leave_only_what_is_still_drawn() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,
@@ -238,6 +242,7 @@ fn a_revolution_around_a_segment_erased_afterwards_still_compacts() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddSegment {
         sketch: 0,
@@ -283,6 +288,7 @@ fn a_circles_rim_point_stays_bundled_in_its_own_step_after_compacting() {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddCircle {
         sketch: 0,

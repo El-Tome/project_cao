@@ -16,6 +16,7 @@ fn a_right_angle() -> Vec<Operation> {
     vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddSegment {
             sketch: 0,

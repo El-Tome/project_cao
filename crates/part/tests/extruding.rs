@@ -30,6 +30,7 @@ fn sketch_history() -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history
 }
@@ -120,6 +121,7 @@ fn a_cut_takes_matter_away() {
 
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddRectangle {
         sketch: 1,
@@ -251,7 +253,10 @@ fn cutting_into_a_revolved_part_from_its_own_face() {
         u: DVec3::new(-1.0, -1.2972883e-07, 0.0),
         v: DVec3::new(2.2439427e-14, -1.7297178e-07, 1.0),
     };
-    history.push(Operation::CreateSketch { plane: face });
+    history.push(Operation::CreateSketch {
+        plane: face,
+        on: None,
+    });
     history.push(Operation::AddRectangle {
         sketch: 1,
         corner: PointRef::New(DVec2::new(-25.0, 32.5)),

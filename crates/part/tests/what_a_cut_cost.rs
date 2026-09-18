@@ -15,6 +15,7 @@ fn a_trait_spoken_of_twice() -> PartState {
     let mut state = PartState::default();
     state.apply(&Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     for (start, end) in [((0.0, 1.0), (10.0, 1.0)), ((0.0, 5.0), (10.0, 5.0))] {
         state.apply(&Operation::AddSegment {

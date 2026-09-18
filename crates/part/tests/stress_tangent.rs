@@ -33,6 +33,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
         let mut doc = PartDocument::new("stress", "2026-01-02T09:00:00Z".parse().expect("a date"));
         doc.apply(Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         });
         let corners = [
             DVec2::new(-60.0, -40.0),

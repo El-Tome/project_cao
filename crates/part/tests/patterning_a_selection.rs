@@ -24,6 +24,7 @@ fn a_trait_beside_a_centre() -> Vec<Operation> {
     vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddPoint {
             sketch: 0,
@@ -109,6 +110,7 @@ fn an_arc_a_dragged_box_took_hold_of_stands_round_the_ring_as_an_arc() {
     let mut state = replay(&[
         Operation::CreateSketch {
             plane: WorkPlane::XY,
+            on: None,
         },
         Operation::AddPoint {
             sketch: 0,

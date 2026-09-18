@@ -26,6 +26,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
         (
             Operation::CreateSketch {
                 plane: WorkPlane::XY,
+                on: None,
             },
             "Plan d'origine (0, 0, 1)",
         ),

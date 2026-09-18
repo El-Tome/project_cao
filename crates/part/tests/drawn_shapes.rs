@@ -11,6 +11,7 @@ fn a_quarter_turn(construction: bool) -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddArc {
         sketch: 0,
@@ -54,6 +55,7 @@ fn a_rectangle_is_one_step_with_four_sides() {
     let mut state = PartState::default();
     state.apply(&Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     state.apply(&Operation::AddRectangle {
         sketch: 0,
@@ -75,6 +77,7 @@ fn a_construction_rectangle_flags_all_four_sides_in_the_one_step_that_drew_them(
     let mut history = History::default();
     history.push(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     history.push(Operation::AddRectangle {
         sketch: 0,
@@ -97,6 +100,7 @@ fn a_symmetric_segment_is_one_step_holding_its_middle() {
     let mut state = PartState::default();
     state.apply(&Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     state.apply(&Operation::AddSymmetricSegment {
         sketch: 0,

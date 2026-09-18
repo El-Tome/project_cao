@@ -15,6 +15,7 @@ fn drawn_part() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddSegment {
         sketch: 0,
@@ -47,6 +48,7 @@ fn drawing_in_a_part_does_not_pass_for_writing_it_down() {
 
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
 
     assert_eq!(document.metadata.modified_at, opened);

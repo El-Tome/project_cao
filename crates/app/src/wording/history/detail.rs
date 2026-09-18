@@ -12,7 +12,7 @@ use crate::wording::{constraints, dimension};
 /// carried `{:.1}` would be a language file only a developer could write.
 pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
     match operation {
-        Operation::CreateSketch { plane } => {
+        Operation::CreateSketch { plane, .. } => {
             let normal = plane.normal();
             lang.t_with(
                 "history.detail.plane",

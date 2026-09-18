@@ -1,7 +1,7 @@
-use cao_part::history::PointRef;
+use cao_part::history::{FaceAnchor, PointRef};
 use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 use chrono::{DateTime, Utc};
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::*;
 
@@ -18,6 +18,7 @@ fn a_part() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
+        on: None,
     });
     document.apply(Operation::AddRectangle {
         sketch: 0,
@@ -39,6 +40,7 @@ fn a_part() -> PartDocument {
     });
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XZ,
+        on: None,
     });
     document
 }
@@ -118,4 +120,23 @@ fn a_part_with_nothing_drawn_on_it_holds_nothing() {
     let document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
 
     assert!(PartTree::of(&document, &french()).is_empty());
+}
+
+#[test]
+fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: Some(FaceAnchor {
+            face: 404,
+            up: DVec3::Y,
+        }),
+    });
+
+    let tree = PartTree::of(&document, &french());
+
+    assert!(
+        tree.sketches[0].adrift,
+        "a drawing whose face the part no longer has must say so",
+    );
 }

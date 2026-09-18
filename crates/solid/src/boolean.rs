@@ -413,7 +413,7 @@ mod tests {
             [outline[0], outline[1], outline[2]],
             [outline[0], outline[2], outline[3]],
         ];
-        let cylinder = crate::mesh::revolution(
+        let cylinder = crate::sweep::revolution(
             &outline,
             &[],
             &triangles,

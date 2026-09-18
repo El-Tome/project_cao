@@ -92,10 +92,15 @@ pub(crate) fn build_frame(
     let (shape, sample) = background_shape(&theme.background);
     cao_render::push_background(&mut background, shape, sample);
 
-    // The grid is only drawn once the view has actually landed on the plane.
-    // Mid-animation the view is oblique, and a grid of finite size seen at an
-    // angle reads as a disc floating in the middle of the screen.
-    if let (ViewMode::Plane(plane), None) = (state.mode, &state.transition) {
+    // The grid and the drawing's own axes are only drawn once the view has
+    // actually landed on the plane. Mid-animation the view is oblique, and a
+    // grid of finite size seen at an angle reads as a disc floating in the
+    // middle of the screen.
+    let landed = match (state.mode, &state.transition) {
+        (ViewMode::Plane(plane), None) => Some(plane),
+        _ => None,
+    };
+    if let Some(plane) = landed {
         // It also has to reach past the corners of the screen, or its outer
         // fade shows up as that same disc.
         let half_extent = (scale.units_per_pixel * scale.diagonal_px as f64 * 1.5) as f32;
@@ -128,16 +133,21 @@ pub(crate) fn build_frame(
         );
     }
 
-    let facing = match state.mode {
-        ViewMode::Plane(plane) => Some(plane.normal().as_vec3()),
-        ViewMode::Free => None,
-    };
-    push_axes(
-        &mut world_lines,
-        camera.distance() * 50.0,
-        &axis_style(theme),
-        facing,
-    );
+    // A drawing has one origin on screen, its own. The world's three are the
+    // part's reference and belong to the view of the part — and to the swing
+    // onto a plane, which would otherwise show nothing at all until it lands.
+    if landed.is_none() {
+        let facing = match state.mode {
+            ViewMode::Plane(plane) => Some(plane.normal().as_vec3()),
+            ViewMode::Free => None,
+        };
+        push_axes(
+            &mut world_lines,
+            camera.distance() * 50.0,
+            &axis_style(theme),
+            facing,
+        );
+    }
 
     if context.editor.is_choosing_plane() {
         push_choosable_planes(&mut surfaces, &mut lines, state, context);

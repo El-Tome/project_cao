@@ -102,6 +102,11 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
     );
     color_row(
         ui,
+        &lang.t("settings.appearance.refused"),
+        &mut theme.refused,
+    );
+    color_row(
+        ui,
         &lang.t("settings.appearance.extrusion_add"),
         &mut theme.extrusion_add,
     );

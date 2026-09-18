@@ -502,6 +502,7 @@
   "settings.appearance.volume": "Volume",
   "settings.appearance.solid": "Matière",
   "settings.appearance.highlight": "Survol",
+  "settings.appearance.refused": "Survol refusé",
   "settings.appearance.extrusion_add": "Ajout de matière",
   "settings.appearance.extrusion_cut": "Enlèvement",
   "settings.appearance.reset": "↺ Couleurs par défaut",
@@ -547,6 +548,7 @@
   "settings.toolbar.add_command": "Ajouter une commande dans la sélection (ou à la racine) :",
 
   "sketch.choose_a_plane": "Choisissez un plan d'esquisse",
+  "sketch.no_drawing_on_a_curve": "Une esquisse ne peut pas être dessinée sur une surface courbe.",
   "sketch.click_a_trait": "Cliquez un trait",
   "sketch.cut_lost_both": "Coupe : {rules} contrainte(s) et {values} cote(s) perdues",
   "sketch.cut_lost_rules": "Coupe : {count} contrainte(s) perdue(s)",

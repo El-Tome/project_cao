@@ -2,6 +2,21 @@ use glam::DVec2;
 
 use crate::sketch::Sketch;
 
+/// One closed loop of an area, and what drew each of its segments.
+///
+/// Segment `index` runs from `points[index]` to the point after it, and
+/// `curves[index]` names the curve it was sampled from, `None` for a trait
+/// drawn straight. Segments carrying the same number came from one curve.
+///
+/// The points alone do not say where one curve ends and the next begins, and a
+/// wall raised per sampled point would cut a circle's wall into as many faces
+/// as the circle was sampled into.
+#[derive(Clone, Debug, Default)]
+pub struct Outline {
+    pub points: Vec<DVec2>,
+    pub curves: Vec<Option<usize>>,
+}
+
 /// A closed area of the drawing, ready to be tinted.
 ///
 /// `depth` is how many other areas enclose this one: an outline drawn inside
@@ -9,10 +24,10 @@ use crate::sketch::Sketch;
 /// glance instead of reading as a single blob.
 #[derive(Clone, Debug)]
 pub struct Region {
-    pub outline: Vec<DVec2>,
+    pub outline: Outline,
     /// The outlines drawn directly inside this one. They are what a shape
     /// leaves hollow when it becomes a solid — the middle of a tube.
-    pub holes: Vec<Vec<DVec2>>,
+    pub holes: Vec<Outline>,
     pub depth: usize,
     pub triangles: Vec<[DVec2; 3]>,
 }
@@ -25,12 +40,13 @@ impl Region {
         if self.holes.is_empty() {
             return self.triangles.clone();
         }
-        triangulate(&bridge_holes(&self.outline, &self.holes))
+        triangulate(&bridge_holes(&self.outline.points, &self.holes))
     }
 
     /// Whether the point is in the area itself, holes excluded.
     pub fn contains(&self, point: DVec2) -> bool {
-        encloses(&self.outline, point) && !self.holes.iter().any(|hole| encloses(hole, point))
+        encloses(&self.outline.points, point)
+            && !self.holes.iter().any(|hole| encloses(&hole.points, point))
     }
 }
 
@@ -46,7 +62,7 @@ impl Sketch {
             .closed_outlines()
             .into_iter()
             .filter_map(|outline| {
-                let triangles = triangulate(&outline);
+                let triangles = triangulate(&outline.points);
                 (!triangles.is_empty()).then_some(Region {
                     outline,
                     holes: Vec::new(),
@@ -61,19 +77,21 @@ impl Sketch {
             regions[index].depth = regions
                 .iter()
                 .enumerate()
-                .filter(|(other, region)| *other != index && encloses(&region.outline, *point))
+                .filter(|(other, region)| {
+                    *other != index && encloses(&region.outline.points, *point)
+                })
                 .count();
         }
         regions.sort_by_key(|region| region.depth);
 
         // Only the outlines directly inside count as holes: what sits inside a
         // hole is matter again, and belongs to its own area.
-        let outlines: Vec<(usize, Vec<DVec2>)> = regions
+        let outlines: Vec<(usize, Outline)> = regions
             .iter()
             .map(|region| (region.depth, region.outline.clone()))
             .collect();
         let insides: Vec<DVec2> = regions.iter().map(inside).collect();
-        let holes: Vec<Vec<Vec<DVec2>>> = regions
+        let holes: Vec<Vec<Outline>> = regions
             .iter()
             .enumerate()
             .map(|(index, region)| {
@@ -83,7 +101,7 @@ impl Sketch {
                     .filter(|(other, (depth, _))| {
                         *other != index
                             && *depth == region.depth + 1
-                            && encloses(&region.outline, insides[*other])
+                            && encloses(&region.outline.points, insides[*other])
                     })
                     .map(|(_, (_, outline))| outline.clone())
                     .collect()
@@ -103,7 +121,7 @@ impl Sketch {
 /// itself as nested. The lowest corner is always a convex one, so stepping
 /// just inside along its bisector lands in the area itself.
 fn inside(region: &Region) -> DVec2 {
-    let outline = &region.outline;
+    let outline = &region.outline.points;
     let count = outline.len();
     // `total_cmp` rather than `partial_cmp`: a stray NaN would make the
     // comparison return None, and unwrapping it would take the whole
@@ -159,11 +177,11 @@ fn encloses(outline: &[DVec2], point: DVec2) -> bool {
 /// classic answer is to cut a corridor from the hole out to the outline and
 /// walk down one side and back up the other — the two sides lie on top of each
 /// other, so the corridor has no area and the face is unchanged.
-fn bridge_holes(outline: &[DVec2], holes: &[Vec<DVec2>]) -> Vec<DVec2> {
+fn bridge_holes(outline: &[DVec2], holes: &[Outline]) -> Vec<DVec2> {
     let mut path = counter_clockwise(outline);
     // Rightmost first: a hole further right can only ever bridge to the outline
     // or to a hole already spliced in, never to one still waiting.
-    let mut pending: Vec<Vec<DVec2>> = holes.iter().map(|hole| clockwise(hole)).collect();
+    let mut pending: Vec<Vec<DVec2>> = holes.iter().map(|hole| clockwise(&hole.points)).collect();
     pending.sort_by(|a, b| rightmost(b).x.total_cmp(&rightmost(a).x));
 
     for hole in pending {
@@ -305,151 +323,4 @@ fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::plane::WorkPlane;
-
-    fn rectangle(sketch: &mut Sketch, min: DVec2, max: DVec2) {
-        let corners = [
-            sketch.add_point(min),
-            sketch.add_point(DVec2::new(max.x, min.y)),
-            sketch.add_point(max),
-            sketch.add_point(DVec2::new(min.x, max.y)),
-        ];
-        for index in 0..4 {
-            sketch.add_segment(corners[index], corners[(index + 1) % 4]);
-        }
-    }
-
-    #[test]
-    fn an_open_shape_encloses_nothing() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(DVec2::ZERO);
-        let b = sketch.add_point(DVec2::new(10.0, 0.0));
-        let c = sketch.add_point(DVec2::new(10.0, 10.0));
-        sketch.add_segment(a, b);
-        sketch.add_segment(b, c);
-        assert!(sketch.regions().is_empty());
-    }
-
-    #[test]
-    fn a_closed_contour_is_one_region() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(10.0, 4.0));
-        let regions = sketch.regions();
-        assert_eq!(regions.len(), 1);
-        assert_eq!(regions[0].depth, 0);
-        let area: f64 = regions[0]
-            .triangles
-            .iter()
-            .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
-            .sum();
-        assert!((area - 40.0).abs() < 1e-3, "area {area}");
-    }
-
-    #[test]
-    fn a_shape_inside_another_is_one_level_deeper() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(20.0, 20.0));
-        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(10.0, 10.0));
-        let regions = sketch.regions();
-        assert_eq!(regions.len(), 2);
-        assert_eq!(regions[0].depth, 0);
-        assert_eq!(regions[1].depth, 1);
-    }
-
-    #[test]
-    fn two_shapes_sharing_a_side_are_two_regions() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(DVec2::ZERO);
-        let b = sketch.add_point(DVec2::new(10.0, 0.0));
-        let c = sketch.add_point(DVec2::new(10.0, 10.0));
-        let d = sketch.add_point(DVec2::new(0.0, 10.0));
-        let e = sketch.add_point(DVec2::new(20.0, 0.0));
-        let f = sketch.add_point(DVec2::new(20.0, 10.0));
-        for (from, to) in [(a, b), (b, c), (c, d), (d, a), (b, e), (e, f), (f, c)] {
-            sketch.add_segment(from, to);
-        }
-        let regions = sketch.regions();
-        assert_eq!(regions.len(), 2);
-        assert!(regions.iter().all(|region| region.depth == 0));
-    }
-
-    fn area(triangles: &[[DVec2; 3]]) -> f64 {
-        triangles
-            .iter()
-            .map(|[a, b, c]| (b - a).perp_dot(c - a).abs() * 0.5)
-            .sum()
-    }
-
-    /// Two circles one inside the other are a tube, not a rod: the face keeps
-    /// the middle hollow.
-    #[test]
-    fn a_shape_inside_another_is_a_hole_in_its_face() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(20.0, 20.0));
-        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(15.0, 15.0));
-        let regions = sketch.regions();
-
-        assert_eq!(regions[0].holes.len(), 1, "the outer contour is pierced");
-        assert!(regions[1].holes.is_empty());
-
-        let ring = area(&regions[0].face_triangles());
-        assert!((ring - 300.0).abs() < 1e-2, "area of the ring: {ring}");
-        assert!(
-            (area(&regions[0].triangles) - 400.0).abs() < 1e-2,
-            "the solid fill ignores the hole"
-        );
-
-        assert!(regions[0].contains(DVec2::new(2.0, 2.0)));
-        assert!(
-            !regions[0].contains(DVec2::new(10.0, 10.0)),
-            "the hole is empty"
-        );
-        assert!(regions[1].contains(DVec2::new(10.0, 10.0)));
-    }
-
-    /// Matter inside a hole is matter again, and belongs to its own face.
-    #[test]
-    fn a_shape_inside_a_hole_is_not_a_hole_of_the_outer_one() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        rectangle(&mut sketch, DVec2::ZERO, DVec2::new(30.0, 30.0));
-        rectangle(&mut sketch, DVec2::new(5.0, 5.0), DVec2::new(25.0, 25.0));
-        rectangle(&mut sketch, DVec2::new(10.0, 10.0), DVec2::new(20.0, 20.0));
-        let regions = sketch.regions();
-
-        assert_eq!(regions[0].holes.len(), 1);
-        assert_eq!(regions[1].holes.len(), 1);
-        assert!(regions[2].holes.is_empty());
-        assert!((area(&regions[2].face_triangles()) - 100.0).abs() < 1e-2);
-    }
-
-    /// Le cas cité : deux cercles concentriques font un tube.
-    #[test]
-    fn two_circles_make_a_tube() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let center = sketch.add_point(DVec2::new(10.0, 10.0));
-        sketch.add_circle(center, 8.0);
-        sketch.add_circle(center, 5.0);
-
-        let regions = sketch.regions();
-        assert_eq!(regions.len(), 2);
-        let ring = area(&regions[0].face_triangles());
-        let expected = std::f64::consts::PI * (8.0f64.powi(2) - 5.0f64.powi(2));
-        assert!(
-            (ring - expected).abs() / expected < 0.02,
-            "ring {ring}, expected ~{expected}"
-        );
-        assert!(!regions[0].contains(DVec2::new(10.0, 10.0)));
-    }
-
-    #[test]
-    fn a_circle_encloses_its_disc() {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let center = sketch.add_point(DVec2::new(3.0, 3.0));
-        sketch.add_circle(center, 2.0);
-        let regions = sketch.regions();
-        assert_eq!(regions.len(), 1);
-        assert!(encloses(&regions[0].outline, DVec2::new(3.0, 3.0)));
-    }
-}
+mod tests;

@@ -2,6 +2,7 @@
 
 use cao_part::history::Operation;
 use cao_sketch::WorkPlane;
+use cao_solid::Mesh;
 use glam::{DVec2, DVec3};
 
 use crate::screens::sketch::PlaneChoice;
@@ -20,11 +21,20 @@ pub(super) fn choose_a_plane(
     direction: DVec3,
 ) -> bool {
     context.editor.hovered_plane = plane_under(state, context, origin, direction);
+    context.editor.message = Some(match context.editor.hovered_plane {
+        Some(PlaneChoice::Curved(_)) => context.lang.t("sketch.no_drawing_on_a_curve"),
+        _ => context.lang.t("sketch.choose_a_plane"),
+    });
 
     let (true, Some(choice)) = (clicked, context.editor.hovered_plane) else {
         return false;
     };
-    let plane = choice.plane();
+    // A curved face starts nothing, and the click does not fall through to
+    // whatever lies behind it: starting a drawing on a plane hidden inside the
+    // part would be worse than starting none.
+    let Some(plane) = choice.plane() else {
+        return false;
+    };
     context.document.apply(Operation::CreateSketch { plane });
     let sketch = context.document.sketches().len() - 1;
     context.editor.begin_editing(sketch, plane);
@@ -53,13 +63,8 @@ fn plane_under(
     origin: DVec3,
     direction: DVec3,
 ) -> Option<PlaneChoice> {
-    if let Some(hit) = context.document.body().ray_hit(origin, direction) {
-        // The sketch's own origin lands where the world origin projects onto
-        // the face, so that a drawing on a face is still measured from
-        // somewhere the user can point at.
-        let normal = hit.polygon.normal();
-        let plane = WorkPlane::from_normal(normal * hit.polygon.plane_offset(), normal);
-        return Some(PlaneChoice::Face(plane));
+    if let Some(choice) = what_the_part_offers(context.document.body(), origin, direction) {
+        return Some(choice);
     }
 
     let half_size = plane_half_size(state);
@@ -74,9 +79,33 @@ fn plane_under(
         .map(|(_, index)| PlaneChoice::Origin(index))
 }
 
+/// What the face under the ray offers a drawing: its plane when the face is
+/// flat, a refusal when it is not.
+///
+/// A face is a whole stretch of surface, however many flats it is stored as,
+/// so a cylinder's wall answers once and answers no — rather than handing back
+/// a plane tangent to whichever facet the ray happened to meet, at an angle
+/// that depends on how finely the wall was cut.
+fn what_the_part_offers(body: &Mesh, origin: DVec3, direction: DVec3) -> Option<PlaneChoice> {
+    let hit = body.ray_hit(origin, direction)?;
+    let face = hit.polygon.face;
+    if !body.is_flat(face) {
+        return Some(PlaneChoice::Curved(face));
+    }
+    // The sketch's own origin lands where the world origin projects onto the
+    // face, so that a drawing on a face is still measured from somewhere the
+    // user can point at.
+    let normal = hit.polygon.normal();
+    let plane = WorkPlane::from_normal(normal * hit.polygon.plane_offset(), normal);
+    Some(PlaneChoice::Face { plane, face })
+}
+
 /// Where a ray crosses a plane patch, in plane coordinates, if it lands inside
 /// the square actually drawn.
 fn plane_hit(plane: &WorkPlane, origin: DVec3, direction: DVec3, half_size: f64) -> Option<DVec2> {
     let hit = plane.ray_intersection(origin, direction)?;
     (hit.x.abs() <= half_size && hit.y.abs() <= half_size).then_some(hit)
 }
+
+#[cfg(test)]
+mod tests;

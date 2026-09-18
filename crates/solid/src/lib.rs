@@ -5,5 +5,7 @@
 mod boolean;
 mod clipping;
 mod mesh;
+mod sweep;
 
-pub use mesh::{FaceHit, Mesh, Polygon, prism, revolution};
+pub use mesh::{FaceHit, Mesh, Polygon};
+pub use sweep::{Loop, prism, revolution};

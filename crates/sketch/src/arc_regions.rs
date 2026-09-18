@@ -1,7 +1,7 @@
 use glam::DVec2;
 
 use crate::edges::Crossed;
-use crate::regions::signed_area;
+use crate::regions::{Outline, signed_area};
 use crate::sketch::Sketch;
 
 impl Sketch {
@@ -10,7 +10,7 @@ impl Sketch {
     ///
     /// A circle nothing cuts never reaches the graph, and comes back from
     /// `crossed` as the closed loop it already is.
-    pub(crate) fn closed_outlines(&self) -> Vec<Vec<DVec2>> {
+    pub(crate) fn closed_outlines(&self) -> Vec<Outline> {
         let Crossed {
             places,
             ends,
@@ -18,7 +18,7 @@ impl Sketch {
             arcs,
             whole,
         } = self.crossed();
-        let mut outlines = whole;
+        let mut outlines: Vec<Outline> = whole.into_iter().map(all_of_one_curve).collect();
         if ends.is_empty() {
             return outlines;
         }
@@ -82,12 +82,27 @@ impl Sketch {
                 continue;
             }
 
-            let mut outline = Vec::new();
+            let mut outline = Outline::default();
             for half in without_spurs(&walked) {
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
-                    None => outline.push(from),
-                    Some(arc) => outline.extend(arcs[arc].points_along(from, to)),
+                    None => {
+                        outline.points.push(from);
+                        outline.curves.push(None);
+                    }
+                    Some(arc) => {
+                        let sampled = arcs[arc].points_along(from, to);
+                        let run = outline
+                            .curves
+                            .iter()
+                            .flatten()
+                            .max()
+                            .map_or(0, |last| last + 1);
+                        outline
+                            .curves
+                            .extend(std::iter::repeat_n(Some(run), sampled.len()));
+                        outline.points.extend(sampled);
+                    }
                 }
             }
 
@@ -97,11 +112,19 @@ impl Sketch {
             // point — a bowtie's crossing, a point dropped on a trait — walks
             // that point twice, quite correctly, so nothing here may ask for
             // the corners to be distinct.
-            if signed_area(&outline) > 1e-9 {
+            if signed_area(&outline.points) > 1e-9 {
                 outlines.push(outline);
             }
         }
         outlines
+    }
+}
+
+/// A circle nothing cut: every one of its segments came from the one curve.
+fn all_of_one_curve(points: Vec<DVec2>) -> Outline {
+    Outline {
+        curves: vec![Some(0); points.len()],
+        points,
     }
 }
 
@@ -190,7 +213,7 @@ mod tests {
              of it",
         );
         assert_eq!(
-            regions[0].outline.len(),
+            regions[0].outline.points.len(),
             8,
             "the shape's seven corners, and the place the trait crosses its side",
         );
@@ -320,6 +343,7 @@ mod tests {
         let peak = DVec2::new(radius, 0.0);
         let nearest = regions[0]
             .outline
+            .points
             .iter()
             .map(|point| point.distance(peak))
             .fold(f64::MAX, f64::min);

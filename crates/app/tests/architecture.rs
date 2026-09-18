@@ -96,17 +96,14 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// arbitrary; what is not is that every file above it can be named.
 const LINE_BUDGET: usize = 400;
 
-const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 10] = [
+const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 7] = [
     ("crates/app/src/screens/viewport/input/mod.rs", 565),
     ("crates/app/src/screens/viewport/mod.rs", 594),
     ("crates/app/src/screens/viewport/render.rs", 1286),
     ("crates/render/src/camera.rs", 528),
     ("crates/render/src/renderer.rs", 426),
-    ("crates/sketch/src/regions.rs", 455),
     ("crates/sketch/src/sketch.rs", 2304),
     ("crates/sketch/src/solver.rs", 1199),
-    ("crates/solid/src/boolean.rs", 449),
-    ("crates/solid/src/mesh.rs", 624),
 ];
 
 const SPOKEN_TO_A_DEVELOPER: [&str; 8] = [
@@ -838,7 +835,7 @@ fn declares_tests_under_cfg(source: &str) -> bool {
     };
     source[..declaration]
         .rsplit_once("#[cfg(test)]")
-        .is_some_and(|(_, between)| between.trim().is_empty())
+        .is_some_and(|(_, between)| matches!(between.trim(), "" | "pub" | "pub(crate)"))
 }
 
 /// What ships, without the tests that check it. A French sentence or a hand-made

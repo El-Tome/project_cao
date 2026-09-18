@@ -10,11 +10,11 @@
 
 use std::collections::HashSet;
 
-use cao_sketch::{ArcId, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
+use cao_sketch::{ArcId, Area, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
 
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
-use remap::{SketchIdMap, remap_constraint, remap_target};
+use remap::{SketchIdMap, remap_area, remap_constraint, remap_target};
 
 mod remap;
 
@@ -55,13 +55,13 @@ pub fn compact(history: &History) -> History {
             }
             Operation::Extrude {
                 sketch,
-                picks,
+                areas,
                 distance,
                 mode,
             } => record(
                 Operation::Extrude {
                     sketch: *sketch,
-                    picks: picks.clone(),
+                    areas: renamed(areas, &sketch_maps, *sketch),
                     distance: *distance,
                     mode: *mode,
                 },
@@ -70,7 +70,7 @@ pub fn compact(history: &History) -> History {
             ),
             Operation::Revolve {
                 sketch,
-                picks,
+                areas,
                 axis,
                 angle,
                 mode,
@@ -84,7 +84,7 @@ pub fn compact(history: &History) -> History {
                 record(
                     Operation::Revolve {
                         sketch: *sketch,
-                        picks: picks.clone(),
+                        areas: renamed(areas, &sketch_maps, *sketch),
                         axis,
                         angle: *angle,
                         mode: *mode,
@@ -336,6 +336,17 @@ fn compact_sketch(
     }
 
     map
+}
+
+/// An extrusion's areas, said in the numbers the re-emitted sketch uses.
+///
+/// A sketch the compaction has not reached keeps its names: there is nothing
+/// yet to say them in.
+fn renamed(areas: &[Area], maps: &[SketchIdMap], sketch: usize) -> Vec<Area> {
+    let Some(map) = maps.get(sketch) else {
+        return areas.to_vec();
+    };
+    areas.iter().map(|area| remap_area(area, map)).collect()
 }
 
 #[cfg(test)]

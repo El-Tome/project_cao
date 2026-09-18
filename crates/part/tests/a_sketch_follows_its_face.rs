@@ -39,7 +39,7 @@ fn block_with_a_sketch_on_top(height: f64, on: Option<FaceAnchor>) -> PartState 
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(20.0, 10.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(20.0, 10.0)]),
         distance: height,
         mode: ExtrusionMode::Add,
     });

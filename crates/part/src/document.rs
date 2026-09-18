@@ -1,8 +1,9 @@
 use std::io::{Cursor, Read, Write};
 use std::path::{Path, PathBuf};
 
-use cao_sketch::Sketch;
+use cao_sketch::{Area, Sketch};
 use chrono::{DateTime, Utc};
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -114,6 +115,18 @@ impl PartDocument {
 
     /// Whether a drawing has lost the face it was laid on, and is sitting on
     /// the plane it last had rather than on anything the part still holds.
+    /// The areas of a drawing these places fall in, each named by the curves
+    /// that bound it — what a click on them means.
+    pub fn areas_at(&self, sketch: usize, places: &[DVec2]) -> Vec<Area> {
+        self.state.areas_at(sketch, places)
+    }
+
+    /// The name as the drawing holds it now, once every cut made since it was
+    /// written has been followed, and nothing when a border it named is gone.
+    pub fn standing(&self, sketch: usize, area: &Area) -> Option<Area> {
+        self.state.standing(sketch, area)
+    }
+
     pub fn is_adrift(&self, sketch: usize) -> bool {
         self.state.adrift.contains(&sketch)
     }

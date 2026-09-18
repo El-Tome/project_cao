@@ -1,5 +1,7 @@
 use cao_part::history::{ExtrusionMode, PointRef, RevolutionAxis};
-use cao_sketch::{CircleId, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    Area, CircleId, CurveId, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+};
 use glam::DVec2;
 
 use super::*;
@@ -9,7 +11,10 @@ const AWAY: DVec2 = DVec2::new(3.0, 0.0);
 fn swept(axis: RevolutionAxis) -> Operation {
     Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::ZERO],
+        areas: vec![Area {
+            bounds: vec![CurveId::Segment(SegmentId(0))],
+            inside: DVec2::ZERO,
+        }],
         axis,
         angle: 90.0,
         mode: ExtrusionMode::Add,

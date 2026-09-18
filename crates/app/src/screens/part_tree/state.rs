@@ -13,7 +13,7 @@
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_sketch::{Element, Sketch};
+use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
 
@@ -85,7 +85,7 @@ impl PartTree {
                 }
                 Operation::Extrude {
                     sketch,
-                    picks,
+                    areas,
                     distance,
                     mode,
                 } => tree.bodies.push(Body {
@@ -98,11 +98,11 @@ impl PartTree {
                             ("mode", &lang.t(mode_key(*mode))),
                         ],
                     ),
-                    areas: standing_on(lang, document, *sketch, picks),
+                    areas: standing_on(lang, document, *sketch, areas),
                 }),
                 Operation::Revolve {
                     sketch,
-                    picks,
+                    areas,
                     angle,
                     mode,
                     ..
@@ -116,7 +116,7 @@ impl PartTree {
                             ("mode", &lang.t(mode_key(*mode))),
                         ],
                     ),
-                    areas: standing_on(lang, document, *sketch, picks),
+                    areas: standing_on(lang, document, *sketch, areas),
                 }),
                 _ => {}
             }
@@ -142,29 +142,23 @@ fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
 
 /// The areas a step of matter was raised from, named as the sketch names them.
 ///
-/// An area is found the way the replay finds it, by the place that was
-/// clicked. One the drawing no longer encloses leaves no line: there is
-/// nothing to point at, and saying so is the warning's business, not the
-/// tree's.
+/// An area is found the way the replay finds it: by the curves that bounded
+/// it when it was clicked, followed through every cut since. One the drawing
+/// no longer encloses leaves no line — `lost` is what says so.
 fn standing_on(
     lang: &Catalogue,
     document: &PartDocument,
     sketch: usize,
-    picks: &[glam::DVec2],
+    areas: &[Area],
 ) -> Vec<Row> {
     let Some(drawing) = document.sketches().get(sketch) else {
         return Vec::new();
     };
     let regions = drawing.regions();
-    picks
+    areas
         .iter()
-        .filter_map(|pick| {
-            let rank = regions
-                .iter()
-                .enumerate()
-                .filter(|(_, region)| region.contains(*pick))
-                .max_by_key(|(_, region)| region.depth)
-                .map(|(rank, _)| rank)?;
+        .filter_map(|area| {
+            let rank = document.standing(sketch, area)?.found_in(&regions)?;
             Some(Row {
                 name: numbered(lang, "part_tree.area", rank + 1),
                 points: Points::Area { sketch, rank },

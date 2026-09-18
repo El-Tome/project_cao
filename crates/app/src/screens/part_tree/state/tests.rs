@@ -34,7 +34,7 @@ fn a_part() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 10.0)],
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Add,
     });

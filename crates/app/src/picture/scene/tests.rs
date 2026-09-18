@@ -164,7 +164,7 @@ fn a_point_nothing_draws_does_not_drag_the_frame_out_to_it() {
 
 #[test]
 fn a_part_that_has_been_extruded_shows_its_matter() {
-    let mut drawn = vec![
+    let drawn = vec![
         Operation::CreateSketch {
             plane: WorkPlane::XY,
             on: None,
@@ -176,14 +176,15 @@ fn a_part_that_has_been_extruded_shows_its_matter() {
             construction: false,
         },
     ];
-    drawn.push(Operation::Extrude {
+    let mut document = part_with(drawn);
+    document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: document.areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 4.0,
         mode: cao_part::ExtrusionMode::Add,
     });
 
-    let frame = of(&part_with(drawn), 128);
+    let frame = of(&document, 128);
 
     assert!(
         !frame.scene_solids.is_empty(),

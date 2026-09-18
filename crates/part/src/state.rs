@@ -237,11 +237,11 @@ impl PartState {
             }
             Operation::Extrude {
                 sketch,
-                picks,
+                areas,
                 distance,
                 mode,
             } => {
-                self.extrude(*sketch, picks, *distance, *mode);
+                self.extrude(*sketch, areas, *distance, *mode);
                 None
             }
             Operation::MergePoints {
@@ -335,12 +335,12 @@ impl PartState {
             } => self.pattern_along(*sketch, elements, *direction, *along, *across),
             Operation::Revolve {
                 sketch,
-                picks,
+                areas,
                 axis,
                 angle,
                 mode,
             } => {
-                self.revolve(*sketch, picks, *axis, *angle, *mode);
+                self.revolve(*sketch, areas, *axis, *angle, *mode);
                 None
             }
         }

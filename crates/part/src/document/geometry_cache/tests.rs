@@ -34,7 +34,7 @@ fn a_part_with_matter() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 10.0)],
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Add,
     });
@@ -262,7 +262,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(20.0, 5.0)],
+        areas: document.areas_at(0, &[DVec2::new(20.0, 5.0)]),
         distance: 6.0,
         mode: ExtrusionMode::Add,
     });
@@ -278,7 +278,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 1,
-        picks: vec![DVec2::new(4.0, 4.0)],
+        areas: document.areas_at(1, &[DVec2::new(4.0, 4.0)]),
         distance: 10.0,
         mode: ExtrusionMode::Cut,
     });

@@ -45,7 +45,7 @@ fn drawn_then_edited() -> History {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 2.0,
         mode: ExtrusionMode::Add,
     });

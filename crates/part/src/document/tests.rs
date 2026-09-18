@@ -296,7 +296,7 @@ fn every_major_step_of_a_design_is_written_in_a_folder_of_its_own() {
     let mut document = drawn_part();
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: Vec::new(),
+        areas: Vec::new(),
         distance: 4.0,
         mode: crate::history::ExtrusionMode::Add,
     });

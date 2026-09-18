@@ -29,7 +29,7 @@ fn a_part_of_every_kind() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(6.0, 11.0)],
+        areas: document.areas_at(0, &[DVec2::new(6.0, 11.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Cut,
     });
@@ -45,7 +45,7 @@ fn a_part_of_every_kind() -> PartDocument {
     });
     document.apply(Operation::Revolve {
         sketch: 1,
-        picks: vec![DVec2::new(4.0, 4.0)],
+        areas: document.areas_at(1, &[DVec2::new(4.0, 4.0)]),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
         angle: 90.0,
         mode: ExtrusionMode::Add,
@@ -95,7 +95,7 @@ fn what_a_step_stands_on_is_in_the_index_and_what_it_sets_is_in_its_folder() {
     let folder =
         crate::document::read_entry(&mut archive, "design/extrusion-0/steps.json").expect("a step");
 
-    assert!(index.contains("\"picks\""), "{index}");
+    assert!(index.contains("\"areas\""), "{index}");
     assert!(
         !index.contains("\"distance\""),
         "a distance points at nothing and cannot be lost, so the index has no \
@@ -103,7 +103,7 @@ fn what_a_step_stands_on_is_in_the_index_and_what_it_sets_is_in_its_folder() {
     );
     assert!(folder.contains("\"distance\""), "{folder}");
     assert!(
-        !folder.contains("\"picks\""),
+        !folder.contains("\"areas\""),
         "the areas clicked are said once, in the index: {folder}",
     );
 }

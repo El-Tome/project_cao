@@ -41,7 +41,7 @@ fn an_extrusion_turns_an_area_into_matter() {
     rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 20.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 10.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 10.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Add,
     });
@@ -61,7 +61,7 @@ fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
     rectangle(&mut history, DVec2::new(40.0, 40.0), DVec2::new(50.0, 60.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(45.0, 50.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(45.0, 50.0)]),
         distance: 2.0,
         mode: ExtrusionMode::Add,
     });
@@ -93,7 +93,7 @@ fn two_circles_extrude_to_a_tube() {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(8.0, 0.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(8.0, 0.0)]),
         distance: 5.0,
         mode: ExtrusionMode::Add,
     });
@@ -114,7 +114,7 @@ fn a_cut_takes_matter_away() {
     rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 10.0,
         mode: ExtrusionMode::Add,
     });
@@ -131,7 +131,7 @@ fn a_cut_takes_matter_away() {
     });
     history.push(Operation::Extrude {
         sketch: 1,
-        picks: vec![DVec2::new(3.0, 3.0)],
+        areas: PartState::rebuild(&history).areas_at(1, &[DVec2::new(3.0, 3.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Cut,
     });
@@ -150,7 +150,7 @@ fn a_shape_inside_another_is_already_hollow() {
     rectangle(&mut history, DVec2::new(2.0, 2.0), DVec2::new(4.0, 4.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(1.0, 1.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(1.0, 1.0)]),
         distance: 10.0,
         mode: ExtrusionMode::Add,
     });
@@ -166,7 +166,7 @@ fn a_revolution_sweeps_an_area_around_an_axis() {
     rectangle(&mut history, DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
     history.push(Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::new(4.0, 1.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(4.0, 1.0)]),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
         angle: 360.0,
         mode: ExtrusionMode::Add,
@@ -193,7 +193,7 @@ fn a_revolution_can_turn_around_a_drawn_line() {
     rectangle(&mut history, DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
     history.push(Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::new(4.0, 1.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(4.0, 1.0)]),
         axis: cao_part::history::RevolutionAxis::Segment(cao_sketch::SegmentId(0)),
         angle: 360.0,
         mode: ExtrusionMode::Add,
@@ -215,7 +215,7 @@ fn a_revolution_across_its_axis_makes_nothing() {
     rectangle(&mut history, DVec2::new(-4.0, 0.0), DVec2::new(5.0, 2.0));
     history.push(Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::new(1.0, 1.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(1.0, 1.0)]),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
         angle: 360.0,
         mode: ExtrusionMode::Add,
@@ -240,7 +240,7 @@ fn cutting_into_a_revolved_part_from_its_own_face() {
     );
     history.push(Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::new(-14.8, -26.5)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(-14.8, -26.5)]),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
         angle: 360.0,
         mode: ExtrusionMode::Add,
@@ -265,7 +265,7 @@ fn cutting_into_a_revolved_part_from_its_own_face() {
     });
     history.push(Operation::Extrude {
         sketch: 1,
-        picks: vec![DVec2::new(-6.0, 12.0)],
+        areas: PartState::rebuild(&history).areas_at(1, &[DVec2::new(-6.0, 12.0)]),
         distance: -10.0,
         mode: ExtrusionMode::Cut,
     });
@@ -358,7 +358,7 @@ fn a_deletion_replays_like_any_other_step() {
     rectangle(&mut history, DVec2::ZERO, DVec2::new(10.0, 10.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Add,
     });
@@ -394,7 +394,7 @@ fn an_extrusion_does_not_wait_for_a_settled_sketch() {
     rectangle(&mut history, DVec2::new(3.0, 3.0), DVec2::new(9.0, 9.0));
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 1.0,
         mode: ExtrusionMode::Add,
     });
@@ -417,7 +417,7 @@ fn an_extrusion_is_given_in_millimetres() {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(0.5, 0.5)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(0.5, 0.5)]),
         distance: 25.0,
         mode: ExtrusionMode::Add,
     });

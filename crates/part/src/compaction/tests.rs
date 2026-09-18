@@ -89,7 +89,7 @@ fn dragged_dimensioned_and_extruded() -> History {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
         distance: 4.0,
         mode: crate::history::ExtrusionMode::Add,
     });
@@ -258,7 +258,7 @@ fn a_revolution_around_a_segment_erased_afterwards_still_compacts() {
     });
     history.push(Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::new(4.0, 1.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(4.0, 1.0)]),
         axis: RevolutionAxis::Segment(SegmentId(0)),
         angle: 360.0,
         mode: crate::history::ExtrusionMode::Add,

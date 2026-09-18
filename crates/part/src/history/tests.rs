@@ -20,7 +20,7 @@ fn create_sketch() -> Operation {
 fn extrude(sketch: usize) -> Operation {
     Operation::Extrude {
         sketch,
-        picks: Vec::new(),
+        areas: Vec::new(),
         distance: 10.0,
         mode: ExtrusionMode::Add,
     }

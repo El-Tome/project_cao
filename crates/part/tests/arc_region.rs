@@ -47,7 +47,7 @@ fn an_extrusion_of_a_d_shape_gives_a_round_edge_to_the_solid() {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(2.0, 0.0)],
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(2.0, 0.0)]),
         distance: 3.0,
         mode: ExtrusionMode::Add,
     });

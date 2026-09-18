@@ -144,11 +144,13 @@ pub fn apply_extrusion(
     }
 
     let before = doc.body().clone();
-    let picks = std::mem::take(&mut extrusion.picks);
+    // The areas are named here and never worked out again: what the click
+    // meant is what the drawing said at the moment of the click.
+    let areas = doc.areas_at(sketch, &std::mem::take(&mut extrusion.picks));
     let operation = if extrusion.is_revolving() {
         cao_part::Operation::Revolve {
             sketch,
-            picks,
+            areas,
             axis: extrusion.axis,
             angle: extrusion.angle().unwrap_or_default(),
             mode,
@@ -156,7 +158,7 @@ pub fn apply_extrusion(
     } else {
         cao_part::Operation::Extrude {
             sketch,
-            picks,
+            areas,
             distance: extrusion.distance().unwrap_or_default(),
             mode,
         }

@@ -14,11 +14,12 @@ use crate::arcing::{ArcDraft, FULL_CIRCLE_STEPS};
 use crate::crossing::{
     turn_at, where_arc_crosses_circle, where_circles_cross, where_segment_crosses_circle,
 };
-use crate::sketch::Sketch;
+use crate::sketch::{CircleId, Sketch};
 
 /// A circle of the drawing, and where the rest of the drawing runs through it
 /// — as fractions of a whole turn, in order round it.
 pub(crate) struct Round {
+    pub(crate) id: CircleId,
     pub(crate) centre: DVec2,
     pub(crate) radius: f64,
     pub(crate) turns: Vec<f64>,
@@ -52,7 +53,8 @@ impl Sketch {
         let mut rounds: Vec<Round> = self
             .live_circles()
             .filter(|(_, circle)| !circle.construction)
-            .map(|(_, circle)| Round {
+            .map(|(id, circle)| Round {
+                id,
                 centre: self.point(circle.center),
                 radius: circle.radius,
                 turns: Vec::new(),

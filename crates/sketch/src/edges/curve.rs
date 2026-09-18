@@ -28,6 +28,10 @@ pub(super) enum Curve {
 }
 
 impl Curve {
+    pub(super) fn is_straight(&self) -> bool {
+        matches!(self, Curve::Straight { .. })
+    }
+
     pub(super) fn ends(&self) -> (usize, usize) {
         match self {
             Curve::Straight { from, to } | Curve::Bent { from, to, .. } => (*from, *to),

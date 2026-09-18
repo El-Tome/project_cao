@@ -1,8 +1,9 @@
 use glam::DVec2;
 
 use crate::edges::Crossed;
+use crate::naming::CurveId;
 use crate::regions::{Outline, signed_area};
-use crate::sketch::Sketch;
+use crate::sketch::{CircleId, Sketch};
 
 impl Sketch {
     /// Walks the segment and arc graph and returns each area it encloses, as
@@ -16,9 +17,13 @@ impl Sketch {
             ends,
             split,
             arcs,
+            from: cut_from,
             whole,
         } = self.crossed();
-        let mut outlines: Vec<Outline> = whole.into_iter().map(all_of_one_curve).collect();
+        let mut outlines: Vec<Outline> = whole
+            .into_iter()
+            .map(|(circle, points)| all_of_one_curve(circle, points))
+            .collect();
         if ends.is_empty() {
             return outlines;
         }
@@ -84,6 +89,7 @@ impl Sketch {
 
             let mut outline = Outline::default();
             for half in without_spurs(&walked) {
+                outline.bounds.push(cut_from[half]);
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => {
@@ -113,6 +119,8 @@ impl Sketch {
             // that point twice, quite correctly, so nothing here may ask for
             // the corners to be distinct.
             if signed_area(&outline.points) > 1e-9 {
+                outline.bounds.sort_unstable();
+                outline.bounds.dedup();
                 outlines.push(outline);
             }
         }
@@ -121,9 +129,10 @@ impl Sketch {
 }
 
 /// A circle nothing cut: every one of its segments came from the one curve.
-fn all_of_one_curve(points: Vec<DVec2>) -> Outline {
+fn all_of_one_curve(circle: CircleId, points: Vec<DVec2>) -> Outline {
     Outline {
         curves: vec![Some(0); points.len()],
+        bounds: vec![CurveId::Circle(circle)],
         points,
     }
 }

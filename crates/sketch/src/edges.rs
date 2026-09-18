@@ -15,7 +15,8 @@ use glam::DVec2;
 
 use crate::arcing::{ArcDraft, places_along};
 use crate::circle_edges::Round;
-use crate::sketch::Sketch;
+use crate::naming::CurveId;
+use crate::sketch::{CircleId, Sketch};
 
 mod curve;
 
@@ -68,9 +69,12 @@ impl ArcHalfEdge {
 /// The drawing cut apart, before the half-edges are read off it.
 struct Cut {
     curves: Vec<Curve>,
+    /// Which curve of the drawing each of those was cut out of, in the same
+    /// order. A curve crossed twice appears here twice.
+    drawn: Vec<CurveId>,
     places: Vec<DVec2>,
     cuts: Vec<Vec<(f64, usize)>>,
-    whole: Vec<Vec<DVec2>>,
+    whole: Vec<(CircleId, Vec<DVec2>)>,
 }
 
 /// The drawing as a graph with every crossing standing on a vertex of its own.
@@ -84,10 +88,13 @@ pub(crate) struct Crossed {
     pub(crate) ends: Vec<(usize, usize)>,
     pub(crate) split: usize,
     pub(crate) arcs: Vec<ArcHalfEdge>,
+    /// Which curve of the drawing each half-edge was cut out of, twins alike.
+    /// It is what lets a face walk say which curves bound it.
+    pub(crate) from: Vec<CurveId>,
     /// The circles nothing cut, each sampled as the closed loop it still is.
     /// They never enter the graph: a curve with no end has no vertex, and the
     /// walk turns at vertices.
-    pub(crate) whole: Vec<Vec<DVec2>>,
+    pub(crate) whole: Vec<(CircleId, Vec<DVec2>)>,
 }
 
 /// Nearer than this to an end, a crossing is that end: the sliver it would
@@ -161,30 +168,33 @@ impl Sketch {
     fn cut(&self) -> Cut {
         let drawn = self.points().len();
         let mut places = self.points().to_vec();
-        let mut curves: Vec<Curve> = self
-            .live_segments()
-            .filter(|(_, segment)| !segment.construction)
-            .map(|(_, segment)| Curve::Straight {
+        let mut curves: Vec<Curve> = Vec::new();
+        let mut names: Vec<CurveId> = Vec::new();
+        for (id, segment) in self.live_segments().filter(|(_, it)| !it.construction) {
+            curves.push(Curve::Straight {
                 from: segment.start.0,
                 to: segment.end.0,
-            })
-            .chain(
-                self.live_arcs()
-                    .filter(|(_, arc)| !arc.construction)
-                    .map(|(_, arc)| Curve::Bent {
-                        centre: self.point(arc.center),
-                        from: arc.start.0,
-                        to: arc.end.0,
-                    }),
-            )
-            .collect();
+            });
+            names.push(CurveId::Segment(id));
+        }
+        for (id, arc) in self.live_arcs().filter(|(_, it)| !it.construction) {
+            curves.push(Curve::Bent {
+                centre: self.point(arc.center),
+                from: arc.start.0,
+                to: arc.end.0,
+            });
+            names.push(CurveId::Arc(id));
+        }
 
         let mut whole = Vec::new();
         for round in self.rounds() {
             let pieces = broken(&round, &mut places);
             match pieces.is_empty() {
-                true => whole.push(round.sampled()),
-                false => curves.extend(pieces),
+                true => whole.push((round.id, round.sampled())),
+                false => {
+                    names.extend(std::iter::repeat_n(CurveId::Circle(round.id), pieces.len()));
+                    curves.extend(pieces);
+                }
             }
         }
 
@@ -226,6 +236,7 @@ impl Sketch {
 
         Cut {
             curves,
+            drawn: names,
             places,
             cuts,
             whole,
@@ -235,36 +246,34 @@ impl Sketch {
     pub(crate) fn crossed(&self) -> Crossed {
         let Cut {
             curves,
+            drawn,
             places,
             cuts,
             whole,
         } = self.cut();
 
         let mut ends = Vec::new();
-        let straight = curves
-            .iter()
-            .zip(&cuts)
-            .filter(|(curve, _)| matches!(curve, Curve::Straight { .. }));
-        for (curve, cut) in straight {
-            for (from, to) in pieces(curve, cut) {
-                ends.push((from, to));
-                ends.push((to, from));
+        let mut from = Vec::new();
+        let named = || drawn.iter().zip(&curves).zip(&cuts);
+        for ((id, curve), cut) in named().filter(|((_, it), _)| it.is_straight()) {
+            for (start, end) in pieces(curve, cut) {
+                ends.push((start, end));
+                ends.push((end, start));
+                from.extend([*id, *id]);
             }
         }
 
         let split = ends.len();
         let mut arcs = Vec::new();
-        let bent = curves
-            .iter()
-            .zip(&cuts)
-            .filter_map(|(curve, cut)| match curve {
-                Curve::Straight { .. } => None,
-                Curve::Bent { centre, .. } => Some((*centre, curve, cut)),
-            });
-        for (centre, curve, cut) in bent {
-            for (from, to) in pieces(curve, cut) {
-                ends.push((from, to));
-                ends.push((to, from));
+        let bent = named().filter_map(|((id, curve), cut)| match curve {
+            Curve::Straight { .. } => None,
+            Curve::Bent { centre, .. } => Some((*id, *centre, curve, cut)),
+        });
+        for (id, centre, curve, cut) in bent {
+            for (start, end) in pieces(curve, cut) {
+                ends.push((start, end));
+                ends.push((end, start));
+                from.extend([id, id]);
                 arcs.push(ArcHalfEdge {
                     center: centre,
                     forward: true,
@@ -281,6 +290,7 @@ impl Sketch {
             ends,
             split,
             arcs,
+            from,
             whole,
         }
     }

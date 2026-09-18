@@ -8,7 +8,7 @@ use crate::equation::Equation;
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, Sketch};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct ArcId(pub usize);
 
 /// A piece of a circle, running counter-clockwise from `start` to `end` around

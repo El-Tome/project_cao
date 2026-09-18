@@ -37,6 +37,15 @@ pub struct Area {
     pub inside: DVec2,
 }
 
+/// What became of the curves one cut replaced: each curve it took out, with
+/// the curves standing in its place — none at all when the cut took the whole
+/// of it.
+///
+/// A cut that replaces a curve by pieces of itself is not a curve lost, and
+/// what stood on the area it bounded must not be. Only a cut knows which piece
+/// came out of which curve, so only a cut can say.
+pub type Became = Vec<(CurveId, Vec<CurveId>)>;
+
 impl Area {
     /// The name of an area, as it stands, with the place that was pointed at.
     pub fn of(region: &Region, inside: DVec2) -> Self {

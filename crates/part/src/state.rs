@@ -1,10 +1,11 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
-use cao_sketch::{Chamfer, Sketch};
+use cao_sketch::Sketch;
 use cao_solid::Mesh;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::descent::Descent;
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
 
@@ -25,6 +26,11 @@ pub struct PartState {
     /// quietly catch another face.
     #[serde(default)]
     pub adrift: BTreeSet<usize>,
+    /// What each drawing's curves became, as the replay cut them. It is what
+    /// lets a step of matter find the area it was raised from after a corner
+    /// of that area has been rounded or a border of it divided.
+    #[serde(default)]
+    pub(crate) descent: BTreeMap<usize, Descent>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
@@ -53,22 +59,6 @@ impl PartState {
 
     pub fn to_millimeters(&self, units: f64) -> f64 {
         units * self.scale()
-    }
-
-    /// One of the five ways a curve is replaced by other curves: trimmed,
-    /// trimmed as an arc, split at a crossing, chamfered or rounded. They
-    /// differ only in which cut is made, and each answers with how many rules
-    /// and how many values the cut took away with it.
-    fn cutting(
-        &mut self,
-        sketch: usize,
-        cut: impl FnOnce(&mut Sketch, f64) -> Option<(usize, usize)>,
-    ) -> Option<Outcome> {
-        let scale = self.scale();
-        let drawing = self.sketches.get_mut(sketch)?;
-        let (rules, values) = cut(drawing, scale)?;
-        drawing.resolve(scale);
-        Some(Outcome::Cut { rules, values })
     }
 
     /// Runs one operation. This is the only place geometry is produced, so a
@@ -299,46 +289,31 @@ impl PartState {
                 segment,
                 from,
                 to,
-            } => self.cutting(*sketch, |drawing, _| {
-                let trimmed = drawing.trim(*segment, *from, *to)?;
-                Some((trimmed.rules_dropped, trimmed.values_dropped))
-            }),
+            } => self.trim(*sketch, *segment, *from, *to),
             Operation::TrimArc {
                 sketch,
                 arc,
                 from,
                 to,
-            } => self.cutting(*sketch, |drawing, _| {
-                let trimmed = drawing.trim_arc(*arc, *from, *to)?;
-                Some((trimmed.rules_dropped, trimmed.values_dropped))
-            }),
+            } => self.trim_arc(*sketch, *arc, *from, *to),
             Operation::Split {
                 sketch,
                 segments,
                 arcs,
                 at,
-            } => self.cutting(*sketch, |drawing, _| {
-                let split = drawing.split(segments, arcs, *at)?;
-                Some((split.rules_dropped, split.values_dropped))
-            }),
+            } => self.split(*sketch, segments, arcs, *at),
             Operation::Chamfer {
                 sketch,
                 first,
                 second,
                 mode,
-            } => self.cutting(*sketch, |drawing, scale| {
-                let chamfered = drawing.chamfer(*first, *second, in_units(*mode, scale))?;
-                Some((chamfered.rules_dropped, chamfered.values_dropped))
-            }),
+            } => self.chamfer(*sketch, *first, *second, *mode),
             Operation::Fillet {
                 sketch,
                 first,
                 second,
                 radius,
-            } => self.cutting(*sketch, |drawing, scale| {
-                let rounded = drawing.fillet(*first, *second, radius / scale)?;
-                Some((rounded.rules_dropped, rounded.values_dropped))
-            }),
+            } => self.fillet(*sketch, *first, *second, *radius),
             Operation::Mirror {
                 sketch,
                 elements,
@@ -376,22 +351,5 @@ fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
     match point {
         PointRef::Existing(id) => *id,
         PointRef::New(position) => sketch.add_point(*position),
-    }
-}
-
-/// A chamfer as the drawing measures it. The history records millimetres, the
-/// way every other length the user types is recorded; the sketch works in its
-/// own units, and only the distances convert.
-fn in_units(mode: Chamfer, millimeters_per_unit: f64) -> Chamfer {
-    match mode {
-        Chamfer::Equal(reach) => Chamfer::Equal(reach / millimeters_per_unit),
-        Chamfer::Sided { first, second } => Chamfer::Sided {
-            first: first / millimeters_per_unit,
-            second: second / millimeters_per_unit,
-        },
-        Chamfer::Angled { along, degrees } => Chamfer::Angled {
-            along: along / millimeters_per_unit,
-            degrees,
-        },
     }
 }

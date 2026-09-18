@@ -7,6 +7,8 @@ mod adapters;
 pub mod anchoring;
 mod compaction;
 mod copying;
+mod cutting;
+mod descent;
 pub(crate) mod dimensioning;
 mod document;
 #[cfg(any(test, feature = "test-support"))]

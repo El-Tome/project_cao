@@ -4,6 +4,7 @@ use glam::DVec2;
 
 use crate::arc::ArcId;
 use crate::edges::off_by;
+use crate::naming::{Became, CurveId};
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// What a division left behind: the point it dropped at the crossing, the
@@ -19,6 +20,9 @@ pub struct Split {
     /// What the curves cut there were left as, around the centres they already
     /// turned about.
     pub arc_pieces: Vec<ArcId>,
+    /// Which pieces came out of which trait, which the two lists above run
+    /// together.
+    pub became: Became,
     pub rules_dropped: usize,
     pub values_dropped: usize,
 }
@@ -118,6 +122,7 @@ impl Sketch {
             point,
             pieces: Vec::new(),
             arc_pieces: Vec::new(),
+            became: Became::new(),
             rules_dropped: 0,
             values_dropped: 0,
         };
@@ -126,6 +131,10 @@ impl Sketch {
                 return None;
             }
             let cut = divided.trim(*segment, point, point)?;
+            split.became.push((
+                CurveId::Segment(*segment),
+                cut.pieces.iter().copied().map(CurveId::Segment).collect(),
+            ));
             split.pieces.extend(cut.pieces);
             split.rules_dropped += cut.rules_dropped;
             split.values_dropped += cut.values_dropped;
@@ -135,6 +144,10 @@ impl Sketch {
                 return None;
             }
             let cut = divided.trim_arc(*arc, point, point)?;
+            split.became.push((
+                CurveId::Arc(*arc),
+                cut.pieces.iter().copied().map(CurveId::Arc).collect(),
+            ));
             split.arc_pieces.extend(cut.pieces);
             split.rules_dropped += cut.rules_dropped;
             split.values_dropped += cut.values_dropped;

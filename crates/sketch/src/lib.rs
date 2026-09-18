@@ -72,7 +72,7 @@ pub use duplicating::Duplicated;
 pub use fillet::Rounded;
 pub use length::LengthOutcome;
 pub use measuring::{DimensionMode, DimensionPick, DimensionPicks, measure_pick};
-pub use naming::{Area, CurveId, area_under};
+pub use naming::{Area, Became, CurveId, area_under};
 pub use patterning::Repeats;
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};

@@ -2,6 +2,7 @@ use std::f64::consts::TAU;
 
 use serde::{Deserialize, Serialize};
 
+use crate::naming::{Became, CurveId};
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
 /// Under this a side gives nothing to a chamfer, and the cut would run from
@@ -60,6 +61,10 @@ pub enum Chamfer {
 pub struct Chamfered {
     pub cut: SegmentId,
     pub pieces: Vec<SegmentId>,
+    /// Which pieces came out of which side, which `pieces` runs together. The
+    /// straight cut laid across the corner is in neither: it stands where the
+    /// corner was and descends from no curve.
+    pub became: Became,
     pub rules_dropped: usize,
     pub values_dropped: usize,
 }
@@ -86,11 +91,21 @@ impl Sketch {
         let mut chamfered = Chamfered {
             cut: SegmentId(0),
             pieces: Vec::new(),
+            became: Became::new(),
             rules_dropped: 0,
             values_dropped: 0,
         };
         for (side, back_to) in [(first, start), (second, end)] {
             let trimmed = cut.trim(side, pivot, back_to)?;
+            chamfered.became.push((
+                CurveId::Segment(side),
+                trimmed
+                    .pieces
+                    .iter()
+                    .copied()
+                    .map(CurveId::Segment)
+                    .collect(),
+            ));
             chamfered.pieces.extend(trimmed.pieces);
             chamfered.rules_dropped += trimmed.rules_dropped;
             chamfered.values_dropped += trimmed.values_dropped;

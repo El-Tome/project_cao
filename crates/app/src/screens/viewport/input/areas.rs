@@ -48,15 +48,7 @@ pub(crate) fn pick_areas(
     }
 
     let regions = sketch.regions();
-    // The innermost area wins: inside a shape drawn within another, the click
-    // means the small one, not the one it sits in.
-    let Some(under) = regions
-        .iter()
-        .enumerate()
-        .filter(|(_, region)| region.contains(cursor))
-        .max_by_key(|(_, region)| region.depth)
-        .map(|(index, _)| index)
-    else {
+    let Some(under) = cao_sketch::area_under(&regions, cursor) else {
         return;
     };
     context.extrusion.hovered = Some(under);

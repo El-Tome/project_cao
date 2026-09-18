@@ -26,7 +26,7 @@ impl PartState {
     ///
     /// Nothing when one of the curves it names was cut away altogether: the
     /// area has lost a border, and whatever stood on it stands on nothing.
-    pub fn standing(&self, sketch: usize, area: &Area) -> Option<Area> {
+    pub(crate) fn standing(&self, sketch: usize, area: &Area) -> Option<Area> {
         match self.descent.get(&sketch) {
             Some(descent) => descent.follow(area),
             None => Some(area.clone()),

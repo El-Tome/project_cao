@@ -73,6 +73,19 @@ impl History {
         self.operations.get(at)
     }
 
+    /// Whether the operation just recorded landed in the step the design ends
+    /// on.
+    ///
+    /// When it did not, it is replayed before everything raised after it, and
+    /// applying it to the part as it stands would change the drawing and leave
+    /// the matter behind.
+    pub fn last_is_at_the_end(&self) -> bool {
+        match (self.steps.last(), self.numbers.last()) {
+            (Some(step), Some(newest)) => step.operations().last() == Some(newest),
+            _ => true,
+        }
+    }
+
     /// The operations in the order they are replayed: each step whole, in the
     /// order the steps were made, rather than in the order things were typed.
     ///

@@ -3,6 +3,8 @@
 //! Closes #364.
 //! - dragging a corner of a sketch an extrusion stands on changes the matter —
 //!   `a_corner_dragged_long_afterwards_rebuilds_the_matter`
+//! - the matter is rebuilt as the corner is dragged, not only when the part
+//!   is reopened — `dragging_a_corner_rebuilds_the_matter_there_and_then`
 //! - the order things were typed still drives undo —
 //!   `undo_walks_back_the_order_things_were_typed`
 //! - an operation is recorded under the step it edits —
@@ -15,7 +17,7 @@
 //!   `undo_walks_back_the_order_things_were_typed` holds that cursor
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{PointId, WorkPlane};
 use cao_solid::Mesh;
 use glam::DVec2;
@@ -110,5 +112,23 @@ fn undo_walks_back_the_order_things_were_typed() {
         (volume(&PartState::rebuild(&history).body) - 300.0).abs() < 1.0,
         "undoing takes back the last thing typed — the second corner — and the \
          drawing is a quadrilateral of 150 raised 2",
+    );
+}
+
+/// The live path, which is the one a user is on: an edit that lands in an
+/// earlier step has to build the part again there and then, not wait for the
+/// file to be reopened.
+#[test]
+fn dragging_a_corner_rebuilds_the_matter_there_and_then() {
+    let mut document = PartDocument::new("Test", "2026-01-02T09:00:00Z".parse().expect("a date"));
+    for operation in drawn_then_edited().operations() {
+        document.apply(operation.clone());
+    }
+
+    assert!(
+        (volume(document.body()) - 400.0).abs() < 1.0,
+        "the corners were dragged out as the part was being made, and the \
+         matter holds {}",
+        volume(document.body()),
     );
 }

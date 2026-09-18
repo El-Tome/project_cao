@@ -34,7 +34,10 @@ pub struct PartState {
 impl PartState {
     pub fn rebuild(history: &History) -> Self {
         let mut state = Self::default();
-        for operation in history.applied_operations() {
+        // Step by step, each step whole — not in the order things were typed.
+        // A corner of a sketch dragged long after an extrusion was raised from
+        // it is played with that sketch, so the extrusion is raised again.
+        for operation in history.replay_order() {
             state.apply(operation);
         }
         state

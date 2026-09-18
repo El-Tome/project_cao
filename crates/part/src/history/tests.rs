@@ -1,3 +1,10 @@
+//! What the list of everything done to a part is held to.
+//!
+//! Closes #364.
+//! - a design reopened is grouped by what each operation edits, not by where
+//!   it happened to be filed —
+//!   `a_design_read_back_is_grouped_by_what_each_operation_edits`
+
 use cao_sketch::WorkPlane;
 use glam::DVec2;
 
@@ -48,6 +55,13 @@ fn an_extrusion_opens_a_step_of_its_own() {
     assert_eq!(steps[2].operations(), [4]);
 }
 
+fn point_op(sketch: usize) -> Operation {
+    Operation::AddPoint {
+        sketch,
+        position: DVec2::Y,
+    }
+}
+
 fn segment_op(sketch: usize) -> Operation {
     Operation::AddSegment {
         sketch,
@@ -96,12 +110,12 @@ fn a_new_operation_drops_what_was_undone() {
     history.push(segment_op(0));
     history.undo();
 
-    history.push(segment_op(1));
+    history.push(point_op(0));
 
     assert_eq!(history.operations().len(), 2);
     assert_eq!(history.applied(), 2);
     assert!(!history.can_redo());
-    assert_eq!(history.operations()[1], segment_op(1));
+    assert_eq!(history.operations()[1], point_op(0));
 }
 
 #[test]
@@ -193,4 +207,45 @@ fn rewinding_past_the_end_is_clamped() {
     history.push(create_sketch());
     history.rewind_to(99);
     assert_eq!(history.applied(), 1);
+}
+
+/// A design written before an operation belonged to the step it edits comes
+/// back grouped the way it is replayed.
+#[test]
+fn a_design_read_back_is_grouped_by_what_each_operation_edits() {
+    let mut filed = History::default();
+    filed.push(create_sketch());
+    filed.push(segment_op(0));
+    filed.push(extrude(0));
+    filed.push(create_sketch());
+    // As a part written before #364 holds it: filed under the step that was
+    // open, though it edits the first sketch.
+    let stray = filed.last_operation_number + 1;
+    filed.last_operation_number = stray;
+    filed.operations.push(point_op(0));
+    filed.numbers.push(stray);
+    filed.applied = filed.operations.len();
+    filed.steps.last_mut().expect("a step").record(stray);
+
+    let read_back =
+        History::restore(filed.index(), grouped(&filed)).expect("the design answers to itself");
+
+    assert_eq!(
+        read_back.steps()[0].operations(),
+        [1, 2, stray],
+        "the first sketch takes back what edits it",
+    );
+    assert!(
+        read_back.steps()[2].operations() == [4],
+        "the second sketch keeps only its own opening: {:?}",
+        read_back.steps()[2].operations(),
+    );
+}
+
+/// The operations as a file hands them back: step by step, each from its own
+/// folder.
+fn grouped(history: &History) -> Vec<Operation> {
+    (0..history.steps().len())
+        .flat_map(|step| history.operations_of(step))
+        .collect()
 }

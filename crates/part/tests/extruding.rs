@@ -348,8 +348,10 @@ fn a_whole_selection_goes_in_one_step() {
     assert_eq!(back.sketches[0].dimensions().len(), 1);
 }
 
-/// Deleting and replaying must give the same part: that is what allows
-/// stepping back over a deletion.
+/// Erasing a trait an extrusion stands on takes the matter with it, because
+/// the erasure belongs to the sketch's step and is replayed before the
+/// extrusion — whenever it was typed. That is #364, and what warns about it is
+/// #345.
 #[test]
 fn a_deletion_replays_like_any_other_step() {
     let mut history = sketch_history();
@@ -373,13 +375,16 @@ fn a_deletion_replays_like_any_other_step() {
     let state = PartState::rebuild(&history);
     assert!(state.sketches[0].regions().is_empty(), "the area is open");
     assert!(
-        (volume(&state.body) - before).abs() < 1.0,
-        "the volume already made stays"
+        volume(&state.body) < 1.0,
+        "the extrusion has nothing left to stand on, so the matter goes: {}",
+        volume(&state.body),
     );
 
-    // And the cursor brought back before the deletion returns the outline.
+    // And the cursor brought back before the deletion returns both.
     history.undo();
-    assert_eq!(PartState::rebuild(&history).sketches[0].regions().len(), 1);
+    let back = PartState::rebuild(&history);
+    assert_eq!(back.sketches[0].regions().len(), 1);
+    assert!((volume(&back.body) - before).abs() < 1.0);
 }
 
 /// A sketch that is not entirely constrained extrudes all the same.

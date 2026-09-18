@@ -5,6 +5,8 @@
 //! extrusion lifts — is not in here. It is already in the operation that opens
 //! the step; where it goes in the file is `document::design`'s business.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 use super::Operation;
@@ -88,7 +90,8 @@ impl Step {
         self.operations.push(operation);
     }
 
-    pub(crate) fn keep(&mut self, operations: usize) {
-        self.operations.truncate(operations);
+    /// Keeps only the operations still in the list, whatever their order.
+    pub(crate) fn keep_only(&mut self, left: &BTreeSet<u32>) {
+        self.operations.retain(|number| left.contains(number));
     }
 }

@@ -1,6 +1,8 @@
 //! Everything done to a part, in order, and the cursor that says how much
 //! of it is in effect.
 
+use std::collections::BTreeSet;
+
 use serde::{Deserialize, Serialize};
 
 mod operation;
@@ -22,6 +24,10 @@ pub use step::{Step, StepKind};
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct History {
     operations: Vec<Operation>,
+    /// The number each operation was given, in the same order. Kept beside the
+    /// list rather than worked out from a position: undoing and pushing again
+    /// leaves a gap in the numbers, and the steps name operations by number.
+    numbers: Vec<u32>,
     steps: Vec<Step>,
     applied: usize,
     last_operation_number: u32,
@@ -50,11 +56,50 @@ impl History {
         &self.steps
     }
 
-    /// The operations recorded under one step, as the stretch of the list
-    /// they occupy.
-    pub(crate) fn operations_of(&self, step: usize) -> &[Operation] {
-        let start: usize = self.steps[..step].iter().map(Step::len).sum();
-        &self.operations[start..start + self.steps[step].len()]
+    /// The operations recorded under one step, in the order they were done.
+    ///
+    /// They are no longer a stretch of the list: an operation belongs to the
+    /// step it edits, and one of those can be typed at any time.
+    pub(crate) fn operations_of(&self, step: usize) -> Vec<Operation> {
+        self.steps[step]
+            .operations()
+            .iter()
+            .filter_map(|number| self.at(*number).cloned())
+            .collect()
+    }
+
+    fn at(&self, number: u32) -> Option<&Operation> {
+        let at = self.numbers.iter().position(|given| *given == number)?;
+        self.operations.get(at)
+    }
+
+    /// Whether the operation just recorded landed in the step the design ends
+    /// on.
+    ///
+    /// When it did not, it is replayed before everything raised after it, and
+    /// applying it to the part as it stands would change the drawing and leave
+    /// the matter behind.
+    pub fn last_is_at_the_end(&self) -> bool {
+        match (self.steps.last(), self.numbers.last()) {
+            (Some(step), Some(newest)) => step.operations().last() == Some(newest),
+            _ => true,
+        }
+    }
+
+    /// The operations in the order they are replayed: each step whole, in the
+    /// order the steps were made, rather than in the order things were typed.
+    ///
+    /// That is what makes an extrusion rebuild when the sketch it stands on is
+    /// edited long afterwards. Undo walks the other order, which is the one
+    /// the list is kept in.
+    pub fn replay_order(&self) -> Vec<&Operation> {
+        let in_effect: BTreeSet<u32> = self.numbers[..self.applied].iter().copied().collect();
+        self.steps
+            .iter()
+            .flat_map(|step| step.operations())
+            .filter(|number| in_effect.contains(number))
+            .filter_map(|number| self.at(*number))
+            .collect()
     }
 
     /// A history with nothing in it, going on handing out the numbers this
@@ -90,12 +135,61 @@ impl History {
         if counted != operations.len() || index.applied > operations.len() {
             return None;
         }
-        Some(Self {
+        // Each step's operations come back from its own folder, so what is
+        // handed over is grouped by step. The list itself is kept in the order
+        // things were done, which is what the numbers say and what undo walks.
+        let mut taken = operations.into_iter();
+        let mut numbered: Vec<(u32, Operation)> = Vec::with_capacity(counted);
+        for step in &index.steps {
+            for number in step.operations() {
+                numbered.push((*number, taken.next()?));
+            }
+        }
+        numbered.sort_by_key(|(number, _)| *number);
+        let (numbers, operations) = numbered.into_iter().unzip();
+        let mut history = Self {
             operations,
+            numbers,
             steps: index.steps,
             applied: index.applied,
             last_operation_number: index.last_operation_number,
-        })
+        };
+        history.regroup();
+        Some(history)
+    }
+
+    /// Puts every operation back under the step it edits.
+    ///
+    /// Which step an operation belongs to is worked out from the operation
+    /// itself, so it is never read back wrong: a design written before that
+    /// was decided comes back grouped the way it is replayed, rather than the
+    /// way it happened to be filed.
+    fn regroup(&mut self) {
+        let kinds: Vec<StepKind> = self.steps.iter().map(Step::kind).collect();
+        let mut steps: Vec<Step> = kinds.iter().map(|kind| Step::opened(*kind)).collect();
+        let mut opened = 0;
+        for (number, operation) in self.numbers.iter().zip(&self.operations) {
+            let owner = match StepKind::opened_by(operation) {
+                Some(_) => {
+                    opened += 1;
+                    opened - 1
+                }
+                None => {
+                    let Some(step) = operation
+                        .edits()
+                        .and_then(|sketch| step_of(&kinds, sketch))
+                        .filter(|step| *step < opened)
+                    else {
+                        continue;
+                    };
+                    step
+                }
+            };
+            if let Some(step) = steps.get_mut(owner) {
+                step.record(*number);
+            }
+        }
+        self.steps = steps;
     }
 
     /// How many operations are currently in effect.
@@ -133,16 +227,33 @@ impl History {
         if opens.is_none() && self.steps.is_empty() {
             return;
         }
-        if let Some(kind) = opens {
-            self.steps.push(Step::opened(kind));
-        }
+        let owner = match opens {
+            Some(kind) => {
+                self.steps.push(Step::opened(kind));
+                self.steps.len() - 1
+            }
+            None => match operation
+                .edits()
+                .and_then(|sketch| self.step_of_sketch(sketch))
+            {
+                Some(step) => step,
+                None => return,
+            },
+        };
         self.last_operation_number += 1;
         let number = self.last_operation_number;
-        if let Some(step) = self.steps.last_mut() {
-            step.record(number);
-        }
+        self.steps[owner].record(number);
         self.operations.push(operation);
+        self.numbers.push(number);
         self.applied = self.operations.len();
+    }
+
+    /// Which step a sketch is: the rank-th step that opened a sketch.
+    fn step_of_sketch(&self, sketch: usize) -> Option<usize> {
+        step_of(
+            &self.steps.iter().map(Step::kind).collect::<Vec<_>>(),
+            sketch,
+        )
     }
 
     fn drop_what_was_undone(&mut self) {
@@ -150,12 +261,11 @@ impl History {
             return;
         }
         self.operations.truncate(self.applied);
-        let mut left = self.applied;
+        self.numbers.truncate(self.applied);
+        let left: BTreeSet<u32> = self.numbers.iter().copied().collect();
         self.steps.retain_mut(|step| {
-            let kept = step.len().min(left);
-            left -= kept;
-            step.keep(kept);
-            kept > 0
+            step.keep_only(&left);
+            !step.is_empty()
         });
     }
 
@@ -180,6 +290,16 @@ impl History {
     pub fn rewind_to(&mut self, applied: usize) {
         self.applied = applied.min(self.operations.len());
     }
+}
+
+/// Which step a sketch is: the rank-th step that opened a sketch.
+fn step_of(kinds: &[StepKind], sketch: usize) -> Option<usize> {
+    kinds
+        .iter()
+        .enumerate()
+        .filter(|(_, kind)| **kind == StepKind::Sketch)
+        .map(|(rank, _)| rank)
+        .nth(sketch)
 }
 
 #[cfg(test)]

@@ -1,4 +1,14 @@
 //! What adding and taking away matter leaves behind.
+//!
+//! Closes #192.
+//! - cutting a body leaves a face it ran across one face, not two —
+//!   `a_cut_across_a_face_leaves_it_one_face`
+//! - two bosses of the same height give two tops —
+//!   `two_tops_at_the_same_height_that_never_meet_are_two_faces`
+//! - a cut that leaves a face in pieces that no longer touch leaves several —
+//!   `a_cut_that_leaves_two_pieces_of_one_face_makes_two`
+//! - the same matter comes out as before — no test: every volume assertion in
+//!   this file is unchanged, and none of them was touched
 
 use glam::{DVec2, DVec3};
 

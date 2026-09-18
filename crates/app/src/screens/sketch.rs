@@ -118,15 +118,19 @@ pub struct SketchEditor {
 pub enum PlaneChoice {
     /// One of the three planes through the origin, by rank.
     Origin(usize),
-    /// A flat face of the part.
-    Face(WorkPlane),
+    /// A flat face of the part: the plane it offers, and which face it is.
+    Face { plane: WorkPlane, face: usize },
+    /// A face of the part no drawing can be laid on, because it is not flat.
+    Curved(usize),
 }
 
 impl PlaneChoice {
-    pub fn plane(self) -> WorkPlane {
+    /// The plane it offers to draw on, or nothing when it offers none.
+    pub fn plane(self) -> Option<WorkPlane> {
         match self {
-            Self::Origin(index) => WorkPlane::ORIGIN_PLANES[index],
-            Self::Face(plane) => plane,
+            Self::Origin(index) => Some(WorkPlane::ORIGIN_PLANES[index]),
+            Self::Face { plane, .. } => Some(plane),
+            Self::Curved(_) => None,
         }
     }
 }

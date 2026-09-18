@@ -1,4 +1,14 @@
 //! What a solid raised from a drawing holds.
+//!
+//! Closes #192.
+//! - a body raised from a circle has a wall that is one face made of many
+//!   pieces — `a_curve_raises_one_wall_however_finely_it_was_sampled`
+//! - a trait drawn straight raises a face of its own, and each end of a prism
+//!   is one face — `a_trait_drawn_straight_raises_a_wall_of_its_own`,
+//!   `the_two_ends_of_a_prism_are_one_face_each`
+//! - the grouping is recorded where the geometry is made — no test: it is the
+//!   shape of `Loop`, which carries the curve every segment was sampled from
+//!   rather than leaving it to be guessed from the angle between two flats
 
 use glam::{DVec2, DVec3};
 

@@ -174,6 +174,8 @@ pub struct Theme {
     pub solid: Rgba,
     /// A plane or a face under the cursor.
     pub highlight: Rgba,
+    /// What is lit when the cursor is over something that will not answer.
+    pub refused: Rgba,
     pub extrusion_add: Rgba,
     pub extrusion_cut: Rgba,
 }
@@ -234,6 +236,7 @@ impl Default for Theme {
             rule: Theme::default_rule(),
             picked: Theme::default_picked(),
             highlight: Rgba::new(0.30, 0.60, 0.95, 0.40),
+            refused: Rgba::new(0.95, 0.35, 0.35, 0.40),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),
         }

@@ -200,8 +200,14 @@ fn push_choosable_planes(
     let has_body = !context.document.body().is_empty();
     let faded = if has_body { 0.35 } else { 1.0 };
 
-    if let Some(PlaneChoice::Face(plane)) = context.editor.hovered_plane {
-        push_hovered_face(surfaces, theme, context, plane);
+    match context.editor.hovered_plane {
+        Some(PlaneChoice::Face { face, .. }) => {
+            push_hovered_face(surfaces, tint(theme.highlight), context, face);
+        }
+        Some(PlaneChoice::Curved(face)) => {
+            push_hovered_face(surfaces, tint(theme.refused), context, face);
+        }
+        _ => {}
     }
 
     for (index, plane) in WorkPlane::ORIGIN_PLANES.iter().enumerate() {
@@ -365,25 +371,19 @@ fn push_regions(
 }
 
 /// Lights up the face of the part under the cursor, so it is clear what a click would sketch on.
+/// Lights every piece of one face at once.
+///
+/// A face is stored as many flat pieces, and lighting only the piece under the
+/// cursor would read as picking a fragment of it. Only the fill is drawn —
+/// outlining each piece would show the seams between them, which are not
+/// something the user drew.
 fn push_hovered_face(
     surfaces: &mut Vec<cao_render::Vertex>,
-    theme: &Theme,
+    fill: [f32; 4],
     context: &SketchContext<'_>,
-    plane: WorkPlane,
+    face: usize,
 ) {
-    let normal = plane.normal();
-    let offset = plane.origin.dot(normal);
-    let fill = tint(theme.highlight);
-
-    // Every face lying on the same plane lights up together: a curved surface
-    // and a cut one are both stored as many flat pieces, and lighting only the
-    // piece under the cursor would read as picking a fragment of it. Only the
-    // fill is drawn — outlining each piece would show the seams between them,
-    // which are not something the user drew.
-    for polygon in &context.document.body().polygons {
-        if polygon.normal().dot(normal) < 0.999 || (polygon.plane_offset() - offset).abs() > 1e-4 {
-            continue;
-        }
+    for polygon in context.document.body().pieces_of(face) {
         for [a, b, c] in polygon.triangles() {
             for corner in [a, b, c] {
                 surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));

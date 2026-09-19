@@ -1,4 +1,5 @@
 use std::cell::RefCell;
+use std::collections::BTreeSet;
 
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -9,7 +10,7 @@ use crate::erased::Erased;
 use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct PointId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -70,6 +71,9 @@ pub struct Sketch {
     /// squirming away from it. Nothing to save — they live only as long as the gesture.
     #[serde(skip)]
     held: Vec<PointId>,
+    /// The points something outside the drawing holds still. See `anchored`.
+    #[serde(skip)]
+    anchored: BTreeSet<PointId>,
     /// The last reading of which points can no longer move, against a print of
     /// the drawing it was read from. Worked out from everything else, so it is
     /// never saved and never read back.
@@ -98,6 +102,7 @@ impl Sketch {
             constraints: Vec::new(),
             erased: Erased::default(),
             held: Vec::new(),
+            anchored: BTreeSet::new(),
             settled: RefCell::default(),
         }
     }
@@ -394,7 +399,7 @@ impl Sketch {
     /// A point neither coordinate of which can move, whatever the drawing says:
     /// the origin, and anything erased.
     pub(crate) fn out_of_play(&self, point: PointId) -> bool {
-        self.is_origin(point) || self.is_erased_point(point)
+        self.is_origin(point) || self.is_erased_point(point) || self.is_anchored(point)
     }
 
     /// Whether the user is holding this point under the cursor right now.
@@ -754,6 +759,7 @@ fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> Dimensi
     }
 }
 
+mod anchored;
 mod settling;
 
 #[cfg(test)]

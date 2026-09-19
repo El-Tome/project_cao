@@ -13,10 +13,20 @@ use serde::{Deserialize, Serialize};
 /// Resolved when the user clicks, never re-derived on replay: snapping depends
 /// on the zoom level at the time, so re-running it later could join different
 /// points and rebuild a different drawing.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PointRef {
     Existing(PointId),
     New(DVec2),
+    /// A point dropped on a corner of the part, named by the faces meeting
+    /// there — the same shape of name as an area's in #345.
+    ///
+    /// `at` is where it fell on the plane the day it was clicked, kept both
+    /// to tell apart two corners the same faces answer for and to fall back
+    /// on when the corner is gone.
+    OnCorner {
+        at: DVec2,
+        faces: Vec<usize>,
+    },
 }
 
 /// What an extrusion does to the part.

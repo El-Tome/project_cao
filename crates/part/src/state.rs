@@ -6,7 +6,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::descent::Descent;
-use crate::history::{History, Operation, PointRef};
+use crate::history::{History, Operation};
 use crate::outcome::Outcome;
 
 /// The geometry of a part at a given point in its history.
@@ -21,6 +21,11 @@ pub struct PartState {
     /// dimension is typed.
     pub millimeters_per_unit: Option<f64>,
     pub sketches: Vec<Sketch>,
+    /// The drawings that were pointed at a corner the part no longer has.
+    /// Their points stay where they were drawn, loose, and the interface says
+    /// so rather than letting them quietly catch the corner next door.
+    #[serde(default)]
+    pub(crate) unanchored: BTreeSet<usize>,
     /// The drawings whose face the part no longer has. They keep the plane
     /// they last had, and the interface says so rather than letting them
     /// quietly catch another face.
@@ -54,6 +59,11 @@ impl PartState {
         state
     }
 
+    /// Whether a drawing was pointed at a corner the part no longer has.
+    pub fn is_unanchored(&self, sketch: usize) -> bool {
+        self.unanchored.contains(&sketch)
+    }
+
     pub fn scale(&self) -> f64 {
         self.millimeters_per_unit.unwrap_or(1.0)
     }
@@ -85,9 +95,9 @@ impl PartState {
                 end,
                 construction,
             } => {
+                let start = self.point_for(*sketch, start)?;
+                let end = self.point_for(*sketch, end)?;
                 let sketch = self.sketches.get_mut(*sketch)?;
-                let start = resolve(sketch, start);
-                let end = resolve(sketch, end);
                 if start != end {
                     if *construction {
                         sketch.add_construction_segment(start, end);
@@ -103,9 +113,9 @@ impl PartState {
                 end,
                 construction,
             } => {
+                let middle = self.point_for(*sketch, middle)?;
+                let end = self.point_for(*sketch, end)?;
                 let sketch = self.sketches.get_mut(*sketch)?;
-                let middle = resolve(sketch, middle);
-                let end = resolve(sketch, end);
                 let mirrored = sketch.point(middle) * 2.0 - sketch.point(end);
                 if mirrored.distance(sketch.point(end)) > 1e-9 {
                     let start = sketch.add_point(mirrored);
@@ -127,11 +137,11 @@ impl PartState {
                 opposite,
                 construction,
             } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
                 // The two given corners may reuse points already drawn; the
                 // other two are always new.
-                let first = resolve(sketch, corner);
-                let third = resolve(sketch, opposite);
+                let first = self.point_for(*sketch, corner)?;
+                let third = self.point_for(*sketch, opposite)?;
+                let sketch = self.sketches.get_mut(*sketch)?;
                 let (a, c) = (sketch.point(first), sketch.point(third));
                 let second = sketch.add_point(DVec2::new(c.x, a.y));
                 let fourth = sketch.add_point(DVec2::new(a.x, c.y));
@@ -172,16 +182,19 @@ impl PartState {
                 rim,
                 construction,
             } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let center = resolve(sketch, center);
+                let index = *sketch;
+                let center = self.point_for(index, center)?;
+                let drawing = self.sketches.get_mut(index)?;
                 let circle = if *construction {
-                    sketch.add_construction_circle(center, *radius)
+                    drawing.add_construction_circle(center, *radius)
                 } else {
-                    sketch.add_circle(center, *radius)
+                    drawing.add_circle(center, *radius)
                 };
                 for place in rim {
-                    let point = resolve(sketch, place);
-                    sketch.add_constraint(cao_sketch::Constraint::OnCircle { point, circle });
+                    let point = self.point_for(index, place)?;
+                    self.sketches
+                        .get_mut(index)?
+                        .add_constraint(cao_sketch::Constraint::OnCircle { point, circle });
                 }
                 None
             }
@@ -192,8 +205,11 @@ impl PartState {
                 end,
                 construction,
             } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let [center, start, end] = [center, start, end].map(|place| resolve(sketch, place));
+                let index = *sketch;
+                let center = self.point_for(index, center)?;
+                let start = self.point_for(index, start)?;
+                let end = self.point_for(index, end)?;
+                let sketch = self.sketches.get_mut(index)?;
                 match *construction {
                     true => sketch.add_construction_arc(center, start, end),
                     false => sketch.add_arc(center, start, end),
@@ -349,12 +365,5 @@ impl PartState {
                 None
             }
         }
-    }
-}
-
-fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
-    match point {
-        PointRef::Existing(id) => *id,
-        PointRef::New(position) => sketch.add_point(*position),
     }
 }

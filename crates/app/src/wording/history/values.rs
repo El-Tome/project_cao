@@ -44,6 +44,10 @@ pub(super) fn point_label(lang: &Catalogue, point: &PointRef) -> String {
                 ("y", &rounded(position.y, 1)),
             ],
         ),
+        PointRef::OnCorner { at, .. } => lang.t_with(
+            "history.detail.point_on_a_corner",
+            &[("x", &rounded(at.x, 1)), ("y", &rounded(at.y, 1))],
+        ),
     }
 }
 

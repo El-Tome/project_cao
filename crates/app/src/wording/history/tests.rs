@@ -61,7 +61,7 @@ fn swept(axis: RevolutionAxis, mode: ExtrusionMode) -> Operation {
 
 #[test]
 fn a_drawn_step_is_named_after_the_shape_it_left_behind() {
-    let here = PointRef::New(DVec2::ZERO);
+    let here = || PointRef::New(DVec2::ZERO);
     let drawn = [
         Operation::AddPoint {
             sketch: 0,
@@ -69,19 +69,19 @@ fn a_drawn_step_is_named_after_the_shape_it_left_behind() {
         },
         Operation::AddSegment {
             sketch: 0,
-            start: here,
+            start: here(),
             end: PointRef::New(AWAY),
             construction: false,
         },
         Operation::AddRectangle {
             sketch: 0,
-            corner: here,
+            corner: here(),
             opposite: PointRef::New(AWAY),
             construction: false,
         },
         Operation::AddCircle {
             sketch: 0,
-            center: here,
+            center: here(),
             radius: 5.0,
             rim: Vec::new(),
             construction: false,

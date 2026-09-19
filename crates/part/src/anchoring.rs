@@ -5,10 +5,10 @@
 //! face, and the plane is worked out again at every replay from the part as it
 //! then stands.
 
-use cao_sketch::WorkPlane;
+use cao_sketch::{PointId, WorkPlane};
 use glam::DVec3;
 
-use crate::history::FaceAnchor;
+use crate::history::{FaceAnchor, PointRef};
 use crate::state::PartState;
 
 impl PartState {
@@ -40,5 +40,63 @@ impl PartState {
             .flat_map(|piece| piece.corners.iter().copied())
             .collect();
         Some(WorkPlane::from_face(&corners, normal, anchor.up))
+    }
+
+    /// The point an operation names, laid down in the drawing.
+    ///
+    /// A point dropped on a corner of the part is put where that corner
+    /// stands **now** and held there, so the drawing travels with the part
+    /// rather than keeping the place the click happened to fall on.
+    ///
+    /// A corner the part no longer has leaves the point where it was drawn,
+    /// loose, and marks the drawing: catching the nearest corner instead
+    /// would move a point to somewhere nobody pointed at.
+    pub(crate) fn point_for(&mut self, sketch: usize, named: &PointRef) -> Option<PointId> {
+        let plane = self.sketches.get(sketch)?.plane;
+        let (at, landed) = match named {
+            PointRef::Existing(id) => return Some(*id),
+            PointRef::New(at) => (*at, None),
+            PointRef::OnCorner { at, faces } => {
+                (*at, Some(self.corner_now(faces, plane.to_world(*at))))
+            }
+        };
+        let drawing = self.sketches.get_mut(sketch)?;
+        match landed {
+            None => Some(drawing.add_point(at)),
+            Some(Some(corner)) => {
+                let point = drawing.add_point(plane.to_local(corner));
+                drawing.hold_on_the_part(point);
+                Some(point)
+            }
+            Some(None) => {
+                self.unanchored.insert(sketch);
+                Some(self.sketches.get_mut(sketch)?.add_point(at))
+            }
+        }
+    }
+
+    /// Where the named corner stands now.
+    ///
+    /// A corner answers to the name when every face the name holds meets at
+    /// it. It may have more: a boolean can cut a face the corner touches into
+    /// pieces, and a corner nothing happened to must not be lost over it.
+    /// Fewest of those extras wins, and the place clicked settles a draw —
+    /// the same reckoning an area's name gets in #345, for the same reason.
+    fn corner_now(&self, faces: &[usize], near: DVec3) -> Option<DVec3> {
+        let mut answering: Vec<(usize, f64, DVec3)> = self
+            .body
+            .corners()
+            .into_iter()
+            .filter(|corner| faces.iter().all(|face| corner.faces.contains(face)))
+            .map(|corner| {
+                (
+                    corner.faces.len().saturating_sub(faces.len()),
+                    corner.at.distance(near),
+                    corner.at,
+                )
+            })
+            .collect();
+        answering.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
+        answering.first().map(|(_, _, at)| *at)
     }
 }

@@ -143,7 +143,7 @@ fn point_ref(old_id: PointId, old_sketch: &Sketch, map: &SketchIdMap) -> PointRe
 
 /// Records that `old_id` landed at the next unclaimed point, if `reference`
 /// was a `New` one — an `Existing` reference claimed nothing.
-fn claim(old_id: PointId, reference: PointRef, map: &mut SketchIdMap, next: &mut usize) {
+fn claim(old_id: PointId, reference: &PointRef, map: &mut SketchIdMap, next: &mut usize) {
     if let PointRef::New(_) = reference {
         map.points.insert(old_id, PointId(*next));
         *next += 1;
@@ -166,15 +166,15 @@ fn add_segment(
     record(
         Operation::AddSegment {
             sketch: sketch_index,
-            start,
-            end,
+            start: start.clone(),
+            end: end.clone(),
             construction: segment.construction,
         },
         new_history,
         new_state,
     );
-    claim(segment.start, start, map, &mut next);
-    claim(segment.end, end, map, &mut next);
+    claim(segment.start, &start, map, &mut next);
+    claim(segment.end, &end, map, &mut next);
     let new_id = SegmentId(new_state.sketches[sketch_index].segments().len() - 1);
     map.segments.insert(old_id, new_id);
 }
@@ -246,7 +246,7 @@ fn compact_sketch(
         record(
             Operation::AddCircle {
                 sketch: sketch_index,
-                center,
+                center: center.clone(),
                 radius: circle.radius,
                 rim: rim.clone(),
                 construction: circle.construction,
@@ -254,8 +254,8 @@ fn compact_sketch(
             new_history,
             new_state,
         );
-        claim(circle.center, center, &mut map, &mut next);
-        for (&old_point, &reference) in rim_old.iter().zip(rim.iter()) {
+        claim(circle.center, &center, &mut map, &mut next);
+        for (&old_point, reference) in rim_old.iter().zip(rim.iter()) {
             claim(old_point, reference, &mut map, &mut next);
             bundled_rim_points.insert((old_point, old_id));
         }
@@ -271,17 +271,17 @@ fn compact_sketch(
         record(
             Operation::AddArc {
                 sketch: sketch_index,
-                center,
-                start,
-                end,
+                center: center.clone(),
+                start: start.clone(),
+                end: end.clone(),
                 construction: arc.construction,
             },
             new_history,
             new_state,
         );
-        claim(arc.center, center, &mut map, &mut next);
-        claim(arc.start, start, &mut map, &mut next);
-        claim(arc.end, end, &mut map, &mut next);
+        claim(arc.center, &center, &mut map, &mut next);
+        claim(arc.start, &start, &mut map, &mut next);
+        claim(arc.end, &end, &mut map, &mut next);
         let new_id = ArcId(new_state.sketches[sketch_index].arcs().len() - 1);
         map.arcs.insert(old_id, new_id);
     }

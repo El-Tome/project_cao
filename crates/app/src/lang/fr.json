@@ -58,6 +58,7 @@
   "history.detail.dimension": "Esquisse {sketch} · {spans}",
   "history.detail.existing_point": "point {point}",
   "history.detail.new_point": "({x}, {y})",
+  "history.detail.point_on_a_corner": "({x}, {y}) sur un coin de la pièce",
   "history.detail.segment_axis": "trait {segment}",
 
   "part_tree.title": "Pièce",

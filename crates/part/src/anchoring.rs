@@ -6,7 +6,7 @@
 //! then stands.
 
 use cao_sketch::{PointId, WorkPlane};
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use crate::history::{FaceAnchor, PointRef};
 use crate::state::PartState;
@@ -99,4 +99,28 @@ impl PartState {
         answering.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.total_cmp(&b.1)));
         answering.first().map(|(_, _, at)| *at)
     }
+
+    /// The corners of the part a drawing can land on: the ones lying on its
+    /// own plane, each with where it falls on it and the faces that name it.
+    ///
+    /// Only those on the plane. A corner standing anywhere else has a place
+    /// on the plane too, straight down onto it, but landing a point there
+    /// would be drawing against a shadow — projecting the part's geometry is
+    /// its own behaviour and is not this one.
+    pub fn corners_on(&self, sketch: usize) -> Vec<(DVec2, Vec<usize>)> {
+        let Some(plane) = self.sketches.get(sketch).map(|drawing| drawing.plane) else {
+            return Vec::new();
+        };
+        let normal = plane.normal();
+        self.body
+            .corners()
+            .into_iter()
+            .filter(|corner| (corner.at - plane.origin).dot(normal).abs() <= ON_THE_PLANE)
+            .map(|corner| (plane.to_local(corner.at), corner.faces))
+            .collect()
+    }
 }
+
+/// How far off the plane a corner may stand and still be on it. A corner and
+/// a plane both come out of the same replay, so they meet to within rounding.
+const ON_THE_PLANE: f64 = 1e-9;

@@ -6,6 +6,8 @@
 //! - it reads as fully determined — `a_point_on_a_corner_can_no_longer_move`
 //! - a corner the part no longer has marks the drawing rather than catching
 //!   the one next door — `a_corner_that_is_gone_leaves_the_point_where_it_was`
+//! - a corner of the part is something a drawing can land on, and only the
+//!   ones on its own plane are — `a_drawing_lands_on_the_corners_of_its_own_face`
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef};
 use cao_part::{History, PartState};
@@ -153,4 +155,32 @@ fn a_corner_that_is_gone_leaves_the_point_where_it_was() {
     );
     assert!(!state.sketches[1].is_anchored(PointId(1)));
     assert!(state.is_unanchored(1), "and the drawing says so");
+}
+
+#[test]
+fn a_drawing_lands_on_the_corners_of_its_own_face() {
+    let history = a_block_with_a_drawing_on_top();
+    let state = PartState::rebuild(&history);
+
+    let offered = state.corners_on(1);
+
+    assert_eq!(
+        offered.len(),
+        4,
+        "the four corners of the top, and not the four underneath: a point \
+         landed on a corner standing somewhere else would be drawn against \
+         its shadow — {offered:?}",
+    );
+    let mut places: Vec<(i64, i64)> = offered
+        .iter()
+        .map(|(at, _)| (at.x.round() as i64, at.y.round() as i64))
+        .collect();
+    places.sort_unstable();
+    assert_eq!(places, [(0, 0), (0, 20), (40, 0), (40, 20)]);
+    assert_eq!(
+        state.corners_on(0).len(),
+        4,
+        "the first drawing is on XY: the four corners of the bottom sit on \
+         it, and the four of the top do not",
+    );
 }

@@ -117,6 +117,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
+| What a drawing is laid on, and the corners it can land on | `part/src/anchoring.rs` | `PartState::plane_for`, `point_for`, `corners_on` |
 | Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
 | The five ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
 | What a drawing's curves became, so a name written before a cut can be read after it | `part/src/descent.rs` | `Descent::record`, `Descent::follow` |
@@ -206,6 +207,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
+| What a click on a place means, as a point of the drawing | `app/src/screens/viewport/input/points.rs` | `point_ref_at` → `PointRef` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |

@@ -136,6 +136,12 @@ impl PartDocument {
             .collect()
     }
 
+    /// The corners of the part this drawing can land on, each with where it
+    /// falls on the plane and the faces that name it.
+    pub fn corners_on(&self, sketch: usize) -> Vec<(DVec2, Vec<usize>)> {
+        self.state.corners_on(sketch)
+    }
+
     /// Whether a drawing has lost the face it was laid on, and is sitting on
     /// the plane it last had rather than on anything the part still holds.
     pub fn is_adrift(&self, sketch: usize) -> bool {

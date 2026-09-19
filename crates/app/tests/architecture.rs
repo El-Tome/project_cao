@@ -109,7 +109,7 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 6] = [
-    ("crates/app/src/screens/viewport/input/mod.rs", 565),
+    ("crates/app/src/screens/viewport/input/mod.rs", 555),
     ("crates/app/src/screens/viewport/mod.rs", 567),
     ("crates/app/src/screens/viewport/render.rs", 1225),
     ("crates/render/src/renderer.rs", 426),

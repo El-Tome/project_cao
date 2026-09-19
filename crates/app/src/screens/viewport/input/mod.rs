@@ -60,7 +60,12 @@ mod copying;
 pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 
 mod corner;
+
+/// What a click on a place means, as a point of the drawing.
+mod points;
+
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
+pub(super) use points::point_ref_at;
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -355,21 +360,6 @@ fn constrain(
 }
 
 /// A point already there, or a new one where the cursor is.
-/// Moving a point by hand. The drawing settles around it afterwards, so the
-/// values already given stay true.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn point_ref_at(
-    context: &SketchContext<'_>,
-    index: usize,
-    position: DVec2,
-    snap: f64,
-) -> PointRef {
-    match context.document.sketches()[index].nearest_point(position, snap) {
-        Some(point) => PointRef::Existing(point),
-        None => PointRef::New(position),
-    }
-}
-
 /// One click of the rectangle tool: the first remembers a corner, the second
 /// draws it opposite.
 pub(crate) fn two_click_shape(

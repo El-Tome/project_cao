@@ -33,6 +33,7 @@ mod length;
 mod measuring;
 mod mirroring;
 mod naming;
+mod nearest;
 mod patterning;
 mod picking;
 mod plane;

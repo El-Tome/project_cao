@@ -1,6 +1,11 @@
-//! What the cursor finds on a drawing.
+//! What of a drawing the cursor finds nearest it.
 
-use super::*;
+use glam::DVec2;
+
+use crate::annotation::AnnotationMetrics;
+use crate::constraints::DimensionTarget;
+use crate::plane::WorkPlane;
+use crate::sketch::Sketch;
 
 #[test]
 fn the_nearest_segment_is_found_along_its_body() {
@@ -33,17 +38,6 @@ fn a_circle_is_found_by_its_outline() {
         "not the middle"
     );
     assert_eq!(sketch.nearest_circle(DVec2::new(30.0, 0.0), 1.0), None);
-}
-
-#[test]
-fn bounds_cover_every_point() {
-    let mut sketch = Sketch::new(WorkPlane::XY);
-    sketch.add_point(DVec2::new(-3.0, 7.0));
-    sketch.add_point(DVec2::new(12.0, -1.0));
-    let (min, max) = sketch.bounds().expect("some points");
-    // The origin is a point like any other as far as framing goes.
-    assert_eq!(min, DVec2::new(-3.0, -1.0));
-    assert_eq!(max, DVec2::new(12.0, 7.0));
 }
 
 #[test]

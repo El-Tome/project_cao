@@ -1,7 +1,7 @@
 //! What a drawing is held to, by subject, with the fixtures they share.
 
-mod finding;
 mod joining_and_erasing;
+mod reach;
 mod rules;
 mod settling;
 mod values;

@@ -142,6 +142,11 @@ impl PartDocument {
         self.state.corners_on(sketch)
     }
 
+    /// Whether a drawing let go of what the part held it by.
+    pub fn has_let_go(&self, sketch: usize) -> bool {
+        self.state.has_let_go(sketch)
+    }
+
     /// Whether a drawing has lost the face it was laid on, and is sitting on
     /// the plane it last had rather than on anything the part still holds.
     pub fn is_adrift(&self, sketch: usize) -> bool {

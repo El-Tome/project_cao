@@ -10,6 +10,11 @@
 //! - the two halves of a circle a chord cuts are told apart, though the same
 //!   two curves bound them both —
 //!   `the_two_halves_of_a_cut_circle_are_told_apart`
+//! - the place clicked is read before the closest fit, so a name that answers
+//!   exactly elsewhere does not take the matter away from where the user
+//!   pointed — `an_area_holding_the_place_clicked_wins_over_a_closer_fit`
+//! - a border divided is one border still, held by either piece —
+//!   `a_border_divided_is_held_by_either_of_its_pieces`
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -164,5 +169,57 @@ fn a_name_holding_nothing_answers_to_no_area() {
         None,
         "every area is bounded by all of nothing, so an empty name would \
          otherwise take the first one it met",
+    );
+}
+
+#[test]
+fn an_area_holding_the_place_clicked_wins_over_a_closer_fit() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    sketch.add_circle(centre, 5.0);
+    let chord = |sketch: &mut Sketch, height: f64| {
+        let reach = (25.0 - height * height).sqrt();
+        let left = sketch.add_point(DVec2::new(-reach, height));
+        let right = sketch.add_point(DVec2::new(reach, height));
+        sketch.add_segment(left, right);
+    };
+    chord(&mut sketch, 0.0);
+    let clicked = DVec2::new(0.0, 1.0);
+    let area = Area::of(
+        &sketch.regions()[area_under(&sketch.regions(), clicked).expect("a half")],
+        clicked,
+    );
+
+    chord(&mut sketch, 2.0);
+    let regions = sketch.regions();
+
+    let found = area.found_in(&regions).expect("an area");
+    assert!(
+        regions[found].contains(clicked),
+        "the far half of the circle answers to the name exactly, while the \
+         half that was clicked answers with the new chord to spare — and the \
+         matter belongs where the user pointed",
+    );
+}
+
+#[test]
+fn a_border_divided_is_held_by_either_of_its_pieces() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let drawn = rectangle(&mut sketch, DVec2::ZERO, DVec2::new(10.0, 4.0));
+
+    // As the descent hands it over once the bottom has been cut in two: one
+    // border, holding both pieces. Only one of them borders the area.
+    let mut borders: Vec<Vec<CurveId>> = vec![vec![
+        CurveId::Segment(drawn[0]),
+        CurveId::Segment(SegmentId(99)),
+    ]];
+    borders.extend(drawn[1..].iter().map(|id| vec![CurveId::Segment(*id)]));
+    let standing = Standing::new(borders, DVec2::new(5.0, 2.0));
+
+    assert_eq!(
+        standing.found_in(&sketch.regions()),
+        Some(0),
+        "demanding both pieces would lose an area that kept one of them, \
+         which is what dividing a trait two areas share does",
     );
 }

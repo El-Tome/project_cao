@@ -113,20 +113,31 @@ impl PartDocument {
         &self.state.body
     }
 
-    /// Whether a drawing has lost the face it was laid on, and is sitting on
-    /// the plane it last had rather than on anything the part still holds.
     /// The areas of a drawing these places fall in, each named by the curves
     /// that bound it — what a click on them means.
     pub fn areas_at(&self, sketch: usize, places: &[DVec2]) -> Vec<Area> {
         self.state.areas_at(sketch, places)
     }
 
-    /// The name as the drawing holds it now, once every cut made since it was
-    /// written has been followed, and nothing when a border it named is gone.
-    pub fn standing(&self, sketch: usize, area: &Area) -> Option<Area> {
-        self.state.standing(sketch, area)
+    /// Which areas of a drawing these names answer to, in the order given,
+    /// with the ones the drawing no longer encloses left out.
+    ///
+    /// Answered the way the replay answers it, and by the same code: a panel
+    /// working it out for itself is a panel that reads "fine" while the step
+    /// raises nothing.
+    pub fn areas_standing(&self, sketch: usize, areas: &[Area]) -> Vec<usize> {
+        let Some(drawing) = self.state.sketches.get(sketch) else {
+            return Vec::new();
+        };
+        let regions = drawing.regions();
+        areas
+            .iter()
+            .filter_map(|area| self.state.area_rank(sketch, area, &regions))
+            .collect()
     }
 
+    /// Whether a drawing has lost the face it was laid on, and is sitting on
+    /// the plane it last had rather than on anything the part still holds.
     pub fn is_adrift(&self, sketch: usize) -> bool {
         self.state.adrift.contains(&sketch)
     }

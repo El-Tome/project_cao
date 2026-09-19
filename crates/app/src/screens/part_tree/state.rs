@@ -154,27 +154,22 @@ fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
 
 /// The areas a step of matter was raised from, named as the sketch names them.
 ///
-/// An area is found the way the replay finds it: by the curves that bounded
-/// it when it was clicked, followed through every cut since. One the drawing
-/// no longer encloses leaves no line — `lost` is what says so.
+/// Which area a name answers to is `cao_part`'s answer and not one worked out
+/// here: a panel that reasons about it for itself is a panel that reads
+/// "fine" while the step raises nothing. One the drawing no longer encloses
+/// leaves no line, and `lost` is what says so.
 fn standing_on(
     lang: &Catalogue,
     document: &PartDocument,
     sketch: usize,
     areas: &[Area],
 ) -> Vec<Row> {
-    let Some(drawing) = document.sketches().get(sketch) else {
-        return Vec::new();
-    };
-    let regions = drawing.regions();
-    areas
-        .iter()
-        .filter_map(|area| {
-            let rank = document.standing(sketch, area)?.found_in(&regions)?;
-            Some(Row {
-                name: numbered(lang, "part_tree.area", rank + 1),
-                points: Points::Area { sketch, rank },
-            })
+    document
+        .areas_standing(sketch, areas)
+        .into_iter()
+        .map(|rank| Row {
+            name: numbered(lang, "part_tree.area", rank + 1),
+            points: Points::Area { sketch, rank },
         })
         .collect()
 }

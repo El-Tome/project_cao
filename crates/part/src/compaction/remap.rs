@@ -19,21 +19,25 @@ pub(super) struct SketchIdMap {
 ///
 /// Compaction hands a sketch new numbers for everything it still holds, so a
 /// name written against the old ones would point at another piece of the
-/// drawing — or at nothing. A curve the re-emitted sketch does not hold is
-/// dropped, which loses the area rather than renaming it to something else.
-pub(super) fn remap_area(area: &Area, map: &SketchIdMap) -> Area {
-    Area {
+/// drawing — or at nothing.
+///
+/// Nothing at all when one of the curves is not in the map. That happens to
+/// a name compaction cannot say: dropping the curve and keeping the rest
+/// would leave a shorter name, and a shorter name matches more areas than it
+/// should rather than failing.
+pub(super) fn remap_area(area: &Area, map: &SketchIdMap) -> Option<Area> {
+    Some(Area {
         bounds: area
             .bounds
             .iter()
-            .filter_map(|curve| match curve {
+            .map(|curve| match curve {
                 CurveId::Segment(id) => map.segments.get(id).copied().map(CurveId::Segment),
                 CurveId::Arc(id) => map.arcs.get(id).copied().map(CurveId::Arc),
                 CurveId::Circle(id) => map.circles.get(id).copied().map(CurveId::Circle),
             })
-            .collect(),
+            .collect::<Option<Vec<CurveId>>>()?,
         inside: area.inside,
-    }
+    })
 }
 
 pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> DimensionTarget {

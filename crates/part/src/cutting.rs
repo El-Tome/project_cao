@@ -7,11 +7,13 @@
 //! the cut, so that rounding a corner does not lose what was raised from the
 //! shape.
 
-use cao_sketch::{ArcId, Area, Became, Chamfer, CurveId, PointId, SegmentId, Sketch};
+use cao_sketch::{ArcId, Area, Became, Chamfer, CurveId, PointId, SegmentId, Sketch, Standing};
 use glam::DVec2;
 
 use crate::outcome::Outcome;
 use crate::state::PartState;
+
+use cao_sketch::Region;
 
 /// What one cut left behind.
 struct Cut {
@@ -26,11 +28,27 @@ impl PartState {
     ///
     /// Nothing when one of the curves it names was cut away altogether: the
     /// area has lost a border, and whatever stood on it stands on nothing.
-    pub(crate) fn standing(&self, sketch: usize, area: &Area) -> Option<Area> {
+    pub(crate) fn standing(&self, sketch: usize, area: &Area) -> Option<Standing> {
         match self.descent.get(&sketch) {
             Some(descent) => descent.follow(area),
-            None => Some(area.clone()),
+            None => Some(area.uncut()),
         }
+    }
+
+    /// Which of a drawing's areas a name answers to now: the name followed
+    /// through every cut since it was written, then asked of the areas the
+    /// drawing encloses.
+    ///
+    /// The one place that answer is worked out. A panel that asks it a second
+    /// way of its own is a panel that reads "fine" while the replay raises
+    /// nothing.
+    pub(crate) fn area_rank(
+        &self,
+        sketch: usize,
+        area: &Area,
+        regions: &[Region],
+    ) -> Option<usize> {
+        self.standing(sketch, area)?.found_in(regions)
     }
 
     pub(crate) fn trim(

@@ -29,7 +29,12 @@ pub struct PartState {
     /// What each drawing's curves became, as the replay cut them. It is what
     /// lets a step of matter find the area it was raised from after a corner
     /// of that area has been rounded or a border of it divided.
-    #[serde(default)]
+    ///
+    /// Scratch for the length of a replay, and kept out of the cache the part
+    /// file holds: the history already says what was cut, and a cache that
+    /// carries a second copy of something the history says is a cache that
+    /// can disagree with it.
+    #[serde(skip)]
     pub(crate) descent: BTreeMap<usize, Descent>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,

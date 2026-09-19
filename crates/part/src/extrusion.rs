@@ -141,8 +141,7 @@ impl PartState {
         area: &Area,
         regions: &'a [Region],
     ) -> Option<&'a Region> {
-        let rank = self.standing(sketch, area)?.found_in(regions)?;
-        regions.get(rank)
+        regions.get(self.area_rank(sketch, area, regions)?)
     }
 }
 

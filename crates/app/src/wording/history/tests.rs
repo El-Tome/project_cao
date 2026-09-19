@@ -1,8 +1,7 @@
 //! What app · wording/history/mod.rs is held to.
 
 use cao_part::history::{PointRef, RevolutionAxis};
-use cao_sketch::{Area, CurveId};
-use cao_sketch::{CircleId, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 use super::*;

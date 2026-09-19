@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 
-use cao_sketch::{ArcId, CircleId, Constraint, DimensionTarget, Element, PointId, SegmentId};
+use cao_sketch::{
+    ArcId, Area, CircleId, Constraint, CurveId, DimensionTarget, Element, PointId, SegmentId,
+};
 
 /// Where every element of one sketch landed after being re-emitted, so a later
 /// feature (a `Revolve` around a drawn line, say) can translate the id it
@@ -11,6 +13,31 @@ pub(super) struct SketchIdMap {
     pub(super) segments: HashMap<SegmentId, SegmentId>,
     pub(super) circles: HashMap<CircleId, CircleId>,
     pub(super) arcs: HashMap<ArcId, ArcId>,
+}
+
+/// An area's name, said in the numbers the re-emitted sketch uses.
+///
+/// Compaction hands a sketch new numbers for everything it still holds, so a
+/// name written against the old ones would point at another piece of the
+/// drawing — or at nothing.
+///
+/// Nothing at all when one of the curves is not in the map. That happens to
+/// a name compaction cannot say: dropping the curve and keeping the rest
+/// would leave a shorter name, and a shorter name matches more areas than it
+/// should rather than failing.
+pub(super) fn remap_area(area: &Area, map: &SketchIdMap) -> Option<Area> {
+    Some(Area {
+        bounds: area
+            .bounds
+            .iter()
+            .map(|curve| match curve {
+                CurveId::Segment(id) => map.segments.get(id).copied().map(CurveId::Segment),
+                CurveId::Arc(id) => map.arcs.get(id).copied().map(CurveId::Arc),
+                CurveId::Circle(id) => map.circles.get(id).copied().map(CurveId::Circle),
+            })
+            .collect::<Option<Vec<CurveId>>>()?,
+        inside: area.inside,
+    })
 }
 
 pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> DimensionTarget {

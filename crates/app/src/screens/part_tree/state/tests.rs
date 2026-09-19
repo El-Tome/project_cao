@@ -1,5 +1,14 @@
+//! What the tree of a part holds.
+//!
+//! Closes #345.
+//! - an area one of whose bounding traits is erased raises nothing, and the
+//!   tree says which step lost it —
+//!   `a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_nothing`
+//! - a step that still has every area it stands on is not marked —
+//!   `a_step_whose_areas_are_all_there_is_not_marked`
+
 use cao_part::history::{FaceAnchor, PointRef};
-use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+use cao_sketch::{DimensionTarget, Element, SegmentId, WorkPlane};
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
 
@@ -34,7 +43,7 @@ fn a_part() -> PartDocument {
     });
     document.apply(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 10.0)],
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
         distance: 4.0,
         mode: ExtrusionMode::Add,
     });
@@ -61,6 +70,32 @@ fn a_step_that_made_matter_reads_how_far_it_went_and_which_way() {
     let tree = PartTree::of(&a_part(), &french());
 
     assert_eq!(tree.bodies[0].reads, "4 mm · ajout de matière");
+}
+
+#[test]
+fn a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_nothing() {
+    let mut document = a_part();
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(0))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+
+    let tree = PartTree::of(&document, &french());
+
+    assert!(tree.bodies[0].lost);
+    assert!(
+        tree.bodies[0].areas.is_empty(),
+        "there is nothing left to point at",
+    );
+}
+
+#[test]
+fn a_step_whose_areas_are_all_there_is_not_marked() {
+    let tree = PartTree::of(&a_part(), &french());
+
+    assert!(!tree.bodies[0].lost);
 }
 
 #[test]

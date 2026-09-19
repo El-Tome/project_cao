@@ -2,6 +2,7 @@ use std::f64::consts::{PI, TAU};
 
 use crate::arc::ArcId;
 use crate::constraints::Constraint;
+use crate::naming::{Became, CurveId};
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
 /// Under this a fillet takes nothing off either side, and there is no curve to
@@ -14,6 +15,10 @@ const NOTHING_ROUNDED: f64 = 1e-9;
 pub struct Rounded {
     pub arc: ArcId,
     pub pieces: Vec<SegmentId>,
+    /// Which pieces came out of which side, which `pieces` runs together. The
+    /// curve now standing where the corner was is in neither: it descends from
+    /// no curve.
+    pub became: Became,
     pub rules_dropped: usize,
     pub values_dropped: usize,
 }
@@ -38,11 +43,21 @@ impl Sketch {
         let mut cut = Rounded {
             arc: ArcId(0),
             pieces: Vec::new(),
+            became: Became::new(),
             rules_dropped: 0,
             values_dropped: 0,
         };
         for (side, back_to) in [(first, touches_first), (second, touches_second)] {
             let trimmed = rounded.trim(side, pivot, back_to)?;
+            cut.became.push((
+                CurveId::Segment(side),
+                trimmed
+                    .pieces
+                    .iter()
+                    .copied()
+                    .map(CurveId::Segment)
+                    .collect(),
+            ));
             cut.pieces.extend(trimmed.pieces);
             cut.rules_dropped += trimmed.rules_dropped;
             cut.values_dropped += trimmed.values_dropped;

@@ -1,5 +1,6 @@
 use glam::DVec2;
 
+use crate::naming::CurveId;
 use crate::sketch::Sketch;
 
 /// One closed loop of an area, and what drew each of its segments.
@@ -15,6 +16,11 @@ use crate::sketch::Sketch;
 pub struct Outline {
     pub points: Vec<DVec2>,
     pub curves: Vec<Option<usize>>,
+    /// The curves of the drawing this loop is bounded by, once each and in
+    /// order — which is what names the area it encloses. `curves` above tells
+    /// one *run* from the next within the loop; this says which curve of the
+    /// drawing each run was cut out of, and outlives being cut again.
+    pub bounds: Vec<CurveId>,
 }
 
 /// A closed area of the drawing, ready to be tinted.
@@ -41,6 +47,14 @@ impl Region {
             return self.triangles.clone();
         }
         triangulate(&bridge_holes(&self.outline.points, &self.holes))
+    }
+
+    /// The curves of the drawing that bound the area, which is its name.
+    ///
+    /// What it is cut out of and not what it leaves hollow: a hole is an area
+    /// of its own, and bounds itself.
+    pub fn bounds(&self) -> &[CurveId] {
+        &self.outline.bounds
     }
 
     /// Whether the point is in the area itself, holes excluded.

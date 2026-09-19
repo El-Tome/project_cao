@@ -43,7 +43,7 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
         if !tree.bodies.is_empty() {
             ui.label(lang.t("part_tree.bodies"));
             for body in &tree.bodies {
-                made_of_matter(ui, body);
+                made_of_matter(ui, body, lang);
             }
             ui.add_space(8.0);
         }
@@ -62,8 +62,12 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
     action
 }
 
-fn made_of_matter(ui: &mut egui::Ui, body: &Body) {
-    egui::CollapsingHeader::new(&body.name)
+fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
+    let heading = match body.lost {
+        true => lang.t_with("part_tree.lost", &[("name", &body.name)]),
+        false => body.name.clone(),
+    };
+    egui::CollapsingHeader::new(heading)
         .id_salt(("body", body.step))
         .default_open(false)
         .show(ui, |ui| {

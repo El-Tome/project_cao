@@ -13,7 +13,7 @@
 
 use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, Operation};
-use cao_sketch::{Element, Sketch};
+use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
 
@@ -43,6 +43,10 @@ pub struct Body {
     /// How far it went and which way, in one line, read only.
     pub reads: String,
     pub areas: Vec<Row>,
+    /// Whether one of the areas it was raised from is gone from the drawing.
+    /// It leaves no line under the step, so without this the step would look
+    /// as though it had been raised from fewer areas than it was.
+    pub lost: bool,
 }
 
 /// One sketch, and what is drawn on it, by kind.
@@ -85,39 +89,47 @@ impl PartTree {
                 }
                 Operation::Extrude {
                     sketch,
-                    picks,
+                    areas,
                     distance,
                     mode,
-                } => tree.bodies.push(Body {
-                    step,
-                    name: numbered(lang, "part_tree.extrusion", tree.bodies.len() + 1),
-                    reads: lang.t_with(
-                        "part_tree.raised",
-                        &[
-                            ("distance", &distance.to_string()),
-                            ("mode", &lang.t(mode_key(*mode))),
-                        ],
-                    ),
-                    areas: standing_on(lang, document, *sketch, picks),
-                }),
+                } => {
+                    let standing = standing_on(lang, document, *sketch, areas);
+                    tree.bodies.push(Body {
+                        step,
+                        name: numbered(lang, "part_tree.extrusion", tree.bodies.len() + 1),
+                        reads: lang.t_with(
+                            "part_tree.raised",
+                            &[
+                                ("distance", &distance.to_string()),
+                                ("mode", &lang.t(mode_key(*mode))),
+                            ],
+                        ),
+                        lost: standing.len() < areas.len(),
+                        areas: standing,
+                    });
+                }
                 Operation::Revolve {
                     sketch,
-                    picks,
+                    areas,
                     angle,
                     mode,
                     ..
-                } => tree.bodies.push(Body {
-                    step,
-                    name: numbered(lang, "part_tree.revolution", tree.bodies.len() + 1),
-                    reads: lang.t_with(
-                        "part_tree.swept",
-                        &[
-                            ("angle", &angle.to_string()),
-                            ("mode", &lang.t(mode_key(*mode))),
-                        ],
-                    ),
-                    areas: standing_on(lang, document, *sketch, picks),
-                }),
+                } => {
+                    let standing = standing_on(lang, document, *sketch, areas);
+                    tree.bodies.push(Body {
+                        step,
+                        name: numbered(lang, "part_tree.revolution", tree.bodies.len() + 1),
+                        reads: lang.t_with(
+                            "part_tree.swept",
+                            &[
+                                ("angle", &angle.to_string()),
+                                ("mode", &lang.t(mode_key(*mode))),
+                            ],
+                        ),
+                        lost: standing.len() < areas.len(),
+                        areas: standing,
+                    });
+                }
                 _ => {}
             }
         }
@@ -142,33 +154,22 @@ fn numbered(lang: &Catalogue, key: &str, rank: usize) -> String {
 
 /// The areas a step of matter was raised from, named as the sketch names them.
 ///
-/// An area is found the way the replay finds it, by the place that was
-/// clicked. One the drawing no longer encloses leaves no line: there is
-/// nothing to point at, and saying so is the warning's business, not the
-/// tree's.
+/// Which area a name answers to is `cao_part`'s answer and not one worked out
+/// here: a panel that reasons about it for itself is a panel that reads
+/// "fine" while the step raises nothing. One the drawing no longer encloses
+/// leaves no line, and `lost` is what says so.
 fn standing_on(
     lang: &Catalogue,
     document: &PartDocument,
     sketch: usize,
-    picks: &[glam::DVec2],
+    areas: &[Area],
 ) -> Vec<Row> {
-    let Some(drawing) = document.sketches().get(sketch) else {
-        return Vec::new();
-    };
-    let regions = drawing.regions();
-    picks
-        .iter()
-        .filter_map(|pick| {
-            let rank = regions
-                .iter()
-                .enumerate()
-                .filter(|(_, region)| region.contains(*pick))
-                .max_by_key(|(_, region)| region.depth)
-                .map(|(rank, _)| rank)?;
-            Some(Row {
-                name: numbered(lang, "part_tree.area", rank + 1),
-                points: Points::Area { sketch, rank },
-            })
+    document
+        .areas_standing(sketch, areas)
+        .into_iter()
+        .map(|rank| Row {
+            name: numbered(lang, "part_tree.area", rank + 1),
+            points: Points::Area { sketch, rank },
         })
         .collect()
 }

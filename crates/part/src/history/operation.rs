@@ -2,8 +2,8 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats, SegmentId,
-    SketchAxis, WorkPlane,
+    ArcId, Area, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats,
+    SegmentId, SketchAxis, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
@@ -214,13 +214,15 @@ pub enum Operation {
     /// Turns closed areas of a sketch into matter, or takes matter away.
     Extrude {
         sketch: usize,
-        /// One position inside each chosen area, in the sketch's own
-        /// coordinates.
+        /// Each chosen area, named by the curves that bounded it at the
+        /// moment it was clicked.
         ///
-        /// The areas are named by a point rather than by their rank: a rank
-        /// would move the moment another shape is drawn, and the extrusion
-        /// would silently start applying to a different part of the drawing.
-        picks: Vec<DVec2>,
+        /// Not by its rank, which would move the instant another shape is
+        /// drawn, and no longer by the place clicked alone: pull the drawing
+        /// far enough and no area passes under that place any more, and the
+        /// step would quietly raise nothing. The place is kept inside the
+        /// name, and read only to tell apart two areas the same curves bound.
+        areas: Vec<Area>,
         /// Millimetres. Negative goes the other way along the plane.
         distance: f64,
         mode: ExtrusionMode,
@@ -340,7 +342,7 @@ pub enum Operation {
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
         sketch: usize,
-        picks: Vec<DVec2>,
+        areas: Vec<Area>,
         axis: RevolutionAxis,
         /// Degrees. Negative turns the other way.
         angle: f64,

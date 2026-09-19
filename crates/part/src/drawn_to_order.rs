@@ -73,7 +73,7 @@ impl Recipe {
             self.draw(&mut document, ring, middle, REACH);
             document.apply(Operation::Extrude {
                 sketch: ring,
-                picks: vec![middle],
+                areas: document.areas_at(ring, &[middle]),
                 distance: STOREY,
                 mode: ExtrusionMode::Add,
             });
@@ -96,7 +96,7 @@ impl Recipe {
             self.draw(&mut document, sketch, middle, REACH / 3.0);
             document.apply(Operation::Extrude {
                 sketch,
-                picks: vec![middle],
+                areas: document.areas_at(sketch, &[middle]),
                 distance: STOREY,
                 mode: ExtrusionMode::Add,
             });

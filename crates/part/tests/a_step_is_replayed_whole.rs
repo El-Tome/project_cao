@@ -18,9 +18,16 @@
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState};
-use cao_sketch::{PointId, WorkPlane};
+use cao_sketch::{Area, PointId, WorkPlane};
 use cao_solid::Mesh;
 use glam::DVec2;
+
+/// The areas these places fall in, as the drawing stands — what the
+/// interface works out at the moment of the click, for a test that has no
+/// interface to click in.
+fn clicked(history: &History, sketch: usize, place: DVec2) -> Vec<Area> {
+    PartState::rebuild(history).areas_at(sketch, &[place])
+}
 
 fn volume(mesh: &Mesh) -> f64 {
     mesh.triangles()
@@ -45,7 +52,7 @@ fn drawn_then_edited() -> History {
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(5.0, 5.0)],
+        areas: clicked(&history, 0, DVec2::new(5.0, 5.0)),
         distance: 2.0,
         mode: ExtrusionMode::Add,
     });

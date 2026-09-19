@@ -121,11 +121,11 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("y", &rounded(offset.y, 1)),
             ],
         ),
-        Operation::Extrude { sketch, picks, .. } => lang.t_with(
+        Operation::Extrude { sketch, areas, .. } => lang.t_with(
             "history.detail.extrusion",
             &[
                 ("sketch", &sketch.to_string()),
-                ("count", &picks.len().to_string()),
+                ("count", &areas.len().to_string()),
             ],
         ),
         Operation::Constrain { sketch, constraint } => lang.t_with(
@@ -279,14 +279,14 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
         ),
         Operation::Revolve {
             sketch,
-            picks,
+            areas,
             axis,
             ..
         } => lang.t_with(
             "history.detail.revolution",
             &[
                 ("sketch", &sketch.to_string()),
-                ("count", &picks.len().to_string()),
+                ("count", &areas.len().to_string()),
                 ("axis", &revolution_axis(lang, *axis)),
             ],
         ),

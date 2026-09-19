@@ -17,8 +17,15 @@
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef};
 use cao_part::{History, PartState};
-use cao_sketch::WorkPlane;
+use cao_sketch::{Area, WorkPlane};
 use glam::{DVec2, DVec3};
+
+/// The areas these places fall in, as the drawing stands — what the
+/// interface works out at the moment of the click, for a test that has no
+/// interface to click in.
+fn clicked(history: &History, sketch: usize, place: DVec2) -> Vec<Area> {
+    PartState::rebuild(history).areas_at(sketch, &[place])
+}
 
 /// How tall the block was the day the drawing was laid on its top, and so
 /// where the plane recorded with the step sits. Only the anchor can lift it.
@@ -39,7 +46,7 @@ fn block_with_a_sketch_on_top(height: f64, on: Option<FaceAnchor>) -> PartState 
     });
     history.push(Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::new(20.0, 10.0)],
+        areas: clicked(&history, 0, DVec2::new(20.0, 10.0)),
         distance: height,
         mode: ExtrusionMode::Add,
     });

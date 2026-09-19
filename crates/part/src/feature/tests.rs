@@ -32,7 +32,7 @@ fn segment(sketch: usize) -> Operation {
 fn extrude(sketch: usize) -> Operation {
     Operation::Extrude {
         sketch,
-        picks: Vec::new(),
+        areas: Vec::new(),
         distance: 10.0,
         mode: crate::history::ExtrusionMode::Add,
     }
@@ -90,7 +90,7 @@ fn an_edit_to_an_earlier_sketch_reads_where_it_was_typed() {
         segment(0),
         Operation::Extrude {
             sketch: 0,
-            picks: Vec::new(),
+            areas: Vec::new(),
             distance: 1.0,
             mode: crate::history::ExtrusionMode::Add,
         },

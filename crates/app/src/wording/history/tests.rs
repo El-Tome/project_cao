@@ -1,7 +1,7 @@
 //! What app · wording/history/mod.rs is held to.
 
 use cao_part::history::{PointRef, RevolutionAxis};
-use cao_sketch::{CircleId, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{Area, CircleId, CurveId, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::DVec2;
 
 use super::*;
@@ -31,10 +31,19 @@ fn scrubbed(
     }
 }
 
+/// One area, named by the one trait bounding it. What it is named by does
+/// not matter here: the wording only counts them.
+fn one_area() -> Vec<Area> {
+    vec![Area {
+        bounds: vec![CurveId::Segment(SegmentId(0))],
+        inside: DVec2::ZERO,
+    }]
+}
+
 fn raised(mode: ExtrusionMode) -> Operation {
     Operation::Extrude {
         sketch: 0,
-        picks: vec![DVec2::ZERO],
+        areas: one_area(),
         distance: 12.0,
         mode,
     }
@@ -43,7 +52,7 @@ fn raised(mode: ExtrusionMode) -> Operation {
 fn swept(axis: RevolutionAxis, mode: ExtrusionMode) -> Operation {
     Operation::Revolve {
         sketch: 0,
-        picks: vec![DVec2::ZERO],
+        areas: one_area(),
         axis,
         angle: 90.0,
         mode,

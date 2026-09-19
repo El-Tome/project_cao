@@ -23,8 +23,7 @@
 
 use std::io::{Read, Seek, Write};
 
-use cao_sketch::WorkPlane;
-use glam::DVec2;
+use cao_sketch::{Area, WorkPlane};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::PartFileError;
@@ -45,11 +44,11 @@ enum Stands {
     },
     Extrusion {
         sketch: usize,
-        picks: Vec<DVec2>,
+        areas: Vec<Area>,
     },
     Revolution {
         sketch: usize,
-        picks: Vec<DVec2>,
+        areas: Vec<Area>,
         axis: RevolutionAxis,
     },
 }
@@ -228,13 +227,13 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
         ),
         Operation::Extrude {
             sketch,
-            picks,
+            areas,
             distance,
             mode,
         } => (
             Stands::Extrusion {
                 sketch: *sketch,
-                picks: picks.clone(),
+                areas: areas.clone(),
             },
             Some(Opening::Extrusion {
                 distance: *distance,
@@ -243,14 +242,14 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
         ),
         Operation::Revolve {
             sketch,
-            picks,
+            areas,
             axis,
             angle,
             mode,
         } => (
             Stands::Revolution {
                 sketch: *sketch,
-                picks: picks.clone(),
+                areas: areas.clone(),
                 axis: *axis,
             },
             Some(Opening::Revolution {
@@ -266,10 +265,10 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
 fn put_together(stands_on: Stands, opening: Option<Opening>) -> Result<Operation, PartFileError> {
     Ok(match (stands_on, opening) {
         (Stands::Sketch { plane, on }, None) => Operation::CreateSketch { plane, on },
-        (Stands::Extrusion { sketch, picks }, Some(Opening::Extrusion { distance, mode })) => {
+        (Stands::Extrusion { sketch, areas }, Some(Opening::Extrusion { distance, mode })) => {
             Operation::Extrude {
                 sketch,
-                picks,
+                areas,
                 distance,
                 mode,
             }
@@ -277,13 +276,13 @@ fn put_together(stands_on: Stands, opening: Option<Opening>) -> Result<Operation
         (
             Stands::Revolution {
                 sketch,
-                picks,
+                areas,
                 axis,
             },
             Some(Opening::Revolution { angle, mode }),
         ) => Operation::Revolve {
             sketch,
-            picks,
+            areas,
             axis,
             angle,
             mode,

@@ -1,7 +1,7 @@
 //! Turning a sketch's areas into matter, or taking matter away: a prism along
 //! the plane's normal, or a sweep around an axis lying in the plane.
 
-use cao_sketch::Sketch;
+use cao_sketch::{Area, Region, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
 
@@ -14,7 +14,7 @@ impl PartState {
     pub(crate) fn revolve(
         &mut self,
         index: usize,
-        picks: &[DVec2],
+        areas: &[Area],
         axis: RevolutionAxis,
         degrees: f64,
         mode: ExtrusionMode,
@@ -31,12 +31,8 @@ impl PartState {
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
-        for pick in picks {
-            let Some(region) = regions
-                .iter()
-                .filter(|region| region.contains(*pick))
-                .max_by_key(|region| region.depth)
-            else {
+        for area in areas {
+            let Some(region) = self.standing_on(index, area, &regions) else {
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -77,7 +73,7 @@ impl PartState {
     pub(crate) fn extrude(
         &mut self,
         index: usize,
-        picks: &[DVec2],
+        areas: &[Area],
         distance: f64,
         mode: ExtrusionMode,
     ) {
@@ -94,14 +90,8 @@ impl PartState {
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
-        for pick in picks {
-            // The area is found again by the point that was clicked, so the
-            // extrusion still means the same thing after the drawing changes.
-            let Some(region) = regions
-                .iter()
-                .filter(|region| region.contains(*pick))
-                .max_by_key(|region| region.depth)
-            else {
+        for area in areas {
+            let Some(region) = self.standing_on(index, area, &regions) else {
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -116,6 +106,42 @@ impl PartState {
         }
 
         self.combine(tool, mode);
+    }
+
+    /// The areas of a drawing these places fall in, each named by the curves
+    /// that bound it.
+    ///
+    /// This is what a click means, and it is worked out at the moment of the
+    /// click and never again: snapping and what lies under the cursor depend
+    /// on the view at the time, the same reason `PointRef` records the point
+    /// a click landed on.
+    pub fn areas_at(&self, sketch: usize, places: &[DVec2]) -> Vec<Area> {
+        let Some(drawing) = self.sketches.get(sketch) else {
+            return Vec::new();
+        };
+        let regions = drawing.regions();
+        places
+            .iter()
+            .filter_map(|place| {
+                let rank = cao_sketch::area_under(&regions, *place)?;
+                Some(Area::of(&regions[rank], *place))
+            })
+            .collect()
+    }
+
+    /// The area a step of matter stands on, as the drawing holds it now.
+    ///
+    /// The name it was given at the click is followed through every cut made
+    /// since, and then asked of the drawing. Nothing when the drawing no
+    /// longer encloses it — which is what the tree says, rather than raising
+    /// matter somewhere the user never pointed at.
+    fn standing_on<'a>(
+        &self,
+        sketch: usize,
+        area: &Area,
+        regions: &'a [Region],
+    ) -> Option<&'a Region> {
+        regions.get(self.area_rank(sketch, area, regions)?)
     }
 }
 

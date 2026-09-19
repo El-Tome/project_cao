@@ -10,11 +10,11 @@
 
 use std::collections::HashSet;
 
-use cao_sketch::{ArcId, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
+use cao_sketch::{ArcId, Area, CircleId, Constraint, PointId, Segment, SegmentId, Sketch};
 
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
-use remap::{SketchIdMap, remap_constraint, remap_target};
+use remap::{SketchIdMap, remap_area, remap_constraint, remap_target};
 
 mod remap;
 
@@ -55,13 +55,13 @@ pub fn compact(history: &History) -> History {
             }
             Operation::Extrude {
                 sketch,
-                picks,
+                areas,
                 distance,
                 mode,
             } => record(
                 Operation::Extrude {
                     sketch: *sketch,
-                    picks: picks.clone(),
+                    areas: renamed(areas, &old_state, &sketch_maps, *sketch),
                     distance: *distance,
                     mode: *mode,
                 },
@@ -70,7 +70,7 @@ pub fn compact(history: &History) -> History {
             ),
             Operation::Revolve {
                 sketch,
-                picks,
+                areas,
                 axis,
                 angle,
                 mode,
@@ -84,7 +84,7 @@ pub fn compact(history: &History) -> History {
                 record(
                     Operation::Revolve {
                         sketch: *sketch,
-                        picks: picks.clone(),
+                        areas: renamed(areas, &old_state, &sketch_maps, *sketch),
                         axis,
                         angle: *angle,
                         mode: *mode,
@@ -336,6 +336,33 @@ fn compact_sketch(
     }
 
     map
+}
+
+/// An extrusion's areas, said in the numbers the re-emitted sketch uses.
+///
+/// A name is read against the drawing **as the old history leaves it** before
+/// it is translated: it was written when the area was clicked, and the curves
+/// it named may have been chamfered, rounded, trimmed or divided since.
+/// Compaction drops those cuts and re-emits what they left, so a name still
+/// speaking of what they took out would name nothing at all — which is how a
+/// part came out of compaction with its matter gone.
+///
+/// A name the drawing no longer answers to is carried over as it stands: it
+/// was already lost, and it stays lost.
+fn renamed(areas: &[Area], old: &PartState, maps: &[SketchIdMap], sketch: usize) -> Vec<Area> {
+    let (Some(map), Some(drawing)) = (maps.get(sketch), old.sketches.get(sketch)) else {
+        return areas.to_vec();
+    };
+    let regions = drawing.regions();
+    areas
+        .iter()
+        .map(|area| {
+            old.area_rank(sketch, area, &regions)
+                .map(|rank| Area::of(&regions[rank], area.inside))
+                .and_then(|now| remap_area(&now, map))
+                .unwrap_or_else(|| area.clone())
+        })
+        .collect()
 }
 
 #[cfg(test)]

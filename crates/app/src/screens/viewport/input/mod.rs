@@ -5,7 +5,7 @@
 //! What is painted from the state this leaves behind lives in
 //! [`super::render`].
 
-use cao_part::history::{Operation, PointRef};
+use cao_part::history::Operation;
 use cao_sketch::{
     Aim, ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
     rule_intent,
@@ -65,7 +65,7 @@ mod corner;
 mod points;
 
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
-pub(super) use points::point_ref_at;
+pub(super) use points::{point_ref_at, point_ref_of};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -456,14 +456,10 @@ pub(crate) fn draw_line_point(
         }
         cao_sketch::ChainClick::Ignored => false,
         cao_sketch::ChainClick::Drew { start, end, aimed } => {
-            let point_ref = |anchor: ChainAnchor| match anchor {
-                ChainAnchor::Point(id) => PointRef::Existing(id),
-                ChainAnchor::Pending(position) => PointRef::New(position),
-            };
             context.document.apply(Operation::AddSegment {
                 sketch: index,
-                start: point_ref(start),
-                end: point_ref(end),
+                start: point_ref_of(context, index, start, snap),
+                end: point_ref_of(context, index, end, snap),
                 construction: context.editor.construction,
             });
 

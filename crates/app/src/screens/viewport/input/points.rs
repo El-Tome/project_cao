@@ -1,6 +1,7 @@
 //! What a click on a place means, as a point of the drawing.
 
 use cao_part::PointRef;
+use cao_sketch::ChainAnchor;
 use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
@@ -42,4 +43,21 @@ fn nearest_corner(
         .into_iter()
         .filter(|(at, _)| at.distance(position) <= snap)
         .min_by(|a, b| a.0.distance(position).total_cmp(&b.0.distance(position)))
+}
+
+/// Where a chain of traits was anchored, as a point of the drawing.
+///
+/// A click the chain tools had already resolved to a point of the drawing is
+/// that point; one that fell on open ground goes through the same reckoning
+/// as any other, so a corner of the part holds it too.
+pub(crate) fn point_ref_of(
+    context: &SketchContext<'_>,
+    index: usize,
+    anchor: ChainAnchor,
+    snap: f64,
+) -> PointRef {
+    match anchor {
+        ChainAnchor::Point(id) => PointRef::Existing(id),
+        ChainAnchor::Pending(position) => point_ref_at(context, index, position, snap),
+    }
 }

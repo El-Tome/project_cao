@@ -2,8 +2,8 @@
 //! second draws the segment growing equally on both sides of it. A length
 //! typed reaches one edge, the way the plain line tool reads its own anchor.
 
-use cao_part::history::{Operation, PointRef};
-use cao_sketch::{ChainAnchor, SegmentId, SymmetricClick, ToolState, symmetric_click};
+use cao_part::history::Operation;
+use cao_sketch::{SegmentId, SymmetricClick, ToolState, symmetric_click};
 use glam::DVec2;
 
 use super::annotation_position;
@@ -33,14 +33,10 @@ pub(crate) fn draw_symmetric_line_point(
         }
         SymmetricClick::Ignored => false,
         SymmetricClick::Drew { middle, end } => {
-            let point_ref = |anchor: ChainAnchor| match anchor {
-                ChainAnchor::Point(id) => PointRef::Existing(id),
-                ChainAnchor::Pending(position) => PointRef::New(position),
-            };
             context.document.apply(Operation::AddSymmetricSegment {
                 sketch: index,
-                middle: point_ref(middle),
-                end: point_ref(end),
+                middle: super::point_ref_of(context, index, middle, snap),
+                end: super::point_ref_of(context, index, end, snap),
                 construction: context.editor.construction,
             });
 

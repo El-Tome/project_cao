@@ -119,6 +119,21 @@ impl PartState {
             .map(|corner| (plane.to_local(corner.at), corner.faces))
             .collect()
     }
+
+    /// Lets a drawing give where what the part holds it by has become
+    /// impossible to honour, and says so once it has.
+    pub(crate) fn settle_what_the_part_holds(&mut self, sketch: usize) {
+        let scale = self.scale();
+        let Some(drawing) = self.sketches.get_mut(sketch) else {
+            return;
+        };
+        if !drawing.is_held_by_the_part() {
+            return;
+        }
+        if drawing.settle_with_the_part(scale).1 {
+            self.let_go.insert(sketch);
+        }
+    }
 }
 
 /// How far off the plane a corner may stand and still be on it. A corner and

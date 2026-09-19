@@ -8,10 +8,17 @@
 //!   the one next door — `a_corner_that_is_gone_leaves_the_point_where_it_was`
 //! - a corner of the part is something a drawing can land on, and only the
 //!   ones on its own plane are — `a_drawing_lands_on_the_corners_of_its_own_face`
+//! - a hold the drawing's rules cannot honour gives, rather than the drawing
+//!   coming apart — `a_hold_the_rules_cannot_honour_gives`, and one nothing
+//!   contradicts stands — `a_hold_the_rules_can_honour_is_kept`
+//! - a drawing its own rules already determine keeps its shape and every
+//!   hold is let go — no test: the rule is the drawing's own, and
+//!   `crates/sketch/src/sketch/anchored/tests.rs` puts it to a drawing
+//!   directly, without a part's scale in the way
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef};
 use cao_part::{History, PartState};
-use cao_sketch::{Area, PointId, WorkPlane};
+use cao_sketch::{Area, Constraint, PointId, SegmentId, SketchAxis, WorkPlane};
 use glam::{DVec2, DVec3};
 
 fn clicked(history: &History, sketch: usize, at: DVec2) -> Vec<Area> {
@@ -183,4 +190,66 @@ fn a_drawing_lands_on_the_corners_of_its_own_face() {
         "the first drawing is on XY: the four corners of the bottom sit on \
          it, and the four of the top do not",
     );
+}
+
+/// A drawing on the top face, with a trait laid across two corners of the
+/// part that do not stand level with each other.
+fn a_trait_across_two_corners() -> History {
+    let mut history = a_block_with_a_drawing_on_top();
+    let (near, at_near) = corner_nearest(&history, DVec3::new(0.0, 0.0, 10.0));
+    let (far, at_far) = corner_nearest(&history, DVec3::new(40.0, 20.0, 10.0));
+    history.push(Operation::AddSegment {
+        sketch: 1,
+        start: PointRef::OnCorner {
+            at: DVec2::new(at_near.x, at_near.y),
+            faces: near,
+        },
+        end: PointRef::OnCorner {
+            at: DVec2::new(at_far.x, at_far.y),
+            faces: far,
+        },
+        construction: false,
+    });
+    history
+}
+
+#[test]
+fn a_hold_the_rules_cannot_honour_gives() {
+    let mut history = a_trait_across_two_corners();
+    // The two corners stand twenty apart across the face, and this asks the
+    // trait between them to lie flat along the drawing's own axis. Held at
+    // both ends, it cannot.
+    history.push(Operation::Constrain {
+        sketch: 1,
+        constraint: Constraint::AxisCollinear {
+            segment: SegmentId(0),
+            axis: SketchAxis::U,
+        },
+    });
+
+    let state = PartState::rebuild(&history);
+    let drawing = &state.sketches[1];
+    let (start, end) = drawing.endpoints(SegmentId(0));
+
+    assert!(
+        (start.y - end.y).abs() < 1e-3,
+        "the rule is what the drawing keeps: {start:?} to {end:?}",
+    );
+    assert!(
+        !drawing.is_anchored(PointId(1)) && !drawing.is_anchored(PointId(2)),
+        "both holds gave, rather than the drawing being pulled apart between \
+         them",
+    );
+    assert!(state.has_let_go(1), "and the drawing says it gave");
+}
+
+#[test]
+fn a_hold_the_rules_can_honour_is_kept() {
+    let state = PartState::rebuild(&a_trait_across_two_corners());
+
+    assert!(
+        state.sketches[1].is_anchored(PointId(1)),
+        "nothing contradicts the holds, so they stand",
+    );
+    assert!(!state.has_let_go(1));
 }

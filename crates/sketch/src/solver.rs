@@ -327,7 +327,7 @@ impl Sketch {
     }
 
     /// How far off the drawing is, as a fraction of its own size.
-    fn worst_error(&self, millimeters_per_unit: f64, scale: f64) -> f64 {
+    pub(crate) fn worst_error(&self, millimeters_per_unit: f64, scale: f64) -> f64 {
         self.equations(millimeters_per_unit)
             .iter()
             .map(|equation| equation.off_by(scale))
@@ -425,7 +425,7 @@ impl Sketch {
     /// everything else can be measured from.
     pub(crate) fn pinned_points(&self) -> Vec<bool> {
         let mut pinned: Vec<bool> = (0..self.points().len())
-            .map(|index| self.is_origin(PointId(index)) || self.is_held_still(PointId(index)))
+            .map(|index| self.is_held_where_it_is(PointId(index)))
             .collect();
         for constraint in self.constraints() {
             let Constraint::Fixed { element } = constraint else {
@@ -564,7 +564,7 @@ impl Sketch {
 
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
-    fn characteristic_size(&self) -> f64 {
+    pub(crate) fn characteristic_size(&self) -> f64 {
         self.bounds()
             .map(|(min, max)| (max - min).length())
             .filter(|size| *size > 1e-6)

@@ -21,6 +21,11 @@ pub struct PartState {
     /// dimension is typed.
     pub millimeters_per_unit: Option<f64>,
     pub sketches: Vec<Sketch>,
+    /// The drawings that gave: what the part held them by asked for
+    /// something their own rules could not honour, or they needed no help,
+    /// and every hold was let go.
+    #[serde(default)]
+    pub(crate) let_go: BTreeSet<usize>,
     /// The drawings that were pointed at a corner the part no longer has.
     /// Their points stay where they were drawn, loose, and the interface says
     /// so rather than letting them quietly catch the corner next door.
@@ -64,6 +69,11 @@ impl PartState {
         self.unanchored.contains(&sketch)
     }
 
+    /// Whether a drawing let go of what the part held it by.
+    pub fn has_let_go(&self, sketch: usize) -> bool {
+        self.let_go.contains(&sketch)
+    }
+
     pub fn scale(&self) -> f64 {
         self.millimeters_per_unit.unwrap_or(1.0)
     }
@@ -79,6 +89,14 @@ impl PartState {
     /// Runs one operation. This is the only place geometry is produced, so a
     /// replay and a live edit can never disagree.
     pub fn apply(&mut self, operation: &Operation) -> Option<Outcome> {
+        let outcome = self.run(operation);
+        if let Some(sketch) = operation.edits() {
+            self.settle_what_the_part_holds(sketch);
+        }
+        outcome
+    }
+
+    fn run(&mut self, operation: &Operation) -> Option<Outcome> {
         match operation {
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);

@@ -105,6 +105,7 @@ What it does: [`sketch.md`](sketch.md).
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
 | Keeping only what lies behind a plane, for looking rather than for cutting | `solid/src/clipping.rs` | `Mesh::behind` |
+| Where the surface turns a corner, and the faces that name each one | `solid/src/corners.rs` | `Mesh::corners` → `Corner` |
 
 What it does: [`extrusion.md`](extrusion.md).
 

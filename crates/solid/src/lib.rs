@@ -4,8 +4,10 @@
 
 mod boolean;
 mod clipping;
+mod corners;
 mod mesh;
 mod sweep;
 
+pub use corners::Corner;
 pub use mesh::{FaceHit, Mesh, Polygon};
 pub use sweep::{Loop, prism, revolution};

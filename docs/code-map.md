@@ -81,6 +81,7 @@ in one of the two domains, never there.
 | One curve of the drawing as that graph reads it: where it runs, how far along a place stands, the runs it is left as | `sketch/src/edges/curve.rs` | `Curve`, `between`, `pieces` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |
+| How a drawing settles when something is moved or a value is typed | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all`, `resolve`, `would_be_redundant` |
 | What of a drawing stands nearest a place | `sketch/src/nearest.rs` | `Sketch::nearest_point`, `nearest_segment`, `nearest_on_segment`, `nearest_midpoint`, `nearest_circle`, `nearest_dimension`, `point_at` |
 | What a click takes hold of, and what a selection carries | `sketch/src/picking.rs` | `Sketch::pick`, `Sketch::points_of`, `Selection` |
 | What a box dragged across the drawing catches | `sketch/src/banding.rs` | `Sketch::inside_band` |

@@ -7,6 +7,8 @@
 //!   corner — `a_seam_a_cut_left_across_a_flat_face_is_no_corner`
 //! - the rim where a curved wall meets a cap is a curve, not a run of corners
 //!   — `the_rim_of_a_round_wall_is_no_run_of_corners`
+//! - a corner where more than three faces meet is one corner, named by all
+//!   of them — `a_corner_more_than_three_faces_meet_at_is_named_by_all_of_them`
 
 use crate::mesh::Polygon;
 
@@ -181,4 +183,38 @@ fn the_rim_of_a_round_wall_is_no_run_of_corners() {
         "the wall is one face however many flats it was sampled into, so two \
          faces meet on that rim and not three — {found:?}",
     );
+}
+
+#[test]
+fn a_corner_more_than_three_faces_meet_at_is_named_by_all_of_them() {
+    // The apex of a square pyramid: four sides run up to one place.
+    let at = |a: f64, b: f64, c: f64| DVec3::new(a, b, c);
+    let apex = at(5.0, 5.0, 8.0);
+    let foot = [
+        at(0.0, 0.0, 0.0),
+        at(10.0, 0.0, 0.0),
+        at(10.0, 10.0, 0.0),
+        at(0.0, 10.0, 0.0),
+    ];
+    let mut polygons = vec![Polygon::new(foot.to_vec()).expect("the base").on_face(0)];
+    for side in 0..4 {
+        polygons.push(
+            Polygon::new(vec![foot[side], foot[(side + 1) % 4], apex])
+                .expect("a side")
+                .on_face(side + 1),
+        );
+    }
+
+    let found = Mesh { polygons }.corners();
+
+    let top = found
+        .iter()
+        .find(|corner| corner.at == apex)
+        .expect("the apex is a corner");
+    assert_eq!(
+        top.faces,
+        [1, 2, 3, 4],
+        "four faces meet there and the name is all four, not the first three",
+    );
+    assert_eq!(found.len(), 5, "the apex and the four feet");
 }

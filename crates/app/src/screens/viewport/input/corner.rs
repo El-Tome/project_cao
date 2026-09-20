@@ -174,8 +174,36 @@ fn asks_for(context: &SketchContext<'_>, mode: ChamferMode) -> String {
     })
 }
 
+/// What Enter has to work with, for a tool that cuts corners.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CornerEnter {
+    /// Both sides are named: the key finishes what the clicks began.
+    Cut(SegmentId, SegmentId),
+    /// Not yet — what is still missing, as the key of the sentence that says
+    /// so.
+    Waiting(&'static str),
+}
+
+/// What Enter does for the chamfer and the fillet, whether or not there is a
+/// corner to cut.
+///
+/// A key that lands on nothing used to be handed on to the next tool in the
+/// list, and that tool put its own state where the corner's was: the side
+/// already clicked was gone, and the only way on was to click it again. The
+/// corner tools answer for their own key now, and say what they are waiting
+/// for.
+pub(crate) fn on_enter(state: &ToolState) -> CornerEnter {
+    match corner_held(state) {
+        Some((first, second)) => CornerEnter::Cut(first, second),
+        None => CornerEnter::Waiting(match state {
+            ToolState::Corner { sides } if !sides.is_empty() => "sketch.click_the_other_side",
+            _ => "sketch.click_a_corner",
+        }),
+    }
+}
+
 /// The sides of the corner the two clicks named, when both have been taken.
-pub(crate) fn corner_held(state: &ToolState) -> Option<(SegmentId, SegmentId)> {
+fn corner_held(state: &ToolState) -> Option<(SegmentId, SegmentId)> {
     match state {
         ToolState::Corner { sides } => match sides.as_slice() {
             [first, second] => Some((*first, *second)),

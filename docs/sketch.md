@@ -459,6 +459,12 @@ pulling draws it to where the cursor is, about the centre it already has. An
 arc is the same: its curve sets how far out it stands, its two ends how far
 round it runs.
 
+**Dragging an end of an arc slides it round the curve** and leaves the reach
+alone: an end says how far round the arc runs, the curve says how far out it
+stands. Holding the let-go key while dragging that end frees it from the curve
+as it frees a point from what holds it. An end two arcs share follows neither
+— it has two circles to choose from.
+
 A **click** is still a click: it selects. Only a drag resizes, and a drag that
 starts on something already selected still moves the whole selection. The
 centre still carries the shape, which is how a circle travels.

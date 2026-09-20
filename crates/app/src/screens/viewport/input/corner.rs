@@ -22,7 +22,14 @@ pub(crate) fn corner(
         return false;
     };
     let picked = match clicked(sketch, cursor, snap, takes_a_point(context)) {
-        CornerClick::Corner(first, second) => return cut(context, index, first, second),
+        CornerClick::Corner(first, second) => {
+            // The click that names a whole corner is the first click of that
+            // corner, so it opens the fields the way naming a first side does.
+            // Without it there is nowhere to type, and the tool asks for a
+            // value the keyboard cannot reach.
+            context.editor.live.open();
+            return cut(context, index, first, second);
+        }
         CornerClick::Crowded => {
             context.editor.message = Some(context.lang.t("sketch.corner_has_too_many_traits"));
             return true;

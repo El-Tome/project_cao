@@ -30,3 +30,6 @@ thiserror = "1"
 # Deleting a part hands it to the platform's bin rather than unlinking it:
 # nothing in the application can undo a file that is gone.
 trash = "5"
+
+[profile.dev.package."*"]
+opt-level = 2

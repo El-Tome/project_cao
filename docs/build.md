@@ -78,6 +78,32 @@ The first three also run locally before every commit
 (`scripts/verify.sh`, called by `.githooks/pre-commit`), and
 `crates/app/tests/gate.rs` fails if the two lists stop agreeing.
 
+## Waiting for a long command
+
+**A command that is waited for announces its own end.** Run it in the
+background and read what it leaves behind:
+
+```sh
+( cargo test --workspace > /tmp/ws.log 2>&1; echo $? > /tmp/ws.done ) &
+until [ -e /tmp/ws.done ]; do sleep 5; done
+```
+
+It always ends, it hands back the exit code, and no pattern can recognise
+itself.
+
+**Never watch for a process by name.** `pgrep -f 'cargo test --workspace'`
+reads whole command lines, and the shell running the loop has that very string
+in its own: the pattern finds itself and the count never falls to zero. An
+agent lost hours to that here, on a run that had finished in its first minute.
+`pgrep -c` makes it worse, since the flag is GNU-only — on macOS and the BSDs
+it prints a usage message and nothing at all on stdout, so the comparison never
+matches and the loop is immortal.
+
+Which is the wider rule: **a flag that is not in POSIX is checked before it is
+written down.** `pgrep -c`, `sed -i`, `date -d` and `readlink -f` all differ
+between GNU and BSD. This repository is written on macOS, and read by people
+who are not.
+
 ## Other platforms
 
 Linux and macOS compile natively with `cargo build --release -p cao_app`. There

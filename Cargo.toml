@@ -18,6 +18,7 @@ eframe = { version = "0.36", default-features = false, features = [
 ] }
 egui = "0.36"
 egui-wgpu = "0.36"
+egui_kittest = { version = "0.36.2", features = ["eframe"] }
 wgpu = "30"
 glam = { version = "0.33", features = ["bytemuck", "serde"] }
 bytemuck = { version = "1", features = ["derive"] }

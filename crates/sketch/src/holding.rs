@@ -138,10 +138,29 @@ impl Sketch {
     /// otherwise.
     pub fn slide(&self, point: PointId, towards: DVec2) -> DVec2 {
         match self.holds_on(point).as_slice() {
-            [] => towards,
+            [] => self.round_its_own_curve(point, towards).unwrap_or(towards),
             [only] => self.along(*only, towards).unwrap_or(towards),
             _ => self.point(point),
         }
+    }
+
+    /// Where an end of an arc goes when it is pulled: round the curve it is
+    /// an end of, and no further out than it already stands.
+    ///
+    /// An arc's two ends say how far round it runs; how far out it stands is
+    /// the curve's own, and dragging the curve is what changes that. Nothing
+    /// for a point two arcs share, which would have two circles to follow and
+    /// so follows neither — and nothing, as ever, when the key that pulls a
+    /// point off what holds it is down.
+    fn round_its_own_curve(&self, point: PointId, towards: DVec2) -> Option<DVec2> {
+        let mut ends = self
+            .live_arcs()
+            .filter(|(_, arc)| arc.start == point || arc.end == point);
+        let (id, arc) = ends.next()?;
+        if ends.next().is_some() {
+            return None;
+        }
+        onto_rim(towards, self.point(arc.center), self.arc_radius(id))
     }
 
     /// Where a place lands when it is pulled straight onto what holds it.

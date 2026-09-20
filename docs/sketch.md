@@ -452,6 +452,28 @@ nicely horizontal thanks to the grid stays free to turn as long as no angle
 dimension holds it. A point that lands *on something*, on the other hand, is
 held there: that is the section below.
 
+### A circle and an arc are drawn to their size by their curve
+
+Pressing on a circle's outline — away from any point of the drawing — and
+pulling draws it to where the cursor is, about the centre it already has. An
+arc is the same: its curve sets how far out it stands, its two ends how far
+round it runs.
+
+**Dragging an end of an arc slides it round the curve** and leaves the reach
+alone: an end says how far round the arc runs, the curve says how far out it
+stands. Holding the let-go key while dragging that end frees it from the curve
+as it frees a point from what holds it. An end two arcs share follows neither
+— it has two circles to choose from.
+
+A **click** is still a click: it selects. Only a drag resizes, and a drag that
+starts on something already selected still moves the whole selection. The
+centre still carries the shape, which is how a circle travels.
+
+The size is not a value: nothing is pinned, and no dimension is left behind.
+Type a diameter and it is the diameter that answers from then on — the drag
+then leaves the shape where it was, since the drawing settles back onto the
+value it was given.
+
 ### A point that lands on a trait stays on it
 
 A point laid on a trait, an arc, a circle or an axis of the plane is **held on

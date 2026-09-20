@@ -12,6 +12,7 @@ use crate::constraints::DimensionTarget;
 use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
+use crate::resizing::Curved;
 use crate::rule_intent::RulePick;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -27,6 +28,9 @@ pub struct SelectState {
     pub drag_position: Option<DVec2>,
     pub drag_preview: Option<Sketch>,
     pub band: Option<(DVec2, DVec2)>,
+    /// The curve a drag is drawing to another size, about the centre it
+    /// already has.
+    pub dragged_curve: Option<Curved>,
     /// Whether the drag under way is pulling its point off what holds it.
     /// Read where the gesture starts, like what it grabbed, and kept for the
     /// whole of it.

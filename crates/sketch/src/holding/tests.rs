@@ -246,3 +246,45 @@ fn a_point_nothing_holds_goes_where_it_is_pulled() {
         "went to {slid}"
     );
 }
+
+#[test]
+fn an_end_of_an_arc_pulled_slides_round_it_and_leaves_the_reach_alone() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(20.0, 30.0));
+    let start = sketch.add_point(DVec2::new(30.0, 30.0));
+    let end = sketch.add_point(DVec2::new(20.0, 40.0));
+    let bend = sketch.add_arc(centre, start, end);
+
+    let slid = sketch.slide(end, DVec2::new(8.0, 34.0));
+
+    let reach = slid.distance(DVec2::new(20.0, 30.0));
+    assert!(
+        (reach - 10.0).abs() < 1e-9,
+        "an end says how far round the curve goes, not how far out: {reach}",
+    );
+    sketch.settle_around(end, slid, 1.0);
+    let after = sketch.arc_radius(bend);
+    assert!(
+        (after - 10.0).abs() < 1e-6,
+        "and the curve still stands 10 out, not {after}",
+    );
+}
+
+#[test]
+fn an_end_two_arcs_share_follows_neither_of_them() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(20.0, 30.0));
+    let start = sketch.add_point(DVec2::new(30.0, 30.0));
+    let shared = sketch.add_point(DVec2::new(20.0, 40.0));
+    sketch.add_arc(centre, start, shared);
+    let far = sketch.add_point(DVec2::new(60.0, 40.0));
+    let beyond = sketch.add_point(DVec2::new(60.0, 50.0));
+    sketch.add_arc(far, shared, beyond);
+
+    let pulled = DVec2::new(8.0, 34.0);
+
+    assert!(
+        sketch.slide(shared, pulled).distance(pulled) < 1e-9,
+        "two curves to follow is no curve to follow",
+    );
+}

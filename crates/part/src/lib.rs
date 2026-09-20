@@ -22,6 +22,7 @@ pub mod library;
 mod outcome;
 mod picture;
 pub mod ports;
+mod resizing;
 mod state;
 
 #[cfg(any(test, feature = "test-support"))]

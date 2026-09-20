@@ -32,6 +32,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
             ..
         } => lang.t("history.points_merged"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),
+        Operation::ResizeCircle { .. } | Operation::ResizeArc { .. } => lang.t("history.resized"),
         Operation::MoveDimension { .. } => lang.t("history.dimension_moved"),
         Operation::Constrain { constraint, .. } => constraints::label(lang, *constraint),
         Operation::EraseMany {

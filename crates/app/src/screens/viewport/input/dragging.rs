@@ -8,13 +8,13 @@ use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
 
-use super::{arc_centre_group, landed_on, pick};
+use super::{arc_centre_group, dropped_on, pick};
 
 /// What a drag needs beyond where the cursor is: how far a click reaches, what
 /// a pixel is worth in the drawing, and whether the key that pulls a point off
 /// what holds it is down.
 #[derive(Clone, Copy)]
-pub(super) struct Reach {
+pub(super) struct Gesture {
     pub(super) snap: f64,
     pub(super) pixel: f64,
     pub(super) letting_go: bool,
@@ -35,9 +35,9 @@ pub(super) fn drag_point(
     cursor: DVec2,
     pressed: DVec2,
     response: &egui::Response,
-    reach: Reach,
+    gesture: Gesture,
 ) -> bool {
-    let (snap, pixel) = (reach.snap, reach.pixel);
+    let (snap, pixel) = (gesture.snap, gesture.pixel);
     let sketch = &context.document.sketches()[index];
     if response.drag_started() {
         // Pressing on something already picked moves the whole selection, the
@@ -67,11 +67,17 @@ pub(super) fn drag_point(
             .nearest_point(pressed, snap)
             .filter(|point| !sketch.is_origin(*point))
             .filter(|point| {
-                !settled.get(point.0).copied().unwrap_or(false)
-                    || (reach.letting_go && !sketch.holds_on(*point).is_empty())
+                let holds = sketch.holds_on(*point);
+                let stuck = settled.get(point.0).copied().unwrap_or(false) || holds.len() > 1;
+                !stuck || (gesture.letting_go && !holds.is_empty())
             });
         let arc_group = dragged_point.and_then(|point| arc_centre_group(sketch, point));
         if let Some(state) = context.editor.select_state() {
+            // Read where the gesture starts and kept for the whole of it, as
+            // what is grabbed already is: letting the key decide again every
+            // frame would have the drop read a key released a frame early as
+            // a drag that never asked for anything.
+            state.letting_go = gesture.letting_go;
             match arc_group {
                 Some(group) => {
                     state.dragged_group = group;
@@ -121,17 +127,22 @@ pub(super) fn drag_point(
     // been let go here — the values already given pull the rest of the shape
     // along, and seeing only the point move told nothing of where it was
     // heading.
+    let letting_go = context
+        .editor
+        .select_state()
+        .is_some_and(|state| state.letting_go);
+
     // Where the point actually goes: along whatever holds it, unless the key
     // that pulls it off is down. Held where two things cross, it does not go
     // anywhere at all — which is the whole of what a crossing means.
-    let landing = match reach.letting_go {
+    let landing = match letting_go {
         true => cursor,
         false => context.document.sketches()[index].slide(point, cursor),
     };
 
     if !response.drag_stopped() {
         let mut settling = context.document.sketches()[index].clone();
-        if reach.letting_go {
+        if letting_go {
             settling.let_go(point);
         }
         settling.settle_around(point, landing, context.document.scale());
@@ -146,6 +157,7 @@ pub(super) fn drag_point(
         state.dragged_point = None;
         state.drag_position = None;
         state.drag_preview = None;
+        state.letting_go = false;
     }
     // Two ends laid on top of each other are one corner, not two. The decision
     // is taken here, at the drop, and recorded: how close is close enough
@@ -164,9 +176,9 @@ pub(super) fn drag_point(
     // first crossing it went over. Joining another point holds nothing: that
     // is a merge, and it is the other point that stands there afterwards.
     let free = sketch.holds_on(point).is_empty();
-    let on = match reach.letting_go || merged_into.is_some() || !free {
+    let on = match letting_go || merged_into.is_some() || !free {
         true => Vec::new(),
-        false => landed_on(sketch, landing),
+        false => dropped_on(sketch, point, landing),
     };
     context.document.apply(Operation::MovePoint {
         sketch: index,
@@ -174,7 +186,7 @@ pub(super) fn drag_point(
         position: landing,
         merged_into,
         on,
-        let_go: reach.letting_go,
+        let_go: letting_go,
     });
     true
 }

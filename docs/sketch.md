@@ -455,7 +455,8 @@ held there: that is the section below.
 ### A point that lands on a trait stays on it
 
 A point laid on a trait, an arc, a circle or an axis of the plane is **held on
-it**. Whatever the tool — the point tool, the end of a line, a corner of a
+it** — never on a curve it is itself an end of, which would forbid that end
+from ever turning its own trait again. Whatever the tool — the point tool, the end of a line, a corner of a
 rectangle, the centre of a circle, either end of an arc. Move or resize what it
 was laid on, and it follows; drag the point itself and it slides along, without
 ever leaving.

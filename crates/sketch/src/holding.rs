@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
 use crate::edges::off_by;
-use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
+use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 use crate::snap::onto_rim;
 
 /// What a point can be held on: a curve of the drawing, or one of the two
@@ -78,6 +78,31 @@ impl Sketch {
             .chain(on_arcs)
             .chain(on_axes)
             .collect()
+    }
+
+    /// The same for a point the drawing already has: what that point is a
+    /// part of does not hold it.
+    ///
+    /// An end of a trait pulled back along its own trait still lands on it,
+    /// and holding it there would forbid that end from ever turning the trait
+    /// again — while holding nothing, since a trait passes through its own
+    /// ends whatever they do.
+    pub fn supports_for(&self, point: PointId, place: DVec2) -> Vec<Support> {
+        self.supports_at(place)
+            .into_iter()
+            .filter(|support| !self.drawn_from(*support, point))
+            .collect()
+    }
+
+    /// Whether a curve is drawn from this very point.
+    fn drawn_from(&self, support: Support, point: PointId) -> bool {
+        let element = match support {
+            Support::Segment(segment) => Element::Segment(segment),
+            Support::Circle(circle) => Element::Circle(circle),
+            Support::Arc(arc) => Element::Arc(arc),
+            Support::Axis(_) => return false,
+        };
+        self.points_it_leans_on(element).contains(&point)
     }
 
     /// What holds a point where it is.

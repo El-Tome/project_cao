@@ -48,7 +48,7 @@ use measure::{edit_dimension, measure};
 
 mod dragging;
 pub(crate) use dragging::annotation_position;
-use dragging::{Reach, drag_point, letting_go, nearest_annotation};
+use dragging::{Gesture, drag_point, letting_go, nearest_annotation};
 
 mod areas;
 pub(crate) use areas::pick_areas;
@@ -63,7 +63,7 @@ mod corner;
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
 
 mod landing;
-pub(crate) use landing::{born_at, landed_on, point_ref_at};
+pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -148,7 +148,7 @@ pub(crate) fn handle_sketch_input(
             .unwrap_or(cursor);
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
-        let reach = Reach {
+        let gesture = Gesture {
             snap,
             pixel: scale.units_per_pixel,
             letting_go: letting_go(ui, state.let_go),
@@ -199,7 +199,7 @@ pub(crate) fn handle_sketch_input(
         // the whole of it: deciding again every frame would swap gestures
         // mid-drag, as soon as the cursor happened to pass over a point.
         if response.drag_started() {
-            let changed = drag_point(context, index, cursor, pressed, response, reach);
+            let changed = drag_point(context, index, cursor, pressed, response, gesture);
             let nothing_grabbed = matches!(
                 &context.editor.tool_state,
                 ToolState::Select(select)
@@ -224,7 +224,7 @@ pub(crate) fn handle_sketch_input(
             );
         }
 
-        return drag_point(context, index, cursor, pressed, response, reach);
+        return drag_point(context, index, cursor, pressed, response, gesture);
     }
 
     if !response.clicked() {

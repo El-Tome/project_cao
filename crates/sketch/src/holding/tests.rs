@@ -72,7 +72,7 @@ fn a_trait_dragged_carries_the_point_it_holds_without_being_bent_by_it() {
 }
 
 #[test]
-fn a_point_held_where_two_traits_cross_can_no_longer_move_on_its_own() {
+fn a_point_held_where_two_traits_cross_follows_it_when_one_of_them_moves() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let west = sketch.add_point(DVec2::new(0.0, 20.0));
     let east = sketch.add_point(DVec2::new(40.0, 20.0));
@@ -81,24 +81,25 @@ fn a_point_held_where_two_traits_cross_can_no_longer_move_on_its_own() {
     let north = sketch.add_point(DVec2::new(20.0, 40.0));
     let up = sketch.add_segment(south, north);
     let crossing = sketch.add_point(DVec2::new(20.0, 20.0));
-    sketch.add_constraint(Constraint::OnSegment {
-        point: crossing,
-        segment: across,
-    });
-    sketch.add_constraint(Constraint::OnSegment {
-        point: crossing,
-        segment: up,
-    });
+    for segment in [across, up] {
+        sketch.add_constraint(Constraint::OnSegment {
+            point: crossing,
+            segment,
+        });
+    }
 
-    let settled = sketch.settled_points(1.0);
-
-    assert!(
-        settled[crossing.0],
-        "a point held on both of the traits that cross there has nowhere left to go",
+    sketch.settle_around_all(
+        &[
+            (south, DVec2::new(30.0, 0.0)),
+            (north, DVec2::new(30.0, 40.0)),
+        ],
+        1.0,
     );
+
+    let place = sketch.point(crossing);
     assert!(
-        !settled[north.0],
-        "the traits themselves are still free to move",
+        place.distance(DVec2::new(30.0, 20.0)) < 1e-6,
+        "the trait was carried sideways and the crossing with it, to {place}",
     );
 }
 

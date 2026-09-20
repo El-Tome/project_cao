@@ -62,3 +62,17 @@ fn a_place_three_curves_run_through_holds_a_point_by_two_of_them() {
 
     assert_eq!(on.len(), AT_A_CROSSING, "{on:?}");
 }
+
+#[test]
+fn an_end_of_a_trait_dropped_back_along_it_is_held_by_nothing() {
+    let sketch = a_trait_and_a_circle();
+    let far = sketch.segments()[0].end;
+
+    let held = dropped_on(&sketch, far, DVec2::new(30.0, 20.0));
+
+    assert!(
+        held.is_empty(),
+        "a trait runs through its own ends whatever they do, so landing on it \
+         holds that end to nothing: {held:?}",
+    );
+}

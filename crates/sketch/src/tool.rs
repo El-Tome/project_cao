@@ -27,6 +27,10 @@ pub struct SelectState {
     pub drag_position: Option<DVec2>,
     pub drag_preview: Option<Sketch>,
     pub band: Option<(DVec2, DVec2)>,
+    /// Whether the drag under way is pulling its point off what holds it.
+    /// Read where the gesture starts, like what it grabbed, and kept for the
+    /// whole of it.
+    pub letting_go: bool,
 }
 
 /// How far a shape, a dimension or a rule being drawn has gotten.

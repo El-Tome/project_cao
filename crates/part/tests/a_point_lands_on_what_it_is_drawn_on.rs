@@ -6,8 +6,12 @@
 //!   `a_point_laid_on_a_trait_follows_it_when_the_trait_moves`
 //! - whatever the tool that laid it down —
 //!   `a_line_started_on_a_circle_keeps_its_end_on_the_rim`
-//! - a point born where two of them cross is held on both, and cannot move on
-//!   its own — `a_point_laid_where_a_trait_and_a_circle_cross_is_held_by_both`
+//! - a point born where two of them cross is held on both —
+//!   `a_point_laid_where_a_trait_and_a_circle_cross_is_held_by_both`
+//! - and cannot move on its own, following the crossing instead — no test: it
+//!   is `Sketch::slide`, held beside the rule by
+//!   `a_point_held_at_a_crossing_stays_there_however_it_is_pulled` and by
+//!   `a_point_held_where_two_traits_cross_follows_it_when_one_of_them_moves`
 //! - a point dropped there by a drag is held the same way —
 //!   `a_point_dropped_on_a_trait_by_a_drag_is_held_there`
 //! - dragging with the let-go key pulls the point off, and dropping it with
@@ -108,10 +112,6 @@ fn a_point_laid_where_a_trait_and_a_circle_cross_is_held_by_both() {
     assert_eq!(
         holds,
         vec![Support::Segment(SegmentId(0)), Support::Circle(CircleId(0)),],
-    );
-    assert!(
-        document.sketches()[0].settled_points(1.0)[point.0],
-        "held on both, the point has nowhere left to go on its own",
     );
 }
 

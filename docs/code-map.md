@@ -62,8 +62,8 @@ in one of the two domains, never there.
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
 | How wide a held selection stands, whichever way it is measured | `sketch/src/patterning/span.rs` | `Sketch::widest_span` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
-| What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `holds_on`, `slide`, `let_go` |
-| What a rule holding a point asks of the solver | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `on_arc_equation`, `rim_equation` |
+| What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `supports_for`, `holds_on`, `slide`, `let_go` |
+| What a rule holding a point asks of the solver, and which of the two gives | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `held_alone`, `pulled_elsewhere` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
 | Where a rule's mark is written, and the nearest one to a cursor | `sketch/src/rule_marks.rs` | `Sketch::rule_marks`, `Sketch::nearest_rule` |
@@ -200,7 +200,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation`, `letting_go` |
-| Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `point_ref_at`, `born_at` |
+| Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |

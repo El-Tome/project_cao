@@ -6,7 +6,7 @@
 //! than two of them do.
 
 use cao_part::history::PointRef;
-use cao_sketch::{Sketch, Support};
+use cao_sketch::{PointId, Sketch, Support};
 use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
@@ -19,6 +19,13 @@ const AT_A_CROSSING: usize = 2;
 /// What a point laid at this place is held by.
 pub(crate) fn landed_on(sketch: &Sketch, place: DVec2) -> Vec<Support> {
     let mut on = sketch.supports_at(place);
+    on.truncate(AT_A_CROSSING);
+    on
+}
+
+/// What a point the drawing already has is held by, once dropped there.
+pub(crate) fn dropped_on(sketch: &Sketch, point: PointId, place: DVec2) -> Vec<Support> {
+    let mut on = sketch.supports_for(point, place);
     on.truncate(AT_A_CROSSING);
     on
 }

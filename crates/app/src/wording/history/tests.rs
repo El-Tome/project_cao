@@ -66,16 +66,17 @@ fn a_drawn_step_is_named_after_the_shape_it_left_behind() {
         Operation::AddPoint {
             sketch: 0,
             position: DVec2::ZERO,
+            on: Vec::new(),
         },
         Operation::AddSegment {
             sketch: 0,
-            start: here,
+            start: here.clone(),
             end: PointRef::New(AWAY),
             construction: false,
         },
         Operation::AddRectangle {
             sketch: 0,
-            corner: here,
+            corner: here.clone(),
             opposite: PointRef::New(AWAY),
             construction: false,
         },
@@ -91,12 +92,16 @@ fn a_drawn_step_is_named_after_the_shape_it_left_behind() {
             point: PointId(1),
             position: AWAY,
             merged_into: None,
+            let_go: false,
+            on: Vec::new(),
         },
         Operation::MovePoint {
             sketch: 0,
             point: PointId(1),
             position: AWAY,
             merged_into: Some(PointId(2)),
+            let_go: false,
+            on: Vec::new(),
         },
         Operation::MoveMany {
             sketch: 0,

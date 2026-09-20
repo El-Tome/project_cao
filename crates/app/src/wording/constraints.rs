@@ -10,9 +10,10 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. } => "constraints.label.equal",
-        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
-            "constraints.label.coincident"
-        }
+        Constraint::OnSegment { .. }
+        | Constraint::OnCircle { .. }
+        | Constraint::OnArc { .. }
+        | Constraint::OnAxis { .. } => "constraints.label.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.label.collinear"
         }
@@ -34,9 +35,10 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. } => "constraints.erased.equal",
-        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => {
-            "constraints.erased.coincident"
-        }
+        Constraint::OnSegment { .. }
+        | Constraint::OnCircle { .. }
+        | Constraint::OnArc { .. }
+        | Constraint::OnAxis { .. } => "constraints.erased.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.erased.collinear"
         }
@@ -59,7 +61,10 @@ pub fn mark(rule: Constraint) -> &'static str {
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. } => "=",
-        Constraint::OnSegment { .. } | Constraint::OnCircle { .. } => "+",
+        Constraint::OnSegment { .. }
+        | Constraint::OnCircle { .. }
+        | Constraint::OnArc { .. }
+        | Constraint::OnAxis { .. } => "+",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "--",
         Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "T",
         Constraint::Midpoint { .. } => "1/2",

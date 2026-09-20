@@ -408,7 +408,7 @@ The cursor is pulled, in this order:
 | **An existing point** | It is what one aims at most often, and missing by a hair leaves geometry that only looks joined from afar |
 | **A crossing** | Where two curves run through the same place without the drawing naming it, that place is what one was aiming at |
 | **The middle of a trait** | One aims at it on purpose, and nothing on screen says one is exactly halfway: a **little triangle** announces it |
-| **The body of a curve** | Drawing on a trait, a circle or an arc already there is far more common than drawing beside it |
+| **The body of a curve** | Drawing on a trait, a circle, an arc or one of the plane's two axes already there is far more common than drawing beside it |
 | **The grid** | The safety net, with the shortest reach |
 
 A curve already drawn therefore pulls **harder than the grid**: its reach is
@@ -418,6 +418,12 @@ An arc pulls only across its own sweep. Past either end it gives that end, and
 never the far side of the circle it is a piece of — that part is not drawn. The
 centre of a circle or of an arc needs no magnet of its own: it is a point of the
 drawing, and the first line of the table already holds it.
+
+**The plane's two axes pull like a trait**, and so do the places a curve
+crosses one of them. Without that, landing on an axis would be a matter of the
+grid happening to have a node there — and a half-shape closed against an axis,
+which is what a mirror needs, has to be able to land on it whether the grid is
+on or off.
 
 The reach of a **click** (what is grabbed, what is dimensioned) is 18 physical
 pixels, that is 9 points on a high-density screen. At ten, a point had to be
@@ -441,8 +447,47 @@ The grid magnet bites on quarter squares: aiming roughly is enough to land on
 the origin. No magnet bites beyond a few pixels, so a deliberately free
 position stays possible.
 
-Careful: **snapping is not constraining**. A trait laid nicely horizontal
-thanks to the grid stays free to turn as long as no angle dimension holds it.
+Careful: **snapping is not constraining** — for a direction. A trait laid
+nicely horizontal thanks to the grid stays free to turn as long as no angle
+dimension holds it. A point that lands *on something*, on the other hand, is
+held there: that is the section below.
+
+### A point that lands on a trait stays on it
+
+A point laid on a trait, an arc, a circle or an axis of the plane is **held on
+it** — never on a curve it is itself an end of, which would forbid that end
+from ever turning its own trait again. Whatever the tool — the point tool, the end of a line, a corner of a
+rectangle, the centre of a circle, either end of an arc. Move or resize what it
+was laid on, and it follows; drag the point itself and it slides along, without
+ever leaving.
+
+Laid where **two of those cross**, it is held on both. It then has nowhere left
+to go on its own — a drag does not move it — and it follows the crossing
+wherever the two curves take it. If a value later drives them apart, the
+drawing says what it says of any rule it cannot honour.
+
+**Dropping a point on a trait holds it there too**, exactly as if it had been
+born on it. Only a point nothing held yet: one already sliding along its own
+trait would otherwise catch on the first crossing it went over. Dropping it on
+an existing point is another matter — that is a merge, and the section above
+has it.
+
+**The key that pulls it off is `Cmd` (`Ctrl` on Windows and Linux)**, held
+while dragging: the point comes off what held it, and dropping it with the key
+still down holds it to nothing. The key is changed in the shortcut settings
+like any other. It is not `Alt`, which with the left button already turns the
+view in every navigation preset.
+
+The rule shows as a mark on the point, like every other rule, and is deleted
+from there.
+
+What a point is held on is **decided at the click and recorded**, like the
+snapping and the merging: the magnets depend on the zoom of the moment, so
+working it out again on replay could hold a point to something nobody pointed
+at.
+
+What a point cannot yet be held on is an **edge of the part**: a sketch holds
+no projection of those. That is #359's business.
 
 A rectangle is **one single operation** in the history, not four traits: that
 is what one wants to see when reading the construction back.

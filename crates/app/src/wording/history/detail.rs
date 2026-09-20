@@ -23,7 +23,9 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ],
             )
         }
-        Operation::AddPoint { sketch, position } => lang.t_with(
+        Operation::AddPoint {
+            sketch, position, ..
+        } => lang.t_with(
             "history.detail.point",
             &[
                 ("sketch", &sketch.to_string()),
@@ -80,6 +82,7 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             point,
             position,
             merged_into: Some(kept),
+            ..
         } => lang.t_with(
             "history.detail.point_dropped_on",
             &[

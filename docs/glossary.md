@@ -29,7 +29,19 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `Element` | élément | Whichever of point, segment, circle or arc a rule is about. |
 | `Region` | aire | A closed loop of the drawing, the thing an extrusion can be raised from. |
 | `Dimension` | cote | A rule that carries a number: length, angle, radius, diameter, distance. |
-| `Constraint` | contrainte | A rule that carries no number: perpendicular, parallel, equal, tangent, on-segment. |
+| `Support` | — | What a point can be held on: a trait, a circle, an arc, or one of the plane's own axes. |
+| `Constraint` | contrainte | A rule that carries no number: perpendicular, parallel, equal, tangent, on-segment, on-circle, on-arc, on-axis. |
+
+> **A hold corrects the point, not the curve.** The step `OnSegment`,
+> `OnCircle`, `OnArc` and `OnAxis` take moves the point they hold and leaves
+> what holds it where it is: a point laid on a trait follows that trait and
+> does not drag it about. Two points do not follow on their own, and for them
+> the curve gives instead: one that cannot move at all — pinned, or under the
+> cursor — and one something else is already pulling on, such as a rim point at
+> the end of a trait whose length is typed. The rule's own equation says the
+> whole truth either way: it is what the drawing is *read* from, and a row that
+> left the curve out would answer "is this settled?" about a drawing nobody
+> drew.
 
 > **Dimension and constraint are not synonyms.** They live in separate lists on
 > the sketch, and the split is what lets a value be typed without inventing a

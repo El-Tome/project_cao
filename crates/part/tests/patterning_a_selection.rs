@@ -29,6 +29,7 @@ fn a_trait_beside_a_centre() -> Vec<Operation> {
         Operation::AddPoint {
             sketch: 0,
             position: DVec2::ZERO,
+            on: Vec::new(),
         },
         Operation::AddSegment {
             sketch: 0,
@@ -115,6 +116,7 @@ fn an_arc_a_dragged_box_took_hold_of_stands_round_the_ring_as_an_arc() {
         Operation::AddPoint {
             sketch: 0,
             position: DVec2::ZERO,
+            on: Vec::new(),
         },
         Operation::AddArc {
             sketch: 0,

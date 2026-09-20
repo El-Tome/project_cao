@@ -1,4 +1,4 @@
-use cao_prefs::{Chord, Key};
+use cao_prefs::{Chord, Key, Modifier};
 
 use crate::lang::Catalogue;
 
@@ -94,6 +94,15 @@ pub fn chord(lang: &Catalogue, chord: Chord) -> String {
     }
     text.push_str(&key(lang, chord.key));
     text
+}
+
+/// A key held for the length of a gesture, as the settings screen shows it.
+pub fn modifier(lang: &Catalogue, modifier: Modifier) -> String {
+    lang.t(match modifier {
+        Modifier::Command => "shortcuts.modifier.command",
+        Modifier::Shift => "shortcuts.modifier.shift",
+        Modifier::Alt => "shortcuts.modifier.alt",
+    })
 }
 
 #[cfg(test)]

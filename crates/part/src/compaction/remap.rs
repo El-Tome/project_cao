@@ -119,6 +119,14 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             point: map.points[&point],
             circle: map.circles[&circle],
         },
+        Constraint::OnArc { point, arc } => Constraint::OnArc {
+            point: map.points[&point],
+            arc: map.arcs[&arc],
+        },
+        Constraint::OnAxis { point, axis } => Constraint::OnAxis {
+            point: map.points[&point],
+            axis,
+        },
         Constraint::Midpoint { point, segment } => Constraint::Midpoint {
             point: map.points[&point],
             segment: map.segments[&segment],

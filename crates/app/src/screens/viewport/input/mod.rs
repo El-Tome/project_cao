@@ -48,7 +48,7 @@ use measure::{edit_dimension, measure};
 
 mod dragging;
 pub(crate) use dragging::annotation_position;
-use dragging::{drag_point, nearest_annotation};
+use dragging::{Gesture, drag_point, letting_go, nearest_annotation};
 
 mod areas;
 pub(crate) use areas::pick_areas;
@@ -61,6 +61,9 @@ pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 
 mod corner;
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
+
+mod landing;
+pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -145,6 +148,11 @@ pub(crate) fn handle_sketch_input(
             .unwrap_or(cursor);
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
+        let gesture = Gesture {
+            snap,
+            pixel: scale.units_per_pixel,
+            letting_go: letting_go(ui, state.let_go),
+        };
         if response.clicked() {
             let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
             match (picked, adding) {
@@ -191,15 +199,7 @@ pub(crate) fn handle_sketch_input(
         // the whole of it: deciding again every frame would swap gestures
         // mid-drag, as soon as the cursor happened to pass over a point.
         if response.drag_started() {
-            let changed = drag_point(
-                context,
-                index,
-                cursor,
-                pressed,
-                response,
-                snap,
-                scale.units_per_pixel,
-            );
+            let changed = drag_point(context, index, cursor, pressed, response, gesture);
             let nothing_grabbed = matches!(
                 &context.editor.tool_state,
                 ToolState::Select(select)
@@ -224,15 +224,7 @@ pub(crate) fn handle_sketch_input(
             );
         }
 
-        return drag_point(
-            context,
-            index,
-            cursor,
-            pressed,
-            response,
-            snap,
-            scale.units_per_pixel,
-        );
+        return drag_point(context, index, cursor, pressed, response, gesture);
     }
 
     if !response.clicked() {
@@ -245,9 +237,11 @@ pub(crate) fn handle_sketch_input(
             draw_symmetric_line_point(context, index, cursor, snap, scale.units_per_pixel)
         }
         Tool::Point => {
+            let on = landed_on(&context.document.sketches()[index], cursor);
             context.document.apply(Operation::AddPoint {
                 sketch: index,
                 position: cursor,
+                on,
             });
             true
         }
@@ -354,22 +348,6 @@ fn constrain(
     true
 }
 
-/// A point already there, or a new one where the cursor is.
-/// Moving a point by hand. The drawing settles around it afterwards, so the
-/// values already given stay true.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn point_ref_at(
-    context: &SketchContext<'_>,
-    index: usize,
-    position: DVec2,
-    snap: f64,
-) -> PointRef {
-    match context.document.sketches()[index].nearest_point(position, snap) {
-        Some(point) => PointRef::Existing(point),
-        None => PointRef::New(position),
-    }
-}
-
 /// One click of the rectangle tool: the first remembers a corner, the second
 /// draws it opposite.
 pub(crate) fn two_click_shape(
@@ -468,7 +446,7 @@ pub(crate) fn draw_line_point(
         cao_sketch::ChainClick::Drew { start, end, aimed } => {
             let point_ref = |anchor: ChainAnchor| match anchor {
                 ChainAnchor::Point(id) => PointRef::Existing(id),
-                ChainAnchor::Pending(position) => PointRef::New(position),
+                ChainAnchor::Pending(position) => born_at(sketch, position),
             };
             context.document.apply(Operation::AddSegment {
                 sketch: index,

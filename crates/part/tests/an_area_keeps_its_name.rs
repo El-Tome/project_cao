@@ -202,6 +202,8 @@ fn dividing_a_border_of_an_extruded_shape_keeps_the_matter() {
         point: PointId(5),
         position: DVec2::new(5.0, 5.0),
         merged_into: None,
+        let_go: false,
+        on: Vec::new(),
     });
     history.push(Operation::Split {
         sketch: 0,

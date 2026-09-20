@@ -7,6 +7,7 @@ use crate::independence::norm;
 use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod arc_solver;
+mod hold_solver;
 
 /// How the solve went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -147,13 +148,20 @@ impl Sketch {
         // are handed back to the same end, one equation at a time.
         let mut moves = vec![DVec2::ZERO; self.points().len()];
         let mut entry: Vec<Equation> = Vec::new();
+        let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
 
         for _ in 0..MAX_ITERATIONS {
             let mut worst: f64 = 0.0;
             for index in 0..self.equation_count() {
+                let held_alone = self.held_alone(index, &pinned, &pulled);
                 self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
-                for equation in &entry {
+                for equation in entry.iter_mut() {
                     worst = worst.max(equation.off_by(scale));
+                    // A point laid on a curve follows it: the step this row
+                    // takes moves the point, and leaves the curve alone.
+                    if let Some(point) = held_alone {
+                        equation.hold_to(point);
+                    }
 
                     let norm = equation.norm_squared();
                     if norm < equation.flat_below(scale) {
@@ -417,7 +425,7 @@ impl Sketch {
     }
 
     /// Which column stands for a circle's size.
-    fn radius_column(&self, circle: crate::sketch::CircleId) -> Option<usize> {
+    pub(crate) fn radius_column(&self, circle: crate::sketch::CircleId) -> Option<usize> {
         (circle.0 < self.circles().len()).then(|| self.points().len() * 2 + circle.0)
     }
 
@@ -600,18 +608,18 @@ impl Sketch {
 
     /// How many equations the drawing is made of: dimensions, then rules, then
     /// one apiece for the arcs. A rule may bring more than one.
-    fn equation_count(&self) -> usize {
+    pub(super) fn equation_count(&self) -> usize {
         self.dimension_count() + self.constraints().len() + self.arcs().len()
     }
 
-    fn row(&self, index: usize) -> Row {
+    pub(super) fn row(&self, index: usize) -> Row {
         row_at(index, self.dimension_count(), self.constraints().len())
     }
 
     /// The equations of one entry, whichever kind it is, appended to what the
     /// caller already holds. Written into a buffer rather than returned so that
     /// a sweep can hand the same one back four hundred times.
-    fn any_equation(
+    pub(super) fn any_equation(
         &self,
         index: usize,
         millimeters_per_unit: f64,
@@ -654,9 +662,10 @@ impl Sketch {
                         .filter_map(|point| self.on_line_equation(point, first, 0.0)),
                 );
             }
-            Constraint::OnSegment { point, segment } => {
-                into.extend(self.on_line_equation(point, segment, 0.0))
-            }
+            Constraint::OnSegment { .. }
+            | Constraint::OnCircle { .. }
+            | Constraint::OnArc { .. }
+            | Constraint::OnAxis { .. } => self.hold_equations(constraint, into),
             Constraint::Tangent {
                 circle,
                 segment,
@@ -686,7 +695,6 @@ impl Sketch {
                     into.extend(self.foot_equation(contact, round.center, segment));
                 }
             }
-            Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
             Constraint::EqualRadius { .. } | Constraint::EqualRadiusArc { .. } => {
                 into.extend(self.equal_radius_equations(constraint))
             }
@@ -820,7 +828,12 @@ impl Sketch {
     ///
     /// Signed, unlike the dimension of the same name: a point *on* a line has
     /// no side to be on, and an unsigned error would have no gradient there.
-    fn on_line_equation(&self, point: PointId, segment: SegmentId, gap: f64) -> Option<Equation> {
+    pub(crate) fn on_line_equation(
+        &self,
+        point: PointId,
+        segment: SegmentId,
+        gap: f64,
+    ) -> Option<Equation> {
         let line = *self.segments().get(segment.0)?;
         if point.0 >= self.points().len() {
             return None;
@@ -893,30 +906,6 @@ impl Sketch {
         equation.add(under, -unit);
         equation.add(line.end, turning);
         equation.add(line.start, -turning);
-        Some(equation)
-    }
-
-    /// A point held on a circle's rim. The size gives as readily as the place:
-    /// dragging such a point is how a circle is resized by hand.
-    fn rim_equation(&self, point: PointId, circle: crate::sketch::CircleId) -> Option<Equation> {
-        let round = *self.circles().get(circle.0)?;
-        if point.0 >= self.points().len() {
-            return None;
-        }
-        let reach = self.point(point) - self.point(round.center);
-        let length = reach.length();
-        if length < 1e-9 {
-            return None;
-        }
-        let unit = reach / length;
-
-        let mut equation = Equation::new(self.variables());
-        equation.error = length - round.radius;
-        equation.add(point, unit);
-        equation.add(round.center, -unit);
-        if let Some(column) = self.radius_column(circle) {
-            equation.add_radius(column, -1.0);
-        }
         Some(equation)
     }
 

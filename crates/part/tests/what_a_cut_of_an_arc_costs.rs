@@ -46,6 +46,7 @@ fn a_curve_measured_twice() -> PartState {
         state.apply(&Operation::AddPoint {
             sketch: 0,
             position: on_the_rim(degrees),
+            on: Vec::new(),
         });
     }
     state

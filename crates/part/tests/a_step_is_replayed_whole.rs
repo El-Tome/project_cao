@@ -63,6 +63,7 @@ fn drawn_then_edited() -> History {
     history.push(Operation::AddPoint {
         sketch: 1,
         position: DVec2::new(1.0, 1.0),
+        on: Vec::new(),
     });
     // The two far corners, dragged out long after the extrusion, leaving a
     // rectangle 10 by 20 where there was one 10 by 10.
@@ -72,6 +73,8 @@ fn drawn_then_edited() -> History {
             point: PointId(point),
             position,
             merged_into: None,
+            let_go: false,
+            on: Vec::new(),
         });
     }
     history

@@ -59,6 +59,7 @@ fn point_op(sketch: usize) -> Operation {
     Operation::AddPoint {
         sketch,
         position: DVec2::Y,
+        on: Vec::new(),
     }
 }
 

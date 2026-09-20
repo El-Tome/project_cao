@@ -39,6 +39,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
             Operation::AddPoint {
                 sketch: 2,
                 position: DVec2::new(1.25, -3.0),
+                on: Vec::new(),
             },
             "Esquisse 2 · (1.2, -3.0)",
         ),

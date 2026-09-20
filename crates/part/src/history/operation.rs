@@ -3,7 +3,7 @@
 
 use cao_sketch::{
     ArcId, Area, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats,
-    SegmentId, SketchAxis, WorkPlane,
+    SegmentId, SketchAxis, Support, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
@@ -13,10 +13,21 @@ use serde::{Deserialize, Serialize};
 /// Resolved when the user clicks, never re-derived on replay: snapping depends
 /// on the zoom level at the time, so re-running it later could join different
 /// points and rebuild a different drawing.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum PointRef {
     Existing(PointId),
     New(DVec2),
+    /// A point laid on a curve of the drawing or on an axis of its plane, and
+    /// held there. On two of them where they cross, which is what keeps it at
+    /// the crossing rather than merely where the crossing then was.
+    ///
+    /// What it landed on is settled at the click, like the rest of this: the
+    /// magnets depend on the zoom at the time, so working it out again on
+    /// replay could hold it to something nobody pointed at.
+    Held {
+        at: DVec2,
+        on: Vec<Support>,
+    },
 }
 
 /// What an extrusion does to the part.
@@ -112,6 +123,9 @@ pub enum Operation {
     AddPoint {
         sketch: usize,
         position: DVec2,
+        /// What the point was laid on, and is held by.
+        #[serde(default)]
+        on: Vec<Support>,
     },
     AddSegment {
         sketch: usize,
@@ -185,6 +199,14 @@ pub enum Operation {
         position: DVec2,
         #[serde(default)]
         merged_into: Option<PointId>,
+        /// What the point was dropped on, and is held by from now on. A point
+        /// dropped on a trait is held there exactly as one born on it is.
+        #[serde(default)]
+        on: Vec<Support>,
+        /// Whether the drag pulled the point off whatever held it, which is
+        /// what the let-go key asks for.
+        #[serde(default)]
+        let_go: bool,
     },
     /// Dragging a whole selection: every point named moves by the same step,
     /// so the shapes travel together instead of being pulled apart.

@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, BTreeSet};
 
-use cao_sketch::Sketch;
+use cao_sketch::{Sketch, Support};
 use cao_solid::Mesh;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -75,8 +75,14 @@ impl PartState {
                 self.sketches.push(Sketch::new(plane));
                 None
             }
-            Operation::AddPoint { sketch, position } => {
-                self.sketches.get_mut(*sketch)?.add_point(*position);
+            Operation::AddPoint {
+                sketch,
+                position,
+                on,
+            } => {
+                let drawing = self.sketches.get_mut(*sketch)?;
+                let point = drawing.add_point(*position);
+                hold(drawing, point, on);
                 None
             }
             Operation::AddSegment {
@@ -152,9 +158,18 @@ impl PartState {
                 point,
                 position,
                 merged_into,
+                on,
+                let_go,
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
+                // What the drag decided about what holds the point, before it
+                // moves: a rule laid on the place it is dropped at is already
+                // satisfied there, and the settling has one thing less to do.
+                if *let_go {
+                    sketch.let_go(*point);
+                }
+                hold(sketch, *point, on);
                 // Moving a point by hand must not break the values already
                 // given, so the drawing settles again around it — around it,
                 // the point itself staying exactly where it was dropped.
@@ -356,5 +371,18 @@ fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
     match point {
         PointRef::Existing(id) => *id,
         PointRef::New(position) => sketch.add_point(*position),
+        PointRef::Held { at, on } => {
+            let laid = sketch.add_point(*at);
+            hold(sketch, laid, on);
+            laid
+        }
+    }
+}
+
+/// Holds a point on everything it was laid on. The rules are already true
+/// where it stands, so nothing moves until the drawing is next settled.
+fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
+    for support in on {
+        sketch.add_constraint(support.holding(point));
     }
 }

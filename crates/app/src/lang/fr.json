@@ -58,6 +58,7 @@
   "history.detail.dimension": "Esquisse {sketch} · {spans}",
   "history.detail.existing_point": "point {point}",
   "history.detail.new_point": "({x}, {y})",
+  "history.detail.held_point": "({x}, {y}), tenu",
   "history.detail.segment_axis": "trait {segment}",
 
   "part_tree.title": "Pièce",
@@ -528,6 +529,8 @@
   "settings.shortcuts.intro": "Cliquer un raccourci, puis appuyer sur la touche voulue. Les modificateurs tenus au moment de la frappe sont pris avec.",
   "settings.shortcuts.recording": "… appuyez sur une touche",
   "settings.shortcuts.unbind": "Retirer",
+  "settings.shortcuts.gestures": "Gestes",
+  "settings.shortcuts.let_go": "Décrocher un point de ce qui le tient, en le glissant",
   "settings.shortcuts.reset": "↺ Raccourcis par défaut",
 
   "settings.toolbar.edge": "Emplacement :",

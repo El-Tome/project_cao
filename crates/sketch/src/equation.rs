@@ -96,6 +96,19 @@ impl Equation {
         self.gradient[point.0 * 2 + 1] += value.y;
     }
 
+    /// Leaves the correction to one point, and takes it away from everything
+    /// else the equation speaks of.
+    ///
+    /// What a rule holding a point on a curve asks: the point follows the
+    /// curve, and never the other way round.
+    pub(crate) fn hold_to(&mut self, point: PointId) {
+        for (column, gradient) in self.gradient.iter_mut().enumerate() {
+            if column != point.0 * 2 && column != point.0 * 2 + 1 {
+                *gradient = 0.0;
+            }
+        }
+    }
+
     /// The size of a circle is an unknown like any other: the columns after the
     /// coordinates are the radii, one apiece.
     pub(crate) fn add_radius(&mut self, at: usize, value: f64) {

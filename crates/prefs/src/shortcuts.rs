@@ -188,6 +188,34 @@ impl Chord {
     }
 }
 
+/// A key held for the length of a gesture, which changes what the gesture
+/// means.
+///
+/// Not a `Chord`: nothing is struck and let go, the key is held down while the
+/// mouse does the work. It is bound where the chords are all the same, so that
+/// what the keyboard does is decided in one place.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Modifier {
+    /// Cmd on macOS, Ctrl on Windows and Linux.
+    Command,
+    Shift,
+    Alt,
+}
+
+impl Modifier {
+    /// Every one offered when the key is chosen.
+    pub const ALL: [Self; 3] = [Self::Command, Self::Shift, Self::Alt];
+}
+
+/// The key a drag holds to pull a point off what holds it.
+///
+/// Alt is what one would reach for first, and it is taken: with the primary
+/// button it turns the view in every navigation preset, which a laptop with no
+/// middle button leans on.
+const fn let_go_key() -> Modifier {
+    Modifier::Command
+}
+
 /// What each command is bound to.
 ///
 /// A list of pairs rather than a map: a command may have several shortcuts, and
@@ -195,6 +223,10 @@ impl Chord {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Shortcuts {
     pub bindings: Vec<(Command, Chord)>,
+    /// Held while a point is dragged, it pulls the point off whatever holds
+    /// it — and dropping it with the key still down holds it to nothing.
+    #[serde(default = "let_go_key")]
+    pub let_go: Modifier,
 }
 
 impl Shortcuts {
@@ -249,6 +281,7 @@ impl Default for Shortcuts {
     fn default() -> Self {
         use Command as C;
         Self {
+            let_go: let_go_key(),
             bindings: vec![
                 (C::Undo, Chord::new(Key::Z).cmd()),
                 (C::Redo, Chord::new(Key::Z).cmd().shift()),

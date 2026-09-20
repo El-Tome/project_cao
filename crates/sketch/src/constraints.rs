@@ -156,6 +156,20 @@ pub enum Constraint {
         point: PointId,
         circle: CircleId,
     },
+    /// A point held on the circle an arc is a piece of, wherever the arc goes
+    /// and whatever size it takes. The whole circle, not the stretch drawn:
+    /// an arc is a circle a sweep was taken from, and every tool reads it that
+    /// way.
+    OnArc {
+        point: PointId,
+        arc: ArcId,
+    },
+    /// A point held on one of the sketch's own axes, which is a line nothing
+    /// can move.
+    OnAxis {
+        point: PointId,
+        axis: SketchAxis,
+    },
     /// A point held halfway along a trait.
     Midpoint {
         point: PointId,
@@ -266,3 +280,6 @@ impl Freedom {
         self.degrees_of_freedom == 0
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -75,6 +75,17 @@ pub(super) fn still_holds(
                 at,
             })
         }
+        // A point held on the curve follows the piece it sits on, as the
+        // contact of a tangency does. Sitting on the stretch that went, it is
+        // held by nothing: what held it is not drawn any more.
+        Constraint::OnArc { point, arc }
+            if arc == cut && place.is_some_and(|place| piece.holds(place)) =>
+        {
+            Some(Constraint::OnArc {
+                point,
+                arc: piece.id,
+            })
+        }
         _ => None,
     }
 }

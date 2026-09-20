@@ -9,6 +9,8 @@
 
 use glam::DVec2;
 
+use crate::constraints::SketchAxis;
+use crate::edges::off_by;
 use crate::sketch::Sketch;
 
 /// How far each magnet reaches, in the drawing's own units.
@@ -84,8 +86,12 @@ impl Sketch {
     }
 
     /// The place on a drawn curve nearest the cursor, whichever kind of curve
-    /// it turns out to be: between a trait, a circle and an arc, the nearer one
-    /// wins.
+    /// it turns out to be: between a trait, a circle, an arc and the plane's
+    /// own axes, the nearer one wins.
+    ///
+    /// The axes pull like anything else drawn: they are lines of the sketch a
+    /// point can be laid on and held to, and a half-shape closed against one
+    /// has to be able to land on it whether the grid is on or off.
     fn nearest_on_curve(&self, cursor: DVec2, reach: f64) -> Option<DVec2> {
         let on_traits = self.nearest_on_segment(cursor, reach).map(|(_, at)| at);
         let on_circles = self
@@ -94,10 +100,15 @@ impl Sketch {
         let on_arcs = self
             .live_arcs()
             .map(|(id, _)| self.place_on_arc(id, cursor));
+        let on_axes = axes().map(|axis| {
+            let along = axis.direction();
+            along * cursor.dot(along)
+        });
         on_traits
             .into_iter()
             .chain(on_circles)
             .chain(on_arcs)
+            .chain(on_axes)
             .filter(|at| at.distance(cursor) <= reach)
             .min_by(|left, right| {
                 left.distance_squared(cursor)
@@ -108,12 +119,71 @@ impl Sketch {
     fn nearest_crossing(&self, cursor: DVec2, reach: f64) -> Option<DVec2> {
         self.crossings()
             .into_iter()
+            .chain(self.crossed_axes())
             .filter(|at| at.distance(cursor) <= reach)
             .min_by(|left, right| {
                 left.distance_squared(cursor)
                     .total_cmp(&right.distance_squared(cursor))
             })
     }
+}
+
+impl Sketch {
+    /// Where the curves of the drawing cross the axes of the plane.
+    ///
+    /// The axes are no part of the drawing — nothing cuts them, and no area is
+    /// bounded by them — so they stay out of `crossings`, which is what a
+    /// division reads. A magnet is another matter: a trait running down to the
+    /// axis is a place one aims at.
+    fn crossed_axes(&self) -> Vec<DVec2> {
+        let mut places = Vec::new();
+        for axis in axes() {
+            let along = axis.direction();
+            let across = DVec2::new(-along.y, along.x);
+            for (id, _) in self.live_segments() {
+                let (start, end) = self.endpoints(id);
+                let (from, to) = (start.dot(across), end.dot(across));
+                if (from - to).abs() < 1e-12 {
+                    continue;
+                }
+                let fraction = from / (from - to);
+                if fraction > 0.0 && fraction < 1.0 {
+                    places.push(start.lerp(end, fraction));
+                }
+            }
+            for (_, circle) in self.live_circles() {
+                places.extend(met_along(self.point(circle.center), circle.radius, along));
+            }
+            for (id, arc) in self.live_arcs() {
+                let met = met_along(self.point(arc.center), self.arc_radius(id), along);
+                places.extend(
+                    met.into_iter()
+                        .filter(|place| self.distance_to_arc(id, *place) <= off_by(*place)),
+                );
+            }
+        }
+        places
+    }
+}
+
+/// Where a line through the origin, running that way, meets a circle.
+fn met_along(centre: DVec2, radius: f64, along: DVec2) -> Vec<DVec2> {
+    let middle = centre.dot(along);
+    let across = (centre - along * middle).length();
+    let half_chord = radius * radius - across * across;
+    if half_chord < 0.0 {
+        return Vec::new();
+    }
+    let half = half_chord.sqrt();
+    match half < 1e-9 {
+        true => vec![along * middle],
+        false => vec![along * (middle - half), along * (middle + half)],
+    }
+}
+
+/// The two axes of the plane, which pull like the curves drawn on it.
+fn axes() -> impl Iterator<Item = SketchAxis> {
+    [SketchAxis::U, SketchAxis::V].into_iter()
 }
 
 /// Where a place lands when pulled straight onto a rim of that centre and

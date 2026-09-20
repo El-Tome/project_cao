@@ -148,11 +148,12 @@ fn a_cursor_near_an_arc_is_pulled_onto_it() {
 #[test]
 fn a_cursor_beyond_an_arc_is_not_pulled_onto_the_rest_of_its_circle() {
     let sketch = with_a_quarter_arc();
-    let due_west = DVec2::new(-7.2, 0.0);
+    // Away from both axes, which are magnets of their own.
+    let beyond = DVec2::new(-1.0, -1.0).normalize() * 7.2;
 
     assert_eq!(
-        sketch.magnetise(due_west, &settings()),
-        (due_west, None),
+        sketch.magnetise(beyond, &settings()),
+        (beyond, None),
         "the quarter turn stops due north, and what lies on past it is not drawn",
     );
 }
@@ -238,4 +239,52 @@ fn snapping_is_off_when_no_grid_step_is_given() {
     };
 
     assert_eq!(sketch.magnetise(cursor, &loose), (cursor, None));
+}
+
+#[test]
+fn the_cursor_is_pulled_onto_an_axis_of_the_plane() {
+    let sketch = Sketch::new(WorkPlane::XY);
+
+    let (at, caught) = sketch.magnetise(DVec2::new(23.0, 0.3), &settings());
+
+    assert!(
+        matches!(caught, Some(Snap::OnCurve(_))),
+        "the horizontal axis was there to be landed on, and the cursor met {caught:?}",
+    );
+    assert!(
+        at.distance(DVec2::new(23.0, 0.0)) < TOLERANCE,
+        "and it is pulled onto the axis, not to {at}",
+    );
+}
+
+#[test]
+fn the_cursor_is_pulled_onto_the_place_a_trait_crosses_an_axis() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let from = sketch.add_point(DVec2::new(20.0, -5.0));
+    let to = sketch.add_point(DVec2::new(24.0, 5.0));
+    sketch.add_segment(from, to);
+
+    let (at, caught) = sketch.magnetise(DVec2::new(22.3, 0.2), &settings());
+
+    assert!(
+        matches!(caught, Some(Snap::Crossing(_))),
+        "the trait crosses the axis at (22, 0), and the cursor met {caught:?}",
+    );
+    assert!(
+        at.distance(DVec2::new(22.0, 0.0)) < TOLERANCE,
+        "and it is pulled onto that crossing, not to {at}",
+    );
+}
+
+#[test]
+fn a_trait_lying_along_an_axis_crosses_it_nowhere() {
+    let sketch = with_a_trait(DVec2::new(0.0, 0.0), DVec2::new(10.0, 0.0));
+
+    let (at, caught) = sketch.magnetise(DVec2::new(7.0, 0.2), &settings());
+
+    assert!(
+        matches!(caught, Some(Snap::OnCurve(_))),
+        "a trait lying on the axis has no crossing with it, and the cursor met {caught:?}",
+    );
+    assert!(at.distance(DVec2::new(7.0, 0.0)) < TOLERANCE, "at {at}");
 }

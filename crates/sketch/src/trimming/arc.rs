@@ -229,6 +229,10 @@ impl Sketch {
                         let touches = self.contact(self.arc(id).center, *segment, *at)?;
                         Some((*rule, self.round_the_arc(id, touches)?))
                     }
+                    Constraint::OnArc { point, arc } if *arc == id => {
+                        let held = self.points().get(point.0).copied()?;
+                        Some((*rule, self.round_the_arc(id, held)?))
+                    }
                     _ => None,
                 })
                 .collect(),

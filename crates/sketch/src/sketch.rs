@@ -358,11 +358,11 @@ impl Sketch {
             Constraint::EqualRadiusArc { .. } | Constraint::ArcTangent { .. } => {
                 self.arc_rule_holds_up(constraint)
             }
-            Constraint::OnSegment {
-                point: held,
-                segment: on,
-            }
-            | Constraint::Midpoint {
+            Constraint::OnSegment { .. }
+            | Constraint::OnCircle { .. }
+            | Constraint::OnArc { .. }
+            | Constraint::OnAxis { .. } => self.hold_holds_up(constraint),
+            Constraint::Midpoint {
                 point: held,
                 segment: on,
             } => point(held) && segment(on),
@@ -371,10 +371,6 @@ impl Sketch {
                 segment: line,
                 ..
             } => circle(round) && segment(line),
-            Constraint::OnCircle {
-                point: held,
-                circle: round,
-            } => point(held) && circle(round),
             Constraint::AxisCollinear { segment: on, .. } => segment(on),
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held),
@@ -643,7 +639,7 @@ impl Sketch {
             .collect();
     }
 
-    fn distance_to_segment(&self, id: SegmentId, position: DVec2) -> f64 {
+    pub(crate) fn distance_to_segment(&self, id: SegmentId, position: DVec2) -> f64 {
         let (start, end) = self.endpoints(id);
         let span = end - start;
         let length_squared = span.length_squared();

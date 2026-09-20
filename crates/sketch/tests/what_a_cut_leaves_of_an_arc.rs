@@ -1,7 +1,7 @@
 //! What the trim tool makes of an arc: the stretch clicked goes, and the two
 //! ends of the curve stay as arcs around the same centre.
 
-use cao_sketch::{ArcId, Constraint, DimensionTarget, PointId, Sketch, WorkPlane};
+use cao_sketch::{ArcId, Constraint, DimensionTarget, PointId, Sketch, Support, WorkPlane};
 use glam::DVec2;
 
 const REACH: f64 = 10.0;
@@ -295,4 +295,40 @@ fn a_click_just_past_where_an_arc_ends_asks_for_the_stretch_that_ends_there() {
         .expect("a stretch under the click");
 
     assert_eq!(clicked, (second, sketch.arc(arc).end));
+}
+
+#[test]
+fn a_point_held_on_an_arc_goes_on_being_held_by_the_piece_it_sits_on() {
+    let (mut sketch, arc, [first, second]) = a_half_turn();
+    let held = on_the_rim(&mut sketch, 30.0);
+    sketch.add_constraint(Constraint::OnArc { point: held, arc });
+
+    let trimmed = sketch
+        .trim_arc(arc, first, second)
+        .expect("a cut that can be made");
+
+    let piece = trimmed.pieces[0];
+    assert_eq!(
+        sketch.holds_on(held),
+        vec![Support::Arc(piece)],
+        "the point sits on the first piece, and is held by it",
+    );
+    assert_eq!(trimmed.rules_dropped, 0, "nothing was lost on the way");
+}
+
+#[test]
+fn a_point_held_on_the_stretch_a_cut_takes_away_loses_what_held_it() {
+    let (mut sketch, arc, [first, second]) = a_half_turn();
+    let held = on_the_rim(&mut sketch, 90.0);
+    sketch.add_constraint(Constraint::OnArc { point: held, arc });
+
+    let trimmed = sketch
+        .trim_arc(arc, first, second)
+        .expect("a cut that can be made");
+
+    assert!(
+        sketch.holds_on(held).is_empty(),
+        "the curve that held it is the stretch that went",
+    );
+    assert_eq!(trimmed.rules_dropped, 1, "and the drawing says so");
 }

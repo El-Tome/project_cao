@@ -54,6 +54,7 @@ impl Sketch {
             }
             Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
             Constraint::OnSegment { point: held, .. }
+            | Constraint::OnAxis { point: held, .. }
             | Constraint::Midpoint { point: held, .. } => point(held).into_iter().collect(),
             // Where the circle actually touches, not somewhere beside it: three
             // tangencies of one circle would otherwise all land on the same spot.
@@ -83,7 +84,9 @@ impl Sketch {
                 })
                 .into_iter()
                 .collect(),
-            Constraint::OnCircle { point: held, .. } => point(held).into_iter().collect(),
+            Constraint::OnCircle { point: held, .. } | Constraint::OnArc { point: held, .. } => {
+                point(held).into_iter().collect()
+            }
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held).into_iter().collect(),
                 Element::Segment(held) => middle(held).into_iter().collect(),

@@ -7,7 +7,9 @@
 //! the cut, so that rounding a corner does not lose what was raised from the
 //! shape.
 
-use cao_sketch::{ArcId, Area, Became, Chamfer, CurveId, PointId, SegmentId, Sketch, Standing};
+use cao_sketch::{
+    ArcId, Area, Became, Chamfer, CurveId, DimensionTarget, PointId, SegmentId, Sketch, Standing,
+};
 use glam::DVec2;
 
 use crate::outcome::Outcome;
@@ -115,14 +117,18 @@ impl PartState {
         second: SegmentId,
         mode: Chamfer,
     ) -> Option<Outcome> {
-        self.cutting(sketch, |drawing, scale| {
+        let mut typed = Vec::new();
+        let cut = self.cutting(sketch, |drawing, scale| {
             let chamfered = drawing.chamfer(first, second, in_units(mode, scale))?;
+            typed = chamfered.typed(mode);
             Some(Cut {
                 rules: chamfered.rules_dropped,
                 values: chamfered.values_dropped,
                 became: chamfered.became,
             })
-        })
+        })?;
+        self.write_down(sketch, typed);
+        Some(cut)
     }
 
     pub(crate) fn fillet(
@@ -132,14 +138,33 @@ impl PartState {
         second: SegmentId,
         radius: f64,
     ) -> Option<Outcome> {
-        self.cutting(sketch, |drawing, scale| {
+        let mut typed = Vec::new();
+        let cut = self.cutting(sketch, |drawing, scale| {
             let rounded = drawing.fillet(first, second, radius / scale)?;
+            typed = rounded.typed(radius);
             Some(Cut {
                 rules: rounded.rules_dropped,
                 values: rounded.values_dropped,
                 became: rounded.became,
             })
-        })
+        })?;
+        self.write_down(sketch, typed);
+        Some(cut)
+    }
+
+    /// Records the values a cut was given, the same way any other typed length
+    /// is recorded.
+    ///
+    /// Through `apply_dimension` rather than straight onto the drawing: the
+    /// first value a part is ever given is what fixes what its drawing is worth
+    /// in millimetres, and a chamfer is as good a first value as any. Writing
+    /// it directly left a part whose scale was still unset while the dimension
+    /// sat there — and compaction, which replays every dimension as an
+    /// operation, then rebuilt a part that measured differently.
+    fn write_down(&mut self, sketch: usize, typed: Vec<(DimensionTarget, f64)>) {
+        for (target, value) in typed {
+            self.apply_dimension(sketch, target.normalised(), value);
+        }
     }
 
     fn cutting(

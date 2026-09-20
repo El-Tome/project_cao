@@ -1,7 +1,7 @@
 use glam::DVec2;
 
 use super::*;
-use crate::constraints::Constraint;
+use crate::constraints::{Constraint, DimensionTarget};
 use crate::plane::WorkPlane;
 use crate::sketch::PointId;
 
@@ -89,14 +89,60 @@ fn a_fillet_is_held_tangent_to_both_sides_it_joins() {
 }
 
 #[test]
-fn a_fillet_leaves_no_point_standing_where_the_corner_was() {
+fn a_fillet_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
     let (mut sketch, along, up, pivot) = a_right_angle();
 
-    sketch
+    let rounded = sketch
         .fillet(along, up, 3.0)
         .expect("a corner that can be rounded");
 
-    assert!(sketch.is_erased_point(pivot));
+    assert!(
+        !sketch.is_erased_point(pivot),
+        "the two tools leave the same thing behind, and a chamfer leaves its corner"
+    );
+    assert_eq!(rounded.corner, pivot);
+    let held = sketch
+        .constraints()
+        .iter()
+        .filter(|rule| {
+            matches!(rule, Constraint::OnSegment { point, segment }
+                if *point == pivot && rounded.pieces.contains(segment))
+        })
+        .count();
+    assert_eq!(held, 2, "one hold per side, so the corner follows them");
+}
+
+#[test]
+fn a_fillet_keeps_the_angle_the_two_sides_stood_at() {
+    let (mut sketch, along, up, _pivot) = a_right_angle();
+    sketch.set_dimension(
+        DimensionTarget::Angle {
+            first: along,
+            second: up,
+        }
+        .normalised(),
+        90.0,
+        false,
+    );
+
+    let rounded = sketch
+        .fillet(along, up, 3.0)
+        .expect("a corner that can be rounded");
+
+    let carried = sketch
+        .dimension_of(
+            DimensionTarget::Angle {
+                first: rounded.stretches[0],
+                second: rounded.stretches[1],
+            }
+            .normalised(),
+        )
+        .expect("the angle the corner stood at, now read between the stretches");
+    assert!(
+        (carried.value - 90.0).abs() <= TOLERANCE,
+        "got {}",
+        carried.value
+    );
 }
 
 #[test]

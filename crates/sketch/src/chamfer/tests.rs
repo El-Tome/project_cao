@@ -1,6 +1,7 @@
 use glam::DVec2;
 
 use super::*;
+use crate::constraints::{Constraint, DimensionTarget};
 use crate::plane::WorkPlane;
 use crate::sketch::PointId;
 
@@ -166,16 +167,124 @@ fn a_chamfer_of_nothing_at_all_is_refused() {
 }
 
 #[test]
-fn a_chamfer_leaves_no_point_standing_where_the_corner_was() {
+fn a_chamfer_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
     let (mut sketch, along, up, pivot) = a_right_angle();
+
+    let chamfered = sketch
+        .chamfer(along, up, Chamfer::Equal(3.0))
+        .expect("a corner that can be cut");
+
+    assert!(
+        !sketch.is_erased_point(pivot),
+        "the corner point stands where the corner was, for the values to be measured from"
+    );
+    assert_eq!(chamfered.corner, pivot);
+    let held: Vec<SegmentId> = sketch
+        .constraints()
+        .iter()
+        .filter_map(|rule| match rule {
+            Constraint::OnSegment { point, segment } if *point == pivot => Some(*segment),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(
+        held.len(),
+        2,
+        "one hold per side, so the corner stays at their crossing, got {held:?}"
+    );
+    assert!(
+        held.iter()
+            .all(|segment| chamfered.pieces.contains(segment)),
+        "each hold names what is left of a side, got {held:?} of {:?}",
+        chamfered.pieces
+    );
+}
+
+#[test]
+fn a_chamfer_lays_back_in_construction_the_stretch_it_took_off_each_side() {
+    let (mut sketch, along, up, _pivot) = a_right_angle();
+
+    let chamfered = sketch
+        .chamfer(along, up, Chamfer::Equal(3.0))
+        .expect("a corner that can be cut");
+
+    for stretch in chamfered.stretches {
+        assert!(
+            sketch.segments()[stretch.0].construction,
+            "it borders nothing, it only holds what the corner was worth"
+        );
+        let (from, to) = sketch.endpoints(stretch);
+        assert!(
+            from.distance(CORNER) <= TOLERANCE,
+            "every stretch runs from the corner, got {from:?} to {to:?}"
+        );
+        assert!((sketch.segment_length(stretch) - 3.0).abs() <= TOLERANCE);
+    }
+}
+
+#[test]
+fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
+    let (mut sketch, along, up, _pivot) = a_right_angle();
+    sketch.set_dimension(
+        DimensionTarget::Angle {
+            first: along,
+            second: up,
+        }
+        .normalised(),
+        90.0,
+        false,
+    );
+
+    let chamfered = sketch
+        .chamfer(along, up, Chamfer::Equal(3.0))
+        .expect("a corner that can be cut");
+
+    let carried = sketch
+        .dimension_of(
+            DimensionTarget::Angle {
+                first: chamfered.stretches[0],
+                second: chamfered.stretches[1],
+            }
+            .normalised(),
+        )
+        .expect("the angle the corner stood at, now read between the stretches");
+    assert!(
+        (carried.value - 90.0).abs() <= TOLERANCE,
+        "the cut took the corner, not what it was worth, got {}",
+        carried.value
+    );
+}
+
+#[test]
+fn a_chamfer_rehangs_on_the_corner_the_length_each_side_was_given() {
+    let (mut sketch, along, up, pivot) = a_right_angle();
+    sketch.set_dimension(DimensionTarget::Length(along), 10.0, false);
+    sketch.set_dimension(DimensionTarget::Length(up), 10.0, false);
+    let far_east = sketch.segments()[along.0].end;
 
     sketch
         .chamfer(along, up, Chamfer::Equal(3.0))
         .expect("a corner that can be cut");
 
+    let carried = sketch
+        .dimension_of(
+            DimensionTarget::Distance {
+                from: pivot,
+                to: far_east,
+            }
+            .normalised(),
+        )
+        .expect("the length the side was given, measured from the corner now");
     assert!(
-        sketch.is_erased_point(pivot),
-        "the corner is cut off, and a point left hanging where it was belongs to nothing"
+        (carried.value - 10.0).abs() <= TOLERANCE,
+        "the side is still ten long from the corner out, even though the cut \
+         took three of it — got {}",
+        carried.value
+    );
+    assert_eq!(
+        sketch.dimensions().len(),
+        2,
+        "one per side, and neither was lost to the cut"
     );
 }
 

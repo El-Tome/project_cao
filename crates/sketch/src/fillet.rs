@@ -1,9 +1,10 @@
 use std::f64::consts::{PI, TAU};
 
 use crate::arc::ArcId;
-use crate::constraints::Constraint;
+use crate::constraints::{Constraint, DimensionTarget};
+use crate::corner::piece_running_into;
 use crate::naming::{Became, CurveId};
-use crate::sketch::{Element, PointId, SegmentId, Sketch};
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// Under this a fillet takes nothing off either side, and there is no curve to
 /// put where the corner was.
@@ -14,6 +15,14 @@ const NOTHING_ROUNDED: f64 = 1e-9;
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rounded {
     pub arc: ArcId,
+    /// The point left standing where the corner was, held on the line of each
+    /// side, the same as a chamfer leaves. The radius and the tangencies
+    /// already hold the curve; this is what a distance can later be measured
+    /// from.
+    corner: PointId,
+    /// The stretch the curve took off each side, laid back in as construction,
+    /// the same as a chamfer leaves. What they are for is said there.
+    stretches: [SegmentId; 2],
     pub pieces: Vec<SegmentId>,
     /// Which pieces came out of which side, which `pieces` runs together. The
     /// curve now standing where the corner was is in neither: it descends from
@@ -29,6 +38,7 @@ impl Sketch {
     pub fn fillet(&mut self, first: SegmentId, second: SegmentId, radius: f64) -> Option<Rounded> {
         let (pivot, far_first, far_second, back, opening) =
             self.rounded_corner(first, second, radius)?;
+        let held = self.values_at([first, second]);
 
         let at = self.point(pivot);
         let towards = |far| (self.point(far) - at).normalize_or_zero();
@@ -42,6 +52,8 @@ impl Sketch {
 
         let mut cut = Rounded {
             arc: ArcId(0),
+            corner: pivot,
+            stretches: [SegmentId(0); 2],
             pieces: Vec::new(),
             became: Became::new(),
             rules_dropped: 0,
@@ -73,7 +85,7 @@ impl Sketch {
         cut.arc = rounded.add_arc(middle, start, end);
 
         for touches in [touches_first, touches_second] {
-            let Some(piece) = piece_on(&rounded, &cut.pieces, touches) else {
+            let Some(piece) = piece_running_into(&rounded, &cut.pieces, touches) else {
                 continue;
             };
             rounded.add_constraint(Constraint::ArcTangent {
@@ -83,9 +95,13 @@ impl Sketch {
             });
         }
 
-        if rounded.nothing_leans_on(pivot) {
-            rounded.erase(Element::Point(pivot));
-        }
+        cut.stretches = [
+            rounded.add_construction_segment(pivot, touches_first),
+            rounded.add_construction_segment(pivot, touches_second),
+        ];
+        rounded.hold_corner(pivot, &cut.pieces, [touches_first, touches_second]);
+        let saved = rounded.rehang(held, pivot, [far_first, far_second], cut.stretches);
+        cut.values_dropped = cut.values_dropped.saturating_sub(saved);
 
         *self = rounded;
         Some(cut)
@@ -120,12 +136,13 @@ impl Sketch {
     }
 }
 
-/// Which of the pieces left of the two sides runs into this point.
-fn piece_on(sketch: &Sketch, pieces: &[SegmentId], point: PointId) -> Option<SegmentId> {
-    pieces.iter().copied().find(|piece| {
-        let side = sketch.segments()[piece.0];
-        side.start == point || side.end == point
-    })
+impl Rounded {
+    /// The one value a fillet is given, paired with what carries it. The two
+    /// tangencies hold the rest, so the radius is the whole of what a fillet
+    /// writes down.
+    pub fn typed(&self, radius: f64) -> Vec<(DimensionTarget, f64)> {
+        vec![(DimensionTarget::ArcRadius(self.arc), radius)]
+    }
 }
 
 #[cfg(test)]

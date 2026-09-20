@@ -54,7 +54,15 @@ fn a_fillet_leaves_a_curve_between_two_traits_where_a_corner_had_none() {
 
     let sketch = &state.sketches[0];
     assert_eq!(sketch.live_arcs().count(), 1);
-    assert_eq!(sketch.live_segments().count(), 2);
+    assert_eq!(
+        sketch
+            .live_segments()
+            .filter(|(_, segment)| !segment.construction)
+            .count(),
+        2,
+        "what is left of the two sides; the stretches the curve took off stand \
+         in construction beside them"
+    );
     assert_eq!(
         said,
         Some(Outcome::Cut {

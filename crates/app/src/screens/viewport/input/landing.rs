@@ -1,0 +1,49 @@
+//! What a point laid down by a tool lands on, and what that lands it in.
+//!
+//! The drawing decides what runs through a place; what this adds is the
+//! reading a click asks for — a point already there is joined rather than
+//! landed on, and a place where three curves meet holds a point no better
+//! than two of them do.
+
+use cao_part::history::PointRef;
+use cao_sketch::{Sketch, Support};
+use glam::DVec2;
+
+use crate::screens::viewport::SketchContext;
+
+/// How many things one point is held on at most. Two is a crossing, which is
+/// already a place a point cannot move away from; a third would take nothing
+/// more from it and leave one more mark to read.
+const AT_A_CROSSING: usize = 2;
+
+/// What a point laid at this place is held by.
+pub(crate) fn landed_on(sketch: &Sketch, place: DVec2) -> Vec<Support> {
+    let mut on = sketch.supports_at(place);
+    on.truncate(AT_A_CROSSING);
+    on
+}
+
+/// A point already there, or a new one — held on whatever it lands on.
+pub(crate) fn point_ref_at(
+    context: &SketchContext<'_>,
+    index: usize,
+    position: DVec2,
+    snap: f64,
+) -> PointRef {
+    let sketch = &context.document.sketches()[index];
+    match sketch.nearest_point(position, snap) {
+        Some(point) => PointRef::Existing(point),
+        None => born_at(sketch, position),
+    }
+}
+
+/// The same, where the tool has already settled that this is a new point.
+pub(crate) fn born_at(sketch: &Sketch, place: DVec2) -> PointRef {
+    match landed_on(sketch, place) {
+        on if on.is_empty() => PointRef::New(place),
+        on => PointRef::Held { at: place, on },
+    }
+}
+
+#[cfg(test)]
+mod tests;

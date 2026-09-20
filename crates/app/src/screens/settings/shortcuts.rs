@@ -1,4 +1,4 @@
-use cao_prefs::{Chord, Command, Key, Profiles};
+use cao_prefs::{Chord, Command, Key, Modifier, Profiles};
 
 use crate::lang::Catalogue;
 
@@ -53,6 +53,20 @@ pub(super) fn section(
             }
         });
     }
+
+    ui.add_space(8.0);
+    ui.heading(lang.t("settings.shortcuts.gestures"));
+    ui.horizontal(|ui| {
+        ui.label(lang.t("settings.shortcuts.let_go"));
+        for modifier in Modifier::ALL {
+            let chosen = profiles.active().shortcuts.let_go == modifier;
+            let name = crate::wording::shortcuts::modifier(lang, modifier);
+            if ui.selectable_label(chosen, name).clicked() {
+                profiles.active_mut().shortcuts.let_go = modifier;
+                touched = true;
+            }
+        }
+    });
 
     ui.add_space(10.0);
     if ui.button(lang.t("settings.shortcuts.reset")).clicked() {

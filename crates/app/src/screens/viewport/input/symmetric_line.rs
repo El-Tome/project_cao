@@ -6,7 +6,7 @@ use cao_part::history::{Operation, PointRef};
 use cao_sketch::{ChainAnchor, SegmentId, SymmetricClick, ToolState, symmetric_click};
 use glam::DVec2;
 
-use super::annotation_position;
+use super::{annotation_position, born_at};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
@@ -35,7 +35,7 @@ pub(crate) fn draw_symmetric_line_point(
         SymmetricClick::Drew { middle, end } => {
             let point_ref = |anchor: ChainAnchor| match anchor {
                 ChainAnchor::Point(id) => PointRef::Existing(id),
-                ChainAnchor::Pending(position) => PointRef::New(position),
+                ChainAnchor::Pending(position) => born_at(sketch, position),
             };
             context.document.apply(Operation::AddSymmetricSegment {
                 sketch: index,

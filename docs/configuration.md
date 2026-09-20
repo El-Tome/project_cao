@@ -99,6 +99,13 @@ A shortcut never fires while a text field has the keyboard: typing "50" into a
 dimension must not also trigger whatever 5 and 0 are bound to. And a shortcut
 whose button is greyed out does nothing either.
 
+Under **Gestes**, one key of its own: the one held while dragging a point to
+**pull it off what holds it**. It is not a chord — nothing is struck and let
+go, the key is held down for the length of the gesture — so it is chosen from
+the three modifiers rather than recorded. `Cmd` (`Ctrl` elsewhere) by default:
+`Alt` with the left button already turns the view in every navigation preset,
+and a laptop with no middle button leans on that.
+
 ## The toolbar
 
 The place is free: at the top, at the bottom, on the left, on the right, or

@@ -89,14 +89,27 @@ fn a_fillet_is_held_tangent_to_both_sides_it_joins() {
 }
 
 #[test]
-fn a_fillet_leaves_no_point_standing_where_the_corner_was() {
+fn a_fillet_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
     let (mut sketch, along, up, pivot) = a_right_angle();
 
-    sketch
+    let rounded = sketch
         .fillet(along, up, 3.0)
         .expect("a corner that can be rounded");
 
-    assert!(sketch.is_erased_point(pivot));
+    assert!(
+        !sketch.is_erased_point(pivot),
+        "the two tools leave the same thing behind, and a chamfer leaves its corner"
+    );
+    assert_eq!(rounded.corner, pivot);
+    let held = sketch
+        .constraints()
+        .iter()
+        .filter(|rule| {
+            matches!(rule, Constraint::OnSegment { point, segment }
+                if *point == pivot && rounded.pieces.contains(segment))
+        })
+        .count();
+    assert_eq!(held, 2, "one hold per side, so the corner follows them");
 }
 
 #[test]

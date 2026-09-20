@@ -20,6 +20,7 @@ mod circle_edges;
 mod circling;
 mod constraints;
 pub mod construct;
+mod corner;
 mod crossing;
 mod dimensioning;
 mod duplicating;

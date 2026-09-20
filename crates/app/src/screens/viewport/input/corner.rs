@@ -31,11 +31,15 @@ pub(crate) fn corner(
             return cut(context, index, first, second);
         }
         CornerClick::Crowded => {
+            keep_typing(context);
             context.editor.message = Some(context.lang.t("sketch.corner_has_too_many_traits"));
             return true;
         }
         CornerClick::Side(side) => side,
-        CornerClick::Nothing => return false,
+        CornerClick::Nothing => {
+            keep_typing(context);
+            return false;
+        }
     };
 
     let held = match &context.editor.tool_state {
@@ -76,6 +80,7 @@ pub(crate) fn cut(
     }
 
     let Some(asked) = typed(context.editor.live.locked(), mode, rounding) else {
+        keep_typing(context);
         context.editor.tool_state = ToolState::Corner {
             sides: vec![first, second],
         };
@@ -222,6 +227,17 @@ fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerC
         Some(side) => CornerClick::Side(side),
         None => CornerClick::Nothing,
     }
+}
+
+/// Puts the keyboard back on the value field after a click in the canvas.
+///
+/// The flag is read once and taken, so a field asks for the keyboard the frame
+/// it appears and never again. A click on the drawing gives the canvas its own
+/// focus, and the field the tool is still waiting on goes quiet — what is typed
+/// next lands nowhere. Only the keyboard moves: what has already been typed
+/// stays, which is why this is not `open`.
+fn keep_typing(context: &mut SketchContext<'_>) {
+    context.editor.live.focus = true;
 }
 
 /// What the tool asks for the moment it is picked, or its mode changed.

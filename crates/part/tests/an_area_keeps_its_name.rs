@@ -35,7 +35,9 @@
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
 use cao_part::{History, PartState};
-use cao_sketch::{Chamfer, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{
+    Chamfer, Corner, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
+};
 use cao_solid::Mesh;
 use glam::DVec2;
 
@@ -151,8 +153,7 @@ fn rounding_a_corner_of_an_extruded_shape_keeps_the_matter() {
 
     history.push(Operation::Fillet {
         sketch: 0,
-        first: SegmentId(0),
-        second: SegmentId(1),
+        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         radius: 2.0,
     });
 
@@ -171,8 +172,7 @@ fn chamfering_a_corner_of_an_extruded_shape_keeps_the_matter() {
 
     history.push(Operation::Chamfer {
         sketch: 0,
-        first: SegmentId(0),
-        second: SegmentId(1),
+        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         mode: Chamfer::Equal(2.0),
     });
 
@@ -373,8 +373,7 @@ fn compaction_hands_back_an_area_whose_corners_were_cut() {
     for (first, second) in [(0, 1), (2, 3)] {
         history.push(Operation::Chamfer {
             sketch: 0,
-            first: SegmentId(first),
-            second: SegmentId(second),
+            corners: vec![Corner::Between(SegmentId(first), SegmentId(second))],
             mode: Chamfer::Equal(2.0),
         });
     }

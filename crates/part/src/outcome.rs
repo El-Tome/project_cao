@@ -15,3 +15,23 @@ pub enum Outcome {
     /// trait and of neither of its pieces.
     Cut { rules: usize, values: usize },
 }
+
+impl Outcome {
+    /// Two cuts of one gesture, counted together: what the whole gesture cost
+    /// is what the user is told, not what each corner of it cost.
+    pub(crate) fn and(self, other: Self) -> Self {
+        match (self, other) {
+            (
+                Self::Cut { rules, values },
+                Self::Cut {
+                    rules: more,
+                    values: worth,
+                },
+            ) => Self::Cut {
+                rules: rules + more,
+                values: values + worth,
+            },
+            (_, last) => last,
+        }
+    }
+}

@@ -4,7 +4,7 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{Outcome, PartState};
-use cao_sketch::{PointId, SegmentId, WorkPlane};
+use cao_sketch::{Corner, PointId, SegmentId, WorkPlane};
 use glam::DVec2;
 
 const CORNER: DVec2 = DVec2::new(2.0, 1.0);
@@ -47,8 +47,7 @@ fn a_fillet_leaves_a_curve_between_two_traits_where_a_corner_had_none() {
 
     let said = state.apply(&Operation::Fillet {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         radius: 3.0,
     });
 
@@ -77,8 +76,7 @@ fn a_fillet_replayed_rebuilds_the_curve_it_laid() {
     let mut operations = a_right_angle();
     operations.push(Operation::Fillet {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         radius: 3.0,
     });
 
@@ -104,8 +102,7 @@ fn a_fillet_radius_is_measured_in_millimetres_like_every_other_length() {
 
     state.apply(&Operation::Fillet {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         radius: 6.0,
     });
 

@@ -1,5 +1,5 @@
 use cao_part::Operation;
-use cao_sketch::{Chamfer, ChamferMode, LockedInput, SegmentId, Sketch, ToolState};
+use cao_sketch::{Chamfer, ChamferMode, Corner, LockedInput, SegmentId, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -118,8 +118,7 @@ fn fits(
             .chamfer_fits(first, second, in_units(asked, scale))
             .then_some(Operation::Chamfer {
                 sketch: index,
-                first,
-                second,
+                corners: vec![Corner::Between(first, second)],
                 mode: asked,
             })
             .or_else(|| {
@@ -132,8 +131,7 @@ fn fits(
             .fillet_fits(first, second, radius / scale)
             .then_some(Operation::Fillet {
                 sketch: index,
-                first,
-                second,
+                corners: vec![Corner::Between(first, second)],
                 radius,
             })
             .or_else(|| {
@@ -144,8 +142,7 @@ fn fits(
             .chamfer_fits(first, second, in_units(asked, scale))
             .then_some(Operation::Chamfer {
                 sketch: index,
-                first,
-                second,
+                corners: vec![Corner::Between(first, second)],
                 mode: asked,
             })
             .or_else(|| {

@@ -10,6 +10,9 @@
 //!   `an_angled_chamfer_writes_both_the_values_it_was_given`,
 //!   `a_fillet_writes_the_radius_that_was_typed`,
 //!   `the_angle_the_two_sides_stand_at_is_never_written`
+//! - the value typed applies to every corner taken, and undo removes them in
+//!   one step — `every_corner_of_a_plate_is_rounded_by_the_one_gesture`,
+//!   `the_whole_gesture_is_taken_back_by_one_undo`
 //! - a cut's values are typed lengths like any other, so the first of them
 //!   fixes what the part measures —
 //!   `a_chamfer_is_the_first_value_a_part_is_given_and_fixes_its_scale`
@@ -46,7 +49,9 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{History, PartState};
-use cao_sketch::{Chamfer, Constraint, DimensionTarget, Element, PointId, SegmentId, WorkPlane};
+use cao_sketch::{
+    Chamfer, Constraint, Corner, DimensionTarget, Element, PointId, SegmentId, WorkPlane,
+};
 use glam::DVec2;
 
 const CORNER: DVec2 = DVec2::new(2.0, 1.0);
@@ -90,8 +95,7 @@ fn chamfered(mode: Chamfer) -> PartState {
     let mut state = replay(&a_right_angle());
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode,
     });
     state
@@ -209,8 +213,7 @@ fn a_fillet_writes_the_radius_that_was_typed() {
     let mut state = replay(&a_right_angle());
     state.apply(&Operation::Fillet {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         radius: 3.0,
     });
 
@@ -359,8 +362,7 @@ fn a_length_a_side_carried_survives_the_cut_that_shortened_it() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -397,8 +399,7 @@ fn an_angle_the_corner_carried_survives_the_cut_that_took_the_corner() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -434,8 +435,7 @@ fn a_compacted_chamfer_measures_the_same_part_as_the_one_it_came_from() {
     }
     history.push(Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
     let live = PartState::rebuild(&history);
@@ -473,8 +473,7 @@ fn a_compacted_chamfer_still_holds_the_distances_that_were_typed() {
     }
     history.push(Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -498,4 +497,78 @@ fn a_compacted_chamfer_still_holds_the_distances_that_were_typed() {
         .filter(|rule| matches!(rule, Constraint::OnSegment { .. }))
         .count();
     assert_eq!(corner, 2, "and the corner is still held on both sides");
+}
+
+/// A square plate, four corners, drawn as one closed outline.
+fn a_plate() -> Vec<Operation> {
+    let mut drawn = vec![Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    }];
+    let at = |x: f64, y: f64| DVec2::new(x, y);
+    let round = [at(0.0, 0.0), at(20.0, 0.0), at(20.0, 20.0), at(0.0, 20.0)];
+    for (rank, corner) in round.iter().enumerate() {
+        let next = round[(rank + 1) % 4];
+        drawn.push(Operation::AddSegment {
+            sketch: 0,
+            start: match rank {
+                0 => PointRef::New(*corner),
+                _ => PointRef::Existing(PointId(rank + 1)),
+            },
+            end: match rank {
+                3 => PointRef::Existing(PointId(1)),
+                _ => PointRef::New(next),
+            },
+            construction: false,
+        });
+    }
+    drawn
+}
+
+/// The four corner points of that plate, in the order they were laid.
+fn the_four_corners() -> Vec<Corner> {
+    (1..=4).map(|rank| Corner::At(PointId(rank))).collect()
+}
+
+#[test]
+fn every_corner_of_a_plate_is_rounded_by_the_one_gesture() {
+    let mut state = replay(&a_plate());
+
+    state.apply(&Operation::Fillet {
+        sketch: 0,
+        corners: the_four_corners(),
+        radius: 3.0,
+    });
+
+    assert_eq!(
+        state.sketches[0].live_arcs().count(),
+        4,
+        "the four corners of a plate share their traits: cutting one trims what \
+         the next leans on, which is why a corner is recorded by its point"
+    );
+}
+
+#[test]
+fn the_whole_gesture_is_taken_back_by_one_undo() {
+    let mut history = History::default();
+    for operation in a_plate() {
+        history.push(operation);
+    }
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: the_four_corners(),
+        radius: 3.0,
+    });
+    assert_eq!(
+        PartState::rebuild(&history).sketches[0].live_arcs().count(),
+        4
+    );
+
+    history.undo();
+
+    assert_eq!(
+        PartState::rebuild(&history).sketches[0].live_arcs().count(),
+        0,
+        "one gesture, one step: undo takes back what was done, not a quarter of it"
+    );
 }

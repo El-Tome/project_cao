@@ -330,16 +330,14 @@ impl PartState {
             } => self.split(*sketch, segments, arcs, *at),
             Operation::Chamfer {
                 sketch,
-                first,
-                second,
+                corners,
                 mode,
-            } => self.chamfer(*sketch, *first, *second, *mode),
+            } => self.chamfer(*sketch, corners, *mode),
             Operation::Fillet {
                 sketch,
-                first,
-                second,
+                corners,
                 radius,
-            } => self.fillet(*sketch, *first, *second, *radius),
+            } => self.fillet(*sketch, corners, *radius),
             Operation::Mirror {
                 sketch,
                 elements,

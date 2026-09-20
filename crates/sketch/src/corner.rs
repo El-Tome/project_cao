@@ -9,11 +9,51 @@
 
 use std::f64::consts::TAU;
 
+use serde::{Deserialize, Serialize};
+
 use crate::constraints::{Dimension, DimensionTarget};
 use crate::holding::Support;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
+/// How a corner was named, as the history records it.
+///
+/// Not the two traits it stood between at the time: cutting one corner of a
+/// shape trims the traits its neighbours lean on, and a neighbour recorded by
+/// those traits would name curves that no longer exist by the time its own turn
+/// came. Rounding the four corners of a plate is exactly that case, and it is
+/// the one the tool was made for.
+///
+/// A point is enough wherever two traits meet, and it survives every cut, since
+/// the corner's own point is what a chamfer and a fillet now leave behind. The
+/// two traits are recorded only where a point cannot say which corner is meant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Corner {
+    /// The point two traits meet at. Which two is read from the drawing at the
+    /// moment the cut is made.
+    At(PointId),
+    /// The two traits themselves, for a point too crowded to name a corner on
+    /// its own, and for the chamfer modes that measure from the side named
+    /// first.
+    Between(SegmentId, SegmentId),
+}
+
 impl Sketch {
+    /// The two traits a corner stands between, as the drawing has them now.
+    ///
+    /// Nothing when the corner is no longer there to cut: a trait erased by an
+    /// earlier cut, or a point that stopped being a corner.
+    pub fn sides_of(&self, corner: Corner) -> Option<(SegmentId, SegmentId)> {
+        match corner {
+            Corner::At(point) => self.corner_at(point),
+            Corner::Between(first, second) => {
+                let live = |side: SegmentId| {
+                    side.0 < self.segments().len() && !self.is_erased_segment(side)
+                };
+                (live(first) && live(second)).then_some((first, second))
+            }
+        }
+    }
+
     /// How wide a corner stands open, the shorter way round.
     pub(crate) fn opening_at(
         &self,

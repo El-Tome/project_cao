@@ -28,6 +28,36 @@ impl Sketch {
         turn.min(TAU - turn)
     }
 
+    /// The corner a point makes: the two traits that meet there, when exactly
+    /// two do and nothing else leans on it.
+    ///
+    /// This is what lets a corner be named by one click instead of two. Three
+    /// traits leave no saying which two the cut is meant for, and a curve
+    /// running in is neither one of them nor nothing — a corner is still two
+    /// straight traits. Both cases are refused here rather than guessed at, so
+    /// the tool can ask for the two traits by name.
+    pub fn corner_at(&self, point: PointId) -> Option<(SegmentId, SegmentId)> {
+        if !self.arcs_leaning_on(point).is_empty()
+            || self.live_circles().any(|(_, round)| round.center == point)
+        {
+            return None;
+        }
+        match self.traits_at(point).as_slice() {
+            [first, second] => Some((*first, *second)),
+            _ => None,
+        }
+    }
+
+    /// Every trait that runs into a point, in the order the drawing holds
+    /// them. How many there are is what tells a tool whether the point names a
+    /// corner on its own, or whether it has to ask which two traits are meant.
+    pub fn traits_at(&self, point: PointId) -> Vec<SegmentId> {
+        self.live_segments()
+            .filter(|(_, side)| side.start == point || side.end == point)
+            .map(|(id, _)| id)
+            .collect()
+    }
+
     /// Leaves the corner's own point standing where the corner was, held on the
     /// line each side now lies on.
     ///
@@ -138,3 +168,6 @@ pub(crate) fn piece_running_into(
         side.start == point || side.end == point
     })
 }
+
+#[cfg(test)]
+mod tests;

@@ -1,5 +1,5 @@
 use cao_part::Operation;
-use cao_sketch::{Chamfer, ChamferMode, LockedInput, SegmentId, ToolState};
+use cao_sketch::{Chamfer, ChamferMode, LockedInput, SegmentId, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -21,8 +21,14 @@ pub(crate) fn corner(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let Some(picked) = sketch.nearest_segment(cursor, snap) else {
-        return false;
+    let picked = match clicked(sketch, cursor, snap, takes_a_point(context)) {
+        CornerClick::Corner(first, second) => return cut(context, index, first, second),
+        CornerClick::Crowded => {
+            context.editor.message = Some(context.lang.t("sketch.corner_has_too_many_traits"));
+            return true;
+        }
+        CornerClick::Side(side) => side,
+        CornerClick::Nothing => return false,
     };
 
     let held = match &context.editor.tool_state {
@@ -172,6 +178,53 @@ fn asks_for(context: &SketchContext<'_>, mode: ChamferMode) -> String {
         ChamferMode::Angled => "sketch.chamfer_asks_a_distance_and_an_angle",
         ChamferMode::Sided => "sketch.chamfer_asks_two_distances",
     })
+}
+
+/// What one click names, for a tool that cuts corners.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CornerClick {
+    /// A point where exactly two traits meet: one click names the whole
+    /// corner.
+    Corner(SegmentId, SegmentId),
+    /// A point too crowded to name a corner on its own.
+    Crowded,
+    /// A side of a corner, waiting for the other to be clicked.
+    Side(SegmentId),
+    /// Nothing the tool can use.
+    Nothing,
+}
+
+/// What the click under the cursor names.
+///
+/// A point is read before a trait, because a point is the smaller target and
+/// the one the user aimed at when they hit it. `by_point` is false for the
+/// chamfer modes that need a first side named: a corner taken by its point has
+/// no first side to give them.
+fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerClick {
+    if by_point && let Some(point) = sketch.nearest_point(cursor, snap) {
+        match sketch.corner_at(point) {
+            Some((first, second)) => return CornerClick::Corner(first, second),
+            // Only a crowd is worth explaining. A point where one trait simply
+            // ends is not a corner anybody was promised, and the trait under
+            // the cursor is still worth naming.
+            None if sketch.traits_at(point).len() > 2 => return CornerClick::Crowded,
+            None => {}
+        }
+    }
+    match sketch.nearest_segment(cursor, snap) {
+        Some(side) => CornerClick::Side(side),
+        None => CornerClick::Nothing,
+    }
+}
+
+/// Whether the tool names a corner by one click on its point.
+///
+/// The chamfer in distance and angle, or in two distances, measures from the
+/// side named first — so it always takes a side and then the other, one corner
+/// at a time. A fillet has no such side, and neither has the chamfer in equal
+/// distances.
+fn takes_a_point(context: &SketchContext<'_>) -> bool {
+    context.editor.tool == Tool::Fillet || context.editor.chamfer_mode == ChamferMode::Equal
 }
 
 /// What Enter has to work with, for a tool that cuts corners.

@@ -937,11 +937,17 @@ as they were typed: `20 × 20` stays two distances of `20`, not one slanted
 **What was typed is left in the drawing as a dimension, and only that.** Equal
 distances and two distances each leave a distance from the corner out along
 each side; distance and angle leaves the one distance, plus the angle the cut
-makes with the stretch of the first side it was measured from — that stretch is
-laid back in as a construction trait, because an angle needs two traits to be
-read between. The angle the two sides themselves stand at is nobody's typed
-value: writing it down would add a rule no one asked for, and over-constrain a
-drawing already dimensioned.
+makes with the stretch of the first side it was measured from. The angle the two
+sides themselves stand at is nobody's typed value: writing it down would add a
+rule no one asked for, and over-constrain a drawing already dimensioned.
+
+**What the corner was already worth is kept.** A cut used to drop both a length
+given to a side and an angle given between the two — the trait a length measured
+was gone, and the pieces an angle was read between no longer touched. Neither is
+lost now: a length is rehung on the corner, out to the far end, which is the
+span it always measured; an angle is read between the two stretches, which still
+meet there. Only what nothing can carry is still dropped, and the tool says how
+much it cost.
 
 Erasing the corner point takes the dimensions measured from it; erasing one
 dimension takes only that one. Either way the cut stays where it is, held by
@@ -983,9 +989,11 @@ moved: the arc and the two sides are loose pieces otherwise, exactly as a trim
 leaves them. The radius typed is left on the arc as a dimension, which with the
 two tangencies holds the fillet whole.
 
-The corner stays as a point, held on both sides, exactly as a chamfer leaves
-it — though the radius and the tangencies already hold the curve. The two tools
-leave the same thing behind, and a distance can be measured from it later.
+The corner stays as a point, held on both sides, with the stretch the curve took
+off each of them laid back in as construction — exactly what a chamfer leaves,
+though the radius and the tangencies already hold the curve. The two tools leave
+the same thing behind, so a value the corner carried survives a fillet the same
+way it survives a chamfer.
 
 ### A crossing becomes a point
 

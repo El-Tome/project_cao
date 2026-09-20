@@ -201,51 +201,57 @@ fn a_chamfer_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
 }
 
 #[test]
-fn an_angled_chamfer_lays_back_in_construction_the_stretch_it_measured_from() {
-    let (mut sketch, along, up, _pivot) = a_right_angle();
-
-    let chamfered = sketch
-        .chamfer(
-            along,
-            up,
-            Chamfer::Angled {
-                along: 3.0,
-                degrees: 60.0,
-            },
-        )
-        .expect("a corner that can be cut");
-
-    let extension = chamfered
-        .extension
-        .expect("the stretch the angle was read from");
-    assert!(
-        sketch.segments()[extension.0].construction,
-        "it borders nothing, it only holds a value"
-    );
-    let (from, to) = sketch.endpoints(extension);
-    assert!(
-        from.distance(CORNER) <= TOLERANCE,
-        "it runs from the corner out along the first side, got {from:?} to {to:?}"
-    );
-    assert!((sketch.segment_length(extension) - 3.0).abs() <= TOLERANCE);
-}
-
-#[test]
-fn a_chamfer_of_distances_alone_lays_no_trait_it_was_not_asked_for() {
+fn a_chamfer_lays_back_in_construction_the_stretch_it_took_off_each_side() {
     let (mut sketch, along, up, _pivot) = a_right_angle();
 
     let chamfered = sketch
         .chamfer(along, up, Chamfer::Equal(3.0))
         .expect("a corner that can be cut");
 
-    assert_eq!(
-        chamfered.extension, None,
-        "a distance is measured from the corner, and needs no trait to lie along"
+    for stretch in chamfered.stretches {
+        assert!(
+            sketch.segments()[stretch.0].construction,
+            "it borders nothing, it only holds what the corner was worth"
+        );
+        let (from, to) = sketch.endpoints(stretch);
+        assert!(
+            from.distance(CORNER) <= TOLERANCE,
+            "every stretch runs from the corner, got {from:?} to {to:?}"
+        );
+        assert!((sketch.segment_length(stretch) - 3.0).abs() <= TOLERANCE);
+    }
+}
+
+#[test]
+fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
+    let (mut sketch, along, up, _pivot) = a_right_angle();
+    sketch.set_dimension(
+        DimensionTarget::Angle {
+            first: along,
+            second: up,
+        }
+        .normalised(),
+        90.0,
+        false,
     );
-    assert_eq!(
-        sketch.live_segments().count(),
-        3,
-        "the two sides and the cut"
+
+    let chamfered = sketch
+        .chamfer(along, up, Chamfer::Equal(3.0))
+        .expect("a corner that can be cut");
+
+    let carried = sketch
+        .dimension_of(
+            DimensionTarget::Angle {
+                first: chamfered.stretches[0],
+                second: chamfered.stretches[1],
+            }
+            .normalised(),
+        )
+        .expect("the angle the corner stood at, now read between the stretches");
+    assert!(
+        (carried.value - 90.0).abs() <= TOLERANCE,
+        "the cut took the corner, not what it was worth, got {}",
+        carried.value
     );
 }
 

@@ -20,6 +20,9 @@ pub struct Rounded {
     /// already hold the curve; this is what a distance can later be measured
     /// from.
     corner: PointId,
+    /// The stretch the curve took off each side, laid back in as construction,
+    /// the same as a chamfer leaves. What they are for is said there.
+    stretches: [SegmentId; 2],
     pub pieces: Vec<SegmentId>,
     /// Which pieces came out of which side, which `pieces` runs together. The
     /// curve now standing where the corner was is in neither: it descends from
@@ -35,7 +38,7 @@ impl Sketch {
     pub fn fillet(&mut self, first: SegmentId, second: SegmentId, radius: f64) -> Option<Rounded> {
         let (pivot, far_first, far_second, back, opening) =
             self.rounded_corner(first, second, radius)?;
-        let lengths = self.lengths_of([first, second]);
+        let held = self.values_at([first, second]);
 
         let at = self.point(pivot);
         let towards = |far| (self.point(far) - at).normalize_or_zero();
@@ -50,6 +53,7 @@ impl Sketch {
         let mut cut = Rounded {
             arc: ArcId(0),
             corner: pivot,
+            stretches: [SegmentId(0); 2],
             pieces: Vec::new(),
             became: Became::new(),
             rules_dropped: 0,
@@ -91,8 +95,12 @@ impl Sketch {
             });
         }
 
+        cut.stretches = [
+            rounded.add_construction_segment(pivot, touches_first),
+            rounded.add_construction_segment(pivot, touches_second),
+        ];
         rounded.hold_corner(pivot, &cut.pieces, [touches_first, touches_second]);
-        let saved = rounded.rehang(lengths, pivot, [far_first, far_second]);
+        let saved = rounded.rehang(held, pivot, [far_first, far_second], cut.stretches);
         cut.values_dropped = cut.values_dropped.saturating_sub(saved);
 
         *self = rounded;

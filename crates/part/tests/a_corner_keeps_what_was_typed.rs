@@ -15,6 +15,9 @@
 //!   `a_chamfer_is_the_first_value_a_part_is_given_and_fixes_its_scale`
 //! - the length a side carried is not lost to the cut, it is rehung on the
 //!   corner — `a_length_a_side_carried_survives_the_cut_that_shortened_it`
+//! - the angle the two sides stood at is not lost either, it is read between
+//!   the stretches the cut took off —
+//!   `an_angle_the_corner_carried_survives_the_cut_that_took_the_corner`
 //! - dragging the end of a cut by hand does not change what was typed —
 //!   `dragging_the_end_of_a_cut_leaves_the_distances_where_they_were`
 //! - moving a side moves the cut with it and keeps its values —
@@ -375,6 +378,39 @@ fn a_length_a_side_carried_survives_the_cut_that_shortened_it() {
         "the cut took three units off that side, but the side is still ten \
          long from the corner out — got {}",
         carried.value
+    );
+}
+
+#[test]
+fn an_angle_the_corner_carried_survives_the_cut_that_took_the_corner() {
+    let mut state = replay(&a_right_angle());
+    state.apply(&Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Angle {
+            first: EAST,
+            second: NORTH,
+        }
+        .normalised(),
+        value: 90.0,
+        placement: None,
+    });
+
+    state.apply(&Operation::Chamfer {
+        sketch: 0,
+        first: EAST,
+        second: NORTH,
+        mode: Chamfer::Equal(3.0),
+    });
+
+    let turned = angles(&state);
+    assert_eq!(
+        turned.len(),
+        1,
+        "the corner is gone but what it was worth is not, got {turned:?}"
+    );
+    assert!(
+        (turned[0] - 90.0).abs() <= TOLERANCE,
+        "and it still reads what it read, got {turned:?}"
     );
 }
 

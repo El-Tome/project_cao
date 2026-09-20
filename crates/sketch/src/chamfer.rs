@@ -67,11 +67,15 @@ pub struct Chamfered {
     /// side so it follows them to their new crossing. It is what the typed
     /// distances are measured from, and erasing it takes them with it.
     corner: PointId,
-    /// The stretch the cut took off the first side, laid back in as
-    /// construction. Only an angled chamfer has one: an angle needs two traits
-    /// to be read between, and the one the angle was measured from is the one
-    /// the cut took away. A distance needs no trait, only the corner.
-    extension: Option<SegmentId>,
+    /// The stretch the cut took off each side, laid back in as construction —
+    /// the first side's, then the second's.
+    ///
+    /// They are what is left meeting at the corner, so the angle the two sides
+    /// stood at still has two traits to be read between, and the trait a side
+    /// was drawn as still shows its whole length. Collinear with their sides
+    /// without a rule saying so: the corner is held on each side's line and the
+    /// cut starts on it, so both ends of a stretch are already on that line.
+    stretches: [SegmentId; 2],
     pub pieces: Vec<SegmentId>,
     /// Which pieces came out of which side, which `pieces` runs together. The
     /// straight cut laid across the corner is in neither: it stands where the
@@ -92,7 +96,7 @@ impl Sketch {
     ) -> Option<Chamfered> {
         let (pivot, far_first, far_second, back_first, back_second) =
             self.corner_for(first, second, mode)?;
-        let lengths = self.lengths_of([first, second]);
+        let held = self.values_at([first, second]);
 
         let mut cut = self.clone();
         let at = cut.point(pivot);
@@ -105,7 +109,7 @@ impl Sketch {
             cut: SegmentId(0),
             across: [start, end],
             corner: pivot,
-            extension: None,
+            stretches: [SegmentId(0); 2],
             pieces: Vec::new(),
             became: Became::new(),
             rules_dropped: 0,
@@ -127,11 +131,12 @@ impl Sketch {
             chamfered.values_dropped += trimmed.values_dropped;
         }
         chamfered.cut = cut.add_segment(start, end);
-        if matches!(mode, Chamfer::Angled { .. }) {
-            chamfered.extension = Some(cut.add_construction_segment(pivot, start));
-        }
+        chamfered.stretches = [
+            cut.add_construction_segment(pivot, start),
+            cut.add_construction_segment(pivot, end),
+        ];
         cut.hold_corner(pivot, &chamfered.pieces, [start, end]);
-        let saved = cut.rehang(lengths, pivot, [far_first, far_second]);
+        let saved = cut.rehang(held, pivot, [far_first, far_second], chamfered.stretches);
         chamfered.values_dropped = chamfered.values_dropped.saturating_sub(saved);
 
         *self = cut;
@@ -201,7 +206,7 @@ impl Chamfered {
     /// `20` rather than as one slanted `28.28` at `45` degrees, and the
     /// two-distance mode can be read back at all. An angle needs two traits to
     /// lie between, so it is read against the stretch of the first side the cut
-    /// removed, laid back in as construction alongside it.
+    /// removed, which stands there in construction.
     ///
     /// The angle the two sides themselves stand at is nobody's typed value:
     /// writing it down would add a rule no one asked for, and over-constrain a
@@ -226,22 +231,16 @@ impl Chamfered {
                 (from_corner(on_first), first),
                 (from_corner(on_second), second),
             ],
-            // `chamfer` lays the stretch for this mode and no other, so the
-            // two are one decision; `an_angled_chamfer_writes_both_the_values_it_was_given`
-            // is what holds them together.
-            Chamfer::Angled { along, degrees } => match self.extension {
-                Some(extension) => vec![
-                    (from_corner(on_first), along),
-                    (
-                        DimensionTarget::Angle {
-                            first: extension,
-                            second: self.cut,
-                        },
-                        degrees,
-                    ),
-                ],
-                None => vec![(from_corner(on_first), along)],
-            },
+            Chamfer::Angled { along, degrees } => vec![
+                (from_corner(on_first), along),
+                (
+                    DimensionTarget::Angle {
+                        first: self.stretches[0],
+                        second: self.cut,
+                    },
+                    degrees,
+                ),
+            ],
         }
     }
 }

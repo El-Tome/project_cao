@@ -44,44 +44,87 @@ impl Sketch {
         }
     }
 
-    /// The length each of the two sides was given, to be hung back on the
-    /// corner once the cut has taken a piece of that side away.
+    /// What the corner was already worth before the cut takes a piece of it
+    /// away: the length each side was given, and the angle they stood at.
     ///
-    /// A trim drops a length: the trait it measured is gone, and what is left
-    /// of it is shorter. Here the corner survives the cut, so the same length
-    /// is still there to be read — from the corner out to the far end, which is
-    /// the span it always measured. Read before the cut, since the cut is what
-    /// takes it away.
-    pub(crate) fn lengths_of(&self, sides: [SegmentId; 2]) -> [Option<Dimension>; 2] {
-        sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).copied())
+    /// A trim drops both. A length measured a trait that is gone, and what is
+    /// left of it is shorter; an angle is read between two traits sharing a
+    /// point, and the pieces no longer touch. Both are still there to be read
+    /// once the corner is put back — which is what [`Sketch::rehang`] does with
+    /// them. Read before the cut, since the cut is what takes them away.
+    pub(crate) fn values_at(&self, sides: [SegmentId; 2]) -> CornerValues {
+        CornerValues {
+            lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).copied()),
+            opening: self
+                .dimension_of(
+                    DimensionTarget::Angle {
+                        first: sides[0],
+                        second: sides[1],
+                    }
+                    .normalised(),
+                )
+                .copied(),
+        }
     }
 
-    /// Hangs those lengths back on the corner, and says how many were saved
+    /// Hangs those values back on the corner, and says how many were saved
     /// from the count the cut reported as lost.
+    ///
+    /// A length goes from the corner out to the far end, the span it always
+    /// measured. The angle goes between the two stretches the cut removed,
+    /// which are laid back in as construction and still meet at the corner —
+    /// the only two traits left that do.
     pub(crate) fn rehang(
         &mut self,
-        held: [Option<Dimension>; 2],
+        held: CornerValues,
         pivot: PointId,
         fars: [PointId; 2],
+        stretches: [SegmentId; 2],
     ) -> usize {
         let mut saved = 0;
-        for (held, far) in held.into_iter().zip(fars) {
-            let Some(held) = held else {
+        for (length, far) in held.lengths.into_iter().zip(fars) {
+            let Some(length) = length else {
                 continue;
             };
-            let target = DimensionTarget::Distance {
-                from: pivot,
-                to: far,
-            }
-            .normalised();
-            self.set_dimension(target, held.value, held.driven);
-            if let Some(offset) = held.offset {
-                self.offset_dimension(target, offset);
-            }
-            saved += 1;
+            saved += self.rewrite(
+                length,
+                DimensionTarget::Distance {
+                    from: pivot,
+                    to: far,
+                },
+            );
+        }
+        if let Some(opening) = held.opening {
+            saved += self.rewrite(
+                opening,
+                DimensionTarget::Angle {
+                    first: stretches[0],
+                    second: stretches[1],
+                },
+            );
         }
         saved
     }
+
+    /// The same value, now said of something the drawing still has.
+    fn rewrite(&mut self, held: Dimension, onto: DimensionTarget) -> usize {
+        let target = onto.normalised();
+        self.set_dimension(target, held.value, held.driven);
+        if let Some(offset) = held.offset {
+            self.offset_dimension(target, offset);
+        }
+        1
+    }
+}
+
+/// What a corner was worth before it was cut off.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct CornerValues {
+    /// The length each of the two sides was given, in the order they were
+    /// named.
+    lengths: [Option<Dimension>; 2],
+    /// The angle the two sides stood at.
+    opening: Option<Dimension>,
 }
 
 /// Which of the pieces left of the two sides runs into this point.

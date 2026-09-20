@@ -41,10 +41,13 @@ fn replay(operations: &[Operation]) -> PartState {
     state
 }
 
+/// The traits the shape is drawn with — not the stretches the cut took off,
+/// which stand there in construction to carry what the corner was worth.
 fn ends(state: &PartState) -> Vec<(DVec2, DVec2)> {
     let sketch = &state.sketches[0];
     sketch
         .live_segments()
+        .filter(|(_, segment)| !segment.construction)
         .map(|(id, _)| sketch.endpoints(id))
         .collect()
 }
@@ -60,7 +63,7 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
         mode: Chamfer::Equal(3.0),
     });
 
-    assert_eq!(state.sketches[0].live_segments().count(), 3);
+    assert_eq!(ends(&state).len(), 3);
     assert_eq!(
         said,
         Some(Outcome::Cut {

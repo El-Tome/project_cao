@@ -63,12 +63,16 @@ fn dragged_dimensioned_and_extruded() -> History {
         point: PointId(2),
         position: DVec2::new(11.0, 9.0),
         merged_into: None,
+        let_go: false,
+        on: Vec::new(),
     });
     history.push(Operation::MovePoint {
         sketch: 0,
         point: PointId(2),
         position: DVec2::new(12.0, 8.0),
         merged_into: None,
+        let_go: false,
+        on: Vec::new(),
     });
     history.push(Operation::MoveMany {
         sketch: 0,

@@ -102,6 +102,8 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                             (rng.unit() - 0.5) * 200.0,
                         ),
                         merged_into: None,
+                        let_go: false,
+                        on: Vec::new(),
                     });
                 }
                 3 => {

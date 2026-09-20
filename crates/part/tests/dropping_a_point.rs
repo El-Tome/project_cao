@@ -43,6 +43,8 @@ fn a_corner_dropped_on_another_becomes_one_corner_with_it() {
         point: PointId(3),
         position: DVec2::ZERO,
         merged_into: Some(PointId(1)),
+        let_go: false,
+        on: Vec::new(),
     });
 
     assert_eq!(
@@ -62,6 +64,8 @@ fn one_undo_takes_back_both_the_drop_and_the_joining() {
         point: PointId(3),
         position: DVec2::ZERO,
         merged_into: Some(PointId(1)),
+        let_go: false,
+        on: Vec::new(),
     });
     document.undo();
 
@@ -83,6 +87,8 @@ fn a_drop_that_joins_nothing_moves_the_corner_and_no_more() {
         point: PointId(3),
         position: DVec2::new(4.0, 7.0),
         merged_into: None,
+        let_go: false,
+        on: Vec::new(),
     });
 
     let after = corners(&document);

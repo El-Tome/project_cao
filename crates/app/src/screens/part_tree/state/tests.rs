@@ -140,6 +140,8 @@ fn a_drag_leaves_no_line_of_its_own() {
         point: cao_sketch::PointId(2),
         position: DVec2::new(11.0, 21.0),
         merged_into: None,
+        let_go: false,
+        on: Vec::new(),
     });
 
     let after = PartTree::of(&document, &french());

@@ -49,6 +49,7 @@ fn a_trait_spoken_of_twice() -> PartState {
         state.apply(&Operation::AddPoint {
             sketch: 0,
             position: DVec2::new(at.0, at.1),
+            on: Vec::new(),
         });
     }
     state

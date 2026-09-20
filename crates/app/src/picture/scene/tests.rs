@@ -150,6 +150,7 @@ fn a_point_nothing_draws_does_not_drag_the_frame_out_to_it() {
     drawn.push(Operation::AddPoint {
         sketch: 0,
         position: DVec2::new(400.0, 400.0),
+        on: Vec::new(),
     });
 
     let frame = of(&part_with(drawn), 128);

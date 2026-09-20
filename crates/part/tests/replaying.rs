@@ -167,10 +167,12 @@ fn trimming_a_trait_in_the_history_leaves_its_two_ends() {
     history.push(Operation::AddPoint {
         sketch: 0,
         position: DVec2::new(3.0, 1.0),
+        on: Vec::new(),
     });
     history.push(Operation::AddPoint {
         sketch: 0,
         position: DVec2::new(7.0, 1.0),
+        on: Vec::new(),
     });
     history.push(Operation::Trim {
         sketch: 0,

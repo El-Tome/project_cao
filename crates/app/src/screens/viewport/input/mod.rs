@@ -62,6 +62,9 @@ pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 mod corner;
 pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
 
+mod resizing;
+use resizing::{drag_curve, grabbed_curve};
+
 mod landing;
 pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
 
@@ -205,6 +208,7 @@ pub(crate) fn handle_sketch_input(
                 ToolState::Select(select)
                     if select.dragged_point.is_none()
                         && select.dragged_dimension.is_none()
+                        && select.dragged_curve.is_none()
                         && select.dragged_group.is_empty()
             );
             if nothing_grabbed && let ToolState::Select(select) = &mut context.editor.tool_state {

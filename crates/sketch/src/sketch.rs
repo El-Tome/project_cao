@@ -80,6 +80,8 @@ pub struct Sketch {
     settled: RefCell<Option<(u64, Vec<bool>)>>,
 }
 
+mod keeping;
+
 pub use crate::element::Element;
 
 impl Sketch {
@@ -932,7 +934,7 @@ impl Sketch {
         dropped: &[(PointId, DVec2)],
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
-        let kept = (self.points.clone(), self.circles.clone());
+        let kept = self.shapes_now();
         let place = |sketch: &mut Self| {
             for (point, position) in dropped {
                 sketch.move_point(*point, *position);
@@ -958,7 +960,7 @@ impl Sketch {
         // Neither way leaves a drawing worth keeping: a trait may have collapsed,
         // or a tangency's contact slid off its segment. The gesture is refused
         // rather than the shape broken — the point simply does not go there.
-        (self.points, self.circles) = kept;
+        self.give_back(kept);
         LengthOutcome::BestEffort
     }
 

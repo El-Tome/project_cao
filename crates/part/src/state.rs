@@ -180,6 +180,12 @@ impl PartState {
                 }
                 None
             }
+            Operation::ResizeCircle {
+                sketch,
+                circle,
+                reach,
+            } => self.resize_circle(*sketch, *circle, *reach),
+            Operation::ResizeArc { sketch, arc, reach } => self.resize_arc(*sketch, *arc, *reach),
             Operation::AddCircle {
                 sketch,
                 center,

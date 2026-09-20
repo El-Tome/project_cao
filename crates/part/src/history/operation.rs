@@ -2,8 +2,8 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Area, Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, Repeats,
-    SegmentId, SketchAxis, Support, WorkPlane,
+    ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, DimensionTarget, Element, PointId,
+    Repeats, SegmentId, SketchAxis, Support, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
@@ -88,6 +88,8 @@ impl Operation {
             | Self::AddCircle { sketch, .. }
             | Self::AddArc { sketch, .. }
             | Self::MovePoint { sketch, .. }
+            | Self::ResizeCircle { sketch, .. }
+            | Self::ResizeArc { sketch, .. }
             | Self::MoveMany { sketch, .. }
             | Self::MoveDimension { sketch, .. }
             | Self::SetDimension { sketch, .. }
@@ -207,6 +209,25 @@ pub enum Operation {
         /// what the let-go key asks for.
         #[serde(default)]
         let_go: bool,
+    },
+    /// A circle drawn to a new size by hand, about the centre it already has.
+    ///
+    /// The size, not a value: a shape pushed about with the mouse says how big
+    /// it is now, never how big it must stay. Recorded as a dimension instead,
+    /// every rough drag would leave a number to delete afterwards.
+    ResizeCircle {
+        sketch: usize,
+        circle: CircleId,
+        /// How far the rim now stands from the centre, in world units.
+        reach: f64,
+    },
+    /// The same for an arc: its two ends travel out to the new reach, keeping
+    /// the sweep the curve was drawn with. An arc holds no size of its own —
+    /// it is read off the end it starts at — so this is where its two ends go.
+    ResizeArc {
+        sketch: usize,
+        arc: ArcId,
+        reach: f64,
     },
     /// Dragging a whole selection: every point named moves by the same step,
     /// so the shapes travel together instead of being pulled apart.

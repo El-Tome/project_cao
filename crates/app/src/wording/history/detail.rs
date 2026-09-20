@@ -107,6 +107,26 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("y", &rounded(position.y, 1)),
             ],
         ),
+        Operation::ResizeCircle {
+            sketch,
+            circle,
+            reach,
+        } => lang.t_with(
+            "history.detail.circle_resized",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("circle", &circle.0.to_string()),
+                ("reach", &rounded(*reach, 1)),
+            ],
+        ),
+        Operation::ResizeArc { sketch, arc, reach } => lang.t_with(
+            "history.detail.arc_resized",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("arc", &arc.0.to_string()),
+                ("reach", &rounded(*reach, 1)),
+            ],
+        ),
         Operation::MoveMany { sketch, points, by } => lang.t_with(
             "history.detail.many_moved",
             &[

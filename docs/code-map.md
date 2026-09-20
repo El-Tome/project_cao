@@ -73,6 +73,7 @@ in one of the two domains, never there.
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
+| A circle or an arc drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `resize`, `resize_circle`, `resize_arc` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
@@ -199,6 +200,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
+| Canvas: drawing a circle or an arc to another size by its curve | `app/src/screens/viewport/input/resizing.rs` | `grabbed_curve`, `drag_curve` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation`, `letting_go` |
 | Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
@@ -316,6 +318,7 @@ These places carry no test of their own:
   - `crates/app/src/screens/viewport/input/circles.rs`;
   - `crates/app/src/screens/viewport/input/constrain.rs`;
   - `crates/app/src/screens/viewport/input/rectangle.rs`;
+  - `crates/app/src/screens/viewport/input/resizing.rs`;
   - `crates/app/src/screens/viewport/input/symmetric_line.rs`;
   - `crates/app/src/screens/settings/`;
   - `crates/app/src/screens/sketch.rs`;

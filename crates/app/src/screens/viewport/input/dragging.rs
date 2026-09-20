@@ -8,7 +8,7 @@ use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
 
-use super::{arc_centre_group, dropped_on, pick};
+use super::{arc_centre_group, drag_curve, dropped_on, grabbed_curve, pick};
 
 /// What a drag needs beyond where the cursor is: how far a click reaches, what
 /// a pixel is worth in the drawing, and whether the key that pulls a point off
@@ -89,8 +89,16 @@ pub(super) fn drag_point(
 
         if dragged_point.is_none() {
             let dragged_dimension = nearest_annotation(context, index, pressed, snap * 1.5, pixel);
+            // A press that took hold of no point and no annotation may still
+            // have landed on a curve, and pulling one draws it to another size
+            // about its centre.
+            let dragged_curve = dragged_dimension
+                .is_none()
+                .then(|| grabbed_curve(context, index, pressed, snap))
+                .flatten();
             if let Some(state) = context.editor.select_state() {
                 state.dragged_dimension = dragged_dimension;
+                state.dragged_curve = dragged_curve;
                 state.drag_origin = Some(pressed);
             }
         }
@@ -109,6 +117,13 @@ pub(super) fn drag_point(
         .and_then(|state| state.dragged_dimension);
     if let Some(target) = dimension_pending {
         return drag_annotation(context, index, target, cursor, response, pixel);
+    }
+    let curve_pending = context
+        .editor
+        .select_state()
+        .and_then(|state| state.dragged_curve);
+    if let Some(curve) = curve_pending {
+        return drag_curve(context, index, curve, cursor, response);
     }
 
     let Some(point) = context

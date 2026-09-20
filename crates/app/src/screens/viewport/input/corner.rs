@@ -224,6 +224,20 @@ fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerC
     }
 }
 
+/// What the tool asks for the moment it is picked, or its mode changed.
+///
+/// A tool that takes a corner by its point says so; one that needs a first
+/// side named asks for a side and then the other. The three used to say the
+/// same sentence, which stopped being true the day one click could name a
+/// whole corner.
+pub(crate) fn picks_with(tool: Tool, mode: ChamferMode) -> &'static str {
+    match (tool, mode) {
+        (Tool::Fillet, _) => "sketch.click_a_corner_to_round",
+        (_, ChamferMode::Equal) => "sketch.click_a_corner_to_cut",
+        _ => "sketch.click_one_side_then_the_other",
+    }
+}
+
 /// Whether the tool names a corner by one click on its point.
 ///
 /// The chamfer in distance and angle, or in two distances, measures from the

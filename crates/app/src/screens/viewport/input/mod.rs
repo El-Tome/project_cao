@@ -62,7 +62,7 @@ pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 mod corner;
 pub(crate) use corner::{
     CornerEnter, corner, cut as cut_the_corner, on_enter as corner_on_enter,
-    previewed as corner_shows,
+    picks_with as corner_picks_with, previewed as corner_shows,
 };
 
 mod resizing;

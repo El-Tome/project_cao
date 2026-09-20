@@ -7,7 +7,7 @@ use crate::lang::Catalogue;
 use crate::screens::extrusion::{ExtrusionState, apply_extrusion};
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
-use crate::screens::viewport::ViewportState;
+use crate::screens::viewport::{ViewportState, corner_picks_with};
 use crate::{screens, wording};
 
 /// Carries out one command, wherever it came from.
@@ -123,7 +123,7 @@ pub(crate) fn run(
         }
         Command::ToolChamfer => {
             tool(editor, Tool::Chamfer);
-            editor.message = Some(lang.t("sketch.click_a_corner"));
+            editor.message = Some(lang.t(corner_picks_with(Tool::Chamfer, editor.chamfer_mode)));
             false
         }
         Command::ChamferEqual | Command::ChamferAngled | Command::ChamferSided => {
@@ -132,13 +132,15 @@ pub(crate) fn run(
                 Command::ChamferSided => ChamferMode::Sided,
                 _ => ChamferMode::Equal,
             };
+            // `tool` empties whatever the previous mode had taken: a corner
+            // named by its point gives an asymmetric mode no first side.
             tool(editor, Tool::Chamfer);
-            editor.message = Some(lang.t("sketch.click_a_corner"));
+            editor.message = Some(lang.t(corner_picks_with(Tool::Chamfer, editor.chamfer_mode)));
             false
         }
         Command::ToolFillet => {
             tool(editor, Tool::Fillet);
-            editor.message = Some(lang.t("sketch.click_a_corner_to_round"));
+            editor.message = Some(lang.t(corner_picks_with(Tool::Fillet, editor.chamfer_mode)));
             false
         }
         Command::ToolMirror | Command::ToolCircularPattern | Command::ToolRectangularPattern => {

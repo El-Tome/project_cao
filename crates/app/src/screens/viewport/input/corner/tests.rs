@@ -8,6 +8,12 @@
 //!   `a_click_on_a_point_too_crowded_to_be_a_corner_asks_for_the_two_traits`
 //! - the chamfer in distance and angle, or in two distances, still takes a side
 //!   and then the other — `an_asymmetric_mode_reads_a_click_as_a_side_even_on_a_corner_point`
+//! - changing the chamfer's mode to one of those says to click one side and
+//!   then the other — `each_mode_asks_for_what_it_can_actually_take`
+//! - changing the mode empties the corners taken — no test: `reset_pending`
+//!   already empties the tool state on every mode change, and it lives in a
+//!   file `docs/code-map.md` lists as having no net; taking that file off the
+//!   list on the strength of one test would overstate what covers it
 //! - `Entrée` that cannot lay anything says why, instead of doing nothing —
 //!   `enter_with_half_a_corner_asks_for_the_other_side_rather_than_dropping_it`,
 //!   `enter_with_no_side_clicked_asks_for_a_corner`,
@@ -178,4 +184,25 @@ fn a_click_on_nothing_at_all_names_nothing() {
         clicked(&sketch, CORNER + DVec2::new(-50.0, -50.0), SNAP, true),
         CornerClick::Nothing
     );
+}
+
+#[test]
+fn each_mode_asks_for_what_it_can_actually_take() {
+    assert_eq!(
+        picks_with(Tool::Fillet, ChamferMode::Sided),
+        "sketch.click_a_corner_to_round",
+        "a fillet takes a corner whatever the chamfer beside it is set to"
+    );
+    assert_eq!(
+        picks_with(Tool::Chamfer, ChamferMode::Equal),
+        "sketch.click_a_corner_to_cut"
+    );
+    for mode in [ChamferMode::Angled, ChamferMode::Sided] {
+        assert_eq!(
+            picks_with(Tool::Chamfer, mode),
+            "sketch.click_one_side_then_the_other",
+            "{mode:?} measures from the side named first, so it cannot be \
+             offered a corner taken by its point"
+        );
+    }
 }

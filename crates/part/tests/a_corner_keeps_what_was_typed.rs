@@ -13,6 +13,8 @@
 //! - the value typed applies to every corner taken, and undo removes them in
 //!   one step — `every_corner_of_a_plate_is_rounded_by_the_one_gesture`,
 //!   `the_whole_gesture_is_taken_back_by_one_undo`
+//! - a corner too tight for the value is refused, and the others are laid
+//!   anyway — `a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway`
 //! - a cut's values are typed lengths like any other, so the first of them
 //!   fixes what the part measures —
 //!   `a_chamfer_is_the_first_value_a_part_is_given_and_fixes_its_scale`
@@ -48,7 +50,7 @@
 //!   would lay still names only the cut and the curve, asserted where it lives
 
 use cao_part::history::{Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, Outcome, PartState};
 use cao_sketch::{
     Chamfer, Constraint, Corner, DimensionTarget, Element, PointId, SegmentId, WorkPlane,
 };
@@ -570,5 +572,56 @@ fn the_whole_gesture_is_taken_back_by_one_undo() {
         PartState::rebuild(&history).sketches[0].live_arcs().count(),
         0,
         "one gesture, one step: undo takes back what was done, not a quarter of it"
+    );
+}
+
+#[test]
+fn a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway() {
+    // A long sliver: the two ends are far too sharp for a curve of this reach,
+    // the apex between them is nearly flat and takes one easily.
+    let mut state = replay(&[
+        Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(0.0, 0.0)),
+            end: PointRef::New(DVec2::new(30.0, 0.0)),
+            construction: false,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(PointId(2)),
+            end: PointRef::New(DVec2::new(15.0, 1.0)),
+            construction: false,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(PointId(3)),
+            end: PointRef::Existing(PointId(1)),
+            construction: false,
+        },
+    ]);
+
+    let said = state.apply(&Operation::Fillet {
+        sketch: 0,
+        corners: (1..=3).map(|rank| Corner::At(PointId(rank))).collect(),
+        radius: 3.0,
+    });
+
+    assert_eq!(
+        state.sketches[0].live_arcs().count(),
+        1,
+        "the flat apex took its curve"
+    );
+    assert_eq!(
+        said,
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused: 2
+        }),
+        "the two sharp ends are counted and said, not silently dropped"
     );
 }

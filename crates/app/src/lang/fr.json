@@ -293,6 +293,7 @@
   "sketch.chamfer_asks_a_distance": "Tapez la distance à enlever, puis Entrée",
   "sketch.chamfer_asks_a_distance_and_an_angle": "Tapez la distance et l'angle, puis Entrée",
   "sketch.chamfer_asks_two_distances": "Tapez les deux distances, puis Entrée",
+  "sketch.corners_refused": "{count} coin(s) trop serré(s) pour cette valeur",
   "sketch.chamfer_too_long": "Le chanfrein dépasse la longueur d'un des côtés",
   "command.hint.tool_split": "Cliquer un croisement : un point y est posé et chaque courbe qui y passe y est coupée",
   "command.hint.toggle_construction": "Ce qui va être dessiné aide à construire, sans compter dans l'aire",

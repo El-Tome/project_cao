@@ -172,9 +172,16 @@ impl PartState {
         let mut total = Outcome::Cut {
             rules: 0,
             values: 0,
+            refused: 0,
+        };
+        let refused = Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused: 1,
         };
         for corner in corners {
             let Some((first, second)) = self.sketches.get(sketch)?.sides_of(*corner) else {
+                total = total.and(refused);
                 continue;
             };
             let mut typed = Vec::new();
@@ -183,6 +190,7 @@ impl PartState {
                 typed = wanted;
                 Some(made)
             }) else {
+                total = total.and(refused);
                 continue;
             };
             self.write_down(sketch, typed);
@@ -222,6 +230,7 @@ impl PartState {
         Some(Outcome::Cut {
             rules: made.rules,
             values: made.values,
+            refused: 0,
         })
     }
 }

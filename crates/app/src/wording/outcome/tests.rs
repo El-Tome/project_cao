@@ -40,8 +40,17 @@ fn a_value_the_drawing_could_only_approach_warns_whichever_call_site_applied_it(
 #[test]
 fn a_cut_says_how_much_of_the_drawing_went_with_the_trait() {
     let lang = Catalogue::french();
-    let said =
-        |rules, values| message(&lang, Some(Outcome::Cut { rules, values })).unwrap_or_default();
+    let said = |rules, values| {
+        message(
+            &lang,
+            Some(Outcome::Cut {
+                rules,
+                values,
+                refused: 0,
+            }),
+        )
+        .unwrap_or_default()
+    };
 
     assert!(said(2, 0).contains("2 contrainte"), "{}", said(2, 0));
     assert!(said(0, 1).contains("1 cote"), "{}", said(0, 1));
@@ -59,7 +68,8 @@ fn a_cut_that_took_nothing_with_it_says_nothing() {
             &Catalogue::french(),
             Some(Outcome::Cut {
                 rules: 0,
-                values: 0
+                values: 0,
+                refused: 0
             })
         ),
         None,

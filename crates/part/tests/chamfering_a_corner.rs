@@ -67,7 +67,8 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 0
+            values: 0,
+            refused: 0
         }),
         "nothing spoke of either side, so the cut cost nothing"
     );

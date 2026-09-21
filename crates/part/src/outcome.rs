@@ -12,8 +12,16 @@ pub enum Outcome {
     /// What a typed value did.
     Dimension(DimensionOutcome),
     /// What a cut left behind, counted: rules and values that spoke of the
-    /// trait and of neither of its pieces.
-    Cut { rules: usize, values: usize },
+    /// trait and of neither of its pieces, and the corners of the gesture it
+    /// could not take at all.
+    Cut {
+        rules: usize,
+        values: usize,
+        /// Corners the value did not fit. One gesture names several, and a
+        /// corner too tight for the radius asked does not stop the others —
+        /// so it is counted and said, rather than silently dropped.
+        refused: usize,
+    },
 }
 
 impl Outcome {
@@ -22,14 +30,20 @@ impl Outcome {
     pub(crate) fn and(self, other: Self) -> Self {
         match (self, other) {
             (
-                Self::Cut { rules, values },
+                Self::Cut {
+                    rules,
+                    values,
+                    refused,
+                },
                 Self::Cut {
                     rules: more,
                     values: worth,
+                    refused: turned_away,
                 },
             ) => Self::Cut {
                 rules: rules + more,
                 values: values + worth,
+                refused: refused + turned_away,
             },
             (_, last) => last,
         }

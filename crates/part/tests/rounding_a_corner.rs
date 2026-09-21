@@ -66,7 +66,8 @@ fn a_fillet_leaves_a_curve_between_two_traits_where_a_corner_had_none() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 0
+            values: 0,
+            refused: 0
         })
     );
 }

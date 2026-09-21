@@ -4,7 +4,7 @@
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{Outcome, PartState};
-use cao_sketch::{Chamfer, PointId, SegmentId, WorkPlane};
+use cao_sketch::{Chamfer, Corner, PointId, SegmentId, WorkPlane};
 use glam::DVec2;
 
 const CORNER: DVec2 = DVec2::new(2.0, 1.0);
@@ -58,8 +58,7 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
 
     let said = state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -68,7 +67,8 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 0
+            values: 0,
+            refused: 0
         }),
         "nothing spoke of either side, so the cut cost nothing"
     );
@@ -79,8 +79,7 @@ fn a_chamfer_replayed_rebuilds_the_corner_it_cut() {
     let mut operations = a_right_angle();
     operations.push(Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Sided {
             first: 2.0,
             second: 6.0,
@@ -98,8 +97,7 @@ fn a_chamfer_is_measured_in_millimetres_like_every_other_length() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(6.0),
     });
 

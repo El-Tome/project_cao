@@ -21,6 +21,7 @@ mod circling;
 mod constraints;
 pub mod construct;
 mod corner;
+pub use corner::Corner;
 mod crossing;
 mod dimensioning;
 mod duplicating;

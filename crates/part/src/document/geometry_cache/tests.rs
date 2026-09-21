@@ -183,7 +183,8 @@ fn corners(mesh: &cao_solid::Mesh) -> Vec<glam::DVec3> {
 
 fn a_part_of_every_kind_of_drawing() -> PartDocument {
     use cao_sketch::{
-        Chamfer, ChosenAxis, Constraint, DimensionTarget, Element, PointId, SegmentId, SketchAxis,
+        Chamfer, ChosenAxis, Constraint, Corner, DimensionTarget, Element, PointId, SegmentId,
+        SketchAxis,
     };
 
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
@@ -238,8 +239,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     });
     document.apply(Operation::Chamfer {
         sketch: 0,
-        first: SegmentId(0),
-        second: SegmentId(1),
+        corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
         mode: Chamfer::Equal(2.0),
     });
     document.apply(Operation::Mirror {

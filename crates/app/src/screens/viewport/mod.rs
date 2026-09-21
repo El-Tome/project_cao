@@ -8,6 +8,7 @@
 mod cube_labels;
 mod finish;
 mod input;
+pub(crate) use input::corner_picks_with;
 mod matter;
 mod navigation;
 mod render;

@@ -56,7 +56,8 @@ fn dividing_a_crossing_leaves_four_traits_where_there_were_two() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 0
+            values: 0,
+            refused: 0
         }),
         "nothing spoke of either trait, so the division cost nothing"
     );
@@ -136,7 +137,8 @@ fn a_division_says_what_the_traits_it_cut_took_with_them() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 1
+            values: 1,
+            refused: 0
         }),
         "the length measured the whole trait, and neither piece is it"
     );
@@ -186,7 +188,8 @@ fn dividing_an_arc_leaves_two_curves_where_there_was_one() {
         said,
         Some(Outcome::Cut {
             rules: 0,
-            values: 0
+            values: 0,
+            refused: 0
         })
     );
 }

@@ -2,8 +2,8 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, DimensionTarget, Element, PointId,
-    Repeats, SegmentId, SketchAxis, Support, WorkPlane,
+    ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element,
+    PointId, Repeats, SegmentId, SketchAxis, Support, WorkPlane,
 };
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
@@ -332,12 +332,12 @@ pub enum Operation {
     /// Cuts the corner two traits share with a straight line, pulling each of
     /// them back from it by what the mode asks.
     ///
-    /// The two traits are recorded rather than worked out again on replay, for
-    /// the reason `Trim` records its points.
+    /// Every corner the one gesture named, cut with the same values. They are
+    /// one operation so that undo takes back the gesture rather than a quarter
+    /// of it, and so the history reads as the one thing that was done.
     Chamfer {
         sketch: usize,
-        first: SegmentId,
-        second: SegmentId,
+        corners: Vec<Corner>,
         mode: Chamfer,
     },
     /// Lays a second copy of what was selected on the other side of an axis.
@@ -374,11 +374,11 @@ pub enum Operation {
         /// Square to it, the same.
         across: Repeats,
     },
-    /// Rounds the corner two traits share into a curve tangent to both.
+    /// Rounds every corner the one gesture named into a curve tangent to both
+    /// its traits, for the reason `Chamfer` carries several.
     Fillet {
         sketch: usize,
-        first: SegmentId,
-        second: SegmentId,
+        corners: Vec<Corner>,
         /// Millimetres, like every other length the user types.
         radius: f64,
     },

@@ -3,9 +3,10 @@
 //! rule being laid down.
 
 use cao_prefs::theme::Theme;
-use cao_sketch::{Element, RulePick, Selection, Sketch};
+use cao_sketch::{Element, PointId, RulePick, Selection, Sketch};
 
 use super::super::SketchContext;
+use super::super::input::corners_taken;
 use super::tint_at;
 
 /// How faint what a click has not laid yet is drawn: there, and plainly not
@@ -27,6 +28,7 @@ pub(super) fn mark(
     width: f32,
 ) -> ([f32; 4], f32) {
     let picked = match what {
+        Selection::Element(Element::Point(point)) if corner_taken(context, point) => true,
         Selection::Element(element) => context
             .editor
             .rule_picks()
@@ -36,6 +38,22 @@ pub(super) fn mark(
     let held = context.editor.is_selected(what) || context.editor.hovered == Some(what);
     let only_shown = matches!(what, Selection::Element(element) if laid.contains(&element));
     drawn_as(theme, picked, held, only_shown, color, width)
+}
+
+/// Whether a point stands at a corner the chamfer or the fillet is holding.
+///
+/// A gesture that gathers several corners has to show which it holds: a
+/// selection nobody can see is one nobody can correct. It reads as picked,
+/// which is what the colour already means — taken by the tool, not merely
+/// under the cursor.
+fn corner_taken(context: &SketchContext<'_>, point: PointId) -> bool {
+    let Some(index) = context.editor.active_sketch() else {
+        return false;
+    };
+    let Some(sketch) = context.document.sketches().get(index) else {
+        return false;
+    };
+    corners_taken(sketch, &context.editor.tool_state).contains(&point)
 }
 
 /// What a rule has already been shown comes first, and in a colour of its own:

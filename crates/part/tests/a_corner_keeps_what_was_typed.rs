@@ -10,6 +10,14 @@
 //!   `an_angled_chamfer_writes_both_the_values_it_was_given`,
 //!   `a_fillet_writes_the_radius_that_was_typed`,
 //!   `the_angle_the_two_sides_stand_at_is_never_written`
+//! - the value typed applies to every corner taken, and undo removes them in
+//!   one step — `every_corner_of_a_plate_is_rounded_by_the_one_gesture`,
+//!   `the_whole_gesture_is_taken_back_by_one_undo`
+//! - a mode that measures from the side named first still gathers several
+//!   corners, though two of them share a trait —
+//!   `two_corners_sharing_a_trait_are_both_cut_by_the_one_gesture`
+//! - a corner too tight for the value is refused, and the others are laid
+//!   anyway — `a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway`
 //! - a cut's values are typed lengths like any other, so the first of them
 //!   fixes what the part measures —
 //!   `a_chamfer_is_the_first_value_a_part_is_given_and_fixes_its_scale`
@@ -45,8 +53,10 @@
 //!   would lay still names only the cut and the curve, asserted where it lives
 
 use cao_part::history::{Operation, PointRef};
-use cao_part::{History, PartState};
-use cao_sketch::{Chamfer, Constraint, DimensionTarget, Element, PointId, SegmentId, WorkPlane};
+use cao_part::{History, Outcome, PartState};
+use cao_sketch::{
+    Chamfer, Constraint, Corner, DimensionTarget, Element, PointId, SegmentId, WorkPlane,
+};
 use glam::DVec2;
 
 const CORNER: DVec2 = DVec2::new(2.0, 1.0);
@@ -90,8 +100,7 @@ fn chamfered(mode: Chamfer) -> PartState {
     let mut state = replay(&a_right_angle());
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode,
     });
     state
@@ -209,8 +218,7 @@ fn a_fillet_writes_the_radius_that_was_typed() {
     let mut state = replay(&a_right_angle());
     state.apply(&Operation::Fillet {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         radius: 3.0,
     });
 
@@ -359,8 +367,7 @@ fn a_length_a_side_carried_survives_the_cut_that_shortened_it() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -397,8 +404,7 @@ fn an_angle_the_corner_carried_survives_the_cut_that_took_the_corner() {
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -434,8 +440,7 @@ fn a_compacted_chamfer_measures_the_same_part_as_the_one_it_came_from() {
     }
     history.push(Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
     let live = PartState::rebuild(&history);
@@ -473,8 +478,7 @@ fn a_compacted_chamfer_still_holds_the_distances_that_were_typed() {
     }
     history.push(Operation::Chamfer {
         sketch: 0,
-        first: EAST,
-        second: NORTH,
+        corners: vec![Corner::Between(EAST, NORTH)],
         mode: Chamfer::Equal(3.0),
     });
 
@@ -498,4 +502,164 @@ fn a_compacted_chamfer_still_holds_the_distances_that_were_typed() {
         .filter(|rule| matches!(rule, Constraint::OnSegment { .. }))
         .count();
     assert_eq!(corner, 2, "and the corner is still held on both sides");
+}
+
+/// A square plate, four corners, drawn as one closed outline.
+fn a_plate() -> Vec<Operation> {
+    let mut drawn = vec![Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    }];
+    let at = |x: f64, y: f64| DVec2::new(x, y);
+    let round = [at(0.0, 0.0), at(20.0, 0.0), at(20.0, 20.0), at(0.0, 20.0)];
+    for (rank, corner) in round.iter().enumerate() {
+        let next = round[(rank + 1) % 4];
+        drawn.push(Operation::AddSegment {
+            sketch: 0,
+            start: match rank {
+                0 => PointRef::New(*corner),
+                _ => PointRef::Existing(PointId(rank + 1)),
+            },
+            end: match rank {
+                3 => PointRef::Existing(PointId(1)),
+                _ => PointRef::New(next),
+            },
+            construction: false,
+        });
+    }
+    drawn
+}
+
+/// The four corner points of that plate, in the order they were laid.
+fn the_four_corners() -> Vec<Corner> {
+    (1..=4).map(|rank| Corner::At(PointId(rank))).collect()
+}
+
+#[test]
+fn every_corner_of_a_plate_is_rounded_by_the_one_gesture() {
+    let mut state = replay(&a_plate());
+
+    state.apply(&Operation::Fillet {
+        sketch: 0,
+        corners: the_four_corners(),
+        radius: 3.0,
+    });
+
+    assert_eq!(
+        state.sketches[0].live_arcs().count(),
+        4,
+        "the four corners of a plate share their traits: cutting one trims what \
+         the next leans on, which is why a corner is recorded by its point"
+    );
+}
+
+#[test]
+fn the_whole_gesture_is_taken_back_by_one_undo() {
+    let mut history = History::default();
+    for operation in a_plate() {
+        history.push(operation);
+    }
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: the_four_corners(),
+        radius: 3.0,
+    });
+    assert_eq!(
+        PartState::rebuild(&history).sketches[0].live_arcs().count(),
+        4
+    );
+
+    history.undo();
+
+    assert_eq!(
+        PartState::rebuild(&history).sketches[0].live_arcs().count(),
+        0,
+        "one gesture, one step: undo takes back what was done, not a quarter of it"
+    );
+}
+
+#[test]
+fn a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway() {
+    // A long sliver: the two ends are far too sharp for a curve of this reach,
+    // the apex between them is nearly flat and takes one easily.
+    let mut state = replay(&[
+        Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: None,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(0.0, 0.0)),
+            end: PointRef::New(DVec2::new(30.0, 0.0)),
+            construction: false,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(PointId(2)),
+            end: PointRef::New(DVec2::new(15.0, 1.0)),
+            construction: false,
+        },
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(PointId(3)),
+            end: PointRef::Existing(PointId(1)),
+            construction: false,
+        },
+    ]);
+
+    let said = state.apply(&Operation::Fillet {
+        sketch: 0,
+        corners: (1..=3).map(|rank| Corner::At(PointId(rank))).collect(),
+        radius: 3.0,
+    });
+
+    assert_eq!(
+        state.sketches[0].live_arcs().count(),
+        1,
+        "the flat apex took its curve"
+    );
+    assert_eq!(
+        said,
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused: 2
+        }),
+        "the two sharp ends are counted and said, not silently dropped"
+    );
+}
+
+#[test]
+fn two_corners_sharing_a_trait_are_both_cut_by_the_one_gesture() {
+    let mut state = replay(&a_plate());
+
+    // The two ends of one side, each naming that side first. Cutting the
+    // first replaces it, so the second names a trait that is already gone.
+    let said = state.apply(&Operation::Chamfer {
+        sketch: 0,
+        corners: vec![
+            Corner::Between(SegmentId(1), SegmentId(0)),
+            Corner::Between(SegmentId(1), SegmentId(2)),
+        ],
+        mode: Chamfer::Sided {
+            first: 2.0,
+            second: 6.0,
+        },
+    });
+
+    assert_eq!(
+        said,
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused: 0
+        }),
+        "neither corner was turned away: what a trait became is followed \
+         through the cut that replaced it"
+    );
+    let cuts = state.sketches[0]
+        .live_segments()
+        .filter(|(_, segment)| !segment.construction)
+        .count();
+    assert_eq!(cuts, 6, "four sides, each end of one of them cut back");
 }

@@ -60,7 +60,10 @@ mod copying;
 pub(crate) use copying::{copy, hold_is_done, previewed as copying_shows};
 
 mod corner;
-pub(crate) use corner::{corner, corner_held, cut as cut_the_corner, previewed as corner_shows};
+pub(crate) use corner::{
+    CornerEnter, corner, corners_taken, cut as cut_the_corner, on_enter as corner_on_enter,
+    picks_with as corner_picks_with, previewed as corner_shows,
+};
 
 mod resizing;
 use resizing::{drag_curve, grabbed_curve};

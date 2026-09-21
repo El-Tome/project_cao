@@ -133,9 +133,8 @@ pub(crate) fn push_preview(
         );
     }
 
-    // What the cursor has been caught by. A midpoint has a mark of its own; a
-    // crossing borrows the one a trait's body wears, for want of a line to
-    // spend on a glyph of its own in a file already over its budget.
+    // A crossing borrows the mark a point wears rather than carrying a glyph of
+    // its own, which nobody has asked for.
     match context.editor.snap {
         Some(Snap::Midpoint(at)) => {
             push_midpoint_mark(out, sketch, at, scale, tint_at(theme.highlight, 1.0))

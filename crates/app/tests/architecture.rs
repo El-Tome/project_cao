@@ -12,6 +12,19 @@
 //!   by hand on either side of the sweep. Eight hundred and ninety-four,
 //!   unchanged, which is the only thing that says no assertion moved
 //!
+//! Closes #385.
+//! - render.rs is under budget or gone — `a_file_that_outgrew_its_budget_has_to_be_split`,
+//!   which refused the commit until its entry was dropped
+//! - the grid painter has a test that reads its vertices back onto the sketch
+//!   plane — no test: the assertion is
+//!   `every_vertex_of_the_grid_lies_in_the_sketch_plane`, colocated in
+//!   `render/grid/tests.rs`, and a bullet may only name a test of its own file
+//! - every file that earned a test of its own has left the list of places with
+//!   no net — `the_places_with_no_net_are_the_ones_already_named`
+//! - the transcription was written at the close rather than at the open, which
+//!   is what `open-a-task` asks against — no test: it is a slip, recorded here
+//!   rather than quietly fixed
+//!
 //! Closes #387.
 //! - the answer stands beside the list, in `docs/code-map.md` — no test: it is
 //!   prose, and an assertion on a sentence holds its wording rather than its

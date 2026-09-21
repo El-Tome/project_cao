@@ -184,7 +184,14 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
 | Canvas: state and entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
-| Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
+| Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
+| Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
+| Canvas: the drawing itself — contour, areas, points | `app/src/screens/viewport/render/drawing.rs` | `push_sketch`, `push_regions`, `what_would_be_laid` |
+| Canvas: a point's square, a midpoint's triangle, a right angle's corner | `app/src/screens/viewport/render/marks.rs` | `push_point_markers`, `push_midpoint_mark`, `push_square_mark` |
+| Canvas: what a click right now would lay down | `app/src/screens/viewport/render/preview.rs` | `push_preview`, `push_preview_line`, `pending_annotation` |
+| Canvas: the planes and the face a sketch can be started on | `app/src/screens/viewport/render/planes.rs` | `push_choosable_planes`, `push_hovered_face` |
+| Canvas: the areas an extrusion would turn into matter, and its axis | `app/src/screens/viewport/render/extrusion.rs` | `push_chosen_areas` |
+| Canvas: what egui draws over the scene — cube labels, rule marks, band, scale bar | `app/src/screens/viewport/render/overlays.rs` | `paint_face_labels`, `paint_rule_marks`, `paint_band`, `paint_ruler` |
 | Canvas: the value a dimension carries, and the field that edits it | `app/src/screens/viewport/render/dimensions.rs` | `paint_dimension_labels`, `paint_dimension_field` |
 | Canvas: the values a shape is drawn to, typed beside the cursor | `app/src/screens/viewport/render/live_fields.rs` | `paint_live_input`, `live_field` |
 | Canvas: a circle, an arc or a dashed line as straight steps | `app/src/screens/viewport/render/curves.rs` | `push_line`, `push_circle_at`, `push_arc_at` |
@@ -327,12 +334,17 @@ lives.
   fitting a face's label to its own projected shape is pure geometry, once the
   projecting and the measuring are done, and that part is tested without a
   window.
-  `crates/app/src/screens/viewport/render/arc.rs` never was on the list, and
-  now earns being off it: what a painter pushes is a
-  `Vec<cao_render::Vertex>`, two vertices to a straight step, and those steps
-  read back onto the sketch's plane say what was drawn with no window and no
-  GPU. The other children of `render/` go the same way whenever someone writes
-  their tests; only `render.rs` itself is named below.
+  What a painter under `render/` pushes is a `Vec<cao_render::Vertex>`, two
+  vertices to a straight step, and those steps read back onto the sketch's
+  plane say what was drawn with no window and no GPU. `arc.rs` was the first to
+  earn a test that way; since #385 so have `grid.rs`, `marks.rs`, `preview.rs`,
+  `planes.rs`, `extrusion.rs`, `drawing.rs` and `overlays.rs` — the last of
+  which draws with `egui` rather than pushing vertices, and is read by asking
+  `egui` for one pass with no window and looking at the shapes it hands back.
+  `circle.rs`, `curves.rs`, `dimensions.rs`, `live_fields.rs` and
+  `symmetric_line.rs` still carry none and go the same way whenever someone
+  writes them; only `render.rs` itself, which now does nothing but gather the
+  frame, is named below.
   - `crates/app/src/screens/viewport/mod.rs`;
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;

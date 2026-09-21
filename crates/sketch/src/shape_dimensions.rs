@@ -55,15 +55,6 @@ pub fn line_dimensions(
     if let Some(length) = locked.first {
         wanted.push((DimensionTarget::Length(segment), length));
     }
-    if let Some(angle) = locked.second {
-        wanted.push((
-            DimensionTarget::AxisAngle {
-                segment,
-                axis: SketchAxis::U,
-            },
-            angle.abs(),
-        ));
-    }
     if let Some(first) = square_with {
         wanted.push((
             DimensionTarget::Angle {
@@ -90,15 +81,6 @@ pub fn symmetric_segment_dimensions(
         wanted.push((
             DimensionTarget::Length(segment),
             sketch.segment_length(segment) * scale,
-        ));
-    }
-    if let Some(angle) = locked.second {
-        wanted.push((
-            DimensionTarget::AxisAngle {
-                segment,
-                axis: SketchAxis::U,
-            },
-            angle.abs(),
         ));
     }
     settled(sketch, wanted, scale)

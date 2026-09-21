@@ -6,6 +6,9 @@
 //! - clicking a corner point again drops it — `a_second_click_on_a_corner_drops_it`
 //! - the same corner cannot be taken twice, however it is named —
 //!   `the_same_corner_named_the_other_way_round_is_still_that_corner`
+//! - a corner is let go of by one click on its point, whatever the mode —
+//!   `a_corner_named_by_its_two_traits_is_let_go_of_by_its_point`,
+//!   `a_point_holding_no_corner_lets_go_of_nothing`
 //! - a point where more than two traits meet cannot be taken as a corner: the
 //!   tool asks for the two traits instead —
 //!   `a_click_on_a_point_too_crowded_to_be_a_corner_asks_for_the_two_traits`
@@ -239,4 +242,32 @@ fn the_same_corner_named_the_other_way_round_is_still_that_corner() {
 fn after_clicking(sketch: &Sketch, mut taken: Vec<Corner>, corner: Corner) -> Vec<Corner> {
     toggle(sketch, &mut taken, corner);
     taken
+}
+
+#[test]
+fn a_corner_named_by_its_two_traits_is_let_go_of_by_its_point() {
+    let (sketch, along, up, pivot) = a_right_angle();
+    let mut taken = vec![Corner::Between(along, up)];
+
+    assert!(
+        drops_at(&sketch, &mut taken, pivot),
+        "the modes that measure from a first side cannot be shown a point to \
+         take a corner, but letting one go asks nothing of the mode"
+    );
+    assert!(taken.is_empty());
+}
+
+#[test]
+fn a_point_holding_no_corner_lets_go_of_nothing() {
+    let (sketch, along, up, pivot) = a_right_angle();
+    let far = sketch.segments()[along.0].end;
+    let mut taken = vec![Corner::Between(along, up)];
+
+    assert!(!drops_at(&sketch, &mut taken, far));
+    assert_eq!(
+        taken,
+        vec![Corner::Between(along, up)],
+        "a click elsewhere is a click elsewhere, and goes on to name a side"
+    );
+    assert!(drops_at(&sketch, &mut taken, pivot));
 }

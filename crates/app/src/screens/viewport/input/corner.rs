@@ -28,6 +28,18 @@ pub(crate) fn corner(
     };
     let (mut taken, half) = held(&context.editor.tool_state);
 
+    // Letting go of a corner asks nothing of the mode. Naming a first side is
+    // what taking one needs, so the modes that measure from it cannot be shown
+    // a point — but a corner already taken has its sides named, and its point
+    // says which corner is meant on its own. Without this, dropping one there
+    // meant clicking both its traits again.
+    if let Some(point) = sketch.nearest_point(cursor, snap)
+        && drops_at(sketch, &mut taken, point)
+    {
+        wait_for_values(context, taken, half);
+        return said_what_is_held(context);
+    }
+
     match clicked(sketch, cursor, snap, takes_a_point(context)) {
         CornerClick::Corner(corner) => {
             toggle(sketch, &mut taken, corner);
@@ -79,6 +91,11 @@ pub(crate) fn corner(
     // A click never lays. The values typed are meant for every corner the
     // gesture names, and a click that laid them would close the gesture the
     // moment a value was in the field — leaving no way to add the next corner.
+    said_what_is_held(context)
+}
+
+/// Says how many corners are held, once a click has settled what they are.
+fn said_what_is_held(context: &mut SketchContext<'_>) -> bool {
     let (taken, half) = held(&context.editor.tool_state);
     if half.is_none() {
         context.editor.message = Some(context.lang.t_with(
@@ -87,6 +104,19 @@ pub(crate) fn corner(
         ));
     }
     true
+}
+
+/// Lets go of the corner standing at that point, and says whether one was
+/// there to let go of.
+fn drops_at(sketch: &Sketch, taken: &mut Vec<Corner>, point: PointId) -> bool {
+    let stands_there = |corner: &Corner| sketch.corner_point(*corner) == Some(point);
+    match taken.iter().any(stands_there) {
+        true => {
+            taken.retain(|corner| !stands_there(corner));
+            true
+        }
+        false => false,
+    }
 }
 
 /// The points of the corners the tool is holding, so the drawing can show what

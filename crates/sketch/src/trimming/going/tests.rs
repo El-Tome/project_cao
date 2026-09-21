@@ -16,6 +16,16 @@
 //!   `a_reach_a_piece_of_the_arc_keeps_is_not_said_to_be_going_and_a_sweep_is`,
 //!   `a_point_held_on_the_stretch_that_goes_loses_what_held_it`
 //!
+//! Closes #401.
+//! - hovering a circle shows the stretch a click would take —
+//!   `the_stretch_a_cut_takes_out_of_a_circle_runs_the_way_the_cut_runs`
+//! - a circle carrying fewer than two points shows the whole round —
+//!   `a_circle_with_nowhere_to_cut_shows_the_whole_round`
+//! - a guide circle shows a dashed stretch, like the guide it is a piece of —
+//!   `what_a_cut_takes_out_of_a_guide_round_is_drawn_as_a_guide`
+//! - what goes with the stretch is listed the way it is for a trait and a
+//!   curve — `a_reach_the_arc_inherits_is_not_said_to_be_going`
+//!
 //! What the drawing is painted with is answered where it is painted, in
 //! `crates/app/src/screens/viewport/render/`.
 
@@ -241,5 +251,85 @@ fn a_point_held_on_the_stretch_that_goes_loses_what_held_it() {
         going.rules,
         vec![held],
         "nothing is left to hold a point that sat on the stretch taken away",
+    );
+}
+
+/// A whole round about the origin, with two points sitting on it a sixth and a
+/// third of the way round.
+fn a_round_with_two_points() -> (Sketch, CircleId, [PointId; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let circle = sketch.add_circle(Sketch::ORIGIN, 10.0);
+    let first = sketch.add_point(DVec2::from_angle(60.0_f64.to_radians()) * 10.0);
+    let second = sketch.add_point(DVec2::from_angle(120.0_f64.to_radians()) * 10.0);
+    (sketch, circle, [first, second])
+}
+
+#[test]
+fn the_stretch_a_cut_takes_out_of_a_circle_runs_the_way_the_cut_runs() {
+    let (sketch, circle, [first, second]) = a_round_with_two_points();
+
+    let going = sketch
+        .circle_trim_takes(circle, Some((first, second)))
+        .expect("a cut that can be made");
+
+    let Stretch::Curved(drawn) = going.stretch else {
+        panic!("a round loses a curved stretch, got {:?}", going.stretch);
+    };
+    let sweep = sweep_of(drawn).to_degrees();
+    assert!(
+        (sweep - 60.0).abs() < TOLERANCE,
+        "the sixth of the round between the two points goes, got {sweep}",
+    );
+}
+
+#[test]
+fn a_circle_with_nowhere_to_cut_shows_the_whole_round() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let circle = sketch.add_circle(Sketch::ORIGIN, 10.0);
+
+    let going = sketch
+        .circle_trim_takes(circle, None)
+        .expect("a cut that can be made");
+
+    let Stretch::Round { centre, reach } = going.stretch else {
+        panic!(
+            "a round with nowhere to cut loses all of itself, got {:?}",
+            going.stretch
+        );
+    };
+    assert!(
+        centre.distance(DVec2::ZERO) < TOLERANCE && (reach - 10.0).abs() < TOLERANCE,
+        "the very round the click would take, got {centre} and {reach}",
+    );
+}
+
+#[test]
+fn what_a_cut_takes_out_of_a_guide_round_is_drawn_as_a_guide() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let guide = sketch.add_construction_circle(Sketch::ORIGIN, 10.0);
+
+    let going = sketch
+        .circle_trim_takes(guide, None)
+        .expect("a cut that can be made");
+
+    assert!(
+        going.construction,
+        "a round that only helps build the drawing goes as a guide",
+    );
+}
+
+#[test]
+fn a_reach_the_arc_inherits_is_not_said_to_be_going() {
+    let (mut sketch, circle, [first, second]) = a_round_with_two_points();
+    sketch.set_dimension(DimensionTarget::Diameter(circle), 40.0, false);
+
+    let going = sketch
+        .circle_trim_takes(circle, Some((first, second)))
+        .expect("a cut that can be made");
+
+    assert!(
+        going.values.is_empty(),
+        "the size comes back as a reach on the arc, so nothing is lost: {:?}",
+        going.values,
     );
 }

@@ -42,6 +42,17 @@ pub enum Tool {
     Constrain(Rule),
 }
 
+impl Tool {
+    /// Whether pointing this tool at something lights the whole of it.
+    ///
+    /// Only the tool that takes the whole thing. A tool that takes a stretch
+    /// shows the stretch instead — lighting the whole curve would promise to
+    /// take all of it, which is the one thing the click will not do.
+    pub(crate) fn lights_the_whole_of_it(self) -> bool {
+        matches!(self, Self::Select)
+    }
+}
+
 /// Where the sketch workflow currently stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum SketchPhase {
@@ -352,3 +363,6 @@ impl SketchEditor {
         });
     }
 }
+
+#[cfg(test)]
+mod tests;

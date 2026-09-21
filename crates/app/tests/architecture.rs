@@ -75,13 +75,12 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// coverage report — it says a change here is caught by nothing local, which a
 /// test driving the whole application from outside does not make false.
 /// `docs/code-map.md` carries the argument beside the list.
-const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 16] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",
     "crates/app/src/screens/history_tree.rs",
     "crates/app/src/screens/mod.rs",
     "crates/app/src/screens/settings/",
-    "crates/app/src/screens/sketch.rs",
     "crates/app/src/screens/start_menu.rs",
     "crates/app/src/screens/viewport/input/arcs.rs",
     "crates/app/src/screens/viewport/input/circles.rs",

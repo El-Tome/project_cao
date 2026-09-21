@@ -121,7 +121,10 @@ pub(crate) fn handle_sketch_input(
     context.editor.hovered_point = context.document.sketches()[index].nearest_point(cursor, snap);
     // Previewing a click's target only where a click takes hold of existing
     // geometry — a drawing tool placing a fresh point keeps its plain cursor.
-    context.editor.hovered = matches!(context.editor.tool, Tool::Select | Tool::Trim)
+    context.editor.hovered = context
+        .editor
+        .tool
+        .lights_the_whole_of_it()
         .then(|| pick(context, index, cursor, snap, scale.units_per_pixel))
         .flatten();
 

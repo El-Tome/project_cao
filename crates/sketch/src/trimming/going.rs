@@ -4,10 +4,11 @@ use glam::DVec2;
 
 use super::arc_carrying;
 use super::carrying::{Piece, still_holds, still_measured};
+use super::circle::read_again;
 use crate::arc::ArcId;
 use crate::arcing::ArcDraft;
 use crate::constraints::{Constraint, DimensionTarget};
-use crate::sketch::{PointId, SegmentId, Sketch};
+use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 /// A place squarely inside any piece, so that what is *fastened* to a place on
 /// the trait is proposed to every piece rather than to none. Which piece could
@@ -35,8 +36,17 @@ pub struct Going {
 /// The run of drawing a cut would take out.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Stretch {
-    Straight { from: DVec2, to: DVec2 },
+    Straight {
+        from: DVec2,
+        to: DVec2,
+    },
     Curved(ArcDraft),
+    /// A whole round, which a curve cannot stand in for: an [`ArcDraft`]
+    /// closing on the point it opens at sweeps nothing, not everything.
+    Round {
+        centre: DVec2,
+        reach: f64,
+    },
 }
 
 impl Sketch {
@@ -96,6 +106,45 @@ impl Sketch {
                     arc_carrying::still_measured(value, arc, &piece)
                         .is_some_and(|moved| measures(&trial, moved))
                 })
+            }),
+        })
+    }
+
+    /// The same for a round. Named nothing to cut between, the whole of it
+    /// goes, which is what a click on a circle carrying fewer than two points
+    /// does.
+    pub fn circle_trim_takes(
+        &self,
+        circle: CircleId,
+        between: Option<(PointId, PointId)>,
+    ) -> Option<Going> {
+        let mut trial = self.clone();
+        let left = trial.trim_circle(circle, between)?.arc;
+        let round = self.circles().get(circle.0).copied()?;
+        let centre = self.point(round.center);
+        Some(Going {
+            stretch: match between {
+                Some((from, to)) => Stretch::Curved(ArcDraft {
+                    centre,
+                    start: self.points().get(from.0).copied()?,
+                    end: self.points().get(to.0).copied()?,
+                }),
+                None => Stretch::Round {
+                    centre,
+                    reach: round.radius,
+                },
+            },
+            construction: round.construction,
+            // Asked of the arc the cut actually left, rather than of every
+            // curve the drawing still holds: what became of *this* round is
+            // the question, and the answer is already in hand.
+            rules: self.rules_gone(&trial, |rule| {
+                left.and_then(|arc| self.circle_hands_over(rule, circle, between, arc))
+                    .is_some_and(|moved| carries(&trial, moved))
+            }),
+            values: self.values_gone(&trial, |value| {
+                left.and_then(|arc| read_again(value, circle, arc))
+                    .is_some_and(|target| trial.dimension_of(target).is_some())
             }),
         })
     }

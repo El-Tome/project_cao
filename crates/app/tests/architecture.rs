@@ -90,7 +90,7 @@ const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
     "crates/app/src/screens/viewport/input/rectangle.rs",
     "crates/app/src/screens/viewport/input/resizing.rs",
     "crates/app/src/screens/viewport/input/symmetric_line.rs",
-    "crates/app/src/screens/viewport/mod.rs",
+    "crates/app/src/screens/viewport/view.rs",
     "crates/app/src/screens/viewport/navigation.rs",
     "crates/sketch/src/solver.rs",
 ];

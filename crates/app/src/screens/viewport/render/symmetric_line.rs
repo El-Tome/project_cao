@@ -22,7 +22,7 @@ pub(crate) fn push_preview(
     };
     let locked = context.editor.live.locked();
     let (start, end) = sketch.symmetric_ends(middle, cursor, locked, context.document.scale());
-    super::push_preview_line(
+    super::preview::push_preview_line(
         out,
         sketch,
         start,

@@ -7,7 +7,7 @@ use glam::DVec2;
 
 use super::curves::push_arc_at;
 use super::marks::push_point_marker;
-use super::push_preview_line;
+use super::preview::push_preview_line;
 use crate::screens::viewport::input::{arc_aimed, arc_preview};
 use crate::screens::viewport::{SketchContext, ViewScale};
 

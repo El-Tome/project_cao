@@ -10,13 +10,11 @@ use cao_render::{
     AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, push_plane_outline,
     push_plane_quad, srgb,
 };
-use cao_sketch::{
-    ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
-};
+use cao_sketch::{DimensionTarget, Element, PointId, Preview, Selection, Sketch, WorkPlane};
 use glam::{DVec2, DVec3};
 
 use crate::lang::Catalogue;
-use crate::screens::sketch::{DimensionMode, PlaneChoice, Tool};
+use crate::screens::sketch::PlaneChoice;
 use crate::wording::constraints;
 
 mod arc;
@@ -27,18 +25,17 @@ mod emphasis;
 mod grid;
 mod live_fields;
 mod marks;
+mod preview;
 mod symmetric_line;
 
 use curves::{push_arc_at, push_circle_at, push_line};
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 pub(crate) use live_fields::paint_live_input;
-use marks::{push_midpoint_mark, push_point_marker, push_point_markers, push_square_mark};
+use marks::push_point_markers;
+use preview::{pending_annotation, push_preview};
 
 use super::cube_labels;
-use super::input::{
-    annotation_position, circle_from, copying_shows, corner_shows, measure_preview,
-    rectangle_corner, refine,
-};
+use super::input::{copying_shows, corner_shows};
 use super::matter;
 use super::{
     PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
@@ -618,216 +615,6 @@ fn live_offset(context: &SketchContext<'_>, target: DimensionTarget) -> DVec2 {
         (Some(dragged), Some(origin), Some(position)) if dragged == target => position - origin,
         _ => DVec2::ZERO,
     }
-}
-
-/// The annotation the dimension tool is showing in advance: the one a click
-/// would choose, or the one already chosen and looking for its place.
-fn pending_annotation(
-    context: &SketchContext<'_>,
-    index: usize,
-    cursor: DVec2,
-    snap: f64,
-    pixel: f64,
-) -> Option<(DimensionTarget, DVec2)> {
-    if let Some(target) = context.editor.placing() {
-        // A second entity under the cursor turns the dimension into another
-        // one; it is shown where it would land, not dragged to the cursor.
-        if context.editor.dimension_mode == DimensionMode::Auto
-            && let Some(refined) = refine(context, index, target, cursor, snap)
-        {
-            return Some((refined, DVec2::ZERO));
-        }
-        let target = context
-            .document
-            .sketches()
-            .get(index)
-            .map_or(target, |sketch| sketch.oriented(target, cursor));
-        // The preview is nudged from where the annotation stands today, not
-        // moved to an absolute offset: `push` adds a nudge on top of whatever
-        // the dimension already carries.
-        let nudge = annotation_position(context, index, target, pixel)
-            .map(|placement| cursor - placement.text_at)
-            .unwrap_or_default();
-        return Some((target, nudge));
-    }
-    let target = measure_preview(context, index, cursor, snap)?;
-    Some((target, DVec2::ZERO))
-}
-
-/// The shape about to be drawn, following the cursor: placing a point blind and
-/// only then seeing where it went is needlessly uncomfortable.
-fn push_preview(
-    out: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    theme: &Theme,
-    scale: ViewScale,
-    context: &SketchContext<'_>,
-) {
-    let Some(cursor) = context.editor.cursor else {
-        return;
-    };
-    let preview = emphasis::ghost(theme);
-
-    if let Some(anchor) = context.editor.chain() {
-        let from = match anchor {
-            ChainAnchor::Pending(position) => position,
-            ChainAnchor::Point(id) if id.0 < sketch.points().len() => sketch.point(id),
-            ChainAnchor::Point(_) => cursor,
-        };
-        let to = context
-            .editor
-            .aimed
-            .map(|aimed| aimed.position)
-            .unwrap_or(cursor);
-        push_preview_line(
-            out,
-            sketch,
-            from,
-            to,
-            preview,
-            context.editor.construction,
-            scale,
-        );
-
-        // The little square of a right angle, drawn before it is committed to
-        // so the constraint is never a surprise. Its two arms are the line
-        // being drawn and the one it is squaring up against.
-        if let Some(previous) = context.editor.aimed.and_then(|aimed| aimed.square_with)
-            && previous.0 < sketch.segments().len()
-        {
-            let (start, end) = sketch.endpoints(previous);
-            let arm = if start.distance(from) < end.distance(from) {
-                end - start
-            } else {
-                start - end
-            };
-            push_square_mark(out, sketch, from, to - from, -arm, scale, preview);
-        }
-    }
-
-    symmetric_line::push_preview(out, sketch, context, cursor, preview, scale);
-
-    // The point tool has nothing pending, yet placing a point blind is exactly
-    // as uncomfortable as the rest.
-    if context.editor.tool == Tool::Point {
-        push_point_marker(out, sketch, cursor, scale.world_size_of(4.0), preview, 1.5);
-    }
-
-    // The dimension a click would place, drawn faintly where it would land —
-    // then, once it is chosen, the same annotation following the cursor to the spot it will sit on.
-    if context.editor.tool == Tool::Dimension
-        && let Some(index) = context.editor.active_sketch()
-        && let Some((target, nudge)) = pending_annotation(
-            context,
-            index,
-            cursor,
-            scale.world_size_of(PICK_PIXELS),
-            scale.units_per_pixel,
-        )
-    {
-        let mut style = crate::screens::annotations::Style::driving(theme);
-        style.color = preview;
-        style.width *= 0.9;
-        crate::screens::annotations::push(
-            out,
-            sketch,
-            target,
-            &style,
-            scale.units_per_pixel,
-            nudge,
-        );
-    }
-
-    // What the cursor has been caught by. A midpoint has a mark of its own; a
-    // crossing borrows the one a trait's body wears, for want of a line to
-    // spend on a glyph of its own in a file already over its budget.
-    match context.editor.snap {
-        Some(Snap::Midpoint(at)) => {
-            push_midpoint_mark(out, sketch, at, scale, tint_at(theme.highlight, 1.0))
-        }
-        Some(Snap::OnCurve(at) | Snap::Crossing(at)) => push_point_marker(
-            out,
-            sketch,
-            at,
-            scale.world_size_of(3.0),
-            tint_at(theme.highlight, 1.0),
-            2.0,
-        ),
-        _ => {}
-    }
-
-    if context.editor.tool == Tool::Circle
-        && let Some(index) = context.editor.active_sketch()
-        && let Some(found) = circle_from(context, index, cursor, scale.world_size_of(PICK_PIXELS))
-    {
-        push_circle_at(
-            out,
-            sketch,
-            found.centre,
-            found.radius,
-            preview,
-            1.5,
-            context.editor.construction,
-            scale,
-        );
-        push_point_marker(
-            out,
-            sketch,
-            found.centre,
-            scale.world_size_of(3.0),
-            preview,
-            1.5,
-        );
-    }
-
-    if context.editor.tool == Tool::Arc {
-        arc::push_preview(out, context, sketch, cursor, preview, scale);
-    }
-
-    let Some(start) = context.editor.pending_start() else {
-        return;
-    };
-    if context.editor.tool == Tool::Rectangle {
-        let far = rectangle_corner(context, cursor);
-        let corners = [
-            start,
-            DVec2::new(far.x, start.y),
-            far,
-            DVec2::new(start.x, far.y),
-        ];
-        for index in 0..4 {
-            push_preview_line(
-                out,
-                sketch,
-                corners[index],
-                corners[(index + 1) % 4],
-                preview,
-                context.editor.construction,
-                scale,
-            );
-        }
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-fn push_preview_line(
-    out: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    from: DVec2,
-    to: DVec2,
-    color: [f32; 4],
-    construction: bool,
-    scale: ViewScale,
-) {
-    push_line(
-        out,
-        sketch.plane.to_world(from),
-        sketch.plane.to_world(to),
-        color,
-        1.5,
-        construction,
-        scale,
-    );
 }
 
 fn to_physical(rect: egui::Rect, pixels_per_point: f32) -> ViewportRect {

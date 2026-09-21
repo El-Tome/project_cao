@@ -102,6 +102,27 @@ What the test cannot see:
 - [ ] If this was a refactor: did any test's assertions change? They should not
       have. See `refactor-rust`.
 
+## What the issue asked for
+
+Last, and the one nothing in the gate can do for you. Open the issue —
+`gh issue view <n>` — and read its **Done when** against the diff, not against
+your memory of the afternoon.
+
+- [ ] Does each criterion have something in this diff that answers it, and can
+      you name it? A test, or a reason there is none.
+- [ ] Does the named test assert what the criterion claims, or something
+      adjacent that was easier to write? `criteria.rs` checks that a test by
+      that name exists; it cannot read it.
+- [ ] Did the transcription reword a criterion on the way in? Say so rather than
+      quietly keeping the easier wording.
+- [ ] Is a criterion answered by nothing? Then the pull request delivers less
+      than the issue asked, and the body says which — that is not a failure, it
+      is the only way the next reader finds out.
+
+#314 passed the gate and was answered *"It works, but it is not what was
+asked"*. No test catches that, because the test was written against what was
+built.
+
 ## Before validating
 
 ```sh

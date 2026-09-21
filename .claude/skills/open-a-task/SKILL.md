@@ -164,7 +164,27 @@ git config core.hooksPath .githooks
 
 ## Closing
 
-Push, then open the pull request. Its title carries the same conventional
+**First, read the issue back against your own diff.** Open the issue again —
+`gh issue view <n>` — and go through its **Done when** criterion by criterion
+against `git diff main...HEAD`, not against your memory of what you did. For
+each one: is it answered, by which test, and did the transcription reword it on
+the way? A criterion you cannot point at is a criterion the pull request does
+not deliver, and saying so is the work.
+
+`crates/app/tests/criteria.rs` already refuses a criterion with neither a test
+nor a reason, in the gate. What it cannot tell is whether the test asserts what
+the bullet claims — that needs the issue read, and this is where it is read.
+#314 shipped green and was answered *"It works, but it is not what was asked"*;
+#316 laid a chamfer's geometry and none of the dimensions asked for. Neither was
+a bug.
+
+It is written down here rather than run as a job on `pull_request`, because that
+job would bring an API key, a per-pull-request bill and a step of the CI that
+reaches the network into a repository whose gate calls nothing but `cargo`. The
+price of the choice is that a skill can be skipped and a job cannot — most
+easily when you are in a hurry, which is when this is worth most.
+
+Then push and open the pull request. Its title carries the same conventional
 commit prefix as the commits, and it **always has a body**:
 
 ```sh
@@ -174,6 +194,8 @@ gh pr create --base main --title "<type>(<scope>): <sentence>" --body "..."
 
 The body says what changed, what was decided and what was set aside, how it was
 verified — the gate, the test count, the command whose output you read — and
+**answers for each criterion of the issue in turn**, the reading above written
+out: answered and by which test, not answered and why, reworded and how. It
 ends on `Closes #n`. Never the list of files touched: `git` already has it. A
 pull request with no body is one nobody can review a month later.
 

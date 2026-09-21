@@ -130,7 +130,18 @@ generator hammers a configuration and checks it never falls apart.
 | Camera, cube, rendering geometry | colocated | pure arithmetic, no GPU |
 | wgpu pipelines | not unit tested | visual check through the `offscreen` example |
 | The presenter of a screen (`state.rs`) | colocated | none — that is the point |
-| The drawing of a screen (`view.rs`), `ui/` primitives | not tested | would want a window |
+| The drawing of a screen (`view.rs`), `ui/` primitives | colocated, where a value comes back | a window for the rest — see below |
+
+**Driving the whole application, with no window:** `crates/app/tests/driver/`
+builds `CaoApp` through `egui_kittest`, with no render state and no GPU. It
+clicks a tool by the label the user reads, clicks at a coordinate inside the
+canvas, and reads what the interface says back out of the accessibility tree.
+`crates/app/tests/drawing.rs` draws a segment on a plane that way in a fifth of
+a second. Two limits are worth knowing before writing against it: the tree
+carries **buttons and fields, not prose**, so a sentence at the top of the
+screen is not assertable; and a panel that is closed is not on screen, which
+reads exactly like a behaviour that did not happen. An image of the frame wants
+a GPU and a renderer of ours, and is #258.
 
 **On screens:** a screen splits into a presenter (`state.rs`) and a view
 (`view.rs`). The presenter never takes `&mut egui::Ui` — the architecture test

@@ -137,10 +137,12 @@ impl SketchEditor {
 pub fn show(ui: &mut egui::Ui, editor: &mut SketchEditor) -> Vec<Command> { /* ... */ }
 ```
 
-`Ribbon` and the explorer have been separated. `SketchEditor` and
-`ViewportState` have not: `screens/viewport/` is where the camera, hit-testing,
-the keyboard, gestures and annotation drawing share one file, and none of it can
-be exercised without opening a window.
+`Ribbon`, the explorer and, since #386, the canvas have been separated:
+`ViewportState` and the rule saying who a gesture is for live in
+`screens/viewport/state.rs`, the frame loop in `view.rs` beside it.
+`SketchEditor` has not been separated, and the tools under
+`screens/viewport/input/` still read the keyboard where they decide, so none of
+that can be exercised without opening a window.
 
 **A mode carries both files, and that is now a test.** The modes still owing the
 split are named in `MODES_WITHOUT_A_PRESENTER`, in

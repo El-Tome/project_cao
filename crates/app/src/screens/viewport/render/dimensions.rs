@@ -9,7 +9,8 @@ use crate::screens::sketch::apply_dimension_value;
 
 use super::super::{PICK_PIXELS, SketchContext, ViewportState};
 use super::live_fields::value_field;
-use super::{live_offset, pending_annotation, to_screen};
+use super::overlays::to_screen;
+use super::{live_offset, pending_annotation};
 
 /// Each dimension is drawn where it applies, with the value it stands for.
 /// A readout shows what the geometry measures rather than a stored number, so

@@ -182,9 +182,17 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | --- | --- | --- |
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| Canvas: state and entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
+| Canvas: what it knows between frames, and who a gesture is for | `app/src/screens/viewport/state.rs` | `ViewportState`, `ViewMode`, `ViewScale`, `gesture_goes_to` |
+| Canvas: the frame loop and the entry point | `app/src/screens/viewport/view.rs` | `show(...)` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
-| Canvas: pushing the sketch, the cube and the grid to the GPU | `app/src/screens/viewport/render.rs` | `push_sketch`, `push_point_markers`, `paint_face_labels` |
+| Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
+| Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
+| Canvas: the drawing itself — contour, areas, points | `app/src/screens/viewport/render/drawing.rs` | `push_sketch`, `push_regions`, `what_would_be_laid` |
+| Canvas: a point's square, a midpoint's triangle, a right angle's corner | `app/src/screens/viewport/render/marks.rs` | `push_point_markers`, `push_midpoint_mark`, `push_square_mark` |
+| Canvas: what a click right now would lay down | `app/src/screens/viewport/render/preview.rs` | `push_preview`, `push_preview_line`, `pending_annotation` |
+| Canvas: the planes and the face a sketch can be started on | `app/src/screens/viewport/render/planes.rs` | `push_choosable_planes`, `push_hovered_face` |
+| Canvas: the areas an extrusion would turn into matter, and its axis | `app/src/screens/viewport/render/extrusion.rs` | `push_chosen_areas` |
+| Canvas: what egui draws over the scene — cube labels, rule marks, band, scale bar | `app/src/screens/viewport/render/overlays.rs` | `paint_face_labels`, `paint_rule_marks`, `paint_band`, `paint_ruler` |
 | Canvas: the value a dimension carries, and the field that edits it | `app/src/screens/viewport/render/dimensions.rs` | `paint_dimension_labels`, `paint_dimension_field` |
 | Canvas: the values a shape is drawn to, typed beside the cursor | `app/src/screens/viewport/render/live_fields.rs` | `paint_live_input`, `live_field` |
 | Canvas: a circle, an arc or a dashed line as straight steps | `app/src/screens/viewport/render/curves.rs` | `push_line`, `push_circle_at`, `push_arc_at` |
@@ -289,7 +297,31 @@ soon as a mode carries non-trivial business logic, it becomes its own crate.
 
 ## What has no net
 
-These places carry no test of their own:
+These places carry no test of their own. **Carrying none is not the same as
+being unreachable**: since #377 the application is driven with no window at all
+— `crates/app/tests/driver/` opens `CaoApp` through `egui_kittest`, clicks a
+tool by the label the user reads, draws in the canvas by coordinate, and reads
+the answer back out of the accessibility tree, with no GPU and in a fifth of a
+second. `crates/app/tests/drawing.rs` is what it looks like. A file leaves the
+list below by earning a test of its own, not by being walked through from above
+— but nothing here is out of reach any more.
+
+**That last sentence was put as a question, and answered in #387.** Counting a
+driver run as a net was weighed and refused: no text proves which files a run
+touched, so the link would be asserted by hand, and a ratchet asserted by hand
+drifts. Splitting the list in two — no net at all against reached only from
+above — was refused at the same price: a second list to keep, a second constant
+in `crates/app/tests/architecture.rs`, and a rule with two tiers is one people
+misremember. The list is not a coverage report and was never meant to be one:
+it says a change here is caught by nothing **local**, and that stays true of
+`start_menu.rs` with the driver merged. A driver test notices that the part
+list lost a name; it does not notice that the recents came back in the wrong
+order.
+
+The way off the list is open, and it is the only one. A test beside the module
+it covers, in its own file as #362 asks, reaches the dev-dependencies like any
+other test in the crate — so a screen that wants a net can have one where it
+lives.
 
 - `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
   is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);
@@ -298,21 +330,31 @@ These places carry no test of their own:
   they call into — hit test, magnetism, dimensioning — moved to `cao_sketch`,
   where each is tested without opening a window; what is left is glue. The
   toolbar came out of this list when it was split into a presenter and a view,
-  which is the move each of these is waiting for.
+  which is the move each of these is waiting for. Since #386 the canvas has
+  made it: `state.rs` holds what it knows between frames and `view.rs` the
+  frame loop, and the rule saying who a gesture is for — the cube, picking an
+  area, or the tool in hand — is read by four tests with no window. What is
+  left in `view.rs` is the loop itself.
   `crates/app/src/screens/viewport/cube_labels.rs` came out of it already:
   fitting a face's label to its own projected shape is pure geometry, once the
   projecting and the measuring are done, and that part is tested without a
   window.
-  `crates/app/src/screens/viewport/render/arc.rs` never was on the list, and
-  now earns being off it: what a painter pushes is a
-  `Vec<cao_render::Vertex>`, two vertices to a straight step, and those steps
-  read back onto the sketch's plane say what was drawn with no window and no
-  GPU. The other children of `render/` go the same way whenever someone writes
-  their tests; only `render.rs` itself is named below.
-  - `crates/app/src/screens/viewport/mod.rs`;
+  What a painter under `render/` pushes is a `Vec<cao_render::Vertex>`, two
+  vertices to a straight step, and those steps read back onto the sketch's
+  plane say what was drawn with no window and no GPU. `arc.rs` was the first to
+  earn a test that way; since #385 so have `grid.rs`, `marks.rs`, `preview.rs`,
+  `planes.rs`, `extrusion.rs`, `drawing.rs` and `overlays.rs` — the last of
+  which draws with `egui` rather than pushing vertices, and is read by asking
+  `egui` for one pass with no window and looking at the shapes it hands back.
+  `circle.rs`, `curves.rs`, `dimensions.rs`, `live_fields.rs` and
+  `symmetric_line.rs` still carry none and go the same way whenever someone
+  writes them. `render.rs`, which now does nothing but gather the frame, left
+  this list the same way: three tests read a built `SceneFrame` back, and one
+  of them is the rule that no grid is drawn while the view is still swinging
+  onto a plane.
+  - `crates/app/src/screens/viewport/view.rs`;
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;
-  - `crates/app/src/screens/viewport/render.rs`;
   - `crates/app/src/screens/viewport/input/mod.rs`;
   - `crates/app/src/screens/viewport/input/arcs.rs`;
   - `crates/app/src/screens/viewport/input/circles.rs`;

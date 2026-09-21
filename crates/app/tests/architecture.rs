@@ -12,6 +12,28 @@
 //!   by hand on either side of the sweep. Eight hundred and ninety-four,
 //!   unchanged, which is the only thing that says no assertion moved
 //!
+//! Closes #385.
+//! - render.rs is under budget or gone — `a_file_that_outgrew_its_budget_has_to_be_split`,
+//!   which refused the commit until its entry was dropped
+//! - the grid painter has a test that reads its vertices back onto the sketch
+//!   plane — no test: the assertion is
+//!   `every_vertex_of_the_grid_lies_in_the_sketch_plane`, colocated in
+//!   `render/grid/tests.rs`, and a bullet may only name a test of its own file
+//! - every file that earned a test of its own has left the list of places with
+//!   no net — `the_places_with_no_net_are_the_ones_already_named`
+//! - the transcription was written at the close rather than at the open, which
+//!   is what `open-a-task` asks against — no test: it is a slip, recorded here
+//!   rather than quietly fixed
+//!
+//! Closes #387.
+//! - the answer stands beside the list, in `docs/code-map.md` — no test: it is
+//!   prose, and an assertion on a sentence holds its wording rather than its
+//!   reasoning
+//! - it stands again where the rule lives, on `PLACES_ALLOWED_TO_HAVE_NO_NET`
+//!   — no test: same, and the two copies say the same thing on purpose
+//! - the rule itself does not move: a place still leaves the list by earning a
+//!   test of its own — `a_place_said_to_carry_no_test_carries_none`
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -45,7 +67,15 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// The list may only shrink: an entry added here is a place that went into the
 /// repository with no test, which is the one move that empties the rule of
 /// meaning.
-const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 18] = [
+///
+/// A place leaves it by earning a test of its own, never by being walked
+/// through from above. #387 weighed counting the headless driver's runs and
+/// refused: no text proves which files a run touched, so the link would be
+/// asserted by hand, and a ratchet asserted by hand drifts. The list is not a
+/// coverage report — it says a change here is caught by nothing local, which a
+/// test driving the whole application from outside does not make false.
+/// `docs/code-map.md` carries the argument beside the list.
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",
     "crates/app/src/screens/history_tree.rs",
@@ -60,9 +90,8 @@ const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 18] = [
     "crates/app/src/screens/viewport/input/rectangle.rs",
     "crates/app/src/screens/viewport/input/resizing.rs",
     "crates/app/src/screens/viewport/input/symmetric_line.rs",
-    "crates/app/src/screens/viewport/mod.rs",
     "crates/app/src/screens/viewport/navigation.rs",
-    "crates/app/src/screens/viewport/render.rs",
+    "crates/app/src/screens/viewport/view.rs",
     "crates/sketch/src/solver.rs",
 ];
 
@@ -109,9 +138,8 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// arbitrary; what is not is that every file above it can be named.
 const LINE_BUDGET: usize = 400;
 
-const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 5] = [
+const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 4] = [
     ("crates/app/src/screens/viewport/input/mod.rs", 565),
-    ("crates/app/src/screens/viewport/render.rs", 1225),
     ("crates/render/src/renderer.rs", 426),
     ("crates/sketch/src/sketch.rs", 1000),
     ("crates/sketch/src/solver.rs", 1199),
@@ -191,7 +219,7 @@ const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 /// Modes under `screens/` that still decide and draw in the same place.
 /// `explorer` and `ribbon` show the shape: a `state.rs` that holds what the
 /// screen knows, a `view.rs` that draws it. The list may only shrink.
-const MODES_WITHOUT_A_PRESENTER: [&str; 3] = ["settings", "sketch", "viewport"];
+const MODES_WITHOUT_A_PRESENTER: [&str; 2] = ["settings", "sketch"];
 
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),
@@ -718,10 +746,16 @@ fn a_place_said_to_carry_no_test_carries_none() {
              left. Take the line out.",
         );
 
+        // Since #362 a module's tests live in a file beside it rather than in
+        // it, so reading the file alone would clear every entry for ever.
         let files = if path.is_dir() {
             rust_files(&path)
         } else {
-            vec![path]
+            let beside = workspace_root().join(beside(&place));
+            [path, beside]
+                .into_iter()
+                .filter(|at| at.exists())
+                .collect()
         };
         let covered: Vec<String> = files
             .iter()

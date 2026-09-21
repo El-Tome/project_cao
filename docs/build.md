@@ -78,6 +78,15 @@ The first three also run locally before every commit
 (`scripts/verify.sh`, called by `.githooks/pre-commit`), and
 `crates/app/tests/gate.rs` fails if the two lists stop agreeing.
 
+**Every one of them calls nothing but `cargo`.** No network, no secret, no
+metered anything — which is why the gate is twelve seconds and stays there.
+#388 proposed a fifth job reading each pull request against its issue with a
+model, and it was refused for exactly that: an API key in this repository, and
+a bill per pull request. The reading it wanted still happens, before the pull
+request is opened, by the agent that wrote the branch — `open-a-task` and
+`review-rust` ask for it. Anyone proposing a job that calls out to a service
+should start from that refusal rather than from scratch.
+
 ## Waiting for a long command
 
 **A command that is waited for announces its own end.** Run it in the

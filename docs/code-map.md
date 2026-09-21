@@ -182,7 +182,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | --- | --- | --- |
 | Application state, frame loop | `app/src/app.rs` | `CaoApp`, `impl eframe::App` |
 | Routing between modes | `app/src/screens/mod.rs` | `enum Screen`, `struct OpenPart` |
-| Canvas: state and entry point | `app/src/screens/viewport/mod.rs` | `show(...)`, `ViewportState`, `ViewMode` |
+| Canvas: what it knows between frames, and who a gesture is for | `app/src/screens/viewport/state.rs` | `ViewportState`, `ViewMode`, `ViewScale`, `gesture_goes_to` |
+| Canvas: the frame loop and the entry point | `app/src/screens/viewport/view.rs` | `show(...)` |
 | Canvas: gestures turned into calls on `cao_sketch` | `app/src/screens/viewport/input/mod.rs` | `pick`, `drag_point`, `constrain`, `aim`, `measure` |
 | Canvas: gathering one frame of everything drawn | `app/src/screens/viewport/render.rs` | `build_frame` |
 | Canvas: the grid and the drawing's axes, on the plane a sketch is open on | `app/src/screens/viewport/render/grid.rs` | `push` |
@@ -329,7 +330,11 @@ lives.
   they call into — hit test, magnetism, dimensioning — moved to `cao_sketch`,
   where each is tested without opening a window; what is left is glue. The
   toolbar came out of this list when it was split into a presenter and a view,
-  which is the move each of these is waiting for.
+  which is the move each of these is waiting for. Since #386 the canvas has
+  made it: `state.rs` holds what it knows between frames and `view.rs` the
+  frame loop, and the rule saying who a gesture is for — the cube, picking an
+  area, or the tool in hand — is read by four tests with no window. What is
+  left in `view.rs` is the loop itself.
   `crates/app/src/screens/viewport/cube_labels.rs` came out of it already:
   fitting a face's label to its own projected shape is pure geometry, once the
   projecting and the measuring are done, and that part is tested without a
@@ -347,7 +352,7 @@ lives.
   this list the same way: three tests read a built `SceneFrame` back, and one
   of them is the rule that no grid is drawn while the view is still swinging
   onto a plane.
-  - `crates/app/src/screens/viewport/mod.rs`;
+  - `crates/app/src/screens/viewport/view.rs`;
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;
   - `crates/app/src/screens/viewport/input/mod.rs`;

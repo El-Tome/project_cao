@@ -90,8 +90,8 @@ const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
     "crates/app/src/screens/viewport/input/rectangle.rs",
     "crates/app/src/screens/viewport/input/resizing.rs",
     "crates/app/src/screens/viewport/input/symmetric_line.rs",
-    "crates/app/src/screens/viewport/mod.rs",
     "crates/app/src/screens/viewport/navigation.rs",
+    "crates/app/src/screens/viewport/view.rs",
     "crates/sketch/src/solver.rs",
 ];
 
@@ -219,7 +219,7 @@ const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 /// Modes under `screens/` that still decide and draw in the same place.
 /// `explorer` and `ribbon` show the shape: a `state.rs` that holds what the
 /// screen knows, a `view.rs` that draws it. The list may only shrink.
-const MODES_WITHOUT_A_PRESENTER: [&str; 3] = ["settings", "sketch", "viewport"];
+const MODES_WITHOUT_A_PRESENTER: [&str; 2] = ["settings", "sketch"];
 
 const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
     ("crates/app/src/screens/extrusion_row.rs", 2),

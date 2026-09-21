@@ -18,6 +18,7 @@ mod circle;
 mod curves;
 mod dimensions;
 mod emphasis;
+mod extrusion;
 mod grid;
 mod live_fields;
 mod marks;
@@ -27,6 +28,7 @@ mod symmetric_line;
 
 use curves::{push_arc_at, push_circle_at, push_line};
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
+use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 use marks::push_point_markers;
 use planes::push_choosable_planes;
@@ -181,103 +183,6 @@ pub(crate) fn build_frame(
         cube_edges,
         cube_viewport: to_physical(cube_rect, pixels_per_point),
     }
-}
-
-/// Marks the areas picked for an extrusion, and the one under the cursor.
-///
-/// A chosen area is filled with the colour of the matter it is about to become,
-/// which is the only preview needed before the height is typed.
-fn push_chosen_areas(
-    surfaces: &mut Vec<cao_render::Vertex>,
-    lines: &mut Vec<cao_render::Vertex>,
-    theme: &Theme,
-    context: &SketchContext<'_>,
-) {
-    if !context.extrusion.is_active() {
-        return;
-    }
-    let Some(sketch) = context
-        .extrusion
-        .sketch
-        .and_then(|index| context.document.sketches().get(index))
-    else {
-        return;
-    };
-
-    let cutting = context.extrusion.mode == Some(cao_part::ExtrusionMode::Cut);
-    let chosen = if cutting {
-        tint(theme.extrusion_cut)
-    } else {
-        tint(theme.extrusion_add)
-    };
-
-    if context.extrusion.is_revolving() {
-        push_revolution_axis(lines, sketch, theme, context);
-    }
-
-    for (index, region) in sketch.regions().iter().enumerate() {
-        let picked = context
-            .extrusion
-            .picks
-            .iter()
-            .any(|pick| region.contains(*pick));
-        let hovered = context.extrusion.hovered == Some(index);
-        if !picked && !hovered {
-            continue;
-        }
-        let color = if picked {
-            chosen
-        } else {
-            tint_at(theme.highlight, theme.highlight.a * 0.5)
-        };
-
-        // Holes stay empty here too: what is shown filled is exactly what will become matter.
-        for [a, b, c] in region.face_triangles() {
-            for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(
-                    sketch.plane.to_world(corner).as_vec3(),
-                    color,
-                ));
-            }
-        }
-    }
-}
-
-/// Draws the axis a revolution turns around, well past the drawing so it reads
-/// as an axis rather than as one more line of the sketch.
-fn push_revolution_axis(
-    lines: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    theme: &Theme,
-    context: &SketchContext<'_>,
-) {
-    let (origin, direction) = match context.extrusion.axis {
-        cao_part::RevolutionAxis::Sketch(axis) => (DVec2::ZERO, axis.direction()),
-        cao_part::RevolutionAxis::Segment(segment) => {
-            if segment.0 >= sketch.segments().len() {
-                return;
-            }
-            let (start, end) = sketch.endpoints(segment);
-            (start, (end - start).normalize_or(DVec2::X))
-        }
-    };
-
-    let reach = sketch
-        .bounds()
-        .map(|(min, max)| (max - min).length())
-        .unwrap_or(1.0)
-        .max(1.0);
-    let color = tint_at(theme.sketch_free, 0.9);
-    lines.push(cao_render::Vertex::line(
-        sketch.plane.to_world(origin - direction * reach).as_vec3(),
-        color,
-        2.0,
-    ));
-    lines.push(cao_render::Vertex::line(
-        sketch.plane.to_world(origin + direction * reach).as_vec3(),
-        color,
-        2.0,
-    ));
 }
 
 /// Tints the areas the drawing encloses, so a closed contour reads as a face

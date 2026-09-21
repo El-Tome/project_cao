@@ -7,7 +7,7 @@
 use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
-use cao_sketch::{DimensionTarget, Element, PointId, Preview, Selection, Sketch};
+use cao_sketch::{DimensionTarget, Selection};
 use glam::{DVec2, DVec3};
 
 use crate::lang::Catalogue;
@@ -17,6 +17,7 @@ mod arc;
 mod circle;
 mod curves;
 mod dimensions;
+mod drawing;
 mod emphasis;
 mod extrusion;
 mod grid;
@@ -26,18 +27,16 @@ mod planes;
 mod preview;
 mod symmetric_line;
 
-use curves::{push_arc_at, push_circle_at, push_line};
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
+use drawing::{Shown, push_sketch, what_would_be_laid};
 use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
-use marks::push_point_markers;
 use planes::push_choosable_planes;
-use preview::{pending_annotation, push_preview};
+use preview::pending_annotation;
 
 use super::cube_labels;
-use super::input::{copying_shows, corner_shows};
 use super::matter;
-use super::{PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin};
+use super::{SketchContext, ViewMode, ViewScale, ViewportState, corner_origin};
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -185,37 +184,6 @@ pub(crate) fn build_frame(
     }
 }
 
-/// Tints the areas the drawing encloses, so a closed contour reads as a face
-/// rather than four separate lines.
-///
-/// A shape drawn inside another is tinted more heavily: without that, an
-/// outline and the pocket in it wash into one another and the eye cannot tell which is which.
-fn push_regions(
-    surfaces: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    theme: &Theme,
-    active: bool,
-) {
-    for region in sketch.regions() {
-        // Deeper areas take more of the tint, which is what tells a shape
-        // drawn inside another from the one it sits in.
-        let shade = theme.region_fill.a * (1.0 + 0.6 * region.depth.min(4) as f32);
-        let color = if active {
-            tint_at(theme.region_fill, shade)
-        } else {
-            tint_at(theme.sketch_inactive, shade * 0.6)
-        };
-        for [a, b, c] in region.triangles {
-            for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(
-                    sketch.plane.to_world(corner).as_vec3(),
-                    color,
-                ));
-            }
-        }
-    }
-}
-
 /// Turns the background the user described into what the renderer draws.
 fn background_shape(background: &Background) -> (BackgroundShape, impl Fn(f32) -> [f32; 4] + '_) {
     let shape = match background {
@@ -229,199 +197,6 @@ fn background_shape(background: &Background) -> (BackgroundShape, impl Fn(f32) -
         },
     };
     (shape, move |t: f32| tint(background.sample(t)))
-}
-
-/// Colours saying how settled the drawing is: a shape that still has freedom
-/// left is drawn one way, one that is fully determined another. It is the
-/// quickest possible answer to "is my part pinned down yet?".
-fn sketch_colors(theme: &Theme, active: bool, constrained: bool) -> ([f32; 4], f32) {
-    match (active, constrained) {
-        (true, false) => (tint(theme.sketch_free), theme.sketch_width),
-        (true, true) => (tint(theme.sketch_settled), theme.sketch_width),
-        (false, _) => (tint(theme.sketch_inactive), theme.sketch_width * 0.6),
-    }
-}
-
-/// Where a point is shown: at the cursor while it is being dragged, at its recorded place otherwise.
-fn shown_position(sketch: &Sketch, point: PointId, context: &SketchContext<'_>) -> DVec2 {
-    // The settled preview already has the point where the cursor put it, and
-    // everything else where it followed; moving it again would put it twice.
-    if context.editor.drag_preview().is_some() {
-        return sketch.point(point);
-    }
-    match (
-        context.editor.dragged_point(),
-        context.editor.drag_position(),
-    ) {
-        (Some(dragged), Some(position)) if dragged == point && !sketch.is_origin(point) => position,
-        _ => sketch.point(point),
-    }
-}
-
-#[allow(clippy::too_many_arguments)]
-/// What the tool in hand would lay if it were clicked right now, read from the
-/// very call the click commits.
-fn what_would_be_laid(
-    sketch: &Sketch,
-    context: &SketchContext<'_>,
-    scale: ViewScale,
-) -> Option<Preview> {
-    let cursor = context.editor.cursor?;
-    let snap = scale.world_size_of(PICK_PIXELS);
-    let units = context.document.scale();
-    corner_shows(sketch, context.editor, cursor, snap, units)
-        .or_else(|| copying_shows(sketch, context.editor, cursor, snap, units))
-}
-
-/// A drawing as this frame paints it: the one on record, or what a tool is
-/// offering in its place, with the pieces that are only offered named.
-struct Shown<'a> {
-    sketch: &'a Sketch,
-    laid: &'a [Element],
-    active: bool,
-}
-
-fn push_sketch(
-    out: &mut Vec<cao_render::Vertex>,
-    surfaces: &mut Vec<cao_render::Vertex>,
-    shown: &Shown<'_>,
-    theme: &Theme,
-    scale: ViewScale,
-    context: &SketchContext<'_>,
-) {
-    let Shown {
-        sketch,
-        laid,
-        active,
-    } = *shown;
-    push_regions(surfaces, sketch, theme, active);
-
-    // Per element, not one verdict for the whole drawing: a contour can be
-    // nailed down while its neighbour is still floating, and that is exactly
-    // what tells the user what is left to do.
-    let settled = sketch.settled_points(context.document.scale());
-    let holds = |point: PointId| settled.get(point.0).copied().unwrap_or(false);
-
-    for (id, segment) in sketch.live_segments() {
-        let held = holds(segment.start) && holds(segment.end);
-        let (color, width) = match sketch.is_held(Element::Segment(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, held),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Segment(id)),
-            laid,
-            color,
-            width,
-        );
-        let start = sketch
-            .plane
-            .to_world(shown_position(sketch, segment.start, context));
-        let end = sketch
-            .plane
-            .to_world(shown_position(sketch, segment.end, context));
-        push_line(out, start, end, color, width, segment.construction, scale);
-    }
-
-    for (id, circle) in sketch.live_circles() {
-        let (color, width) = match sketch.is_held(Element::Circle(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, holds(circle.center)),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Circle(id)),
-            laid,
-            color,
-            width,
-        );
-        push_circle_at(
-            out,
-            sketch,
-            sketch.point(circle.center),
-            circle.radius,
-            color,
-            width,
-            circle.construction,
-            scale,
-        );
-    }
-
-    for (id, arc) in sketch.live_arcs() {
-        let (color, width) = match sketch.is_held(Element::Arc(id)) {
-            true => (tint(theme.fixed), theme.sketch_width),
-            false => sketch_colors(theme, active, holds(arc.center)),
-        };
-        let (color, width) = emphasis::mark(
-            context,
-            theme,
-            Selection::Element(Element::Arc(id)),
-            laid,
-            color,
-            width,
-        );
-        push_arc_at(
-            out,
-            sketch,
-            sketch.arc_draft(id),
-            color,
-            width,
-            arc.construction,
-            scale,
-        );
-    }
-
-    if !active {
-        return;
-    }
-
-    push_point_markers(out, sketch, theme, scale, &settled, laid, context);
-    emphasis::push_picked_axes(out, sketch, theme, context.editor.rule_picks());
-
-    // Every dimension is drawn where it applies, with extension lines, arrows
-    // and arcs, so the drawing says what holds it rather than just carrying a number.
-    for dimension in sketch.dimensions() {
-        let mut style = if dimension.driven {
-            crate::screens::annotations::Style::driven(theme)
-        } else {
-            crate::screens::annotations::Style::driving(theme)
-        };
-        let target = Selection::Dimension(dimension.target);
-        if context.editor.is_selected(target) || context.editor.hovered == Some(target) {
-            style.color = tint_at(theme.highlight, 1.0);
-            style.width *= 2.0;
-        }
-        crate::screens::annotations::push(
-            out,
-            sketch,
-            dimension.target,
-            &style,
-            scale.units_per_pixel,
-            live_offset(context, dimension.target),
-        );
-    }
-
-    push_preview(out, sketch, theme, scale, context);
-
-    if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected()
-        && selected.0 < sketch.segments().len()
-    {
-        let (start, end) = sketch.endpoints(selected);
-        let highlight = tint_at(theme.highlight, 1.0);
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(start).as_vec3(),
-            highlight,
-            4.0,
-        ));
-        out.push(cao_render::Vertex::line(
-            sketch.plane.to_world(end).as_vec3(),
-            highlight,
-            4.0,
-        ));
-    }
 }
 
 /// How far an annotation has been dragged so far, before anything is recorded.

@@ -6,7 +6,8 @@ use cao_prefs::theme::Theme;
 use cao_sketch::{Element, PointId, Selection, Sketch};
 use glam::DVec2;
 
-use super::{emphasis, shown_position, sketch_colors, tint, tint_at};
+use super::drawing::{shown_position, sketch_colors};
+use super::{emphasis, tint, tint_at};
 use crate::screens::viewport::{SketchContext, ViewScale};
 
 /// Points are drawn as small squares kept at a constant size on screen, so they

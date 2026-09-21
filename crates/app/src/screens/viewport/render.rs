@@ -7,8 +7,8 @@
 use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::{
-    AxisStyle, BackgroundShape, GridPlane, GridStyle, SceneFrame, ViewportRect, cube, push_axes,
-    push_grid, push_plane_axes, push_plane_outline, push_plane_quad, srgb,
+    AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, push_plane_outline,
+    push_plane_quad, srgb,
 };
 use cao_sketch::{
     ChainAnchor, DimensionTarget, Element, PointId, Preview, Selection, Sketch, Snap, WorkPlane,
@@ -24,6 +24,7 @@ mod circle;
 mod curves;
 mod dimensions;
 mod emphasis;
+mod grid;
 mod live_fields;
 mod symmetric_line;
 
@@ -101,35 +102,13 @@ pub(crate) fn build_frame(
         _ => None,
     };
     if let Some(plane) = landed {
-        // It also has to reach past the corners of the screen, or its outer
-        // fade shows up as that same disc.
-        let half_extent = (scale.units_per_pixel * scale.diagonal_px as f64 * 1.5) as f32;
-        push_grid(
+        grid::push(
             &mut world_lines,
-            GridPlane {
-                origin: plane.origin.as_vec3(),
-                u: plane.u.as_vec3(),
-                v: plane.v.as_vec3(),
-            },
+            plane,
             camera.target(),
-            scale.step as f32,
-            half_extent,
-            &GridStyle {
-                minor: tint(theme.grid_minor),
-                major: tint(theme.grid_major),
-                minor_width: theme.grid_minor_width,
-                major_width: theme.grid_major_width,
-                major_every: theme.grid_major_every.max(1),
-                ..GridStyle::default()
-            },
-        );
-        push_plane_axes(
-            &mut world_lines,
-            plane.origin.as_vec3(),
-            plane.u.as_vec3(),
-            plane.v.as_vec3(),
-            camera.distance() * 50.0,
-            &axis_style(theme),
+            camera.distance(),
+            scale,
+            theme,
         );
     }
 

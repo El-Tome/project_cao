@@ -6,15 +6,11 @@
 
 use cao_prefs::theme::{Background, Rgba, Theme};
 use cao_render::camera::CubeZone;
-use cao_render::{
-    AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, push_plane_outline,
-    push_plane_quad, srgb,
-};
-use cao_sketch::{DimensionTarget, Element, PointId, Preview, Selection, Sketch, WorkPlane};
+use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
+use cao_sketch::{DimensionTarget, Element, PointId, Preview, Selection, Sketch};
 use glam::{DVec2, DVec3};
 
 use crate::lang::Catalogue;
-use crate::screens::sketch::PlaneChoice;
 use crate::wording::constraints;
 
 mod arc;
@@ -25,6 +21,7 @@ mod emphasis;
 mod grid;
 mod live_fields;
 mod marks;
+mod planes;
 mod preview;
 mod symmetric_line;
 
@@ -32,14 +29,13 @@ use curves::{push_arc_at, push_circle_at, push_line};
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 pub(crate) use live_fields::paint_live_input;
 use marks::push_point_markers;
+use planes::push_choosable_planes;
 use preview::{pending_annotation, push_preview};
 
 use super::cube_labels;
 use super::input::{copying_shows, corner_shows};
 use super::matter;
-use super::{
-    PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin, plane_half_size,
-};
+use super::{PICK_PIXELS, SketchContext, ViewMode, ViewScale, ViewportState, corner_origin};
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {
@@ -187,61 +183,6 @@ pub(crate) fn build_frame(
     }
 }
 
-fn push_choosable_planes(
-    surfaces: &mut Vec<cao_render::Vertex>,
-    lines: &mut Vec<cao_render::Vertex>,
-    state: &ViewportState,
-    context: &SketchContext<'_>,
-) {
-    let theme = &state.theme;
-    let half_size = plane_half_size(state);
-    // Once there is a part, the three planes step back: they are still there to
-    // be picked, but they no longer hide the faces one usually wants.
-    let has_body = !context.document.body().is_empty();
-    let faded = if has_body { 0.35 } else { 1.0 };
-
-    match context.editor.hovered_plane {
-        Some(PlaneChoice::Face { face, .. }) => {
-            push_hovered_face(surfaces, tint(theme.highlight), context, face);
-        }
-        Some(PlaneChoice::Curved(face)) => {
-            push_hovered_face(surfaces, tint(theme.refused), context, face);
-        }
-        _ => {}
-    }
-
-    for (index, plane) in WorkPlane::ORIGIN_PLANES.iter().enumerate() {
-        let hovered = context.editor.hovered_plane == Some(PlaneChoice::Origin(index));
-        let fill = if hovered {
-            tint(theme.highlight)
-        } else {
-            tint_at(theme.sketch_inactive, 0.12 * faded)
-        };
-        let outline = if hovered {
-            tint_at(theme.highlight, 1.0)
-        } else {
-            tint_at(theme.sketch_inactive, 0.7 * faded)
-        };
-        push_plane_quad(
-            surfaces,
-            plane.origin.as_vec3(),
-            plane.u.as_vec3(),
-            plane.v.as_vec3(),
-            half_size as f32,
-            fill,
-        );
-        push_plane_outline(
-            lines,
-            plane.origin.as_vec3(),
-            plane.u.as_vec3(),
-            plane.v.as_vec3(),
-            half_size as f32,
-            outline,
-            if hovered { 2.5 } else { 1.5 },
-        );
-    }
-}
-
 /// Marks the areas picked for an extrusion, and the one under the cursor.
 ///
 /// A chosen area is filled with the colour of the matter it is about to become,
@@ -365,28 +306,6 @@ fn push_regions(
                     sketch.plane.to_world(corner).as_vec3(),
                     color,
                 ));
-            }
-        }
-    }
-}
-
-/// Lights up the face of the part under the cursor, so it is clear what a click would sketch on.
-/// Lights every piece of one face at once.
-///
-/// A face is stored as many flat pieces, and lighting only the piece under the
-/// cursor would read as picking a fragment of it. Only the fill is drawn —
-/// outlining each piece would show the seams between them, which are not
-/// something the user drew.
-fn push_hovered_face(
-    surfaces: &mut Vec<cao_render::Vertex>,
-    fill: [f32; 4],
-    context: &SketchContext<'_>,
-    face: usize,
-) {
-    for polygon in context.document.body().pieces_of(face) {
-        for [a, b, c] in polygon.triangles() {
-            for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
             }
         }
     }

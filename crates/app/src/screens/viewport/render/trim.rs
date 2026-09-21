@@ -9,7 +9,7 @@
 use cao_prefs::theme::Theme;
 use cao_sketch::{Going, Sketch, Stretch};
 
-use super::curves::{push_arc_at, push_line};
+use super::curves::{push_arc_at, push_circle_at, push_line};
 use super::tint;
 use crate::screens::viewport::input::trim_shows;
 use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
@@ -55,6 +55,16 @@ pub(crate) fn push_going(
         Stretch::Curved(drawn) => {
             push_arc_at(out, sketch, drawn, color, width, going.construction, scale)
         }
+        Stretch::Round { centre, reach } => push_circle_at(
+            out,
+            sketch,
+            centre,
+            reach,
+            color,
+            width,
+            going.construction,
+            scale,
+        ),
     }
 }
 

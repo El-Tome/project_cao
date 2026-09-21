@@ -53,6 +53,7 @@ in one of the two domains, never there.
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
 | What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of a circle, which leaves one piece and that piece is an arc | `sketch/src/trimming/circle.rs` | `Sketch::circle_stretch_at`, `Sketch::trim_circle` → `CircleTrimmed` |
+| What a cut would take out of the drawing, as against what a tool would lay | `sketch/src/trimming/going.rs` | `Sketch::trim_takes`, `arc_trim_takes`, `circle_trim_takes` → `Going`, `Stretch` |
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
@@ -201,7 +202,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the arc tool, and what it shows in between | `app/src/screens/viewport/input/arcs.rs` | `draw_arc`, `arc_preview` |
 | Canvas: the arc tool's fields, its preview and the leg its angle opens from | `app/src/screens/viewport/render/arc.rs` | `live_fields`, `push_preview` |
 | Canvas: one click of the circle tool, and the circle the picks so far make | `app/src/screens/viewport/input/circles.rs` | `draw_circle`, `circle_from` |
-| Canvas: one click of the trim tool | `app/src/screens/viewport/input/trim.rs` | `trim` |
+| Canvas: one click of the trim tool, and what it would take | `app/src/screens/viewport/input/trim.rs` | `trim`, `previewed` |
+| Canvas: drawing the stretch a cut would take | `app/src/screens/viewport/render/trim.rs` | `what_would_go`, `push_going` |
 | Canvas: one click of the division tool | `app/src/screens/viewport/input/split.rs` | `split` |
 | Canvas: the two clicks of the chamfer and the fillet, and the values typed between them | `app/src/screens/viewport/input/corner.rs` | `corner`, `cut`, `corner_held` |
 | Canvas: the cut or the curve a corner would take, shown as the value is typed | `app/src/screens/viewport/input/corner/preview.rs` | `previewed` |
@@ -352,7 +354,9 @@ lives.
   writes them. `render.rs`, which now does nothing but gather the frame, left
   this list the same way: three tests read a built `SceneFrame` back, and one
   of them is the rule that no grid is drawn while the view is still swinging
-  onto a plane.
+  onto a plane. `sketch.rs` left it for the same reason: `Tool` now answers
+  whether pointing it at something lights the whole of it, and that answer is
+  asserted.
   - `crates/app/src/screens/viewport/view.rs`;
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;
@@ -364,7 +368,6 @@ lives.
   - `crates/app/src/screens/viewport/input/resizing.rs`;
   - `crates/app/src/screens/viewport/input/symmetric_line.rs`;
   - `crates/app/src/screens/settings/`;
-  - `crates/app/src/screens/sketch.rs`;
   - `crates/app/src/screens/extrusion_row.rs`;
   - `crates/app/src/screens/history_tree.rs`;
   - `crates/app/src/screens/annotations.rs`;

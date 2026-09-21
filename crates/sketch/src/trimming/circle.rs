@@ -169,6 +169,19 @@ impl Sketch {
         from != to && on_the_rim(from) && on_the_rim(to)
     }
 
+    /// What a rule the circle carried becomes on the arc a cut would leave, for
+    /// a reckoning made before the cut: `Kept` stays this module's business.
+    pub(super) fn circle_hands_over(
+        &self,
+        rule: Constraint,
+        cut: CircleId,
+        between: Option<(PointId, PointId)>,
+        arc: ArcId,
+    ) -> Option<Constraint> {
+        let (from, to) = between?;
+        self.moved_onto(rule, cut, arc, &self.stretch_kept(cut, from, to))
+    }
+
     /// What a rule laid on a circle becomes on the arc a cut left of it, or
     /// nothing when the arc no longer carries what the rule spoke of.
     ///
@@ -305,7 +318,11 @@ const ON_THE_ROUND: f64 = 1e-12;
 ///
 /// An arc is dimensioned by its reach everywhere, so what was read right across
 /// the round comes back as half of it: `Ø 40` reads `R 20`.
-fn read_again(value: DimensionTarget, cut: CircleId, arc: ArcId) -> Option<DimensionTarget> {
+pub(super) fn read_again(
+    value: DimensionTarget,
+    cut: CircleId,
+    arc: ArcId,
+) -> Option<DimensionTarget> {
     match value {
         DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) if circle == cut => {
             Some(DimensionTarget::ArcRadius(arc))

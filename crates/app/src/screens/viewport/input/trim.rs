@@ -90,7 +90,12 @@ pub(crate) fn previewed(
             segment, from, to, ..
         } => sketch.trim_takes(segment, from, to),
         Operation::TrimArc { arc, from, to, .. } => sketch.arc_trim_takes(arc, from, to),
-        _ => None,
+        Operation::TrimCircle {
+            circle, between, ..
+        } => sketch.circle_trim_takes(circle, between),
+        // `cut_under` lays no other kind of step, and a wildcard here is what
+        // let the round slip through when trimming one landed.
+        other => unreachable!("the trim tool asked for {other:?}"),
     }
 }
 

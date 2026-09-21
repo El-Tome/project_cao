@@ -1,5 +1,7 @@
 use cao_part::Operation;
-use cao_sketch::{Chamfer, ChamferMode, Corner, LockedInput, SegmentId, Sketch, ToolState};
+use cao_sketch::{
+    Chamfer, ChamferMode, Corner, LockedInput, PointId, SegmentId, Sketch, ToolState,
+};
 use glam::DVec2;
 
 use crate::screens::sketch::Tool;
@@ -33,6 +35,16 @@ pub(crate) fn corner(
             wait_for_values(context, taken, None);
         }
         CornerClick::Side(side) => {
+            // A click on the corner itself finds whichever trait the drawing
+            // holds first, and the same one every time. With one already
+            // named, the other is the only choice left.
+            let side = match half.filter(|first| *first == side) {
+                Some(named) => sketch
+                    .nearest_point(cursor, snap)
+                    .and_then(|point| sketch.other_side_at(point, named))
+                    .unwrap_or(side),
+                None => side,
+            };
             let Some(first) = half.filter(|first| *first != side) else {
                 wait_for_values(context, taken, Some(side));
                 context.editor.message = Some(context.lang.t("sketch.click_the_other_side"));
@@ -67,7 +79,29 @@ pub(crate) fn corner(
         }
     }
 
-    cut(context, index)
+    // A click never lays. The values typed are meant for every corner the
+    // gesture names, and a click that laid them would close the gesture the
+    // moment a value was in the field — leaving no way to add the next corner.
+    let (taken, half) = held(&context.editor.tool_state);
+    if half.is_none() {
+        context.editor.message = Some(context.lang.t_with(
+            "sketch.corners_taken",
+            &[("count", &taken.len().to_string())],
+        ));
+    }
+    true
+}
+
+/// The points of the corners the tool is holding, so the drawing can show what
+/// a click has taken. A gesture that gathers several needs to say which.
+pub(crate) fn corners_taken(sketch: &Sketch, state: &ToolState) -> Vec<PointId> {
+    let ToolState::Corner { taken, .. } = state else {
+        return Vec::new();
+    };
+    taken
+        .iter()
+        .filter_map(|corner| sketch.corner_point(*corner))
+        .collect()
 }
 
 /// Takes a corner, or drops it when it was already taken.

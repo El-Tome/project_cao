@@ -288,6 +288,7 @@
   "sketch.click_one_side_then_the_other": "Cliquez un trait du coin, puis l'autre",
   "sketch.click_the_other_side": "Cliquez le second trait du coin",
   "sketch.chamfer_needs_a_corner": "Ces deux traits ne se rejoignent pas",
+  "sketch.corners_taken": "{count} coin(s) pris · tapez la valeur, puis Entrée",
   "sketch.corner_has_too_many_traits": "Plus de deux traits se rejoignent ici : cliquez les deux traits du coin",
   "sketch.chamfer_asks_a_distance": "Tapez la distance à enlever, puis Entrée",
   "sketch.chamfer_asks_a_distance_and_an_angle": "Tapez la distance et l'angle, puis Entrée",

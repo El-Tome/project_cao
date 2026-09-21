@@ -69,3 +69,36 @@ fn a_trait_erased_no_longer_makes_a_corner_of_the_point_it_left() {
 
     assert_eq!(sketch.corner_at(pivot), None);
 }
+
+#[test]
+fn a_corner_clicked_again_names_the_trait_that_was_not_named_yet() {
+    let (sketch, along, up, pivot) = a_right_angle();
+
+    assert_eq!(sketch.other_side_at(pivot, along), Some(up));
+    assert_eq!(
+        sketch.other_side_at(pivot, up),
+        Some(along),
+        "with one side already named, the other is the only choice left"
+    );
+}
+
+#[test]
+fn a_point_that_makes_no_corner_names_no_other_trait() {
+    let (mut sketch, along, _up, pivot) = a_right_angle();
+    let away = sketch.add_point(CORNER + DVec2::new(-10.0, -10.0));
+    sketch.add_segment(pivot, away);
+
+    assert_eq!(
+        sketch.other_side_at(pivot, along),
+        None,
+        "three traits leave two candidates, which is a guess"
+    );
+}
+
+#[test]
+fn a_corner_named_either_way_stands_at_the_same_point() {
+    let (sketch, along, up, pivot) = a_right_angle();
+
+    assert_eq!(sketch.corner_point(Corner::At(pivot)), Some(pivot));
+    assert_eq!(sketch.corner_point(Corner::Between(along, up)), Some(pivot));
+}

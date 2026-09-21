@@ -54,6 +54,36 @@ impl Sketch {
         }
     }
 
+    /// The point a corner stands at, whichever way it was named. What a tool
+    /// shows as taken, and what the other trait of a half-named corner is
+    /// looked up from.
+    pub fn corner_point(&self, corner: Corner) -> Option<PointId> {
+        match corner {
+            Corner::At(point) => Some(point),
+            Corner::Between(first, second) => {
+                let (pivot, _, _) = self.shared_corner(first, second)?;
+                Some(pivot)
+            }
+        }
+    }
+
+    /// The other trait of the corner a side was named at, when the click that
+    /// should have named it landed on the corner itself.
+    ///
+    /// Both traits pass through that point, so the nearest is whichever the
+    /// drawing holds first — the same one every time, and the corner never
+    /// completes. The side already named is the one thing that settles it:
+    /// with exactly two traits meeting there, the other is the only choice
+    /// left, which is not a guess.
+    pub fn other_side_at(&self, point: PointId, named: SegmentId) -> Option<SegmentId> {
+        let (first, second) = self.corner_at(point)?;
+        match (first == named, second == named) {
+            (true, false) => Some(second),
+            (false, true) => Some(first),
+            _ => None,
+        }
+    }
+
     /// How wide a corner stands open, the shorter way round.
     pub(crate) fn opening_at(
         &self,

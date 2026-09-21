@@ -151,6 +151,45 @@ impl PartState {
         })
     }
 
+    /// The two traits a corner stands between, as the drawing has them now and
+    /// in the order the gesture named them.
+    ///
+    /// A corner named by its two traits keeps the first one, because the first
+    /// distance is measured along it — and that trait is followed through
+    /// every cut since, rather than trusted as a number. Two corners of one
+    /// shape share a trait: cutting the first replaces it, and the second would
+    /// otherwise measure from a curve that is gone.
+    fn sides_now(&self, sketch: usize, corner: Corner) -> Option<(SegmentId, SegmentId)> {
+        let drawing = self.sketches.get(sketch)?;
+        let Corner::Between(first, second) = corner else {
+            return drawing.sides_of(corner);
+        };
+        for a in self.now(sketch, first) {
+            for b in self.now(sketch, second) {
+                if drawing.shared_point(a, b).is_some() {
+                    return Some((a, b));
+                }
+            }
+        }
+        None
+    }
+
+    /// What a trait has become, as the drawing holds it now. Itself when no cut
+    /// has touched it.
+    fn now(&self, sketch: usize, side: SegmentId) -> Vec<SegmentId> {
+        let Some(descent) = self.descent.get(&sketch) else {
+            return vec![side];
+        };
+        descent
+            .descendants(CurveId::Segment(side))
+            .into_iter()
+            .filter_map(|curve| match curve {
+                CurveId::Segment(piece) => Some(piece),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Cuts every corner the gesture named, with the same values, as one
     /// operation.
     ///
@@ -180,7 +219,7 @@ impl PartState {
             refused: 1,
         };
         for corner in corners {
-            let Some((first, second)) = self.sketches.get(sketch)?.sides_of(*corner) else {
+            let Some((first, second)) = self.sides_now(sketch, *corner) else {
                 total = total.and(refused);
                 continue;
             };

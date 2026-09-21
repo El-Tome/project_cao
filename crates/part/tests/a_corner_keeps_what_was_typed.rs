@@ -13,6 +13,9 @@
 //! - the value typed applies to every corner taken, and undo removes them in
 //!   one step — `every_corner_of_a_plate_is_rounded_by_the_one_gesture`,
 //!   `the_whole_gesture_is_taken_back_by_one_undo`
+//! - a mode that measures from the side named first still gathers several
+//!   corners, though two of them share a trait —
+//!   `two_corners_sharing_a_trait_are_both_cut_by_the_one_gesture`
 //! - a corner too tight for the value is refused, and the others are laid
 //!   anyway — `a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway`
 //! - a cut's values are typed lengths like any other, so the first of them
@@ -624,4 +627,39 @@ fn a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway() {
         }),
         "the two sharp ends are counted and said, not silently dropped"
     );
+}
+
+#[test]
+fn two_corners_sharing_a_trait_are_both_cut_by_the_one_gesture() {
+    let mut state = replay(&a_plate());
+
+    // The two ends of one side, each naming that side first. Cutting the
+    // first replaces it, so the second names a trait that is already gone.
+    let said = state.apply(&Operation::Chamfer {
+        sketch: 0,
+        corners: vec![
+            Corner::Between(SegmentId(1), SegmentId(0)),
+            Corner::Between(SegmentId(1), SegmentId(2)),
+        ],
+        mode: Chamfer::Sided {
+            first: 2.0,
+            second: 6.0,
+        },
+    });
+
+    assert_eq!(
+        said,
+        Some(Outcome::Cut {
+            rules: 0,
+            values: 0,
+            refused: 0
+        }),
+        "neither corner was turned away: what a trait became is followed \
+         through the cut that replaced it"
+    );
+    let cuts = state.sketches[0]
+        .live_segments()
+        .filter(|(_, segment)| !segment.construction)
+        .count();
+    assert_eq!(cuts, 6, "four sides, each end of one of them cut back");
 }

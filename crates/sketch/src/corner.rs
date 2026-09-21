@@ -31,9 +31,15 @@ pub enum Corner {
     /// The point two traits meet at. Which two is read from the drawing at the
     /// moment the cut is made.
     At(PointId),
-    /// The two traits themselves, for a point too crowded to name a corner on
-    /// its own, and for the chamfer modes that measure from the side named
-    /// first.
+    /// The two traits themselves, the one named first before the other — for a
+    /// point too crowded to name a corner on its own, and for the chamfer modes
+    /// that measure from the side named first.
+    ///
+    /// Two corners of one shape share a trait, so cutting the first leaves this
+    /// one naming a curve that is gone. What became of each trait is followed
+    /// through the cuts rather than trusted as a number, which is the part
+    /// layer's business — [`Sketch::sides_of`] answers only for a drawing
+    /// nothing has cut since.
     Between(SegmentId, SegmentId),
 }
 
@@ -46,12 +52,15 @@ impl Sketch {
         match corner {
             Corner::At(point) => self.corner_at(point),
             Corner::Between(first, second) => {
-                let live = |side: SegmentId| {
-                    side.0 < self.segments().len() && !self.is_erased_segment(side)
-                };
-                (live(first) && live(second)).then_some((first, second))
+                self.shared_point(first, second).map(|_| (first, second))
             }
         }
+    }
+
+    /// The point two traits meet at, for naming the corner they make.
+    pub fn shared_point(&self, first: SegmentId, second: SegmentId) -> Option<PointId> {
+        let (pivot, _, _) = self.shared_corner(first, second)?;
+        Some(pivot)
     }
 
     /// The point a corner stands at, whichever way it was named. What a tool
@@ -60,10 +69,7 @@ impl Sketch {
     pub fn corner_point(&self, corner: Corner) -> Option<PointId> {
         match corner {
             Corner::At(point) => Some(point),
-            Corner::Between(first, second) => {
-                let (pivot, _, _) = self.shared_corner(first, second)?;
-                Some(pivot)
-            }
+            Corner::Between(first, second) => self.shared_point(first, second),
         }
     }
 

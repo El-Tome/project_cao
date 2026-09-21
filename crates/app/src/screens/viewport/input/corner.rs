@@ -26,10 +26,9 @@ pub(crate) fn corner(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let several = takes_a_point(context);
     let (mut taken, half) = held(&context.editor.tool_state);
 
-    match clicked(sketch, cursor, snap, several) {
+    match clicked(sketch, cursor, snap, takes_a_point(context)) {
         CornerClick::Corner(corner) => {
             toggle(&mut taken, corner);
             wait_for_values(context, taken, None);
@@ -53,19 +52,17 @@ pub(crate) fn corner(
             // Two traits that do not meet is a different failure from a
             // corner too tight, and the count of corners turned away would
             // describe it wrongly.
-            if sketch.corner_points(first, side).is_none() {
+            if sketch.shared_point(first, side).is_none() {
                 keep_typing(context);
                 context.editor.message = Some(context.lang.t("sketch.chamfer_needs_a_corner"));
                 return true;
             }
             let corner = Corner::Between(first, side);
-            // A mode that measures from the side named first takes one corner
-            // at a time: the second corner would have no say in which side of
-            // the first was first.
-            match several {
-                true => taken.push(corner),
-                false => taken = vec![corner],
-            }
+            // Named this way a corner carries its own first side, so a mode
+            // that measures from one gathers corners like any other. What it
+            // cannot do is take a corner by its point, which would leave it no
+            // first side at all.
+            toggle(&mut taken, corner);
             wait_for_values(context, taken, None);
         }
         CornerClick::Crowded => {
@@ -291,9 +288,10 @@ pub(crate) fn picks_with(tool: Tool, mode: ChamferMode) -> &'static str {
 /// Whether the tool names a corner by one click on its point.
 ///
 /// The chamfer in distance and angle, or in two distances, measures from the
-/// side named first — so it always takes a side and then the other, one corner
-/// at a time. A fillet has no such side, and neither has the chamfer in equal
-/// distances.
+/// side named first, and a corner taken by its point has none to give. It
+/// still gathers as many corners as it is shown — each one names its own first
+/// side, which is the whole of what those modes need. A fillet has no such
+/// side, and neither has the chamfer in equal distances.
 fn takes_a_point(context: &SketchContext<'_>) -> bool {
     context.editor.tool == Tool::Fillet || context.editor.chamfer_mode == ChamferMode::Equal
 }

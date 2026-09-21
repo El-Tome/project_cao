@@ -156,6 +156,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::OnAxis { .. } => "on an axis",
         Constraint::Midpoint { .. } => "midpoint",
         Constraint::AxisCollinear { .. } => "on an axis, trait",
+        Constraint::AxisParallel { .. } => "along an axis, trait",
         Constraint::Fixed { .. } => "fixed",
     }
 }

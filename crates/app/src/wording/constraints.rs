@@ -6,7 +6,9 @@ use crate::lang::Catalogue;
 pub fn label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
         Constraint::Perpendicular { .. } => "constraints.label.perpendicular",
-        Constraint::Parallel { .. } => "constraints.label.parallel",
+        Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => {
+            "constraints.label.parallel"
+        }
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. }
@@ -35,7 +37,9 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
 pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
         Constraint::Perpendicular { .. } => "constraints.erased.perpendicular",
-        Constraint::Parallel { .. } => "constraints.erased.parallel",
+        Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => {
+            "constraints.erased.parallel"
+        }
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. }
@@ -65,7 +69,7 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
 pub fn mark(rule: Constraint) -> &'static str {
     match rule {
         Constraint::Perpendicular { .. } => "|_",
-        Constraint::Parallel { .. } => "//",
+        Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => "//",
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
         | Constraint::EqualRadiusArc { .. }

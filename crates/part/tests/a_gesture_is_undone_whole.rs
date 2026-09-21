@@ -7,6 +7,9 @@
 //!   `a_gesture_lays_what_its_operations_lay`
 //! - compacting the history still works —
 //!   `compacting_a_gesture_keeps_everything_it_laid`
+//! - a gesture is folded at its close, since its later operations are written
+//!   against what its earlier ones laid —
+//!   `everything_recorded_after_a_mark_becomes_one_gesture`
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{History, PartDocument, PartState};
@@ -108,5 +111,41 @@ fn compacting_a_gesture_keeps_everything_it_laid() {
         sketch.dimensions().len(),
         1,
         "compaction lost the angle the gesture wrote down",
+    );
+}
+
+#[test]
+fn everything_recorded_after_a_mark_becomes_one_gesture() {
+    let mut document = PartDocument::new("part", chrono::Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+
+    let opened = document.history.mark();
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(START),
+        end: PointRef::New(END),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 11.18,
+        placement: None,
+    });
+    document.history.fold_into_one_gesture(opened);
+
+    assert!(document.undo(), "there was a gesture to take back");
+    assert_eq!(
+        document.sketches()[0].live_segments().count(),
+        0,
+        "the trait was laid before the value, so one undo left it standing",
+    );
+    assert_eq!(
+        document.history.operations().len(),
+        2,
+        "the drawing was opened and one gesture was made, and the list says otherwise",
     );
 }

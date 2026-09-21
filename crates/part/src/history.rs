@@ -248,6 +248,34 @@ impl History {
         self.applied = self.operations.len();
     }
 
+    /// Where the list stands, to fold what comes next into one gesture.
+    pub fn mark(&self) -> usize {
+        self.operations.len()
+    }
+
+    /// Folds everything recorded since `mark` into a single gesture, so that
+    /// undo takes the whole of it back rather than the last thing it laid.
+    ///
+    /// Done at the close rather than built up front because the operations of
+    /// a gesture are written against the drawing the ones before them left:
+    /// the trait has to exist before the value on it can say where it sits.
+    pub fn fold_into_one_gesture(&mut self, mark: usize) {
+        if self.operations.len() <= mark + 1 {
+            return;
+        }
+        let done: Vec<Operation> = self.operations.drain(mark..).collect();
+        let numbers: Vec<u32> = self.numbers.drain(mark..).collect();
+        self.operations.push(Operation::Gesture(done));
+        self.numbers.push(numbers[0]);
+
+        let left: BTreeSet<u32> = self.numbers.iter().copied().collect();
+        self.steps.retain_mut(|step| {
+            step.keep_only(&left);
+            !step.is_empty()
+        });
+        self.applied = self.operations.len();
+    }
+
     /// Which step a sketch is: the rank-th step that opened a sketch.
     fn step_of_sketch(&self, sketch: usize) -> Option<usize> {
         step_of(

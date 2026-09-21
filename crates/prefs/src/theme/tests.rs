@@ -1,4 +1,11 @@
 //! What prefs · theme.rs is held to.
+//!
+//! Closes #286.
+//! - the alert colour is a colour of the theme, and a theme saved before it
+//!   existed still reads —
+//!   `a_theme_saved_before_the_alert_colour_existed_still_reads`
+//! - it is edited in the settings like the others — no test: the row is one
+//!   call in `settings/appearance.rs`, which draws and decides nothing
 
 use super::*;
 

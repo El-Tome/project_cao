@@ -40,6 +40,7 @@ mod split;
 use split::split;
 
 mod trim;
+pub(crate) use trim::previewed as trim_shows;
 use trim::trim;
 
 mod measure;

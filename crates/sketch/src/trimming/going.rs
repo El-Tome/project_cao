@@ -23,6 +23,9 @@ const ANYWHERE_ALONG: Option<f64> = Some(0.5);
 #[derive(Clone, Debug, PartialEq)]
 pub struct Going {
     pub stretch: Stretch,
+    /// Whether what goes is construction geometry, and is drawn dashed like
+    /// the trait it is a piece of.
+    pub construction: bool,
     /// The rules no piece inherits, which go with the stretch.
     pub rules: Vec<Constraint>,
     /// The values that measure neither piece, which go with it too.
@@ -49,6 +52,7 @@ impl Sketch {
                 from: self.points().get(from.0).copied()?,
                 to: self.points().get(to.0).copied()?,
             },
+            construction: self.segments().get(segment.0)?.construction,
             rules: self.rules_gone(&trial, |rule| {
                 pieces_of(&trial).any(|piece| {
                     still_holds(rule, segment, &piece, ANYWHERE_ALONG)
@@ -80,6 +84,7 @@ impl Sketch {
                 start: self.points().get(opens.0).copied()?,
                 end: self.points().get(closes.0).copied()?,
             }),
+            construction: self.arcs().get(arc.0)?.construction,
             rules: self.rules_gone(&trial, |rule| {
                 arcs_of(&trial).any(|piece| {
                     arc_carrying::still_holds(rule, arc, &piece, ANYWHERE_ALONG)

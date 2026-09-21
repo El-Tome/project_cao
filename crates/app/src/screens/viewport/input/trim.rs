@@ -1,9 +1,10 @@
 //! What one click of the trim tool does.
 
 use cao_part::Operation;
-use cao_sketch::Sketch;
+use cao_sketch::{Going, Sketch};
 use glam::DVec2;
 
+use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
@@ -66,6 +67,31 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
         circle,
         between: sketch.circle_stretch_at(circle, cursor),
     })
+}
+
+/// What a click right now would take out of the drawing, read off the very
+/// call that click commits.
+///
+/// Nothing when the trim is not the tool in hand, and nothing where a click
+/// would do nothing: a preview of what would be refused is a preview that
+/// lies.
+pub(crate) fn previewed(
+    sketch: &Sketch,
+    editor: &SketchEditor,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+) -> Option<Going> {
+    if editor.tool != Tool::Trim {
+        return None;
+    }
+    match cut_under(sketch, index, cursor, snap)? {
+        Operation::Trim {
+            segment, from, to, ..
+        } => sketch.trim_takes(segment, from, to),
+        Operation::TrimArc { arc, from, to, .. } => sketch.arc_trim_takes(arc, from, to),
+        _ => None,
+    }
 }
 
 #[cfg(test)]

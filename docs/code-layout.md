@@ -222,9 +222,21 @@ Three consequences:
 
 ## The budget
 
-**400 lines.** Past that, a file is holding more than one responsibility.
+**400 lines of production code.** Past that, a file is holding more than one
+responsibility.
 
 The files already over it are listed by name in the architecture test with the
 length they had the day the rule landed, and none of them may grow. Once one
 falls back under 400, its entry has to go — the test says so, because a list of
-exceptions nobody prunes stops being a debt and becomes a second standard.
+exceptions nobody prunes stops being a debt and becomes a second standard. That
+list may not name a test file, so the exemption below cannot be undone from the
+other end.
+
+**A test file is not weighed at all** — a `tests.rs` beside the module it
+checks, the files its tests are carved into by subject, and the integration
+tests under `crates/<crate>/tests/`. The figure says a file holds one
+responsibility, and a test file holds exactly one: checking the thing beside it.
+Applied there it would stop measuring a responsibility and start measuring
+coverage, and a test would be split to satisfy a sentence that is false about
+it. What keeps those files organised is review, not the gate — which is a bet on
+people, taken knowingly.

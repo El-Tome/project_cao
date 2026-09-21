@@ -70,6 +70,9 @@ impl PartState {
     /// replay and a live edit can never disagree.
     pub fn apply(&mut self, operation: &Operation) -> Option<Outcome> {
         match operation {
+            // The last word wins: a gesture whose parts each have something to
+            // say says the one the user acted on last.
+            Operation::Gesture(done) => done.iter().filter_map(|one| self.apply(one)).last(),
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);
                 self.sketches.push(Sketch::new(plane));

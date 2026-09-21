@@ -17,6 +17,12 @@ use crate::wording::{constraints, dimension, plane};
 /// Short, because the history tree shows one per line.
 pub fn label(lang: &Catalogue, operation: &Operation) -> String {
     match operation {
+        // Named by what it laid first: a gesture's headline is the thing the
+        // user meant to draw, and the rest is what that thing leans on.
+        Operation::Gesture(done) => done
+            .first()
+            .map(|first| label(lang, first))
+            .unwrap_or_default(),
         Operation::CreateSketch { plane, .. } => lang.t_with(
             "history.sketch",
             &[("plane", &plane::label(lang, plane.kind()))],

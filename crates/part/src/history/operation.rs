@@ -30,6 +30,7 @@ impl Operation {
     pub(crate) fn edits(&self) -> Option<usize> {
         match self {
             Self::CreateSketch { .. } | Self::Extrude { .. } | Self::Revolve { .. } => None,
+            Self::Gesture(done) => done.iter().find_map(Self::edits),
             Self::AddPoint { sketch, .. }
             | Self::AddSegment { sketch, .. }
             | Self::AddSymmetricSegment { sketch, .. }
@@ -65,6 +66,9 @@ impl Operation {
 /// the whole part, which is what makes rolling back to any point possible.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Operation {
+    /// Several operations the user did as one gesture: they are replayed in
+    /// order, and undo takes the whole of it back rather than a piece.
+    Gesture(Vec<Operation>),
     CreateSketch {
         /// Where the drawing was laid. On a face it is worked out again at
         /// every replay from `on`, and this is what is left to fall back on

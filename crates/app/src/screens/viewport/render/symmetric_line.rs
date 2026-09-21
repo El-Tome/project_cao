@@ -31,7 +31,7 @@ pub(crate) fn push_preview(
         context.editor.construction,
         scale,
     );
-    super::push_point_marker(out, sketch, middle, scale.world_size_of(3.0), color, 1.5);
+    super::marks::push_point_marker(out, sketch, middle, scale.world_size_of(3.0), color, 1.5);
 }
 
 pub(crate) fn live_fields(

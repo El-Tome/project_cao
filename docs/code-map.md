@@ -298,6 +298,23 @@ second. `crates/app/tests/drawing.rs` is what it looks like. A file leaves the
 list below by earning a test of its own, not by being walked through from above
 — but nothing here is out of reach any more.
 
+**That last sentence was put as a question, and answered in #387.** Counting a
+driver run as a net was weighed and refused: no text proves which files a run
+touched, so the link would be asserted by hand, and a ratchet asserted by hand
+drifts. Splitting the list in two — no net at all against reached only from
+above — was refused at the same price: a second list to keep, a second constant
+in `crates/app/tests/architecture.rs`, and a rule with two tiers is one people
+misremember. The list is not a coverage report and was never meant to be one:
+it says a change here is caught by nothing **local**, and that stays true of
+`start_menu.rs` with the driver merged. A driver test notices that the part
+list lost a name; it does not notice that the recents came back in the wrong
+order.
+
+The way off the list is open, and it is the only one. A test beside the module
+it covers, in its own file as #362 asks, reaches the dev-dependencies like any
+other test in the crate — so a screen that wants a net can have one where it
+lives.
+
 - `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
   is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);
 - the canvas and the modes drawn on it — gesture dispatch, pixel ↔ world

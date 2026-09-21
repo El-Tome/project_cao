@@ -14,7 +14,9 @@ use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
     paint_rule_marks, paint_ruler,
 };
-use super::state::{SketchContext, ViewScale, ViewportState, cube_rect};
+use super::state::{
+    GestureGoesTo, SketchContext, ViewScale, ViewportState, cube_rect, gesture_goes_to,
+};
 
 /// Returns true when the part was modified and should be saved.
 pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> bool {
@@ -37,15 +39,15 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         &state.config,
         sketch.document.scale(),
     );
-    let mut changed = if handled_cube {
-        false
-    } else if sketch.extrusion.is_active() {
-        // Picking areas takes the whole canvas: no drawing tool is in hand
-        // while the extrusion is being set up.
-        pick_areas(state, &response, rect, scale, sketch);
-        false
-    } else {
-        handle_sketch_input(ui, state, &response, rect, scale, sketch)
+    let mut changed = match gesture_goes_to(handled_cube, sketch) {
+        GestureGoesTo::TheCube => false,
+        GestureGoesTo::PickingAnArea => {
+            pick_areas(state, &response, rect, scale, sketch);
+            false
+        }
+        GestureGoesTo::TheToolInHand => {
+            handle_sketch_input(ui, state, &response, rect, scale, sketch)
+        }
     };
 
     // Read before the scene below is built from it: a value typed this very frame has to be what

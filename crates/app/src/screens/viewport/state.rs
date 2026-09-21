@@ -133,6 +133,27 @@ pub struct SketchContext<'a> {
     pub lang: &'a Catalogue,
 }
 
+/// Who the gesture on the canvas belongs to this frame.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) enum GestureGoesTo {
+    TheCube,
+    PickingAnArea,
+    TheToolInHand,
+}
+
+/// The cube sits on top of the canvas, so it is asked first. Setting up an
+/// extrusion then takes the whole canvas: no drawing tool is in hand while the
+/// areas are being picked.
+pub(super) fn gesture_goes_to(cube_took_it: bool, sketch: &SketchContext<'_>) -> GestureGoesTo {
+    if cube_took_it {
+        GestureGoesTo::TheCube
+    } else if sketch.extrusion.is_active() {
+        GestureGoesTo::PickingAnArea
+    } else {
+        GestureGoesTo::TheToolInHand
+    }
+}
+
 /// How much of the world one pixel covers right now, and the grid step that
 /// follows from it. Shared by the grid and the scale bar so they can never
 /// disagree.
@@ -249,3 +270,6 @@ pub(crate) fn to_ndc(position: egui::Pos2, rect: egui::Rect) -> glam::Vec2 {
         (rect.center().y - position.y) / (rect.height() * 0.5),
     )
 }
+
+#[cfg(test)]
+mod tests;

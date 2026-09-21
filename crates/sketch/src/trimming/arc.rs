@@ -51,7 +51,7 @@ impl Sketch {
     /// The same for one of the drawing's points, the arc's own two ends read
     /// off the order they are held in rather than off an angle that rounding
     /// could send the long way about.
-    fn point_round_the_arc(&self, id: ArcId, point: PointId) -> Option<f64> {
+    pub(super) fn point_round_the_arc(&self, id: ArcId, point: PointId) -> Option<f64> {
         let arc = self.arcs().get(id.0).copied()?;
         match point {
             _ if point == arc.start => Some(0.0),

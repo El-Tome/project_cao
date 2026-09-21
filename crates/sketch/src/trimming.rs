@@ -379,5 +379,6 @@ pub(crate) mod arc;
 mod arc_carrying;
 mod carrying;
 pub(crate) mod circle;
+pub(crate) mod going;
 #[cfg(test)]
 mod tests;

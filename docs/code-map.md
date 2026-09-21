@@ -289,7 +289,14 @@ soon as a mode carries non-trivial business logic, it becomes its own crate.
 
 ## What has no net
 
-These places carry no test of their own:
+These places carry no test of their own. **Carrying none is not the same as
+being unreachable**: since #377 the application is driven with no window at all
+— `crates/app/tests/driver/` opens `CaoApp` through `egui_kittest`, clicks a
+tool by the label the user reads, draws in the canvas by coordinate, and reads
+the answer back out of the accessibility tree, with no GPU and in a fifth of a
+second. `crates/app/tests/drawing.rs` is what it looks like. A file leaves the
+list below by earning a test of its own, not by being walked through from above
+— but nothing here is out of reach any more.
 
 - `crates/sketch/src/solver.rs` — the algorithmic heart, most of whose history
   is made of successive fixes (`git log -- crates/sketch/src/solver.rs`);

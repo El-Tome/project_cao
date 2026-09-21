@@ -23,7 +23,12 @@ wgpu.workspace = true
 [dev-dependencies]
 cao_part = { path = "../part", features = ["test-support"] }
 cao_prefs = { path = "../prefs", features = ["test-support"] }
+egui_kittest.workspace = true
 serde_json.workspace = true
+
+[lib]
+name = "cao_app"
+path = "src/lib.rs"
 
 [[bin]]
 name = "cao"

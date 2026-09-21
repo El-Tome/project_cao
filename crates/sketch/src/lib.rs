@@ -94,3 +94,4 @@ pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};
 pub use trimming::Trimmed;
 pub use trimming::arc::ArcTrimmed;
+pub use trimming::circle::CircleTrimmed;

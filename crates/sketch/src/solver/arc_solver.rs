@@ -21,6 +21,10 @@ impl Sketch {
                 .equal_radius_arc_equation(first, second)
                 .into_iter()
                 .collect(),
+            Constraint::EqualRadiusArcCircle { arc, circle } => self
+                .equal_radius_arc_circle_equation(arc, circle)
+                .into_iter()
+                .collect(),
             _ => Vec::new(),
         }
     }
@@ -107,6 +111,26 @@ impl Sketch {
         equation.add(other.center, -other_unit);
         equation.add(one.start, -one_unit);
         equation.add(one.center, one_unit);
+        Some(equation)
+    }
+
+    /// An arc and a circle held to the same reach: the arc's read off its
+    /// start, as it always is, and the circle's off the column it keeps.
+    fn equal_radius_arc_circle_equation(&self, arc: ArcId, circle: CircleId) -> Option<Equation> {
+        let bent = *self.arcs().get(arc.0)?;
+        let column = self.radius_column(circle)?;
+        let reach = self.point(bent.start) - self.point(bent.center);
+        let length = reach.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let unit = reach / length;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = self.circles()[circle.0].radius - length;
+        equation.add_radius(column, 1.0);
+        equation.add(bent.start, -unit);
+        equation.add(bent.center, unit);
         Some(equation)
     }
 

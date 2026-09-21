@@ -3,66 +3,15 @@
 
 use cao_sketch::{
     ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element,
-    PointId, Repeats, SegmentId, SketchAxis, Support, WorkPlane,
+    PointId, Repeats, SegmentId, Support, WorkPlane,
 };
-use glam::{DVec2, DVec3};
+use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-/// Which point an operation refers to.
-///
-/// Resolved when the user clicks, never re-derived on replay: snapping depends
-/// on the zoom level at the time, so re-running it later could join different
-/// points and rebuild a different drawing.
-#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub enum PointRef {
-    Existing(PointId),
-    New(DVec2),
-    /// A point laid on a curve of the drawing or on an axis of its plane, and
-    /// held there. On two of them where they cross, which is what keeps it at
-    /// the crossing rather than merely where the crossing then was.
-    ///
-    /// What it landed on is settled at the click, like the rest of this: the
-    /// magnets depend on the zoom at the time, so working it out again on
-    /// replay could hold it to something nobody pointed at.
-    Held {
-        at: DVec2,
-        on: Vec<Support>,
-    },
-}
-
-/// What an extrusion does to the part.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ExtrusionMode {
-    /// Adds the prism to the part.
-    Add,
-    /// Takes the prism out of it.
-    Cut,
-}
-
-/// What a face is swept around.
-///
-/// Either one of the sketch's own axes, or a line the user drew. A drawn line
-/// is named by its rank in the sketch, which is stable: segments are only ever
-/// appended.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
-pub enum RevolutionAxis {
-    Sketch(SketchAxis),
-    Segment(SegmentId),
-}
-
-/// The face of the part a drawing was laid on.
-///
-/// The face number comes out of the replay, which hands the same numbers to
-/// the same part however its sizes change — so a drawing finds its face again
-/// after the part has grown.
-#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
-pub struct FaceAnchor {
-    pub face: usize,
-    /// Which way was up on screen when the drawing was started. Kept rather
-    /// than worked out again, so that a drawing reopened months later finds
-    /// the axes it was drawn with.
-    pub up: DVec3,
-}
+mod point_ref;
+mod raising;
+pub use point_ref::PointRef;
+pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
 
 impl Operation {
     /// The sketch this operation edits, when it edits one.
@@ -98,6 +47,7 @@ impl Operation {
             | Self::EraseMany { sketch, .. }
             | Self::Trim { sketch, .. }
             | Self::TrimArc { sketch, .. }
+            | Self::TrimCircle { sketch, .. }
             | Self::Split { sketch, .. }
             | Self::Chamfer { sketch, .. }
             | Self::Fillet { sketch, .. }
@@ -312,6 +262,18 @@ pub enum Operation {
         arc: ArcId,
         from: PointId,
         to: PointId,
+    },
+    /// The same, on a circle: the stretch running counter-clockwise from the
+    /// first point round to the second goes, and what is left comes back as an
+    /// arc of that very circle.
+    ///
+    /// Nothing to cut between — a circle carrying fewer than two points — and
+    /// the whole round goes, since the stretch "between two points" is then the
+    /// round itself.
+    TrimCircle {
+        sketch: usize,
+        circle: CircleId,
+        between: Option<(PointId, PointId)>,
     },
     /// Drops a point where curves cross and cuts each of them in two there.
     ///

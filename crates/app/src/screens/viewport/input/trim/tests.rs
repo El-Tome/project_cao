@@ -40,3 +40,17 @@ fn a_click_the_trait_is_out_of_reach_of_cuts_the_curve() {
         "the click cut {cut:?}",
     );
 }
+
+#[test]
+fn a_click_on_a_round_neither_a_trait_nor_a_curve_reaches_cuts_the_circle() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(40.0, 0.0));
+    sketch.add_circle(centre, 10.0);
+
+    let cut = cut_under(&sketch, 0, DVec2::new(50.0, 0.0), 0.5);
+
+    assert!(
+        matches!(cut, Some(Operation::TrimCircle { between: None, .. })),
+        "a round with nothing on it goes whole, and the click says so: {cut:?}",
+    );
+}

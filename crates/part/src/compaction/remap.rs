@@ -93,6 +93,10 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             first: map.arcs[&first],
             second: map.arcs[&second],
         },
+        Constraint::EqualRadiusArcCircle { arc, circle } => Constraint::EqualRadiusArcCircle {
+            arc: map.arcs[&arc],
+            circle: map.circles[&circle],
+        },
         Constraint::OnSegment { point, segment } => Constraint::OnSegment {
             point: map.points[&point],
             segment: map.segments[&segment],

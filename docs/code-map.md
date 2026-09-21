@@ -52,6 +52,7 @@ in one of the two domains, never there.
 | What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
 | What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
+| Taking a stretch out of a circle, which leaves one piece and that piece is an arc | `sketch/src/trimming/circle.rs` | `Sketch::circle_stretch_at`, `Sketch::trim_circle` → `CircleTrimmed` |
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |
 | Rounding that same corner into a curve tangent to both sides | `sketch/src/fillet.rs` | `Sketch::fillet` → `Rounded`, `Sketch::fillet_fits` |
@@ -118,7 +119,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
 | Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
-| The five ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
+| The six ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
 | What a drawing's curves became, so a name written before a cut can be read after it | `part/src/descent.rs` | `Descent::record`, `Descent::follow` |
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |

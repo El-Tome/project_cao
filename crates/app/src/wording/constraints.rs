@@ -9,7 +9,8 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Parallel { .. } => "constraints.label.parallel",
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
-        | Constraint::EqualRadiusArc { .. } => "constraints.label.equal",
+        | Constraint::EqualRadiusArc { .. }
+        | Constraint::EqualRadiusArcCircle { .. } => "constraints.label.equal",
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
@@ -34,7 +35,8 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Parallel { .. } => "constraints.erased.parallel",
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
-        | Constraint::EqualRadiusArc { .. } => "constraints.erased.equal",
+        | Constraint::EqualRadiusArc { .. }
+        | Constraint::EqualRadiusArcCircle { .. } => "constraints.erased.equal",
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
@@ -60,7 +62,8 @@ pub fn mark(rule: Constraint) -> &'static str {
         Constraint::Parallel { .. } => "//",
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }
-        | Constraint::EqualRadiusArc { .. } => "=",
+        | Constraint::EqualRadiusArc { .. }
+        | Constraint::EqualRadiusArcCircle { .. } => "=",
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }

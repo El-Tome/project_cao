@@ -357,9 +357,9 @@ impl Sketch {
             Constraint::EqualRadius { first, second } => {
                 first != second && circle(first) && circle(second)
             }
-            Constraint::EqualRadiusArc { .. } | Constraint::ArcTangent { .. } => {
-                self.arc_rule_holds_up(constraint)
-            }
+            Constraint::EqualRadiusArc { .. }
+            | Constraint::EqualRadiusArcCircle { .. }
+            | Constraint::ArcTangent { .. } => self.arc_rule_holds_up(constraint),
             Constraint::OnSegment { .. }
             | Constraint::OnCircle { .. }
             | Constraint::OnArc { .. }

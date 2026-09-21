@@ -7,8 +7,9 @@ use glam::DVec2;
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
-/// One click of the trim tool: takes out the stretch of trait or of curve the
-/// click fell in, between the two points sitting on either side of it.
+/// One click of the trim tool: takes out the stretch of trait, of curve or of
+/// round the click fell in, between the two points sitting on either side of
+/// it.
 pub(crate) fn trim(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -33,11 +34,11 @@ pub(crate) fn trim(
 
 /// Which cut the click is asking for.
 ///
-/// The straight trait first, then the curve — the order `Sketch::pick` and the
-/// constraint tool already read a click in. Where a trait runs into a curve
-/// both are within reach of the same click, and a tool that answered with
-/// whichever came out of the drawing first would cut a different element
-/// depending on the order they were drawn in.
+/// The straight trait first, then the curve, then the round — the order
+/// `Sketch::pick` and the constraint tool already read a click in. Where a
+/// trait runs into a curve both are within reach of the same click, and a tool
+/// that answered with whichever came out of the drawing first would cut a
+/// different element depending on the order they were drawn in.
 fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<Operation> {
     if let Some(segment) = sketch.nearest_segment(cursor, snap)
         && let Some((from, to)) = sketch.stretch_at(segment, cursor)
@@ -49,13 +50,21 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
             to,
         });
     }
-    let arc = sketch.nearest_arc(cursor, snap)?;
-    let (from, to) = sketch.arc_stretch_at(arc, cursor)?;
-    Some(Operation::TrimArc {
+    if let Some(arc) = sketch.nearest_arc(cursor, snap)
+        && let Some((from, to)) = sketch.arc_stretch_at(arc, cursor)
+    {
+        return Some(Operation::TrimArc {
+            sketch: index,
+            arc,
+            from,
+            to,
+        });
+    }
+    let circle = sketch.nearest_circle(cursor, snap)?;
+    Some(Operation::TrimCircle {
         sketch: index,
-        arc,
-        from,
-        to,
+        circle,
+        between: sketch.circle_stretch_at(circle, cursor),
     })
 }
 

@@ -695,7 +695,9 @@ impl Sketch {
                     into.extend(self.foot_equation(contact, round.center, segment));
                 }
             }
-            Constraint::EqualRadius { .. } | Constraint::EqualRadiusArc { .. } => {
+            Constraint::EqualRadius { .. }
+            | Constraint::EqualRadiusArc { .. }
+            | Constraint::EqualRadiusArcCircle { .. } => {
                 into.extend(self.equal_radius_equations(constraint))
             }
             Constraint::ArcTangent { arc, segment, at } => {

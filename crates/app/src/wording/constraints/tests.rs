@@ -11,7 +11,7 @@ const SECOND: SegmentId = SegmentId(1);
 
 /// Every rule, next to how it reads, so that adding a variant without
 /// saying how it reads cannot slip past the way two parallel lists would.
-fn named_rules() -> [(Constraint, &'static str); 13] {
+fn named_rules() -> [(Constraint, &'static str); 14] {
     [
         (
             Constraint::Perpendicular {
@@ -45,6 +45,13 @@ fn named_rules() -> [(Constraint, &'static str); 13] {
             Constraint::EqualRadiusArc {
                 first: ArcId(0),
                 second: ArcId(1),
+            },
+            "Égalité",
+        ),
+        (
+            Constraint::EqualRadiusArcCircle {
+                arc: ArcId(0),
+                circle: CircleId(0),
             },
             "Égalité",
         ),
@@ -122,7 +129,7 @@ fn rules_that_say_the_same_thing_read_the_same_and_the_others_do_not() {
     assert_eq!(
         read.len(),
         8,
-        "thirteen rules read as eight names, five of them shared: {read:?}",
+        "fourteen rules read as eight names, six of them shared: {read:?}",
     );
 }
 

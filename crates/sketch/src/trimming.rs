@@ -378,5 +378,6 @@ impl Sketch {
 pub(crate) mod arc;
 mod arc_carrying;
 mod carrying;
+pub(crate) mod circle;
 #[cfg(test)]
 mod tests;

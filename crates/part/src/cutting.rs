@@ -1,5 +1,6 @@
-//! The five ways a curve of a drawing is replaced by other curves: trimmed,
-//! trimmed as an arc, divided at a crossing, chamfered or rounded.
+//! The six ways a curve of a drawing is replaced by other curves: trimmed,
+//! trimmed as an arc, trimmed as a circle, divided at a crossing, chamfered or
+//! rounded.
 //!
 //! They differ only in which cut is made. Each answers with how many rules
 //! and how many values the cut took away with it, and with what became of
@@ -8,8 +9,8 @@
 //! shape.
 
 use cao_sketch::{
-    ArcId, Area, Became, Chamfer, Corner, CurveId, DimensionTarget, PointId, SegmentId, Sketch,
-    Standing,
+    ArcId, Area, Became, Chamfer, CircleId, Corner, CurveId, DimensionTarget, PointId, SegmentId,
+    Sketch, Standing,
 };
 use glam::DVec2;
 
@@ -89,6 +90,25 @@ impl PartState {
                 became: vec![(
                     CurveId::Arc(arc),
                     trimmed.pieces.into_iter().map(CurveId::Arc).collect(),
+                )],
+            })
+        })
+    }
+
+    pub(crate) fn trim_circle(
+        &mut self,
+        sketch: usize,
+        circle: CircleId,
+        between: Option<(PointId, PointId)>,
+    ) -> Option<Outcome> {
+        self.cutting(sketch, |drawing, _| {
+            let trimmed = drawing.trim_circle(circle, between)?;
+            Some(Cut {
+                rules: trimmed.rules_dropped,
+                values: trimmed.values_dropped,
+                became: vec![(
+                    CurveId::Circle(circle),
+                    trimmed.arc.map(CurveId::Arc).into_iter().collect(),
                 )],
             })
         })

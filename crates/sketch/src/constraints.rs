@@ -120,6 +120,13 @@ pub enum Constraint {
         first: ArcId,
         second: ArcId,
     },
+    /// An arc and a circle of the same radius. What a cut leaves of two circles
+    /// held to one another: an arc is a circle a sweep was taken from, and it
+    /// keeps what the circle meant.
+    EqualRadiusArcCircle {
+        arc: ArcId,
+        circle: CircleId,
+    },
     /// A point held on the line a trait lies on, wherever the trait goes.
     OnSegment {
         point: PointId,

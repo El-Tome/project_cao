@@ -57,6 +57,10 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             first: bend,
             second: other_bend,
         },
+        Constraint::EqualRadiusArcCircle {
+            arc: bend,
+            circle: round,
+        },
         Constraint::OnSegment {
             point: loose,
             segment: side,
@@ -120,6 +124,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::Equal { .. } => "equal",
         Constraint::EqualRadius { .. } => "equal radius",
         Constraint::EqualRadiusArc { .. } => "equal radius, arcs",
+        Constraint::EqualRadiusArcCircle { .. } => "equal radius, an arc and a circle",
         Constraint::OnSegment { .. } => "on a trait",
         Constraint::Collinear { .. } => "collinear",
         Constraint::Tangent { .. } => "tangent",

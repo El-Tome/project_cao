@@ -270,6 +270,30 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("to", &to.0.to_string()),
             ],
         ),
+        Operation::TrimCircle {
+            sketch,
+            circle,
+            between: Some((from, to)),
+        } => lang.t_with(
+            "history.detail.circle_trimmed",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("circle", &circle.0.to_string()),
+                ("from", &from.0.to_string()),
+                ("to", &to.0.to_string()),
+            ],
+        ),
+        Operation::TrimCircle {
+            sketch,
+            circle,
+            between: None,
+        } => lang.t_with(
+            "history.detail.circle_taken_whole",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("circle", &circle.0.to_string()),
+            ],
+        ),
         Operation::Split {
             sketch,
             segments,

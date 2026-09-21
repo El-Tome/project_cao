@@ -322,6 +322,11 @@ impl PartState {
                 from,
                 to,
             } => self.trim_arc(*sketch, *arc, *from, *to),
+            Operation::TrimCircle {
+                sketch,
+                circle,
+                between,
+            } => self.trim_circle(*sketch, *circle, *between),
             Operation::Split {
                 sketch,
                 segments,

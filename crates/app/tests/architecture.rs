@@ -12,6 +12,15 @@
 //!   by hand on either side of the sweep. Eight hundred and ninety-four,
 //!   unchanged, which is the only thing that says no assertion moved
 //!
+//! Closes #387.
+//! - the answer stands beside the list, in `docs/code-map.md` — no test: it is
+//!   prose, and an assertion on a sentence holds its wording rather than its
+//!   reasoning
+//! - it stands again where the rule lives, on `PLACES_ALLOWED_TO_HAVE_NO_NET`
+//!   — no test: same, and the two copies say the same thing on purpose
+//! - the rule itself does not move: a place still leaves the list by earning a
+//!   test of its own — `a_place_said_to_carry_no_test_carries_none`
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -45,6 +54,14 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// The list may only shrink: an entry added here is a place that went into the
 /// repository with no test, which is the one move that empties the rule of
 /// meaning.
+///
+/// A place leaves it by earning a test of its own, never by being walked
+/// through from above. #387 weighed counting the headless driver's runs and
+/// refused: no text proves which files a run touched, so the link would be
+/// asserted by hand, and a ratchet asserted by hand drifts. The list is not a
+/// coverage report — it says a change here is caught by nothing local, which a
+/// test driving the whole application from outside does not make false.
+/// `docs/code-map.md` carries the argument beside the list.
 const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 18] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",

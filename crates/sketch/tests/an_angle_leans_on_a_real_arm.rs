@@ -16,6 +16,8 @@
 //! - a line drawn with a typed length only, or with no typed value, is
 //!   untouched — no test: `line_dimensions` no longer writes an angle and is
 //!   otherwise as it was, held by `shape_dimensions/tests.rs`
+//! - erasing either of the two takes the reading and leaves the other standing
+//!   — `erasing_either_of_the_two_takes_the_reading_and_leaves_the_other`
 //! - dimensioning an angle by hand between two traits still works — no test:
 //!   nothing here touches the dimension tool, and `DimensionTarget::AxisAngle`
 //!   is still what an axis picked by hand writes
@@ -24,8 +26,8 @@
 //! `crates/app/src/screens/viewport/input/angle_arm/`.
 
 use cao_sketch::{
-    AngleArm, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, WorkPlane,
-    angle_arm,
+    AngleArm, Constraint, DimensionTarget, Element, PointId, SegmentId, Sketch, SketchAxis,
+    WorkPlane, angle_arm,
 };
 use glam::DVec2;
 
@@ -177,5 +179,47 @@ fn holding_the_arms_length_is_what_pins_the_drawing_down() {
     assert!(
         sketch.is_fully_constrained(1.0),
         "holding the arm's length left something free",
+    );
+}
+
+#[test]
+fn erasing_either_of_the_two_takes_the_reading_and_leaves_the_other() {
+    let laid = || {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let end = sketch.add_point(DVec2::from_angle(150_f64.to_radians()) * 10.0);
+        let drawn = sketch.add_segment(Sketch::ORIGIN, end);
+        let far = sketch.add_point(DVec2::new(9.0, 0.0));
+        let arm = sketch.add_construction_segment(Sketch::ORIGIN, far);
+        sketch.set_dimension(
+            DimensionTarget::Angle {
+                first: arm,
+                second: drawn,
+            },
+            150.0,
+            false,
+        );
+        (sketch, drawn, arm)
+    };
+
+    let (mut sketch, drawn, arm) = laid();
+    sketch.erase(Element::Segment(arm));
+    assert!(
+        sketch.dimensions().is_empty(),
+        "the reading measures an arm that is gone",
+    );
+    assert!(
+        !sketch.is_erased_segment(drawn),
+        "erasing the arm took the trait with it",
+    );
+
+    let (mut sketch, drawn, arm) = laid();
+    sketch.erase(Element::Segment(drawn));
+    assert!(
+        sketch.dimensions().is_empty(),
+        "the reading measures a trait that is gone",
+    );
+    assert!(
+        !sketch.is_erased_segment(arm),
+        "geometry nobody selected was erased along with the trait",
     );
 }

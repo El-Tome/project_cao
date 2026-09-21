@@ -343,12 +343,13 @@ lives.
   `egui` for one pass with no window and looking at the shapes it hands back.
   `circle.rs`, `curves.rs`, `dimensions.rs`, `live_fields.rs` and
   `symmetric_line.rs` still carry none and go the same way whenever someone
-  writes them; only `render.rs` itself, which now does nothing but gather the
-  frame, is named below.
+  writes them. `render.rs`, which now does nothing but gather the frame, left
+  this list the same way: three tests read a built `SceneFrame` back, and one
+  of them is the rule that no grid is drawn while the view is still swinging
+  onto a plane.
   - `crates/app/src/screens/viewport/mod.rs`;
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;
-  - `crates/app/src/screens/viewport/render.rs`;
   - `crates/app/src/screens/viewport/input/mod.rs`;
   - `crates/app/src/screens/viewport/input/arcs.rs`;
   - `crates/app/src/screens/viewport/input/circles.rs`;

@@ -75,7 +75,7 @@ const NO_NET_HEADING: &str = "## What has no net";
 /// coverage report — it says a change here is caught by nothing local, which a
 /// test driving the whole application from outside does not make false.
 /// `docs/code-map.md` carries the argument beside the list.
-const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 18] = [
+const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 17] = [
     "crates/app/src/screens/annotations.rs",
     "crates/app/src/screens/extrusion_row.rs",
     "crates/app/src/screens/history_tree.rs",
@@ -92,7 +92,6 @@ const PLACES_ALLOWED_TO_HAVE_NO_NET: [&str; 18] = [
     "crates/app/src/screens/viewport/input/symmetric_line.rs",
     "crates/app/src/screens/viewport/mod.rs",
     "crates/app/src/screens/viewport/navigation.rs",
-    "crates/app/src/screens/viewport/render.rs",
     "crates/sketch/src/solver.rs",
 ];
 
@@ -747,10 +746,16 @@ fn a_place_said_to_carry_no_test_carries_none() {
              left. Take the line out.",
         );
 
+        // Since #362 a module's tests live in a file beside it rather than in
+        // it, so reading the file alone would clear every entry for ever.
         let files = if path.is_dir() {
             rust_files(&path)
         } else {
-            vec![path]
+            let beside = workspace_root().join(beside(&place));
+            [path, beside]
+                .into_iter()
+                .filter(|at| at.exists())
+                .collect()
         };
         let covered: Vec<String> = files
             .iter()

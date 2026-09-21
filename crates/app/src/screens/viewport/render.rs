@@ -208,3 +208,6 @@ fn to_physical(rect: egui::Rect, pixels_per_point: f32) -> ViewportRect {
         height: rect.height() * pixels_per_point,
     }
 }
+
+#[cfg(test)]
+mod tests;

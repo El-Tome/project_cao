@@ -12,7 +12,7 @@ use super::input::{handle_sketch_input, pick_areas};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_rule_marks, paint_ruler,
+    paint_rule_marks, paint_ruler, what_would_go,
 };
 use super::state::{
     GestureGoesTo, SketchContext, ViewScale, ViewportState, cube_rect, gesture_goes_to,
@@ -59,7 +59,11 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // The scene goes down first. Everything egui paints — the values of the dimensions, the scale
     // bar, the labels — is added to the same layer, in order, and the scene now fills the viewport
     // with its background: put it last and it wipes all of them out.
-    let frame = build_frame(state, rect, cube_rect, scale, sketch);
+    // Worked out here rather than in each painter: the stretch drawn over the
+    // drawing, the values and the marks all have to be the same answer.
+    let going = what_would_go(sketch, scale);
+
+    let frame = build_frame(state, rect, cube_rect, scale, sketch, going.as_ref());
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
         ViewportCallback { frame },
@@ -67,8 +71,8 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
 
     paint_face_labels(ui, state, cube_rect, sketch.lang);
     paint_band(ui, state, rect, sketch);
-    paint_rule_marks(ui, state, rect, sketch);
-    paint_dimension_labels(ui, state, rect, sketch);
+    paint_rule_marks(ui, state, rect, sketch, going.as_ref());
+    paint_dimension_labels(ui, state, rect, sketch, going.as_ref());
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }

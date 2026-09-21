@@ -1,7 +1,13 @@
 //! What app · screens/viewport/render/overlays.rs is held to.
+//!
+//! Closes #286.
+//! - the rule marks that will go are written in the alert colour, even the one
+//!   under the cursor — `a_rule_the_cut_would_take_is_marked_in_the_alert_colour`
 
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
+use cao_sketch::{SegmentId, Stretch};
+use glam::DVec2;
 
 use super::*;
 
@@ -121,5 +127,52 @@ fn the_labels_of_the_orientation_cube_name_the_faces_that_can_be_seen() {
     assert!(
         said.len() < 6,
         "every face of the cube is labelled at once, back ones included: {said:?}",
+    );
+}
+
+#[test]
+fn a_rule_the_cut_would_take_is_marked_in_the_alert_colour() {
+    let theme = Theme::default();
+    let rule = Constraint::Parallel {
+        first: SegmentId(0),
+        second: SegmentId(1),
+    };
+    let going = Going {
+        stretch: Stretch::Straight {
+            from: DVec2::ZERO,
+            to: DVec2::new(10.0, 0.0),
+        },
+        construction: false,
+        rules: vec![rule],
+        values: Vec::new(),
+    };
+
+    assert_eq!(
+        mark_shade(&theme, Some(&going), &rule, false),
+        tint_to_color(theme.going),
+        "a rule about to go is marked like one that stays",
+    );
+    assert_eq!(
+        mark_shade(&theme, Some(&going), &rule, true),
+        tint_to_color(theme.going),
+        "pointing at a rule about to go says the wrong one of the two things",
+    );
+    assert_eq!(
+        mark_shade(
+            &theme,
+            Some(&going),
+            &Constraint::Parallel {
+                first: SegmentId(2),
+                second: SegmentId(3),
+            },
+            false
+        ),
+        tint_to_color(theme.rule),
+        "a rule the cut leaves alone is marked as going",
+    );
+    assert_eq!(
+        mark_shade(&theme, None, &rule, true),
+        tint_to_color(theme.highlight),
+        "with no cut in sight, a rule pointed at is no longer lit",
     );
 }

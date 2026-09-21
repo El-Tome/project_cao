@@ -3,13 +3,13 @@
 //! of are pushed into the scene by [`crate::screens::annotations`]; only the
 //! text is here.
 
-use cao_sketch::DimensionTarget;
+use cao_sketch::{DimensionTarget, Going};
 
 use crate::screens::sketch::apply_dimension_value;
 
 use super::super::{PICK_PIXELS, SketchContext, ViewportState};
 use super::live_fields::value_field;
-use super::overlays::to_screen;
+use super::overlays::{tint_to_color as to_color_of, to_screen};
 use super::{live_offset, pending_annotation};
 
 /// Each dimension is drawn where it applies, with the value it stands for.
@@ -20,6 +20,7 @@ pub(crate) fn paint_dimension_labels(
     state: &ViewportState,
     rect: egui::Rect,
     context: &SketchContext<'_>,
+    going: Option<&Going>,
 ) {
     let Some(index) = context.editor.active_sketch() else {
         return;
@@ -79,6 +80,10 @@ pub(crate) fn paint_dimension_labels(
             egui::Color32::from_gray(170)
         } else {
             egui::Color32::from_rgb(250, 220, 120)
+        };
+        let color = match going.is_some_and(|going| going.values.contains(&dimension.target)) {
+            true => to_color_of(state.theme.going),
+            false => color,
         };
         painter.text(
             position,

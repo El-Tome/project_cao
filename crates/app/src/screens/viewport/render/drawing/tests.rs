@@ -1,10 +1,17 @@
 //! What app · screens/viewport/render/drawing.rs is held to.
+//!
+//! Closes #286.
+//! - the dimensions that will go with the stretch are drawn in the alert
+//!   colour — `a_value_the_cut_would_take_is_drawn_in_the_alert_colour`
+//! - their written value follows — no test: it is the same list read one file
+//!   away, in `dimensions.rs`, and egui paints it as text on a window this
+//!   test does not open
 
 use cao_part::PartDocument;
 use cao_part::history::{Operation, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::WorkPlane;
+use cao_sketch::{DimensionTarget, SegmentId, Stretch, WorkPlane};
 use chrono::Utc;
 use glam::Vec3;
 
@@ -62,6 +69,7 @@ fn painted(active: bool) -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
     let shown = Shown {
         sketch: &sketch,
         laid: &[],
+        going: None,
         active,
     };
     let (mut lines, mut surfaces) = (Vec::new(), Vec::new());
@@ -167,5 +175,70 @@ fn a_shape_drawn_inside_another_takes_more_of_the_tint_than_the_one_around_it() 
     assert!(
         shades.iter().any(|shade| *shade > shades[0]),
         "every area is tinted the same, so an outline and its pocket wash into one another",
+    );
+}
+
+/// The rectangle with a length on one of its sides, and a cut that would take
+/// that side away.
+fn painted_with_a_value_going() -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
+    let mut document = a_part_with_a_rectangle();
+    let mut sketch = document.sketches()[0].clone();
+    let side = SegmentId(0);
+    sketch.set_dimension(DimensionTarget::Length(side), 10.0, false);
+    let going = Going {
+        stretch: Stretch::Straight {
+            from: CORNER,
+            to: OPPOSITE,
+        },
+        construction: false,
+        rules: Vec::new(),
+        values: vec![DimensionTarget::Length(side)],
+    };
+
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let shown = Shown {
+        sketch: &sketch,
+        laid: &[],
+        going: Some(&going),
+        active: true,
+    };
+    let (mut lines, mut surfaces) = (Vec::new(), Vec::new());
+    push_sketch(
+        &mut lines,
+        &mut surfaces,
+        &shown,
+        &Theme::default(),
+        a_view(),
+        &context,
+    );
+    (lines, surfaces)
+}
+
+#[test]
+fn a_value_the_cut_would_take_is_drawn_in_the_alert_colour() {
+    let theme = Theme::default();
+    let (lines, _) = painted_with_a_value_going();
+
+    let alert = lines
+        .iter()
+        .filter(|vertex| vertex.color == tint(theme.going))
+        .count();
+    let (plain, _) = painted(true);
+    let plain_alert = plain
+        .iter()
+        .filter(|vertex| vertex.color == tint(theme.going))
+        .count();
+
+    assert!(
+        alert > plain_alert,
+        "the value about to go is drawn exactly like the ones that stay",
     );
 }

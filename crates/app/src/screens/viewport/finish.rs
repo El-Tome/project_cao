@@ -45,7 +45,7 @@ pub(crate) fn advance_on_enter(
     // clicked was lost.
     if matches!(sketch.editor.tool, Tool::Chamfer | Tool::Fillet) {
         return match corner_on_enter(&sketch.editor.tool_state) {
-            CornerEnter::Cut(first, second) => cut_the_corner(sketch, index, first, second),
+            CornerEnter::Cut => cut_the_corner(sketch, index),
             CornerEnter::Waiting(say) => {
                 sketch.editor.message = Some(sketch.lang.t(say));
                 false

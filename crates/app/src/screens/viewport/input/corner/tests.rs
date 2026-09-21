@@ -3,6 +3,7 @@
 //! Closes #315.
 //! - clicking a corner point takes that corner, with the fillet and with the
 //!   chamfer in equal distances — `a_click_on_a_corner_point_names_both_its_sides`
+//! - clicking a corner point again drops it — `a_second_click_on_a_corner_drops_it`
 //! - a point where more than two traits meet cannot be taken as a corner: the
 //!   tool asks for the two traits instead —
 //!   `a_click_on_a_point_too_crowded_to_be_a_corner_asks_for_the_two_traits`
@@ -19,7 +20,7 @@
 //!   `enter_with_no_side_clicked_asks_for_a_corner`,
 //!   `enter_with_both_sides_named_cuts_them`
 
-use cao_sketch::{PointId, Sketch, WorkPlane};
+use cao_sketch::{Corner, PointId, Sketch, WorkPlane};
 use glam::DVec2;
 
 use super::*;
@@ -80,28 +81,11 @@ fn a_fillet_asks_for_one_value_whatever_the_chamfer_beside_it_is_set_to() {
 }
 
 #[test]
-fn a_corner_is_held_only_once_both_its_sides_have_been_clicked() {
-    assert_eq!(corner_held(&ToolState::None), None);
-    assert_eq!(
-        corner_held(&ToolState::Corner {
-            sides: vec![SegmentId(1)]
-        }),
-        None,
-        "one side is half a corner, and Enter has nothing to cut"
-    );
-    assert_eq!(
-        corner_held(&ToolState::Corner {
-            sides: vec![SegmentId(1), SegmentId(2)]
-        }),
-        Some((SegmentId(1), SegmentId(2)))
-    );
-}
-
-#[test]
 fn enter_with_half_a_corner_asks_for_the_other_side_rather_than_dropping_it() {
     assert_eq!(
         on_enter(&ToolState::Corner {
-            sides: vec![SegmentId(1)]
+            taken: Vec::new(),
+            half: Some(SegmentId(1)),
         }),
         CornerEnter::Waiting("sketch.click_the_other_side"),
         "Enter used to fall through to the rectangle, which put its own state \
@@ -119,22 +103,35 @@ fn enter_with_no_side_clicked_asks_for_a_corner() {
 }
 
 #[test]
-fn enter_with_both_sides_named_cuts_them() {
+fn enter_with_a_corner_taken_cuts_it() {
     assert_eq!(
         on_enter(&ToolState::Corner {
-            sides: vec![SegmentId(1), SegmentId(2)]
+            taken: vec![Corner::Between(SegmentId(1), SegmentId(2))],
+            half: None,
         }),
-        CornerEnter::Cut(SegmentId(1), SegmentId(2))
+        CornerEnter::Cut
+    );
+}
+
+#[test]
+fn enter_still_cuts_when_a_side_is_half_named_beside_the_corners_taken() {
+    assert_eq!(
+        on_enter(&ToolState::Corner {
+            taken: vec![Corner::At(PointId(1))],
+            half: Some(SegmentId(3)),
+        }),
+        CornerEnter::Cut,
+        "a side clicked by mistake does not hold back the corners already taken"
     );
 }
 
 #[test]
 fn a_click_on_a_corner_point_names_both_its_sides() {
-    let (sketch, along, up, pivot) = a_right_angle();
+    let (sketch, _along, _up, pivot) = a_right_angle();
 
     assert_eq!(
         clicked(&sketch, sketch.point(pivot), SNAP, true),
-        CornerClick::Corner(along, up),
+        CornerClick::Corner(Corner::At(pivot)),
         "one click on the point says as much as two on the sides, and says it \
          without having to be over the right one"
     );
@@ -205,4 +202,30 @@ fn each_mode_asks_for_what_it_can_actually_take() {
              offered a corner taken by its point"
         );
     }
+}
+
+#[test]
+fn a_second_click_on_a_corner_drops_it() {
+    let taken = vec![Corner::At(PointId(1)), Corner::At(PointId(4))];
+
+    assert_eq!(
+        after_clicking(taken.clone(), Corner::At(PointId(1))),
+        vec![Corner::At(PointId(4))],
+        "a corner clicked twice is a corner the user changed their mind about"
+    );
+    assert_eq!(
+        after_clicking(taken.clone(), Corner::At(PointId(7))),
+        vec![
+            Corner::At(PointId(1)),
+            Corner::At(PointId(4)),
+            Corner::At(PointId(7))
+        ],
+        "and one clicked once joins the rest"
+    );
+}
+
+/// What the list of corners becomes when that one is clicked.
+fn after_clicking(mut taken: Vec<Corner>, corner: Corner) -> Vec<Corner> {
+    toggle(&mut taken, corner);
+    taken
 }

@@ -9,9 +9,12 @@ use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 pub(crate) use preview::previewed;
 
-/// One click of the chamfer or the fillet tool: the first names a side of the
-/// corner, the second names the other and cuts it, once the values the tool
-/// asks for have been typed.
+/// One click of the chamfer or the fillet tool.
+///
+/// A click on a corner's point takes that corner, and a second click on it
+/// drops it again. A click on a side names half a corner, which the next click
+/// on the other side completes. Either way the values typed apply to every
+/// corner taken, and Enter lays them all.
 pub(crate) fn corner(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -21,69 +24,102 @@ pub(crate) fn corner(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let picked = match clicked(sketch, cursor, snap, takes_a_point(context)) {
-        CornerClick::Corner(first, second) => {
-            // The click that names a whole corner is the first click of that
-            // corner, so it opens the fields the way naming a first side does.
-            // Without it there is nowhere to type, and the tool asks for a
-            // value the keyboard cannot reach.
-            context.editor.live.open();
-            return cut(context, index, first, second);
+    let several = takes_a_point(context);
+    let (mut taken, half) = held(&context.editor.tool_state);
+
+    match clicked(sketch, cursor, snap, several) {
+        CornerClick::Corner(corner) => {
+            toggle(&mut taken, corner);
+            wait_for_values(context, taken, None);
+        }
+        CornerClick::Side(side) => {
+            let Some(first) = half.filter(|first| *first != side) else {
+                wait_for_values(context, taken, Some(side));
+                context.editor.message = Some(context.lang.t("sketch.click_the_other_side"));
+                return true;
+            };
+            // Two traits that do not meet is a different failure from a
+            // corner too tight, and the count of corners turned away would
+            // describe it wrongly.
+            if sketch.corner_points(first, side).is_none() {
+                keep_typing(context);
+                context.editor.message = Some(context.lang.t("sketch.chamfer_needs_a_corner"));
+                return true;
+            }
+            let corner = Corner::Between(first, side);
+            // A mode that measures from the side named first takes one corner
+            // at a time: the second corner would have no say in which side of
+            // the first was first.
+            match several {
+                true => taken.push(corner),
+                false => taken = vec![corner],
+            }
+            wait_for_values(context, taken, None);
         }
         CornerClick::Crowded => {
             keep_typing(context);
             context.editor.message = Some(context.lang.t("sketch.corner_has_too_many_traits"));
             return true;
         }
-        CornerClick::Side(side) => side,
         CornerClick::Nothing => {
             keep_typing(context);
             return false;
         }
-    };
+    }
 
-    let held = match &context.editor.tool_state {
-        ToolState::Corner { sides } => sides.first().copied(),
-        _ => None,
-    };
-    let Some(first) = held.filter(|first| *first != picked) else {
-        context.editor.tool_state = ToolState::Corner {
-            sides: vec![picked],
-        };
-        context.editor.live.open();
-        context.editor.message = Some(context.lang.t("sketch.click_the_other_side"));
-        return true;
-    };
-
-    cut(context, index, first, picked)
+    cut(context, index)
 }
 
-/// Cuts or rounds the corner, or says why it cannot be.
+/// Takes a corner, or drops it when it was already taken.
 ///
-/// The sides are kept when only the values are missing, so typing them and
-/// pressing Enter finishes what the two clicks already said.
-pub(crate) fn cut(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    first: SegmentId,
-    second: SegmentId,
-) -> bool {
+/// Clicking twice is how a corner is changed one's mind about: there is no
+/// second gesture for putting one back, and a list that only grows makes a
+/// slip of the mouse cost the whole selection.
+fn toggle(taken: &mut Vec<Corner>, corner: Corner) {
+    match taken.iter().position(|already| *already == corner) {
+        Some(rank) => {
+            taken.remove(rank);
+        }
+        None => taken.push(corner),
+    }
+}
+
+/// What the tool is holding: the corners taken, and half a corner if a side is
+/// waiting for its other.
+fn held(state: &ToolState) -> (Vec<Corner>, Option<SegmentId>) {
+    match state {
+        ToolState::Corner { taken, half } => (taken.clone(), *half),
+        _ => (Vec::new(), None),
+    }
+}
+
+/// Puts back what the click left the tool holding, with the keyboard on the
+/// field. `open` rather than a nudge only when nothing was being typed yet:
+/// it clears, and a value typed for the first corner is meant for the next.
+fn wait_for_values(context: &mut SketchContext<'_>, taken: Vec<Corner>, half: Option<SegmentId>) {
+    let fresh = context.editor.live.locked().first.is_none();
+    context.editor.tool_state = ToolState::Corner { taken, half };
+    match fresh {
+        true => context.editor.live.open(),
+        false => keep_typing(context),
+    }
+}
+
+/// Cuts or rounds every corner taken, or says what is still missing.
+///
+/// What is held is kept when only the values are missing, so typing them and
+/// pressing Enter finishes what the clicks already said.
+pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
     let rounding = context.editor.tool == Tool::Fillet;
     let mode = context.editor.chamfer_mode;
-    let Some(sketch) = context.document.sketches().get(index) else {
-        return false;
-    };
-    if sketch.corner_points(first, second).is_none() {
-        context.editor.tool_state = ToolState::Corner { sides: vec![first] };
-        context.editor.message = Some(context.lang.t("sketch.chamfer_needs_a_corner"));
+    let (taken, _) = held(&context.editor.tool_state);
+    if taken.is_empty() {
+        context.editor.message = Some(context.lang.t("sketch.click_a_corner"));
         return false;
     }
 
     let Some(asked) = typed(context.editor.live.locked(), mode, rounding) else {
         keep_typing(context);
-        context.editor.tool_state = ToolState::Corner {
-            sides: vec![first, second],
-        };
         context.editor.message = Some(match rounding {
             true => context.lang.t("sketch.fillet_asks_a_radius"),
             false => asks_for(context, mode),
@@ -91,10 +127,9 @@ pub(crate) fn cut(
         return false;
     };
 
-    let Some(operation) = fits(context, index, first, second, asked, rounding) else {
-        return false;
-    };
-    let applied = context.document.apply(operation);
+    let applied = context
+        .document
+        .apply(laying(index, taken, asked, rounding));
     context.editor.tool_state = ToolState::None;
     context.editor.live.clear();
     context.editor.message = outcome::message(context.lang, applied)
@@ -102,53 +137,21 @@ pub(crate) fn cut(
     true
 }
 
-/// The operation to record, once the drawing says the corner can take it.
-fn fits(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    first: SegmentId,
-    second: SegmentId,
-    asked: Chamfer,
-    rounding: bool,
-) -> Option<Operation> {
-    let scale = context.document.scale();
-    let sketch = context.document.sketches().get(index)?;
-    let Chamfer::Equal(radius) = asked else {
-        return sketch
-            .chamfer_fits(first, second, in_units(asked, scale))
-            .then_some(Operation::Chamfer {
-                sketch: index,
-                corners: vec![Corner::Between(first, second)],
-                mode: asked,
-            })
-            .or_else(|| {
-                context.editor.message = Some(context.lang.t("sketch.chamfer_too_long"));
-                None
-            });
-    };
-    match rounding {
-        true => sketch
-            .fillet_fits(first, second, radius / scale)
-            .then_some(Operation::Fillet {
-                sketch: index,
-                corners: vec![Corner::Between(first, second)],
-                radius,
-            })
-            .or_else(|| {
-                context.editor.message = Some(context.lang.t("sketch.fillet_too_big"));
-                None
-            }),
-        false => sketch
-            .chamfer_fits(first, second, in_units(asked, scale))
-            .then_some(Operation::Chamfer {
-                sketch: index,
-                corners: vec![Corner::Between(first, second)],
-                mode: asked,
-            })
-            .or_else(|| {
-                context.editor.message = Some(context.lang.t("sketch.chamfer_too_long"));
-                None
-            }),
+/// The operation that lays every corner taken. Whether each of them fits is
+/// the drawing's business, and a corner too tight is counted and said rather
+/// than stopping the rest.
+fn laying(index: usize, taken: Vec<Corner>, asked: Chamfer, rounding: bool) -> Operation {
+    match (rounding, asked) {
+        (true, Chamfer::Equal(radius)) => Operation::Fillet {
+            sketch: index,
+            corners: taken,
+            radius,
+        },
+        _ => Operation::Chamfer {
+            sketch: index,
+            corners: taken,
+            mode: asked,
+        },
     }
 }
 
@@ -194,7 +197,7 @@ fn asks_for(context: &SketchContext<'_>, mode: ChamferMode) -> String {
 pub(crate) enum CornerClick {
     /// A point where exactly two traits meet: one click names the whole
     /// corner.
-    Corner(SegmentId, SegmentId),
+    Corner(Corner),
     /// A point too crowded to name a corner on its own.
     Crowded,
     /// A side of a corner, waiting for the other to be clicked.
@@ -212,7 +215,7 @@ pub(crate) enum CornerClick {
 fn clicked(sketch: &Sketch, cursor: DVec2, snap: f64, by_point: bool) -> CornerClick {
     if by_point && let Some(point) = sketch.nearest_point(cursor, snap) {
         match sketch.corner_at(point) {
-            Some((first, second)) => return CornerClick::Corner(first, second),
+            Some(_) => return CornerClick::Corner(Corner::At(point)),
             // Only a crowd is worth explaining. A point where one trait simply
             // ends is not a corner anybody was promised, and the trait under
             // the cursor is still worth naming.
@@ -264,8 +267,8 @@ fn takes_a_point(context: &SketchContext<'_>) -> bool {
 /// What Enter has to work with, for a tool that cuts corners.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CornerEnter {
-    /// Both sides are named: the key finishes what the clicks began.
-    Cut(SegmentId, SegmentId),
+    /// At least one corner is taken: the key finishes what the clicks began.
+    Cut,
     /// Not yet — what is still missing, as the key of the sentence that says
     /// so.
     Waiting(&'static str),
@@ -280,23 +283,12 @@ pub(crate) enum CornerEnter {
 /// corner tools answer for their own key now, and say what they are waiting
 /// for.
 pub(crate) fn on_enter(state: &ToolState) -> CornerEnter {
-    match corner_held(state) {
-        Some((first, second)) => CornerEnter::Cut(first, second),
-        None => CornerEnter::Waiting(match state {
-            ToolState::Corner { sides } if !sides.is_empty() => "sketch.click_the_other_side",
-            _ => "sketch.click_a_corner",
-        }),
-    }
-}
-
-/// The sides of the corner the two clicks named, when both have been taken.
-fn corner_held(state: &ToolState) -> Option<(SegmentId, SegmentId)> {
     match state {
-        ToolState::Corner { sides } => match sides.as_slice() {
-            [first, second] => Some((*first, *second)),
-            _ => None,
-        },
-        _ => None,
+        ToolState::Corner { taken, .. } if !taken.is_empty() => CornerEnter::Cut,
+        ToolState::Corner { half: Some(_), .. } => {
+            CornerEnter::Waiting("sketch.click_the_other_side")
+        }
+        _ => CornerEnter::Waiting("sketch.click_a_corner"),
     }
 }
 

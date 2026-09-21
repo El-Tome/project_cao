@@ -1,4 +1,4 @@
-use cao_sketch::{Chamfer, Preview, Sketch, ToolState};
+use cao_sketch::{Chamfer, Corner, Laid, Preview, Sketch, ToolState};
 use glam::DVec2;
 
 use crate::screens::sketch::{SketchEditor, Tool};
@@ -20,32 +20,46 @@ pub(crate) fn previewed(
     if !matches!(editor.tool, Tool::Chamfer | Tool::Fillet) {
         return None;
     }
-    let ToolState::Corner { sides } = &editor.tool_state else {
+    let ToolState::Corner { taken, half } = &editor.tool_state else {
         return None;
     };
-    let (first, second) = match sides.as_slice() {
-        [first, second] => (*first, *second),
-        [first] => (
-            *first,
-            sketch
-                .nearest_segment(cursor, snap)
-                .filter(|under| under != first)?,
-        ),
-        _ => return None,
-    };
+    // Every corner taken is shown, wherever the cursor is. The side under the
+    // cursor only ever stands in for a second click that has not happened yet.
+    let mut shown = taken.clone();
+    if let Some(first) = half
+        && let Some(under) = sketch
+            .nearest_segment(cursor, snap)
+            .filter(|under| under != first)
+    {
+        shown.push(Corner::Between(*first, under));
+    }
+    if shown.is_empty() {
+        return None;
+    }
 
     let rounding = editor.tool == Tool::Fillet;
     let asked = in_units(
         typed(editor.live.locked(), editor.chamfer_mode, rounding)?,
         scale,
     );
-    match (rounding, asked) {
-        (true, Chamfer::Equal(radius)) => {
-            sketch.preview(|trial| trial.fillet(first, second, radius))
+    sketch.preview(|trial| {
+        let mut laid = Vec::new();
+        for corner in shown {
+            let Some((first, second)) = trial.sides_of(corner) else {
+                continue;
+            };
+            // A corner the value does not fit is simply not shown: the gesture
+            // lays the others, and the tool says how many it turned away.
+            match (rounding, asked) {
+                (true, Chamfer::Equal(radius)) => {
+                    laid.extend(trial.fillet(first, second, radius)?.laid())
+                }
+                (true, _) => return None,
+                (false, _) => laid.extend(trial.chamfer(first, second, asked)?.laid()),
+            }
         }
-        (true, _) => None,
-        (false, _) => sketch.preview(|trial| trial.chamfer(first, second, asked)),
-    }
+        Some(laid)
+    })
 }
 
 #[cfg(test)]

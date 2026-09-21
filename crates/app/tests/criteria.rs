@@ -37,10 +37,28 @@
 //! of a block in a string would otherwise be taken for a file that closes the
 //! issue the example names. This file was that test.
 //!
+//! Closes #388.
+//! - `open-a-task` and `review-rust` ask for the criteria to be read back
+//!   against the diff before the pull request is opened — no test: it is prose
+//!   in the skills, held by `language.rs` and by nothing that asserts
+//! - a pull request body answers for each criterion in turn — no test: the body
+//!   lives on GitHub, which nothing in this workspace reads
+//! - the refusal of a reviewer in the CI is written where the next person to
+//!   propose one will find it — no test: it is prose, in `docs/build.md` beside
+//!   the jobs and in the paragraph below
+//!
 //! What this cannot tell: whether the transcription is faithful to the issue,
 //! and whether the named test asserts what the bullet claims. Both need the
 //! issue itself read, which is not a thing a test does. Saying so is the point
 //! — a check that oversells itself is worse than none.
+//!
+//! #388 put that reading where it is already paid for: the agent that wrote the
+//! branch answers for each criterion in the pull request body, before opening
+//! it. A job on `pull_request` calling a model was the design's answer and was
+//! refused — it would bring a secret, a metered bill and a step of the CI that
+//! reaches the network, into a repository whose gate calls nothing but `cargo`.
+//! The honest cost: a CI job never skips a turn, and a step in a skill does,
+//! exactly when the agent is in a hurry.
 
 use std::fs;
 use std::path::{Path, PathBuf};

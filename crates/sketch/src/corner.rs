@@ -112,6 +112,12 @@ impl Sketch {
     /// running in is neither one of them nor nothing — a corner is still two
     /// straight traits. Both cases are refused here rather than guessed at, so
     /// the tool can ask for the two traits by name.
+    ///
+    /// Only the traits the shape is drawn with count. A corner already cut
+    /// keeps its point, with the two stretches the cut laid back in still
+    /// meeting there — read as a corner, they let the same corner be cut a
+    /// second time, which crosses the drawing over itself. A corner of
+    /// construction traits is still named one trait at a time.
     pub fn corner_at(&self, point: PointId) -> Option<(SegmentId, SegmentId)> {
         if !self.arcs_leaning_on(point).is_empty()
             || self.live_circles().any(|(_, round)| round.center == point)
@@ -129,6 +135,7 @@ impl Sketch {
     /// corner on its own, or whether it has to ask which two traits are meant.
     pub fn traits_at(&self, point: PointId) -> Vec<SegmentId> {
         self.live_segments()
+            .filter(|(_, side)| !side.construction)
             .filter(|(_, side)| side.start == point || side.end == point)
             .map(|(id, _)| id)
             .collect()

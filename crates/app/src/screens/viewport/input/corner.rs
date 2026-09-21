@@ -30,7 +30,7 @@ pub(crate) fn corner(
 
     match clicked(sketch, cursor, snap, takes_a_point(context)) {
         CornerClick::Corner(corner) => {
-            toggle(&mut taken, corner);
+            toggle(sketch, &mut taken, corner);
             wait_for_values(context, taken, None);
         }
         CornerClick::Side(side) => {
@@ -62,7 +62,7 @@ pub(crate) fn corner(
             // that measures from one gathers corners like any other. What it
             // cannot do is take a corner by its point, which would leave it no
             // first side at all.
-            toggle(&mut taken, corner);
+            toggle(sketch, &mut taken, corner);
             wait_for_values(context, taken, None);
         }
         CornerClick::Crowded => {
@@ -106,8 +106,19 @@ pub(crate) fn corners_taken(sketch: &Sketch, state: &ToolState) -> Vec<PointId> 
 /// Clicking twice is how a corner is changed one's mind about: there is no
 /// second gesture for putting one back, and a list that only grows makes a
 /// slip of the mouse cost the whole selection.
-fn toggle(taken: &mut Vec<Corner>, corner: Corner) {
-    match taken.iter().position(|already| *already == corner) {
+///
+/// A corner is told from another by the point it stands at, not by how it was
+/// named. Naming the same corner its other way round — the second trait
+/// clicked first, or its point where its traits were — is the same corner, and
+/// counting it twice cuts it twice and crosses the drawing over itself.
+fn toggle(sketch: &Sketch, taken: &mut Vec<Corner>, corner: Corner) {
+    let Some(at) = sketch.corner_point(corner) else {
+        return;
+    };
+    match taken
+        .iter()
+        .position(|already| sketch.corner_point(*already) == Some(at))
+    {
         Some(rank) => {
             taken.remove(rank);
         }

@@ -4,6 +4,8 @@
 //! - clicking a corner point takes that corner, with the fillet and with the
 //!   chamfer in equal distances — `a_click_on_a_corner_point_names_both_its_sides`
 //! - clicking a corner point again drops it — `a_second_click_on_a_corner_drops_it`
+//! - the same corner cannot be taken twice, however it is named —
+//!   `the_same_corner_named_the_other_way_round_is_still_that_corner`
 //! - a point where more than two traits meet cannot be taken as a corner: the
 //!   tool asks for the two traits instead —
 //!   `a_click_on_a_point_too_crowded_to_be_a_corner_asks_for_the_two_traits`
@@ -206,26 +208,35 @@ fn each_mode_asks_for_what_it_can_actually_take() {
 
 #[test]
 fn a_second_click_on_a_corner_drops_it() {
-    let taken = vec![Corner::At(PointId(1)), Corner::At(PointId(4))];
+    let (sketch, _along, _up, pivot) = a_right_angle();
+    let taken = vec![Corner::At(pivot)];
 
-    assert_eq!(
-        after_clicking(taken.clone(), Corner::At(PointId(1))),
-        vec![Corner::At(PointId(4))],
+    assert!(
+        after_clicking(&sketch, taken.clone(), Corner::At(pivot)).is_empty(),
         "a corner clicked twice is a corner the user changed their mind about"
-    );
-    assert_eq!(
-        after_clicking(taken.clone(), Corner::At(PointId(7))),
-        vec![
-            Corner::At(PointId(1)),
-            Corner::At(PointId(4)),
-            Corner::At(PointId(7))
-        ],
-        "and one clicked once joins the rest"
     );
 }
 
+#[test]
+fn the_same_corner_named_the_other_way_round_is_still_that_corner() {
+    let (sketch, along, up, pivot) = a_right_angle();
+    let taken = vec![Corner::Between(along, up)];
+
+    for again in [
+        Corner::Between(up, along),
+        Corner::At(pivot),
+        Corner::Between(along, up),
+    ] {
+        assert!(
+            after_clicking(&sketch, taken.clone(), again).is_empty(),
+            "naming it {again:?} is naming the same corner, and taking it \
+             twice would cut it twice"
+        );
+    }
+}
+
 /// What the list of corners becomes when that one is clicked.
-fn after_clicking(mut taken: Vec<Corner>, corner: Corner) -> Vec<Corner> {
-    toggle(&mut taken, corner);
+fn after_clicking(sketch: &Sketch, mut taken: Vec<Corner>, corner: Corner) -> Vec<Corner> {
+    toggle(sketch, &mut taken, corner);
     taken
 }

@@ -5,7 +5,9 @@
 //!   `a_length_typed_on_an_axis_drives_the_ellipse_and_keeps_it_whole`
 //! - dragging an axis end turns or stretches that axis and keeps the other
 //!   square to it and centred — `an_axis_end_dragged_round_turns_the_other_axis_with_it`,
-//!   and the centre stays where it was — `an_axis_end_dragged_alone_leaves_the_centre_where_it_was`
+//!   and the centre stays where it was — `an_axis_end_dragged_alone_leaves_the_centre_where_it_was`,
+//!   even when the values given refuse the drag —
+//!   `an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was`
 //! - dragging the curve scales the ellipse about its centre —
 //!   `the_curve_dragged_out_scales_the_ellipse_about_its_centre_and_keeps_its_shape`
 //! - erasing the ellipse takes its axes —
@@ -22,7 +24,7 @@
 use glam::DVec2;
 
 use super::*;
-use crate::constraints::DimensionTarget;
+use crate::constraints::{DimensionTarget, SketchAxis};
 use crate::holding::Support;
 use crate::plane::WorkPlane;
 use crate::resizing::Curved;
@@ -288,4 +290,29 @@ fn an_axis_end_dragged_alone_leaves_the_centre_where_it_was() {
     );
     assert!(east.distance(DVec2::new(90.0, 25.0)) < 1e-6);
     assert!(west.distance(DVec2::new(10.0, 15.0)) < 1e-3, "{west}");
+}
+
+#[test]
+fn an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was() {
+    let (mut sketch, id) = wide_ellipse();
+    let [centre, _, east, ..] = sketch.ellipse_points(id);
+    let first = sketch.ellipses()[id.0].first;
+    // A length and an angle leave the axis free to travel and nothing else, so
+    // the cursor is asking for something the drawing has already refused.
+    sketch.set_dimension(DimensionTarget::Length(first), 60.0, false);
+    sketch.set_dimension(
+        DimensionTarget::AxisAngle {
+            segment: first,
+            axis: SketchAxis::U,
+        },
+        30.0,
+        false,
+    );
+    sketch.resolve(1.0);
+    let stood = sketch.point(centre);
+
+    sketch.settle_around(east, DVec2::new(90.0, 60.0), 1.0);
+
+    let moved = sketch.point(centre).distance(stood);
+    assert!(moved < 1e-4, "the centre slid {moved} towards the cursor");
 }

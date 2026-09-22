@@ -19,11 +19,9 @@ impl Sketch {
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
         let mut dropped = vec![(point, position)];
-        dropped.extend(
-            self.centre_turned_about(point)
-                .map(|centre| (centre, self.point(centre))),
-        );
-        self.settle_around_all(&dropped, millimeters_per_unit)
+        let anchored: Vec<PointId> = self.centre_turned_about(point).into_iter().collect();
+        dropped.extend(anchored.iter().map(|centre| (*centre, self.point(*centre))));
+        self.settle_around_dropped(&dropped, &anchored, millimeters_per_unit)
     }
 
     /// The same for a whole handful of points dropped at once, which is how a
@@ -41,6 +39,22 @@ impl Sketch {
     pub fn settle_around_all(
         &mut self,
         dropped: &[(PointId, DVec2)],
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        self.settle_around_dropped(dropped, &[], millimeters_per_unit)
+    }
+
+    /// The same, told which of the points stay put whatever happens.
+    ///
+    /// An ellipse's centre is one: the values already given may refuse the
+    /// drag outright — a length and an angle leave an axis free to travel and
+    /// nothing else — and the drawing settling the ordinary way then slides
+    /// the whole curve after the cursor. What the gesture cannot do, it does
+    /// not do: the centre is pinned for that pass too.
+    fn settle_around_dropped(
+        &mut self,
+        dropped: &[(PointId, DVec2)],
+        anchored: &[PointId],
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
         let kept = self.shapes_now();
@@ -61,7 +75,9 @@ impl Sketch {
         self.points.clone_from(&kept.0);
         self.circles.clone_from(&kept.1);
         place(self);
+        self.held = anchored.to_vec();
         let outcome = self.resolve(millimeters_per_unit);
+        self.held.clear();
         if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
             return outcome;
         }

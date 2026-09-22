@@ -1,4 +1,19 @@
 //! What sketch · measuring.rs is held to.
+//!
+//! Closes #405.
+//! - a point on the trait, then the trait, lays no dimension and is refused as
+//!   already on it — `a_point_on_the_trait_then_the_trait_is_refused_as_already_on_it`
+//! - one of the trait's own ends, then the trait, is refused the same way —
+//!   `an_end_of_the_trait_then_the_trait_is_refused_as_already_on_it`
+//! - a point on the trait's prolongation, then the trait, lays no dimension and
+//!   is refused as in line with it —
+//!   `a_point_on_the_prolongation_of_the_trait_is_refused_as_in_line_with_it`
+//! - a point off the line, then the trait, still lays the distance square to it
+//!   — `a_point_off_the_line_then_the_trait_still_measures_the_distance_to_it`
+//! - a refused click enters nothing in the history — no test: a refusal is a
+//!   `DimensionPick` that carries no target, and the canvas records an
+//!   operation only from a `Target`; the sentence each refusal is said with
+//!   lives in the interface's language file, not here
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -100,4 +115,73 @@ fn a_click_on_an_arc_measures_its_radius() {
     );
 
     assert_eq!(pick, DimensionPick::Target(DimensionTarget::ArcRadius(arc)));
+}
+
+/// A trait lying along the horizontal from x = 10 to x = 30, and whatever point
+/// the caller lays, taken as the first half of a distance.
+fn a_point_picked_then_the_trait(place: DVec2) -> DimensionPick {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(10.0, 5.0));
+    let end = sketch.add_point(DVec2::new(30.0, 5.0));
+    sketch.add_segment(start, end);
+    let point = match place {
+        _ if place == DVec2::new(10.0, 5.0) => start,
+        _ => sketch.add_point(place),
+    };
+
+    let (picks, _) = measure_pick(
+        &sketch,
+        DimensionMode::Auto,
+        DimensionPicks::default(),
+        sketch.point(point),
+        0.5,
+    );
+    let (_, pick) = measure_pick(
+        &sketch,
+        DimensionMode::Auto,
+        picks,
+        DVec2::new(25.0, 5.0),
+        0.5,
+    );
+    pick
+}
+
+#[test]
+fn a_point_on_the_trait_then_the_trait_is_refused_as_already_on_it() {
+    assert_eq!(
+        a_point_picked_then_the_trait(DVec2::new(20.0, 5.0)),
+        DimensionPick::PointAlreadyOnTheTrait,
+        "a point sitting on the trait is no distance from it at all",
+    );
+}
+
+#[test]
+fn an_end_of_the_trait_then_the_trait_is_refused_as_already_on_it() {
+    assert_eq!(
+        a_point_picked_then_the_trait(DVec2::new(10.0, 5.0)),
+        DimensionPick::PointAlreadyOnTheTrait,
+        "the trait's own end is no distance from the trait either",
+    );
+}
+
+#[test]
+fn a_point_on_the_prolongation_of_the_trait_is_refused_as_in_line_with_it() {
+    assert_eq!(
+        a_point_picked_then_the_trait(DVec2::new(40.0, 5.0)),
+        DimensionPick::PointInLineWithTheTrait,
+        "a point beyond the trait's end, on its line, is no distance from that line",
+    );
+}
+
+#[test]
+fn a_point_off_the_line_then_the_trait_still_measures_the_distance_to_it() {
+    let pick = a_point_picked_then_the_trait(DVec2::new(20.0, 15.0));
+
+    assert!(
+        matches!(
+            pick,
+            DimensionPick::Target(DimensionTarget::PointToSegment { .. })
+        ),
+        "a point standing off the line has a distance to it, and the tool lays it: {pick:?}",
+    );
 }

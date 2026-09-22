@@ -8,6 +8,7 @@
 use glam::DVec2;
 
 use crate::constraints::{DimensionTarget, SketchAxis, Toward};
+use crate::measuring::no_distance_to;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// How far off an axis a trait has to be before its width and its height are
@@ -146,8 +147,11 @@ impl Sketch {
                 });
             }
         }
+        // A point on the trait's own line — one of its ends, one held on it,
+        // one on its prolongation — is no distance from it: the length already
+        // in hand is put down there instead of a zero nobody could type.
         if let Some(point) = self.nearest_point(cursor, snap * 0.8)
-            && !self.segment_touches(first, point)
+            && no_distance_to(self, point, first).is_none()
         {
             return Some(DimensionTarget::PointToSegment {
                 point,

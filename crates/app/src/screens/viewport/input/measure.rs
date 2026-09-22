@@ -93,6 +93,14 @@ pub(super) fn measure(
             context.editor.select(None, None);
             context.editor.message = Some(context.lang.t("sketch.traits_do_not_touch"));
         }
+        cao_sketch::DimensionPick::PointAlreadyOnTheTrait => {
+            context.editor.select(None, None);
+            context.editor.message = Some(context.lang.t("sketch.point_already_on_the_trait"));
+        }
+        cao_sketch::DimensionPick::PointInLineWithTheTrait => {
+            context.editor.select(None, None);
+            context.editor.message = Some(context.lang.t("sketch.point_in_line_with_the_trait"));
+        }
         cao_sketch::DimensionPick::Nothing => {
             context.editor.select(None, None);
             context.editor.message = Some(context.lang.t("sketch.nothing_to_measure"));

@@ -1,7 +1,14 @@
 //! Closes #286.
-//! - the stretch that will go is drawn in the alert colour and thicker, and
-//!   the rest of the trait keeps its own colour —
-//!   `the_stretch_that_goes_is_drawn_in_the_alert_colour_and_nothing_else_is`
+//! - the stretch that will go is drawn in the alert colour and thicker, over
+//!   that stretch and no further —
+//!   `only_the_stretch_that_goes_is_drawn_in_the_alert_colour_and_thicker`
+//! - the rest of the trait keeps its own colour — no test: the trait
+//!   itself is drawn by the sketch loop, which reads nothing of `Going`, and the
+//!   stretch is laid over it. What did break it once was the hover lighting the
+//!   whole trait, and that is held since #401 by
+//!   `only_the_tool_that_takes_the_whole_thing_lights_the_whole_of_it`, beside
+//!   `Tool`. The name this test carried until #402 claimed it was asserted
+//!   here, by a test that paints the stretch alone and so cannot see the rest.
 //! - the same on an arc — `an_arc_loses_a_curve_rather_than_a_straight_line`
 
 use cao_prefs::config::ViewportConfig;
@@ -41,7 +48,7 @@ fn a_trait_cut_in_the_middle() -> (Sketch, Going) {
 }
 
 #[test]
-fn the_stretch_that_goes_is_drawn_in_the_alert_colour_and_nothing_else_is() {
+fn only_the_stretch_that_goes_is_drawn_in_the_alert_colour_and_thicker() {
     let (sketch, going) = a_trait_cut_in_the_middle();
     let theme = Theme::default();
     let mut out = Vec::new();

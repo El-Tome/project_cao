@@ -89,9 +89,17 @@ pub(super) fn measure(
                     .t_with("sketch.axis_chosen", &[("axis", &axis)]),
             );
         }
-        cao_sketch::DimensionPick::TraitsDoNotTouch => {
+        cao_sketch::DimensionPick::TraitsAreParallel => {
             context.editor.select(None, None);
-            context.editor.message = Some(context.lang.t("sketch.traits_do_not_touch"));
+            context.editor.message = Some(context.lang.t("sketch.traits_are_parallel"));
+        }
+        cao_sketch::DimensionPick::PointAlreadyOnTheTrait => {
+            context.editor.select(None, None);
+            context.editor.message = Some(context.lang.t("sketch.point_already_on_the_trait"));
+        }
+        cao_sketch::DimensionPick::PointInLineWithTheTrait => {
+            context.editor.select(None, None);
+            context.editor.message = Some(context.lang.t("sketch.point_in_line_with_the_trait"));
         }
         cao_sketch::DimensionPick::Nothing => {
             context.editor.select(None, None);

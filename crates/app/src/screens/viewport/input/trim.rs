@@ -1,14 +1,16 @@
 //! What one click of the trim tool does.
 
 use cao_part::Operation;
-use cao_sketch::Sketch;
+use cao_sketch::{Going, Sketch};
 use glam::DVec2;
 
+use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
-/// One click of the trim tool: takes out the stretch of trait or of curve the
-/// click fell in, between the two points sitting on either side of it.
+/// One click of the trim tool: takes out the stretch of trait, of curve or of
+/// round the click fell in, between the two points sitting on either side of
+/// it.
 pub(crate) fn trim(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -33,11 +35,11 @@ pub(crate) fn trim(
 
 /// Which cut the click is asking for.
 ///
-/// The straight trait first, then the curve — the order `Sketch::pick` and the
-/// constraint tool already read a click in. Where a trait runs into a curve
-/// both are within reach of the same click, and a tool that answered with
-/// whichever came out of the drawing first would cut a different element
-/// depending on the order they were drawn in.
+/// The straight trait first, then the curve, then the round — the order
+/// `Sketch::pick` and the constraint tool already read a click in. Where a
+/// trait runs into a curve both are within reach of the same click, and a tool
+/// that answered with whichever came out of the drawing first would cut a
+/// different element depending on the order they were drawn in.
 fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<Operation> {
     if let Some(segment) = sketch.nearest_segment(cursor, snap)
         && let Some((from, to)) = sketch.stretch_at(segment, cursor)
@@ -49,14 +51,52 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
             to,
         });
     }
-    let arc = sketch.nearest_arc(cursor, snap)?;
-    let (from, to) = sketch.arc_stretch_at(arc, cursor)?;
-    Some(Operation::TrimArc {
+    if let Some(arc) = sketch.nearest_arc(cursor, snap)
+        && let Some((from, to)) = sketch.arc_stretch_at(arc, cursor)
+    {
+        return Some(Operation::TrimArc {
+            sketch: index,
+            arc,
+            from,
+            to,
+        });
+    }
+    let circle = sketch.nearest_circle(cursor, snap)?;
+    Some(Operation::TrimCircle {
         sketch: index,
-        arc,
-        from,
-        to,
+        circle,
+        between: sketch.circle_stretch_at(circle, cursor),
     })
+}
+
+/// What a click right now would take out of the drawing, read off the very
+/// call that click commits.
+///
+/// Nothing when the trim is not the tool in hand, and nothing where a click
+/// would do nothing: a preview of what would be refused is a preview that
+/// lies.
+pub(crate) fn previewed(
+    sketch: &Sketch,
+    editor: &SketchEditor,
+    index: usize,
+    cursor: DVec2,
+    snap: f64,
+) -> Option<Going> {
+    if editor.tool != Tool::Trim {
+        return None;
+    }
+    match cut_under(sketch, index, cursor, snap)? {
+        Operation::Trim {
+            segment, from, to, ..
+        } => sketch.trim_takes(segment, from, to),
+        Operation::TrimArc { arc, from, to, .. } => sketch.arc_trim_takes(arc, from, to),
+        Operation::TrimCircle {
+            circle, between, ..
+        } => sketch.circle_trim_takes(circle, between),
+        // `cut_under` lays no other kind of step, and a wildcard here is what
+        // let the round slip through when trimming one landed.
+        other => unreachable!("the trim tool asked for {other:?}"),
+    }
 }
 
 #[cfg(test)]

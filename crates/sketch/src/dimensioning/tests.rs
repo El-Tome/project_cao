@@ -1,4 +1,9 @@
 //! What sketch · dimensioning.rs is held to.
+//!
+//! Closes #405.
+//! - a trait, then a point lying on its line, is never turned into a zero
+//!   distance: the click puts the trait's length down there instead —
+//!   `a_trait_then_a_point_lying_on_it_is_never_turned_into_a_zero_distance`
 
 use super::*;
 use crate::WorkPlane;
@@ -224,4 +229,22 @@ fn a_radius_taken_on_to_one_of_the_arcs_own_ends_is_read_as_the_sweep() {
         None,
         "a click nowhere near either end asks for nothing more",
     );
+}
+
+#[test]
+fn a_trait_then_a_point_lying_on_it_is_never_turned_into_a_zero_distance() {
+    let (mut sketch, length, _, _) = trait_from(DVec2::new(10.0, 5.0), DVec2::new(30.0, 5.0));
+    let on_it = DVec2::new(20.0, 5.0);
+    let beyond_it = DVec2::new(40.0, 5.0);
+    sketch.add_point(on_it);
+    sketch.add_point(beyond_it);
+
+    for place in [on_it, beyond_it] {
+        assert_eq!(
+            sketch.refine(length, place, 0.5),
+            None,
+            "a point on the trait's line is no distance from it; the click puts \
+             the length down at {place} rather than a zero",
+        );
+    }
 }

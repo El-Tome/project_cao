@@ -52,6 +52,10 @@ impl Sketch {
             Constraint::EqualRadiusArc { first, second } => {
                 [arc(first), arc(second)].into_iter().flatten().collect()
             }
+            Constraint::EqualRadiusArcCircle {
+                arc: bent,
+                circle: round,
+            } => [arc(bent), circle(round)].into_iter().flatten().collect(),
             Constraint::AxisCollinear { segment, .. } => middle(segment).into_iter().collect(),
             Constraint::OnSegment { point: held, .. }
             | Constraint::OnAxis { point: held, .. }

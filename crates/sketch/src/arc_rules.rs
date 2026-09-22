@@ -14,6 +14,9 @@ impl Sketch {
             Constraint::EqualRadiusArc { first, second } => {
                 first != second && arc(first) && arc(second)
             }
+            Constraint::EqualRadiusArcCircle { arc: bent, circle } => {
+                arc(bent) && circle.0 < self.circles().len() && !self.is_erased_circle(circle)
+            }
             Constraint::ArcTangent {
                 arc: curve,
                 segment,

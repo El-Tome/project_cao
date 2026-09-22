@@ -48,6 +48,15 @@ impl Descent {
         self.became.insert(was, now);
     }
 
+    /// What a curve has become, following every cut since it was named. The
+    /// curve itself when no cut has touched it.
+    pub(crate) fn descendants(&self, curve: CurveId) -> Vec<CurveId> {
+        self.became
+            .get(&curve)
+            .cloned()
+            .unwrap_or_else(|| vec![curve])
+    }
+
     /// The name as the drawing holds it now, and nothing when one of the
     /// curves it is bounded by was cut away altogether.
     ///

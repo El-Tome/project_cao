@@ -9,11 +9,87 @@
 
 use std::f64::consts::TAU;
 
+use serde::{Deserialize, Serialize};
+
 use crate::constraints::{Dimension, DimensionTarget};
 use crate::holding::Support;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
+/// How a corner was named, as the history records it.
+///
+/// Not the two traits it stood between at the time: cutting one corner of a
+/// shape trims the traits its neighbours lean on, and a neighbour recorded by
+/// those traits would name curves that no longer exist by the time its own turn
+/// came. Rounding the four corners of a plate is exactly that case, and it is
+/// the one the tool was made for.
+///
+/// A point is enough wherever two traits meet, and it survives every cut, since
+/// the corner's own point is what a chamfer and a fillet now leave behind. The
+/// two traits are recorded only where a point cannot say which corner is meant.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Corner {
+    /// The point two traits meet at. Which two is read from the drawing at the
+    /// moment the cut is made.
+    At(PointId),
+    /// The two traits themselves, the one named first before the other — for a
+    /// point too crowded to name a corner on its own, and for the chamfer modes
+    /// that measure from the side named first.
+    ///
+    /// Two corners of one shape share a trait, so cutting the first leaves this
+    /// one naming a curve that is gone. What became of each trait is followed
+    /// through the cuts rather than trusted as a number, which is the part
+    /// layer's business — [`Sketch::sides_of`] answers only for a drawing
+    /// nothing has cut since.
+    Between(SegmentId, SegmentId),
+}
+
 impl Sketch {
+    /// The two traits a corner stands between, as the drawing has them now.
+    ///
+    /// Nothing when the corner is no longer there to cut: a trait erased by an
+    /// earlier cut, or a point that stopped being a corner.
+    pub fn sides_of(&self, corner: Corner) -> Option<(SegmentId, SegmentId)> {
+        match corner {
+            Corner::At(point) => self.corner_at(point),
+            Corner::Between(first, second) => {
+                self.shared_point(first, second).map(|_| (first, second))
+            }
+        }
+    }
+
+    /// The point two traits meet at, for naming the corner they make.
+    pub fn shared_point(&self, first: SegmentId, second: SegmentId) -> Option<PointId> {
+        let (pivot, _, _) = self.shared_corner(first, second)?;
+        Some(pivot)
+    }
+
+    /// The point a corner stands at, whichever way it was named. What a tool
+    /// shows as taken, and what the other trait of a half-named corner is
+    /// looked up from.
+    pub fn corner_point(&self, corner: Corner) -> Option<PointId> {
+        match corner {
+            Corner::At(point) => Some(point),
+            Corner::Between(first, second) => self.shared_point(first, second),
+        }
+    }
+
+    /// The other trait of the corner a side was named at, when the click that
+    /// should have named it landed on the corner itself.
+    ///
+    /// Both traits pass through that point, so the nearest is whichever the
+    /// drawing holds first — the same one every time, and the corner never
+    /// completes. The side already named is the one thing that settles it:
+    /// with exactly two traits meeting there, the other is the only choice
+    /// left, which is not a guess.
+    pub fn other_side_at(&self, point: PointId, named: SegmentId) -> Option<SegmentId> {
+        let (first, second) = self.corner_at(point)?;
+        match (first == named, second == named) {
+            (true, false) => Some(second),
+            (false, true) => Some(first),
+            _ => None,
+        }
+    }
+
     /// How wide a corner stands open, the shorter way round.
     pub(crate) fn opening_at(
         &self,
@@ -26,6 +102,43 @@ impl Sketch {
             - (self.point(far_first) - at).to_angle())
         .rem_euclid(TAU);
         turn.min(TAU - turn)
+    }
+
+    /// The corner a point makes: the two traits that meet there, when exactly
+    /// two do and nothing else leans on it.
+    ///
+    /// This is what lets a corner be named by one click instead of two. Three
+    /// traits leave no saying which two the cut is meant for, and a curve
+    /// running in is neither one of them nor nothing — a corner is still two
+    /// straight traits. Both cases are refused here rather than guessed at, so
+    /// the tool can ask for the two traits by name.
+    ///
+    /// Only the traits the shape is drawn with count. A corner already cut
+    /// keeps its point, with the two stretches the cut laid back in still
+    /// meeting there — read as a corner, they let the same corner be cut a
+    /// second time, which crosses the drawing over itself. A corner of
+    /// construction traits is still named one trait at a time.
+    pub fn corner_at(&self, point: PointId) -> Option<(SegmentId, SegmentId)> {
+        if !self.arcs_leaning_on(point).is_empty()
+            || self.live_circles().any(|(_, round)| round.center == point)
+        {
+            return None;
+        }
+        match self.traits_at(point).as_slice() {
+            [first, second] => Some((*first, *second)),
+            _ => None,
+        }
+    }
+
+    /// Every trait that runs into a point, in the order the drawing holds
+    /// them. How many there are is what tells a tool whether the point names a
+    /// corner on its own, or whether it has to ask which two traits are meant.
+    pub fn traits_at(&self, point: PointId) -> Vec<SegmentId> {
+        self.live_segments()
+            .filter(|(_, side)| !side.construction)
+            .filter(|(_, side)| side.start == point || side.end == point)
+            .map(|(id, _)| id)
+            .collect()
     }
 
     /// Leaves the corner's own point standing where the corner was, held on the
@@ -138,3 +251,6 @@ pub(crate) fn piece_running_into(
         side.start == point || side.end == point
     })
 }
+
+#[cfg(test)]
+mod tests;

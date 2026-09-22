@@ -3,12 +3,13 @@
 //! change them.
 
 use cao_prefs::theme::Theme;
-use cao_sketch::{Element, PointId, Preview, Selection, Sketch};
+use cao_sketch::{Element, Going, PointId, Preview, Selection, Sketch};
 use glam::DVec2;
 
 use super::curves::{push_arc_at, push_circle_at, push_line};
 use super::marks::push_point_markers;
 use super::preview::push_preview;
+use super::trim::{LOUDER, push_going};
 use super::{emphasis, live_offset, tint, tint_at};
 use crate::screens::viewport::input::{copying_shows, corner_shows};
 use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
@@ -95,6 +96,9 @@ pub(crate) fn what_would_be_laid(
 pub(crate) struct Shown<'a> {
     pub(crate) sketch: &'a Sketch,
     pub(crate) laid: &'a [Element],
+    /// What the tool in hand would take away, drawn over the rest rather than
+    /// in place of it: what is aimed at has to stay visible.
+    pub(crate) going: Option<&'a Going>,
     pub(crate) active: bool,
 }
 
@@ -109,6 +113,7 @@ pub(crate) fn push_sketch(
     let Shown {
         sketch,
         laid,
+        going,
         active,
     } = *shown;
     push_regions(surfaces, sketch, theme, active);
@@ -211,6 +216,12 @@ pub(crate) fn push_sketch(
             style.color = tint_at(theme.highlight, 1.0);
             style.width *= 2.0;
         }
+        // Last, so that a value both pointed at and about to go reads as going:
+        // of the two things to say, that is the one the user cannot undo.
+        if going.is_some_and(|going| going.values.contains(&dimension.target)) {
+            style.color = tint(theme.going);
+            style.width *= LOUDER;
+        }
         crate::screens::annotations::push(
             out,
             sketch,
@@ -222,6 +233,10 @@ pub(crate) fn push_sketch(
     }
 
     push_preview(out, sketch, theme, scale, context);
+
+    if let Some(going) = going {
+        push_going(out, sketch, going, theme, scale);
+    }
 
     if let Some(cao_sketch::DimensionTarget::Length(selected)) = context.editor.selected()
         && selected.0 < sketch.segments().len()

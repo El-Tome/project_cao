@@ -7,9 +7,10 @@
 
 use glam::DVec2;
 
-use crate::constraints::{DimensionTarget, SketchAxis};
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::dimensioning::axis_under;
 use crate::sketch::{PointId, SegmentId, Sketch};
+use crate::trimming::ON_THE_TRAIT;
 
 /// What the smart dimension tool is allowed to measure.
 ///
@@ -58,8 +59,17 @@ pub enum DimensionPick {
     WaitingForSecondTraitOrAxis,
     /// An axis taken first, waiting for the trait to measure it against.
     WaitingForTraitAfterAxis(SketchAxis),
-    /// Two traits picked for an angle, but they never meet.
-    TraitsDoNotTouch,
+    /// Two traits picked for an angle, but they run the same way: their lines
+    /// never cross, so there is no angle between them to read.
+    TraitsAreParallel,
+    /// A point picked for a distance to a trait it already lies on: there is
+    /// no distance to measure, and a zero laid there could only ever be
+    /// read, never typed.
+    PointAlreadyOnTheTrait,
+    /// The same for a point on the trait's line but beyond its ends: the
+    /// distance square to the line is nothing there too, and calling the point
+    /// "on the trait" would not be true.
+    PointInLineWithTheTrait,
     /// Nothing under the cursor answers to what this mode measures.
     Nothing,
     /// The click changes nothing already under way.
@@ -108,13 +118,14 @@ pub fn measure_pick(
         && let Some(point) = picks.first_point
         && let Some(segment) = sketch.nearest_segment(cursor, snap)
     {
-        return (
-            DimensionPicks {
-                first_point: None,
-                ..picks
-            },
-            DimensionPick::Target(DimensionTarget::PointToSegment { point, segment }),
-        );
+        let cleared = DimensionPicks {
+            first_point: None,
+            ..picks
+        };
+        let pick = no_distance_to(sketch, point, segment).unwrap_or(DimensionPick::Target(
+            DimensionTarget::PointToSegment { point, segment },
+        ));
+        return (cleared, pick);
     }
     if mode == DimensionMode::PointToPoint {
         return (picks, DimensionPick::Unchanged);
@@ -136,11 +147,24 @@ pub fn measure_pick(
                 first_angle_segment: None,
                 ..picks
             };
-            return match sketch.angle_between(first, second) {
-                None => (cleared, DimensionPick::TraitsDoNotTouch),
-                Some(_) => (
+            if sketch.angle_between(first, second).is_some() {
+                return (
                     cleared,
                     DimensionPick::Target(DimensionTarget::Angle { first, second }),
+                );
+            }
+            // No shared end: crossing, one ending on the other, or lying apart.
+            // Any two that do not run the same way make an angle, read at first
+            // between the traits as drawn; where the dimension is put down can
+            // turn it to face another side.
+            if let Some(laid) = sketch.angle_already_between(first, second) {
+                return (cleared, DimensionPick::Target(laid));
+            }
+            return match sketch.run_the_same_way(first, second) {
+                true => (cleared, DimensionPick::TraitsAreParallel),
+                false => (
+                    cleared,
+                    DimensionPick::Target(sketch.angle_between_traits(first, second)),
                 ),
             };
         }
@@ -223,6 +247,38 @@ pub fn measure_pick(
     }
 
     (picks, DimensionPick::Nothing)
+}
+
+/// Why a point has no distance to a trait, when it has none: it lies on the
+/// trait's line — held there by a rule, or genuinely on it — either between the
+/// trait's two ends, its own ends included, or beyond them.
+///
+/// Read off the drawing, never off the view: the tolerance is the one a cut
+/// uses for the same question, far under anything the eye tells apart.
+pub(crate) fn no_distance_to(
+    sketch: &Sketch,
+    point: PointId,
+    segment: SegmentId,
+) -> Option<DimensionPick> {
+    sketch.segments().get(segment.0)?;
+    let (start, end) = sketch.endpoints(segment);
+    let span = end - start;
+    let reach = span.length_squared();
+    if reach == 0.0 {
+        return None;
+    }
+    let place = sketch.point(point);
+    let along = (place - start).dot(span) / reach;
+    let held = sketch
+        .constraints()
+        .contains(&Constraint::OnSegment { point, segment });
+    if !held && place.distance(start + span * along) > ON_THE_TRAIT {
+        return None;
+    }
+    Some(match (0.0..=1.0).contains(&along) {
+        true => DimensionPick::PointAlreadyOnTheTrait,
+        false => DimensionPick::PointInLineWithTheTrait,
+    })
 }
 
 #[cfg(test)]

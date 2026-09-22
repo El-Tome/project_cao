@@ -188,29 +188,25 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
         ),
         Operation::Chamfer {
             sketch,
-            first,
-            second,
+            corners,
             mode,
         } => lang.t_with(
             "history.detail.chamfer",
             &[
                 ("sketch", &sketch.to_string()),
-                ("first", &first.0.to_string()),
-                ("second", &second.0.to_string()),
+                ("corners", &corners.len().to_string()),
                 ("mode", &chamfer(lang, *mode)),
             ],
         ),
         Operation::Fillet {
             sketch,
-            first,
-            second,
+            corners,
             radius,
         } => lang.t_with(
             "history.detail.fillet",
             &[
                 ("sketch", &sketch.to_string()),
-                ("first", &first.0.to_string()),
-                ("second", &second.0.to_string()),
+                ("corners", &corners.len().to_string()),
                 ("radius", &format!("{radius:.3}")),
             ],
         ),
@@ -272,6 +268,30 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("arc", &arc.0.to_string()),
                 ("from", &from.0.to_string()),
                 ("to", &to.0.to_string()),
+            ],
+        ),
+        Operation::TrimCircle {
+            sketch,
+            circle,
+            between: Some((from, to)),
+        } => lang.t_with(
+            "history.detail.circle_trimmed",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("circle", &circle.0.to_string()),
+                ("from", &from.0.to_string()),
+                ("to", &to.0.to_string()),
+            ],
+        ),
+        Operation::TrimCircle {
+            sketch,
+            circle,
+            between: None,
+        } => lang.t_with(
+            "history.detail.circle_taken_whole",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("circle", &circle.0.to_string()),
             ],
         ),
         Operation::Split {

@@ -176,6 +176,10 @@ pub struct Theme {
     pub highlight: Rgba,
     /// What is lit when the cursor is over something that will not answer.
     pub refused: Rgba,
+    /// What a tool is about to take away, so that losing it is seen before the
+    /// click rather than after.
+    #[serde(default = "Theme::default_going")]
+    pub going: Rgba,
     pub extrusion_add: Rgba,
     pub extrusion_cut: Rgba,
 }
@@ -197,6 +201,13 @@ impl Theme {
     /// apart from the blue the cursor already paints under itself.
     fn default_picked() -> Rgba {
         Rgba::new(0.85, 0.40, 0.95, 1.0)
+    }
+
+    /// Plain alarm red, and opaque: what is about to disappear is drawn over
+    /// what is staying, and a colour that lets the old one through would read
+    /// as a shade of it rather than as a warning.
+    fn default_going() -> Rgba {
+        Rgba::new(0.95, 0.25, 0.25, 1.0)
     }
 }
 
@@ -237,6 +248,7 @@ impl Default for Theme {
             picked: Theme::default_picked(),
             highlight: Rgba::new(0.30, 0.60, 0.95, 0.40),
             refused: Rgba::new(0.95, 0.35, 0.35, 0.40),
+            going: Theme::default_going(),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),
         }

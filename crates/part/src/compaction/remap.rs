@@ -51,6 +51,17 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
             first: map.segments[&first],
             second: map.segments[&second],
         },
+        DimensionTarget::AngleBetween {
+            first,
+            first_toward,
+            second,
+            second_toward,
+        } => DimensionTarget::AngleBetween {
+            first: map.segments[&first],
+            first_toward,
+            second: map.segments[&second],
+            second_toward,
+        },
         DimensionTarget::AxisAngle { segment, axis } => DimensionTarget::AxisAngle {
             segment: map.segments[&segment],
             axis,
@@ -92,6 +103,10 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
         Constraint::EqualRadiusArc { first, second } => Constraint::EqualRadiusArc {
             first: map.arcs[&first],
             second: map.arcs[&second],
+        },
+        Constraint::EqualRadiusArcCircle { arc, circle } => Constraint::EqualRadiusArcCircle {
+            arc: map.arcs[&arc],
+            circle: map.circles[&circle],
         },
         Constraint::OnSegment { point, segment } => Constraint::OnSegment {
             point: map.points[&point],

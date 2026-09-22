@@ -42,6 +42,14 @@ impl Laid for Chamfered {
     }
 }
 
+/// One gesture that lays several things at once — every corner a chamfer or a
+/// fillet was shown, cut with the same values.
+impl Laid for Vec<Element> {
+    fn laid(&self) -> Vec<Element> {
+        self.clone()
+    }
+}
+
 impl Sketch {
     /// The drawing as the change would leave it, without touching this one.
     ///

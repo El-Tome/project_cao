@@ -70,7 +70,8 @@ fn a_cut_says_how_many_rules_and_values_it_could_not_carry_over() {
         outcome,
         Some(Outcome::Cut {
             rules: 1,
-            values: 1
+            values: 1,
+            refused: 0
         }),
         "the equal lengths and the typed length went; the parallel followed",
     );

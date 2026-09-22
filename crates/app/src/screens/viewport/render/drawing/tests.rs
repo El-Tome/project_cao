@@ -1,10 +1,17 @@
 //! What app · screens/viewport/render/drawing.rs is held to.
+//!
+//! Closes #286.
+//! - the dimensions that will go with the stretch are drawn in the alert
+//!   colour — `a_value_the_cut_would_take_is_drawn_in_the_alert_colour`
+//! - their written value follows — no test: it is the same list read one file
+//!   away, in `dimensions.rs`, and egui paints it as text on a window this
+//!   test does not open
 
 use cao_part::PartDocument;
 use cao_part::history::{Operation, PointRef};
 use cao_prefs::config::ViewportConfig;
 use cao_render::camera::OrbitCamera;
-use cao_sketch::WorkPlane;
+use cao_sketch::{DimensionTarget, SegmentId, Stretch, WorkPlane};
 use chrono::Utc;
 use glam::Vec3;
 
@@ -62,6 +69,7 @@ fn painted(active: bool) -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
     let shown = Shown {
         sketch: &sketch,
         laid: &[],
+        going: None,
         active,
     };
     let (mut lines, mut surfaces) = (Vec::new(), Vec::new());
@@ -167,5 +175,70 @@ fn a_shape_drawn_inside_another_takes_more_of_the_tint_than_the_one_around_it() 
     assert!(
         shades.iter().any(|shade| *shade > shades[0]),
         "every area is tinted the same, so an outline and its pocket wash into one another",
+    );
+}
+
+/// The rectangle with a length on one of its sides, and a cut that would take
+/// that side away — the length said to go with it or not, and nothing else
+/// told apart, so that what changes between the two is the value alone.
+fn painted_with_the_length_going(said_to_go: bool) -> Vec<cao_render::Vertex> {
+    let mut document = a_part_with_a_rectangle();
+    let mut sketch = document.sketches()[0].clone();
+    let side = SegmentId(0);
+    sketch.set_dimension(DimensionTarget::Length(side), 10.0, false);
+    let going = Going {
+        stretch: Stretch::Straight {
+            from: CORNER,
+            to: OPPOSITE,
+        },
+        construction: false,
+        rules: Vec::new(),
+        values: match said_to_go {
+            true => vec![DimensionTarget::Length(side)],
+            false => Vec::new(),
+        },
+    };
+
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let shown = Shown {
+        sketch: &sketch,
+        laid: &[],
+        going: Some(&going),
+        active: true,
+    };
+    let (mut lines, mut surfaces) = (Vec::new(), Vec::new());
+    push_sketch(
+        &mut lines,
+        &mut surfaces,
+        &shown,
+        &Theme::default(),
+        a_view(),
+        &context,
+    );
+    lines
+}
+
+#[test]
+fn a_value_the_cut_would_take_is_drawn_in_the_alert_colour() {
+    let alert = tint(Theme::default().going);
+    let in_alert = |lines: Vec<cao_render::Vertex>| {
+        lines.iter().filter(|vertex| vertex.color == alert).count()
+    };
+
+    let going = in_alert(painted_with_the_length_going(true));
+    let staying = in_alert(painted_with_the_length_going(false));
+
+    assert!(
+        going > staying,
+        "the length about to go is drawn exactly like one that stays — the \
+         stretch is red in both, so only the value can tell them apart",
     );
 }

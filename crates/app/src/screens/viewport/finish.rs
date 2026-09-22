@@ -4,8 +4,8 @@
 use cao_sketch::ToolState;
 
 use super::input::{
-    corner_held, cut_the_corner, draw_arc, draw_circle, draw_line_point, draw_symmetric_line_point,
-    hold_is_done, rectangle_corner, two_click_shape,
+    CornerEnter, corner_on_enter, cut_the_corner, draw_arc, draw_circle, draw_line_point,
+    draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
 use super::{PICK_PIXELS, SketchContext, ViewScale};
@@ -40,8 +40,17 @@ pub(crate) fn advance_on_enter(
     let Some(index) = sketch.editor.active_sketch() else {
         return false;
     };
-    if let Some((first, second)) = corner_held(&sketch.editor.tool_state) {
-        return cut_the_corner(sketch, index, first, second);
+    // The corner tools answer for their own key. Handed on, it reached a tool
+    // that put its own state where the corner's was, and the side already
+    // clicked was lost.
+    if matches!(sketch.editor.tool, Tool::Chamfer | Tool::Fillet) {
+        return match corner_on_enter(&sketch.editor.tool_state) {
+            CornerEnter::Cut => cut_the_corner(sketch, index),
+            CornerEnter::Waiting(say) => {
+                sketch.editor.message = Some(sketch.lang.t(say));
+                false
+            }
+        };
     }
     let raw_cursor = sketch.editor.cursor.unwrap_or_default();
     let aim = sketch.editor.aimed;

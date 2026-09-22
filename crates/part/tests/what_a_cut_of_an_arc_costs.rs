@@ -67,7 +67,8 @@ fn a_cut_on_a_curve_says_how_much_of_what_was_typed_it_could_not_carry_over() {
         outcome,
         Some(Outcome::Cut {
             rules: 0,
-            values: 1
+            values: 1,
+            refused: 0
         }),
         "the sweep went; the reach followed both pieces",
     );

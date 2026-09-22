@@ -1,6 +1,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
@@ -25,6 +26,16 @@ impl SketchAxis {
     }
 }
 
+/// Which way along its trait one arm of an angle runs, out from where the two
+/// traits meet.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum Toward {
+    /// From the trait's start towards its end.
+    End,
+    /// From the trait's end back towards its start.
+    Start,
+}
+
 /// What a dimension measures.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum DimensionTarget {
@@ -36,6 +47,18 @@ pub enum DimensionTarget {
     Distance { from: PointId, to: PointId },
     /// Angle at the point two segments share.
     Angle { first: SegmentId, second: SegmentId },
+    /// Angle between two segments that meet without sharing an end — where
+    /// they cross, or where one ends on the middle of the other.
+    ///
+    /// A shared end names a corner's one angle; two traits crossing name four,
+    /// two of them acute and two obtuse. Which way each arm runs along its trait
+    /// is what says which of the four this is.
+    AngleBetween {
+        first: SegmentId,
+        first_toward: Toward,
+        second: SegmentId,
+        second_toward: Toward,
+    },
     /// Angle between a segment and one of the sketch axes.
     AxisAngle {
         segment: SegmentId,
@@ -65,6 +88,34 @@ pub enum DimensionTarget {
 }
 
 impl DimensionTarget {
+    /// Whether a value typed for this dimension can be held at all.
+    ///
+    /// An angle between two traits typed at 0° or 180° — or near enough that
+    /// the two would count as parallel — would lay them parallel: their lines
+    /// would never cross, the angle could not be drawn, and it would still go on
+    /// driving the drawing. Past a half turn it cannot be reached at all.
+    pub fn takes(self, value: f64) -> bool {
+        match self {
+            Self::AngleBetween { .. } => {
+                (0.0..180.0).contains(&value) && value.to_radians().sin() > RUN_THE_SAME_WAY
+            }
+            _ => true,
+        }
+    }
+
+    /// Whether this is read in degrees rather than as a length. The one list
+    /// of them: a second copy is where a new kind of angle gets shown in
+    /// millimetres.
+    pub fn is_angle(self) -> bool {
+        matches!(
+            self,
+            Self::Angle { .. }
+                | Self::AngleBetween { .. }
+                | Self::AxisAngle { .. }
+                | Self::ArcSweep(_)
+        )
+    }
+
     /// The same target with its pair put in a fixed order.
     ///
     /// Clicking two segments one way round and the other way round means the
@@ -76,6 +127,17 @@ impl DimensionTarget {
             Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
                 first: second,
                 second: first,
+            },
+            Self::AngleBetween {
+                first,
+                first_toward,
+                second,
+                second_toward,
+            } if second.0 < first.0 => Self::AngleBetween {
+                first: second,
+                first_toward: second_toward,
+                second: first,
+                second_toward: first_toward,
             },
             Self::Projected { from, to, axis } if to.0 < from.0 => Self::Projected {
                 from: to,
@@ -119,6 +181,13 @@ pub enum Constraint {
     EqualRadiusArc {
         first: ArcId,
         second: ArcId,
+    },
+    /// An arc and a circle of the same radius. What a cut leaves of two circles
+    /// held to one another: an arc is a circle a sweep was taken from, and it
+    /// keeps what the circle meant.
+    EqualRadiusArcCircle {
+        arc: ArcId,
+        circle: CircleId,
     },
     /// A point held on the line a trait lies on, wherever the trait goes.
     OnSegment {
@@ -245,12 +314,7 @@ pub struct Dimension {
 
 impl Dimension {
     pub fn is_angle(&self) -> bool {
-        matches!(
-            self.target,
-            DimensionTarget::Angle { .. }
-                | DimensionTarget::AxisAngle { .. }
-                | DimensionTarget::ArcSweep(_)
-        )
+        self.target.is_angle()
     }
 
     /// Whether this dimension has been put somewhere by hand.

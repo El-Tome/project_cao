@@ -4,6 +4,7 @@
 //! straight into a part file.
 
 mod aim;
+mod angle_between;
 mod annotation;
 mod arc;
 mod arc_annotation;
@@ -21,6 +22,7 @@ mod circling;
 mod constraints;
 pub mod construct;
 mod corner;
+pub use corner::Corner;
 mod crossing;
 mod dimensioning;
 mod duplicating;
@@ -68,7 +70,7 @@ pub use axis::ChosenAxis;
 pub use chain::{ChainClick, chain_click};
 pub use chamfer::{Chamfer, ChamferMode, Chamfered};
 pub use circling::{CircleProgress, Found, circle_from, circle_progress, rim_of};
-pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis};
+pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxis, Toward};
 pub use construct::CircleMode;
 pub use dimensioning::axis_under;
 pub use duplicating::Duplicated;
@@ -93,3 +95,5 @@ pub use symmetric::{SymmetricClick, symmetric_click};
 pub use tool::{SelectState, ToolState};
 pub use trimming::Trimmed;
 pub use trimming::arc::ArcTrimmed;
+pub use trimming::circle::CircleTrimmed;
+pub use trimming::going::{Going, Stretch};

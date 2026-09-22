@@ -5,10 +5,10 @@
 //! These paint straight into the frame rather than handing back vertices: they
 //! are the part of the viewport egui owns, not the part the GPU does.
 
-use cao_prefs::theme::Rgba;
+use cao_prefs::theme::{Rgba, Theme};
 use cao_render::camera::CubeZone;
 use cao_render::cube;
-use cao_sketch::Selection;
+use cao_sketch::{Constraint, Going, Selection};
 use glam::{DVec2, DVec3};
 
 use crate::screens::viewport::cube_labels;
@@ -84,6 +84,7 @@ pub(crate) fn paint_rule_marks(
     state: &ViewportState,
     rect: egui::Rect,
     context: &SketchContext<'_>,
+    going: Option<&Going>,
 ) {
     let Some(index) = context.editor.active_sketch() else {
         return;
@@ -126,12 +127,27 @@ pub(crate) fn paint_rule_marks(
                 egui::Align2::CENTER_CENTER,
                 constraints::mark(*constraint),
                 egui::FontId::proportional(13.0),
-                match held {
-                    true => tint_to_color(state.theme.highlight),
-                    false => tint_to_color(state.theme.rule),
-                },
+                mark_shade(&state.theme, going, constraint, held),
             );
         }
+    }
+}
+
+/// The colour a rule's mark is written in.
+///
+/// A rule the click is about to take away is said in the alert colour even
+/// when it is the one being pointed at: of the two things to say, that is the
+/// one the user cannot undo.
+fn mark_shade(
+    theme: &Theme,
+    going: Option<&Going>,
+    rule: &Constraint,
+    held: bool,
+) -> egui::Color32 {
+    match (going.is_some_and(|going| going.rules.contains(rule)), held) {
+        (true, _) => tint_to_color(theme.going),
+        (false, true) => tint_to_color(theme.highlight),
+        (false, false) => tint_to_color(theme.rule),
     }
 }
 

@@ -6,7 +6,7 @@
 
 use cao_prefs::theme::{Background, Theme};
 use cao_render::{AxisStyle, BackgroundShape, SceneFrame, ViewportRect, cube, push_axes, srgb};
-use cao_sketch::DimensionTarget;
+use cao_sketch::{DimensionTarget, Going};
 use glam::DVec2;
 
 mod arc;
@@ -23,6 +23,7 @@ mod overlays;
 mod planes;
 mod preview;
 mod symmetric_line;
+mod trim;
 
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 use drawing::{Shown, push_sketch, what_would_be_laid};
@@ -31,6 +32,7 @@ pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
 use planes::push_choosable_planes;
 use preview::pending_annotation;
+pub(crate) use trim::what_would_go;
 
 use super::matter;
 use super::{SketchContext, ViewMode, ViewScale, ViewportState};
@@ -60,6 +62,7 @@ pub(crate) fn build_frame(
     cube_rect: egui::Rect,
     scale: ViewScale,
     context: &SketchContext<'_>,
+    going: Option<&Going>,
 ) -> SceneFrame {
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
@@ -128,6 +131,7 @@ pub(crate) fn build_frame(
         let shown = Shown {
             sketch: shown,
             laid: offered.as_ref().map_or(&[][..], |preview| &preview.laid),
+            going: active.then_some(going).flatten(),
             active,
         };
         push_sketch(&mut lines, &mut surfaces, &shown, theme, scale, context);

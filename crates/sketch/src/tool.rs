@@ -9,6 +9,7 @@ use glam::DVec2;
 
 use crate::aim::ChainAnchor;
 use crate::constraints::DimensionTarget;
+use crate::corner::Corner;
 use crate::element::Element;
 use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
@@ -82,11 +83,15 @@ pub enum ToolState {
         held: Vec<Element>,
         naming_the_target: bool,
     },
-    /// The sides of a corner the chamfer or fillet tool has been shown so far.
-    /// The two gestures are the same; only what is laid across the corner
-    /// differs.
+    /// What the chamfer or fillet tool has been shown so far. The two gestures
+    /// are the same; only what is laid across the corner differs.
     Corner {
-        sides: Vec<SegmentId>,
+        /// The corners taken, each to be cut with the values typed. Clicking a
+        /// corner already taken drops it again.
+        taken: Vec<Corner>,
+        /// A side named whose other side has not been clicked yet — half a
+        /// corner, which is nothing to cut on its own.
+        half: Option<SegmentId>,
     },
     Constrain {
         picks: Vec<RulePick>,

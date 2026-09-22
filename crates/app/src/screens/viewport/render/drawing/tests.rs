@@ -179,8 +179,9 @@ fn a_shape_drawn_inside_another_takes_more_of_the_tint_than_the_one_around_it() 
 }
 
 /// The rectangle with a length on one of its sides, and a cut that would take
-/// that side away.
-fn painted_with_a_value_going() -> (Vec<cao_render::Vertex>, Vec<cao_render::Vertex>) {
+/// that side away — the length said to go with it or not, and nothing else
+/// told apart, so that what changes between the two is the value alone.
+fn painted_with_the_length_going(said_to_go: bool) -> Vec<cao_render::Vertex> {
     let mut document = a_part_with_a_rectangle();
     let mut sketch = document.sketches()[0].clone();
     let side = SegmentId(0);
@@ -192,7 +193,10 @@ fn painted_with_a_value_going() -> (Vec<cao_render::Vertex>, Vec<cao_render::Ver
         },
         construction: false,
         rules: Vec::new(),
-        values: vec![DimensionTarget::Length(side)],
+        values: match said_to_go {
+            true => vec![DimensionTarget::Length(side)],
+            false => Vec::new(),
+        },
     };
 
     let mut editor = SketchEditor::default();
@@ -219,26 +223,22 @@ fn painted_with_a_value_going() -> (Vec<cao_render::Vertex>, Vec<cao_render::Ver
         a_view(),
         &context,
     );
-    (lines, surfaces)
+    lines
 }
 
 #[test]
 fn a_value_the_cut_would_take_is_drawn_in_the_alert_colour() {
-    let theme = Theme::default();
-    let (lines, _) = painted_with_a_value_going();
+    let alert = tint(Theme::default().going);
+    let in_alert = |lines: Vec<cao_render::Vertex>| {
+        lines.iter().filter(|vertex| vertex.color == alert).count()
+    };
 
-    let alert = lines
-        .iter()
-        .filter(|vertex| vertex.color == tint(theme.going))
-        .count();
-    let (plain, _) = painted(true);
-    let plain_alert = plain
-        .iter()
-        .filter(|vertex| vertex.color == tint(theme.going))
-        .count();
+    let going = in_alert(painted_with_the_length_going(true));
+    let staying = in_alert(painted_with_the_length_going(false));
 
     assert!(
-        alert > plain_alert,
-        "the value about to go is drawn exactly like the ones that stay",
+        going > staying,
+        "the length about to go is drawn exactly like one that stays — the \
+         stretch is red in both, so only the value can tell them apart",
     );
 }

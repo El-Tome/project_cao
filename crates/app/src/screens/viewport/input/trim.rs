@@ -8,9 +8,9 @@ use crate::screens::sketch::{SketchEditor, Tool};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
-/// One click of the trim tool: takes out the stretch of trait, of curve or of
-/// round the click fell in, between the two points sitting on either side of
-/// it.
+/// One click of the trim tool: takes out the stretch of trait, of curve, of
+/// round or of ellipse the click fell in, between the two points sitting on
+/// either side of it.
 pub(crate) fn trim(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -61,11 +61,18 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
             to,
         });
     }
-    let circle = sketch.nearest_circle(cursor, snap)?;
-    Some(Operation::TrimCircle {
+    if let Some(circle) = sketch.nearest_circle(cursor, snap) {
+        return Some(Operation::TrimCircle {
+            sketch: index,
+            circle,
+            between: sketch.circle_stretch_at(circle, cursor),
+        });
+    }
+    let ellipse = sketch.nearest_ellipse(cursor, snap)?;
+    Some(Operation::TrimEllipse {
         sketch: index,
-        circle,
-        between: sketch.circle_stretch_at(circle, cursor),
+        ellipse,
+        between: sketch.ellipse_stretch_at(ellipse, cursor),
     })
 }
 
@@ -93,6 +100,9 @@ pub(crate) fn previewed(
         Operation::TrimCircle {
             circle, between, ..
         } => sketch.circle_trim_takes(circle, between),
+        Operation::TrimEllipse {
+            ellipse, between, ..
+        } => sketch.ellipse_trim_takes(ellipse, between),
         // `cut_under` lays no other kind of step, and a wildcard here is what
         // let the round slip through when trimming one landed.
         other => unreachable!("the trim tool asked for {other:?}"),

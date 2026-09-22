@@ -318,6 +318,13 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole.
 
+**Trimming an ellipse leaves an arc of ellipse**, as trimming a circle leaves
+an arc: the stretch between the two points either side of the click goes, and
+what is left is the same ellipse with that stretch taken away — it keeps its
+axes, its rules and its values, and every tool reads it without being told.
+Cutting again in the middle of what is left leaves two pieces of the one curve,
+standing on the one pair of axes.
+
 A closed ellipse **encloses an area**, which extrudes like any other, its
 curved wall coming out as one face. A trait across it leaves the two areas it
 should. Snapping finds where it crosses a trait, a circle, an arc or another

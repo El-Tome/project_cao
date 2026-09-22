@@ -42,6 +42,7 @@ fn a_raised_ellipse(distance: f64) -> PartState {
             PointRef::New(DVec2::new(50.0, 40.0)),
         ],
         construction: false,
+        drawn: None,
     });
     let areas: Vec<Area> = PartState::rebuild(&history).areas_at(0, &[DVec2::new(50.0, 20.0)]);
     assert_eq!(areas.len(), 1, "the ellipse encloses one area: {areas:?}");

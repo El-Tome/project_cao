@@ -104,15 +104,45 @@ pub(super) fn push_arc_at(
 pub(super) fn push_ellipse_at(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    drawn: EllipseDraft,
+    places: Vec<DVec2>,
     color: [f32; 4],
     width: f32,
     construction: bool,
     scale: ViewScale,
 ) {
-    let places = drawn.places();
     // The steps of an ellipse are not all of one length, as a circle's are;
     // their mean keeps the dashes about the size a circle's would be.
+    let run: f64 = places
+        .windows(2)
+        .map(|pair| pair[0].distance(pair[1]))
+        .sum();
+    let step = run / (places.len().max(2) - 1) as f64;
+    push_curve(
+        out,
+        sketch,
+        places.into_iter(),
+        step,
+        color,
+        width,
+        construction,
+        scale,
+    );
+}
+
+/// One stretch of an ellipse, from where it opens over how far it goes.
+#[allow(clippy::too_many_arguments)]
+pub(super) fn push_ellipse_run(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    drawn: EllipseDraft,
+    from: f64,
+    sweep: f64,
+    color: [f32; 4],
+    width: f32,
+    construction: bool,
+    scale: ViewScale,
+) {
+    let places = drawn.places_along(from, sweep, drawn.steps_over(sweep));
     let run: f64 = places
         .windows(2)
         .map(|pair| pair[0].distance(pair[1]))

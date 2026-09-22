@@ -105,7 +105,11 @@ impl Sketch {
     /// length by how fast that measure changes under the point, which is its
     /// distance to the curve to first order. The axes are read off their own
     /// traits, both of them: the ellipse's own rows keep them square.
-    fn on_ellipse_equation(&self, point: PointId, ellipse: EllipseId) -> Option<Equation> {
+    pub(super) fn on_ellipse_equation(
+        &self,
+        point: PointId,
+        ellipse: EllipseId,
+    ) -> Option<Equation> {
         let oval = *self.ellipses().get(ellipse.0)?;
         if point.0 >= self.points().len() {
             return None;

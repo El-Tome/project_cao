@@ -48,6 +48,7 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::Trim { .. } => lang.t("history.trimmed"),
         Operation::TrimArc { .. } => lang.t("history.arc_trimmed"),
         Operation::TrimCircle { .. } => lang.t("history.circle_trimmed"),
+        Operation::TrimEllipse { .. } => lang.t("history.ellipse_trimmed"),
         Operation::Split { .. } => lang.t("history.split"),
         Operation::Chamfer { .. } => lang.t("history.chamfer"),
         Operation::Fillet { .. } => lang.t("history.fillet"),

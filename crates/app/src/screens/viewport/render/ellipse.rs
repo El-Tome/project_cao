@@ -54,7 +54,7 @@ pub(crate) fn push_preview(
             push_ellipse_at(
                 out,
                 sketch,
-                drawn,
+                drawn.places(),
                 preview,
                 1.5,
                 context.editor.construction,

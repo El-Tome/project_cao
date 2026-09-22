@@ -3,7 +3,7 @@
 use cao_sketch::{EllipseId, Sketch};
 
 use super::{claim, point_ref, record};
-use crate::history::{History, Operation};
+use crate::history::{History, Operation, PointRef};
 use crate::state::PartState;
 
 use super::remap::SketchIdMap;
@@ -18,23 +18,33 @@ pub(super) fn add_ellipses(
     new_state: &mut PartState,
 ) {
     for (old_id, oval) in old_sketch.live_ellipses() {
-        let old_points = old_sketch.ellipse_points(old_id);
-        let [center, west, east, south, north] =
-            old_points.map(|point| point_ref(point, old_sketch, map));
+        let mut old_points = old_sketch.ellipse_points(old_id).to_vec();
+        // An arc of ellipse is laid as the ellipse it is a piece of, with the
+        // stretch it was left drawn over: the two ends go with it.
+        old_points.extend(oval.drawn.into_iter().flat_map(|(from, to)| [from, to]));
+        let laid_from: Vec<PointRef> = old_points
+            .iter()
+            .map(|point| point_ref(*point, old_sketch, map))
+            .collect();
+        let [center, west, east, south, north] = [0, 1, 2, 3, 4].map(|at| laid_from[at].clone());
+        let drawn = oval
+            .drawn
+            .map(|_| [laid_from[5].clone(), laid_from[6].clone()]);
         let mut next = new_state.sketches[sketch_index].points().len();
         record(
             Operation::AddEllipse {
                 sketch: sketch_index,
-                center: center.clone(),
-                first: [west.clone(), east.clone()],
-                second: [south.clone(), north.clone()],
+                center,
+                first: [west, east],
+                second: [south, north],
                 construction: oval.construction,
+                drawn,
             },
             new_history,
             new_state,
         );
-        for (old_point, reference) in old_points.iter().zip([center, west, east, south, north]) {
-            claim(*old_point, &reference, map, &mut next);
+        for (old_point, reference) in old_points.iter().zip(laid_from.iter()) {
+            claim(*old_point, reference, map, &mut next);
         }
         let new_sketch = &new_state.sketches[sketch_index];
         let new_id = EllipseId(new_sketch.ellipses().len() - 1);

@@ -34,6 +34,12 @@ impl Sketch {
         into.extend(self.direction_equation(ellipse.first, ellipse.second, true));
         self.midpoint_equations(ellipse.center, ellipse.first, into);
         self.midpoint_equations(ellipse.center, ellipse.second, into);
+        // The ends a cut left are on the curve and stay on it, the way an
+        // arc's ends stay the same reach from its centre.
+        if let Some((from, to)) = ellipse.drawn {
+            into.extend(self.on_ellipse_equation(from, id));
+            into.extend(self.on_ellipse_equation(to, id));
+        }
         for equation in &mut into[written..] {
             for (point, pinned) in pinned.iter().enumerate() {
                 if *pinned {

@@ -31,6 +31,7 @@ fn an_ellipse() -> Operation {
             PointRef::New(DVec2::new(50.0, 30.0)),
         ],
         construction: false,
+        drawn: None,
     }
 }
 

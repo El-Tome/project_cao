@@ -98,27 +98,60 @@ fn vertex_for(places: &mut Vec<DVec2>, place: DVec2) -> usize {
 /// stands on a vertex — and nothing when fewer than two of them are distinct,
 /// which leaves the loop whole.
 fn broken_oval(oval: &Oval, places: &mut Vec<DVec2>) -> Vec<Curve> {
-    let vertices = vertices_round(oval.turns.iter().map(|turn| oval.place_at(*turn)), places);
-    (0..vertices.len())
-        .map(|step| {
-            let (from, to) = (vertices[step], vertices[(step + 1) % vertices.len()]);
-            let turn_of =
-                |vertex: usize| oval.drawn.turn_on(places[vertex]) / std::f64::consts::TAU;
-            let (starts, ends) = (turn_of(from), turn_of(to));
-            Curve::Oval {
-                drawn: oval.drawn,
-                starts,
-                // The two ends of a run that is the whole curve fall on the
-                // same place, and a sweep of nothing is no run at all.
-                sweep: match (ends - starts).rem_euclid(1.0) {
-                    sweep if sweep <= 0.0 => 1.0,
-                    sweep => sweep,
-                },
-                from,
-                to,
-            }
+    let Some((from, sweep)) = oval.run else {
+        let vertices = vertices_round(oval.turns.iter().map(|turn| oval.place_at(*turn)), places);
+        return (0..vertices.len())
+            .map(|step| {
+                let (starts, ends) = (vertices[step], vertices[(step + 1) % vertices.len()]);
+                let turn_of =
+                    |vertex: usize| oval.drawn.turn_on(places[vertex]) / std::f64::consts::TAU;
+                let (opens, closes) = (turn_of(starts), turn_of(ends));
+                piece_of(oval, opens, (closes - opens).rem_euclid(1.0), starts, ends)
+            })
+            .collect();
+    };
+
+    // A stretch a cut left: it runs between its own two ends, and is broken
+    // again at everything that runs through it between them.
+    let mut along: Vec<f64> = oval
+        .turns
+        .iter()
+        .map(|turn| (turn - from).rem_euclid(1.0))
+        .filter(|at| *at > 0.0 && *at < sweep)
+        .collect();
+    along.sort_by(f64::total_cmp);
+    let mut chain = vec![0.0];
+    chain.extend(along);
+    chain.push(sweep);
+
+    let mut vertices: Vec<(f64, usize)> = chain
+        .into_iter()
+        .map(|at| (at, vertex_for(places, oval.place_at(from + at))))
+        .collect();
+    vertices.dedup_by(|near, far| near.1 == far.1);
+    vertices
+        .windows(2)
+        .map(|pair| {
+            let (opens, closes) = (pair[0], pair[1]);
+            piece_of(oval, from + opens.0, closes.0 - opens.0, opens.1, closes.1)
         })
         .collect()
+}
+
+/// One run of an ellipse, from where it opens over how far it goes.
+fn piece_of(oval: &Oval, starts: f64, sweep: f64, from: usize, to: usize) -> Curve {
+    Curve::Oval {
+        drawn: oval.drawn,
+        starts,
+        // The two ends of a run that is the whole curve fall on the same
+        // place, and a sweep of nothing is no run at all.
+        sweep: match sweep <= 0.0 {
+            true => 1.0,
+            false => sweep,
+        },
+        from,
+        to,
+    }
 }
 
 /// The vertices a closed curve is broken at, in order round it, and none at

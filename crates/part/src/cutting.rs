@@ -9,8 +9,8 @@
 //! shape.
 
 use cao_sketch::{
-    ArcId, Area, Became, Chamfer, CircleId, Corner, CurveId, DimensionTarget, PointId, SegmentId,
-    Sketch, Standing,
+    ArcId, Area, Became, Chamfer, CircleId, Corner, CurveId, DimensionTarget, EllipseId, PointId,
+    SegmentId, Sketch, Standing,
 };
 use glam::DVec2;
 
@@ -109,6 +109,28 @@ impl PartState {
                 became: vec![(
                     CurveId::Circle(circle),
                     trimmed.arc.map(CurveId::Arc).into_iter().collect(),
+                )],
+            })
+        })
+    }
+
+    pub(crate) fn trim_ellipse(
+        &mut self,
+        sketch: usize,
+        ellipse: EllipseId,
+        between: Option<(PointId, PointId)>,
+    ) -> Option<Outcome> {
+        self.cutting(sketch, |drawing, _| {
+            let trimmed = drawing.trim_ellipse(ellipse, between)?;
+            Some(Cut {
+                // Nothing is handed over and nothing is dropped: what a cut
+                // leaves of an ellipse is the very ellipse, so every rule and
+                // every value it carried still speaks of it.
+                rules: 0,
+                values: 0,
+                became: vec![(
+                    CurveId::Ellipse(ellipse),
+                    trimmed.pieces.into_iter().map(CurveId::Ellipse).collect(),
                 )],
             })
         })

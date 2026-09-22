@@ -102,7 +102,7 @@ impl Sketch {
             .map(|(id, _)| self.place_on_arc(id, cursor));
         let on_ellipses = self
             .live_ellipses()
-            .map(|(id, _)| self.ellipse_draft(id).nearest(cursor));
+            .map(|(id, _)| self.place_on_ellipse(id, cursor));
         let on_axes = axes().map(|axis| {
             let along = axis.direction();
             along * cursor.dot(along)

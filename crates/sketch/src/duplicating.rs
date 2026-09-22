@@ -134,6 +134,13 @@ impl Sketch {
                         true => self.add_construction_ellipse(centre, [west, east], [south, north]),
                         false => self.add_ellipse(centre, [west, east], [south, north]),
                     };
+                    // A copy of an arc of ellipse is drawn over the same
+                    // stretch of its own curve as the one it was made from.
+                    if let Some((from, to)) = oval.drawn
+                        && let (Some(from), Some(to)) = (copy_of(from), copy_of(to))
+                    {
+                        self.draw_the_stretch(copy, from, to);
+                    }
                     // The axes are laid with the ellipse, and are as much a
                     // part of what the copy left behind.
                     let axes = self.ellipses()[copy.0];

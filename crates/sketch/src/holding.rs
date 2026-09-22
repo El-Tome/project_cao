@@ -74,7 +74,7 @@ impl Sketch {
             .map(|(id, _)| Support::Arc(id));
         let on_ellipses = self
             .live_ellipses()
-            .filter(|(id, _)| self.ellipse_draft(*id).distance(place) <= near_enough)
+            .filter(|(id, _)| self.distance_to_ellipse(*id, place) <= near_enough)
             .map(|(id, _)| Support::Ellipse(id));
         let on_axes = [SketchAxis::U, SketchAxis::V]
             .into_iter()
@@ -197,7 +197,7 @@ impl Sketch {
                 let curve = self.arc(arc);
                 onto_rim(place, self.point(curve.center), self.arc_radius(arc))
             }
-            Support::Ellipse(ellipse) => Some(self.ellipse_draft(ellipse).nearest(place)),
+            Support::Ellipse(ellipse) => Some(self.place_on_ellipse(ellipse, place)),
             Support::Axis(axis) => {
                 let along = axis.direction();
                 Some(along * place.dot(along))

@@ -46,7 +46,8 @@ impl PartState {
         None
     }
 
-    /// An ellipse, from its centre and the ends of its two axes.
+    /// An ellipse, from its centre and the ends of its two axes — and, for an
+    /// arc of one, the stretch of it that is drawn.
     pub(crate) fn add_ellipse(
         &mut self,
         sketch: usize,
@@ -54,15 +55,20 @@ impl PartState {
         first: &[PointRef; 2],
         second: &[PointRef; 2],
         construction: bool,
+        drawn: &Option<[PointRef; 2]>,
     ) -> Option<Outcome> {
         let sketch = self.sketches.get_mut(sketch)?;
         let center = resolve(sketch, center);
         let first = [&first[0], &first[1]].map(|place| resolve(sketch, place));
         let second = [&second[0], &second[1]].map(|place| resolve(sketch, place));
-        match construction {
+        let laid = match construction {
             true => sketch.add_construction_ellipse(center, first, second),
             false => sketch.add_ellipse(center, first, second),
         };
+        if let Some(ends) = drawn {
+            let ends = [&ends[0], &ends[1]].map(|place| resolve(sketch, place));
+            sketch.draw_the_stretch(laid, ends[0], ends[1]);
+        }
         None
     }
 }

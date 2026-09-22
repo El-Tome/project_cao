@@ -9,9 +9,13 @@
 use glam::DVec2;
 
 use crate::arcing::{ArcDraft, sweep_of};
+use crate::crossing::ellipse::{
+    where_arc_crosses_ellipse, where_ellipses_cross, where_segment_crosses_ellipse,
+};
 use crate::crossing::{
     round_arc, where_arcs_cross, where_segment_crosses_arc, where_segments_cross,
 };
+use crate::ellipsing::EllipseDraft;
 
 use super::off_by;
 
@@ -25,6 +29,13 @@ pub(super) enum Curve {
         from: usize,
         to: usize,
     },
+    /// A run of an ellipse, counter-clockwise in the ellipse's own turn from
+    /// one vertex to the other.
+    Oval {
+        drawn: EllipseDraft,
+        from: usize,
+        to: usize,
+    },
 }
 
 impl Curve {
@@ -34,13 +45,32 @@ impl Curve {
 
     pub(super) fn ends(&self) -> (usize, usize) {
         match self {
-            Curve::Straight { from, to } | Curve::Bent { from, to, .. } => (*from, *to),
+            Curve::Straight { from, to }
+            | Curve::Bent { from, to, .. }
+            | Curve::Oval { from, to, .. } => (*from, *to),
         }
+    }
+
+    /// The ellipse this run is cut out of, where it runs from and how far
+    /// round it goes — all as fractions of the ellipse's own whole turn.
+    fn run(&self, places: &[DVec2]) -> Option<(EllipseDraft, f64, f64)> {
+        let Curve::Oval { drawn, from, to } = self else {
+            return None;
+        };
+        let at = |place: DVec2| drawn.turn_nearest(place) / std::f64::consts::TAU;
+        let (starts, ends) = (at(places[*from]), at(places[*to]));
+        let sweep = match (ends - starts).rem_euclid(1.0) {
+            // The two ends of a run that is the whole curve fall on the same
+            // place, and a sweep of nothing is no run at all.
+            sweep if sweep <= 0.0 => 1.0,
+            sweep => sweep,
+        };
+        Some((*drawn, starts, sweep))
     }
 
     fn draft(&self, places: &[DVec2]) -> Option<ArcDraft> {
         match self {
-            Curve::Straight { .. } => None,
+            Curve::Straight { .. } | Curve::Oval { .. } => None,
             Curve::Bent { centre, from, to } => Some(ArcDraft {
                 centre: *centre,
                 start: places[*from],
@@ -52,6 +82,14 @@ impl Curve {
     /// How far along the curve a place stands, when it stands on it at all.
     pub(super) fn fraction_at(&self, places: &[DVec2], place: DVec2) -> Option<f64> {
         let off = off_by(place);
+        if let Some((drawn, starts, sweep)) = self.run(places) {
+            if drawn.distance(place) > off {
+                return None;
+            }
+            let round = drawn.turn_nearest(place) / std::f64::consts::TAU;
+            let along = (round - starts).rem_euclid(1.0) / sweep;
+            return (along <= 1.0).then_some(along);
+        }
         match self.draft(places) {
             None => {
                 let (from, to) = self.ends();
@@ -74,6 +112,9 @@ impl Curve {
     }
 
     pub(super) fn place_at(&self, places: &[DVec2], fraction: f64) -> DVec2 {
+        if let Some((drawn, starts, sweep)) = self.run(places) {
+            return drawn.at((starts + sweep * fraction) * std::f64::consts::TAU);
+        }
         let (from, to) = self.ends();
         match self.draft(places) {
             None => places[from].lerp(places[to], fraction),
@@ -89,6 +130,9 @@ impl Curve {
 /// How far along each of the two a crossing stands, for every crossing they
 /// have.
 pub(super) fn between(first: &Curve, second: &Curve, places: &[DVec2]) -> Vec<(f64, f64)> {
+    if first.run(places).is_some() || second.run(places).is_some() {
+        return where_a_run_of_an_ellipse_crosses(first, second, places);
+    }
     let (this, that) = (first.ends(), second.ends());
     match (first.draft(places), second.draft(places)) {
         (None, None) => where_segments_cross(
@@ -106,6 +150,51 @@ pub(super) fn between(first: &Curve, second: &Curve, places: &[DVec2]) -> Vec<(f
             .collect(),
         (Some(near), Some(far)) => where_arcs_cross(near, far),
     }
+}
+
+/// The same where one of the two is a run of an ellipse, whose crossings are
+/// found against the whole curve and then brought back to the run's own
+/// fraction — nothing at all where the crossing falls outside the run.
+fn where_a_run_of_an_ellipse_crosses(
+    first: &Curve,
+    second: &Curve,
+    places: &[DVec2],
+) -> Vec<(f64, f64)> {
+    let along_the_run = |run: Option<(EllipseDraft, f64, f64)>, whole: f64| {
+        let Some((_, starts, sweep)) = run else {
+            return Some(whole);
+        };
+        let along = (whole - starts).rem_euclid(1.0) / sweep;
+        (along <= 1.0).then_some(along)
+    };
+    let (near, far) = (first.run(places), second.run(places));
+    let found = match (near, far) {
+        (Some((drawn, ..)), None) => match second.draft(places) {
+            Some(arc) => where_arc_crosses_ellipse(arc, drawn)
+                .into_iter()
+                .map(|(round, whole)| (whole, round))
+                .collect(),
+            None => {
+                let (from, to) = second.ends();
+                where_segment_crosses_ellipse(places[from], places[to], drawn)
+                    .into_iter()
+                    .map(|(along, whole)| (whole, along))
+                    .collect()
+            }
+        },
+        (None, Some(_)) => {
+            return where_a_run_of_an_ellipse_crosses(second, first, places)
+                .into_iter()
+                .map(|(there, here)| (here, there))
+                .collect();
+        }
+        (Some((near, ..)), Some((far, ..))) => where_ellipses_cross(near, far),
+        (None, None) => Vec::new(),
+    };
+    found
+        .into_iter()
+        .filter_map(|(here, there)| Some((along_the_run(near, here)?, along_the_run(far, there)?)))
+        .collect()
 }
 
 /// The curve cut into the runs between its crossings, each as the two vertices

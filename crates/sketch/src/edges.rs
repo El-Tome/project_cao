@@ -15,32 +15,48 @@ use glam::DVec2;
 
 use crate::arcing::{ArcDraft, places_along};
 use crate::circle_edges::Round;
+use crate::ellipse_edges::Oval;
+use crate::ellipsing::{EllipseDraft, FULL_ELLIPSE_STEPS};
 use crate::naming::CurveId;
-use crate::sketch::{CircleId, Sketch};
+use crate::sketch::Sketch;
 
 mod curve;
 
 use curve::{Curve, between, pieces};
 
-/// One end of one arc, as a graph half-edge: where it leaves from, the tangent
-/// it leaves along — not the straight line to its far end, which is what tells
-/// the region walk apart from a plain segment's — and which way round the curve
-/// it walks.
-pub(crate) struct ArcHalfEdge {
-    pub(crate) center: DVec2,
+/// What a curved half-edge bends along: the centre a piece of a circle turns
+/// about, or the ellipse a run of one follows.
+#[derive(Clone)]
+pub(crate) enum Bend {
+    Round(DVec2),
+    Oval(EllipseDraft),
+}
+
+/// One end of one curved piece, as a graph half-edge: where it leaves from,
+/// the tangent it leaves along — not the straight line to its far end, which
+/// is what tells the region walk apart from a plain segment's — and which way
+/// round the curve it walks.
+pub(crate) struct CurvedHalfEdge {
+    pub(crate) bend: Bend,
     /// Whether this half leaves the piece's own start, curving the way it was
     /// drawn, or leaves its end and so walks the same curve backwards.
     pub(crate) forward: bool,
 }
 
-impl ArcHalfEdge {
-    /// The direction it leaves `from` in: perpendicular to the reach from the
-    /// centre, turned the way the curve actually bends at that end.
+impl CurvedHalfEdge {
+    /// The direction it leaves `from` in: along the curve at that place,
+    /// turned the way this half actually walks it.
     pub(crate) fn departure(&self, from: DVec2) -> DVec2 {
-        let reach = from - self.center;
+        let along = match &self.bend {
+            Bend::Round(centre) => (from - *centre).perp(),
+            Bend::Oval(drawn) => {
+                let turn = drawn.turn_nearest(from);
+                -drawn.first * turn.sin() + drawn.second_axis() * turn.cos()
+            }
+        };
         match self.forward {
-            true => DVec2::new(-reach.y, reach.x),
-            false => DVec2::new(reach.y, -reach.x),
+            true => along,
+            false => -along,
         }
     }
 
@@ -53,17 +69,36 @@ impl ArcHalfEdge {
             true => (from, to),
             false => (to, from),
         };
-        let mut sampled = places_along(ArcDraft {
-            centre: self.center,
-            start,
-            end,
-        });
+        let mut sampled = match &self.bend {
+            Bend::Round(centre) => places_along(ArcDraft {
+                centre: *centre,
+                start,
+                end,
+            }),
+            Bend::Oval(drawn) => places_round(drawn, start, end),
+        };
         if !self.forward {
             sampled.reverse();
         }
         sampled.pop();
         sampled
     }
+}
+
+/// A run of an ellipse as a run of places, ends included, counter-clockwise
+/// from one to the other. As many steps as that share of the whole curve is
+/// worth, so a short run is not drawn as one straight step.
+fn places_round(drawn: &EllipseDraft, start: DVec2, end: DVec2) -> Vec<DVec2> {
+    let from = drawn.turn_nearest(start);
+    let sweep = match (drawn.turn_nearest(end) - from).rem_euclid(std::f64::consts::TAU) {
+        sweep if sweep <= 0.0 => std::f64::consts::TAU,
+        sweep => sweep,
+    };
+    let steps =
+        ((sweep / std::f64::consts::TAU * FULL_ELLIPSE_STEPS as f64).ceil() as usize).max(2);
+    (0..=steps)
+        .map(|step| drawn.at(from + sweep * step as f64 / steps as f64))
+        .collect()
 }
 
 /// The drawing cut apart, before the half-edges are read off it.
@@ -74,7 +109,7 @@ struct Cut {
     drawn: Vec<CurveId>,
     places: Vec<DVec2>,
     cuts: Vec<Vec<(f64, usize)>>,
-    whole: Vec<(CircleId, Vec<DVec2>)>,
+    whole: Vec<(CurveId, Vec<DVec2>)>,
 }
 
 /// The drawing as a graph with every crossing standing on a vertex of its own.
@@ -87,14 +122,15 @@ pub(crate) struct Crossed {
     pub(crate) places: Vec<DVec2>,
     pub(crate) ends: Vec<(usize, usize)>,
     pub(crate) split: usize,
-    pub(crate) arcs: Vec<ArcHalfEdge>,
+    pub(crate) curves: Vec<CurvedHalfEdge>,
     /// Which curve of the drawing each half-edge was cut out of, twins alike.
     /// It is what lets a face walk say which curves bound it.
     pub(crate) from: Vec<CurveId>,
-    /// The circles nothing cut, each sampled as the closed loop it still is.
+    /// The circles and ellipses nothing cut, each sampled as the closed loop
+    /// it still is.
     /// They never enter the graph: a curve with no end has no vertex, and the
     /// walk turns at vertices.
-    pub(crate) whole: Vec<(CircleId, Vec<DVec2>)>,
+    pub(crate) whole: Vec<(CurveId, Vec<DVec2>)>,
 }
 
 /// Nearer than this to an end, a crossing is that end: the sliver it would
@@ -125,23 +161,40 @@ fn vertex_for(places: &mut Vec<DVec2>, place: DVec2) -> usize {
     }
 }
 
+/// The runs an ellipse becomes, once every turn something runs through it
+/// stands on a vertex — and nothing when fewer than two of them are distinct,
+/// which leaves the loop whole.
+fn broken_oval(oval: &Oval, places: &mut Vec<DVec2>) -> Vec<Curve> {
+    let vertices = vertices_round(oval.turns.iter().map(|turn| oval.place_at(*turn)), places);
+    (0..vertices.len())
+        .map(|step| Curve::Oval {
+            drawn: oval.drawn,
+            from: vertices[step],
+            to: vertices[(step + 1) % vertices.len()],
+        })
+        .collect()
+}
+
+/// The vertices a closed curve is broken at, in order round it, and none at
+/// all when fewer than two of them are distinct.
+fn vertices_round(round: impl Iterator<Item = DVec2>, places: &mut Vec<DVec2>) -> Vec<usize> {
+    let mut vertices: Vec<usize> = round.map(|place| vertex_for(places, place)).collect();
+    vertices.dedup();
+    if vertices.len() > 1 && vertices.first() == vertices.last() {
+        vertices.pop();
+    }
+    match vertices.len() < 2 {
+        true => Vec::new(),
+        false => vertices,
+    }
+}
+
 /// The arcs a circle becomes, once every turn something runs through it stands
 /// on a vertex — and nothing when fewer than two of them are distinct, which
 /// leaves the loop whole. The vertices are made either way: a circle a single
 /// run enters is still one loop, and that place is still a crossing to catch.
 fn broken(round: &Round, places: &mut Vec<DVec2>) -> Vec<Curve> {
-    let mut vertices: Vec<usize> = round
-        .turns
-        .iter()
-        .map(|turn| vertex_for(places, round.place_at(*turn)))
-        .collect();
-    vertices.dedup();
-    if vertices.len() > 1 && vertices.first() == vertices.last() {
-        vertices.pop();
-    }
-    if vertices.len() < 2 {
-        return Vec::new();
-    }
+    let vertices = vertices_round(round.turns.iter().map(|turn| round.place_at(*turn)), places);
     (0..vertices.len())
         .map(|step| Curve::Bent {
             centre: round.centre,
@@ -190,9 +243,19 @@ impl Sketch {
         for round in self.rounds() {
             let pieces = broken(&round, &mut places);
             match pieces.is_empty() {
-                true => whole.push((round.id, round.sampled())),
+                true => whole.push((CurveId::Circle(round.id), round.sampled())),
                 false => {
                     names.extend(std::iter::repeat_n(CurveId::Circle(round.id), pieces.len()));
+                    curves.extend(pieces);
+                }
+            }
+        }
+        for oval in self.ovals() {
+            let pieces = broken_oval(&oval, &mut places);
+            match pieces.is_empty() {
+                true => whole.push((CurveId::Ellipse(oval.id), oval.sampled())),
+                false => {
+                    names.extend(std::iter::repeat_n(CurveId::Ellipse(oval.id), pieces.len()));
                     curves.extend(pieces);
                 }
             }
@@ -264,24 +327,23 @@ impl Sketch {
         }
 
         let split = ends.len();
-        let mut arcs = Vec::new();
-        let bent = named().filter_map(|((id, curve), cut)| match curve {
+        let mut bent = Vec::new();
+        let curved = named().filter_map(|((id, curve), cut)| match curve {
             Curve::Straight { .. } => None,
-            Curve::Bent { centre, .. } => Some((*id, *centre, curve, cut)),
+            Curve::Bent { centre, .. } => Some((*id, Bend::Round(*centre), curve, cut)),
+            Curve::Oval { drawn, .. } => Some((*id, Bend::Oval(*drawn), curve, cut)),
         });
-        for (id, centre, curve, cut) in bent {
+        for (id, bend, curve, cut) in curved {
             for (start, end) in pieces(curve, cut) {
                 ends.push((start, end));
                 ends.push((end, start));
                 from.extend([id, id]);
-                arcs.push(ArcHalfEdge {
-                    center: centre,
-                    forward: true,
-                });
-                arcs.push(ArcHalfEdge {
-                    center: centre,
-                    forward: false,
-                });
+                for forward in [true, false] {
+                    bent.push(CurvedHalfEdge {
+                        bend: bend.clone(),
+                        forward,
+                    });
+                }
             }
         }
 
@@ -289,7 +351,7 @@ impl Sketch {
             places,
             ends,
             split,
-            arcs,
+            curves: bent,
             from,
             whole,
         }

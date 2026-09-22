@@ -3,26 +3,26 @@ use glam::DVec2;
 use crate::edges::Crossed;
 use crate::naming::CurveId;
 use crate::regions::{Outline, signed_area};
-use crate::sketch::{CircleId, Sketch};
+use crate::sketch::Sketch;
 
 impl Sketch {
     /// Walks the segment and arc graph and returns each area it encloses, as
     /// a loop of positions turning counter-clockwise.
     ///
-    /// A circle nothing cuts never reaches the graph, and comes back from
-    /// `crossed` as the closed loop it already is.
+    /// A circle or an ellipse nothing cuts never reaches the graph, and comes
+    /// back from `crossed` as the closed loop it already is.
     pub(crate) fn closed_outlines(&self) -> Vec<Outline> {
         let Crossed {
             places,
             ends,
             split,
-            arcs,
+            curves,
             from: cut_from,
             whole,
         } = self.crossed();
         let mut outlines: Vec<Outline> = whole
             .into_iter()
-            .map(|(circle, points)| all_of_one_curve(circle, points))
+            .map(|(curve, points)| all_of_one_curve(curve, points))
             .collect();
         if ends.is_empty() {
             return outlines;
@@ -32,7 +32,7 @@ impl Sketch {
             let from = places[ends[half].0];
             match half.checked_sub(split) {
                 None => places[ends[half].1] - from,
-                Some(arc) => arcs[arc].departure(from),
+                Some(curved) => curves[curved].departure(from),
             }
         };
 
@@ -96,8 +96,8 @@ impl Sketch {
                         outline.points.push(from);
                         outline.curves.push(None);
                     }
-                    Some(arc) => {
-                        let sampled = arcs[arc].points_along(from, to);
+                    Some(curved) => {
+                        let sampled = curves[curved].points_along(from, to);
                         let run = outline
                             .curves
                             .iter()
@@ -128,11 +128,12 @@ impl Sketch {
     }
 }
 
-/// A circle nothing cut: every one of its segments came from the one curve.
-fn all_of_one_curve(circle: CircleId, points: Vec<DVec2>) -> Outline {
+/// A circle or an ellipse nothing cut: every one of its segments came from the
+/// one curve.
+fn all_of_one_curve(curve: CurveId, points: Vec<DVec2>) -> Outline {
     Outline {
         curves: vec![Some(0); points.len()],
-        bounds: vec![CurveId::Circle(circle)],
+        bounds: vec![curve],
         points,
     }
 }

@@ -36,6 +36,7 @@ pub(super) fn remap_area(area: &Area, map: &SketchIdMap) -> Option<Area> {
                 CurveId::Segment(id) => map.segments.get(id).copied().map(CurveId::Segment),
                 CurveId::Arc(id) => map.arcs.get(id).copied().map(CurveId::Arc),
                 CurveId::Circle(id) => map.circles.get(id).copied().map(CurveId::Circle),
+                CurveId::Ellipse(id) => map.ellipses.get(id).copied().map(CurveId::Ellipse),
             })
             .collect::<Option<Vec<CurveId>>>()?,
         inside: area.inside,

@@ -109,7 +109,12 @@ pub(crate) fn turn_at(centre: DVec2, place: DVec2) -> f64 {
 
 /// How far along the run it meets the circle, nearest end first, leaving out
 /// the two ends themselves.
-fn along_segment_at_circle(a1: DVec2, a2: DVec2, centre: DVec2, radius: f64) -> Vec<f64> {
+pub(super) fn along_segment_at_circle(
+    a1: DVec2,
+    a2: DVec2,
+    centre: DVec2,
+    radius: f64,
+) -> Vec<f64> {
     let (along, reach) = (a2 - a1, a1 - centre);
     let (a, b, c) = (
         along.length_squared(),
@@ -154,6 +159,8 @@ pub(crate) fn round_arc(arc: ArcDraft, place: DVec2) -> Option<f64> {
     let turned = ((place - arc.centre).to_angle() - from).rem_euclid(std::f64::consts::TAU);
     (turned > 0.0 && turned < sweep).then(|| turned / sweep)
 }
+
+pub(crate) mod ellipse;
 
 /// Below this much of a turn between two directions they are taken as
 /// parallel: a sine, so the same figure whatever the drawing is measured in.

@@ -38,11 +38,11 @@ pub enum Crossing {
         segments: Vec<SegmentId>,
         arcs: Vec<ArcId>,
     },
-    /// A circle runs through the crossing. A circle has no ends: one point
-    /// divides it into nothing at all, and the two a division of it would want
-    /// are another gesture entirely. Cutting the rest of the crossing and
-    /// leaving the circle round would say something nobody asked for, so the
-    /// whole crossing is refused.
+    /// A circle or an ellipse runs through the crossing. Neither has ends:
+    /// one point divides such a curve into nothing at all, and the two a
+    /// division of it would want are another gesture entirely. Cutting the
+    /// rest of the crossing and leaving the round curve whole would say
+    /// something nobody asked for, so the whole crossing is refused.
     Round,
 }
 
@@ -62,7 +62,7 @@ impl Sketch {
                     .total_cmp(&right.distance_squared(at))
             })?;
 
-        if self.a_circle_runs_through(place) {
+        if self.a_whole_curve_runs_through(place) {
             return Some(Crossing::Round);
         }
 
@@ -94,12 +94,17 @@ impl Sketch {
     /// round.
     ///
     /// Construction circles are left out, as they are left out of the sweep.
-    fn a_circle_runs_through(&self, at: DVec2) -> bool {
+    fn a_whole_curve_runs_through(&self, at: DVec2) -> bool {
         let reach = off_by(at);
-        self.live_circles().any(|(_, circle)| {
+        let a_circle = self.live_circles().any(|(_, circle)| {
             !circle.construction
                 && (at.distance(self.point(circle.center)) - circle.radius).abs() <= reach
-        })
+        });
+        a_circle
+            || self
+                .live_ellipses()
+                .filter(|(_, ellipse)| !ellipse.construction)
+                .any(|(id, _)| self.ellipse_draft(id).distance(at) <= reach)
     }
 
     /// Drops a point where the named traits cross and cuts each of them in two

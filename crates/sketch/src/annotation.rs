@@ -9,12 +9,14 @@ use std::f64::consts::FRAC_1_SQRT_2;
 use glam::DVec2;
 
 use crate::annotation::angle::{Arm, angular};
+use crate::annotation::between_traits::between_traits;
 use crate::arc_annotation;
 use crate::constraints::DimensionTarget;
 use crate::segment::overshot_end;
 use crate::sketch::Sketch;
 
 mod angle;
+mod between_traits;
 
 /// The numeric norms an annotation is drawn against — how far it stands off
 /// on its own, how long an arrow or an arc is — together with the pixel scale
@@ -89,21 +91,13 @@ impl Sketch {
                 first_toward,
                 second,
                 second_toward,
-            } => {
-                let meet = self.where_lines_cross(first, second)?;
-                let (one, other) = (
-                    self.arm(first, first_toward),
-                    self.arm(second, second_toward),
-                );
-                angular(
-                    &mut shape,
-                    meet,
-                    Arm::Drawn(meet + one),
-                    meet + other,
-                    by,
-                    metrics,
-                )
-            }
+            } => between_traits(
+                &mut shape,
+                self,
+                [(first, first_toward), (second, second_toward)],
+                by,
+                metrics,
+            )?,
             DimensionTarget::AxisAngle { segment, axis } => {
                 let (start, end) = endpoints(self, segment)?;
                 let along = axis.direction();

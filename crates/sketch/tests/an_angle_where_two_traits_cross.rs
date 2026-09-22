@@ -184,8 +184,8 @@ fn two_parallel_traits_are_still_refused() {
     );
     assert_eq!(
         clicked_for_an_angle(&sketch, on_low, on_high),
-        DimensionPick::TraitsDoNotTouch,
-        "and the tool set to angles says they do not touch",
+        DimensionPick::TraitsAreParallel,
+        "and the tool set to angles says they are parallel",
     );
 }
 

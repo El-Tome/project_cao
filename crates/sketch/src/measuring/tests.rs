@@ -47,7 +47,7 @@ fn a_point_to_point_click_waits_for_the_second_point_then_measures_between_them(
 }
 
 #[test]
-fn an_angle_between_two_traits_that_do_not_meet_is_told_apart_from_one_that_does() {
+fn an_angle_between_two_parallel_traits_is_refused_for_being_parallel() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let a = sketch.add_point(DVec2::new(0.0, 0.0));
     let b = sketch.add_point(DVec2::new(40.0, 0.0));
@@ -68,7 +68,7 @@ fn an_angle_between_two_traits_that_do_not_meet_is_told_apart_from_one_that_does
         1.0,
     );
 
-    assert_eq!(outcome, DimensionPick::TraitsDoNotTouch);
+    assert_eq!(outcome, DimensionPick::TraitsAreParallel);
 }
 
 #[test]

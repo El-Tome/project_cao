@@ -14,6 +14,13 @@ use crate::sketch::{SegmentId, Sketch};
 /// the product of their lengths — the same threshold a crossing is found with.
 const PARALLEL: f64 = 1e-12;
 
+/// Below this sine of the angle between them, two traits count as running the
+/// same way when an angle between them is asked for. A hundred times what a
+/// solver leaves between two traits a rule holds parallel, and far under the
+/// tenth of a degree an angle is shown to: an angle laid below it would only
+/// fight the rule, or read nothing anybody drew on purpose.
+const RUN_THE_SAME_WAY: f64 = 1e-4;
+
 /// How near one of its own ends a trait may be met and still be met at that
 /// end, as a fraction of its length: the foot of a T. Far wider than rounding,
 /// since a solver leaves a foot held on the other trait a hair off it.
@@ -36,6 +43,18 @@ impl Sketch {
     pub fn where_lines_cross(&self, first: SegmentId, second: SegmentId) -> Option<DVec2> {
         let (a1, _, along, t, _) = self.crossing_of(first, second)?;
         Some(a1 + along * t)
+    }
+
+    /// Whether two traits run the same way, near enough that an angle between
+    /// them would measure nothing drawn on purpose.
+    pub fn run_the_same_way(&self, first: SegmentId, second: SegmentId) -> bool {
+        if self.segments().get(first.0).is_none() || self.segments().get(second.0).is_none() {
+            return true;
+        }
+        let (a1, a2) = self.endpoints(first);
+        let (b1, b2) = self.endpoints(second);
+        let (along, across) = ((a2 - a1).normalize_or_zero(), (b2 - b1).normalize_or_zero());
+        along.perp_dot(across).abs() < RUN_THE_SAME_WAY
     }
 
     /// Whether two traits meet: the place both run through, when it lies on
@@ -98,6 +117,29 @@ impl Sketch {
         match toward {
             Toward::End => end - start,
             Toward::Start => start - end,
+        }
+    }
+
+    /// A new angle between two traits, as they are drawn: each arm heading out
+    /// from where their lines cross towards the trait itself, whichever way
+    /// round the trait was drawn. Where the dimension is put down can still
+    /// turn it to face another side.
+    pub fn angle_between_traits(&self, first: SegmentId, second: SegmentId) -> DimensionTarget {
+        let toward = |segment: SegmentId| {
+            let Some(pivot) = self.where_lines_cross(first, second) else {
+                return Toward::End;
+            };
+            let (from, to) = self.endpoints(segment);
+            match ((from + to) * 0.5 - pivot).dot(to - from) >= 0.0 {
+                true => Toward::End,
+                false => Toward::Start,
+            }
+        };
+        DimensionTarget::AngleBetween {
+            first,
+            first_toward: toward(first),
+            second,
+            second_toward: toward(second),
         }
     }
 
@@ -167,7 +209,8 @@ impl Sketch {
 
     /// The one arm a trait has when the other is met at one of its own ends,
     /// running away from that end; nothing when it is crossed through its
-    /// middle and runs both ways.
+    /// middle and runs both ways, or when their lines cross out past it — a
+    /// trait lying apart from the other can be read either way from there.
     ///
     /// An end a rule holds on the other trait is that end, wherever the solver
     /// left it. Otherwise it is read off where the lines cross, with room for
@@ -181,8 +224,8 @@ impl Sketch {
             })
         };
         match () {
-            _ if held(drawn.start) || fraction <= AT_AN_END => Some(Toward::End),
-            _ if held(drawn.end) || fraction >= 1.0 - AT_AN_END => Some(Toward::Start),
+            _ if held(drawn.start) || fraction.abs() <= AT_AN_END => Some(Toward::End),
+            _ if held(drawn.end) || (fraction - 1.0).abs() <= AT_AN_END => Some(Toward::Start),
             _ => None,
         }
     }

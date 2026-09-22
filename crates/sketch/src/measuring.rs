@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::dimensioning::axis_under;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::trimming::ON_THE_TRAIT;
@@ -59,8 +59,9 @@ pub enum DimensionPick {
     WaitingForSecondTraitOrAxis,
     /// An axis taken first, waiting for the trait to measure it against.
     WaitingForTraitAfterAxis(SketchAxis),
-    /// Two traits picked for an angle, but they never meet.
-    TraitsDoNotTouch,
+    /// Two traits picked for an angle, but they run the same way: their lines
+    /// never cross, so there is no angle between them to read.
+    TraitsAreParallel,
     /// A point picked for a distance to a trait it already lies on: there is
     /// no distance to measure, and a zero laid there could only ever be
     /// read, never typed.
@@ -152,22 +153,18 @@ pub fn measure_pick(
                     DimensionPick::Target(DimensionTarget::Angle { first, second }),
                 );
             }
-            // No shared end, but they may still meet — crossing, or one ending
-            // on the other. Which of the angles they make is left to where the
-            // dimension is put down; until then, both arms run towards the ends.
+            // No shared end: crossing, one ending on the other, or lying apart.
+            // Any two that do not run the same way make an angle, read at first
+            // between the traits as drawn; where the dimension is put down can
+            // turn it to face another side.
             if let Some(laid) = sketch.angle_already_between(first, second) {
                 return (cleared, DimensionPick::Target(laid));
             }
-            return match sketch.where_traits_meet(first, second) {
-                None => (cleared, DimensionPick::TraitsDoNotTouch),
-                Some(_) => (
+            return match sketch.run_the_same_way(first, second) {
+                true => (cleared, DimensionPick::TraitsAreParallel),
+                false => (
                     cleared,
-                    DimensionPick::Target(DimensionTarget::AngleBetween {
-                        first,
-                        first_toward: Toward::End,
-                        second,
-                        second_toward: Toward::End,
-                    }),
+                    DimensionPick::Target(sketch.angle_between_traits(first, second)),
                 ),
             };
         }

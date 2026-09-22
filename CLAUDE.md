@@ -124,8 +124,10 @@ and buys nothing.
 - **`adapters/` is the only place allowed to reach the disk or the clock.**
 - **No `utils`, `helpers`, `common`, `misc`, `shared`, `manager`, `handler`.** A
   name that says nothing is where responsibilities come to hide.
-- **400 lines per file.** The files already over it are named in the test with
-  the length they had the day the rule landed; none of them may grow.
+- **400 lines per file of production code.** The files already over it are named
+  in the test with the length they had the day the rule landed; none of them may
+  grow. A test file is not weighed — it holds one responsibility whatever its
+  length, which is checking the thing beside it.
 
 ## How work is delivered
 

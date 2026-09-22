@@ -34,6 +34,22 @@
 //! - the rule itself does not move: a place still leaves the list by earning a
 //!   test of its own — `a_place_said_to_carry_no_test_carries_none`
 //!
+//! Closes #392.
+//! - a test file of any length passes the budget —
+//!   `the_budget_weighs_code_and_leaves_a_test_file_alone`
+//! - a production file past the budget still fails —
+//!   `the_budget_weighs_code_and_leaves_a_test_file_alone`
+//! - an integration test under `crates/<crate>/tests/` is not weighed either —
+//!   `the_budget_weighs_code_and_leaves_a_test_file_alone`, which holds that
+//!   the sweep reads `src` and nothing else
+//! - `FILES_OVER_THE_LINE_BUDGET` keeps its four entries —
+//!   `a_file_that_outgrew_its_budget_has_to_be_split`
+//! - and refuses a fifth that is a test file —
+//!   `the_list_of_files_over_the_budget_names_no_test_file`
+//! - the three other sweeps over `every_source()` keep reading test files —
+//!   `a_tests_file_nobody_declared_under_cfg_test_is_not_taken_for_tests`, which
+//!   holds what a test file is, and the sweeps that skip one name it themselves
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -473,31 +489,67 @@ fn a_file_that_outgrew_its_budget_has_to_be_split() {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
 
     for (path, source) in every_source() {
-        let length = source.lines().count();
-        let Some((known, budget)) = budgets.get_key_value(path.as_str()) else {
-            assert!(
-                length <= LINE_BUDGET,
-                "{path} is {length} lines, past the {LINE_BUDGET} a single responsibility fits in. \
-                 Split it, or say here what it is that it does.",
-            );
-            continue;
-        };
-
-        seen.insert(known);
-        assert!(
-            length <= *budget,
-            "{path} grew from {budget} lines to {length}. It was already too long: \
-             what you are adding belongs somewhere else.",
-        );
-        assert!(
-            length > LINE_BUDGET,
-            "{path} is down to {length} lines, back under the budget. \
-             Drop it from FILES_OVER_THE_LINE_BUDGET.",
-        );
+        if let Some((known, _)) = budgets.get_key_value(path.as_str()) {
+            seen.insert(known);
+        }
+        if let Some(complaint) = what_the_budget_says(&path, source.lines().count(), &budgets) {
+            panic!("{complaint}");
+        }
     }
 
     let listed: BTreeSet<&str> = budgets.keys().copied().collect();
     assert_eq!(seen, listed, "these files are gone but still hold a budget",);
+}
+
+#[test]
+fn the_budget_weighs_code_and_leaves_a_test_file_alone() {
+    let nothing_listed = BTreeMap::new();
+    let far_past = LINE_BUDGET + 100;
+
+    assert!(
+        what_the_budget_says("crates/app/src/app.rs", far_past, &nothing_listed).is_some(),
+        "a production file past the budget still fails",
+    );
+    assert!(
+        what_the_budget_says(
+            "crates/part/src/document/tests.rs",
+            far_past,
+            &nothing_listed
+        )
+        .is_none(),
+        "a tests.rs holds one responsibility, which is checking the module beside it",
+    );
+    assert!(
+        what_the_budget_says(
+            "crates/sketch/src/sketch/tests/rules.rs",
+            far_past,
+            &nothing_listed,
+        )
+        .is_none(),
+        "so does a file the tests of a module are carved into by subject",
+    );
+    assert!(
+        every_source()
+            .iter()
+            .all(|(path, _)| path.contains("/src/")),
+        "the sweep reads src only, so an integration test under crates/<crate>/tests/ \
+         is not weighed either",
+    );
+}
+
+#[test]
+fn the_list_of_files_over_the_budget_names_no_test_file() {
+    let tests: Vec<&str> = FILES_OVER_THE_LINE_BUDGET
+        .iter()
+        .map(|(path, _)| *path)
+        .filter(|path| is_nothing_but_tests(path))
+        .collect();
+
+    assert!(
+        tests.is_empty(),
+        "these are test files, and the budget does not weigh one: {tests:?}. \
+         An entry here undoes that exemption from the other end.",
+    );
 }
 
 #[test]
@@ -947,6 +999,41 @@ fn only_tests(folder: &Path) -> bool {
                 .all(|entry| entry.file_name() == "tests.rs")
         })
         .unwrap_or(false)
+}
+
+/// What the budget has against a file of this length, or nothing.
+///
+/// A test file is not weighed. The figure says a file holds one responsibility,
+/// and a tests.rs holds exactly one — checking the module beside it; applied
+/// there it stops measuring a responsibility and starts measuring coverage.
+fn what_the_budget_says(
+    path: &str,
+    length: usize,
+    budgets: &BTreeMap<&str, usize>,
+) -> Option<String> {
+    if is_nothing_but_tests(path) {
+        return None;
+    }
+    let Some(budget) = budgets.get(path) else {
+        return (length > LINE_BUDGET).then(|| {
+            format!(
+                "{path} is {length} lines, past the {LINE_BUDGET} a single responsibility fits \
+                 in. Split it, or say here what it is that it does."
+            )
+        });
+    };
+    if length > *budget {
+        return Some(format!(
+            "{path} grew from {budget} lines to {length}. It was already too long: \
+             what you are adding belongs somewhere else."
+        ));
+    }
+    (length <= LINE_BUDGET).then(|| {
+        format!(
+            "{path} is down to {length} lines, back under the budget. \
+             Drop it from FILES_OVER_THE_LINE_BUDGET."
+        )
+    })
 }
 
 /// A file that holds nothing but tests. Since #362 every module keeps them in

@@ -96,15 +96,13 @@ impl Sketch {
     /// Construction circles are left out, as they are left out of the sweep.
     fn a_whole_curve_runs_through(&self, at: DVec2) -> bool {
         let reach = off_by(at);
-        let a_circle = self.live_circles().any(|(_, circle)| {
+        self.live_circles().any(|(_, circle)| {
             !circle.construction
                 && (at.distance(self.point(circle.center)) - circle.radius).abs() <= reach
-        });
-        a_circle
-            || self
-                .live_ellipses()
-                .filter(|(_, ellipse)| !ellipse.construction)
-                .any(|(id, _)| self.ellipse_draft(id).distance(at) <= reach)
+        }) || self
+            .live_ellipses()
+            .filter(|(_, ellipse)| !ellipse.construction)
+            .any(|(id, _)| self.ellipse_draft(id).distance(at) <= reach)
     }
 
     /// Drops a point where the named traits cross and cuts each of them in two

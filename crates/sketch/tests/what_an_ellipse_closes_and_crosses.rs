@@ -13,6 +13,12 @@
 //!   `an_ellipse_crosses_a_circle`, `an_ellipse_crosses_an_arc`,
 //!   `an_ellipse_crosses_another_ellipse`, and the cursor is pulled onto one —
 //!   `the_cursor_is_pulled_onto_a_crossing_on_an_ellipse`
+//! - what must not break: a circle an ellipse overlaps is still cut into the
+//!   areas the two make — `a_circle_an_ellipse_overlaps_is_cut_by_it_into_the_areas_they_make`;
+//!   a trait drawn to one of the ellipse's own handles closes an area there —
+//!   `a_trait_drawn_to_a_handle_of_the_ellipse_closes_an_area_there`; and one
+//!   curve drawn twice, its axes given the other way round, crosses itself
+//!   nowhere — `the_same_ellipse_drawn_twice_the_other_way_round_crosses_itself_nowhere`
 //! - a division through an ellipse is refused, as one through a circle is —
 //!   `a_crossing_an_ellipse_runs_through_is_refused_rather_than_half_divided`.
 //!   The issue said the point would be dropped there; the circle's rule won
@@ -124,8 +130,6 @@ fn an_ellipse_crosses_a_circle() {
 #[test]
 fn an_ellipse_crosses_an_arc() {
     let (mut sketch, _) = an_ellipse();
-    // A quarter of a circle about the ellipse's own centre, big enough to
-    // reach past its short axis and not its long one, so it cuts it twice.
     let centre = sketch.add_point(DVec2::new(50.0, 20.0));
     let start = sketch.add_point(DVec2::new(75.0, 20.0));
     let end = sketch.add_point(DVec2::new(50.0, 45.0));
@@ -186,7 +190,6 @@ fn the_cursor_is_pulled_onto_a_crossing_on_an_ellipse() {
 fn a_crossing_an_ellipse_runs_through_is_refused_rather_than_half_divided() {
     let (mut sketch, _) = an_ellipse();
     let on = a_place_on_it();
-    // Two traits crossing each other exactly where the ellipse runs.
     let (from, to) = (
         sketch.add_point(on + DVec2::new(-10.0, -10.0)),
         sketch.add_point(on + DVec2::new(10.0, 10.0)),
@@ -204,5 +207,62 @@ fn a_crossing_an_ellipse_runs_through_is_refused_rather_than_half_divided() {
         named,
         Some(Crossing::Round),
         "the two traits cross where the ellipse runs, so the division is refused whole",
+    );
+}
+
+#[test]
+fn a_circle_an_ellipse_overlaps_is_cut_by_it_into_the_areas_they_make() {
+    let (mut sketch, _) = an_ellipse();
+    let centre = sketch.add_point(DVec2::new(80.0, 20.0));
+    sketch.add_circle(centre, 20.0);
+
+    let regions = sketch.regions();
+
+    assert_eq!(
+        regions.len(),
+        3,
+        "the lens, and what each curve keeps of its own: {:?}",
+        regions.iter().map(spanned).collect::<Vec<f64>>(),
+    );
+}
+
+#[test]
+fn a_trait_drawn_to_a_handle_of_the_ellipse_closes_an_area_there() {
+    let (mut sketch, _) = an_ellipse();
+    let north = sketch
+        .live_points()
+        .find(|(_, place)| place.distance(DVec2::new(50.0, 40.0)) < 1e-9)
+        .expect("the handle at the top of the second axis")
+        .0;
+    let on_the_curve = sketch.add_point(a_place_on_it());
+    sketch.add_segment(north, on_the_curve);
+
+    let regions = sketch.regions();
+
+    assert_eq!(
+        regions.len(),
+        2,
+        "the chord closes a piece off against the curve: {:?}",
+        regions.iter().map(spanned).collect::<Vec<f64>>(),
+    );
+}
+
+#[test]
+fn the_same_ellipse_drawn_twice_the_other_way_round_crosses_itself_nowhere() {
+    let (mut sketch, _) = an_ellipse();
+    // The very same curve, its short axis given as the first one.
+    let centre = sketch.add_point(DVec2::new(50.0, 20.0));
+    let south = sketch.add_point(DVec2::new(50.0, 0.0));
+    let north = sketch.add_point(DVec2::new(50.0, 40.0));
+    let west = sketch.add_point(DVec2::new(20.0, 20.0));
+    let east = sketch.add_point(DVec2::new(80.0, 20.0));
+    sketch.add_ellipse(centre, [south, north], [west, east]);
+
+    let crossings = sketch.crossings();
+
+    assert!(
+        crossings.is_empty(),
+        "one curve drawn twice crosses itself nowhere, not {} times",
+        crossings.len(),
     );
 }

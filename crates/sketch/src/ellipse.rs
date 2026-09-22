@@ -186,6 +186,28 @@ impl Sketch {
         }
     }
 
+    /// Whether a point is one of an ellipse's own handles and nothing else
+    /// leans on it — nothing, that is, but the two axes the ellipse is laid
+    /// with.
+    pub(crate) fn is_a_bare_handle_of(&self, ellipse: EllipseId, point: PointId) -> bool {
+        if !self.ellipse_points(ellipse).contains(&point) {
+            return false;
+        }
+        let axes = self.ellipses()[ellipse.0];
+        !self.live_segments().any(|(id, segment)| {
+            id != axes.first
+                && id != axes.second
+                && (segment.start == point || segment.end == point)
+        }) && !self
+            .live_circles()
+            .any(|(_, circle)| circle.center == point)
+            && self.arcs_leaning_on(point).is_empty()
+            && self
+                .ellipses_leaning_on(point)
+                .iter()
+                .all(|held| *held == Element::Ellipse(ellipse))
+    }
+
     /// Whether any curve still drawn stands on a point.
     fn anything_stands_on(&self, point: PointId) -> bool {
         self.live_segments()

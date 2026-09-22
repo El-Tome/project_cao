@@ -11,6 +11,7 @@
 use glam::DVec2;
 
 use crate::arcing::{ArcDraft, FULL_CIRCLE_STEPS};
+use crate::crossing::ellipse::where_circle_crosses_ellipse;
 use crate::crossing::{
     turn_at, where_arc_crosses_circle, where_circles_cross, where_segment_crosses_circle,
 };
@@ -102,6 +103,11 @@ impl Sketch {
             };
             let found = where_arc_crosses_circle(drawn, round.centre, round.radius);
             turns.extend(found.into_iter().map(|(_, turn)| turn));
+        }
+        for (id, _) in self.live_ellipses().filter(|(_, it)| !it.construction) {
+            let found =
+                where_circle_crosses_ellipse(round.centre, round.radius, self.ellipse_draft(id));
+            turns.extend(found.into_iter().map(|(turn, _)| turn));
         }
         for (_, place) in self.live_points() {
             if round.holds(place) {

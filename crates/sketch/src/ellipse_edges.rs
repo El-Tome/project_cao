@@ -47,7 +47,7 @@ impl Oval {
 
     /// How far round its turn the ellipse stands at a place on it.
     fn turn_at(&self, place: DVec2) -> f64 {
-        self.drawn.turn_nearest(place) / std::f64::consts::TAU
+        self.drawn.turn_on(place) / std::f64::consts::TAU
     }
 }
 
@@ -104,12 +104,13 @@ impl Sketch {
                 where_circle_crosses_ellipse(self.point(circle.center), circle.radius, oval.drawn);
             turns.extend(found.into_iter().map(|(_, turn)| turn));
         }
-        // The ellipse's own handles stand on it and break nothing: they are
-        // part of the curve rather than something running through it, and a
-        // wall raised from a curve broken at them would come out in pieces.
-        let handles = self.ellipse_points(oval.id);
+        // A handle of the ellipse's own stands on it and breaks nothing while
+        // it is the ellipse's alone: it is part of the curve rather than
+        // something running through it, and a wall raised from a curve broken
+        // at its handles would come out in pieces. A trait drawn to one is
+        // another matter — that is a junction, and the curve is cut there.
         for (id, place) in self.live_points() {
-            if oval.holds(place) && !handles.contains(&id) {
+            if oval.holds(place) && !self.is_a_bare_handle_of(oval.id, id) {
                 turns.push(oval.turn_at(place));
             }
         }

@@ -26,30 +26,10 @@ const STEPS: usize = 256;
 /// it, well under what the drawing counts as one place.
 const HALVINGS: usize = 40;
 
-impl EllipseDraft {
-    /// A place in the ellipse's own measure, where the curve itself is the
-    /// circle of radius one about the origin.
-    fn squashed(&self, place: DVec2) -> DVec2 {
-        let out = place - self.centre;
-        let along = self.first.length();
-        DVec2::new(
-            out.dot(self.first) / (along * along),
-            out.dot(self.second_axis()) / (self.second * self.second),
-        )
-    }
-
-    /// How far off the curve a place stands, in that same measure: nought on
-    /// it, negative inside, positive outside.
-    fn off_by(&self, place: DVec2) -> f64 {
-        self.squashed(place).length() - 1.0
-    }
-
-    /// How far round its turn the ellipse stands at a place on it, as a
-    /// fraction of a whole turn.
-    fn fraction_at(&self, place: DVec2) -> f64 {
-        let squashed = self.squashed(place);
-        squashed.to_angle().rem_euclid(std::f64::consts::TAU) / std::f64::consts::TAU
-    }
+/// How far round its turn the ellipse stands at a place on it, as a fraction
+/// of a whole turn.
+fn fraction_of(oval: EllipseDraft, place: DVec2) -> f64 {
+    oval.turn_on(place) / std::f64::consts::TAU
 }
 
 /// Where a straight run crosses an ellipse: how far along the run, and how far
@@ -75,7 +55,7 @@ pub(crate) fn where_circle_crosses_ellipse(
 ) -> Vec<(f64, f64)> {
     hunted(oval, |place| place.distance(centre) - radius)
         .into_iter()
-        .map(|place| (turn_at(centre, place), oval.fraction_at(place)))
+        .map(|place| (turn_at(centre, place), fraction_of(oval, place)))
         .collect()
 }
 
@@ -86,7 +66,7 @@ pub(crate) fn where_arc_crosses_ellipse(arc: ArcDraft, oval: EllipseDraft) -> Ve
     let radius = arc.centre.distance(arc.start);
     hunted(oval, |place| place.distance(arc.centre) - radius)
         .into_iter()
-        .filter_map(|place| Some((round_arc(arc, place)?, oval.fraction_at(place))))
+        .filter_map(|place| Some((round_arc(arc, place)?, fraction_of(oval, place))))
         .collect()
 }
 
@@ -95,22 +75,52 @@ pub(crate) fn where_arc_crosses_ellipse(arc: ArcDraft, oval: EllipseDraft) -> Ve
 /// Nowhere at all for one and the same ellipse, which every place of is on
 /// both: two pieces cut out of one curve do not cross each other.
 pub(crate) fn where_ellipses_cross(near: EllipseDraft, far: EllipseDraft) -> Vec<(f64, f64)> {
-    if near == far {
+    where_ellipses_cross_along(near, 0.0, 1.0, far)
+}
+
+/// The same over one run of the near ellipse, given as where it starts and how
+/// far it goes, both as fractions of a whole turn.
+///
+/// Walked as finely as that share of the curve is worth rather than the whole
+/// of it: the graph asks this of every run of every ellipse against every run
+/// of every other, and hunting the whole curve each time does the same work
+/// over and over.
+pub(crate) fn where_ellipses_cross_along(
+    near: EllipseDraft,
+    from: f64,
+    sweep: f64,
+    far: EllipseDraft,
+) -> Vec<(f64, f64)> {
+    if near.is_the_curve(&far) {
         return Vec::new();
     }
-    hunted(near, |place| far.off_by(place))
+    let turn = std::f64::consts::TAU;
+    hunted_along(near, from * turn, sweep * turn, |place| far.off_by(place))
         .into_iter()
-        .map(|place| (near.fraction_at(place), far.fraction_at(place)))
+        .map(|place| (fraction_of(near, place), fraction_of(far, place)))
         .collect()
 }
 
-/// The places round the ellipse where `off_by` changes sign, hunted step by
-/// step and then halved down.
+/// The places round the whole ellipse where `off_by` changes sign.
 fn hunted(oval: EllipseDraft, off_by: impl Fn(DVec2) -> f64) -> Vec<DVec2> {
-    let turn = |step: usize| std::f64::consts::TAU * step as f64 / STEPS as f64;
+    hunted_along(oval, 0.0, std::f64::consts::TAU, off_by)
+}
+
+/// The same over one stretch of it, walked in steps of the size the whole
+/// curve would be walked in — never fewer than a handful, so a short run is
+/// still looked at properly.
+fn hunted_along(
+    oval: EllipseDraft,
+    from: f64,
+    sweep: f64,
+    off_by: impl Fn(DVec2) -> f64,
+) -> Vec<DVec2> {
+    let share = (sweep / std::f64::consts::TAU).clamp(0.0, 1.0);
+    let steps = ((STEPS as f64 * share).ceil() as usize).max(8);
+    let turn = |step: usize| from + sweep * step as f64 / steps as f64;
     let mut found = Vec::new();
-    let mut behind = off_by(oval.at(0.0));
-    for step in 1..=STEPS {
+    let mut behind = off_by(oval.at(from));
+    for step in 1..=steps {
         let ahead = off_by(oval.at(turn(step)));
         if (behind < 0.0) != (ahead < 0.0) {
             found.push(halved(oval, &off_by, turn(step - 1), turn(step), behind));

@@ -50,7 +50,7 @@ impl CurvedHalfEdge {
         let along = match &self.bend {
             Bend::Round(centre) => (from - *centre).perp(),
             Bend::Oval(drawn) => {
-                let turn = drawn.turn_nearest(from);
+                let turn = drawn.turn_on(from);
                 -drawn.first * turn.sin() + drawn.second_axis() * turn.cos()
             }
         };
@@ -89,8 +89,8 @@ impl CurvedHalfEdge {
 /// from one to the other. As many steps as that share of the whole curve is
 /// worth, so a short run is not drawn as one straight step.
 fn places_round(drawn: &EllipseDraft, start: DVec2, end: DVec2) -> Vec<DVec2> {
-    let from = drawn.turn_nearest(start);
-    let sweep = match (drawn.turn_nearest(end) - from).rem_euclid(std::f64::consts::TAU) {
+    let from = drawn.turn_on(start);
+    let sweep = match (drawn.turn_on(end) - from).rem_euclid(std::f64::consts::TAU) {
         sweep if sweep <= 0.0 => std::f64::consts::TAU,
         sweep => sweep,
     };
@@ -116,7 +116,7 @@ struct Cut {
 ///
 /// `places` is the drawing's own points, then one more for each crossing.
 /// `ends` pairs every half-edge with its twin next to it, the straight ones
-/// first; `split` is where the curved ones start, and `arcs` holds one entry
+/// first; `split` is where the curved ones start, and `curves` holds one entry
 /// for each of those.
 pub(crate) struct Crossed {
     pub(crate) places: Vec<DVec2>,
@@ -167,10 +167,23 @@ fn vertex_for(places: &mut Vec<DVec2>, place: DVec2) -> usize {
 fn broken_oval(oval: &Oval, places: &mut Vec<DVec2>) -> Vec<Curve> {
     let vertices = vertices_round(oval.turns.iter().map(|turn| oval.place_at(*turn)), places);
     (0..vertices.len())
-        .map(|step| Curve::Oval {
-            drawn: oval.drawn,
-            from: vertices[step],
-            to: vertices[(step + 1) % vertices.len()],
+        .map(|step| {
+            let (from, to) = (vertices[step], vertices[(step + 1) % vertices.len()]);
+            let turn_of =
+                |vertex: usize| oval.drawn.turn_on(places[vertex]) / std::f64::consts::TAU;
+            let (starts, ends) = (turn_of(from), turn_of(to));
+            Curve::Oval {
+                drawn: oval.drawn,
+                starts,
+                // The two ends of a run that is the whole curve fall on the
+                // same place, and a sweep of nothing is no run at all.
+                sweep: match (ends - starts).rem_euclid(1.0) {
+                    sweep if sweep <= 0.0 => 1.0,
+                    sweep => sweep,
+                },
+                from,
+                to,
+            }
         })
         .collect()
 }

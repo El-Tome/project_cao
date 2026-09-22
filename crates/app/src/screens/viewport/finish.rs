@@ -4,8 +4,8 @@
 use cao_sketch::ToolState;
 
 use super::input::{
-    CornerEnter, corner_on_enter, cut_the_corner, draw_arc, draw_circle, draw_line_point,
-    draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
+    CornerEnter, corner_on_enter, cut_the_corner, draw_arc, draw_circle, draw_ellipse,
+    draw_line_point, draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
 use super::{PICK_PIXELS, SketchContext, ViewScale};
@@ -32,6 +32,7 @@ pub(crate) fn advance_on_enter(
             | ToolState::Rectangle { .. }
             | ToolState::Circle { .. }
             | ToolState::Arc { .. }
+            | ToolState::Ellipse { .. }
             | ToolState::Corner { .. }
     );
     if !drawing || !paint_live_input(ui, sketch) {
@@ -67,6 +68,7 @@ pub(crate) fn advance_on_enter(
         }
         Tool::Circle => draw_circle(sketch, index, cursor, snap, scale.units_per_pixel),
         Tool::Arc => draw_arc(sketch, index, cursor, snap, scale.units_per_pixel),
+        Tool::Ellipse => draw_ellipse(sketch, index, cursor, snap, scale.units_per_pixel),
         _ => two_click_shape(sketch, index, cursor, snap, scale.units_per_pixel),
     }
 }

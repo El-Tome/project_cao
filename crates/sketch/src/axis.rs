@@ -36,4 +36,20 @@ impl Sketch {
             }
         }
     }
+
+    /// The angle a segment makes with one of the sketch axes, in degrees.
+    pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f64> {
+        let (start, end) = self.endpoints(segment);
+        let direction = (end - start).normalize_or_zero();
+        if direction == DVec2::ZERO {
+            return None;
+        }
+        Some(
+            direction
+                .dot(axis.direction())
+                .clamp(-1.0, 1.0)
+                .acos()
+                .to_degrees(),
+        )
+    }
 }

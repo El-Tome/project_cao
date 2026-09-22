@@ -120,7 +120,7 @@ impl Sketch {
         second: SegmentId,
         radius: f64,
     ) -> Option<(PointId, PointId, PointId, f64, f64)> {
-        let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
+        let (pivot, far_first, far_second) = self.corner_to_cut(first, second)?;
         let opening = self.opening_at(pivot, far_first, far_second);
         let back = radius / (opening * 0.5).tan();
         if radius <= NOTHING_ROUNDED || back <= NOTHING_ROUNDED || !back.is_finite() {

@@ -199,6 +199,13 @@ fn drawn(lang: &Catalogue, sketch: &Sketch, index: usize, step: usize, rank: usi
             element: Element::Arc(id),
         },
     }));
+    strokes.extend(sketch.live_ellipses().map(|(id, _)| Row {
+        name: numbered(lang, "part_tree.ellipse", id.0 + 1),
+        points: Points::Element {
+            sketch: index,
+            element: Element::Ellipse(id),
+        },
+    }));
 
     Drawn {
         sketch: index,

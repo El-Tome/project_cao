@@ -14,6 +14,7 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
+        | Constraint::OnEllipse { .. }
         | Constraint::OnAxis { .. } => "constraints.label.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.label.collinear"
@@ -40,6 +41,7 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
+        | Constraint::OnEllipse { .. }
         | Constraint::OnAxis { .. } => "constraints.erased.coincident",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.erased.collinear"
@@ -67,6 +69,7 @@ pub fn mark(rule: Constraint) -> &'static str {
         Constraint::OnSegment { .. }
         | Constraint::OnCircle { .. }
         | Constraint::OnArc { .. }
+        | Constraint::OnEllipse { .. }
         | Constraint::OnAxis { .. } => "+",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "--",
         Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "T",

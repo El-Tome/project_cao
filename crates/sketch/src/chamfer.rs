@@ -157,7 +157,7 @@ impl Sketch {
         second: SegmentId,
         mode: Chamfer,
     ) -> Option<(PointId, PointId, PointId, f64, f64)> {
-        let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
+        let (pivot, far_first, far_second) = self.corner_to_cut(first, second)?;
         let (back_first, back_second) = self.taken_by(mode, pivot, far_first, far_second)?;
         for (far, back) in [(far_first, back_first), (far_second, back_second)] {
             if back <= NOTHING_TAKEN || back >= self.point(pivot).distance(self.point(far)) {

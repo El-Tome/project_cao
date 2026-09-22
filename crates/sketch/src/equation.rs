@@ -16,16 +16,21 @@ pub(crate) enum Row {
     Dimension(usize),
     Rule(usize),
     Arc(usize),
+    Ellipse(usize),
 }
 
-/// The row an index names, given how many of the first two families there are.
-pub(crate) fn row_at(index: usize, dimensions: usize, rules: usize) -> Row {
+/// The row an index names, given how many of the first three families there
+/// are.
+pub(crate) fn row_at(index: usize, dimensions: usize, rules: usize, arcs: usize) -> Row {
     let Some(past_dimensions) = index.checked_sub(dimensions) else {
         return Row::Dimension(index);
     };
-    match past_dimensions.checked_sub(rules) {
-        Some(arc) => Row::Arc(arc),
-        None => Row::Rule(past_dimensions),
+    let Some(past_rules) = past_dimensions.checked_sub(rules) else {
+        return Row::Rule(past_dimensions);
+    };
+    match past_rules.checked_sub(arcs) {
+        Some(ellipse) => Row::Ellipse(ellipse),
+        None => Row::Arc(past_rules),
     }
 }
 

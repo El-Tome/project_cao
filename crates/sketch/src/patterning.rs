@@ -66,6 +66,7 @@ impl Sketch {
             made.segments.extend(laid.segments);
             made.circles.extend(laid.circles);
             made.arcs.extend(laid.arcs);
+            made.ellipses.extend(laid.ellipses);
         }
         Some(made)
     }
@@ -99,6 +100,7 @@ impl Sketch {
                 made.segments.extend(laid.segments);
                 made.circles.extend(laid.circles);
                 made.arcs.extend(laid.arcs);
+                made.ellipses.extend(laid.ellipses);
             }
         }
         Some(made)

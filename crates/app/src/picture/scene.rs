@@ -117,6 +117,11 @@ fn push_drawing(out: &mut Vec<Vertex>, sketch: &Sketch) {
         let from = (drawn.start - drawn.centre).to_angle();
         push_curve(out, drawn.centre, radius, from, sweep_of(drawn), &at);
     }
+    for (id, _) in sketch.live_ellipses() {
+        for pair in sketch.ellipse_polyline(id).windows(2) {
+            push_step(out, at(pair[0]), at(pair[1]));
+        }
+    }
 }
 
 /// A curve as the straight steps a line renderer can draw, laid on the

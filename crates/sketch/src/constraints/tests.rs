@@ -34,6 +34,17 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
     let other_bend_end = sketch.add_point(DVec2::new(90.0, 50.0));
     let other_bend = sketch.add_arc(bend_centre, other_bend_start, other_bend_end);
 
+    let oval_centre = sketch.add_point(DVec2::new(150.0, 20.0));
+    let oval_west = sketch.add_point(DVec2::new(135.0, 20.0));
+    let oval_east = sketch.add_point(DVec2::new(165.0, 20.0));
+    let oval_south = sketch.add_point(DVec2::new(150.0, 15.0));
+    let oval_north = sketch.add_point(DVec2::new(150.0, 25.0));
+    let oval = sketch.add_ellipse(
+        oval_centre,
+        [oval_west, oval_east],
+        [oval_south, oval_north],
+    );
+
     let loose = sketch.add_point(DVec2::new(20.0, 20.0));
 
     let rules = vec![
@@ -87,6 +98,10 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             point: loose,
             arc: bend,
         },
+        Constraint::OnEllipse {
+            point: loose,
+            ellipse: oval,
+        },
         Constraint::OnAxis {
             point: loose,
             axis: SketchAxis::U,
@@ -131,6 +146,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::ArcTangent { .. } => "tangent, arc",
         Constraint::OnCircle { .. } => "on a circle",
         Constraint::OnArc { .. } => "on an arc",
+        Constraint::OnEllipse { .. } => "on an ellipse",
         Constraint::OnAxis { .. } => "on an axis",
         Constraint::Midpoint { .. } => "midpoint",
         Constraint::AxisCollinear { .. } => "on an axis, trait",

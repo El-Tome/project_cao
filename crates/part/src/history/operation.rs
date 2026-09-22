@@ -3,7 +3,7 @@
 
 use cao_sketch::{
     ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element,
-    PointId, Repeats, SegmentId, Support, WorkPlane,
+    EllipseId, PointId, Repeats, SegmentId, Support, WorkPlane,
 };
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -36,9 +36,11 @@ impl Operation {
             | Self::AddRectangle { sketch, .. }
             | Self::AddCircle { sketch, .. }
             | Self::AddArc { sketch, .. }
+            | Self::AddEllipse { sketch, .. }
             | Self::MovePoint { sketch, .. }
             | Self::ResizeCircle { sketch, .. }
             | Self::ResizeArc { sketch, .. }
+            | Self::ResizeEllipse { sketch, .. }
             | Self::MoveMany { sketch, .. }
             | Self::MoveDimension { sketch, .. }
             | Self::SetDimension { sketch, .. }
@@ -132,6 +134,16 @@ pub enum Operation {
         #[serde(default)]
         construction: bool,
     },
+    /// An ellipse, as its centre and the two ends of each of its axes. The axes
+    /// are laid with it as construction traits, in the same step.
+    AddEllipse {
+        sketch: usize,
+        center: PointRef,
+        first: [PointRef; 2],
+        second: [PointRef; 2],
+        #[serde(default)]
+        construction: bool,
+    },
     /// Dragging a point to a new place, and the corner it was laid on top of
     /// when it landed on one.
     ///
@@ -177,6 +189,13 @@ pub enum Operation {
     ResizeArc {
         sketch: usize,
         arc: ArcId,
+        reach: f64,
+    },
+    /// Dragging an ellipse by its curve: scaled whole about its centre, until
+    /// its first axis reaches `reach` from it.
+    ResizeEllipse {
+        sketch: usize,
+        ellipse: EllipseId,
         reach: f64,
     },
     /// Dragging a whole selection: every point named moves by the same step,

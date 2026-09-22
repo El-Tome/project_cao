@@ -8,7 +8,7 @@ use crate::screens::sketch::{LiveField, Tool};
 
 use super::super::SketchContext;
 use super::super::input::rectangle_corner;
-use super::{arc, circle, symmetric_line};
+use super::{arc, circle, ellipse, symmetric_line};
 
 /// The length and the angle of the line being drawn, editable on the spot.
 ///
@@ -36,6 +36,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let (labels, measured): ([&'static str; 4], [f64; 4]) = match context.editor.tool {
         Tool::Circle => two(circle::live_fields(context, index, cursor, scale)?),
         Tool::Arc => two(arc::live_fields(context, cursor)?),
+        Tool::Ellipse => two(ellipse::live_fields(context, raw_cursor)?),
         Tool::Line => {
             let from = sketch.anchor_position(context.editor.chain()?)?;
             let span = cursor - from;

@@ -3,8 +3,8 @@
 //! `MovePoint`, `MoveMany`, `MoveDimension` and `MergePoints` say how a shape
 //! was reached, not what it is; erased elements and their `EraseMany` leave
 //! nothing once the erasing is done. Compaction drops all of that and re-emits
-//! each sketch as the points, segments, circles, arcs, constraints and
-//! dimensions it is rebuilt down to — so a `PointId` never has to be renamed in
+//! each sketch as the points, segments, circles, arcs, ellipses, constraints
+//! and dimensions it is rebuilt down to — so a `PointId` never has to be renamed in
 //! place, which would silently point a later step at a different piece of the
 //! drawing.
 
@@ -16,6 +16,7 @@ use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
 use remap::{SketchIdMap, remap_area, remap_constraint, remap_target};
 
+mod ellipses;
 mod remap;
 
 /// Rewrites the applied part of `history` down to what the part still is.
@@ -189,7 +190,9 @@ fn compact_sketch(
     let mut map = SketchIdMap::default();
     map.points.insert(Sketch::ORIGIN, Sketch::ORIGIN);
 
-    for (old_id, segment) in old_sketch.live_segments() {
+    // An axis of an ellipse is laid again by the ellipse itself, below.
+    let drawn_alone = |(id, _): &(SegmentId, Segment)| old_sketch.ellipse_of_axis(*id).is_none();
+    for (old_id, segment) in old_sketch.live_segments().filter(drawn_alone) {
         add_segment(
             old_id,
             segment,
@@ -200,6 +203,8 @@ fn compact_sketch(
             new_state,
         );
     }
+
+    ellipses::add_ellipses(old_sketch, sketch_index, &mut map, new_history, new_state);
 
     // A revolution around one of these still needs it, even where it is no
     // longer part of the drawing.

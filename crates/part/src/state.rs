@@ -192,35 +192,26 @@ impl PartState {
                 radius,
                 rim,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let center = resolve(sketch, center);
-                let circle = if *construction {
-                    sketch.add_construction_circle(center, *radius)
-                } else {
-                    sketch.add_circle(center, *radius)
-                };
-                for place in rim {
-                    let point = resolve(sketch, place);
-                    sketch.add_constraint(cao_sketch::Constraint::OnCircle { point, circle });
-                }
-                None
-            }
+            } => self.add_circle(*sketch, center, *radius, rim, *construction),
             Operation::AddArc {
                 sketch,
                 center,
                 start,
                 end,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let [center, start, end] = [center, start, end].map(|place| resolve(sketch, place));
-                match *construction {
-                    true => sketch.add_construction_arc(center, start, end),
-                    false => sketch.add_arc(center, start, end),
-                };
-                None
-            }
+            } => self.add_arc(*sketch, [center, start, end], *construction),
+            Operation::AddEllipse {
+                sketch,
+                center,
+                first,
+                second,
+                construction,
+            } => self.add_ellipse(*sketch, center, first, second, *construction),
+            Operation::ResizeEllipse {
+                sketch,
+                ellipse,
+                reach,
+            } => self.resize_ellipse(*sketch, *ellipse, *reach),
             Operation::MoveMany { sketch, points, by } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
@@ -376,7 +367,7 @@ impl PartState {
     }
 }
 
-fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
+pub(crate) fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::PointId {
     match point {
         PointRef::Existing(id) => *id,
         PointRef::New(position) => sketch.add_point(*position),

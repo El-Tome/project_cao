@@ -1,5 +1,5 @@
-//! A circle or an arc drawn to a new size by hand, about the centre it
-//! already has.
+//! A circle, an arc or an ellipse drawn to a new size by hand, about the
+//! centre it already has.
 //!
 //! The size rather than a value: dragging a shape bigger says how big it is
 //! now, not how big it must stay. What pins a size is a dimension, and a
@@ -9,6 +9,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
+use crate::ellipse::EllipseId;
 use crate::length::LengthOutcome;
 use crate::sketch::{Circle, CircleId, Sketch};
 
@@ -19,11 +20,15 @@ use crate::sketch::{Circle, CircleId, Sketch};
 pub enum Curved {
     Circle(CircleId),
     Arc(ArcId),
+    /// Drawn bigger or smaller as a whole, its shape kept: both axes grow
+    /// together.
+    Ellipse(EllipseId),
 }
 
 impl Sketch {
-    /// The curve a press takes hold of to draw it to another size: the nearer
-    /// of the circle and the arc under it, and nothing where neither is.
+    /// The curve a press takes hold of to draw it to another size: the nearest
+    /// of the circles, arcs and ellipses under it, and nothing where there is
+    /// none.
     pub fn curve_at(&self, place: DVec2, reach: f64) -> Option<Curved> {
         let off_the_rim = |id: CircleId| {
             let round = self.circle(id);
@@ -35,7 +40,10 @@ impl Sketch {
         let arc = self
             .nearest_arc(place, reach)
             .map(|id| (Curved::Arc(id), self.distance_to_arc(id, place)));
-        [circle, arc]
+        let ellipse = self
+            .nearest_ellipse(place, reach)
+            .map(|id| (Curved::Ellipse(id), self.ellipse_draft(id).distance(place)));
+        [circle, arc, ellipse]
             .into_iter()
             .flatten()
             .min_by(|left, right| left.1.total_cmp(&right.1))
@@ -47,6 +55,25 @@ impl Sketch {
         match curve {
             Curved::Circle(circle) => self.point(self.circle(circle).center),
             Curved::Arc(arc) => self.point(self.arc(arc).center),
+            Curved::Ellipse(ellipse) => self.point(self.ellipses()[ellipse.0].center),
+        }
+    }
+
+    /// The reach a curve drawn through a place would have, in the measure
+    /// [`Sketch::resize`] takes: the radius of a circle or an arc, and for an
+    /// ellipse how far its first axis reaches from the centre once the curve,
+    /// keeping its shape, runs through the place.
+    pub fn reach_through(&self, curve: Curved, place: DVec2) -> f64 {
+        match curve {
+            Curved::Circle(_) | Curved::Arc(_) => place.distance(self.centre_of(curve)),
+            Curved::Ellipse(ellipse) => {
+                let drawn = self.ellipse_draft(ellipse);
+                let out = place - drawn.centre;
+                let first = drawn.first.length();
+                let along = out.dot(drawn.first) / (first * first);
+                let across = out.dot(drawn.second_axis()) / (drawn.second * drawn.second);
+                along.hypot(across) * first
+            }
         }
     }
 
@@ -60,6 +87,7 @@ impl Sketch {
         match curve {
             Curved::Circle(circle) => self.resize_circle(circle, reach, millimeters_per_unit),
             Curved::Arc(arc) => self.resize_arc(arc, reach, millimeters_per_unit),
+            Curved::Ellipse(ellipse) => self.resize_ellipse(ellipse, reach, millimeters_per_unit),
         }
     }
 }
@@ -118,6 +146,31 @@ impl Sketch {
             return LengthOutcome::Degenerate;
         };
         self.settle_around_all(&[dropped.0, dropped.1], millimeters_per_unit)
+    }
+
+    /// The same for an ellipse, scaled about its centre until its first axis
+    /// reaches that far: the four ends of its axes travel out together, and
+    /// the drawing settles around them and the centre they stay about.
+    pub fn resize_ellipse(
+        &mut self,
+        ellipse: EllipseId,
+        reach: f64,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        if reach < NO_REACH || ellipse.0 >= self.ellipses().len() {
+            return LengthOutcome::Degenerate;
+        }
+        let drawn = self.ellipse_draft(ellipse);
+        let factor = reach / drawn.first.length();
+        let [centre, ends @ ..] = self.ellipse_points(ellipse);
+        let mut dropped = vec![(centre, drawn.centre)];
+        dropped.extend(ends.map(|end| {
+            (
+                end,
+                drawn.centre + (self.point(end) - drawn.centre) * factor,
+            )
+        }));
+        self.settle_around_all(&dropped, millimeters_per_unit)
     }
 
     /// Keeps what the settling made of the drawing, or gives it back whole.

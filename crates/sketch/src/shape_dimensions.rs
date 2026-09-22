@@ -3,6 +3,7 @@
 
 use crate::aim::LockedInput;
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::ellipse::EllipseId;
 use crate::sketch::{SegmentId, Sketch};
 
 /// What a freshly-drawn rectangle earns on its own: three right angles — the
@@ -104,6 +105,38 @@ pub fn symmetric_segment_dimensions(
 }
 
 /// Normalises and drops whatever is already redundant with the drawing.
+/// Places on the ellipse just drawn the widths typed for its axes, and the
+/// angle typed for the first: on the axes themselves, since they are what an
+/// ellipse is measured by.
+pub fn ellipse_dimensions(
+    sketch: &Sketch,
+    ellipse: EllipseId,
+    first: LockedInput,
+    second_width: Option<f64>,
+    scale: f64,
+) -> Vec<(DimensionTarget, f64)> {
+    let Some(oval) = sketch.ellipses().get(ellipse.0) else {
+        return Vec::new();
+    };
+    let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
+    if let Some(width) = first.first {
+        wanted.push((DimensionTarget::Length(oval.first), width));
+    }
+    if let Some(angle) = first.second {
+        wanted.push((
+            DimensionTarget::AxisAngle {
+                segment: oval.first,
+                axis: SketchAxis::U,
+            },
+            angle.abs(),
+        ));
+    }
+    if let Some(width) = second_width {
+        wanted.push((DimensionTarget::Length(oval.second), width));
+    }
+    settled(sketch, wanted, scale)
+}
+
 pub(crate) fn settled(
     sketch: &Sketch,
     wanted: Vec<(DimensionTarget, f64)>,

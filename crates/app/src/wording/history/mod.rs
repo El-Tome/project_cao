@@ -27,12 +27,15 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
         Operation::AddRectangle { .. } => lang.t("history.rectangle"),
         Operation::AddCircle { .. } => lang.t("history.circle"),
         Operation::AddArc { .. } => lang.t("history.arc"),
+        Operation::AddEllipse { .. } => lang.t("history.ellipse"),
         Operation::MovePoint {
             merged_into: Some(_),
             ..
         } => lang.t("history.points_merged"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),
-        Operation::ResizeCircle { .. } | Operation::ResizeArc { .. } => lang.t("history.resized"),
+        Operation::ResizeCircle { .. }
+        | Operation::ResizeArc { .. }
+        | Operation::ResizeEllipse { .. } => lang.t("history.resized"),
         Operation::MoveDimension { .. } => lang.t("history.dimension_moved"),
         Operation::Constrain { constraint, .. } => constraints::label(lang, *constraint),
         Operation::EraseMany {
@@ -82,6 +85,7 @@ fn erased(
         ([Element::Segment(_)], [], []) => lang.t("history.segment_erased"),
         ([Element::Circle(_)], [], []) => lang.t("history.circle_erased"),
         ([Element::Arc(_)], [], []) => lang.t("history.arc_erased"),
+        ([Element::Ellipse(_)], [], []) => lang.t("history.ellipse_erased"),
         ([], [_], []) => lang.t("history.dimension_erased"),
         ([], [], [rule]) => constraints::erased_label(lang, *rule),
         _ => lang.t_with(

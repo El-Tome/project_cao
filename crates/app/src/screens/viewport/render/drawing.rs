@@ -6,7 +6,7 @@ use cao_prefs::theme::Theme;
 use cao_sketch::{Element, Going, PointId, Preview, Selection, Sketch};
 use glam::DVec2;
 
-use super::curves::{push_arc_at, push_circle_at, push_line};
+use super::curves::{push_arc_at, push_circle_at, push_ellipse_at, push_line};
 use super::marks::push_point_markers;
 use super::preview::push_preview;
 use super::trim::{LOUDER, push_going};
@@ -192,6 +192,31 @@ pub(crate) fn push_sketch(
             color,
             width,
             arc.construction,
+            scale,
+        );
+    }
+
+    for (id, oval) in sketch.live_ellipses() {
+        let stands = sketch.ellipse_points(id).into_iter().all(holds);
+        let (color, width) = match sketch.is_held(Element::Ellipse(id)) {
+            true => (tint(theme.fixed), theme.sketch_width),
+            false => sketch_colors(theme, active, stands),
+        };
+        let (color, width) = emphasis::mark(
+            context,
+            theme,
+            Selection::Element(Element::Ellipse(id)),
+            laid,
+            color,
+            width,
+        );
+        push_ellipse_at(
+            out,
+            sketch,
+            sketch.ellipse_draft(id),
+            color,
+            width,
+            oval.construction,
             scale,
         );
     }

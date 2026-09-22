@@ -5,6 +5,7 @@ use glam::DVec2;
 
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
+use crate::ellipse::EllipseId;
 use crate::equation::{Equation, Row};
 use crate::holding::Support;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
@@ -26,6 +27,9 @@ impl Sketch {
             }
             Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
             Constraint::OnArc { point, arc } => into.extend(self.on_arc_equation(point, arc)),
+            Constraint::OnEllipse { point, ellipse } => {
+                into.extend(self.on_ellipse_equation(point, ellipse))
+            }
             Constraint::OnAxis { point, axis } => into.extend(self.on_axis_equation(point, axis)),
             _ => {}
         }
@@ -92,6 +96,56 @@ impl Sketch {
             }
         }
         pulled
+    }
+
+    /// A point held on an ellipse's curve.
+    ///
+    /// Read in the ellipse's own measure — how far out the point stands along
+    /// each axis, as a share of that axis's reach — and brought back to a
+    /// length by how fast that measure changes under the point, which is its
+    /// distance to the curve to first order. The axes are read off their own
+    /// traits, both of them: the ellipse's own rows keep them square.
+    fn on_ellipse_equation(&self, point: PointId, ellipse: EllipseId) -> Option<Equation> {
+        let oval = *self.ellipses().get(ellipse.0)?;
+        if point.0 >= self.points().len() {
+            return None;
+        }
+        let (first, second) = (
+            self.segments()[oval.first.0],
+            self.segments()[oval.second.0],
+        );
+        let reach = self.point(point) - self.point(oval.center);
+        // How far out along one axis, as a share of its reach, and how that
+        // share answers to the place and to the axis itself.
+        let share = |from: PointId, to: PointId| {
+            let span = self.point(to) - self.point(from);
+            let squared = span.length_squared();
+            let out = 2.0 * reach.dot(span) / squared;
+            let by_place = span * (2.0 / squared);
+            let by_span = reach * (2.0 / squared) - span * (2.0 * out / squared);
+            (squared, out, by_place, by_span)
+        };
+        let (first_squared, s, s_place, s_span) = share(first.start, first.end);
+        let (second_squared, t, t_place, t_span) = share(second.start, second.end);
+        if first_squared < 1e-18 || second_squared < 1e-18 {
+            return None;
+        }
+        let by_place = s_place * (2.0 * s) + t_place * (2.0 * t);
+        let steepness = by_place.length();
+        if steepness < 1e-12 {
+            return None;
+        }
+        let to_length = 1.0 / steepness;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = (s * s + t * t - 1.0) * to_length;
+        equation.add(point, by_place * to_length);
+        equation.add(oval.center, -by_place * to_length);
+        equation.add(first.end, s_span * (2.0 * s * to_length));
+        equation.add(first.start, -s_span * (2.0 * s * to_length));
+        equation.add(second.end, t_span * (2.0 * t * to_length));
+        equation.add(second.start, -t_span * (2.0 * t * to_length));
+        Some(equation)
     }
 
     /// A point held on one of the sketch's own axes: no distance at all

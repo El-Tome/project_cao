@@ -3,12 +3,12 @@
 
 use cao_part::Operation;
 use cao_prefs::Modifier;
-use cao_sketch::{DimensionTarget, PointId};
+use cao_sketch::{DimensionTarget, PointId, Sketch};
 use glam::DVec2;
 
 use crate::screens::viewport::SketchContext;
 
-use super::{arc_centre_group, drag_curve, dropped_on, grabbed_curve, pick};
+use super::{drag_curve, dropped_on, grabbed_curve, pick};
 
 /// What a drag needs beyond where the cursor is: how far a click reaches, what
 /// a pixel is worth in the drawing, and whether the key that pulls a point off
@@ -56,8 +56,9 @@ pub(super) fn drag_point(
             return false;
         }
 
-        // A settled point cannot be dragged, and the centre of an arc carries
-        // its two ends along, the way a circle's centre carries its rim.
+        // A settled point cannot be dragged, and the centre of an arc or of an
+        // ellipse carries the curve along, the way a circle's centre carries
+        // its rim.
         //
         // A point held where two things cross reads as settled, and the key
         // that pulls it off is the one way to move it: without this it could
@@ -71,7 +72,7 @@ pub(super) fn drag_point(
                 let stuck = settled.get(point.0).copied().unwrap_or(false) || holds.len() > 1;
                 !stuck || (gesture.letting_go && !holds.is_empty())
             });
-        let arc_group = dragged_point.and_then(|point| arc_centre_group(sketch, point));
+        let arc_group = dragged_point.and_then(|point| centre_group(sketch, point));
         if let Some(state) = context.editor.select_state() {
             // Read where the gesture starts and kept for the whole of it, as
             // what is grabbed already is: letting the key decide again every
@@ -364,4 +365,18 @@ pub(crate) fn annotation_position(
         target,
         crate::screens::annotations::metrics(pixel, DVec2::ZERO),
     )
+}
+
+/// The points a drag on `point` would carry along, when it is the centre of
+/// an arc or of an ellipse: the centre and the curve's own points move as one,
+/// the way a circle's rim follows a dragged centre. `None` for a point that is
+/// nobody's centre, so a plain drag of it stays a plain drag.
+fn centre_group(sketch: &Sketch, point: PointId) -> Option<Vec<PointId>> {
+    let mut ends = sketch.arc_ends_around(point);
+    ends.extend(sketch.ellipse_ends_around(point));
+    (!ends.is_empty()).then(|| {
+        let mut group = vec![point];
+        group.extend(ends);
+        group
+    })
 }

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
 use crate::edges::off_by;
+use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 use crate::snap::onto_rim;
 
@@ -19,6 +20,7 @@ pub enum Support {
     Segment(SegmentId),
     Circle(CircleId),
     Arc(ArcId),
+    Ellipse(EllipseId),
     Axis(SketchAxis),
 }
 
@@ -29,6 +31,7 @@ impl Support {
             Self::Segment(segment) => Constraint::OnSegment { point, segment },
             Self::Circle(circle) => Constraint::OnCircle { point, circle },
             Self::Arc(arc) => Constraint::OnArc { point, arc },
+            Self::Ellipse(ellipse) => Constraint::OnEllipse { point, ellipse },
             Self::Axis(axis) => Constraint::OnAxis { point, axis },
         }
     }
@@ -39,6 +42,7 @@ impl Support {
             Constraint::OnSegment { point, segment } => Some((point, Self::Segment(segment))),
             Constraint::OnCircle { point, circle } => Some((point, Self::Circle(circle))),
             Constraint::OnArc { point, arc } => Some((point, Self::Arc(arc))),
+            Constraint::OnEllipse { point, ellipse } => Some((point, Self::Ellipse(ellipse))),
             Constraint::OnAxis { point, axis } => Some((point, Self::Axis(axis))),
             _ => None,
         }
@@ -68,6 +72,10 @@ impl Sketch {
             .live_arcs()
             .filter(|(id, _)| self.distance_to_arc(*id, place) <= near_enough)
             .map(|(id, _)| Support::Arc(id));
+        let on_ellipses = self
+            .live_ellipses()
+            .filter(|(id, _)| self.ellipse_draft(*id).distance(place) <= near_enough)
+            .map(|(id, _)| Support::Ellipse(id));
         let on_axes = [SketchAxis::U, SketchAxis::V]
             .into_iter()
             .filter(move |axis| across(*axis, place).abs() <= near_enough)
@@ -76,6 +84,7 @@ impl Sketch {
         on_traits
             .chain(on_circles)
             .chain(on_arcs)
+            .chain(on_ellipses)
             .chain(on_axes)
             .collect()
     }
@@ -100,6 +109,7 @@ impl Sketch {
             Support::Segment(segment) => Element::Segment(segment),
             Support::Circle(circle) => Element::Circle(circle),
             Support::Arc(arc) => Element::Arc(arc),
+            Support::Ellipse(ellipse) => Element::Ellipse(ellipse),
             Support::Axis(_) => return false,
         };
         self.points_it_leans_on(element).contains(&point)
@@ -187,6 +197,7 @@ impl Sketch {
                 let curve = self.arc(arc);
                 onto_rim(place, self.point(curve.center), self.arc_radius(arc))
             }
+            Support::Ellipse(ellipse) => Some(self.ellipse_draft(ellipse).nearest(place)),
             Support::Axis(axis) => {
                 let along = axis.direction();
                 Some(along * place.dot(along))
@@ -208,6 +219,11 @@ impl Sketch {
             }
             Constraint::OnArc { point, arc } => {
                 drawn(point) && arc.0 < self.arcs().len() && !self.is_erased_arc(arc)
+            }
+            Constraint::OnEllipse { point, ellipse } => {
+                drawn(point)
+                    && ellipse.0 < self.ellipses().len()
+                    && !self.is_erased_ellipse(ellipse)
             }
             Constraint::OnAxis { point, .. } => drawn(point),
             _ => false,

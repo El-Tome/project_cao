@@ -90,6 +90,24 @@ impl Sketch {
         }
     }
 
+    /// The corner two traits share, when it is one a tool may cut back.
+    ///
+    /// Not where either is an axis of an ellipse: the axes are what the curve
+    /// stands on, and a side pulled back would leave it standing on nothing.
+    pub(crate) fn corner_to_cut(
+        &self,
+        first: SegmentId,
+        second: SegmentId,
+    ) -> Option<(PointId, PointId, PointId)> {
+        if [first, second]
+            .into_iter()
+            .any(|side| self.ellipse_of_axis(side).is_some())
+        {
+            return None;
+        }
+        self.shared_corner(first, second)
+    }
+
     /// How wide a corner stands open, the shorter way round.
     pub(crate) fn opening_at(
         &self,

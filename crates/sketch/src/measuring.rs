@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{DimensionTarget, SketchAxis};
+use crate::constraints::{DimensionTarget, SketchAxis, Toward};
 use crate::dimensioning::axis_under;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -136,11 +136,28 @@ pub fn measure_pick(
                 first_angle_segment: None,
                 ..picks
             };
-            return match sketch.angle_between(first, second) {
+            if sketch.angle_between(first, second).is_some() {
+                return (
+                    cleared,
+                    DimensionPick::Target(DimensionTarget::Angle { first, second }),
+                );
+            }
+            // No shared end, but they may still meet — crossing, or one ending
+            // on the other. Which of the angles they make is left to where the
+            // dimension is put down; until then, both arms run towards the ends.
+            if let Some(laid) = sketch.angle_already_between(first, second) {
+                return (cleared, DimensionPick::Target(laid));
+            }
+            return match sketch.where_traits_meet(first, second) {
                 None => (cleared, DimensionPick::TraitsDoNotTouch),
                 Some(_) => (
                     cleared,
-                    DimensionPick::Target(DimensionTarget::Angle { first, second }),
+                    DimensionPick::Target(DimensionTarget::AngleBetween {
+                        first,
+                        first_toward: Toward::End,
+                        second,
+                        second_toward: Toward::End,
+                    }),
                 ),
             };
         }

@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{DimensionTarget, SketchAxis};
+use crate::constraints::{DimensionTarget, SketchAxis, Toward};
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// How far off an axis a trait has to be before its width and its height are
@@ -19,12 +19,18 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 const SLANT_DEGREES: f64 = 0.5;
 
 impl Sketch {
-    /// Which of the three readings of a slanted trait the cursor is asking for.
+    /// Which reading of a dimension the cursor is asking for, where there is
+    /// more than one: the side an angle between two crossing traits opens
+    /// towards, or one of the three readings of a slanted trait.
     ///
-    /// The two ends box off the plane: above or below that box the cursor asks
-    /// for the width, left or right of it the height, and inside it — the
-    /// triangle the trait closes — or out past a corner, the length itself.
+    /// For a slanted trait, the two ends box off the plane: above or below that
+    /// box the cursor asks for the width, left or right of it the height, and
+    /// inside it — the triangle the trait closes — or out past a corner, the
+    /// length itself.
     pub fn oriented(&self, target: DimensionTarget, cursor: DVec2) -> DimensionTarget {
+        if let DimensionTarget::AngleBetween { .. } = target {
+            return self.opening_toward(target, cursor);
+        }
         let Some((from, to)) = self.ends_of(target).filter(|_| self.is_slanted(target)) else {
             return target;
         };
@@ -121,9 +127,24 @@ impl Sketch {
 
         if let Some(second) = self.nearest_segment(cursor, snap)
             && second != first
-            && self.angle_between(first, second).is_some()
         {
-            return Some(DimensionTarget::Angle { first, second }.normalised());
+            if self.angle_between(first, second).is_some() {
+                return Some(DimensionTarget::Angle { first, second }.normalised());
+            }
+            // No shared end, but they may still meet — crossing, or one ending
+            // on the other. Which of their angles is meant is left to where the
+            // dimension is put down.
+            if let Some(laid) = self.angle_already_between(first, second) {
+                return Some(laid);
+            }
+            if self.where_traits_meet(first, second).is_some() {
+                return Some(DimensionTarget::AngleBetween {
+                    first,
+                    first_toward: Toward::End,
+                    second,
+                    second_toward: Toward::End,
+                });
+            }
         }
         if let Some(point) = self.nearest_point(cursor, snap * 0.8)
             && !self.segment_touches(first, point)

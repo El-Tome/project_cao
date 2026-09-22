@@ -224,7 +224,8 @@ impl Sketch {
             DimensionTarget::Distance { from, to } => {
                 !self.is_erased_point(from) && !self.is_erased_point(to)
             }
-            DimensionTarget::Angle { first, second } => {
+            DimensionTarget::Angle { first, second }
+            | DimensionTarget::AngleBetween { first, second, .. } => {
                 !self.is_erased_segment(first) && !self.is_erased_segment(second)
             }
             DimensionTarget::AxisAngle { segment, .. } => !self.is_erased_segment(segment),
@@ -883,6 +884,7 @@ impl Sketch {
                 a.distance(*b) * millimeters_per_unit.max(1e-9)
             }
             DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
+            DimensionTarget::AngleBetween { .. } => self.opening(target)?,
             DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
             DimensionTarget::PointToSegment { point, segment } => {
                 self.point_to_segment(point, segment)? * millimeters_per_unit.max(1e-9)

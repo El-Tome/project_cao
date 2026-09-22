@@ -84,6 +84,26 @@ impl Sketch {
                 let (pivot, a, b) = self.corner_points(first, second)?;
                 angular(&mut shape, pivot, Arm::Drawn(a), b, by, metrics)
             }
+            DimensionTarget::AngleBetween {
+                first,
+                first_toward,
+                second,
+                second_toward,
+            } => {
+                let meet = self.where_lines_cross(first, second)?;
+                let (one, other) = (
+                    self.arm(first, first_toward),
+                    self.arm(second, second_toward),
+                );
+                angular(
+                    &mut shape,
+                    meet,
+                    Arm::Drawn(meet + one),
+                    meet + other,
+                    by,
+                    metrics,
+                )
+            }
             DimensionTarget::AxisAngle { segment, axis } => {
                 let (start, end) = endpoints(self, segment)?;
                 let along = axis.direction();

@@ -1,6 +1,6 @@
 //! What a cut carries over to the pieces it leaves, and what it cannot.
 
-use crate::constraints::{Constraint, Dimension, DimensionTarget};
+use crate::constraints::{Constraint, Dimension, DimensionTarget, Toward};
 use crate::sketch::{PointId, SegmentId};
 
 /// One of the pieces a cut left, and what of the trait's own rules it can
@@ -18,6 +18,26 @@ impl Piece {
     /// Whether a place on the trait fell on this piece.
     pub(super) fn holds(&self, place: f64) -> bool {
         (self.spans.0..=self.spans.1).contains(&place)
+    }
+
+    /// Whether this piece runs on from a place on the trait the way an arm
+    /// heads: it carries the stretch just past that place, towards the end or
+    /// back towards the start.
+    ///
+    /// The place is where two lines cross, found by one sum, and the piece's
+    /// bounds come from another; at a T's foot, or where a division cut, the
+    /// two should agree and need not to the last bit. A T's foot comes out a
+    /// few parts in 10¹⁶ *before* the stem's start about one time in five, and
+    /// read exactly that drops the angle off the only piece that carries it.
+    /// So the place is taken a hair along the way the arm heads, where the
+    /// stretch it measures truly lies.
+    pub(super) fn runs_on_from(&self, place: f64, toward: Toward) -> bool {
+        const PAST: f64 = 1e-9;
+        let past = match toward {
+            Toward::End => place + PAST,
+            Toward::Start => place - PAST,
+        };
+        self.spans.0 < past && past < self.spans.1
     }
 }
 
@@ -164,6 +184,29 @@ pub(super) fn still_measured(
                 point,
                 segment: piece.id,
             })
+        }
+        // An angle between two traits that share no end is read where they
+        // meet, and its arm runs one way from there: it follows the piece that
+        // carries on from that place in that direction. A place a cut took
+        // away leaves no piece to meet the other trait, and the angle goes.
+        DimensionTarget::AngleBetween {
+            first,
+            first_toward,
+            second,
+            second_toward,
+        } if first == cut || second == cut => {
+            let toward = match first == cut {
+                true => first_toward,
+                false => second_toward,
+            };
+            place
+                .is_some_and(|meet| piece.runs_on_from(meet, toward))
+                .then_some(DimensionTarget::AngleBetween {
+                    first: moved(first),
+                    first_toward,
+                    second: moved(second),
+                    second_toward,
+                })
         }
         _ => None,
     }

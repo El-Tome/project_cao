@@ -6,6 +6,7 @@ use crate::equation::{Equation, Row, row_at};
 use crate::independence::norm;
 use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
+mod angle_solver;
 mod arc_solver;
 mod hold_solver;
 
@@ -248,7 +249,10 @@ impl Sketch {
             // two traits, a length stretches its own.
             match self.row(index) {
                 Row::Dimension(at) => match self.dimensions()[at].target {
-                    DimensionTarget::Angle { first, second } => opened.push((first, second)),
+                    DimensionTarget::Angle { first, second }
+                    | DimensionTarget::AngleBetween { first, second, .. } => {
+                        opened.push((first, second))
+                    }
                     DimensionTarget::Length(segment) => stretched.push(segment),
                     _ => {}
                 },
@@ -966,6 +970,9 @@ impl Sketch {
             }
             DimensionTarget::Angle { first, second } => {
                 self.angle_equation(first, second, dimension.value)?
+            }
+            DimensionTarget::AngleBetween { .. } => {
+                self.angle_between_equation(dimension.target, dimension.value)?
             }
             DimensionTarget::AxisAngle { segment, axis } => {
                 self.axis_angle_equation(segment, axis, dimension.value)?

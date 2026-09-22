@@ -13,6 +13,12 @@ use std::f64::consts::TAU;
 use glam::DVec2;
 
 use super::{NO_LENGTH, ON_THE_TRAIT};
+
+/// How far round the turn a place may stand past the end of a stretch and
+/// still be that end. A turn rather than a length: what is compared is how far
+/// round the curve two places stand, and the two ends of a stretch are read
+/// off points the drawing already holds on it.
+const ROUND_THE_CURVE: f64 = 1e-9;
 use crate::ellipse::{Ellipse, EllipseId};
 use crate::sketch::{Element, PointId, Sketch};
 
@@ -51,11 +57,10 @@ impl Sketch {
                     return None;
                 }
                 let along = (drawn.turn_on(place) - from).rem_euclid(TAU);
-                (along <= sweep + ON_THE_TRAIT).then_some((along, point))
+                (along <= sweep + ROUND_THE_CURVE).then_some((along, point))
             })
             .collect();
         sitting.sort_by(|first, second| first.0.total_cmp(&second.0));
-        sitting.dedup_by(|near, far| near.1 == far.1);
         sitting
     }
 
@@ -72,7 +77,9 @@ impl Sketch {
         }
         let drawn = self.ellipse_draft(id);
         let (from, sweep) = self.ellipse_run(id);
-        let along = (drawn.turn_on(drawn.nearest(at)) - from).rem_euclid(TAU);
+        // Read where the click lands on what is drawn, as the click itself was
+        // read: past an end that is the end, not the far side of the curve.
+        let along = (drawn.turn_on(self.place_on_ellipse(id, at)) - from).rem_euclid(TAU);
 
         let opens = sitting.iter().rposition(|(at, _)| *at <= along);
         match self.ellipse_ends(id) {
@@ -169,10 +176,16 @@ impl Sketch {
     /// Asked again here rather than trusted from the click, because the two
     /// points are recorded once and replayed afterwards: an earlier step
     /// edited since can have carried them off the curve.
+    /// The two are asked for in the order the curve runs as well: a pair that
+    /// has crossed over names no stretch of what is drawn, and a replay that
+    /// took one at its word conjured a second piece out of a cut.
     fn is_a_stretch_of_the_ellipse(&self, id: EllipseId, from: PointId, to: PointId) -> bool {
         let sitting = self.sitting_along_the_ellipse(id);
-        let on_the_curve = |point: PointId| sitting.iter().any(|(_, sits)| *sits == point);
-        from != to && on_the_curve(from) && on_the_curve(to)
+        let along = |point: PointId| sitting.iter().find(|(_, sits)| *sits == point);
+        let (Some(near), Some(far)) = (along(from), along(to)) else {
+            return false;
+        };
+        from != to && (self.ellipse_ends(id).is_none() || near.0 <= far.0)
     }
 
     /// Whether another ellipse is drawn on the same axes: a piece of the very

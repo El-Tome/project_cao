@@ -4,7 +4,9 @@
 //! - a cut is one step of the history, undone in one go —
 //!   `one_undo_gives_the_whole_ellipse_back`
 //! - the arc of ellipse survives compaction, with the stretch it was left —
-//!   `compacting_keeps_the_stretch_the_cut_left`
+//!   `compacting_keeps_the_stretch_the_cut_left`, and two pieces of one curve
+//!   come back on the one pair of axes, no point laid twice —
+//!   `compacting_two_pieces_keeps_them_on_the_one_pair_of_axes`
 //! - and is read back from the file as the arc it is —
 //!   `a_drawing_read_back_holds_the_stretch_of_its_ellipse`
 //! - a cut in the middle of a stretch leaves two pieces, replayed as two —
@@ -158,4 +160,47 @@ fn a_cut_in_the_middle_is_replayed_as_the_two_pieces_it_left() {
         2,
         "both stand on the one pair of axes",
     );
+}
+
+#[test]
+fn compacting_two_pieces_keeps_them_on_the_one_pair_of_axes() {
+    let mut document = a_document_with_an_ellipse();
+    document.apply(Operation::TrimEllipse {
+        sketch: 0,
+        ellipse: EllipseId(0),
+        between: Some((EAST, NORTH)),
+    });
+    document.apply(Operation::TrimEllipse {
+        sketch: 0,
+        ellipse: EllipseId(0),
+        between: Some((WEST, SOUTH)),
+    });
+    let before: Vec<f64> = (0..2)
+        .map(|rank| how_far_it_runs(&document, EllipseId(rank)))
+        .collect();
+    let points = document.sketches()[0].live_points().count();
+
+    document.compact_history();
+
+    let drawing = &document.sketches()[0];
+    assert_eq!(drawing.live_ellipses().count(), 2, "both pieces come back");
+    assert_eq!(
+        drawing.live_segments().count(),
+        2,
+        "on the one pair of axes, not two",
+    );
+    assert_eq!(
+        drawing.live_points().count(),
+        points,
+        "and on the points they already stood on, with none laid twice",
+    );
+    let after: Vec<f64> = (0..2)
+        .map(|rank| how_far_it_runs(&document, EllipseId(rank)))
+        .collect();
+    for (found, wanted) in after.iter().zip(&before) {
+        assert!(
+            (found - wanted).abs() < 1e-6,
+            "{after:?} against {before:?}"
+        );
+    }
 }

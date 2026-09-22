@@ -100,7 +100,7 @@ pub(super) fn push_arc_at(
     );
 }
 
-/// The whole curve an ellipse draws.
+/// The curve an ellipse draws, whole or one stretch of it.
 pub(super) fn push_ellipse_at(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -129,35 +129,10 @@ pub(super) fn push_ellipse_at(
     );
 }
 
-/// One stretch of an ellipse, from where it opens over how far it goes.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn push_ellipse_run(
-    out: &mut Vec<cao_render::Vertex>,
-    sketch: &Sketch,
-    drawn: EllipseDraft,
-    from: f64,
-    sweep: f64,
-    color: [f32; 4],
-    width: f32,
-    construction: bool,
-    scale: ViewScale,
-) {
-    let places = drawn.places_along(from, sweep, drawn.steps_over(sweep));
-    let run: f64 = places
-        .windows(2)
-        .map(|pair| pair[0].distance(pair[1]))
-        .sum();
-    let step = run / (places.len().max(2) - 1) as f64;
-    push_curve(
-        out,
-        sketch,
-        places.into_iter(),
-        step,
-        color,
-        width,
-        construction,
-        scale,
-    );
+/// The run of places one stretch of an ellipse is drawn as, from where it
+/// opens over how far it goes.
+pub(super) fn places_of(drawn: EllipseDraft, from: f64, sweep: f64) -> Vec<DVec2> {
+    drawn.places_along(from, sweep, drawn.steps_over(sweep))
 }
 
 /// A run of places joined up, plain or, for construction geometry, with every

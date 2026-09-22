@@ -9,7 +9,7 @@
 use cao_prefs::theme::Theme;
 use cao_sketch::{Going, Sketch, Stretch};
 
-use super::curves::{push_arc_at, push_circle_at, push_ellipse_run, push_line};
+use super::curves::{places_of, push_arc_at, push_circle_at, push_ellipse_at, push_line};
 use super::tint;
 use crate::screens::viewport::input::trim_shows;
 use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
@@ -65,12 +65,10 @@ pub(crate) fn push_going(
             going.construction,
             scale,
         ),
-        Stretch::Oval { drawn, from, sweep } => push_ellipse_run(
+        Stretch::Oval { drawn, from, sweep } => push_ellipse_at(
             out,
             sketch,
-            drawn,
-            from,
-            sweep,
+            places_of(drawn, from, sweep),
             color,
             width,
             going.construction,

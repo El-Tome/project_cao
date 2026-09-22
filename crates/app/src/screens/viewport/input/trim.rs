@@ -69,10 +69,18 @@ fn cut_under(sketch: &Sketch, index: usize, cursor: DVec2, snap: f64) -> Option<
         });
     }
     let ellipse = sketch.nearest_ellipse(cursor, snap)?;
+    let between = sketch.ellipse_stretch_at(ellipse, cursor);
+    // Naming nothing to cut between says "take the whole of it", which is what
+    // a click on a curve carrying fewer than two points asks for. On a stretch
+    // a cut already left, it says instead that the click fell outside what is
+    // drawn — and taking the whole arc for that would be a cliff.
+    if between.is_none() && sketch.ellipse_ends(ellipse).is_some() {
+        return None;
+    }
     Some(Operation::TrimEllipse {
         sketch: index,
         ellipse,
-        between: sketch.ellipse_stretch_at(ellipse, cursor),
+        between,
     })
 }
 

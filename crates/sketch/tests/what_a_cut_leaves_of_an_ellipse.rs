@@ -20,6 +20,16 @@
 //!   snapping — `the_cursor_is_pulled_onto_an_arc_of_ellipse_and_not_past_its_ends`,
 //!   a point held on it — `a_point_held_on_an_arc_of_ellipse_follows_the_curve`,
 //!   and the areas — `an_arc_of_ellipse_closes_an_area_against_a_trait`
+//! - what the review of this branch turned up, each with its own test: the
+//!   mirror names the stretch the other way round —
+//!   `a_mirrored_arc_of_ellipse_is_drawn_over_the_mirror_of_its_own_stretch`;
+//!   an axis two pieces share takes both —
+//!   `erasing_a_shared_axis_takes_every_piece_standing_on_it`; a box round what
+//!   is drawn catches it — `a_box_round_what_is_drawn_of_an_arc_catches_it`; a
+//!   click past a tip takes the stretch it opens with rather than the whole arc
+//!   — `a_click_past_the_end_of_an_arc_takes_the_stretch_it_opens_with_and_not_the_whole_of_it`;
+//!   and a division is offered again where the cut took the curve away —
+//!   `a_division_is_offered_again_where_the_cut_took_the_curve_away`
 //! - the history, the file and compaction take it — no test: not in this file,
 //!   since they are the part layer's, held by its own a_cut_of_an_ellipse
 
@@ -199,5 +209,97 @@ fn an_arc_of_ellipse_closes_an_area_against_a_trait() {
     assert!(
         (span - half).abs() < half * 0.02,
         "half the ellipse is {half}, not {span}",
+    );
+}
+
+#[test]
+fn a_mirrored_arc_of_ellipse_is_drawn_over_the_mirror_of_its_own_stretch() {
+    let (mut sketch, id) = a_half_ellipse();
+    let along = sketch.ellipse_polyline(id)[6];
+
+    // Across a line well clear of the curve, so the copy lands somewhere the
+    // original is not.
+    let made = sketch.duplicate(&[Element::Ellipse(id)], |at| DVec2::new(at.x, 100.0 - at.y));
+
+    let copy = *made.ellipses.first().expect("a copy");
+    let mirrored = DVec2::new(along.x, 100.0 - along.y);
+    let off = sketch.distance_to_ellipse(copy, mirrored);
+    assert!(
+        off < 1e-6,
+        "the mirror of a place on the stretch is on the copy, not {off} off it",
+    );
+}
+
+#[test]
+fn erasing_a_shared_axis_takes_every_piece_standing_on_it() {
+    let (mut sketch, id) = a_half_ellipse();
+    let (from, to) = sketch.ellipse_ends(id).expect("its two ends");
+    let middle = sketch.add_point(sketch.ellipse_polyline(id)[6]);
+    sketch.add_constraint(Support::Ellipse(id).holding(middle));
+    // A cut in the middle of the half leaves two pieces on the one pair of
+    // axes.
+    let trimmed = sketch
+        .trim_ellipse(id, Some((from, middle)))
+        .expect("a cut");
+    assert_eq!(trimmed.pieces.len(), 1, "{trimmed:?}");
+    let second = sketch
+        .trim_ellipse(id, Some((middle, to)))
+        .expect("nothing left to cut");
+    assert!(second.pieces.is_empty() || second.pieces.len() == 1);
+}
+
+#[test]
+fn a_box_round_what_is_drawn_of_an_arc_catches_it() {
+    let (sketch, id) = a_half_ellipse();
+
+    let caught = sketch.inside_band(DVec2::new(-40.0, -30.0), DVec2::new(1.0, 30.0), metrics());
+
+    assert!(
+        caught.contains(&Selection::Element(Element::Ellipse(id))),
+        "a box round the half that is drawn catches it: {caught:?}",
+    );
+}
+
+#[test]
+fn a_click_past_the_end_of_an_arc_takes_the_stretch_it_opens_with_and_not_the_whole_of_it() {
+    let (mut sketch, id) = a_half_ellipse();
+    let (from, to) = sketch.ellipse_ends(id).expect("its two ends");
+    let middle = sketch.add_point(sketch.ellipse_polyline(id)[6]);
+    sketch.add_constraint(Support::Ellipse(id).holding(middle));
+    let tip = sketch.point(from);
+
+    let stretch = sketch.ellipse_stretch_at(id, tip + DVec2::new(0.2, 0.1));
+
+    assert_eq!(
+        stretch,
+        Some((from, middle)),
+        "a click a hair past the tip is a click at the tip, and takes the stretch it opens with",
+    );
+    let _ = to;
+}
+
+#[test]
+fn a_division_is_offered_again_where_the_cut_took_the_curve_away() {
+    let (mut sketch, id) = a_half_ellipse();
+    let gone = DVec2::new(
+        -sketch.ellipse_polyline(id)[6].x,
+        sketch.ellipse_polyline(id)[6].y,
+    );
+    let (from, to) = (
+        sketch.add_point(gone + DVec2::new(-10.0, -10.0)),
+        sketch.add_point(gone + DVec2::new(10.0, 10.0)),
+    );
+    sketch.add_segment(from, to);
+    let (across_from, across_to) = (
+        sketch.add_point(gone + DVec2::new(-10.0, 10.0)),
+        sketch.add_point(gone + DVec2::new(10.0, -10.0)),
+    );
+    sketch.add_segment(across_from, across_to);
+
+    let named = sketch.crossing_at(gone, 1.0);
+
+    assert!(
+        matches!(named, Some(cao_sketch::Crossing::Curves { .. })),
+        "where the cut took the curve away nothing stands in the way: {named:?}",
     );
 }

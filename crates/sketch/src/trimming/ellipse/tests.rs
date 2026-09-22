@@ -71,7 +71,21 @@ fn a_cut_leaves_the_three_quarters_the_click_did_not_fall_in() {
 }
 
 #[test]
-fn a_curve_with_nothing_on_it_goes_whole() {
+fn a_click_on_a_curve_carrying_nothing_takes_the_whole_of_it() {
+    let (mut sketch, id, [east, north, west, south]) = an_ellipse();
+    for point in [east, north, west, south] {
+        sketch.erase(Element::Point(point));
+    }
+    let laid = sketch.is_erased_ellipse(id);
+
+    assert!(
+        laid,
+        "erasing the points its axes give it takes the ellipse"
+    );
+}
+
+#[test]
+fn erasing_the_points_its_axes_give_it_takes_the_ellipse() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let centre = sketch.add_point(DVec2::ZERO);
     let west = sketch.add_point(DVec2::new(-30.0, 0.0));

@@ -42,7 +42,7 @@ impl Sketch {
             .map(|id| (Curved::Arc(id), self.distance_to_arc(id, place)));
         let ellipse = self
             .nearest_ellipse(place, reach)
-            .map(|id| (Curved::Ellipse(id), self.ellipse_draft(id).distance(place)));
+            .map(|id| (Curved::Ellipse(id), self.distance_to_ellipse(id, place)));
         [circle, arc, ellipse]
             .into_iter()
             .flatten()

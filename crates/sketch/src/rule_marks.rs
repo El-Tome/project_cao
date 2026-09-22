@@ -100,7 +100,10 @@ impl Sketch {
                     false => Vec::new(),
                 },
                 Element::Ellipse(held) => match held.0 < self.ellipses().len() {
-                    true => vec![self.ellipse_draft(held).at(std::f64::consts::FRAC_PI_4)],
+                    true => {
+                        let places = self.ellipse_polyline(held);
+                        vec![places[places.len() / 2]]
+                    }
                     false => Vec::new(),
                 },
             },

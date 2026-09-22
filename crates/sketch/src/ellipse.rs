@@ -4,6 +4,10 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::ellipsing::EllipseDraft;
+
+/// How far round the turn two readings of one place may stand apart and still
+/// be that place: what the drawing already calls one place, read as a turn.
+const ON_THE_CURVE: f64 = 1e-9;
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
@@ -145,6 +149,28 @@ impl Sketch {
         }
     }
 
+    /// Whether the stretch running from one point round to the other lies on
+    /// what an ellipse has drawn — which is what says the cut of that stretch
+    /// is this piece's to give up.
+    pub fn ellipse_holds_the_stretch(&self, id: EllipseId, from: PointId, to: PointId) -> bool {
+        // A curve nothing has cut yet has no ends to run past: either way round
+        // between two points on it is a stretch it can give up.
+        if self.ellipse_ends(id).is_none() {
+            return true;
+        }
+        let drawn = self.ellipse_draft(id);
+        let (opens, sweep) = self.ellipse_run(id);
+        let along = |point: PointId| {
+            self.points()
+                .get(point.0)
+                .map(|place| (drawn.turn_on(*place) - opens).rem_euclid(std::f64::consts::TAU))
+        };
+        let (Some(near), Some(far)) = (along(from), along(to)) else {
+            return false;
+        };
+        near <= far && far <= sweep + ON_THE_CURVE
+    }
+
     /// Whether a turn, as a fraction of a whole one, falls on the stretch of
     /// an ellipse that is drawn.
     pub(crate) fn ellipse_holds_the_turn(&self, id: EllipseId, fraction: f64) -> bool {
@@ -153,7 +179,23 @@ impl Sketch {
         }
         let turn = std::f64::consts::TAU;
         let (from, sweep) = self.ellipse_run(id);
-        (fraction - from / turn).rem_euclid(1.0) <= sweep / turn
+        let along = (fraction - from / turn + ON_THE_CURVE).rem_euclid(1.0) - ON_THE_CURVE;
+        (-ON_THE_CURVE..=sweep / turn + ON_THE_CURVE).contains(&along)
+    }
+
+    /// The smallest box the stretch that is drawn fits in — the whole curve's
+    /// own box while nothing has cut it.
+    pub fn ellipse_bounds(&self, id: EllipseId) -> (DVec2, DVec2) {
+        let drawn = self.ellipse_draft(id);
+        if self.ellipse_ends(id).is_none() {
+            return drawn.bounds();
+        }
+        let places = self.ellipse_polyline(id);
+        places
+            .iter()
+            .fold((places[0], places[0]), |(low, high), place| {
+                (low.min(*place), high.max(*place))
+            })
     }
 
     /// Where the drawn stretch of an ellipse takes a place near it.
@@ -271,9 +313,11 @@ impl Sketch {
         }
     }
 
-    /// Takes away the ellipse a trait was an axis of, if it was one.
+    /// Takes away every ellipse a trait was an axis of — a cut in the middle
+    /// of a curve leaves two pieces on one pair of axes, and neither can stand
+    /// without them.
     pub(crate) fn erase_ellipse_of(&mut self, segment: SegmentId) {
-        if let Some(ellipse) = self.ellipse_of_axis(segment) {
+        while let Some(ellipse) = self.ellipse_of_axis(segment) {
             self.erase_ellipse(ellipse);
         }
     }

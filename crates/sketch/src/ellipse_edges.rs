@@ -33,6 +33,10 @@ pub(crate) struct Oval {
 /// against how far out it stands so the drawing can be measured in anything.
 const ON_THE_CURVE: f64 = 1e-9;
 
+/// How far round the turn a place may stand past the end of a run and still be
+/// that end, as a fraction of a whole turn.
+const ROUND_THE_CURVE: f64 = 1e-9;
+
 impl Oval {
     pub(crate) fn place_at(&self, turn: f64) -> DVec2 {
         self.drawn.at(std::f64::consts::TAU * turn)
@@ -55,7 +59,11 @@ impl Oval {
         let Some((from, sweep)) = self.run else {
             return true;
         };
-        (turn - from).rem_euclid(1.0) <= sweep
+        // With slack at both ends: a crossing that lands on the end a run
+        // opens at falls a hair the other side of it half the time, and a run
+        // not broken there leaves the ring beside it uncut.
+        let along = (turn - from + ROUND_THE_CURVE).rem_euclid(1.0) - ROUND_THE_CURVE;
+        (-ROUND_THE_CURVE..=sweep + ROUND_THE_CURVE).contains(&along)
     }
 
     /// How far round its turn the ellipse stands at a place on it.

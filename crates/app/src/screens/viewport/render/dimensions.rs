@@ -118,12 +118,7 @@ pub(crate) fn paint_dimension_labels(
         painter.text(
             position,
             egui::Align2::CENTER_CENTER,
-            if matches!(
-                target,
-                DimensionTarget::Angle { .. }
-                    | DimensionTarget::AxisAngle { .. }
-                    | DimensionTarget::ArcSweep(_)
-            ) {
+            if target.is_angle() {
                 format!("{value:.1}°")
             } else {
                 state.config.unit.format(value)
@@ -159,12 +154,7 @@ pub(crate) fn paint_dimension_field(
     let driven = context.document.sketches()[index]
         .dimension_of(target)
         .is_some_and(|dimension| dimension.driven);
-    let angle = matches!(
-        target,
-        DimensionTarget::Angle { .. }
-            | DimensionTarget::AxisAngle { .. }
-            | DimensionTarget::ArcSweep(_)
-    );
+    let angle = target.is_angle();
 
     let mut applied = false;
     let lang = context.lang;

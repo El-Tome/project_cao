@@ -245,6 +245,11 @@ impl Sketch {
                     DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
                         Some((value.target, place_of_point(point)?))
                     }
+                    DimensionTarget::AngleBetween { first, second, .. }
+                        if first == segment || second == segment =>
+                    {
+                        Some((value.target, along(self.where_lines_cross(first, second)?)))
+                    }
                     _ => None,
                 })
                 .collect(),

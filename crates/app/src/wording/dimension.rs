@@ -32,9 +32,9 @@ pub fn label(lang: &Catalogue, target: &DimensionTarget, value: f64) -> String {
     let value = short(value);
     let measured = &[("value", value.as_str())];
     match target {
-        DimensionTarget::Angle { .. } | DimensionTarget::ArcSweep(_) => {
-            lang.t_with("dimension.label.angle", measured)
-        }
+        DimensionTarget::Angle { .. }
+        | DimensionTarget::AngleBetween { .. }
+        | DimensionTarget::ArcSweep(_) => lang.t_with("dimension.label.angle", measured),
         DimensionTarget::AxisAngle { axis, .. } => lang.t_with(
             "dimension.label.axis_angle",
             &[
@@ -71,7 +71,8 @@ pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
             "dimension.spans.segment",
             &[("segment", &segment.0.to_string())],
         ),
-        DimensionTarget::Angle { first, second } => lang.t_with(
+        DimensionTarget::Angle { first, second }
+        | DimensionTarget::AngleBetween { first, second, .. } => lang.t_with(
             "dimension.spans.segments",
             &[
                 ("first", &first.0.to_string()),

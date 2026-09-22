@@ -51,6 +51,17 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
             first: map.segments[&first],
             second: map.segments[&second],
         },
+        DimensionTarget::AngleBetween {
+            first,
+            first_toward,
+            second,
+            second_toward,
+        } => DimensionTarget::AngleBetween {
+            first: map.segments[&first],
+            first_toward,
+            second: map.segments[&second],
+            second_toward,
+        },
         DimensionTarget::AxisAngle { segment, axis } => DimensionTarget::AxisAngle {
             segment: map.segments[&segment],
             axis,

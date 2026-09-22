@@ -104,6 +104,7 @@ impl PartState {
                 (arc.0 < sketch.arcs().len()).then(|| sketch.arc_radius(arc))?
             }
             DimensionTarget::Angle { .. }
+            | DimensionTarget::AngleBetween { .. }
             | DimensionTarget::AxisAngle { .. }
             | DimensionTarget::ArcSweep(_) => return None,
         };
@@ -126,6 +127,7 @@ impl PartState {
             DimensionTarget::Diameter(circle) => (circle.0 < sketch.circles().len())
                 .then(|| self.to_millimeters(sketch.circle(circle).radius * 2.0)),
             DimensionTarget::Angle { first, second } => sketch.angle_between(first, second),
+            DimensionTarget::AngleBetween { .. } => sketch.opening(target),
             DimensionTarget::AxisAngle { segment, axis } => sketch.angle_with_axis(segment, axis),
             DimensionTarget::PointToSegment { point, segment } => sketch
                 .point_to_segment(point, segment)

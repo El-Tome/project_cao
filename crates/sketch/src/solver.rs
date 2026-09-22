@@ -920,28 +920,6 @@ impl Sketch {
         point.filter(|id| id.0 < self.points().len() && !self.is_erased_point(*id))
     }
 
-    /// A point held halfway along a trait: one equation for each coordinate,
-    /// since being at the middle is two statements, not one.
-    fn midpoint_equations(&self, point: PointId, segment: SegmentId, into: &mut Vec<Equation>) {
-        let Some(line) = self.segments().get(segment.0).copied() else {
-            return;
-        };
-        if point.0 >= self.points().len() {
-            return;
-        }
-        let middle = (self.point(line.start) + self.point(line.end)) * 0.5;
-        let held = self.point(point);
-
-        for axis in [DVec2::X, DVec2::Y] {
-            let mut equation = Equation::new(self.variables());
-            equation.error = (held - middle).dot(axis);
-            equation.add(point, axis);
-            equation.add(line.start, -axis * 0.5);
-            equation.add(line.end, -axis * 0.5);
-            into.push(equation);
-        }
-    }
-
     /// The equation for one dimension, or `None` when it does not apply to
     /// anything solvable — a radius, which stands alone, or a broken reference.
     fn equation(

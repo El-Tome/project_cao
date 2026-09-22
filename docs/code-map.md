@@ -43,7 +43,8 @@ in one of the two domains, never there.
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| Sketch model: points, traits, circles | `sketch/src/sketch.rs` — the largest file in the repository | `Sketch`, `live_points`, `live_segments`, `live_circles` |
+| Sketch model: points, traits | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments` |
+| A whole circle, as a centre and a size | `sketch/src/circle.rs` | `Circle`, `Sketch::add_circle`, `live_circles`, `nearest_circle` |
 | A piece of a circle, and what keeps it round | `sketch/src/arc.rs` | `Arc`, `Sketch::add_arc`, `arc_sweep`, `arc_polyline`, `arc_equations` |
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along`, `bounds_of` |

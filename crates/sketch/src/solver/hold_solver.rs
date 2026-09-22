@@ -7,7 +7,7 @@ use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
 use crate::equation::{Equation, Row};
 use crate::holding::Support;
-use crate::sketch::{CircleId, PointId, Sketch};
+use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 impl Sketch {
     /// What a rule holding a point asks of the drawing.
@@ -152,5 +152,32 @@ impl Sketch {
         equation.add(curve.start, -along);
         equation.add(curve.center, along - out);
         Some(equation)
+    }
+
+    /// A point held halfway along a trait: one equation for each coordinate,
+    /// since being at the middle is two statements, not one.
+    pub(super) fn midpoint_equations(
+        &self,
+        point: PointId,
+        segment: SegmentId,
+        into: &mut Vec<Equation>,
+    ) {
+        let Some(line) = self.segments().get(segment.0).copied() else {
+            return;
+        };
+        if point.0 >= self.points().len() {
+            return;
+        }
+        let middle = (self.point(line.start) + self.point(line.end)) * 0.5;
+        let held = self.point(point);
+
+        for axis in [DVec2::X, DVec2::Y] {
+            let mut equation = Equation::new(self.variables());
+            equation.error = (held - middle).dot(axis);
+            equation.add(point, axis);
+            equation.add(line.start, -axis * 0.5);
+            equation.add(line.end, -axis * 0.5);
+            into.push(equation);
+        }
     }
 }

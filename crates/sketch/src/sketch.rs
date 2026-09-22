@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::annotation::AnnotationMetrics;
 use crate::arc::Arc;
+pub use crate::circle::{Circle, CircleId};
 use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
 use crate::erased::Erased;
 use crate::independence::is_dependent;
@@ -17,19 +18,6 @@ pub struct PointId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SegmentId(pub usize);
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct CircleId(pub usize);
-
-/// A circle, kept as a centre point shared with the rest of the drawing plus a
-/// radius, so that moving the centre moves the circle with it.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Circle {
-    pub center: PointId,
-    pub radius: f64,
-    #[serde(default)]
-    pub construction: bool,
-}
 
 /// A straight line between two points. Points are shared: chaining a polyline
 /// reuses the previous end, which is what makes a dimension able to drag the
@@ -51,7 +39,7 @@ pub struct Sketch {
     points: Vec<DVec2>,
     segments: Vec<Segment>,
     #[serde(default)]
-    circles: Vec<Circle>,
+    pub(crate) circles: Vec<Circle>,
     #[serde(default)]
     pub(crate) arcs: Vec<Arc>,
     dimensions: Vec<Dimension>,
@@ -135,10 +123,6 @@ impl Sketch {
         Erased::holds(&self.erased.segments, segment.0)
     }
 
-    pub fn is_erased_circle(&self, circle: CircleId) -> bool {
-        Erased::holds(&self.erased.circles, circle.0)
-    }
-
     /// The segments still drawn, with their rank.
     pub fn live_points(&self) -> impl Iterator<Item = (PointId, DVec2)> + '_ {
         self.points
@@ -154,14 +138,6 @@ impl Sketch {
             .enumerate()
             .map(|(rank, segment)| (SegmentId(rank), *segment))
             .filter(|(id, _)| !self.is_erased_segment(*id))
-    }
-
-    pub fn live_circles(&self) -> impl Iterator<Item = (CircleId, Circle)> + '_ {
-        self.circles
-            .iter()
-            .enumerate()
-            .map(|(rank, circle)| (CircleId(rank), *circle))
-            .filter(|(id, _)| !self.is_erased_circle(*id))
     }
 
     /// Deletes an element, and everything that leaned on it.
@@ -422,49 +398,8 @@ impl Sketch {
         &self.segments
     }
 
-    pub fn circles(&self) -> &[Circle] {
-        &self.circles
-    }
-
     pub fn dimensions(&self) -> &[Dimension] {
         &self.dimensions
-    }
-
-    pub fn circle(&self, id: CircleId) -> Circle {
-        self.circles[id.0]
-    }
-
-    pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.push_circle(center, radius, false)
-    }
-
-    /// Excluded from the area of any region it happens to sit inside or across.
-    pub fn add_construction_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.push_circle(center, radius, true)
-    }
-
-    fn push_circle(&mut self, center: PointId, radius: f64, construction: bool) -> CircleId {
-        self.circles.push(Circle {
-            center,
-            radius,
-            construction,
-        });
-        CircleId(self.circles.len() - 1)
-    }
-
-    /// The circle whose outline passes closest to `position`.
-    pub fn nearest_circle(&self, position: DVec2, tolerance: f64) -> Option<CircleId> {
-        self.circles
-            .iter()
-            .enumerate()
-            .map(|(index, circle)| {
-                let distance = (self.point(circle.center).distance(position) - circle.radius).abs();
-                (CircleId(index), distance)
-            })
-            .filter(|(id, _)| !self.is_erased_circle(*id))
-            .filter(|(_, distance)| *distance <= tolerance)
-            .min_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(id, _)| id)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -797,14 +732,6 @@ impl Sketch {
         self.points[point.0] += delta;
     }
 
-    /// Changes a circle's size by a step of the solve. Never below nothing: a
-    /// circle turned inside out is not a circle.
-    pub(crate) fn grow_circle(&mut self, circle: CircleId, delta: f64) {
-        if let Some(round) = self.circles.get_mut(circle.0) {
-            round.radius = (round.radius + delta).max(1e-9);
-        }
-    }
-
     pub(crate) fn place_point(&mut self, point: PointId, position: DVec2) {
         self.points[point.0] = position;
     }
@@ -823,14 +750,6 @@ impl Sketch {
                 .acos()
                 .to_degrees(),
         )
-    }
-
-    pub fn set_circle_radius(&mut self, id: CircleId, radius: f64) -> LengthOutcome {
-        if radius <= 0.0 {
-            return LengthOutcome::Degenerate;
-        }
-        self.circles[id.0].radius = radius;
-        LengthOutcome::Exact
     }
 
     /// Smallest axis-aligned box containing every point, in sketch coordinates.

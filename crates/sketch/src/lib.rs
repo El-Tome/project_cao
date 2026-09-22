@@ -17,6 +17,7 @@ mod axis;
 mod banding;
 mod chain;
 mod chamfer;
+mod circle;
 mod circle_edges;
 mod circling;
 mod constraints;

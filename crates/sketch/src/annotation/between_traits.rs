@@ -13,11 +13,11 @@ use crate::sketch::{SegmentId, Sketch};
 ///
 /// Where they lie apart, the place their lines cross can be anywhere, often
 /// well off the screen, and an arc drawn beside it could be neither seen nor
-/// grabbed. The arc is drawn out between the two traits instead, halfway along
-/// where they run side by side, each of its ends landing on one of them — and
-/// kept there, since the crossing it turns about swings a long way for a small
-/// turn. An end that falls past a trait is joined back to it by a thin line, as
-/// on a drawing.
+/// grabbed. Until it is put down by hand, the arc is drawn out between the two
+/// traits instead, halfway along where they run side by side, each of its ends
+/// landing on one of them; put down, it goes where it was put and moves from
+/// there. An end that falls past a trait is joined back to it by a thin line,
+/// as on a drawing.
 pub(super) fn between_traits(
     out: &mut Vec<(DVec2, DVec2)>,
     sketch: &Sketch,
@@ -32,20 +32,22 @@ pub(super) fn between_traits(
         sketch.arm(second, second_toward),
     );
     let apart = sketch.where_traits_meet(first, second).is_none();
-    // Held halfway between two traits lying apart whatever was recorded for
-    // it: a place kept against their far crossing would follow that crossing
-    // off the screen the first time a value typed turned them.
-    let by = match apart {
-        true => Moved {
-            placed: Some(halfway_between(
-                sketch,
-                pivot,
-                [(first, one), (second, other)],
-                metrics,
-            )),
-            nudge: DVec2::ZERO,
+    // Between two traits lying apart, where the value was put down is kept as
+    // how far it stands from halfway between them, not from their crossing:
+    // that crossing swings a long way for a small turn, and a place kept
+    // against it would follow it off the screen the first time a value typed
+    // turned the traits.
+    let halfway =
+        apart.then(|| halfway_between(sketch, pivot, [(first, one), (second, other)], metrics));
+    let by = match halfway {
+        Some(halfway) => Moved {
+            placed: Some(
+                by.placed
+                    .map_or(halfway, |from_halfway| halfway + from_halfway),
+            ),
+            ..by
         },
-        false => by,
+        None => by,
     };
 
     let (text_at, reach) = angular(
@@ -62,7 +64,7 @@ pub(super) fn between_traits(
             reach_back(out, sketch, segment, pivot + arm.normalize() * radius);
         }
     }
-    Some((text_at, reach))
+    Some((text_at, reach - halfway.unwrap_or(DVec2::ZERO)))
 }
 
 /// Where the value of an angle between two traits lying apart goes until it is

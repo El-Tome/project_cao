@@ -11,7 +11,10 @@
 //!   `two_traits_parallel_to_within_what_a_solver_leaves_are_refused_too`
 //! - the dimension is drawn between the two traits, around the middle of them,
 //!   each end reaching one of the traits, never at the far point where their
-//!   lines would cross —
+//!   lines would cross — by default; put down by hand, it goes where the cursor
+//!   is and can be moved from there —
+//!   `an_angle_between_traits_apart_goes_where_it_is_put_down`, and its default
+//!   place is
 //!   `an_angle_between_two_traits_far_from_where_they_would_cross_is_drawn_between_them`,
 //!   and where an end of the arc falls past a trait, a thin line joins it back —
 //!   `an_arc_that_ends_past_a_trait_is_joined_back_to_it`
@@ -24,7 +27,10 @@
 //! - which angle is laid follows the side where the dimension is placed, as in
 //!   #406 — `the_angle_between_traits_apart_follows_the_side_it_is_placed`
 //! - typing a value turns the traits to it, and it holds —
-//!   `a_typed_angle_turns_two_traits_lying_apart_to_it_and_holds`
+//!   `a_typed_angle_turns_two_traits_lying_apart_to_it_and_holds` — but not a
+//!   value that would lay them parallel, 0° or 180°, which could never be drawn
+//!   and would still drive the drawing —
+//!   `a_value_that_would_lay_the_traits_parallel_is_refused`
 //! - everything #406 delivers — the angle at a corner, at a crossing, in a T —
 //!   is unchanged — no test: none is added here, since the tests of #406 in
 //!   `an_angle_where_two_traits_cross.rs` stay in the gate; the one whose
@@ -344,8 +350,9 @@ fn an_angle_between_traits_apart_stays_between_them_when_they_turn() {
         second_toward: Toward::End,
     };
     sketch.set_dimension(opening, 8.0, false);
-    let put_down = sketch.place(opening, zoomed_in()).expect("drawn").offset;
-    sketch.offset_dimension(opening, put_down);
+    let default = sketch.place(opening, zoomed_in()).expect("drawn");
+    let off_centre = default.text_at + DVec2::new(8.0, 2.0);
+    sketch.offset_dimension(opening, default.offset + (off_centre - default.text_at));
 
     sketch.set_dimension(opening, 12.0, false);
     sketch.resolve(1.0);
@@ -394,6 +401,54 @@ fn a_crossing_s_arc_grows_no_line_past_a_short_trait() {
                 .any(|(from, to)| from.distance(end) < 1e-9 || to.distance(end) < 1e-9),
             "an X's arc is drawn as it was before traits apart were measured: no line \
              runs out from the short trait's end at {end}",
+        );
+    }
+}
+
+#[test]
+fn an_angle_between_traits_apart_goes_where_it_is_put_down() {
+    let (mut sketch, [low, high]) = two_traits_nearly_parallel();
+    let opening = DimensionTarget::AngleBetween {
+        first: low,
+        first_toward: Toward::End,
+        second: high,
+        second_toward: Toward::End,
+    };
+    sketch.set_dimension(opening, 8.0, false);
+    let default = sketch.place(opening, zoomed_in()).expect("drawn");
+    let cursor = default.text_at + DVec2::new(10.0, 1.0);
+
+    // What the canvas records when the value is put down at the cursor.
+    sketch.offset_dimension(opening, default.offset + (cursor - default.text_at));
+    let drawn = sketch.place(opening, zoomed_in()).expect("still drawn");
+
+    assert!(
+        drawn.text_at.distance(cursor) < 1e-9,
+        "the value is put down where the cursor was, at {cursor}, got {}",
+        drawn.text_at,
+    );
+}
+
+#[test]
+fn a_value_that_would_lay_the_traits_parallel_is_refused() {
+    let (_, [low, high]) = a_v_with_its_point_missing();
+    let opening = DimensionTarget::AngleBetween {
+        first: low,
+        first_toward: Toward::End,
+        second: high,
+        second_toward: Toward::End,
+    };
+
+    for taken in [0.1, 1.0, 90.0, 179.0, 179.9] {
+        assert!(
+            opening.takes(taken),
+            "{taken}° leaves the two traits crossing somewhere"
+        );
+    }
+    for refused in [0.0, 180.0, 0.001, 179.999, 200.0, -5.0] {
+        assert!(
+            !opening.takes(refused),
+            "{refused}° would lay the two traits parallel, or cannot be reached at all",
         );
     }
 }

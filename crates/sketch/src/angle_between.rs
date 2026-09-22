@@ -19,7 +19,7 @@ const PARALLEL: f64 = 1e-12;
 /// solver leaves between two traits a rule holds parallel, and far under the
 /// tenth of a degree an angle is shown to: an angle laid below it would only
 /// fight the rule, or read nothing anybody drew on purpose.
-const RUN_THE_SAME_WAY: f64 = 1e-4;
+pub(crate) const RUN_THE_SAME_WAY: f64 = 1e-4;
 
 /// How near one of its own ends a trait may be met and still be met at that
 /// end, as a fraction of its length: the foot of a T. Far wider than rounding,

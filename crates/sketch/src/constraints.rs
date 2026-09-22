@@ -1,6 +1,7 @@
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
@@ -87,6 +88,21 @@ pub enum DimensionTarget {
 }
 
 impl DimensionTarget {
+    /// Whether a value typed for this dimension can be held at all.
+    ///
+    /// An angle between two traits typed at 0° or 180° — or near enough that
+    /// the two would count as parallel — would lay them parallel: their lines
+    /// would never cross, the angle could not be drawn, and it would still go on
+    /// driving the drawing. Past a half turn it cannot be reached at all.
+    pub fn takes(self, value: f64) -> bool {
+        match self {
+            Self::AngleBetween { .. } => {
+                (0.0..180.0).contains(&value) && value.to_radians().sin() > RUN_THE_SAME_WAY
+            }
+            _ => true,
+        }
+    }
+
     /// Whether this is read in degrees rather than as a length. The one list
     /// of them: a second copy is where a new kind of angle gets shown in
     /// millimetres.

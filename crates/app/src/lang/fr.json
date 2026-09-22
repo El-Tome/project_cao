@@ -580,6 +580,7 @@
   "sketch.choose_second_trait_or_axis": "Choisissez le second trait, ou un axe de l'esquisse",
   "sketch.axis_chosen": "Cliquez maintenant un trait sur l'{axis}",
   "sketch.traits_are_parallel": "Ces deux traits sont parallèles",
+  "sketch.angle_would_lay_parallel": "Un angle entre deux traits se tape entre 0° et 180°, sans les atteindre : là, ils seraient parallèles",
   "sketch.point_already_on_the_trait": "Ce point est déjà sur ce trait",
   "sketch.point_in_line_with_the_trait": "Ce point est dans l'alignement de ce trait",
   "sketch.nothing_to_measure": "Rien à mesurer ici",

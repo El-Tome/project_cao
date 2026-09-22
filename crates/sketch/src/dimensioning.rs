@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{DimensionTarget, SketchAxis, Toward};
+use crate::constraints::{DimensionTarget, SketchAxis};
 use crate::measuring::no_distance_to;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -132,19 +132,15 @@ impl Sketch {
             if self.angle_between(first, second).is_some() {
                 return Some(DimensionTarget::Angle { first, second }.normalised());
             }
-            // No shared end, but they may still meet — crossing, or one ending
-            // on the other. Which of their angles is meant is left to where the
-            // dimension is put down.
+            // No shared end: crossing, one ending on the other, or lying
+            // apart. Any two that do not run the same way make an angle, and
+            // which of their angles is meant is left to where the dimension is
+            // put down.
             if let Some(laid) = self.angle_already_between(first, second) {
                 return Some(laid);
             }
-            if self.where_traits_meet(first, second).is_some() {
-                return Some(DimensionTarget::AngleBetween {
-                    first,
-                    first_toward: Toward::End,
-                    second,
-                    second_toward: Toward::End,
-                });
+            if !self.run_the_same_way(first, second) {
+                return Some(self.angle_between_traits(first, second));
             }
         }
         // A point on the trait's own line — one of its ends, one held on it,

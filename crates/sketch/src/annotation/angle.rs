@@ -18,6 +18,17 @@ pub(super) enum Arm {
     Reference(DVec2),
 }
 
+/// How far the value stands off the arc it belongs to.
+pub(super) fn clearance(metrics: AnnotationMetrics) -> f64 {
+    14.0 * metrics.pixel
+}
+
+/// How far out from its pivot an arc is drawn, for a value set at `reach` from
+/// it: just inside where the value sits, and never smaller than a few pixels.
+pub(super) fn radius_of(reach: DVec2, metrics: AnnotationMetrics) -> f64 {
+    (reach.length() - clearance(metrics)).max(6.0 * metrics.pixel)
+}
+
 /// An angle: an arc between the two arms, with an arrowhead at each end.
 pub(super) fn angular(
     out: &mut Vec<(DVec2, DVec2)>,
@@ -44,10 +55,10 @@ pub(super) fn angular(
     // just inside it. Splitting the movement into radius and slide instead
     // let a value dragged sideways shrink its own arc to nothing.
     let bisector = DVec2::from_angle(start + sweep * 0.5);
-    let clearance = 14.0 * metrics.pixel;
+    let clearance = clearance(metrics);
     let default = bisector * (metrics.arc_pixels * metrics.pixel + clearance);
     let reach = by.placed.unwrap_or(default) + by.nudge;
-    let radius = (reach.length() - clearance).max(6.0 * metrics.pixel);
+    let radius = radius_of(reach, metrics);
 
     const STEPS: usize = 24;
     let mut previous = None;

@@ -21,6 +21,10 @@ pub(crate) fn apply_dimension_value(
         editor.message = Some(lang.t("sketch.invalid_value"));
         return false;
     };
+    if !target.takes(value) {
+        editor.message = Some(lang.t("sketch.angle_would_lay_parallel"));
+        return false;
+    }
 
     // The same value twice must not repeat an identical step in the history.
     if document.sketches()[index]

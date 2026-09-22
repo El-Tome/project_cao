@@ -258,7 +258,11 @@ pub fn measure_pick(
 ///
 /// Read off the drawing, never off the view: the tolerance is the one a cut
 /// uses for the same question, far under anything the eye tells apart.
-fn no_distance_to(sketch: &Sketch, point: PointId, segment: SegmentId) -> Option<DimensionPick> {
+pub(crate) fn no_distance_to(
+    sketch: &Sketch,
+    point: PointId,
+    segment: SegmentId,
+) -> Option<DimensionPick> {
     sketch.segments().get(segment.0)?;
     let (start, end) = sketch.endpoints(segment);
     let span = end - start;

@@ -96,9 +96,7 @@ fn places_round(drawn: &EllipseDraft, start: DVec2, end: DVec2) -> Vec<DVec2> {
     };
     let steps =
         ((sweep / std::f64::consts::TAU * FULL_ELLIPSE_STEPS as f64).ceil() as usize).max(2);
-    (0..=steps)
-        .map(|step| drawn.at(from + sweep * step as f64 / steps as f64))
-        .collect()
+    drawn.places_along(from, sweep, steps)
 }
 
 /// The drawing cut apart, before the half-edges are read off it.

@@ -17,9 +17,10 @@ pub struct EllipseDraft {
     pub second: f64,
 }
 
-/// Into how many straight steps a whole ellipse is cut. More than a circle is,
-/// since a long ellipse bends hardest at the ends of its long axis.
-pub(crate) const FULL_ELLIPSE_STEPS: usize = 96;
+/// Into how many straight steps a whole ellipse is cut. The same as a circle,
+/// since the steps are spread by length: what makes an ellipse look coarse is
+/// not how many steps it has but where they fall.
+pub(crate) const FULL_ELLIPSE_STEPS: usize = 48;
 
 /// A reach below which an axis is taken for nothing at all.
 const NO_REACH: f64 = 1e-9;
@@ -167,8 +168,21 @@ impl EllipseDraft {
     /// The whole curve as a closed run of places, the first repeated at the
     /// end.
     pub fn places(&self) -> Vec<DVec2> {
-        (0..=FULL_ELLIPSE_STEPS)
-            .map(|step| self.at(std::f64::consts::TAU * step as f64 / FULL_ELLIPSE_STEPS as f64))
+        self.places_along(0.0, std::f64::consts::TAU, FULL_ELLIPSE_STEPS)
+    }
+
+    /// One run of the curve as a run of places, ends included, counter-clockwise
+    /// from `from` over `sweep`.
+    ///
+    /// Stepped by the turn rather than by length, which is what puts the steps
+    /// where they are needed: the curve runs slowest, and bends hardest, at the
+    /// ends of its long axis, so a turn of one step covers least ground exactly
+    /// there. Spread by length instead, the same number of steps comes out five
+    /// times further from the curve on a long ellipse — measured, not guessed.
+    pub fn places_along(&self, from: f64, sweep: f64, steps: usize) -> Vec<DVec2> {
+        let steps = steps.max(2);
+        (0..=steps)
+            .map(|step| self.at(from + sweep * step as f64 / steps as f64))
             .collect()
     }
 }

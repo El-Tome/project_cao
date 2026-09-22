@@ -21,6 +21,11 @@ use crate::ellipsing::EllipseDraft;
 /// none, which is the same blind spot a tangency already has.
 const STEPS: usize = 256;
 
+/// Below this, in the ellipse's own measure, a place is taken as standing on
+/// the other curve rather than to one side of it. It is what tells a graze
+/// from a crossing.
+const ON_THE_OTHER: f64 = 1e-12;
+
 /// How many times the step holding a crossing is halved. A double at each
 /// turn: thirty of them take a step of a whole ellipse down to a billionth of
 /// it, well under what the drawing counts as one place.
@@ -109,6 +114,13 @@ fn hunted(oval: EllipseDraft, off_by: impl Fn(DVec2) -> f64) -> Vec<DVec2> {
 /// The same over one stretch of it, walked in steps of the size the whole
 /// curve would be walked in — never fewer than a handful, so a short run is
 /// still looked at properly.
+///
+/// A place where the other curve merely grazes this one is not a crossing, and
+/// saying so is most of the work: right at the touch the two stand nought
+/// apart, and whether that nought comes out positive or negative is rounding
+/// alone. A reading that close to nought is therefore read as being *on* the
+/// other curve, and what it means is decided by the two readings either side
+/// of it — they differ for a crossing, and agree for a touch.
 fn hunted_along(
     oval: EllipseDraft,
     from: f64,
@@ -118,14 +130,43 @@ fn hunted_along(
     let share = (sweep / std::f64::consts::TAU).clamp(0.0, 1.0);
     let steps = ((STEPS as f64 * share).ceil() as usize).max(8);
     let turn = |step: usize| from + sweep * step as f64 / steps as f64;
-    let mut found = Vec::new();
-    let mut behind = off_by(oval.at(from));
-    for step in 1..=steps {
-        let ahead = off_by(oval.at(turn(step)));
-        if (behind < 0.0) != (ahead < 0.0) {
-            found.push(halved(oval, &off_by, turn(step - 1), turn(step), behind));
+    let off: Vec<f64> = (0..=steps)
+        .map(|step| off_by(oval.at(turn(step))))
+        .collect();
+
+    let aside = |step: usize, ahead: bool| {
+        let mut walked = step;
+        loop {
+            walked = match ahead {
+                true if walked < steps => walked + 1,
+                false if walked > 0 => walked - 1,
+                _ => return None,
+            };
+            if off[walked].abs() > ON_THE_OTHER {
+                return Some(off[walked] < 0.0);
+            }
         }
-        behind = ahead;
+    };
+
+    let mut found = Vec::new();
+    for step in 0..=steps {
+        if off[step].abs() <= ON_THE_OTHER {
+            // Right on the other curve: a crossing only where the readings
+            // either side of it disagree.
+            if let (Some(behind), Some(ahead)) = (aside(step, false), aside(step, true))
+                && behind != ahead
+            {
+                found.push(oval.at(turn(step)));
+            }
+            continue;
+        }
+        let Some(behind) = step.checked_sub(1) else {
+            continue;
+        };
+        if off[behind].abs() <= ON_THE_OTHER || (off[behind] < 0.0) == (off[step] < 0.0) {
+            continue;
+        }
+        found.push(halved(oval, &off_by, turn(behind), turn(step), off[behind]));
     }
     found
 }

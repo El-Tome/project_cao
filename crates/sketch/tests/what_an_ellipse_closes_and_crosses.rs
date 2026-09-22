@@ -13,7 +13,10 @@
 //!   `an_ellipse_crosses_a_circle`, `an_ellipse_crosses_an_arc`,
 //!   `an_ellipse_crosses_another_ellipse`, and the cursor is pulled onto one —
 //!   `the_cursor_is_pulled_onto_a_crossing_on_an_ellipse`
-//! - what must not break: a circle an ellipse overlaps is still cut into the
+//! - what must not break: a circle that only grazes an ellipse crosses it
+//!   nowhere, and each keeps its area —
+//!   `a_circle_that_only_grazes_an_ellipse_crosses_it_nowhere`; a circle an
+//!   ellipse overlaps is still cut into the
 //!   areas the two make — `a_circle_an_ellipse_overlaps_is_cut_by_it_into_the_areas_they_make`;
 //!   a trait drawn to one of the ellipse's own handles closes an area there —
 //!   `a_trait_drawn_to_a_handle_of_the_ellipse_closes_an_area_there`; and one
@@ -265,4 +268,31 @@ fn the_same_ellipse_drawn_twice_the_other_way_round_crosses_itself_nowhere() {
         "one curve drawn twice crosses itself nowhere, not {} times",
         crossings.len(),
     );
+}
+
+#[test]
+fn a_circle_that_only_grazes_an_ellipse_crosses_it_nowhere() {
+    let (mut sketch, _) = an_ellipse();
+    // Through both ends of the second axis, touching the curve there and
+    // running outside it everywhere else.
+    let centre = sketch.add_point(DVec2::new(50.0, 20.0));
+    sketch.add_circle(centre, 20.0);
+
+    let crossings = sketch.crossings();
+
+    assert!(
+        crossings.is_empty(),
+        "a graze is not a crossing, and these are {crossings:?}",
+    );
+    let regions = sketch.regions();
+    let spans: Vec<f64> = regions.iter().map(spanned).collect();
+    assert_eq!(regions.len(), 2, "the ellipse and the circle: {spans:?}");
+    let ellipse = std::f64::consts::PI * 30.0 * 20.0;
+    let circle = std::f64::consts::PI * 20.0 * 20.0;
+    for (found, wanted) in spans.iter().zip([ellipse, circle]) {
+        assert!(
+            (found - wanted).abs() < wanted * 0.01,
+            "each curve keeps its own area: {spans:?} against {ellipse} and {circle}",
+        );
+    }
 }

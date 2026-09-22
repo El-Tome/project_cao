@@ -21,10 +21,10 @@ use crate::ellipsing::EllipseDraft;
 /// none, which is the same blind spot a tangency already has.
 const STEPS: usize = 256;
 
-/// Below this, in the ellipse's own measure, a place is taken as standing on
-/// the other curve rather than to one side of it. It is what tells a graze
-/// from a crossing.
-const ON_THE_OTHER: f64 = 1e-12;
+/// How close to the other curve a place must stand, against the size of the
+/// ellipse, to count as touching it. It is what tells a touch from a crossing,
+/// and a touch from a near miss.
+const TOUCHING: f64 = 1e-9;
 
 /// How many times the step holding a crossing is halved. A double at each
 /// turn: thirty of them take a step of a whole ellipse down to a billionth of
@@ -100,13 +100,18 @@ pub(crate) fn where_ellipses_cross_along(
         return Vec::new();
     }
     let turn = std::f64::consts::TAU;
-    hunted_along(near, from * turn, sweep * turn, |place| far.off_by(place))
-        .into_iter()
-        .map(|place| (fraction_of(near, place), fraction_of(far, place)))
-        .collect()
+    hunted_along(near, from * turn, sweep * turn, |place| {
+        // Brought back to the drawing's own units, roughly: how far out the
+        // place stands from the other curve's centre is what its measure is
+        // worth there.
+        far.off_by(place) * (place - far.centre).length()
+    })
+    .into_iter()
+    .map(|place| (fraction_of(near, place), fraction_of(far, place)))
+    .collect()
 }
 
-/// The places round the whole ellipse where `off_by` changes sign.
+/// The places round the whole ellipse where the other curve is met.
 fn hunted(oval: EllipseDraft, off_by: impl Fn(DVec2) -> f64) -> Vec<DVec2> {
     hunted_along(oval, 0.0, std::f64::consts::TAU, off_by)
 }
@@ -115,12 +120,16 @@ fn hunted(oval: EllipseDraft, off_by: impl Fn(DVec2) -> f64) -> Vec<DVec2> {
 /// curve would be walked in — never fewer than a handful, so a short run is
 /// still looked at properly.
 ///
-/// A place where the other curve merely grazes this one is not a crossing, and
-/// saying so is most of the work: right at the touch the two stand nought
-/// apart, and whether that nought comes out positive or negative is rounding
-/// alone. A reading that close to nought is therefore read as being *on* the
-/// other curve, and what it means is decided by the two readings either side
-/// of it — they differ for a crossing, and agree for a touch.
+/// `off_by` says how far off the other curve a place stands, in the drawing's
+/// own units and signed: which side of it the place is on.
+///
+/// Two kinds of meeting come back. Where the reading changes sign the curves
+/// cross, and the place is closed in on by halving. Where it comes down to
+/// nought and goes back the way it came they only touch — a circle sitting
+/// inside an ellipse against the ends of its short axis touches it twice — and
+/// that place is one meeting, not none and not two. Both are vertices the face
+/// walk turns at: without them the ring between the two curves is one pinched
+/// face rather than the two the drawing shows.
 fn hunted_along(
     oval: EllipseDraft,
     from: f64,
@@ -133,42 +142,54 @@ fn hunted_along(
     let off: Vec<f64> = (0..=steps)
         .map(|step| off_by(oval.at(turn(step))))
         .collect();
-
-    let aside = |step: usize, ahead: bool| {
-        let mut walked = step;
-        loop {
-            walked = match ahead {
-                true if walked < steps => walked + 1,
-                false if walked > 0 => walked - 1,
-                _ => return None,
-            };
-            if off[walked].abs() > ON_THE_OTHER {
-                return Some(off[walked] < 0.0);
-            }
-        }
-    };
+    let touching = oval.first.length().max(oval.second) * TOUCHING;
 
     let mut found = Vec::new();
-    for step in 0..=steps {
-        if off[step].abs() <= ON_THE_OTHER {
-            // Right on the other curve: a crossing only where the readings
-            // either side of it disagree.
-            if let (Some(behind), Some(ahead)) = (aside(step, false), aside(step, true))
-                && behind != ahead
-            {
-                found.push(oval.at(turn(step)));
+    for step in 1..=steps {
+        let (behind, ahead) = (off[step - 1], off[step]);
+        if (behind < 0.0) != (ahead < 0.0) && behind.abs() > touching && ahead.abs() > touching {
+            found.push(halved(oval, &off_by, turn(step - 1), turn(step), behind));
+            continue;
+        }
+        // Nearest the other curve between the step before this one and the step
+        // after: a touch stands there, and nowhere else.
+        // Only where the reading comes back the way it came: a dip through a
+        // crossing is that crossing, and is caught above.
+        let dips = step < steps
+            && (off[step - 1] < 0.0) == (off[step + 1] < 0.0)
+            && off[step].abs() <= off[step - 1].abs()
+            && off[step].abs() <= off[step + 1].abs();
+        if dips {
+            let (place, apart) = nearest_between(oval, &off_by, turn(step - 1), turn(step + 1));
+            if apart <= touching {
+                found.push(place);
             }
-            continue;
         }
-        let Some(behind) = step.checked_sub(1) else {
-            continue;
-        };
-        if off[behind].abs() <= ON_THE_OTHER || (off[behind] < 0.0) == (off[step] < 0.0) {
-            continue;
-        }
-        found.push(halved(oval, &off_by, turn(behind), turn(step), off[behind]));
     }
     found
+}
+
+/// The place over a stretch of the curve that stands nearest the other one,
+/// and how far off it stands, closed in on by keeping the better half of the
+/// stretch each time.
+fn nearest_between(
+    oval: EllipseDraft,
+    off_by: &impl Fn(DVec2) -> f64,
+    from: f64,
+    to: f64,
+) -> (DVec2, f64) {
+    let (mut low, mut high) = (from, to);
+    for _ in 0..HALVINGS {
+        let third = (high - low) / 3.0;
+        let (near, far) = (low + third, high - third);
+        if off_by(oval.at(near)).abs() <= off_by(oval.at(far)).abs() {
+            high = far;
+        } else {
+            low = near;
+        }
+    }
+    let turn = (low + high) * 0.5;
+    (oval.at(turn), off_by(oval.at(turn)).abs())
 }
 
 /// The place between two turns where the sign changes, closed in on by halving

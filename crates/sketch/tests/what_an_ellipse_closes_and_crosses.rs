@@ -13,9 +13,13 @@
 //!   `an_ellipse_crosses_a_circle`, `an_ellipse_crosses_an_arc`,
 //!   `an_ellipse_crosses_another_ellipse`, and the cursor is pulled onto one —
 //!   `the_cursor_is_pulled_onto_a_crossing_on_an_ellipse`
-//! - what must not break: a circle that only grazes an ellipse crosses it
-//!   nowhere, and each keeps its area —
-//!   `a_circle_that_only_grazes_an_ellipse_crosses_it_nowhere`; a circle an
+//! - what must not break: a circle drawn inside an ellipse against its short
+//!   axis leaves the three areas the drawing shows —
+//!   `a_circle_drawn_inside_an_ellipse_against_its_short_axis_leaves_the_three_areas_it_shows`,
+//!   read off a part drawn by hand; a circle touching an ellipse meets it once on each
+//!   side, which cuts the ring between them in two —
+//!   `a_circle_touching_an_ellipse_at_its_short_axis_leaves_three_areas`;
+//!   a circle an
 //!   ellipse overlaps is still cut into the
 //!   areas the two make — `a_circle_an_ellipse_overlaps_is_cut_by_it_into_the_areas_they_make`;
 //!   a trait drawn to one of the ellipse's own handles closes an area there —
@@ -271,28 +275,58 @@ fn the_same_ellipse_drawn_twice_the_other_way_round_crosses_itself_nowhere() {
 }
 
 #[test]
-fn a_circle_that_only_grazes_an_ellipse_crosses_it_nowhere() {
+fn a_circle_touching_an_ellipse_at_its_short_axis_leaves_three_areas() {
     let (mut sketch, _) = an_ellipse();
-    // Through both ends of the second axis, touching the curve there and
-    // running outside it everywhere else.
     let centre = sketch.add_point(DVec2::new(50.0, 20.0));
     sketch.add_circle(centre, 20.0);
 
-    let crossings = sketch.crossings();
-
-    assert!(
-        crossings.is_empty(),
-        "a graze is not a crossing, and these are {crossings:?}",
-    );
     let regions = sketch.regions();
     let spans: Vec<f64> = regions.iter().map(spanned).collect();
-    assert_eq!(regions.len(), 2, "the ellipse and the circle: {spans:?}");
-    let ellipse = std::f64::consts::PI * 30.0 * 20.0;
+    assert_eq!(
+        regions.len(),
+        3,
+        "the circle, and the two the ring is pinched into: {spans:?}",
+    );
     let circle = std::f64::consts::PI * 20.0 * 20.0;
-    for (found, wanted) in spans.iter().zip([ellipse, circle]) {
+    let ring = std::f64::consts::PI * 30.0 * 20.0 - circle;
+    let total: f64 = spans.iter().sum();
+    assert!(
+        (total - circle - ring).abs() < (circle + ring) * 0.01,
+        "and they cover the ellipse between them: {spans:?}",
+    );
+}
+
+#[test]
+fn a_circle_drawn_inside_an_ellipse_against_its_short_axis_leaves_the_three_areas_it_shows() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    // Read off a part drawn by hand: the ellipse leans a little, and the
+    // circle is a hair under the reach of the short axis it sits against.
+    let middle = DVec2::new(32.499_999_765_805_16, 20.000_002_498_089_7);
+    let along = DVec2::new(40.000_000_792_693_78, 3.749_991_544_566_136);
+    let across = along.perp().normalize() * 15.354_612_009_812_739;
+    let centre = sketch.add_point(middle);
+    let west = sketch.add_point(middle - along);
+    let east = sketch.add_point(middle + along);
+    let south = sketch.add_point(middle - across);
+    let north = sketch.add_point(middle + across);
+    sketch.add_ellipse(centre, [west, east], [south, north]);
+    let round = sketch.add_point(middle);
+    sketch.add_circle(round, 15.354_612_005_382_88);
+
+    let regions = sketch.regions();
+
+    let spans: Vec<f64> = regions.iter().map(spanned).collect();
+    assert_eq!(
+        regions.len(),
+        3,
+        "the circle, and the two the ring is pinched into: {spans:?}",
+    );
+    let circle = std::f64::consts::PI * 15.354_612 * 15.354_612;
+    let lobe = (std::f64::consts::PI * along.length() * 15.354_612 - circle) * 0.5;
+    for (found, wanted) in spans.iter().zip([circle, lobe, lobe]) {
         assert!(
-            (found - wanted).abs() < wanted * 0.01,
-            "each curve keeps its own area: {spans:?} against {ellipse} and {circle}",
+            (found - wanted).abs() < wanted * 0.02,
+            "the disc and the two lobes are {circle:.0} and {lobe:.0}, not {spans:?}",
         );
     }
 }

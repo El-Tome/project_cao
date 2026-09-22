@@ -92,6 +92,7 @@ in one of the two domains, never there.
 | Where two curves of the drawing cross | `sketch/src/crossing.rs` | `where_segments_cross`, `where_segment_crosses_arc`, `where_arcs_cross`, `where_segment_crosses_circle`, `where_arc_crosses_circle`, `where_circles_cross` |
 | A circle, and the turns at which the drawing runs through it | `sketch/src/circle_edges.rs` | `Sketch::rounds`, `Round` |
 | The drawing as half-edges a face walk can turn at, cut wherever two curves cross and wherever a point sits on one | `sketch/src/edges.rs` | `Sketch::crossed`, `Sketch::crossings`, `Crossed`, `ArcHalfEdge` |
+| One end of a curved piece as the walk reads it: its departing tangent, how hard it bends, the places it draws | `sketch/src/edges/half_edge.rs` | `CurvedHalfEdge`, `Bend` |
 | One curve of the drawing as that graph reads it: where it runs, how far along a place stands, the runs it is left as | `sketch/src/edges/curve.rs` | `Curve`, `between`, `pieces` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |

@@ -13,91 +13,16 @@
 
 use glam::DVec2;
 
-use crate::arcing::{ArcDraft, places_along};
 use crate::circle_edges::Round;
 use crate::ellipse_edges::Oval;
-use crate::ellipsing::{EllipseDraft, FULL_ELLIPSE_STEPS};
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
 
 mod curve;
+mod half_edge;
 
 use curve::{Curve, between, pieces};
-
-/// What a curved half-edge bends along: the centre a piece of a circle turns
-/// about, or the ellipse a run of one follows.
-#[derive(Clone)]
-pub(crate) enum Bend {
-    Round(DVec2),
-    Oval(EllipseDraft),
-}
-
-/// One end of one curved piece, as a graph half-edge: where it leaves from,
-/// the tangent it leaves along — not the straight line to its far end, which
-/// is what tells the region walk apart from a plain segment's — and which way
-/// round the curve it walks.
-pub(crate) struct CurvedHalfEdge {
-    pub(crate) bend: Bend,
-    /// Whether this half leaves the piece's own start, curving the way it was
-    /// drawn, or leaves its end and so walks the same curve backwards.
-    pub(crate) forward: bool,
-}
-
-impl CurvedHalfEdge {
-    /// The direction it leaves `from` in: along the curve at that place,
-    /// turned the way this half actually walks it.
-    pub(crate) fn departure(&self, from: DVec2) -> DVec2 {
-        let along = match &self.bend {
-            Bend::Round(centre) => (from - *centre).perp(),
-            Bend::Oval(drawn) => {
-                let turn = drawn.turn_on(from);
-                -drawn.first * turn.sin() + drawn.second_axis() * turn.cos()
-            }
-        };
-        match self.forward {
-            true => along,
-            false => -along,
-        }
-    }
-
-    /// The curve this half contributes to an outline: sampled from its own
-    /// `from` up to, but not including, `to` — the same convention a segment's
-    /// single point already follows, so the next half-edge, or the walk
-    /// closing, supplies the rest.
-    pub(crate) fn points_along(&self, from: DVec2, to: DVec2) -> Vec<DVec2> {
-        let (start, end) = match self.forward {
-            true => (from, to),
-            false => (to, from),
-        };
-        let mut sampled = match &self.bend {
-            Bend::Round(centre) => places_along(ArcDraft {
-                centre: *centre,
-                start,
-                end,
-            }),
-            Bend::Oval(drawn) => places_round(drawn, start, end),
-        };
-        if !self.forward {
-            sampled.reverse();
-        }
-        sampled.pop();
-        sampled
-    }
-}
-
-/// A run of an ellipse as a run of places, ends included, counter-clockwise
-/// from one to the other. As many steps as that share of the whole curve is
-/// worth, so a short run is not drawn as one straight step.
-fn places_round(drawn: &EllipseDraft, start: DVec2, end: DVec2) -> Vec<DVec2> {
-    let from = drawn.turn_on(start);
-    let sweep = match (drawn.turn_on(end) - from).rem_euclid(std::f64::consts::TAU) {
-        sweep if sweep <= 0.0 => std::f64::consts::TAU,
-        sweep => sweep,
-    };
-    let steps =
-        ((sweep / std::f64::consts::TAU * FULL_ELLIPSE_STEPS as f64).ceil() as usize).max(2);
-    drawn.places_along(from, sweep, steps)
-}
+pub(crate) use half_edge::{Bend, CurvedHalfEdge};
 
 /// The drawing cut apart, before the half-edges are read off it.
 struct Cut {
@@ -137,7 +62,17 @@ const CLOSE_TO_AN_END: f64 = 1e-9;
 
 /// Nearer than this and two places are one: where three curves run through a
 /// single point, and where a drawn point sits on a curve rather than beside it.
-const THE_SAME_PLACE: f64 = 1e-9;
+///
+/// Wide enough to hold a touch. Where two curves graze rather than cross, the
+/// place they meet cannot be found nearer than the square root of what a
+/// number can hold — the two are flat against each other there — so the same
+/// touch, hunted along one curve and along the other, comes back twice a few
+/// ten-millionths apart. Left as two vertices it leaves a sliver of an edge
+/// between them, and the walk comes back with one face where the drawing shows
+/// two. A ten-millionth of the drawing is a hundredth of a micron on a part a
+/// metre across: far below anything drawn, and far below what the solver holds
+/// a dimension to.
+const THE_SAME_PLACE: f64 = 1e-7;
 
 /// Read against how far out the place stands, so the drawing can be measured
 /// in anything.

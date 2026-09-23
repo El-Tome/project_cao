@@ -18,6 +18,7 @@ pub mod dimension;
 pub mod ellipse;
 pub mod file;
 pub mod history;
+pub mod measure;
 pub mod outcome;
 pub mod part_file;
 pub mod plane;

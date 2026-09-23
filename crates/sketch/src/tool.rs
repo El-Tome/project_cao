@@ -83,6 +83,17 @@ pub enum ToolState {
         placing: Option<DimensionTarget>,
         picks: DimensionPicks,
     },
+    /// What the measure tool is half-way through picking, and what it is
+    /// showing right now.
+    ///
+    /// `showing` is the whole of a measure: it is never written anywhere else,
+    /// which is what makes a measure leave no trace. Clearing this state is
+    /// clearing the measure, and `reset_pending` already does it on Escape and
+    /// on every change of tool.
+    Measure {
+        picks: DimensionPicks,
+        showing: Option<DimensionTarget>,
+    },
     /// What a tool that lays copies is holding, and whether the next click
     /// names the one thing it still needs — an axis, a centre, a direction —
     /// rather than adding to what is held.

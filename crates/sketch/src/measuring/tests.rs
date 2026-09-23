@@ -68,7 +68,10 @@ fn an_angle_between_two_parallel_traits_is_refused_for_being_parallel() {
         1.0,
     );
 
-    assert_eq!(outcome, DimensionPick::TraitsAreParallel);
+    assert!(
+        matches!(outcome, DimensionPick::TraitsAreParallel { .. }),
+        "two traits that run the same way open no angle, got {outcome:?}",
+    );
 }
 
 #[test]
@@ -183,5 +186,34 @@ fn a_point_off_the_line_then_the_trait_still_measures_the_distance_to_it() {
             DimensionPick::Target(DimensionTarget::PointToSegment { .. })
         ),
         "a point standing off the line has a distance to it, and the tool lays it: {pick:?}",
+    );
+}
+
+#[test]
+fn two_parallel_traits_name_themselves_so_the_gap_between_them_can_be_read() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let low_left = sketch.add_point(DVec2::new(0.0, 0.0));
+    let low_right = sketch.add_point(DVec2::new(40.0, 0.0));
+    let first = sketch.add_segment(low_left, low_right);
+    let high_left = sketch.add_point(DVec2::new(0.0, 40.0));
+    let high_right = sketch.add_point(DVec2::new(40.0, 40.0));
+    let second = sketch.add_segment(high_left, high_right);
+
+    let picks = DimensionPicks {
+        first_angle_segment: Some(first),
+        ..DimensionPicks::default()
+    };
+    let (_, outcome) = measure_pick(
+        &sketch,
+        DimensionMode::Angle,
+        picks,
+        DVec2::new(20.0, 40.0),
+        1.0,
+    );
+
+    assert_eq!(
+        outcome,
+        DimensionPick::TraitsAreParallel { first, second },
+        "an angle is nothing here, but the gap is the question, and reading it needs both traits named",
     );
 }

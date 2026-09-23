@@ -89,7 +89,7 @@ pub(super) fn measure(
                     .t_with("sketch.axis_chosen", &[("axis", &axis)]),
             );
         }
-        cao_sketch::DimensionPick::TraitsAreParallel => {
+        cao_sketch::DimensionPick::TraitsAreParallel { .. } => {
             context.editor.select(None, None);
             context.editor.message = Some(context.lang.t("sketch.traits_are_parallel"));
         }

@@ -25,6 +25,9 @@ pub enum Tool {
     Point,
     /// Smart dimension: measures whatever is clicked.
     Dimension,
+    /// Reads the drawing without touching it: a distance, a length, a radius
+    /// or an angle, shown until the next measure and written down nowhere.
+    Measure,
     /// Takes the stretch of a trait a click falls in out of it.
     Trim,
     /// Drops a point where traits cross and cuts each of them there.
@@ -177,6 +180,18 @@ impl SketchEditor {
         };
         self.live.clear();
         self.editing = None;
+    }
+
+    /// Drops the measure on screen, and nothing else.
+    ///
+    /// A measure is a value read off the drawing. The moment the drawing
+    /// moves, that value is a claim about something that is no longer there,
+    /// and a readout that is quietly wrong is worse than none — so it goes,
+    /// rather than waiting to be noticed.
+    pub fn forget_the_measure(&mut self) {
+        if matches!(self.tool_state, ToolState::Measure { .. }) {
+            self.tool_state = ToolState::None;
+        }
     }
 
     pub fn begin_editing(&mut self, sketch: usize, plane: WorkPlane) {

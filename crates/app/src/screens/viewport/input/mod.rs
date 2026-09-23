@@ -48,7 +48,10 @@ use trim::trim;
 
 mod measure;
 pub(crate) use measure::measure_preview;
+
+mod reading;
 use measure::{edit_dimension, measure};
+pub(crate) use reading::{read, showing as measure_showing};
 
 mod dragging;
 pub(crate) use dragging::annotation_position;
@@ -267,6 +270,7 @@ pub(crate) fn handle_sketch_input(
         Tool::Arc => draw_arc(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Ellipse => draw_ellipse(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Measure => read(context, index, cursor, snap),
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Split => split(context, index, cursor, snap),
         Tool::Chamfer | Tool::Fillet => corner(context, index, cursor, snap),

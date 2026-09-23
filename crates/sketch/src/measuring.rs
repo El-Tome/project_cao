@@ -61,7 +61,12 @@ pub enum DimensionPick {
     WaitingForTraitAfterAxis(SketchAxis),
     /// Two traits picked for an angle, but they run the same way: their lines
     /// never cross, so there is no angle between them to read.
-    TraitsAreParallel,
+    ///
+    /// Both are named because the dimension tool is not the only thing that
+    /// asks. What is a dead end for a dimension is the whole question for a
+    /// measure — the gap between two parallels — and it cannot be read without
+    /// knowing which two they were.
+    TraitsAreParallel { first: SegmentId, second: SegmentId },
     /// A point picked for a distance to a trait it already lies on: there is
     /// no distance to measure, and a zero laid there could only ever be
     /// read, never typed.
@@ -161,7 +166,7 @@ pub fn measure_pick(
                 return (cleared, DimensionPick::Target(laid));
             }
             return match sketch.run_the_same_way(first, second) {
-                true => (cleared, DimensionPick::TraitsAreParallel),
+                true => (cleared, DimensionPick::TraitsAreParallel { first, second }),
                 false => (
                     cleared,
                     DimensionPick::Target(sketch.angle_between_traits(first, second)),

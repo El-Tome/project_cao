@@ -118,6 +118,11 @@ pub(crate) fn run(
             tool(editor, Tool::Dimension);
             false
         }
+        Command::ToolMeasure => {
+            tool(editor, Tool::Measure);
+            editor.message = Some(lang.t("sketch.point_at_what_to_measure"));
+            false
+        }
         Command::ToolTrim => {
             tool(editor, Tool::Trim);
             editor.message = Some(lang.t("sketch.click_a_stretch"));

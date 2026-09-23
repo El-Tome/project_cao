@@ -56,6 +56,7 @@ impl Default for ToolbarLayout {
                                 ),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
+                                Item::Command(C::ToolMeasure),
                                 Item::Command(C::ToolTrim),
                                 Item::Command(C::ToolSplit),
                                 Item::Command(C::ToolMirror),

@@ -182,9 +182,11 @@ fn two_parallel_traits_are_still_refused() {
         ),
         "two traits running the same way never meet, and make no angle: {refined:?}",
     );
-    assert_eq!(
-        clicked_for_an_angle(&sketch, on_low, on_high),
-        DimensionPick::TraitsAreParallel,
+    assert!(
+        matches!(
+            clicked_for_an_angle(&sketch, on_low, on_high),
+            DimensionPick::TraitsAreParallel { .. }
+        ),
         "and the tool set to angles says they are parallel",
     );
 }

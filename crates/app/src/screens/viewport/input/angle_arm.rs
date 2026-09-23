@@ -61,14 +61,30 @@ pub(crate) fn lean_on_an_arm(
         },
     });
 
-    let target = DimensionTarget::Angle {
-        first: arm,
-        second: drawn,
-    };
     // Read off the drawing rather than repeated from what was typed: the
     // direction follows the cursor, so a trait typed at 30° and drawn the
     // other way opens 150° against an arm that always runs east.
-    let Some(opened) = context.document.sketches()[index].angle_between(arm, drawn) else {
+    //
+    // A corner names its one angle; an arm springing from a symmetric line's
+    // middle shares no end with it, and is read the way two traits that meet
+    // are.
+    let sketch = &context.document.sketches()[index];
+    let Some((target, opened)) = sketch
+        .angle_between(arm, drawn)
+        .map(|opened| {
+            (
+                DimensionTarget::Angle {
+                    first: arm,
+                    second: drawn,
+                },
+                opened,
+            )
+        })
+        .or_else(|| {
+            let target = sketch.angle_between_traits(arm, drawn);
+            Some((target, sketch.opening(target)?))
+        })
+    else {
         return;
     };
     context.document.apply(Operation::SetDimension {

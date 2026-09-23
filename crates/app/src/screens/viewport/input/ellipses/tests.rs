@@ -3,8 +3,8 @@
 //! Closes #412.
 //! - three clicks lay an ellipse, its two construction axes and its centre, as
 //!   one step of the history — `three_clicks_lay_the_ellipse_its_axes_and_its_centre_as_one_step`
-//! - typed values at the cursor set the angle and both widths —
-//!   `the_values_typed_while_placing_become_dimensions_on_the_axes`
+//! - typed values at the cursor set both widths, and turn the curve to the
+//!   angle typed — `the_values_typed_while_placing_become_dimensions_on_the_axes`
 //!
 //! Closes #195.
 //! - placed from its two ends, three clicks lay half a curve as one step of
@@ -12,6 +12,11 @@
 //!   `half_an_ellipse_is_one_step_standing_on_the_two_ends_clicked`
 //! - the second axis is laid from the centre out to the rise, so the rise typed
 //!   is what it measures — `the_rise_typed_is_what_the_second_axis_measures`
+//!
+//! Closes #314, for the ellipse.
+//! - an angle typed for the first axis leaves a construction arm from the
+//!   centre, and is read against it —
+//!   `an_angle_typed_for_an_ellipse_leans_on_an_arm_from_its_centre`
 
 use cao_part::PartDocument;
 use cao_sketch::{DimensionTarget, EllipseMode, SketchAxis, WorkPlane};
@@ -93,13 +98,10 @@ fn the_values_typed_while_placing_become_dimensions_on_the_axes() {
     };
     assert_eq!(value(DimensionTarget::Length(oval.first)), Some(40.0));
     assert_eq!(value(DimensionTarget::Length(oval.second)), Some(12.0));
-    assert_eq!(
-        value(DimensionTarget::AxisAngle {
-            segment: oval.first,
-            axis: SketchAxis::U,
-        }),
-        Some(30.0),
-    );
+    // The angle typed is no longer written against the axis: it is read against
+    // a real arm, which
+    // `an_angle_typed_for_an_ellipse_leans_on_an_arm_from_its_centre` holds.
+    // What it does to the drawing is the same, and that is what follows.
     let drawn = drawing.ellipse_draft(id);
     assert!((drawn.first.length() - 20.0).abs() < 1e-4, "{drawn:?}");
     assert!(
@@ -234,4 +236,70 @@ fn the_rise_typed_is_what_the_second_axis_measures() {
         "which is where it starts",
     );
     assert!((drawing.ellipse_draft(id).second - 20.0).abs() < 1e-6);
+}
+
+#[test]
+fn an_angle_typed_for_an_ellipse_leans_on_an_arm_from_its_centre() {
+    let mut document = clicked(&[
+        (DVec2::new(0.0, 0.0), [None, None]),
+        (DVec2::new(10.0, 1.0), [Some(40.0), Some(30.0)]),
+        (DVec2::new(-1.0, 3.0), [Some(12.0), None]),
+    ]);
+
+    let drawing = &document.sketches()[0];
+    let (_, oval) = drawing.live_ellipses().next().expect("an ellipse");
+    let centre = drawing.point(oval.center);
+
+    let arm = drawing
+        .live_segments()
+        .find(|(id, segment)| {
+            let (from, to) = drawing.endpoints(*id);
+            segment.construction
+                && *id != oval.first
+                && *id != oval.second
+                && from.distance(centre) < 1e-9
+                && (to.y - from.y).abs() < 1e-9
+                && to.x > from.x
+        })
+        .map(|(id, _)| id);
+    let Some(arm) = arm else {
+        panic!("no arm springs east from the ellipse's centre for its angle to be read against");
+    };
+
+    assert!(
+        drawing
+            .dimension_of(DimensionTarget::AxisAngle {
+                segment: oval.first,
+                axis: SketchAxis::U,
+            })
+            .is_none(),
+        "the ghost angle against the axis is still written beside the real arm",
+    );
+
+    let read = drawing
+        .dimensions()
+        .iter()
+        .find(|dimension| match dimension.target {
+            DimensionTarget::AngleBetween { first, second, .. } => {
+                (first, second) == (arm, oval.first) || (first, second) == (oval.first, arm)
+            }
+            DimensionTarget::Angle { first, second } => {
+                (first, second) == (arm, oval.first) || (first, second) == (oval.first, arm)
+            }
+            _ => false,
+        })
+        .expect("the arm carries no reading of the angle typed");
+    assert!(
+        (read.value - 30.0).abs() < 1e-3,
+        "the reading says {} where 30 was typed",
+        read.value,
+    );
+
+    document.undo();
+    assert_eq!(
+        document.sketches()[0].live_ellipses().count(),
+        0,
+        "the arm and its reading left the ellipse behind: the gesture is not one step",
+    );
+    assert_eq!(document.sketches()[0].live_segments().count(), 0);
 }

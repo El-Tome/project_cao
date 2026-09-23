@@ -7,6 +7,10 @@
 //!   `a_trait_square_to_the_axis_it_starts_on_is_simply_held_on_it`
 //! - undo removes everything the gesture laid in one step —
 //!   `a_line_drawn_at_a_typed_angle_is_one_step_of_the_history`
+//! - a symmetric line's arm reaches its own end, not the whole trait's width —
+//!   `a_symmetric_lines_arm_reaches_its_end_and_not_twice_that`
+//! - and it gets the reading, like a plain trait —
+//!   `a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -202,5 +206,79 @@ fn a_symmetric_line_drawn_at_a_typed_angle_leans_on_an_arm_from_its_middle() {
             segment: SegmentId(0),
         }),
         "the arm springs from something other than the middle of the trait",
+    );
+}
+
+/// A symmetric line drawn at a typed angle, laid far enough from nothing that
+/// the shortest-arm floor never speaks.
+fn a_symmetric_line_at(degrees: f64) -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let draw = crate::screens::viewport::input::draw_symmetric_line_point;
+    draw(&mut context, 0, DVec2::new(2.0, 3.0), 0.001, 0.001);
+    context.editor.live.open_on(&[None, Some(degrees)]);
+    draw(&mut context, 0, DVec2::new(-30.0, 25.0), 0.001, 0.001);
+    document
+}
+
+#[test]
+fn a_symmetric_lines_arm_reaches_its_end_and_not_twice_that() {
+    let document = a_symmetric_line_at(150.0);
+    let sketch = &document.sketches()[0];
+
+    let (springs, reaches) = sketch.endpoints(SegmentId(1));
+    let (start, end) = sketch.endpoints(SegmentId(0));
+    let half = (end.x - springs.x).abs();
+
+    assert!(
+        ((reaches.x - springs.x).abs() - half).abs() < 1e-9,
+        "the arm spans {} where the trait reaches {half} from its middle — \
+         the whole width, {}, is what it must not be",
+        (reaches.x - springs.x).abs(),
+        (end.x - start.x).abs(),
+    );
+}
+
+#[test]
+fn a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading() {
+    let document = a_symmetric_line_at(150.0);
+    let sketch = &document.sketches()[0];
+
+    let (arm, trait_drawn) = (SegmentId(1), SegmentId(0));
+    let names_both = |target: &DimensionTarget| match *target {
+        DimensionTarget::Angle { first, second } => (first, second) == (arm, trait_drawn),
+        DimensionTarget::AngleBetween { first, second, .. } => {
+            (first, second) == (arm, trait_drawn) || (first, second) == (trait_drawn, arm)
+        }
+        _ => false,
+    };
+
+    let read = sketch
+        .dimensions()
+        .iter()
+        .find(|dimension| names_both(&dimension.target));
+
+    let Some(read) = read else {
+        panic!(
+            "the symmetric line carries an arm but no angle read against it: {:?}",
+            sketch.dimensions(),
+        );
+    };
+    assert!(
+        (read.value - 150.0).abs() < 1e-6,
+        "the reading says {} where 150 was typed",
+        read.value,
     );
 }

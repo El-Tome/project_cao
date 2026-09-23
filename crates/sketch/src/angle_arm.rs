@@ -55,6 +55,11 @@ pub fn angle_arm(
         }
     }
 
-    let width = (end.x - start.x).abs().max(least);
-    Some(AngleArm::Arm(springs_from + DVec2::X * width))
+    // How far the trait reaches from where the arm springs, not how wide the
+    // whole trait is: a symmetric line springs from its middle and reaches half
+    // that each way, and an arm as wide as the whole would overshoot its end.
+    let reaches = (start.x - springs_from.x)
+        .abs()
+        .max((end.x - springs_from.x).abs());
+    Some(AngleArm::Arm(springs_from + DVec2::X * reaches.max(least)))
 }

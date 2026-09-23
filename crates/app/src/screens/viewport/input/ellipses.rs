@@ -8,7 +8,7 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
-use super::{annotation_position, point_ref_at};
+use super::{annotation_position, lean_on_an_arm, point_ref_at};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
@@ -93,6 +93,7 @@ pub(crate) fn draw_ellipse(
     };
 
     context.editor.tool_state = ToolState::None;
+    let opened = context.document.history.mark();
     context.document.apply(Operation::AddEllipse {
         sketch: index,
         center,
@@ -107,7 +108,18 @@ pub(crate) fn draw_ellipse(
             .len()
             .saturating_sub(1),
     );
+    // The arm springs from the centre, which the first axis runs across rather
+    // than ends on: the same shape as a symmetric line's middle.
+    if first_typed.second.is_some()
+        && let Some(oval) = context.document.sketches()[index]
+            .ellipses()
+            .get(ellipse.0)
+            .copied()
+    {
+        lean_on_an_arm(context, index, oval.first, oval.center, pixel);
+    }
     dimension_the_ellipse(context, index, ellipse, first_typed, second_width, pixel);
+    context.document.history.fold_into_one_gesture(opened);
     context.editor.live.clear();
     context.editor.message = Some(crate::wording::ellipse::asks_for(context.lang, mode));
     true

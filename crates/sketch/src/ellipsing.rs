@@ -17,12 +17,17 @@ pub struct EllipseDraft {
     pub second: f64,
 }
 
-/// Into how many straight steps a whole ellipse is cut. More than a circle is,
-/// since a long ellipse bends hardest at the ends of its long axis.
-pub(crate) const FULL_ELLIPSE_STEPS: usize = 96;
+/// Into how many straight steps a whole ellipse is cut. The same as a circle,
+/// since the steps are spread by length: what makes an ellipse look coarse is
+/// not how many steps it has but where they fall.
+pub(crate) const FULL_ELLIPSE_STEPS: usize = 48;
 
 /// A reach below which an axis is taken for nothing at all.
 const NO_REACH: f64 = 1e-9;
+
+/// How far apart two drafts may stand, against the size of the curve, and
+/// still describe the same one.
+const SAME_CURVE: f64 = 1e-9;
 
 impl EllipseDraft {
     /// The ellipse a centre, the end of its first axis and a place the second
@@ -39,6 +44,35 @@ impl EllipseDraft {
             first,
             second,
         })
+    }
+
+    /// A place in the ellipse's own measure, where the curve itself is the
+    /// circle of radius one about the origin.
+    pub(crate) fn squashed(&self, place: DVec2) -> DVec2 {
+        let out = place - self.centre;
+        let along = self.first.length();
+        DVec2::new(
+            out.dot(self.first) / (along * along),
+            out.dot(self.second_axis()) / (self.second * self.second),
+        )
+    }
+
+    /// How far off the curve a place stands, in that same measure: nought on
+    /// it, negative inside, positive outside.
+    pub(crate) fn off_by(&self, place: DVec2) -> f64 {
+        self.squashed(place).length() - 1.0
+    }
+
+    /// The turn at which the ellipse passes through a place standing on it.
+    ///
+    /// Exact and cheap where [`Self::turn_nearest`] hunts: squashed, the curve
+    /// is the unit circle, and the turn is the angle of the place. It answers
+    /// for a place off the curve as the place squashed down onto it, which is
+    /// not the nearest place — that is what `turn_nearest` is for.
+    pub(crate) fn turn_on(&self, place: DVec2) -> f64 {
+        self.squashed(place)
+            .to_angle()
+            .rem_euclid(std::f64::consts::TAU)
     }
 
     /// From the centre to one end of the second axis, a quarter turn
@@ -98,6 +132,32 @@ impl EllipseDraft {
         self.nearest(place).distance(place)
     }
 
+    /// Whether two drafts describe one and the same curve.
+    ///
+    /// The same ellipse has four descriptions — either axis first, either way
+    /// round — and the tool hands back whichever one was drawn. Comparing the
+    /// numbers as they stand would call two of them different curves, and
+    /// hunting one against the other then reads rounding noise as a crossing
+    /// at every step of the walk.
+    pub(crate) fn is_the_curve(&self, other: &Self) -> bool {
+        let scale = self.first.length().max(self.second);
+        let close = |near: f64, far: f64| (near - far).abs() <= scale * SAME_CURVE;
+        if self.centre.distance(other.centre) > scale * SAME_CURVE {
+            return false;
+        }
+        let (along, across) = (self.first.length(), self.second);
+        let (their_along, their_across) = (other.first.length(), other.second);
+        let lined_up = |one: DVec2, two: DVec2| {
+            one.perp_dot(two).abs() <= one.length() * two.length() * SAME_CURVE
+        };
+        let axes_alike = close(along, their_along) && close(across, their_across);
+        let axes_swapped = close(along, their_across) && close(across, their_along);
+        // A round one is the same curve whichever way its axes are laid.
+        (axes_alike && close(along, across))
+            || (axes_alike && lined_up(self.first, other.first))
+            || (axes_swapped && lined_up(self.first, other.second_axis()))
+    }
+
     /// The smallest box the curve fits in, as its two opposite corners.
     pub fn bounds(&self) -> (DVec2, DVec2) {
         let second = self.second_axis();
@@ -108,8 +168,21 @@ impl EllipseDraft {
     /// The whole curve as a closed run of places, the first repeated at the
     /// end.
     pub fn places(&self) -> Vec<DVec2> {
-        (0..=FULL_ELLIPSE_STEPS)
-            .map(|step| self.at(std::f64::consts::TAU * step as f64 / FULL_ELLIPSE_STEPS as f64))
+        self.places_along(0.0, std::f64::consts::TAU, FULL_ELLIPSE_STEPS)
+    }
+
+    /// One run of the curve as a run of places, ends included, counter-clockwise
+    /// from `from` over `sweep`.
+    ///
+    /// Stepped by the turn rather than by length, which is what puts the steps
+    /// where they are needed: the curve runs slowest, and bends hardest, at the
+    /// ends of its long axis, so a turn of one step covers least ground exactly
+    /// there. Spread by length instead, the same number of steps comes out five
+    /// times further from the curve on a long ellipse — measured, not guessed.
+    pub fn places_along(&self, from: f64, sweep: f64, steps: usize) -> Vec<DVec2> {
+        let steps = steps.max(2);
+        (0..=steps)
+            .map(|step| self.at(from + sweep * step as f64 / steps as f64))
             .collect()
     }
 }

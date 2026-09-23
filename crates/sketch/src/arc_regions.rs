@@ -3,26 +3,32 @@ use glam::DVec2;
 use crate::edges::Crossed;
 use crate::naming::CurveId;
 use crate::regions::{Outline, signed_area};
-use crate::sketch::{CircleId, Sketch};
+use crate::sketch::Sketch;
+
+/// Below this much of a turn apart, two half-edges leave a vertex the same
+/// way, and which of them lies further round is a matter of how hard each of
+/// them bends rather than of the last digit of an arctangent. A billionth of a
+/// turn is a ten-thousandth of a degree.
+const THE_SAME_WAY: f64 = 1e-9;
 
 impl Sketch {
     /// Walks the segment and arc graph and returns each area it encloses, as
     /// a loop of positions turning counter-clockwise.
     ///
-    /// A circle nothing cuts never reaches the graph, and comes back from
-    /// `crossed` as the closed loop it already is.
+    /// A circle or an ellipse nothing cuts never reaches the graph, and comes
+    /// back from `crossed` as the closed loop it already is.
     pub(crate) fn closed_outlines(&self) -> Vec<Outline> {
         let Crossed {
             places,
             ends,
             split,
-            arcs,
+            curves,
             from: cut_from,
             whole,
         } = self.crossed();
         let mut outlines: Vec<Outline> = whole
             .into_iter()
-            .map(|(circle, points)| all_of_one_curve(circle, points))
+            .map(|(curve, points)| all_of_one_curve(curve, points))
             .collect();
         if ends.is_empty() {
             return outlines;
@@ -32,7 +38,16 @@ impl Sketch {
             let from = places[ends[half].0];
             match half.checked_sub(split) {
                 None => places[ends[half].1] - from,
-                Some(arc) => arcs[arc].departure(from),
+                Some(curved) => curves[curved].departure(from),
+            }
+        };
+        // Two curves that touch leave that place in one direction, and which
+        // of them lies further round is then a matter of how hard each bends.
+        let bending = |half: usize| -> f64 {
+            let from = places[ends[half].0];
+            match half.checked_sub(split) {
+                None => 0.0,
+                Some(curved) => curves[curved].bending(from),
             }
         };
 
@@ -43,10 +58,25 @@ impl Sketch {
             }
         }
         for half_edges in leaving.iter_mut() {
+            // Two curves that touch leave in one and the same direction, which
+            // the arithmetic only ever agrees on to the last digit or two. The
+            // direction is therefore read to a grain far finer than any drawing
+            // and far coarser than that, so the two come out equal and it is
+            // how hard each bends that puts them in order.
+            let leaving = |half: usize| {
+                // Read to the grain first and brought round the turn after:
+                // half a turn one way and half a turn the other are the same
+                // direction, and so are a hair either side of nought.
+                let angle = departure(half).to_angle();
+                let round = (std::f64::consts::TAU / THE_SAME_WAY).round();
+                (
+                    (angle / THE_SAME_WAY).round().rem_euclid(round),
+                    bending(half),
+                )
+            };
             half_edges.sort_by(|a, b| {
-                departure(*a)
-                    .to_angle()
-                    .total_cmp(&departure(*b).to_angle())
+                let (near, far) = (leaving(*a), leaving(*b));
+                near.0.total_cmp(&far.0).then(near.1.total_cmp(&far.1))
             });
         }
 
@@ -96,8 +126,8 @@ impl Sketch {
                         outline.points.push(from);
                         outline.curves.push(None);
                     }
-                    Some(arc) => {
-                        let sampled = arcs[arc].points_along(from, to);
+                    Some(curved) => {
+                        let sampled = curves[curved].points_along(from, to);
                         let run = outline
                             .curves
                             .iter()
@@ -128,11 +158,12 @@ impl Sketch {
     }
 }
 
-/// A circle nothing cut: every one of its segments came from the one curve.
-fn all_of_one_curve(circle: CircleId, points: Vec<DVec2>) -> Outline {
+/// A circle or an ellipse nothing cut: every one of its segments came from the
+/// one curve.
+fn all_of_one_curve(curve: CurveId, points: Vec<DVec2>) -> Outline {
     Outline {
         curves: vec![Some(0); points.len()],
-        bounds: vec![CurveId::Circle(circle)],
+        bounds: vec![curve],
         points,
     }
 }

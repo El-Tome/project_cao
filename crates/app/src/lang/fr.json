@@ -578,7 +578,7 @@
   "sketch.cut_lost_values": "Coupe : {count} cote(s) perdue(s)",
   "sketch.click_a_stretch": "Cliquez un trait, une courbe ou un cercle entre deux de ses points",
   "sketch.click_a_crossing": "Cliquez un croisement",
-  "sketch.split_spares_a_circle": "La division ne coupe pas encore les cercles",
+  "sketch.split_spares_a_circle": "La division ne coupe pas encore les cercles ni les ellipses",
   "sketch.no_circle_from_these": "Ces éléments ne donnent pas de cercle",
   "sketch.no_ellipse_from_these": "Ces points ne donnent pas d'ellipse",
   "sketch.no_arc_from_these": "Ces points ne donnent pas d'arc",

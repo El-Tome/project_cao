@@ -318,6 +318,13 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole.
 
+A closed ellipse **encloses an area**, which extrudes like any other, its
+curved wall coming out as one face. A trait across it leaves the two areas it
+should. Snapping finds where it crosses a trait, a circle, an arc or another
+ellipse. The division tool refuses a crossing an ellipse runs through, as it
+refuses one a circle runs through: neither curve has ends, so one point divides
+neither of them.
+
 ## The constraints
 
 A dimension says **how much**; a constraint says **how**. Both take freedom

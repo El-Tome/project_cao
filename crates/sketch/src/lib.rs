@@ -30,6 +30,7 @@ mod duplicating;
 mod edges;
 mod element;
 mod ellipse;
+mod ellipse_edges;
 mod ellipse_placing;
 mod ellipsing;
 mod equation;

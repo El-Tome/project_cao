@@ -14,6 +14,7 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
+use crate::ellipse::EllipseId;
 use crate::regions::Region;
 use crate::sketch::{CircleId, SegmentId};
 
@@ -23,6 +24,7 @@ pub enum CurveId {
     Segment(SegmentId),
     Arc(ArcId),
     Circle(CircleId),
+    Ellipse(EllipseId),
 }
 
 /// What became of the curves one cut replaced: each curve it took out, with

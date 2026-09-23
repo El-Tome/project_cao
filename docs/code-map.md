@@ -51,6 +51,8 @@ in one of the two domains, never there.
 | An ellipse, laid with its two axes as construction traits, and what goes with it | `sketch/src/ellipse.rs` | `Ellipse`, `Sketch::add_ellipse`, `ellipse_draft`, `ellipse_points`, `ellipse_of_axis`, `erase_ellipse` |
 | The curve an ellipse is: where a turn lands, the nearest place, its box | `sketch/src/ellipsing.rs` | `EllipseDraft`, `through`, `at`, `nearest`, `bounds`, `places` |
 | Which ellipse the clicks gathered so far mean, once what was typed has had its say | `sketch/src/ellipse_placing.rs` | `ellipse_aimed`, `ellipse_from`, `ELLIPSE_PLACES` |
+| Where an ellipse crosses a trait, a circle, an arc or another ellipse | `sketch/src/crossing/ellipse.rs` | `where_segment_crosses_ellipse`, `where_circle_crosses_ellipse`, `where_arc_crosses_ellipse`, `where_ellipses_cross` |
+| An ellipse, and the turns at which the drawing runs through it | `sketch/src/ellipse_edges.rs` | `Oval`, `Sketch::ovals` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
 | What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
@@ -90,6 +92,7 @@ in one of the two domains, never there.
 | Where two curves of the drawing cross | `sketch/src/crossing.rs` | `where_segments_cross`, `where_segment_crosses_arc`, `where_arcs_cross`, `where_segment_crosses_circle`, `where_arc_crosses_circle`, `where_circles_cross` |
 | A circle, and the turns at which the drawing runs through it | `sketch/src/circle_edges.rs` | `Sketch::rounds`, `Round` |
 | The drawing as half-edges a face walk can turn at, cut wherever two curves cross and wherever a point sits on one | `sketch/src/edges.rs` | `Sketch::crossed`, `Sketch::crossings`, `Crossed`, `ArcHalfEdge` |
+| One end of a curved piece as the walk reads it: its departing tangent, how hard it bends, the places it draws | `sketch/src/edges/half_edge.rs` | `CurvedHalfEdge`, `Bend` |
 | One curve of the drawing as that graph reads it: where it runs, how far along a place stands, the runs it is left as | `sketch/src/edges/curve.rs` | `Curve`, `between`, `pieces` |
 | Which reading of a leaning trait the cursor asks for | `sketch/src/dimensioning.rs` | `Sketch::oriented`, `Sketch::is_slanted`, `Sketch::segment_touches`, `axis_under` |
 | What pulls the cursor, and which magnet wins | `sketch/src/snap.rs` | `Sketch::magnetise`, `SnapSettings`, `Snap` |

@@ -46,6 +46,7 @@ impl Default for ToolbarLayout {
                                         Item::Command(C::ArcByEnds),
                                     ],
                                 ),
+                                Item::Command(C::ToolEllipse),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToolTrim),

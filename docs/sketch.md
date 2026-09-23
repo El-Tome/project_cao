@@ -33,6 +33,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Line** | Successive clicks, each trait carrying on from the last. |
 | **Rectangle** | Two clicks: two opposite corners. |
 | **Circle** | Five ways to lay it down, see below. |
+| **Ellipse** | Three clicks: the centre, the end of the first axis, then how far the second reaches. See below. |
 | **Point** | One click lays a lone point. |
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
@@ -295,6 +296,27 @@ all to first order, so the solver would have nothing to correct.
 
 That point is what one grabs to **slide a circle along the line it touches**,
 without breaking the tangency.
+
+## Ellipses
+
+Three clicks lay one: the **centre**, the **end of the first axis** — its
+direction and how far it reaches — then how far the **second axis** reaches,
+square to the first. Either axis may be the longer. The first axis's width and
+angle, then the second's width, can be typed at the cursor on the way, and
+become dimensions on the axes.
+
+An ellipse is laid **with its two axes**, as construction traits running across
+the whole curve through its centre, as on a drawing. They are what it is
+measured by: a length on an axis is the ellipse's width that way, as a diameter
+is a circle's. Clicking the curve itself with the dimension tool lays nothing.
+
+- **Pulling an axis end** turns or stretches that axis about the centre, which
+  stays put; the other axis stays square to it.
+- **Pulling the centre** moves the whole ellipse.
+- **Pulling the curve** scales it about its centre, both axes together.
+- The axes **go with the ellipse**: erasing it erases them, and erasing an axis
+  erases the ellipse, which cannot stand without it. No tool cuts an axis back —
+  trim, chamfer and fillet leave it whole.
 
 ## The constraints
 

@@ -14,7 +14,7 @@ impl Sketch {
     /// Half a trait cannot be deleted, so letting the box claim it would say
     /// something the drawing cannot do.
     ///
-    /// A circle and an arc are read off the curve rather than off the points
+    /// A circle, an arc and an ellipse are read off the curve rather than off the points
     /// they stand on: a centre is not part of what is drawn, and a curve can
     /// swing out of the box between two ends that are both inside it.
     pub fn inside_band(
@@ -48,6 +48,12 @@ impl Sketch {
             let (lowest, highest) = bounds_of(self.arc_draft(id));
             if inside(lowest) && inside(highest) {
                 caught.push(Selection::Element(Element::Arc(id)));
+            }
+        }
+        for (id, _) in self.live_ellipses() {
+            let (lowest, highest) = self.ellipse_draft(id).bounds();
+            if inside(lowest) && inside(highest) {
+                caught.push(Selection::Element(Element::Ellipse(id)));
             }
         }
         for (target, at) in self.anchors(metrics) {

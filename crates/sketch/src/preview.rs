@@ -26,7 +26,13 @@ impl Laid for Duplicated {
         let segments = self.segments.iter().copied().map(Element::Segment);
         let circles = self.circles.iter().copied().map(Element::Circle);
         let arcs = self.arcs.iter().copied().map(Element::Arc);
-        points.chain(segments).chain(circles).chain(arcs).collect()
+        let ellipses = self.ellipses.iter().copied().map(Element::Ellipse);
+        points
+            .chain(segments)
+            .chain(circles)
+            .chain(arcs)
+            .chain(ellipses)
+            .collect()
     }
 }
 

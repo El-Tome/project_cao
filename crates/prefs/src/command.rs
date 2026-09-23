@@ -20,6 +20,7 @@ pub enum Command {
     ToolRectangle,
     ToolCircle,
     ToolArc,
+    ToolEllipse,
     ToolPoint,
     ToolDimension,
     ToolTrim,
@@ -95,7 +96,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 55] = [
+    pub const ALL: [Self; 56] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -108,6 +109,7 @@ impl Command {
         Self::ToolRectangle,
         Self::ToolCircle,
         Self::ToolArc,
+        Self::ToolEllipse,
         Self::ToolPoint,
         Self::ToolDimension,
         Self::ToolTrim,
@@ -165,6 +167,7 @@ impl Command {
             | Self::ToolRectangle
             | Self::ToolCircle
             | Self::ToolArc
+            | Self::ToolEllipse
             | Self::ToolPoint
             | Self::ToolDimension
             | Self::ToolTrim

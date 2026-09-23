@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use cao_sketch::{
-    ArcId, Area, CircleId, Constraint, CurveId, DimensionTarget, Element, PointId, SegmentId,
+    ArcId, Area, CircleId, Constraint, CurveId, DimensionTarget, Element, EllipseId, PointId,
+    SegmentId,
 };
 
 /// Where every element of one sketch landed after being re-emitted, so a later
@@ -13,6 +14,7 @@ pub(super) struct SketchIdMap {
     pub(super) segments: HashMap<SegmentId, SegmentId>,
     pub(super) circles: HashMap<CircleId, CircleId>,
     pub(super) arcs: HashMap<ArcId, ArcId>,
+    pub(super) ellipses: HashMap<EllipseId, EllipseId>,
 }
 
 /// An area's name, said in the numbers the re-emitted sketch uses.
@@ -138,6 +140,10 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             point: map.points[&point],
             arc: map.arcs[&arc],
         },
+        Constraint::OnEllipse { point, ellipse } => Constraint::OnEllipse {
+            point: map.points[&point],
+            ellipse: map.ellipses[&ellipse],
+        },
         Constraint::OnAxis { point, axis } => Constraint::OnAxis {
             point: map.points[&point],
             axis,
@@ -162,5 +168,6 @@ fn remap_element(element: Element, map: &SketchIdMap) -> Element {
         Element::Segment(segment) => Element::Segment(map.segments[&segment]),
         Element::Circle(circle) => Element::Circle(map.circles[&circle]),
         Element::Arc(arc) => Element::Arc(map.arcs[&arc]),
+        Element::Ellipse(ellipse) => Element::Ellipse(map.ellipses[&ellipse]),
     }
 }

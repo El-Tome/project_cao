@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::annotation::AnnotationMetrics;
 use crate::arc::Arc;
-use crate::constraints::{Constraint, Dimension, DimensionTarget, SketchAxis};
+pub use crate::circle::{Circle, CircleId};
+use crate::constraints::{Constraint, Dimension, DimensionTarget};
+use crate::ellipse::Ellipse;
 use crate::erased::Erased;
 use crate::independence::is_dependent;
 use crate::length::LengthOutcome;
@@ -17,19 +19,6 @@ pub struct PointId(pub usize);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub struct SegmentId(pub usize);
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-pub struct CircleId(pub usize);
-
-/// A circle, kept as a centre point shared with the rest of the drawing plus a
-/// radius, so that moving the centre moves the circle with it.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
-pub struct Circle {
-    pub center: PointId,
-    pub radius: f64,
-    #[serde(default)]
-    pub construction: bool,
-}
 
 /// A straight line between two points. Points are shared: chaining a polyline
 /// reuses the previous end, which is what makes a dimension able to drag the
@@ -51,9 +40,11 @@ pub struct Sketch {
     points: Vec<DVec2>,
     segments: Vec<Segment>,
     #[serde(default)]
-    circles: Vec<Circle>,
+    pub(crate) circles: Vec<Circle>,
     #[serde(default)]
     pub(crate) arcs: Vec<Arc>,
+    #[serde(default)]
+    pub(crate) ellipses: Vec<Ellipse>,
     dimensions: Vec<Dimension>,
     /// The rules that carry no value: perpendicular, parallel, equal…
     #[serde(default)]
@@ -81,6 +72,7 @@ pub struct Sketch {
 }
 
 mod keeping;
+mod settling;
 
 pub use crate::element::Element;
 
@@ -99,6 +91,7 @@ impl Sketch {
             segments: Vec::new(),
             circles: Vec::new(),
             arcs: Vec::new(),
+            ellipses: Vec::new(),
             dimensions: Vec::new(),
             constraints: Vec::new(),
             erased: Erased::default(),
@@ -135,10 +128,6 @@ impl Sketch {
         Erased::holds(&self.erased.segments, segment.0)
     }
 
-    pub fn is_erased_circle(&self, circle: CircleId) -> bool {
-        Erased::holds(&self.erased.circles, circle.0)
-    }
-
     /// The segments still drawn, with their rank.
     pub fn live_points(&self) -> impl Iterator<Item = (PointId, DVec2)> + '_ {
         self.points
@@ -154,14 +143,6 @@ impl Sketch {
             .enumerate()
             .map(|(rank, segment)| (SegmentId(rank), *segment))
             .filter(|(id, _)| !self.is_erased_segment(*id))
-    }
-
-    pub fn live_circles(&self) -> impl Iterator<Item = (CircleId, Circle)> + '_ {
-        self.circles
-            .iter()
-            .enumerate()
-            .map(|(rank, circle)| (CircleId(rank), *circle))
-            .filter(|(id, _)| !self.is_erased_circle(*id))
     }
 
     /// Deletes an element, and everything that leaned on it.
@@ -186,14 +167,19 @@ impl Sketch {
                             .map(|(id, _)| Element::Circle(id)),
                     )
                     .chain(self.arcs_leaning_on(point))
+                    .chain(self.ellipses_leaning_on(point))
                     .collect();
                 for element in touched {
                     self.erase(element);
                 }
             }
-            Element::Segment(segment) => Erased::mark(&mut self.erased.segments, segment.0),
+            Element::Segment(segment) => {
+                Erased::mark(&mut self.erased.segments, segment.0);
+                self.erase_ellipse_of(segment);
+            }
             Element::Circle(circle) => Erased::mark(&mut self.erased.circles, circle.0),
             Element::Arc(arc) => Erased::mark(&mut self.erased.arcs, arc.0),
+            Element::Ellipse(ellipse) => self.erase_ellipse(ellipse),
         }
         let dimensions = std::mem::take(&mut self.dimensions);
         self.dimensions = dimensions
@@ -364,6 +350,7 @@ impl Sketch {
             Constraint::OnSegment { .. }
             | Constraint::OnCircle { .. }
             | Constraint::OnArc { .. }
+            | Constraint::OnEllipse { .. }
             | Constraint::OnAxis { .. } => self.hold_holds_up(constraint),
             Constraint::Midpoint {
                 point: held,
@@ -380,6 +367,7 @@ impl Sketch {
                 Element::Segment(held) => segment(held),
                 Element::Circle(held) => circle(held),
                 Element::Arc(held) => held.0 < self.arcs.len() && !self.is_erased_arc(held),
+                Element::Ellipse(held) => !self.is_erased_ellipse(held),
             },
         }
     }
@@ -422,49 +410,8 @@ impl Sketch {
         &self.segments
     }
 
-    pub fn circles(&self) -> &[Circle] {
-        &self.circles
-    }
-
     pub fn dimensions(&self) -> &[Dimension] {
         &self.dimensions
-    }
-
-    pub fn circle(&self, id: CircleId) -> Circle {
-        self.circles[id.0]
-    }
-
-    pub fn add_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.push_circle(center, radius, false)
-    }
-
-    /// Excluded from the area of any region it happens to sit inside or across.
-    pub fn add_construction_circle(&mut self, center: PointId, radius: f64) -> CircleId {
-        self.push_circle(center, radius, true)
-    }
-
-    fn push_circle(&mut self, center: PointId, radius: f64, construction: bool) -> CircleId {
-        self.circles.push(Circle {
-            center,
-            radius,
-            construction,
-        });
-        CircleId(self.circles.len() - 1)
-    }
-
-    /// The circle whose outline passes closest to `position`.
-    pub fn nearest_circle(&self, position: DVec2, tolerance: f64) -> Option<CircleId> {
-        self.circles
-            .iter()
-            .enumerate()
-            .map(|(index, circle)| {
-                let distance = (self.point(circle.center).distance(position) - circle.radius).abs();
-                (CircleId(index), distance)
-            })
-            .filter(|(id, _)| !self.is_erased_circle(*id))
-            .filter(|(_, distance)| *distance <= tolerance)
-            .min_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(id, _)| id)
     }
 
     pub fn is_empty(&self) -> bool {
@@ -615,9 +562,10 @@ impl Sketch {
                 segment.end = kept;
             }
         }
-        for circle in &mut self.circles {
-            if circle.center == dropped {
-                circle.center = kept;
+        let circles = self.circles.iter_mut().map(|circle| &mut circle.center);
+        for centre in circles.chain(self.ellipses.iter_mut().map(|oval| &mut oval.center)) {
+            if *centre == dropped {
+                *centre = kept;
             }
         }
 
@@ -635,7 +583,7 @@ impl Sketch {
         self.dimensions = dimensions
             .into_iter()
             .map(|dimension| Dimension {
-                target: redirect(dimension.target, kept, dropped),
+                target: dimension.target.redirected(kept, dropped),
                 ..dimension
             })
             .filter(|dimension| self.measures_live(dimension.target))
@@ -797,40 +745,8 @@ impl Sketch {
         self.points[point.0] += delta;
     }
 
-    /// Changes a circle's size by a step of the solve. Never below nothing: a
-    /// circle turned inside out is not a circle.
-    pub(crate) fn grow_circle(&mut self, circle: CircleId, delta: f64) {
-        if let Some(round) = self.circles.get_mut(circle.0) {
-            round.radius = (round.radius + delta).max(1e-9);
-        }
-    }
-
     pub(crate) fn place_point(&mut self, point: PointId, position: DVec2) {
         self.points[point.0] = position;
-    }
-
-    /// The angle a segment makes with one of the sketch axes, in degrees.
-    pub fn angle_with_axis(&self, segment: SegmentId, axis: SketchAxis) -> Option<f64> {
-        let (start, end) = self.endpoints(segment);
-        let direction = (end - start).normalize_or_zero();
-        if direction == DVec2::ZERO {
-            return None;
-        }
-        Some(
-            direction
-                .dot(axis.direction())
-                .clamp(-1.0, 1.0)
-                .acos()
-                .to_degrees(),
-        )
-    }
-
-    pub fn set_circle_radius(&mut self, id: CircleId, radius: f64) -> LengthOutcome {
-        if radius <= 0.0 {
-            return LengthOutcome::Degenerate;
-        }
-        self.circles[id.0].radius = radius;
-        LengthOutcome::Exact
     }
 
     /// Smallest axis-aligned box containing every point, in sketch coordinates.
@@ -908,91 +824,12 @@ impl Sketch {
         probe.equations(millimeters_per_unit).into_iter().next()
     }
 
-    /// Puts a point where it was dropped and settles the rest of the drawing
-    /// around it, that point staying exactly where it was put.
-    pub fn settle_around(
-        &mut self,
-        point: PointId,
-        position: DVec2,
-        millimeters_per_unit: f64,
-    ) -> LengthOutcome {
-        self.settle_around_all(&[(point, position)], millimeters_per_unit)
-    }
-
-    /// The same for a whole handful of points dropped at once, which is how a
-    /// selection is moved in one block.
-    ///
-    /// Held, they do not give: the drawing settles around them rather than
-    /// pulling them back, so a shape follows the mouse instead of squirming
-    /// away from it.
-    ///
-    /// When holding them is more than the drawing can bear — a corner dragged
-    /// somewhere no tangency can reach it — the values already given win over
-    /// the cursor: everything goes back and settles the ordinary way. Leaving
-    /// the half-solved state was what let a circle be dragged out of shape and
-    /// stay that way until the next change put it right.
-    pub fn settle_around_all(
-        &mut self,
-        dropped: &[(PointId, DVec2)],
-        millimeters_per_unit: f64,
-    ) -> LengthOutcome {
-        let kept = self.shapes_now();
-        let place = |sketch: &mut Self| {
-            for (point, position) in dropped {
-                sketch.move_point(*point, *position);
-            }
-        };
-
-        place(self);
-        self.held = dropped.iter().map(|(point, _)| *point).collect();
-        let outcome = self.resolve(millimeters_per_unit);
-        self.held.clear();
-        if outcome == LengthOutcome::Exact {
-            return outcome;
-        }
-
-        self.points.clone_from(&kept.0);
-        self.circles.clone_from(&kept.1);
-        place(self);
-        let outcome = self.resolve(millimeters_per_unit);
-        if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
-            return outcome;
-        }
-
-        // Neither way leaves a drawing worth keeping: a trait may have collapsed,
-        // or a tangency's contact slid off its segment. The gesture is refused
-        // rather than the shape broken — the point simply does not go there.
-        self.give_back(kept);
-        LengthOutcome::BestEffort
-    }
-
     /// Re-satisfies every dimension at once, reporting whether it managed.
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         match self.solve(millimeters_per_unit) {
             SolveOutcome::Solved | SolveOutcome::Nothing => LengthOutcome::Exact,
             SolveOutcome::Residual => LengthOutcome::BestEffort,
         }
-    }
-}
-
-/// Points a dimension at the point that was kept.
-fn redirect(target: DimensionTarget, kept: PointId, dropped: PointId) -> DimensionTarget {
-    let swap = |point: PointId| if point == dropped { kept } else { point };
-    match target {
-        DimensionTarget::Distance { from, to } => DimensionTarget::Distance {
-            from: swap(from),
-            to: swap(to),
-        },
-        DimensionTarget::PointToSegment { point, segment } => DimensionTarget::PointToSegment {
-            point: swap(point),
-            segment,
-        },
-        DimensionTarget::Projected { from, to, axis } => DimensionTarget::Projected {
-            from: swap(from),
-            to: swap(to),
-            axis,
-        },
-        other => other,
     }
 }
 

@@ -14,6 +14,7 @@ mod circle;
 mod curves;
 mod dimensions;
 mod drawing;
+mod ellipse;
 mod emphasis;
 mod extrusion;
 mod grid;

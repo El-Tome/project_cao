@@ -361,8 +361,12 @@ impl Sketch {
     /// between.
     ///
     /// Nothing when the trait carries no stretch at all — a trait with no
-    /// length, which is the one case where there is nothing to run between.
+    /// length — and nothing for an axis of an ellipse, which the curve stands
+    /// on whole.
     pub fn stretch_at(&self, segment: SegmentId, at: DVec2) -> Option<(PointId, PointId)> {
+        if self.ellipse_of_axis(segment).is_some() {
+            return None;
+        }
         let (start, end) = self.endpoints(segment);
         let span = end - start;
         let reach = span.length_squared();

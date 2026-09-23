@@ -53,6 +53,9 @@ impl Sketch {
         if let Some(arc) = self.nearest_arc(cursor, tolerance) {
             return Some(Selection::Element(Element::Arc(arc)));
         }
+        if let Some(ellipse) = self.nearest_ellipse(cursor, tolerance) {
+            return Some(Selection::Element(Element::Ellipse(ellipse)));
+        }
         let wide = tolerance * WIDE_TARGET_REACH;
         if let Some(target) = self.nearest_dimension(cursor, wide, metrics) {
             return Some(Selection::Dimension(target));

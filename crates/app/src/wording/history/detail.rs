@@ -119,6 +119,31 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("reach", &rounded(*reach, 1)),
             ],
         ),
+        Operation::AddEllipse {
+            sketch,
+            center,
+            first,
+            ..
+        } => lang.t_with(
+            "history.detail.ellipse",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("center", &point_label(lang, center)),
+                ("end", &point_label(lang, &first[1])),
+            ],
+        ),
+        Operation::ResizeEllipse {
+            sketch,
+            ellipse,
+            reach,
+        } => lang.t_with(
+            "history.detail.ellipse_resized",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("ellipse", &ellipse.0.to_string()),
+                ("reach", &rounded(*reach, 1)),
+            ],
+        ),
         Operation::ResizeArc { sketch, arc, reach } => lang.t_with(
             "history.detail.arc_resized",
             &[

@@ -112,3 +112,18 @@ pub fn open_the_history(app: &mut App) {
         click(app, "Historique");
     }
 }
+
+/// The ellipse tool, its centre and the end of its first axis clicked, the
+/// cursor then left where the second axis would reach.
+pub fn start_an_ellipse(app: &mut App) {
+    click(app, "Ellipse");
+    click_at(app, A_POINT_ABOVE_THE_ORIGIN);
+    click_at(app, A_POINT_BELOW_AND_RIGHT);
+    app.hover_at(egui::pos2(760.0, 560.0));
+    app.run();
+}
+
+pub fn fields_at_the_cursor(app: &App) -> usize {
+    app.get_all_by_role(egui::accesskit::Role::TextInput)
+        .count()
+}

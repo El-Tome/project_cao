@@ -1,5 +1,5 @@
 //! What one click of a tool does: picking a plane, drawing a line, a
-//! rectangle, a circle or an arc, measuring a dimension, laying down a rule,
+//! rectangle, a circle, an arc or an ellipse, measuring a dimension, laying down a rule,
 //! dragging a point or a selection.
 //!
 //! What is painted from the state this leaves behind lives in
@@ -19,10 +19,13 @@ use crate::wording::outcome;
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
 mod arcs;
-pub(crate) use arcs::{aimed as arc_aimed, arc_centre_group, arc_preview, draw_arc};
+pub(crate) use arcs::{aimed as arc_aimed, arc_preview, draw_arc};
 
 mod circles;
 pub(crate) use circles::{circle_from, draw_circle};
+
+mod ellipses;
+pub(crate) use ellipses::{draw_ellipse, ellipse_aimed_at, ellipse_preview};
 
 mod constrain;
 use constrain::nearest_rule_pick;
@@ -262,6 +265,7 @@ pub(crate) fn handle_sketch_input(
         }
         Tool::Circle => draw_circle(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Arc => draw_arc(context, index, cursor, snap, scale.units_per_pixel),
+        Tool::Ellipse => draw_ellipse(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Dimension => measure(context, index, cursor, snap, scale.units_per_pixel),
         Tool::Trim => trim(context, index, cursor, snap),
         Tool::Split => split(context, index, cursor, snap),

@@ -8,7 +8,7 @@ use glam::DVec2;
 
 use super::curves::{push_circle_at, push_line};
 use super::marks::{push_midpoint_mark, push_point_marker, push_square_mark};
-use super::{arc, emphasis, symmetric_line, tint_at};
+use super::{arc, ellipse, emphasis, symmetric_line, tint_at};
 use crate::screens::sketch::{DimensionMode, Tool};
 use crate::screens::viewport::input::{
     annotation_position, circle_from, measure_preview, rectangle_corner, refine,
@@ -176,6 +176,9 @@ pub(crate) fn push_preview(
 
     if context.editor.tool == Tool::Arc {
         arc::push_preview(out, context, sketch, cursor, preview, scale);
+    }
+    if context.editor.tool == Tool::Ellipse {
+        ellipse::push_preview(out, context, sketch, cursor, preview, scale);
     }
 
     let Some(start) = context.editor.pending_start() else {

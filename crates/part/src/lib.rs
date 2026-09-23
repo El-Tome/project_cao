@@ -7,6 +7,7 @@ mod adapters;
 pub mod anchoring;
 mod compaction;
 mod copying;
+mod curves;
 mod cutting;
 mod descent;
 pub(crate) mod dimensioning;

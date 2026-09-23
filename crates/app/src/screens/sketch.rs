@@ -21,6 +21,7 @@ pub enum Tool {
     Rectangle,
     Circle,
     Arc,
+    Ellipse,
     Point,
     /// Smart dimension: measures whatever is clicked.
     Dimension,
@@ -293,6 +294,13 @@ impl SketchEditor {
     pub fn arc_places(&self) -> &[DVec2] {
         match &self.tool_state {
             ToolState::Arc { places, .. } => places,
+            _ => &[],
+        }
+    }
+
+    pub fn ellipse_places(&self) -> &[DVec2] {
+        match &self.tool_state {
+            ToolState::Ellipse { places, .. } => places,
             _ => &[],
         }
     }

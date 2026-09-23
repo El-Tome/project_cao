@@ -5,7 +5,7 @@
 //! arc and a broken line all come down to a run of them, and the dashes of
 //! construction geometry are runs left out.
 
-use cao_sketch::{ArcDraft, Sketch, places_along, steps_along, sweep_of};
+use cao_sketch::{ArcDraft, EllipseDraft, Sketch, places_along, steps_along, sweep_of};
 use glam::{DVec2, DVec3};
 
 use crate::screens::viewport::ViewScale;
@@ -92,6 +92,36 @@ pub(super) fn push_arc_at(
         out,
         sketch,
         places_along(drawn).into_iter(),
+        step,
+        color,
+        width,
+        construction,
+        scale,
+    );
+}
+
+/// The whole curve an ellipse draws.
+pub(super) fn push_ellipse_at(
+    out: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    drawn: EllipseDraft,
+    color: [f32; 4],
+    width: f32,
+    construction: bool,
+    scale: ViewScale,
+) {
+    let places = drawn.places();
+    // The steps of an ellipse are not all of one length, as a circle's are;
+    // their mean keeps the dashes about the size a circle's would be.
+    let run: f64 = places
+        .windows(2)
+        .map(|pair| pair[0].distance(pair[1]))
+        .sum();
+    let step = run / (places.len().max(2) - 1) as f64;
+    push_curve(
+        out,
+        sketch,
+        places.into_iter(),
         step,
         color,
         width,

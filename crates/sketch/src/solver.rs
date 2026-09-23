@@ -8,7 +8,9 @@ use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
 mod arc_solver;
+mod ellipse_solver;
 mod hold_solver;
+mod tangent_solver;
 
 /// How the solve went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -268,7 +270,7 @@ impl Sketch {
                     | Constraint::AxisCollinear { segment, .. } => stretched.push(segment),
                     _ => {}
                 },
-                Row::Arc(_) => {}
+                Row::Arc(_) | Row::Ellipse(_) => {}
             }
         }
         if hot.is_empty() {
@@ -607,17 +609,27 @@ impl Sketch {
             self.rule_equations(index, pinned, &mut equations);
         }
         self.arc_equations(pinned, &mut equations);
+        self.ellipse_equations(pinned, &mut equations);
         equations
     }
 
-    /// How many equations the drawing is made of: dimensions, then rules, then
-    /// one apiece for the arcs. A rule may bring more than one.
+    /// How many entries the drawing is made of: dimensions, then rules, then
+    /// one apiece for the arcs and the ellipses. An entry may bring more than
+    /// one equation.
     pub(super) fn equation_count(&self) -> usize {
-        self.dimension_count() + self.constraints().len() + self.arcs().len()
+        self.dimension_count()
+            + self.constraints().len()
+            + self.arcs().len()
+            + self.ellipses().len()
     }
 
     pub(super) fn row(&self, index: usize) -> Row {
-        row_at(index, self.dimension_count(), self.constraints().len())
+        row_at(
+            index,
+            self.dimension_count(),
+            self.constraints().len(),
+            self.arcs().len(),
+        )
     }
 
     /// The equations of one entry, whichever kind it is, appended to what the
@@ -633,6 +645,7 @@ impl Sketch {
         match self.row(index) {
             Row::Rule(at) => self.rule_equations(at, pinned, into),
             Row::Arc(at) => self.arc_equation(ArcId(at), pinned, into),
+            Row::Ellipse(at) => self.ellipse_equation(crate::ellipse::EllipseId(at), pinned, into),
             Row::Dimension(_) => into.extend(self.equation(index, millimeters_per_unit, pinned)),
         }
     }
@@ -669,36 +682,13 @@ impl Sketch {
             Constraint::OnSegment { .. }
             | Constraint::OnCircle { .. }
             | Constraint::OnArc { .. }
+            | Constraint::OnEllipse { .. }
             | Constraint::OnAxis { .. } => self.hold_equations(constraint, into),
             Constraint::Tangent {
                 circle,
                 segment,
                 at,
-            } => {
-                let Some(round) = self.circles().get(circle.0).copied() else {
-                    return;
-                };
-                let Some(mut equation) = self.on_line_equation(round.center, segment, round.radius)
-                else {
-                    return;
-                };
-                // Growing the circle closes the gap just as surely as moving
-                // it does, so the size is part of the answer — outwards or
-                // inwards according to the side of the line the circle is on.
-                if let Some(column) = self.radius_column(circle) {
-                    equation.add_radius(column, -self.side_of(round.center, segment));
-                }
-                into.push(equation);
-                // Where the two touch is a point of the drawing, and it is not
-                // free: it lies on the line, square under the centre. Without
-                // that second half it would slide along the line, since sliding
-                // a point along a circle it touches changes nothing at all to
-                // first order.
-                if let Some(contact) = self.live_point(at) {
-                    into.extend(self.on_line_equation(contact, segment, 0.0));
-                    into.extend(self.foot_equation(contact, round.center, segment));
-                }
-            }
+            } => self.circle_tangent_equations(circle, segment, at, into),
             Constraint::EqualRadius { .. }
             | Constraint::EqualRadiusArc { .. }
             | Constraint::EqualRadiusArcCircle { .. } => {
@@ -731,7 +721,7 @@ impl Sketch {
     /// Two traits told to stand square to each other, or to keep the same
     /// direction. Both are one and the same rule read off different halves of
     /// the pair of directions.
-    fn direction_equation(
+    pub(super) fn direction_equation(
         &self,
         first: SegmentId,
         second: SegmentId,
@@ -918,28 +908,6 @@ impl Sketch {
     /// A point a rule names, when it is still drawn.
     pub(crate) fn live_point(&self, point: Option<PointId>) -> Option<PointId> {
         point.filter(|id| id.0 < self.points().len() && !self.is_erased_point(*id))
-    }
-
-    /// A point held halfway along a trait: one equation for each coordinate,
-    /// since being at the middle is two statements, not one.
-    fn midpoint_equations(&self, point: PointId, segment: SegmentId, into: &mut Vec<Equation>) {
-        let Some(line) = self.segments().get(segment.0).copied() else {
-            return;
-        };
-        if point.0 >= self.points().len() {
-            return;
-        }
-        let middle = (self.point(line.start) + self.point(line.end)) * 0.5;
-        let held = self.point(point);
-
-        for axis in [DVec2::X, DVec2::Y] {
-            let mut equation = Equation::new(self.variables());
-            equation.error = (held - middle).dot(axis);
-            equation.add(point, axis);
-            equation.add(line.start, -axis * 0.5);
-            equation.add(line.end, -axis * 0.5);
-            into.push(equation);
-        }
     }
 
     /// The equation for one dimension, or `None` when it does not apply to

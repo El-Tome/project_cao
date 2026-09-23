@@ -103,6 +103,11 @@ pub(crate) fn run(
             editor.message = Some(crate::wording::arc::asks_for(lang, editor.arc_mode));
             false
         }
+        Command::ToolEllipse => {
+            tool(editor, Tool::Ellipse);
+            editor.message = Some(lang.t("ellipse.asks_for"));
+            false
+        }
         Command::ToolPoint => {
             tool(editor, Tool::Point);
             false

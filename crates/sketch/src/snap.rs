@@ -86,8 +86,8 @@ impl Sketch {
     }
 
     /// The place on a drawn curve nearest the cursor, whichever kind of curve
-    /// it turns out to be: between a trait, a circle, an arc and the plane's
-    /// own axes, the nearer one wins.
+    /// it turns out to be: between a trait, a circle, an arc, an ellipse and
+    /// the plane's own axes, the nearer one wins.
     ///
     /// The axes pull like anything else drawn: they are lines of the sketch a
     /// point can be laid on and held to, and a half-shape closed against one
@@ -100,6 +100,9 @@ impl Sketch {
         let on_arcs = self
             .live_arcs()
             .map(|(id, _)| self.place_on_arc(id, cursor));
+        let on_ellipses = self
+            .live_ellipses()
+            .map(|(id, _)| self.ellipse_draft(id).nearest(cursor));
         let on_axes = axes().map(|axis| {
             let along = axis.direction();
             along * cursor.dot(along)
@@ -108,6 +111,7 @@ impl Sketch {
             .into_iter()
             .chain(on_circles)
             .chain(on_arcs)
+            .chain(on_ellipses)
             .chain(on_axes)
             .filter(|at| at.distance(cursor) <= reach)
             .min_by(|left, right| {

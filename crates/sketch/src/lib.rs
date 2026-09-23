@@ -17,6 +17,7 @@ mod axis;
 mod banding;
 mod chain;
 mod chamfer;
+mod circle;
 mod circle_edges;
 mod circling;
 mod constraints;
@@ -28,6 +29,9 @@ mod dimensioning;
 mod duplicating;
 mod edges;
 mod element;
+mod ellipse;
+mod ellipse_placing;
+mod ellipsing;
 mod equation;
 mod erased;
 mod fillet;
@@ -74,6 +78,9 @@ pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxi
 pub use construct::CircleMode;
 pub use dimensioning::axis_under;
 pub use duplicating::Duplicated;
+pub use ellipse::{Ellipse, EllipseId};
+pub use ellipse_placing::{ELLIPSE_PLACES, ellipse_aimed, ellipse_from};
+pub use ellipsing::EllipseDraft;
 pub use fillet::Rounded;
 pub use holding::Support;
 pub use length::LengthOutcome;
@@ -86,7 +93,9 @@ pub use preview::{Laid, Preview};
 pub use regions::{Outline, Region};
 pub use resizing::Curved;
 pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};
-pub use shape_dimensions::{line_dimensions, rectangle_dimensions, symmetric_segment_dimensions};
+pub use shape_dimensions::{
+    ellipse_dimensions, line_dimensions, rectangle_dimensions, symmetric_segment_dimensions,
+};
 pub use sketch::{Circle, CircleId, Element, PointId, Segment, SegmentId, Sketch};
 pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;

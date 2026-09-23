@@ -5,6 +5,7 @@ use glam::DVec2;
 
 use crate::arc::ArcId;
 use crate::element::Element;
+use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 /// What a copy of part of the drawing left behind.
@@ -19,6 +20,7 @@ pub struct Duplicated {
     pub segments: Vec<SegmentId>,
     pub circles: Vec<CircleId>,
     pub arcs: Vec<ArcId>,
+    pub ellipses: Vec<EllipseId>,
 }
 
 /// Two places nearer than this are the one place, and a copy laid at the second
@@ -34,12 +36,16 @@ impl Sketch {
     ///
     /// What would land on its original is left out: the drawing gains nothing
     /// from a second thing nobody can tell from the first.
+    ///
+    /// An axis of an ellipse stands for its ellipse, which lays its own axes:
+    /// copied as a trait of its own as well, it would be laid twice.
     pub fn duplicate(&mut self, of: &[Element], by: impl Fn(DVec2) -> DVec2) -> Duplicated {
-        let laid: Vec<Element> = of
-            .iter()
-            .copied()
-            .filter(|held| !self.lands_on_its_original(*held, &by))
-            .collect();
+        let mut laid: Vec<Element> = Vec::new();
+        for held in of.iter().copied().map(|held| self.standing_for(held)) {
+            if !laid.contains(&held) && !self.lands_on_its_original(held, &by) {
+                laid.push(held);
+            }
+        }
 
         let mut made = Duplicated::default();
         let mut copied: Vec<(PointId, PointId)> = Vec::new();
@@ -111,9 +117,40 @@ impl Sketch {
                         false => self.add_arc(centre, start, end),
                     });
                 }
+                Element::Ellipse(id) => {
+                    let Some(oval) = self.ellipses().get(id.0).copied() else {
+                        continue;
+                    };
+                    let Some([centre, west, east, south, north]) = self
+                        .ellipse_points(id)
+                        .map(copy_of)
+                        .into_iter()
+                        .collect::<Option<Vec<_>>>()
+                        .and_then(|copies| <[PointId; 5]>::try_from(copies).ok())
+                    else {
+                        continue;
+                    };
+                    let copy = match oval.construction {
+                        true => self.add_construction_ellipse(centre, [west, east], [south, north]),
+                        false => self.add_ellipse(centre, [west, east], [south, north]),
+                    };
+                    // The axes are laid with the ellipse, and are as much a
+                    // part of what the copy left behind.
+                    let axes = self.ellipses()[copy.0];
+                    made.segments.extend([axes.first, axes.second]);
+                    made.ellipses.push(copy);
+                }
             }
         }
         made
+    }
+
+    /// The element a copy is made of: an axis of an ellipse is the ellipse.
+    fn standing_for(&self, held: Element) -> Element {
+        match held {
+            Element::Segment(id) => self.ellipse_of_axis(id).map_or(held, Element::Ellipse),
+            _ => held,
+        }
     }
 
     /// Whether carrying an element through `by` leaves it standing on the very

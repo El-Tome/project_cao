@@ -62,6 +62,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolRectangle => tool == Tool::Rectangle,
         Command::ToolCircle => tool == Tool::Circle,
         Command::ToolArc => tool == Tool::Arc,
+        Command::ToolEllipse => tool == Tool::Ellipse,
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
         Command::ToolTrim => tool == Tool::Trim,
@@ -141,6 +142,7 @@ pub fn is_enabled(
         | Command::ToolRectangle
         | Command::ToolCircle
         | Command::ToolArc
+        | Command::ToolEllipse
         | Command::ToolPoint
         | Command::ToolDimension
         | Command::ToolTrim

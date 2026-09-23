@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
+use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
 /// One of the sketch's own axes, usable as the fixed reference of an angle.
@@ -88,6 +89,28 @@ pub enum DimensionTarget {
 }
 
 impl DimensionTarget {
+    /// The same dimension pointed at the point that was kept, when two points
+    /// were made one.
+    pub(crate) fn redirected(self, kept: PointId, dropped: PointId) -> Self {
+        let swap = |point: PointId| if point == dropped { kept } else { point };
+        match self {
+            Self::Distance { from, to } => Self::Distance {
+                from: swap(from),
+                to: swap(to),
+            },
+            Self::PointToSegment { point, segment } => Self::PointToSegment {
+                point: swap(point),
+                segment,
+            },
+            Self::Projected { from, to, axis } => Self::Projected {
+                from: swap(from),
+                to: swap(to),
+                axis,
+            },
+            other => other,
+        }
+    }
+
     /// Whether a value typed for this dimension can be held at all.
     ///
     /// An angle between two traits typed at 0° or 180° — or near enough that
@@ -232,6 +255,12 @@ pub enum Constraint {
     OnArc {
         point: PointId,
         arc: ArcId,
+    },
+    /// A point held on an ellipse's curve, wherever the ellipse goes and
+    /// whatever shape it takes.
+    OnEllipse {
+        point: PointId,
+        ellipse: EllipseId,
     },
     /// A point held on one of the sketch's own axes, which is a line nothing
     /// can move.

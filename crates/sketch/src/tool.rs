@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::aim::ChainAnchor;
+use crate::aim::{ChainAnchor, LockedInput};
 use crate::constraints::DimensionTarget;
 use crate::corner::Corner;
 use crate::element::Element;
@@ -71,6 +71,13 @@ pub enum ToolState {
         /// here because the live field that held it is cleared and reused for
         /// the second leg before the arc is settled enough to be dimensioned.
         first_typed: bool,
+    },
+    Ellipse {
+        places: Vec<DVec2>,
+        /// What was typed for the first axis — its width and its angle — kept
+        /// here because the live fields are cleared and reused for the second
+        /// before the ellipse is drawn and can be dimensioned.
+        first_typed: LockedInput,
     },
     Dimension {
         placing: Option<DimensionTarget>,

@@ -88,15 +88,19 @@ impl Sketch {
                 })
                 .into_iter()
                 .collect(),
-            Constraint::OnCircle { point: held, .. } | Constraint::OnArc { point: held, .. } => {
-                point(held).into_iter().collect()
-            }
+            Constraint::OnCircle { point: held, .. }
+            | Constraint::OnArc { point: held, .. }
+            | Constraint::OnEllipse { point: held, .. } => point(held).into_iter().collect(),
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held).into_iter().collect(),
                 Element::Segment(held) => middle(held).into_iter().collect(),
                 Element::Circle(held) => circle(held).into_iter().collect(),
                 Element::Arc(held) => match held.0 < self.arcs().len() {
                     true => vec![self.arc_midpoint(held)],
+                    false => Vec::new(),
+                },
+                Element::Ellipse(held) => match held.0 < self.ellipses().len() {
+                    true => vec![self.ellipse_draft(held).at(std::f64::consts::FRAC_PI_4)],
                     false => Vec::new(),
                 },
             },

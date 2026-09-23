@@ -1,4 +1,5 @@
-//! Drawing a circle or an arc to another size by dragging the curve itself.
+//! Drawing a circle, an arc or an ellipse to another size by dragging the
+//! curve itself.
 //!
 //! The thing that moves is the thing pointed at: pressing on the outline, away
 //! from any point of the drawing, and pulling draws the curve to where the
@@ -38,7 +39,7 @@ pub(super) fn drag_curve(
     let Some(sketch) = context.document.sketches().get(index) else {
         return false;
     };
-    let reach = cursor.distance(sketch.centre_of(curve));
+    let reach = sketch.reach_through(curve, cursor);
     let scale = context.document.scale();
 
     if !response.drag_stopped() {
@@ -65,6 +66,11 @@ pub(super) fn drag_curve(
         Curved::Arc(arc) => Operation::ResizeArc {
             sketch: index,
             arc,
+            reach,
+        },
+        Curved::Ellipse(ellipse) => Operation::ResizeEllipse {
+            sketch: index,
+            ellipse,
             reach,
         },
     });

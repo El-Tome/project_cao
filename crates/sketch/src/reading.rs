@@ -55,6 +55,11 @@ impl Sketch {
     /// The values are the ones the dimension tool would show for the same
     /// target — there is one geometry and it answers once — with the reach
     /// along each axis added, which is the half a dimension has no room for.
+    ///
+    /// `None` when the target names something the drawing no longer has. Every
+    /// arm checks: a measure outlives the geometry under it for exactly as long
+    /// as it takes the next frame to notice, and a panic in that window would
+    /// take the application with it.
     pub fn read(&self, target: DimensionTarget) -> Option<Reading> {
         let gap = |from: DVec2, to: DVec2| Reading::Gap {
             span: from.distance(to),
@@ -75,25 +80,39 @@ impl Sketch {
                 let foot = self.foot_on_segment(point, segment)?;
                 gap(self.point(point), foot)
             }
-            DimensionTarget::Projected { from, to, axis } => Reading::Gap {
-                span: self.projected_gap(from, to, axis)?,
-                offsets: (self.point(to) - self.point(from)).abs(),
-            },
+            // A projected gap is the reach along one axis and nothing along
+            // the other, so that is what it says. Pairing it with the offsets
+            // of the whole run would put a span beside two numbers it is not
+            // the hypotenuse of.
+            DimensionTarget::Projected { from, to, axis } => {
+                let span = self.projected_gap(from, to, axis)?;
+                Reading::Gap {
+                    span,
+                    offsets: axis.direction().abs() * span,
+                }
+            }
             DimensionTarget::Radius(circle) | DimensionTarget::Diameter(circle) => Reading::Round {
                 radius: self.circles().get(circle.0)?.radius,
             },
             DimensionTarget::ArcRadius(arc) => Reading::Round {
                 radius: (arc.0 < self.arcs().len()).then(|| self.arc_radius(arc))?,
             },
-            DimensionTarget::Angle { first, second } => Reading::Opening {
-                degrees: self.angle_between(first, second)?,
-            },
+            DimensionTarget::Angle { first, second } => {
+                self.segments().get(first.0)?;
+                self.segments().get(second.0)?;
+                Reading::Opening {
+                    degrees: self.angle_between(first, second)?,
+                }
+            }
             DimensionTarget::AngleBetween { .. } => Reading::Opening {
                 degrees: self.opening(target)?,
             },
-            DimensionTarget::AxisAngle { segment, axis } => Reading::Opening {
-                degrees: self.angle_with_axis(segment, axis)?,
-            },
+            DimensionTarget::AxisAngle { segment, axis } => {
+                self.segments().get(segment.0)?;
+                Reading::Opening {
+                    degrees: self.angle_with_axis(segment, axis)?,
+                }
+            }
             DimensionTarget::ArcSweep(arc) => Reading::Opening {
                 degrees: (arc.0 < self.arcs().len()).then(|| self.arc_sweep(arc).to_degrees())?,
             },

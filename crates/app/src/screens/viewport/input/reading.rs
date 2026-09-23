@@ -50,8 +50,12 @@ pub(crate) fn read(
     // landed on nothing new — leaves what is on screen alone.
     match outcome {
         DimensionPick::Target(target) => show(context, picks, Some(target), None),
-        DimensionPick::TraitsAreParallel { first, second } => {
-            show(context, picks, across_to(sketch, first, second), None)
+        // The dimension tool only reaches this having been told to look for an
+        // angle, which the measure never does — the gap between two parallels
+        // comes through `refined` instead. Said properly all the same, rather
+        // than folded in with the rest, so it stays true if that ever changes.
+        DimensionPick::TraitsAreParallel => {
+            show(context, picks, None, Some("sketch.traits_are_parallel"))
         }
         DimensionPick::WaitingForSecondPoint => {
             show(context, picks, None, Some("sketch.choose_second_point"))

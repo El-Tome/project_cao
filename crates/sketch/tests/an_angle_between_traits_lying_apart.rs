@@ -127,11 +127,9 @@ fn two_parallel_traits_are_refused_as_parallel() {
     sketch.add_segment(low_from, low_to);
     sketch.add_segment(high_from, high_to);
 
-    assert!(
-        matches!(
-            clicked_for_an_angle(&sketch, DVec2::new(20.0, 15.0), DVec2::new(20.0, 35.0)),
-            DimensionPick::TraitsAreParallel { .. }
-        ),
+    assert_eq!(
+        clicked_for_an_angle(&sketch, DVec2::new(20.0, 15.0), DVec2::new(20.0, 35.0)),
+        DimensionPick::TraitsAreParallel,
         "two traits running the same way make no angle, and that is the reason given",
     );
 }
@@ -309,11 +307,9 @@ fn two_traits_parallel_to_within_what_a_solver_leaves_are_refused_too() {
     sketch.add_segment(low_from, low_to);
     sketch.add_segment(high_from, high_to);
 
-    assert!(
-        matches!(
-            clicked_for_an_angle(&sketch, DVec2::new(20.0, 10.0), DVec2::new(20.0, 30.0)),
-            DimensionPick::TraitsAreParallel { .. }
-        ),
+    assert_eq!(
+        clicked_for_an_angle(&sketch, DVec2::new(20.0, 10.0), DVec2::new(20.0, 30.0)),
+        DimensionPick::TraitsAreParallel,
         "a millionth of a radian is what a rule holding two traits parallel leaves \
          once solved; an angle laid there would fight that rule",
     );

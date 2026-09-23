@@ -6,6 +6,8 @@
 //! - a trait shows its length — `a_trait_shows_its_length`
 //! - a point then a trait shows the shortest distance onto it —
 //!   `a_point_then_a_trait_shows_the_distance_square_onto_it`
+//! - and the same the other way round, a trait then a point —
+//!   `a_trait_then_a_point_shows_the_same_distance_the_other_way_round`
 //! - a trait then a parallel trait shows the gap between them —
 //!   `two_parallel_traits_show_the_gap_between_them`
 //! - a trait then a trait that is not parallel shows the angle —
@@ -175,6 +177,21 @@ fn a_point_then_a_trait_shows_the_distance_square_onto_it() {
     assert!(
         (span - 25.0).abs() < TOLERANCE,
         "a top corner stands twenty-five above the bottom side, got {span}",
+    );
+}
+
+#[test]
+fn a_trait_then_a_point_shows_the_same_distance_the_other_way_round() {
+    let mut drawing = a_square_and_a_circle();
+
+    drawing.click(DVec2::new(20.0, 0.0));
+    drawing.click(DVec2::new(0.0, 25.0));
+
+    let (span, _) = drawing.gap();
+    assert!(
+        (span - 25.0).abs() < TOLERANCE,
+        "which of the two was clicked first is not a thing the user should \
+         have to think about, got {span}",
     );
 }
 

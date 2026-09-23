@@ -145,12 +145,49 @@ fn a_trait_against_an_axis_reads_how_far_it_leans() {
 #[test]
 fn a_reading_of_something_the_drawing_no_longer_has_is_no_reading_at_all() {
     let sketch = Sketch::new(WorkPlane::XY);
+    let gone = crate::sketch::SegmentId(7);
+    let circle = crate::circle::CircleId(7);
+    let arc = crate::arc::ArcId(7);
+    let point = crate::sketch::PointId(7);
 
-    assert_eq!(
-        sketch.read(DimensionTarget::Length(crate::sketch::SegmentId(7))),
-        None,
-        "a measure of a trait that is gone would show a value that is not true",
-    );
+    // Every arm, not just the easy one: a measure outlives the geometry under
+    // it until the next frame clears it, and an arm that indexed instead of
+    // asking would take the application down in that window.
+    for target in [
+        DimensionTarget::Length(gone),
+        DimensionTarget::Distance {
+            from: point,
+            to: point,
+        },
+        DimensionTarget::PointToSegment {
+            point,
+            segment: gone,
+        },
+        DimensionTarget::Projected {
+            from: point,
+            to: point,
+            axis: SketchAxis::U,
+        },
+        DimensionTarget::Radius(circle),
+        DimensionTarget::Diameter(circle),
+        DimensionTarget::ArcRadius(arc),
+        DimensionTarget::ArcSweep(arc),
+        DimensionTarget::Angle {
+            first: gone,
+            second: gone,
+        },
+        DimensionTarget::AxisAngle {
+            segment: gone,
+            axis: SketchAxis::U,
+        },
+    ] {
+        assert_eq!(
+            sketch.read(target),
+            None,
+            "{target:?} names nothing the drawing has, and a value shown for it \
+             would not be true",
+        );
+    }
 }
 
 #[test]

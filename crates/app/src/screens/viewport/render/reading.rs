@@ -14,7 +14,7 @@ use cao_sketch::Sketch;
 use glam::DVec2;
 
 use super::curves::push_line;
-use super::overlays::to_screen;
+use super::overlays::{tint_to_color, to_screen};
 use super::tint;
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
@@ -74,11 +74,20 @@ pub(crate) fn paint_measure(
     let Some(reading) = sketch.read(target) else {
         return;
     };
-    let pixel = state.camera.distance() as f64 / rect.height() as f64;
+    // The very pixel size the dashes were drawn with. Read any other way, the
+    // label works out `text_at` for an annotation standing further off the
+    // geometry than the one on screen, and floats clear of the run it belongs
+    // to — by the ratio of the two, which on a retina screen is more than
+    // double.
+    let pixel = state
+        .camera
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
     let Some(placed) = sketch.place(target, metrics(pixel, DVec2::ZERO)) else {
         return;
     };
-    let view_projection = state.camera.view_projection(state.aspect);
+    let view_projection = state
+        .camera
+        .view_projection(rect.width() / rect.height().max(1.0));
     let Some(at) = to_screen(sketch.plane.to_world(placed.text_at), view_projection, rect) else {
         return;
     };
@@ -90,18 +99,15 @@ pub(crate) fn paint_measure(
         state.config.unit,
     )
     .join("\n");
-    let color = state.theme.dimension_driven;
-    ui.painter().text(
+    // Clipped to the canvas, like every other painter here: `to_screen` hands
+    // back a position for a place behind the viewport's edge just as readily as
+    // for one inside it, and a number drawn over the toolbar belongs to nothing.
+    ui.painter_at(rect).text(
         at,
         egui::Align2::CENTER_CENTER,
         said,
         egui::FontId::proportional(TEXT_POINTS),
-        egui::Color32::from_rgba_unmultiplied(
-            (color.r * 255.0) as u8,
-            (color.g * 255.0) as u8,
-            (color.b * 255.0) as u8,
-            255,
-        ),
+        tint_to_color(state.theme.dimension_driven),
     );
 }
 

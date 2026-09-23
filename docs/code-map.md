@@ -56,7 +56,7 @@ in one of the two domains, never there.
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
 | Whether a rule still speaks of a drawing that has it | `sketch/src/sketch/holds_up.rs` | `Sketch::holds_up` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
-| What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
+| What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `Sketch::carried_by`, `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
 | What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of a circle, which leaves one piece and that piece is an arc | `sketch/src/trimming/circle.rs` | `Sketch::circle_stretch_at`, `Sketch::trim_circle` → `CircleTrimmed` |

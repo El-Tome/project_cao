@@ -58,6 +58,21 @@ fn apart(sketch: &Sketch, ellipse: cao_sketch::EllipseId, segment: cao_sketch::S
         .fold(f64::INFINITY, f64::min)
 }
 
+/// How far the trait stands from the stretch of curve actually drawn, at its
+/// nearest — which on an arc of ellipse is not the same question as `apart`.
+fn along_the_stretch(sketch: &Sketch, ellipse: cao_sketch::EllipseId, segment: SegmentId) -> f64 {
+    let (from, to) = sketch.endpoints(segment);
+    let span = to - from;
+    sketch
+        .ellipse_polyline(ellipse)
+        .iter()
+        .map(|place| {
+            let along = ((*place - from).dot(span) / span.length_squared()).clamp(0.0, 1.0);
+            place.distance(from.lerp(to, along))
+        })
+        .fold(f64::INFINITY, f64::min)
+}
+
 /// How far the tangency itself is from being kept: the gap between the line
 /// the trait lies on and how far the ellipse reaches square to that line.
 ///
@@ -203,10 +218,9 @@ fn the_ellipse_dragged_keeps_the_trait_against_it() {
 
 #[test]
 fn a_dragged_ellipse_leaves_the_trait_exactly_against_it() {
-    // How far an ellipse reaches square to a line swings as that line turns,
-    // and fastest on a curve as long and thin as this one. A tangency worked
-    // out without that swing settles near enough to look right on screen and
-    // wrong by a hundredth of a millimetre — which is what this measures.
+    // Long and thin is where how far the curve reaches swings fastest as the
+    // trait turns, and the bound is far below what any screen shows: the point
+    // is to measure the rule, not to look at it.
     for turn in 0..12 {
         let (mut sketch, ellipse, segment) = an_ellipse_and_a_trait_of(10.0, 60.0);
         sketch.add_constraint(Constraint::EllipseTangent {
@@ -262,9 +276,12 @@ fn an_arc_of_ellipse_is_brushed_where_it_is_drawn() {
     });
     sketch.resolve(1.0);
 
-    let after = apart(&sketch, ellipse, segment);
+    // Measured along the stretch the cut left, not round the whole curve: a
+    // trait brushing the half that was taken away would pass `apart` while
+    // touching nothing anybody can see.
+    let after = along_the_stretch(&sketch, ellipse, segment);
     assert!(
         after < 1e-3,
-        "it brushes the curve, standing {after} off it"
+        "it brushes the stretch it kept, standing {after} off it"
     );
 }

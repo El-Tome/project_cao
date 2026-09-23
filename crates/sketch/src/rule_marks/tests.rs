@@ -89,3 +89,43 @@ fn a_rule_whose_mark_is_far_from_the_cursor_is_not_picked() {
     assert_eq!(sketch.nearest_rule(DVec2::new(200.0, 200.0), 5.0), None);
     assert!(sketch.nearest_rule(DVec2::new(20.0, 1.0), 5.0).is_some());
 }
+
+#[test]
+fn a_tangency_on_an_ellipse_writes_where_the_curve_really_touches() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let west = sketch.add_point(DVec2::new(-30.0, 0.0));
+    let east = sketch.add_point(DVec2::new(30.0, 0.0));
+    let south = sketch.add_point(DVec2::new(0.0, -20.0));
+    let north = sketch.add_point(DVec2::new(0.0, 20.0));
+    let ellipse = sketch.add_ellipse(centre, [west, east], [south, north]);
+    // A slanted trait, since square to an axis the touch and the foot of the
+    // centre fall in the same place and the two readings cannot be told apart.
+    let from = sketch.add_point(DVec2::new(-60.0, -20.0));
+    let to = sketch.add_point(DVec2::new(60.0, -60.0));
+    let segment = sketch.add_segment(from, to);
+    let constraint = Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    };
+    sketch.add_constraint(constraint);
+    sketch.resolve(1.0);
+
+    let marks = sketch.rule_marks(constraint);
+
+    let mark = marks[0];
+    let drawn = sketch.ellipse_draft(ellipse);
+    assert!(
+        drawn.off_by(mark).abs() < 1e-6,
+        "the mark sits on the curve: {mark}"
+    );
+    let foot = sketch
+        .foot_on_segment(centre, segment)
+        .expect("the centre has a foot on the trait");
+    assert!(
+        mark.distance(foot) > 1.0,
+        "and not at the foot of the centre, which on an ellipse is somewhere \
+         else entirely: {mark} against {foot}",
+    );
+}

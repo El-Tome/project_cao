@@ -1,7 +1,9 @@
 //! What a cut carries over to the pieces it leaves, and what it cannot.
 
+use glam::DVec2;
+
 use crate::constraints::{Constraint, Dimension, DimensionTarget, Toward};
-use crate::sketch::{PointId, SegmentId};
+use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// One of the pieces a cut left, and what of the trait's own rules it can
 /// still answer for.
@@ -139,6 +141,15 @@ pub(super) fn still_holds(
             segment: piece.id,
             at,
         }),
+        Constraint::EllipseTangent {
+            ellipse,
+            segment,
+            at,
+        } if segment == cut && fell_on_the_piece => Some(Constraint::EllipseTangent {
+            ellipse,
+            segment: piece.id,
+            at,
+        }),
         _ => None,
     }
 }
@@ -209,5 +220,72 @@ pub(super) fn still_measured(
                 })
         }
         _ => None,
+    }
+}
+
+impl Sketch {
+    /// Everything standing that spoke of a trait, and where along it the ones
+    /// fastened to a place on it sat.
+    pub(super) fn carried_by(
+        &self,
+        segment: SegmentId,
+        rules: Vec<Constraint>,
+        values: Vec<Dimension>,
+    ) -> Carried {
+        let (start, end) = self.endpoints(segment);
+        let span = end - start;
+        let reach = span.length_squared();
+        let along = |place: DVec2| (place - start).dot(span) / reach;
+        let place_of_point = |point: PointId| Some(along(self.points().get(point.0).copied()?));
+
+        Carried {
+            held: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::OnSegment { point, segment: on } if *on == segment => {
+                        Some((place_of_point(*point)?, *point))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            fastened: rules
+                .iter()
+                .filter_map(|rule| match rule {
+                    Constraint::Tangent {
+                        segment: on,
+                        at: Some(point),
+                        ..
+                    } if *on == segment => Some((*rule, place_of_point(*point)?)),
+                    Constraint::EllipseTangent {
+                        ellipse,
+                        segment: on,
+                        at,
+                    } if *on == segment => {
+                        let touches = match at {
+                            Some(point) => self.points().get(point.0).copied()?,
+                            None => self.ellipse_touching(*ellipse, segment)?,
+                        };
+                        Some((*rule, along(touches)))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            measured_at: values
+                .iter()
+                .filter_map(|value| match value.target {
+                    DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
+                        Some((value.target, place_of_point(point)?))
+                    }
+                    DimensionTarget::AngleBetween { first, second, .. }
+                        if first == segment || second == segment =>
+                    {
+                        Some((value.target, along(self.where_lines_cross(first, second)?)))
+                    }
+                    _ => None,
+                })
+                .collect(),
+            rules,
+            values,
+        }
     }
 }

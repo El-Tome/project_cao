@@ -204,60 +204,6 @@ impl Sketch {
         })
     }
 
-    /// Everything standing that spoke of a trait, and where along it the ones
-    /// fastened to a place on it sat.
-    fn carried_by(
-        &self,
-        segment: SegmentId,
-        rules: Vec<Constraint>,
-        values: Vec<Dimension>,
-    ) -> Carried {
-        let (start, end) = self.endpoints(segment);
-        let span = end - start;
-        let reach = span.length_squared();
-        let along = |place: DVec2| (place - start).dot(span) / reach;
-        let place_of_point = |point: PointId| Some(along(self.points().get(point.0).copied()?));
-
-        Carried {
-            held: rules
-                .iter()
-                .filter_map(|rule| match rule {
-                    Constraint::OnSegment { point, segment: on } if *on == segment => {
-                        Some((place_of_point(*point)?, *point))
-                    }
-                    _ => None,
-                })
-                .collect(),
-            fastened: rules
-                .iter()
-                .filter_map(|rule| match rule {
-                    Constraint::Tangent {
-                        segment: on,
-                        at: Some(point),
-                        ..
-                    } if *on == segment => Some((*rule, place_of_point(*point)?)),
-                    _ => None,
-                })
-                .collect(),
-            measured_at: values
-                .iter()
-                .filter_map(|value| match value.target {
-                    DimensionTarget::PointToSegment { point, segment: on } if on == segment => {
-                        Some((value.target, place_of_point(point)?))
-                    }
-                    DimensionTarget::AngleBetween { first, second, .. }
-                        if first == segment || second == segment =>
-                    {
-                        Some((value.target, along(self.where_lines_cross(first, second)?)))
-                    }
-                    _ => None,
-                })
-                .collect(),
-            rules,
-            values,
-        }
-    }
-
     /// Puts back on the pieces everything the trait carried that follows them,
     /// the contact point of an inherited tangency included — the erasing of the
     /// trait took it away.

@@ -94,11 +94,7 @@ impl Sketch {
                 at,
             } => at
                 .and_then(point)
-                .or_else(|| {
-                    (ellipse.0 < self.ellipses().len())
-                        .then(|| self.foot_on_segment(self.ellipses()[ellipse.0].center, segment))
-                        .flatten()
-                })
+                .or_else(|| self.ellipse_touching(ellipse, segment))
                 .into_iter()
                 .collect(),
             Constraint::OnCircle { point: held, .. }

@@ -344,6 +344,29 @@ impl Sketch {
                 .all(|held| *held == Element::Ellipse(ellipse))
     }
 
+    /// Where an ellipse brushes a trait held tangent to it.
+    ///
+    /// The trait lies on a line, and of the two places the curve stands
+    /// furthest out square to that line, the touch is the one on the line's
+    /// own side of the centre.
+    pub fn ellipse_touching(&self, ellipse: EllipseId, segment: SegmentId) -> Option<DVec2> {
+        if ellipse.0 >= self.ellipses().len() {
+            return None;
+        }
+        let line = *self.segments().get(segment.0)?;
+        let (from, to) = (self.point(line.start), self.point(line.end));
+        let span = to - from;
+        if span.length() < 1e-9 {
+            return None;
+        }
+        let across = span.perp().normalize();
+        let drawn = self.ellipse_draft(ellipse);
+        match across.dot(from - drawn.centre) < 0.0 {
+            true => drawn.furthest_toward(-across),
+            false => drawn.furthest_toward(across),
+        }
+    }
+
     /// Whether any curve still drawn stands on a point.
     fn anything_stands_on(&self, point: PointId) -> bool {
         self.live_segments()

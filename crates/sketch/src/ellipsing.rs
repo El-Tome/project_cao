@@ -81,6 +81,21 @@ impl EllipseDraft {
         self.first.perp().normalize() * self.second
     }
 
+    /// The place on the curve standing furthest out one way, which is where a
+    /// line square to that way brushes it.
+    ///
+    /// On a circle that is the centre pushed out by the radius, and the foot of
+    /// the centre on the line. On an ellipse it is neither: how far the curve
+    /// reaches depends on which way one looks, and the place that far out sits
+    /// off to one side of that foot — by a third of the width, on a curve half
+    /// as high as it is wide.
+    pub fn furthest_toward(&self, way: DVec2) -> Option<DVec2> {
+        let (first, second) = (way.dot(self.first), way.dot(self.second_axis()));
+        let reach = first.hypot(second);
+        (reach >= 1e-9)
+            .then(|| self.centre + (self.first * first + self.second_axis() * second) / reach)
+    }
+
     /// Where a turn round the ellipse lands, a turn of nothing being the end of
     /// the first axis and a quarter turn the end of the second.
     pub fn at(&self, turn: f64) -> DVec2 {

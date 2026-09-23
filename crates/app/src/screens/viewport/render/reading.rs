@@ -1,15 +1,20 @@
-//! What a measure looks like: a dashed line between what was read, and the
-//! numbers beside it.
+//! What a measure looks like: a right triangle over what was read, each side
+//! carrying its own number.
 //!
-//! Dashed, and in the quieter of the two dimension colours, because the one
-//! thing a measure must never be mistaken for is a dimension. A dimension is a
-//! promise the drawing is held to; a measure is a glance, and it is gone on
-//! the next click. The shape itself is `Sketch::place`'s — the same geometry a
-//! dimension is drawn with, so an angle between two traits lying apart is
-//! solved once rather than twice — and only the dashes and the label are this
-//! module's own.
+//! A straight run has three things to say — how far, how far across, how far
+//! up — and stacking them in a block beside the drawing made a paragraph to
+//! read. As a triangle they are one shape: the hypotenuse is the distance, and
+//! the two legs *are* the reaches, drawn in the colours the sketch's own axes
+//! are drawn in. Which reach is which needs no word once the side is red or
+//! green.
+//!
+//! Dashed, and never in the dimensions' colour, because the one thing a
+//! measure must not be mistaken for is a dimension: a dimension is a promise
+//! the drawing is held to, a measure is a glance. A circle and an angle are
+//! not runs and keep `Sketch::place`'s own shape, which already solves the two
+//! awkward angles — traits lying apart, a trait against an axis.
 
-use cao_prefs::theme::Theme;
+use cao_prefs::theme::{Rgba, Theme};
 use cao_sketch::Sketch;
 use glam::DVec2;
 
@@ -19,11 +24,38 @@ use super::tint;
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
 use crate::screens::viewport::{SketchContext, ViewScale, ViewportState};
+use crate::wording::measure::Said;
 
 /// How big the numbers are drawn, matching the dimensions' own labels.
 const TEXT_POINTS: f32 = 13.0;
 
-/// The dashed run a measure is drawn as.
+/// How far off its side a number sits, in points, so the line does not run
+/// through the digits.
+const CLEAR_OF_THE_SIDE: f32 = 10.0;
+
+/// A side shorter than this on screen has no room for a number: the run is
+/// square to an axis, and one of its two reaches is nothing.
+const TOO_SHORT_TO_LABEL: f32 = 14.0;
+
+/// The three sides of the triangle a straight run is shown as, in the drawing's
+/// own coordinates: the run itself, then the reach across and the reach up.
+///
+/// The corner is taken level with the first place and under the second, so the
+/// triangle always falls the same side of the run rather than flipping about as
+/// the two ends are picked in one order or the other.
+fn sides(from: DVec2, to: DVec2) -> [(DVec2, DVec2); 3] {
+    let corner = DVec2::new(to.x, from.y);
+    [(from, to), (from, corner), (corner, to)]
+}
+
+/// What colour each side is drawn in: the run in the measure's own colour, and
+/// each reach in the colour its axis already wears on the canvas.
+fn colours(theme: &Theme) -> [Rgba; 3] {
+    [theme.measure, theme.axis_x, theme.axis_y]
+}
+
+/// The dashed triangle, or — for what is not a run — the annotation's own
+/// shape.
 pub(crate) fn push_measure(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
@@ -34,28 +66,42 @@ pub(crate) fn push_measure(
     let Some(target) = measure_showing(context) else {
         return;
     };
+    let width = theme.sketch_width;
+    if let Some((from, to)) = sketch.run_of(target) {
+        for ((start, end), colour) in sides(from, to).into_iter().zip(colours(theme)) {
+            if start.distance(end) <= f64::EPSILON {
+                continue;
+            }
+            push_line(
+                out,
+                sketch.plane.to_world(start),
+                sketch.plane.to_world(end),
+                tint(colour),
+                width,
+                true,
+                scale,
+            );
+        }
+        return;
+    }
     let Some(placed) = sketch.place(target, metrics(scale.units_per_pixel, DVec2::ZERO)) else {
         return;
     };
-    let color = tint(theme.dimension_driven);
-    for (from, to) in placed.shape {
+    for (start, end) in placed.shape {
         push_line(
             out,
-            sketch.plane.to_world(from),
-            sketch.plane.to_world(to),
-            color,
-            theme.sketch_width,
+            sketch.plane.to_world(start),
+            sketch.plane.to_world(end),
+            tint(theme.measure),
+            width,
             true,
             scale,
         );
     }
 }
 
-/// The numbers a measure says, written where the dimension's value would go.
-///
-/// Several lines rather than one: a measure is not held to being a single
-/// value the way a dimension is, so it says the distance and the reach along
-/// each axis, or the radius and the diameter, at once.
+/// The numbers, each on the side it measures, each on a pill of its own so the
+/// drawing under it cannot swallow it.
 pub(crate) fn paint_measure(
     ui: &egui::Ui,
     state: &ViewportState,
@@ -74,41 +120,99 @@ pub(crate) fn paint_measure(
     let Some(reading) = sketch.read(target) else {
         return;
     };
-    // The very pixel size the dashes were drawn with. Read any other way, the
-    // label works out `text_at` for an annotation standing further off the
-    // geometry than the one on screen, and floats clear of the run it belongs
-    // to — by the ratio of the two, which on a retina screen is more than
-    // double.
-    let pixel = state
-        .camera
-        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
-    let Some(placed) = sketch.place(target, metrics(pixel, DVec2::ZERO)) else {
-        return;
-    };
     let view_projection = state
         .camera
         .view_projection(rect.width() / rect.height().max(1.0));
-    let Some(at) = to_screen(sketch.plane.to_world(placed.text_at), view_projection, rect) else {
-        return;
-    };
+    let onto_the_screen =
+        |place: DVec2| to_screen(sketch.plane.to_world(place), view_projection, rect);
 
-    let said = crate::wording::measure::lines(
+    let said = crate::wording::measure::says(
         context.lang,
         target,
         reading.scaled(context.document.scale()),
         state.config.unit,
-    )
-    .join("\n");
-    // Clipped to the canvas, like every other painter here: `to_screen` hands
-    // back a position for a place behind the viewport's edge just as readily as
-    // for one inside it, and a number drawn over the toolbar belongs to nothing.
-    ui.painter_at(rect).text(
-        at,
-        egui::Align2::CENTER_CENTER,
-        said,
-        egui::FontId::proportional(TEXT_POINTS),
-        tint_to_color(state.theme.dimension_driven),
     );
+    let theme = &state.theme;
+
+    match (said, sketch.run_of(target)) {
+        (Said::Triangle { span, across, up }, Some((from, to))) => {
+            for (((start, end), colour), number) in sides(from, to)
+                .into_iter()
+                .zip(colours(theme))
+                .zip([span, across, up])
+            {
+                let (Some(start), Some(end)) = (onto_the_screen(start), onto_the_screen(end))
+                else {
+                    continue;
+                };
+                if start.distance(end) < TOO_SHORT_TO_LABEL {
+                    continue;
+                }
+                write(ui, rect, beside(start, end), &number, colour, theme);
+            }
+        }
+        (Said::Beside(lines), _) => {
+            // The very pixel size the shape was drawn with. Read any other way,
+            // the label works out its place for an annotation standing further
+            // off the geometry than the one on screen, and floats clear of the
+            // run it belongs to — by the ratio of the two, which on a retina
+            // screen is more than double.
+            let pixel = state
+                .camera
+                .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point())
+                as f64;
+            let Some(placed) = sketch.place(target, metrics(pixel, DVec2::ZERO)) else {
+                return;
+            };
+            let Some(at) = onto_the_screen(placed.text_at) else {
+                return;
+            };
+            write(ui, rect, at, &lines.join("\n"), theme.measure, theme);
+        }
+        _ => {}
+    }
+}
+
+/// Where a side's number goes: level with its middle, pushed square off the
+/// line so the digits are not crossed by it.
+fn beside(start: egui::Pos2, end: egui::Pos2) -> egui::Pos2 {
+    let middle = start + (end - start) / 2.0;
+    let along = (end - start).normalized();
+    middle + egui::vec2(-along.y, along.x) * CLEAR_OF_THE_SIDE
+}
+
+/// One number, on a pill of its own.
+///
+/// The pill is what puts a number *in front* rather than merely last: painted
+/// over an ellipse or a filled area, bare text keeps the lines running through
+/// its digits whatever order it was drawn in.
+fn write(
+    ui: &egui::Ui,
+    rect: egui::Rect,
+    at: egui::Pos2,
+    number: &str,
+    colour: Rgba,
+    theme: &Theme,
+) {
+    let painter = ui.painter_at(rect);
+    let text = painter.layout_no_wrap(
+        number.to_owned(),
+        egui::FontId::proportional(TEXT_POINTS),
+        tint_to_color(colour),
+    );
+    let pill = egui::Rect::from_center_size(at, text.size() + egui::vec2(8.0, 4.0));
+    painter.rect_filled(pill, 4.0, backdrop(theme));
+    painter.galley(
+        pill.center() - text.size() / 2.0,
+        text,
+        egui::Color32::WHITE,
+    );
+}
+
+/// The pill's own colour: the canvas's background, held back from opaque so
+/// the drawing stays readable through it.
+fn backdrop(theme: &Theme) -> egui::Color32 {
+    tint_to_color(theme.background.sample(0.0).with_alpha(0.82))
 }
 
 #[cfg(test)]

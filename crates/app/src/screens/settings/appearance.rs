@@ -89,6 +89,11 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
     color_row(ui, &lang.t("settings.appearance.going"), &mut theme.going);
     color_row(
         ui,
+        &lang.t("settings.appearance.measure"),
+        &mut theme.measure,
+    );
+    color_row(
+        ui,
         &lang.t("settings.appearance.region_fill"),
         &mut theme.region_fill,
     );

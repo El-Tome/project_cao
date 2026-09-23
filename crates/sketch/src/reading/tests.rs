@@ -211,3 +211,53 @@ fn millimetres_scale_the_lengths_and_leave_the_degrees_alone() {
         "a degree is a degree whatever the drawing is scaled to",
     );
 }
+
+#[test]
+fn a_straight_run_says_which_two_places_it_was_read_between() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(1.0, 1.0));
+    let end = sketch.add_point(DVec2::new(4.0, 5.0));
+    let segment = sketch.add_segment(start, end);
+
+    let (from, to) = sketch
+        .run_of(DimensionTarget::Length(segment))
+        .expect("a trait runs between its two ends");
+
+    assert!(
+        from.distance(DVec2::new(1.0, 1.0)) < TOLERANCE
+            && to.distance(DVec2::new(4.0, 5.0)) < TOLERANCE,
+        "the triangle is drawn on these two places, got {from:?} and {to:?}",
+    );
+}
+
+#[test]
+fn a_point_and_a_trait_run_between_the_point_and_its_foot() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(0.0, 0.0));
+    let end = sketch.add_point(DVec2::new(10.0, 0.0));
+    let segment = sketch.add_segment(start, end);
+    let point = sketch.add_point(DVec2::new(4.0, 3.0));
+
+    let (from, to) = sketch
+        .run_of(DimensionTarget::PointToSegment { point, segment })
+        .expect("a point stands off a trait along a run");
+
+    assert!(
+        from.distance(DVec2::new(4.0, 3.0)) < TOLERANCE
+            && to.distance(DVec2::new(4.0, 0.0)) < TOLERANCE,
+        "square onto the trait, which is where the foot lands, got {from:?} and {to:?}",
+    );
+}
+
+#[test]
+fn a_round_and_an_opening_have_no_run_to_draw_a_triangle_on() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let circle = sketch.add_circle(centre, 5.0);
+
+    assert_eq!(
+        sketch.run_of(DimensionTarget::Diameter(circle)),
+        None,
+        "a circle is read from its centre out, not as two axes of a triangle",
+    );
+}

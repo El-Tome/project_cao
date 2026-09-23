@@ -272,13 +272,23 @@ is a way of looking, and it is gone on the next click.
 | A trait then a trait that is **not** parallel | The angle they open |
 | A circle or an arc | Its radius **and** its diameter |
 
-A distance and a length both carry the reach along the sketch's two axes under
-the value: "how much higher" is asked as often as "how far".
+A distance and a length both carry the reach along the sketch's two axes:
+"how much higher" is asked as often as "how far". They are not written as a
+list — the three numbers are the three sides of a **right triangle** drawn over
+the run, each written on the side it measures. The hypotenuse is the distance;
+the two legs are the reaches, drawn in the colours the sketch's own axes wear,
+so which is which needs no word.
 
-It is drawn as a dashed line over what was read, in the quieter of the two
-dimension colours, with the numbers beside it. Dashed and quiet on purpose: the
-one thing a measure must never be mistaken for is a dimension, which is a
-promise the drawing is held to.
+Every number sits on a dark pill, which is what puts it *in front of* the
+drawing rather than merely painted after it: over an ellipse or a filled area,
+bare text keeps the lines running through its digits.
+
+A circle and an angle are not runs and keep the annotation's own shape, with
+their numbers beside it.
+
+All of it is dashed, and in a colour of its own — `measure` in the theme, and
+settable like the rest. The one thing a measure must never be mistaken for is a
+dimension, which is a promise the drawing is held to.
 
 **One measure at a time.** It goes when the next one starts, on `Échap`, when
 another tool is taken, and on any change to the drawing at all — undo, redo,

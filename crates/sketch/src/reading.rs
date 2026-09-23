@@ -118,6 +118,32 @@ impl Sketch {
             },
         })
     }
+
+    /// The two places a straight run was read between, which is what the
+    /// triangle showing it is drawn on. `None` for a circle or an angle, which
+    /// are not runs and have no two axes to come apart into.
+    pub fn run_of(&self, target: DimensionTarget) -> Option<(DVec2, DVec2)> {
+        match target {
+            DimensionTarget::Length(segment) => {
+                self.segments().get(segment.0)?;
+                Some(self.endpoints(segment))
+            }
+            DimensionTarget::Distance { from, to } => {
+                self.points().get(from.0)?;
+                self.points().get(to.0)?;
+                Some((self.point(from), self.point(to)))
+            }
+            DimensionTarget::PointToSegment { point, segment } => {
+                Some((self.point(point), self.foot_on_segment(point, segment)?))
+            }
+            DimensionTarget::Projected { from, to, .. } => {
+                self.points().get(from.0)?;
+                self.points().get(to.0)?;
+                Some((self.point(from), self.point(to)))
+            }
+            _ => None,
+        }
+    }
 }
 
 #[cfg(test)]

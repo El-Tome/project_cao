@@ -180,6 +180,12 @@ pub struct Theme {
     /// click rather than after.
     #[serde(default = "Theme::default_going")]
     pub going: Rgba,
+    /// What a measure reads back. Its own entry rather than the dimensions':
+    /// a measure holds the drawing to nothing and must not be taken for a
+    /// dimension, and the quiet grey a read-only dimension wears is too faint
+    /// for a number that is the whole point of the tool.
+    #[serde(default = "Theme::default_measure")]
+    pub measure: Rgba,
     pub extrusion_add: Rgba,
     pub extrusion_cut: Rgba,
 }
@@ -206,6 +212,10 @@ impl Theme {
     /// Plain alarm red, and opaque: what is about to disappear is drawn over
     /// what is staying, and a colour that lets the old one through would read
     /// as a shade of it rather than as a warning.
+    fn default_measure() -> Rgba {
+        Rgba::opaque(0.97, 0.97, 1.0)
+    }
+
     fn default_going() -> Rgba {
         Rgba::new(0.95, 0.25, 0.25, 1.0)
     }
@@ -249,6 +259,7 @@ impl Default for Theme {
             highlight: Rgba::new(0.30, 0.60, 0.95, 0.40),
             refused: Rgba::new(0.95, 0.35, 0.35, 0.40),
             going: Theme::default_going(),
+            measure: Theme::default_measure(),
             extrusion_add: Rgba::new(0.40, 0.85, 0.60, 0.45),
             extrusion_cut: Rgba::new(0.95, 0.45, 0.40, 0.45),
         }

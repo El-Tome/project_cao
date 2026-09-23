@@ -88,6 +88,15 @@ impl Sketch {
                 })
                 .into_iter()
                 .collect(),
+            Constraint::EllipseTangent {
+                ellipse,
+                segment,
+                at,
+            } => at
+                .and_then(point)
+                .or_else(|| self.ellipse_touching(ellipse, segment))
+                .into_iter()
+                .collect(),
             Constraint::OnCircle { point: held, .. }
             | Constraint::OnArc { point: held, .. }
             | Constraint::OnEllipse { point: held, .. } => point(held).into_iter().collect(),

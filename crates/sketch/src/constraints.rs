@@ -256,6 +256,16 @@ pub enum Constraint {
         point: PointId,
         arc: ArcId,
     },
+    /// An ellipse brushing a line: the line grazes it and no more.
+    EllipseTangent {
+        ellipse: EllipseId,
+        segment: SegmentId,
+        /// Where the two touch, kept as a real point of the drawing when the
+        /// tool laid one — held on the line and on the curve, which is what
+        /// pins it to the one place they meet.
+        #[serde(default)]
+        at: Option<PointId>,
+    },
     /// A point held on an ellipse's curve, wherever the ellipse goes and
     /// whatever shape it takes.
     OnEllipse {

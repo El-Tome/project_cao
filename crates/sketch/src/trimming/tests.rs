@@ -301,3 +301,59 @@ fn the_origin_a_rule_holds_on_a_trait_does_cut_it() {
         "asked for on purpose, it counts like any other point",
     );
 }
+
+#[test]
+fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let west = sketch.add_point(DVec2::new(-30.0, 0.0));
+    let east = sketch.add_point(DVec2::new(30.0, 0.0));
+    let south = sketch.add_point(DVec2::new(0.0, -20.0));
+    let north = sketch.add_point(DVec2::new(0.0, 20.0));
+    let ellipse = sketch.add_ellipse(centre, [west, east], [south, north]);
+    let start = sketch.add_point(DVec2::new(-50.0, -35.0));
+    let end = sketch.add_point(DVec2::new(50.0, -35.0));
+    let segment = sketch.add_segment(start, end);
+    let rule = Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    };
+    sketch.add_constraint(rule);
+    sketch.resolve(1.0);
+    let touches = sketch
+        .ellipse_touching(ellipse, segment)
+        .expect("the two touch somewhere");
+    // Cut off the far end, well past the touch, so the piece that stays is the
+    // one the curve brushes.
+    let corner = sketch.add_point(touches + DVec2::new(25.0, 0.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: corner,
+        segment,
+    });
+
+    let pieces = sketch
+        .trim(segment, corner, end)
+        .expect("a cut that can be made")
+        .pieces;
+
+    let kept = pieces[0];
+    let moved = sketch
+        .constraints()
+        .iter()
+        .find_map(|rule| match rule {
+            Constraint::EllipseTangent { segment, at, .. } if *segment == kept => Some(*at),
+            _ => None,
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "the piece the curve brushes carries the tangency on: {:?}",
+                sketch.constraints()
+            )
+        });
+    let contact = moved.expect("and the point where the two touch with it");
+    assert!(
+        !sketch.is_erased_point(contact),
+        "which still stands, rather than being left in mid-air",
+    );
+}

@@ -59,7 +59,6 @@ mod snap;
 mod solver;
 mod splitting;
 mod symmetric;
-mod tangency;
 mod tool;
 mod trimming;
 

@@ -133,6 +133,15 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             segment: map.segments[&segment],
             at: at.map(|point| map.points[&point]),
         },
+        Constraint::EllipseTangent {
+            ellipse,
+            segment,
+            at,
+        } => Constraint::EllipseTangent {
+            ellipse: map.ellipses[&ellipse],
+            segment: map.segments[&segment],
+            at: at.map(|point| map.points[&point]),
+        },
         Constraint::OnCircle { point, circle } => Constraint::OnCircle {
             point: map.points[&point],
             circle: map.circles[&circle],

@@ -36,9 +36,17 @@ impl Sketch {
         self.midpoint_equations(ellipse.center, ellipse.second, into);
         // The ends a cut left are on the curve and stay on it, the way an
         // arc's ends stay the same reach from its centre.
+        //
+        // Never an end that is one of the ellipse's own handles: an axis end
+        // is on the curve because it is what draws it, so the row would say
+        // nothing — and a row that says nothing still asks the solver to
+        // divide one almost-nothing by another, which is how the drawing came
+        // back a thousand million units across.
         if let Some((from, to)) = ellipse.drawn {
-            into.extend(self.on_ellipse_equation(from, id));
-            into.extend(self.on_ellipse_equation(to, id));
+            let handles = self.ellipse_points(id);
+            for end in [from, to].into_iter().filter(|end| !handles.contains(end)) {
+                into.extend(self.on_ellipse_equation(end, id));
+            }
         }
         for equation in &mut into[written..] {
             for (point, pinned) in pinned.iter().enumerate() {

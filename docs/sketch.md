@@ -297,6 +297,13 @@ all to first order, so the solver would have nothing to correct.
 That point is what one grabs to **slide a circle along the line it touches**,
 without breaking the tangency.
 
+**An ellipse brushing a line carries one too**, and it is not square under the
+centre: how far an ellipse stands from its centre depends on which way one
+looks, so the touch sits off to one side of that foot — by a third of the
+width, on a curve half as high as it is wide. What holds it is the same pair
+read the ellipse's way: on the line, and out from the centre the way the curve
+reaches.
+
 ## Ellipses
 
 Three clicks lay one: the **centre**, the **end of the first axis** — its
@@ -317,6 +324,13 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
 - The axes **go with the ellipse**: erasing it erases them, and erasing an axis
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole.
+
+A trait can be held **tangent to an ellipse**, as it can to a circle: the two
+picks are the trait and the curve, and the trait ends up brushing it and keeps
+brushing it when either is dragged. How far an ellipse stands from its centre
+depends on which way one looks, so what the rule holds is the reach in the
+direction square to the trait — which moves when the trait turns and again when
+either axis is stretched. An arc of ellipse takes the same rule.
 
 **Trimming an ellipse leaves an arc of ellipse**, as trimming a circle leaves
 an arc: the stretch between the two points either side of the click goes, and

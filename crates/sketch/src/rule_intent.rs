@@ -10,6 +10,7 @@
 
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
+use crate::ellipse::EllipseId;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
 /// What the constraint tool has been pointed at: a piece of the drawing, or
@@ -91,6 +92,13 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             _ => None,
         })
         .collect();
+    let ellipses: Vec<EllipseId> = picks
+        .iter()
+        .filter_map(|pick| match pick {
+            RulePick::Element(Element::Ellipse(id)) => Some(*id),
+            _ => None,
+        })
+        .collect();
     let axes: Vec<SketchAxis> = picks
         .iter()
         .filter_map(|pick| match pick {
@@ -129,15 +137,25 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             }),
             _ => None,
         },
-        Rule::Tangent => match (circles.as_slice(), segments.as_slice(), arcs.as_slice()) {
-            ([circle], [segment], []) => constrain(Constraint::Tangent {
+        Rule::Tangent => match (
+            circles.as_slice(),
+            segments.as_slice(),
+            arcs.as_slice(),
+            ellipses.as_slice(),
+        ) {
+            ([circle], [segment], [], []) => constrain(Constraint::Tangent {
                 at: None,
                 circle: *circle,
                 segment: *segment,
             }),
-            ([], [segment], [arc]) => constrain(Constraint::ArcTangent {
+            ([], [segment], [arc], []) => constrain(Constraint::ArcTangent {
                 at: None,
                 arc: *arc,
+                segment: *segment,
+            }),
+            ([], [segment], [], [ellipse]) => constrain(Constraint::EllipseTangent {
+                at: None,
+                ellipse: *ellipse,
                 segment: *segment,
             }),
             _ => None,

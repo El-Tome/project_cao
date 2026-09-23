@@ -90,6 +90,11 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             segment: side,
             at: None,
         },
+        Constraint::EllipseTangent {
+            ellipse: oval,
+            segment: side,
+            at: None,
+        },
         Constraint::OnCircle {
             point: loose,
             circle: round,
@@ -144,6 +149,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::Collinear { .. } => "collinear",
         Constraint::Tangent { .. } => "tangent",
         Constraint::ArcTangent { .. } => "tangent, arc",
+        Constraint::EllipseTangent { .. } => "tangent, ellipse",
         Constraint::OnCircle { .. } => "on a circle",
         Constraint::OnArc { .. } => "on an arc",
         Constraint::OnEllipse { .. } => "on an ellipse",

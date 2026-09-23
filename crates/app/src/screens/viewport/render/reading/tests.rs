@@ -19,6 +19,14 @@
 //!   `a_number_stands_on_the_side_it_measures`
 //! - the numbers are in front of the drawing rather than merely painted after
 //!   it — `every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it`
+//! - a run square to an axis is drawn as itself rather than as a sliver —
+//!   `a_run_square_to_an_axis_is_drawn_as_itself_and_not_as_a_sliver`
+//! - and says one number rather than two on the same spot —
+//!   `a_run_square_to_an_axis_says_one_number_rather_than_two_on_the_same_line`
+//! - a run that genuinely leans still comes apart —
+//!   `a_run_that_genuinely_leans_still_comes_apart_into_three`
+//! - the sides and the numbers never disagree about which of the two it is —
+//!   `the_lines_and_the_numbers_never_disagree_about_whether_there_is_a_triangle`
 //! - nothing is drawn while no measure is being shown —
 //!   `nothing_is_drawn_while_no_measure_is_being_shown`
 //! - a measure is drawn apart from a real dimension, so the two are never
@@ -51,7 +59,7 @@ const UP: f64 = 40.0;
 
 /// A drawing holding that trait, and an editor showing the distance between
 /// its two ends.
-fn measuring(showing: Option<DimensionTarget>) -> (PartDocument, SketchEditor) {
+fn measuring_a_run(to: DVec2, showing: Option<DimensionTarget>) -> (PartDocument, SketchEditor) {
     let mut document = PartDocument::new("part", Utc::now());
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
@@ -60,7 +68,7 @@ fn measuring(showing: Option<DimensionTarget>) -> (PartDocument, SketchEditor) {
     document.apply(Operation::AddSegment {
         sketch: 0,
         start: PointRef::New(DVec2::ZERO),
-        end: PointRef::New(DVec2::new(ACROSS, UP)),
+        end: PointRef::New(to),
         construction: false,
     });
     let editor = SketchEditor {
@@ -78,7 +86,11 @@ fn measuring(showing: Option<DimensionTarget>) -> (PartDocument, SketchEditor) {
 
 /// The vertices the measure is drawn as, two to a straight step.
 fn drawn(showing: Option<DimensionTarget>) -> Vec<cao_render::Vertex> {
-    let (mut document, mut editor) = measuring(showing);
+    drawn_of(DVec2::new(ACROSS, UP), showing)
+}
+
+fn drawn_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<cao_render::Vertex> {
+    let (mut document, mut editor) = measuring_a_run(to, showing);
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
     let context = SketchContext {
@@ -247,7 +259,11 @@ fn a_measure_is_not_drawn_in_the_colour_a_dimension_drives_with() {
 /// Everything one frame painted, with no window and no GPU: egui is asked to
 /// run a single pass and hand back the shapes it would have sent out.
 fn painted(showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
-    let (mut document, mut editor) = measuring(showing);
+    painted_of(DVec2::new(ACROSS, UP), showing)
+}
+
+fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
+    let (mut document, mut editor) = measuring_a_run(to, showing);
     let mut extrusion = ExtrusionState::default();
     let lang = Catalogue::french();
     let context = SketchContext {
@@ -384,4 +400,91 @@ fn every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it() {
             "{number:?} has no pill under it",
         );
     }
+}
+
+/// A trait a hair off the horizontal: forty across and a third of a millimetre
+/// up, which is about half a degree.
+const A_HAIR_OFF_FLAT: DVec2 = DVec2::new(40.0, 0.35);
+const A_HAIR_OFF_UPRIGHT: DVec2 = DVec2::new(0.35, 40.0);
+
+/// The colours the sides of a run were drawn in, each once.
+fn colours_of(to: DVec2) -> Vec<[f32; 4]> {
+    let mut seen: Vec<[f32; 4]> = Vec::new();
+    for vertex in drawn_of(to, Some(the_distance())) {
+        if !seen.contains(&vertex.color) {
+            seen.push(vertex.color);
+        }
+    }
+    seen
+}
+
+#[test]
+fn a_run_square_to_an_axis_is_drawn_as_itself_and_not_as_a_sliver() {
+    for to in [A_HAIR_OFF_FLAT, A_HAIR_OFF_UPRIGHT] {
+        let colours = colours_of(to);
+
+        assert_eq!(
+            colours,
+            vec![shade(Theme::default().measure)],
+            "the run {to:?} is square to an axis to within half a degree: its \
+             long reach lies along it and the short one is nothing, so a \
+             triangle is one line drawn three times over",
+        );
+    }
+}
+
+#[test]
+fn a_run_square_to_an_axis_says_one_number_rather_than_two_on_the_same_line() {
+    for to in [A_HAIR_OFF_FLAT, A_HAIR_OFF_UPRIGHT] {
+        let said = words(&painted_of(to, Some(the_distance())));
+
+        assert_eq!(
+            said.len(),
+            1,
+            "its length is its reach along that axis, and two names for one \
+             measurement land on top of each other: {said:?}",
+        );
+        assert!(
+            said[0].0.contains("40"),
+            "and the one it says is the length: {said:?}",
+        );
+    }
+}
+
+/// Right on the threshold: a reach of exactly the eighteen pixels a triangle
+/// needs, worked out from the view the tests draw through.
+fn a_run_on_the_very_edge() -> DVec2 {
+    DVec2::new(40.0, a_view().units_per_pixel * 18.0)
+}
+
+#[test]
+fn the_lines_and_the_numbers_never_disagree_about_whether_there_is_a_triangle() {
+    // A run either side of the threshold, and one sitting on it: the shape is
+    // decided twice — once pushing vertices, once painting text — and the two
+    // readings drifting apart is what leaves a number with no side under it.
+    let edge = a_run_on_the_very_edge();
+    for to in [
+        edge,
+        DVec2::new(edge.x, edge.y * 0.9),
+        DVec2::new(edge.x, edge.y * 1.1),
+    ] {
+        assert_eq!(
+            colours_of(to).len(),
+            words(&painted_of(to, Some(the_distance()))).len(),
+            "a side drawn with no number on it, or a number with no side, for \
+             the run {to:?}",
+        );
+    }
+}
+
+#[test]
+fn a_run_that_genuinely_leans_still_comes_apart_into_three() {
+    let colours = colours_of(DVec2::new(ACROSS, UP));
+
+    assert_eq!(
+        colours.len(),
+        3,
+        "a run leaning well off both axes has two reaches worth reading, and \
+         dropping them would cost the whole point of the triangle",
+    );
 }

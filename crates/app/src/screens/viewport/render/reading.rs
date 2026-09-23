@@ -33,9 +33,26 @@ const TEXT_POINTS: f32 = 13.0;
 /// through the digits.
 const CLEAR_OF_THE_SIDE: f32 = 10.0;
 
-/// A side shorter than this on screen has no room for a number: the run is
-/// square to an axis, and one of its two reaches is nothing.
-const TOO_SHORT_TO_LABEL: f32 = 14.0;
+/// A reach thinner than this on screen, in pixels, is no triangle at all.
+///
+/// Read on screen rather than as an angle, because that is where the trouble
+/// is: the same half-degree trait is a sliver zoomed out and a proper triangle
+/// zoomed right in, and it is only worth coming apart when there is room to
+/// see it come apart.
+const A_TRIANGLE_NEEDS: f64 = 18.0;
+
+/// Whether a run has two reaches worth reading, or is square to an axis.
+///
+/// Square to an axis, its length *is* its reach along that axis and the other
+/// is nothing: the long leg lies along the run and the short one is a dot, so
+/// the triangle is one line drawn three times over with two numbers on the
+/// same spot. The drawing tool already refuses to offer a trait square to an
+/// axis a width and a height for the same reason — two names for one
+/// measurement is one name too many.
+fn comes_apart(from: DVec2, to: DVec2, units_per_pixel: f64) -> bool {
+    let reach = (to - from).abs() / units_per_pixel.max(f64::MIN_POSITIVE);
+    reach.x.min(reach.y) >= A_TRIANGLE_NEEDS
+}
 
 /// The three sides of the triangle a straight run is shown as, in the drawing's
 /// own coordinates: the run itself, then the reach across and the reach up.
@@ -68,10 +85,12 @@ pub(crate) fn push_measure(
     };
     let width = theme.sketch_width;
     if let Some((from, to)) = sketch.run_of(target) {
-        for ((start, end), colour) in sides(from, to).into_iter().zip(colours(theme)) {
-            if start.distance(end) <= f64::EPSILON {
-                continue;
-            }
+        let apart = comes_apart(from, to, scale.units_per_pixel);
+        for ((start, end), colour) in sides(from, to)
+            .into_iter()
+            .zip(colours(theme))
+            .take(if apart { 3 } else { 1 })
+        {
             push_line(
                 out,
                 sketch.plane.to_world(start),
@@ -134,33 +153,32 @@ pub(crate) fn paint_measure(
     );
     let theme = &state.theme;
 
+    // The very pixel size the shape was drawn with. Read any other way, a run
+    // comes apart here and not there, or a label works out its place for an
+    // annotation standing further off the geometry than the one on screen and
+    // floats clear of the run it belongs to — by the ratio of the two, which
+    // on a retina screen is more than double.
+    let pixel = state
+        .camera
+        .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
+
     match (said, sketch.run_of(target)) {
         (Said::Triangle { span, across, up }, Some((from, to))) => {
+            let apart = comes_apart(from, to, pixel);
             for (((start, end), colour), number) in sides(from, to)
                 .into_iter()
                 .zip(colours(theme))
                 .zip([span, across, up])
+                .take(if apart { 3 } else { 1 })
             {
                 let (Some(start), Some(end)) = (onto_the_screen(start), onto_the_screen(end))
                 else {
                     continue;
                 };
-                if start.distance(end) < TOO_SHORT_TO_LABEL {
-                    continue;
-                }
                 write(ui, rect, beside(start, end), &number, colour, theme);
             }
         }
         (Said::Beside(lines), _) => {
-            // The very pixel size the shape was drawn with. Read any other way,
-            // the label works out its place for an annotation standing further
-            // off the geometry than the one on screen, and floats clear of the
-            // run it belongs to — by the ratio of the two, which on a retina
-            // screen is more than double.
-            let pixel = state
-                .camera
-                .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point())
-                as f64;
             let Some(placed) = sketch.place(target, metrics(pixel, DVec2::ZERO)) else {
                 return;
             };

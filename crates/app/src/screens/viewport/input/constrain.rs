@@ -19,6 +19,7 @@ pub(super) fn nearest_rule_pick(
         .or_else(|| sketch.nearest_segment(cursor, snap).map(Element::Segment))
         .or_else(|| sketch.nearest_circle(cursor, snap).map(Element::Circle))
         .or_else(|| sketch.nearest_arc(cursor, snap).map(Element::Arc))
+        .or_else(|| sketch.nearest_ellipse(cursor, snap).map(Element::Ellipse))
         .map(RulePick::Element)
         .or_else(|| {
             (rule == Rule::Collinear)

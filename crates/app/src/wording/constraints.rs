@@ -19,7 +19,9 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.label.collinear"
         }
-        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "constraints.label.tangent",
+        Constraint::Tangent { .. }
+        | Constraint::ArcTangent { .. }
+        | Constraint::EllipseTangent { .. } => "constraints.label.tangent",
         Constraint::Midpoint { .. } => "constraints.label.midpoint",
         Constraint::Fixed { .. } => "constraints.label.fixed",
     })
@@ -46,7 +48,9 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => {
             "constraints.erased.collinear"
         }
-        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "constraints.erased.tangent",
+        Constraint::Tangent { .. }
+        | Constraint::ArcTangent { .. }
+        | Constraint::EllipseTangent { .. } => "constraints.erased.tangent",
         Constraint::Midpoint { .. } => "constraints.erased.midpoint",
         Constraint::Fixed { .. } => "constraints.erased.fixed",
     })
@@ -72,7 +76,9 @@ pub fn mark(rule: Constraint) -> &'static str {
         | Constraint::OnEllipse { .. }
         | Constraint::OnAxis { .. } => "+",
         Constraint::Collinear { .. } | Constraint::AxisCollinear { .. } => "--",
-        Constraint::Tangent { .. } | Constraint::ArcTangent { .. } => "T",
+        Constraint::Tangent { .. }
+        | Constraint::ArcTangent { .. }
+        | Constraint::EllipseTangent { .. } => "T",
         Constraint::Midpoint { .. } => "1/2",
         Constraint::Fixed { .. } => "X",
     }

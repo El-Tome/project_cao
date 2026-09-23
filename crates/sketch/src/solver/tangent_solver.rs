@@ -1,13 +1,38 @@
-//! What a circle brushing a line asks of the solver, kept apart so it does not
+//! What a curve brushing a line asks of the solver, kept apart so it does not
 //! crowd out `solver.rs`.
 
+use glam::DVec2;
+
+use crate::constraints::Constraint;
+use crate::ellipse::EllipseId;
 use crate::equation::Equation;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 impl Sketch {
+    /// What one curve brushing a line asks of the drawing, whichever kind of
+    /// curve it is.
+    pub(super) fn tangent_equations(&self, rule: Constraint, into: &mut Vec<Equation>) {
+        match rule {
+            Constraint::Tangent {
+                circle,
+                segment,
+                at,
+            } => self.circle_tangent_equations(circle, segment, at, into),
+            Constraint::ArcTangent { arc, segment, at } => {
+                into.extend(self.arc_tangent_equations(arc, segment, at))
+            }
+            Constraint::EllipseTangent {
+                ellipse,
+                segment,
+                at,
+            } => self.ellipse_tangent_equations(ellipse, segment, at, into),
+            _ => {}
+        }
+    }
+
     /// A circle brushing a line, and the point where the two touch when the
     /// drawing keeps one.
-    pub(super) fn circle_tangent_equations(
+    fn circle_tangent_equations(
         &self,
         circle: CircleId,
         segment: SegmentId,
@@ -35,6 +60,76 @@ impl Sketch {
         if let Some(contact) = self.live_point(at) {
             into.extend(self.on_line_equation(contact, segment, 0.0));
             into.extend(self.foot_equation(contact, round.center, segment));
+        }
+    }
+
+    /// An ellipse brushing a line, and the point where the two touch when the
+    /// drawing keeps one.
+    ///
+    /// The same reckoning as a circle's, with the reach of the ellipse in the
+    /// direction square to the line in place of a radius: how far an ellipse
+    /// stands from its centre depends on which way one looks, so that reach
+    /// moves when the line turns, and again when either axis is stretched.
+    fn ellipse_tangent_equations(
+        &self,
+        ellipse: EllipseId,
+        segment: SegmentId,
+        at: Option<PointId>,
+        into: &mut Vec<Equation>,
+    ) {
+        let Some(oval) = self.ellipses().get(ellipse.0).copied() else {
+            return;
+        };
+        let Some(line) = self.segments().get(segment.0).copied() else {
+            return;
+        };
+        let drawn = self.ellipse_draft(ellipse);
+        let (from, to) = (self.point(line.start), self.point(line.end));
+        let span = to - from;
+        let length = span.length();
+        if length < 1e-9 {
+            return;
+        }
+        let across = span.perp() / length;
+        let (along_first, along_second) =
+            (across.dot(drawn.first), across.dot(drawn.second_axis()));
+        let reach = along_first.hypot(along_second);
+        if reach < 1e-9 {
+            return;
+        }
+        let Some(mut equation) = self.on_line_equation(oval.center, segment, reach) else {
+            return;
+        };
+
+        // The reach is no constant: it grows as an axis is stretched, and it
+        // swings as the line turns. Both are part of the answer, the way a
+        // circle's size is.
+        let side = self.side_of(oval.center, segment);
+        let (first, second) = (
+            self.segments()[oval.first.0],
+            self.segments()[oval.second.0],
+        );
+        let half = |value: f64| across * (value / (2.0 * reach)) * -side;
+        equation.add(first.end, half(along_first));
+        equation.add(first.start, -half(along_first));
+        equation.add(second.end, half(along_second));
+        equation.add(second.start, -half(along_second));
+
+        // Turning the line turns the direction the reach is read in, which
+        // moves the line's own two ends as surely as the ellipse does.
+        let outward = (drawn.first * along_first + drawn.second_axis() * along_second) / reach;
+        let along = span / length;
+        let turned = (DVec2::new(outward.y, -outward.x) - along * outward.dot(across)) / length;
+        equation.add(line.end, -turned * side);
+        equation.add(line.start, turned * side);
+        into.push(equation);
+
+        // Where the two touch is a point of the drawing, and it is not free:
+        // it lies on the line and on the curve, which between them leave it
+        // the one place the two have in common.
+        if let Some(contact) = self.live_point(at) {
+            into.extend(self.on_line_equation(contact, segment, 0.0));
+            into.extend(self.on_ellipse_equation(contact, ellipse));
         }
     }
 }

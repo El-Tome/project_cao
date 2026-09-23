@@ -684,18 +684,13 @@ impl Sketch {
             | Constraint::OnArc { .. }
             | Constraint::OnEllipse { .. }
             | Constraint::OnAxis { .. } => self.hold_equations(constraint, into),
-            Constraint::Tangent {
-                circle,
-                segment,
-                at,
-            } => self.circle_tangent_equations(circle, segment, at, into),
+            Constraint::Tangent { .. }
+            | Constraint::ArcTangent { .. }
+            | Constraint::EllipseTangent { .. } => self.tangent_equations(constraint, into),
             Constraint::EqualRadius { .. }
             | Constraint::EqualRadiusArc { .. }
             | Constraint::EqualRadiusArcCircle { .. } => {
                 into.extend(self.equal_radius_equations(constraint))
-            }
-            Constraint::ArcTangent { arc, segment, at } => {
-                into.extend(self.arc_tangent_equations(arc, segment, at))
             }
             Constraint::Midpoint { point, segment } => {
                 self.midpoint_equations(point, segment, into)

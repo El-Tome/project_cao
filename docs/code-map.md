@@ -54,6 +54,7 @@ in one of the two domains, never there.
 | Where an ellipse crosses a trait, a circle, an arc or another ellipse | `sketch/src/crossing/ellipse.rs` | `where_segment_crosses_ellipse`, `where_circle_crosses_ellipse`, `where_arc_crosses_ellipse`, `where_ellipses_cross` |
 | An ellipse, and the turns at which the drawing runs through it | `sketch/src/ellipse_edges.rs` | `Oval`, `Sketch::ovals` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
+| Whether a rule still speaks of a drawing that has it | `sketch/src/sketch/holds_up.rs` | `Sketch::holds_up` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
 | What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
@@ -74,7 +75,7 @@ in one of the two domains, never there.
 | What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `supports_for`, `holds_on`, `slide`, `let_go` |
 | What a rule holding a point asks of the solver, and which of the two gives | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `held_alone`, `pulled_elsewhere` |
 | What being an ellipse asks of the solver: axes square and halved by the centre | `sketch/src/solver/ellipse_solver.rs` | `ellipse_equations` |
-| What a circle brushing a line asks of the solver | `sketch/src/solver/tangent_solver.rs` | `circle_tangent_equations` |
+| What a circle or an ellipse brushing a line asks of the solver | `sketch/src/solver/tangent_solver.rs` | `circle_tangent_equations`, `ellipse_tangent_equations` |
 | A point dropped and the drawing settled around it; an axis end held about its ellipse's centre | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |

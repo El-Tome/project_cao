@@ -318,6 +318,13 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole.
 
+A trait can be held **tangent to an ellipse**, as it can to a circle: the two
+picks are the trait and the curve, and the trait ends up brushing it and keeps
+brushing it when either is dragged. How far an ellipse stands from its centre
+depends on which way one looks, so what the rule holds is the reach in the
+direction square to the trait — which moves when the trait turns and again when
+either axis is stretched. An arc of ellipse takes the same rule.
+
 **Trimming an ellipse leaves an arc of ellipse**, as trimming a circle leaves
 an arc: the stretch between the two points either side of the click goes, and
 what is left is the same ellipse with that stretch taken away — it keeps its

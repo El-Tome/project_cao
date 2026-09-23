@@ -157,7 +157,7 @@
   "constraints.asks_for.equal": "Cliquez deux traits, ou deux cercles, à égaliser",
   "constraints.asks_for.coincident": "Cliquez un point puis un trait, ou deux points",
   "constraints.asks_for.collinear": "Cliquez deux traits à coucher sur la même droite",
-  "constraints.asks_for.tangent": "Cliquez un cercle puis un trait",
+  "constraints.asks_for.tangent": "Cliquez un cercle ou une ellipse puis un trait",
   "constraints.asks_for.midpoint": "Cliquez un point puis le trait qui le portera",
   "constraints.asks_for.fixed": "Cliquez le point à fixer",
   "constraints.asks_for.concentric": "Cliquez deux cercles à ramener sur le même centre",

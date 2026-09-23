@@ -9,7 +9,11 @@
 //!   `an_ellipse_free_to_grow_swells_until_it_meets_the_trait`
 //! - the rule leaves a point where the two touch, as a tangency on a circle
 //!   does, and takes it back when it goes —
-//!   `the_tangency_leaves_a_point_where_the_two_touch`
+//!   `the_tangency_leaves_a_point_where_the_two_touch`; it lands where the two
+//!   really meet however the trait leans, and follows them —
+//!   `the_touch_point_lands_on_the_curves_own_side_of_a_slanted_trait`; and
+//!   dragging it slides the curve along the trait —
+//!   `the_ellipse_slides_along_the_trait_when_its_touch_is_dragged`
 //! - dragging the ellipse keeps them touching —
 //!   `the_ellipse_dragged_keeps_the_trait_against_it`, and to the last decimal,
 //!   not just to the eye, when nothing is left holding it but the rule itself —
@@ -188,6 +192,89 @@ fn the_tangency_leaves_a_point_where_the_two_touch() {
         before,
         "and it goes when the rule does, rather than being left in mid-air",
     );
+}
+
+/// An ellipse about the origin, sixty wide and forty high, and a trait lying
+/// clear of it below and to the right, at a slant.
+///
+/// Square to an axis the touch sits square under the centre, as it does on a
+/// circle, and a reckoning that leans the wrong way lands on it all the same.
+/// At a slant the two part company.
+fn an_ellipse_and_a_slanted_trait() -> (Sketch, cao_sketch::EllipseId, SegmentId) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let west = sketch.add_point(DVec2::new(-30.0, 0.0));
+    let east = sketch.add_point(DVec2::new(30.0, 0.0));
+    let south = sketch.add_point(DVec2::new(0.0, -20.0));
+    let north = sketch.add_point(DVec2::new(0.0, 20.0));
+    let ellipse = sketch.add_ellipse(centre, [west, east], [south, north]);
+    let from = sketch.add_point(DVec2::new(-10.0, -70.0));
+    let to = sketch.add_point(DVec2::new(70.0, 10.0));
+    let segment = sketch.add_segment(from, to);
+    (sketch, ellipse, segment)
+}
+
+/// How far the touch point stands from where the curve and the trait really
+/// meet — off the curve, or off the trait, whichever is worse.
+fn touch_astray(sketch: &Sketch, ellipse: cao_sketch::EllipseId, segment: SegmentId) -> f64 {
+    let touch = sketch.point(the_touch_point(sketch));
+    let (from, to) = sketch.endpoints(segment);
+    let across = (to - from).perp().normalize();
+    sketch
+        .ellipse_draft(ellipse)
+        .distance(touch)
+        .max(across.dot(touch - from).abs())
+}
+
+#[test]
+fn the_touch_point_lands_on_the_curves_own_side_of_a_slanted_trait() {
+    let (mut sketch, ellipse, segment) = an_ellipse_and_a_slanted_trait();
+    sketch.add_constraint(Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    });
+    sketch.resolve(1.0);
+
+    let astray = touch_astray(&sketch, ellipse, segment);
+    assert!(
+        astray < 1e-2,
+        "the touch is where the two meet: {astray} off"
+    );
+
+    let centre = sketch.ellipses()[ellipse.0].center;
+    sketch.settle_around(centre, DVec2::new(-14.0, 9.0), 1.0);
+
+    let astray = touch_astray(&sketch, ellipse, segment);
+    assert!(astray < 1e-2, "and it follows them: {astray} off");
+}
+
+#[test]
+fn the_ellipse_slides_along_the_trait_when_its_touch_is_dragged() {
+    let (mut sketch, ellipse, segment) = an_ellipse_and_a_slanted_trait();
+    sketch.add_constraint(Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    });
+    sketch.resolve(1.0);
+    let touch = the_touch_point(&sketch);
+    let (was_centre, was_touch) = (
+        sketch.point(sketch.ellipses()[ellipse.0].center),
+        sketch.point(touch),
+    );
+    let (from, to) = sketch.endpoints(segment);
+    let along = (to - from).normalize();
+
+    sketch.settle_around(touch, was_touch + along * 25.0, 1.0);
+
+    let centre = sketch.point(sketch.ellipses()[ellipse.0].center);
+    assert!(
+        centre.distance(was_centre) > 10.0,
+        "the curve came along rather than standing still: {centre}",
+    );
+    let astray = touch_astray(&sketch, ellipse, segment);
+    assert!(astray < 1e-2, "and the two still meet there: {astray} off");
 }
 
 #[test]

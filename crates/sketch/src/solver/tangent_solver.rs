@@ -126,10 +126,15 @@ impl Sketch {
 
         // Where the two touch is a point of the drawing, and it is not free:
         // it lies on the line, and out from the centre the way the curve
-        // reaches.
-        if let Some(contact) = self.live_point(at) {
+        // reaches. Which of the two ways is the trait's own side of the
+        // centre, and `ellipse_touching` is what knows it — `outward` alone
+        // always leans the same way and would put the touch across the curve.
+        if let Some(contact) = self.live_point(at)
+            && let Some(touch) = self.ellipse_touching(ellipse, segment)
+        {
             into.extend(self.on_line_equation(contact, segment, 0.0));
-            into.extend(self.reached_equation(contact, oval.center, segment, outward));
+            let reaches = touch - self.point(oval.center);
+            into.extend(self.reached_equation(contact, oval.center, segment, reaches));
         }
     }
 

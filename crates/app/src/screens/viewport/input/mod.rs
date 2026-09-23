@@ -14,7 +14,6 @@ use glam::DVec2;
 
 use crate::screens::sketch::Tool;
 use crate::wording::constraints;
-use crate::wording::outcome;
 
 use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
 
@@ -41,6 +40,12 @@ pub(crate) use symmetric_line::draw_symmetric_line_point;
 
 mod split;
 use split::split;
+
+mod angle_arm;
+pub(super) use angle_arm::lean_on_an_arm;
+
+mod line;
+use line::dimension_the_line;
 
 mod trim;
 pub(crate) use trim::previewed as trim_shows;
@@ -467,6 +472,7 @@ pub(crate) fn draw_line_point(
                 ChainAnchor::Point(id) => PointRef::Existing(id),
                 ChainAnchor::Pending(position) => born_at(sketch, position),
             };
+            let opened = context.document.history.mark();
             context.document.apply(Operation::AddSegment {
                 sketch: index,
                 start: point_ref(start),
@@ -478,12 +484,17 @@ pub(crate) fn draw_line_point(
             // A point created by the operation is the last one in the sketch.
             let sketch = &context.document.sketches()[index];
             let drawn = SegmentId(sketch.segments().len().saturating_sub(1));
+            let sprung_from = sketch.segments()[drawn.0].start;
             let next_anchor = ChainAnchor::Point(match end {
                 ChainAnchor::Point(id) => id,
                 ChainAnchor::Pending(_) => PointId(sketch.points().len().saturating_sub(1)),
             });
 
+            if locked.second.is_some() {
+                lean_on_an_arm(context, index, drawn, sprung_from, pixel);
+            }
             dimension_the_line(context, index, drawn, aimed, pixel);
+            context.document.history.fold_into_one_gesture(opened);
             context.editor.tool_state = ToolState::Line {
                 anchor: next_anchor,
                 previous: Some(drawn),
@@ -517,45 +528,6 @@ fn aim(
         context.editor.live.locked(),
         context.document.scale(),
     )
-}
-
-/// Places on the line just drawn whatever the user typed, and the right angle
-/// they aimed at.
-///
-/// A value that would say nothing is left out: the drawing already holds it,
-/// and a second copy could only be redundant.
-fn dimension_the_line(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    segment: SegmentId,
-    aimed: Aim,
-    pixel: f64,
-) {
-    let locked = context.editor.live.locked();
-    let scale = context.document.scale();
-    let wanted = cao_sketch::line_dimensions(
-        &context.document.sketches()[index],
-        segment,
-        locked,
-        aimed.square_with,
-        scale,
-    );
-
-    for (target, value) in wanted {
-        // Pinned down where it is drawn, in sketch units: left to stand off by
-        // a distance in pixels, an annotation slides back over the drawing as
-        // soon as one zooms out.
-        let applied = context.document.apply(Operation::SetDimension {
-            sketch: index,
-            target,
-            value,
-            placement: annotation_position(context, index, target, pixel)
-                .map(|placement| placement.offset),
-        });
-        if let Some(message) = outcome::message(context.lang, applied) {
-            context.editor.message = Some(message);
-        }
-    }
 }
 
 /// How much of the plane to show when a sketch has no geometry to frame yet.

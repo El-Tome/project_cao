@@ -4,6 +4,7 @@
 //! straight into a part file.
 
 mod aim;
+mod angle_arm;
 mod angle_between;
 mod annotation;
 mod arc;
@@ -64,6 +65,7 @@ mod tool;
 mod trimming;
 
 pub use aim::{Aim, ChainAnchor, LockedInput, rectangle_corner};
+pub use angle_arm::{AngleArm, angle_arm};
 pub use annotation::{AnnotationMetrics, Placement};
 pub use arc::{Arc, ArcId};
 pub use arc_dimensions::arc_dimensions;

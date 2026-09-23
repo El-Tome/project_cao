@@ -3,10 +3,10 @@
 //! typed reaches one edge, the way the plain line tool reads its own anchor.
 
 use cao_part::history::{Operation, PointRef};
-use cao_sketch::{ChainAnchor, SegmentId, SymmetricClick, ToolState, symmetric_click};
+use cao_sketch::{ChainAnchor, Constraint, SegmentId, SymmetricClick, ToolState, symmetric_click};
 use glam::DVec2;
 
-use super::{annotation_position, born_at};
+use super::{annotation_position, born_at, lean_on_an_arm};
 use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
@@ -37,6 +37,7 @@ pub(crate) fn draw_symmetric_line_point(
                 ChainAnchor::Point(id) => PointRef::Existing(id),
                 ChainAnchor::Pending(position) => born_at(sketch, position),
             };
+            let opened = context.document.history.mark();
             context.document.apply(Operation::AddSymmetricSegment {
                 sketch: index,
                 middle: point_ref(middle),
@@ -46,7 +47,17 @@ pub(crate) fn draw_symmetric_line_point(
 
             let sketch = &context.document.sketches()[index];
             let drawn = SegmentId(sketch.segments().len().saturating_sub(1));
+            // The arm springs from the middle, which is the point the rule
+            // the operation laid holds halfway along the trait.
+            let sprung_from = sketch.constraints().iter().find_map(|rule| match rule {
+                Constraint::Midpoint { point, segment } if *segment == drawn => Some(*point),
+                _ => None,
+            });
+            if let (Some(sprung_from), true) = (sprung_from, locked.second.is_some()) {
+                lean_on_an_arm(context, index, drawn, sprung_from, pixel);
+            }
             dimension_the_symmetric_line(context, index, drawn, locked, pixel);
+            context.document.history.fold_into_one_gesture(opened);
 
             context.editor.tool_state = ToolState::None;
             context.editor.live.clear();

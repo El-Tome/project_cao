@@ -2,7 +2,7 @@
 //! types anything.
 
 use crate::aim::LockedInput;
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::constraints::{Constraint, DimensionTarget};
 use crate::ellipse::EllipseId;
 use crate::sketch::{SegmentId, Sketch};
 
@@ -55,15 +55,6 @@ pub fn line_dimensions(
     if let Some(length) = locked.first {
         wanted.push((DimensionTarget::Length(segment), length));
     }
-    if let Some(angle) = locked.second {
-        wanted.push((
-            DimensionTarget::AxisAngle {
-                segment,
-                axis: SketchAxis::U,
-            },
-            angle.abs(),
-        ));
-    }
     if let Some(first) = square_with {
         wanted.push((
             DimensionTarget::Angle {
@@ -92,15 +83,6 @@ pub fn symmetric_segment_dimensions(
             sketch.segment_length(segment) * scale,
         ));
     }
-    if let Some(angle) = locked.second {
-        wanted.push((
-            DimensionTarget::AxisAngle {
-                segment,
-                axis: SketchAxis::U,
-            },
-            angle.abs(),
-        ));
-    }
     settled(sketch, wanted, scale)
 }
 
@@ -121,15 +103,6 @@ pub fn ellipse_dimensions(
     let mut wanted: Vec<(DimensionTarget, f64)> = Vec::new();
     if let Some(width) = first.first {
         wanted.push((DimensionTarget::Length(oval.first), width));
-    }
-    if let Some(angle) = first.second {
-        wanted.push((
-            DimensionTarget::AxisAngle {
-                segment: oval.first,
-                axis: SketchAxis::U,
-            },
-            angle.abs(),
-        ));
     }
     if let Some(width) = second_width {
         wanted.push((DimensionTarget::Length(oval.second), width));

@@ -49,7 +49,8 @@ impl Sketch {
                 segment: line,
                 ..
             } => circle(round) && segment(line),
-            Constraint::AxisCollinear { segment: on, .. } => segment(on),
+            Constraint::AxisCollinear { segment: on, .. }
+            | Constraint::AxisParallel { segment: on, .. } => segment(on),
             Constraint::Fixed { element } => match element {
                 Element::Point(held) => point(held),
                 Element::Segment(held) => segment(held),

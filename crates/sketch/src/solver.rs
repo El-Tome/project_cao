@@ -8,6 +8,7 @@ use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
 mod arc_solver;
+mod axis_solver;
 mod ellipse_solver;
 mod hold_solver;
 mod tangent_solver;
@@ -267,7 +268,8 @@ impl Sketch {
                         stretched.push(second);
                     }
                     Constraint::Tangent { segment, .. }
-                    | Constraint::AxisCollinear { segment, .. } => stretched.push(segment),
+                    | Constraint::AxisCollinear { segment, .. }
+                    | Constraint::AxisParallel { segment, .. } => stretched.push(segment),
                     _ => {}
                 },
                 Row::Arc(_) | Row::Ellipse(_) => {}
@@ -698,6 +700,9 @@ impl Sketch {
             Constraint::AxisCollinear { segment, axis } => {
                 self.on_axis_equations(segment, axis, into)
             }
+            Constraint::AxisParallel { segment, axis } => {
+                self.along_axis_equation(segment, axis, into)
+            }
             // Held in place by the pins rather than by an equation: a fixed
             // point simply has nowhere to go.
             Constraint::Fixed { .. } => {}
@@ -790,28 +795,6 @@ impl Sketch {
             equation.add(other.start, -second_span / second_length);
         }
         Some(equation)
-    }
-
-    /// A trait laid on one of the sketch's own axes: both its ends have to sit
-    /// on that line, which is two statements.
-    fn on_axis_equations(
-        &self,
-        segment: SegmentId,
-        axis: crate::constraints::SketchAxis,
-        into: &mut Vec<Equation>,
-    ) {
-        let Some(line) = self.segments().get(segment.0).copied() else {
-            return;
-        };
-        let direction = axis.direction();
-        let normal = DVec2::new(-direction.y, direction.x);
-
-        for point in [line.start, line.end] {
-            let mut equation = Equation::new(self.variables());
-            equation.error = self.point(point).dot(normal);
-            equation.add(point, normal);
-            into.push(equation);
-        }
     }
 
     /// A point held at a given distance from the line a trait lies on — nought

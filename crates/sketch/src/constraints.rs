@@ -288,6 +288,12 @@ pub enum Constraint {
         segment: SegmentId,
         axis: SketchAxis,
     },
+    /// A trait running the way one of the sketch's own axes runs, without
+    /// lying on it. What holds the arm a typed angle is read against.
+    AxisParallel {
+        segment: SegmentId,
+        axis: SketchAxis,
+    },
     /// Something that stays where it is put. Only its place is held: a fixed
     /// circle keeps its centre, not its radius.
     Fixed {

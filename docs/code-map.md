@@ -48,7 +48,7 @@ in one of the two domains, never there.
 | A piece of a circle, and what keeps it round | `sketch/src/arc.rs` | `Arc`, `Sketch::add_arc`, `arc_sweep`, `arc_polyline`, `arc_equations` |
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along`, `bounds_of` |
-| An ellipse, laid with its two axes as construction traits, and what goes with it | `sketch/src/ellipse.rs` | `Ellipse`, `Sketch::add_ellipse`, `ellipse_draft`, `ellipse_points`, `ellipse_of_axis`, `erase_ellipse` |
+| An ellipse, laid with its two axes as construction traits, and the stretch of it a cut left | `sketch/src/ellipse.rs` | `Ellipse`, `Sketch::add_ellipse`, `ellipse_draft`, `ellipse_run`, `ellipse_ends`, `place_on_ellipse`, `erase_ellipse` |
 | The curve an ellipse is: where a turn lands, the nearest place, its box | `sketch/src/ellipsing.rs` | `EllipseDraft`, `through`, `at`, `nearest`, `bounds`, `places` |
 | Which ellipse the clicks gathered so far mean, once what was typed has had its say | `sketch/src/ellipse_placing.rs` | `ellipse_aimed`, `ellipse_from`, `ELLIPSE_PLACES` |
 | Where an ellipse crosses a trait, a circle, an arc or another ellipse | `sketch/src/crossing/ellipse.rs` | `where_segment_crosses_ellipse`, `where_circle_crosses_ellipse`, `where_arc_crosses_ellipse`, `where_ellipses_cross` |
@@ -59,6 +59,7 @@ in one of the two domains, never there.
 | Taking a stretch out of an arc | `sketch/src/trimming/arc.rs` | `Sketch::arc_stretch_at`, `Sketch::trim_arc` → `ArcTrimmed` |
 | What a cut of an **arc** carries over — nothing that names an arc names a trait, so the two have no rule in common, and the reach is read on one piece with the other held to it | `sketch/src/trimming/arc_carrying.rs` | `still_holds`, `still_measured`, `Piece` |
 | Taking a stretch out of a circle, which leaves one piece and that piece is an arc | `sketch/src/trimming/circle.rs` | `Sketch::circle_stretch_at`, `Sketch::trim_circle` → `CircleTrimmed` |
+| Taking a stretch out of an ellipse, which leaves the same ellipse with that stretch gone | `sketch/src/trimming/ellipse.rs` | `Sketch::ellipse_stretch_at`, `Sketch::trim_ellipse` → `EllipseTrimmed` |
 | What a cut would take out of the drawing, as against what a tool would lay | `sketch/src/trimming/going.rs` | `Sketch::trim_takes`, `arc_trim_takes`, `circle_trim_takes` → `Going`, `Stretch` |
 | Dropping a point where curves cross and cutting each of them in two there | `sketch/src/splitting.rs` | `Sketch::crossing_at` → `Crossing`, `Sketch::split` → `Split` |
 | Cutting the corner two traits share with a straight line | `sketch/src/chamfer.rs` | `Sketch::chamfer` → `Chamfered`, `Sketch::chamfer_fits`, `Chamfer`, `ChamferMode` |

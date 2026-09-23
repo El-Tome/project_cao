@@ -51,7 +51,7 @@ impl Sketch {
             }
         }
         for (id, _) in self.live_ellipses() {
-            let (lowest, highest) = self.ellipse_draft(id).bounds();
+            let (lowest, highest) = self.ellipse_bounds(id);
             if inside(lowest) && inside(highest) {
                 caught.push(Selection::Element(Element::Ellipse(id)));
             }

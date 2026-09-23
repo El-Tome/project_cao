@@ -39,7 +39,7 @@ impl Sketch {
                 None => Vec::new(),
             },
             Element::Ellipse(id) => match self.ellipses().get(id.0) {
-                Some(_) => self.ellipse_points(id).to_vec(),
+                Some(_) => self.ellipse_stands_on(id),
                 None => Vec::new(),
             },
         }

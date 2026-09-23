@@ -102,7 +102,7 @@ impl Sketch {
         }) || self
             .live_ellipses()
             .filter(|(_, ellipse)| !ellipse.construction)
-            .any(|(id, _)| self.ellipse_draft(id).distance(at) <= reach)
+            .any(|(id, _)| self.distance_to_ellipse(id, at) <= reach)
     }
 
     /// Drops a point where the named traits cross and cuts each of them in two

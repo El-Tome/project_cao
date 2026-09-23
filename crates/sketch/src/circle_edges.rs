@@ -107,7 +107,11 @@ impl Sketch {
         for (id, _) in self.live_ellipses().filter(|(_, it)| !it.construction) {
             let found =
                 where_circle_crosses_ellipse(round.centre, round.radius, self.ellipse_draft(id));
-            turns.extend(found.into_iter().map(|(turn, _)| turn));
+            // Only where the ellipse is drawn: the rest of its curve is not
+            // there to cross.
+            turns.extend(found.into_iter().filter_map(|(turn, there)| {
+                self.ellipse_holds_the_turn(id, there).then_some(turn)
+            }));
         }
         for (_, place) in self.live_points() {
             if round.holds(place) {

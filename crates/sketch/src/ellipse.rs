@@ -4,6 +4,10 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::ellipsing::EllipseDraft;
+
+/// How far round the turn two readings of one place may stand apart and still
+/// be that place: what the drawing already calls one place, read as a turn.
+const ON_THE_CURVE: f64 = 1e-9;
 use crate::erased::Erased;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 
@@ -27,6 +31,15 @@ pub struct Ellipse {
     pub second: SegmentId,
     #[serde(default)]
     pub construction: bool,
+    /// What is left of the curve after a cut: the stretch running the way the
+    /// curve runs, from the first point round to the second. `None` while the
+    /// whole of it is drawn.
+    ///
+    /// An arc of ellipse is the ellipse it was cut from with a stretch taken
+    /// away, and is kept as one: it holds its axes, its rules and its values,
+    /// and every tool that reads an ellipse reads it without being told.
+    #[serde(default)]
+    pub drawn: Option<(PointId, PointId)>,
 }
 
 impl Sketch {
@@ -65,6 +78,7 @@ impl Sketch {
             first,
             second,
             construction,
+            drawn: None,
         });
         EllipseId(self.ellipses.len() - 1)
     }
@@ -97,15 +111,121 @@ impl Sketch {
         }
     }
 
-    /// The whole curve as a closed run of places.
-    pub fn ellipse_polyline(&self, id: EllipseId) -> Vec<DVec2> {
-        self.ellipse_draft(id).places()
+    /// Leaves an ellipse drawn over the stretch running from one point round
+    /// to the other — what a history replaying an arc of ellipse lays.
+    pub fn draw_the_stretch(&mut self, id: EllipseId, from: PointId, to: PointId) {
+        if let Some(ellipse) = self.ellipses.get_mut(id.0) {
+            ellipse.drawn = Some((from, to));
+        }
     }
 
-    /// The ellipse whose curve passes closest to `position`.
+    /// The two ends of the stretch left of an ellipse, when a cut left one.
+    pub fn ellipse_ends(&self, id: EllipseId) -> Option<(PointId, PointId)> {
+        self.ellipses.get(id.0)?.drawn
+    }
+
+    /// Where the drawn stretch of an ellipse starts and how far round it runs,
+    /// in turns — the whole of it for an ellipse nothing has cut.
+    pub fn ellipse_run(&self, id: EllipseId) -> (f64, f64) {
+        let drawn = self.ellipse_draft(id);
+        let Some((from, to)) = self.ellipse_ends(id) else {
+            return (0.0, std::f64::consts::TAU);
+        };
+        let starts = drawn.turn_on(self.point(from));
+        let sweep = (drawn.turn_on(self.point(to)) - starts).rem_euclid(std::f64::consts::TAU);
+        (starts, sweep)
+    }
+
+    /// The stretch of the curve that is drawn, as a run of places.
+    pub fn ellipse_polyline(&self, id: EllipseId) -> Vec<DVec2> {
+        let drawn = self.ellipse_draft(id);
+        match self.ellipse_ends(id) {
+            None => drawn.places(),
+            Some(_) => {
+                let (from, sweep) = self.ellipse_run(id);
+                let steps = drawn.steps_over(sweep);
+                drawn.places_along(from, sweep, steps)
+            }
+        }
+    }
+
+    /// Whether the stretch running from one point round to the other lies on
+    /// what an ellipse has drawn — which is what says the cut of that stretch
+    /// is this piece's to give up.
+    pub fn ellipse_holds_the_stretch(&self, id: EllipseId, from: PointId, to: PointId) -> bool {
+        // A curve nothing has cut yet has no ends to run past: either way round
+        // between two points on it is a stretch it can give up.
+        if self.ellipse_ends(id).is_none() {
+            return true;
+        }
+        let drawn = self.ellipse_draft(id);
+        let (opens, sweep) = self.ellipse_run(id);
+        let along = |point: PointId| {
+            self.points()
+                .get(point.0)
+                .map(|place| (drawn.turn_on(*place) - opens).rem_euclid(std::f64::consts::TAU))
+        };
+        let (Some(near), Some(far)) = (along(from), along(to)) else {
+            return false;
+        };
+        near <= far && far <= sweep + ON_THE_CURVE
+    }
+
+    /// Whether a turn, as a fraction of a whole one, falls on the stretch of
+    /// an ellipse that is drawn.
+    pub(crate) fn ellipse_holds_the_turn(&self, id: EllipseId, fraction: f64) -> bool {
+        if self.ellipse_ends(id).is_none() {
+            return true;
+        }
+        let turn = std::f64::consts::TAU;
+        let (from, sweep) = self.ellipse_run(id);
+        let along = (fraction - from / turn + ON_THE_CURVE).rem_euclid(1.0) - ON_THE_CURVE;
+        (-ON_THE_CURVE..=sweep / turn + ON_THE_CURVE).contains(&along)
+    }
+
+    /// The smallest box the stretch that is drawn fits in — the whole curve's
+    /// own box while nothing has cut it.
+    pub fn ellipse_bounds(&self, id: EllipseId) -> (DVec2, DVec2) {
+        let drawn = self.ellipse_draft(id);
+        if self.ellipse_ends(id).is_none() {
+            return drawn.bounds();
+        }
+        let places = self.ellipse_polyline(id);
+        places
+            .iter()
+            .fold((places[0], places[0]), |(low, high), place| {
+                (low.min(*place), high.max(*place))
+            })
+    }
+
+    /// Where the drawn stretch of an ellipse takes a place near it.
+    ///
+    /// Past either end it is that end, not the far side of the curve: the rest
+    /// of the ellipse is not drawn, and a click out there must find nothing.
+    pub fn place_on_ellipse(&self, id: EllipseId, place: DVec2) -> DVec2 {
+        let drawn = self.ellipse_draft(id);
+        let (from, sweep) = self.ellipse_run(id);
+        let turn = drawn.turn_nearest(place);
+        let along = (turn - from).rem_euclid(std::f64::consts::TAU);
+        if along <= sweep {
+            return drawn.at(turn);
+        }
+        let (start, end) = (drawn.at(from), drawn.at(from + sweep));
+        match place.distance(start) <= place.distance(end) {
+            true => start,
+            false => end,
+        }
+    }
+
+    /// How far a place stands from the stretch that is drawn.
+    pub fn distance_to_ellipse(&self, id: EllipseId, place: DVec2) -> f64 {
+        self.place_on_ellipse(id, place).distance(place)
+    }
+
+    /// The ellipse whose drawn curve passes closest to `position`.
     pub fn nearest_ellipse(&self, position: DVec2, tolerance: f64) -> Option<EllipseId> {
         self.live_ellipses()
-            .map(|(id, _)| (id, self.ellipse_draft(id).distance(position)))
+            .map(|(id, _)| (id, self.distance_to_ellipse(id, position)))
             .filter(|(_, distance)| *distance <= tolerance)
             .min_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(id, _)| id)
@@ -118,8 +238,18 @@ impl Sketch {
             .map(|(id, _)| id)
     }
 
-    /// The five points an ellipse stands on: its centre, then the ends of its
-    /// first axis and of its second.
+    /// Every point an ellipse stands on: the five its axes give it, and the
+    /// two ends of the stretch drawn when a cut left one.
+    pub fn ellipse_stands_on(&self, id: EllipseId) -> Vec<PointId> {
+        let mut points = self.ellipse_points(id).to_vec();
+        if let Some((from, to)) = self.ellipse_ends(id) {
+            points.extend([from, to]);
+        }
+        points
+    }
+
+    /// The five points the axes of an ellipse give it: its centre, then the
+    /// ends of its first axis and of its second.
     pub fn ellipse_points(&self, id: EllipseId) -> [PointId; 5] {
         let ellipse = self.ellipses[id.0];
         let (first, second) = (
@@ -155,7 +285,7 @@ impl Sketch {
     /// Every ellipse standing on `point`, to be taken with it.
     pub(crate) fn ellipses_leaning_on(&self, point: PointId) -> Vec<Element> {
         self.live_ellipses()
-            .filter(|(id, _)| self.ellipse_points(*id).contains(&point))
+            .filter(|(id, _)| self.ellipse_stands_on(*id).contains(&point))
             .map(|(id, _)| Element::Ellipse(id))
             .collect()
     }
@@ -169,9 +299,13 @@ impl Sketch {
         }
         Erased::mark(&mut self.erased.ellipses, id.0);
         let ellipse = self.ellipses[id.0];
-        let points = self.ellipse_points(id);
-        self.erase(Element::Segment(ellipse.first));
-        self.erase(Element::Segment(ellipse.second));
+        let points = self.ellipse_stands_on(id);
+        // A cut in the middle of a curve leaves two pieces on one pair of
+        // axes: the axes go with the last of them, not with the first.
+        if !self.shares_its_axes(id) {
+            self.erase(Element::Segment(ellipse.first));
+            self.erase(Element::Segment(ellipse.second));
+        }
         for point in points {
             if !self.is_erased_point(point) && !self.anything_stands_on(point) {
                 self.erase(Element::Point(point));
@@ -179,9 +313,11 @@ impl Sketch {
         }
     }
 
-    /// Takes away the ellipse a trait was an axis of, if it was one.
+    /// Takes away every ellipse a trait was an axis of — a cut in the middle
+    /// of a curve leaves two pieces on one pair of axes, and neither can stand
+    /// without them.
     pub(crate) fn erase_ellipse_of(&mut self, segment: SegmentId) {
-        if let Some(ellipse) = self.ellipse_of_axis(segment) {
+        while let Some(ellipse) = self.ellipse_of_axis(segment) {
             self.erase_ellipse(ellipse);
         }
     }

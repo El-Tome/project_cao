@@ -171,6 +171,12 @@ impl EllipseDraft {
         self.places_along(0.0, std::f64::consts::TAU, FULL_ELLIPSE_STEPS)
     }
 
+    /// Into how many straight steps a stretch of the curve is cut, as its
+    /// share of the whole.
+    pub fn steps_over(&self, sweep: f64) -> usize {
+        ((sweep / std::f64::consts::TAU * FULL_ELLIPSE_STEPS as f64).ceil() as usize).max(2)
+    }
+
     /// One run of the curve as a run of places, ends included, counter-clockwise
     /// from `from` over `sweep`.
     ///

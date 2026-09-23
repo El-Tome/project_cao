@@ -100,17 +100,16 @@ pub(super) fn push_arc_at(
     );
 }
 
-/// The whole curve an ellipse draws.
+/// The curve an ellipse draws, whole or one stretch of it.
 pub(super) fn push_ellipse_at(
     out: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    drawn: EllipseDraft,
+    places: Vec<DVec2>,
     color: [f32; 4],
     width: f32,
     construction: bool,
     scale: ViewScale,
 ) {
-    let places = drawn.places();
     // The steps of an ellipse are not all of one length, as a circle's are;
     // their mean keeps the dashes about the size a circle's would be.
     let run: f64 = places
@@ -128,6 +127,12 @@ pub(super) fn push_ellipse_at(
         construction,
         scale,
     );
+}
+
+/// The run of places one stretch of an ellipse is drawn as, from where it
+/// opens over how far it goes.
+pub(super) fn places_of(drawn: EllipseDraft, from: f64, sweep: f64) -> Vec<DVec2> {
+    drawn.places_along(from, sweep, drawn.steps_over(sweep))
 }
 
 /// A run of places joined up, plain or, for construction geometry, with every

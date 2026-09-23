@@ -213,7 +213,7 @@ pub(crate) fn push_sketch(
         push_ellipse_at(
             out,
             sketch,
-            sketch.ellipse_draft(id),
+            sketch.ellipse_polyline(id),
             color,
             width,
             oval.construction,

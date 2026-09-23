@@ -206,7 +206,13 @@ impl PartState {
                 first,
                 second,
                 construction,
-            } => self.add_ellipse(*sketch, center, first, second, *construction),
+                drawn,
+            } => self.add_ellipse(*sketch, center, first, second, *construction, drawn),
+            Operation::TrimEllipse {
+                sketch,
+                ellipse,
+                between,
+            } => self.trim_ellipse(*sketch, *ellipse, *between),
             Operation::ResizeEllipse {
                 sketch,
                 ellipse,

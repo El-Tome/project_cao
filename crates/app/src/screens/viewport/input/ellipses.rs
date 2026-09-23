@@ -67,6 +67,7 @@ pub(crate) fn draw_ellipse(
         first,
         second,
         construction: context.editor.construction,
+        drawn: None,
     });
     let ellipse = EllipseId(
         context.document.sketches()[index]

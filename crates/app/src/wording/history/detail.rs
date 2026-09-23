@@ -295,6 +295,30 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
                 ("to", &to.0.to_string()),
             ],
         ),
+        Operation::TrimEllipse {
+            sketch,
+            ellipse,
+            between: Some((from, to)),
+        } => lang.t_with(
+            "history.detail.ellipse_trimmed",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("ellipse", &ellipse.0.to_string()),
+                ("from", &from.0.to_string()),
+                ("to", &to.0.to_string()),
+            ],
+        ),
+        Operation::TrimEllipse {
+            sketch,
+            ellipse,
+            between: None,
+        } => lang.t_with(
+            "history.detail.ellipse_taken_whole",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("ellipse", &ellipse.0.to_string()),
+            ],
+        ),
         Operation::TrimCircle {
             sketch,
             circle,

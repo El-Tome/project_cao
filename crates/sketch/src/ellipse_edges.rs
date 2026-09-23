@@ -23,11 +23,19 @@ pub(crate) struct Oval {
     pub(crate) id: EllipseId,
     pub(crate) drawn: EllipseDraft,
     pub(crate) turns: Vec<f64>,
+    /// Where the stretch that is drawn starts and how far it runs, as
+    /// fractions of a whole turn — nothing at all for an ellipse no cut has
+    /// taken a stretch out of, which is drawn the whole way round.
+    pub(crate) run: Option<(f64, f64)>,
 }
 
 /// How far off the curve a place may stand and still be taken as on it, read
 /// against how far out it stands so the drawing can be measured in anything.
 const ON_THE_CURVE: f64 = 1e-9;
+
+/// How far round the turn a place may stand past the end of a run and still be
+/// that end, as a fraction of a whole turn.
+const ROUND_THE_CURVE: f64 = 1e-9;
 
 impl Oval {
     pub(crate) fn place_at(&self, turn: f64) -> DVec2 {
@@ -43,6 +51,19 @@ impl Oval {
 
     fn holds(&self, place: DVec2) -> bool {
         self.drawn.distance(place) <= ON_THE_CURVE * (1.0 + place.abs().max_element())
+            && self.holds_the_turn(self.turn_at(place))
+    }
+
+    /// Whether a turn falls on the stretch that is drawn.
+    pub(crate) fn holds_the_turn(&self, turn: f64) -> bool {
+        let Some((from, sweep)) = self.run else {
+            return true;
+        };
+        // With slack at both ends: a crossing that lands on the end a run
+        // opens at falls a hair the other side of it half the time, and a run
+        // not broken there leaves the ring beside it uncut.
+        let along = (turn - from + ROUND_THE_CURVE).rem_euclid(1.0) - ROUND_THE_CURVE;
+        (-ROUND_THE_CURVE..=sweep + ROUND_THE_CURVE).contains(&along)
     }
 
     /// How far round its turn the ellipse stands at a place on it.
@@ -56,10 +77,15 @@ impl Sketch {
         let mut ovals: Vec<Oval> = self
             .live_ellipses()
             .filter(|(_, ellipse)| !ellipse.construction)
-            .map(|(id, _)| Oval {
-                id,
-                drawn: self.ellipse_draft(id),
-                turns: Vec::new(),
+            .map(|(id, _)| {
+                let (from, sweep) = self.ellipse_run(id);
+                let turn = std::f64::consts::TAU;
+                Oval {
+                    id,
+                    drawn: self.ellipse_draft(id),
+                    turns: Vec::new(),
+                    run: self.ellipse_ends(id).map(|_| (from / turn, sweep / turn)),
+                }
             })
             .collect();
 
@@ -68,9 +94,14 @@ impl Sketch {
             for (other, far) in ovals.iter().enumerate() {
                 if other != index {
                     let found = where_ellipses_cross(ovals[index].drawn, far.drawn);
-                    turns.extend(found.into_iter().map(|(near, _)| near));
+                    turns.extend(
+                        found
+                            .into_iter()
+                            .filter_map(|(near, there)| far.holds_the_turn(there).then_some(near)),
+                    );
                 }
             }
+            turns.retain(|turn| ovals[index].holds_the_turn(*turn));
             turns.sort_by(f64::total_cmp);
             ovals[index].turns = turns;
         }

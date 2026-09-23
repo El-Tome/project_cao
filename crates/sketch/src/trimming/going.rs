@@ -8,6 +8,8 @@ use super::circle::read_again;
 use crate::arc::ArcId;
 use crate::arcing::ArcDraft;
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::ellipse::EllipseId;
+use crate::ellipsing::EllipseDraft;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 /// A place squarely inside any piece, so that what is *fastened* to a place on
@@ -46,6 +48,13 @@ pub enum Stretch {
     Round {
         centre: DVec2,
         reach: f64,
+    },
+    /// A stretch of an ellipse: where it opens, and how far round it goes.
+    /// The whole of one is a sweep of a whole turn.
+    Oval {
+        drawn: EllipseDraft,
+        from: f64,
+        sweep: f64,
     },
 }
 
@@ -101,6 +110,45 @@ impl Sketch {
                         .is_some_and(|moved| measures(&trial, moved))
                 })
             }),
+        })
+    }
+
+    /// The same for an ellipse. Named nothing to cut between, the whole of
+    /// what is drawn goes — which is what a click on a curve carrying fewer
+    /// than two points does.
+    ///
+    /// Nothing is handed over: what a cut leaves of an ellipse is the very
+    /// ellipse, so every rule and every value it carried still speaks of it.
+    pub fn ellipse_trim_takes(
+        &self,
+        ellipse: EllipseId,
+        between: Option<(PointId, PointId)>,
+    ) -> Option<Going> {
+        let mut trial = self.clone();
+        trial.trim_ellipse(ellipse, between)?;
+        let oval = self.ellipses().get(ellipse.0).copied()?;
+        let drawn = self.ellipse_draft(ellipse);
+        let (opens, sweep) = self.ellipse_run(ellipse);
+        Some(Going {
+            stretch: match between {
+                Some((from, to)) => {
+                    let opens = drawn.turn_on(*self.points().get(from.0)?);
+                    let closes = drawn.turn_on(*self.points().get(to.0)?);
+                    Stretch::Oval {
+                        drawn,
+                        from: opens,
+                        sweep: (closes - opens).rem_euclid(std::f64::consts::TAU),
+                    }
+                }
+                None => Stretch::Oval {
+                    drawn,
+                    from: opens,
+                    sweep,
+                },
+            },
+            construction: oval.construction,
+            rules: self.rules_gone(&trial, |_| false),
+            values: self.values_gone(&trial, |_| false),
         })
     }
 

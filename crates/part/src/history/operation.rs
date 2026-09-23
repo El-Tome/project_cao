@@ -50,6 +50,7 @@ impl Operation {
             | Self::Trim { sketch, .. }
             | Self::TrimArc { sketch, .. }
             | Self::TrimCircle { sketch, .. }
+            | Self::TrimEllipse { sketch, .. }
             | Self::Split { sketch, .. }
             | Self::Chamfer { sketch, .. }
             | Self::Fillet { sketch, .. }
@@ -136,6 +137,11 @@ pub enum Operation {
     },
     /// An ellipse, as its centre and the two ends of each of its axes. The axes
     /// are laid with it as construction traits, in the same step.
+    ///
+    /// `drawn` is the stretch of it left after a cut, as the two points it runs
+    /// between. Nothing while the whole curve is drawn, which is how one is
+    /// laid; compaction writes it out so that an arc of ellipse comes back as
+    /// the one it is rather than as the whole curve.
     AddEllipse {
         sketch: usize,
         center: PointRef,
@@ -143,6 +149,8 @@ pub enum Operation {
         second: [PointRef; 2],
         #[serde(default)]
         construction: bool,
+        #[serde(default)]
+        drawn: Option<[PointRef; 2]>,
     },
     /// Dragging a point to a new place, and the corner it was laid on top of
     /// when it landed on one.
@@ -292,6 +300,14 @@ pub enum Operation {
     TrimCircle {
         sketch: usize,
         circle: CircleId,
+        between: Option<(PointId, PointId)>,
+    },
+    /// Takes a stretch out of an ellipse, which leaves the same ellipse with
+    /// that stretch gone — and a second piece of it when the stretch came out
+    /// of the middle of one already cut.
+    TrimEllipse {
+        sketch: usize,
+        ellipse: EllipseId,
         between: Option<(PointId, PointId)>,
     },
     /// Drops a point where curves cross and cuts each of them in two there.

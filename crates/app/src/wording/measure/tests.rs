@@ -11,8 +11,10 @@
 //! - a circle says its radius and its diameter together —
 //!   `a_round_says_both_the_radius_and_the_diameter`
 //! - an angle is said in degrees — `an_angle_is_said_in_degrees`
-//! - nothing a measure says is rounded on the way to the screen —
-//!   `a_measure_rounds_nothing_off_what_it_read`
+//! - a measure is held to the figures the reader asked for, lengths and angle
+//!   alike — `a_measure_is_held_to_the_figures_the_reader_asked_for`
+//! - and turning that setting down turns every one of them down —
+//!   `fewer_figures_shortens_every_number_a_measure_says`
 
 use super::*;
 
@@ -34,12 +36,17 @@ fn millimetres() -> UnitDisplay {
     UnitDisplay::Fixed(cao_prefs::config::LengthUnit::Millimeter)
 }
 
+/// The figures a fresh installation shows, which is as many as the arithmetic
+/// is trusted for.
+const FIGURES: u32 = cao_prefs::config::MOST_FIGURES;
+
 fn a_run(target: DimensionTarget, span: f64, offsets: DVec2) -> Said {
     says(
         &french(),
         target,
         Reading::Gap { span, offsets },
         millimetres(),
+        FIGURES,
     )
 }
 
@@ -110,6 +117,7 @@ fn a_round_says_both_the_radius_and_the_diameter() {
         DimensionTarget::ArcRadius(cao_sketch::ArcId(0)),
         Reading::Round { radius: 12.5 },
         millimetres(),
+        FIGURES,
     ) else {
         panic!("a circle is not a run, and is written beside itself");
     };
@@ -132,6 +140,7 @@ fn an_angle_is_said_in_degrees() {
         },
         Reading::Opening { degrees: 37.25 },
         millimetres(),
+        FIGURES,
     ) else {
         panic!("an angle is not a run either");
     };
@@ -144,10 +153,10 @@ fn an_angle_is_said_in_degrees() {
 }
 
 #[test]
-fn a_measure_rounds_nothing_off_what_it_read() {
-    // A run of forty and a hair. Rounded to the tenth a dimension shows, all
-    // three of these read as round numbers and the drawing looks exact when it
-    // is not — which is the one thing a measuring tool may not do.
+fn a_measure_is_held_to_the_figures_the_reader_asked_for() {
+    // A run of forty and a hair. Rounded the way a dimension is, all three of
+    // these read as round numbers and the drawing looks exact when it is not —
+    // which is the one thing a measuring tool may not do.
     let Said::Triangle { span, across, up } = a_run(
         distance(),
         40.001_531_099_2,
@@ -156,13 +165,11 @@ fn a_measure_rounds_nothing_off_what_it_read() {
         panic!("a straight run is shown as a triangle");
     };
 
+    assert!(span.contains("40.0015"), "the run: {span:?}");
+    assert!(up.contains("0.350001"), "and each reach: {up:?}");
     assert!(
-        span.contains("40.0015310992"),
-        "the run keeps every digit it has: {span:?}",
-    );
-    assert!(
-        across.contains("40.00002") && up.contains("0.3500007"),
-        "and so do both reaches: {across:?} {up:?}",
+        across.contains("40 "),
+        "a reach round to six figures says so plainly, rather than 40.0000: {across:?}",
     );
 
     let Said::Beside(lines) = says(
@@ -175,12 +182,45 @@ fn a_measure_rounds_nothing_off_what_it_read() {
             degrees: 37.249_998_3,
         },
         millimetres(),
+        FIGURES,
     ) else {
         panic!("an angle is written beside itself");
     };
     assert!(
-        lines[0].contains("37.2499983"),
-        "an angle is a reading too, and was the last thing still rounding \
-         itself to a tenth of a degree: {lines:?}",
+        lines[0].contains("37.25"),
+        "an angle is a reading too, and was the last thing still holding itself \
+         to a tenth of a degree whatever was asked: {lines:?}",
+    );
+}
+
+#[test]
+fn fewer_figures_shortens_every_number_a_measure_says() {
+    let read = |figures| {
+        says(
+            &french(),
+            distance(),
+            Reading::Gap {
+                span: 1234.5678,
+                offsets: DVec2::new(std::f64::consts::SQRT_2, 1234.0),
+            },
+            millimetres(),
+            figures,
+        )
+    };
+
+    let Said::Triangle { span, across, .. } = read(cao_prefs::config::FEWEST_FIGURES) else {
+        panic!("a straight run is shown as a triangle");
+    };
+
+    assert!(
+        span.contains("1230"),
+        "three figures of a thousand is a round thousand, not 1235 — which is \
+         four figures wearing a round face: {span:?}",
+    );
+    assert!(across.contains("1.41"), "and the reach with it: {across:?}");
+    assert_ne!(
+        read(cao_prefs::config::MOST_FIGURES),
+        read(cao_prefs::config::FEWEST_FIGURES),
+        "the setting is the reader's, and has to actually move something",
     );
 }

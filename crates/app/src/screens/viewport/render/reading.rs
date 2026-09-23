@@ -140,6 +140,7 @@ pub(crate) fn paint_measure(
         target,
         reading.scaled(context.document.scale()),
         state.config.unit,
+        state.config.measure_figures,
     );
     let theme = &state.theme;
 

@@ -90,6 +90,13 @@ pub(super) fn section(ui: &mut egui::Ui, profiles: &mut Profiles, lang: &Catalog
         }
     });
 
+    slider(
+        ui,
+        &mut config.measure_figures,
+        cao_prefs::config::FEWEST_FIGURES..=cao_prefs::config::MOST_FIGURES,
+        &lang.t("settings.viewport.measure_figures"),
+    );
+
     ui.add_space(10.0);
     ui.heading(lang.t("settings.viewport.camera"));
     ui.add(

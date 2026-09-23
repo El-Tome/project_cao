@@ -32,35 +32,37 @@ pub enum Said {
 /// What a measure says, from what it read.
 ///
 /// Lengths go through the same unit the rest of the interface shows, so a
-/// drawing read in centimetres does not suddenly answer in millimetres — but
-/// **unrounded**, unlike a dimension's. A dimension is typed and read back, and
-/// typing 40 should give 40 rather than 39.999999999999996; a measure reports
-/// what is there, and a report that rounds is how a drawing that drifted by a
-/// hair goes on looking exact.
+/// drawing read in centimetres does not suddenly answer in millimetres — and
+/// held to `figures` significant figures, where a dimension is rounded far
+/// harder. A dimension is typed and read back, so it rounds to what a person
+/// would type; a measure reports what is there, so how much of the number is
+/// worth reading is the reader's call, and `figures` is where they say it.
 pub fn says(
     lang: &Catalogue,
     target: DimensionTarget,
     reading: Reading,
     unit: UnitDisplay,
+    figures: u32,
 ) -> Said {
     let say = |key: &str, value: String| lang.t_with(key, &[("value", &value)]);
     match reading {
         Reading::Gap { span, offsets } => Said::Triangle {
-            span: say(headline(target), unit.in_full(span)),
-            across: unit.in_full(offsets.x),
-            up: unit.in_full(offsets.y),
+            span: say(headline(target), unit.in_figures(span, figures)),
+            across: unit.in_figures(offsets.x, figures),
+            up: unit.in_figures(offsets.y, figures),
         },
         // Both, because a measure need not choose: a hole is drilled to a
         // diameter and a clearance is checked on a radius, and the one gesture
         // this tool would otherwise have to teach is the one that picks
         // between them.
         Reading::Round { radius } => Said::Beside(vec![
-            say("measure.radius", unit.in_full(radius)),
-            say("measure.diameter", unit.in_full(radius * 2.0)),
+            say("measure.radius", unit.in_figures(radius, figures)),
+            say("measure.diameter", unit.in_figures(radius * 2.0, figures)),
         ]),
-        Reading::Opening { degrees } => {
-            Said::Beside(vec![say("measure.angle", format!("{degrees}"))])
-        }
+        Reading::Opening { degrees } => Said::Beside(vec![say(
+            "measure.angle",
+            cao_prefs::config::to_figures(degrees, figures),
+        )]),
     }
 }
 

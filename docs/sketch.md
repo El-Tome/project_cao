@@ -279,14 +279,24 @@ the run, each written on the side it measures. The hypotenuse is the distance;
 the two legs are the reaches, drawn in the colours the sketch's own axes wear,
 so which is which needs no word.
 
-**Nothing is rounded on the way to the screen.** A measure shows every digit
-the number has — the shortest decimal that reads back as the very same `f64`,
-so nothing is invented and nothing is hidden. That is the opposite of a
-dimension, which rounds because it is a value the drawing is *held to*: typing
-40 has to read back 40 rather than 39.999999999999996. A measure reports what
-is there instead, and a report that rounds is how a drawing that has drifted by
-a hair goes on looking exact. The honest cost is a long number for a length
-that genuinely is one — a diagonal is rarely round.
+**A measure is held to six significant figures, and the reader may turn it
+down to three** — *Chiffres d'une mesure*, in the viewport preferences beside
+the unit. A dimension rounds far harder, because it is a value the drawing is
+*held to*: it is typed, and typing 40 has to read back 40 rather than
+39.999999999999996. A measure reports what is there instead, and a report that
+rounds too hard is how a drawing that has drifted by a hair goes on looking
+exact.
+
+Significant figures rather than decimal places, so the precision follows the
+size of what is measured: six figures is a tenth of a micron on a part of a
+millimetre and a hundredth of a millimetre on one of a metre. Three is a
+thousandth of whatever is being measured, which is where a reading stops
+telling a machinist anything new; six is where the arithmetic stops being
+trustworthy, a value that has been through the solver and a change of scale
+having lost several of the fifteen figures `f64` carries. Rounding happens in
+the value and not in the printing, so 1234.5678 to three figures is 1230 —
+what three figures means — and not 1235, which is four of them wearing a round
+face.
 
 **Every value is shown, and only a reach of nothing at all is left out** — a
 trait exactly square to an axis has no second reach, and "0 mm" under its

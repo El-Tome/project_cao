@@ -127,6 +127,44 @@ impl Default for TrackpadConfig {
     }
 }
 
+/// How many significant figures a measure may be shown to, at the least and
+/// at the most.
+///
+/// Three is a thousandth of whatever is being measured, which is where a
+/// reading stops telling a machinist anything new. Six is where the arithmetic
+/// stops being trustworthy: the geometry is `f64` and good for about fifteen
+/// figures on its own, but a value that has been through a solver and a change
+/// of scale has lost several, and printing digits nobody can stand behind is
+/// the same lie as rounding one that matters.
+pub const FEWEST_FIGURES: u32 = 3;
+pub const MOST_FIGURES: u32 = 6;
+
+fn default_measure_figures() -> u32 {
+    MOST_FIGURES
+}
+
+/// A value held to a number of significant figures, with the trailing zeros
+/// that rounding leaves behind taken off again.
+///
+/// Rounded rather than truncated, and rounded in the value rather than in the
+/// printing, so that 1234.5678 to three figures is 1230 — what three figures
+/// means — and not 1235, which is four of them wearing a round face.
+pub fn to_figures(value: f64, figures: u32) -> String {
+    let figures = figures.clamp(FEWEST_FIGURES, MOST_FIGURES);
+    if value == 0.0 || !value.is_finite() {
+        return format!("{value}");
+    }
+    let exponent = value.abs().log10().floor();
+    let step = 10f64.powf(exponent - f64::from(figures - 1));
+    let rounded = (value / step).round() * step;
+    let decimals = (f64::from(figures - 1) - exponent).max(0.0) as usize;
+    let text = format!("{rounded:.decimals$}");
+    match text.contains('.') {
+        true => text.trim_end_matches('0').trim_end_matches('.').to_string(),
+        false => text,
+    }
+}
+
 /// A unit of length for what is displayed to the user. One world unit is one
 /// millimetre for now; a part will later be able to carry its own scale.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -181,21 +219,20 @@ impl LengthUnit {
         format!("{text} {}", self.suffix())
     }
 
-    /// The same length with nothing rounded off it: every digit the number
-    /// actually has.
+    /// The same length held to a number of significant figures.
     ///
     /// `format` above is for a value the drawing is *held to* — a dimension is
     /// typed, and typing 40 should read back 40 rather than 39.999999999999996.
-    /// A measure is the other thing: it reports what is there, and rounding a
-    /// report is how a drawing that drifted by a hair goes on looking exact.
-    /// So the two are kept apart rather than one being made to serve both.
+    /// A measure is the other thing: it reports what is there, so it is given
+    /// a great deal more room, and how much is the reader's to say.
     ///
-    /// Rust prints the shortest decimal that reads back as the very same
-    /// `f64`, which is exactly what is wanted: nothing is invented and nothing
-    /// is hidden.
-    pub fn in_full(self, millimeters: f64) -> String {
+    /// Significant figures rather than decimal places, so that the precision
+    /// follows the size of what is being measured: six figures is a tenth of a
+    /// micron on a part of a millimetre and a hundredth of a millimetre on one
+    /// of a metre, which is the right shape for both.
+    pub fn in_figures(self, millimeters: f64, figures: u32) -> String {
         let value = millimeters / self.millimeters();
-        format!("{value} {}", self.suffix())
+        format!("{} {}", to_figures(value, figures), self.suffix())
     }
 }
 
@@ -237,6 +274,12 @@ pub struct ViewportConfig {
     pub ruler_corner: ViewportCorner,
     pub ruler_visible: bool,
     pub unit: UnitDisplay,
+    /// How many significant figures a measure is shown to, between
+    /// [`FEWEST_FIGURES`] and [`MOST_FIGURES`]. A measure reports rather than
+    /// decides, so how much of the number is worth reading is the reader's
+    /// call and not the tool's.
+    #[serde(default = "default_measure_figures")]
+    pub measure_figures: u32,
 }
 
 impl Default for ViewportConfig {
@@ -260,6 +303,7 @@ impl Default for ViewportConfig {
             ruler_corner: ViewportCorner::BottomLeft,
             ruler_visible: true,
             unit: UnitDisplay::Auto,
+            measure_figures: default_measure_figures(),
         }
     }
 }
@@ -302,9 +346,10 @@ impl UnitDisplay {
         self.unit_for(millimeters).format(millimeters)
     }
 
-    /// The same, with nothing rounded off it. See [`LengthUnit::in_full`].
-    pub fn in_full(self, millimeters: f64) -> String {
-        self.unit_for(millimeters).in_full(millimeters)
+    /// The same, held to a number of significant figures. See
+    /// [`LengthUnit::in_figures`].
+    pub fn in_figures(self, millimeters: f64, figures: u32) -> String {
+        self.unit_for(millimeters).in_figures(millimeters, figures)
     }
 }
 

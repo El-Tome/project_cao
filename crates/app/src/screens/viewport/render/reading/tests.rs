@@ -19,14 +19,17 @@
 //!   `a_number_stands_on_the_side_it_measures`
 //! - the numbers are in front of the drawing rather than merely painted after
 //!   it — `every_number_sits_on_a_pill_so_the_drawing_cannot_swallow_it`
-//! - a run square to an axis is drawn as itself rather than as a sliver —
-//!   `a_run_square_to_an_axis_is_drawn_as_itself_and_not_as_a_sliver`
-//! - and says one number rather than two on the same spot —
-//!   `a_run_square_to_an_axis_says_one_number_rather_than_two_on_the_same_line`
-//! - a run that genuinely leans still comes apart —
+//! - a run a hair off an axis keeps all three of its numbers —
+//!   `a_run_a_hair_off_an_axis_still_says_all_three_of_its_numbers`
+//! - and two that would land on each other step onto two lines —
+//!   `two_numbers_that_would_land_on_each_other_step_onto_two_lines`
+//! - a reach of nothing at all is not written —
+//!   `a_reach_of_nothing_at_all_is_not_written`
+//! - a number only steps aside for a real overlap, not for a graze —
+//!   `a_number_stands_on_the_side_it_measures`, which fails the moment a
+//!   corner touching by a tenth of a point sends one a whole line down
+//! - a run that genuinely leans is drawn as three sides —
 //!   `a_run_that_genuinely_leans_still_comes_apart_into_three`
-//! - the sides and the numbers never disagree about which of the two it is —
-//!   `the_lines_and_the_numbers_never_disagree_about_whether_there_is_a_triangle`
 //! - nothing is drawn while no measure is being shown —
 //!   `nothing_is_drawn_while_no_measure_is_being_shown`
 //! - a measure is drawn apart from a real dimension, so the two are never
@@ -418,63 +421,68 @@ fn colours_of(to: DVec2) -> Vec<[f32; 4]> {
     seen
 }
 
-#[test]
-fn a_run_square_to_an_axis_is_drawn_as_itself_and_not_as_a_sliver() {
-    for to in [A_HAIR_OFF_FLAT, A_HAIR_OFF_UPRIGHT] {
-        let colours = colours_of(to);
-
-        assert_eq!(
-            colours,
-            vec![shade(Theme::default().measure)],
-            "the run {to:?} is square to an axis to within half a degree: its \
-             long reach lies along it and the short one is nothing, so a \
-             triangle is one line drawn three times over",
-        );
-    }
+/// Where every pill a frame painted landed.
+fn pills(shapes: &[egui::Shape]) -> Vec<egui::Rect> {
+    shapes
+        .iter()
+        .filter_map(|shape| match shape {
+            egui::Shape::Rect(rect) => Some(rect.rect),
+            _ => None,
+        })
+        .collect()
 }
 
 #[test]
-fn a_run_square_to_an_axis_says_one_number_rather_than_two_on_the_same_line() {
+fn a_run_a_hair_off_an_axis_still_says_all_three_of_its_numbers() {
     for to in [A_HAIR_OFF_FLAT, A_HAIR_OFF_UPRIGHT] {
         let said = words(&painted_of(to, Some(the_distance())));
 
         assert_eq!(
             said.len(),
-            1,
-            "its length is its reach along that axis, and two names for one \
-             measurement land on top of each other: {said:?}",
+            3,
+            "the short reach is small but it is not nothing, and a measure that \
+             quietly drops a true value is worse than one that has to stack two \
+             lines: {said:?}",
         );
         assert!(
-            said[0].0.contains("40"),
-            "and the one it says is the length: {said:?}",
+            said.iter().any(|(number, _)| number.contains("0.3")),
+            "the short reach is one of them: {said:?}",
         );
     }
-}
-
-/// Right on the threshold: a reach of exactly the eighteen pixels a triangle
-/// needs, worked out from the view the tests draw through.
-fn a_run_on_the_very_edge() -> DVec2 {
-    DVec2::new(40.0, a_view().units_per_pixel * 18.0)
 }
 
 #[test]
-fn the_lines_and_the_numbers_never_disagree_about_whether_there_is_a_triangle() {
-    // A run either side of the threshold, and one sitting on it: the shape is
-    // decided twice — once pushing vertices, once painting text — and the two
-    // readings drifting apart is what leaves a number with no side under it.
-    let edge = a_run_on_the_very_edge();
-    for to in [
-        edge,
-        DVec2::new(edge.x, edge.y * 0.9),
-        DVec2::new(edge.x, edge.y * 1.1),
-    ] {
-        assert_eq!(
-            colours_of(to).len(),
-            words(&painted_of(to, Some(the_distance()))).len(),
-            "a side drawn with no number on it, or a number with no side, for \
-             the run {to:?}",
-        );
+fn two_numbers_that_would_land_on_each_other_step_onto_two_lines() {
+    for to in [A_HAIR_OFF_FLAT, A_HAIR_OFF_UPRIGHT] {
+        let written = pills(&painted_of(to, Some(the_distance())));
+
+        assert_eq!(written.len(), 3, "one pill per number");
+        for (rank, pill) in written.iter().enumerate() {
+            for other in &written[rank + 1..] {
+                assert!(
+                    !pill.intersects(*other),
+                    "two numbers written over each other for the run {to:?}: \
+                     {pill:?} and {other:?}",
+                );
+            }
+        }
     }
+}
+
+#[test]
+fn a_reach_of_nothing_at_all_is_not_written() {
+    let said = words(&painted_of(DVec2::new(40.0, 0.0), Some(the_distance())));
+
+    assert_eq!(
+        said.len(),
+        2,
+        "square on the axis, the run's length already is its reach that way, \
+         and \"0 mm\" underneath says nothing: {said:?}",
+    );
+    assert!(
+        !said.iter().any(|(number, _)| number.starts_with('0')),
+        "and the one left out is the empty one: {said:?}",
+    );
 }
 
 #[test]

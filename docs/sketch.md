@@ -279,13 +279,17 @@ the run, each written on the side it measures. The hypotenuse is the distance;
 the two legs are the reaches, drawn in the colours the sketch's own axes wear,
 so which is which needs no word.
 
-**A trait square to an axis has no triangle**, and is drawn as itself with one
-number: its length *is* its reach along that axis, and the other is nothing, so
-the long leg would lie along the run and the two numbers land on the same spot.
-It is the same rule the dimension tool already follows in refusing such a trait
-a width and a height — two names for one measurement is one name too many. The
-reading is taken on screen rather than as an angle: the same half-degree trait
-is a sliver zoomed out and a proper triangle zoomed right in.
+**Every value is shown, and only a reach of nothing at all is left out** — a
+trait exactly square to an axis has no second reach, and "0 mm" under its
+length says nothing. A reach that is merely small is still true and is still
+written.
+
+On a trait a hair off an axis the length and the long reach land on the same
+spot. Neither is dropped: the second **steps down onto a line of its own**, so
+both stay readable. A number only steps aside for a real overlap — two corners
+grazing by a tenth of a point are left alone, since a whole line's jump to
+answer that would put the number further from the side it measures than the
+graze ever was.
 
 Every number sits on a dark pill, which is what puts it *in front of* the
 drawing rather than merely painted after it: over an ellipse or a filled area,

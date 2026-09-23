@@ -33,26 +33,15 @@ const TEXT_POINTS: f32 = 13.0;
 /// through the digits.
 const CLEAR_OF_THE_SIDE: f32 = 10.0;
 
-/// A reach thinner than this on screen, in pixels, is no triangle at all.
-///
-/// Read on screen rather than as an angle, because that is where the trouble
-/// is: the same half-degree trait is a sliver zoomed out and a proper triangle
-/// zoomed right in, and it is only worth coming apart when there is room to
-/// see it come apart.
-const A_TRIANGLE_NEEDS: f64 = 18.0;
+/// The gap left between two numbers that would otherwise land on each other.
+const BETWEEN_TWO_LINES: f32 = 3.0;
 
-/// Whether a run has two reaches worth reading, or is square to an axis.
+/// How much two pills may graze each other before one steps aside.
 ///
-/// Square to an axis, its length *is* its reach along that axis and the other
-/// is nothing: the long leg lies along the run and the short one is a dot, so
-/// the triangle is one line drawn three times over with two numbers on the
-/// same spot. The drawing tool already refuses to offer a trait square to an
-/// axis a width and a height for the same reason — two names for one
-/// measurement is one name too many.
-fn comes_apart(from: DVec2, to: DVec2, units_per_pixel: f64) -> bool {
-    let reach = (to - from).abs() / units_per_pixel.max(f64::MIN_POSITIVE);
-    reach.x.min(reach.y) >= A_TRIANGLE_NEEDS
-}
+/// Without it, two corners touching by a tenth of a point send a number a
+/// whole line down — a jump forty times the overlap that caused it, and the
+/// number ends up further from the side it measures than the graze ever was.
+const A_GRAZE: f32 = 2.5;
 
 /// The three sides of the triangle a straight run is shown as, in the drawing's
 /// own coordinates: the run itself, then the reach across and the reach up.
@@ -85,12 +74,13 @@ pub(crate) fn push_measure(
     };
     let width = theme.sketch_width;
     if let Some((from, to)) = sketch.run_of(target) {
-        let apart = comes_apart(from, to, scale.units_per_pixel);
-        for ((start, end), colour) in sides(from, to)
-            .into_iter()
-            .zip(colours(theme))
-            .take(if apart { 3 } else { 1 })
-        {
+        for ((start, end), colour) in sides(from, to).into_iter().zip(colours(theme)) {
+            // A reach of nothing at all is a trait square to its axis. There is
+            // no side to draw and no number to write: its length already is its
+            // reach that way.
+            if start.distance(end) <= f64::EPSILON {
+                continue;
+            }
             push_line(
                 out,
                 sketch.plane.to_world(start),
@@ -162,20 +152,37 @@ pub(crate) fn paint_measure(
         .camera
         .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
 
+    // Where the numbers already are. A near-axis run puts its length and its
+    // long reach at almost the same spot, and two numbers written over each
+    // other are worse than either alone — so the second steps down onto a line
+    // of its own instead of being dropped. Both are true and both are wanted.
+    let mut taken: Vec<egui::Rect> = Vec::new();
+
     match (said, sketch.run_of(target)) {
         (Said::Triangle { span, across, up }, Some((from, to))) => {
-            let apart = comes_apart(from, to, pixel);
             for (((start, end), colour), number) in sides(from, to)
                 .into_iter()
                 .zip(colours(theme))
                 .zip([span, across, up])
-                .take(if apart { 3 } else { 1 })
             {
+                // A reach of nothing at all: the run is square to its axis, its
+                // length already says that reach, and "0 mm" says nothing.
+                if start.distance(end) <= f64::EPSILON {
+                    continue;
+                }
                 let (Some(start), Some(end)) = (onto_the_screen(start), onto_the_screen(end))
                 else {
                     continue;
                 };
-                write(ui, rect, beside(start, end), &number, colour, theme);
+                write(
+                    ui,
+                    rect,
+                    beside(start, end),
+                    &number,
+                    colour,
+                    theme,
+                    &mut taken,
+                );
             }
         }
         (Said::Beside(lines), _) => {
@@ -185,7 +192,15 @@ pub(crate) fn paint_measure(
             let Some(at) = onto_the_screen(placed.text_at) else {
                 return;
             };
-            write(ui, rect, at, &lines.join("\n"), theme.measure, theme);
+            write(
+                ui,
+                rect,
+                at,
+                &lines.join("\n"),
+                theme.measure,
+                theme,
+                &mut taken,
+            );
         }
         _ => {}
     }
@@ -199,7 +214,30 @@ fn beside(start: egui::Pos2, end: egui::Pos2) -> egui::Pos2 {
     middle + egui::vec2(-along.y, along.x) * CLEAR_OF_THE_SIDE
 }
 
-/// One number, on a pill of its own.
+/// The nearest place under `wanted` where a pill of this size touches none of
+/// the pills already written.
+///
+/// Straight down, one line at a time, which is what turns two numbers landing
+/// on each other into two numbers on two lines.
+fn onto_a_free_line(wanted: egui::Pos2, size: egui::Vec2, taken: &[egui::Rect]) -> egui::Pos2 {
+    let mut at = wanted;
+    let step = size.y + BETWEEN_TWO_LINES;
+    // One try per pill already written, and one more: each step clears at most
+    // one of them, so there is always a line free by the end.
+    for _ in 0..=taken.len() {
+        let pill = egui::Rect::from_center_size(at, size).shrink(A_GRAZE);
+        if !taken
+            .iter()
+            .any(|written| written.shrink(A_GRAZE).intersects(pill))
+        {
+            return at;
+        }
+        at.y += step;
+    }
+    at
+}
+
+/// One number, on a pill of its own, on a line no other number is using.
 ///
 /// The pill is what puts a number *in front* rather than merely last: painted
 /// over an ellipse or a filled area, bare text keeps the lines running through
@@ -207,10 +245,11 @@ fn beside(start: egui::Pos2, end: egui::Pos2) -> egui::Pos2 {
 fn write(
     ui: &egui::Ui,
     rect: egui::Rect,
-    at: egui::Pos2,
+    wanted: egui::Pos2,
     number: &str,
     colour: Rgba,
     theme: &Theme,
+    taken: &mut Vec<egui::Rect>,
 ) {
     let painter = ui.painter_at(rect);
     let text = painter.layout_no_wrap(
@@ -218,7 +257,9 @@ fn write(
         egui::FontId::proportional(TEXT_POINTS),
         tint_to_color(colour),
     );
-    let pill = egui::Rect::from_center_size(at, text.size() + egui::vec2(8.0, 4.0));
+    let size = text.size() + egui::vec2(8.0, 4.0);
+    let pill = egui::Rect::from_center_size(onto_a_free_line(wanted, size, taken), size);
+    taken.push(pill);
     painter.rect_filled(pill, 4.0, backdrop(theme));
     painter.galley(
         pill.center() - text.size() / 2.0,

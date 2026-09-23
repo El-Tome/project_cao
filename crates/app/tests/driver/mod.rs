@@ -2,6 +2,12 @@
 //! `CreationContext` of its own, hands it no render state, and steps it frame by
 //! frame; what the user would do with a hand is written below as gestures.
 
+// Every test file that says `mod driver;` compiles this module afresh, and
+// uses the handful of gestures it needs. A gesture another file relies on is
+// dead code here, which is a fact about the compilation unit rather than about
+// the repository.
+#![allow(dead_code)]
+
 use cao_app::app::CaoApp;
 use cao_prefs::Locations;
 use egui_kittest::Harness;

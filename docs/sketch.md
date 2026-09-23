@@ -257,6 +257,42 @@ reading. The standard toolbar carries no row for them — they are reached by a
 shortcut, or by adding them to the bar from the palette
 ([configuration.md](configuration.md)).
 
+## Measuring without writing
+
+**Mesurer** reads the drawing and puts nothing on it. Nothing enters the
+history, nothing is saved, and the part is not marked as modified — a measure
+is a way of looking, and it is gone on the next click.
+
+| What is clicked | What one gets |
+| --- | --- |
+| Two points | The distance between them |
+| A trait | Its length |
+| A point then a trait, either way round | The distance from the point to the line, taken square |
+| A trait then a trait **parallel** to it | The gap between them |
+| A trait then a trait that is **not** parallel | The angle they open |
+| A circle or an arc | Its radius **and** its diameter |
+
+A distance and a length both carry the reach along the sketch's two axes under
+the value: "how much higher" is asked as often as "how far".
+
+It is drawn as a dashed line over what was read, in the quieter of the two
+dimension colours, with the numbers beside it. Dashed and quiet on purpose: the
+one thing a measure must never be mistaken for is a dimension, which is a
+promise the drawing is held to.
+
+**One measure at a time.** It goes when the next one starts, on `Échap`, when
+another tool is taken, and on any change to the drawing at all — undo, redo,
+anything — so it never shows a value that has stopped being true.
+
+It shares the smart dimension's aim, which is why it takes a trait and a point
+the same way. Where the two part company is the circle and the pair of
+parallels. A dimension has to *be* one value, so a circle gives it the diameter
+and the radius has to be asked for by clicking the centre next; a measure has
+no such duty and says both at once. And two parallels, which a dimension refuses
+because they open no angle, are exactly where a measure has something to say.
+
+The area and the perimeter of a closed region are not done yet — issue #425.
+
 ## Circles
 
 The **Cercles** menu, in the Dessin row, offers five ways:

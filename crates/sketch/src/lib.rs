@@ -104,7 +104,7 @@ pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
 pub use splitting::{Crossing, Split};
 pub use symmetric::{SymmetricClick, symmetric_click};
-pub use tool::{SelectState, ToolState};
+pub use tool::{Measured, SelectState, ToolState};
 pub use trimming::Trimmed;
 pub use trimming::arc::ArcTrimmed;
 pub use trimming::circle::CircleTrimmed;

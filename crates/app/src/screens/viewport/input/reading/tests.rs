@@ -20,6 +20,23 @@
 //!   `a_second_measure_replaces_the_first_rather_than_joining_it`
 //! - clicking away from everything clears what was shown —
 //!   `a_click_on_nothing_clears_what_was_being_shown`
+//!
+//! Closes #425.
+//! - clicking inside a closed area shows its surface and how far round it is —
+//!   `a_click_inside_a_closed_area_reads_its_surface_and_the_way_round_it`
+//! - a shape drawn inside another gives the innermost area under the cursor —
+//!   `a_click_inside_two_nested_shapes_takes_the_inner_one`
+//! - clicking where no area closes shows nothing and clears what was there —
+//!   `a_click_where_nothing_closes_reads_no_area_and_clears_what_was_there`
+//! - nothing is added to the history and the part is not marked as modified —
+//!   `measuring_the_whole_drawing_leaves_the_history_empty`, which now reads an
+//!   area too
+//! - the area read is tinted while it is on screen — no test: the tinting is
+//!   asserted in `render/reading/tests.rs`, and a bullet may only name a test
+//!   of its own file
+//! - a hole comes out of the surface, and the curve is honoured rather than
+//!   the polygon — no test: both are geometry, asserted in
+//!   `sketch/regions/measure/tests.rs`
 //! - the dashed line and the label are drawn from the measure — no test: the
 //!   drawing is asserted in `render/reading/tests.rs`, and a bullet may only
 //!   name a test of its own file
@@ -33,8 +50,8 @@
 //!   untouched here, and its own tests in `sketch/measuring/tests.rs` hold it
 
 use cao_part::PartDocument;
-use cao_part::history::Operation;
-use cao_sketch::{Reading, WorkPlane};
+use cao_part::history::{Operation, PointRef};
+use cao_sketch::{Measured, PointId, Reading, WorkPlane};
 use chrono::Utc;
 
 use super::*;
@@ -86,11 +103,15 @@ impl Drawing {
     }
 
     fn reading(&self) -> Option<Reading> {
-        let target = match &self.editor.tool_state {
+        let showing = match &self.editor.tool_state {
             ToolState::Measure { showing, .. } => (*showing)?,
             _ => return None,
         };
-        self.document.sketches()[0].read(target)
+        let sketch = &self.document.sketches()[0];
+        match showing {
+            Measured::Of(target) => sketch.read(target),
+            Measured::Inside(place) => sketch.read_inside(place),
+        }
     }
 
     fn gap(&self) -> (f64, DVec2) {
@@ -101,25 +122,46 @@ impl Drawing {
     }
 }
 
-fn a_square_and_a_circle() -> Drawing {
-    let mut drawing = Drawing::new();
-    let corners = [
-        DVec2::new(0.0, 0.0),
-        DVec2::new(40.0, 0.0),
-        DVec2::new(40.0, 25.0),
-        DVec2::new(0.0, 25.0),
-    ];
-    for pair in [(0, 1), (1, 2), (2, 3), (3, 0)] {
+/// Lays a closed shape, its corners shared between one side and the next.
+///
+/// A side laying its own two ends would leave eight points where four were
+/// wanted, and a loop that never closes: no area at all.
+fn lay_a_shape(drawing: &mut Drawing, corners: &[DVec2]) {
+    let laid: Vec<PointRef> = corners
+        .iter()
+        .map(|place| {
+            drawing.document.apply(Operation::AddPoint {
+                sketch: 0,
+                position: *place,
+                on: Vec::new(),
+            });
+            PointRef::Existing(PointId(drawing.document.sketches()[0].points().len() - 1))
+        })
+        .collect();
+    for side in 0..laid.len() {
         drawing.document.apply(Operation::AddSegment {
             sketch: 0,
-            start: cao_part::history::PointRef::New(corners[pair.0]),
-            end: cao_part::history::PointRef::New(corners[pair.1]),
+            start: laid[side].clone(),
+            end: laid[(side + 1) % laid.len()].clone(),
             construction: false,
         });
     }
+}
+
+fn a_square_and_a_circle() -> Drawing {
+    let mut drawing = Drawing::new();
+    lay_a_shape(
+        &mut drawing,
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(40.0, 0.0),
+            DVec2::new(40.0, 25.0),
+            DVec2::new(0.0, 25.0),
+        ],
+    );
     drawing.document.apply(Operation::AddCircle {
         sketch: 0,
-        center: cao_part::history::PointRef::New(DVec2::new(100.0, 100.0)),
+        center: PointRef::New(DVec2::new(100.0, 100.0)),
         radius: 12.5,
         rim: Vec::new(),
         construction: false,
@@ -244,6 +286,64 @@ fn a_circle_shows_a_round_the_label_says_both_ways() {
 }
 
 #[test]
+fn a_click_inside_a_closed_area_reads_its_surface_and_the_way_round_it() {
+    let mut drawing = a_square_and_a_circle();
+
+    drawing.click(DVec2::new(20.0, 12.0));
+
+    let Some(Reading::Surface { area, perimeter }) = drawing.reading() else {
+        panic!("the rectangle closes an area, got {:?}", drawing.reading());
+    };
+    assert!(
+        (area - 1000.0).abs() < TOLERANCE,
+        "forty across and twenty-five up, got {area}",
+    );
+    assert!(
+        (perimeter - 130.0).abs() < TOLERANCE,
+        "twice each side, got {perimeter}",
+    );
+}
+
+#[test]
+fn a_click_inside_two_nested_shapes_takes_the_inner_one() {
+    let mut drawing = a_square_and_a_circle();
+    lay_a_shape(
+        &mut drawing,
+        &[
+            DVec2::new(10.0, 5.0),
+            DVec2::new(30.0, 5.0),
+            DVec2::new(30.0, 20.0),
+            DVec2::new(10.0, 20.0),
+        ],
+    );
+
+    drawing.click(DVec2::new(20.0, 12.0));
+
+    let Some(Reading::Surface { area, .. }) = drawing.reading() else {
+        panic!("a closed area was read, got {:?}", drawing.reading());
+    };
+    assert!(
+        (area - 300.0).abs() < TOLERANCE,
+        "the inner shape is what the cursor is in, and the outer one is only \
+         what it is in as well; got {area}",
+    );
+}
+
+#[test]
+fn a_click_where_nothing_closes_reads_no_area_and_clears_what_was_there() {
+    let mut drawing = a_square_and_a_circle();
+    drawing.click(DVec2::new(20.0, 12.0));
+    assert!(drawing.reading().is_some(), "the area was read");
+
+    drawing.click(DVec2::new(500.0, 500.0));
+
+    assert!(
+        drawing.reading().is_none(),
+        "outside everything there is no area to report",
+    );
+}
+
+#[test]
 fn measuring_the_whole_drawing_leaves_the_history_empty() {
     let mut drawing = a_square_and_a_circle();
     let before = drawing.document.history.operations().len();
@@ -254,6 +354,7 @@ fn measuring_the_whole_drawing_leaves_the_history_empty() {
         DVec2::new(20.0, 0.0),
         DVec2::new(0.0, 12.5),
         DVec2::new(112.5, 100.0),
+        DVec2::new(20.0, 12.0),
         DVec2::new(500.0, 500.0),
     ]
     .into_iter()

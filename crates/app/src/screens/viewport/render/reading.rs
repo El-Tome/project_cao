@@ -15,12 +15,12 @@
 //! awkward angles — traits lying apart, a trait against an axis.
 
 use cao_prefs::theme::{Rgba, Theme};
-use cao_sketch::Sketch;
+use cao_sketch::{Measured, Sketch};
 use glam::DVec2;
 
 use super::curves::push_line;
 use super::overlays::{tint_to_color, to_screen};
-use super::tint;
+use super::{tint, tint_at};
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
 use crate::screens::viewport::{SketchContext, ViewScale, ViewportState};
@@ -64,13 +64,20 @@ fn colours(theme: &Theme) -> [Rgba; 3] {
 /// shape.
 pub(crate) fn push_measure(
     out: &mut Vec<cao_render::Vertex>,
+    surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
     context: &SketchContext<'_>,
     theme: &Theme,
     scale: ViewScale,
 ) {
-    let Some(target) = measure_showing(context) else {
-        return;
+    let target = match measure_showing(context) {
+        Some(Measured::Of(target)) => target,
+        // An area is shown by tinting it, the way the extrusion tints the ones
+        // it is offered: two nested shapes make it genuinely ambiguous which
+        // one was read, and a number with no shape under it answers for
+        // nothing.
+        Some(Measured::Inside(place)) => return tint_the_area(surfaces, sketch, place, theme),
+        None => return,
     };
     let width = theme.sketch_width;
     if let Some((from, to)) = sketch.run_of(target) {
@@ -109,6 +116,28 @@ pub(crate) fn push_measure(
     }
 }
 
+/// Tints the closed area a place falls in, so the number beside it has a shape
+/// to belong to.
+fn tint_the_area(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    sketch: &Sketch,
+    place: DVec2,
+    theme: &Theme,
+) {
+    let regions = sketch.regions();
+    let Some(area) = cao_sketch::area_under(&regions, place).map(|rank| &regions[rank]) else {
+        return;
+    };
+    let colour = tint_at(theme.measure, 0.18);
+    // Holes stay empty: what is lit is exactly the surface the number reports.
+    for corner in area.face_triangles().into_iter().flatten() {
+        surfaces.push(cao_render::Vertex::solid(
+            sketch.plane.to_world(corner).as_vec3(),
+            colour,
+        ));
+    }
+}
+
 /// The numbers, each on the side it measures, each on a pill of its own so the
 /// drawing under it cannot swallow it.
 pub(crate) fn paint_measure(
@@ -117,7 +146,7 @@ pub(crate) fn paint_measure(
     rect: egui::Rect,
     context: &SketchContext<'_>,
 ) {
-    let Some(target) = measure_showing(context) else {
+    let Some(measured) = measure_showing(context) else {
         return;
     };
     let Some(index) = context.editor.active_sketch() else {
@@ -126,7 +155,11 @@ pub(crate) fn paint_measure(
     let Some(sketch) = context.document.sketches().get(index) else {
         return;
     };
-    let Some(reading) = sketch.read(target) else {
+    let reading = match measured {
+        Measured::Of(target) => sketch.read(target),
+        Measured::Inside(place) => sketch.read_inside(place),
+    };
+    let Some(reading) = reading else {
         return;
     };
     let view_projection = state
@@ -137,7 +170,7 @@ pub(crate) fn paint_measure(
 
     let said = crate::wording::measure::says(
         context.lang,
-        target,
+        measured,
         reading.scaled(context.document.scale()),
         state.config.unit,
         state.config.measure_figures,
@@ -159,7 +192,12 @@ pub(crate) fn paint_measure(
     // of its own instead of being dropped. Both are true and both are wanted.
     let mut taken: Vec<egui::Rect> = Vec::new();
 
-    match (said, sketch.run_of(target)) {
+    let run = match measured {
+        Measured::Of(target) => sketch.run_of(target),
+        Measured::Inside(_) => None,
+    };
+
+    match (said, run) {
         (Said::Triangle { span, across, up }, Some((from, to))) => {
             for (((start, end), colour), number) in sides(from, to)
                 .into_iter()
@@ -187,10 +225,15 @@ pub(crate) fn paint_measure(
             }
         }
         (Said::Beside(lines), _) => {
-            let Some(placed) = sketch.place(target, metrics(pixel, DVec2::ZERO)) else {
-                return;
+            // An area is written where it was clicked; everything else where
+            // the annotation for it would have put its own value.
+            let belongs = match measured {
+                Measured::Inside(place) => Some(place),
+                Measured::Of(target) => sketch
+                    .place(target, metrics(pixel, DVec2::ZERO))
+                    .map(|placed| placed.text_at),
             };
-            let Some(at) = onto_the_screen(placed.text_at) else {
+            let Some(at) = belongs.and_then(onto_the_screen) else {
                 return;
             };
             write(

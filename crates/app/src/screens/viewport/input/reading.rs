@@ -6,7 +6,8 @@
 //! recorded, and it is what marks the part as modified further up.
 
 use cao_sketch::{
-    DimensionMode, DimensionPick, DimensionPicks, DimensionTarget, SegmentId, Sketch, ToolState,
+    DimensionMode, DimensionPick, DimensionPicks, DimensionTarget, Measured, SegmentId, Sketch,
+    ToolState,
 };
 use glam::DVec2;
 
@@ -36,10 +37,10 @@ pub(crate) fn read(
     // a centre turns a diameter into a radius. This is the whole of what makes
     // the dimension tool smart, and the measure is no less so for reading
     // rather than recording.
-    if let Some(target) = shown
+    if let Some(Measured::Of(target)) = shown
         && let Some(refined) = refined(sketch, target, cursor, snap)
     {
-        return show(context, picks, Some(refined), None);
+        return show(context, picks, Some(Measured::Of(refined)), None);
     }
 
     let (picks, outcome) =
@@ -49,7 +50,7 @@ pub(crate) fn read(
     // a value nobody is asking about any more. Only `Unchanged` — a click that
     // landed on nothing new — leaves what is on screen alone.
     match outcome {
-        DimensionPick::Target(target) => show(context, picks, Some(target), None),
+        DimensionPick::Target(target) => show(context, picks, Some(Measured::Of(target)), None),
         // The dimension tool only reaches this having been told to look for an
         // angle, which the measure never does — the gap between two parallels
         // comes through `refined` instead. Said properly all the same, rather
@@ -87,7 +88,15 @@ pub(crate) fn read(
             None,
             Some("sketch.point_in_line_with_the_trait"),
         ),
-        DimensionPick::Nothing => show(context, picks, None, Some("sketch.nothing_to_measure")),
+        // Nothing under the cursor to take hold of, so the click is asking
+        // about the ground it landed on: the closed area it fell inside, if
+        // the drawing closes one round it. An area is the largest target there
+        // is and so is tried last, after everything a click could have been
+        // aimed at.
+        DimensionPick::Nothing => match sketch.read_inside(cursor) {
+            Some(_) => show(context, picks, Some(Measured::Inside(cursor)), None),
+            None => show(context, picks, None, Some("sketch.nothing_to_measure")),
+        },
         DimensionPick::Unchanged => show(context, picks, shown, None),
     }
 }
@@ -97,7 +106,7 @@ pub(crate) fn read(
 fn show(
     context: &mut SketchContext<'_>,
     picks: DimensionPicks,
-    showing: Option<DimensionTarget>,
+    showing: Option<Measured>,
     message: Option<&str>,
 ) -> bool {
     context.editor.tool_state = ToolState::Measure { picks, showing };
@@ -146,7 +155,7 @@ fn across_to(sketch: &Sketch, first: SegmentId, second: SegmentId) -> Option<Dim
 
 /// What the measure tool has on screen right now, and nothing when another
 /// tool is in hand.
-pub(crate) fn showing(context: &SketchContext<'_>) -> Option<DimensionTarget> {
+pub(crate) fn showing(context: &SketchContext<'_>) -> Option<Measured> {
     match &context.editor.tool_state {
         ToolState::Measure { showing, .. } => *showing,
         _ => None,

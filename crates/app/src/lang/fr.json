@@ -613,6 +613,8 @@
   "measure.radius": "Rayon {value}",
   "measure.diameter": "Diamètre {value}",
   "measure.angle": "Angle {value}°",
+  "measure.surface": "Aire {value}",
+  "measure.way_round": "Périmètre {value}",
   "sketch.invalid_value": "Valeur invalide",
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
   "sketch.no_dimension_here": "Cote impossible ici",

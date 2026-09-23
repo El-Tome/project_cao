@@ -11,7 +11,7 @@
 //! they run along, which says which is which without a word.
 
 use cao_prefs::config::UnitDisplay;
-use cao_sketch::{DimensionTarget, Reading};
+use cao_sketch::{DimensionTarget, Measured, Reading};
 
 use crate::lang::Catalogue;
 
@@ -39,7 +39,7 @@ pub enum Said {
 /// worth reading is the reader's call, and `figures` is where they say it.
 pub fn says(
     lang: &Catalogue,
-    target: DimensionTarget,
+    measured: Measured,
     reading: Reading,
     unit: UnitDisplay,
     figures: u32,
@@ -47,7 +47,7 @@ pub fn says(
     let say = |key: &str, value: String| lang.t_with(key, &[("value", &value)]);
     match reading {
         Reading::Gap { span, offsets } => Said::Triangle {
-            span: say(headline(target), unit.in_figures(span, figures)),
+            span: say(headline(measured), unit.in_figures(span, figures)),
             across: unit.in_figures(offsets.x, figures),
             up: unit.in_figures(offsets.y, figures),
         },
@@ -63,6 +63,12 @@ pub fn says(
             "measure.angle",
             cao_prefs::config::to_figures(degrees, figures),
         )]),
+        // Both, and in this order: the surface is what the area *is*, and how
+        // far round it is what one would cut.
+        Reading::Surface { area, perimeter } => Said::Beside(vec![
+            say("measure.surface", unit.surface_in_figures(area, figures)),
+            say("measure.way_round", unit.in_figures(perimeter, figures)),
+        ]),
     }
 }
 
@@ -72,9 +78,9 @@ pub fn says(
 /// The two reaches carry no word of their own — each is written on a side
 /// drawn in its axis's colour, and a `ΔX` beside a red line says nothing the
 /// red line has not already said.
-fn headline(target: DimensionTarget) -> &'static str {
-    match target {
-        DimensionTarget::Length(_) => "measure.length",
+fn headline(measured: Measured) -> &'static str {
+    match measured {
+        Measured::Of(DimensionTarget::Length(_)) => "measure.length",
         _ => "measure.distance",
     }
 }

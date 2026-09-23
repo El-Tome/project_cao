@@ -351,6 +351,22 @@ impl UnitDisplay {
     pub fn in_figures(self, millimeters: f64, figures: u32) -> String {
         self.unit_for(millimeters).in_figures(millimeters, figures)
     }
+
+    /// A surface, in the square of the unit its own size calls for.
+    ///
+    /// The unit is chosen from the side of a square of that surface, which is
+    /// the length it is really made of: a hundred square millimetres is ten
+    /// millimetres square, and saying so in millimetres is right where saying
+    /// it in micrometres would not be.
+    pub fn surface_in_figures(self, square_millimeters: f64, figures: u32) -> String {
+        let unit = self.unit_for(square_millimeters.abs().sqrt());
+        let across = unit.millimeters();
+        format!(
+            "{} {}²",
+            to_figures(square_millimeters / (across * across), figures),
+            unit.suffix(),
+        )
+    }
 }
 
 #[cfg(test)]

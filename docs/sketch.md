@@ -332,7 +332,24 @@ and the radius has to be asked for by clicking the centre next; a measure has
 no such duty and says both at once. And two parallels, which a dimension refuses
 because they open no angle, are exactly where a measure has something to say.
 
-The area and the perimeter of a closed region are not done yet — issue #425.
+**Clicking inside a closed area** reads its surface and how far it is round
+it. The area is tinted while the number is up, the way the extrusion tints the
+areas it is offered: two shapes one inside the other make it genuinely
+ambiguous which was read, and the click takes the innermost one under the
+cursor. An area is the largest target there is, so it is tried last — after
+everything a click could have been aimed at.
+
+A hole comes out of the surface but not out of the way round: the surface is
+the matter an extrusion would make, and the perimeter is the outline one would
+cut round. The hole has a perimeter of its own, read by clicking inside it.
+
+Neither number is read off the steps a curve was sampled into. A circle of
+radius ten read off its own steps holds under 314 mm² and is under 62.8 mm
+round, and the error moves with how finely the drawing happened to sample the
+curve — so the answer would be reporting how the tool works rather than what
+was drawn. A run of a curve is measured as the curve: Green's theorem for the
+surface, and for an ellipse's length the integral that gave the curve its
+name, since it has no closed form.
 
 ## Circles
 

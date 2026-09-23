@@ -6,6 +6,12 @@
 //! are read the same way, by asking `egui` for one pass and looking at the
 //! shapes it hands back.
 //!
+//! Closes #425.
+//! - the area read is tinted while the measure is on screen —
+//!   `the_area_a_measure_reads_is_tinted_while_it_is_on_screen`
+//! - it says its surface and how far round it is —
+//!   `an_area_says_its_surface_and_how_far_round_it_is`
+//!
 //! Closes #176.
 //! - a straight run is drawn as a right triangle standing on it —
 //!   `a_run_is_drawn_as_a_right_triangle_standing_on_it`
@@ -80,7 +86,7 @@ fn measuring_a_run(to: DVec2, showing: Option<DimensionTarget>) -> (PartDocument
         tool: Tool::Measure,
         tool_state: ToolState::Measure {
             picks: cao_sketch::DimensionPicks::default(),
-            showing,
+            showing: showing.map(cao_sketch::Measured::Of),
         },
         ..SketchEditor::default()
     };
@@ -104,7 +110,14 @@ fn drawn_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<cao_render::Vert
     };
     let sketch = &context.document.sketches()[0];
     let mut out = Vec::new();
-    push_measure(&mut out, sketch, &context, &Theme::default(), a_view());
+    push_measure(
+        &mut out,
+        &mut Vec::new(),
+        sketch,
+        &context,
+        &Theme::default(),
+        a_view(),
+    );
     out
 }
 
@@ -494,5 +507,142 @@ fn a_run_that_genuinely_leans_still_comes_apart_into_three() {
         3,
         "a run leaning well off both axes has two reaches worth reading, and \
          dropping them would cost the whole point of the triangle",
+    );
+}
+
+/// A drawing holding a rectangle forty across and twenty-five up, and an
+/// editor measuring the area inside it.
+fn measuring_the_area_inside() -> (PartDocument, SketchEditor) {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let corners: Vec<PointRef> = [(0.0, 0.0), (40.0, 0.0), (40.0, 25.0), (0.0, 25.0)]
+        .into_iter()
+        .map(|(x, y)| {
+            document.apply(Operation::AddPoint {
+                sketch: 0,
+                position: DVec2::new(x, y),
+                on: Vec::new(),
+            });
+            PointRef::Existing(cao_sketch::PointId(
+                document.sketches()[0].points().len() - 1,
+            ))
+        })
+        .collect();
+    for side in 0..corners.len() {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: corners[side].clone(),
+            end: corners[(side + 1) % corners.len()].clone(),
+            construction: false,
+        });
+    }
+    let editor = SketchEditor {
+        phase: crate::screens::sketch::SketchPhase::Editing(0),
+        plane: Some(WorkPlane::XY),
+        tool: Tool::Measure,
+        tool_state: ToolState::Measure {
+            picks: cao_sketch::DimensionPicks::default(),
+            showing: Some(cao_sketch::Measured::Inside(DVec2::new(20.0, 12.0))),
+        },
+        ..SketchEditor::default()
+    };
+    (document, editor)
+}
+
+/// The surfaces one frame tinted, read back onto the sketch's plane as
+/// triangles.
+fn tinted() -> Vec<[DVec2; 3]> {
+    let (mut document, mut editor) = measuring_the_area_inside();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let sketch = &context.document.sketches()[0];
+    let mut surfaces = Vec::new();
+    push_measure(
+        &mut Vec::new(),
+        &mut surfaces,
+        sketch,
+        &context,
+        &Theme::default(),
+        a_view(),
+    );
+    surfaces
+        .as_chunks::<3>()
+        .0
+        .iter()
+        .map(|corners| {
+            corners
+                .map(|vertex| WorkPlane::XY.to_local(glam::Vec3::from(vertex.position).as_dvec3()))
+        })
+        .collect()
+}
+
+#[test]
+fn the_area_a_measure_reads_is_tinted_while_it_is_on_screen() {
+    let lit = tinted();
+
+    assert!(
+        !lit.is_empty(),
+        "two shapes one inside the other make it genuinely ambiguous which was \
+         read, and a number with no shape under it answers for nothing",
+    );
+    let surface: f64 = lit
+        .iter()
+        .map(|[a, b, c]| (*b - *a).perp_dot(*c - *a).abs() / 2.0)
+        .sum();
+    assert!(
+        (surface - 1000.0).abs() < 1e-6,
+        "what is lit is the surface the number reports, got {surface}",
+    );
+}
+
+#[test]
+fn an_area_says_its_surface_and_how_far_round_it_is() {
+    let (mut document, mut editor) = measuring_the_area_inside();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let state = ViewportState::default();
+    let egui = egui::Context::default();
+    let mut output = egui::FullOutput::default();
+    for _ in 0..2 {
+        output.textures_delta.clear();
+        egui.begin_pass(egui::RawInput {
+            screen_rect: Some(SCREEN),
+            ..Default::default()
+        });
+        egui::Area::new(egui::Id::new("the canvas"))
+            .fixed_pos(SCREEN.min)
+            .show(&egui, |ui| paint_measure(ui, &state, SCREEN, &context));
+        output = egui.end_pass();
+    }
+    output.textures_delta.clear();
+    let mut flat = Vec::new();
+    for clipped in output.shapes {
+        flatten(clipped.shape, &mut flat);
+    }
+
+    let said = words(&flat);
+    assert_eq!(said.len(), 1, "one label, two lines in it: {said:?}");
+    assert!(
+        said[0].0.contains("1000") && said[0].0.contains("mm²"),
+        "the surface, in the square of the unit: {said:?}",
+    );
+    assert!(
+        said[0].0.contains("130"),
+        "and how far round it is: {said:?}",
     );
 }

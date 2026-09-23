@@ -30,6 +30,8 @@ pub enum Reading {
     Round { radius: f64 },
     /// How wide two traits stand, in degrees.
     Opening { degrees: f64 },
+    /// A closed area: how much surface it holds, and how far it is round it.
+    Surface { area: f64, perimeter: f64 },
 }
 
 impl Reading {
@@ -45,6 +47,12 @@ impl Reading {
                 radius: radius * millimeters_per_unit,
             },
             Self::Opening { degrees } => Self::Opening { degrees },
+            // A surface goes up with the square of the scale, which is the one
+            // place in this file where the two units part company.
+            Self::Surface { area, perimeter } => Self::Surface {
+                area: area * millimeters_per_unit * millimeters_per_unit,
+                perimeter: perimeter * millimeters_per_unit,
+            },
         }
     }
 }
@@ -143,6 +151,17 @@ impl Sketch {
             }
             _ => None,
         }
+    }
+
+    /// What a measure reads of the closed area a place falls in, in the
+    /// drawing's own units. `None` where nothing closes round it.
+    pub fn read_inside(&self, place: DVec2) -> Option<Reading> {
+        let regions = self.regions();
+        let area = &regions[crate::naming::area_under(&regions, place)?];
+        Some(Reading::Surface {
+            area: area.area(),
+            perimeter: area.perimeter(),
+        })
     }
 }
 

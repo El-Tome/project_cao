@@ -45,6 +45,13 @@ pub fn click(app: &mut App, label: &str) {
     app.run();
 }
 
+/// The one widget whose label is exactly this — for a tool whose name is the
+/// start of its own mode group's, as `Ellipse` is of `Ellipses`.
+pub fn click_exactly(app: &mut App, label: &str) {
+    app.get_by_label(label).click();
+    app.run();
+}
+
 pub fn click_at(app: &mut App, (x, y): (f32, f32)) {
     let pos = egui::pos2(x, y);
     app.hover_at(pos);
@@ -116,7 +123,7 @@ pub fn open_the_history(app: &mut App) {
 /// The ellipse tool, its centre and the end of its first axis clicked, the
 /// cursor then left where the second axis would reach.
 pub fn start_an_ellipse(app: &mut App) {
-    click(app, "Ellipse");
+    click_exactly(app, "Ellipse");
     click_at(app, A_POINT_ABOVE_THE_ORIGIN);
     click_at(app, A_POINT_BELOW_AND_RIGHT);
     app.hover_at(egui::pos2(760.0, 560.0));

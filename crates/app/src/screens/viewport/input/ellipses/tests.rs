@@ -5,9 +5,17 @@
 //!   one step of the history — `three_clicks_lay_the_ellipse_its_axes_and_its_centre_as_one_step`
 //! - typed values at the cursor set the angle and both widths —
 //!   `the_values_typed_while_placing_become_dimensions_on_the_axes`
+//!
+//! Closes #195.
+//! - placed from its two ends, three clicks lay half a curve as one step of
+//!   the history, standing on the points clicked —
+//!   `half_an_ellipse_is_one_step_standing_on_the_two_ends_clicked`
+//! - the rise typed at the third click is half of what the second axis
+//!   measures across, and is dimensioned as that axis —
+//!   `the_rise_typed_dimensions_the_whole_second_axis`
 
 use cao_part::PartDocument;
-use cao_sketch::{DimensionTarget, SketchAxis, WorkPlane};
+use cao_sketch::{DimensionTarget, EllipseMode, SketchAxis, WorkPlane};
 use chrono::Utc;
 
 use super::*;
@@ -18,6 +26,10 @@ use crate::screens::sketch::{SketchEditor, Tool};
 /// Clicks the ellipse tool at each place in turn, with whatever each click
 /// finds typed into the live fields, on a fresh sketch.
 fn clicked(clicks: &[(DVec2, [Option<f64>; 2])]) -> PartDocument {
+    clicked_in(EllipseMode::ByCentre, clicks)
+}
+
+fn clicked_in(mode: EllipseMode, clicks: &[(DVec2, [Option<f64>; 2])]) -> PartDocument {
     let mut document = PartDocument::new("part", Utc::now());
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
@@ -25,6 +37,7 @@ fn clicked(clicks: &[(DVec2, [Option<f64>; 2])]) -> PartDocument {
     });
     let mut editor = SketchEditor {
         tool: Tool::Ellipse,
+        ellipse_mode: mode,
         ..SketchEditor::default()
     };
     let mut extrusion = ExtrusionState::default();
@@ -143,4 +156,77 @@ fn an_end_worked_out_rather_than_clicked_is_not_welded_to_a_point_beside_it() {
         !drawing.ellipse_points(id).contains(&lone),
         "the far end of the first axis was never clicked, and took the point beside it",
     );
+}
+
+#[test]
+fn half_an_ellipse_is_one_step_standing_on_the_two_ends_clicked() {
+    let (left, right) = (DVec2::new(-30.0, 10.0), DVec2::new(30.0, 10.0));
+    let mut document = clicked_in(
+        EllipseMode::ByEnds,
+        &[
+            (left, [None, None]),
+            (right, [None, None]),
+            (DVec2::new(5.0, 30.0), [None, None]),
+        ],
+    );
+
+    let drawing = &document.sketches()[0];
+    let (id, ellipse) = drawing.live_ellipses().next().expect("an ellipse");
+    assert_eq!(
+        drawing.endpoints(ellipse.first),
+        (left, right),
+        "the two ends clicked are the first axis's own ends",
+    );
+    let (from, to) = drawing.ellipse_ends(id).expect("half of it is drawn");
+    assert_eq!(
+        (drawing.point(from), drawing.point(to)),
+        (right, left),
+        "and the stretch runs between those very points, the rise being above",
+    );
+    let laid = drawing.live_points().count();
+
+    document.undo();
+
+    assert_eq!(
+        document.sketches()[0].live_ellipses().count(),
+        0,
+        "one undo takes the whole of it: it was laid as one step",
+    );
+    assert_eq!(
+        laid, 6,
+        "five points and the sketch origin, none laid twice"
+    );
+}
+
+#[test]
+fn the_rise_typed_dimensions_the_whole_second_axis() {
+    let document = clicked_in(
+        EllipseMode::ByEnds,
+        &[
+            (DVec2::new(-30.0, 10.0), [None, None]),
+            (DVec2::new(30.0, 10.0), [Some(60.0), None]),
+            (DVec2::new(5.0, 30.0), [Some(20.0), None]),
+        ],
+    );
+
+    let drawing = &document.sketches()[0];
+    let (id, ellipse) = drawing.live_ellipses().next().expect("an ellipse");
+    let value = |target| {
+        drawing
+            .dimensions()
+            .iter()
+            .find(|held| held.target == target)
+            .map(|held| held.value)
+    };
+    assert_eq!(
+        value(DimensionTarget::Length(ellipse.first)),
+        Some(60.0),
+        "the gap typed between the two ends is what the first axis measures",
+    );
+    assert_eq!(
+        value(DimensionTarget::Length(ellipse.second)),
+        Some(40.0),
+        "and a rise of twenty is an axis forty across, which is what is dimensioned",
+    );
+    assert!((drawing.ellipse_draft(id).second - 20.0).abs() < 1e-6);
 }

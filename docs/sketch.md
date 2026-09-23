@@ -312,6 +312,20 @@ square to the first. Either axis may be the longer. The first axis's width and
 angle, then the second's width, can be typed at the cursor on the way, and
 become dimensions on the axes.
 
+**Or from its two ends**, which is the other way the tool draws and is what a
+rounded slot end wants: the two clicks give the whole first axis, and the third
+the **rise** — how far the curve stands from the middle of them, square to them.
+What that lays is **half a curve**, the half the rise fell on, and nothing else:
+no straight side is drawn between the two ends, and closing the shape is a trait
+drawn like any other. The two ends are the first axis's own ends, so the half is
+the arc of ellipse a cut would leave, and every tool takes it as one.
+
+What is typed in that mode is read the way it is drawn: the gap between the two
+ends at the second click, the rise at the third. The rise is half of what the
+second axis measures across, so a rise of twenty lays a dimension of forty on
+that axis — the axis is what an ellipse is measured by, and it runs across the
+whole curve.
+
 An ellipse is laid **with its two axes**, as construction traits running across
 the whole curve through its centre, as on a drawing. They are what it is
 measured by: a length on an axis is the ellipse's width that way, as a diameter

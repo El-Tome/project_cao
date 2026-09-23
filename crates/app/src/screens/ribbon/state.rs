@@ -1,6 +1,8 @@
 use crate::lang::Catalogue;
 use crate::screens::extrusion::{ExtrusionState, Shape};
-use crate::screens::sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, SketchEditor, Tool};
+use crate::screens::sketch::{
+    ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode, SketchEditor, Tool,
+};
 use cao_part::PartDocument;
 use cao_prefs::{Command, Settings};
 use cao_sketch::Rule;
@@ -86,6 +88,12 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         }
         Command::ArcByCenter => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByCenter,
         Command::ArcByEnds => tool == Tool::Arc && state.editor.arc_mode == ArcMode::ByEnds,
+        Command::EllipseByCentre => {
+            tool == Tool::Ellipse && state.editor.ellipse_mode == EllipseMode::ByCentre
+        }
+        Command::EllipseByEnds => {
+            tool == Tool::Ellipse && state.editor.ellipse_mode == EllipseMode::ByEnds
+        }
         Command::ChamferEqual => chamfering(state, ChamferMode::Equal),
         Command::ChamferAngled => chamfering(state, ChamferMode::Angled),
         Command::ChamferSided => chamfering(state, ChamferMode::Sided),
@@ -164,6 +172,7 @@ pub fn is_enabled(
         | Command::CircleTwoTangents
         | Command::CircleThreeTangents => drawing,
         Command::ArcByCenter | Command::ArcByEnds => drawing,
+        Command::EllipseByCentre | Command::EllipseByEnds => drawing,
         Command::RulePerpendicular
         | Command::RuleParallel
         | Command::RuleEqual

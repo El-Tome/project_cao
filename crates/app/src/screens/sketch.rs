@@ -4,7 +4,7 @@ use glam::DVec2;
 mod live_input;
 mod typed_dimension;
 
-pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode};
+pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
 pub use live_input::{LiveField, LiveInput};
 pub(crate) use typed_dimension::apply_dimension_value;
 
@@ -100,6 +100,8 @@ pub struct SketchEditor {
     pub circle_mode: CircleMode,
     /// How the arc tool is drawing, kept across shapes for the same reason.
     pub arc_mode: ArcMode,
+    /// How the ellipse tool is drawing, kept across shapes for the same reason.
+    pub ellipse_mode: EllipseMode,
     /// Which kind of measurement the dimension tool is forcing. Not reset
     /// between shapes, for the same reason.
     pub dimension_mode: DimensionMode,

@@ -47,6 +47,13 @@ impl Default for ToolbarLayout {
                                     ],
                                 ),
                                 Item::Command(C::ToolEllipse),
+                                Item::group(
+                                    "ellipses",
+                                    vec![
+                                        Item::Command(C::EllipseByCentre),
+                                        Item::Command(C::EllipseByEnds),
+                                    ],
+                                ),
                                 Item::Command(C::ToolPoint),
                                 Item::Command(C::ToolDimension),
                                 Item::Command(C::ToolTrim),

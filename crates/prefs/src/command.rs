@@ -41,6 +41,9 @@ pub enum Command {
     ArcByCenter,
     ArcByEnds,
 
+    EllipseByCentre,
+    EllipseByEnds,
+
     ChamferEqual,
     ChamferAngled,
     ChamferSided,
@@ -87,6 +90,7 @@ pub enum CommandFamily {
     DrawingTools,
     Circles,
     Arcs,
+    Ellipses,
     Chamfers,
     Dimensions,
     Constraints,
@@ -96,7 +100,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 56] = [
+    pub const ALL: [Self; 58] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -127,6 +131,8 @@ impl Command {
         Self::CircleThreeTangents,
         Self::ArcByCenter,
         Self::ArcByEnds,
+        Self::EllipseByCentre,
+        Self::EllipseByEnds,
         Self::ChamferEqual,
         Self::ChamferAngled,
         Self::ChamferSided,
@@ -184,6 +190,7 @@ impl Command {
             | Self::CircleTwoTangents
             | Self::CircleThreeTangents => CommandFamily::Circles,
             Self::ArcByCenter | Self::ArcByEnds => CommandFamily::Arcs,
+            Self::EllipseByCentre | Self::EllipseByEnds => CommandFamily::Ellipses,
             Self::ChamferEqual | Self::ChamferAngled | Self::ChamferSided => {
                 CommandFamily::Chamfers
             }

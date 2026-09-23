@@ -1,6 +1,7 @@
 use glam::DVec2;
 
 use crate::edges::Crossed;
+use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::regions::{Outline, signed_area};
 use crate::sketch::Sketch;
@@ -28,7 +29,7 @@ impl Sketch {
         } = self.crossed();
         let mut outlines: Vec<Outline> = whole
             .into_iter()
-            .map(|(curve, points)| all_of_one_curve(curve, points))
+            .map(|(curve, points)| all_of_one_curve(curve, self.bend_of(curve), points))
             .collect();
         if ends.is_empty() {
             return outlines;
@@ -137,6 +138,7 @@ impl Sketch {
                         outline
                             .curves
                             .extend(std::iter::repeat_n(Some(run), sampled.len()));
+                        outline.bends.push(curves[curved].bend);
                         outline.points.extend(sampled);
                     }
                 }
@@ -158,12 +160,31 @@ impl Sketch {
     }
 }
 
+impl Sketch {
+    /// What a curve of the drawing bends along, for a loop that reached the
+    /// outlines without passing through the graph — a circle or an ellipse
+    /// nothing cut, which keeps its own geometry rather than a half-edge's.
+    fn bend_of(&self, curve: CurveId) -> Bend {
+        match curve {
+            CurveId::Ellipse(id) => Bend::Oval(self.ellipse_draft(id)),
+            CurveId::Circle(id) => Bend::Round(self.point(self.circle(id).center)),
+            CurveId::Arc(id) => Bend::Round(self.point(self.arc(id).center)),
+            // A straight trait closes no loop on its own, so this is a shape
+            // the walk above cannot hand over; answering with the one bend
+            // that curves nowhere keeps the match total without inventing a
+            // case.
+            CurveId::Segment(_) => Bend::Round(DVec2::ZERO),
+        }
+    }
+}
+
 /// A circle or an ellipse nothing cut: every one of its segments came from the
 /// one curve.
-fn all_of_one_curve(curve: CurveId, points: Vec<DVec2>) -> Outline {
+fn all_of_one_curve(curve: CurveId, bend: Bend, points: Vec<DVec2>) -> Outline {
     Outline {
         curves: vec![Some(0); points.len()],
         bounds: vec![curve],
+        bends: vec![bend],
         points,
     }
 }

@@ -38,6 +38,21 @@ pub struct SelectState {
     pub letting_go: bool,
 }
 
+/// What a measure has taken hold of.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum Measured {
+    /// A run, a circle or an angle, named the way a dimension names one — the
+    /// measure tool shares the dimension tool's aim, so it shares its names.
+    Of(DimensionTarget),
+    /// A closed area, named by a place inside it.
+    ///
+    /// The place rather than the area's own name, which is the curves bounding
+    /// it: that name is built to outlive an edit, and a measure is built not
+    /// to. It is gone the moment the drawing moves, so the simplest thing that
+    /// finds the area again in the very next frame is the right one.
+    Inside(DVec2),
+}
+
 /// How far a shape, a dimension or a rule being drawn has gotten.
 ///
 /// Only one of these is ever true at once — the tool in hand decides which —
@@ -92,7 +107,7 @@ pub enum ToolState {
     /// on every change of tool.
     Measure {
         picks: DimensionPicks,
-        showing: Option<DimensionTarget>,
+        showing: Option<Measured>,
     },
     /// What a tool that lays copies is holding, and whether the next click
     /// names the one thing it still needs — an axis, a centre, a direction —

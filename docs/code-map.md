@@ -92,6 +92,7 @@ in one of the two domains, never there.
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
+| How much surface an area holds and how far it is round, the curve honoured rather than the steps it was sampled into | `sketch/src/regions/measure.rs` | `Region::area`, `Region::perimeter`, `Outline::area`, `Outline::perimeter` |
 | Naming an area by the curves that bound it, and finding it again | `sketch/src/naming.rs` | `CurveId`, `Area`, `Standing`, `Became`, `area_under` |
 | Where two curves of the drawing cross | `sketch/src/crossing.rs` | `where_segments_cross`, `where_segment_crosses_arc`, `where_arcs_cross`, `where_segment_crosses_circle`, `where_arc_crosses_circle`, `where_circles_cross` |
 | A circle, and the turns at which the drawing runs through it | `sketch/src/circle_edges.rs` | `Sketch::rounds`, `Round` |
@@ -108,7 +109,7 @@ in one of the two domains, never there.
 | One click of the line tool | `sketch/src/chain.rs` | `chain_click`, `ChainClick` |
 | Which circle the clicks gathered so far mean | `sketch/src/circling.rs` | `circle_from`, `rim_of`, `Found` |
 | What one click of the smart dimension tool measures | `sketch/src/measuring.rs` | `measure_pick`, `DimensionMode`, `DimensionPick` |
-| What the measure tool reads off a target, and the run it draws its triangle on | `sketch/src/reading.rs` | `Sketch::read`, `Sketch::run_of`, `Reading` |
+| What the measure tool reads off a target or off the area under a place, and the run it draws its triangle on | `sketch/src/reading.rs` | `Sketch::read`, `Sketch::read_inside`, `Sketch::run_of`, `Reading` |
 | The dimensions a freshly-drawn rectangle or line earns on its own | `sketch/src/shape_dimensions.rs` | `rectangle_dimensions`, `line_dimensions` |
 | What each tool remembers between one click and the next | `sketch/src/tool.rs` | `ToolState`, `SelectState` |
 

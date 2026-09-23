@@ -79,6 +79,7 @@ pub use constraints::{Constraint, Dimension, DimensionTarget, Freedom, SketchAxi
 pub use construct::CircleMode;
 pub use dimensioning::axis_under;
 pub use duplicating::Duplicated;
+pub use edges::half_edge::Bend;
 pub use ellipse::{Ellipse, EllipseId};
 pub use ellipse_placing::{EllipseMode, Rise, ellipse_aimed, ellipse_from, rise_of};
 pub use ellipsing::EllipseDraft;
@@ -103,7 +104,7 @@ pub use snap::{Snap, SnapSettings};
 pub use solver::SolveOutcome;
 pub use splitting::{Crossing, Split};
 pub use symmetric::{SymmetricClick, symmetric_click};
-pub use tool::{SelectState, ToolState};
+pub use tool::{Measured, SelectState, ToolState};
 pub use trimming::Trimmed;
 pub use trimming::arc::ArcTrimmed;
 pub use trimming::circle::CircleTrimmed;

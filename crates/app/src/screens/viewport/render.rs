@@ -144,7 +144,7 @@ pub(crate) fn build_frame(
     if let Some(index) = context.editor.active_sketch()
         && let Some(sketch) = context.document.sketches().get(index)
     {
-        push_measure(&mut lines, sketch, context, theme, scale);
+        push_measure(&mut lines, &mut surfaces, sketch, context, theme, scale);
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);

@@ -18,7 +18,7 @@
 
 use super::*;
 
-use cao_sketch::{PointId, SegmentId};
+use cao_sketch::{Measured, PointId, SegmentId};
 use glam::DVec2;
 
 fn french() -> Catalogue {
@@ -43,7 +43,7 @@ const FIGURES: u32 = cao_prefs::config::MOST_FIGURES;
 fn a_run(target: DimensionTarget, span: f64, offsets: DVec2) -> Said {
     says(
         &french(),
-        target,
+        Measured::Of(target),
         Reading::Gap { span, offsets },
         millimetres(),
         FIGURES,
@@ -114,7 +114,7 @@ fn a_length_carries_its_two_offsets_as_a_distance_does() {
 fn a_round_says_both_the_radius_and_the_diameter() {
     let Said::Beside(lines) = says(
         &french(),
-        DimensionTarget::ArcRadius(cao_sketch::ArcId(0)),
+        Measured::Of(DimensionTarget::ArcRadius(cao_sketch::ArcId(0))),
         Reading::Round { radius: 12.5 },
         millimetres(),
         FIGURES,
@@ -134,10 +134,10 @@ fn a_round_says_both_the_radius_and_the_diameter() {
 fn an_angle_is_said_in_degrees() {
     let Said::Beside(lines) = says(
         &french(),
-        DimensionTarget::Angle {
+        Measured::Of(DimensionTarget::Angle {
             first: SegmentId(0),
             second: SegmentId(1),
-        },
+        }),
         Reading::Opening { degrees: 37.25 },
         millimetres(),
         FIGURES,
@@ -174,10 +174,10 @@ fn a_measure_is_held_to_the_figures_the_reader_asked_for() {
 
     let Said::Beside(lines) = says(
         &french(),
-        DimensionTarget::Angle {
+        Measured::Of(DimensionTarget::Angle {
             first: SegmentId(0),
             second: SegmentId(1),
-        },
+        }),
         Reading::Opening {
             degrees: 37.249_998_3,
         },
@@ -198,7 +198,7 @@ fn fewer_figures_shortens_every_number_a_measure_says() {
     let read = |figures| {
         says(
             &french(),
-            distance(),
+            Measured::Of(distance()),
             Reading::Gap {
                 span: 1234.5678,
                 offsets: DVec2::new(std::f64::consts::SQRT_2, 1234.0),

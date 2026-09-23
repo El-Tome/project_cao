@@ -20,17 +20,17 @@
 
 use super::*;
 
-use cao_sketch::{DimensionPicks, DimensionTarget, PointId};
+use cao_sketch::{DimensionPicks, DimensionTarget, Measured, PointId};
 
 fn measuring() -> SketchEditor {
     SketchEditor {
         tool: Tool::Measure,
         tool_state: ToolState::Measure {
             picks: DimensionPicks::default(),
-            showing: Some(DimensionTarget::Distance {
+            showing: Some(Measured::Of(DimensionTarget::Distance {
                 from: PointId(1),
                 to: PointId(2),
-            }),
+            })),
         },
         ..SketchEditor::default()
     }

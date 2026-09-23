@@ -8,16 +8,18 @@
 //!   `the_curve_bulges_to_the_side_the_rise_fell_on`
 //! - what is laid is the arc alone, with no chord between the two ends —
 //!   `nothing_is_drawn_between_the_two_ends`
-//! - its handles are points of the drawing: the two clicked ends are the first
-//!   axis's own ends, and the curve carries the centre and the axes a trimmed
-//!   ellipse carries — `the_two_ends_clicked_are_the_ends_of_the_first_axis` —
-//!   and moving one reshapes the curve as it does on a whole ellipse —
+//! - its handles are points of the drawing, the two clicked ends being the
+//!   first axis's own ends — `the_two_ends_clicked_are_the_ends_of_the_first_axis`
+//!   — and moving one reshapes the curve as it does on a whole ellipse —
 //!   `an_end_dragged_reshapes_the_half_and_it_still_runs_between_the_ends`
 //! - a placement that would lay nothing lays nothing: the two ends in one
 //!   place, or no rise at all — `a_placement_that_lays_nothing_lays_nothing`
 //! - the second axis stops at the rise rather than crossing to where nothing is
 //!   drawn, and the drawing holds it there —
-//!   `the_second_axis_stops_at_the_rise_and_the_solver_keeps_it_there`
+//!   `the_second_axis_stops_at_the_rise_and_the_solver_keeps_it_there`. The
+//!   list first said the opposite — that a half carries the axes a trimmed
+//!   ellipse carries; it was decided the other way while the branch was open,
+//!   and the issue says so.
 //! - placing a whole ellipse still works —
 //!   `the_whole_ellipse_is_still_placed_from_its_centre`
 //! - every tool still takes the arc — no test: what is laid here is the arc a

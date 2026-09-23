@@ -3,8 +3,8 @@
 
 use cao_part::{Operation, PointRef};
 use cao_sketch::{
-    ELLIPSE_PLACES, EllipseDraft, EllipseId, LockedInput, ToolState, ellipse_aimed,
-    ellipse_dimensions, ellipse_from,
+    EllipseDraft, EllipseId, EllipseMode, LockedInput, ToolState, ellipse_aimed,
+    ellipse_dimensions, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
@@ -22,10 +22,11 @@ pub(crate) fn draw_ellipse(
     snap: f64,
     pixel: f64,
 ) -> bool {
+    let mode = context.editor.ellipse_mode;
     let (mut places, first_typed) = places_so_far(context);
     let cursor = aimed(context, &places, cursor);
 
-    if places.len() + 1 < ELLIPSE_PLACES {
+    if places.len() + 1 < mode.wants() {
         // The fields that decided the first axis are cleared and handed to the
         // second: what was typed into them is carried here, or the ellipse
         // could never be dimensioned for it once drawn.
@@ -39,26 +40,57 @@ pub(crate) fn draw_ellipse(
             first_typed,
         };
         context.editor.live.open();
-        context.editor.message = Some(context.lang.t("ellipse.asks_for"));
+        context.editor.message = Some(crate::wording::ellipse::asks_for(context.lang, mode));
         return false;
     }
 
-    let Some(drawn) = ellipse_from(&places, cursor) else {
+    let Some(drawn) = ellipse_from(mode, &places, cursor) else {
         context.editor.message = Some(context.lang.t("sketch.no_ellipse_from_these"));
         return false;
     };
     let second_width = context.editor.live.typed(0);
 
-    // Only the two places clicked reuse what is under them. The other three
+    // Only the places actually clicked reuse what is under them. The others
     // are worked out rather than aimed at, and a point that happens to lie
     // near one of them would tie the ellipse to whatever holds it.
     let across = drawn.second_axis();
-    let center = point_ref_at(context, index, drawn.centre, snap);
-    let first = [
-        PointRef::New(drawn.centre - drawn.first),
-        point_ref_at(context, index, drawn.centre + drawn.first, snap),
-    ];
-    let second = [drawn.centre - across, drawn.centre + across].map(PointRef::New);
+    let (center, first) = match mode {
+        EllipseMode::ByCentre => (
+            point_ref_at(context, index, drawn.centre, snap),
+            [
+                PointRef::New(drawn.centre - drawn.first),
+                point_ref_at(context, index, drawn.centre + drawn.first, snap),
+            ],
+        ),
+        EllipseMode::ByEnds => (
+            PointRef::New(drawn.centre),
+            [
+                point_ref_at(context, index, drawn.centre - drawn.first, snap),
+                point_ref_at(context, index, drawn.centre + drawn.first, snap),
+            ],
+        ),
+    };
+    // Placed from its two ends, the second axis is laid out from the centre to
+    // the rise rather than across the curve: the other half of it would stand
+    // where nothing is drawn, and the figure it carries is the rise itself.
+    let second = match mode {
+        EllipseMode::ByCentre => [drawn.centre - across, drawn.centre + across].map(PointRef::New),
+        EllipseMode::ByEnds => [
+            center.clone(),
+            PointRef::New(drawn.centre + rise_of(drawn, cursor).reach(drawn)),
+        ],
+    };
+    // Only the half the rise fell on is drawn, and the stretch runs between the
+    // very points the first axis stands on — named by the same references, so
+    // that laying it does not put a second point on top of each end.
+    let stretch = match mode {
+        EllipseMode::ByCentre => None,
+        EllipseMode::ByEnds => Some(
+            rise_of(drawn, cursor)
+                .between()
+                .map(|rank| first[rank].clone()),
+        ),
+    };
 
     context.editor.tool_state = ToolState::None;
     context.document.apply(Operation::AddEllipse {
@@ -67,7 +99,7 @@ pub(crate) fn draw_ellipse(
         first,
         second,
         construction: context.editor.construction,
-        drawn: None,
+        drawn: stretch,
     });
     let ellipse = EllipseId(
         context.document.sketches()[index]
@@ -77,14 +109,18 @@ pub(crate) fn draw_ellipse(
     );
     dimension_the_ellipse(context, index, ellipse, first_typed, second_width, pixel);
     context.editor.live.clear();
-    context.editor.message = Some(context.lang.t("ellipse.asks_for"));
+    context.editor.message = Some(crate::wording::ellipse::asks_for(context.lang, mode));
     true
 }
 
 /// The ellipse a click right now would draw, for the canvas to show first.
 pub(crate) fn ellipse_preview(context: &SketchContext<'_>, cursor: DVec2) -> Option<EllipseDraft> {
     let (places, _) = places_so_far(context);
-    ellipse_from(&places, aimed(context, &places, cursor))
+    ellipse_from(
+        context.editor.ellipse_mode,
+        &places,
+        aimed(context, &places, cursor),
+    )
 }
 
 /// The cursor, once the values typed at it have had their say.
@@ -95,6 +131,7 @@ pub(crate) fn ellipse_aimed_at(context: &SketchContext<'_>, cursor: DVec2) -> DV
 
 fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> DVec2 {
     ellipse_aimed(
+        context.editor.ellipse_mode,
         places,
         cursor,
         context.editor.live.locked(),

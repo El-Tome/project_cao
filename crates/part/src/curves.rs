@@ -1,7 +1,7 @@
 //! The curves a part's sketches are drawn with — circles, arcs and ellipses —
 //! laid down again as the history replays them.
 
-use cao_sketch::Constraint;
+use cao_sketch::{Constraint, PointId, Sketch};
 
 use crate::history::PointRef;
 use crate::outcome::Outcome;
@@ -48,6 +48,13 @@ impl PartState {
 
     /// An ellipse, from its centre and the ends of its two axes — and, for an
     /// arc of one, the stretch of it that is drawn.
+    ///
+    /// **Within one operation the same reference names the same point.** Half
+    /// an ellipse names its centre twice — once as the centre, once as the end
+    /// its second axis stands on — and is drawn between the ends of its own
+    /// first axis. Resolved afresh each time, a `New` reference would lay a
+    /// second point on top of the first, and the curve would stand on points
+    /// nobody can see beside the ones it was given.
     pub(crate) fn add_ellipse(
         &mut self,
         sketch: usize,
@@ -58,17 +65,40 @@ impl PartState {
         drawn: &Option<[PointRef; 2]>,
     ) -> Option<Outcome> {
         let sketch = self.sketches.get_mut(sketch)?;
-        let center = resolve(sketch, center);
-        let first = [&first[0], &first[1]].map(|place| resolve(sketch, place));
-        let second = [&second[0], &second[1]].map(|place| resolve(sketch, place));
+        let mut laid_here: Vec<(&PointRef, PointId)> = Vec::new();
+        let center = resolved_once(sketch, &mut laid_here, center);
+        let first =
+            [&first[0], &first[1]].map(|place| resolved_once(sketch, &mut laid_here, place));
+        let second =
+            [&second[0], &second[1]].map(|place| resolved_once(sketch, &mut laid_here, place));
         let laid = match construction {
             true => sketch.add_construction_ellipse(center, first, second),
             false => sketch.add_ellipse(center, first, second),
         };
         if let Some(ends) = drawn {
-            let ends = [&ends[0], &ends[1]].map(|place| resolve(sketch, place));
+            let ends =
+                [&ends[0], &ends[1]].map(|place| resolved_once(sketch, &mut laid_here, place));
             sketch.draw_the_stretch(laid, ends[0], ends[1]);
         }
         None
     }
+}
+
+/// The point a reference names, laid at most once for the operation in hand.
+///
+/// `resolve` makes a fresh point for every `New` reference it is handed. An
+/// operation naming the same one twice — an ellipse whose second axis stands on
+/// its own centre — would get two points in the same place, and the drawing
+/// would stand on whichever of them each field happened to hold.
+fn resolved_once<'a>(
+    sketch: &mut Sketch,
+    laid: &mut Vec<(&'a PointRef, PointId)>,
+    place: &'a PointRef,
+) -> PointId {
+    if let Some((_, point)) = laid.iter().find(|(known, _)| *known == place) {
+        return *point;
+    }
+    let point = resolve(sketch, place);
+    laid.push((place, point));
+    point
 }

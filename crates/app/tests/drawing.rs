@@ -139,10 +139,8 @@ fn an_ellipse_drawn_with_three_clicks_becomes_a_step_of_the_sketch() {
     assert!(
         driver::on_screen(&app)
             .iter()
-            .filter(|label| label.contains("Ellipse"))
-            .count()
-            > 1,
-        "the history names the ellipse beside the tool's own button, showing {:?}",
+            .any(|label| label.ends_with(". Ellipse")),
+        "the history names the ellipse as a numbered step of its own, showing {:?}",
         driver::on_screen(&app),
     );
 }

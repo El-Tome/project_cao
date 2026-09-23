@@ -33,7 +33,7 @@ staying available everywhere else. See [extrusion.md](extrusion.md).
 | **Line** | Successive clicks, each trait carrying on from the last. |
 | **Rectangle** | Two clicks: two opposite corners. |
 | **Circle** | Five ways to lay it down, see below. |
-| **Ellipse** | Three clicks: the centre, the end of the first axis, then how far the second reaches. See below. |
+| **Ellipse** | Two ways to lay it down — from its centre, or half a curve from its two ends. See below. |
 | **Point** | One click lays a lone point. |
 | **Dimension** | Two clicks: what is measured, then where the annotation sits. |
 | **Division** | One click on a crossing: a point is laid there and every curve running through it is cut in two. |
@@ -312,6 +312,22 @@ square to the first. Either axis may be the longer. The first axis's width and
 angle, then the second's width, can be typed at the cursor on the way, and
 become dimensions on the axes.
 
+**Or from its two ends**, which is the other way the tool draws and is what a
+rounded slot end wants: the two clicks give the whole first axis, and the third
+the **rise** — how far the curve stands from the middle of them, square to them.
+What that lays is **half a curve**, the half the rise fell on, and nothing else:
+no straight side is drawn between the two ends, and closing the shape is a trait
+drawn like any other. The two ends are the first axis's own ends, so the half is
+the arc of ellipse a cut would leave, and every tool takes it as one.
+
+Its **second axis stops at the rise**: it is laid out from the centre rather
+than across the curve, since the other half of it would stand where nothing is
+drawn. So what is typed is read the way it is drawn — the gap between the two
+ends at the second click, the rise at the third — and the rise is what that
+axis measures. A half obtained by **cutting** a whole ellipse keeps its axes
+whole, as every other tool leaves them: the two look different, and that is the
+price of not having the trim tool shorten an axis.
+
 An ellipse is laid **with its two axes**, as construction traits running across
 the whole curve through its centre, as on a drawing. They are what it is
 measured by: a length on an axis is the ellipse's width that way, as a diameter
@@ -323,7 +339,8 @@ is a circle's. Clicking the curve itself with the dimension tool lays nothing.
 - **Pulling the curve** scales it about its centre, both axes together.
 - The axes **go with the ellipse**: erasing it erases them, and erasing an axis
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
-  trim, chamfer and fillet leave it whole.
+  trim, chamfer and fillet leave it whole. Only the two-ends placement lays one
+  short in the first place, and it lays it that way rather than cutting it.
 
 A trait can be held **tangent to an ellipse**, as it can to a circle: the two
 picks are the trait and the curve, and the trait ends up brushing it and keeps

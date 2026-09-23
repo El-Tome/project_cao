@@ -10,17 +10,26 @@ use glam::Vec3;
 use super::*;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
-use crate::screens::sketch::SketchEditor;
+use crate::screens::sketch::{EllipseMode, SketchEditor};
 
 /// What one frame of the canvas paints, and what the live fields read, for an
 /// ellipse with these places already picked and the cursor here.
 fn a_frame(places: Vec<DVec2>, cursor: DVec2) -> (Vec<DVec2>, Option<[f64; 2]>) {
+    a_frame_in(EllipseMode::ByCentre, places, cursor)
+}
+
+fn a_frame_in(
+    mode: EllipseMode,
+    places: Vec<DVec2>,
+    cursor: DVec2,
+) -> (Vec<DVec2>, Option<[f64; 2]>) {
     let mut document = PartDocument::new("part", Utc::now());
     let mut editor = SketchEditor {
         tool_state: ToolState::Ellipse {
             places,
             first_typed: LockedInput::default(),
         },
+        ellipse_mode: mode,
         ..SketchEditor::default()
     };
     let mut extrusion = ExtrusionState::default();
@@ -95,4 +104,51 @@ fn with_the_first_axis_given_the_curve_is_shown_through_the_cursor() {
     );
     let [width, _] = fields.expect("the field of the second axis");
     assert!((width - 20.0).abs() < 1e-9, "{width}");
+}
+
+/// The two ends of a half sixty across, and a rise of twenty above them.
+const LEFT: DVec2 = DVec2::new(-30.0, 0.0);
+const RIGHT: DVec2 = DVec2::new(30.0, 0.0);
+const ABOVE: DVec2 = DVec2::new(0.0, 20.0);
+
+#[test]
+fn placed_from_its_two_ends_the_preview_reads_the_gap_then_the_rise() {
+    let (_, fields) = a_frame_in(EllipseMode::ByEnds, vec![LEFT], RIGHT);
+    let [gap, angle] = fields.expect("the fields of the first axis");
+    assert!(
+        (gap - 60.0).abs() < 1e-9,
+        "the gap between the two clicks, not half of it: {gap}",
+    );
+    assert!(angle.abs() < 1e-9);
+
+    let (_, fields) = a_frame_in(EllipseMode::ByEnds, vec![LEFT, RIGHT], ABOVE);
+    let [rise, _] = fields.expect("the field of the rise");
+    assert!(
+        (rise - 20.0).abs() < 1e-9,
+        "and the rise itself, not the width across: {rise}",
+    );
+}
+
+#[test]
+fn the_preview_of_a_half_shows_that_half_and_stops_the_axis_at_the_rise() {
+    let (painted, _) = a_frame_in(EllipseMode::ByEnds, vec![LEFT, RIGHT], ABOVE);
+
+    // Past the markers' own corners, which are a square about each end.
+    const BELOW: f64 = -1.0;
+    assert!(
+        painted.iter().all(|place| place.y > BELOW),
+        "nothing is drawn below the two ends: {:?}",
+        painted.iter().find(|place| place.y <= BELOW),
+    );
+    assert!(
+        painted.iter().any(|place| place.distance(ABOVE) < 1e-6),
+        "the curve and the axis reach the rise",
+    );
+
+    let (under, _) = a_frame_in(EllipseMode::ByEnds, vec![LEFT, RIGHT], -ABOVE);
+    assert!(
+        under.iter().all(|place| place.y < -BELOW),
+        "and a rise below draws the other half: {:?}",
+        under.iter().find(|place| place.y >= -BELOW),
+    );
 }

@@ -99,18 +99,6 @@ impl Sketch {
             .filter(|(id, _)| !self.is_erased_ellipse(*id))
     }
 
-    /// The curve as its axes draw it now.
-    pub fn ellipse_draft(&self, id: EllipseId) -> EllipseDraft {
-        let ellipse = self.ellipses[id.0];
-        let (start, end) = self.endpoints(ellipse.first);
-        let (across_start, across_end) = self.endpoints(ellipse.second);
-        EllipseDraft {
-            centre: self.point(ellipse.center),
-            first: (end - start) * 0.5,
-            second: across_start.distance(across_end) * 0.5,
-        }
-    }
-
     /// Leaves an ellipse drawn over the stretch running from one point round
     /// to the other — what a history replaying an arc of ellipse lays.
     pub fn draw_the_stretch(&mut self, id: EllipseId, from: PointId, to: PointId) {
@@ -378,6 +366,8 @@ impl Sketch {
             || !self.ellipses_leaning_on(point).is_empty()
     }
 }
+
+mod axes;
 
 #[cfg(test)]
 mod tests;

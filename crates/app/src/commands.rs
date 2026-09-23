@@ -25,7 +25,9 @@ pub(crate) fn run(
     lang: &Catalogue,
 ) -> bool {
     use crate::screens::extrusion::Shape;
-    use crate::screens::sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, Tool};
+    use crate::screens::sketch::{
+        ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode, Tool,
+    };
 
     let tool = |editor: &mut SketchEditor, wanted: Tool| {
         editor.tool = wanted;
@@ -105,7 +107,7 @@ pub(crate) fn run(
         }
         Command::ToolEllipse => {
             tool(editor, Tool::Ellipse);
-            editor.message = Some(lang.t("ellipse.asks_for"));
+            editor.message = Some(crate::wording::ellipse::asks_for(lang, editor.ellipse_mode));
             false
         }
         Command::ToolPoint => {
@@ -208,6 +210,15 @@ pub(crate) fn run(
             };
             tool(editor, Tool::Arc);
             editor.message = Some(crate::wording::arc::asks_for(lang, editor.arc_mode));
+            false
+        }
+        Command::EllipseByCentre | Command::EllipseByEnds => {
+            editor.ellipse_mode = match command {
+                Command::EllipseByEnds => EllipseMode::ByEnds,
+                _ => EllipseMode::ByCentre,
+            };
+            tool(editor, Tool::Ellipse);
+            editor.message = Some(crate::wording::ellipse::asks_for(lang, editor.ellipse_mode));
             false
         }
         Command::RulePerpendicular

@@ -23,6 +23,7 @@ pub enum Command {
     ToolEllipse,
     ToolPoint,
     ToolDimension,
+    ToolMeasure,
     ToolTrim,
     ToolSplit,
     ToolChamfer,
@@ -100,7 +101,7 @@ pub enum CommandFamily {
 
 impl Command {
     /// Every command, in the order the settings screen offers them.
-    pub const ALL: [Self; 58] = [
+    pub const ALL: [Self; 59] = [
         Self::NewSketch,
         Self::FinishSketch,
         Self::RecenterOnSketch,
@@ -116,6 +117,7 @@ impl Command {
         Self::ToolEllipse,
         Self::ToolPoint,
         Self::ToolDimension,
+        Self::ToolMeasure,
         Self::ToolTrim,
         Self::ToolSplit,
         Self::ToolChamfer,
@@ -176,6 +178,7 @@ impl Command {
             | Self::ToolEllipse
             | Self::ToolPoint
             | Self::ToolDimension
+            | Self::ToolMeasure
             | Self::ToolTrim
             | Self::ToolSplit
             | Self::ToolChamfer

@@ -12,7 +12,7 @@ use super::input::{handle_sketch_input, pick_areas};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_rule_marks, paint_ruler, what_would_go,
+    paint_measure, paint_rule_marks, paint_ruler, what_would_go,
 };
 use super::state::{
     GestureGoesTo, SketchContext, ViewScale, ViewportState, cube_rect, gesture_goes_to,
@@ -56,6 +56,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // not move it behind anything.
     changed |= advance_on_enter(ui, sketch, scale);
 
+    // A measure read a moment ago is about a drawing that has just moved, so
+    // it goes with the change rather than staying on screen being wrong.
+    if changed {
+        sketch.editor.forget_the_measure();
+    }
+
     // The scene goes down first. Everything egui paints — the values of the dimensions, the scale
     // bar, the labels — is added to the same layer, in order, and the scene now fills the viewport
     // with its background: put it last and it wipes all of them out.
@@ -73,6 +79,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     paint_band(ui, state, rect, sketch);
     paint_rule_marks(ui, state, rect, sketch, going.as_ref());
     paint_dimension_labels(ui, state, rect, sketch, going.as_ref());
+    paint_measure(ui, state, rect, sketch);
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }

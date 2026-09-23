@@ -67,6 +67,7 @@ pub(super) fn active(command: Command, state: &Context<'_>) -> bool {
         Command::ToolEllipse => tool == Tool::Ellipse,
         Command::ToolPoint => tool == Tool::Point,
         Command::ToolDimension => tool == Tool::Dimension,
+        Command::ToolMeasure => tool == Tool::Measure,
         Command::ToolTrim => tool == Tool::Trim,
         Command::ToolSplit => tool == Tool::Split,
         Command::ToolChamfer => tool == Tool::Chamfer,

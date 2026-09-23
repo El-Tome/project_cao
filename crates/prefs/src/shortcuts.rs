@@ -294,6 +294,7 @@ impl Default for Shortcuts {
                 (C::ToolCircle, Chord::new(Key::C)),
                 (C::ToolPoint, Chord::new(Key::P)),
                 (C::ToolDimension, Chord::new(Key::D)),
+                (C::ToolMeasure, Chord::new(Key::M)),
                 (C::ExtrusionAdd, Chord::new(Key::E)),
                 (C::ExtrusionCut, Chord::new(Key::E).shift()),
                 (C::ExtrusionApply, Chord::new(Key::Enter).cmd()),

@@ -23,6 +23,7 @@ mod marks;
 mod overlays;
 mod planes;
 mod preview;
+mod reading;
 mod symmetric_line;
 mod trim;
 
@@ -33,6 +34,8 @@ pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
 use planes::push_choosable_planes;
 use preview::pending_annotation;
+pub(crate) use reading::paint_measure;
+use reading::push_measure;
 pub(crate) use trim::what_would_go;
 
 use super::matter;
@@ -136,6 +139,12 @@ pub(crate) fn build_frame(
             active,
         };
         push_sketch(&mut lines, &mut surfaces, &shown, theme, scale, context);
+    }
+
+    if let Some(index) = context.editor.active_sketch()
+        && let Some(sketch) = context.document.sketches().get(index)
+    {
+        push_measure(&mut lines, sketch, context, theme, scale);
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);

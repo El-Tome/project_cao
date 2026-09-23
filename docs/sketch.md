@@ -257,6 +257,83 @@ reading. The standard toolbar carries no row for them — they are reached by a
 shortcut, or by adding them to the bar from the palette
 ([configuration.md](configuration.md)).
 
+## Measuring without writing
+
+**Mesurer** reads the drawing and puts nothing on it. Nothing enters the
+history, nothing is saved, and the part is not marked as modified — a measure
+is a way of looking, and it is gone on the next click.
+
+| What is clicked | What one gets |
+| --- | --- |
+| Two points | The distance between them |
+| A trait | Its length |
+| A point then a trait, either way round | The distance from the point to the line, taken square |
+| A trait then a trait **parallel** to it | The gap between them |
+| A trait then a trait that is **not** parallel | The angle they open |
+| A circle or an arc | Its radius **and** its diameter |
+
+A distance and a length both carry the reach along the sketch's two axes:
+"how much higher" is asked as often as "how far". They are not written as a
+list — the three numbers are the three sides of a **right triangle** drawn over
+the run, each written on the side it measures. The hypotenuse is the distance;
+the two legs are the reaches, drawn in the colours the sketch's own axes wear,
+so which is which needs no word.
+
+**A measure is held to six significant figures, and the reader may turn it
+down to three** — *Chiffres d'une mesure*, in the viewport preferences beside
+the unit. A dimension rounds far harder, because it is a value the drawing is
+*held to*: it is typed, and typing 40 has to read back 40 rather than
+39.999999999999996. A measure reports what is there instead, and a report that
+rounds too hard is how a drawing that has drifted by a hair goes on looking
+exact.
+
+Significant figures rather than decimal places, so the precision follows the
+size of what is measured: six figures is a tenth of a micron on a part of a
+millimetre and a hundredth of a millimetre on one of a metre. Three is a
+thousandth of whatever is being measured, which is where a reading stops
+telling a machinist anything new; six is where the arithmetic stops being
+trustworthy, a value that has been through the solver and a change of scale
+having lost several of the fifteen figures `f64` carries. Rounding happens in
+the value and not in the printing, so 1234.5678 to three figures is 1230 —
+what three figures means — and not 1235, which is four of them wearing a round
+face.
+
+**Every value is shown, and only a reach of nothing at all is left out** — a
+trait exactly square to an axis has no second reach, and "0 mm" under its
+length says nothing. A reach that is merely small is still true and is still
+written.
+
+On a trait a hair off an axis the length and the long reach land on the same
+spot. Neither is dropped: the second **steps down onto a line of its own**, so
+both stay readable. A number only steps aside for a real overlap — two corners
+grazing by a tenth of a point are left alone, since a whole line's jump to
+answer that would put the number further from the side it measures than the
+graze ever was.
+
+Every number sits on a dark pill, which is what puts it *in front of* the
+drawing rather than merely painted after it: over an ellipse or a filled area,
+bare text keeps the lines running through its digits.
+
+A circle and an angle are not runs and keep the annotation's own shape, with
+their numbers beside it.
+
+All of it is dashed, and in a colour of its own — `measure` in the theme, and
+settable like the rest. The one thing a measure must never be mistaken for is a
+dimension, which is a promise the drawing is held to.
+
+**One measure at a time.** It goes when the next one starts, on `Échap`, when
+another tool is taken, and on any change to the drawing at all — undo, redo,
+anything — so it never shows a value that has stopped being true.
+
+It shares the smart dimension's aim, which is why it takes a trait and a point
+the same way. Where the two part company is the circle and the pair of
+parallels. A dimension has to *be* one value, so a circle gives it the diameter
+and the radius has to be asked for by clicking the centre next; a measure has
+no such duty and says both at once. And two parallels, which a dimension refuses
+because they open no angle, are exactly where a measure has something to say.
+
+The area and the perimeter of a closed region are not done yet — issue #425.
+
 ## Circles
 
 The **Cercles** menu, in the Dessin row, offers five ways:

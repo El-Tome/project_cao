@@ -108,6 +108,7 @@ in one of the two domains, never there.
 | One click of the line tool | `sketch/src/chain.rs` | `chain_click`, `ChainClick` |
 | Which circle the clicks gathered so far mean | `sketch/src/circling.rs` | `circle_from`, `rim_of`, `Found` |
 | What one click of the smart dimension tool measures | `sketch/src/measuring.rs` | `measure_pick`, `DimensionMode`, `DimensionPick` |
+| What the measure tool reads off a target, and the run it draws its triangle on | `sketch/src/reading.rs` | `Sketch::read`, `Sketch::run_of`, `Reading` |
 | The dimensions a freshly-drawn rectangle or line earns on its own | `sketch/src/shape_dimensions.rs` | `rectangle_dimensions`, `line_dimensions` |
 | What each tool remembers between one click and the next | `sketch/src/tool.rs` | `ToolState`, `SelectState` |
 
@@ -234,6 +235,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |
+| Canvas: one click of the measure tool, which records nothing | `app/src/screens/viewport/input/reading.rs` | `read`, `showing` |
+| Canvas: the dashed triangle a measure is drawn as, and a number on each side | `app/src/screens/viewport/render/reading.rs` | `push_measure`, `paint_measure` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
 | A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
@@ -251,6 +254,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
+| What a measure says, one number per side of its triangle | `app/src/wording/measure.rs` | `says`, `Said` |
 | What an operation just did, said to the user | `app/src/wording/outcome.rs` | `message` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |
 | What a way of drawing a circle asks for | `app/src/wording/circle.rs` | `asks_for` |

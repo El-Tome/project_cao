@@ -211,6 +211,9 @@ impl Sketch {
         for (rule, at) in &carried.fastened {
             if let Constraint::Tangent {
                 at: Some(point), ..
+            }
+            | Constraint::EllipseTangent {
+                at: Some(point), ..
             } = rule
                 && pieces.iter().any(|piece| piece.holds(*at))
             {

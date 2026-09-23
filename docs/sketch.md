@@ -297,6 +297,13 @@ all to first order, so the solver would have nothing to correct.
 That point is what one grabs to **slide a circle along the line it touches**,
 without breaking the tangency.
 
+**An ellipse brushing a line carries one too**, and it is not square under the
+centre: how far an ellipse stands from its centre depends on which way one
+looks, so the touch sits off to one side of that foot — by a third of the
+width, on a curve half as high as it is wide. What holds it is the same pair
+read the ellipse's way: on the line, and out from the centre the way the curve
+reaches.
+
 ## Ellipses
 
 Three clicks lay one: the **centre**, the **end of the first axis** — its

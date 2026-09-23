@@ -7,9 +7,13 @@
 //!   `a_trait_pinned_at_one_end_turns_until_it_brushes` — and the curve growing
 //!   to the trait is as good an answer as the trait moving to the curve —
 //!   `an_ellipse_free_to_grow_swells_until_it_meets_the_trait`
+//! - the rule leaves a point where the two touch, as a tangency on a circle
+//!   does, and takes it back when it goes —
+//!   `the_tangency_leaves_a_point_where_the_two_touch`
 //! - dragging the ellipse keeps them touching —
 //!   `the_ellipse_dragged_keeps_the_trait_against_it`, and to the last decimal,
-//!   not just to the eye — `a_dragged_ellipse_leaves_the_trait_exactly_against_it`
+//!   not just to the eye, when nothing is left holding it but the rule itself —
+//!   `a_tangency_whose_touch_was_rubbed_out_still_holds_the_trait_exactly`
 //! - dragging the trait keeps them touching —
 //!   `the_trait_dragged_keeps_brushing_the_ellipse`
 //! - an arc of ellipse takes a tangency the same way —
@@ -73,6 +77,18 @@ fn along_the_stretch(sketch: &Sketch, ellipse: cao_sketch::EllipseId, segment: S
         .fold(f64::INFINITY, f64::min)
 }
 
+/// The point the drawing's one ellipse tangency holds where the two touch.
+fn the_touch_point(sketch: &Sketch) -> cao_sketch::PointId {
+    sketch
+        .constraints()
+        .iter()
+        .find_map(|rule| match rule {
+            Constraint::EllipseTangent { at, .. } => *at,
+            _ => None,
+        })
+        .expect("a tangency keeps a point where the two touch")
+}
+
 /// How far the tangency itself is from being kept: the gap between the line
 /// the trait lies on and how far the ellipse reaches square to that line.
 ///
@@ -128,6 +144,49 @@ fn a_trait_told_to_brush_an_ellipse_ends_up_touching_it() {
     assert!(
         after < 1e-3,
         "it brushes the curve, standing {after} off it"
+    );
+}
+
+#[test]
+fn the_tangency_leaves_a_point_where_the_two_touch() {
+    let (mut sketch, ellipse, segment) = an_ellipse_and_a_trait();
+    let before = sketch.live_points().count();
+
+    sketch.add_constraint(Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    });
+    sketch.resolve(1.0);
+
+    assert_eq!(
+        sketch.live_points().count(),
+        before + 1,
+        "one point more, as a tangency on a circle leaves one",
+    );
+    let touch = sketch.point(the_touch_point(&sketch));
+    let drawn = sketch.ellipse_draft(ellipse);
+    // Loose on purpose: what this holds is that the point lands on the touch
+    // rather than anywhere else. How exactly the rule itself is kept is
+    // measured by a_tangency_whose_touch_was_rubbed_out_still_holds_the_trait_exactly.
+    assert!(drawn.distance(touch) < 1e-2, "it is on the curve: {touch}");
+    let (from, to) = sketch.endpoints(segment);
+    let across = (to - from).perp().normalize();
+    assert!(
+        across.dot(touch - from).abs() < 1e-2,
+        "and on the trait: {touch}",
+    );
+
+    sketch.erase_constraint(Constraint::EllipseTangent {
+        ellipse,
+        segment,
+        at: None,
+    });
+
+    assert_eq!(
+        sketch.live_points().count(),
+        before,
+        "and it goes when the rule does, rather than being left in mid-air",
     );
 }
 
@@ -217,10 +276,12 @@ fn the_ellipse_dragged_keeps_the_trait_against_it() {
 }
 
 #[test]
-fn a_dragged_ellipse_leaves_the_trait_exactly_against_it() {
+fn a_tangency_whose_touch_was_rubbed_out_still_holds_the_trait_exactly() {
+    // The touch point is a point of the drawing and can be deleted like any
+    // other; the rule stays, with nothing left holding it but its own sum.
     // Long and thin is where how far the curve reaches swings fastest as the
-    // trait turns, and the bound is far below what any screen shows: the point
-    // is to measure the rule, not to look at it.
+    // trait turns, and the bound is far below anything a screen shows: what is
+    // measured here is the sum, not the picture.
     for turn in 0..12 {
         let (mut sketch, ellipse, segment) = an_ellipse_and_a_trait_of(10.0, 60.0);
         sketch.add_constraint(Constraint::EllipseTangent {
@@ -229,6 +290,8 @@ fn a_dragged_ellipse_leaves_the_trait_exactly_against_it() {
             at: None,
         });
         sketch.resolve(1.0);
+        let touch = the_touch_point(&sketch);
+        sketch.erase(Element::Point(touch));
         let centre = sketch.ellipses()[ellipse.0].center;
         let angle = turn as f64 / 12.0 * std::f64::consts::TAU;
 

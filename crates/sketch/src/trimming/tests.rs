@@ -338,13 +338,22 @@ fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
         .pieces;
 
     let kept = pieces[0];
+    let moved = sketch
+        .constraints()
+        .iter()
+        .find_map(|rule| match rule {
+            Constraint::EllipseTangent { segment, at, .. } if *segment == kept => Some(*at),
+            _ => None,
+        })
+        .unwrap_or_else(|| {
+            panic!(
+                "the piece the curve brushes carries the tangency on: {:?}",
+                sketch.constraints()
+            )
+        });
+    let contact = moved.expect("and the point where the two touch with it");
     assert!(
-        sketch.constraints().contains(&Constraint::EllipseTangent {
-            ellipse,
-            segment: kept,
-            at: None,
-        }),
-        "the piece the curve brushes carries the tangency on: {:?}",
-        sketch.constraints(),
+        !sketch.is_erased_point(contact),
+        "which still stands, rather than being left in mid-air",
     );
 }

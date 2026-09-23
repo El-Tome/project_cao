@@ -125,11 +125,49 @@ impl Sketch {
         into.push(equation);
 
         // Where the two touch is a point of the drawing, and it is not free:
-        // it lies on the line and on the curve, which between them leave it
-        // the one place the two have in common.
+        // it lies on the line, and out from the centre the way the curve
+        // reaches.
         if let Some(contact) = self.live_point(at) {
             into.extend(self.on_line_equation(contact, segment, 0.0));
-            into.extend(self.on_ellipse_equation(contact, ellipse));
+            into.extend(self.reached_equation(contact, oval.center, segment, outward));
         }
+    }
+
+    /// A tangency's contact held where the curve reaches out to the line,
+    /// rather than square under the centre as a circle's is.
+    ///
+    /// Saying instead that it lies on the line *and* on the curve names the
+    /// same place and is useless to a solver: at a tangency the two meet
+    /// without crossing, so the pair of rows falls flat exactly where the
+    /// answer is, and the touch settles to three decimals where this settles
+    /// to ten.
+    fn reached_equation(
+        &self,
+        point: PointId,
+        centre: PointId,
+        segment: SegmentId,
+        outward: DVec2,
+    ) -> Option<Equation> {
+        let line = *self.segments().get(segment.0)?;
+        if point.0 >= self.points().len() {
+            return None;
+        }
+        let (a, b) = (self.point(line.start), self.point(line.end));
+        let span = b - a;
+        let length = span.length();
+        if length < 1e-9 {
+            return None;
+        }
+        let unit = span / length;
+        let reach = self.point(point) - self.point(centre);
+        let turning = (reach - unit * reach.dot(unit)) / length;
+
+        let mut equation = Equation::new(self.variables());
+        equation.error = reach.dot(unit) - outward.dot(unit);
+        equation.add(point, unit);
+        equation.add(centre, -unit);
+        equation.add(line.end, turning);
+        equation.add(line.start, -turning);
+        Some(equation)
     }
 }

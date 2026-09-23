@@ -71,7 +71,7 @@ in one of the two domains, never there.
 | Copying a selection across an axis | `sketch/src/mirroring.rs` | `Sketch::mirror` |
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
 | How wide a held selection stands, whichever way it is measured | `sketch/src/patterning/span.rs` | `Sketch::widest_span` |
-| Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
+| Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `erase_constraint` |
 | What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `supports_for`, `holds_on`, `slide`, `let_go` |
 | What a rule holding a point asks of the solver, and which of the two gives | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `held_alone`, `pulled_elsewhere` |
 | What being an ellipse asks of the solver: axes square and halved by the centre | `sketch/src/solver/ellipse_solver.rs` | `ellipse_equations` |
@@ -81,7 +81,8 @@ in one of the two domains, never there.
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
 | Where a rule's mark is written, and the nearest one to a cursor | `sketch/src/rule_marks.rs` | `Sketch::rule_marks`, `Sketch::nearest_rule` |
 | The solver | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
-| Whether a tangency's contact has slid off its segment | `sketch/src/tangency.rs` | `Sketch::has_a_flipped_tangent` |
+| Laying a tangency with the point where the two touch, and taking both away | `sketch/src/sketch/tangency.rs` | `add_tangency`, `add_ellipse_tangency`, `laid_as_a_tangency`, `erased_as_a_tangency` |
+| Whether a tangency's contact has slid off its segment | `sketch/src/sketch/tangency.rs` | `Sketch::has_a_flipped_tangent` |
 | One equation of the system, linearised around the drawing's current shape | `sketch/src/equation.rs` | `Equation` |
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |

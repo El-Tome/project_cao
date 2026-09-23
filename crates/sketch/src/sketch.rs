@@ -74,6 +74,7 @@ pub struct Sketch {
 mod holds_up;
 mod keeping;
 mod settling;
+mod tangency;
 
 pub use crate::element::Element;
 
@@ -237,15 +238,7 @@ impl Sketch {
 
     /// Adds a rule, unless the drawing already carries it.
     pub fn add_constraint(&mut self, constraint: Constraint) {
-        // A tangency brings its contact point with it, so it is laid down by
-        // the method that knows how to make one.
-        if let Constraint::Tangent {
-            circle,
-            segment,
-            at: None,
-        } = constraint
-        {
-            self.add_tangency(circle, segment);
+        if self.laid_as_a_tangency(constraint) {
             return;
         }
         let constraint = constraint.normalised();
@@ -254,57 +247,8 @@ impl Sketch {
         }
     }
 
-    /// A circle told to brush a line, and the point where the two touch.
-    ///
-    /// That point is a point of the drawing like any other — it can be grabbed
-    /// to slide the circle along the line, measured from, and snapped to. It is
-    /// made here rather than at the click because where it goes is not a
-    /// choice: it is the foot of the centre on the line.
-    pub fn add_tangency(&mut self, circle: CircleId, segment: SegmentId) {
-        let plain = Constraint::Tangent {
-            circle,
-            segment,
-            at: None,
-        };
-        if !self.holds_up(plain) || self.tangency_index(circle, segment).is_some() {
-            return;
-        }
-        let at = self
-            .foot_on_segment(self.circle(circle).center, segment)
-            .map(|place| self.add_point(place));
-        self.constraints.push(Constraint::Tangent {
-            circle,
-            segment,
-            at,
-        });
-    }
-
-    fn tangency_index(&self, circle: CircleId, segment: SegmentId) -> Option<usize> {
-        self.constraints.iter().position(|held| {
-            matches!(
-                held,
-                Constraint::Tangent { circle: round, segment: line, .. }
-                    if *round == circle && *line == segment
-            )
-        })
-    }
-
     pub fn erase_constraint(&mut self, constraint: Constraint) {
-        // A tangency is named by the two things it holds, whatever became of
-        // its contact point, and that point goes with it.
-        if let Constraint::Tangent {
-            circle, segment, ..
-        } = constraint
-        {
-            let Some(rank) = self.tangency_index(circle, segment) else {
-                return;
-            };
-            if let Constraint::Tangent {
-                at: Some(point), ..
-            } = self.constraints.remove(rank)
-            {
-                self.erase(Element::Point(point));
-            }
+        if self.erased_as_a_tangency(constraint) {
             return;
         }
         let constraint = constraint.normalised();

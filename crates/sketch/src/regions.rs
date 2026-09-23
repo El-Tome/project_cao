@@ -1,5 +1,6 @@
 use glam::DVec2;
 
+use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
 
@@ -21,6 +22,15 @@ pub struct Outline {
     /// one *run* from the next within the loop; this says which curve of the
     /// drawing each run was cut out of, and outlives being cut again.
     pub bounds: Vec<CurveId>,
+    /// What each run actually curves along, indexed by the run number in
+    /// `curves`.
+    ///
+    /// The sampled points say where a curve went, never what it was: a circle
+    /// read off its own steps comes out a little small and a little short, and
+    /// a measuring tool that answers 313.9 mm² for a circle of radius ten is
+    /// one nobody trusts twice. Tinting and extruding want the steps; measuring
+    /// wants the curve, and this is where the walk leaves it.
+    pub bends: Vec<Bend>,
 }
 
 /// A closed area of the drawing, ready to be tinted.
@@ -335,6 +345,8 @@ fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
     let side = |from: DVec2, to: DVec2| (to - from).perp_dot(point - from);
     side(a, b) >= 0.0 && side(b, c) >= 0.0 && side(c, a) >= 0.0
 }
+
+mod measure;
 
 #[cfg(test)]
 mod tests;

@@ -19,7 +19,7 @@ use crate::naming::CurveId;
 use crate::sketch::Sketch;
 
 mod curve;
-mod half_edge;
+pub(crate) mod half_edge;
 
 use curve::{Curve, between, pieces};
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
@@ -318,10 +318,7 @@ impl Sketch {
                 ends.push((end, start));
                 from.extend([id, id]);
                 for forward in [true, false] {
-                    bent.push(CurvedHalfEdge {
-                        bend: bend.clone(),
-                        forward,
-                    });
+                    bent.push(CurvedHalfEdge { bend, forward });
                 }
             }
         }

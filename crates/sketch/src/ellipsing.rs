@@ -102,6 +102,32 @@ impl EllipseDraft {
         self.centre + self.first * turn.cos() + self.second_axis() * turn.sin()
     }
 
+    /// How long a run of the curve is, from `from`, turning by `sweep`.
+    ///
+    /// A circle's arc is its radius times its sweep. An ellipse's has no such
+    /// form at all — it is the elliptic integral of the second kind, which is
+    /// where the name comes from — so it is integrated instead. Simpson's rule
+    /// on a smooth integrand and this many panels lands within a part in a
+    /// million million, far under what the drawing itself is worth.
+    pub fn run_of(&self, from: f64, sweep: f64) -> f64 {
+        let (first, second) = (self.first.length(), self.second);
+        // Along the curve, `at` differentiated: the two axes are square to one
+        // another, so how fast a turn moves along it is a plain hypotenuse.
+        let speed = |turn: f64| (first * turn.sin()).hypot(second * turn.cos());
+        let panels = ((sweep.abs() / std::f64::consts::TAU) * 1024.0).ceil() as usize;
+        let panels = panels.next_multiple_of(2).max(2);
+        let step = sweep / panels as f64;
+        let mut total = speed(from) + speed(from + sweep);
+        for panel in 1..panels {
+            let weight = match panel % 2 {
+                0 => 2.0,
+                _ => 4.0,
+            };
+            total += weight * speed(from + step * panel as f64);
+        }
+        (total * step / 3.0).abs()
+    }
+
     /// The turn that lands closest to a place.
     ///
     /// Sampled first, then refined: the nearest place is where the line to it

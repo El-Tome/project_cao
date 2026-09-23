@@ -32,7 +32,11 @@ pub enum Said {
 /// What a measure says, from what it read.
 ///
 /// Lengths go through the same unit the rest of the interface shows, so a
-/// drawing read in centimetres does not suddenly answer in millimetres.
+/// drawing read in centimetres does not suddenly answer in millimetres — but
+/// **unrounded**, unlike a dimension's. A dimension is typed and read back, and
+/// typing 40 should give 40 rather than 39.999999999999996; a measure reports
+/// what is there, and a report that rounds is how a drawing that drifted by a
+/// hair goes on looking exact.
 pub fn says(
     lang: &Catalogue,
     target: DimensionTarget,
@@ -42,20 +46,20 @@ pub fn says(
     let say = |key: &str, value: String| lang.t_with(key, &[("value", &value)]);
     match reading {
         Reading::Gap { span, offsets } => Said::Triangle {
-            span: say(headline(target), unit.format(span)),
-            across: unit.format(offsets.x),
-            up: unit.format(offsets.y),
+            span: say(headline(target), unit.in_full(span)),
+            across: unit.in_full(offsets.x),
+            up: unit.in_full(offsets.y),
         },
         // Both, because a measure need not choose: a hole is drilled to a
         // diameter and a clearance is checked on a radius, and the one gesture
         // this tool would otherwise have to teach is the one that picks
         // between them.
         Reading::Round { radius } => Said::Beside(vec![
-            say("measure.radius", unit.format(radius)),
-            say("measure.diameter", unit.format(radius * 2.0)),
+            say("measure.radius", unit.in_full(radius)),
+            say("measure.diameter", unit.in_full(radius * 2.0)),
         ]),
         Reading::Opening { degrees } => {
-            Said::Beside(vec![say("measure.angle", format!("{degrees:.1}"))])
+            Said::Beside(vec![say("measure.angle", format!("{degrees}"))])
         }
     }
 }

@@ -180,6 +180,23 @@ impl LengthUnit {
         };
         format!("{text} {}", self.suffix())
     }
+
+    /// The same length with nothing rounded off it: every digit the number
+    /// actually has.
+    ///
+    /// `format` above is for a value the drawing is *held to* — a dimension is
+    /// typed, and typing 40 should read back 40 rather than 39.999999999999996.
+    /// A measure is the other thing: it reports what is there, and rounding a
+    /// report is how a drawing that drifted by a hair goes on looking exact.
+    /// So the two are kept apart rather than one being made to serve both.
+    ///
+    /// Rust prints the shortest decimal that reads back as the very same
+    /// `f64`, which is exactly what is wanted: nothing is invented and nothing
+    /// is hidden.
+    pub fn in_full(self, millimeters: f64) -> String {
+        let value = millimeters / self.millimeters();
+        format!("{value} {}", self.suffix())
+    }
 }
 
 /// Everything tweakable about the 3D viewport. Serializable so it can be
@@ -283,6 +300,11 @@ impl UnitDisplay {
 
     pub fn format(self, millimeters: f64) -> String {
         self.unit_for(millimeters).format(millimeters)
+    }
+
+    /// The same, with nothing rounded off it. See [`LengthUnit::in_full`].
+    pub fn in_full(self, millimeters: f64) -> String {
+        self.unit_for(millimeters).in_full(millimeters)
     }
 }
 

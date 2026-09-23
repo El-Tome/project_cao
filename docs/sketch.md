@@ -279,6 +279,15 @@ the run, each written on the side it measures. The hypotenuse is the distance;
 the two legs are the reaches, drawn in the colours the sketch's own axes wear,
 so which is which needs no word.
 
+**Nothing is rounded on the way to the screen.** A measure shows every digit
+the number has — the shortest decimal that reads back as the very same `f64`,
+so nothing is invented and nothing is hidden. That is the opposite of a
+dimension, which rounds because it is a value the drawing is *held to*: typing
+40 has to read back 40 rather than 39.999999999999996. A measure reports what
+is there instead, and a report that rounds is how a drawing that has drifted by
+a hair goes on looking exact. The honest cost is a long number for a length
+that genuinely is one — a diagonal is rarely round.
+
 **Every value is shown, and only a reach of nothing at all is left out** — a
 trait exactly square to an axis has no second reach, and "0 mm" under its
 length says nothing. A reach that is merely small is still true and is still

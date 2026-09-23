@@ -11,6 +11,8 @@
 //! - a circle says its radius and its diameter together —
 //!   `a_round_says_both_the_radius_and_the_diameter`
 //! - an angle is said in degrees — `an_angle_is_said_in_degrees`
+//! - nothing a measure says is rounded on the way to the screen —
+//!   `a_measure_rounds_nothing_off_what_it_read`
 
 use super::*;
 
@@ -138,5 +140,47 @@ fn an_angle_is_said_in_degrees() {
     assert!(
         lines[0].contains("37.2") && lines[0].contains('°'),
         "the opening in degrees: {lines:?}",
+    );
+}
+
+#[test]
+fn a_measure_rounds_nothing_off_what_it_read() {
+    // A run of forty and a hair. Rounded to the tenth a dimension shows, all
+    // three of these read as round numbers and the drawing looks exact when it
+    // is not — which is the one thing a measuring tool may not do.
+    let Said::Triangle { span, across, up } = a_run(
+        distance(),
+        40.001_531_099_2,
+        DVec2::new(40.000_02, 0.350_000_7),
+    ) else {
+        panic!("a straight run is shown as a triangle");
+    };
+
+    assert!(
+        span.contains("40.0015310992"),
+        "the run keeps every digit it has: {span:?}",
+    );
+    assert!(
+        across.contains("40.00002") && up.contains("0.3500007"),
+        "and so do both reaches: {across:?} {up:?}",
+    );
+
+    let Said::Beside(lines) = says(
+        &french(),
+        DimensionTarget::Angle {
+            first: SegmentId(0),
+            second: SegmentId(1),
+        },
+        Reading::Opening {
+            degrees: 37.249_998_3,
+        },
+        millimetres(),
+    ) else {
+        panic!("an angle is written beside itself");
+    };
+    assert!(
+        lines[0].contains("37.2499983"),
+        "an angle is a reading too, and was the last thing still rounding \
+         itself to a tenth of a degree: {lines:?}",
     );
 }

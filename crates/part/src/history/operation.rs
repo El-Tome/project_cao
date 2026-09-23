@@ -138,10 +138,14 @@ pub enum Operation {
     /// An ellipse, as its centre and the two ends of each of its axes. The axes
     /// are laid with it as construction traits, in the same step.
     ///
-    /// `drawn` is the stretch of it left after a cut, as the two points it runs
-    /// between. Nothing while the whole curve is drawn, which is how one is
-    /// laid; compaction writes it out so that an arc of ellipse comes back as
-    /// the one it is rather than as the whole curve.
+    /// `drawn` is the stretch of the curve that is drawn, as the two points it
+    /// runs between; nothing at all when the whole of it is. The tool writes it
+    /// when it places half a curve, and compaction writes it so that an arc of
+    /// ellipse comes back as the one it is rather than as the whole curve.
+    ///
+    /// The same reference twice names the same point. Half a curve stands on
+    /// its centre twice — as the centre, and as the end its second axis is laid
+    /// out from — and runs between the ends of its own first axis.
     AddEllipse {
         sketch: usize,
         center: PointRef,

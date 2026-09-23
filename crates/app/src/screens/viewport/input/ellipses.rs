@@ -4,7 +4,7 @@
 use cao_part::{Operation, PointRef};
 use cao_sketch::{
     EllipseDraft, EllipseId, EllipseMode, LockedInput, ToolState, ellipse_aimed,
-    ellipse_dimensions, ellipse_from, half_between,
+    ellipse_dimensions, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
@@ -48,12 +48,7 @@ pub(crate) fn draw_ellipse(
         context.editor.message = Some(context.lang.t("sketch.no_ellipse_from_these"));
         return false;
     };
-    // Placed from its two ends, what is typed at the third click is the rise,
-    // which is half of what the second axis measures across.
-    let second_width = context.editor.live.typed(0).map(|typed| match mode {
-        EllipseMode::ByCentre => typed,
-        EllipseMode::ByEnds => typed * 2.0,
-    });
+    let second_width = context.editor.live.typed(0);
 
     // Only the places actually clicked reuse what is under them. The others
     // are worked out rather than aimed at, and a point that happens to lie
@@ -75,13 +70,26 @@ pub(crate) fn draw_ellipse(
             ],
         ),
     };
-    let second = [drawn.centre - across, drawn.centre + across].map(PointRef::New);
+    // Placed from its two ends, the second axis is laid out from the centre to
+    // the rise rather than across the curve: the other half of it would stand
+    // where nothing is drawn, and the figure it carries is the rise itself.
+    let second = match mode {
+        EllipseMode::ByCentre => [drawn.centre - across, drawn.centre + across].map(PointRef::New),
+        EllipseMode::ByEnds => [
+            center.clone(),
+            PointRef::New(drawn.centre + rise_of(drawn, cursor).reach(drawn)),
+        ],
+    };
     // Only the half the rise fell on is drawn, and the stretch runs between the
     // very points the first axis stands on — named by the same references, so
     // that laying it does not put a second point on top of each end.
     let stretch = match mode {
         EllipseMode::ByCentre => None,
-        EllipseMode::ByEnds => Some(half_between(drawn, cursor).map(|rank| first[rank].clone())),
+        EllipseMode::ByEnds => Some(
+            rise_of(drawn, cursor)
+                .between()
+                .map(|rank| first[rank].clone()),
+        ),
     };
 
     context.editor.tool_state = ToolState::None;

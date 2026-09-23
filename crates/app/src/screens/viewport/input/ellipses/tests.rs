@@ -10,9 +10,8 @@
 //! - placed from its two ends, three clicks lay half a curve as one step of
 //!   the history, standing on the points clicked —
 //!   `half_an_ellipse_is_one_step_standing_on_the_two_ends_clicked`
-//! - the rise typed at the third click is half of what the second axis
-//!   measures across, and is dimensioned as that axis —
-//!   `the_rise_typed_dimensions_the_whole_second_axis`
+//! - the second axis is laid from the centre out to the rise, so the rise typed
+//!   is what it measures — `the_rise_typed_is_what_the_second_axis_measures`
 
 use cao_part::PartDocument;
 use cao_sketch::{DimensionTarget, EllipseMode, SketchAxis, WorkPlane};
@@ -193,13 +192,14 @@ fn half_an_ellipse_is_one_step_standing_on_the_two_ends_clicked() {
         "one undo takes the whole of it: it was laid as one step",
     );
     assert_eq!(
-        laid, 6,
-        "five points and the sketch origin, none laid twice"
+        laid, 5,
+        "four points and the sketch origin: the centre is an end of the second \
+         axis rather than a fifth point, and none was laid twice",
     );
 }
 
 #[test]
-fn the_rise_typed_dimensions_the_whole_second_axis() {
+fn the_rise_typed_is_what_the_second_axis_measures() {
     let document = clicked_in(
         EllipseMode::ByEnds,
         &[
@@ -225,8 +225,13 @@ fn the_rise_typed_dimensions_the_whole_second_axis() {
     );
     assert_eq!(
         value(DimensionTarget::Length(ellipse.second)),
-        Some(40.0),
-        "and a rise of twenty is an axis forty across, which is what is dimensioned",
+        Some(20.0),
+        "and the axis runs from the centre to the rise, so it measures the rise",
+    );
+    assert_eq!(
+        drawing.segments()[ellipse.second.0].start,
+        ellipse.center,
+        "which is where it starts",
     );
     assert!((drawing.ellipse_draft(id).second - 20.0).abs() < 1e-6);
 }

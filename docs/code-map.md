@@ -49,8 +49,9 @@ in one of the two domains, never there.
 | Which arc the clicks gathered so far mean | `sketch/src/arc_placing.rs` | `arc_from`, `aimed`, `angle_reference`, `ArcMode` |
 | The curve an arc is, and the steps it is drawn as | `sketch/src/arcing.rs` | `ArcDraft`, `sweep_of`, `places_along`, `steps_along`, `bounds_of` |
 | An ellipse, laid with its two axes as construction traits, and the stretch of it a cut left | `sketch/src/ellipse.rs` | `Ellipse`, `Sketch::add_ellipse`, `ellipse_draft`, `ellipse_run`, `ellipse_ends`, `place_on_ellipse`, `erase_ellipse` |
+| How far an ellipse's axes reach, laid across the curve or out from its centre | `sketch/src/ellipse/axes.rs` | `Sketch::ellipse_draft`, `axis_stands_on_the_centre` |
 | The curve an ellipse is: where a turn lands, the nearest place, its box | `sketch/src/ellipsing.rs` | `EllipseDraft`, `through`, `at`, `nearest`, `bounds`, `places` |
-| Which ellipse the clicks gathered so far mean, once what was typed has had its say, and which half of it a placement by two ends draws | `sketch/src/ellipse_placing.rs` | `EllipseMode`, `ellipse_aimed`, `ellipse_from`, `half_between` |
+| Which ellipse the clicks gathered so far mean, once what was typed has had its say, and which half of it a placement by two ends draws | `sketch/src/ellipse_placing.rs` | `EllipseMode`, `ellipse_aimed`, `ellipse_from`, `Rise`, `rise_of` |
 | Where an ellipse crosses a trait, a circle, an arc or another ellipse | `sketch/src/crossing/ellipse.rs` | `where_segment_crosses_ellipse`, `where_circle_crosses_ellipse`, `where_arc_crosses_ellipse`, `where_ellipses_cross` |
 | An ellipse, and the turns at which the drawing runs through it | `sketch/src/ellipse_edges.rs` | `Oval`, `Sketch::ovals` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |

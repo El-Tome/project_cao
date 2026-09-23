@@ -32,10 +32,6 @@ impl EllipseMode {
     }
 }
 
-/// How many places the ellipse tool needs: its centre, the end of its first
-/// axis, and how far the second reaches.
-pub const ELLIPSE_PLACES: usize = 3;
-
 /// Where the next click of the ellipse tool lands, the cursor bent by what was
 /// typed.
 ///
@@ -127,17 +123,52 @@ pub fn ellipse_from(mode: EllipseMode, places: &[DVec2], cursor: DVec2) -> Optio
     }
 }
 
-/// Which half of the curve a placement by its two ends draws, as the two ends
-/// of the first axis in the order the stretch runs between them: `[0, 1]` from
-/// that axis's start round to its end, `[1, 0]` the other way.
+/// Which side of its first axis half a curve is drawn on, which is the side
+/// the rise fell on.
 ///
-/// The curve bulges to the side the rise fell on, and a stretch always runs
-/// the way a turn grows — which from the axis's end passes the side the second
-/// axis itself points to. So the side is what decides the order.
-pub fn half_between(drawn: EllipseDraft, rise: DVec2) -> [usize; 2] {
+/// Named rather than handed out as a number, so that the one place the
+/// convention lives is here: a caller that had to read a sign or an index back
+/// into a side would be free to read it the other way round, and a preview
+/// showing the opposite half of what the click lays is green all the way.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Rise {
+    /// The way the second axis itself points, a quarter turn counter-clockwise
+    /// from the first.
+    Along,
+    /// The other way.
+    Against,
+}
+
+/// Which side of the first axis a placement by two ends draws, the rise being
+/// where the third click fell.
+pub fn rise_of(drawn: EllipseDraft, rise: DVec2) -> Rise {
     match (rise - drawn.centre).dot(drawn.second_axis()) < 0.0 {
-        true => [0, 1],
-        false => [1, 0],
+        true => Rise::Against,
+        false => Rise::Along,
+    }
+}
+
+impl Rise {
+    /// The two ends of the first axis in the order the drawn stretch runs
+    /// between them, as ranks of `[centre - first, centre + first]`.
+    ///
+    /// A stretch always runs the way a turn grows, and a turn of nothing is
+    /// the end at `centre + first`. So the half on the second axis's own side
+    /// opens there, and the other half opens at the far end.
+    pub fn between(self) -> [usize; 2] {
+        match self {
+            Self::Along => [1, 0],
+            Self::Against => [0, 1],
+        }
+    }
+
+    /// The way out from the centre to where the curve reaches, which is where
+    /// the second axis stops when only half a curve is drawn.
+    pub fn reach(self, drawn: EllipseDraft) -> DVec2 {
+        match self {
+            Self::Along => drawn.second_axis(),
+            Self::Against => -drawn.second_axis(),
+        }
     }
 }
 

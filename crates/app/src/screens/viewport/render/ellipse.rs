@@ -2,7 +2,7 @@
 //! angle of the first axis while its end is picked, and the width of the
 //! second while it is.
 
-use cao_sketch::{EllipseDraft, EllipseMode, Sketch, half_between};
+use cao_sketch::{EllipseDraft, EllipseMode, Sketch, rise_of};
 use glam::DVec2;
 
 use super::curves::{places_of, push_ellipse_at};
@@ -76,19 +76,34 @@ pub(crate) fn push_preview(
                 push_point_marker(out, sketch, place, marker, preview, 1.5);
             }
         }
-        // One place given: from the centre, the whole first axis is shown, the
-        // click being one of its ends. From the two ends, what is shown is the
-        // axis itself, running from the end already clicked to the cursor.
-        (None, [held, ..]) => {
-            let (from, to) = match mode {
-                EllipseMode::ByCentre => (*held - (aimed - *held), aimed),
-                EllipseMode::ByEnds => (*held, aimed),
+        // No curve yet — one place given, or a rise of nothing at the second.
+        // Either way the first axis is what the clicks so far settle, and it
+        // is what is shown: a line to the cursor from a place that is not on
+        // that axis would be neither the axis nor anything else.
+        (None, places) => {
+            let Some((from, to)) = first_axis(mode, places, aimed) else {
+                return;
             };
             push_preview_line(out, sketch, from, to, preview, true, scale);
-            push_point_marker(out, sketch, to, marker, preview, 1.5);
-            push_point_marker(out, sketch, *held, marker, preview, 1.5);
+            for place in [from, to] {
+                push_point_marker(out, sketch, place, marker, preview, 1.5);
+            }
         }
-        (None, []) => (),
+    }
+}
+
+/// The first axis the clicks so far settle, as the two places it runs between:
+/// from the centre it reaches the same way either side, from the two ends it
+/// runs between them. The cursor stands in for whichever end is not clicked yet.
+fn first_axis(mode: EllipseMode, places: &[DVec2], aimed: DVec2) -> Option<(DVec2, DVec2)> {
+    let (held, far) = match places {
+        [held] => (*held, aimed),
+        [held, far] => (*held, *far),
+        _ => return None,
+    };
+    match mode {
+        EllipseMode::ByCentre => Some((held - (far - held), far)),
+        EllipseMode::ByEnds => Some((held, far)),
     }
 }
 
@@ -96,10 +111,9 @@ pub(crate) fn push_preview(
 /// places it marks.
 ///
 /// Placed from its two ends, the second axis is shown **only on the side the
-/// curve is drawn**. Half of it stands where nothing is being drawn, and a
-/// preview reaching out there reads as the scaffolding of a whole ellipse
-/// rather than of the half being placed. The trait itself is laid whole, as
-/// every axis is — this is what is shown while placing, not what is made.
+/// curve is drawn**, which is where the trait itself is laid: out from the
+/// centre to the rise rather than across. A preview reaching past it would
+/// read as the scaffolding of a whole ellipse rather than of the half.
 fn scaffolding(
     drawn: EllipseDraft,
     mode: EllipseMode,
@@ -113,10 +127,7 @@ fn scaffolding(
             vec![centre + along, centre + across, centre],
         ),
         EllipseMode::ByEnds => {
-            let bulge = match half_between(drawn, rise) {
-                [1, _] => across,
-                _ => -across,
-            };
+            let bulge = rise_of(drawn, rise).reach(drawn);
             (
                 vec![whole, (centre, centre + bulge)],
                 vec![centre - along, centre + along, centre + bulge, centre],
@@ -132,7 +143,7 @@ fn run_of(drawn: EllipseDraft, mode: EllipseMode, rise: DVec2) -> Vec<DVec2> {
         EllipseMode::ByCentre => drawn.places(),
         EllipseMode::ByEnds => {
             let half = std::f64::consts::PI;
-            let opens = match half_between(drawn, rise) {
+            let opens = match rise_of(drawn, rise).between() {
                 [1, _] => 0.0,
                 _ => half,
             };

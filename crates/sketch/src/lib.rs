@@ -79,7 +79,7 @@ pub use construct::CircleMode;
 pub use dimensioning::axis_under;
 pub use duplicating::Duplicated;
 pub use ellipse::{Ellipse, EllipseId};
-pub use ellipse_placing::{ELLIPSE_PLACES, EllipseMode, ellipse_aimed, ellipse_from, half_between};
+pub use ellipse_placing::{EllipseMode, Rise, ellipse_aimed, ellipse_from, rise_of};
 pub use ellipsing::EllipseDraft;
 pub use fillet::Rounded;
 pub use holding::Support;

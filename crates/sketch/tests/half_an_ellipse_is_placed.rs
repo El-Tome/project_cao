@@ -10,9 +10,14 @@
 //!   `nothing_is_drawn_between_the_two_ends`
 //! - its handles are points of the drawing: the two clicked ends are the first
 //!   axis's own ends, and the curve carries the centre and the axes a trimmed
-//!   ellipse carries — `the_two_ends_clicked_are_the_ends_of_the_first_axis`
+//!   ellipse carries — `the_two_ends_clicked_are_the_ends_of_the_first_axis` —
+//!   and moving one reshapes the curve as it does on a whole ellipse —
+//!   `an_end_dragged_reshapes_the_half_and_it_still_runs_between_the_ends`
 //! - a placement that would lay nothing lays nothing: the two ends in one
 //!   place, or no rise at all — `a_placement_that_lays_nothing_lays_nothing`
+//! - the second axis stops at the rise rather than crossing to where nothing is
+//!   drawn, and the drawing holds it there —
+//!   `the_second_axis_stops_at_the_rise_and_the_solver_keeps_it_there`
 //! - placing a whole ellipse still works —
 //!   `the_whole_ellipse_is_still_placed_from_its_centre`
 //! - every tool still takes the arc — no test: what is laid here is the arc a
@@ -26,7 +31,7 @@
 //!   the rise at the third — no test: the fields a tool shows are the
 //!   application's, held by `crates/app/src/screens/viewport/render/ellipse`
 
-use cao_sketch::{EllipseId, EllipseMode, PointId, Sketch, WorkPlane, ellipse_from, half_between};
+use cao_sketch::{EllipseId, EllipseMode, PointId, Rise, Sketch, WorkPlane, ellipse_from, rise_of};
 use glam::DVec2;
 
 /// The two ends of a half-ellipse sixty wide, and a rise of twenty above them.
@@ -47,12 +52,11 @@ fn a_half_ellipse() -> (Sketch, EllipseId, [PointId; 2]) {
         sketch.add_point(drawn.centre - drawn.first),
         sketch.add_point(drawn.centre + drawn.first),
     ];
-    let second = [
-        sketch.add_point(drawn.centre - across),
-        sketch.add_point(drawn.centre + across),
-    ];
+    // The tool lays the second axis from the centre out to the rise, not across
+    // the whole curve: half of it would stand where nothing is drawn.
+    let second = [centre, sketch.add_point(drawn.centre + across)];
     let id = sketch.add_ellipse(centre, first, second);
-    let [from, to] = half_between(drawn, ABOVE).map(|rank| first[rank]);
+    let [from, to] = rise_of(drawn, ABOVE).between().map(|rank| first[rank]);
     sketch.draw_the_stretch(id, from, to);
     (sketch, id, first)
 }
@@ -127,19 +131,25 @@ fn the_two_ends_give_the_whole_first_axis_and_the_rise_the_second() {
 fn the_curve_bulges_to_the_side_the_rise_fell_on() {
     let drawn = ellipse_from(EllipseMode::ByEnds, &[LEFT, RIGHT], ABOVE).expect("an ellipse");
 
-    let [from, to] = half_between(drawn, ABOVE);
+    assert_eq!(rise_of(drawn, ABOVE), Rise::Along);
     assert_eq!(
-        [from, to],
+        rise_of(drawn, ABOVE).between(),
         [1, 0],
         "a rise above runs the stretch from the axis's far end round to its near one",
     );
+    assert!(
+        rise_of(drawn, ABOVE).reach(drawn).y > 0.0,
+        "and the second axis reaches up to it",
+    );
 
     let under = ellipse_from(EllipseMode::ByEnds, &[LEFT, RIGHT], BELOW).expect("an ellipse");
+    assert_eq!(rise_of(under, BELOW), Rise::Against);
     assert_eq!(
-        half_between(under, BELOW),
+        rise_of(under, BELOW).between(),
         [0, 1],
         "and a rise below runs it the other way",
     );
+    assert!(rise_of(under, BELOW).reach(under).y < 0.0);
 }
 
 #[test]
@@ -170,4 +180,60 @@ fn the_whole_ellipse_is_still_placed_from_its_centre() {
     assert!(drawn.centre.distance(DVec2::ZERO) < 1e-9);
     assert!((drawn.first.length() - 30.0).abs() < 1e-9);
     assert!((drawn.second - 20.0).abs() < 1e-9);
+}
+
+#[test]
+fn the_second_axis_stops_at_the_rise_and_the_solver_keeps_it_there() {
+    let (mut sketch, id, _) = a_half_ellipse();
+    let axes = sketch.ellipses()[id.0];
+
+    let (from, to) = sketch.endpoints(axes.second);
+    assert!(
+        from.distance(DVec2::new(0.0, 10.0)) < 1e-9,
+        "it starts at the centre: {from}",
+    );
+    assert!(
+        to.distance(DVec2::new(0.0, 30.0)) < 1e-9,
+        "and stops at the rise: {to}",
+    );
+
+    sketch.resolve(1.0);
+
+    let drawn = sketch.ellipse_draft(id);
+    assert!(
+        (drawn.second - 20.0).abs() < 1e-6,
+        "the curve still rises twenty, an axis read from the centre out: {}",
+        drawn.second,
+    );
+    let (from, to) = sketch.endpoints(axes.second);
+    assert!(
+        from.distance(to) > 19.0,
+        "and the drawing did not collapse the axis onto its centre: {from} to {to}",
+    );
+}
+
+#[test]
+fn an_end_dragged_reshapes_the_half_and_it_still_runs_between_the_ends() {
+    let (mut sketch, id, first) = a_half_ellipse();
+    let was = sketch.ellipse_draft(id).first.length();
+
+    sketch.settle_around(first[1], DVec2::new(50.0, 30.0), 1.0);
+
+    let drawn = sketch.ellipse_draft(id);
+    assert!(
+        drawn.first.length() > was + 5.0,
+        "the axis stretched to the end that moved: {} was {was}",
+        drawn.first.length(),
+    );
+    let places = sketch.ellipse_polyline(id);
+    let (from, to) = (places[0], places[places.len() - 1]);
+    assert!(
+        from.distance(sketch.point(first[1])) < 1e-6 && to.distance(sketch.point(first[0])) < 1e-6,
+        "and the half still runs between the two ends: {from} to {to}",
+    );
+    assert!(
+        (drawn.second - 20.0).abs() < 1e-6,
+        "the rise is untouched, the second axis standing square on the centre: {}",
+        drawn.second,
+    );
 }

@@ -68,19 +68,13 @@ pub(crate) fn push_preview(
                 context.editor.construction,
                 scale,
             );
-            for reach in [drawn.first, drawn.second_axis()] {
-                push_preview_line(
-                    out,
-                    sketch,
-                    drawn.centre - reach,
-                    drawn.centre + reach,
-                    preview,
-                    true,
-                    scale,
-                );
-                push_point_marker(out, sketch, drawn.centre + reach, marker, preview, 1.5);
+            let (axes, marks) = scaffolding(drawn, mode, aimed);
+            for (from, to) in axes {
+                push_preview_line(out, sketch, from, to, preview, true, scale);
             }
-            push_point_marker(out, sketch, drawn.centre, marker, preview, 1.5);
+            for place in marks {
+                push_point_marker(out, sketch, place, marker, preview, 1.5);
+            }
         }
         // One place given: from the centre, the whole first axis is shown, the
         // click being one of its ends. From the two ends, what is shown is the
@@ -95,6 +89,39 @@ pub(crate) fn push_preview(
             push_point_marker(out, sketch, *held, marker, preview, 1.5);
         }
         (None, []) => (),
+    }
+}
+
+/// The axes the preview shows, each as the two places it runs between, and the
+/// places it marks.
+///
+/// Placed from its two ends, the second axis is shown **only on the side the
+/// curve is drawn**. Half of it stands where nothing is being drawn, and a
+/// preview reaching out there reads as the scaffolding of a whole ellipse
+/// rather than of the half being placed. The trait itself is laid whole, as
+/// every axis is — this is what is shown while placing, not what is made.
+fn scaffolding(
+    drawn: EllipseDraft,
+    mode: EllipseMode,
+    rise: DVec2,
+) -> (Vec<(DVec2, DVec2)>, Vec<DVec2>) {
+    let (centre, along, across) = (drawn.centre, drawn.first, drawn.second_axis());
+    let whole = (centre - along, centre + along);
+    match mode {
+        EllipseMode::ByCentre => (
+            vec![whole, (centre - across, centre + across)],
+            vec![centre + along, centre + across, centre],
+        ),
+        EllipseMode::ByEnds => {
+            let bulge = match half_between(drawn, rise) {
+                [1, _] => across,
+                _ => -across,
+            };
+            (
+                vec![whole, (centre, centre + bulge)],
+                vec![centre - along, centre + along, centre + bulge, centre],
+            )
+        }
     }
 }
 

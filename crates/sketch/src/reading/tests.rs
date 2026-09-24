@@ -1,3 +1,12 @@
+//! What sketch · reading.rs is held to.
+//!
+//! Closes #428.
+//! - a surface goes up with the square of the scale while its perimeter does
+//!   not — `a_surface_goes_up_with_the_square_of_the_scale_while_its_perimeter_does_not`,
+//!   which fails if either factor goes, and which every other test in this
+//!   file was blind to: they all run at a scale of one, where the squaring is
+//!   the identity
+
 use super::*;
 
 use crate::constraints::SketchAxis;
@@ -259,5 +268,24 @@ fn a_round_and_an_opening_have_no_run_to_draw_a_triangle_on() {
         sketch.run_of(DimensionTarget::Diameter(circle)),
         None,
         "a circle is read from its centre out, not as two axes of a triangle",
+    );
+}
+
+#[test]
+fn a_surface_goes_up_with_the_square_of_the_scale_while_its_perimeter_does_not() {
+    let read = Reading::Surface {
+        area: 1000.0,
+        perimeter: 130.0,
+    };
+
+    assert_eq!(
+        read.scaled(10.0),
+        Reading::Surface {
+            area: 100_000.0,
+            perimeter: 1300.0,
+        },
+        "a drawing ten times bigger holds a hundred times the surface and is \
+         ten times round: the one place a measure's two units part company, \
+         and the one every other test in this file runs at a scale of one",
     );
 }

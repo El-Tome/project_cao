@@ -17,6 +17,18 @@ use super::{Outline, Region};
 use crate::edges::half_edge::Bend;
 
 impl Region {
+    /// What a measure reads of this area.
+    ///
+    /// Here rather than beside `read_inside`, so the canvas — which has the
+    /// area in hand already, having just found it to light it — reads it the
+    /// very same way rather than by a second copy of these two lines.
+    pub fn read(&self) -> crate::reading::Reading {
+        crate::reading::Reading::Surface {
+            area: self.area(),
+            perimeter: self.perimeter(),
+        }
+    }
+
     /// The surface the area holds, what it is hollow of taken out.
     ///
     /// The holes come out because that is the matter an extrusion would make
@@ -44,7 +56,7 @@ impl Outline {
     /// `½∮(x dy − y dx)`, which a straight step and a piece of a curve each
     /// answer in closed form. Summing the steps a curve was sampled into would
     /// answer the polygon drawn through them instead.
-    pub fn area(&self) -> f64 {
+    pub(crate) fn area(&self) -> f64 {
         self.walked(
             |from, to| from.perp_dot(to),
             |bend, from, to, turned| match bend {
@@ -61,7 +73,7 @@ impl Outline {
     }
 
     /// How far it is round this loop.
-    pub fn perimeter(&self) -> f64 {
+    pub(crate) fn perimeter(&self) -> f64 {
         self.walked(
             |from, to| from.distance(to),
             |bend, from, _, turned| match bend {
@@ -101,16 +113,9 @@ impl Outline {
                 .last()
                 .unwrap_or(at);
             let ends = (self.points[at], self.points[(last + 1) % places]);
-            let Some(bend) = self.bends.get(run).copied() else {
-                // A run nobody said what curves along: read as the steps it was
-                // sampled into, which is what this file exists to improve on,
-                // but is never worse than nothing.
-                total += (at..=last)
-                    .map(|step| straight(self.points[step], self.points[(step + 1) % places]))
-                    .sum::<f64>();
-                at = last + 1;
-                continue;
-            };
+            // `arc_regions` numbers a run by where its bend lands, so this
+            // never reaches past the end.
+            let bend = self.bends[run];
             total += curved(bend, ends.0, ends.1, self.turned(bend, at, last));
             at = last + 1;
         }

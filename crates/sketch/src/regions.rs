@@ -30,7 +30,7 @@ pub struct Outline {
     /// a measuring tool that answers 313.9 mm² for a circle of radius ten is
     /// one nobody trusts twice. Tinting and extruding want the steps; measuring
     /// wants the curve, and this is where the walk leaves it.
-    pub bends: Vec<Bend>,
+    pub(crate) bends: Vec<Bend>,
 }
 
 /// A closed area of the drawing, ready to be tinted.

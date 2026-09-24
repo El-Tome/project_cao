@@ -41,7 +41,7 @@ fn a_frame(prepare: impl FnOnce(&mut ViewportState)) -> SceneFrame {
         millimetres,
     );
 
-    build_frame(&state, SCREEN, SCREEN, scale, &context, None)
+    build_frame(&state, SCREEN, SCREEN, scale, &context, None, None)
 }
 
 /// How many of a frame's world lines lie in `plane`. The grid is the only thing

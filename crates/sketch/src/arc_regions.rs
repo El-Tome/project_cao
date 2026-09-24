@@ -29,7 +29,9 @@ impl Sketch {
         } = self.crossed();
         let mut outlines: Vec<Outline> = whole
             .into_iter()
-            .map(|(curve, points)| all_of_one_curve(curve, self.bend_of(curve), points))
+            .filter_map(|(curve, points)| {
+                Some(all_of_one_curve(curve, self.bend_of(curve)?, points))
+            })
             .collect();
         if ends.is_empty() {
             return outlines;
@@ -129,16 +131,17 @@ impl Sketch {
                     }
                     Some(curved) => {
                         let sampled = curves[curved].points_along(from, to);
-                        let run = outline
-                            .curves
-                            .iter()
-                            .flatten()
-                            .max()
-                            .map_or(0, |last| last + 1);
+                        // The run's number is where its bend is about to land,
+                        // so the two cannot drift apart. Counted any other way
+                        // they would agree only as long as nobody changed
+                        // either — and a run whose bend went missing is read
+                        // as the steps it was sampled into, which is the one
+                        // answer this whole file exists to improve on.
+                        let run = outline.bends.len();
+                        outline.bends.push(curves[curved].bend);
                         outline
                             .curves
                             .extend(std::iter::repeat_n(Some(run), sampled.len()));
-                        outline.bends.push(curves[curved].bend);
                         outline.points.extend(sampled);
                     }
                 }
@@ -164,16 +167,15 @@ impl Sketch {
     /// What a curve of the drawing bends along, for a loop that reached the
     /// outlines without passing through the graph — a circle or an ellipse
     /// nothing cut, which keeps its own geometry rather than a half-edge's.
-    fn bend_of(&self, curve: CurveId) -> Bend {
+    fn bend_of(&self, curve: CurveId) -> Option<Bend> {
         match curve {
-            CurveId::Ellipse(id) => Bend::Oval(self.ellipse_draft(id)),
-            CurveId::Circle(id) => Bend::Round(self.point(self.circle(id).center)),
-            CurveId::Arc(id) => Bend::Round(self.point(self.arc(id).center)),
-            // A straight trait closes no loop on its own, so this is a shape
-            // the walk above cannot hand over; answering with the one bend
-            // that curves nowhere keeps the match total without inventing a
-            // case.
-            CurveId::Segment(_) => Bend::Round(DVec2::ZERO),
+            CurveId::Ellipse(id) => Some(Bend::Oval(self.ellipse_draft(id))),
+            CurveId::Circle(id) => Some(Bend::Round(self.point(self.circle(id).center))),
+            // Only a circle and an ellipse close a loop on their own, so only
+            // those two ever arrive here. Naming a bend for the others would
+            // be inventing one: a straight trait about the world origin reads
+            // as a plausible wrong area rather than as nothing at all.
+            CurveId::Arc(_) | CurveId::Segment(_) => None,
         }
     }
 }

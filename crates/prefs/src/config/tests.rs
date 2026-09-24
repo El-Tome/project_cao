@@ -1,4 +1,12 @@
 //! What prefs · config.rs is held to.
+//!
+//! Closes #428.
+//! - a surface is said in the square of its unit —
+//!   `a_surface_is_said_in_the_square_of_its_unit`, which fails if that
+//!   squaring goes and which every other test here was blind to, running in
+//!   the one unit where it is the identity
+//! - and the unit is chosen from the side of a square of that surface —
+//!   `the_unit_a_surface_is_said_in_comes_from_the_side_of_a_square_of_it`
 
 use super::*;
 
@@ -93,5 +101,30 @@ fn a_measure_carries_the_unit_the_rest_of_the_interface_shows() {
         mm.format(40.0015310992),
         "40 mm",
         "while a dimension, which is typed and read back, rounds much harder",
+    );
+}
+
+#[test]
+fn a_surface_is_said_in_the_square_of_its_unit() {
+    let metres = UnitDisplay::Fixed(LengthUnit::Meter);
+
+    assert_eq!(
+        metres.surface_in_figures(2_500_000.0, MOST_FIGURES),
+        "2.5 m²",
+        "two and a half square metres is two and a half million square \
+         millimetres, and the unit is squared with the number",
+    );
+}
+
+#[test]
+fn the_unit_a_surface_is_said_in_comes_from_the_side_of_a_square_of_it() {
+    let automatic = UnitDisplay::Auto;
+
+    assert_eq!(
+        automatic.surface_in_figures(100.0, MOST_FIGURES),
+        "100 mm²",
+        "a hundred square millimetres is ten millimetres square, so it is said \
+         in millimetres — chosen from the surface itself it would be under the \
+         tenth of a millimetre that sends the reading to micrometres",
     );
 }

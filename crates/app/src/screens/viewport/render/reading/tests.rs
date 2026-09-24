@@ -110,6 +110,7 @@ fn drawn_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<cao_render::Vert
     };
     let sketch = &context.document.sketches()[0];
     let mut out = Vec::new();
+    let measuring = what_is_measured(&context);
     push_measure(
         &mut out,
         &mut Vec::new(),
@@ -117,6 +118,7 @@ fn drawn_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<cao_render::Vert
         &context,
         &Theme::default(),
         a_view(),
+        measuring.as_ref(),
     );
     out
 }
@@ -289,6 +291,7 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
         lang: &lang,
     };
     let state = ViewportState::default();
+    let measuring = what_is_measured(&context);
     let egui = egui::Context::default();
     let mut output = egui::FullOutput::default();
     // The first pass has no size for the area yet and lays nothing down; the
@@ -301,7 +304,9 @@ fn painted_of(to: DVec2, showing: Option<DimensionTarget>) -> Vec<egui::Shape> {
         });
         egui::Area::new(egui::Id::new("the canvas"))
             .fixed_pos(SCREEN.min)
-            .show(&egui, |ui| paint_measure(ui, &state, SCREEN, &context));
+            .show(&egui, |ui| {
+                paint_measure(ui, &state, SCREEN, &context, measuring.as_ref());
+            });
         output = egui.end_pass();
     }
     output.textures_delta.clear();
@@ -566,6 +571,7 @@ fn tinted() -> Vec<[DVec2; 3]> {
     };
     let sketch = &context.document.sketches()[0];
     let mut surfaces = Vec::new();
+    let measuring = what_is_measured(&context);
     push_measure(
         &mut Vec::new(),
         &mut surfaces,
@@ -573,6 +579,7 @@ fn tinted() -> Vec<[DVec2; 3]> {
         &context,
         &Theme::default(),
         a_view(),
+        measuring.as_ref(),
     );
     surfaces
         .as_chunks::<3>()
@@ -616,6 +623,7 @@ fn an_area_says_its_surface_and_how_far_round_it_is() {
         lang: &lang,
     };
     let state = ViewportState::default();
+    let measuring = what_is_measured(&context);
     let egui = egui::Context::default();
     let mut output = egui::FullOutput::default();
     for _ in 0..2 {
@@ -626,7 +634,9 @@ fn an_area_says_its_surface_and_how_far_round_it_is() {
         });
         egui::Area::new(egui::Id::new("the canvas"))
             .fixed_pos(SCREEN.min)
-            .show(&egui, |ui| paint_measure(ui, &state, SCREEN, &context));
+            .show(&egui, |ui| {
+                paint_measure(ui, &state, SCREEN, &context, measuring.as_ref());
+            });
         output = egui.end_pass();
     }
     output.textures_delta.clear();

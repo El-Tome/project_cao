@@ -355,10 +355,12 @@ pub struct Dimension {
     /// drawing as soon as one zooms out.
     #[serde(default)]
     pub offset: Option<DVec2>,
-    /// How the value was written when it was more than a number. The drawing
-    /// never reads it; it carries it wherever the value goes.
+    /// What the value was written as, carried wherever it goes, never read.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub written: Option<String>,
+    /// Which step of a replay set it, carried the same way. Never saved.
+    #[serde(skip)]
+    pub set_by: Option<(u32, u32)>,
 }
 
 impl Dimension {

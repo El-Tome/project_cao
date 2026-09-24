@@ -68,9 +68,15 @@ fn breaking(lang: &Catalogue, document: &PartDocument, broken: &Broken) -> Strin
         ),
         Broken::Dimension { sketch, target } => value_on(lang, document, *sketch, target),
         Broken::Operation(number) => step(lang, document, *number),
-        Broken::Renumbered(number) => lang.t_with(
+        Broken::Renumbered {
+            changed,
+            followed_by,
+        } => lang.t_with(
             "variables.renumbered",
-            &[("step", &step(lang, document, *number))],
+            &[
+                ("changed", &step(lang, document, *changed)),
+                ("followed_by", &step(lang, document, *followed_by)),
+            ],
         ),
         Broken::Adrift(sketch) => {
             lang.t_with("variables.adrift", &[("sketch", &(sketch + 1).to_string())])

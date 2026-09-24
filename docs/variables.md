@@ -83,12 +83,14 @@ Refused, with a message, and nothing applied:
   extrusion stood on and would no longer find. The message names what would
   break, and the dimensions among it **blink for a few seconds** on the
   drawing, so that it is seen where it happens;
-- **a change that would renumber what was drawn after it**: the elements of a
-  drawing are named by their rank, so a pattern counted by a variable that
-  lays another number of copies would have every trait, point and value drawn
-  after it name something else. A count on the last thing drawn in its sketch
-  changes freely. A sketch that would lose the face it was laid on is refused
-  the same way.
+- **a change to how many elements a step lays** — a pattern counted by a
+  variable, say — **while anything follows that step in its sketch, or is
+  raised from that sketch**. The elements of a drawing are named by their
+  rank, so whatever comes after would name something else: another trait,
+  another pad. A count changes only while what it counts is the last thing
+  done in its sketch and nothing is raised from that sketch; the message names
+  the step and what follows it. A sketch that would lose the face it was laid
+  on is refused the same way.
 
 A change is tried before it is made: the part is rebuilt with it, and what no
 longer holds that held before is what the change is refused for. A size that
@@ -108,12 +110,20 @@ worked out against the table as it stands at the cursor. A variable taken away
 keeps its rank and its last formula, so a size written from it before it went
 still replays to what it was.
 
-**A value taken away from the drawing, or typed again, stops following the
-variables from that moment**: it replays against the table as it stood when it
-went. Replayed against the table as it stands now, the shape it set would go on
-moving with a variable nothing on the drawing shows. A value a cut drops is not
-caught this way — the drawing says how many values a cut dropped, not which —
-and goes on following its variable.
+**A value that leaves the drawing stops following the variables from that
+moment**, whichever way it leaves — erased, the trait it measured erased, typed
+again and taken, dropped by a cut: it replays against the table as it stood
+when it went. Replayed against the table as it stands now, the shape it set
+would go on moving with a variable nothing on the drawing shows. The replay
+marks each value it sets from the variables with the operation that set it,
+and the drawing carries the mark wherever it carries the value; so the replay
+sees exactly where one leaves, and plays the history a second time with those
+worked out against the table as it stood there. A value typed again and
+refused never left, and still follows.
+
+A chamfer's, a fillet's and a pattern's sizes, like a step's, are the tool's
+own and are listed with it: they follow their variable for as long as the tool
+stands, whatever becomes of the values it laid on the drawing.
 
 A value on a drawing remembers what it was written as, in the part's own
 notation (`#0 / 2`): the drawing never reads it, and carries it wherever it
@@ -135,6 +145,10 @@ into what the tool laid, which would take the formula from it.
 - A variable driven by a measure of the drawing.
 - A dimension written from variables looks like any other on the drawing: only
   opening it says so.
+- A finer reading of what follows a count. A label moved after the pattern,
+  or the original dragged, names nothing the pattern lays, and holds its count
+  all the same: telling those apart from what names the copies — and naming
+  elements by something steadier than their rank — is work of its own.
 - The panel of mirror and patterns (#321): the patterns still take their values
   in fields at the cursor, which now show once `Entrée` has closed the
   selection — until then `Entrée` finished the sketch instead.

@@ -1,10 +1,11 @@
 //! A size that does not hold once the part is rebuilt: what a change to the
 //! variables is refused for, so that no size breaks without being seen.
 
+use std::collections::HashMap;
+
 use cao_sketch::DimensionTarget;
 
 use crate::formula::Formula;
-use crate::history::Operation;
 use crate::state::PartState;
 use crate::variables::VariableId;
 
@@ -21,10 +22,11 @@ pub enum Broken {
     Operation(u32),
     /// A variable that comes to no number: a division by zero.
     Variable(VariableId),
-    /// An operation that would name other elements than it did, because
-    /// something before it in its sketch lays another number of them — a
-    /// pattern counted by a variable, say. By the number of the operation.
-    Renumbered(u32),
+    /// An operation that would lay another number of elements — a pattern
+    /// counted by a variable, say — while another follows it in its sketch or
+    /// is raised from that sketch, and names elements by their rank. By the
+    /// numbers of the two operations.
+    Renumbered { changed: u32, followed_by: u32 },
     /// A sketch that would lose the face of the part it was laid on.
     Adrift(usize),
 }
@@ -52,28 +54,10 @@ impl PartState {
         self.broken.retain(|noted| *noted != broken);
     }
 
-    /// How many of each element the sketch an operation edits holds as the
-    /// operation starts — what the ranks it names are counted against.
-    pub(crate) fn note_ranks(&mut self, number: u32, operation: &Operation) {
-        let Some(drawing) = operation
-            .edits()
-            .and_then(|sketch| self.sketches.get(sketch))
-        else {
-            return;
-        };
-        let held = [
-            drawing.points().len(),
-            drawing.segments().len(),
-            drawing.circles().len(),
-            drawing.arcs().len(),
-            drawing.ellipses().len(),
-        ];
-        self.ranks.push((number, held));
-    }
-
     /// What no longer holds here that held in `before`: a size, an operation
-    /// that would name other elements than it did, a sketch that would lose
-    /// its face. What did not hold already is not held against the change.
+    /// that would lay another number of elements under what follows it, a
+    /// sketch that would lose its face. What did not hold already is not held
+    /// against the change.
     pub(crate) fn broken_since(&self, before: &PartState) -> Vec<Broken> {
         let mut broken: Vec<Broken> = self
             .broken
@@ -81,21 +65,53 @@ impl PartState {
             .filter(|size| !before.broken.contains(size))
             .copied()
             .collect();
-        let was: std::collections::HashMap<u32, [usize; 5]> =
-            before.ranks.iter().copied().collect();
-        if let Some((number, _)) = self
-            .ranks
-            .iter()
-            .find(|(number, held)| was.get(number).is_some_and(|then| then != held))
-        {
-            broken.push(Broken::Renumbered(*number));
-        }
+        broken.extend(self.renumbered_since(before));
         broken.extend(
             self.adrift
                 .difference(&before.adrift)
                 .map(|sketch| Broken::Adrift(*sketch)),
         );
         broken
+    }
+
+    /// The first operation that lays another number of elements than it did
+    /// in `before`, when anything follows it: whatever comes after it in its
+    /// sketch, or is raised from that sketch, names elements by their rank,
+    /// and the ranks after it would all move. One whose size no longer holds
+    /// is named for that, and lays nothing.
+    fn renumbered_since(&self, before: &PartState) -> Option<Broken> {
+        let was: HashMap<u32, [usize; 5]> = before
+            .replay
+            .laid
+            .iter()
+            .map(|laid| (laid.number, laid.count()))
+            .collect();
+        let laid = &self.replay.laid;
+        laid.iter().enumerate().find_map(|(at, changed)| {
+            if was
+                .get(&changed.number)
+                .is_none_or(|count| *count == changed.count())
+                || self.broken.contains(&Broken::Operation(changed.number))
+            {
+                return None;
+            }
+            let next_in_its_sketch = laid[at + 1..]
+                .iter()
+                .find(|later| later.sketch == changed.sketch)
+                .map(|later| later.number);
+            let raised_from_it = || {
+                self.replay
+                    .raised
+                    .iter()
+                    .find(|(_, sketch)| *sketch == changed.sketch)
+                    .map(|(number, _)| *number)
+            };
+            let followed_by = next_in_its_sketch.or_else(raised_from_it)?;
+            Some(Broken::Renumbered {
+                changed: changed.number,
+                followed_by,
+            })
+        })
     }
 
     /// Every variable of the part that comes to no number.

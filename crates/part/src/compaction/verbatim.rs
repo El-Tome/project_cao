@@ -38,7 +38,7 @@ pub(super) fn keep_as_drawn(
     new_state: &mut PartState,
 ) -> SketchIdMap {
     for (number, operation) in operations_of(history, sketch) {
-        let again = said_again(operation, number, old, renumbered);
+        let again = said_again(operation, number, &mut 0, old, renumbered);
         record(again, new_history, new_state);
     }
     old.sketches
@@ -73,9 +73,11 @@ fn operations_of(history: &History, sketch: usize) -> Vec<(u32, &Operation)> {
 /// The same operation, its formulas said in the new ranks. A value taken away
 /// or typed again since is laid as the number it came to then: it follows
 /// nothing any more, and in the compacted history every variable comes first.
+/// `setting` counts the values the operation sets, as the replay counts them.
 fn said_again(
     operation: &Operation,
     number: u32,
+    setting: &mut u32,
     old: &PartState,
     renumbered: &Renumbered,
 ) -> Operation {
@@ -83,7 +85,7 @@ fn said_again(
     match operation {
         Operation::Gesture(done) => Operation::Gesture(
             done.iter()
-                .map(|one| said_again(one, number, old, renumbered))
+                .map(|one| said_again(one, number, setting, old, renumbered))
                 .collect(),
         ),
         Operation::SetDimension {
@@ -91,17 +93,21 @@ fn said_again(
             target,
             value,
             placement,
-        } => Operation::SetDimension {
-            sketch: *sketch,
-            target: *target,
-            value: match old.superseded.get(&(number, *target)) {
-                Some(then) => value
-                    .value(then)
-                    .map_or_else(|| say(value), Formula::Number),
-                None => say(value),
-            },
-            placement: *placement,
-        },
+        } => {
+            let set = (number, *setting);
+            *setting += 1;
+            Operation::SetDimension {
+                sketch: *sketch,
+                target: *target,
+                value: match old.replay.superseded.get(&set) {
+                    Some(then) => value
+                        .value(then)
+                        .map_or_else(|| say(value), Formula::Number),
+                    None => say(value),
+                },
+                placement: *placement,
+            }
+        }
         Operation::Chamfer {
             sketch,
             corners,

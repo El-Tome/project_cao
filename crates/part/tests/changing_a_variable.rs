@@ -14,7 +14,11 @@
 //!   `a_change_the_drawing_could_not_hold_is_refused_naming_the_value`,
 //!   `a_change_that_would_leave_a_step_with_no_size_is_refused_naming_it`,
 //!   `a_variable_that_would_come_to_no_number_is_refused`,
-//!   `a_count_that_would_renumber_what_was_drawn_after_the_pattern_is_refused`
+//!   `a_count_that_would_renumber_what_was_drawn_after_the_pattern_is_refused`,
+//!   `a_count_is_held_while_anything_follows_the_pattern_and_the_refusal_says_what`,
+//!   `a_count_in_a_sketch_matter_was_raised_from_is_refused_naming_the_step_raised`,
+//!   `a_count_that_would_take_away_an_extruded_copy_is_refused_naming_the_extrusion`,
+//!   `a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch`
 //! - changing a variable changes every size written from it — and only those
 //!   still written from it: a value taken away from the drawing stops
 //!   following it —
@@ -32,12 +36,12 @@
 //!   `compacting_leaves_an_erased_variable_out_and_the_others_still_answer`,
 //!   `compacting_keeps_a_pattern_written_from_a_variable_following_it`
 
-use cao_part::history::{ExtrusionMode, Operation, PointRef};
+use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked};
 use cao_part::{
     Broken, Formula, NameProblem, PartDocument, Refused, Use, VariableChange, VariableId,
 };
-use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
-use glam::DVec2;
+use cao_sketch::{ChosenAxis, DimensionTarget, Element, SegmentId, SketchAxis, WorkPlane};
+use glam::{DVec2, DVec3};
 
 fn at_nine() -> chrono::DateTime<chrono::Utc> {
     "2026-01-02T09:00:00Z".parse().expect("a date")
@@ -487,18 +491,196 @@ fn a_pattern_counted_by_a_variable(then_a_trait: bool) -> PartDocument {
     document
 }
 
+/// Nothing was undone, so the numbers run from one in the order things were
+/// done: the count, the sketch, the trait, the pattern, and what follows.
+const THE_PATTERN: u32 = 4;
+const WHAT_FOLLOWS_IT: u32 = 5;
+
 #[test]
 fn a_count_that_would_renumber_what_was_drawn_after_the_pattern_is_refused() {
     let mut document = a_pattern_counted_by_a_variable(true);
 
     let refused = document.change_variable(edited(0, "copies", Formula::Number(4.0)));
 
+    let renumbered = Broken::Renumbered {
+        changed: THE_PATTERN,
+        followed_by: WHAT_FOLLOWS_IT,
+    };
     assert!(
-        matches!(&refused, Err(Refused::Breaks(broken)) if broken.iter().any(|size| matches!(size, Broken::Renumbered(_)))),
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&renumbered)),
         "the trait drawn after would be named by a copy's number: {refused:?}"
     );
     assert_eq!(document.sketches()[0].live_segments().count(), 4);
 }
+
+#[test]
+fn a_count_is_held_while_anything_follows_the_pattern_and_the_refusal_says_what() {
+    let mut document = a_pattern_counted_by_a_variable(false);
+    document.apply(Operation::MoveDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        offset: DVec2::new(0.0, 5.0),
+    });
+
+    let refused = document.change_variable(edited(0, "copies", Formula::Number(4.0)));
+
+    assert_eq!(
+        refused,
+        Err(Refused::Breaks(vec![Broken::Renumbered {
+            changed: THE_PATTERN,
+            followed_by: WHAT_FOLLOWS_IT,
+        }])),
+        "a label moved after the pattern names nothing the pattern lays, and \
+         is still what the count is held by"
+    );
+}
+
+fn raised_at(document: &PartDocument, place: DVec2) -> bool {
+    document
+        .body()
+        .ray_hit(
+            DVec3::new(place.x, place.y, 100.0),
+            DVec3::new(0.0, 0.0, -1.0),
+        )
+        .is_some()
+}
+
+/// `n` at `along`, a square of 10 repeated `n` times along U and `across`
+/// times across, 20 apart, then the pads at these places raised by 5. The
+/// pattern is the fifth thing done and the extrusion the sixth.
+fn a_grid_raised_at(along: f64, across: f64, pads: &[DVec2]) -> PartDocument {
+    let mut document = PartDocument::new("Grille", at_nine());
+    document
+        .change_variable(added("n", Formula::Number(along)))
+        .expect("a count");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 10.0.into(),
+        placement: None,
+    });
+    let n = written(&document, "n");
+    document.apply(Operation::RectangularPattern {
+        sketch: 0,
+        elements: (0..4)
+            .map(|side| Element::Segment(SegmentId(side)))
+            .collect(),
+        direction: ChosenAxis::Sketch(SketchAxis::U),
+        along: RepeatsAsked {
+            step: 20.0.into(),
+            count: n,
+        },
+        across: RepeatsAsked {
+            step: 20.0.into(),
+            count: across.into(),
+        },
+    });
+    let areas = document.areas_at(0, pads);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: 5.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+const THE_GRID: u32 = 5;
+const RAISED_FROM_IT: u32 = 6;
+
+#[test]
+fn a_count_in_a_sketch_matter_was_raised_from_is_refused_naming_the_step_raised() {
+    let pads = [
+        DVec2::new(5.0, 5.0),
+        DVec2::new(25.0, 5.0),
+        DVec2::new(5.0, 25.0),
+        DVec2::new(25.0, 25.0),
+    ];
+    let mut document = a_grid_raised_at(2.0, 2.0, &pads);
+    let raised: Vec<bool> = pads.iter().map(|pad| raised_at(&document, *pad)).collect();
+
+    let refused = document.change_variable(edited(0, "n", Formula::Number(3.0)));
+
+    let renumbered = Broken::Renumbered {
+        changed: THE_GRID,
+        followed_by: RAISED_FROM_IT,
+    };
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&renumbered)),
+        "the extrusion names its pads by the rank of their sides: {refused:?}"
+    );
+    let still: Vec<bool> = pads.iter().map(|pad| raised_at(&document, *pad)).collect();
+    assert_eq!(raised, still, "nothing was applied");
+}
+
+#[test]
+fn a_count_that_would_take_away_an_extruded_copy_is_refused_naming_the_extrusion() {
+    let mut document = a_grid_raised_at(3.0, 1.0, &[DVec2::new(45.0, 5.0)]);
+
+    let refused = document.change_variable(edited(0, "n", Formula::Number(2.0)));
+
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&Broken::Operation(RAISED_FROM_IT))),
+        "the third copy along is gone, and the pad raised from it with it: {refused:?}"
+    );
+}
+
+#[test]
+fn a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch() {
+    let mut document = PartDocument::new("Bloc", at_nine());
+    document
+        .change_variable(added("height", Formula::Number(10.0)))
+        .expect("a height");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(40.0, 20.0)),
+        construction: false,
+    });
+    let areas = document.areas_at(0, &[DVec2::new(20.0, 10.0)]);
+    let height = written(&document, "height");
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: height,
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, 10.0),
+            u: DVec3::X,
+            v: DVec3::Y,
+        },
+        on: Some(FaceAnchor {
+            face: TOP_OF_THE_BLOCK,
+            up: DVec3::Y,
+        }),
+    });
+
+    let refused = document.change_variable(edited(0, "height", Formula::Number(0.0)));
+
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&Broken::Adrift(1))),
+        "a block of no height has no top for the second sketch: {refused:?}"
+    );
+}
+
+/// The face the top of a block raised from XY is, as the replay numbers it.
+const TOP_OF_THE_BLOCK: usize = 1;
 
 #[test]
 fn a_count_on_the_last_thing_drawn_changes_how_many_copies_stand() {

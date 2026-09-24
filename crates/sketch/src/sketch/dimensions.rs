@@ -65,6 +65,7 @@ impl Sketch {
                 driven,
                 offset: None,
                 written: None,
+                set_by: None,
             }),
         }
     }
@@ -81,14 +82,27 @@ impl Sketch {
         }
     }
 
+    /// Says which step of a replay set a value, so that the replay can tell
+    /// when it leaves the drawing, whichever way it goes.
+    pub fn mark_dimension(&mut self, target: DimensionTarget, set_by: Option<(u32, u32)>) {
+        if let Some(dimension) = self
+            .dimensions
+            .iter_mut()
+            .find(|dimension| dimension.target == target)
+        {
+            dimension.set_by = set_by;
+        }
+    }
+
     /// A value carried over from one the drawing had, onto something the
-    /// drawing still has: its number, whether it drives, where it is written
-    /// and what it was written as all go with it.
+    /// drawing still has: its number, whether it drives, where it is written,
+    /// what it was written as and what set it all go with it.
     pub(crate) fn carry_dimension(&mut self, onto: DimensionTarget, held: &Dimension) {
         self.set_dimension(onto, held.value, held.driven);
         if let Some(offset) = held.offset {
             self.offset_dimension(onto, offset);
         }
         self.write_dimension_as(onto, held.written.clone());
+        self.mark_dimension(onto, held.set_by);
     }
 }

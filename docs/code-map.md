@@ -137,7 +137,8 @@ What it does: [`extrusion.md`](extrusion.md).
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Which sketch an operation edits, and so which step it is filed under | `part/src/history/operation/edits.rs` | `Operation::edits` |
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
-| Replaying the history for the geometry | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
+| Replaying the history for the geometry | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` → `Outcome` |
+| What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
 | The six ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
 | A circle, an arc or an ellipse laid down again as the history replays it | `part/src/curves.rs` | `PartState::add_circle`, `add_arc`, `add_ellipse` |
 | A point, a trait, a symmetric trait or a rectangle laid down again as the history replays it | `part/src/straight.rs` | `PartState::add_point`, `add_segment`, `add_symmetric_segment`, `add_rectangle` |
@@ -149,7 +150,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | The part's table of variables: names, loops, what a typed size comes to | `part/src/variables.rs` | `Variables`, `VariableChange`, `check_name`, `loop_through`, `size_of` |
 | Where the changes to the variables sit in the history | `part/src/history/table.rs` | `History::variable_changes`, `table_operations` |
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
-| A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size` |
+| A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 5` |

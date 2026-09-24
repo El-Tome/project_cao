@@ -340,7 +340,13 @@ impl PartState {
         for (rank, (target, value)) in typed.into_iter().enumerate() {
             let target = target.normalised();
             let outcome = self.apply_dimension(sketch, target, value);
-            self.remember_as(sketch, target, outcome, notes.get(rank).cloned().flatten());
+            self.remember_as(
+                sketch,
+                target,
+                outcome,
+                notes.get(rank).cloned().flatten(),
+                None,
+            );
         }
     }
 

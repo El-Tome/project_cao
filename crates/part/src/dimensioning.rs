@@ -11,6 +11,7 @@ use glam::DVec2;
 use crate::broken::Broken;
 use crate::formula::Formula;
 use crate::outcome::Outcome;
+use crate::replay::SetBy;
 use crate::state::PartState;
 
 /// What applying a typed length did.
@@ -31,7 +32,8 @@ impl PartState {
     /// Applies a value as it was written: worked out against the variables,
     /// set on the drawing, and remembered there as what it was written from —
     /// so that it can be shown and edited as that, and carried with the value
-    /// wherever a cut hands it on.
+    /// wherever a cut hands it on. Which step of the replay set it goes with
+    /// it, which is how the replay sees it leave the drawing.
     pub(crate) fn apply_written_dimension(
         &mut self,
         index: usize,
@@ -43,11 +45,10 @@ impl PartState {
             sketch: index,
             target,
         };
-        let value = written
-            .value(self.values_for(target))
-            .filter(|value| target.takes(*value));
+        let (set, values) = self.next_value_set();
+        let value = written.value(values).filter(|value| target.takes(*value));
         let outcome = value.and_then(|value| self.apply_dimension(index, target, value));
-        match self.remember_as(index, target, outcome, written.note()) {
+        match self.remember_as(index, target, outcome, written.note(), Some(set)) {
             true => self.held(broken),
             false => self.broke(broken),
         }
@@ -57,9 +58,10 @@ impl PartState {
         outcome.map(Outcome::Dimension)
     }
 
-    /// Remembers on the drawing what a value was written from, once it holds,
-    /// and says whether it did. A readout reports what the drawing measures,
-    /// and so was written from nothing; a value refused left the drawing as it
+    /// Remembers on the drawing what a value was written from, and which step
+    /// of the replay set it when that was the variables, once it holds; and
+    /// says whether it did. A readout reports what the drawing measures, and
+    /// so was written from nothing; a value refused left the drawing as it
     /// was.
     pub(crate) fn remember_as(
         &mut self,
@@ -67,6 +69,7 @@ impl PartState {
         target: DimensionTarget,
         outcome: Option<DimensionOutcome>,
         note: Option<String>,
+        set: Option<SetBy>,
     ) -> bool {
         let note = match outcome {
             Some(DimensionOutcome::ScaleDefined { .. })
@@ -75,6 +78,7 @@ impl PartState {
             _ => return false,
         };
         if let Some(drawing) = self.sketches.get_mut(index) {
+            drawing.mark_dimension(target, note.as_ref().and(set));
             drawing.write_dimension_as(target, note);
         }
         true

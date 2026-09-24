@@ -149,12 +149,21 @@ fn what_a_change_would_break_is_said_by_the_value_on_the_drawing() {
 fn a_change_that_would_renumber_a_step_or_set_a_sketch_adrift_says_so() {
     let document = a_plate();
     // Nothing was undone, so the numbers run from one in the order things
-    // were done: the extrusion, seventh, is number 7.
-    let renumbered = said(&document, &Refused::Breaks(vec![Broken::Renumbered(7)]));
+    // were done: the rectangle, fourth, is number 4, and the extrusion,
+    // seventh, number 7.
+    let renumbered = said(
+        &document,
+        &Refused::Breaks(vec![Broken::Renumbered {
+            changed: 4,
+            followed_by: 7,
+        }]),
+    );
     let adrift = said(&document, &Refused::Breaks(vec![Broken::Adrift(0)]));
 
     assert!(
-        renumbered.contains("autres éléments") && renumbered.contains("étape 7"),
+        renumbered.contains("autre nombre d'éléments")
+            && renumbered.contains("étape 4")
+            && renumbered.contains("étape 7"),
         "{renumbered}"
     );
     assert!(

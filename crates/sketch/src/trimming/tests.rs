@@ -367,6 +367,7 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
     };
     sketch.set_dimension(level, 0.0, false);
     sketch.write_dimension_as(level, Some("#0 * 2".to_string()));
+    sketch.mark_dimension(level, Some((7, 0)));
 
     let trimmed = sketch
         .trim(segment, near, far)
@@ -377,12 +378,14 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
             segment: piece,
             axis: crate::constraints::SketchAxis::U,
         };
+        let value = sketch
+            .dimension_of(carried)
+            .expect("carried onto the piece");
         assert_eq!(
-            sketch
-                .dimension_of(carried)
-                .and_then(|value| value.written.as_deref()),
+            value.written.as_deref(),
             Some("#0 * 2"),
             "the piece {piece:?} lost what its value was written as",
         );
+        assert_eq!(value.set_by, Some((7, 0)), "and what set it");
     }
 }

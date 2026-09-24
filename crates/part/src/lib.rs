@@ -25,10 +25,10 @@ pub mod library;
 mod outcome;
 mod picture;
 pub mod ports;
+mod replay;
 mod resizing;
 mod state;
 mod straight;
-mod superseded;
 pub mod variables;
 
 #[cfg(any(test, feature = "test-support"))]

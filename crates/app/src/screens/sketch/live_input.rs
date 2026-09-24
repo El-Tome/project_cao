@@ -50,8 +50,6 @@ pub struct LiveInput {
     /// Whether anything has been typed since the fields appeared. Until then
     /// a letter is a shortcut, and a field takes only what can begin a value.
     pub typing: bool,
-    /// Whether one of the fields held the keyboard when last drawn.
-    pub holds_keyboard: bool,
     /// What was typed at an earlier stage of the shape, carried over when the
     /// fields opened again for the next: an ellipse's first axis, an arc's
     /// first leg.
@@ -131,10 +129,10 @@ impl LiveInput {
         self.fields.iter().find_map(|field| field.wrong.as_ref())
     }
 
-    /// Whether the fields hold the keyboard with nothing typed in them yet,
-    /// which is when a letter is still a shortcut.
-    pub fn waits_for_keys(&self) -> bool {
-        self.holds_keyboard && !self.typing
+    /// Whether the fields wait with nothing typed in them yet, `holding` the
+    /// keyboard — which is when a letter is still a shortcut.
+    pub fn waits_for_keys(&self, holding: bool) -> bool {
+        holding && !self.typing
     }
 
     /// The first two decisions, as the drawing reads them — the pair every

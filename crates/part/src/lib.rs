@@ -28,6 +28,7 @@ pub mod ports;
 mod resizing;
 mod state;
 mod straight;
+mod superseded;
 pub mod variables;
 
 #[cfg(any(test, feature = "test-support"))]

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use cao_sketch::{Sketch, Support};
 use cao_solid::Mesh;
@@ -52,6 +52,15 @@ pub struct PartState {
     pub(crate) broken: Vec<Broken>,
     #[serde(skip)]
     pub(crate) replaying: u32,
+    /// How many of each element a sketch held as each operation editing it
+    /// started, by the operation's number: what a change to the variables is
+    /// held to, so that it never renumbers what an operation names.
+    #[serde(skip)]
+    pub(crate) ranks: Vec<(u32, [usize; 5])>,
+    /// What the variables came to for a value taken away or typed again, by
+    /// the operation that set it and its target.
+    #[serde(skip)]
+    pub(crate) superseded: HashMap<(u32, cao_sketch::DimensionTarget), Vec<f64>>,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
@@ -62,13 +71,17 @@ impl PartState {
     pub fn rebuild(history: &History) -> Self {
         let mut state = Self::default();
         state.read_variables(history);
+        state.read_superseded(history);
         // Step by step, each step whole — not in the order things were typed.
         // A corner of a sketch dragged long after an extrusion was raised from
         // it is played with that sketch, so the extrusion is raised again.
         for (number, operation) in history.replay_order() {
             state.replaying = number;
+            state.note_ranks(number, operation);
             state.apply(operation);
         }
+        // What is applied from here on is applied live, not replayed.
+        state.replaying = 0;
         state.note_broken_variables();
         state
     }

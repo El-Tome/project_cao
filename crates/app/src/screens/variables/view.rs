@@ -116,12 +116,14 @@ fn one_row(
     };
     let erase = ui.small_button(lang.t("variables.erase")).clicked();
 
+    // Escape takes the keyboard away before any field is drawn, so a field it
+    // was pressed in reads as one the keyboard has just left.
     let holding = name.has_focus() || formula.has_focus();
-    if holding && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
+    let left = name.lost_focus() || formula.lost_focus();
+    if (holding || left) && ui.input(|input| input.key_pressed(egui::Key::Escape)) {
         return Some(VariablesAction::Cancel);
     }
-    let left = (name.lost_focus() || formula.lost_focus()) && !holding;
-    match (erase, left && panel.is_editing(row.variable)) {
+    match (erase, left && !holding && panel.is_editing(row.variable)) {
         (true, _) => Some(VariablesAction::Erase(row.variable)),
         (false, true) => Some(VariablesAction::Commit),
         (false, false) => None,

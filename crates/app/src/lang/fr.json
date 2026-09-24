@@ -653,6 +653,8 @@
   "variables.use_variable": "la variable « {name} »",
   "variables.use_dimension": "la cote « {dimension} » de l'esquisse {sketch}",
   "variables.use_step": "l'étape {position} de l'historique ({label})",
+  "variables.renumbered": "{step}, qui désignerait d'autres éléments que ceux qu'elle désigne",
+  "variables.adrift": "l'esquisse {sketch}, qui perdrait la face sur laquelle elle est posée",
   "sketch.scale_set": "Échelle définie : 1 unité = {mm} mm",
   "sketch.no_dimension_here": "Cote impossible ici",
 

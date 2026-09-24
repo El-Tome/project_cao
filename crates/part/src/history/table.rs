@@ -14,6 +14,20 @@ impl History {
             .collect()
     }
 
+    /// The changes to the variables in effect that were made before the
+    /// operation of that number: the table as it stood then.
+    pub(crate) fn variable_changes_before(&self, number: u32) -> Vec<&VariableChange> {
+        self.numbers[..self.applied]
+            .iter()
+            .zip(&self.operations)
+            .filter(|(given, _)| **given < number)
+            .filter_map(|(_, operation)| match operation {
+                Operation::Variable(change) => Some(change),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// The changes to the variables in effect, in the order they were made:
     /// what the table is played from before any step is.
     pub fn variable_changes(&self) -> Vec<&VariableChange> {

@@ -79,9 +79,16 @@ Refused, with a message, and nothing applied:
   the dimensions, the steps and tools, the other variables. Those are rewritten
   first; then it can go;
 - **a change that would break a size**: a length at zero or below, a count no
-  longer whole, a dimension the drawing can no longer hold. The message names
-  what would break, and the dimensions among it **blink for a few seconds** on
-  the drawing, so that it is seen where it happens.
+  longer whole, a dimension the drawing can no longer hold, an area an
+  extrusion stood on and would no longer find. The message names what would
+  break, and the dimensions among it **blink for a few seconds** on the
+  drawing, so that it is seen where it happens;
+- **a change that would renumber what was drawn after it**: the elements of a
+  drawing are named by their rank, so a pattern counted by a variable that
+  lays another number of copies would have every trait, point and value drawn
+  after it name something else. A count on the last thing drawn in its sketch
+  changes freely. A sketch that would lose the face it was laid on is refused
+  the same way.
 
 A change is tried before it is made: the part is rebuilt with it, and what no
 longer holds that held before is what the change is refused for. A size that
@@ -98,8 +105,15 @@ writes no such file, and an index that names none.
 
 The table is played out of the history before any step, and every formula is
 worked out against the table as it stands at the cursor. A variable taken away
-keeps its rank and its last formula, so a size written from it before it went —
-a dimension since erased, say — still replays to what it was.
+keeps its rank and its last formula, so a size written from it before it went
+still replays to what it was.
+
+**A value taken away from the drawing, or typed again, stops following the
+variables from that moment**: it replays against the table as it stood when it
+went. Replayed against the table as it stands now, the shape it set would go on
+moving with a variable nothing on the drawing shows. A value a cut drops is not
+caught this way — the drawing says how many values a cut dropped, not which —
+and goes on following its variable.
 
 A value on a drawing remembers what it was written as, in the part's own
 notation (`#0 / 2`): the drawing never reads it, and carries it wherever it
@@ -111,7 +125,9 @@ drawing, reads formulas — halves what it was written from.
 
 **Compacting** the history keeps the variables — the live ones, each after
 those it leans on — and every formula written from them, said again in the
-ranks they land on.
+ranks they land on. A sketch holding a tool written from variables — a
+pattern, a chamfer, a fillet — is left as it was drawn rather than flattened
+into what the tool laid, which would take the formula from it.
 
 ## What is missing
 

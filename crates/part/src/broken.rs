@@ -4,6 +4,7 @@
 use cao_sketch::DimensionTarget;
 
 use crate::formula::Formula;
+use crate::history::Operation;
 use crate::state::PartState;
 use crate::variables::VariableId;
 
@@ -20,6 +21,12 @@ pub enum Broken {
     Operation(u32),
     /// A variable that comes to no number: a division by zero.
     Variable(VariableId),
+    /// An operation that would name other elements than it did, because
+    /// something before it in its sketch lays another number of them — a
+    /// pattern counted by a variable, say. By the number of the operation.
+    Renumbered(u32),
+    /// A sketch that would lose the face of the part it was laid on.
+    Adrift(usize),
 }
 
 impl PartState {
@@ -43,6 +50,52 @@ impl PartState {
     /// before no longer stands.
     pub(crate) fn held(&mut self, broken: Broken) {
         self.broken.retain(|noted| *noted != broken);
+    }
+
+    /// How many of each element the sketch an operation edits holds as the
+    /// operation starts — what the ranks it names are counted against.
+    pub(crate) fn note_ranks(&mut self, number: u32, operation: &Operation) {
+        let Some(drawing) = operation
+            .edits()
+            .and_then(|sketch| self.sketches.get(sketch))
+        else {
+            return;
+        };
+        let held = [
+            drawing.points().len(),
+            drawing.segments().len(),
+            drawing.circles().len(),
+            drawing.arcs().len(),
+            drawing.ellipses().len(),
+        ];
+        self.ranks.push((number, held));
+    }
+
+    /// What no longer holds here that held in `before`: a size, an operation
+    /// that would name other elements than it did, a sketch that would lose
+    /// its face. What did not hold already is not held against the change.
+    pub(crate) fn broken_since(&self, before: &PartState) -> Vec<Broken> {
+        let mut broken: Vec<Broken> = self
+            .broken
+            .iter()
+            .filter(|size| !before.broken.contains(size))
+            .copied()
+            .collect();
+        let was: std::collections::HashMap<u32, [usize; 5]> =
+            before.ranks.iter().copied().collect();
+        if let Some((number, _)) = self
+            .ranks
+            .iter()
+            .find(|(number, held)| was.get(number).is_some_and(|then| then != held))
+        {
+            broken.push(Broken::Renumbered(*number));
+        }
+        broken.extend(
+            self.adrift
+                .difference(&before.adrift)
+                .map(|sketch| Broken::Adrift(*sketch)),
+        );
+        broken
     }
 
     /// Every variable of the part that comes to no number.

@@ -87,7 +87,6 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let live = &mut context.editor.live;
     let mut validated = false;
     let focus = std::mem::take(&mut live.focus);
-    live.holds_keyboard = false;
     egui::Area::new(egui::Id::new("live_input"))
         .fixed_pos(at + egui::vec2(20.0, 20.0))
         .order(egui::Order::Foreground)
@@ -174,7 +173,7 @@ fn live_field(
     focus: bool,
     variables: &cao_part::Variables,
 ) -> bool {
-    let id = egui::Id::new(("live_field", rank));
+    let id = field_id(rank);
     // Until something is typed, a letter is a shortcut rather than the start
     // of a formula: only what can begin a value reaches the field, and `=` is
     // what opens a formula. Once started, the field keeps every key.
@@ -200,11 +199,21 @@ fn live_field(
         // The canvas this frame was already built from the value as it stood before this keystroke.
         ui.ctx().request_repaint();
     }
-    live.holds_keyboard |= response.has_focus();
     // Enter is consumed rather than merely read: the field has just given the
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+}
+
+/// Whether one of the fields at the cursor holds the keyboard right now —
+/// asked of egui rather than remembered, so a field drawn a moment ago and
+/// gone since holds nothing.
+pub(crate) fn a_field_at_the_cursor_holds_the_keyboard(ctx: &egui::Context) -> bool {
+    ctx.memory(|memory| (0..4).any(|rank| memory.has_focus(field_id(rank))))
+}
+
+fn field_id(rank: usize) -> egui::Id {
+    egui::Id::new(("live_field", rank))
 }
 
 /// What a corner tool's two fields are measured in, which is what says how many

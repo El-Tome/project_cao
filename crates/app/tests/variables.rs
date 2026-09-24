@@ -8,7 +8,8 @@
 //!   `a_variable_is_made_in_its_panel_opened_from_the_ribbon`,
 //!   `the_panel_is_there_inside_a_sketch_too`,
 //!   `changing_a_variable_in_its_panel_raises_the_plate_again`,
-//!   `a_variable_nothing_uses_is_retired_from_its_panel`
+//!   `a_variable_nothing_uses_is_retired_from_its_panel`,
+//!   `escape_in_a_row_drops_what_was_typed_and_records_nothing`
 //! - a formula that does not read is refused where it is typed, with a
 //!   message saying what is wrong, and nothing is applied —
 //!   `a_formula_that_does_not_read_is_refused_where_it_is_typed`
@@ -23,7 +24,8 @@
 //!   enters the field, which then keeps every key until `Entrée` or `Échap` —
 //!   `a_letter_typed_before_anything_else_while_drawing_is_a_shortcut`,
 //!   `an_equals_sign_opens_a_formula_that_keeps_every_key`,
-//!   `a_digit_starts_the_field_the_way_it_always_did`
+//!   `a_digit_starts_the_field_the_way_it_always_did`,
+//!   `a_name_typed_in_the_panel_while_a_line_is_half_drawn_goes_into_the_field`
 //! - changing a variable is one step of the history: undo puts its former
 //!   formula back, and the part with it —
 //!   `undoing_a_change_to_a_variable_puts_the_plate_back`
@@ -275,6 +277,46 @@ fn a_pattern_shows_its_values_while_the_centre_is_awaited() {
         driver::fields(&app).contains(&"4".to_string()),
         "Enter closed the selection rather than the sketch, and the step and \
          the count are there to be typed over: {:?}",
+        driver::fields(&app),
+    );
+}
+
+#[test]
+fn escape_in_a_row_drops_what_was_typed_and_records_nothing() {
+    let mut app = a_part_with_a_width("escape_in_a_row_drops_what_was_typed");
+
+    driver::type_over(&mut app, "120", "200");
+    driver::press(&mut app, egui::Key::Escape);
+    driver::click_the_button(&mut app, "Historique");
+
+    assert!(
+        driver::fields(&app).contains(&"120".to_string()),
+        "the row shows the formula it had: {:?}",
+        driver::fields(&app),
+    );
+    assert!(
+        !driver::shows(&app, "width = 200"),
+        "nothing went into the history: {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn a_name_typed_in_the_panel_while_a_line_is_half_drawn_goes_into_the_field() {
+    let mut app = driver::open("a_name_typed_while_a_line_is_half_drawn");
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    driver::start_a_line(&mut app);
+    driver::click_the_button(&mut app, "Variables");
+    app.hover_at(egui::pos2(10.0, 790.0));
+    app.run();
+
+    driver::type_into(&mut app, "nom", "h");
+    driver::key(&mut app, egui::Key::B, "b");
+
+    assert!(
+        driver::fields(&app).contains(&"hb".to_string()),
+        "letters typed in a field are the field's, not shortcuts: {:?}",
         driver::fields(&app),
     );
 }

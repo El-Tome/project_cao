@@ -66,14 +66,9 @@ impl PartDocument {
         self.may_change(&change)?;
         let mut trial = self.history.clone();
         trial.push(Operation::Variable(change));
-        let before = PartState::rebuild(&self.history).broken;
+        let before = PartState::rebuild(&self.history);
         let after = PartState::rebuild(&trial);
-        let breaks: Vec<Broken> = after
-            .broken
-            .iter()
-            .filter(|broken| !before.contains(broken))
-            .copied()
-            .collect();
+        let breaks = after.broken_since(&before);
         if !breaks.is_empty() {
             return Err(Refused::Breaks(breaks));
         }

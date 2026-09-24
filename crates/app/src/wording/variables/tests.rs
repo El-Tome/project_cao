@@ -5,7 +5,8 @@
 //!   what a change would break —
 //!   `a_loop_is_said_by_the_names_of_the_variables_in_it`,
 //!   `what_still_uses_a_variable_is_listed_by_the_names_the_panels_use`,
-//!   `what_a_change_would_break_is_said_by_the_value_on_the_drawing`
+//!   `what_a_change_would_break_is_said_by_the_value_on_the_drawing`,
+//!   `a_change_that_would_renumber_a_step_or_set_a_sketch_adrift_says_so`
 
 use cao_part::VariableChange;
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
@@ -141,5 +142,23 @@ fn what_a_change_would_break_is_said_by_the_value_on_the_drawing() {
     assert!(
         sentence.contains("esquisse 1") && sentence.contains("40"),
         "{sentence}"
+    );
+}
+
+#[test]
+fn a_change_that_would_renumber_a_step_or_set_a_sketch_adrift_says_so() {
+    let document = a_plate();
+    // Nothing was undone, so the numbers run from one in the order things
+    // were done: the extrusion, seventh, is number 7.
+    let renumbered = said(&document, &Refused::Breaks(vec![Broken::Renumbered(7)]));
+    let adrift = said(&document, &Refused::Breaks(vec![Broken::Adrift(0)]));
+
+    assert!(
+        renumbered.contains("autres éléments") && renumbered.contains("étape 7"),
+        "{renumbered}"
+    );
+    assert!(
+        adrift.contains("esquisse 1") && adrift.contains("face"),
+        "{adrift}"
     );
 }

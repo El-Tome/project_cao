@@ -68,6 +68,13 @@ fn breaking(lang: &Catalogue, document: &PartDocument, broken: &Broken) -> Strin
         ),
         Broken::Dimension { sketch, target } => value_on(lang, document, *sketch, target),
         Broken::Operation(number) => step(lang, document, *number),
+        Broken::Renumbered(number) => lang.t_with(
+            "variables.renumbered",
+            &[("step", &step(lang, document, *number))],
+        ),
+        Broken::Adrift(sketch) => {
+            lang.t_with("variables.adrift", &[("sketch", &(sketch + 1).to_string())])
+        }
     }
 }
 

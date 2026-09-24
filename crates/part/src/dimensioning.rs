@@ -44,7 +44,7 @@ impl PartState {
             target,
         };
         let value = written
-            .value(&self.values)
+            .value(self.values_for(target))
             .filter(|value| target.takes(*value));
         let outcome = value.and_then(|value| self.apply_dimension(index, target, value));
         match self.remember_as(index, target, outcome, written.note()) {

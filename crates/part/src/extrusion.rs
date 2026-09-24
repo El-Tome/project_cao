@@ -5,6 +5,7 @@ use cao_sketch::{Area, Region, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
 
+use crate::broken::Broken;
 use crate::formula::Formula;
 use crate::history::{ExtrusionMode, RevolutionAxis};
 use crate::state::PartState;
@@ -36,8 +37,10 @@ impl PartState {
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
+        let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
+                lost = true;
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -55,6 +58,11 @@ impl PartState {
             tool = tool.union(&piece);
         }
 
+        // An area the drawing no longer encloses raises nothing, which is a
+        // size that no longer holds.
+        if lost {
+            self.broke(Broken::Operation(self.replaying));
+        }
         self.combine(tool, mode);
     }
 
@@ -95,8 +103,10 @@ impl PartState {
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
+        let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
+                lost = true;
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -110,6 +120,11 @@ impl PartState {
             tool = tool.union(&piece);
         }
 
+        // An area the drawing no longer encloses raises nothing, which is a
+        // size that no longer holds.
+        if lost {
+            self.broke(Broken::Operation(self.replaying));
+        }
         self.combine(tool, mode);
     }
 

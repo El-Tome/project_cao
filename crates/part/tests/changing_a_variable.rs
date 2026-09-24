@@ -13,7 +13,13 @@
 //!   `a_change_that_would_leave_a_count_no_longer_whole_is_refused_naming_the_pattern`,
 //!   `a_change_the_drawing_could_not_hold_is_refused_naming_the_value`,
 //!   `a_change_that_would_leave_a_step_with_no_size_is_refused_naming_it`,
-//!   `a_variable_that_would_come_to_no_number_is_refused`
+//!   `a_variable_that_would_come_to_no_number_is_refused`,
+//!   `a_count_that_would_renumber_what_was_drawn_after_the_pattern_is_refused`
+//! - changing a variable changes every size written from it — and only those
+//!   still written from it: a value taken away from the drawing stops
+//!   following it —
+//!   `a_count_on_the_last_thing_drawn_changes_how_many_copies_stand`,
+//!   `a_value_erased_from_the_drawing_stops_following_its_variable`
 //! - deleting a variable something uses is refused, with the list of what
 //!   uses it — the dimensions, the features, the other variables —
 //!   `a_variable_in_use_cannot_be_erased_and_says_what_uses_it`,
@@ -23,7 +29,8 @@
 //!   `a_variable_added_through_the_part_is_one_step_undo_takes_back`
 //! - compacting the history keeps the variables and the formulas that refer
 //!   to them — `compacting_keeps_the_variables_and_what_is_written_from_them`,
-//!   `compacting_leaves_an_erased_variable_out_and_the_others_still_answer`
+//!   `compacting_leaves_an_erased_variable_out_and_the_others_still_answer`,
+//!   `compacting_keeps_a_pattern_written_from_a_variable_following_it`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{
@@ -435,5 +442,146 @@ fn a_change_the_drawing_could_not_hold_is_refused_naming_the_value() {
             sketch: 0,
             target: radius
         }]))
+    );
+}
+
+/// `copies` at 3, a trait turned three times about the origin, and — when
+/// `then_a_trait` — a trait drawn after the pattern and dimensioned.
+fn a_pattern_counted_by_a_variable(then_a_trait: bool) -> PartDocument {
+    let mut document = PartDocument::new("Rosace", at_nine());
+    document
+        .change_variable(added("copies", Formula::Number(3.0)))
+        .expect("a count");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(10.0, 0.0)),
+        end: PointRef::New(DVec2::new(20.0, 0.0)),
+        construction: false,
+    });
+    let count = written(&document, "copies");
+    document.apply(Operation::CircularPattern {
+        sketch: 0,
+        elements: vec![cao_sketch::Element::Segment(SegmentId(0))],
+        centre: cao_sketch::Sketch::ORIGIN,
+        degrees: 30.0.into(),
+        count,
+    });
+    if then_a_trait {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(DVec2::new(50.0, -40.0)),
+            end: PointRef::New(DVec2::new(80.0, -40.0)),
+            construction: false,
+        });
+        document.apply(Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(3)),
+            value: 30.0.into(),
+            placement: None,
+        });
+    }
+    document
+}
+
+#[test]
+fn a_count_that_would_renumber_what_was_drawn_after_the_pattern_is_refused() {
+    let mut document = a_pattern_counted_by_a_variable(true);
+
+    let refused = document.change_variable(edited(0, "copies", Formula::Number(4.0)));
+
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.iter().any(|size| matches!(size, Broken::Renumbered(_)))),
+        "the trait drawn after would be named by a copy's number: {refused:?}"
+    );
+    assert_eq!(document.sketches()[0].live_segments().count(), 4);
+}
+
+#[test]
+fn a_count_on_the_last_thing_drawn_changes_how_many_copies_stand() {
+    let mut document = a_pattern_counted_by_a_variable(false);
+
+    document
+        .change_variable(edited(0, "copies", Formula::Number(5.0)))
+        .expect("nothing was drawn after the pattern");
+
+    assert_eq!(document.sketches()[0].live_segments().count(), 5);
+}
+
+#[test]
+fn compacting_keeps_a_pattern_written_from_a_variable_following_it() {
+    let mut document = a_pattern_counted_by_a_variable(false);
+
+    document.compact_history();
+
+    let copies = document.variables().named("copies").expect("still there");
+    assert!(
+        !document.uses_of(copies).is_empty(),
+        "the pattern still counts on it"
+    );
+    document
+        .change_variable(VariableChange::Edited {
+            variable: copies,
+            name: "copies".to_string(),
+            formula: Formula::Number(5.0),
+        })
+        .expect("the count still follows it");
+    assert_eq!(document.sketches()[0].live_segments().count(), 5);
+}
+
+#[test]
+fn a_value_erased_from_the_drawing_stops_following_its_variable() {
+    let mut document = PartDocument::new("Plate", at_nine());
+    document
+        .change_variable(added("a", Formula::Number(50.0)))
+        .expect("a length");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 0.0)),
+        end: PointRef::New(DVec2::new(100.0, 0.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 100.0.into(),
+        placement: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 10.0)),
+        end: PointRef::New(DVec2::new(40.0, 10.0)),
+        construction: false,
+    });
+    let from_a = written(&document, "a");
+    let side = DimensionTarget::Length(SegmentId(1));
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: side,
+        value: from_a,
+        placement: None,
+    });
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: Vec::new(),
+        dimensions: vec![side],
+        constraints: Vec::new(),
+    });
+
+    document
+        .change_variable(edited(0, "a", Formula::Number(80.0)))
+        .expect("nothing on the drawing uses a");
+
+    let length = document.sketches()[0].segment_length(SegmentId(1)) * document.scale();
+    assert!(
+        (length - 50.0).abs() < 1e-6,
+        "the trait kept the length it had when its value was taken away: {length}"
     );
 }

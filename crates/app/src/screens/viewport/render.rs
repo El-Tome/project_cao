@@ -30,7 +30,7 @@ mod trim;
 pub(crate) use dimensions::{paint_dimension_field, paint_dimension_labels};
 use drawing::{Shown, push_sketch, what_would_be_laid};
 use extrusion::push_chosen_areas;
-pub(crate) use live_fields::paint_live_input;
+pub(crate) use live_fields::{a_field_at_the_cursor_holds_the_keyboard, paint_live_input};
 pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
 use planes::push_choosable_planes;
 use preview::pending_annotation;

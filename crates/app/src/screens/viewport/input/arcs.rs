@@ -5,7 +5,7 @@ use cao_sketch::{ArcDraft, ArcId, ArcMode, ToolState, arc_aimed, arc_from};
 use glam::DVec2;
 
 use super::{annotation_position, point_ref_at};
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 /// One click of the arc tool: takes the place pointed at, and draws the arc as

@@ -4,7 +4,7 @@ use cao_part::Operation;
 use cao_sketch::Crossing;
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 /// One click of the split tool: drops a point where the curves nearest the

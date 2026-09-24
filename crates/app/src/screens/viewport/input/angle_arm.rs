@@ -7,7 +7,7 @@ use cao_sketch::{
 };
 
 use super::annotation_position;
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 /// How short an arm may get before the zoom says how long it is rather than
 /// the trait's own width: a trait standing straight up is no wider than

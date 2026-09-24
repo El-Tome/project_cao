@@ -5,7 +5,7 @@ use cao_sketch::{CircleId, CircleMode, DimensionTarget, Found, ToolState};
 use glam::DVec2;
 
 use super::{annotation_position, point_ref_at};
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 /// One click of the circle tool: takes what was pointed at, and draws the

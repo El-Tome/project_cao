@@ -17,10 +17,11 @@
 //!   `a_presenter_never_takes_the_interface` reads every `state.rs` under
 //!   `crates/app/src` and refuses the three markers
 
-use cao_part::ExtrusionMode;
+use cao_part::{ExtrusionMode, PartDocument};
 use chrono::Utc;
 
 use super::*;
+use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::sketch::SketchEditor;
 

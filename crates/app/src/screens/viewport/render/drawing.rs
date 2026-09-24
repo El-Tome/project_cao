@@ -11,8 +11,9 @@ use super::marks::push_point_markers;
 use super::preview::push_preview;
 use super::trim::{LOUDER, push_going};
 use super::{emphasis, live_offset, tint, tint_at};
+use crate::screens::SketchContext;
 use crate::screens::viewport::input::{copying_shows, corner_shows};
-use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
+use crate::screens::viewport::{PICK_PIXELS, ViewScale};
 
 /// Tints the areas the drawing encloses, so a closed contour reads as a face
 /// rather than four separate lines.

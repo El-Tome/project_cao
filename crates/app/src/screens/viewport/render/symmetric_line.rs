@@ -4,7 +4,8 @@
 use cao_sketch::{Sketch, ToolState};
 use glam::DVec2;
 
-use crate::screens::viewport::{SketchContext, ViewScale};
+use crate::screens::SketchContext;
+use crate::screens::viewport::ViewScale;
 
 pub(crate) fn push_preview(
     out: &mut Vec<cao_render::Vertex>,

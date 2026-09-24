@@ -5,8 +5,8 @@
 
 use cao_sketch::{Element, ToolState};
 
+use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
-use crate::screens::viewport::SketchContext;
 
 /// A circular pattern owes nothing to what is held: the quarter turn four times
 /// round is the pattern anyone draws when they draw one at all.

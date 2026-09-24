@@ -9,7 +9,7 @@ use cao_sketch::{
 use glam::DVec2;
 
 use super::{annotation_position, lean_on_an_arm, point_ref_at};
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 /// One click of the ellipse tool: the centre, then the end of the first axis,

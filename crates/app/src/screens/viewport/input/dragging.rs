@@ -6,7 +6,7 @@ use cao_prefs::Modifier;
 use cao_sketch::{DimensionTarget, PointId, Sketch};
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 use super::{drag_curve, dropped_on, grabbed_curve, pick};
 

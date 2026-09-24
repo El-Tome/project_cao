@@ -7,7 +7,7 @@ use cao_sketch::{ChainAnchor, Constraint, SegmentId, SymmetricClick, ToolState, 
 use glam::DVec2;
 
 use super::{annotation_position, born_at, lean_on_an_arm};
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 pub(crate) fn draw_symmetric_line_point(

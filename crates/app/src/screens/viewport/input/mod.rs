@@ -12,10 +12,10 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
-use crate::screens::sketch::Tool;
+use crate::screens::{SketchContext, sketch::Tool};
 use crate::wording::constraints;
 
-use super::{PICK_PIXELS, SketchContext, ViewScale, ViewportState, plane_half_size, to_ndc};
+use super::{PICK_PIXELS, ViewScale, ViewportState, plane_half_size, to_ndc};
 
 mod arcs;
 pub(crate) use arcs::{aimed as arc_aimed, arc_preview, draw_arc};

@@ -3,8 +3,8 @@ use cao_prefs::Command;
 use cao_sketch::{Rule, WorkPlane};
 use glam::DVec3;
 
-use crate::lang::Catalogue;
-use crate::screens::extrusion::{ExtrusionState, apply_extrusion};
+use crate::screens::SketchContext;
+use crate::screens::extrusion::apply_extrusion;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
 use crate::screens::viewport::{ViewportState, corner_picks_with};
@@ -17,12 +17,9 @@ use crate::{screens, wording};
 /// Returns true when the part changed and needs saving.
 pub(crate) fn run(
     command: Command,
-    doc: &mut PartDocument,
-    editor: &mut SketchEditor,
-    extrusion: &mut ExtrusionState,
+    part: &mut SketchContext<'_>,
     ribbon: &mut Ribbon,
     viewport: &mut ViewportState,
-    lang: &Catalogue,
 ) -> bool {
     use crate::screens::extrusion::Shape;
     use crate::screens::sketch::{
@@ -34,6 +31,12 @@ pub(crate) fn run(
         editor.reset_pending();
     };
 
+    let SketchContext {
+        document: doc,
+        editor,
+        extrusion,
+        lang,
+    } = part;
     editor.message = None;
 
     match command {
@@ -323,3 +326,6 @@ pub(crate) fn sketch_framing(
         _ => (plane.origin, screens::viewport::DEFAULT_SKETCH_RADIUS),
     }
 }
+
+#[cfg(test)]
+mod tests;

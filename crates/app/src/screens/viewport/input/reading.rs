@@ -11,7 +11,7 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::constraints;
 
 /// The measure tool. It shares the dimension tool's aim — `measure_pick` and

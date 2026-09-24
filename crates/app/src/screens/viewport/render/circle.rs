@@ -3,7 +3,7 @@
 
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::screens::viewport::input::circle_from;
 
 pub(crate) fn live_fields(

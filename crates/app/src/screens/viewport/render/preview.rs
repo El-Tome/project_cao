@@ -9,11 +9,12 @@ use glam::DVec2;
 use super::curves::{push_circle_at, push_line};
 use super::marks::{push_midpoint_mark, push_point_marker, push_square_mark};
 use super::{arc, ellipse, emphasis, symmetric_line, tint_at};
+use crate::screens::SketchContext;
 use crate::screens::sketch::{DimensionMode, Tool};
 use crate::screens::viewport::input::{
     annotation_position, circle_from, measure_preview, rectangle_corner, refine,
 };
-use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
+use crate::screens::viewport::{PICK_PIXELS, ViewScale};
 
 /// The annotation the dimension tool is showing in advance: the one a click
 /// would choose, or the one already chosen and looking for its place.

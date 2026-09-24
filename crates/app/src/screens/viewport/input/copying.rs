@@ -4,8 +4,8 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
+use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
-use crate::screens::viewport::SketchContext;
 
 use super::pick;
 

@@ -11,8 +11,9 @@ use cao_sketch::{Going, Sketch, Stretch};
 
 use super::curves::{places_of, push_arc_at, push_circle_at, push_ellipse_at, push_line};
 use super::tint;
+use crate::screens::SketchContext;
 use crate::screens::viewport::input::trim_shows;
-use crate::screens::viewport::{PICK_PIXELS, SketchContext, ViewScale};
+use crate::screens::viewport::{PICK_PIXELS, ViewScale};
 
 /// How much thicker than the drawing the doomed stretch is drawn.
 pub(crate) const LOUDER: f32 = 1.8;

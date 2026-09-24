@@ -3,6 +3,8 @@ use cao_prefs::Command;
 
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
+use crate::screens::variables::{NAMING, offered};
+use crate::ui::completion::completing;
 use crate::wording::constraints;
 
 /// The values an extrusion needs, shown only while one is being set up.
@@ -34,13 +36,17 @@ pub(super) fn extrusion_row(
         return;
     }
 
+    let offers = || offered(document.variables());
     ui.horizontal_wrapped(|ui| {
         if extrusion.is_revolving() {
             ui.label(lang.t("extrusion.angle"));
-            ui.add(
-                egui::TextEdit::singleline(&mut extrusion.angle_input)
-                    .desired_width(60.0)
-                    .hint_text("°"),
+            completing(
+                ui,
+                egui::Id::new("extrusion_angle"),
+                &mut extrusion.angle_input,
+                (60.0, "°"),
+                &offers,
+                NAMING,
             );
             ui.label(lang.t("extrusion.around"));
             for axis in [cao_sketch::SketchAxis::U, cao_sketch::SketchAxis::V] {
@@ -66,10 +72,13 @@ pub(super) fn extrusion_row(
                 _ => "extrusion.height",
             };
             ui.label(lang.t(key));
-            ui.add(
-                egui::TextEdit::singleline(&mut extrusion.distance_input)
-                    .desired_width(70.0)
-                    .hint_text("mm"),
+            completing(
+                ui,
+                egui::Id::new("extrusion_distance"),
+                &mut extrusion.distance_input,
+                (70.0, "mm"),
+                &offers,
+                NAMING,
             );
         }
         ui.checkbox(&mut extrusion.reversed, lang.t("extrusion.reversed"))

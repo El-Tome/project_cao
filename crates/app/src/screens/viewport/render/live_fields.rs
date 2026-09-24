@@ -5,6 +5,7 @@
 use cao_sketch::{ChamferMode, ToolState};
 
 use crate::screens::sketch::{LiveField, LiveInput, Tool};
+use crate::ui::completion::completing;
 
 use super::super::input::rectangle_corner;
 use super::{arc, circle, ellipse, symmetric_line};
@@ -135,12 +136,17 @@ pub(super) fn value_field(
     text: &mut String,
     hint: &str,
     focus: bool,
+    variables: &cao_part::Variables,
 ) -> egui::Response {
-    let output = egui::TextEdit::singleline(text)
-        .id(id)
-        .desired_width(72.0)
-        .hint_text(hint)
-        .show(ui);
+    let offers = || crate::screens::variables::offered(variables);
+    let output = completing(
+        ui,
+        id,
+        text,
+        (72.0, hint),
+        &offers,
+        crate::screens::variables::NAMING,
+    );
     let response = output.response.response;
     let reached_by_keyboard =
         focus || (response.gained_focus() && !response.is_pointer_button_down_on());
@@ -178,7 +184,14 @@ fn live_field(
     // The keyboard goes to the first field as soon as the fields appear: the
     // value is the next thing the user types, and Tab from the canvas walks
     // through the whole toolbar to get here.
-    let response = value_field(ui, id, &mut field.text, &format!("{measured:.2}"), focus);
+    let response = value_field(
+        ui,
+        id,
+        &mut field.text,
+        &format!("{measured:.2}"),
+        focus,
+        variables,
+    );
     ui.label(suffix);
 
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.

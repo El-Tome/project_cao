@@ -202,6 +202,7 @@ pub(crate) fn paint_dimension_field(
                         &mut editing.input,
                         &hint,
                         focus,
+                        context.document.variables(),
                     );
                     ui.weak(&hint); // the field opens pre-filled, so its own hint_text never draws
                     // Enter is eaten here: the field has just given the keyboard

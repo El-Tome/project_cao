@@ -5,6 +5,8 @@ use cao_part::{PartDocument, VariableId};
 
 use crate::lang::Catalogue;
 use crate::screens::variables::state::{Problem, Row, VariablesPanel};
+use crate::screens::variables::{NAMING, offered, shown};
+use crate::ui::completion::{Offer, completing};
 use crate::ui::text_edit::text_edit;
 use crate::wording;
 
@@ -54,6 +56,7 @@ fn show(
     }
 
     let rows = panel.rows(document.variables());
+    let offers = || offered(document.variables());
     let lit = match panel.rows_blinking(ui.input(|input| input.time)) {
         Some((named, lit)) => {
             ui.ctx().request_repaint();
@@ -70,7 +73,8 @@ fn show(
             ui.strong(lang.t("variables.value"));
             ui.end_row();
             for row in &rows {
-                if let Some(asked) = one_row(ui, panel, row, lit.contains(&row.variable), lang) {
+                let lit = lit.contains(&row.variable);
+                if let Some(asked) = one_row(ui, panel, row, (lit, &offers), lang) {
                     action = asked;
                 }
                 ui.end_row();
@@ -81,12 +85,16 @@ fn show(
                 90.0,
                 &lang.t("variables.new_name"),
             );
-            let formula = text_edit(
+            let formula = completing(
                 ui,
+                egui::Id::new("variable_formula_added"),
                 &mut panel.adding.formula,
-                140.0,
-                &lang.t("variables.new_formula"),
-            );
+                (140.0, &lang.t("variables.new_formula")),
+                &offers,
+                NAMING,
+            )
+            .response
+            .response;
             ui.label("");
             if ui.small_button(lang.t("variables.add")).clicked()
                 || entered(ui, &name)
@@ -105,12 +113,13 @@ fn show(
 /// One variable: its two fields, what it comes to, and the button that erases
 /// it. A row is asked of the part when the keyboard leaves it, the way a
 /// spreadsheet takes a cell. A row a refusal named and `lit` at this instant
-/// is written in the colour of what is wrong.
+/// is written in the colour of what is wrong; its formula completes a name
+/// from what `offers` hands back.
 fn one_row(
     ui: &mut egui::Ui,
     panel: &mut VariablesPanel,
     row: &Row,
-    lit: bool,
+    (lit, offers): (bool, &dyn Fn() -> Vec<Offer>),
     lang: &Catalogue,
 ) -> Option<VariablesAction> {
     let written_as = ui.visuals().override_text_color;
@@ -119,7 +128,16 @@ fn one_row(
     }
     let mut typed = panel.texts(row);
     let name = text_edit(ui, &mut typed.name, 90.0, "");
-    let formula = text_edit(ui, &mut typed.formula, 140.0, "");
+    let formula = completing(
+        ui,
+        egui::Id::new(("variable_formula", row.variable.0)),
+        &mut typed.formula,
+        (140.0, ""),
+        offers,
+        NAMING,
+    )
+    .response
+    .response;
     if name.changed() || formula.changed() {
         panel.typed_into(row, typed.name, typed.formula);
     }
@@ -149,10 +167,4 @@ fn one_row(
 fn entered(ui: &mut egui::Ui, field: &egui::Response) -> bool {
     field.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
-}
-
-/// What a variable comes to, to the ten-thousandth and no further.
-fn shown(value: f64) -> String {
-    let text = format!("{value:.4}");
-    text.trim_end_matches('0').trim_end_matches('.').to_string()
 }

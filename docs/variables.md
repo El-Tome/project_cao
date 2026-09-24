@@ -54,6 +54,21 @@ A field holding something that does not read refuses the click and `Entrée`,
 and says why: the shape is not laid at the cursor with what was typed dropped
 without a word.
 
+### A name completed as it is typed
+
+Every field a size is typed into — the fields at the cursor, a dimension's
+field, the extrusion row — and the formula column of the panel **complete a
+variable's name**. Typing the start of one opens a list under the field: the
+variables whose name starts with what was typed, whatever the case, in the
+order of the panel, each with what it comes to. The arrows move the choice;
+`Entrée` or `Tab` puts the name chosen in place of the one typed, and the next
+`Entrée` validates the field as it always did; `Échap` closes the list and
+does nothing else. A click on a name puts it in too — where the field stays
+put: the fields at the cursor follow the pointer, and their list with them.
+
+What makes a name for the list is what makes one for a formula: the two read
+the same rule, handed to the list by the part.
+
 ## Changing a variable
 
 Variables are made, edited and taken away in a **panel of their own**, beside

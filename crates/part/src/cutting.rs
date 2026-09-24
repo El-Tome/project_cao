@@ -15,7 +15,7 @@ use cao_sketch::{
 use glam::DVec2;
 
 use crate::broken::Broken;
-use crate::formula::Formula;
+use crate::formula::{Formula, Operator};
 use crate::history::ChamferAsked;
 use crate::outcome::Outcome;
 use crate::state::PartState;
@@ -104,8 +104,16 @@ impl PartState {
         circle: CircleId,
         between: Option<(PointId, PointId)>,
     ) -> Option<Outcome> {
-        self.cutting(sketch, |drawing, _| {
+        let diameter = self
+            .sketches
+            .get(sketch)?
+            .dimension_of(DimensionTarget::Diameter(circle))
+            .and_then(|value| value.written.as_deref())
+            .and_then(Formula::from_stored);
+        let mut left = None;
+        let outcome = self.cutting(sketch, |drawing, _| {
             let trimmed = drawing.trim_circle(circle, between)?;
+            left = trimmed.arc;
             Some(Cut {
                 rules: trimmed.rules_dropped,
                 values: trimmed.values_dropped,
@@ -114,7 +122,21 @@ impl PartState {
                     trimmed.arc.map(CurveId::Arc).into_iter().collect(),
                 )],
             })
-        })
+        });
+        // A diameter goes over as the radius of the arc left, half the number
+        // it was. The drawing carries the number and cannot halve a formula it
+        // never reads, so what it was written from is halved here.
+        if let (Some(arc), Some(diameter), Some(drawing)) =
+            (left, diameter, self.sketches.get_mut(sketch))
+        {
+            let halved = Formula::Combined(
+                Operator::Divide,
+                Box::new(diameter),
+                Box::new(Formula::Number(2.0)),
+            );
+            drawing.write_dimension_as(DimensionTarget::ArcRadius(arc), halved.note());
+        }
+        outcome
     }
 
     pub(crate) fn trim_ellipse(

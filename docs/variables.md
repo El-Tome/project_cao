@@ -105,9 +105,9 @@ A value on a drawing remembers what it was written as, in the part's own
 notation (`#0 / 2`): the drawing never reads it, and carries it wherever it
 carries the value — onto a piece of a trait a cut went through, onto a corner a
 chamfer put back. That is what editing it, compaction and the list of what uses
-a variable read. A diameter read again as an arc's radius is half the number it
-was, and the drawing cannot say what half of a formula is: the number goes
-over, the formula does not.
+a variable read. A diameter read again as the radius of the arc a cut leaves is
+half of it: the drawing halves the number, and the part — which, unlike the
+drawing, reads formulas — halves what it was written from.
 
 **Compacting** the history keeps the variables — the live ones, each after
 those it leans on — and every formula written from them, said again in the

@@ -8,6 +8,8 @@
 //!   `undoing_a_change_to_a_variable_puts_the_part_back_with_it`
 //! - a chamfer's values keep the formulas they were typed as —
 //!   `a_chamfer_written_from_variables_lays_each_value_with_its_own_formula`
+//! - and a diameter a cut carries onto an arc keeps its formula, halved —
+//!   `a_diameter_written_from_a_variable_is_halved_onto_the_arc_a_cut_leaves`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{Formula, PartDocument, VariableChange, VariableId};
@@ -197,5 +199,44 @@ fn a_chamfer_written_from_variables_lays_each_value_with_its_own_formula() {
         notes,
         vec![(false, "#0".to_string()), (true, "#1".to_string())],
         "the distance remembers setback and the angle slope",
+    );
+}
+
+#[test]
+fn a_diameter_written_from_a_variable_is_halved_onto_the_arc_a_cut_leaves() {
+    let mut document = PartDocument::new("Came", at_nine());
+    add(&mut document, "bore", 20.0);
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
+        radius: 10.0,
+        rim: vec![
+            PointRef::New(DVec2::new(10.0, 0.0)),
+            PointRef::New(DVec2::new(0.0, 10.0)),
+        ],
+        construction: false,
+    });
+    let bore = written(&document, "bore");
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Diameter(cao_sketch::CircleId(0)),
+        value: bore,
+        placement: None,
+    });
+
+    document.apply(Operation::TrimCircle {
+        sketch: 0,
+        circle: cao_sketch::CircleId(0),
+        between: Some((cao_sketch::PointId(1), cao_sketch::PointId(2))),
+    });
+
+    assert_eq!(
+        document.formula_of(0, DimensionTarget::ArcRadius(cao_sketch::ArcId(0))),
+        Some("bore / 2".to_string()),
+        "the arc's radius goes on following the bore, as half of it",
     );
 }

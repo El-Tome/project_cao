@@ -5,7 +5,7 @@
 //! meant to hold.
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
-use cao_part::{History, PartState};
+use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{Area, DimensionTarget, WorkPlane};
 use cao_solid::Mesh;
 use glam::{DVec2, DVec3};
@@ -437,4 +437,63 @@ fn an_extrusion_is_given_in_millimetres() {
         "{height_millimetres}"
     );
     let _ = DVec3::ZERO;
+}
+
+#[test]
+fn a_step_of_matter_names_the_faces_it_made() {
+    let at_nine = "2026-01-02T09:00:00Z".parse().expect("a date");
+    let mut document = PartDocument::new("Bloc", at_nine);
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::new(20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(24.0, 4.0)),
+        construction: false,
+    });
+    let block = document.areas_at(0, &[DVec2::new(5.0, 10.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: block,
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let post = document.areas_at(0, &[DVec2::new(22.0, 2.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: post,
+        distance: 6.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    const THE_BLOCK: u32 = 4;
+    const THE_POST: u32 = 5;
+
+    let block = document.faces_made_by(THE_BLOCK);
+    let post = document.faces_made_by(THE_POST);
+
+    assert_eq!(block.len(), 6, "a block is six faces: {block:?}");
+    assert_eq!(post.len(), 6, "and so is the post beside it: {post:?}");
+    assert!(
+        block.iter().all(|face| !post.contains(face)),
+        "no face was made by both: {block:?} {post:?}"
+    );
+    assert!(
+        block
+            .iter()
+            .chain(&post)
+            .all(|face| document.body().pieces_of(*face).next().is_some()),
+        "every face named stands in the part"
+    );
+    assert!(
+        document.faces_made_by(2).is_empty(),
+        "a rectangle raises nothing"
+    );
 }

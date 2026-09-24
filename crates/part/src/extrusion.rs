@@ -11,6 +11,26 @@ use crate::history::{ExtrusionMode, RevolutionAxis};
 use crate::state::PartState;
 
 impl PartState {
+    /// Raises a step of matter, or cuts it, noting the faces of the part it
+    /// made: a tool's faces are numbered above the part's, so they are the
+    /// ones numbered from where the part's ended. Noted even when the step
+    /// made nothing, so that the rank of a step is the rank of its note.
+    pub(crate) fn raising(&mut self, raise: impl FnOnce(&mut Self)) {
+        let from = self.body.faces_end();
+        raise(self);
+        self.made.push(from..self.body.faces_end());
+    }
+
+    /// The faces the part still holds of those the step of matter of that
+    /// rank made, counting the steps in the order they replay.
+    pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
+        self.made.get(rank).map_or_else(Vec::new, |made| {
+            made.clone()
+                .filter(|face| self.body.pieces_of(*face).next().is_some())
+                .collect()
+        })
+    }
+
     /// Sweeps the chosen areas around an axis of the sketch and joins the
     /// result to the part, or takes it out.
     pub(crate) fn revolve(

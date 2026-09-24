@@ -41,6 +41,10 @@ pub fn open_on(test: &str, (width, height): (f32, f32)) -> App {
 
     let mut app = Harness::builder()
         .with_size(egui::vec2(width, height))
+        // What a refusal names blinks for three seconds, asking for frame
+        // after frame all along; kittest's four steps of a quarter second
+        // would take that for a screen that never settles.
+        .with_max_steps(16)
         .build_eframe(move |cc| {
             assert!(
                 cc.wgpu_render_state.is_none(),

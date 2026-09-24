@@ -92,6 +92,19 @@ fn a_foreign_geometry() -> PartState {
 }
 
 #[test]
+fn a_part_opened_on_its_cache_still_knows_the_faces_each_step_made() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    let raised = reopened.faces_made_by(3);
+    assert_eq!(raised, a_part_with_matter().faces_made_by(3));
+    assert_eq!(raised.len(), 6, "the block's six faces: {raised:?}");
+}
+
+#[test]
 fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_design() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");

@@ -54,6 +54,13 @@ fn show(
     }
 
     let rows = panel.rows(document.variables());
+    let lit = match panel.rows_blinking(ui.input(|input| input.time)) {
+        Some((named, lit)) => {
+            ui.ctx().request_repaint();
+            if lit { named.to_vec() } else { Vec::new() }
+        }
+        None => Vec::new(),
+    };
     egui::Grid::new("variables_grid")
         .num_columns(4)
         .striped(true)
@@ -63,7 +70,7 @@ fn show(
             ui.strong(lang.t("variables.value"));
             ui.end_row();
             for row in &rows {
-                if let Some(asked) = one_row(ui, panel, row, lang) {
+                if let Some(asked) = one_row(ui, panel, row, lit.contains(&row.variable), lang) {
                     action = asked;
                 }
                 ui.end_row();
@@ -97,13 +104,19 @@ fn show(
 
 /// One variable: its two fields, what it comes to, and the button that erases
 /// it. A row is asked of the part when the keyboard leaves it, the way a
-/// spreadsheet takes a cell.
+/// spreadsheet takes a cell. A row a refusal named and `lit` at this instant
+/// is written in the colour of what is wrong.
 fn one_row(
     ui: &mut egui::Ui,
     panel: &mut VariablesPanel,
     row: &Row,
+    lit: bool,
     lang: &Catalogue,
 ) -> Option<VariablesAction> {
+    let written_as = ui.visuals().override_text_color;
+    if lit {
+        ui.visuals_mut().override_text_color = Some(ui.visuals().error_fg_color);
+    }
     let mut typed = panel.texts(row);
     let name = text_edit(ui, &mut typed.name, 90.0, "");
     let formula = text_edit(ui, &mut typed.formula, 140.0, "");
@@ -115,6 +128,7 @@ fn one_row(
         None => ui.weak(lang.t("variables.no_value")),
     };
     let erase = ui.small_button(lang.t("variables.erase")).clicked();
+    ui.visuals_mut().override_text_color = written_as;
 
     // Escape takes the keyboard away before any field is drawn, so a field it
     // was pressed in reads as one the keyboard has just left.

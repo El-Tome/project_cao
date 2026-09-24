@@ -7,8 +7,13 @@
 //!   `a_row_committed_as_it_was_records_nothing`
 //! - the dimensions a refused change would break are named for the drawing to
 //!   show — `a_change_that_would_break_a_dimension_names_it_for_the_drawing_to_show`
+//! - a variable whose deletion is refused names what uses it for the screen to
+//!   show: the dimensions on the drawing, the rows of the variables written
+//!   from it, the steps of matter — as asked on review —
+//!   `a_variable_kept_because_it_is_in_use_names_what_uses_it_for_the_screen_to_show`,
+//!   `the_rows_a_refusal_names_blink_for_a_few_seconds`
 
-use cao_part::history::{Operation, PointRef};
+use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{NameProblem, PartDocument, Refused, Unreadable, Unusable, Use};
 use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
 use chrono::Utc;
@@ -169,9 +174,49 @@ fn a_change_that_would_break_a_dimension_names_it_for_the_drawing_to_show() {
     panel.typed_into(&height, "height".to_string(), "-5".to_string());
 
     assert!(!panel.commit(&mut document));
-    assert_eq!(panel.breaking(), vec![(0, HEIGHT)]);
+    assert_eq!(panel.named().values, vec![(0, HEIGHT)]);
     assert!(
         panel.is_editing(height.variable),
         "what was typed stays in the row to be fixed"
     );
+}
+
+/// The variable, the sketch, the rectangle, two values and the second
+/// variable come before it.
+const THE_EXTRUSION: u32 = 7;
+
+#[test]
+fn a_variable_kept_because_it_is_in_use_names_what_uses_it_for_the_screen_to_show() {
+    let mut panel = VariablesPanel::default();
+    let mut document = a_plate(&mut panel);
+    added(&mut panel, &mut document, "double", "height * 2");
+    let thickness = document.variables().read("height / 10").expect("it reads");
+    let areas = document.areas_at(0, &[DVec2::new(50.0, 15.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: thickness,
+        mode: ExtrusionMode::Add,
+    });
+    let height = row(&panel, &document, "height");
+    let double = row(&panel, &document, "double");
+
+    assert!(!panel.erase(&mut document, height.variable));
+
+    let named = panel.named();
+    assert_eq!(named.values, vec![(0, HEIGHT)]);
+    assert_eq!(named.variables, vec![double.variable]);
+    assert_eq!(named.steps, vec![THE_EXTRUSION]);
+}
+
+#[test]
+fn the_rows_a_refusal_names_blink_for_a_few_seconds() {
+    let mut panel = VariablesPanel::default();
+    let double = VariableId(1);
+
+    panel.blink(vec![double], 10.0);
+
+    assert_eq!(panel.rows_blinking(10.1), Some((&[double][..], true)));
+    assert_eq!(panel.rows_blinking(10.3), Some((&[double][..], false)));
+    assert_eq!(panel.rows_blinking(14.0), None, "and not for ever");
 }

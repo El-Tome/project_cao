@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 
 use cao_sketch::{Sketch, Support};
 use cao_solid::Mesh;
@@ -61,6 +62,10 @@ pub struct PartState {
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
     pub body: Mesh,
+    /// The numbers of the faces each step of matter made, in the order the
+    /// steps replay. Kept with the body it numbers, in the cache as well.
+    #[serde(default)]
+    pub(crate) made: Vec<Range<usize>>,
 }
 
 impl PartState {
@@ -232,7 +237,7 @@ impl PartState {
                 distance,
                 mode,
             } => {
-                self.extrude(*sketch, areas, distance, *mode);
+                self.raising(|state| state.extrude(*sketch, areas, distance, *mode));
                 None
             }
             Operation::MergePoints {
@@ -334,7 +339,7 @@ impl PartState {
                 angle,
                 mode,
             } => {
-                self.revolve(*sketch, areas, *axis, angle, *mode);
+                self.raising(|state| state.revolve(*sketch, areas, *axis, angle, *mode));
                 None
             }
         }

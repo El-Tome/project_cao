@@ -151,6 +151,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | Where the changes to the variables sit in the history | `part/src/history/table.rs` | `History::variable_changes`, `table_operations` |
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
+| Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 5` |
@@ -254,7 +255,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
-| Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `view.rs` `panel`, `mod.rs` `run` |
+| Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `Named`, `view.rs` `panel`, `mod.rs` `run` |
+| What a refusal names blinks, and for how long | `app/src/screens/blinking.rs` | `lit`; `ViewportState::blink`, `VariablesPanel::blink` |
 | Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |

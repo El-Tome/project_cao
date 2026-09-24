@@ -3,7 +3,7 @@
 //! asked of it.
 
 use cao_part::{
-    Broken, Formula, PartDocument, Refused, Unusable, VariableChange, VariableId, Variables,
+    Broken, Formula, PartDocument, Refused, Unusable, Use, VariableChange, VariableId, Variables,
 };
 use cao_sketch::DimensionTarget;
 
@@ -34,6 +34,21 @@ pub struct Typed {
     pub formula: String,
 }
 
+/// What the last refusal named that stands somewhere to be seen: values on a
+/// drawing, variables of the table, steps of the history.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Named {
+    pub values: Vec<(usize, DimensionTarget)>,
+    pub variables: Vec<VariableId>,
+    pub steps: Vec<u32>,
+}
+
+impl Named {
+    pub fn is_empty(&self) -> bool {
+        self.values.is_empty() && self.variables.is_empty() && self.steps.is_empty()
+    }
+}
+
 /// The panel of variables, between frames.
 #[derive(Default)]
 pub struct VariablesPanel {
@@ -42,6 +57,8 @@ pub struct VariablesPanel {
     /// The row at the foot of the table, which adds a variable.
     pub adding: Typed,
     problem: Option<Problem>,
+    /// The rows a refusal named, and when it was refused.
+    blinking: Option<(Vec<VariableId>, f64)>,
 }
 
 impl VariablesPanel {
@@ -156,19 +173,52 @@ impl VariablesPanel {
         self.problem.as_ref()
     }
 
-    /// The values on a drawing the last refusal said a change would break,
-    /// for the drawing to show.
-    pub fn breaking(&self) -> Vec<(usize, DimensionTarget)> {
+    /// What the last refusal named — what a change would break, what still
+    /// uses a variable — for the screen to show where it stands.
+    pub fn named(&self) -> Named {
+        let mut named = Named::default();
         match &self.problem {
-            Some(Problem::Refused(Refused::Breaks(broken))) => broken
-                .iter()
-                .filter_map(|broken| match broken {
-                    Broken::Dimension { sketch, target } => Some((*sketch, *target)),
-                    _ => None,
-                })
-                .collect(),
-            _ => Vec::new(),
+            Some(Problem::Refused(Refused::InUse(uses))) => {
+                for used in uses {
+                    match used {
+                        Use::Dimension { sketch, target } => named.values.push((*sketch, *target)),
+                        Use::Variable(variable) => named.variables.push(*variable),
+                        Use::Operation(number) => named.steps.push(*number),
+                    }
+                }
+            }
+            Some(Problem::Refused(Refused::Breaks(broken))) => {
+                for size in broken {
+                    match size {
+                        Broken::Dimension { sketch, target } => {
+                            named.values.push((*sketch, *target))
+                        }
+                        Broken::Variable(variable) => named.variables.push(*variable),
+                        Broken::Operation(number) => named.steps.push(*number),
+                        Broken::Renumbered {
+                            changed,
+                            followed_by,
+                        } => named.steps.extend([*changed, *followed_by]),
+                        Broken::Adrift(_) => {}
+                    }
+                }
+            }
+            _ => {}
         }
+        named
+    }
+
+    /// Has these rows blink from `now`: the variables a refusal named.
+    pub fn blink(&mut self, variables: Vec<VariableId>, now: f64) {
+        self.blinking = (!variables.is_empty()).then_some((variables, now));
+    }
+
+    /// The rows blinking at `now`, and whether they are lit or dark at that
+    /// instant — nothing once the blinking is over.
+    pub fn rows_blinking(&self, now: f64) -> Option<(&[VariableId], bool)> {
+        let (variables, since) = self.blinking.as_ref()?;
+        let lit = crate::screens::blinking::lit(*since, now)?;
+        Some((variables.as_slice(), lit))
     }
 
     fn done(&mut self) -> bool {

@@ -4,9 +4,8 @@ mod state;
 mod view;
 
 use cao_part::PartDocument;
-use cao_sketch::DimensionTarget;
 
-pub use state::VariablesPanel;
+pub use state::{Named, VariablesPanel};
 pub use view::VariablesAction;
 
 use crate::lang::Catalogue;
@@ -16,9 +15,8 @@ use crate::lang::Catalogue;
 pub struct Asked {
     /// Whether the part changed.
     pub changed: bool,
-    /// The values on a drawing a refused change would have broken, to be
-    /// shown where they are.
-    pub breaking: Vec<(usize, DimensionTarget)>,
+    /// What a refusal named, to be shown where it stands.
+    pub named: Named,
 }
 
 /// Puts the panel on screen and carries out what was asked of it.
@@ -40,6 +38,6 @@ pub fn run(
     };
     Asked {
         changed,
-        breaking: panel.breaking(),
+        named: panel.named(),
     }
 }

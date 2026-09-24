@@ -74,8 +74,16 @@ pub(crate) fn beside_the_part(
             commands::clamp_editor_to_document(editor, doc);
             changed = true;
         }
-        if !asked.breaking.is_empty() {
-            viewport.blink(asked.breaking, ui.input(|input| input.time));
+        let named = asked.named;
+        if !named.is_empty() {
+            let now = ui.input(|input| input.time);
+            let faces = named
+                .steps
+                .iter()
+                .flat_map(|step| doc.faces_made_by(*step))
+                .collect();
+            viewport.blink(named.values, faces, now);
+            variables.blink(named.variables, now);
         }
     }
     changed

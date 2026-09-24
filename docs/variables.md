@@ -82,8 +82,7 @@ Refused, with a message, and nothing applied:
 - **a change that would break a size**: a length at zero or below, a count no
   longer whole, a dimension the drawing can no longer hold, an area an
   extrusion stood on and would no longer find. The message names what would
-  break, and the dimensions among it **blink for a few seconds** on the
-  drawing, so that it is seen where it happens;
+  break;
 - **a change to how many elements a step lays** — a pattern counted by a
   variable, say — **while anything follows that step in its sketch, or is
   raised from that sketch**. The elements of a drawing are named by their
@@ -92,6 +91,13 @@ Refused, with a message, and nothing applied:
   done in its sketch and nothing is raised from that sketch; the message names
   the step and what follows it. A sketch that would lose the face it was laid
   on is refused the same way.
+
+What a refusal names **blinks for a few seconds where it stands**, so that it
+is seen where it happens: a dimension on the drawing, the row of a variable in
+the panel, and the matter a step raised or cut, lit over the part. A step
+knows which faces of the part it made — a boolean numbers the faces of what it
+adds above the part's own — and the part keeps that with the geometry it
+caches.
 
 A change is tried before it is made: the part is rebuilt with it, and what no
 longer holds that held before is what the change is refused for. A size that

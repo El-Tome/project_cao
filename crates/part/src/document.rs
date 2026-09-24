@@ -116,6 +116,22 @@ impl PartDocument {
         &self.state.body
     }
 
+    /// The faces of the part a step of matter made, by the number of its
+    /// operation — nothing for any other step.
+    pub fn faces_made_by(&self, step: u32) -> Vec<usize> {
+        self.history
+            .replay_order()
+            .iter()
+            .filter(|(_, operation)| {
+                matches!(
+                    operation,
+                    Operation::Extrude { .. } | Operation::Revolve { .. }
+                )
+            })
+            .position(|(number, _)| *number == step)
+            .map_or_else(Vec::new, |rank| self.state.faces_made(rank))
+    }
+
     /// The areas of a drawing these places fall in, each named by the curves
     /// that bound it — what a click on them means.
     pub fn areas_at(&self, sketch: usize, places: &[DVec2]) -> Vec<Area> {

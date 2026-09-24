@@ -47,16 +47,16 @@ pub struct ViewportState {
     /// Width over height of the canvas, remembered so that framing asked for
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
-    /// The values on a drawing a refused change would have broken, and when
-    /// it was refused.
-    blinking: Option<(Vec<(usize, DimensionTarget)>, f64)>,
+    blinking: Option<Blinking>,
 }
 
-/// How long the values a refused change would have broken blink for, and how
-/// long each flash lasts: long enough to be found on the drawing, short
-/// enough not to stay in the way.
-const BLINKING_FOR: f64 = 3.0;
-const ONE_FLASH: f64 = 0.25;
+/// What a refusal named that stands on the canvas — values on a drawing,
+/// faces of the part — and when it was refused.
+struct Blinking {
+    values: Vec<(usize, DimensionTarget)>,
+    faces: Vec<usize>,
+    since: f64,
+}
 
 impl Default for ViewportState {
     fn default() -> Self {
@@ -79,10 +79,14 @@ impl Default for ViewportState {
 }
 
 impl ViewportState {
-    /// Has these values blink on the drawing from `now`, so that what a
-    /// refused change would have broken is seen where it is.
-    pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, now: f64) {
-        self.blinking = (!values.is_empty()).then_some((values, now));
+    /// Has what a refusal named blink from `now` — these values on the
+    /// drawing, these faces of the part — so that it is seen where it is.
+    pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, faces: Vec<usize>, now: f64) {
+        self.blinking = (!values.is_empty() || !faces.is_empty()).then_some(Blinking {
+            values,
+            faces,
+            since: now,
+        });
     }
 
     /// The values of a sketch blinking at `now`, and whether they are lit or
@@ -92,18 +96,23 @@ impl ViewportState {
         sketch: usize,
         now: f64,
     ) -> Option<(Vec<DimensionTarget>, bool)> {
-        let (values, since) = self.blinking.as_ref()?;
-        let gone = now - since;
-        if !(0.0..BLINKING_FOR).contains(&gone) {
-            return None;
-        }
-        let here: Vec<DimensionTarget> = values
+        let blinking = self.blinking.as_ref()?;
+        let lit = crate::screens::blinking::lit(blinking.since, now)?;
+        let here: Vec<DimensionTarget> = blinking
+            .values
             .iter()
             .filter(|(on, _)| *on == sketch)
             .map(|(_, target)| *target)
             .collect();
-        let lit = ((gone / ONE_FLASH) as u64).is_multiple_of(2);
         (!here.is_empty()).then_some((here, lit))
+    }
+
+    /// The faces of the part blinking at `now`, and whether they are lit or
+    /// dark at that instant — nothing once the blinking is over.
+    pub(crate) fn faces_blinking(&self, now: f64) -> Option<(&[usize], bool)> {
+        let blinking = self.blinking.as_ref()?;
+        let lit = crate::screens::blinking::lit(blinking.since, now)?;
+        (!blinking.faces.is_empty()).then_some((blinking.faces.as_slice(), lit))
     }
 }
 

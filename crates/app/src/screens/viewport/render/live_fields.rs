@@ -5,7 +5,7 @@
 use cao_sketch::{ChamferMode, ToolState};
 
 use crate::screens::sketch::{LiveField, LiveInput, Tool};
-use crate::ui::completion::completing;
+use crate::ui::formula_field::formula_field;
 
 use super::super::input::rectangle_corner;
 use super::{arc, circle, ellipse, symmetric_line};
@@ -138,8 +138,8 @@ pub(super) fn value_field(
     focus: bool,
     variables: &cao_part::Variables,
 ) -> egui::text_edit::TextEditOutput {
-    let offers = || crate::screens::variables::offered(variables);
-    let output = completing(
+    let offers = crate::screens::variables::offered(variables);
+    let output = formula_field(
         ui,
         id,
         text,

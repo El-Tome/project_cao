@@ -5,7 +5,7 @@
 
 use std::ops::Range;
 
-use super::completion::{place_the_cursor, replaced};
+use super::formula_field::{place_the_cursor, replaced};
 
 /// What is carried while a name is dragged.
 pub struct DraggedName(pub String);

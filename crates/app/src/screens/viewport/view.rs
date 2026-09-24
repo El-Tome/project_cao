@@ -120,7 +120,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
 fn handle_escape(ui: &egui::Ui, context: &mut SketchContext<'_>) {
     if context.editor.active_sketch().is_none()
         || !ui.input(|input| input.key_pressed(egui::Key::Escape))
-        || crate::ui::completion::keeps_escape(ui.ctx())
+        || crate::ui::formula_field::keeps_escape(ui.ctx())
     {
         return;
     }

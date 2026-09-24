@@ -9,7 +9,7 @@ pub use state::{Named, VariablesPanel};
 pub use view::VariablesAction;
 
 use crate::lang::Catalogue;
-use crate::ui::completion::{Naming, Offer};
+use crate::ui::formula_field::{Naming, Offer};
 
 /// What makes a name, as the formula reader has it: what a field completes
 /// is what a formula reads.

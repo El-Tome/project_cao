@@ -4,7 +4,7 @@ use cao_prefs::Command;
 use crate::lang::Catalogue;
 use crate::screens::extrusion::ExtrusionState;
 use crate::screens::variables::{NAMING, offered};
-use crate::ui::completion::completing;
+use crate::ui::formula_field::formula_field;
 use crate::wording::constraints;
 
 /// The values an extrusion needs, shown only while one is being set up.
@@ -36,11 +36,11 @@ pub(super) fn extrusion_row(
         return;
     }
 
-    let offers = || offered(document.variables());
+    let offers = offered(document.variables());
     ui.horizontal_wrapped(|ui| {
         if extrusion.is_revolving() {
             ui.label(lang.t("extrusion.angle"));
-            completing(
+            formula_field(
                 ui,
                 egui::Id::new("extrusion_angle"),
                 &mut extrusion.angle_input,
@@ -72,7 +72,7 @@ pub(super) fn extrusion_row(
                 _ => "extrusion.height",
             };
             ui.label(lang.t(key));
-            completing(
+            formula_field(
                 ui,
                 egui::Id::new("extrusion_distance"),
                 &mut extrusion.distance_input,

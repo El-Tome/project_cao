@@ -257,7 +257,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
 | Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `Named`, `view.rs` `panel`, `mod.rs` `run` |
 | What a refusal names blinks, and for how long | `app/src/screens/blinking.rs` | `lit`; `ViewportState::blink`, `VariablesPanel::blink` |
-| A field that completes a variable's name from a list under it | `app/src/ui/completion.rs`, `app/src/screens/variables/mod.rs` | `completing`, `keeps_escape`; `offered`, `NAMING` |
+| The field a formula is typed into: a name completed from a list under it | `app/src/ui/formula_field.rs`, `app/src/screens/variables/mod.rs` | `formula_field`, `keeps_escape`; `offered`, `NAMING` |
+| A variable's name in a formula as a block: shown, stepped over, erased whole | `app/src/ui/formula_field/blocks.rs` | `found`, `stepped`, `erased`, `snapped`, `laid_out` |
 | A variable dragged from the panel into a dimension's field | `app/src/ui/dropping.rs`, `app/src/screens/variables/view.rs`, `app/src/screens/viewport/render/dimensions.rs` | `grip`, `take_a_dropped_name`, `DraggedName` |
 | Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |

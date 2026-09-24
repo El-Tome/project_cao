@@ -6,8 +6,8 @@ use cao_part::{PartDocument, VariableId};
 use crate::lang::Catalogue;
 use crate::screens::variables::state::{Problem, Row, VariablesPanel};
 use crate::screens::variables::{NAMING, offered, shown};
-use crate::ui::completion::{Offer, completing};
 use crate::ui::dropping::grip;
+use crate::ui::formula_field::{Offer, formula_field};
 use crate::ui::text_edit::text_edit;
 use crate::wording;
 
@@ -57,7 +57,7 @@ fn show(
     }
 
     let rows = panel.rows(document.variables());
-    let offers = || offered(document.variables());
+    let offers = offered(document.variables());
     let lit = match panel.rows_blinking(ui.input(|input| input.time)) {
         Some((named, lit)) => {
             ui.ctx().request_repaint();
@@ -88,7 +88,7 @@ fn show(
                 90.0,
                 &lang.t("variables.new_name"),
             );
-            let formula = completing(
+            let formula = formula_field(
                 ui,
                 egui::Id::new("variable_formula_added"),
                 &mut panel.adding.formula,
@@ -122,7 +122,7 @@ fn one_row(
     ui: &mut egui::Ui,
     panel: &mut VariablesPanel,
     row: &Row,
-    (lit, offers): (bool, &dyn Fn() -> Vec<Offer>),
+    (lit, offers): (bool, &[Offer]),
     lang: &Catalogue,
 ) -> Option<VariablesAction> {
     let written_as = ui.visuals().override_text_color;
@@ -137,7 +137,7 @@ fn one_row(
     );
     let mut typed = panel.texts(row);
     let name = text_edit(ui, &mut typed.name, 90.0, "");
-    let formula = completing(
+    let formula = formula_field(
         ui,
         egui::Id::new(("variable_formula", row.variable.0)),
         &mut typed.formula,

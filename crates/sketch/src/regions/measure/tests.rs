@@ -15,14 +15,17 @@
 //!   `a_hole_comes_out_of_the_surface_and_is_left_out_of_the_way_round`
 //! - the sampling it was drawn with does not change the answer —
 //!   `how_finely_a_curve_was_sampled_does_not_move_the_answer`
+//!
+//! Closes #428.
+//! - a run's number is where its bend lands, so the two cannot drift apart —
+//!   `every_run_of_an_outline_names_a_bend_the_outline_has`
 
 use std::f64::consts::{PI, TAU};
 
 use super::*;
 use crate::ellipsing::EllipseDraft;
-use crate::naming::CurveId;
 use crate::plane::WorkPlane;
-use crate::sketch::{CircleId, Sketch};
+use crate::sketch::Sketch;
 
 /// A tenth of a micron on a part measured in millimetres: far under anything
 /// the drawing is worth, and far over what the arithmetic loses.
@@ -66,9 +69,6 @@ fn a_circle_is_as_far_round_as_its_own_formula_says() {
 
 #[test]
 fn how_finely_a_curve_was_sampled_does_not_move_the_answer() {
-    // The whole point of reading the curve rather than the steps: the steps
-    // are a drawing decision, and a measure that moved with them would be
-    // reporting how the tool works rather than what was drawn.
     let small = only_area(&a_circle_of(0.5));
     let large = only_area(&a_circle_of(500.0));
 
@@ -230,24 +230,34 @@ fn an_outline_of_nothing_at_all_measures_nothing_rather_than_falling_over() {
 }
 
 #[test]
-fn a_run_whose_curve_went_missing_falls_back_on_the_steps_it_was_sampled_into() {
-    // Nothing in the drawing produces this, but a loop carrying a run number
-    // its `bends` has no entry for must answer something rather than panic.
-    let outline = Outline {
-        points: vec![
-            DVec2::ZERO,
-            DVec2::new(10.0, 0.0),
-            DVec2::new(10.0, 10.0),
-            DVec2::new(0.0, 10.0),
-        ],
-        curves: vec![Some(0); 4],
-        bounds: vec![CurveId::Circle(CircleId(0))],
-        bends: Vec::new(),
-    };
+fn every_run_of_an_outline_names_a_bend_the_outline_has() {
+    // The invariant the measurement reads `bends` by. Held by construction in
+    // `arc_regions`, and asserted here across every shape that builds one a
+    // different way: a whole curve, a cut one, and two of the same curve in
+    // one loop.
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::ZERO);
+    sketch.add_circle(centre, 10.0);
+    let left = sketch.add_point(DVec2::new(-10.0, 0.0));
+    let right = sketch.add_point(DVec2::new(10.0, 0.0));
+    sketch.add_segment(left, right);
+    let far = sketch.add_point(DVec2::new(40.0, 0.0));
+    sketch.add_circle(far, 6.0);
 
-    assert!(
-        (outline.perimeter() - 40.0).abs() < TOLERANCE,
-        "read as the steps themselves, got {}",
-        outline.perimeter(),
-    );
+    let regions = sketch.regions();
+    assert!(regions.len() >= 3, "several shapes, built several ways");
+    for region in &regions {
+        for outline in std::iter::once(&region.outline).chain(&region.holes) {
+            for run in outline.curves.iter().flatten() {
+                assert!(
+                    *run < outline.bends.len(),
+                    "run {run} names no bend of the {} this outline carries; a \
+                     run whose bend went missing would be read as the steps it \
+                     was sampled into, which is the one answer this file exists \
+                     to improve on",
+                    outline.bends.len(),
+                );
+            }
+        }
+    }
 }

@@ -15,7 +15,7 @@
 //! awkward angles — traits lying apart, a trait against an axis.
 
 use cao_prefs::theme::{Rgba, Theme};
-use cao_sketch::{Measured, Sketch};
+use cao_sketch::{Measured, Reading, Sketch};
 use glam::DVec2;
 
 use super::curves::push_line;
@@ -60,6 +60,43 @@ fn colours(theme: &Theme) -> [Rgba; 3] {
     [theme.measure, theme.axis_x, theme.axis_y]
 }
 
+/// What a measure has to say this frame: its numbers, and the shape to light
+/// under them.
+///
+/// Worked out once and handed to both the painters, the way the trim tool's
+/// `Going` is. Reading it twice would mean walking the drawing's areas twice —
+/// the crossing search, the face walk and the triangulation, on top of the one
+/// the canvas already pays for — for an answer that cannot have changed
+/// between them: a measure is dropped the instant the drawing moves.
+pub(crate) struct Measuring {
+    pub(crate) reading: Reading,
+    /// The area read, as triangles to light. Empty for everything that is not
+    /// an area.
+    pub(crate) lit: Vec<[DVec2; 3]>,
+}
+
+/// What the measure in hand reads, once a frame.
+pub(crate) fn what_is_measured(context: &SketchContext<'_>) -> Option<Measuring> {
+    let sketch = context
+        .editor
+        .active_sketch()
+        .and_then(|index| context.document.sketches().get(index))?;
+    match measure_showing(context)? {
+        Measured::Of(target) => Some(Measuring {
+            reading: sketch.read(target)?,
+            lit: Vec::new(),
+        }),
+        Measured::Inside(place) => {
+            let regions = sketch.regions();
+            let area = &regions[cao_sketch::area_under(&regions, place)?];
+            Some(Measuring {
+                reading: area.read(),
+                lit: area.face_triangles(),
+            })
+        }
+    }
+}
+
 /// The dashed triangle, or — for what is not a run — the annotation's own
 /// shape.
 pub(crate) fn push_measure(
@@ -69,6 +106,7 @@ pub(crate) fn push_measure(
     context: &SketchContext<'_>,
     theme: &Theme,
     scale: ViewScale,
+    measuring: Option<&Measuring>,
 ) {
     let target = match measure_showing(context) {
         Some(Measured::Of(target)) => target,
@@ -76,7 +114,9 @@ pub(crate) fn push_measure(
         // it is offered: two nested shapes make it genuinely ambiguous which
         // one was read, and a number with no shape under it answers for
         // nothing.
-        Some(Measured::Inside(place)) => return tint_the_area(surfaces, sketch, place, theme),
+        Some(Measured::Inside(_)) => {
+            return tint_the_area(surfaces, sketch, measuring, theme);
+        }
         None => return,
     };
     let width = theme.sketch_width;
@@ -121,16 +161,15 @@ pub(crate) fn push_measure(
 fn tint_the_area(
     surfaces: &mut Vec<cao_render::Vertex>,
     sketch: &Sketch,
-    place: DVec2,
+    measuring: Option<&Measuring>,
     theme: &Theme,
 ) {
-    let regions = sketch.regions();
-    let Some(area) = cao_sketch::area_under(&regions, place).map(|rank| &regions[rank]) else {
+    let Some(measuring) = measuring else {
         return;
     };
     let colour = tint_at(theme.measure, 0.18);
     // Holes stay empty: what is lit is exactly the surface the number reports.
-    for corner in area.face_triangles().into_iter().flatten() {
+    for corner in measuring.lit.iter().flatten().copied() {
         surfaces.push(cao_render::Vertex::solid(
             sketch.plane.to_world(corner).as_vec3(),
             colour,
@@ -145,6 +184,7 @@ pub(crate) fn paint_measure(
     state: &ViewportState,
     rect: egui::Rect,
     context: &SketchContext<'_>,
+    measuring: Option<&Measuring>,
 ) {
     let Some(measured) = measure_showing(context) else {
         return;
@@ -155,11 +195,7 @@ pub(crate) fn paint_measure(
     let Some(sketch) = context.document.sketches().get(index) else {
         return;
     };
-    let reading = match measured {
-        Measured::Of(target) => sketch.read(target),
-        Measured::Inside(place) => sketch.read_inside(place),
-    };
-    let Some(reading) = reading else {
+    let Some(reading) = measuring.map(|measuring| measuring.reading) else {
         return;
     };
     let view_projection = state

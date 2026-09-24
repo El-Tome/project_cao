@@ -157,11 +157,7 @@ impl Sketch {
     /// drawing's own units. `None` where nothing closes round it.
     pub fn read_inside(&self, place: DVec2) -> Option<Reading> {
         let regions = self.regions();
-        let area = &regions[crate::naming::area_under(&regions, place)?];
-        Some(Reading::Surface {
-            area: area.area(),
-            perimeter: area.perimeter(),
-        })
+        Some(regions[crate::naming::area_under(&regions, place)?].read())
     }
 }
 

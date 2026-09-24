@@ -12,8 +12,8 @@ use crate::ellipsing::{EllipseDraft, FULL_ELLIPSE_STEPS};
 
 /// What a curved half-edge bends along: the centre a piece of a circle turns
 /// about, or the ellipse a run of one follows.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Bend {
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum Bend {
     Round(DVec2),
     Oval(EllipseDraft),
 }

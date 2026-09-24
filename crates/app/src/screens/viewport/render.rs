@@ -34,8 +34,8 @@ pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
 use planes::push_choosable_planes;
 use preview::pending_annotation;
-pub(crate) use reading::paint_measure;
 use reading::push_measure;
+pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
 pub(crate) use trim::what_would_go;
 
 use super::matter;
@@ -67,6 +67,7 @@ pub(crate) fn build_frame(
     scale: ViewScale,
     context: &SketchContext<'_>,
     going: Option<&Going>,
+    measuring: Option<&Measuring>,
 ) -> SceneFrame {
     let camera = &state.camera;
     let pixels_per_point = scale.height_px / rect.height();
@@ -144,7 +145,15 @@ pub(crate) fn build_frame(
     if let Some(index) = context.editor.active_sketch()
         && let Some(sketch) = context.document.sketches().get(index)
     {
-        push_measure(&mut lines, &mut surfaces, sketch, context, theme, scale);
+        push_measure(
+            &mut lines,
+            &mut surfaces,
+            sketch,
+            context,
+            theme,
+            scale,
+            measuring,
+        );
     }
 
     push_chosen_areas(&mut surfaces, &mut lines, theme, context);

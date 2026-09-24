@@ -12,7 +12,7 @@ use super::input::{handle_sketch_input, pick_areas};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_measure, paint_rule_marks, paint_ruler, what_would_go,
+    paint_measure, paint_rule_marks, paint_ruler, what_is_measured, what_would_go,
 };
 use super::state::{
     GestureGoesTo, SketchContext, ViewScale, ViewportState, cube_rect, gesture_goes_to,
@@ -68,8 +68,21 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // Worked out here rather than in each painter: the stretch drawn over the
     // drawing, the values and the marks all have to be the same answer.
     let going = what_would_go(sketch, scale);
+    // Read once, for the same reason: the shape lit under a measure and the
+    // numbers written on it have to be the one answer, and walking the
+    // drawing's areas twice for it would be the same answer at twice the
+    // price.
+    let measuring = what_is_measured(sketch);
 
-    let frame = build_frame(state, rect, cube_rect, scale, sketch, going.as_ref());
+    let frame = build_frame(
+        state,
+        rect,
+        cube_rect,
+        scale,
+        sketch,
+        going.as_ref(),
+        measuring.as_ref(),
+    );
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
         ViewportCallback { frame },
@@ -79,7 +92,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     paint_band(ui, state, rect, sketch);
     paint_rule_marks(ui, state, rect, sketch, going.as_ref());
     paint_dimension_labels(ui, state, rect, sketch, going.as_ref());
-    paint_measure(ui, state, rect, sketch);
+    paint_measure(ui, state, rect, sketch, measuring.as_ref());
     if state.config.ruler_visible {
         paint_ruler(ui, state, rect, scale);
     }

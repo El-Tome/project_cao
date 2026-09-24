@@ -106,9 +106,15 @@ impl EllipseDraft {
     ///
     /// A circle's arc is its radius times its sweep. An ellipse's has no such
     /// form at all — it is the elliptic integral of the second kind, which is
-    /// where the name comes from — so it is integrated instead. Simpson's rule
-    /// on a smooth integrand and this many panels lands within a part in a
-    /// million million, far under what the drawing itself is worth.
+    /// where the name comes from — so it is integrated instead.
+    ///
+    /// Simpson's rule on this many panels lands within a part in ten million
+    /// million on a round ellipse and a part in a million on a very flat one,
+    /// where the speed along the curve swings hardest: a thousand to one,
+    /// measured against a reference of four million panels, comes out under a
+    /// micron on four hundred millimetres. Both are far under what the drawing
+    /// itself is worth, but they are four orders apart, and a figure that only
+    /// holds for the easy shape is one that gets quoted for the hard one.
     pub fn run_of(&self, from: f64, sweep: f64) -> f64 {
         let (first, second) = (self.first.length(), self.second);
         // Along the curve, `at` differentiated: the two axes are square to one

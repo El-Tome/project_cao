@@ -15,6 +15,10 @@
 //!   `a_formula_that_does_not_read_is_refused_where_it_is_typed`
 //! - a formula can be typed as an extrusion's distance —
 //!   `an_extrusion_raised_by_a_formula_says_it_in_the_history`
+//! - and as the value of a dimension the tool has just placed, which takes a
+//!   plain number as it always did —
+//!   `a_dimension_placed_with_its_tool_takes_the_number_typed_for_it`,
+//!   `a_dimension_placed_with_its_tool_takes_a_formula_typed_for_it`
 //! - and into the steps and counts of the patterns, whose fields show once
 //!   `Entrée` has closed the selection rather than the sketch —
 //!   `a_pattern_shows_its_values_while_the_centre_is_awaited`
@@ -140,6 +144,58 @@ fn a_digit_starts_the_field_the_way_it_always_did() {
         driver::fields(&app).contains(&"40".to_string()),
         "{:?}",
         driver::fields(&app)
+    );
+}
+
+/// A part holding `width` at 120, a sketch with one trait in it, the
+/// dimension tool in hand and a dimension of the trait just placed: its
+/// field open, holding what the trait measures. Nothing opens beside the
+/// canvas in between, which would move the trait from under the clicks.
+fn a_dimension_just_placed(test: &str) -> (driver::App, String) {
+    let mut app = a_part_with_a_width(test);
+    driver::click_the_button(&mut app, "Variables");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::click(&mut app, "Cote");
+    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_at(&mut app, (900.0, 440.0));
+    let open = driver::fields(&app);
+    assert_eq!(
+        open.len(),
+        1,
+        "the dimension's field, and it alone: {open:?}"
+    );
+    let measured = open[0].clone();
+    (app, measured)
+}
+
+#[test]
+fn a_dimension_placed_with_its_tool_takes_the_number_typed_for_it() {
+    let (mut app, measured) = a_dimension_just_placed("a_dimension_placed_takes_a_number");
+
+    driver::type_over(&mut app, &measured, "50");
+    driver::press(&mut app, egui::Key::Enter);
+    driver::open_the_history(&mut app);
+
+    assert!(
+        driver::shows(&app, "Cote 50 mm"),
+        "the trait was dimensioned to what was typed: {:?}",
+        driver::on_screen(&app),
+    );
+}
+
+#[test]
+fn a_dimension_placed_with_its_tool_takes_a_formula_typed_for_it() {
+    let (mut app, measured) = a_dimension_just_placed("a_dimension_placed_takes_a_formula");
+
+    driver::type_over(&mut app, &measured, "width / 4");
+    driver::press(&mut app, egui::Key::Enter);
+    driver::open_the_history(&mut app);
+
+    assert!(
+        driver::shows(&app, "width / 4 = 30"),
+        "the value says what it was written from and what that comes to: {:?}",
+        driver::on_screen(&app),
     );
 }
 

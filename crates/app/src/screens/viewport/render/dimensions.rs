@@ -198,7 +198,7 @@ pub(crate) fn paint_dimension_field(
                     let focus = std::mem::take(&mut editing.focus);
                     let field = value_field(
                         ui,
-                        egui::Id::new("dimension_field"),
+                        egui::Id::new("dimension_value"),
                         &mut editing.input,
                         &hint,
                         focus,

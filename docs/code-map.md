@@ -151,7 +151,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | Where the changes to the variables sit in the history | `part/src/history/table.rs` | `History::variable_changes`, `table_operations` |
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
-| Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
+| Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 5` |

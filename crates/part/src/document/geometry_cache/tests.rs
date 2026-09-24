@@ -105,6 +105,42 @@ fn a_part_opened_on_its_cache_still_knows_the_faces_each_step_made() {
 }
 
 #[test]
+fn a_part_cached_before_its_faces_were_noted_names_none_rather_than_another_steps() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut noted_nothing = a_part_with_matter().state;
+    noted_nothing.made.clear();
+    let cached = encoded(&noted_nothing, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+    let mut reopened = PartDocument::load(&files, path).expect("reads");
+    reopened.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    reopened.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(30.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(40.0, 10.0)),
+        construction: false,
+    });
+    reopened.apply(Operation::Extrude {
+        sketch: 1,
+        areas: reopened.areas_at(1, &[DVec2::new(35.0, 5.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+
+    assert_eq!(
+        reopened.faces_made_by(3),
+        Vec::<usize>::new(),
+        "the first block's faces were never noted, and the second block's \
+         are not them"
+    );
+}
+
+#[test]
 fn a_part_opens_on_the_geometry_it_was_put_away_with_rather_than_replaying_its_design() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");

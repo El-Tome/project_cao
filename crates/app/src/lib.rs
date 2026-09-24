@@ -4,6 +4,7 @@ mod autosave;
 mod commands;
 pub mod crash;
 mod lang;
+mod panels;
 mod picture;
 mod remembered;
 mod screens;

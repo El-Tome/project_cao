@@ -2,6 +2,7 @@
 //! into.
 
 mod detail;
+mod sized;
 mod values;
 
 pub use detail::detail;

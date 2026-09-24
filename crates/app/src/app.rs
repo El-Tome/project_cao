@@ -10,8 +10,8 @@ use crate::remembered::Remembered;
 use crate::screens::explorer::Explorer;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
-    self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
-    sketch::SketchEditor, start_menu::StartMenuAction,
+    self, OpenPart, Screen, extrusion::ExtrusionState, ribbon::Ribbon, sketch::SketchEditor,
+    start_menu::StartMenuAction,
 };
 use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
@@ -232,41 +232,7 @@ impl CaoApp {
             );
         }
 
-        if ribbon.part_tree_open {
-            match screens::part_tree::panel(ui, doc, lang) {
-                screens::part_tree::TreeAction::EditSketch(sketch) => {
-                    if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                        editor.begin_editing(sketch, plane);
-                        let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
-                        viewport.look_at_plane(plane, center, radius);
-                    }
-                }
-                screens::part_tree::TreeAction::None => {}
-            }
-        }
-
-        if ribbon.history_open {
-            match screens::history_tree::panel(ui, doc, &mut ribbon.history_compact_confirm, lang) {
-                HistoryAction::RewindTo(step) => {
-                    doc.rewind_to(step);
-                    commands::clamp_editor_to_document(editor, doc);
-                    changed = true;
-                }
-                HistoryAction::EditSketch(sketch) => {
-                    if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                        editor.begin_editing(sketch, plane);
-                        let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
-                        viewport.look_at_plane(plane, center, radius);
-                    }
-                }
-                HistoryAction::CompactHistory => {
-                    doc.compact_history();
-                    commands::clamp_editor_to_document(editor, doc);
-                    changed = true;
-                }
-                HistoryAction::None => {}
-            }
-        }
+        changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, ribbon, lang);
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {

@@ -13,7 +13,7 @@ mod reading;
 mod writing;
 
 use reading::Naming;
-pub(crate) use reading::{goes_on_a_name, starts_a_name};
+pub use reading::{goes_on_a_name, starts_a_name};
 
 /// A number, or a calculation over the part's variables.
 #[derive(Clone, Debug, PartialEq)]

@@ -114,12 +114,12 @@ fn pieces<F: Fn(&str) -> Option<VariableId>>(
 
 /// What a name may open on: a letter, or `_`. Never a digit, which would open
 /// a number instead.
-pub(crate) fn starts_a_name(character: char) -> bool {
+pub fn starts_a_name(character: char) -> bool {
     character.is_alphabetic() || character == '_'
 }
 
 /// What a name goes on with: letters, digits and `_`.
-pub(crate) fn goes_on_a_name(character: char) -> bool {
+pub fn goes_on_a_name(character: char) -> bool {
     character.is_alphanumeric() || character == '_'
 }
 

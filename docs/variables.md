@@ -69,6 +69,20 @@ put: the fields at the cursor follow the pointer, and their list with them.
 What makes a name for the list is what makes one for a formula: the two read
 the same rule, handed to the list by the part.
 
+### A name dragged into a dimension
+
+Each row of the panel starts with a grip, `☰`. Dragged — the name follows the
+pointer — and dropped on the field of a dimension, the variable's name goes
+in: in place of what is selected, or of a plain number — the value the field
+opened on, which reaching for the panel leaves unselected, since a field loses
+its selection with the keyboard — or else where it lands in a calculation
+being written. The field then holds the keyboard, its cursor after the name,
+and `Entrée` applies it. Dropped anywhere else, nothing happens.
+
+Only the dimension's field takes a name dropped on it: the fields at the
+cursor follow the pointer, so a drop on them can never be aimed, and the other
+fields were left out to keep it simple.
+
 ## Changing a variable
 
 Variables are made, edited and taken away in a **panel of their own**, beside

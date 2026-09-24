@@ -236,3 +236,24 @@ pub fn says(app: &App, text: &str) -> bool {
         .filter_map(|node| node.accesskit_node().value())
         .any(|said| said.contains(text))
 }
+
+/// Takes what lies under `from` and lets it go over `to`, the pointer
+/// travelling from one to the other as a hand would. The button is let go
+/// with the pointer still there, so whatever is under it hears the drop.
+pub fn drag_and_drop(app: &mut App, from: egui::Pos2, to: egui::Pos2) {
+    app.hover_at(from);
+    app.run();
+    app.drag_at(from);
+    app.run();
+    app.hover_at(from + egui::vec2(12.0, 12.0));
+    app.run();
+    app.hover_at(to);
+    app.run();
+    app.event(egui::Event::PointerButton {
+        pos: to,
+        button: egui::PointerButton::Primary,
+        pressed: false,
+        modifiers: egui::Modifiers::NONE,
+    });
+    app.run();
+}

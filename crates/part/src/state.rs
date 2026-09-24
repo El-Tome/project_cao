@@ -82,80 +82,25 @@ impl PartState {
                 sketch,
                 position,
                 on,
-            } => {
-                let drawing = self.sketches.get_mut(*sketch)?;
-                let point = drawing.add_point(*position);
-                hold(drawing, point, on);
-                None
-            }
+            } => self.add_point(*sketch, *position, on),
             Operation::AddSegment {
                 sketch,
                 start,
                 end,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let start = resolve(sketch, start);
-                let end = resolve(sketch, end);
-                if start != end {
-                    if *construction {
-                        sketch.add_construction_segment(start, end);
-                    } else {
-                        sketch.add_segment(start, end);
-                    }
-                }
-                None
-            }
+            } => self.add_segment(*sketch, start, end, *construction),
             Operation::AddSymmetricSegment {
                 sketch,
                 middle,
                 end,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let middle = resolve(sketch, middle);
-                let end = resolve(sketch, end);
-                let mirrored = sketch.point(middle) * 2.0 - sketch.point(end);
-                if mirrored.distance(sketch.point(end)) > 1e-9 {
-                    let start = sketch.add_point(mirrored);
-                    let segment = if *construction {
-                        sketch.add_construction_segment(start, end)
-                    } else {
-                        sketch.add_segment(start, end)
-                    };
-                    sketch.add_constraint(cao_sketch::Constraint::Midpoint {
-                        point: middle,
-                        segment,
-                    });
-                }
-                None
-            }
+            } => self.add_symmetric_segment(*sketch, middle, end, *construction),
             Operation::AddRectangle {
                 sketch,
                 corner,
                 opposite,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                // The two given corners may reuse points already drawn; the
-                // other two are always new.
-                let first = resolve(sketch, corner);
-                let third = resolve(sketch, opposite);
-                let (a, c) = (sketch.point(first), sketch.point(third));
-                let second = sketch.add_point(DVec2::new(c.x, a.y));
-                let fourth = sketch.add_point(DVec2::new(a.x, c.y));
-
-                let corners = [first, second, third, fourth];
-                for index in 0..4 {
-                    let (from, to) = (corners[index], corners[(index + 1) % 4]);
-                    if *construction {
-                        sketch.add_construction_segment(from, to);
-                    } else {
-                        sketch.add_segment(from, to);
-                    }
-                }
-                None
-            }
+            } => self.add_rectangle(*sketch, corner, opposite, *construction),
             Operation::MovePoint {
                 sketch,
                 point,
@@ -390,7 +335,7 @@ pub(crate) fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::Poin
 
 /// Holds a point on everything it was laid on. The rules are already true
 /// where it stands, so nothing moves until the drawing is next settled.
-fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
+pub(crate) fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
     for support in on {
         sketch.add_constraint(support.holding(point));
     }

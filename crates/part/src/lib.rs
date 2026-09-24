@@ -25,6 +25,7 @@ mod picture;
 pub mod ports;
 mod resizing;
 mod state;
+mod straight;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;

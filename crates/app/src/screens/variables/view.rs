@@ -7,6 +7,7 @@ use crate::lang::Catalogue;
 use crate::screens::variables::state::{Problem, Row, VariablesPanel};
 use crate::screens::variables::{NAMING, offered, shown};
 use crate::ui::completion::{Offer, completing};
+use crate::ui::dropping::grip;
 use crate::ui::text_edit::text_edit;
 use crate::wording;
 
@@ -65,9 +66,10 @@ fn show(
         None => Vec::new(),
     };
     egui::Grid::new("variables_grid")
-        .num_columns(4)
+        .num_columns(5)
         .striped(true)
         .show(ui, |ui| {
+            ui.label("");
             ui.strong(lang.t("variables.name"));
             ui.strong(lang.t("variables.formula"));
             ui.strong(lang.t("variables.value"));
@@ -79,6 +81,7 @@ fn show(
                 }
                 ui.end_row();
             }
+            ui.label("");
             let name = text_edit(
                 ui,
                 &mut panel.adding.name,
@@ -126,6 +129,12 @@ fn one_row(
     if lit {
         ui.visuals_mut().override_text_color = Some(ui.visuals().error_fg_color);
     }
+    grip(
+        ui,
+        egui::Id::new(("variable_grip", row.variable.0)),
+        &row.name,
+        &lang.t("variables.drag_hint"),
+    );
     let mut typed = panel.texts(row);
     let name = text_edit(ui, &mut typed.name, 90.0, "");
     let formula = completing(

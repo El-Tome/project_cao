@@ -137,7 +137,7 @@ pub(super) fn value_field(
     hint: &str,
     focus: bool,
     variables: &cao_part::Variables,
-) -> egui::Response {
+) -> egui::text_edit::TextEditOutput {
     let offers = || crate::screens::variables::offered(variables);
     let output = completing(
         ui,
@@ -147,14 +147,14 @@ pub(super) fn value_field(
         &offers,
         crate::screens::variables::NAMING,
     );
-    let response = output.response.response;
+    let response = output.response.response.clone();
     let reached_by_keyboard =
         focus || (response.gained_focus() && !response.is_pointer_button_down_on());
     if focus {
         response.request_focus();
     }
     if reached_by_keyboard {
-        let mut state = output.state;
+        let mut state = output.state.clone();
         state
             .cursor
             .set_char_range(Some(egui::text::CCursorRange::two(
@@ -163,7 +163,7 @@ pub(super) fn value_field(
             )));
         state.store(ui.ctx(), response.id);
     }
-    response
+    output
 }
 
 /// One of the two fields. Returns true when Enter was pressed in it.
@@ -191,7 +191,9 @@ fn live_field(
         &format!("{measured:.2}"),
         focus,
         variables,
-    );
+    )
+    .response
+    .response;
     ui.label(suffix);
 
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.

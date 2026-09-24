@@ -12,6 +12,7 @@ use super::live_fields::value_field;
 use super::overlays::{tint_to_color as to_color_of, to_screen};
 use super::{live_offset, pending_annotation};
 use crate::screens::SketchContext;
+use crate::ui::dropping::take_a_dropped_name;
 
 /// Each dimension is drawn where it applies, with the value it stands for.
 /// A readout shows what the geometry measures rather than a stored number, so
@@ -196,14 +197,19 @@ pub(crate) fn paint_dimension_field(
                         "mm".to_string()
                     };
                     let focus = std::mem::take(&mut editing.focus);
-                    let field = value_field(
+                    let id = egui::Id::new("dimension_value");
+                    let mut output = value_field(
                         ui,
-                        egui::Id::new("dimension_value"),
+                        id,
                         &mut editing.input,
                         &hint,
                         focus,
                         context.document.variables(),
                     );
+                    // A variable dragged from its panel goes in where it is
+                    // dropped, the keyboard with it, so Entrée applies it.
+                    take_a_dropped_name(ui, id, &mut output, &mut editing.input);
+                    let field = output.response.response;
                     ui.weak(&hint); // the field opens pre-filled, so its own hint_text never draws
                     // Enter is eaten here: the field has just given the keyboard
                     // back, so the same press would otherwise also fire the

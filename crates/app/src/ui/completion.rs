@@ -179,7 +179,7 @@ fn chosen<'a>(shown: &[&'a Offer], rank: usize) -> Option<&'a Offer> {
     shown.get(rank.min(shown.len().saturating_sub(1))).copied()
 }
 
-fn place_the_cursor(ctx: &egui::Context, id: egui::Id, at: usize) {
+pub(super) fn place_the_cursor(ctx: &egui::Context, id: egui::Id, at: usize) {
     let mut state = egui::TextEdit::load_state(ctx, id).unwrap_or_default();
     state
         .cursor
@@ -224,7 +224,7 @@ fn starting_with<'a>(offers: &'a [Offer], typed: &str) -> Vec<&'a Offer> {
 
 /// The text with `name` in place of the characters `range` covers, and the
 /// character the cursor stands at after it.
-fn replaced(text: &str, range: &Range<usize>, name: &str) -> (String, usize) {
+pub(super) fn replaced(text: &str, range: &Range<usize>, name: &str) -> (String, usize) {
     let characters: Vec<char> = text.chars().collect();
     let mut completed: String = characters[..range.start].iter().collect();
     completed.push_str(name);

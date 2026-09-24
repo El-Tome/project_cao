@@ -57,7 +57,7 @@ fn show(
     }
 
     let rows = panel.rows(document.variables());
-    let offers = || offered(document.variables());
+    let offers = offered(document.variables());
     let lit = match panel.rows_blinking(ui.input(|input| input.time)) {
         Some((named, lit)) => {
             ui.ctx().request_repaint();
@@ -122,7 +122,7 @@ fn one_row(
     ui: &mut egui::Ui,
     panel: &mut VariablesPanel,
     row: &Row,
-    (lit, offers): (bool, &dyn Fn() -> Vec<Offer>),
+    (lit, offers): (bool, &[Offer]),
     lang: &Catalogue,
 ) -> Option<VariablesAction> {
     let written_as = ui.visuals().override_text_color;

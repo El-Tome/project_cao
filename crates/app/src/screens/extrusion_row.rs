@@ -36,7 +36,7 @@ pub(super) fn extrusion_row(
         return;
     }
 
-    let offers = || offered(document.variables());
+    let offers = offered(document.variables());
     ui.horizontal_wrapped(|ui| {
         if extrusion.is_revolving() {
             ui.label(lang.t("extrusion.angle"));

@@ -69,6 +69,17 @@ put: the fields at the cursor follow the pointer, and their list with them.
 What makes a name for the list is what makes one for a formula: the two read
 the same rule, handed to the list by the part.
 
+### A name is a block
+
+In those same fields, **every whole name of a variable is a block**, however
+it got there — typed, completed, dropped. It shows on a tinted background;
+`Retour arrière` just after it, or `Suppr` just before it, erases it whole;
+`←` and `→` cross it in one press, `Maj` held stretching the selection over it;
+a click inside it puts the cursor at its nearer edge, so nothing can be
+written in the middle of a name. A name still being typed, `wid`, or one no
+variable goes by, `widths`, is plain text: a block is a whole name, read with
+the same characters and case as the formula reader reads it.
+
 ### A name dragged into a dimension
 
 Each row of the panel starts with a grip, `☰`. Dragged — the name follows the

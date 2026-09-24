@@ -138,7 +138,7 @@ pub(super) fn value_field(
     focus: bool,
     variables: &cao_part::Variables,
 ) -> egui::text_edit::TextEditOutput {
-    let offers = || crate::screens::variables::offered(variables);
+    let offers = crate::screens::variables::offered(variables);
     let output = formula_field(
         ui,
         id,

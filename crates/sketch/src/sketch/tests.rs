@@ -8,6 +8,7 @@ mod values;
 mod what_is_left_to_pin;
 
 pub(crate) use super::*;
+pub(crate) use crate::annotation::AnnotationMetrics;
 pub(crate) use crate::constraints::SketchAxis;
 
 /// The smallest drawing there is: two traits leaving the same corner.

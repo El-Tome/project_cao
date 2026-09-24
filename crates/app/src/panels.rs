@@ -1,4 +1,5 @@
-//! The panels beside a part: what it is made of, and what was done to it.
+//! The panels beside a part: what it is made of, what was done to it, and
+//! the variables its sizes are written from.
 
 use cao_part::PartDocument;
 
@@ -8,7 +9,15 @@ use crate::screens;
 use crate::screens::history_tree::HistoryAction;
 use crate::screens::ribbon::Ribbon;
 use crate::screens::sketch::SketchEditor;
+use crate::screens::variables::VariablesPanel;
 use crate::screens::viewport::ViewportState;
+
+/// What the panels keep between frames: which of them are open, and what the
+/// panel of variables is part-way through.
+pub(crate) struct Beside<'a> {
+    pub ribbon: &'a mut Ribbon,
+    pub variables: &'a mut VariablesPanel,
+}
 
 /// Draws the panels the ribbon has open beside the part, and carries out what
 /// was asked in them. Returns true when the part was changed.
@@ -17,7 +26,7 @@ pub(crate) fn beside_the_part(
     doc: &mut PartDocument,
     editor: &mut SketchEditor,
     viewport: &mut ViewportState,
-    ribbon: &mut Ribbon,
+    Beside { ribbon, variables }: Beside<'_>,
     lang: &Catalogue,
 ) -> bool {
     let mut changed = false;
@@ -54,6 +63,19 @@ pub(crate) fn beside_the_part(
                 changed = true;
             }
             HistoryAction::None => {}
+        }
+    }
+
+    if ribbon.variables_open {
+        let asked = screens::variables::run(variables, ui, doc, lang);
+        if asked.changed {
+            // The part was built again from the new sizes, so what a tool was
+            // half-way through may stand on geometry that has moved.
+            commands::clamp_editor_to_document(editor, doc);
+            changed = true;
+        }
+        if !asked.breaking.is_empty() {
+            viewport.blink(asked.breaking, ui.input(|input| input.time));
         }
     }
     changed

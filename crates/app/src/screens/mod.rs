@@ -8,6 +8,7 @@ pub mod ribbon;
 pub mod settings;
 pub mod sketch;
 pub mod start_menu;
+pub mod variables;
 pub mod viewport;
 
 use std::path::PathBuf;
@@ -30,6 +31,7 @@ pub struct OpenPart {
     pub editor: SketchEditor,
     pub extrusion: ExtrusionState,
     pub ribbon: Ribbon,
+    pub variables: variables::VariablesPanel,
 }
 
 /// The part being worked on, borrowed for one gesture or one command: what the

@@ -1,5 +1,29 @@
 //! Changing the part's variables through the part: what is refused, and why,
 //! and that nothing is applied when it is.
+//!
+//! Closes #175.
+//! - a loop between variables is refused, naming the variables in it —
+//!   `a_formula_that_would_lean_on_itself_is_refused_naming_the_loop`
+//! - renaming a variable renames it in every formula that uses it —
+//!   `renaming_a_variable_renames_it_in_what_was_written_from_it`
+//! - a variable change that would break a size — a length at zero or below,
+//!   a count no longer whole and positive, a dimension the drawing can no
+//!   longer hold — is refused naming it —
+//!   `a_change_that_would_leave_a_length_at_zero_or_below_is_refused_naming_it`,
+//!   `a_change_that_would_leave_a_count_no_longer_whole_is_refused_naming_the_pattern`,
+//!   `a_change_the_drawing_could_not_hold_is_refused_naming_the_value`,
+//!   `a_change_that_would_leave_a_step_with_no_size_is_refused_naming_it`,
+//!   `a_variable_that_would_come_to_no_number_is_refused`
+//! - deleting a variable something uses is refused, with the list of what
+//!   uses it — the dimensions, the features, the other variables —
+//!   `a_variable_in_use_cannot_be_erased_and_says_what_uses_it`,
+//!   `a_step_written_from_a_variable_is_named_as_using_it`,
+//!   `a_value_laid_inside_a_gesture_is_named_as_the_value_and_not_as_the_gesture`
+//! - changing a variable is one step of the history —
+//!   `a_variable_added_through_the_part_is_one_step_undo_takes_back`
+//! - compacting the history keeps the variables and the formulas that refer
+//!   to them — `compacting_keeps_the_variables_and_what_is_written_from_them`,
+//!   `compacting_leaves_an_erased_variable_out_and_the_others_still_answer`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{
@@ -340,4 +364,76 @@ fn compacting_leaves_an_erased_variable_out_and_the_others_still_answer() {
         })
         .expect("it still answers");
     assert_eq!(document.measured(0, HEIGHT).map(f64::round), Some(55.0));
+}
+
+#[test]
+fn a_change_that_would_leave_a_count_no_longer_whole_is_refused_naming_the_pattern() {
+    let mut document = plate();
+    document
+        .change_variable(added("holes", Formula::Number(8.0)))
+        .expect("a count to write a pattern from");
+    let count = written(&document, "holes / 2");
+    document.apply(Operation::CircularPattern {
+        sketch: 0,
+        elements: vec![cao_sketch::Element::Segment(SegmentId(0))],
+        centre: cao_sketch::Sketch::ORIGIN,
+        degrees: 90.0.into(),
+        count,
+    });
+
+    let refused = document.change_variable(edited(2, "holes", Formula::Number(5.0)));
+
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if matches!(broken.as_slice(), [Broken::Operation(_)])),
+        "four copies would become two and a half: {refused:?}"
+    );
+}
+
+#[test]
+fn a_change_the_drawing_could_not_hold_is_refused_naming_the_value() {
+    let mut document = PartDocument::new("Arc", at_nine());
+    document
+        .change_variable(added("radius", Formula::Number(50.0)))
+        .expect("a radius");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(40.0, 30.0)),
+        start: PointRef::Existing(cao_sketch::Sketch::ORIGIN),
+        end: PointRef::New(DVec2::new(80.0, 0.0)),
+        construction: false,
+    });
+    let chord = DimensionTarget::Distance {
+        from: cao_sketch::Sketch::ORIGIN,
+        to: cao_sketch::PointId(2),
+    };
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: chord,
+        value: 80.0.into(),
+        placement: None,
+    });
+    let radius = DimensionTarget::ArcRadius(cao_sketch::ArcId(0));
+    let written_radius = written(&document, "radius");
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: radius,
+        value: written_radius,
+        placement: None,
+    });
+
+    // No arc through both ends of an 80 mm chord is smaller than a 40 mm
+    // half circle.
+    let refused = document.change_variable(edited(0, "radius", Formula::Number(5.0)));
+
+    assert_eq!(
+        refused,
+        Err(Refused::Breaks(vec![Broken::Dimension {
+            sketch: 0,
+            target: radius
+        }]))
+    );
 }

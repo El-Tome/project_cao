@@ -144,7 +144,14 @@ What it does: [`extrusion.md`](extrusion.md).
 | What a drawing's curves became, so a name written before a cut can be read after it | `part/src/descent.rs` | `Descent::record`, `Descent::follow` |
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
 | What an operation has to say for itself | `part/src/outcome.rs` | `Outcome` |
-| What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured` |
+| What a typed value does to a part, and what it measures back | `part/src/dimensioning.rs` | `DimensionOutcome`, `PartState::measured`, `apply_written_dimension` |
+| A size as the user wrote it: read, worked out, written back | `part/src/formula.rs`, `formula/reading.rs`, `formula/writing.rs` | `Formula::read`, `value`, `whole`, `written`, `stored` |
+| The part's table of variables: names, loops, what a typed size comes to | `part/src/variables.rs` | `Variables`, `VariableChange`, `check_name`, `loop_through`, `size_of` |
+| Where the changes to the variables sit in the history | `part/src/history/table.rs` | `History::variable_changes`, `table_operations` |
+| The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
+| A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size` |
+| Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
+| The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 5` |
 | The design folder: the index, one folder per step, and the line between them | `part/src/document/design.rs` | `laid_out`, `read`, `taken_apart`, `put_together` |
 | The geometry a part is cached with | `part/src/document/geometry_cache.rs` | `write`, `read`, `GEOMETRY_ENTRY` |
@@ -246,6 +253,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
+| Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `view.rs` `panel`, `mod.rs` `run` |
+| Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |
@@ -259,6 +268,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | What a command, its help and its family are called | `app/src/wording/command.rs` | `label`, `hint`, `family_heading` |
 | What a history step and its unfolded line say | `app/src/wording/history/` | `label` in `mod.rs`, `detail` in `detail.rs` |
 | What a dimension measures and spans | `app/src/wording/dimension.rs` | `label`, `spans` |
+| A size written from variables, and what is wrong with a formula | `app/src/wording/formula.rs` | `sized`, `unreadable`, `unusable` |
+| What the part says when it refuses a change to its variables | `app/src/wording/variables.rs` | `refused`, `name` |
 | What a measure says, one number per side of its triangle | `app/src/wording/measure.rs` | `says`, `Said` |
 | What an operation just did, said to the user | `app/src/wording/outcome.rs` | `message` |
 | What a rule of the drawing is called and marked | `app/src/wording/constraints.rs` | `label`, `mark`, `axis` |

@@ -105,6 +105,13 @@ left alone stays empty and shows the measurement as a ghost — keeping the
 measurement *in* the field meant the first keystroke landed behind it, and "40"
 typed over "0.000" read as 0.00040.
 
+Until something is typed, though, **a letter is still a shortcut**: a digit, a
+sign, a decimal separator or `=` is what starts the field, which then keeps
+every key until `Entrée` or `Échap`. `=` opens a formula over the part's
+variables, and the dimension the shape leaves keeps it — see
+[variables.md](variables.md). A field holding something that does not read
+refuses the click and says why.
+
 Left alone, they are plain readouts. **Typed into, they are decisions**: the
 trait can take no other value, and the matching dimension is placed by itself
 when the trait is validated. A trait drawn to a value does not have to be

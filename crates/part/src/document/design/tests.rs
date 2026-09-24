@@ -1,3 +1,11 @@
+//! What the design folder of a part file is held to.
+//!
+//! Closes #175.
+//! - the variables and the formulas are saved with the part and come back
+//!   when it is opened —
+//!   `the_variables_are_a_table_of_the_part_kept_beside_the_steps_and_come_back`,
+//!   `a_part_with_no_variables_writes_no_table`
+
 use std::io::Cursor;
 
 use cao_sketch::{SketchAxis, WorkPlane};

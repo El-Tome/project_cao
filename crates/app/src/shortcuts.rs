@@ -7,10 +7,14 @@ use cao_prefs::Command;
 /// exception is the fields at the cursor while nothing has been typed in them
 /// — `fields_wait` — where a letter is still a shortcut, and what can begin a
 /// value is left for the field.
+///
+/// `left_alone` names commands whose chord is not even read this frame, so
+/// that the key stays for whatever else wants it.
 pub fn shortcuts_pressed(
     ui: &egui::Ui,
     settings: &cao_prefs::Settings,
     fields_wait: bool,
+    left_alone: impl Fn(Command) -> bool,
 ) -> Vec<Command> {
     if ui.ctx().egui_wants_keyboard_input() && !fields_wait {
         return Vec::new();
@@ -20,6 +24,7 @@ pub fn shortcuts_pressed(
             .shortcuts
             .bindings
             .iter()
+            .filter(|(command, _)| !left_alone(*command))
             .filter(|(_, chord)| {
                 to_egui_key(chord.key)
                     .filter(|key| !fields_wait || is_a_letter(*key))

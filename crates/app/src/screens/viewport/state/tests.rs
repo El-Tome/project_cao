@@ -16,6 +16,10 @@
 //! - the presenter takes no `egui::Ui` — no test:
 //!   `a_presenter_never_takes_the_interface` reads every `state.rs` under
 //!   `crates/app/src` and refuses the three markers
+//!
+//! Closes #175.
+//! - the dimensions a refused change would break blink for a few seconds —
+//!   `what_a_refused_change_would_break_blinks_for_a_few_seconds_then_stops`
 
 use cao_part::{ExtrusionMode, PartDocument};
 use chrono::Utc;
@@ -63,4 +67,21 @@ fn otherwise_the_gesture_goes_to_the_tool_in_hand() {
 #[test]
 fn the_cube_is_asked_before_the_extrusion() {
     assert_eq!(asked(true, true), GestureGoesTo::TheCube);
+}
+
+#[test]
+fn what_a_refused_change_would_break_blinks_for_a_few_seconds_then_stops() {
+    let mut state = ViewportState::default();
+    let side = cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(1));
+
+    state.blink(vec![(0, side)], 10.0);
+
+    assert_eq!(state.blinking_on(0, 10.1), Some((vec![side], true)));
+    assert_eq!(state.blinking_on(0, 10.3), Some((vec![side], false)));
+    assert_eq!(
+        state.blinking_on(1, 10.1),
+        None,
+        "only on the sketch it is on"
+    );
+    assert_eq!(state.blinking_on(0, 14.0), None, "and not for ever");
 }

@@ -1,4 +1,15 @@
 //! What a formula reads, what it comes to, and how it is written back.
+//!
+//! Closes #175.
+//! - a formula reads numbers, the four operations, parentheses and other
+//!   variables' names —
+//!   `the_four_operations_keep_their_usual_order_and_parentheses_change_it`,
+//!   `a_name_reads_as_the_variable_it_names_and_comes_to_its_value`
+//! - one that does not read says what is wrong with it —
+//!   `a_formula_that_does_not_read_says_what_is_wrong_with_it`,
+//!   `a_name_the_part_has_no_variable_for_is_refused_by_name`
+//! - it goes into the part file by rank, so a name changed later changes
+//!   nothing written — `a_formula_goes_into_a_file_by_rank_and_comes_back_the_same`
 
 use super::*;
 

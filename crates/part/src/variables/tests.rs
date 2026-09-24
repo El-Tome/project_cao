@@ -1,4 +1,11 @@
 //! What the table of a part's variables is held to.
+//!
+//! Closes #175.
+//! - a name that is not letters, digits and `_`, that starts with a digit, or
+//!   that is already taken is refused —
+//!   `a_name_is_letters_digits_and_underscores_and_never_opens_on_a_digit`
+//! - a loop between variables is found, with the variables in it —
+//!   `a_formula_that_would_lean_on_itself_names_the_loop_it_closes`
 
 use super::*;
 

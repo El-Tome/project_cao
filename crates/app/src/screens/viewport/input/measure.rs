@@ -255,3 +255,6 @@ pub(super) fn edit_dimension(
     }
     context.editor.message = None;
 }
+
+#[cfg(test)]
+mod tests;

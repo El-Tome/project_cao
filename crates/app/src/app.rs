@@ -115,6 +115,7 @@ impl CaoApp {
             editor: SketchEditor::default(),
             extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
+            variables: screens::variables::VariablesPanel::default(),
         }));
     }
 
@@ -164,6 +165,7 @@ impl CaoApp {
             editor,
             extrusion,
             ribbon,
+            variables,
         } = part.as_mut();
 
         // The viewport reads its own copy: it is handed to the renderer every
@@ -199,11 +201,20 @@ impl CaoApp {
         };
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
-            shortcuts_pressed(ui, &settings, editor.live.waits_for_keys())
-                .into_iter()
-                .filter(|command| {
-                    crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)
-                }),
+            shortcuts_pressed(ui, &settings, editor.live.waits_for_keys(), |command| {
+                // Enter closes what a tool laying copies is gathering, as its
+                // prompt says, rather than finishing the sketch under it.
+                command == Command::FinishSketch
+                    && matches!(
+                        editor.tool_state,
+                        cao_sketch::ToolState::Copying {
+                            naming_the_target: false,
+                            ..
+                        }
+                    )
+            })
+            .into_iter()
+            .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
         );
         let mut worked_on = screens::SketchContext {
             document: doc,
@@ -232,7 +243,8 @@ impl CaoApp {
             );
         }
 
-        changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, ribbon, lang);
+        let beside = crate::panels::Beside { ribbon, variables };
+        changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {

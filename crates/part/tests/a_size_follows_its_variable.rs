@@ -1,5 +1,13 @@
 //! A size written from the part's variables keeps what it was written from,
 //! and follows the variables when they change.
+//!
+//! Closes #175.
+//! - changing a variable changes every size written from it, and the part is
+//!   rebuilt — `changing_a_variable_moves_every_size_written_from_it`
+//! - undo puts a variable's former formula back, and the part with it —
+//!   `undoing_a_change_to_a_variable_puts_the_part_back_with_it`
+//! - a chamfer's values keep the formulas they were typed as —
+//!   `a_chamfer_written_from_variables_lays_each_value_with_its_own_formula`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{Formula, PartDocument, VariableChange, VariableId};

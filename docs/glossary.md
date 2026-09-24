@@ -95,6 +95,15 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `rebuild` | — | Replaying the history from nothing. |
 | `PartDocument` | pièce | The history and its metadata. What a `.caopart` holds. |
 | `PointRef` | — | Which point an operation meant: an existing one, or a position. |
+| `Variables`, `Variable` | variables | The part's table of named values, one for the whole part. |
+| `Formula` | formule | A size as written: a number, or a calculation over the variables. |
+| `VariableChange` | — | One change to the table, recorded in the history under no step. |
+
+> **A formula names a variable by its rank, not its name.** Renaming a
+> variable renames it in every formula, and a variable taken away keeps its
+> rank and its last formula for whatever was written from it before. A size
+> keeps its formula and is worked out again at every rebuild — never frozen to
+> the number it came to.
 
 > **The geometry is never the truth.** A `.caopart` is a design; `PartState` is
 > a projection of it, cached in the file and dropped for a replay the moment it

@@ -35,3 +35,6 @@ pub(super) fn dimension_the_line(
     };
     lay_values(context, index, wanted, typed, pixel);
 }
+
+#[cfg(test)]
+mod tests;

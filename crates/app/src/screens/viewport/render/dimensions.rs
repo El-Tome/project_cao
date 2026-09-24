@@ -44,6 +44,12 @@ pub(crate) fn paint_dimension_labels(
     let pixel = state
         .camera
         .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
+    // What a refused change to the variables would have broken flashes where
+    // it stands, for as long as the blinking lasts.
+    let blinking = state.blinking_on(index, ui.input(|input| input.time));
+    if blinking.is_some() {
+        ui.ctx().request_repaint();
+    }
 
     for dimension in sketch.dimensions() {
         // Asking the annotation where its value belongs keeps the text on the
@@ -85,6 +91,12 @@ pub(crate) fn paint_dimension_labels(
         let color = match going.is_some_and(|going| going.values.contains(&dimension.target)) {
             true => to_color_of(state.theme.going),
             false => color,
+        };
+        let color = match &blinking {
+            Some((values, true)) if values.contains(&dimension.target) => {
+                ui.visuals().error_fg_color
+            }
+            _ => color,
         };
         painter.text(
             position,

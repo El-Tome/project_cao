@@ -9,7 +9,7 @@ use cao_prefs::theme::Theme;
 use cao_prefs::{Modifier, Shortcuts, ViewportConfig};
 use cao_render::camera::{CubeZone, view_angles_towards};
 use cao_render::{OrbitCamera, ViewTransition, adaptive_step};
-use cao_sketch::{SnapSettings, WorkPlane};
+use cao_sketch::{DimensionTarget, SnapSettings, WorkPlane};
 use glam::DVec3;
 
 use crate::screens::SketchContext;
@@ -47,7 +47,16 @@ pub struct ViewportState {
     /// Width over height of the canvas, remembered so that framing asked for
     /// from a toolbar button uses the viewport's shape, not the button's.
     pub(super) aspect: f32,
+    /// The values on a drawing a refused change would have broken, and when
+    /// it was refused.
+    blinking: Option<(Vec<(usize, DimensionTarget)>, f64)>,
 }
+
+/// How long the values a refused change would have broken blink for, and how
+/// long each flash lasts: long enough to be found on the drawing, short
+/// enough not to stay in the way.
+const BLINKING_FOR: f64 = 3.0;
+const ONE_FLASH: f64 = 0.25;
 
 impl Default for ViewportState {
     fn default() -> Self {
@@ -64,7 +73,37 @@ impl Default for ViewportState {
             hovered_zone: None,
             drag: None,
             aspect: 1.0,
+            blinking: None,
         }
+    }
+}
+
+impl ViewportState {
+    /// Has these values blink on the drawing from `now`, so that what a
+    /// refused change would have broken is seen where it is.
+    pub fn blink(&mut self, values: Vec<(usize, DimensionTarget)>, now: f64) {
+        self.blinking = (!values.is_empty()).then_some((values, now));
+    }
+
+    /// The values of a sketch blinking at `now`, and whether they are lit or
+    /// dark at that instant — nothing once the blinking is over.
+    pub(crate) fn blinking_on(
+        &self,
+        sketch: usize,
+        now: f64,
+    ) -> Option<(Vec<DimensionTarget>, bool)> {
+        let (values, since) = self.blinking.as_ref()?;
+        let gone = now - since;
+        if !(0.0..BLINKING_FOR).contains(&gone) {
+            return None;
+        }
+        let here: Vec<DimensionTarget> = values
+            .iter()
+            .filter(|(on, _)| *on == sketch)
+            .map(|(_, target)| *target)
+            .collect();
+        let lit = ((gone / ONE_FLASH) as u64).is_multiple_of(2);
+        (!here.is_empty()).then_some((here, lit))
     }
 }
 

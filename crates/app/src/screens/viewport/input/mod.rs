@@ -30,7 +30,7 @@ mod constrain;
 use constrain::nearest_rule_pick;
 
 mod rectangle;
-use rectangle::dimension_the_rectangle;
+pub(crate) use rectangle::{rectangle_corner, two_click_shape};
 
 mod planes;
 use planes::choose_a_plane;
@@ -370,54 +370,6 @@ fn constrain(
     context.document.apply(operation);
     context.editor.message = Some(constraints::rule_asks_for(context.lang, rule));
     true
-}
-
-/// One click of the rectangle tool: the first remembers a corner, the second
-/// draws it opposite.
-pub(crate) fn two_click_shape(
-    context: &mut SketchContext<'_>,
-    index: usize,
-    cursor: DVec2,
-    snap: f64,
-    pixel: f64,
-) -> bool {
-    let ToolState::Rectangle { start } = context.editor.tool_state else {
-        context.editor.tool_state = ToolState::Rectangle { start: cursor };
-        context.editor.live.open();
-        return false;
-    };
-    // A shape with no extent is a stray click, not a drawing.
-    if start.distance(cursor) < 1e-6 {
-        return false;
-    }
-    context.editor.tool_state = ToolState::None;
-
-    // Corners reuse a point already drawn when one is under the cursor, so
-    // shapes hang together instead of stacking points on top of each other.
-    // Nothing forces the user to place those points first.
-    let corner = point_ref_at(context, index, start, snap);
-    let opposite = point_ref_at(context, index, cursor, snap);
-    context.document.apply(Operation::AddRectangle {
-        sketch: index,
-        corner,
-        opposite,
-        construction: context.editor.construction,
-    });
-    dimension_the_rectangle(context, index, pixel);
-    context.editor.live.clear();
-    true
-}
-
-pub(crate) fn rectangle_corner(context: &SketchContext<'_>, cursor: DVec2) -> DVec2 {
-    let ToolState::Rectangle { start } = context.editor.tool_state else {
-        return cursor;
-    };
-    cao_sketch::rectangle_corner(
-        start,
-        cursor,
-        context.editor.live.locked(),
-        context.document.scale(),
-    )
 }
 
 /// The second half a dimension in hand can still take: another segment makes it

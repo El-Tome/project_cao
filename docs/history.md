@@ -109,12 +109,22 @@ A `.caopart` is a **zip archive**, and no longer a single JSON object:
     │                             stands on
     ├── sketch-0/steps.json       what was drawn on that sketch
     ├── extrusion-0/steps.json    how far it went, and which way
-    └── sketch-1/steps.json
+    ├── sketch-1/steps.json
+    └── variables.json            every change made to the part's variables,
+                                  when it has any
 ```
 
 Separating the files allows each part to evolve independently, and leaves room
 for what will come along (materials, exported meshes) without rewriting the rest
 at every save.
+
+### The variables are a table of the part, not a step of it
+
+A change to the part's variables is an operation of the history like any
+other — numbered, undone, redone — but filed under no step: the index names
+the numbers of those changes, and `design/variables.json` holds them. Every
+size an operation records is a formula over the table, worked out as the part
+is rebuilt. See [variables.md](variables.md).
 
 ### What designed the part sits apart from what the part is
 

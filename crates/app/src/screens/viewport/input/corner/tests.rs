@@ -25,6 +25,11 @@
 //!   `enter_with_half_a_corner_asks_for_the_other_side_rather_than_dropping_it`,
 //!   `enter_with_no_side_clicked_asks_for_a_corner`,
 //!   `enter_with_a_corner_taken_cuts_it`
+//!
+//! Closes #175.
+//! - a formula can be typed as a chamfer's and a fillet's values —
+//!   `a_chamfer_typed_from_variables_is_laid_as_it_was_written`,
+//!   `a_fillet_typed_as_a_plain_number_is_laid_as_that_number`
 
 use cao_sketch::{Corner, PointId, Sketch, WorkPlane};
 use glam::DVec2;
@@ -271,4 +276,53 @@ fn a_point_holding_no_corner_lets_go_of_nothing() {
         "a click elsewhere is a click elsewhere, and goes on to name a side"
     );
     assert!(drops_at(&sketch, &mut taken, pivot));
+}
+
+#[test]
+fn a_chamfer_typed_from_variables_is_laid_as_it_was_written() {
+    let mut variables = cao_part::Variables::default();
+    variables.change(&cao_part::VariableChange::Added {
+        name: "setback".to_string(),
+        formula: Formula::Number(3.0),
+    });
+    let setback = variables.read("setback").expect("it reads");
+    let slope = variables.read("setback * 10").expect("it reads");
+
+    let laid = laying(
+        0,
+        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        Chamfer::Angled {
+            along: 3.0,
+            degrees: 30.0,
+        },
+        false,
+        [Some(setback.clone()), Some(slope.clone())],
+    );
+
+    assert!(
+        matches!(
+            laid,
+            Operation::Chamfer {
+                mode: ChamferAsked::Angled { ref along, ref degrees },
+                ..
+            } if *along == setback && *degrees == slope
+        ),
+        "{laid:?}"
+    );
+}
+
+#[test]
+fn a_fillet_typed_as_a_plain_number_is_laid_as_that_number() {
+    let laid = laying(
+        0,
+        vec![Corner::Between(SegmentId(0), SegmentId(1))],
+        Chamfer::Equal(2.0),
+        true,
+        [Some(Formula::Number(2.0)), None],
+    );
+
+    assert!(
+        matches!(laid, Operation::Fillet { ref radius, .. } if *radius == Formula::Number(2.0)),
+        "{laid:?}"
+    );
 }

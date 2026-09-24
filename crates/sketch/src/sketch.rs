@@ -3,7 +3,6 @@ use std::cell::RefCell;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
-use crate::annotation::AnnotationMetrics;
 use crate::arc::Arc;
 pub use crate::circle::{Circle, CircleId};
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
@@ -71,6 +70,7 @@ pub struct Sketch {
     settled: RefCell<Option<(u64, Vec<bool>)>>,
 }
 
+mod dimensions;
 mod holds_up;
 mod keeping;
 mod settling;
@@ -274,11 +274,6 @@ impl Sketch {
         })
     }
 
-    pub fn erase_dimension(&mut self, target: DimensionTarget) {
-        self.dimensions
-            .retain(|dimension| dimension.target != target);
-    }
-
     pub fn is_origin(&self, point: PointId) -> bool {
         point == Self::ORIGIN
     }
@@ -332,32 +327,6 @@ impl Sketch {
     pub fn add_point(&mut self, position: DVec2) -> PointId {
         self.points.push(position);
         PointId(self.points.len() - 1)
-    }
-
-    /// Moves an annotation away from where it would sit on its own.
-    pub fn offset_dimension(&mut self, target: DimensionTarget, offset: DVec2) {
-        if let Some(dimension) = self
-            .dimensions
-            .iter_mut()
-            .find(|dimension| dimension.target == target)
-        {
-            dimension.offset = Some(offset);
-        }
-    }
-
-    /// The dimension whose annotation sits nearest `position`, within `tolerance`.
-    pub fn nearest_dimension(
-        &self,
-        position: DVec2,
-        tolerance: f64,
-        metrics: AnnotationMetrics,
-    ) -> Option<DimensionTarget> {
-        self.anchors(metrics)
-            .into_iter()
-            .map(|(target, at)| (target, at.distance(position)))
-            .filter(|(_, distance)| *distance <= tolerance)
-            .min_by(|a, b| a.1.total_cmp(&b.1))
-            .map(|(target, _)| target)
     }
 
     /// Moves a point where the user dragged it. The origin stays put.
@@ -524,35 +493,6 @@ impl Sketch {
     pub fn segment_length(&self, id: SegmentId) -> f64 {
         let (start, end) = self.endpoints(id);
         start.distance(end)
-    }
-
-    pub fn dimension_of(&self, target: DimensionTarget) -> Option<&Dimension> {
-        self.dimensions
-            .iter()
-            .find(|dimension| dimension.target == target)
-    }
-
-    /// Records a value the user typed, replacing any previous one on the same
-    /// target. Moving the geometry is a separate step: the very first dimension
-    /// of a document sets its scale instead of resizing anything, and a driven
-    /// one never moves anything at all.
-    pub fn set_dimension(&mut self, target: DimensionTarget, value: f64, driven: bool) {
-        match self
-            .dimensions
-            .iter_mut()
-            .find(|dimension| dimension.target == target)
-        {
-            Some(existing) => {
-                existing.value = value;
-                existing.driven = driven;
-            }
-            None => self.dimensions.push(Dimension {
-                target,
-                value,
-                driven,
-                offset: None,
-            }),
-        }
     }
 
     /// Where the perpendicular from a point meets the line a segment lies on.

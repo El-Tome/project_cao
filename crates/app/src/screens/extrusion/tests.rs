@@ -1,4 +1,10 @@
 //! What app · screens/extrusion.rs is held to.
+//!
+//! Closes #175.
+//! - a formula can be typed as a revolution's angle —
+//!   `a_revolution_swept_by_a_formula_keeps_it_turned_the_way_asked`
+//! - one that does not read says why where it is typed —
+//!   `a_distance_that_does_not_read_says_why_and_is_not_ready`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::WorkPlane;
@@ -71,4 +77,43 @@ fn an_extrusion_speaks_where_the_drawing_did_rather_than_beside_it() {
     apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
 
     assert_eq!(notice, None);
+}
+
+fn a_table_holding_a_turn() -> Variables {
+    let mut variables = Variables::default();
+    variables.change(&cao_part::VariableChange::Added {
+        name: "turn".to_string(),
+        formula: Formula::Number(90.0),
+    });
+    variables
+}
+
+#[test]
+fn a_revolution_swept_by_a_formula_keeps_it_turned_the_way_asked() {
+    let variables = a_table_holding_a_turn();
+    let mut extrusion = armed_on(vec![DVec2::ZERO]);
+    extrusion.shape = Shape::Revolution;
+    extrusion.angle_input = "=turn * 2".to_string();
+    extrusion.reversed = true;
+
+    let (written, value) = extrusion.angle(&variables).expect("it reads");
+
+    assert_eq!(variables.written(&written), "-(turn * 2)");
+    assert!((value + 180.0).abs() < 1e-9, "{value}");
+    assert!(extrusion.is_ready(&variables));
+}
+
+#[test]
+fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
+    let variables = a_table_holding_a_turn();
+    let mut extrusion = armed_on(vec![DVec2::ZERO]);
+    extrusion.distance_input = "depth * 2".to_string();
+
+    assert_eq!(
+        extrusion.wrong(&variables),
+        Some(cao_part::Unusable::Unreadable(
+            cao_part::Unreadable::UnknownName("depth".to_string())
+        )),
+    );
+    assert!(!extrusion.is_ready(&variables));
 }

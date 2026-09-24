@@ -81,7 +81,7 @@ fn a_step_opens_in_the_millimetres_its_field_is_labelled_with() {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Diameter(CircleId(0)),
-        value: 20.0,
+        value: 20.0.into(),
         placement: None,
     });
 

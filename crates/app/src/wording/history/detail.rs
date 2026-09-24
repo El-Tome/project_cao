@@ -1,8 +1,10 @@
 use cao_part::history::Operation;
+use cao_part::{VariableChange, Variables};
 
 use crate::lang::Catalogue;
+use crate::wording::history::sized;
 use crate::wording::history::values::{
-    between, chamfer, chosen_axis, point_label, revolution_axis, rounded,
+    between, chosen_axis, point_label, revolution_axis, rounded,
 };
 use crate::wording::{constraints, dimension};
 
@@ -10,11 +12,24 @@ use crate::wording::{constraints, dimension};
 ///
 /// Every value is rounded here, before it reaches a key: a language file that
 /// carried `{:.1}` would be a language file only a developer could write.
-pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
+pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
     match operation {
         Operation::Gesture(done) => done
             .first()
-            .map(|first| detail(lang, first))
+            .map(|first| detail(lang, variables, first))
+            .unwrap_or_default(),
+        Operation::Variable(
+            VariableChange::Added { name, formula } | VariableChange::Edited { name, formula, .. },
+        ) => lang.t_with(
+            "history.detail.variable",
+            &[
+                ("name", name),
+                ("formula", &sized::formula(lang, variables, formula)),
+            ],
+        ),
+        Operation::Variable(VariableChange::Erased { variable }) => variables
+            .get(*variable)
+            .map(|found| found.name().to_string())
             .unwrap_or_default(),
         Operation::CreateSketch { plane, .. } => {
             let normal = plane.normal();
@@ -219,26 +234,12 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             sketch,
             corners,
             mode,
-        } => lang.t_with(
-            "history.detail.chamfer",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("corners", &corners.len().to_string()),
-                ("mode", &chamfer(lang, *mode)),
-            ],
-        ),
+        } => sized::chamfer(lang, variables, *sketch, corners.len(), mode),
         Operation::Fillet {
             sketch,
             corners,
             radius,
-        } => lang.t_with(
-            "history.detail.fillet",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("corners", &corners.len().to_string()),
-                ("radius", &format!("{radius:.3}")),
-            ],
-        ),
+        } => sized::fillet(lang, variables, *sketch, corners.len(), radius),
         Operation::Mirror {
             sketch,
             elements,
@@ -257,15 +258,13 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             centre,
             degrees,
             count,
-        } => lang.t_with(
-            "history.detail.circular_pattern",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("elements", &elements.len().to_string()),
-                ("centre", &centre.0.to_string()),
-                ("degrees", &rounded(*degrees, 3)),
-                ("count", &count.to_string()),
-            ],
+        } => sized::circular_pattern(
+            lang,
+            variables,
+            (*sketch, elements.len()),
+            *centre,
+            degrees,
+            count,
         ),
         Operation::RectangularPattern {
             sketch,
@@ -273,17 +272,13 @@ pub fn detail(lang: &Catalogue, operation: &Operation) -> String {
             direction,
             along,
             across,
-        } => lang.t_with(
-            "history.detail.rectangular_pattern",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("elements", &elements.len().to_string()),
-                ("direction", &chosen_axis(lang, *direction)),
-                ("along", &along.count.to_string()),
-                ("along_step", &rounded(along.step, 3)),
-                ("across", &across.count.to_string()),
-                ("across_step", &rounded(across.step, 3)),
-            ],
+        } => sized::rectangular_pattern(
+            lang,
+            variables,
+            (*sketch, elements.len()),
+            *direction,
+            along,
+            across,
         ),
         Operation::TrimArc {
             sketch,

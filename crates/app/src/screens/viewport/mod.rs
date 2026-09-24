@@ -13,6 +13,7 @@ mod matter;
 mod navigation;
 mod render;
 mod state;
+mod values;
 mod view;
 
 pub use input::DEFAULT_SKETCH_RADIUS;

@@ -25,7 +25,7 @@ fn a_radius_a_fixed_chord_rules_out_is_refused_rather_than_bent_to_fit() {
             from: Sketch::ORIGIN,
             to: cao_sketch::PointId(2),
         },
-        value: 80.0,
+        value: 80.0.into(),
         placement: None,
     });
     let before = state.sketches[0].clone();
@@ -35,7 +35,7 @@ fn a_radius_a_fixed_chord_rules_out_is_refused_rather_than_bent_to_fit() {
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::ArcRadius(ArcId(0)),
-        value: 5.0,
+        value: 5.0.into(),
         placement: None,
     });
 

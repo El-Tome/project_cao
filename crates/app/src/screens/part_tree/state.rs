@@ -16,6 +16,7 @@ use cao_part::history::{ExtrusionMode, Operation};
 use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
+use crate::wording::formula;
 
 /// What a line of the tree points at, so that clicking it can find the thing
 /// itself.
@@ -66,13 +67,36 @@ pub struct Drawn {
 /// The part, as the tree shows it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PartTree {
+    /// Each variable, as its name and what it comes to, read only: they are
+    /// edited in a panel of their own.
+    pub variables: Vec<String>,
     pub bodies: Vec<Body>,
     pub sketches: Vec<Drawn>,
 }
 
 impl PartTree {
     pub fn of(document: &PartDocument, lang: &Catalogue) -> Self {
-        let mut tree = Self::default();
+        let variables = document.variables();
+        let mut tree = Self {
+            variables: variables
+                .live()
+                .map(|(_, variable)| {
+                    lang.t_with(
+                        "part_tree.variable",
+                        &[
+                            ("name", variable.name()),
+                            (
+                                "value",
+                                &formula::sized(lang, variables, variable.formula(), |value| {
+                                    value.to_string()
+                                }),
+                            ),
+                        ],
+                    )
+                })
+                .collect(),
+            ..Self::default()
+        };
         let mut sketches = 0;
 
         for (step, operation) in document.history.applied_operations().iter().enumerate() {
@@ -100,7 +124,12 @@ impl PartTree {
                         reads: lang.t_with(
                             "part_tree.raised",
                             &[
-                                ("distance", &distance.to_string()),
+                                (
+                                    "distance",
+                                    &formula::sized(lang, variables, distance, |travel| {
+                                        travel.to_string()
+                                    }),
+                                ),
                                 ("mode", &lang.t(mode_key(*mode))),
                             ],
                         ),
@@ -122,7 +151,12 @@ impl PartTree {
                         reads: lang.t_with(
                             "part_tree.swept",
                             &[
-                                ("angle", &angle.to_string()),
+                                (
+                                    "angle",
+                                    &formula::sized(lang, variables, angle, |turn| {
+                                        turn.to_string()
+                                    }),
+                                ),
                                 ("mode", &lang.t(mode_key(*mode))),
                             ],
                         ),
@@ -137,7 +171,7 @@ impl PartTree {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.bodies.is_empty() && self.sketches.is_empty()
+        self.variables.is_empty() && self.bodies.is_empty() && self.sketches.is_empty()
     }
 }
 

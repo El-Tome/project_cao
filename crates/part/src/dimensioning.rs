@@ -6,7 +6,12 @@
 //! that answers back.
 
 use cao_sketch::{DimensionTarget, LengthOutcome};
+use glam::DVec2;
 
+use crate::broken::Broken;
+use crate::formula::Formula;
+use crate::outcome::Outcome;
+use crate::replay::SetBy;
 use crate::state::PartState;
 
 /// What applying a typed length did.
@@ -24,6 +29,63 @@ pub enum DimensionOutcome {
 }
 
 impl PartState {
+    /// Applies a value as it was written: worked out against the variables,
+    /// set on the drawing, and remembered there as what it was written from —
+    /// so that it can be shown and edited as that, and carried with the value
+    /// wherever a cut hands it on. Which step of the replay set it goes with
+    /// it, which is how the replay sees it leave the drawing.
+    pub(crate) fn apply_written_dimension(
+        &mut self,
+        index: usize,
+        target: DimensionTarget,
+        written: &Formula,
+        placement: Option<DVec2>,
+    ) -> Option<Outcome> {
+        let broken = Broken::Dimension {
+            sketch: index,
+            target,
+        };
+        let (set, values) = self.next_value_set();
+        let value = written.value(values).filter(|value| target.takes(*value));
+        let outcome = value.and_then(|value| self.apply_dimension(index, target, value));
+        let held = self.remember_as(index, target, outcome, written.note(), Some(set));
+        self.note_value_set(set, written, held);
+        match held {
+            true => self.held(broken),
+            false => self.broke(broken),
+        }
+        if let (Some(offset), Some(drawing)) = (placement, self.sketches.get_mut(index)) {
+            drawing.offset_dimension(target, offset);
+        }
+        outcome.map(Outcome::Dimension)
+    }
+
+    /// Remembers on the drawing what a value was written from, and which step
+    /// of the replay set it when that was the variables, once it holds; and
+    /// says whether it did. A readout reports what the drawing measures, and
+    /// so was written from nothing; a value refused left the drawing as it
+    /// was.
+    pub(crate) fn remember_as(
+        &mut self,
+        index: usize,
+        target: DimensionTarget,
+        outcome: Option<DimensionOutcome>,
+        note: Option<String>,
+        set: Option<SetBy>,
+    ) -> bool {
+        let note = match outcome {
+            Some(DimensionOutcome::ScaleDefined { .. })
+            | Some(DimensionOutcome::Geometry(LengthOutcome::Exact)) => note,
+            Some(DimensionOutcome::Reference) => None,
+            _ => return false,
+        };
+        if let Some(drawing) = self.sketches.get_mut(index) {
+            drawing.mark_dimension(target, note.as_ref().and(set));
+            drawing.write_dimension_as(target, note);
+        }
+        true
+    }
+
     /// Applies a length typed by the user, in millimetres.
     ///
     /// The very first one defines what the drawing measures: nothing moves, the

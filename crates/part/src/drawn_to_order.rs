@@ -74,7 +74,7 @@ impl Recipe {
             document.apply(Operation::Extrude {
                 sketch: ring,
                 areas: document.areas_at(ring, &[middle]),
-                distance: STOREY,
+                distance: STOREY.into(),
                 mode: ExtrusionMode::Add,
             });
         }
@@ -97,7 +97,7 @@ impl Recipe {
             document.apply(Operation::Extrude {
                 sketch,
                 areas: document.areas_at(sketch, &[middle]),
-                distance: STOREY,
+                distance: STOREY.into(),
                 mode: ExtrusionMode::Add,
             });
         }
@@ -165,7 +165,11 @@ impl Recipe {
             document.apply(Operation::SetDimension {
                 sketch,
                 target,
-                value: if asked > 0.0 { asked } else { measured },
+                value: if asked > 0.0 {
+                    asked.into()
+                } else {
+                    measured.into()
+                },
                 placement: None,
             });
         }

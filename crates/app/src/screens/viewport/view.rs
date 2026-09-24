@@ -13,9 +13,11 @@ use super::input::{handle_sketch_input, pick_areas};
 use super::navigation::{advance_transition, handle_navigation};
 use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
-    paint_measure, paint_rule_marks, paint_ruler, what_is_measured, what_would_go,
+    paint_measure, paint_rule_marks, paint_ruler, push_blinking_matter, what_is_measured,
+    what_would_go,
 };
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
+use super::values::refused_for_what_is_typed;
 
 /// Returns true when the part was modified and should be saved.
 pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> bool {
@@ -42,6 +44,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         GestureGoesTo::TheCube => false,
         GestureGoesTo::PickingAnArea => {
             pick_areas(state, &response, rect, scale, sketch);
+            false
+        }
+        // A click is refused while a field at the cursor holds what cannot be
+        // used, rather than laying the shape where the cursor is and dropping
+        // what was typed without a word.
+        GestureGoesTo::TheToolInHand if response.clicked() && refused_for_what_is_typed(sketch) => {
             false
         }
         GestureGoesTo::TheToolInHand => {
@@ -73,7 +81,7 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
     // price.
     let measuring = what_is_measured(sketch);
 
-    let frame = build_frame(
+    let mut frame = build_frame(
         state,
         rect,
         cube_rect,
@@ -82,6 +90,11 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         going.as_ref(),
         measuring.as_ref(),
     );
+    let now = ui.input(|input| input.time);
+    push_blinking_matter(&mut frame.scene_surfaces, state, sketch, now);
+    if state.faces_blinking(now).is_some() {
+        ui.ctx().request_repaint();
+    }
     ui.painter().add(egui_wgpu::Callback::new_paint_callback(
         rect,
         ViewportCallback { frame },

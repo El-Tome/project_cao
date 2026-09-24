@@ -81,7 +81,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                             point: center,
                             segment: SegmentId(rng.range(segments)),
                         },
-                        value: rng.unit() * 120.0,
+                        value: (rng.unit() * 120.0).into(),
                         placement: None,
                     });
                 }
@@ -89,7 +89,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                     doc.apply(Operation::SetDimension {
                         sketch: 0,
                         target: DimensionTarget::Diameter(circle),
-                        value: 1.0 + rng.unit() * 150.0,
+                        value: (1.0 + rng.unit() * 150.0).into(),
                         placement: None,
                     });
                 }
@@ -110,7 +110,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                     doc.apply(Operation::SetDimension {
                         sketch: 0,
                         target: DimensionTarget::Length(SegmentId(rng.range(segments))),
-                        value: 1.0 + rng.unit() * 200.0,
+                        value: (1.0 + rng.unit() * 200.0).into(),
                         placement: None,
                     });
                 }
@@ -121,7 +121,7 @@ fn a_tangent_circle_hammered_with_values_never_goes_to_pieces() {
                             segment: SegmentId(rng.range(segments)),
                             axis: SketchAxis::U,
                         },
-                        value: rng.unit() * 180.0,
+                        value: (rng.unit() * 180.0).into(),
                         placement: None,
                     });
                 }

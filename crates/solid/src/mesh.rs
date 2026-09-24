@@ -143,8 +143,9 @@ impl Mesh {
     }
 
     /// The number no face of this solid answers to, so that another solid's
-    /// faces can be moved above it and the two never collide.
-    pub(crate) fn faces_end(&self) -> usize {
+    /// faces can be moved above it and the two never collide — and so that a
+    /// face numbered from it on is one made since it was read.
+    pub fn faces_end(&self) -> usize {
         self.polygons
             .iter()
             .map(|polygon| polygon.face + 1)

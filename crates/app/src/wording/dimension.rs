@@ -25,22 +25,19 @@ pub fn scale_defined(lang: &Catalogue, millimeters_per_unit: f64) -> String {
 
 /// The only place a dimension is turned into a name.
 ///
-/// The value is millimetres for a length or a radius, degrees for an angle.
-/// It is rounded here rather than in the language file, so that a translation
-/// never has to carry a format specifier.
-pub fn label(lang: &Catalogue, target: &DimensionTarget, value: f64) -> String {
-    let value = short(value);
-    let measured = &[("value", value.as_str())];
+/// The value comes already said — millimetres for a length or a radius,
+/// degrees for an angle, through [`short`], or a formula written from the
+/// variables with what it comes to — so that a translation never has to carry
+/// a format specifier.
+pub fn label(lang: &Catalogue, target: &DimensionTarget, value: &str) -> String {
+    let measured = &[("value", value)];
     match target {
         DimensionTarget::Angle { .. }
         | DimensionTarget::AngleBetween { .. }
         | DimensionTarget::ArcSweep(_) => lang.t_with("dimension.label.angle", measured),
         DimensionTarget::AxisAngle { axis, .. } => lang.t_with(
             "dimension.label.axis_angle",
-            &[
-                ("value", value.as_str()),
-                ("axis", &constraints::axis(lang, *axis)),
-            ],
+            &[("value", value), ("axis", &constraints::axis(lang, *axis))],
         ),
         DimensionTarget::Radius(_) | DimensionTarget::ArcRadius(_) => {
             lang.t_with("dimension.label.radius", measured)
@@ -113,7 +110,7 @@ pub fn spans(lang: &Catalogue, target: &DimensionTarget) -> String {
 
 /// A value as it reads in the history: a dimension taken from the drawing
 /// itself is a full float, and "Cote 60.878967 mm" is unreadable.
-fn short(value: f64) -> String {
+pub fn short(value: f64) -> String {
     let text = format!("{value:.2}");
     match text.contains('.') {
         true => text.trim_end_matches('0').trim_end_matches('.').to_string(),

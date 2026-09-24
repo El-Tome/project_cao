@@ -1,11 +1,12 @@
 //! How one value inside a history line is written: the two points a trait
 //! runs between, an axis, a rounded number, what a chamfer took.
 
-use cao_part::history::{PointRef, RevolutionAxis};
-use cao_sketch::{Chamfer, ChosenAxis};
+use cao_part::Variables;
+use cao_part::history::{ChamferAsked, PointRef, RevolutionAxis};
+use cao_sketch::ChosenAxis;
 
 use crate::lang::Catalogue;
-use crate::wording::constraints;
+use crate::wording::{constraints, formula};
 
 /// A shape drawn from one point to another: a segment, or a rectangle by its
 /// opposite corners.
@@ -56,15 +57,19 @@ pub(super) fn rounded(value: f64, places: usize) -> String {
 }
 
 /// What a chamfer took off each side, in the words of the mode it was cut in.
-pub(super) fn chamfer(lang: &Catalogue, mode: Chamfer) -> String {
-    let say = |value: f64| format!("{value:.3}");
+pub(super) fn chamfer(lang: &Catalogue, variables: &Variables, mode: &ChamferAsked) -> String {
+    let say = |written: &cao_part::Formula| {
+        formula::sized(lang, variables, written, |value| format!("{value:.3}"))
+    };
     match mode {
-        Chamfer::Equal(reach) => lang.t_with("history.chamfer.equal", &[("reach", &say(reach))]),
-        Chamfer::Sided { first, second } => lang.t_with(
+        ChamferAsked::Equal(reach) => {
+            lang.t_with("history.chamfer.equal", &[("reach", &say(reach))])
+        }
+        ChamferAsked::Sided { first, second } => lang.t_with(
             "history.chamfer.sided",
             &[("first", &say(first)), ("second", &say(second))],
         ),
-        Chamfer::Angled { along, degrees } => lang.t_with(
+        ChamferAsked::Angled { along, degrees } => lang.t_with(
             "history.chamfer.angled",
             &[("along", &say(along)), ("degrees", &say(degrees))],
         ),

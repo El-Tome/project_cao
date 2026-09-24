@@ -32,7 +32,7 @@ use drawing::{Shown, push_sketch, what_would_be_laid};
 use extrusion::push_chosen_areas;
 pub(crate) use live_fields::paint_live_input;
 pub(crate) use overlays::{paint_band, paint_face_labels, paint_rule_marks, paint_ruler};
-use planes::push_choosable_planes;
+use planes::{push_choosable_planes, push_hovered_face};
 use preview::pending_annotation;
 use reading::push_measure;
 pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
@@ -189,6 +189,23 @@ pub(crate) fn build_frame(
         cube_triangles,
         cube_edges,
         cube_viewport: to_physical(cube_rect, pixels_per_point),
+    }
+}
+
+/// Lights the faces of the part a refusal named, while they are lit, so that
+/// the matter a step made is seen where it stands.
+pub(crate) fn push_blinking_matter(
+    surfaces: &mut Vec<cao_render::Vertex>,
+    state: &ViewportState,
+    context: &SketchContext<'_>,
+    now: f64,
+) {
+    let Some((faces, true)) = state.faces_blinking(now) else {
+        return;
+    };
+    let fill = tint(state.theme.refused);
+    for face in faces {
+        push_hovered_face(surfaces, fill, context, *face);
     }
 }
 

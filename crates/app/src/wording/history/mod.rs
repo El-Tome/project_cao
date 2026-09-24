@@ -2,27 +2,32 @@
 //! into.
 
 mod detail;
+mod sized;
 mod values;
 
 pub use detail::detail;
 
 use cao_part::history::{ExtrusionMode, Operation};
+use cao_part::{VariableChange, Variables};
 use cao_sketch::{Constraint, DimensionTarget, Element};
 
 use crate::lang::Catalogue;
-use crate::wording::{constraints, dimension, plane};
+use crate::wording::{constraints, dimension, formula, plane};
 
 /// The only place a history step is turned into a name.
 ///
-/// Short, because the history tree shows one per line.
-pub fn label(lang: &Catalogue, operation: &Operation) -> String {
+/// Short, because the history tree shows one per line. A size written from
+/// the variables is said as what it was written as, with the names the
+/// variables go by now.
+pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> String {
     match operation {
         // Named by what it laid first: a gesture's headline is the thing the
         // user meant to draw, and the rest is what that thing leans on.
         Operation::Gesture(done) => done
             .first()
-            .map(|first| label(lang, first))
+            .map(|first| label(lang, variables, first))
             .unwrap_or_default(),
+        Operation::Variable(change) => variable(lang, variables, change),
         Operation::CreateSketch { plane, .. } => lang.t_with(
             "history.sketch",
             &[("plane", &plane::label(lang, plane.kind()))],
@@ -66,16 +71,47 @@ pub fn label(lang: &Catalogue, operation: &Operation) -> String {
                 ExtrusionMode::Add => "history.revolution",
                 ExtrusionMode::Cut => "history.revolution_cut",
             },
-            &[("angle", &angle.to_string())],
+            &[(
+                "angle",
+                &formula::sized(lang, variables, angle, |turn| turn.to_string()),
+            )],
         ),
         Operation::Extrude { distance, mode, .. } => lang.t_with(
             match mode {
                 ExtrusionMode::Add => "history.extrusion",
                 ExtrusionMode::Cut => "history.extrusion_cut",
             },
-            &[("distance", &distance.to_string())],
+            &[(
+                "distance",
+                &formula::sized(lang, variables, distance, |travel| travel.to_string()),
+            )],
         ),
-        Operation::SetDimension { target, value, .. } => dimension::label(lang, target, *value),
+        Operation::SetDimension { target, value, .. } => dimension::label(
+            lang,
+            target,
+            &formula::sized(lang, variables, value, dimension::short),
+        ),
+    }
+}
+
+/// A change to the variables, named by the variable. An erased one keeps the
+/// name it last went by.
+fn variable(lang: &Catalogue, variables: &Variables, change: &VariableChange) -> String {
+    match change {
+        VariableChange::Added { name, .. } => {
+            lang.t_with("history.variable_added", &[("name", name)])
+        }
+        VariableChange::Edited { name, formula, .. } => lang.t_with(
+            "history.variable_edited",
+            &[("name", name), ("formula", &variables.written(formula))],
+        ),
+        VariableChange::Erased { variable } => lang.t_with(
+            "history.variable_erased",
+            &[(
+                "name",
+                variables.get(*variable).map_or("", |found| found.name()),
+            )],
+        ),
     }
 }
 

@@ -9,6 +9,8 @@ use cao_sketch::WorkPlane;
 use glam::DVec2;
 
 use super::*;
+use crate::formula::Formula;
+use crate::variables::VariableChange;
 
 fn create_sketch() -> Operation {
     Operation::CreateSketch {
@@ -21,7 +23,7 @@ fn extrude(sketch: usize) -> Operation {
     Operation::Extrude {
         sketch,
         areas: Vec::new(),
-        distance: 10.0,
+        distance: 10.0.into(),
         mode: ExtrusionMode::Add,
     }
 }
@@ -249,4 +251,77 @@ fn grouped(history: &History) -> Vec<Operation> {
     (0..history.steps().len())
         .flat_map(|step| history.operations_of(step))
         .collect()
+}
+
+fn a_variable(name: &str) -> Operation {
+    Operation::Variable(VariableChange::Added {
+        name: name.to_string(),
+        formula: Formula::Number(10.0),
+    })
+}
+
+#[test]
+fn a_variable_can_be_made_before_anything_is_drawn_and_belongs_to_no_step() {
+    let mut history = History::default();
+
+    history.push(a_variable("width"));
+
+    assert_eq!(history.operations().len(), 1);
+    assert!(history.steps().is_empty());
+    assert_eq!(history.variable_changes().len(), 1);
+}
+
+#[test]
+fn a_variable_change_is_undone_and_redone_like_any_other_step() {
+    let mut history = History::default();
+    history.push(create_sketch());
+    history.push(a_variable("width"));
+    history.push(segment_op(0));
+
+    history.undo();
+    history.undo();
+    assert!(history.variable_changes().is_empty());
+    history.redo();
+
+    assert_eq!(history.variable_changes().len(), 1);
+    assert_eq!(
+        history.steps()[0].operations(),
+        [1, 3],
+        "the sketch holds its own operations and nothing of the table",
+    );
+}
+
+#[test]
+fn a_variable_change_undone_is_dropped_with_the_branch_a_new_operation_leaves() {
+    let mut history = History::default();
+    history.push(a_variable("width"));
+    history.undo();
+
+    history.push(a_variable("height"));
+
+    assert_eq!(
+        history.variable_changes(),
+        vec![&VariableChange::Added {
+            name: "height".to_string(),
+            formula: Formula::Number(10.0),
+        }],
+    );
+    assert_eq!(history.index().variables, [2]);
+}
+
+#[test]
+fn a_design_holding_variables_put_back_together_is_the_one_taken_apart() {
+    let mut history = History::default();
+    history.push(a_variable("width"));
+    history.push(create_sketch());
+    history.push(segment_op(0));
+    history.push(a_variable("height"));
+    history.push(extrude(0));
+
+    let operations: Vec<Operation> = grouped(&history)
+        .into_iter()
+        .chain(history.table_operations())
+        .collect();
+
+    assert_eq!(History::restore(history.index(), operations), Some(history));
 }

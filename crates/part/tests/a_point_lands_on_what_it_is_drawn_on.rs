@@ -132,7 +132,7 @@ fn a_line_started_on_a_circle_keeps_its_end_on_the_rim() {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Diameter(CircleId(0)),
-        value: 16.0,
+        value: 16.0.into(),
         placement: None,
     });
 

@@ -16,6 +16,12 @@
 //! - the presenter takes no `egui::Ui` — no test:
 //!   `a_presenter_never_takes_the_interface` reads every `state.rs` under
 //!   `crates/app/src` and refuses the three markers
+//!
+//! Closes #175.
+//! - the dimensions a refused change would break blink for a few seconds —
+//!   `what_a_refused_change_would_break_blinks_for_a_few_seconds_then_stops`
+//! - and so does the matter a refusal names, when it names a step of matter —
+//!   `the_matter_a_refusal_names_blinks_the_same_way`
 
 use cao_part::{ExtrusionMode, PartDocument};
 use chrono::Utc;
@@ -63,4 +69,33 @@ fn otherwise_the_gesture_goes_to_the_tool_in_hand() {
 #[test]
 fn the_cube_is_asked_before_the_extrusion() {
     assert_eq!(asked(true, true), GestureGoesTo::TheCube);
+}
+
+#[test]
+fn what_a_refused_change_would_break_blinks_for_a_few_seconds_then_stops() {
+    let mut state = ViewportState::default();
+    let side = cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(1));
+
+    state.blink(vec![(0, side)], Vec::new(), 10.0);
+
+    assert_eq!(state.blinking_on(0, 10.1), Some((vec![side], true)));
+    assert_eq!(state.blinking_on(0, 10.3), Some((vec![side], false)));
+    assert_eq!(
+        state.blinking_on(1, 10.1),
+        None,
+        "only on the sketch it is on"
+    );
+    assert_eq!(state.blinking_on(0, 14.0), None, "and not for ever");
+    assert_eq!(state.faces_blinking(10.1), None, "no face was named");
+}
+
+#[test]
+fn the_matter_a_refusal_names_blinks_the_same_way() {
+    let mut state = ViewportState::default();
+
+    state.blink(Vec::new(), vec![4, 5], 10.0);
+
+    assert_eq!(state.faces_blinking(10.1), Some((&[4, 5][..], true)));
+    assert_eq!(state.faces_blinking(10.3), Some((&[4, 5][..], false)));
+    assert_eq!(state.faces_blinking(14.0), None, "and not for ever");
 }

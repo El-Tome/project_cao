@@ -275,13 +275,19 @@ impl Sketch {
             self.add_constraint(moved);
         }
         for value in values {
-            let Some((target, measured)) = still_measured(*value, cut, arc) else {
+            let Some((target, measured)) = still_measured(value, cut, arc) else {
                 continue;
             };
-            self.set_dimension(target, measured, value.driven);
-            if let Some(offset) = value.offset {
-                self.offset_dimension(target, offset);
-            }
+            // A diameter read again as the arc's radius is half the number it
+            // was, and the drawing cannot say what half of what it was written
+            // as would be: the number goes over, the writing does not.
+            let written = value.written.clone().filter(|_| measured == value.value);
+            let carried = Dimension {
+                value: measured,
+                written,
+                ..value.clone()
+            };
+            self.carry_dimension(target, &carried);
         }
     }
 }
@@ -332,7 +338,7 @@ pub(super) fn read_again(
 }
 
 /// The same, with what the value now reads.
-fn still_measured(value: Dimension, cut: CircleId, arc: ArcId) -> Option<(DimensionTarget, f64)> {
+fn still_measured(value: &Dimension, cut: CircleId, arc: ArcId) -> Option<(DimensionTarget, f64)> {
     let target = read_again(value.target, cut, arc)?;
     let measured = match value.target {
         DimensionTarget::Diameter(_) => value.value / 2.0,

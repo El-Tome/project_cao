@@ -53,7 +53,7 @@ fn drawn_then_edited() -> History {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(5.0, 5.0)),
-        distance: 2.0,
+        distance: 2.0.into(),
         mode: ExtrusionMode::Add,
     });
     history.push(Operation::CreateSketch {

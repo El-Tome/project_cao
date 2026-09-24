@@ -17,19 +17,26 @@ pub(crate) fn apply_dimension_value(
     let Some(typed) = editor.editing.as_ref().map(|editing| editing.input.clone()) else {
         return false;
     };
-    let Ok(value) = typed.trim().replace(',', ".").parse::<f64>() else {
-        editor.message = Some(lang.t("sketch.invalid_value"));
-        return false;
+    let (written, value) = match document.variables().size_of(&typed) {
+        Ok(read) => read,
+        Err(wrong) => {
+            editor.message = Some(crate::wording::formula::unusable(lang, &wrong));
+            return false;
+        }
     };
     if !target.takes(value) {
         editor.message = Some(lang.t("sketch.angle_would_lay_parallel"));
         return false;
     }
 
-    // The same value twice must not repeat an identical step in the history.
+    // The same value twice must not repeat an identical step in the history —
+    // though the same number written from a variable, or no longer from one,
+    // is a step: it changes what the value follows.
     if document.sketches()[index]
         .dimension_of(target)
-        .is_some_and(|dimension| (dimension.value - value).abs() < 1e-4)
+        .is_some_and(|dimension| {
+            (dimension.value - value).abs() < 1e-4 && dimension.written == written.note()
+        })
     {
         editor.message = None;
         return false;
@@ -38,7 +45,7 @@ pub(crate) fn apply_dimension_value(
     match document.apply(Operation::SetDimension {
         sketch: index,
         target,
-        value,
+        value: written,
         placement: None,
     }) {
         Some(Outcome::Dimension(DimensionOutcome::ScaleDefined {

@@ -84,6 +84,8 @@ added to an existing module.
 - [glossary.md](glossary.md) — the words, and what they mean here
 - [sketch.md](sketch.md) — drawing, dimensioning, and the rule of scale
 - [history.md](history.md) — operations, undo, the file format
+- [variables.md](variables.md) — the part's variables, and the formulas a size
+  is written from
 - [interface.md](interface.md) — the toolbar and the panels
 - [viewport.md](viewport.md) — the two modes of the canvas, the grid, the cube
 - [render.md](render.md) — the `cao_render` crate, wgpu pipelines, thick lines

@@ -1,4 +1,5 @@
-use cao_part::Operation;
+use cao_part::history::RepeatsAsked;
+use cao_part::{Formula, Operation};
 use cao_sketch::{
     ChosenAxis, Element, LockedInput, Repeats, Selection, Sketch, ToolState, axis_under,
 };
@@ -166,6 +167,12 @@ fn around(
         context.editor.message = Some(context.lang.t("sketch.pattern_needs_its_values"));
         return None;
     };
+    let live = &context.editor.live;
+    let degrees = as_typed(live.typed_as_written(0), degrees);
+    let Some(count) = count_as_typed(live.typed_as_written(1), count) else {
+        context.editor.message = Some(crate::wording::formula::not_a_count(context.lang));
+        return None;
+    };
     Some(Operation::CircularPattern {
         sketch: index,
         elements,
@@ -195,6 +202,16 @@ fn in_rows(
         context.editor.message = Some(context.lang.t("sketch.pattern_needs_its_steps"));
         return None;
     };
+    let run = |run: Repeats, ranks: [usize; 2]| {
+        Some(RepeatsAsked {
+            step: as_typed(live.typed_as_written(ranks[0]), run.step),
+            count: count_as_typed(live.typed_as_written(ranks[1]), run.count)?,
+        })
+    };
+    let (Some(along), Some(across)) = (run(along, [0, 1]), run(across, [2, 3])) else {
+        context.editor.message = Some(crate::wording::formula::not_a_count(context.lang));
+        return None;
+    };
     Some(Operation::RectangularPattern {
         sketch: index,
         elements,
@@ -202,6 +219,26 @@ fn in_rows(
         along,
         across,
     })
+}
+
+/// A value a pattern was given, as it was typed.
+fn as_typed(typed: Option<(Formula, f64)>, number: f64) -> Formula {
+    match typed {
+        Some((written, _)) if written.as_number().is_none() => written,
+        _ => Formula::Number(number),
+    }
+}
+
+/// A count as it was typed — nothing when a formula typed for it comes to
+/// anything but a whole number. A plain number is rounded to one, as it always
+/// was.
+fn count_as_typed(typed: Option<(Formula, f64)>, count: usize) -> Option<Formula> {
+    match typed {
+        Some((written, value)) if written.as_number().is_none() => {
+            ((value - value.round()).abs() < 1e-6).then_some(written)
+        }
+        _ => Some(Formula::Number(count as f64)),
+    }
 }
 
 /// The two steps and the two counts a rectangular pattern was given, once all

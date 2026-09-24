@@ -121,7 +121,7 @@ fn a_division_says_what_the_traits_it_cut_took_with_them() {
     operations.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(ACROSS),
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
     let mut state = replay(&operations);

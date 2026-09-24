@@ -101,7 +101,7 @@ fn chamfered(mode: Chamfer) -> PartState {
     state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode,
+        mode: mode.into(),
     });
     state
 }
@@ -219,7 +219,7 @@ fn a_fillet_writes_the_radius_that_was_typed() {
     state.apply(&Operation::Fillet {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        radius: 3.0,
+        radius: 3.0.into(),
     });
 
     let sketch = &state.sketches[0];
@@ -361,14 +361,14 @@ fn a_length_a_side_carried_survives_the_cut_that_shortened_it() {
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(EAST),
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(3.0),
+        mode: Chamfer::Equal(3.0).into(),
     });
 
     let carried = state.sketches[0]
@@ -398,14 +398,14 @@ fn an_angle_the_corner_carried_survives_the_cut_that_took_the_corner() {
             second: NORTH,
         }
         .normalised(),
-        value: 90.0,
+        value: 90.0.into(),
         placement: None,
     });
 
     state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(3.0),
+        mode: Chamfer::Equal(3.0).into(),
     });
 
     let turned = angles(&state);
@@ -441,7 +441,7 @@ fn a_compacted_chamfer_measures_the_same_part_as_the_one_it_came_from() {
     history.push(Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(3.0),
+        mode: Chamfer::Equal(3.0).into(),
     });
     let live = PartState::rebuild(&history);
 
@@ -479,7 +479,7 @@ fn a_compacted_chamfer_still_holds_the_distances_that_were_typed() {
     history.push(Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(3.0),
+        mode: Chamfer::Equal(3.0).into(),
     });
 
     let compacted = PartState::rebuild(&cao_part::compact(&history));
@@ -542,7 +542,7 @@ fn every_corner_of_a_plate_is_rounded_by_the_one_gesture() {
     state.apply(&Operation::Fillet {
         sketch: 0,
         corners: the_four_corners(),
-        radius: 3.0,
+        radius: 3.0.into(),
     });
 
     assert_eq!(
@@ -562,7 +562,7 @@ fn the_whole_gesture_is_taken_back_by_one_undo() {
     history.push(Operation::Fillet {
         sketch: 0,
         corners: the_four_corners(),
-        radius: 3.0,
+        radius: 3.0.into(),
     });
     assert_eq!(
         PartState::rebuild(&history).sketches[0].live_arcs().count(),
@@ -610,7 +610,7 @@ fn a_corner_too_tight_is_refused_and_the_others_are_rounded_anyway() {
     let said = state.apply(&Operation::Fillet {
         sketch: 0,
         corners: (1..=3).map(|rank| Corner::At(PointId(rank))).collect(),
-        radius: 3.0,
+        radius: 3.0.into(),
     });
 
     assert_eq!(
@@ -641,10 +641,11 @@ fn two_corners_sharing_a_trait_are_both_cut_by_the_one_gesture() {
             Corner::Between(SegmentId(1), SegmentId(0)),
             Corner::Between(SegmentId(1), SegmentId(2)),
         ],
-        mode: Chamfer::Sided {
+        mode: (Chamfer::Sided {
             first: 2.0,
             second: 6.0,
-        },
+        })
+        .into(),
     });
 
     assert_eq!(

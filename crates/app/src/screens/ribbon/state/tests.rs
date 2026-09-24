@@ -57,7 +57,7 @@ fn an_extrusion_is_applied_only_once_it_holds_every_value_it_needs() {
 
     assert_eq!(
         is_enabled(Command::ExtrusionApply, &part, &editor, &ready),
-        ready.is_ready(),
+        ready.is_ready(part.variables()),
     );
 }
 

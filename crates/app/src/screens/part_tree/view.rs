@@ -34,10 +34,18 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
 
     egui::ScrollArea::vertical().show(ui, |ui| {
         ui.label(lang.t("part_tree.variables"));
-        ui.horizontal(|ui| {
-            ui.add_space(18.0);
-            ui.weak(lang.t("part_tree.no_variables"));
-        });
+        if tree.variables.is_empty() {
+            ui.horizontal(|ui| {
+                ui.add_space(18.0);
+                ui.weak(lang.t("part_tree.no_variables"));
+            });
+        }
+        for variable in &tree.variables {
+            ui.horizontal(|ui| {
+                ui.add_space(18.0);
+                ui.label(variable);
+            });
+        }
         ui.add_space(8.0);
 
         if !tree.bodies.is_empty() {

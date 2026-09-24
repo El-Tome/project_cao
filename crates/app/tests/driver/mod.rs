@@ -24,6 +24,12 @@ pub const A_POINT_BELOW_AND_RIGHT: (f32, f32) = (1000.0, 620.0);
 pub type App = Harness<'static, CaoApp>;
 
 pub fn open(test: &str) -> App {
+    open_on(test, SCREEN)
+}
+
+/// The same on a screen of another size — wide enough, say, for the whole
+/// ribbon of the sketch to fit, patterns included.
+pub fn open_on(test: &str, (width, height): (f32, f32)) -> App {
     let root = std::env::temp_dir().join("cao-driver").join(test);
     let _ = std::fs::remove_dir_all(&root);
     std::fs::create_dir_all(root.join("documents")).expect("a place to keep the parts");
@@ -34,7 +40,11 @@ pub fn open(test: &str) -> App {
     };
 
     let mut app = Harness::builder()
-        .with_size(egui::vec2(SCREEN.0, SCREEN.1))
+        .with_size(egui::vec2(width, height))
+        // What a refusal names blinks for three seconds, asking for frame
+        // after frame all along; kittest's four steps of a quarter second
+        // would take that for a screen that never settles.
+        .with_max_steps(16)
         .build_eframe(move |cc| {
             assert!(
                 cc.wgpu_render_state.is_none(),
@@ -137,6 +147,92 @@ pub fn start_an_ellipse(app: &mut App) {
 }
 
 pub fn fields_at_the_cursor(app: &App) -> usize {
-    app.get_all_by_role(egui::accesskit::Role::TextInput)
+    app.query_all_by_role(egui::accesskit::Role::TextInput)
         .count()
+}
+
+/// The button of that name, for a word a heading or a label carries too — the
+/// ribbon's `Variables` beside the panel it opens.
+pub fn click_the_button(app: &mut App, label: &str) {
+    app.query_all_by_label(label)
+        .find(|node| node.accesskit_node().role() == egui::accesskit::Role::Button)
+        .unwrap_or_else(|| panic!("a button named {label}"))
+        .click();
+    app.run();
+}
+
+/// Types into the field waiting for this, the way a click then the keyboard
+/// would.
+pub fn type_into(app: &mut App, waiting_for: &str, text: &str) {
+    app.get_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|node| node.accesskit_node().placeholder() == Some(waiting_for))
+        .unwrap_or_else(|| panic!("a field waiting for {waiting_for}"))
+        .focus();
+    app.run();
+    app.event(egui::Event::Text(text.to_owned()));
+    app.run();
+}
+
+/// What every field on screen holds, in the order they are drawn.
+pub fn fields(app: &App) -> Vec<String> {
+    app.query_all_by_role(egui::accesskit::Role::TextInput)
+        .filter_map(|node| node.accesskit_node().value())
+        .collect()
+}
+
+/// A key pressed and its character typed, the way a keyboard sends both.
+pub fn key(app: &mut App, key: egui::Key, text: &str) {
+    app.key_press(key);
+    app.event(egui::Event::Text(text.to_owned()));
+    app.run();
+    app.run();
+}
+
+/// Starts a line with one click, the cursor then left further along.
+pub fn start_a_line(app: &mut App) {
+    click(app, "Ligne (L)");
+    click_at(app, A_POINT_ABOVE_THE_ORIGIN);
+    app.hover_at(egui::pos2(900.0, 500.0));
+    app.run();
+    app.run();
+}
+
+/// Types over whatever the field waiting for this holds, the way selecting
+/// all of it first would.
+pub fn type_over(app: &mut App, holding: &str, text: &str) {
+    app.get_all_by_role(egui::accesskit::Role::TextInput)
+        .find(|node| node.accesskit_node().value().as_deref() == Some(holding))
+        .unwrap_or_else(|| panic!("a field holding {holding}"))
+        .focus();
+    app.run();
+    app.event(egui::Event::Key {
+        key: egui::Key::A,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::COMMAND,
+    });
+    app.event(egui::Event::Text(text.to_owned()));
+    app.run();
+}
+
+/// A key pressed with the command key held, the way a shortcut is.
+pub fn press_with_command(app: &mut App, key: egui::Key) {
+    app.event(egui::Event::Key {
+        key,
+        physical_key: None,
+        pressed: true,
+        repeat: false,
+        modifiers: egui::Modifiers::COMMAND,
+    });
+    app.run();
+    app.run();
+}
+
+/// Whether a line of text on screen says this — a message, a heading — which
+/// the tree carries as the value of a label rather than as its name.
+pub fn says(app: &App, text: &str) -> bool {
+    app.query_all_by_role(egui::accesskit::Role::Label)
+        .filter_map(|node| node.accesskit_node().value())
+        .any(|said| said.contains(text))
 }

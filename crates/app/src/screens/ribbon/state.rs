@@ -21,6 +21,9 @@ pub struct Ribbon {
     /// for.
     pub part_tree_open: bool,
     pub history_open: bool,
+    /// The panel the variables are edited in, beside the history, waiting to
+    /// be asked for like it.
+    pub variables_open: bool,
     /// Whether the history panel is asking to confirm a compaction. Held here
     /// rather than only in the panel's own frame, so the warning survives to
     /// the next one instead of closing the moment the mouse moves.
@@ -33,6 +36,7 @@ impl Ribbon {
             tab: 0,
             part_tree_open: true,
             history_open: false,
+            variables_open: false,
             history_compact_confirm: false,
         }
     }
@@ -185,7 +189,7 @@ pub fn is_enabled(
         | Command::RuleConcentric => drawing,
         Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
         Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
-        Command::ExtrusionApply => extrusion.is_ready(),
+        Command::ExtrusionApply => extrusion.is_ready(document.variables()),
         Command::ExtrusionCancel => extrusion.is_active(),
         _ => true,
     }

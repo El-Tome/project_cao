@@ -3,14 +3,14 @@
 
 use cao_part::{Operation, PointRef};
 use cao_sketch::{
-    EllipseDraft, EllipseId, EllipseMode, LockedInput, ToolState, ellipse_aimed,
+    DimensionTarget, EllipseDraft, EllipseId, EllipseMode, LockedInput, ToolState, ellipse_aimed,
     ellipse_dimensions, ellipse_from, rise_of,
 };
 use glam::DVec2;
 
-use super::{annotation_position, lean_on_an_arm, point_ref_at};
+use super::super::values::lay_values;
+use super::{lean_on_an_arm, point_ref_at};
 use crate::screens::SketchContext;
-use crate::wording::outcome;
 
 /// One click of the ellipse tool: the centre, then the end of the first axis,
 /// then how far the second reaches — which draws the ellipse, its two axes,
@@ -30,16 +30,20 @@ pub(crate) fn draw_ellipse(
         // The fields that decided the first axis are cleared and handed to the
         // second: what was typed into them is carried here, or the ellipse
         // could never be dimensioned for it once drawn.
-        let first_typed = match places.len() {
-            1 => context.editor.live.locked(),
-            _ => first_typed,
+        let first_axis_done = places.len() == 1;
+        let first_typed = match first_axis_done {
+            true => context.editor.live.locked(),
+            false => first_typed,
         };
         places.push(cursor);
         context.editor.tool_state = ToolState::Ellipse {
             places,
             first_typed,
         };
-        context.editor.live.open();
+        match first_axis_done {
+            true => context.editor.live.open_for_the_next_stage(),
+            false => context.editor.live.open(),
+        }
         context.editor.message = Some(crate::wording::ellipse::asks_for(context.lang, mode));
         return false;
     }
@@ -179,18 +183,22 @@ fn dimension_the_ellipse(
         second_width,
         scale,
     );
-    for (target, value) in wanted {
-        let applied = context.document.apply(Operation::SetDimension {
-            sketch: index,
-            target,
-            value,
-            placement: annotation_position(context, index, target, pixel)
-                .map(|placement| placement.offset),
-        });
-        if let Some(message) = outcome::message(context.lang, applied) {
-            context.editor.message = Some(message);
-        }
-    }
+    let Some(oval) = context.document.sketches()[index]
+        .ellipses()
+        .get(ellipse.0)
+        .copied()
+    else {
+        return;
+    };
+    // The first axis was typed before the fields opened again for the second.
+    let first = context.editor.live.carried(0);
+    let second = context.editor.live.typed_as_written(0);
+    let typed = |target| match target {
+        DimensionTarget::Length(axis) if axis == oval.first => first.clone(),
+        DimensionTarget::Length(axis) if axis == oval.second => second.clone(),
+        _ => None,
+    };
+    lay_values(context, index, wanted, typed, pixel);
 }
 
 #[cfg(test)]

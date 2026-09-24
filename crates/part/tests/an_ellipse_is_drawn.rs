@@ -87,7 +87,7 @@ fn compacting_keeps_the_ellipse_what_holds_it_and_what_measures_it() {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(first),
-        value: 80.0,
+        value: 80.0.into(),
         placement: None,
     });
     let on_the_curve = document.sketches()[0].ellipse_draft(EllipseId(0)).at(0.9);

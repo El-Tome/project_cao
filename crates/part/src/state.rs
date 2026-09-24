@@ -1,13 +1,17 @@
 use std::collections::{BTreeMap, BTreeSet};
+use std::ops::Range;
 
 use cao_sketch::{Sketch, Support};
 use cao_solid::Mesh;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::broken::Broken;
 use crate::descent::Descent;
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
+use crate::replay::Replay;
+use crate::variables::Variables;
 
 /// The geometry of a part at a given point in its history.
 ///
@@ -36,22 +40,44 @@ pub struct PartState {
     /// can disagree with it.
     #[serde(skip)]
     pub(crate) descent: BTreeMap<usize, Descent>,
+    /// The part's variables as the history in effect leaves them, and what
+    /// each comes to. Played before any step, so that every size written from
+    /// them reads the table as it stands now — which is what makes a size
+    /// follow its variable. Kept out of the cache for the reason `descent` is.
+    #[serde(skip)]
+    pub(crate) variables: Variables,
+    #[serde(skip)]
+    pub(crate) values: Vec<f64>,
+    /// The sizes the replay could not honour, and the number of the operation
+    /// being replayed, which is what names a step whose size does not hold.
+    #[serde(skip)]
+    pub(crate) broken: Vec<Broken>,
+    #[serde(skip)]
+    pub(crate) replaying: u32,
+    /// What the replay noted on the way: what a change to the variables is
+    /// held to, and the values it froze.
+    #[serde(skip)]
+    pub(crate) replay: Replay,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
     pub body: Mesh,
+    /// The numbers of the faces each step of matter made, in the order the
+    /// steps replay. Kept with the body it numbers, in the cache as well.
+    #[serde(default)]
+    pub(crate) made: Vec<Range<usize>>,
 }
 
 impl PartState {
-    pub fn rebuild(history: &History) -> Self {
-        let mut state = Self::default();
-        // Step by step, each step whole — not in the order things were typed.
-        // A corner of a sketch dragged long after an extrusion was raised from
-        // it is played with that sketch, so the extrusion is raised again.
-        for operation in history.replay_order() {
-            state.apply(operation);
+    /// Plays the table of variables out of the history, and works out what
+    /// each comes to.
+    pub(crate) fn read_variables(&mut self, history: &History) {
+        let mut variables = Variables::default();
+        for change in history.variable_changes() {
+            variables.change(change);
         }
-        state
+        self.values = variables.values();
+        self.variables = variables;
     }
 
     pub fn scale(&self) -> f64 {
@@ -73,6 +99,11 @@ impl PartState {
             // The last word wins: a gesture whose parts each have something to
             // say says the one the user acted on last.
             Operation::Gesture(done) => done.iter().filter_map(|one| self.apply(one)).last(),
+            Operation::Variable(change) => {
+                self.variables.change(change);
+                self.values = self.variables.values();
+                None
+            }
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);
                 self.sketches.push(Sketch::new(plane));
@@ -82,80 +113,25 @@ impl PartState {
                 sketch,
                 position,
                 on,
-            } => {
-                let drawing = self.sketches.get_mut(*sketch)?;
-                let point = drawing.add_point(*position);
-                hold(drawing, point, on);
-                None
-            }
+            } => self.add_point(*sketch, *position, on),
             Operation::AddSegment {
                 sketch,
                 start,
                 end,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let start = resolve(sketch, start);
-                let end = resolve(sketch, end);
-                if start != end {
-                    if *construction {
-                        sketch.add_construction_segment(start, end);
-                    } else {
-                        sketch.add_segment(start, end);
-                    }
-                }
-                None
-            }
+            } => self.add_segment(*sketch, start, end, *construction),
             Operation::AddSymmetricSegment {
                 sketch,
                 middle,
                 end,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                let middle = resolve(sketch, middle);
-                let end = resolve(sketch, end);
-                let mirrored = sketch.point(middle) * 2.0 - sketch.point(end);
-                if mirrored.distance(sketch.point(end)) > 1e-9 {
-                    let start = sketch.add_point(mirrored);
-                    let segment = if *construction {
-                        sketch.add_construction_segment(start, end)
-                    } else {
-                        sketch.add_segment(start, end)
-                    };
-                    sketch.add_constraint(cao_sketch::Constraint::Midpoint {
-                        point: middle,
-                        segment,
-                    });
-                }
-                None
-            }
+            } => self.add_symmetric_segment(*sketch, middle, end, *construction),
             Operation::AddRectangle {
                 sketch,
                 corner,
                 opposite,
                 construction,
-            } => {
-                let sketch = self.sketches.get_mut(*sketch)?;
-                // The two given corners may reuse points already drawn; the
-                // other two are always new.
-                let first = resolve(sketch, corner);
-                let third = resolve(sketch, opposite);
-                let (a, c) = (sketch.point(first), sketch.point(third));
-                let second = sketch.add_point(DVec2::new(c.x, a.y));
-                let fourth = sketch.add_point(DVec2::new(a.x, c.y));
-
-                let corners = [first, second, third, fourth];
-                for index in 0..4 {
-                    let (from, to) = (corners[index], corners[(index + 1) % 4]);
-                    if *construction {
-                        sketch.add_construction_segment(from, to);
-                    } else {
-                        sketch.add_segment(from, to);
-                    }
-                }
-                None
-            }
+            } => self.add_rectangle(*sketch, corner, opposite, *construction),
             Operation::MovePoint {
                 sketch,
                 point,
@@ -254,20 +230,14 @@ impl PartState {
                 target,
                 value,
                 placement,
-            } => {
-                let outcome = self.apply_dimension(*sketch, *target, *value);
-                if let (Some(offset), Some(drawing)) = (placement, self.sketches.get_mut(*sketch)) {
-                    drawing.offset_dimension(*target, *offset);
-                }
-                outcome.map(Outcome::Dimension)
-            }
+            } => self.apply_written_dimension(*sketch, *target, value, *placement),
             Operation::Extrude {
                 sketch,
                 areas,
                 distance,
                 mode,
             } => {
-                self.extrude(*sketch, areas, *distance, *mode);
+                self.raising(|state| state.extrude(*sketch, areas, distance, *mode));
                 None
             }
             Operation::MergePoints {
@@ -337,12 +307,12 @@ impl PartState {
                 sketch,
                 corners,
                 mode,
-            } => self.chamfer(*sketch, corners, *mode),
+            } => self.chamfer(*sketch, corners, mode),
             Operation::Fillet {
                 sketch,
                 corners,
                 radius,
-            } => self.fillet(*sketch, corners, *radius),
+            } => self.fillet(*sketch, corners, radius),
             Operation::Mirror {
                 sketch,
                 elements,
@@ -354,14 +324,14 @@ impl PartState {
                 centre,
                 degrees,
                 count,
-            } => self.pattern_around(*sketch, elements, *centre, *degrees, *count),
+            } => self.pattern_around(*sketch, elements, *centre, degrees, count),
             Operation::RectangularPattern {
                 sketch,
                 elements,
                 direction,
                 along,
                 across,
-            } => self.pattern_along(*sketch, elements, *direction, *along, *across),
+            } => self.pattern_along(*sketch, elements, *direction, along, across),
             Operation::Revolve {
                 sketch,
                 areas,
@@ -369,7 +339,7 @@ impl PartState {
                 angle,
                 mode,
             } => {
-                self.revolve(*sketch, areas, *axis, *angle, *mode);
+                self.raising(|state| state.revolve(*sketch, areas, *axis, angle, *mode));
                 None
             }
         }
@@ -390,7 +360,7 @@ pub(crate) fn resolve(sketch: &mut Sketch, point: &PointRef) -> cao_sketch::Poin
 
 /// Holds a point on everything it was laid on. The rules are already true
 /// where it stands, so nothing moves until the drawing is next settled.
-fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
+pub(crate) fn hold(sketch: &mut Sketch, point: cao_sketch::PointId, on: &[Support]) {
     for support in on {
         sketch.add_constraint(support.holding(point));
     }

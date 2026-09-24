@@ -7,7 +7,10 @@ use serde::{Deserialize, Serialize};
 
 mod operation;
 mod step;
-pub use operation::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
+mod table;
+pub use operation::{
+    ChamferAsked, ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked, RevolutionAxis,
+};
 pub use step::{Step, StepKind};
 
 /// Everything done to a part, in order, with a cursor separating what is
@@ -29,6 +32,10 @@ pub struct History {
     /// leaves a gap in the numbers, and the steps name operations by number.
     numbers: Vec<u32>,
     steps: Vec<Step>,
+    /// The numbers of the changes made to the part's variables, in the order
+    /// they were made. They are filed under no step: the variables are a
+    /// table of the whole part, and every step reads its sizes from it.
+    variables: Vec<u32>,
     applied: usize,
     last_operation_number: u32,
 }
@@ -42,6 +49,9 @@ pub struct History {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub(crate) struct Index {
     pub steps: Vec<Step>,
+    /// The numbers of the changes made to the variables.
+    #[serde(default)]
+    pub variables: Vec<u32>,
     pub applied: usize,
     pub last_operation_number: u32,
 }
@@ -92,14 +102,23 @@ impl History {
     /// That is what makes an extrusion rebuild when the sketch it stands on is
     /// edited long afterwards. Undo walks the other order, which is the one
     /// the list is kept in.
-    pub fn replay_order(&self) -> Vec<&Operation> {
+    ///
+    /// Each comes with its number, which is what names a step whose size does
+    /// not hold once the part is rebuilt.
+    pub fn replay_order(&self) -> Vec<(u32, &Operation)> {
         let in_effect: BTreeSet<u32> = self.numbers[..self.applied].iter().copied().collect();
         self.steps
             .iter()
             .flat_map(|step| step.operations())
             .filter(|number| in_effect.contains(number))
-            .filter_map(|number| self.at(*number))
+            .filter_map(|number| Some((*number, self.at(*number)?)))
             .collect()
+    }
+
+    /// Where the operation of that number stands in the list, which is the
+    /// place the history panel shows it at.
+    pub fn position_of(&self, number: u32) -> Option<usize> {
+        self.numbers.iter().position(|given| *given == number)
     }
 
     /// A history with nothing in it, going on handing out the numbers this
@@ -118,6 +137,7 @@ impl History {
     pub(crate) fn index(&self) -> Index {
         Index {
             steps: self.steps.clone(),
+            variables: self.variables.clone(),
             applied: self.applied,
             last_operation_number: self.last_operation_number,
         }
@@ -131,19 +151,24 @@ impl History {
     /// or a cursor past the end. The part then fails to open rather than
     /// opening on a design nobody can vouch for.
     pub(crate) fn restore(index: Index, operations: Vec<Operation>) -> Option<Self> {
-        let counted: usize = index.steps.iter().map(Step::len).sum();
+        let counted: usize =
+            index.steps.iter().map(Step::len).sum::<usize>() + index.variables.len();
         if counted != operations.len() || index.applied > operations.len() {
             return None;
         }
         // Each step's operations come back from its own folder, so what is
-        // handed over is grouped by step. The list itself is kept in the order
-        // things were done, which is what the numbers say and what undo walks.
+        // handed over is grouped by step, the table's changes last. The list
+        // itself is kept in the order things were done, which is what the
+        // numbers say and what undo walks.
         let mut taken = operations.into_iter();
         let mut numbered: Vec<(u32, Operation)> = Vec::with_capacity(counted);
-        for step in &index.steps {
-            for number in step.operations() {
-                numbered.push((*number, taken.next()?));
-            }
+        for number in index
+            .steps
+            .iter()
+            .flat_map(Step::operations)
+            .chain(&index.variables)
+        {
+            numbered.push((*number, taken.next()?));
         }
         numbered.sort_by_key(|(number, _)| *number);
         let (numbers, operations) = numbered.into_iter().unzip();
@@ -151,6 +176,7 @@ impl History {
             operations,
             numbers,
             steps: index.steps,
+            variables: Vec::new(),
             applied: index.applied,
             last_operation_number: index.last_operation_number,
         };
@@ -167,8 +193,13 @@ impl History {
     fn regroup(&mut self) {
         let kinds: Vec<StepKind> = self.steps.iter().map(Step::kind).collect();
         let mut steps: Vec<Step> = kinds.iter().map(|kind| Step::opened(*kind)).collect();
+        let mut variables = Vec::new();
         let mut opened = 0;
         for (number, operation) in self.numbers.iter().zip(&self.operations) {
+            if matches!(operation, Operation::Variable(_)) {
+                variables.push(*number);
+                continue;
+            }
             let owner = match StepKind::opened_by(operation) {
                 Some(_) => {
                     opened += 1;
@@ -190,6 +221,7 @@ impl History {
             }
         }
         self.steps = steps;
+        self.variables = variables;
     }
 
     /// How many operations are currently in effect.
@@ -218,6 +250,11 @@ impl History {
     /// a redo that no longer follows from what is on screen.
     pub fn push(&mut self, operation: Operation) {
         self.drop_what_was_undone();
+        if matches!(operation, Operation::Variable(_)) {
+            let number = self.number(operation);
+            self.variables.push(number);
+            return;
+        }
         let opens = StepKind::opened_by(&operation);
         // An operation that opens no step names the sketch it belongs to, and
         // that sketch is the step still open. With none open it names a sketch
@@ -240,12 +277,19 @@ impl History {
                 None => return,
             },
         };
+        let number = self.number(operation);
+        self.steps[owner].record(number);
+    }
+
+    /// Puts an operation at the end of the list under the next number, and
+    /// says which.
+    fn number(&mut self, operation: Operation) -> u32 {
         self.last_operation_number += 1;
         let number = self.last_operation_number;
-        self.steps[owner].record(number);
         self.operations.push(operation);
         self.numbers.push(number);
         self.applied = self.operations.len();
+        number
     }
 
     /// Where the list stands, to fold what comes next into one gesture.
@@ -273,6 +317,7 @@ impl History {
             step.keep_only(&left);
             !step.is_empty()
         });
+        self.variables.retain(|number| left.contains(number));
         self.applied = self.operations.len();
     }
 
@@ -295,6 +340,7 @@ impl History {
             step.keep_only(&left);
             !step.is_empty()
         });
+        self.variables.retain(|number| left.contains(number));
     }
 
     pub fn undo(&mut self) -> bool {

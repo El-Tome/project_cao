@@ -4,10 +4,11 @@
 
 use cao_sketch::{ChamferMode, ToolState};
 
-use crate::screens::sketch::{LiveField, LiveInput, Tool};
+use crate::screens::sketch::{LiveInput, Tool};
 use crate::ui::formula_field::formula_field;
 
 use super::super::input::rectangle_corner;
+use super::super::values::shape_scale;
 use super::{arc, circle, ellipse, symmetric_line};
 use crate::screens::SketchContext;
 
@@ -30,7 +31,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let raw_cursor = context.editor.cursor?;
     let aim = context.editor.aimed;
     let cursor = aim.map_or(raw_cursor, |aimed| aimed.position);
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
 
     // A line is a length and an angle, a rectangle its two sides, a circle its
     // diameter and nothing else — so its second field is left out.
@@ -84,6 +85,22 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     // a cursor no longer over the canvas — the shape stopped following it.
     let at = ui.ctx().pointer_latest_pos()?;
 
+    // What each length a shape is drawn to measures on screen, in the
+    // drawing's own units: on a part with no scale yet, the first one typed is
+    // worth what it was typed over. A pattern or a corner draws nothing to its
+    // values, so nothing it is typed says what a unit is worth.
+    let drawn_to = !context.document.has_scale()
+        && matches!(
+            context.editor.tool,
+            Tool::Line
+                | Tool::LineSymmetric
+                | Tool::Rectangle
+                | Tool::Circle
+                | Tool::Arc
+                | Tool::Ellipse
+        );
+    let over = |rank: usize| (drawn_to && labels[rank] == "mm").then(|| measured[rank] / scale);
+
     let variables = context.document.variables();
     let live = &mut context.editor.live;
     let mut validated = false;
@@ -106,6 +123,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
                             rank,
                             focus && first,
                             variables,
+                            over(rank),
                         );
                     }
                 });
@@ -171,6 +189,9 @@ pub(super) fn value_field(
 /// An untouched field stays empty and shows what the cursor is doing as a hint:
 /// keeping the readout in the field itself meant the first keystroke landed
 /// after it, and "40" typed over "0.000" read 0.00040.
+///
+/// `over` is what the shape measures along the field, in the drawing's own
+/// units, when a length typed there can say what a unit is worth.
 fn live_field(
     ui: &mut egui::Ui,
     (suffix, measured): (&str, f64),
@@ -178,16 +199,16 @@ fn live_field(
     rank: usize,
     focus: bool,
     variables: &cao_part::Variables,
+    over: Option<f64>,
 ) -> bool {
     let id = field_id(rank);
-    let field: &mut LiveField = live.field(rank);
     // The keyboard goes to the first field as soon as the fields appear: the
     // value is the next thing the user types, and Tab from the canvas walks
     // through the whole toolbar to get here.
     let response = value_field(
         ui,
         id,
-        &mut field.text,
+        &mut live.field(rank).text,
         &format!("{measured:.2}"),
         focus,
         variables,
@@ -198,7 +219,7 @@ fn live_field(
 
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.
     if response.changed() {
-        field.take(variables);
+        live.take(rank, variables, over);
         // The canvas this frame was already built from the value as it stood before this keystroke.
         ui.ctx().request_repaint();
     }

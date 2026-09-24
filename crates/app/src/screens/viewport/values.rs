@@ -9,6 +9,21 @@ use super::input::annotation_position;
 use crate::screens::SketchContext;
 use crate::wording::outcome;
 
+/// Millimetres a unit of the drawing is worth to the shape in hand, which is
+/// what every tool reads the lengths typed at the cursor with.
+///
+/// The part's own scale once it has one. Until then, the first length typed
+/// while the shape is drawn says it, being worth the length the shape had on
+/// screen when it was typed: the shape keeps its size, laying it gives the part
+/// that very scale, and nothing moves.
+pub(crate) fn shape_scale(context: &SketchContext<'_>) -> f64 {
+    let part = context
+        .document
+        .has_scale()
+        .then(|| context.document.scale());
+    context.editor.live.scale(part)
+}
+
 /// A value a shape earned, written as the formula typed for it when it comes
 /// to the same number.
 ///

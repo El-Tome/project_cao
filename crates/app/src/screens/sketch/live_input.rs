@@ -17,6 +17,10 @@ pub struct LiveField {
     pub written: Option<Formula>,
     /// Why what was typed cannot be used, while it cannot.
     pub wrong: Option<Unusable>,
+    /// Whether the shape is drawn to the length this field holds, as against
+    /// an angle, on a part with no scale yet: only such a length can say what
+    /// a unit is worth.
+    drawn_to: bool,
 }
 
 impl LiveField {
@@ -51,9 +55,82 @@ pub struct LiveInput {
     /// fields opened again for the next: an ellipse's first axis, an arc's
     /// first leg.
     carried: [Option<(Formula, f64)>; 2],
+    /// What the shape in hand says a unit of the drawing is worth, on a part
+    /// that has not been told yet.
+    unit: Unit,
+}
+
+/// What a unit of the drawing is worth, as the shape being drawn says it.
+#[derive(Clone, Copy, Default)]
+enum Unit {
+    /// Nothing typed says so.
+    #[default]
+    Unsaid,
+    /// The length typed into the field of that rank says so: it is worth the
+    /// `over` units the shape measured along it, on screen, when it was typed.
+    TypedOver { rank: usize, over: f64 },
+    /// An earlier stage of the same shape said so: an arc's first leg, an
+    /// ellipse's first axis.
+    Carried(f64),
 }
 
 impl LiveInput {
+    /// Takes in what the field of that rank holds now.
+    ///
+    /// `over` is how long the shape measures along that field, in the
+    /// drawing's own units, when the part has no scale yet and the shape is
+    /// drawn to what the field holds. The first length typed there is worth
+    /// what it was typed over: the shape keeps the size it has on screen, and
+    /// the part learns from it what a unit is worth once the shape is laid.
+    pub fn take(&mut self, rank: usize, variables: &Variables, over: Option<f64>) {
+        let before = self.said();
+        let field = self.field(rank);
+        field.take(variables);
+        field.drawn_to = over.is_some();
+        self.unit = match (self.unit, over, self.typed(rank)) {
+            (Unit::Unsaid, Some(over), Some(_)) if over > 1e-9 => Unit::TypedOver { rank, over },
+            (Unit::TypedOver { rank: saying, .. }, _, None) if saying == rank => {
+                self.handed_on(before)
+            }
+            (unit, _, _) => unit,
+        };
+    }
+
+    /// Who says what a unit is worth once the length that said it is taken
+    /// back: another length still typed, at the size it has on screen, so that
+    /// nothing moves — or nobody.
+    fn handed_on(&self, before: Option<f64>) -> Unit {
+        let Some(scale) = before else {
+            return Unit::Unsaid;
+        };
+        self.fields
+            .iter()
+            .enumerate()
+            .filter(|(_, field)| field.drawn_to)
+            .find_map(|(rank, field)| {
+                let over = field.locked? / scale;
+                Some(Unit::TypedOver { rank, over })
+            })
+            .unwrap_or_default()
+    }
+
+    /// Millimetres a unit of the drawing is worth to the shape in hand: what
+    /// the part says once it has a scale, and until then what the shape says.
+    pub fn scale(&self, part: Option<f64>) -> f64 {
+        part.or_else(|| self.said()).unwrap_or(1.0)
+    }
+
+    fn said(&self) -> Option<f64> {
+        match self.unit {
+            Unit::Unsaid => None,
+            Unit::TypedOver { rank, over } => self
+                .typed(rank)
+                .filter(|typed| *typed > 0.0)
+                .map(|typed| typed / over),
+            Unit::Carried(scale) => Some(scale),
+        }
+    }
+
     pub fn clear(&mut self) {
         *self = Self::default();
     }
@@ -66,11 +143,14 @@ impl LiveInput {
 
     /// Starts a fresh set of fields for the next stage of a shape, carrying
     /// what was typed into these as written, so that the dimension it leaves
-    /// once drawn keeps it.
+    /// once drawn keeps it — and what a unit was said to be worth, which holds
+    /// for the whole shape.
     pub fn open_for_the_next_stage(&mut self) {
         let carried = [self.typed_as_written(0), self.typed_as_written(1)];
+        let unit = self.said().map_or(Unit::Unsaid, Unit::Carried);
         self.open();
         self.carried = carried;
+        self.unit = unit;
     }
 
     /// What was typed at the stage before, in the field of that rank.
@@ -144,3 +224,6 @@ fn shown(value: f64) -> String {
         false => format!("{value:.2}"),
     }
 }
+
+#[cfg(test)]
+mod tests;

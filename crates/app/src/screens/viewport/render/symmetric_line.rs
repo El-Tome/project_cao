@@ -6,6 +6,7 @@ use glam::DVec2;
 
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
+use crate::screens::viewport::values::shape_scale;
 
 pub(crate) fn push_preview(
     out: &mut Vec<cao_render::Vertex>,
@@ -22,7 +23,7 @@ pub(crate) fn push_preview(
         return;
     };
     let locked = context.editor.live.locked();
-    let (start, end) = sketch.symmetric_ends(middle, cursor, locked, context.document.scale());
+    let (start, end) = sketch.symmetric_ends(middle, cursor, locked, shape_scale(context));
     super::preview::push_preview_line(
         out,
         sketch,
@@ -45,7 +46,7 @@ pub(crate) fn live_fields(
     };
     let middle = sketch.anchor_position(middle)?;
     let locked = context.editor.live.locked();
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let (_, end) = sketch.symmetric_ends(middle, raw_cursor, locked, scale);
     let span = end - middle;
     Some((

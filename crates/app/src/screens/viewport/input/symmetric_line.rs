@@ -6,6 +6,7 @@ use cao_part::history::{Operation, PointRef};
 use cao_sketch::{ChainAnchor, Constraint, SegmentId, SymmetricClick, ToolState, symmetric_click};
 use glam::DVec2;
 
+use super::super::values::{lay_values, shape_scale};
 use super::{born_at, lean_on_an_arm};
 use crate::screens::SketchContext;
 
@@ -22,7 +23,7 @@ pub(crate) fn draw_symmetric_line_point(
         _ => None,
     };
     let locked = context.editor.live.locked();
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
 
     match symmetric_click(sketch, middle, cursor, snap, locked, scale) {
         SymmetricClick::Started(middle) => {
@@ -74,7 +75,7 @@ fn dimension_the_symmetric_line(
     locked: cao_sketch::LockedInput,
     pixel: f64,
 ) {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = cao_sketch::symmetric_segment_dimensions(
         &context.document.sketches()[index],
         segment,
@@ -93,5 +94,5 @@ fn dimension_the_symmetric_line(
         cao_sketch::DimensionTarget::Length(drawn) if drawn == segment => half.clone(),
         _ => None,
     };
-    super::super::values::lay_values(context, index, wanted, typed, pixel);
+    lay_values(context, index, wanted, typed, pixel);
 }

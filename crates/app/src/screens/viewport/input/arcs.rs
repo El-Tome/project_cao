@@ -4,7 +4,7 @@ use cao_part::{Operation, PointRef};
 use cao_sketch::{ArcDraft, ArcId, ArcMode, DimensionTarget, ToolState, arc_aimed, arc_from};
 use glam::DVec2;
 
-use super::super::values::lay_values;
+use super::super::values::{lay_values, shape_scale};
 use super::point_ref_at;
 use crate::screens::SketchContext;
 
@@ -109,7 +109,7 @@ fn dimension_the_arc(
     second_typed: bool,
     pixel: f64,
 ) {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = cao_sketch::arc_dimensions(
         &context.document.sketches()[index],
         arc,
@@ -155,6 +155,6 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         places,
         cursor,
         context.editor.live.typed(0),
-        context.document.scale(),
+        shape_scale(context),
     )
 }

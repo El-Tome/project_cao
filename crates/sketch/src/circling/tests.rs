@@ -1,4 +1,9 @@
 //! What sketch · circling.rs is held to.
+//!
+//! Closes #423.
+//! - a diameter typed for a circle drawn from its centre holds it at that size
+//!   while it turns with the cursor, as a typed length does everywhere else —
+//!   `a_diameter_typed_for_a_circle_drawn_from_its_centre_holds_its_size`
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -130,5 +135,25 @@ fn a_diameter_too_small_to_reach_both_points_is_held_at_the_smallest_that_does()
         (roomy.radius - 100.0).abs() < 1e-9,
         "a size that does reach both points is taken as typed: got {}",
         roomy.radius,
+    );
+}
+
+#[test]
+fn a_diameter_typed_for_a_circle_drawn_from_its_centre_holds_its_size() {
+    let centre = DVec2::new(10.0, 10.0);
+    let cursor = DVec2::new(40.0, 10.0);
+
+    let held = circle_from(CircleMode::Center, &[centre], &[], cursor, Some(40.0), 2.0)
+        .expect("a centre and a cursor make a circle");
+
+    assert!(
+        (held.radius - 10.0).abs() < 1e-9,
+        "40 mm across at 2 mm a unit is 10 units from the centre, and the circle reaches {}",
+        held.radius,
+    );
+    let rim = rim_of(CircleMode::Center, &[centre], cursor, held);
+    assert!(
+        rim.len() == 1 && rim[0].distance(DVec2::new(20.0, 10.0)) < 1e-9,
+        "the place kept on the rim is on the circle, towards the cursor: {rim:?}",
     );
 }

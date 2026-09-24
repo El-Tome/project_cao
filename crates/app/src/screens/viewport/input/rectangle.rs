@@ -6,7 +6,7 @@ use cao_part::Operation;
 use cao_sketch::{DimensionTarget, SegmentId, ToolState};
 use glam::DVec2;
 
-use super::super::values::lay_values;
+use super::super::values::{lay_values, shape_scale};
 use super::point_ref_at;
 use crate::screens::SketchContext;
 
@@ -54,7 +54,7 @@ pub(crate) fn rectangle_corner(context: &SketchContext<'_>, cursor: DVec2) -> DV
         start,
         cursor,
         context.editor.live.locked(),
-        context.document.scale(),
+        shape_scale(context),
     )
 }
 
@@ -74,7 +74,7 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
     };
     let sides: [SegmentId; 4] = std::array::from_fn(|offset| SegmentId(first + offset));
 
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let locked = context.editor.live.locked();
     let (corners, wanted) =
         cao_sketch::rectangle_dimensions(&context.document.sketches()[index], sides, locked, scale);

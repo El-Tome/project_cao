@@ -5,7 +5,7 @@ mod live_input;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
-pub use live_input::{LiveField, LiveInput};
+pub use live_input::LiveInput;
 pub(crate) use typed_dimension::apply_dimension_value;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse

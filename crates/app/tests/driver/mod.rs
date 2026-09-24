@@ -257,3 +257,19 @@ pub fn drag_and_drop(app: &mut App, from: egui::Pos2, to: egui::Pos2) {
     });
     app.run();
 }
+
+/// What every field on screen shows while nothing is typed in it — the
+/// readout of what the cursor is doing — in the order they are drawn.
+pub fn hints(app: &App) -> Vec<String> {
+    app.query_all_by_role(egui::accesskit::Role::TextInput)
+        .filter_map(|node| node.accesskit_node().placeholder().map(str::to_owned))
+        .collect()
+}
+
+/// Every line of text on screen that says something — a message, a heading —
+/// which the tree carries as the value of a label.
+pub fn said(app: &App) -> Vec<String> {
+    app.query_all_by_role(egui::accesskit::Role::Label)
+        .filter_map(|node| node.accesskit_node().value())
+        .collect()
+}

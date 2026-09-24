@@ -11,6 +11,7 @@ use super::preview::push_preview_line;
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
 use crate::screens::viewport::input::{arc_aimed, arc_preview};
+use crate::screens::viewport::values::shape_scale;
 
 pub(crate) fn live_fields(
     context: &SketchContext<'_>,
@@ -20,7 +21,7 @@ pub(crate) fn live_fields(
     match (context.editor.arc_mode, places.len()) {
         (ArcMode::ByCenter, 1) | (ArcMode::ByEnds, 1) => {
             let aimed = arc_aimed(context, places, cursor);
-            let distance = places[0].distance(aimed) * context.document.scale();
+            let distance = places[0].distance(aimed) * shape_scale(context);
             Some((["mm", ""], [distance, 0.0]))
         }
         (ArcMode::ByCenter, 2) => {
@@ -29,7 +30,7 @@ pub(crate) fn live_fields(
         }
         (ArcMode::ByEnds, 2) => {
             let drawn = arc_preview(context, cursor)?;
-            let radius = drawn.centre.distance(drawn.start) * context.document.scale();
+            let radius = drawn.centre.distance(drawn.start) * shape_scale(context);
             Some((["mm", ""], [radius, 0.0]))
         }
         _ => None,

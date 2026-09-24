@@ -26,7 +26,7 @@ fn drawn_part() -> PartDocument {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
     document
@@ -297,7 +297,7 @@ fn every_major_step_of_a_design_is_written_in_a_folder_of_its_own() {
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: Vec::new(),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: crate::history::ExtrusionMode::Add,
     });
     document.set_picture(a_drawn_picture());

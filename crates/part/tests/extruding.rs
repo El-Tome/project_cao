@@ -49,7 +49,7 @@ fn an_extrusion_turns_an_area_into_matter() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(5.0, 10.0)),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -69,7 +69,7 @@ fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(45.0, 50.0)),
-        distance: 2.0,
+        distance: 2.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -101,7 +101,7 @@ fn two_circles_extrude_to_a_tube() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(8.0, 0.0)),
-        distance: 5.0,
+        distance: 5.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -122,7 +122,7 @@ fn a_cut_takes_matter_away() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(5.0, 5.0)),
-        distance: 10.0,
+        distance: 10.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -139,7 +139,7 @@ fn a_cut_takes_matter_away() {
     history.push(Operation::Extrude {
         sketch: 1,
         areas: clicked(&history, 1, DVec2::new(3.0, 3.0)),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Cut,
     });
 
@@ -158,7 +158,7 @@ fn a_shape_inside_another_is_already_hollow() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(1.0, 1.0)),
-        distance: 10.0,
+        distance: 10.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -175,7 +175,7 @@ fn a_revolution_sweeps_an_area_around_an_axis() {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(4.0, 1.0)),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -202,7 +202,7 @@ fn a_revolution_can_turn_around_a_drawn_line() {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(4.0, 1.0)),
         axis: cao_part::history::RevolutionAxis::Segment(cao_sketch::SegmentId(0)),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -224,7 +224,7 @@ fn a_revolution_across_its_axis_makes_nothing() {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(1.0, 1.0)),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -249,7 +249,7 @@ fn cutting_into_a_revolved_part_from_its_own_face() {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(-14.8, -26.5)),
         axis: cao_part::history::RevolutionAxis::Sketch(cao_sketch::SketchAxis::V),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -273,7 +273,7 @@ fn cutting_into_a_revolved_part_from_its_own_face() {
     history.push(Operation::Extrude {
         sketch: 1,
         areas: clicked(&history, 1, DVec2::new(-6.0, 12.0)),
-        distance: -10.0,
+        distance: (-10.0).into(),
         mode: ExtrusionMode::Cut,
     });
 
@@ -327,7 +327,7 @@ fn a_whole_selection_goes_in_one_step() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(cao_sketch::SegmentId(0)),
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
     let drawn = PartState::rebuild(&history).sketches[0]
@@ -366,7 +366,7 @@ fn a_deletion_replays_like_any_other_step() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(5.0, 5.0)),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
     let before = volume(&PartState::rebuild(&history).body);
@@ -402,7 +402,7 @@ fn an_extrusion_does_not_wait_for_a_settled_sketch() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(5.0, 5.0)),
-        distance: 1.0,
+        distance: 1.0.into(),
         mode: ExtrusionMode::Add,
     });
 
@@ -419,13 +419,13 @@ fn an_extrusion_is_given_in_millimetres() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: cao_sketch::DimensionTarget::Length(cao_sketch::SegmentId(0)),
-        value: 50.0,
+        value: 50.0.into(),
         placement: None,
     });
     history.push(Operation::Extrude {
         sketch: 0,
         areas: clicked(&history, 0, DVec2::new(0.5, 0.5)),
-        distance: 25.0,
+        distance: 25.0.into(),
         mode: ExtrusionMode::Add,
     });
 

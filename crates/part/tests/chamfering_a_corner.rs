@@ -59,7 +59,7 @@ fn a_chamfer_leaves_three_traits_where_a_corner_had_two() {
     let said = state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(3.0),
+        mode: Chamfer::Equal(3.0).into(),
     });
 
     assert_eq!(ends(&state).len(), 3);
@@ -80,10 +80,11 @@ fn a_chamfer_replayed_rebuilds_the_corner_it_cut() {
     operations.push(Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Sided {
+        mode: (Chamfer::Sided {
             first: 2.0,
             second: 6.0,
-        },
+        })
+        .into(),
     });
 
     assert_eq!(ends(&replay(&operations)), ends(&replay(&operations)));
@@ -98,7 +99,7 @@ fn a_chamfer_is_measured_in_millimetres_like_every_other_length() {
     state.apply(&Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        mode: Chamfer::Equal(6.0),
+        mode: Chamfer::Equal(6.0).into(),
     });
 
     let sketch = &state.sketches[0];

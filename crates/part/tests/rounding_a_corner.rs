@@ -48,7 +48,7 @@ fn a_fillet_leaves_a_curve_between_two_traits_where_a_corner_had_none() {
     let said = state.apply(&Operation::Fillet {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        radius: 3.0,
+        radius: 3.0.into(),
     });
 
     let sketch = &state.sketches[0];
@@ -78,7 +78,7 @@ fn a_fillet_replayed_rebuilds_the_curve_it_laid() {
     operations.push(Operation::Fillet {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        radius: 3.0,
+        radius: 3.0.into(),
     });
 
     let curve = |state: &PartState| {
@@ -104,7 +104,7 @@ fn a_fillet_radius_is_measured_in_millimetres_like_every_other_length() {
     state.apply(&Operation::Fillet {
         sketch: 0,
         corners: vec![Corner::Between(EAST, NORTH)],
-        radius: 6.0,
+        radius: 6.0.into(),
     });
 
     let sketch = &state.sketches[0];

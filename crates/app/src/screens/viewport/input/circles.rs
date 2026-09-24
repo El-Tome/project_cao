@@ -107,10 +107,11 @@ pub(crate) fn draw_circle(
                 let target = DimensionTarget::Diameter(drawn);
                 let scale = context.document.scale();
                 if !context.document.sketches()[index].would_be_redundant(target, scale) {
+                    let typed = context.editor.live.typed_as_written(0);
                     let applied = context.document.apply(Operation::SetDimension {
                         sketch: index,
                         target,
-                        value: diameter,
+                        value: super::super::values::as_typed(typed, diameter),
                         placement: annotation_position(context, index, target, pixel)
                             .map(|placement| placement.offset),
                     });

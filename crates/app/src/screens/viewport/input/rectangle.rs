@@ -3,12 +3,12 @@
 //! of its two sizes the user typed while dragging it.
 
 use cao_part::Operation;
-use cao_sketch::{SegmentId, ToolState};
+use cao_sketch::{DimensionTarget, SegmentId, ToolState};
 use glam::DVec2;
 
-use super::{annotation_position, point_ref_at};
+use super::super::values::lay_values;
+use super::point_ref_at;
 use crate::screens::SketchContext;
-use crate::wording::outcome;
 
 /// One click of the rectangle tool: the first remembers a corner, the second
 /// draws it opposite.
@@ -85,19 +85,13 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
             constraint,
         });
     }
-    for (target, value) in wanted {
-        // Pinned down where it is drawn, in sketch units: left to stand off by
-        // a distance in pixels, an annotation slides back over the drawing as
-        // soon as one zooms out.
-        let applied = context.document.apply(Operation::SetDimension {
-            sketch: index,
-            target,
-            value,
-            placement: annotation_position(context, index, target, pixel)
-                .map(|placement| placement.offset),
-        });
-        if let Some(message) = outcome::message(context.lang, applied) {
-            context.editor.message = Some(message);
-        }
-    }
+    let sizes = [0, 1].map(|rank| context.editor.live.typed_as_written(rank));
+    let typed = |target| {
+        sides[..2]
+            .iter()
+            .zip(&sizes)
+            .find(|(side, _)| DimensionTarget::Length(**side) == target)
+            .and_then(|(_, size)| size.clone())
+    };
+    lay_values(context, index, wanted, typed, pixel);
 }

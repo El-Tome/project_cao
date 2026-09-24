@@ -4,7 +4,7 @@
 
 use cao_sketch::{ChamferMode, ToolState};
 
-use crate::screens::sketch::{LiveField, Tool};
+use crate::screens::sketch::{LiveField, LiveInput, Tool, begins_a_value};
 
 use super::super::input::rectangle_corner;
 use super::{arc, circle, ellipse, symmetric_line};
@@ -83,9 +83,11 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     // a cursor no longer over the canvas — the shape stopped following it.
     let at = ui.ctx().pointer_latest_pos()?;
 
+    let variables = context.document.variables();
     let live = &mut context.editor.live;
     let mut validated = false;
     let focus = std::mem::take(&mut live.focus);
+    live.holds_keyboard = false;
     egui::Area::new(egui::Id::new("live_input"))
         .fixed_pos(at + egui::vec2(20.0, 20.0))
         .order(egui::Order::Foreground)
@@ -97,8 +99,14 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
                             continue;
                         }
                         let first = rank == 0;
-                        validated |=
-                            live_field(ui, label, measured[rank], live.field(rank), focus && first);
+                        validated |= live_field(
+                            ui,
+                            (label, measured[rank]),
+                            live,
+                            rank,
+                            focus && first,
+                            variables,
+                        );
                     }
                 });
             });
@@ -124,11 +132,13 @@ fn two((labels, measured): ([&'static str; 2], [f64; 2])) -> ([&'static str; 4],
 /// click keeps the place the click named.
 pub(super) fn value_field(
     ui: &mut egui::Ui,
+    id: egui::Id,
     text: &mut String,
     hint: &str,
     focus: bool,
 ) -> egui::Response {
     let output = egui::TextEdit::singleline(text)
+        .id(id)
         .desired_width(72.0)
         .hint_text(hint)
         .show(ui);
@@ -158,23 +168,39 @@ pub(super) fn value_field(
 /// after it, and "40" typed over "0.000" read 0.00040.
 fn live_field(
     ui: &mut egui::Ui,
-    suffix: &str,
-    measured: f64,
-    field: &mut LiveField,
+    (suffix, measured): (&str, f64),
+    live: &mut LiveInput,
+    rank: usize,
     focus: bool,
+    variables: &cao_part::Variables,
 ) -> bool {
+    let id = egui::Id::new(("live_field", rank));
+    // Until something is typed, a letter is a shortcut rather than the start
+    // of a formula: only what can begin a value reaches the field, and `=` is
+    // what opens a formula. Once started, the field keeps every key.
+    if !live.typing && ui.memory(|memory| memory.has_focus(id)) {
+        ui.input_mut(|input| {
+            input.events.retain(|event| match event {
+                egui::Event::Text(typed) => typed.chars().next().is_some_and(begins_a_value),
+                _ => true,
+            })
+        });
+    }
+    let field: &mut LiveField = live.field(rank);
     // The keyboard goes to the first field as soon as the fields appear: the
     // value is the next thing the user types, and Tab from the canvas walks
     // through the whole toolbar to get here.
-    let response = value_field(ui, &mut field.text, &format!("{measured:.2}"), focus);
+    let response = value_field(ui, id, &mut field.text, &format!("{measured:.2}"), focus);
     ui.label(suffix);
 
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.
     if response.changed() {
-        field.locked = crate::screens::sketch::LiveInput::read(&field.text);
+        field.take(variables);
+        live.typing = true;
         // The canvas this frame was already built from the value as it stood before this keystroke.
         ui.ctx().request_repaint();
     }
+    live.holds_keyboard |= response.has_focus();
     // Enter is consumed rather than merely read: the field has just given the
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()

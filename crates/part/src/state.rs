@@ -5,9 +5,11 @@ use cao_solid::Mesh;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::broken::Broken;
 use crate::descent::Descent;
 use crate::history::{History, Operation, PointRef};
 use crate::outcome::Outcome;
+use crate::variables::Variables;
 
 /// The geometry of a part at a given point in its history.
 ///
@@ -36,6 +38,20 @@ pub struct PartState {
     /// can disagree with it.
     #[serde(skip)]
     pub(crate) descent: BTreeMap<usize, Descent>,
+    /// The part's variables as the history in effect leaves them, and what
+    /// each comes to. Played before any step, so that every size written from
+    /// them reads the table as it stands now — which is what makes a size
+    /// follow its variable. Kept out of the cache for the reason `descent` is.
+    #[serde(skip)]
+    pub(crate) variables: Variables,
+    #[serde(skip)]
+    pub(crate) values: Vec<f64>,
+    /// The sizes the replay could not honour, and the number of the operation
+    /// being replayed, which is what names a step whose size does not hold.
+    #[serde(skip)]
+    pub(crate) broken: Vec<Broken>,
+    #[serde(skip)]
+    pub(crate) replaying: u32,
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
@@ -45,13 +61,27 @@ pub struct PartState {
 impl PartState {
     pub fn rebuild(history: &History) -> Self {
         let mut state = Self::default();
+        state.read_variables(history);
         // Step by step, each step whole — not in the order things were typed.
         // A corner of a sketch dragged long after an extrusion was raised from
         // it is played with that sketch, so the extrusion is raised again.
-        for operation in history.replay_order() {
+        for (number, operation) in history.replay_order() {
+            state.replaying = number;
             state.apply(operation);
         }
+        state.note_broken_variables();
         state
+    }
+
+    /// Plays the table of variables out of the history, and works out what
+    /// each comes to.
+    pub(crate) fn read_variables(&mut self, history: &History) {
+        let mut variables = Variables::default();
+        for change in history.variable_changes() {
+            variables.change(change);
+        }
+        self.values = variables.values();
+        self.variables = variables;
     }
 
     pub fn scale(&self) -> f64 {
@@ -73,6 +103,11 @@ impl PartState {
             // The last word wins: a gesture whose parts each have something to
             // say says the one the user acted on last.
             Operation::Gesture(done) => done.iter().filter_map(|one| self.apply(one)).last(),
+            Operation::Variable(change) => {
+                self.variables.change(change);
+                self.values = self.variables.values();
+                None
+            }
             Operation::CreateSketch { plane, on } => {
                 let plane = self.plane_for(*plane, on);
                 self.sketches.push(Sketch::new(plane));
@@ -199,20 +234,14 @@ impl PartState {
                 target,
                 value,
                 placement,
-            } => {
-                let outcome = self.apply_dimension(*sketch, *target, *value);
-                if let (Some(offset), Some(drawing)) = (placement, self.sketches.get_mut(*sketch)) {
-                    drawing.offset_dimension(*target, *offset);
-                }
-                outcome.map(Outcome::Dimension)
-            }
+            } => self.apply_written_dimension(*sketch, *target, value, *placement),
             Operation::Extrude {
                 sketch,
                 areas,
                 distance,
                 mode,
             } => {
-                self.extrude(*sketch, areas, *distance, *mode);
+                self.extrude(*sketch, areas, distance, *mode);
                 None
             }
             Operation::MergePoints {
@@ -282,12 +311,12 @@ impl PartState {
                 sketch,
                 corners,
                 mode,
-            } => self.chamfer(*sketch, corners, *mode),
+            } => self.chamfer(*sketch, corners, mode),
             Operation::Fillet {
                 sketch,
                 corners,
                 radius,
-            } => self.fillet(*sketch, corners, *radius),
+            } => self.fillet(*sketch, corners, radius),
             Operation::Mirror {
                 sketch,
                 elements,
@@ -299,14 +328,14 @@ impl PartState {
                 centre,
                 degrees,
                 count,
-            } => self.pattern_around(*sketch, elements, *centre, *degrees, *count),
+            } => self.pattern_around(*sketch, elements, *centre, degrees, count),
             Operation::RectangularPattern {
                 sketch,
                 elements,
                 direction,
                 along,
                 across,
-            } => self.pattern_along(*sketch, elements, *direction, *along, *across),
+            } => self.pattern_along(*sketch, elements, *direction, along, across),
             Operation::Revolve {
                 sketch,
                 areas,
@@ -314,7 +343,7 @@ impl PartState {
                 angle,
                 mode,
             } => {
-                self.revolve(*sketch, areas, *axis, *angle, *mode);
+                self.revolve(*sketch, areas, *axis, angle, *mode);
                 None
             }
         }

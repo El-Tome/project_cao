@@ -74,7 +74,7 @@ fn applying_live_matches_replaying() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
 
@@ -96,7 +96,7 @@ fn the_first_dimension_sets_the_scale_without_moving_anything() {
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
 
@@ -115,14 +115,14 @@ fn later_dimensions_move_the_geometry() {
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
 
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(1)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
 

@@ -33,7 +33,7 @@ fn extrude(sketch: usize) -> Operation {
     Operation::Extrude {
         sketch,
         areas: Vec::new(),
-        distance: 10.0,
+        distance: 10.0.into(),
         mode: crate::history::ExtrusionMode::Add,
     }
 }
@@ -91,7 +91,7 @@ fn an_edit_to_an_earlier_sketch_reads_where_it_was_typed() {
         Operation::Extrude {
             sketch: 0,
             areas: Vec::new(),
-            distance: 1.0,
+            distance: 1.0.into(),
             mode: crate::history::ExtrusionMode::Add,
         },
         sketch(),
@@ -107,5 +107,47 @@ fn an_edit_to_an_earlier_sketch_reads_where_it_was_typed() {
         (features[2].start, features[2].end),
         (3, 5),
         "the edit typed last reads under the feature that was open",
+    );
+}
+
+fn a_variable(name: &str) -> Operation {
+    Operation::Variable(crate::variables::VariableChange::Added {
+        name: name.to_string(),
+        formula: crate::formula::Formula::Number(1.0),
+    })
+}
+
+#[test]
+fn a_variable_made_before_anything_is_drawn_has_a_line_of_its_own() {
+    let history = drawn([a_variable("width"), a_variable("height"), sketch()]);
+
+    assert_eq!(
+        Feature::all(&history),
+        vec![
+            Feature {
+                start: 0,
+                end: 2,
+                sketch: None
+            },
+            Feature {
+                start: 2,
+                end: 3,
+                sketch: Some(0)
+            },
+        ],
+    );
+}
+
+#[test]
+fn a_variable_changed_while_drawing_shows_where_it_was_changed() {
+    let history = drawn([sketch(), segment(0), a_variable("width"), segment(0)]);
+
+    assert_eq!(
+        Feature::all(&history),
+        vec![Feature {
+            start: 0,
+            end: 4,
+            sketch: Some(0)
+        }],
     );
 }

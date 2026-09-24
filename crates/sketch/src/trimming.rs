@@ -232,10 +232,7 @@ impl Sketch {
                 let Some(target) = still_measured(value.target, cut, piece, place) else {
                     continue;
                 };
-                self.set_dimension(target, value.value, value.driven);
-                if let Some(offset) = value.offset {
-                    self.offset_dimension(target, offset);
-                }
+                self.carry_dimension(target, value);
             }
         }
     }

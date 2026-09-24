@@ -38,13 +38,13 @@ fn a_part() -> PartDocument {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
     document.apply(Operation::CreateSketch {

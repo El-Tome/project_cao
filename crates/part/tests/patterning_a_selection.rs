@@ -53,8 +53,8 @@ fn a_ring_of(count: usize) -> Operation {
         sketch: 0,
         elements: vec![Element::Segment(SegmentId(0))],
         centre: CENTRE,
-        degrees: 360.0 / count as f64,
-        count,
+        degrees: (360.0 / count as f64).into(),
+        count: (count as f64).into(),
     }
 }
 
@@ -98,8 +98,8 @@ fn a_centre_the_drawing_does_not_have_lays_nothing() {
         sketch: 0,
         elements: vec![Element::Segment(SegmentId(0))],
         centre: PointId(99),
-        degrees: 60.0,
-        count: 6,
+        degrees: 60.0.into(),
+        count: 6.0.into(),
     });
 
     assert_eq!(said, None);
@@ -139,8 +139,8 @@ fn an_arc_a_dragged_box_took_hold_of_stands_round_the_ring_as_an_arc() {
         sketch: 0,
         elements: held,
         centre: CENTRE,
-        degrees: 90.0,
-        count: 4,
+        degrees: 90.0.into(),
+        count: 4.0.into(),
     });
 
     let sketch = &state.sketches[0];
@@ -159,8 +159,8 @@ fn a_grid_of(along: Repeats, across: Repeats) -> Operation {
         sketch: 0,
         elements: vec![Element::Segment(SegmentId(0))],
         direction: ChosenAxis::Sketch(SketchAxis::U),
-        along,
-        across,
+        along: along.into(),
+        across: across.into(),
     }
 }
 

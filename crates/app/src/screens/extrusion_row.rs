@@ -74,11 +74,17 @@ pub(super) fn extrusion_row(
         }
         ui.checkbox(&mut extrusion.reversed, lang.t("extrusion.reversed"))
             .on_hover_text(lang.t("extrusion.reversed_hint"));
+        if let Some(wrong) = extrusion.wrong(document.variables()) {
+            ui.colored_label(
+                ui.visuals().error_fg_color,
+                crate::wording::formula::unusable(lang, &wrong),
+            );
+        }
 
         ui.separator();
         let count = extrusion.picks.len().to_string();
         ui.weak(lang.t_with("extrusion.areas_chosen", &[("count", &count)]));
-        ui.add_enabled_ui(extrusion.is_ready(), |ui| {
+        ui.add_enabled_ui(extrusion.is_ready(document.variables()), |ui| {
             if ui.button(lang.t("extrusion.apply")).clicked() {
                 asked.push(Command::ExtrusionApply);
             }

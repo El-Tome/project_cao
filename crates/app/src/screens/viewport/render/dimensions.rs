@@ -184,7 +184,13 @@ pub(crate) fn paint_dimension_field(
                         "mm".to_string()
                     };
                     let focus = std::mem::take(&mut editing.focus);
-                    let field = value_field(ui, &mut editing.input, &hint, focus);
+                    let field = value_field(
+                        ui,
+                        egui::Id::new("dimension_field"),
+                        &mut editing.input,
+                        &hint,
+                        focus,
+                    );
                     ui.weak(&hint); // the field opens pre-filled, so its own hint_text never draws
                     // Enter is eaten here: the field has just given the keyboard
                     // back, so the same press would otherwise also fire the

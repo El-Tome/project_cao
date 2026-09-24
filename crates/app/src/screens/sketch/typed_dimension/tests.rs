@@ -29,7 +29,7 @@ fn a_radius_a_fixed_chord_already_rules_out_warns_instead_of_bending_the_arc_sil
             from: Sketch::ORIGIN,
             to: PointId(2),
         },
-        value: 80.0,
+        value: 80.0.into(),
         placement: None,
     });
 
@@ -82,7 +82,7 @@ fn an_angle_between_two_traits_typed_at_a_half_turn_is_refused() {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target,
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
 

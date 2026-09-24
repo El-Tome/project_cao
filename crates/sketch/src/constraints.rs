@@ -340,7 +340,7 @@ impl Constraint {
 /// A *driving* dimension moves the geometry. A *driven* one only reports what
 /// the geometry already measures: it is what you get when the shape is already
 /// fully determined and a further constraint would be redundant.
-#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Dimension {
     pub target: DimensionTarget,
     /// Millimetres for a length or a radius, degrees for an angle.
@@ -355,6 +355,10 @@ pub struct Dimension {
     /// drawing as soon as one zooms out.
     #[serde(default)]
     pub offset: Option<DVec2>,
+    /// How the value was written when it was more than a number. The drawing
+    /// never reads it; it carries it wherever the value goes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub written: Option<String>,
 }
 
 impl Dimension {

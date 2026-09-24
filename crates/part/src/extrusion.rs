@@ -5,6 +5,7 @@ use cao_sketch::{Area, Region, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
 
+use crate::formula::Formula;
 use crate::history::{ExtrusionMode, RevolutionAxis};
 use crate::state::PartState;
 
@@ -16,9 +17,13 @@ impl PartState {
         index: usize,
         areas: &[Area],
         axis: RevolutionAxis,
-        degrees: f64,
+        degrees: &Formula,
         mode: ExtrusionMode,
     ) {
+        let Some(degrees) = self.size(degrees, |turn| turn.abs() > 1e-6 && turn.abs() <= 360.0)
+        else {
+            return;
+        };
         let Some(sketch) = self.sketches.get(index) else {
             return;
         };
@@ -74,16 +79,16 @@ impl PartState {
         &mut self,
         index: usize,
         areas: &[Area],
-        distance: f64,
+        distance: &Formula,
         mode: ExtrusionMode,
     ) {
+        let Some(distance) = self.size(distance, |travel| travel.abs() >= 1e-6) else {
+            return;
+        };
         let scale = self.scale();
         let Some(sketch) = self.sketches.get(index) else {
             return;
         };
-        if distance.abs() < 1e-6 {
-            return;
-        }
 
         let plane = sketch.plane;
         let travel = plane.normal() * (distance / scale);

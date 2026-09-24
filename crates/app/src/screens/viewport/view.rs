@@ -16,6 +16,7 @@ use super::render::{
     paint_measure, paint_rule_marks, paint_ruler, what_is_measured, what_would_go,
 };
 use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
+use super::values::refused_for_what_is_typed;
 
 /// Returns true when the part was modified and should be saved.
 pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> bool {
@@ -42,6 +43,12 @@ pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchCon
         GestureGoesTo::TheCube => false,
         GestureGoesTo::PickingAnArea => {
             pick_areas(state, &response, rect, scale, sketch);
+            false
+        }
+        // A click is refused while a field at the cursor holds what cannot be
+        // used, rather than laying the shape where the cursor is and dropping
+        // what was typed without a word.
+        GestureGoesTo::TheToolInHand if response.clicked() && refused_for_what_is_typed(sketch) => {
             false
         }
         GestureGoesTo::TheToolInHand => {

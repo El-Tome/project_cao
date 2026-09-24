@@ -2,17 +2,22 @@
 //! for. Replaying the list of them is what produces the geometry.
 
 use cao_sketch::{
-    ArcId, Area, Chamfer, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element,
-    EllipseId, PointId, Repeats, SegmentId, Support, WorkPlane,
+    ArcId, Area, ChosenAxis, CircleId, Constraint, Corner, DimensionTarget, Element, EllipseId,
+    PointId, SegmentId, Support, WorkPlane,
 };
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
+use crate::formula::Formula;
+use crate::variables::VariableChange;
+
 mod edits;
 mod point_ref;
 mod raising;
+mod sizes;
 pub use point_ref::PointRef;
 pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
+pub use sizes::{ChamferAsked, RepeatsAsked};
 
 /// One step of the part's history. Replaying the list from the start rebuilds
 /// the whole part, which is what makes rolling back to any point possible.
@@ -21,6 +26,9 @@ pub enum Operation {
     /// Several operations the user did as one gesture: they are replayed in
     /// order, and undo takes the whole of it back rather than a piece.
     Gesture(Vec<Operation>),
+    /// A change to the part's variables. It belongs to no step: the variables
+    /// are a table of the whole part, which every step reads its sizes from.
+    Variable(VariableChange),
     CreateSketch {
         /// Where the drawing was laid. On a face it is worked out again at
         /// every replay from `on`, and this is what is left to fall back on
@@ -182,8 +190,9 @@ pub enum Operation {
     SetDimension {
         sketch: usize,
         target: DimensionTarget,
-        /// Millimetres for a length or radius, degrees for an angle.
-        value: f64,
+        /// Millimetres for a length or radius, degrees for an angle, as
+        /// written: worked out against the variables at every replay.
+        value: Formula,
         /// Where the annotation goes, in sketch units. Carried by the same
         /// step rather than a `MoveDimension` of its own: a dimension put down
         /// somewhere is one action, and reading "Cote 60 mm" then "Cote
@@ -204,7 +213,7 @@ pub enum Operation {
         /// name, and read only to tell apart two areas the same curves bound.
         areas: Vec<Area>,
         /// Millimetres. Negative goes the other way along the plane.
-        distance: f64,
+        distance: Formula,
         mode: ExtrusionMode,
     },
     /// Makes two points one, once they have been laid on top of each other.
@@ -295,7 +304,7 @@ pub enum Operation {
     Chamfer {
         sketch: usize,
         corners: Vec<Corner>,
-        mode: Chamfer,
+        mode: ChamferAsked,
     },
     /// Lays a second copy of what was selected on the other side of an axis.
     ///
@@ -315,8 +324,8 @@ pub enum Operation {
         elements: Vec<Element>,
         centre: PointId,
         /// Degrees between one copy and the next.
-        degrees: f64,
-        count: usize,
+        degrees: Formula,
+        count: Formula,
     },
     /// Repeats what was selected in rows square to a direction of the drawing.
     /// Each count is how many stand there in the end along its own direction,
@@ -327,9 +336,9 @@ pub enum Operation {
         direction: ChosenAxis,
         /// Along the direction, its step in millimetres like every other
         /// length the user types.
-        along: Repeats,
+        along: RepeatsAsked,
         /// Square to it, the same.
-        across: Repeats,
+        across: RepeatsAsked,
     },
     /// Rounds every corner the one gesture named into a curve tangent to both
     /// its traits, for the reason `Chamfer` carries several.
@@ -337,7 +346,7 @@ pub enum Operation {
         sketch: usize,
         corners: Vec<Corner>,
         /// Millimetres, like every other length the user types.
-        radius: f64,
+        radius: Formula,
     },
     /// Sweeps closed areas of a sketch around an axis lying in its plane.
     Revolve {
@@ -345,7 +354,7 @@ pub enum Operation {
         areas: Vec<Area>,
         axis: RevolutionAxis,
         /// Degrees. Negative turns the other way.
-        angle: f64,
+        angle: Formula,
         mode: ExtrusionMode,
     },
 }

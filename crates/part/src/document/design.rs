@@ -27,11 +27,16 @@ use cao_sketch::{Area, WorkPlane};
 use serde::{Deserialize, Serialize};
 
 use crate::errors::PartFileError;
+use crate::formula::Formula;
 use crate::history::{
     ExtrusionMode, FaceAnchor, History, Index, Operation, RevolutionAxis, Step, StepKind,
 };
+use crate::variables::VariableChange;
 
 pub(super) const INDEX_ENTRY: &str = "design/history.json";
+/// The changes made to the part's variables. A table of the whole part rather
+/// than a step of it, so it has a file of its own rather than a folder.
+pub(super) const VARIABLES_ENTRY: &str = "design/variables.json";
 
 /// Where a step stands, and what it acts on.
 #[derive(Serialize, Deserialize)]
@@ -58,8 +63,14 @@ enum Stands {
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "opens", rename_all = "lowercase")]
 enum Opening {
-    Extrusion { distance: f64, mode: ExtrusionMode },
-    Revolution { angle: f64, mode: ExtrusionMode },
+    Extrusion {
+        distance: Formula,
+        mode: ExtrusionMode,
+    },
+    Revolution {
+        angle: Formula,
+        mode: ExtrusionMode,
+    },
 }
 
 /// One line of the index.
@@ -74,6 +85,10 @@ struct Listed {
 #[derive(Serialize, Deserialize)]
 struct Contents {
     steps: Vec<Listed>,
+    /// The numbers of the changes made to the variables, which are in their
+    /// own file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    variables: Vec<u32>,
     applied: usize,
     last_operation_number: u32,
 }
@@ -85,6 +100,13 @@ struct Folder {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     opening: Option<Opening>,
     operations: Vec<Operation>,
+}
+
+/// What the variables' file holds: every change made to the table, undone
+/// ones included, the way a step's folder holds its operations.
+#[derive(Serialize, Deserialize)]
+struct Table {
+    changes: Vec<VariableChange>,
 }
 
 /// One file of the design, and what goes in it.
@@ -100,7 +122,8 @@ impl Written {
 }
 
 /// The design, laid out as the files that carry it: the index first, then one
-/// per step in the order the index names them.
+/// per step in the order the index names them, then the variables when the
+/// part has any.
 pub(super) fn laid_out(history: &History) -> Result<Vec<Written>, PartFileError> {
     let mut listed = Vec::new();
     let mut folders = Vec::new();
@@ -127,11 +150,26 @@ pub(super) fn laid_out(history: &History) -> Result<Vec<Written>, PartFileError>
         path: INDEX_ENTRY.to_string(),
         text: serde_json::to_string_pretty(&Contents {
             steps: listed,
+            variables: index.variables,
             applied: index.applied,
             last_operation_number: index.last_operation_number,
         })?,
     }];
     files.append(&mut folders);
+    let changes: Vec<VariableChange> = history
+        .table_operations()
+        .into_iter()
+        .filter_map(|operation| match operation {
+            Operation::Variable(change) => Some(change),
+            _ => None,
+        })
+        .collect();
+    if !changes.is_empty() {
+        files.push(Written {
+            path: VARIABLES_ENTRY.to_string(),
+            text: serde_json::to_string_pretty(&Table { changes })?,
+        });
+    }
     Ok(files)
 }
 
@@ -175,8 +213,16 @@ pub(super) fn read<R: Read + Seek>(
         read.push(text);
     }
 
+    if !contents.variables.is_empty() {
+        let text = super::read_entry(archive, VARIABLES_ENTRY)?;
+        let table: Table = serde_json::from_str(&text)?;
+        operations.extend(table.changes.into_iter().map(Operation::Variable));
+        read.push(text);
+    }
+
     let index = Index {
         steps,
+        variables: contents.variables,
         applied: contents.applied,
         last_operation_number: contents.last_operation_number,
     };
@@ -236,7 +282,7 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
                 areas: areas.clone(),
             },
             Some(Opening::Extrusion {
-                distance: *distance,
+                distance: distance.clone(),
                 mode: *mode,
             }),
         ),
@@ -253,7 +299,7 @@ fn taken_apart(opening: &Operation) -> Result<(Stands, Option<Opening>), PartFil
                 axis: *axis,
             },
             Some(Opening::Revolution {
-                angle: *angle,
+                angle: angle.clone(),
                 mode: *mode,
             }),
         ),

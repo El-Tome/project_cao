@@ -17,7 +17,7 @@ fn along(axis: SketchAxis) -> DimensionTarget {
 }
 
 fn named(target: &DimensionTarget, value: f64) -> String {
-    label(&Catalogue::french(), target, value)
+    label(&Catalogue::french(), target, &short(value))
 }
 
 fn across(target: &DimensionTarget) -> String {

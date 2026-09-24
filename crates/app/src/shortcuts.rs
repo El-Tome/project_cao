@@ -3,9 +3,16 @@ use cao_prefs::Command;
 /// The commands whose shortcut was pressed this frame.
 ///
 /// Nothing is read while a text field has the keyboard: typing "50" into a
-/// dimension must not also fire whatever those keys are bound to.
-pub fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_prefs::Settings) -> Vec<Command> {
-    if ui.ctx().egui_wants_keyboard_input() {
+/// dimension must not also fire whatever those keys are bound to. The one
+/// exception is the fields at the cursor while nothing has been typed in them
+/// — `fields_wait` — where a letter is still a shortcut, and what can begin a
+/// value is left for the field.
+pub fn shortcuts_pressed(
+    ui: &egui::Ui,
+    settings: &cao_prefs::Settings,
+    fields_wait: bool,
+) -> Vec<Command> {
+    if ui.ctx().egui_wants_keyboard_input() && !fields_wait {
         return Vec::new();
     }
     ui.input_mut(|input| {
@@ -14,13 +21,23 @@ pub fn shortcuts_pressed(ui: &egui::Ui, settings: &cao_prefs::Settings) -> Vec<C
             .bindings
             .iter()
             .filter(|(_, chord)| {
-                to_egui_key(chord.key).is_some_and(|key| {
-                    input.consume_shortcut(&egui::KeyboardShortcut::new(modifiers(*chord), key))
-                })
+                to_egui_key(chord.key)
+                    .filter(|key| !fields_wait || is_a_letter(*key))
+                    .is_some_and(|key| {
+                        input.consume_shortcut(&egui::KeyboardShortcut::new(modifiers(*chord), key))
+                    })
             })
             .map(|(command, _)| *command)
             .collect()
     })
+}
+
+fn is_a_letter(key: egui::Key) -> bool {
+    let name = key.name();
+    name.len() == 1
+        && name
+            .chars()
+            .all(|character| character.is_ascii_alphabetic())
 }
 
 fn modifiers(chord: cao_prefs::Chord) -> egui::Modifiers {

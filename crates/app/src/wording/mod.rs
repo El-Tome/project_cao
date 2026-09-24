@@ -17,6 +17,7 @@ pub mod cube;
 pub mod dimension;
 pub mod ellipse;
 pub mod file;
+pub mod formula;
 pub mod history;
 pub mod measure;
 pub mod outcome;

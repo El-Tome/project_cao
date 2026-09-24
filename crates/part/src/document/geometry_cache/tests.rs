@@ -35,7 +35,7 @@ fn a_part_with_matter() -> PartDocument {
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
     document
@@ -227,7 +227,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(2)),
-        value: 50.0,
+        value: 50.0.into(),
         placement: Some(DVec2::new(20.0, -5.0)),
     });
     document.apply(Operation::Constrain {
@@ -240,7 +240,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     document.apply(Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
-        mode: Chamfer::Equal(2.0),
+        mode: Chamfer::Equal(2.0).into(),
     });
     document.apply(Operation::Mirror {
         sketch: 0,
@@ -251,8 +251,8 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
         sketch: 0,
         elements: vec![Element::Circle(cao_sketch::CircleId(0))],
         centre: PointId(0),
-        degrees: 45.0,
-        count: 3,
+        degrees: 45.0.into(),
+        count: 3.0.into(),
     });
     document.apply(Operation::EraseMany {
         sketch: 0,
@@ -263,7 +263,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::new(20.0, 5.0)]),
-        distance: 6.0,
+        distance: 6.0.into(),
         mode: ExtrusionMode::Add,
     });
     document.apply(Operation::CreateSketch {
@@ -279,7 +279,7 @@ fn a_part_of_every_kind_of_drawing() -> PartDocument {
     document.apply(Operation::Extrude {
         sketch: 1,
         areas: document.areas_at(1, &[DVec2::new(4.0, 4.0)]),
-        distance: 10.0,
+        distance: 10.0.into(),
         mode: ExtrusionMode::Cut,
     });
     document
@@ -388,5 +388,29 @@ fn a_part_put_away_carries_the_geometry_it_was_showing() {
     assert!(
         reopened.sketches().is_empty(),
         "the part opens on the geometry it was put away with",
+    );
+}
+
+#[test]
+fn a_part_opened_on_its_cached_geometry_still_knows_its_variables() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let mut document = a_part_with_matter();
+    document
+        .change_variable(crate::variables::VariableChange::Added {
+            name: "width".to_string(),
+            formula: crate::formula::Formula::Number(120.0),
+        })
+        .expect("a variable");
+    document
+        .put_away(&files, path, at("2026-01-02T10:00:00Z"))
+        .expect("the part is put away");
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert_eq!(
+        reopened.variables().named("width"),
+        Some(crate::variables::VariableId(0)),
+        "the cache holds none of the table, which comes back from the design",
     );
 }

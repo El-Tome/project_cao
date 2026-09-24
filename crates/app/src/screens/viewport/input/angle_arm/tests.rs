@@ -282,3 +282,41 @@ fn a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading() {
         read.value,
     );
 }
+
+fn an_angle_named_pente() -> (cao_part::Variables, Formula) {
+    let mut variables = cao_part::Variables::default();
+    variables.change(&cao_part::VariableChange::Added {
+        name: "pente".to_string(),
+        formula: Formula::Number(30.0),
+    });
+    let written = variables.read("pente").expect("it reads");
+    (variables, written)
+}
+
+#[test]
+fn a_typed_angle_the_drawing_opens_as_typed_keeps_its_formula() {
+    let (variables, pente) = an_angle_named_pente();
+
+    let laid = as_opened(Some((pente, 30.0)), 30.0);
+
+    assert_eq!(variables.written(&laid), "pente");
+}
+
+#[test]
+fn a_typed_angle_drawn_the_other_way_is_written_from_half_a_turn() {
+    let (variables, pente) = an_angle_named_pente();
+
+    let laid = as_opened(Some((pente.clone(), 30.0)), 150.0);
+    let below = as_opened(Some((pente, -30.0)), 30.0);
+
+    assert_eq!(variables.written(&laid), "180 - pente");
+    assert_eq!(variables.written(&below), "-pente");
+}
+
+#[test]
+fn a_plain_angle_typed_is_the_number_the_drawing_opens() {
+    assert_eq!(
+        as_opened(Some((Formula::Number(30.0), 30.0)), 150.0),
+        Formula::Number(150.0)
+    );
+}

@@ -5,6 +5,7 @@
 
 mod adapters;
 pub mod anchoring;
+mod broken;
 mod compaction;
 mod copying;
 mod curves;
@@ -18,6 +19,7 @@ mod errors;
 mod extrusion;
 pub mod feature;
 mod file_name;
+pub mod formula;
 pub mod history;
 pub mod library;
 mod outcome;
@@ -26,17 +28,21 @@ pub mod ports;
 mod resizing;
 mod state;
 mod straight;
+pub mod variables;
 
 #[cfg(any(test, feature = "test-support"))]
 pub use adapters::InMemoryFiles;
+pub use broken::Broken;
 pub use compaction::compact;
 pub use dimensioning::DimensionOutcome;
-pub use document::{PartDocument, PartMetadata, SCHEMA_VERSION};
+pub use document::{PartDocument, PartMetadata, Refused, SCHEMA_VERSION, Use};
 #[cfg(any(test, feature = "test-support"))]
 pub use drawn_to_order::Recipe;
 pub use errors::PartFileError;
+pub use formula::{Formula, Unreadable};
 pub use history::{ExtrusionMode, History, Operation, PointRef, RevolutionAxis};
 pub use outcome::Outcome;
 pub use picture::Picture;
 pub use ports::{Entry, FileError, Files, Folders};
 pub use state::PartState;
+pub use variables::{NameProblem, Unusable, Variable, VariableChange, VariableId, Variables};

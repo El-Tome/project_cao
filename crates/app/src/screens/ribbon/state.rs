@@ -185,7 +185,7 @@ pub fn is_enabled(
         | Command::RuleConcentric => drawing,
         Command::ExtrusionAdd | Command::ExtrusionCut => extrusion.sketch.is_some(),
         Command::ExtrusionStraight | Command::ExtrusionRevolution => extrusion.is_active(),
-        Command::ExtrusionApply => extrusion.is_ready(),
+        Command::ExtrusionApply => extrusion.is_ready(document.variables()),
         Command::ExtrusionCancel => extrusion.is_active(),
         _ => true,
     }

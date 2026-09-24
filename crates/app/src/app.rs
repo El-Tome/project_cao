@@ -199,7 +199,7 @@ impl CaoApp {
         };
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
-            shortcuts_pressed(ui, &settings)
+            shortcuts_pressed(ui, &settings, editor.live.waits_for_keys())
                 .into_iter()
                 .filter(|command| {
                     crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)

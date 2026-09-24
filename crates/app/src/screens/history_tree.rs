@@ -91,6 +91,7 @@ fn show(
         for feature in &features {
             let header = egui::CollapsingHeader::new(wording::history::label(
                 lang,
+                document.variables(),
                 &operations[feature.start],
             ))
             .id_salt(feature.start)
@@ -99,7 +100,7 @@ fn show(
                 // Only overwrite on an actual click: a later group with
                 // nothing clicked must not erase an earlier one.
                 if let Some(step) =
-                    clicked_step(ui, operations, feature.start, feature.end, applied, lang)
+                    clicked_step(ui, document, feature.start..feature.end, applied, lang)
                 {
                     rewind_to = Some(step);
                 }
@@ -171,16 +172,16 @@ fn compact_confirm(ui: &mut egui::Ui, lang: &Catalogue) -> Option<bool> {
 /// clicked.
 fn clicked_step(
     ui: &mut egui::Ui,
-    operations: &[Operation],
-    start: usize,
-    end: usize,
+    document: &PartDocument,
+    run: std::ops::Range<usize>,
     applied: usize,
     lang: &Catalogue,
 ) -> Option<usize> {
     let mut clicked = None;
-    for (offset, operation) in operations[start..end].iter().enumerate() {
+    let start = run.start;
+    for (offset, operation) in document.history.operations()[run].iter().enumerate() {
         let step = start + offset;
-        if entry(ui, operation, step, applied, lang) {
+        if entry(ui, document.variables(), operation, step, applied, lang) {
             clicked = Some(step + 1);
         }
     }
@@ -190,6 +191,7 @@ fn clicked_step(
 /// One line of the history. Returns true when it was clicked.
 fn entry(
     ui: &mut egui::Ui,
+    variables: &cao_part::Variables,
     operation: &Operation,
     step: usize,
     applied: usize,
@@ -201,7 +203,7 @@ fn entry(
     let mut text = egui::RichText::new(format!(
         "{}. {}",
         step + 1,
-        wording::history::label(lang, operation)
+        wording::history::label(lang, variables, operation)
     ));
     if undone {
         text = text.weak().italics();
@@ -209,6 +211,6 @@ fn entry(
 
     let response = ui
         .selectable_label(is_current, text)
-        .on_hover_text(wording::history::detail(lang, operation));
+        .on_hover_text(wording::history::detail(lang, variables, operation));
     response.clicked()
 }

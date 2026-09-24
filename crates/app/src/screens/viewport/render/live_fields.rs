@@ -6,9 +6,9 @@ use cao_sketch::{ChamferMode, ToolState};
 
 use crate::screens::sketch::{LiveField, Tool};
 
-use super::super::SketchContext;
 use super::super::input::rectangle_corner;
 use super::{arc, circle, ellipse, symmetric_line};
+use crate::screens::SketchContext;
 
 /// The length and the angle of the line being drawn, editable on the spot.
 ///

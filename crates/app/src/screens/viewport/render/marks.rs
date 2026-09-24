@@ -8,7 +8,8 @@ use glam::DVec2;
 
 use super::drawing::{shown_position, sketch_colors};
 use super::{emphasis, tint, tint_at};
-use crate::screens::viewport::{SketchContext, ViewScale};
+use crate::screens::SketchContext;
+use crate::screens::viewport::ViewScale;
 
 /// Points are drawn as small squares kept at a constant size on screen, so they
 /// stay visible and clickable at any zoom. The sketch origin gets a diamond

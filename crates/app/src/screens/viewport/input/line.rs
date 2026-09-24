@@ -5,7 +5,7 @@ use cao_part::Operation;
 use cao_sketch::{Aim, SegmentId};
 
 use super::annotation_position;
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 
 /// Places on the line just drawn whatever the user typed, and the right angle

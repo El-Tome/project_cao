@@ -6,7 +6,7 @@ use cao_sketch::Sketch;
 use glam::DVec2;
 
 use super::{tint, tint_at};
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 /// Marks the areas picked for an extrusion, and the one under the cursor.
 ///

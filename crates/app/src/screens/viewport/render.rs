@@ -39,7 +39,8 @@ pub(crate) use reading::{Measuring, paint_measure, what_is_measured};
 pub(crate) use trim::what_would_go;
 
 use super::matter;
-use super::{SketchContext, ViewMode, ViewScale, ViewportState};
+use super::{ViewMode, ViewScale, ViewportState};
+use crate::screens::SketchContext;
 
 /// A colour from the theme, turned into the space the shader blends in.
 fn tint(color: cao_prefs::theme::Rgba) -> [f32; 4] {

@@ -5,9 +5,9 @@
 use cao_prefs::theme::Theme;
 use cao_sketch::{Element, PointId, RulePick, Selection, Sketch};
 
-use super::super::SketchContext;
 use super::super::input::corners_taken;
 use super::tint_at;
+use crate::screens::SketchContext;
 
 /// How faint what a click has not laid yet is drawn: there, and plainly not
 /// there yet.

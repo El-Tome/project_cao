@@ -8,7 +8,8 @@ use super::input::{
     draw_line_point, draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
-use super::{PICK_PIXELS, SketchContext, ViewScale};
+use super::{PICK_PIXELS, ViewScale};
+use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
 
 /// Enter finishes the shape from the keyboard, without having to find the canvas again with the

@@ -205,15 +205,18 @@ impl CaoApp {
                     crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)
                 }),
         );
+        let mut worked_on = screens::SketchContext {
+            document: doc,
+            editor,
+            extrusion,
+            lang,
+        };
         for command in asked {
             match command {
                 Command::OpenSettings => self.settings_open = true,
                 Command::BackToMenu => back_to_menu = true,
                 Command::ToggleExplorer => self.explorer.toggle(),
-                _ => {
-                    changed |=
-                        commands::run(command, doc, editor, extrusion, ribbon, viewport, lang);
-                }
+                _ => changed |= commands::run(command, &mut worked_on, ribbon, viewport),
             }
         }
 
@@ -266,7 +269,7 @@ impl CaoApp {
         }
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
-            let mut context = screens::viewport::SketchContext {
+            let mut context = screens::SketchContext {
                 document: doc,
                 editor,
                 extrusion,

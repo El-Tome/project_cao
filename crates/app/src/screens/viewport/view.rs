@@ -5,6 +5,7 @@
 
 use cao_render::SceneFrame;
 
+use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
 
 use super::finish::advance_on_enter;
@@ -14,9 +15,7 @@ use super::render::{
     build_frame, paint_band, paint_dimension_field, paint_dimension_labels, paint_face_labels,
     paint_measure, paint_rule_marks, paint_ruler, what_is_measured, what_would_go,
 };
-use super::state::{
-    GestureGoesTo, SketchContext, ViewScale, ViewportState, cube_rect, gesture_goes_to,
-};
+use super::state::{GestureGoesTo, ViewScale, ViewportState, cube_rect, gesture_goes_to};
 
 /// Returns true when the part was modified and should be saved.
 pub fn show(ui: &mut egui::Ui, state: &mut ViewportState, sketch: &mut SketchContext<'_>) -> bool {

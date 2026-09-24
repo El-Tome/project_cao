@@ -14,6 +14,7 @@ use std::path::PathBuf;
 
 use cao_part::PartDocument;
 
+use crate::lang::Catalogue;
 use extrusion::ExtrusionState;
 use ribbon::Ribbon;
 use sketch::SketchEditor;
@@ -29,6 +30,16 @@ pub struct OpenPart {
     pub editor: SketchEditor,
     pub extrusion: ExtrusionState,
     pub ribbon: Ribbon,
+}
+
+/// The part being worked on, borrowed for one gesture or one command: what the
+/// canvas and the commands may read and change about it, without the view onto
+/// it or the ribbon around it.
+pub struct SketchContext<'a> {
+    pub document: &'a mut PartDocument,
+    pub editor: &'a mut SketchEditor,
+    pub extrusion: &'a mut ExtrusionState,
+    pub lang: &'a Catalogue,
 }
 
 /// The current top-level screen. New modes (sketch/extrude, assembly, ...)

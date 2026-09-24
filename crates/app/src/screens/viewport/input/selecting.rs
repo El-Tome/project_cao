@@ -4,7 +4,7 @@ use cao_part::Operation;
 use cao_sketch::Selection;
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 /// Pulls a box across the drawing and takes everything inside it.
 ///

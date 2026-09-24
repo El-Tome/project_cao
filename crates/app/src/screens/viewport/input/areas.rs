@@ -1,7 +1,8 @@
 //! Which closed areas of a sketch an extrusion is being offered, and which
 //! of them a click takes.
 
-use crate::screens::viewport::{SketchContext, ViewScale, ViewportState, to_ndc};
+use crate::screens::SketchContext;
+use crate::screens::viewport::{ViewScale, ViewportState, to_ndc};
 
 /// Choosing which closed areas of a sketch become matter.
 ///

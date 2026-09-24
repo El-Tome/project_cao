@@ -4,7 +4,6 @@
 //! Nothing here draws: the presenter answers what the view asks, and the
 //! drawing lives in [`super::view`].
 
-use cao_part::PartDocument;
 use cao_prefs::config::ViewportCorner;
 use cao_prefs::theme::Theme;
 use cao_prefs::{Modifier, Shortcuts, ViewportConfig};
@@ -13,9 +12,7 @@ use cao_render::{OrbitCamera, ViewTransition, adaptive_step};
 use cao_sketch::{SnapSettings, WorkPlane};
 use glam::DVec3;
 
-use crate::lang::Catalogue;
-use crate::screens::extrusion::ExtrusionState;
-use crate::screens::sketch::SketchEditor;
+use crate::screens::SketchContext;
 
 use super::navigation::Drag;
 
@@ -123,14 +120,6 @@ impl ViewportState {
         self.mode = ViewMode::Free;
         self.transition = None;
     }
-}
-
-/// What the viewport is allowed to read and change about the part while the user draws on it.
-pub struct SketchContext<'a> {
-    pub document: &'a mut PartDocument,
-    pub editor: &'a mut SketchEditor,
-    pub extrusion: &'a mut ExtrusionState,
-    pub lang: &'a Catalogue,
 }
 
 /// Who the gesture on the canvas belongs to this frame.

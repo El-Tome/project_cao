@@ -9,7 +9,7 @@ use cao_part::history::PointRef;
 use cao_sketch::{PointId, Sketch, Support};
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 /// How many things one point is held on at most. Two is a crossing, which is
 /// already a place a point cannot move away from; a third would take nothing

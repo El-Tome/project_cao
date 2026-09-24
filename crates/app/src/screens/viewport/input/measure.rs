@@ -6,7 +6,7 @@ use cao_part::Operation;
 use cao_sketch::{DimensionMode, DimensionTarget, ToolState};
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::{constraints, dimension, outcome};
 
 use super::{annotation_position, nearest_annotation, refine};

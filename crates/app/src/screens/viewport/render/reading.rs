@@ -21,9 +21,10 @@ use glam::DVec2;
 use super::curves::push_line;
 use super::overlays::{tint_to_color, to_screen};
 use super::{tint, tint_at};
+use crate::screens::SketchContext;
 use crate::screens::annotations::metrics;
 use crate::screens::viewport::input::measure_showing;
-use crate::screens::viewport::{SketchContext, ViewScale, ViewportState};
+use crate::screens::viewport::{ViewScale, ViewportState};
 use crate::wording::measure::Said;
 
 /// How big the numbers are drawn, matching the dimensions' own labels.

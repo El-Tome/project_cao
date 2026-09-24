@@ -16,7 +16,8 @@ use crate::screens::viewport::cube_labels;
 /// How far apart two marks are set when they would otherwise land on top of each other, in points.
 const MARK_SPACING: f32 = 16.0;
 use crate::lang::Catalogue;
-use crate::screens::viewport::{SketchContext, ViewScale, ViewportState, corner_origin};
+use crate::screens::SketchContext;
+use crate::screens::viewport::{ViewScale, ViewportState, corner_origin};
 use crate::wording::constraints;
 
 /// Where a world point lands on screen, or `None` when it is behind the camera.

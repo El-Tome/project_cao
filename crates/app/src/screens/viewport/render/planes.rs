@@ -4,8 +4,9 @@
 use cao_sketch::WorkPlane;
 
 use super::{tint, tint_at};
+use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
-use crate::screens::viewport::{SketchContext, ViewportState, plane_half_size};
+use crate::screens::viewport::{ViewportState, plane_half_size};
 use cao_render::{push_plane_outline, push_plane_quad};
 
 pub(crate) fn push_choosable_planes(

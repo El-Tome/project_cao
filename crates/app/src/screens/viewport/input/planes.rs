@@ -6,9 +6,10 @@ use cao_sketch::WorkPlane;
 use cao_solid::Mesh;
 use glam::{DVec2, DVec3};
 
+use crate::screens::SketchContext;
 use crate::screens::sketch::PlaneChoice;
 
-use super::{DEFAULT_SKETCH_RADIUS, SketchContext, ViewportState, plane_half_size};
+use super::{DEFAULT_SKETCH_RADIUS, ViewportState, plane_half_size};
 
 /// The step where the cursor is offering planes to draw on, and a click takes
 /// one: a fresh sketch on it, and the view swung round to face it.

@@ -4,8 +4,8 @@ use cao_part::Operation;
 use cao_sketch::{Going, Sketch};
 use glam::DVec2;
 
+use crate::screens::SketchContext;
 use crate::screens::sketch::{SketchEditor, Tool};
-use crate::screens::viewport::SketchContext;
 use crate::wording::outcome;
 
 /// One click of the trim tool: takes out the stretch of trait, of curve, of

@@ -7,7 +7,7 @@ use glam::DVec2;
 use crate::screens::sketch::Tool;
 
 mod preview;
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 use crate::wording::outcome;
 pub(crate) use preview::previewed;
 

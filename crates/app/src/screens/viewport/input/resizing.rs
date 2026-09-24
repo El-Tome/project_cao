@@ -10,7 +10,7 @@ use cao_part::Operation;
 use cao_sketch::Curved;
 use glam::DVec2;
 
-use crate::screens::viewport::SketchContext;
+use crate::screens::SketchContext;
 
 /// The curve a press takes hold of, when it takes hold of no point, no
 /// selection and no annotation.

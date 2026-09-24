@@ -109,11 +109,13 @@ and not as an axis.
 "ground" plane, seen from above.
 
 What a world unit is worth in millimetres is a property of the document
-(`millimeters_per_unit`), **undefined as long as no dimension has been
-placed**: it is then worth one millimetre, and the ruler shows mm. The first
-dimension defines it — saying a trait is 100 mm, 5 m or 5 mm deforms nothing,
-it is the scale of the document that is redefined and the picture does not
-move. The following ones are ordinary constraints. See [sketch.md](sketch.md).
+(`millimeters_per_unit`), **undefined as long as no value has been given**: it
+is then worth one millimetre, and the ruler shows mm. The first value defines
+it, typed while a shape is drawn or into the first dimension placed — saying a
+trait is 100 mm, 5 m or 5 mm deforms nothing, it is the scale of the document
+that is redefined and the picture does not move. The grid and the ruler are
+what change. The following ones are ordinary constraints. See
+[sketch.md](sketch.md).
 
 ## The axes behind the part
 

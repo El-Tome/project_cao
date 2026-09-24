@@ -18,7 +18,12 @@
 //! - a second size typed on the same shape is drawn at once at the scale the
 //!   first one gives, and at the click nothing moves —
 //!   `a_rectangle_takes_the_scale_from_its_width_and_draws_its_height_to_it`,
-//!   `an_ellipse_takes_the_scale_from_its_first_axis_and_draws_its_second_to_it`
+//!   `an_ellipse_takes_the_scale_from_its_first_axis_and_draws_its_second_to_it`,
+//!   `an_arc_by_its_ends_takes_the_scale_from_its_chord_and_bends_to_it`
+//! - every later value is still a constraint: the scale is set once and then
+//!   stands — `a_second_line_is_drawn_to_the_scale_the_first_one_gave`
+//! - replaying the history rebuilds the same part, scale included —
+//!   `replaying_the_history_rebuilds_the_rectangle_and_its_scale`
 
 use cao_part::{PartDocument, VariableChange, Variables};
 use cao_sketch::{Sketch, WorkPlane};
@@ -343,4 +348,100 @@ fn a_first_length_typed_on_a_symmetric_line_sets_the_scale_where_it_is_drawn() {
             "an end should stand at {expected}, 12 units from the middle, and the ends are {ends:?}",
         );
     }
+}
+
+#[test]
+fn a_second_line_is_drawn_to_the_scale_the_first_one_gave() {
+    let mut document = a_part_with_no_scale();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    draw_line_point(&mut context, 0, DVec2::new(10.0, 10.0), SNAP, PIXEL);
+    type_over(&mut context, 0, "100", 24.0);
+    draw_line_point(&mut context, 0, DVec2::new(40.0, 10.0), SNAP, PIXEL);
+
+    type_over(&mut context, 0, "50", 30.0);
+    draw_line_point(&mut context, 0, DVec2::new(34.0, 40.0), SNAP, PIXEL);
+
+    assert_scale(&document, 100.0 / 24.0);
+    let second = drawing(&document).segments()[1];
+    assert_near(
+        drawing(&document).point(second.end),
+        DVec2::new(34.0, 22.0),
+        "the end of the second line, 50 mm on at the scale the first one gave",
+    );
+}
+
+#[test]
+fn replaying_the_history_rebuilds_the_rectangle_and_its_scale() {
+    let mut document = a_part_with_no_scale();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    two_click_shape(&mut context, 0, DVec2::new(10.0, 10.0), SNAP, PIXEL);
+    type_over(&mut context, 0, "100", 24.0);
+    type_over(&mut context, 1, "50", 30.0);
+    let corner = rectangle_corner(&context, DVec2::new(40.0, 40.0));
+    two_click_shape(&mut context, 0, corner, SNAP, PIXEL);
+
+    let replayed = cao_part::PartState::rebuild(&document.history);
+
+    assert_eq!(replayed.millimeters_per_unit, Some(document.scale()));
+    for (again, live) in replayed.sketches[0]
+        .points()
+        .iter()
+        .zip(drawing(&document).points())
+    {
+        assert_near(*again, *live, "a corner replayed");
+    }
+}
+
+#[test]
+fn an_arc_by_its_ends_takes_the_scale_from_its_chord_and_bends_to_it() {
+    let mut document = a_part_with_no_scale();
+    let mut editor = SketchEditor {
+        arc_mode: cao_sketch::ArcMode::ByEnds,
+        ..SketchEditor::default()
+    };
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    draw_arc(&mut context, 0, DVec2::new(10.0, 10.0), SNAP, PIXEL);
+    type_over(&mut context, 0, "100", 20.0);
+    draw_arc(&mut context, 0, DVec2::new(40.0, 10.0), SNAP, PIXEL);
+    type_over(&mut context, 0, "60", 50.0);
+    draw_arc(&mut context, 0, DVec2::new(20.0, 16.0), SNAP, PIXEL);
+
+    assert_scale(&document, 5.0);
+    let arc = drawing(&document).arcs()[0];
+    let ends = [arc.start, arc.end].map(|end| drawing(&document).point(end));
+    for expected in [DVec2::new(10.0, 10.0), DVec2::new(30.0, 10.0)] {
+        assert!(
+            ends.iter().any(|end| end.distance(expected) < 1e-6),
+            "an end should stand at {expected}, 20 units apart as drawn, and the ends are {ends:?}",
+        );
+    }
+    let radius = drawing(&document).arc_radius(cao_sketch::ArcId(0));
+    assert!(
+        (radius - 12.0).abs() < 1e-6,
+        "60 mm at 5 mm a unit bends the arc to 12 units, and it is bent to {radius}",
+    );
 }

@@ -6,6 +6,14 @@
 //!   part is given, sets the scale, and the shape is laid where it is drawn:
 //!   the millimetres a unit is worth are what was typed over the length the
 //!   field read on screen — `the_first_length_typed_on_a_line_is_worth_the_length_on_screen`
+//! - with the dimension tool, a value typed right after placing the part's
+//!   first dimension sets the scale, and nothing moves: a unit is worth what
+//!   was typed over what the dimension read —
+//!   `a_value_typed_into_the_first_dimension_placed_is_worth_what_it_read`
+//! - checked by hand in the application: nothing moves on screen, and the grid
+//!   re-labels — no test: it is a person looking at the screen, and the pull
+//!   request says what was seen; the tree these tests read carries neither the
+//!   drawing nor the grid
 
 mod driver;
 
@@ -48,6 +56,38 @@ fn the_first_length_typed_on_a_line_is_worth_the_length_on_screen() {
     assert!(
         (worth - expected).abs() < expected * 1e-3,
         "the line read {on_screen} mm on screen when 100 was typed, so a unit is worth \
+         {expected} mm; the part says {worth}",
+    );
+}
+
+#[test]
+fn a_value_typed_into_the_first_dimension_placed_is_worth_what_it_read() {
+    let mut app = driver::open("a_value_typed_into_the_first_dimension");
+    driver::create_a_part(&mut app, "Platine");
+    driver::start_a_sketch(&mut app);
+    driver::draw_a_segment(&mut app);
+    driver::click(&mut app, "Cote");
+    driver::click_at(&mut app, (850.0, 510.0));
+    driver::click_at(&mut app, (900.0, 440.0));
+    let read = driver::fields(&app)
+        .first()
+        .cloned()
+        .expect("the dimension's field, holding what the trait measures");
+    let measured: f64 = read.parse().expect("a number");
+
+    driver::type_over(&mut app, &read, "100");
+    driver::press(&mut app, egui::Key::Enter);
+
+    let worth = a_unit_is_worth(&app).unwrap_or_else(|| {
+        panic!(
+            "no scale was said, and the screen says {:?}",
+            driver::said(&app)
+        )
+    });
+    let expected = 100.0 / measured;
+    assert!(
+        (worth - expected).abs() < expected * 1e-3,
+        "the trait read {measured} mm when 100 was typed for it, so a unit is worth \
          {expected} mm; the part says {worth}",
     );
 }

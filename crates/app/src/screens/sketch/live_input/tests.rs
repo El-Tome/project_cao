@@ -2,8 +2,17 @@
 //!
 //! Closes #423.
 //! - on a part with no scale yet, a length typed while a shape is drawn is
-//!   worth the length the shape had on screen when it was typed —
-//!   `a_length_typed_on_a_part_with_no_scale_is_worth_what_it_was_typed_over`
+//!   worth the length the shape had on screen when it was typed, and keeps
+//!   that size while its digits come —
+//!   `a_length_typed_on_a_part_with_no_scale_is_worth_what_it_was_typed_over`,
+//!   `the_length_stays_worth_what_it_was_first_typed_over_while_its_digits_come`
+//! - a second size typed on the same shape says nothing of the scale, and one
+//!   stage of a shape says it for the next —
+//!   `a_second_length_typed_on_the_shape_says_nothing_of_the_scale`,
+//!   `what_one_stage_of_a_shape_said_holds_for_the_next`
+//! - an angle never sets the scale — `an_angle_says_nothing_of_the_scale`
+//! - nothing moves when the length that said it is taken back, while another
+//!   length is still typed — `a_length_taken_back_hands_the_scale_to_a_length_still_typed`
 
 use super::*;
 

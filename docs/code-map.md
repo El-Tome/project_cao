@@ -251,7 +251,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: one click of the measure tool, which records nothing | `app/src/screens/viewport/input/reading.rs` | `read`, `showing` |
 | Canvas: the dashed triangle a measure is drawn as, and a number on each side | `app/src/screens/viewport/render/reading.rs` | `push_measure`, `paint_measure` |
 | Sketch tool, keyboard input | `app/src/screens/sketch.rs` | `SketchEditor`, `LiveInput` |
-| A value typed into a dimension already on the drawing | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value` |
+| The fields a shape is drawn to, and what the first length typed in them says a unit is worth on a part with no scale yet | `app/src/screens/sketch/live_input.rs` | `LiveInput::take`, `LiveInput::scale` |
+| A value typed into a dimension already on the drawing, and into the first one placed | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value`, `take_back_the_first_placing` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
 | Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
@@ -260,7 +261,7 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The field a formula is typed into: a name completed from a list under it | `app/src/ui/formula_field.rs`, `app/src/screens/variables/mod.rs` | `formula_field`, `keeps_escape`; `offered`, `NAMING` |
 | A variable's name in a formula as a block: shown, stepped over, erased whole | `app/src/ui/formula_field/blocks.rs` | `found`, `stepped`, `erased`, `snapped`, `laid_out` |
 | A variable dragged from the panel into a dimension's field | `app/src/ui/dropping.rs`, `app/src/screens/variables/view.rs`, `app/src/screens/viewport/render/dimensions.rs` | `grip`, `take_a_dropped_name`, `DraggedName` |
-| Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed` |
+| Canvas: the values a shape earns, laid as typed; a click refused for a field that does not read; the scale the shape in hand reads what is typed with | `app/src/screens/viewport/values.rs` | `lay_values`, `as_typed`, `refused_for_what_is_typed`, `shape_scale` |
 | History panel | `app/src/screens/history_tree.rs` | `show(...)` → `HistoryAction` |
 | Files panel: what it holds and what is half-done to it | `app/src/screens/explorer/state.rs` | `Explorer` |
 | Files panel: the drawing of it | `app/src/screens/explorer/view.rs` | `panel(...)` → `ExplorerAction` |

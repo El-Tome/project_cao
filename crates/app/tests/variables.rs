@@ -24,11 +24,12 @@
 //!   `a_pattern_shows_its_values_while_the_centre_is_awaited`
 //! - changing a variable changes every size written from it, and the part is
 //!   rebuilt — `changing_a_variable_in_its_panel_raises_the_plate_again`
-//! - in the fields at the cursor, letters stay shortcuts until a digit or `=`
-//!   enters the field, which then keeps every key until `Entrée` or `Échap` —
-//!   `a_letter_typed_before_anything_else_while_drawing_is_a_shortcut`,
-//!   `an_equals_sign_opens_a_formula_that_keeps_every_key`,
-//!   `a_digit_starts_the_field_the_way_it_always_did`,
+//! - in the fields at the cursor, every key goes into the field, a variable's
+//!   name straight away with no `=` — the criterion as changed on review,
+//!   where letters stayed shortcuts until `=` —
+//!   `a_letter_typed_while_drawing_goes_into_the_field`,
+//!   `a_name_typed_straight_into_the_field_lays_the_line_to_it`,
+//!   `a_number_typed_while_drawing_goes_into_the_field`,
 //!   `a_name_typed_in_the_panel_while_a_line_is_half_drawn_goes_into_the_field`
 //! - changing a variable is one step of the history: undo puts its former
 //!   formula back, and the part with it —
@@ -86,53 +87,51 @@ fn the_panel_is_there_inside_a_sketch_too() {
 }
 
 #[test]
-fn a_letter_typed_before_anything_else_while_drawing_is_a_shortcut() {
-    let mut app = driver::open("a_letter_while_drawing_is_a_shortcut");
+fn a_letter_typed_while_drawing_goes_into_the_field() {
+    let mut app = driver::open("a_letter_while_drawing_goes_into_the_field");
     driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     driver::start_a_line(&mut app);
-    assert!(
-        driver::fields_at_the_cursor(&app) > 0,
-        "the line shows its fields"
-    );
 
     driver::key(&mut app, egui::Key::R, "r");
 
-    assert_eq!(
-        driver::fields_at_the_cursor(&app),
-        0,
-        "R took the rectangle tool rather than landing in the length: {:?}",
+    assert!(
+        driver::fields(&app).contains(&"r".to_string()),
+        "R landed in the length rather than taking the rectangle tool: {:?}",
         driver::fields(&app),
     );
 }
 
 #[test]
-fn an_equals_sign_opens_a_formula_that_keeps_every_key() {
-    let mut app = a_part_with_a_width("an_equals_sign_opens_a_formula");
+fn a_name_typed_straight_into_the_field_lays_the_line_to_it() {
+    let mut app = a_part_with_a_width("a_name_typed_straight_into_the_field");
     // Out of the way of the drawing, which starts right of the panels.
     driver::click_the_button(&mut app, "Variables");
     driver::start_a_sketch(&mut app);
     driver::start_a_line(&mut app);
 
-    driver::key(&mut app, egui::Key::Equals, "=");
     for (key, text) in [
         (egui::Key::W, "w"),
         (egui::Key::I, "i"),
         (egui::Key::D, "d"),
+        (egui::Key::T, "t"),
+        (egui::Key::H, "h"),
     ] {
         driver::key(&mut app, key, text);
     }
+    driver::press(&mut app, egui::Key::Enter);
+    driver::click_the_button(&mut app, "Variables");
+    driver::click_exactly(&mut app, "Retirer");
 
     assert!(
-        driver::fields(&app).contains(&"=wid".to_string()),
-        "once started the field keeps the letters: {:?}",
-        driver::fields(&app),
+        driver::says(&app, "sert encore à la cote « Cote 120 mm »"),
+        "the line was laid to width, and the length it left is written from it",
     );
 }
 
 #[test]
-fn a_digit_starts_the_field_the_way_it_always_did() {
-    let mut app = driver::open("a_digit_starts_the_field");
+fn a_number_typed_while_drawing_goes_into_the_field() {
+    let mut app = driver::open("a_number_typed_while_drawing");
     driver::create_a_part(&mut app, "Platine");
     driver::start_a_sketch(&mut app);
     driver::start_a_line(&mut app);

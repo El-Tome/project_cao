@@ -42,12 +42,13 @@ its formula. The history says a size written from variables as both —
 
 ### The fields at the cursor, and the keyboard
 
-While nothing has been typed into the fields at the cursor, **a letter is a
-shortcut**: `R` takes the rectangle tool rather than landing in the length.
-A digit, a sign, a decimal separator or `=` starts the field, which then keeps
-every key until `Entrée` or `Échap` — so `=largeur/2` is typed after `=`, as in
-a spreadsheet. Before this, the first field took every key the moment it
-appeared, and the letter shortcuts went quiet while drawing.
+**The fields at the cursor take every key** the moment they appear, letters
+included: `largeur/2` is typed as it is, with no `=` before it — a leading `=`
+is still read, and ignored. The letter shortcuts go quiet while the fields are
+shown, as they did before variables existed; the ribbon is always there. A first
+version kept a letter a shortcut until a digit or `=` started the field; tried
+in the app, having to type `=` before a name was the part that got in the way,
+and the choice went the other way.
 
 A field holding something that does not read refuses the click and `Entrée`,
 and says why: the shape is not laid at the cursor with what was typed dropped

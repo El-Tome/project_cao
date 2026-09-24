@@ -47,9 +47,6 @@ pub struct LiveInput {
     /// Set when the fields appear, so the first one takes the keyboard on its
     /// own: reaching it with Tab means walking through the toolbar first.
     pub focus: bool,
-    /// Whether anything has been typed since the fields appeared. Until then
-    /// a letter is a shortcut, and a field takes only what can begin a value.
-    pub typing: bool,
     /// What was typed at an earlier stage of the shape, carried over when the
     /// fields opened again for the next: an ellipse's first axis, an arc's
     /// first leg.
@@ -129,12 +126,6 @@ impl LiveInput {
         self.fields.iter().find_map(|field| field.wrong.as_ref())
     }
 
-    /// Whether the fields wait with nothing typed in them yet, `holding` the
-    /// keyboard — which is when a letter is still a shortcut.
-    pub fn waits_for_keys(&self, holding: bool) -> bool {
-        holding && !self.typing
-    }
-
     /// The first two decisions, as the drawing reads them — the pair every
     /// shape is drawn to.
     pub fn locked(&self) -> cao_sketch::LockedInput {
@@ -143,13 +134,6 @@ impl LiveInput {
             second: self.typed(1),
         }
     }
-}
-
-/// Whether a character can begin what is typed into a field: a digit, a sign
-/// or a decimal separator for a number, `=` for a formula, or a parenthesis.
-/// Anything else, while nothing has been typed, is a shortcut.
-pub fn begins_a_value(character: char) -> bool {
-    character.is_ascii_digit() || "=-+.,(".contains(character)
 }
 
 /// A suggested value as its field shows it: whole where it can be, to the

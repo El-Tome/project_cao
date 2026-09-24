@@ -200,25 +200,19 @@ impl CaoApp {
             explorer_open: self.explorer.is_open(),
         };
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
-        let holding = screens::viewport::a_field_at_the_cursor_holds_the_keyboard(ui.ctx());
         asked.extend(
-            shortcuts_pressed(
-                ui,
-                &settings,
-                editor.live.waits_for_keys(holding),
-                |command| {
-                    // Enter closes what a tool laying copies is gathering, as its
-                    // prompt says, rather than finishing the sketch under it.
-                    command == Command::FinishSketch
-                        && matches!(
-                            editor.tool_state,
-                            cao_sketch::ToolState::Copying {
-                                naming_the_target: false,
-                                ..
-                            }
-                        )
-                },
-            )
+            shortcuts_pressed(ui, &settings, |command| {
+                // Enter closes what a tool laying copies is gathering, as its
+                // prompt says, rather than finishing the sketch under it.
+                command == Command::FinishSketch
+                    && matches!(
+                        editor.tool_state,
+                        cao_sketch::ToolState::Copying {
+                            naming_the_target: false,
+                            ..
+                        }
+                    )
+            })
             .into_iter()
             .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
         );

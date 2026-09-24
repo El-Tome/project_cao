@@ -4,7 +4,7 @@
 
 use cao_sketch::{ChamferMode, ToolState};
 
-use crate::screens::sketch::{LiveField, LiveInput, Tool, begins_a_value};
+use crate::screens::sketch::{LiveField, LiveInput, Tool};
 
 use super::super::input::rectangle_corner;
 use super::{arc, circle, ellipse, symmetric_line};
@@ -174,17 +174,6 @@ fn live_field(
     variables: &cao_part::Variables,
 ) -> bool {
     let id = field_id(rank);
-    // Until something is typed, a letter is a shortcut rather than the start
-    // of a formula: only what can begin a value reaches the field, and `=` is
-    // what opens a formula. Once started, the field keeps every key.
-    if !live.typing && ui.memory(|memory| memory.has_focus(id)) {
-        ui.input_mut(|input| {
-            input.events.retain(|event| match event {
-                egui::Event::Text(typed) => typed.chars().next().is_some_and(begins_a_value),
-                _ => true,
-            })
-        });
-    }
     let field: &mut LiveField = live.field(rank);
     // The keyboard goes to the first field as soon as the fields appear: the
     // value is the next thing the user types, and Tab from the canvas walks
@@ -195,7 +184,6 @@ fn live_field(
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.
     if response.changed() {
         field.take(variables);
-        live.typing = true;
         // The canvas this frame was already built from the value as it stood before this keystroke.
         ui.ctx().request_repaint();
     }
@@ -203,13 +191,6 @@ fn live_field(
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
-}
-
-/// Whether one of the fields at the cursor holds the keyboard right now —
-/// asked of egui rather than remembered, so a field drawn a moment ago and
-/// gone since holds nothing.
-pub(crate) fn a_field_at_the_cursor_holds_the_keyboard(ctx: &egui::Context) -> bool {
-    ctx.memory(|memory| (0..4).any(|rank| memory.has_focus(field_id(rank))))
 }
 
 fn field_id(rank: usize) -> egui::Id {

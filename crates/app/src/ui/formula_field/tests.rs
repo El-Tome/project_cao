@@ -1,4 +1,4 @@
-//! What app · ui/completion.rs is held to: which name the cursor is in, and
+//! What app · ui/formula_field.rs is held to: which name the cursor is in, and
 //! which of the names offered go on from what was typed.
 
 use super::*;

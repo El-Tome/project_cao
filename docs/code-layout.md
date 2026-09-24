@@ -172,7 +172,7 @@ logarithmic scale or a custom clamp, still call `egui::Slider` directly. The
 architecture test holds what is left across `cao_app` so the count can only
 fall.
 
-`ui/completion.rs` shows how far plain values go: a field that completes a
+`ui/formula_field.rs` shows how far plain values go: a field that completes a
 name from a list takes the names as text, and what makes a name as two
 functions — the part hands in its own, so the list and the formula reader
 agree without the primitive knowing either.

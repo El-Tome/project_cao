@@ -45,7 +45,7 @@ struct Listed {
 /// The field keeps Tab and Échap for that while the list is shown — egui
 /// would otherwise take the keyboard away on them before any field is drawn.
 /// A name put in marks the field changed, as typing it would.
-pub fn completing(
+pub fn formula_field(
     ui: &mut egui::Ui,
     id: egui::Id,
     text: &mut String,

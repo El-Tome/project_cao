@@ -48,7 +48,9 @@ impl PartState {
         let (set, values) = self.next_value_set();
         let value = written.value(values).filter(|value| target.takes(*value));
         let outcome = value.and_then(|value| self.apply_dimension(index, target, value));
-        match self.remember_as(index, target, outcome, written.note(), Some(set)) {
+        let held = self.remember_as(index, target, outcome, written.note(), Some(set));
+        self.note_value_set(set, written, held);
+        match held {
             true => self.held(broken),
             false => self.broke(broken),
         }

@@ -7,12 +7,17 @@
 //! the variables from that moment: replayed against the table as it stands
 //! now, the shape it once set would go on moving with a variable nothing on
 //! the drawing shows. Which values went, and when, is only known once the part
-//! has been replayed; when the variables changed since, the history is
-//! replayed a second time with each of them worked out against the table as
-//! it stood when it went.
+//! has been replayed; the history is then replayed again with each of them
+//! worked out against the table as it stood when it went — when that comes to
+//! another number than the table as it stands.
+//!
+//! A value the table as it stands cannot give is refused where it is set, and
+//! so is never seen leaving. Before anything is decided, it is tried against
+//! the table it was written with: that shows whether it leaves, and where.
 
 use std::collections::{HashMap, HashSet};
 
+use crate::formula::Formula;
 use crate::history::{History, Operation};
 use crate::state::PartState;
 use crate::variables::Variables;
@@ -30,6 +35,10 @@ pub(crate) struct Replay {
     pub(crate) laid: Vec<Laid>,
     /// Every step of matter, by number, with the sketch it was raised from.
     pub(crate) raised: Vec<(u32, usize)>,
+    /// Every value set from a calculation, with the calculation.
+    written: HashMap<SetBy, Formula>,
+    /// Those of them the drawing refused.
+    refused: HashSet<SetBy>,
     /// The values written from the variables that left the drawing, with the
     /// number of the operation they went at.
     gone: HashMap<SetBy, u32>,
@@ -62,30 +71,45 @@ struct Held {
 }
 
 impl PartState {
-    /// The part a history comes to, replayed once — or twice, when a value
-    /// written from the variables left the drawing before they last changed.
+    /// The part a history comes to: replayed once, and again when a value
+    /// written from the variables left the drawing under other ones.
     pub fn rebuild(history: &History) -> Self {
         let once = Self::replayed(history, HashMap::new());
-        let changes = history.variable_changes().len();
-        let then: HashMap<SetBy, Vec<f64>> = once
-            .replay
+        let tried = (!once.replay.refused.is_empty()).then(|| {
+            let mut tried = once.frozen(history);
+            for set in &once.replay.refused {
+                tried
+                    .entry(*set)
+                    .or_insert_with(|| table_before(history, set.0));
+            }
+            Self::replayed(history, tried)
+        });
+        let frozen = tried.as_ref().unwrap_or(&once).frozen(history);
+        if frozen.is_empty() {
+            return once;
+        }
+        Self::replayed(history, frozen)
+    }
+
+    /// Every value that left the drawing, with the table as it stood when it
+    /// went — kept only where that table gives it another number than the
+    /// table as it stands. The same calculation over the same numbers gives
+    /// the very same number, so any difference at all is a drawing that would
+    /// move.
+    fn frozen(&self, history: &History) -> HashMap<SetBy, Vec<f64>> {
+        self.replay
             .gone
             .iter()
             .filter_map(|(set, at)| {
-                let before = history.variable_changes_before(*at);
-                (before.len() < changes).then(|| {
-                    let mut table = Variables::default();
-                    for change in before {
-                        table.change(change);
-                    }
-                    (*set, table.values())
-                })
+                let then = table_before(history, *at);
+                let moves = self
+                    .replay
+                    .written
+                    .get(set)
+                    .is_none_or(|formula| formula.value(&then) != formula.value(&self.values));
+                moves.then_some((*set, then))
             })
-            .collect();
-        if then.is_empty() {
-            return once;
-        }
-        Self::replayed(history, then)
+            .collect()
     }
 
     fn replayed(history: &History, superseded: HashMap<SetBy, Vec<f64>>) -> Self {
@@ -117,6 +141,18 @@ impl PartState {
         self.replay.setting += 1;
         let values = self.replay.superseded.get(&set).unwrap_or(&self.values);
         (set, values)
+    }
+
+    /// Notes a value the replay set from a calculation, and whether the
+    /// drawing took it.
+    pub(crate) fn note_value_set(&mut self, set: SetBy, written: &Formula, held: bool) {
+        if self.replaying == 0 || written.as_number().is_some() {
+            return;
+        }
+        self.replay.written.insert(set, written.clone());
+        if !held {
+            self.replay.refused.insert(set);
+        }
     }
 
     fn held_by(&self, sketch: usize) -> Option<Held> {
@@ -157,4 +193,14 @@ impl PartState {
             self.replay.gone.entry(*went).or_insert(number);
         }
     }
+}
+
+/// The variables as the changes made before the operation of that number
+/// leave them.
+fn table_before(history: &History, number: u32) -> Vec<f64> {
+    let mut table = Variables::default();
+    for change in history.variable_changes_before(number) {
+        table.change(change);
+    }
+    table.values()
 }

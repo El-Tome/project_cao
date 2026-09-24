@@ -117,9 +117,16 @@ when it went. Replayed against the table as it stands now, the shape it set
 would go on moving with a variable nothing on the drawing shows. The replay
 marks each value it sets from the variables with the operation that set it,
 and the drawing carries the mark wherever it carries the value; so the replay
-sees exactly where one leaves, and plays the history a second time with those
-worked out against the table as it stood there. A value typed again and
+sees exactly where one leaves, and plays the history again with those worked
+out against the table as it stood there — those that come to another number
+against it, which is when the drawing would move. A value typed again and
 refused never left, and still follows.
+
+A value the variables as they now stand cannot give — a side of 500 in a
+triangle of 100 and 90 — is refused where it is set, and so would never be
+seen leaving. It is first tried against the table it was written with, which
+shows whether it leaves, and where: a value gone from the drawing is never
+held against a change it could not have taken.
 
 A chamfer's, a fillet's and a pattern's sizes, like a step's, are the tool's
 own and are listed with it: they follow their variable for as long as the tool

@@ -18,7 +18,8 @@
 //!   `a_count_is_held_while_anything_follows_the_pattern_and_the_refusal_says_what`,
 //!   `a_count_in_a_sketch_matter_was_raised_from_is_refused_naming_the_step_raised`,
 //!   `a_count_that_would_take_away_an_extruded_copy_is_refused_naming_the_extrusion`,
-//!   `a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch`
+//!   `a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch`,
+//!   `a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused`
 //! - changing a variable changes every size written from it — and only those
 //!   still written from it: a value taken away from the drawing stops
 //!   following it —
@@ -36,11 +37,13 @@
 //!   `compacting_leaves_an_erased_variable_out_and_the_others_still_answer`,
 //!   `compacting_keeps_a_pattern_written_from_a_variable_following_it`
 
-use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked};
+use cao_part::history::{
+    ChamferAsked, ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked,
+};
 use cao_part::{
     Broken, Formula, NameProblem, PartDocument, Refused, Use, VariableChange, VariableId,
 };
-use cao_sketch::{ChosenAxis, DimensionTarget, Element, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{ChosenAxis, Corner, DimensionTarget, Element, SegmentId, SketchAxis, WorkPlane};
 use glam::{DVec2, DVec3};
 
 fn at_nine() -> chrono::DateTime<chrono::Utc> {
@@ -681,6 +684,66 @@ fn a_change_that_would_take_a_sketch_off_its_face_is_refused_naming_the_sketch()
 
 /// The face the top of a block raised from XY is, as the replay numbers it.
 const TOP_OF_THE_BLOCK: usize = 1;
+
+#[test]
+fn a_chamfer_already_short_of_a_corner_that_would_cut_fewer_is_refused() {
+    let mut document = PartDocument::new("Plaques", at_nine());
+    document
+        .change_variable(added("reach", Formula::Number(15.0)))
+        .expect("a reach");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 10.0.into(),
+        placement: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::new(100.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(140.0, 40.0)),
+        construction: false,
+    });
+    let reach = written(&document, "reach");
+    document.apply(Operation::Chamfer {
+        sketch: 0,
+        corners: vec![
+            Corner::Between(SegmentId(0), SegmentId(1)),
+            Corner::Between(SegmentId(4), SegmentId(5)),
+        ],
+        mode: ChamferAsked::Equal(reach),
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(200.0, 0.0)),
+        end: PointRef::New(DVec2::new(250.0, 0.0)),
+        construction: false,
+    });
+
+    let refused = document.change_variable(edited(0, "reach", Formula::Number(45.0)));
+
+    let renumbered = Broken::Renumbered {
+        changed: THE_CHAMFER,
+        followed_by: THE_CHAMFER + 1,
+    };
+    assert!(
+        matches!(&refused, Err(Refused::Breaks(broken)) if broken.contains(&renumbered)),
+        "a chamfer that already missed the small square would miss the big one \
+         too, and the trait after it would be named by another rank: {refused:?}"
+    );
+}
+
+/// The count, the sketch, two squares and a value come before it.
+const THE_CHAMFER: u32 = 6;
 
 #[test]
 fn a_count_on_the_last_thing_drawn_changes_how_many_copies_stand() {

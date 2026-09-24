@@ -9,7 +9,11 @@
 //!   it — `a_value_whose_trait_is_erased_keeps_what_it_came_to`,
 //!   `a_radius_a_cut_carried_then_erased_keeps_what_it_came_to`,
 //!   `a_value_typed_again_and_refused_goes_on_following_its_variable`,
-//!   `compacting_a_sketch_laid_again_as_drawn_keeps_an_erased_value_where_it_was`
+//!   `compacting_a_sketch_laid_again_as_drawn_keeps_an_erased_value_where_it_was`,
+//!   `compacting_keeps_a_value_set_second_in_a_gesture_where_it_was_once_erased`;
+//!   and a value gone is not held against a change it could not have taken —
+//!   `an_erased_value_is_not_held_against_a_change_it_could_not_have_taken`,
+//!   `a_value_gone_with_its_trait_is_not_held_against_a_change_it_could_not_have_taken`
 
 use cao_part::history::{Operation, PointRef};
 use cao_part::{Formula, PartDocument, VariableChange, VariableId};
@@ -116,8 +120,9 @@ fn a_value_whose_trait_is_erased_keeps_what_it_came_to() {
     );
 }
 
-#[test]
-fn a_value_typed_again_and_refused_goes_on_following_its_variable() {
+/// The corner closed into a triangle 100, 90 and `a`, its third side set
+/// from `a`.
+fn a_triangle() -> PartDocument {
     let mut document = a_corner();
     document.apply(Operation::AddSegment {
         sketch: 0,
@@ -138,6 +143,56 @@ fn a_value_typed_again_and_refused_goes_on_following_its_variable() {
         value: from_a,
         placement: None,
     });
+    document
+}
+
+#[test]
+fn an_erased_value_is_not_held_against_a_change_it_could_not_have_taken() {
+    let mut document = a_triangle();
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: Vec::new(),
+        dimensions: vec![SIDE],
+        constraints: Vec::new(),
+    });
+    let corner = document.sketches()[0].point(PointId(3));
+
+    document
+        .change_variable(edited(0, "a", 500.0))
+        .expect("no triangle 100, 90 and 500 exists, and none is asked for any more");
+
+    let now = document.sketches()[0].point(PointId(3));
+    assert!(
+        (now - corner).length() < TOLERANCE,
+        "the triangle kept the side it had when its value was erased: {corner:?} -> {now:?}"
+    );
+}
+
+#[test]
+fn a_value_gone_with_its_trait_is_not_held_against_a_change_it_could_not_have_taken() {
+    let mut document = a_triangle();
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(1))],
+        dimensions: Vec::new(),
+        constraints: Vec::new(),
+    });
+    let corner = document.sketches()[0].point(PointId(3));
+
+    document
+        .change_variable(edited(0, "a", 500.0))
+        .expect("the side measured by a is gone");
+
+    let now = document.sketches()[0].point(PointId(3));
+    assert!(
+        (now - corner).length() < TOLERANCE,
+        "the corner the erased side had set moved: {corner:?} -> {now:?}"
+    );
+}
+
+#[test]
+fn a_value_typed_again_and_refused_goes_on_following_its_variable() {
+    let mut document = a_triangle();
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: SIDE,
@@ -264,6 +319,87 @@ fn compacting_a_sketch_laid_again_as_drawn_keeps_an_erased_value_where_it_was() 
     assert!(
         (compacted - 50.0).abs() < TOLERANCE && (length(&document) - 50.0).abs() < TOLERANCE,
         "the trait kept the 50 it had when its value was erased: {compacted}, then {}",
+        length(&document)
+    );
+}
+
+#[test]
+fn compacting_keeps_a_value_set_second_in_a_gesture_where_it_was_once_erased() {
+    let mut document = PartDocument::new("Plate", at_nine());
+    document
+        .change_variable(added("a", 50.0))
+        .expect("a length");
+    document
+        .change_variable(added("copies", 3.0))
+        .expect("a count");
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(0.0, 0.0)),
+        end: PointRef::New(DVec2::new(100.0, 0.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: DimensionTarget::Length(SegmentId(0)),
+        value: 100.0.into(),
+        placement: None,
+    });
+    let from_a = written(&document, "a");
+    document.apply(Operation::Gesture(vec![
+        Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::Existing(PointId(2)),
+            end: PointRef::New(DVec2::new(100.0, 40.0)),
+            construction: false,
+        },
+        Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(0)),
+            value: 100.0.into(),
+            placement: None,
+        },
+        Operation::SetDimension {
+            sketch: 0,
+            target: SIDE,
+            value: from_a,
+            placement: None,
+        },
+    ]));
+    document.apply(Operation::EraseMany {
+        sketch: 0,
+        elements: Vec::new(),
+        dimensions: vec![SIDE],
+        constraints: Vec::new(),
+    });
+    document
+        .change_variable(edited(0, "a", 70.0))
+        .expect("nothing on the drawing is written from a any more");
+    let count = written(&document, "copies");
+    document.apply(Operation::CircularPattern {
+        sketch: 0,
+        elements: vec![Element::Segment(SegmentId(0))],
+        centre: Sketch::ORIGIN,
+        degrees: 90.0.into(),
+        count,
+    });
+    let length = |document: &PartDocument| {
+        document.sketches()[0].segment_length(SegmentId(1)) * document.scale()
+    };
+
+    document.compact_history();
+    let compacted = length(&document);
+    document
+        .change_variable(edited(0, "a", 90.0))
+        .expect("still nothing written from a");
+
+    assert!(
+        (compacted - 50.0).abs() < TOLERANCE && (length(&document) - 50.0).abs() < TOLERANCE,
+        "the side kept the 50 it had when its value, the second of its gesture, \
+         was erased: {compacted}, then {}",
         length(&document)
     );
 }

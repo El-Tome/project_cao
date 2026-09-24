@@ -77,9 +77,15 @@ impl PartState {
     /// The first operation that lays another number of elements than it did
     /// in `before`, when anything follows it: whatever comes after it in its
     /// sketch, or is raised from that sketch, names elements by their rank,
-    /// and the ranks after it would all move. One whose size no longer holds
-    /// is named for that, and lays nothing.
+    /// and the ranks after it would all move. One the change breaks is named
+    /// for that already — and only that one: a chamfer short of a corner still
+    /// cuts the others, and one short of a corner before the change is not
+    /// named again.
     fn renumbered_since(&self, before: &PartState) -> Option<Broken> {
+        let named = |number: u32| {
+            let broken = Broken::Operation(number);
+            self.broken.contains(&broken) && !before.broken.contains(&broken)
+        };
         let was: HashMap<u32, [usize; 5]> = before
             .replay
             .laid
@@ -91,7 +97,7 @@ impl PartState {
             if was
                 .get(&changed.number)
                 .is_none_or(|count| *count == changed.count())
-                || self.broken.contains(&Broken::Operation(changed.number))
+                || named(changed.number)
             {
                 return None;
             }

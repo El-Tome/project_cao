@@ -78,4 +78,10 @@ fn a_press_that_took_hold_of_nothing_is_what_pulls_a_box() {
         ..SelectState::default()
     };
     assert!(!group.grabbed_nothing(), "a selection was taken");
+
+    let side = SelectState {
+        dragged_side: Some(SegmentId(0)),
+        ..SelectState::default()
+    };
+    assert!(!side.grabbed_nothing(), "a side was taken");
 }

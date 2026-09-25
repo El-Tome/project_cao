@@ -3,22 +3,32 @@
 
 use cao_part::Operation;
 use cao_prefs::Modifier;
-use cao_sketch::{PointId, Sketch};
+use cao_sketch::{PointId, Pulled, Sketch, SnapSettings};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
 
 use super::annotation_drag::{drag_annotation, nearest_annotation};
-use super::{drag_curve, dropped_on, grabbed_curve, pick};
+use super::sides::drag_side;
+use super::{drag_curve, dropped_on, pick};
 
 /// What a drag needs beyond where the cursor is: how far a click reaches, what
-/// a pixel is worth in the drawing, and whether the key that pulls a point off
-/// what holds it is down.
+/// a pixel is worth in the drawing, whether the key that pulls a point off
+/// what holds it is down, and whether one that gathers a selection is.
+///
+/// And the hand's own places, before any magnet: a side or a curve pulled is
+/// measured from where it was pressed, and the magnets would put the press,
+/// and the first few pixels of the pull, back on the very curve pressed on.
+/// The grid is there to pull what turns onto it.
 #[derive(Clone, Copy)]
 pub(super) struct Gesture {
     pub(super) snap: f64,
     pub(super) pixel: f64,
     pub(super) letting_go: bool,
+    pub(super) adding: bool,
+    pub(super) raw_cursor: DVec2,
+    pub(super) raw_pressed: DVec2,
+    pub(super) magnets: SnapSettings,
 }
 
 /// Whether the key that pulls a point off what holds it is down.
@@ -74,6 +84,7 @@ pub(super) fn drag_point(
                 !stuck || (gesture.letting_go && !holds.is_empty())
             });
         let arc_group = dragged_point.and_then(|point| centre_group(sketch, point));
+        let carried = arc_group.is_some();
         if let Some(state) = context.editor.select_state() {
             // Read where the gesture starts and kept for the whole of it, as
             // what is grabbed already is: letting the key decide again every
@@ -88,20 +99,42 @@ pub(super) fn drag_point(
                 None => state.dragged_point = dragged_point,
             }
         }
+        // What the drag may do is read once, here, off the drawing as the
+        // press found it — the drawing the drop will be replayed on.
+        if let Some(point) = dragged_point.filter(|_| !carried) {
+            let mut reading = sketch.clone();
+            if gesture.letting_go {
+                reading.let_go(point);
+            }
+            let pull = reading.pull(point, context.document.scale());
+            if let Some(state) = context.editor.select_state() {
+                state.pull = Some(pull);
+            }
+        }
 
         if dragged_point.is_none() {
             let dragged_dimension = nearest_annotation(context, index, pressed, snap * 1.5, pixel);
             // A press that took hold of no point and no annotation may still
-            // have landed on a curve, and pulling one draws it to another size
-            // about its centre.
-            let dragged_curve = dragged_dimension
-                .is_none()
-                .then(|| grabbed_curve(context, index, pressed, snap))
-                .flatten();
+            // have landed on a side or a curve, whichever is nearer: pulled
+            // across, a side travels and a curve is drawn to another size;
+            // slid along, either turns its shape. A press gathering a
+            // selection still pulls a box.
+            let pulled = match dragged_dimension.is_none() && !gesture.adding {
+                true => sketch.pulled_at(pressed, snap, context.document.scale()),
+                false => None,
+            };
             if let Some(state) = context.editor.select_state() {
                 state.dragged_dimension = dragged_dimension;
-                state.dragged_curve = dragged_curve;
+                state.dragged_curve = match pulled {
+                    Some(Pulled::Curve(curve)) => Some(curve),
+                    _ => None,
+                };
+                state.dragged_side = match pulled {
+                    Some(Pulled::Side(side)) => Some(side),
+                    _ => None,
+                };
                 state.drag_origin = Some(pressed);
+                state.grabbed_at = Some(gesture.raw_pressed);
             }
         }
     }
@@ -125,7 +158,14 @@ pub(super) fn drag_point(
         .select_state()
         .and_then(|state| state.dragged_curve);
     if let Some(curve) = curve_pending {
-        return drag_curve(context, index, curve, cursor, response);
+        return drag_curve(context, index, curve, cursor, response, gesture);
+    }
+    let side_pending = context
+        .editor
+        .select_state()
+        .and_then(|state| state.dragged_side);
+    if let Some(side) = side_pending {
+        return drag_side(context, index, side, response, gesture);
     }
 
     let Some(point) = context
@@ -151,18 +191,32 @@ pub(super) fn drag_point(
 
     // Where the point actually goes: along whatever holds it, unless the key
     // that pulls it off is down. Held where two things cross, it does not go
-    // anywhere at all — which is the whole of what a crossing means.
-    let landing = match letting_go {
-        true => cursor,
-        false => context.document.sketches()[index].slide(point, cursor),
+    // anywhere at all — which is the whole of what a crossing means. A shape
+    // that can only turn is turned towards the hand itself, its end pulled
+    // onto the grid, rather than towards the cursor the magnets moved.
+    let scale = context.document.scale();
+    let pull = context
+        .editor
+        .select_state()
+        .and_then(|state| state.pull.clone());
+    let sketch = &context.document.sketches()[index];
+    let landing = match (&pull, letting_go) {
+        (_, true) => cursor,
+        (Some(pull), false) if pull.pivot(sketch).is_some() => {
+            pull.onto_grid(sketch, gesture.raw_cursor, &gesture.magnets)
+        }
+        _ => sketch.slide(point, cursor),
+    };
+    let mut settling = sketch.clone();
+    if letting_go {
+        settling.let_go(point);
+    }
+    match &pull {
+        Some(pull) => settling.settle_pulled(pull, landing, scale),
+        None => settling.settle_around(point, landing, scale),
     };
 
     if !response.drag_stopped() {
-        let mut settling = context.document.sketches()[index].clone();
-        if letting_go {
-            settling.let_go(point);
-        }
-        settling.settle_around(point, landing, context.document.scale());
         if let Some(state) = context.editor.select_state() {
             state.drag_position = Some(landing);
             state.drag_preview = Some(settling);
@@ -175,7 +229,12 @@ pub(super) fn drag_point(
         state.drag_position = None;
         state.drag_preview = None;
         state.letting_go = false;
+        state.pull = None;
     }
+    // A point the shape could not take all the way stops short of the hand:
+    // it is dropped on nothing, since what the hand is over is not where the
+    // point is.
+    let arrived = settling.point(point).distance(landing) <= snap * 1e-6;
     // Two ends laid on top of each other are one corner, not two. The decision
     // is taken here, at the drop, and recorded: how close is close enough
     // depends on the zoom, so re-deriving it on replay could join a different
@@ -186,14 +245,14 @@ pub(super) fn drag_point(
     let sketch = &context.document.sketches()[index];
     let merged_into = sketch
         .nearest_point(landing, snap)
-        .filter(|other| *other != point);
+        .filter(|other| *other != point && arrived);
     // What the drop leaves the point held by. A point dropped on a trait is
     // held there exactly as one born on it is — but only a point nothing held
     // already: one sliding along its own trait would otherwise catch on the
     // first crossing it went over. Joining another point holds nothing: that
     // is a merge, and it is the other point that stands there afterwards.
     let free = sketch.holds_on(point).is_empty();
-    let on = match letting_go || merged_into.is_some() || !free {
+    let on = match letting_go || merged_into.is_some() || !free || !arrived {
         true => Vec::new(),
         false => dropped_on(sketch, point, landing),
     };

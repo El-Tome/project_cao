@@ -36,12 +36,60 @@ pub enum CurveDrag {
     Along(Turn),
 }
 
+/// What a press takes hold of to pull, when it took hold of no point.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Pulled {
+    Side(SegmentId),
+    Curve(Curved),
+}
+
 impl Sketch {
-    /// The trait a press takes hold of to pull it: the nearest within reach.
-    /// An ellipse's axis is the ellipse's own, and is not one.
-    pub fn side_at(&self, place: DVec2, reach: f64) -> Option<SegmentId> {
-        self.nearest_segment(place, reach)
+    /// The side or the curve a press takes hold of, whichever lies nearer.
+    ///
+    /// An ellipse's axis is the ellipse's own and is not a side, and a side
+    /// whose two ends can no longer move has nowhere to go: a press on it
+    /// still pulls a box, as it always did.
+    pub fn pulled_at(&self, place: DVec2, reach: f64, millimeters_per_unit: f64) -> Option<Pulled> {
+        let settled = self.settled_points(millimeters_per_unit);
+        let pinned = self.pinned_points();
+        let stuck = |point: PointId| {
+            settled.get(point.0).copied().unwrap_or(false)
+                || pinned.get(point.0).copied().unwrap_or(false)
+        };
+        let side = self
+            .nearest_segment(place, reach)
             .filter(|side| self.ellipse_of_axis(*side).is_none())
+            .filter(|side| {
+                let line = self.segments()[side.0];
+                !(stuck(line.start) && stuck(line.end))
+            })
+            .map(|side| (Pulled::Side(side), self.off_the_side(side, place)));
+        let curve = self
+            .curve_at(place, reach)
+            .map(|curve| (Pulled::Curve(curve), self.off_the_curve(curve, place)));
+        [side, curve]
+            .into_iter()
+            .flatten()
+            .min_by(|one, other| one.1.total_cmp(&other.1))
+            .map(|(pulled, _)| pulled)
+    }
+
+    fn off_the_side(&self, side: SegmentId, place: DVec2) -> f64 {
+        let (start, end) = self.endpoints(side);
+        let span = end - start;
+        let along = ((place - start).dot(span) / span.length_squared().max(1e-18)).clamp(0.0, 1.0);
+        place.distance(start + span * along)
+    }
+
+    fn off_the_curve(&self, curve: Curved, place: DVec2) -> f64 {
+        match curve {
+            Curved::Circle(circle) => {
+                let round = self.circle(circle);
+                (self.point(round.center).distance(place) - round.radius).abs()
+            }
+            Curved::Arc(arc) => self.distance_to_arc(arc, place),
+            Curved::Ellipse(ellipse) => self.distance_to_ellipse(ellipse, place),
+        }
     }
 
     /// What pulling `side` from `pressed` to `cursor` asks for. Both are the

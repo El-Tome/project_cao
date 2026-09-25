@@ -15,6 +15,7 @@ use crate::measuring::DimensionPicks;
 use crate::picking::Selection;
 use crate::resizing::Curved;
 use crate::rule_intent::RulePick;
+use crate::sketch::settling::PointPull;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 /// What the selection tool is holding, and what a drag in progress has taken
@@ -36,6 +37,15 @@ pub struct SelectState {
     /// Read where the gesture starts, like what it grabbed, and kept for the
     /// whole of it.
     pub letting_go: bool,
+    /// What a drag of the point may do to the drawing, read once where the
+    /// gesture starts rather than again at every frame.
+    pub pull: Option<PointPull>,
+    /// The side a drag is pulling across, or sliding along to turn its shape.
+    pub dragged_side: Option<SegmentId>,
+    /// Where the hand pressed, before any magnet pulled it: what a side or a
+    /// curve pulled is measured from, since the magnets would put the press
+    /// on the very side it landed on.
+    pub grabbed_at: Option<DVec2>,
 }
 
 impl SelectState {
@@ -45,6 +55,7 @@ impl SelectState {
         self.dragged_point.is_none()
             && self.dragged_dimension.is_none()
             && self.dragged_curve.is_none()
+            && self.dragged_side.is_none()
             && self.dragged_group.is_empty()
     }
 }

@@ -95,7 +95,7 @@ pub use patterning::Repeats;
 pub use picking::Selection;
 pub use plane::{PlaneKind, WorkPlane};
 pub use preview::{Laid, Preview};
-pub use pulling::{CurveDrag, SideDrag};
+pub use pulling::{CurveDrag, Pulled, SideDrag};
 pub use reading::Reading;
 pub use regions::{Outline, Region};
 pub use resizing::Curved;

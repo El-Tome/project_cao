@@ -80,7 +80,8 @@ pub(crate) use corner::{
 };
 
 mod resizing;
-use resizing::{drag_curve, grabbed_curve};
+use resizing::drag_curve;
+mod sides;
 
 mod landing;
 pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
@@ -127,6 +128,7 @@ pub(crate) fn handle_sketch_input(
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(PICK_PIXELS);
     let magnets = scale.snapping(&state.config);
+    let raw_cursor = cursor;
     let (cursor, snapped_to) = context.document.sketches()[index].magnetise(cursor, &magnets);
     context.editor.snap = snapped_to;
 
@@ -155,7 +157,7 @@ pub(crate) fn handle_sketch_input(
         // cursor is when egui calls it a drag: by then it has already travelled
         // the few pixels of the drag threshold, which was enough to miss the
         // very point being aimed at.
-        let pressed = ui
+        let raw_pressed = ui
             .input(|input| input.pointer.press_origin())
             .and_then(|position| {
                 let (origin, direction) = state
@@ -163,18 +165,20 @@ pub(crate) fn handle_sketch_input(
                     .ray(to_ndc(position, rect), rect.width() / rect.height());
                 plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
             })
-            .map(|position| {
-                context.document.sketches()[index]
-                    .magnetise(position, &magnets)
-                    .0
-            })
-            .unwrap_or(cursor);
+            .unwrap_or(raw_cursor);
+        let pressed = context.document.sketches()[index]
+            .magnetise(raw_pressed, &magnets)
+            .0;
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
         let gesture = Gesture {
             snap,
             pixel: scale.units_per_pixel,
             letting_go: letting_go(ui, state.let_go),
+            adding,
+            raw_cursor,
+            raw_pressed,
+            magnets,
         };
         if response.clicked() {
             let picked = pick(context, index, cursor, snap, scale.units_per_pixel);

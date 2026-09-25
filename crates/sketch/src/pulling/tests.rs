@@ -25,6 +25,11 @@
 //!   `a_circle_is_always_drawn_to_its_new_size`
 //! - 18: while a shape turns, the end nearest the hand is pulled onto a grid
 //!   point within reach — `a_turned_side_brings_its_corner_onto_the_grid`
+//! - 14: a press on a side takes hold of it, and of the curve instead when the
+//!   curve is nearer; an ellipse's axis and a side that cannot move are not
+//!   taken, and a box is drawn there as before —
+//!   `a_press_takes_hold_of_the_side_or_the_curve_it_is_nearer`,
+//!   `an_ellipse_axis_and_a_side_that_cannot_move_are_not_taken_hold_of`
 
 use glam::DVec2;
 
@@ -455,4 +460,40 @@ fn a_turned_side_brings_its_corner_onto_the_grid() {
         (turned(out_of_reach) - 0.03).abs() < 1e-9,
         "nothing within reach, no pull"
     );
+}
+
+#[test]
+fn a_press_takes_hold_of_the_side_or_the_curve_it_is_nearer() {
+    let (mut sketch, _, sides) = rectangle();
+    let centre = sketch.add_point(DVec2::new(70.0, 80.0));
+    let circle = sketch.add_circle(centre, 8.0);
+
+    assert_eq!(
+        sketch.pulled_at(DVec2::new(40.0, 71.0), 5.0, 1.0),
+        Some(Pulled::Side(sides[2]))
+    );
+    assert_eq!(
+        sketch.pulled_at(DVec2::new(70.0, 73.0), 5.0, 1.0),
+        Some(Pulled::Curve(Curved::Circle(circle)))
+    );
+    assert_eq!(sketch.pulled_at(DVec2::new(70.0, 45.0), 5.0, 1.0), None);
+}
+
+#[test]
+fn an_ellipse_axis_and_a_side_that_cannot_move_are_not_taken_hold_of() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 20.0));
+    let west = sketch.add_point(DVec2::new(20.0, 20.0));
+    let east = sketch.add_point(DVec2::new(80.0, 20.0));
+    let south = sketch.add_point(DVec2::new(50.0, 10.0));
+    let north = sketch.add_point(DVec2::new(50.0, 30.0));
+    sketch.add_ellipse(centre, [west, east], [south, north]);
+    let far = sketch.add_point(DVec2::new(100.0, 0.0));
+    let nailed = sketch.add_segment(Sketch::ORIGIN, far);
+    sketch.add_constraint(Constraint::Fixed {
+        element: crate::element::Element::Segment(nailed),
+    });
+
+    assert_eq!(sketch.pulled_at(DVec2::new(35.0, 20.0), 2.0, 1.0), None);
+    assert_eq!(sketch.pulled_at(DVec2::new(60.0, 0.5), 2.0, 1.0), None);
 }

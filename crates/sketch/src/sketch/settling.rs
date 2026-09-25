@@ -5,6 +5,13 @@ use glam::DVec2;
 
 use super::{LengthOutcome, PointId, Sketch};
 
+/// What the user is holding while a drag lasts, which the solver reads as
+/// immovable. Nothing to save: it lives only as long as the gesture.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct Held {
+    pub(crate) points: Vec<PointId>,
+}
+
 impl Sketch {
     /// Puts a point where it was dropped and settles the rest of the drawing
     /// around it, that point staying exactly where it was put.
@@ -65,9 +72,9 @@ impl Sketch {
         };
 
         place(self);
-        self.held = dropped.iter().map(|(point, _)| *point).collect();
+        self.held.points = dropped.iter().map(|(point, _)| *point).collect();
         let outcome = self.resolve(millimeters_per_unit);
-        self.held.clear();
+        self.held.points.clear();
         if outcome == LengthOutcome::Exact {
             return outcome;
         }
@@ -75,9 +82,9 @@ impl Sketch {
         self.points.clone_from(&kept.0);
         self.circles.clone_from(&kept.1);
         place(self);
-        self.held = anchored.to_vec();
+        self.held.points = anchored.to_vec();
         let outcome = self.resolve(millimeters_per_unit);
-        self.held.clear();
+        self.held.points.clear();
         if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
             return outcome;
         }

@@ -62,7 +62,7 @@ pub struct Sketch {
     /// them back, which is what makes a shape follow the mouse instead of
     /// squirming away from it. Nothing to save — they live only as long as the gesture.
     #[serde(skip)]
-    held: Vec<PointId>,
+    held: settling::Held,
     /// The last reading of which points can no longer move, against a print of
     /// the drawing it was read from. Worked out from everything else, so it is
     /// never saved and never read back.
@@ -97,7 +97,7 @@ impl Sketch {
             dimensions: Vec::new(),
             constraints: Vec::new(),
             erased: Erased::default(),
-            held: Vec::new(),
+            held: settling::Held::default(),
             settled: RefCell::default(),
         }
     }
@@ -286,7 +286,7 @@ impl Sketch {
 
     /// Whether the user is holding this point under the cursor right now.
     pub(crate) fn is_held_still(&self, point: PointId) -> bool {
-        self.held.contains(&point)
+        self.held.points.contains(&point)
     }
 
     /// Points the user drew, as opposed to the origin the sketch was born with.

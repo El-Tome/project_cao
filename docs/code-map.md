@@ -243,7 +243,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: drawing a circle, an arc or an ellipse to another size by its curve | `app/src/screens/viewport/input/resizing.rs` | `grabbed_curve`, `drag_curve` |
-| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation`, `letting_go` |
+| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `letting_go` |
+| Canvas: moving an annotation, finding the one under the cursor | `app/src/screens/viewport/input/annotation_drag.rs` | `drag_annotation`, `nearest_annotation`, `annotation_position` |
 | Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |

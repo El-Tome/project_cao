@@ -58,9 +58,11 @@ mod reading;
 use measure::{edit_dimension, measure};
 pub(crate) use reading::{read, showing as measure_showing};
 
+mod annotation_drag;
 mod dragging;
-pub(crate) use dragging::annotation_position;
-use dragging::{Gesture, drag_point, letting_go, nearest_annotation};
+pub(crate) use annotation_drag::annotation_position;
+use annotation_drag::nearest_annotation;
+use dragging::{Gesture, drag_point, letting_go};
 
 mod areas;
 pub(crate) use areas::pick_areas;
@@ -221,15 +223,9 @@ pub(crate) fn handle_sketch_input(
         // mid-drag, as soon as the cursor happened to pass over a point.
         if response.drag_started() {
             let changed = drag_point(context, index, cursor, pressed, response, gesture);
-            let nothing_grabbed = matches!(
-                &context.editor.tool_state,
-                ToolState::Select(select)
-                    if select.dragged_point.is_none()
-                        && select.dragged_dimension.is_none()
-                        && select.dragged_curve.is_none()
-                        && select.dragged_group.is_empty()
-            );
-            if nothing_grabbed && let ToolState::Select(select) = &mut context.editor.tool_state {
+            if let ToolState::Select(select) = &mut context.editor.tool_state
+                && select.grabbed_nothing()
+            {
                 select.band = Some((pressed, cursor));
             }
             return changed;

@@ -38,6 +38,17 @@ pub struct SelectState {
     pub letting_go: bool,
 }
 
+impl SelectState {
+    /// Whether the press took hold of nothing — no point, no annotation, no
+    /// curve, no selection — so that the drag pulls a box instead.
+    pub fn grabbed_nothing(&self) -> bool {
+        self.dragged_point.is_none()
+            && self.dragged_dimension.is_none()
+            && self.dragged_curve.is_none()
+            && self.dragged_group.is_empty()
+    }
+}
+
 /// What a measure has taken hold of.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Measured {

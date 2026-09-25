@@ -64,3 +64,18 @@ fn a_rule_half_laid_down_hands_back_what_it_has_been_pointed_at() {
         "a tool laying no rule down has been shown nothing to draw differently"
     );
 }
+
+#[test]
+fn a_press_that_took_hold_of_nothing_is_what_pulls_a_box() {
+    let mut pressed = SelectState::default();
+    assert!(pressed.grabbed_nothing());
+
+    pressed.dragged_point = Some(PointId(3));
+    assert!(!pressed.grabbed_nothing(), "a point was taken");
+
+    let group = SelectState {
+        dragged_group: vec![PointId(1), PointId(2)],
+        ..SelectState::default()
+    };
+    assert!(!group.grabbed_nothing(), "a selection was taken");
+}

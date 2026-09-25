@@ -65,40 +65,15 @@ impl Sketch {
         );
 
         match (span.as_slice(), turning_is_free) {
-            ([], _) => match about
-                .is_some_and(|about| self.turns_freely(shape, about, millimeters_per_unit))
-            {
+            ([], _) => match about.is_some_and(|about| {
+                self.turns_freely_about(shape, self.point(about), millimeters_per_unit)
+            }) {
                 true => Give::Nowhere,
                 false => Give::Stuck,
             },
             ([only], false) => Give::Along(*only),
             _ => Give::Free,
         }
-    }
-
-    /// Whether the whole shape can be turned about `about` without a single
-    /// rule of the drawing giving — the lines a drag keeps left out, since
-    /// turning is exactly what they refuse — and with nothing else holding
-    /// it somewhere else.
-    pub(crate) fn turns_freely(
-        &self,
-        shape: &[PointId],
-        about: PointId,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        let mut pinned = self.pinned_points();
-        let place = self.point(about);
-        if shape
-            .iter()
-            .any(|each| pinned[each.0] && self.point(*each).distance(place) > 1e-9)
-        {
-            return false;
-        }
-        pinned[about.0] = true;
-        let turn = self.turn_about(shape, about, &pinned);
-        self.equations_pinned_by(millimeters_per_unit, &pinned)
-            .iter()
-            .all(|row| turns_nothing(row, &turn))
     }
 
     /// The rows that speak of anything the shape is free to move: its points

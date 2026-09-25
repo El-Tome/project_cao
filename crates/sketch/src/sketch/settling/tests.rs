@@ -40,6 +40,8 @@
 //! - 19: the guard that keeps the way up when a value is typed stays — no
 //!   test: here, `a_rectangle_does_not_turn_when_one_of_its_sides_changes` in
 //!   sketch/tests/values.rs holds it, untouched
+//! - 18: a shape pivoting brings the dragged point onto a grid point within
+//!   reach — `a_pivoting_point_is_pulled_onto_a_grid_point_within_reach`
 //! - 20: the verdict does not change — `a_drag_leaves_the_verdict_and_the_freedom_as_they_were`
 
 use glam::DVec2;
@@ -554,5 +556,42 @@ fn a_drag_leaves_the_verdict_and_the_freedom_as_they_were() {
     assert!(
         sketch.kept_lines().is_empty(),
         "no kept line outlives the drag"
+    );
+}
+
+#[test]
+fn a_pivoting_point_is_pulled_onto_a_grid_point_within_reach() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let stays = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(110.0, 10.0));
+    let side = sketch.add_segment(stays, end);
+    typed(&mut sketch, side);
+    let pull = sketch.pull(end, 1.0);
+    let grid = crate::snap::SnapSettings {
+        point_reach: 1.0,
+        curve_reach: 1.0,
+        grid_step: Some(10.0),
+        grid_reach: 3.0,
+    };
+
+    let near_upright = pull.onto_grid(&sketch, DVec2::new(12.0, 150.0), &grid);
+    let off_the_grid = pull.onto_grid(&sketch, DVec2::new(60.0, 150.0), &grid);
+    sketch.settle_pulled(&pull, near_upright, 1.0);
+
+    assert_near(
+        near_upright,
+        DVec2::new(10.0, 110.0),
+        "the end, onto the grid",
+    );
+    assert_near(
+        sketch.point(end),
+        DVec2::new(10.0, 110.0),
+        "and the trait stands upright",
+    );
+    let towards = (DVec2::new(60.0, 150.0) - DVec2::new(10.0, 10.0)).normalize();
+    assert_near(
+        off_the_grid,
+        DVec2::new(10.0, 10.0) + towards * 100.0,
+        "no grid point near",
     );
 }

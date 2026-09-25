@@ -48,6 +48,19 @@ impl Kept {
         })
     }
 
+    /// A point kept on the line of the plane it would stand on once moved `by`
+    /// along `normal`, free to slide along that line.
+    pub(crate) fn level(sketch: &Sketch, point: PointId, normal: DVec2, by: f64) -> Self {
+        Self {
+            from: None,
+            to: point,
+            normal,
+            at: sketch.point(point).dot(normal) + by,
+            along: DVec2::ZERO,
+            segment: None,
+        }
+    }
+
     /// Whether a direction kept has come out the other way round. Its equation
     /// cannot see it — a line is the same line both ways — but a trait that
     /// went through nought to get there has been turned half round.

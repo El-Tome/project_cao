@@ -13,6 +13,8 @@ use super::kept::Kept;
 use crate::constraints::Constraint;
 use crate::length::LengthOutcome;
 use crate::sketch::{PointId, Sketch};
+use crate::snap::SnapSettings;
+use crate::turning::angle_onto_grid;
 
 /// How many times the way to a place out of reach is halved, looking for the
 /// last one the shape can still follow to.
@@ -63,6 +65,24 @@ impl PointPull {
             }) => Some(sketch.point(*about)),
             _ => None,
         }
+    }
+
+    /// Where to take the point once the grid has had its say. When the drag
+    /// can only turn the shape, the point is turned towards `cursor` and its
+    /// end pulled onto a grid point within reach — what brings a shape drawn
+    /// on the grid back square in one gesture. Otherwise `cursor` as it is.
+    pub fn onto_grid(&self, sketch: &Sketch, cursor: DVec2, grid: &SnapSettings) -> DVec2 {
+        let Some(about) = self.pivot(sketch) else {
+            return cursor;
+        };
+        let (Some(was), Some(wanted)) = (
+            (self.from - about).try_normalize(),
+            (cursor - about).try_normalize(),
+        ) else {
+            return cursor;
+        };
+        let angle = angle_onto_grid(about, self.from, was.angle_to(wanted), grid);
+        about + DVec2::from_angle(angle).rotate(self.from - about)
     }
 }
 
@@ -261,7 +281,7 @@ impl Sketch {
     /// Settles the drawing with `points` held still and `lines` kept, and
     /// says whether it came out whole: every value true, no trait squeezed to
     /// nothing, no tangency slid off, no kept trait turned round.
-    fn settle_held(
+    pub(crate) fn settle_held(
         &mut self,
         points: Vec<PointId>,
         lines: Vec<Kept>,

@@ -102,23 +102,39 @@ impl Sketch {
     }
 
     /// The shape that some points of one element belong to — a side's two
-    /// ends, a curve's handles — walked from the first of them the drawing does
-    /// not hold still: walked from the origin, it would take in every drawing
-    /// laid on the origin.
+    /// ends, a curve's handles — walked from each of them the drawing does not
+    /// hold still, and gathered: walked from the origin, it would take in every
+    /// drawing laid on the origin, and walked from one handle of a curve
+    /// centred there, it would leave the others out.
     pub(crate) fn shape_through(&self, points: &[PointId]) -> Vec<PointId> {
         let pinned = self.pinned_points();
-        match points
-            .iter()
-            .find(|point| !pinned.get(point.0).copied().unwrap_or(true))
-        {
-            Some(free) => self.shape_of(*free),
-            None => {
-                let mut alone = points.to_vec();
-                alone.sort_by_key(|point| point.0);
-                alone.dedup();
-                alone
+        let mut shape: Vec<PointId> = points.to_vec();
+        for point in points {
+            if !pinned.get(point.0).copied().unwrap_or(true) {
+                shape.extend(self.shape_of(*point));
             }
         }
+        shape.sort_by_key(|point| point.0);
+        shape.dedup();
+        shape
+    }
+
+    /// A point and the points of every curve it is a handle of: what a drag of
+    /// it moves and turns together, whatever the curve's centre is nailed to.
+    pub(crate) fn with_its_curves(&self, point: PointId) -> Vec<PointId> {
+        let mut points = vec![point];
+        for (_, arc) in self.live_arcs() {
+            if arc.start == point || arc.end == point {
+                points.extend([arc.center, arc.start, arc.end]);
+            }
+        }
+        for (id, ellipse) in self.live_ellipses() {
+            let handles = self.ellipse_stands_on(id);
+            if handles.contains(&point) && ellipse.center != point {
+                points.extend(handles);
+            }
+        }
+        points
     }
 
     /// How many joins away from `point` each point stands, by rank; nothing

@@ -9,6 +9,7 @@
 //! - 2: the same for any shape whose traits a rule of direction ties — an L
 //!   keeps its far end and its corner slides —
 //!   `an_l_pulled_by_one_end_keeps_its_far_end_and_its_corner_slides`,
+//!   `an_l_tied_by_a_collinear_rule_keeps_its_directions`,
 //!   `an_obtuse_parallelogram_pulled_by_a_corner_keeps_its_opposite_corner`,
 //!   `a_triangle_with_two_typed_angles_grows_without_turning`
 //! - 3: what stays is the point holding the shape, else the centre of the
@@ -945,4 +946,27 @@ fn a_corner_held_at_a_typed_distance_goes_round_towards_the_hand() {
         (went.distance(sketch.point(right)) - reach).abs() < SETTLED,
         "at its length"
     );
+}
+
+#[test]
+fn an_l_tied_by_a_collinear_rule_keeps_its_directions() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let a = sketch.add_point(DVec2::new(10.0, 10.0));
+    let b = sketch.add_point(DVec2::new(60.0, 10.0));
+    let c = sketch.add_point(DVec2::new(80.0, 10.0));
+    let d = sketch.add_point(DVec2::new(130.0, 10.0));
+    let first = sketch.add_segment(a, b);
+    let second = sketch.add_segment(c, d);
+    sketch.add_segment(b, c);
+    sketch.add_constraint(Constraint::Collinear { first, second });
+    let was = [first, second].map(|side| direction(&sketch, side));
+
+    sketch.settle_around(a, DVec2::new(0.0, 30.0), 1.0);
+
+    for (rank, side) in [first, second].iter().enumerate() {
+        assert!(
+            turned_by(&sketch, *side, was[rank]) < UNTURNED,
+            "trait {rank} turned"
+        );
+    }
 }

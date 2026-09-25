@@ -253,7 +253,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: drawing a circle, an arc or an ellipse to another size by its curve, or turning it | `app/src/screens/viewport/input/resizing.rs` | `drag_curve` |
 | Canvas: a side pulled across or slid along, and the step it writes | `app/src/screens/viewport/input/sides.rs` | `drag_side`, `side_operation`, `turn_operation` |
-| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `letting_go` |
+| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `letting_go`, `reshaped` |
+| Canvas: a selection pressed on and moved as one block | `app/src/screens/viewport/input/selection_drag.rs` | `grabbed_group`, `drag_group` |
 | Canvas: moving an annotation, finding the one under the cursor | `app/src/screens/viewport/input/annotation_drag.rs` | `drag_annotation`, `nearest_annotation`, `annotation_position` |
 | Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |

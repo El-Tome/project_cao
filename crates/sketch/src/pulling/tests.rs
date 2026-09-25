@@ -16,16 +16,21 @@
 //!   `a_shape_held_at_a_point_turns_about_it`, and a shape sharing only the
 //!   origin with another turns alone —
 //!   `a_shape_sharing_only_the_origin_with_another_turns_alone`,
-//!   `a_side_starting_on_the_origin_turns_its_own_shape_alone`,
-//!   `a_curve_centred_on_the_origin_turns_without_what_else_stands_there`
+//!   `a_curve_centred_on_the_origin_turns_without_what_else_stands_there`,
+//!   `an_arc_centred_on_the_origin_turns_whole`
 //! - 11: which of the two is read at every instant: a pull straight across
 //!   resizes wherever the side was pressed, a slide along turns, and a turn
 //!   stays a turn past a quarter —
 //!   `more_across_than_along_resizes_more_along_than_across_turns`,
 //!   `a_side_pulled_straight_across_resizes_wherever_it_was_pressed`,
 //!   `a_side_slid_along_near_its_end_turns`, `a_turn_past_a_quarter_stays_a_turn`
-//! - 12: a trait on its own has no along, nor a shape a rule holds upright —
-//!   `a_lone_trait_has_no_along`, `a_shape_held_upright_by_a_rule_has_no_along`
+//! - 12: a trait on its own has no along, nor a shape whose pivot lies on the
+//!   pressed side's line, nor a shape a rule holds upright or two fixed points
+//!   nail down; a curve kept from turning is drawn to its size instead —
+//!   `a_lone_trait_has_no_along`, `a_shape_whose_pivot_lies_on_the_pressed_side_has_no_along`,
+//!   `a_shape_held_upright_by_a_rule_has_no_along`,
+//!   `a_shape_with_an_axis_angle_or_two_fixed_points_has_nowhere_to_turn_about`,
+//!   `an_arc_kept_from_turning_by_a_rule_is_drawn_to_its_size_instead`
 //! - 13: a shape that cannot stretch across leaves the side where it is —
 //!   `a_shape_that_cannot_stretch_across_leaves_its_side_where_it_is`,
 //!   `a_side_that_cannot_reach_a_curve_at_one_end_leaves_the_drawing_as_it_was`
@@ -39,7 +44,8 @@
 //! - 17: a circle is always drawn to its new size —
 //!   `a_circle_is_always_drawn_to_its_new_size`
 //! - 18: while a shape turns, the end nearest the hand is pulled onto a grid
-//!   point within reach — `a_turned_side_brings_its_corner_onto_the_grid`
+//!   point within reach — `a_turned_side_brings_its_corner_onto_the_grid`,
+//!   `an_arc_turned_back_near_where_it_was_is_pulled_onto_the_grid`
 //! - 14: a press on a side takes hold of it, and of the curve instead when the
 //!   curve is nearer; an ellipse's axis and a side that cannot move are not
 //!   taken, and a box is drawn there as before —
@@ -790,7 +796,7 @@ fn a_curve_centred_on_the_origin_turns_without_what_else_stands_there() {
 }
 
 #[test]
-fn a_side_starting_on_the_origin_turns_its_own_shape_alone() {
+fn a_shape_whose_pivot_lies_on_the_pressed_side_has_no_along() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let corners = [
         Sketch::ORIGIN,
@@ -806,23 +812,96 @@ fn a_side_starting_on_the_origin_turns_its_own_shape_alone() {
     let drag = sketch.side_drag(
         sides[0],
         DVec2::new(50.0, 0.0),
-        DVec2::new(49.0, -12.0),
+        DVec2::new(80.0, -1.0),
         &no_grid(),
         1.0,
     );
 
-    if let SideDrag::Along(turn) = drag {
-        assert!(
-            !turn.points.contains(&other),
-            "the other shape is not taken along"
-        );
-    }
+    assert_eq!(
+        drag,
+        SideDrag::Across {
+            by: DVec2::new(0.0, -1.0)
+        }
+    );
     assert!(
         !sketch
             .shape_through(&[Sketch::ORIGIN, corners[1]])
             .contains(&other),
         "a shape walked from its free end stops at the origin"
     );
+}
+
+#[test]
+fn an_arc_centred_on_the_origin_turns_whole() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(30.0, 0.0));
+    let end = sketch.add_point(DVec2::new(0.0, 30.0));
+    let arc = sketch.add_arc(Sketch::ORIGIN, start, end);
+    let pressed = DVec2::from_angle(0.8) * 30.0;
+    let cursor = DVec2::from_angle(1.1) * 30.0;
+
+    let CurveDrag::Along(turn) =
+        sketch.curve_drag(Curved::Arc(arc), pressed, cursor, cursor, &no_grid(), 1.0)
+    else {
+        panic!("sliding along the arc turns it");
+    };
+
+    assert!(
+        turn.points.contains(&start) && turn.points.contains(&end),
+        "{:?}",
+        turn.points
+    );
+}
+
+#[test]
+fn an_arc_kept_from_turning_by_a_rule_is_drawn_to_its_size_instead() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let start = sketch.add_point(DVec2::new(90.0, 50.0));
+    let end = sketch.add_point(DVec2::new(50.0, 90.0));
+    let arc = sketch.add_arc(centre, start, end);
+    let tip = sketch.add_point(DVec2::new(130.0, 50.0));
+    let arm = sketch.add_segment(start, tip);
+    sketch.add_constraint(Constraint::AxisParallel {
+        segment: arm,
+        axis: crate::constraints::SketchAxis::U,
+    });
+    let pressed = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.8) * 40.0;
+    let cursor = DVec2::new(50.0, 50.0) + DVec2::from_angle(1.1) * 40.0;
+
+    let drag = sketch.curve_drag(Curved::Arc(arc), pressed, cursor, cursor, &no_grid(), 1.0);
+
+    assert!(matches!(drag, CurveDrag::Resize { .. }), "{drag:?}");
+}
+
+#[test]
+fn a_shape_with_an_axis_angle_or_two_fixed_points_has_nowhere_to_turn_about() {
+    let (mut angled, _, sides) = rectangle();
+    angled.set_dimension(
+        DimensionTarget::AxisAngle {
+            segment: sides[0],
+            axis: crate::constraints::SketchAxis::U,
+        },
+        0.0,
+        false,
+    );
+    let (mut nailed, corners, _) = rectangle();
+    for corner in [corners[0], corners[2]] {
+        nailed.add_constraint(Constraint::Fixed {
+            element: crate::element::Element::Point(corner),
+        });
+    }
+
+    for sketch in [&angled, &nailed] {
+        let drag = sketch.side_drag(
+            sides[2],
+            DVec2::new(70.0, 70.0),
+            DVec2::new(100.0, 71.0),
+            &no_grid(),
+            1.0,
+        );
+        assert!(matches!(drag, SideDrag::Across { .. }), "{drag:?}");
+    }
 }
 
 #[test]
@@ -849,4 +928,35 @@ fn an_ellipse_closed_by_a_chord_keeps_its_centre_when_the_chord_is_pulled() {
         DVec2::new(50.0, 70.0),
         "the top of the curve",
     );
+}
+
+#[test]
+fn an_arc_turned_back_near_where_it_was_is_pulled_onto_the_grid() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let start = sketch.add_point(DVec2::new(90.0, 50.0));
+    let end = sketch.add_point(DVec2::new(50.0, 90.0));
+    let arc = sketch.add_arc(centre, start, end);
+    let pressed = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.8) * 40.0;
+    let nearly = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.82) * 40.0;
+
+    let pulled = sketch.curve_drag(
+        Curved::Arc(arc),
+        pressed,
+        nearly,
+        nearly,
+        &grid(10.0, 2.0),
+        1.0,
+    );
+    let free = sketch.curve_drag(Curved::Arc(arc), pressed, nearly, nearly, &no_grid(), 1.0);
+
+    let turned = |drag: CurveDrag| match drag {
+        CurveDrag::Along(turn) => turn.angle,
+        other => panic!("a slide round turns: {other:?}"),
+    };
+    assert!(
+        turned(pulled).abs() < 1e-9,
+        "its end brought back onto the grid"
+    );
+    assert!((turned(free) - 0.02).abs() < 1e-9, "no grid, no pull");
 }

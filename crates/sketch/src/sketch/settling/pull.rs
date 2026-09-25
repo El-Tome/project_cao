@@ -170,7 +170,7 @@ impl Sketch {
             .constraints()
             .iter()
             .any(|rule| matches!(rule, Constraint::Midpoint { point: held, .. } if *held == point));
-        let shape = self.shape_of(point);
+        let shape = self.shape_through(&self.with_its_curves(point));
         if halfway || shape.len() < 2 {
             return plain;
         }

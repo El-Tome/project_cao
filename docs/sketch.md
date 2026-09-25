@@ -780,11 +780,13 @@ radius being keyed in, and the grid of a pattern fills out as its count does.
 
 ### While a point is being moved
 
-The point held under the cursor **does not give way**: the drawing settles
-*around* it. The solver pins it for the length of the gesture, exactly like the
-origin point. Without that the constraints pull it partly back, the shape comes
-out from under the cursor — which is what made a tangent circle so tiresome to
-move.
+The point held under the cursor **does not give way** wherever the drawing lets
+it go: the drawing settles *around* it. The solver pins it for the length of the
+gesture, exactly like the origin point. Without that the constraints pull it
+partly back, the shape comes out from under the cursor — which is what made a
+tangent circle so tiresome to move. Where the drawing does not let it go all the
+way, it goes as far as its shape can follow: see "The shape stretches before it
+turns".
 
 The drawing is shown **as it will settle** if released there: the solver runs
 every frame, and the values already given pull the rest of the shape along with
@@ -857,13 +859,17 @@ shape would turn on:
   is; a shape that cannot stretch across leaves its side where it was.
 - **Along** — the shape turns, rigidly, about its middle or about the point
   holding it, the place grabbed going round with the hand; the end of the side
-  nearest the hand is pulled onto the grid. A trait on its own has no along, and
-  neither has a shape a rule holds upright.
+  nearest the hand is pulled onto the grid. A trait on its own has no along,
+  nor has a shape whose pivot lies on the side's own line, a shape a rule holds
+  upright, or one two fixed points nail down.
 
-Across and along are read about that place rather than against the travel since
-the press, so that a turn past a quarter stays a turn; and from the hand's own
-places, before any magnet, which would put the press and the first pixels of the
-pull back on the very side pressed on. A press gathering a selection, on an
+Which of the two is read from whichever leaves the place grabbed nearer the
+hand: a pull across leaves it short by its slip along the side, a turn by how far
+the hand went out from or in towards the place it turns on. So a pull straight
+across always resizes, wherever the side was pressed, and a hand going round
+stays a turn past a quarter. Both are read from the hand's own places, before
+any magnet, which would put the press and the first pixels of the pull back on
+the very side pressed on. A press gathering a selection, on an
 ellipse's axis, or on a side that cannot move, still pulls a box.
 
 ### Sliding a curve
@@ -871,13 +877,15 @@ ellipse's axis, or on a side that cannot move, still pulls a box.
 A circle, an arc or an ellipse pulled towards or away from its centre is drawn
 to another size, as before. Slid round the centre, an arc or an ellipse turns —
 its radius, its sweep, its axes kept — and what is joined to it turns with it. A
-circle looks the same whichever way up it is, so it is always drawn to another
-size.
+curve a rule keeps from turning is drawn to another size instead. A circle looks
+the same whichever way up it is, so it is always drawn to another size.
 
 ### Moving a whole figure in one block
 
 A drag that starts **on something already selected** carries the whole
-selection, as a desktop moves a group of icons. Every named point advances by
+selection, as a desktop moves a group of icons — all but a lone corner picked
+and then pressed on, which is dragged as the corner it is and stretches its
+shape. Every named point advances by
 the same step: the shape is carried, never stretched, and the rest of the
 drawing settles around it. One single line in the history for the whole block.
 

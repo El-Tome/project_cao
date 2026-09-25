@@ -54,16 +54,23 @@ pub(super) fn drag_point(
 ) -> bool {
     let (snap, pixel) = (gesture.snap, gesture.pixel);
     let sketch = &context.document.sketches()[index];
+    // Whatever an earlier gesture left behind is dropped as soon as no drag is
+    // under way — one let go of over the cube or outside the canvas never saw
+    // its release, and would otherwise go on following the hand as a ghost —
+    // and again before a new one decides what it takes.
+    let still = !response.dragged() && !response.drag_stopped();
+    if (still || response.drag_started())
+        && let Some(state) = context.editor.select_state()
+    {
+        *state = cao_sketch::SelectState {
+            held: std::mem::take(&mut state.held),
+            ..Default::default()
+        };
+    }
+    if still {
+        return false;
+    }
     if response.drag_started() {
-        // Whatever an earlier gesture left behind — one let go of outside the
-        // canvas never saw its release — is dropped before this one decides
-        // what it takes.
-        if let Some(state) = context.editor.select_state() {
-            *state = cao_sketch::SelectState {
-                held: std::mem::take(&mut state.held),
-                ..Default::default()
-            };
-        }
         if gesture.navigating || !response.drag_started_by(egui::PointerButton::Primary) {
             return false;
         }
@@ -267,9 +274,6 @@ pub(super) fn drag_point(
     // A drag the drawing could not take at all writes nothing: a step that
     // changes nothing would be what the next undo takes back.
     let sketch = &context.document.sketches()[index];
-    if !letting_go && !reshaped(sketch, &settling) {
-        return false;
-    }
     // Two ends laid on top of each other are one corner, not two. The decision
     // is taken here, at the drop, and recorded: how close is close enough
     // depends on the zoom, so re-deriving it on replay could join a different
@@ -291,6 +295,12 @@ pub(super) fn drag_point(
         true => Vec::new(),
         false => dropped_on(sketch, point, landing),
     };
+    // A drag that changed nothing — the drawing refused it, and it neither
+    // joined, held nor let go of anything — writes nothing: a step that changes
+    // nothing would be what the next undo takes back.
+    if !letting_go && merged_into.is_none() && on.is_empty() && !reshaped(sketch, &settling) {
+        return false;
+    }
     context.document.apply(Operation::MovePoint {
         sketch: index,
         point,

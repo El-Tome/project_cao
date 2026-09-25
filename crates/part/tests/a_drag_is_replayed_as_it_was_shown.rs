@@ -11,7 +11,9 @@
 //!   `a_trait_pivoted_onto_a_grid_point_is_rebuilt_on_it`; one undo takes the
 //!   whole gesture back — `one_undo_takes_back_a_side_moved_and_a_shape_turned`;
 //!   the drawing the drag showed is the one recorded —
-//!   `a_corner_dragged_is_rebuilt_where_the_drag_showed_it`
+//!   `a_corner_dragged_is_rebuilt_where_the_drag_showed_it`; and compacting
+//!   the history keeps the shape both left —
+//!   `compacting_keeps_the_shape_a_side_moved_and_a_turn_left`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, Sketch, WorkPlane};
@@ -220,4 +222,34 @@ fn a_corner_dragged_is_rebuilt_where_the_drag_showed_it() {
         wanted[1].distance(DVec2::new(120.0, 70.0)) < SETTLED,
         "the opposite corner stayed"
     );
+}
+
+#[test]
+fn compacting_keeps_the_shape_a_side_moved_and_a_turn_left() {
+    let mut document = a_rectangle();
+    document.apply(Operation::MoveSegment {
+        sketch: 0,
+        segment: SegmentId(2),
+        by: DVec2::new(0.0, 15.0),
+    });
+    document.apply(Operation::TurnShape {
+        sketch: 0,
+        points: (1..=4).map(PointId).collect(),
+        about: DVec2::new(70.0, 52.5),
+        angle: 0.3,
+    });
+    let left = corners(&document);
+
+    document.compact_history();
+
+    let drawn: Vec<DVec2> = document.sketches()[0]
+        .drawn_points()
+        .map(|(_, place)| place)
+        .collect();
+    for was in &left {
+        assert!(
+            drawn.iter().any(|now| now.distance(*was) < SETTLED),
+            "no corner at {was} once compacted: {drawn:?}"
+        );
+    }
 }

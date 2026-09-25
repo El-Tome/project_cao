@@ -1,7 +1,7 @@
 //! Rewrites a part's history down to the steps that still describe it.
 //!
-//! `MovePoint`, `MoveMany`, `MoveDimension` and `MergePoints` say how a shape
-//! was reached, not what it is; erased elements and their `EraseMany` leave
+//! `MovePoint`, `MoveMany`, `MoveSegment`, `TurnShape`, `MoveDimension` and
+//! `MergePoints` say how a shape was reached, not what it is; erased elements and their `EraseMany` leave
 //! nothing once the erasing is done. Compaction drops all of that and re-emits
 //! each sketch as the points, segments, circles, arcs, ellipses, constraints
 //! and dimensions it is rebuilt down to — so a `PointId` never has to be renamed in

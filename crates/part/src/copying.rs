@@ -60,6 +60,7 @@ impl PartState {
             self.broke(Broken::Operation(self.replaying));
             return None;
         };
+        self.fix_a_unit_at_a_millimetre();
         let scale = self.scale();
         let in_units = |run: Repeats| Repeats {
             step: run.step / scale,

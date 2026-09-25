@@ -116,6 +116,9 @@ impl PartState {
         let mut state = Self::default();
         state.replay.superseded = superseded;
         state.read_variables(history);
+        if history.first_size_is_off_the_drawing() {
+            state.fix_a_unit_at_a_millimetre();
+        }
         // Step by step, each step whole — not in the order things were typed.
         // A corner of a sketch dragged long after an extrusion was raised from
         // it is played with that sketch, so the extrusion is raised again.

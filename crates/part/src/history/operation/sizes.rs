@@ -28,6 +28,36 @@ impl Operation {
             _ => Vec::new(),
         }
     }
+
+    /// What a part with no scale yet would learn from this operation's sizes,
+    /// when it carries one that says anything about size at all.
+    ///
+    /// A count is not a size, and an angle says nothing about how big anything
+    /// is: a revolution and a circular pattern answer nothing.
+    pub(crate) fn first_value(&self) -> Option<FirstValue> {
+        match self {
+            Self::Gesture(done) => done.iter().find_map(Self::first_value),
+            Self::Extrude { .. } | Self::RectangularPattern { .. } => {
+                Some(FirstValue::OffTheDrawing)
+            }
+            Self::Fillet { .. } | Self::Chamfer { .. } => Some(FirstValue::AgainstTheDrawing),
+            Self::SetDimension { target, .. } => {
+                (!target.is_angle()).then_some(FirstValue::AgainstTheDrawing)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// What the first value a part is given teaches it about its scale.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum FirstValue {
+    /// A length the drawing already measures. What a unit is worth comes out of
+    /// comparing the two, and nothing moves.
+    AgainstTheDrawing,
+    /// A length with nothing drawn to read it against — a step of matter's
+    /// depth, a pattern's step. A unit is a millimetre.
+    OffTheDrawing,
 }
 
 /// How much of each side of a corner a chamfer takes, as written.

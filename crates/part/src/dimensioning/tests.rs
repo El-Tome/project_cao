@@ -1,4 +1,9 @@
 //! What part · dimensioning.rs is held to.
+//!
+//! Closes #423.
+//! - an angle never sets the scale — `an_angle_never_defines_the_scale`, which
+//!   held it before the issue and holds it still: the fix never reached here
+//! - a reference value stays a readout — `a_redundant_dimension_becomes_a_readout`
 
 use cao_sketch::{CircleId, DimensionTarget, SegmentId, WorkPlane};
 use glam::DVec2;

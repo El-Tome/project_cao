@@ -46,6 +46,7 @@ fn a_radius_a_fixed_chord_already_rules_out_warns_instead_of_bending_the_arc_sil
         target,
         input: "5".to_string(),
         focus: false,
+        placed_the_scale: false,
     });
     let lang = Catalogue::french();
 
@@ -98,6 +99,7 @@ fn an_angle_between_two_traits_typed_at_a_half_turn_is_refused() {
             target,
             input: "180".to_string(),
             focus: false,
+            placed_the_scale: false,
         }),
         ..SketchEditor::default()
     };
@@ -157,6 +159,7 @@ fn typed_into(target: DimensionTarget, text: &str) -> SketchEditor {
             target,
             input: text.to_string(),
             focus: false,
+            placed_the_scale: false,
         }),
         ..SketchEditor::default()
     }

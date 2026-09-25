@@ -5,7 +5,7 @@ mod live_input;
 mod typed_dimension;
 
 pub use cao_sketch::{ArcMode, ChamferMode, CircleMode, DimensionMode, EllipseMode};
-pub use live_input::{LiveField, LiveInput};
+pub use live_input::LiveInput;
 pub(crate) use typed_dimension::apply_dimension_value;
 
 /// The drawing tool in hand. New tools are added here and to the Esquisse
@@ -78,6 +78,9 @@ pub struct DimensionEdit {
     /// keyboard on its own: reaching it with Tab means walking through every
     /// button of the toolbar first.
     pub focus: bool,
+    /// Set when placing this very dimension is what gave the part its scale,
+    /// at what it read: a value typed straight into it is placed instead.
+    pub placed_the_scale: bool,
 }
 
 /// Everything the sketch workflow needs to remember between frames. The sketch
@@ -385,6 +388,7 @@ impl SketchEditor {
                 None => String::new(),
             },
             focus: !same,
+            placed_the_scale: false,
         });
     }
 }

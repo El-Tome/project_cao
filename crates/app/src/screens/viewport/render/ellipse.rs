@@ -11,12 +11,13 @@ use super::preview::push_preview_line;
 use crate::screens::SketchContext;
 use crate::screens::viewport::ViewScale;
 use crate::screens::viewport::input::{ellipse_aimed_at, ellipse_preview};
+use crate::screens::viewport::values::shape_scale;
 
 pub(crate) fn live_fields(
     context: &SketchContext<'_>,
     cursor: DVec2,
 ) -> Option<([&'static str; 2], [f64; 2])> {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     // Placed from its two ends, both figures are read straight off what is
     // being drawn: the gap between the two clicks, then the rise. From the
     // centre, each click gives half of what the axis measures across.

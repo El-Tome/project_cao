@@ -8,7 +8,7 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
-use super::super::values::lay_values;
+use super::super::values::{lay_values, shape_scale};
 use super::{lean_on_an_arm, point_ref_at};
 use crate::screens::SketchContext;
 
@@ -151,7 +151,7 @@ fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2) -> DVec2 
         places,
         cursor,
         context.editor.live.locked(),
-        context.document.scale(),
+        shape_scale(context),
     )
 }
 
@@ -175,7 +175,7 @@ fn dimension_the_ellipse(
     second_width: Option<f64>,
     pixel: f64,
 ) {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = ellipse_dimensions(
         &context.document.sketches()[index],
         ellipse,

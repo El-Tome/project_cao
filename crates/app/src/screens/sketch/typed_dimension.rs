@@ -6,7 +6,9 @@ use cao_sketch::{DimensionTarget, LengthOutcome};
 
 use super::SketchEditor;
 
-/// `placement: None` leaves the annotation where it was put down, not reset.
+/// `placement: None` leaves the annotation where it was put down, not reset;
+/// a value taking the place of the one a dimension was placed with says where
+/// that was, since the step that said it is taken back.
 pub(crate) fn apply_dimension_value(
     document: &mut PartDocument,
     editor: &mut SketchEditor,
@@ -42,11 +44,12 @@ pub(crate) fn apply_dimension_value(
         return false;
     }
 
+    let placement = take_back_the_first_placing(document, editor, index, target, value);
     match document.apply(Operation::SetDimension {
         sketch: index,
         target,
         value: written,
-        placement: None,
+        placement,
     }) {
         Some(Outcome::Dimension(DimensionOutcome::ScaleDefined {
             millimeters_per_unit: mm,
@@ -71,6 +74,35 @@ pub(crate) fn apply_dimension_value(
             false
         }
     }
+}
+
+/// Placing the part's first dimension gave it a scale of one unit to the
+/// millimetre, at what the dimension read. A length typed straight into it is
+/// the value it is placed with instead: the step that placed it is taken back,
+/// so that this one is what says what a unit is worth, and nothing moves. Says
+/// where the dimension was put down, for it to stay there.
+fn take_back_the_first_placing(
+    document: &mut PartDocument,
+    editor: &SketchEditor,
+    index: usize,
+    target: DimensionTarget,
+    value: f64,
+) -> Option<glam::DVec2> {
+    let placed = editor
+        .editing
+        .as_ref()
+        .is_some_and(|editing| editing.placed_the_scale);
+    let last = document.history.applied_operations().last();
+    let placing = matches!(last, Some(Operation::SetDimension { sketch, target: set, .. })
+        if *sketch == index && *set == target);
+    if !placed || !placing || value <= 0.0 {
+        return None;
+    }
+    let offset = document.sketches()[index]
+        .dimension_of(target)
+        .and_then(|dimension| dimension.offset);
+    document.undo();
+    offset
 }
 
 #[cfg(test)]

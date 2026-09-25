@@ -3,7 +3,7 @@
 
 use cao_sketch::{Aim, DimensionTarget, SegmentId};
 
-use super::super::values::lay_values;
+use super::super::values::{lay_values, shape_scale};
 use crate::screens::SketchContext;
 
 /// Places on the line just drawn whatever the user typed, and the right angle
@@ -19,7 +19,7 @@ pub(super) fn dimension_the_line(
     pixel: f64,
 ) {
     let locked = context.editor.live.locked();
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = cao_sketch::line_dimensions(
         &context.document.sketches()[index],
         segment,

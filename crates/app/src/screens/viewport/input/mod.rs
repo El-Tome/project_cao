@@ -407,7 +407,7 @@ pub(crate) fn draw_line_point(
         _ => (None, None),
     };
     let locked = context.editor.live.locked();
-    let scale = context.document.scale();
+    let scale = super::values::shape_scale(context);
 
     match cao_sketch::chain_click(sketch, anchor, previous, cursor, snap, locked, scale) {
         cao_sketch::ChainClick::Started(anchor) => {
@@ -478,7 +478,7 @@ fn aim(
         previous,
         cursor,
         context.editor.live.locked(),
-        context.document.scale(),
+        super::values::shape_scale(context),
     )
 }
 

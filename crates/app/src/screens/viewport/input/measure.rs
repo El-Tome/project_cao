@@ -2,7 +2,7 @@
 //! annotation lands, what it shows before the click, and reopening one already
 //! on the drawing.
 
-use cao_part::Operation;
+use cao_part::{DimensionOutcome, Operation, Outcome};
 use cao_sketch::{DimensionMode, DimensionTarget, ToolState};
 use glam::DVec2;
 
@@ -158,6 +158,11 @@ pub(super) fn place_dimension(
     });
 
     context.editor.select(Some(target), Some(value));
+    if let (Some(editing), Some(Outcome::Dimension(DimensionOutcome::ScaleDefined { .. }))) =
+        (context.editor.editing.as_mut(), applied)
+    {
+        editing.placed_the_scale = true;
+    }
     context.editor.message = outcome::message(context.lang, applied);
     true
 }

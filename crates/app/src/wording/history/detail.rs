@@ -102,6 +102,8 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
         | Operation::ResizeArc { .. }
         | Operation::ResizeEllipse { .. }
         | Operation::MoveMany { .. }
+        | Operation::MoveSegment { .. }
+        | Operation::TurnShape { .. }
         | Operation::MoveDimension { .. } => moved(lang, operation),
         Operation::AddEllipse {
             sketch,

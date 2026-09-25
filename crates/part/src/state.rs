@@ -148,11 +148,14 @@ impl PartState {
                 if *let_go {
                     sketch.let_go(*point);
                 }
+                // What the drag may do is read before the drop lays its holds,
+                // off the drawing the gesture itself was shown on.
+                let pull = sketch.pull(*point, scale);
                 hold(sketch, *point, on);
                 // Moving a point by hand must not break the values already
-                // given, so the drawing settles again around it — around it,
-                // the point itself staying exactly where it was dropped.
-                sketch.settle_around(*point, *position, scale);
+                // given, so the drawing settles again around it, as the pull
+                // allows: stretching first, turning only when it cannot.
+                sketch.settle_pulled(&pull, *position, scale);
                 if let Some(kept) = merged_into {
                     sketch.merge_points(*kept, *point);
                     sketch.resolve(scale);
@@ -215,6 +218,17 @@ impl PartState {
                 sketch.settle_around_all(&dropped, scale);
                 None
             }
+            Operation::MoveSegment {
+                sketch,
+                segment,
+                by,
+            } => self.move_segment(*sketch, *segment, *by),
+            Operation::TurnShape {
+                sketch,
+                points,
+                about,
+                angle,
+            } => self.turn_shape(*sketch, points, *about, *angle),
             Operation::MoveDimension {
                 sketch,
                 target,

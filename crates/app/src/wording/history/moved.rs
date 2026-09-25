@@ -89,6 +89,34 @@ pub(super) fn moved(lang: &Catalogue, operation: &Operation) -> String {
                 ("y", &rounded(offset.y, 1)),
             ],
         ),
+        Operation::MoveSegment {
+            sketch,
+            segment,
+            by,
+        } => lang.t_with(
+            "history.detail.side_moved",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("segment", &segment.0.to_string()),
+                ("x", &rounded(by.x, 1)),
+                ("y", &rounded(by.y, 1)),
+            ],
+        ),
+        Operation::TurnShape {
+            sketch,
+            points,
+            about,
+            angle,
+        } => lang.t_with(
+            "history.detail.turned",
+            &[
+                ("sketch", &sketch.to_string()),
+                ("count", &points.len().to_string()),
+                ("angle", &rounded(angle.to_degrees(), 1)),
+                ("x", &rounded(about.x, 1)),
+                ("y", &rounded(about.y, 1)),
+            ],
+        ),
         _ => String::new(),
     }
 }

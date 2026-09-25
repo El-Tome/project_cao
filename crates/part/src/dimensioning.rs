@@ -86,6 +86,22 @@ impl PartState {
         true
     }
 
+    /// Takes a size typed to lay something the drawing has no way of measuring
+    /// — a step of matter's depth, a pattern's step — as the part's first value
+    /// when it comes first.
+    ///
+    /// There is nothing drawn for it to be read against, so it cannot say what
+    /// a unit is worth the way a length on the drawing does: it fixes a unit at
+    /// a millimetre, and every value after it is a rule the drawing gives way
+    /// to. Without this the part stayed scaleless while the depth was already
+    /// recorded in millimetres, and the first dimension typed afterwards set a
+    /// scale that moved the matter already raised.
+    pub(crate) fn fix_a_unit_at_a_millimetre(&mut self) {
+        if !self.has_scale() {
+            self.millimeters_per_unit = Some(1.0);
+        }
+    }
+
     /// Applies a length typed by the user, in millimetres.
     ///
     /// The very first one defines what the drawing measures: nothing moves, the

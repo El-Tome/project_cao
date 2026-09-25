@@ -72,7 +72,7 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `SolveOutcome` | — | `Solved`, `Residual` (constraints contradict each other), `Nothing`. |
 | `LengthOutcome` | — | `Exact`, `BestEffort` (the far end could not move freely), `Degenerate`. |
 | world unit | unité | What coordinates are stored in. |
-| `millimeters_per_unit` | échelle | Millimetres one world unit is worth. Undefined until the first value is given — typed while drawing or into a dimension — which is what sets it. |
+| `millimeters_per_unit` | échelle | Millimetres one world unit is worth. Undefined until the part's first value is given, which is what sets it: a length typed while drawing or into a dimension is read against what the drawing already measures, and a size with nothing drawn to read it against — an extrusion's depth, a rectangular pattern's step — fixes a unit at a millimetre. An angle sets nothing. |
 
 ## The matter
 

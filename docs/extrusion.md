@@ -106,10 +106,20 @@ is broken.
 ## The scale
 
 The height is given in millimetres, like the dimensions. It is converted into
-world units with the scale of the document, so an extrusion of 25 mm stays
-25 mm even if a dimension redefines the scale afterwards… except that the
-volume is rebuilt by replaying the history, so it is the scale **at the time of
-the replay** that applies.
+world units with the scale of the document.
+
+**A depth typed before anything was measured is the part's first value**, and
+fixes a unit at a millimetre: there is nothing drawn for it to be read against,
+the way a length on the drawing is. Every value after it — a dimension on the
+sketch the matter stands on included — is a rule the drawing gives way to, so
+the plate keeps the depth that was typed for it. The step of a rectangular
+pattern follows the same rule; an angle, a revolution's or a circular pattern's,
+says nothing about size and sets nothing.
+
+Which value came first is asked in the order things were **typed**, and that is
+not the order the history replays in: a dimension on a sketch replays with that
+sketch's step, so one typed long after an extrusion still reaches the part
+before it. The question is put to the history before a single operation runs.
 
 ## Sketching on a face of the part
 

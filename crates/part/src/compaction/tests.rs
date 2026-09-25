@@ -1,3 +1,19 @@
+//! Closes #350.
+//! - a shape dragged far away after its extrusion keeps its matter through a
+//!   compaction, where the dragged shape is —
+//!   `a_shape_dragged_after_its_extrusion_keeps_its_matter_through_a_compaction`
+//! - compaction stays a rewrite that produces the same part —
+//!   `a_dragged_dimensioned_part_compacts_to_the_same_body_with_fewer_steps`
+//! - compacting twice gives what compacting once gave —
+//!   `compacting_a_second_time_changes_nothing_more`
+//! - compaction drops the redo tail, as it did — `compacting_drops_the_redo_tail`
+//!
+//! The issue weighed two answers. #371, closing #345, settled it before a line
+//! was written here: an extrusion names its area by the curves bounding it,
+//! compaction carries those through `remap_area`, and the matter follows the
+//! moved shape — which is also where a history built forward puts it since
+//! #365.
+
 // `architecture.rs`'s reader-text scan slices each file at its own first
 // "#[cfg(test)]" literal to tell shipped prose from test code. This file is
 // nothing but test code, reached only through `#[cfg(test)] mod tests;` in
@@ -7,7 +23,7 @@
 use cao_sketch::DimensionTarget;
 #[cfg(test)]
 use cao_sketch::WorkPlane;
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::history::Step;
@@ -356,5 +372,45 @@ fn a_compacted_design_is_still_one_step_per_folder_and_reuses_no_operation_numbe
         after.iter().all(|number| !numbers.contains(number)),
         "a number that named an operation before the rewrite has come back \
          naming another: {numbers:?} against {after:?}",
+    );
+}
+
+#[test]
+fn a_shape_dragged_after_its_extrusion_keeps_its_matter_through_a_compaction() {
+    let mut history = History::default();
+    history.push(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    history.push(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 10.0)),
+        construction: false,
+    });
+    history.push(Operation::Extrude {
+        sketch: 0,
+        areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
+        distance: 4.0,
+        mode: crate::history::ExtrusionMode::Add,
+    });
+    history.push(Operation::MoveMany {
+        sketch: 0,
+        points: vec![PointId(1), PointId(2), PointId(3), PointId(4)],
+        by: DVec2::new(500.0, 0.0),
+    });
+
+    let after = PartState::rebuild(&compact(&history));
+
+    assert!(
+        (volume(&after.body) - 400.0).abs() < 1e-6,
+        "a 10 by 10 by 4 block, got a volume of {}",
+        volume(&after.body)
+    );
+    let (min, max) = after.body.bounds().expect("the block is still there");
+    assert!(
+        min.abs_diff_eq(DVec3::new(500.0, 0.0, 0.0), 1e-9)
+            && max.abs_diff_eq(DVec3::new(510.0, 10.0, 4.0), 1e-9),
+        "the block stands where the rectangle was dragged, got {min:?} to {max:?}"
     );
 }

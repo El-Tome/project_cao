@@ -113,6 +113,7 @@ impl PartState {
         let Some(distance) = self.size(distance, |travel| travel.abs() >= 1e-6) else {
             return;
         };
+        self.fix_a_unit_at_a_millimetre();
         let scale = self.scale();
         let Some(sketch) = self.sketches.get(index) else {
             return;

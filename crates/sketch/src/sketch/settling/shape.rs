@@ -101,6 +101,26 @@ impl Sketch {
             .collect()
     }
 
+    /// The shape that some points of one element belong to — a side's two
+    /// ends, a curve's handles — walked from the first of them the drawing does
+    /// not hold still: walked from the origin, it would take in every drawing
+    /// laid on the origin.
+    pub(crate) fn shape_through(&self, points: &[PointId]) -> Vec<PointId> {
+        let pinned = self.pinned_points();
+        match points
+            .iter()
+            .find(|point| !pinned.get(point.0).copied().unwrap_or(true))
+        {
+            Some(free) => self.shape_of(*free),
+            None => {
+                let mut alone = points.to_vec();
+                alone.sort_by_key(|point| point.0);
+                alone.dedup();
+                alone
+            }
+        }
+    }
+
     /// How many joins away from `point` each point stands, by rank; nothing
     /// for a point it does not reach. The walk goes to a point the drawing
     /// holds still and no further.

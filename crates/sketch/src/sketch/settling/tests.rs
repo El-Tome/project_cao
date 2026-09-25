@@ -36,7 +36,9 @@
 //!   further back as the hand goes on —
 //!   `a_rectangle_pulled_past_its_far_side_stops_at_the_last_place_it_can_reach`,
 //!   `a_corner_held_back_by_a_typed_width_goes_no_further_back_as_the_hand_goes_on`,
-//!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`
+//!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`; a point whose
+//!   one way is round a curve goes round it towards the hand —
+//!   `a_corner_held_at_a_typed_distance_goes_round_towards_the_hand`
 //! - 6: a trait of typed length whose other end is held still pivots about it —
 //!   `a_leaning_trait_of_typed_length_hung_off_the_origin_pivots_about_it`
 //! - 7: a point on a curve leaves the curve's centre in place: an arc's end
@@ -918,4 +920,29 @@ fn a_point_that_stopped_short_of_the_hand_is_joined_to_nothing() {
     assert!(!pull.arrived(&settled, landing), "the width held it back");
     assert_eq!(pull.joined_to(&sketch, &settled, landing, 5.0), None);
     let _ = beside;
+}
+
+#[test]
+fn a_corner_held_at_a_typed_distance_goes_round_towards_the_hand() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let apex = sketch.add_point(DVec2::new(50.0, 80.0));
+    let left = sketch.add_point(DVec2::new(10.0, 10.0));
+    let right = sketch.add_point(DVec2::new(110.0, 10.0));
+    sketch.add_segment(apex, left);
+    sketch.add_segment(left, right);
+    let typed_side = sketch.add_segment(right, apex);
+    typed(&mut sketch, typed_side);
+    let reach = sketch.segment_length(typed_side);
+
+    sketch.settle_around(apex, DVec2::new(20.0, 50.0), 1.0);
+
+    let went = sketch.point(apex);
+    assert!(
+        went.distance(DVec2::new(50.0, 80.0)) > 5.0,
+        "it went round towards the hand: {went}"
+    );
+    assert!(
+        (went.distance(sketch.point(right)) - reach).abs() < SETTLED,
+        "at its length"
+    );
 }

@@ -21,6 +21,9 @@ use crate::turning::angle_onto_grid;
 /// solver's own precision — and how many halvings that may take at the most.
 const REACHED_WITHIN: f64 = 1e-5;
 const HALVINGS: usize = 24;
+/// The least way along the hand's line, as a share of the drawing's size,
+/// that counts as having followed the hand at all.
+const PROGRESS: f64 = 1e-3;
 
 /// What a drag of one point may do to the drawing, read from the drawing as
 /// the press found it.
@@ -275,7 +278,10 @@ impl Sketch {
             }
             self.give_back(kept);
         }
-        reached > 0.0
+        // A hair's breadth past the press is no way at all: the hand's way
+        // runs off a curve the point is held to, and letting it go is what
+        // brings it round.
+        reached * pull.from.distance(landing) > self.drawing_size() * PROGRESS
             && self.stretch(
                 pull.point,
                 holding,

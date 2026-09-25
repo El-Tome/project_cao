@@ -118,7 +118,7 @@ impl Sketch {
             by: normal * (cursor - pressed).dot(normal),
         };
 
-        let shape = self.shape_of(line.start);
+        let shape = self.shape_through(&[line.start, line.end]);
         let Some(about) = self.turning_centre(&shape, millimeters_per_unit) else {
             return across;
         };
@@ -186,7 +186,7 @@ impl Sketch {
             }
         };
         let about = self.point(centre);
-        let shape = self.shape_of(centre);
+        let shape = self.shape_through(&handles);
         if !self.turns_freely_about(&shape, about, millimeters_per_unit) {
             return resize;
         }
@@ -240,7 +240,7 @@ impl Sketch {
         let normal = along.perp();
         let travel = by.dot(normal);
 
-        let shape = self.shape_of(line.start);
+        let shape = self.shape_through(&[line.start, line.end]);
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
         lines.extend(Kept::direction(self, line.start, line.end, Some(side)));
@@ -253,19 +253,32 @@ impl Sketch {
 
         // An end lying on a curve slides round that curve to where the moved
         // line crosses it: the curve keeps its centre and its size, which only
-        // the curve itself says.
-        let kept = self.shapes_now();
+        // the curve itself says. Not an end the side leaves the curve tangent
+        // at — a fillet's, a slot's — which the curve follows instead.
+        let mut landed: Vec<(PointId, DVec2)> = Vec::new();
         for end in [line.start, line.end] {
+            if let Some(ellipse) = self.ellipse_cut_at(end) {
+                pins.extend(self.ellipse_points(ellipse));
+                continue;
+            }
             let Some((centre, reach)) = self.curve_under(end) else {
                 continue;
             };
+            let out = self.point(end) - self.point(centre);
+            if out.normalize_or_zero().dot(along).abs() < 1e-3 {
+                continue;
+            }
             let level = self.point(end).dot(normal) + travel;
             let Some(place) = crossing(self.point(centre), reach, normal, level, self.point(end))
             else {
                 return LengthOutcome::BestEffort;
             };
-            self.move_point(end, place);
+            landed.push((end, place));
             pins.extend([centre, end]);
+        }
+        let kept = self.shapes_now();
+        for (end, place) in landed {
+            self.move_point(end, place);
         }
         match self.settle_held(pins, lines, millimeters_per_unit) {
             true => LengthOutcome::Exact,
@@ -315,6 +328,17 @@ impl Sketch {
             }
         }
         best.map(|(point, _)| point)
+    }
+
+    /// The ellipse a point ends the drawn stretch of, when it ends one.
+    fn ellipse_cut_at(&self, point: PointId) -> Option<crate::ellipse::EllipseId> {
+        self.live_ellipses()
+            .find(|(_, ellipse)| {
+                ellipse
+                    .drawn
+                    .is_some_and(|(from, to)| from == point || to == point)
+            })
+            .map(|(id, _)| id)
     }
 
     /// The centre and the reach of the circle or the arc a point lies on, when

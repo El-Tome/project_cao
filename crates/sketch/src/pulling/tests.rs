@@ -7,13 +7,17 @@
 //!   `a_right_triangle_grows_when_its_hypotenuse_is_pulled_out`,
 //!   `a_lone_trait_pulled_across_travels_whole`,
 //!   `a_typed_tail_does_not_take_the_place_of_the_opposite_side`,
-//!   `a_d_shape_pulled_by_its_flat_keeps_its_curve`
+//!   `a_d_shape_pulled_by_its_flat_keeps_its_curve`,
+//!   `a_slot_pulled_by_its_flat_widens_and_its_other_flat_stays`,
+//!   `an_ellipse_closed_by_a_chord_keeps_its_centre_when_the_chord_is_pulled`
 //! - 10: slid along itself, the side turns its shape about the shape's centre,
 //!   or about the point holding it, the place grabbed going round with the
 //!   hand — `a_side_slid_along_itself_turns_the_shape_about_its_centre`,
 //!   `a_shape_held_at_a_point_turns_about_it`, and a shape sharing only the
 //!   origin with another turns alone —
-//!   `a_shape_sharing_only_the_origin_with_another_turns_alone`
+//!   `a_shape_sharing_only_the_origin_with_another_turns_alone`,
+//!   `a_side_starting_on_the_origin_turns_its_own_shape_alone`,
+//!   `a_curve_centred_on_the_origin_turns_without_what_else_stands_there`
 //! - 11: which of the two is read at every instant: a pull straight across
 //!   resizes wherever the side was pressed, a slide along turns, and a turn
 //!   stays a turn past a quarter —
@@ -23,7 +27,8 @@
 //! - 12: a trait on its own has no along, nor a shape a rule holds upright —
 //!   `a_lone_trait_has_no_along`, `a_shape_held_upright_by_a_rule_has_no_along`
 //! - 13: a shape that cannot stretch across leaves the side where it is —
-//!   `a_shape_that_cannot_stretch_across_leaves_its_side_where_it_is`
+//!   `a_shape_that_cannot_stretch_across_leaves_its_side_where_it_is`,
+//!   `a_side_that_cannot_reach_a_curve_at_one_end_leaves_the_drawing_as_it_was`
 //! - 15: a curve pulled towards or away from its centre is drawn to its new
 //!   size as before — `a_curve_pulled_out_is_drawn_to_its_new_size_as_before`
 //! - 16: slid along, an arc turns keeping its radius and its sweep, an ellipse
@@ -45,6 +50,7 @@ use glam::DVec2;
 
 use super::*;
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 
 /// Close enough for points the solver placed: it stops at a hundred-thousandth
@@ -683,5 +689,164 @@ fn an_arc_slid_along_turns_what_is_joined_to_it_with_it() {
         sketch.point(tip),
         went,
         "the trait joined to it turned with it",
+    );
+}
+
+/// A slot: two half-circles of radius 20 about (30, 30) and (130, 30), joined
+/// by two flats they are tangent to.
+fn slot() -> (Sketch, [PointId; 4], [SegmentId; 2]) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(30.0, 30.0));
+    let right = sketch.add_point(DVec2::new(130.0, 30.0));
+    let corners = [
+        DVec2::new(30.0, 10.0),
+        DVec2::new(130.0, 10.0),
+        DVec2::new(130.0, 50.0),
+        DVec2::new(30.0, 50.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let bottom = sketch.add_segment(corners[0], corners[1]);
+    let top = sketch.add_segment(corners[2], corners[3]);
+    let east = sketch.add_arc(right, corners[1], corners[2]);
+    let west = sketch.add_arc(left, corners[3], corners[0]);
+    for (arc, segment) in [(east, bottom), (east, top), (west, bottom), (west, top)] {
+        sketch.add_constraint(Constraint::ArcTangent {
+            arc,
+            segment,
+            at: None,
+        });
+    }
+    sketch.resolve(1.0);
+    (sketch, corners, [bottom, top])
+}
+
+#[test]
+fn a_slot_pulled_by_its_flat_widens_and_its_other_flat_stays() {
+    let (mut sketch, corners, [_, top]) = slot();
+
+    let outcome = sketch.move_side(top, DVec2::new(0.0, 10.0), 1.0);
+
+    assert_eq!(outcome, LengthOutcome::Exact);
+    assert!(
+        (sketch.point(corners[2]).y - 60.0).abs() < SETTLED,
+        "{}",
+        sketch.point(corners[2])
+    );
+    assert!(
+        (sketch.point(corners[0]).y - 10.0).abs() < SETTLED,
+        "{}",
+        sketch.point(corners[0])
+    );
+}
+
+#[test]
+fn a_side_that_cannot_reach_a_curve_at_one_end_leaves_the_drawing_as_it_was() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let big = sketch.add_point(DVec2::new(50.0, 50.0));
+    let small = sketch.add_point(DVec2::new(150.0, 50.0));
+    let from = sketch.add_point(DVec2::new(50.0 + (900.0_f64 - 25.0).sqrt(), 55.0));
+    let to = sketch.add_point(DVec2::new(150.0 - (100.0_f64 - 25.0).sqrt(), 55.0));
+    let big_end = sketch.add_point(DVec2::new(50.0, 80.0));
+    let small_end = sketch.add_point(DVec2::new(150.0, 40.0));
+    sketch.add_arc(big, from, big_end);
+    sketch.add_arc(small, small_end, to);
+    let side = sketch.add_segment(from, to);
+    let before = sketch.points().to_vec();
+
+    sketch.move_side(side, DVec2::new(0.0, 10.0), 1.0);
+
+    assert_eq!(sketch.points(), before.as_slice());
+}
+
+#[test]
+fn a_curve_centred_on_the_origin_turns_without_what_else_stands_there() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        Sketch::ORIGIN,
+        sketch.add_point(DVec2::new(100.0, 0.0)),
+        sketch.add_point(DVec2::new(100.0, 50.0)),
+        sketch.add_point(DVec2::new(0.0, 50.0)),
+    ];
+    for rank in 0..4 {
+        sketch.add_segment(corners[rank], corners[(rank + 1) % 4]);
+    }
+    let start = sketch.add_point(DVec2::new(-30.0, 0.0));
+    let end = sketch.add_point(DVec2::new(0.0, -30.0));
+    let arc = sketch.add_arc(Sketch::ORIGIN, start, end);
+    let pressed = DVec2::from_angle(-2.4) * 30.0;
+    let cursor = DVec2::from_angle(-2.1) * 30.0;
+
+    let CurveDrag::Along(turn) =
+        sketch.curve_drag(Curved::Arc(arc), pressed, cursor, cursor, &no_grid(), 1.0)
+    else {
+        panic!("sliding along the arc turns it");
+    };
+
+    assert!(
+        !turn.points.contains(&corners[2]),
+        "the rectangle stays out of it: {:?}",
+        turn.points
+    );
+}
+
+#[test]
+fn a_side_starting_on_the_origin_turns_its_own_shape_alone() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        Sketch::ORIGIN,
+        sketch.add_point(DVec2::new(100.0, 0.0)),
+        sketch.add_point(DVec2::new(100.0, 50.0)),
+        sketch.add_point(DVec2::new(0.0, 50.0)),
+    ];
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+    let other = sketch.add_point(DVec2::new(-60.0, -40.0));
+    sketch.add_segment(Sketch::ORIGIN, other);
+
+    let drag = sketch.side_drag(
+        sides[0],
+        DVec2::new(50.0, 0.0),
+        DVec2::new(49.0, -12.0),
+        &no_grid(),
+        1.0,
+    );
+
+    if let SideDrag::Along(turn) = drag {
+        assert!(
+            !turn.points.contains(&other),
+            "the other shape is not taken along"
+        );
+    }
+    assert!(
+        !sketch
+            .shape_through(&[Sketch::ORIGIN, corners[1]])
+            .contains(&other),
+        "a shape walked from its free end stops at the origin"
+    );
+}
+
+#[test]
+fn an_ellipse_closed_by_a_chord_keeps_its_centre_when_the_chord_is_pulled() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let west = sketch.add_point(DVec2::new(10.0, 50.0));
+    let east = sketch.add_point(DVec2::new(90.0, 50.0));
+    let south = sketch.add_point(DVec2::new(50.0, 30.0));
+    let north = sketch.add_point(DVec2::new(50.0, 70.0));
+    let id = sketch.add_ellipse(centre, [west, east], [south, north]);
+    let across = 40.0 * (1.0 - 0.25_f64).sqrt();
+    let from = sketch.add_point(DVec2::new(50.0 + across, 60.0));
+    let to = sketch.add_point(DVec2::new(50.0 - across, 60.0));
+    sketch.ellipses[id.0].drawn = Some((from, to));
+    let chord = sketch.add_segment(to, from);
+    sketch.resolve(1.0);
+
+    sketch.move_side(chord, DVec2::new(0.0, -3.0), 1.0);
+
+    assert_near(sketch.point(centre), DVec2::new(50.0, 50.0), "the centre");
+    assert_near(
+        sketch.point(north),
+        DVec2::new(50.0, 70.0),
+        "the top of the curve",
     );
 }

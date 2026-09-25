@@ -12,6 +12,7 @@ use super::live_fields::value_field;
 use super::overlays::{tint_to_color as to_color_of, to_screen};
 use super::{live_offset, pending_annotation};
 use crate::screens::SketchContext;
+use crate::ui::dropping::take_a_dropped_name;
 
 /// Each dimension is drawn where it applies, with the value it stands for.
 /// A readout shows what the geometry measures rather than a stored number, so
@@ -44,6 +45,12 @@ pub(crate) fn paint_dimension_labels(
     let pixel = state
         .camera
         .world_units_per_pixel(rect.height() * ui.ctx().pixels_per_point()) as f64;
+    // What a refused change to the variables would have broken flashes where
+    // it stands, for as long as the blinking lasts.
+    let blinking = state.blinking_on(index, ui.input(|input| input.time));
+    if blinking.is_some() {
+        ui.ctx().request_repaint();
+    }
 
     for dimension in sketch.dimensions() {
         // Asking the annotation where its value belongs keeps the text on the
@@ -85,6 +92,12 @@ pub(crate) fn paint_dimension_labels(
         let color = match going.is_some_and(|going| going.values.contains(&dimension.target)) {
             true => to_color_of(state.theme.going),
             false => color,
+        };
+        let color = match &blinking {
+            Some((values, true)) if values.contains(&dimension.target) => {
+                ui.visuals().error_fg_color
+            }
+            _ => color,
         };
         painter.text(
             position,
@@ -184,7 +197,19 @@ pub(crate) fn paint_dimension_field(
                         "mm".to_string()
                     };
                     let focus = std::mem::take(&mut editing.focus);
-                    let field = value_field(ui, &mut editing.input, &hint, focus);
+                    let id = egui::Id::new("dimension_value");
+                    let mut output = value_field(
+                        ui,
+                        id,
+                        &mut editing.input,
+                        &hint,
+                        focus,
+                        context.document.variables(),
+                    );
+                    // A variable dragged from its panel goes in where it is
+                    // dropped, the keyboard with it, so Entrée applies it.
+                    take_a_dropped_name(ui, id, &mut output, &mut editing.input);
+                    let field = output.response.response;
                     ui.weak(&hint); // the field opens pre-filled, so its own hint_text never draws
                     // Enter is eaten here: the field has just given the keyboard
                     // back, so the same press would otherwise also fire the

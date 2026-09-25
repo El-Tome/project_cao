@@ -4,6 +4,7 @@ use cao_part::Operation;
 use cao_sketch::{CircleId, CircleMode, DimensionTarget, Found, ToolState};
 use glam::DVec2;
 
+use super::super::values::{as_typed, shape_scale};
 use super::{annotation_position, point_ref_at};
 use crate::screens::SketchContext;
 use crate::wording::outcome;
@@ -71,11 +72,10 @@ pub(crate) fn draw_circle(
             // everywhere else, so shapes hang together instead of stacking
             // points.
             let center = point_ref_at(context, index, found.centre, snap);
-            let rim: Vec<cao_part::PointRef> =
-                cao_sketch::rim_of(mode, &points, cursor, found.centre)
-                    .into_iter()
-                    .map(|place| point_ref_at(context, index, place, snap))
-                    .collect();
+            let rim: Vec<cao_part::PointRef> = cao_sketch::rim_of(mode, &points, cursor, found)
+                .into_iter()
+                .map(|place| point_ref_at(context, index, place, snap))
+                .collect();
             context.document.apply(Operation::AddCircle {
                 sketch: index,
                 center,
@@ -105,12 +105,13 @@ pub(crate) fn draw_circle(
             // And a size typed by hand becomes the dimension it deserves.
             if let Some(diameter) = context.editor.live.typed(0) {
                 let target = DimensionTarget::Diameter(drawn);
-                let scale = context.document.scale();
+                let scale = shape_scale(context);
                 if !context.document.sketches()[index].would_be_redundant(target, scale) {
+                    let typed = context.editor.live.typed_as_written(0);
                     let applied = context.document.apply(Operation::SetDimension {
                         sketch: index,
                         target,
-                        value: diameter,
+                        value: as_typed(typed, diameter),
                         placement: annotation_position(context, index, target, pixel)
                             .map(|placement| placement.offset),
                     });
@@ -156,6 +157,6 @@ pub(crate) fn circle_from(
         &lines,
         cursor,
         context.editor.live.typed(0),
-        context.document.scale(),
+        shape_scale(context),
     )
 }

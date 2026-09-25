@@ -49,7 +49,7 @@ fn a_raised_ellipse(distance: f64) -> PartState {
     history.push(Operation::Extrude {
         sketch: 0,
         areas,
-        distance,
+        distance: distance.into(),
         mode: ExtrusionMode::Add,
     });
     PartState::rebuild(&history)

@@ -25,8 +25,15 @@ impl Feature {
 
         for (at, operation) in history.operations().iter().enumerate() {
             let Some(kind) = StepKind::opened_by(operation) else {
-                if let Some(feature) = features.last_mut() {
-                    feature.end = at + 1;
+                match features.last_mut() {
+                    Some(feature) => feature.end = at + 1,
+                    // Variables can be made before anything is drawn, and
+                    // they are a line of the history like any other.
+                    None => features.push(Self {
+                        start: at,
+                        end: at + 1,
+                        sketch: None,
+                    }),
                 }
                 continue;
             };

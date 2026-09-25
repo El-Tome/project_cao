@@ -185,7 +185,7 @@ impl Sketch {
     /// them. Read before the cut, since the cut is what takes them away.
     pub(crate) fn values_at(&self, sides: [SegmentId; 2]) -> CornerValues {
         CornerValues {
-            lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).copied()),
+            lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).cloned()),
             opening: self
                 .dimension_of(
                     DimensionTarget::Angle {
@@ -194,7 +194,7 @@ impl Sketch {
                     }
                     .normalised(),
                 )
-                .copied(),
+                .cloned(),
         }
     }
 
@@ -239,17 +239,13 @@ impl Sketch {
 
     /// The same value, now said of something the drawing still has.
     fn rewrite(&mut self, held: Dimension, onto: DimensionTarget) -> usize {
-        let target = onto.normalised();
-        self.set_dimension(target, held.value, held.driven);
-        if let Some(offset) = held.offset {
-            self.offset_dimension(target, offset);
-        }
+        self.carry_dimension(onto.normalised(), &held);
         1
     }
 }
 
 /// What a corner was worth before it was cut off.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct CornerValues {
     /// The length each of the two sides was given, in the order they were
     /// named.

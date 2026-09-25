@@ -1,4 +1,5 @@
-use cao_part::Operation;
+use cao_part::history::ChamferAsked;
+use cao_part::{Formula, Operation};
 use cao_sketch::{
     Chamfer, ChamferMode, Corner, LockedInput, PointId, SegmentId, Sketch, ToolState,
 };
@@ -199,9 +200,10 @@ pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
         return false;
     };
 
+    let written = [0, 1].map(|rank| context.editor.live.written(rank));
     let applied = context
         .document
-        .apply(laying(index, taken, asked, rounding));
+        .apply(laying(index, taken, asked, rounding, written));
     context.editor.tool_state = ToolState::None;
     context.editor.live.clear();
     context.editor.message = outcome::message(context.lang, applied)
@@ -212,18 +214,43 @@ pub(crate) fn cut(context: &mut SketchContext<'_>, index: usize) -> bool {
 /// The operation that lays every corner taken. Whether each of them fits is
 /// the drawing's business, and a corner too tight is counted and said rather
 /// than stopping the rest.
-fn laying(index: usize, taken: Vec<Corner>, asked: Chamfer, rounding: bool) -> Operation {
-    match (rounding, asked) {
-        (true, Chamfer::Equal(radius)) => Operation::Fillet {
-            sketch: index,
-            corners: taken,
-            radius,
+///
+/// Each value goes in as it was typed, so that a corner cut from the part's
+/// variables follows them: `written` is what the two fields hold, as written.
+fn laying(
+    index: usize,
+    taken: Vec<Corner>,
+    asked: Chamfer,
+    rounding: bool,
+    written: [Option<Formula>; 2],
+) -> Operation {
+    let [first, second] = written;
+    let as_typed = |typed: Option<Formula>, number: f64| typed.unwrap_or(Formula::Number(number));
+    let mode = match asked {
+        Chamfer::Equal(reach) if rounding => {
+            return Operation::Fillet {
+                sketch: index,
+                corners: taken,
+                radius: as_typed(first, reach),
+            };
+        }
+        Chamfer::Equal(reach) => ChamferAsked::Equal(as_typed(first, reach)),
+        Chamfer::Angled { along, degrees } => ChamferAsked::Angled {
+            along: as_typed(first, along),
+            degrees: as_typed(second, degrees),
         },
-        _ => Operation::Chamfer {
-            sketch: index,
-            corners: taken,
-            mode: asked,
+        Chamfer::Sided {
+            first: near,
+            second: far,
+        } => ChamferAsked::Sided {
+            first: as_typed(first, near),
+            second: as_typed(second, far),
         },
+    };
+    Operation::Chamfer {
+        sketch: index,
+        corners: taken,
+        mode,
     }
 }
 

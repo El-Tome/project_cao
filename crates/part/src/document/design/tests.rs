@@ -1,3 +1,11 @@
+//! What the design folder of a part file is held to.
+//!
+//! Closes #175.
+//! - the variables and the formulas are saved with the part and come back
+//!   when it is opened —
+//!   `the_variables_are_a_table_of_the_part_kept_beside_the_steps_and_come_back`,
+//!   `a_part_with_no_variables_writes_no_table`
+
 use std::io::Cursor;
 
 use cao_sketch::{SketchAxis, WorkPlane};
@@ -30,7 +38,7 @@ fn a_part_of_every_kind() -> PartDocument {
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::new(6.0, 11.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Cut,
     });
     document.apply(Operation::CreateSketch {
@@ -47,7 +55,7 @@ fn a_part_of_every_kind() -> PartDocument {
         sketch: 1,
         areas: document.areas_at(1, &[DVec2::new(4.0, 4.0)]),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 90.0,
+        angle: 90.0.into(),
         mode: ExtrusionMode::Add,
     });
     document
@@ -146,4 +154,54 @@ fn each_kind_of_step_is_numbered_in_the_rank_the_operations_already_speak_in() {
     ] {
         assert!(entries.contains(&wanted.to_string()), "{entries:?}");
     }
+}
+
+fn a_variable(name: &str, value: f64) -> Operation {
+    Operation::Variable(crate::variables::VariableChange::Added {
+        name: name.to_string(),
+        formula: crate::formula::Formula::Number(value),
+    })
+}
+
+#[test]
+fn the_variables_are_a_table_of_the_part_kept_beside_the_steps_and_come_back() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(a_variable("width", 120.0));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(a_variable("height", 40.0));
+    let (files, path) = written(&document);
+    let bytes = files.read(&path).expect("the archive is there");
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
+
+    let table = crate::document::read_entry(&mut archive, VARIABLES_ENTRY).expect("the variables");
+    let design = design_in(&files, &path);
+
+    assert!(
+        table.contains("width") && table.contains("height"),
+        "{table}"
+    );
+    assert_eq!(design.operations(), document.history.operations());
+    assert_eq!(
+        design.variable_changes(),
+        document.history.variable_changes()
+    );
+    assert!(
+        design.steps()[0].operations() == [2],
+        "the sketch holds none of them"
+    );
+}
+
+#[test]
+fn a_part_with_no_variables_writes_no_table() {
+    let (files, path) = written(&a_part_of_every_kind());
+    let bytes = files.read(&path).expect("the archive is there");
+    let mut archive = zip::ZipArchive::new(Cursor::new(bytes)).expect("a zip archive");
+
+    let index = crate::document::read_entry(&mut archive, INDEX_ENTRY).expect("the index");
+
+    assert!(archive.by_name(VARIABLES_ENTRY).is_err());
+    assert!(!index.contains("variables"), "{index}");
 }

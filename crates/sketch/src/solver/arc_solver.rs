@@ -42,7 +42,7 @@ impl Sketch {
     /// resolved to what a millimetre is worth.
     pub(super) fn arc_dimension_equation(
         &self,
-        dimension: Dimension,
+        dimension: &Dimension,
         scale: f64,
     ) -> Option<Equation> {
         match dimension.target {

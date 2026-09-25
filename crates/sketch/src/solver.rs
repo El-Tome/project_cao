@@ -896,7 +896,7 @@ impl Sketch {
         millimeters_per_unit: f64,
         pinned: &[bool],
     ) -> Option<Equation> {
-        let dimension = *self.dimensions().get(index)?;
+        let dimension = self.dimensions().get(index)?;
         if dimension.driven {
             return None;
         }

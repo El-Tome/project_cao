@@ -2,7 +2,7 @@
 //! annotation lands, what it shows before the click, and reopening one already
 //! on the drawing.
 
-use cao_part::Operation;
+use cao_part::{DimensionOutcome, Operation, Outcome};
 use cao_sketch::{DimensionMode, DimensionTarget, ToolState};
 use glam::DVec2;
 
@@ -145,7 +145,7 @@ pub(super) fn place_dimension(
     let applied = context.document.apply(Operation::SetDimension {
         sketch: index,
         target,
-        value,
+        value: value.into(),
         // What the annotation has to be moved by for its value to land on the
         // cursor: a linear or angular annotation follows its offset exactly,
         // so the gap between where the value is and where the cursor is *is*
@@ -158,6 +158,11 @@ pub(super) fn place_dimension(
     });
 
     context.editor.select(Some(target), Some(value));
+    if let (Some(editing), Some(Outcome::Dimension(DimensionOutcome::ScaleDefined { .. }))) =
+        (context.editor.editing.as_mut(), applied)
+    {
+        editing.placed_the_scale = true;
+    }
     context.editor.message = outcome::message(context.lang, applied);
     true
 }
@@ -245,5 +250,16 @@ pub(super) fn edit_dimension(
         context.editor.tool_state = ToolState::None;
     }
     context.editor.select(Some(target), value);
+    // A value written from the variables is edited as what it was written as,
+    // not as the number that comes to.
+    if let (Some(written), Some(editing)) = (
+        context.document.formula_of(index, target),
+        context.editor.editing.as_mut(),
+    ) {
+        editing.input = written;
+    }
     context.editor.message = None;
 }
+
+#[cfg(test)]
+mod tests;

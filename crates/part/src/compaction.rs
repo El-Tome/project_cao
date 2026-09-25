@@ -15,9 +15,12 @@ use cao_sketch::{ArcId, Area, CircleId, Constraint, PointId, Segment, SegmentId,
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
 use remap::{SketchIdMap, remap_area, remap_constraint, remap_target};
+use variables::{Renumbered, compact_variables};
 
 mod ellipses;
 mod remap;
+mod variables;
+mod verbatim;
 
 /// Rewrites the applied part of `history` down to what the part still is.
 ///
@@ -30,6 +33,7 @@ pub fn compact(history: &History) -> History {
     let mut new_history = history.following();
     let mut new_state = PartState::default();
     let mut sketch_maps: Vec<SketchIdMap> = Vec::new();
+    let renumbered = compact_variables(&old_state.variables, &mut new_history, &mut new_state);
 
     for operation in operations {
         match operation {
@@ -45,13 +49,25 @@ pub fn compact(history: &History) -> History {
                 let sketch_index = sketch_maps.len();
                 let old_sketch = &old_state.sketches[sketch_index];
                 let axis_segments = revolve_axis_segments(sketch_index, operations);
-                let map = compact_sketch(
-                    old_sketch,
-                    sketch_index,
-                    &axis_segments,
-                    &mut new_history,
-                    &mut new_state,
-                );
+                let map = match verbatim::holds_a_tool_written_from_variables(history, sketch_index)
+                {
+                    true => verbatim::keep_as_drawn(
+                        history,
+                        sketch_index,
+                        &old_state,
+                        &renumbered,
+                        &mut new_history,
+                        &mut new_state,
+                    ),
+                    false => compact_sketch(
+                        old_sketch,
+                        sketch_index,
+                        &axis_segments,
+                        &renumbered,
+                        &mut new_history,
+                        &mut new_state,
+                    ),
+                };
                 sketch_maps.push(map);
             }
             Operation::Extrude {
@@ -63,7 +79,7 @@ pub fn compact(history: &History) -> History {
                 Operation::Extrude {
                     sketch: *sketch,
                     areas: renamed(areas, &old_state, &sketch_maps, *sketch),
-                    distance: *distance,
+                    distance: renumbered.formula(distance),
                     mode: *mode,
                 },
                 &mut new_history,
@@ -87,7 +103,7 @@ pub fn compact(history: &History) -> History {
                         sketch: *sketch,
                         areas: renamed(areas, &old_state, &sketch_maps, *sketch),
                         axis,
-                        angle: *angle,
+                        angle: renumbered.formula(angle),
                         mode: *mode,
                     },
                     &mut new_history,
@@ -184,6 +200,7 @@ fn compact_sketch(
     old_sketch: &Sketch,
     sketch_index: usize,
     axis_segments: &HashSet<SegmentId>,
+    renumbered: &Renumbered,
     new_history: &mut History,
     new_state: &mut PartState,
 ) -> SketchIdMap {
@@ -335,7 +352,7 @@ fn compact_sketch(
             Operation::SetDimension {
                 sketch: sketch_index,
                 target: remap_target(dimension.target, &map),
-                value: dimension.value,
+                value: renumbered.dimension(dimension),
                 placement: dimension.offset,
             },
             new_history,

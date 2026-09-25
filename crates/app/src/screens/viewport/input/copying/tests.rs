@@ -1,4 +1,10 @@
 //! What app · screens/viewport/input/copying.rs is held to.
+//!
+//! Closes #175.
+//! - the steps and counts of the patterns keep the formula typed —
+//!   `a_count_written_from_a_variable_is_kept_as_written_when_it_comes_out_whole`
+//! - a count that comes out as anything but a positive whole number is
+//!   refused — `a_count_written_from_a_variable_that_does_not_come_out_whole_is_refused`
 
 use cao_sketch::{SketchAxis, WorkPlane};
 
@@ -105,5 +111,37 @@ fn a_count_under_two_is_no_pattern_at_all() {
         turned(some(Some(30.0), Some(1.6))),
         Some((30.0, 2)),
         "a count is a whole number of copies, so what was typed is rounded to one"
+    );
+}
+
+fn a_count_written_as(text: &str) -> Option<(Formula, f64)> {
+    let mut variables = cao_part::Variables::default();
+    variables.change(&cao_part::VariableChange::Added {
+        name: "holes".to_string(),
+        formula: Formula::Number(8.0),
+    });
+    variables.size_of(text).ok()
+}
+
+#[test]
+fn a_count_written_from_a_variable_is_kept_as_written_when_it_comes_out_whole() {
+    let typed = a_count_written_as("holes / 2");
+
+    assert_eq!(
+        count_as_typed(typed.clone(), 4),
+        typed.map(|(written, _)| written)
+    );
+}
+
+#[test]
+fn a_count_written_from_a_variable_that_does_not_come_out_whole_is_refused() {
+    assert_eq!(count_as_typed(a_count_written_as("holes / 3"), 3), None);
+}
+
+#[test]
+fn a_count_typed_as_a_plain_number_is_rounded_as_it_always_was() {
+    assert_eq!(
+        count_as_typed(Some((Formula::Number(4.4), 4.4)), 4),
+        Some(Formula::Number(4.0))
     );
 }

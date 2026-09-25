@@ -14,6 +14,9 @@ use cao_sketch::{
 };
 use glam::DVec2;
 
+use crate::broken::Broken;
+use crate::formula::{Formula, Operator};
+use crate::history::ChamferAsked;
 use crate::outcome::Outcome;
 use crate::state::PartState;
 
@@ -101,8 +104,16 @@ impl PartState {
         circle: CircleId,
         between: Option<(PointId, PointId)>,
     ) -> Option<Outcome> {
-        self.cutting(sketch, |drawing, _| {
+        let diameter = self
+            .sketches
+            .get(sketch)?
+            .dimension_of(DimensionTarget::Diameter(circle))
+            .and_then(|value| value.written.as_deref())
+            .and_then(Formula::from_stored);
+        let mut left = None;
+        let outcome = self.cutting(sketch, |drawing, _| {
             let trimmed = drawing.trim_circle(circle, between)?;
+            left = trimmed.arc;
             Some(Cut {
                 rules: trimmed.rules_dropped,
                 values: trimmed.values_dropped,
@@ -111,7 +122,21 @@ impl PartState {
                     trimmed.arc.map(CurveId::Arc).into_iter().collect(),
                 )],
             })
-        })
+        });
+        // A diameter goes over as the radius of the arc left, half the number
+        // it was. The drawing carries the number and cannot halve a formula it
+        // never reads, so what it was written from is halved here.
+        if let (Some(arc), Some(diameter), Some(drawing)) =
+            (left, diameter, self.sketches.get_mut(sketch))
+        {
+            let halved = Formula::Combined(
+                Operator::Divide,
+                Box::new(diameter),
+                Box::new(Formula::Number(2.0)),
+            );
+            drawing.write_dimension_as(DimensionTarget::ArcRadius(arc), halved.note());
+        }
+        outcome
     }
 
     pub(crate) fn trim_ellipse(
@@ -157,9 +182,14 @@ impl PartState {
         &mut self,
         sketch: usize,
         corners: &[Corner],
-        mode: Chamfer,
+        asked: &ChamferAsked,
     ) -> Option<Outcome> {
-        self.every_corner(sketch, corners, |drawing, scale, first, second| {
+        let Some(mode) = asked.worked_out(&self.values) else {
+            self.broke(Broken::Operation(self.replaying));
+            return None;
+        };
+        let notes = asked.as_laid().map(Formula::note);
+        self.every_corner(sketch, corners, &notes, |drawing, scale, first, second| {
             let chamfered = drawing.chamfer(first, second, in_units(mode, scale))?;
             let typed = chamfered.typed(mode);
             Some((
@@ -177,20 +207,26 @@ impl PartState {
         &mut self,
         sketch: usize,
         corners: &[Corner],
-        radius: f64,
+        asked: &Formula,
     ) -> Option<Outcome> {
-        self.every_corner(sketch, corners, |drawing, scale, first, second| {
-            let rounded = drawing.fillet(first, second, radius / scale)?;
-            let typed = rounded.typed(radius);
-            Some((
-                Cut {
-                    rules: rounded.rules_dropped,
-                    values: rounded.values_dropped,
-                    became: rounded.became,
-                },
-                typed,
-            ))
-        })
+        let radius = self.size(asked, |_| true)?;
+        self.every_corner(
+            sketch,
+            corners,
+            &[asked.note()],
+            |drawing, scale, first, second| {
+                let rounded = drawing.fillet(first, second, radius / scale)?;
+                let typed = rounded.typed(radius);
+                Some((
+                    Cut {
+                        rules: rounded.rules_dropped,
+                        values: rounded.values_dropped,
+                        became: rounded.became,
+                    },
+                    typed,
+                ))
+            },
+        )
     }
 
     /// The two traits a corner stands between, as the drawing has them now and
@@ -243,6 +279,7 @@ impl PartState {
         &mut self,
         sketch: usize,
         corners: &[Corner],
+        notes: &[Option<String>],
         cut: impl Fn(
             &mut Sketch,
             f64,
@@ -274,8 +311,11 @@ impl PartState {
                 total = total.and(refused);
                 continue;
             };
-            self.write_down(sketch, typed);
+            self.write_down(sketch, typed, notes);
             total = total.and(made);
+        }
+        if matches!(total, Outcome::Cut { refused, .. } if refused > 0) {
+            self.broke(Broken::Operation(self.replaying));
         }
         Some(total)
     }
@@ -289,9 +329,24 @@ impl PartState {
     /// it directly left a part whose scale was still unset while the dimension
     /// sat there — and compaction, which replays every dimension as an
     /// operation, then rebuilt a part that measured differently.
-    fn write_down(&mut self, sketch: usize, typed: Vec<(DimensionTarget, f64)>) {
-        for (target, value) in typed {
-            self.apply_dimension(sketch, target.normalised(), value);
+    ///
+    /// Each carries what it was written from, in the order the cut laid them.
+    fn write_down(
+        &mut self,
+        sketch: usize,
+        typed: Vec<(DimensionTarget, f64)>,
+        notes: &[Option<String>],
+    ) {
+        for (rank, (target, value)) in typed.into_iter().enumerate() {
+            let target = target.normalised();
+            let outcome = self.apply_dimension(sketch, target, value);
+            self.remember_as(
+                sketch,
+                target,
+                outcome,
+                notes.get(rank).cloned().flatten(),
+                None,
+            );
         }
     }
 

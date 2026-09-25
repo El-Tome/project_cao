@@ -7,7 +7,11 @@ use glam::DVec2;
 use super::*;
 
 fn said(operation: &Operation) -> String {
-    label(&Catalogue::french(), operation)
+    label(
+        &Catalogue::french(),
+        &cao_part::Variables::default(),
+        operation,
+    )
 }
 
 const SEGMENT: SegmentId = SegmentId(0);
@@ -44,7 +48,7 @@ fn raised(mode: ExtrusionMode) -> Operation {
     Operation::Extrude {
         sketch: 0,
         areas: one_area(),
-        distance: 12.0,
+        distance: 12.0.into(),
         mode,
     }
 }
@@ -54,7 +58,7 @@ fn swept(axis: RevolutionAxis, mode: ExtrusionMode) -> Operation {
         sketch: 0,
         areas: one_area(),
         axis,
-        angle: 90.0,
+        angle: 90.0.into(),
         mode,
     }
 }

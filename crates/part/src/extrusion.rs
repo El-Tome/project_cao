@@ -5,10 +5,32 @@ use cao_sketch::{Area, Region, Sketch};
 use cao_solid::Mesh;
 use glam::DVec2;
 
+use crate::broken::Broken;
+use crate::formula::Formula;
 use crate::history::{ExtrusionMode, RevolutionAxis};
 use crate::state::PartState;
 
 impl PartState {
+    /// Raises a step of matter, or cuts it, noting the faces of the part it
+    /// made: a tool's faces are numbered above the part's, so they are the
+    /// ones numbered from where the part's ended. Noted even when the step
+    /// made nothing, so that the rank of a step is the rank of its note.
+    pub(crate) fn raising(&mut self, raise: impl FnOnce(&mut Self)) {
+        let from = self.body.faces_end();
+        raise(self);
+        self.made.push(from..self.body.faces_end());
+    }
+
+    /// The faces the part still holds of those the step of matter of that
+    /// rank made, counting the steps in the order they replay.
+    pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
+        self.made.get(rank).map_or_else(Vec::new, |made| {
+            made.clone()
+                .filter(|face| self.body.pieces_of(*face).next().is_some())
+                .collect()
+        })
+    }
+
     /// Sweeps the chosen areas around an axis of the sketch and joins the
     /// result to the part, or takes it out.
     pub(crate) fn revolve(
@@ -16,9 +38,13 @@ impl PartState {
         index: usize,
         areas: &[Area],
         axis: RevolutionAxis,
-        degrees: f64,
+        degrees: &Formula,
         mode: ExtrusionMode,
     ) {
+        let Some(degrees) = self.size(degrees, |turn| turn.abs() > 1e-6 && turn.abs() <= 360.0)
+        else {
+            return;
+        };
         let Some(sketch) = self.sketches.get(index) else {
             return;
         };
@@ -31,8 +57,10 @@ impl PartState {
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
+        let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
+                lost = true;
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -50,6 +78,11 @@ impl PartState {
             tool = tool.union(&piece);
         }
 
+        // An area the drawing no longer encloses raises nothing, which is a
+        // size that no longer holds.
+        if lost {
+            self.broke(Broken::Operation(self.replaying));
+        }
         self.combine(tool, mode);
     }
 
@@ -74,24 +107,26 @@ impl PartState {
         &mut self,
         index: usize,
         areas: &[Area],
-        distance: f64,
+        distance: &Formula,
         mode: ExtrusionMode,
     ) {
+        let Some(distance) = self.size(distance, |travel| travel.abs() >= 1e-6) else {
+            return;
+        };
         let scale = self.scale();
         let Some(sketch) = self.sketches.get(index) else {
             return;
         };
-        if distance.abs() < 1e-6 {
-            return;
-        }
 
         let plane = sketch.plane;
         let travel = plane.normal() * (distance / scale);
         let regions = sketch.regions();
 
         let mut tool = Mesh::default();
+        let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
+                lost = true;
                 continue;
             };
             let (outline, holes) = loops(region);
@@ -105,6 +140,11 @@ impl PartState {
             tool = tool.union(&piece);
         }
 
+        // An area the drawing no longer encloses raises nothing, which is a
+        // size that no longer holds.
+        if lost {
+            self.broke(Broken::Operation(self.replaying));
+        }
         self.combine(tool, mode);
     }
 

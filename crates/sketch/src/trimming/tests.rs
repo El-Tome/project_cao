@@ -357,3 +357,35 @@ fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
         "which still stands, rather than being left in mid-air",
     );
 }
+
+#[test]
+fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
+    let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
+    let level = DimensionTarget::AxisAngle {
+        segment,
+        axis: crate::constraints::SketchAxis::U,
+    };
+    sketch.set_dimension(level, 0.0, false);
+    sketch.write_dimension_as(level, Some("#0 * 2".to_string()));
+    sketch.mark_dimension(level, Some((7, 0)));
+
+    let trimmed = sketch
+        .trim(segment, near, far)
+        .expect("the middle stretch goes");
+
+    for piece in trimmed.pieces {
+        let carried = DimensionTarget::AxisAngle {
+            segment: piece,
+            axis: crate::constraints::SketchAxis::U,
+        };
+        let value = sketch
+            .dimension_of(carried)
+            .expect("carried onto the piece");
+        assert_eq!(
+            value.written.as_deref(),
+            Some("#0 * 2"),
+            "the piece {piece:?} lost what its value was written as",
+        );
+        assert_eq!(value.set_by, Some((7, 0)), "and what set it");
+    }
+}

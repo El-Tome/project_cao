@@ -69,7 +69,7 @@ fn raise(history: &mut History, place: DVec2) {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: PartState::rebuild(history).areas_at(0, &[place]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
 }
@@ -111,7 +111,7 @@ fn an_extrusion_holds_its_area_when_a_value_moves_the_drawing_off_it() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
     let clicked = DVec2::new(5.0, 10.0);
@@ -120,7 +120,7 @@ fn an_extrusion_holds_its_area_when_a_value_moves_the_drawing_off_it() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(1)),
-        value: 2.0,
+        value: 2.0.into(),
         placement: None,
     });
 
@@ -154,7 +154,7 @@ fn rounding_a_corner_of_an_extruded_shape_keeps_the_matter() {
     history.push(Operation::Fillet {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
-        radius: 2.0,
+        radius: 2.0.into(),
     });
 
     let state = PartState::rebuild(&history);
@@ -173,7 +173,7 @@ fn chamfering_a_corner_of_an_extruded_shape_keeps_the_matter() {
     history.push(Operation::Chamfer {
         sketch: 0,
         corners: vec![Corner::Between(SegmentId(0), SegmentId(1))],
-        mode: Chamfer::Equal(2.0),
+        mode: Chamfer::Equal(2.0).into(),
     });
 
     let state = PartState::rebuild(&history);
@@ -292,7 +292,7 @@ fn dividing_a_border_two_areas_share_keeps_the_matter() {
     history.push(Operation::Extrude {
         sketch: 0,
         areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: ExtrusionMode::Add,
     });
     assert!((volume(&PartState::rebuild(&history).body) - 400.0).abs() < 1.0);
@@ -331,7 +331,7 @@ fn a_revolution_follows_its_area_out_from_under_the_place_clicked() {
         sketch: 0,
         areas: PartState::rebuild(&history).areas_at(0, &[clicked]),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: ExtrusionMode::Add,
     });
     let swept = volume(&PartState::rebuild(&history).body);
@@ -374,7 +374,7 @@ fn compaction_hands_back_an_area_whose_corners_were_cut() {
         history.push(Operation::Chamfer {
             sketch: 0,
             corners: vec![Corner::Between(SegmentId(first), SegmentId(second))],
-            mode: Chamfer::Equal(2.0),
+            mode: Chamfer::Equal(2.0).into(),
         });
     }
     let before = volume(&PartState::rebuild(&history).body);

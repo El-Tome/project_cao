@@ -4,9 +4,11 @@
 
 use cao_sketch::{ChamferMode, ToolState};
 
-use crate::screens::sketch::{LiveField, Tool};
+use crate::screens::sketch::{LiveInput, Tool};
+use crate::ui::formula_field::formula_field;
 
 use super::super::input::rectangle_corner;
+use super::super::values::shape_scale;
 use super::{arc, circle, ellipse, symmetric_line};
 use crate::screens::SketchContext;
 
@@ -29,7 +31,7 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     let raw_cursor = context.editor.cursor?;
     let aim = context.editor.aimed;
     let cursor = aim.map_or(raw_cursor, |aimed| aimed.position);
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
 
     // A line is a length and an angle, a rectangle its two sides, a circle its
     // diameter and nothing else — so its second field is left out.
@@ -83,6 +85,23 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
     // a cursor no longer over the canvas — the shape stopped following it.
     let at = ui.ctx().pointer_latest_pos()?;
 
+    // What each length a shape is drawn to measures on screen, in the
+    // drawing's own units: on a part with no scale yet, the first one typed is
+    // worth what it was typed over. A pattern or a corner draws nothing to its
+    // values, so nothing it is typed says what a unit is worth.
+    let drawn_to = !context.document.has_scale()
+        && matches!(
+            context.editor.tool,
+            Tool::Line
+                | Tool::LineSymmetric
+                | Tool::Rectangle
+                | Tool::Circle
+                | Tool::Arc
+                | Tool::Ellipse
+        );
+    let over = |rank: usize| (drawn_to && labels[rank] == "mm").then(|| measured[rank] / scale);
+
+    let variables = context.document.variables();
     let live = &mut context.editor.live;
     let mut validated = false;
     let focus = std::mem::take(&mut live.focus);
@@ -97,8 +116,15 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
                             continue;
                         }
                         let first = rank == 0;
-                        validated |=
-                            live_field(ui, label, measured[rank], live.field(rank), focus && first);
+                        validated |= live_field(
+                            ui,
+                            (label, measured[rank]),
+                            live,
+                            rank,
+                            focus && first,
+                            variables,
+                            over(rank),
+                        );
                     }
                 });
             });
@@ -124,22 +150,29 @@ fn two((labels, measured): ([&'static str; 2], [f64; 2])) -> ([&'static str; 4],
 /// click keeps the place the click named.
 pub(super) fn value_field(
     ui: &mut egui::Ui,
+    id: egui::Id,
     text: &mut String,
     hint: &str,
     focus: bool,
-) -> egui::Response {
-    let output = egui::TextEdit::singleline(text)
-        .desired_width(72.0)
-        .hint_text(hint)
-        .show(ui);
-    let response = output.response.response;
+    variables: &cao_part::Variables,
+) -> egui::text_edit::TextEditOutput {
+    let offers = crate::screens::variables::offered(variables);
+    let output = formula_field(
+        ui,
+        id,
+        text,
+        (72.0, hint),
+        &offers,
+        crate::screens::variables::NAMING,
+    );
+    let response = output.response.response.clone();
     let reached_by_keyboard =
         focus || (response.gained_focus() && !response.is_pointer_button_down_on());
     if focus {
         response.request_focus();
     }
     if reached_by_keyboard {
-        let mut state = output.state;
+        let mut state = output.state.clone();
         state
             .cursor
             .set_char_range(Some(egui::text::CCursorRange::two(
@@ -148,7 +181,7 @@ pub(super) fn value_field(
             )));
         state.store(ui.ctx(), response.id);
     }
-    response
+    output
 }
 
 /// One of the two fields. Returns true when Enter was pressed in it.
@@ -156,22 +189,37 @@ pub(super) fn value_field(
 /// An untouched field stays empty and shows what the cursor is doing as a hint:
 /// keeping the readout in the field itself meant the first keystroke landed
 /// after it, and "40" typed over "0.000" read 0.00040.
+///
+/// `over` is what the shape measures along the field, in the drawing's own
+/// units, when a length typed there can say what a unit is worth.
 fn live_field(
     ui: &mut egui::Ui,
-    suffix: &str,
-    measured: f64,
-    field: &mut LiveField,
+    (suffix, measured): (&str, f64),
+    live: &mut LiveInput,
+    rank: usize,
     focus: bool,
+    variables: &cao_part::Variables,
+    over: Option<f64>,
 ) -> bool {
+    let id = field_id(rank);
     // The keyboard goes to the first field as soon as the fields appear: the
     // value is the next thing the user types, and Tab from the canvas walks
     // through the whole toolbar to get here.
-    let response = value_field(ui, &mut field.text, &format!("{measured:.2}"), focus);
+    let response = value_field(
+        ui,
+        id,
+        &mut live.field(rank).text,
+        &format!("{measured:.2}"),
+        focus,
+        variables,
+    )
+    .response
+    .response;
     ui.label(suffix);
 
     // Typing is what turns a readout into a decision. Emptying the field takes the decision back.
     if response.changed() {
-        field.locked = crate::screens::sketch::LiveInput::read(&field.text);
+        live.take(rank, variables, over);
         // The canvas this frame was already built from the value as it stood before this keystroke.
         ui.ctx().request_repaint();
     }
@@ -179,6 +227,10 @@ fn live_field(
     // keyboard back, so the shortcut bound to that key would fire too.
     response.lost_focus()
         && ui.input_mut(|input| input.consume_key(egui::Modifiers::NONE, egui::Key::Enter))
+}
+
+fn field_id(rank: usize) -> egui::Id {
+    egui::Id::new(("live_field", rank))
 }
 
 /// What a corner tool's two fields are measured in, which is what says how many

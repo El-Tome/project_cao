@@ -6,9 +6,9 @@ use cao_part::history::{Operation, PointRef};
 use cao_sketch::{ChainAnchor, Constraint, SegmentId, SymmetricClick, ToolState, symmetric_click};
 use glam::DVec2;
 
-use super::{annotation_position, born_at, lean_on_an_arm};
+use super::super::values::{lay_values, shape_scale};
+use super::{born_at, lean_on_an_arm};
 use crate::screens::SketchContext;
-use crate::wording::outcome;
 
 pub(crate) fn draw_symmetric_line_point(
     context: &mut SketchContext<'_>,
@@ -23,7 +23,7 @@ pub(crate) fn draw_symmetric_line_point(
         _ => None,
     };
     let locked = context.editor.live.locked();
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
 
     match symmetric_click(sketch, middle, cursor, snap, locked, scale) {
         SymmetricClick::Started(middle) => {
@@ -75,7 +75,7 @@ fn dimension_the_symmetric_line(
     locked: cao_sketch::LockedInput,
     pixel: f64,
 ) {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = cao_sketch::symmetric_segment_dimensions(
         &context.document.sketches()[index],
         segment,
@@ -83,16 +83,16 @@ fn dimension_the_symmetric_line(
         scale,
     );
 
-    for (target, value) in wanted {
-        let applied = context.document.apply(Operation::SetDimension {
-            sketch: index,
-            target,
-            value,
-            placement: annotation_position(context, index, target, pixel)
-                .map(|placement| placement.offset),
-        });
-        if let Some(message) = outcome::message(context.lang, applied) {
-            context.editor.message = Some(message);
-        }
-    }
+    // What was typed reaches from the middle to one edge; the value laid is
+    // the whole trait, twice that.
+    let half = context
+        .editor
+        .live
+        .typed_as_written(0)
+        .map(|(written, value)| (written.times(2.0), value * 2.0));
+    let typed = |target| match target {
+        cao_sketch::DimensionTarget::Length(drawn) if drawn == segment => half.clone(),
+        _ => None,
+    };
+    lay_values(context, index, wanted, typed, pixel);
 }

@@ -64,7 +64,7 @@ there. See the `architecture-rust` skill.
 | --- | --- | --- |
 | The list of operations, undo, redo | `part/src/history.rs` | `History`, `Operation`, `applied_operations` — what a step is *called* is in `app/src/wording/history.rs` |
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
-| **Replaying the history to get the geometry** | `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
+| **Replaying the history to get the geometry** | `part/src/replay.rs`, `part/src/state.rs` | `PartState::rebuild`, `PartState::apply` |
 | The `.caopart` file (zip), reading and writing | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION` |
 | The design folder: its index, one folder per major step | `part/src/document/design.rs` | `laid_out`, `read` |
 | What fails when opening a part | `part/src/errors.rs` | `PartFileError` |

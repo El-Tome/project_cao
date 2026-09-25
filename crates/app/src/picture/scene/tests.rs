@@ -181,7 +181,7 @@ fn a_part_that_has_been_extruded_shows_its_matter() {
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::new(5.0, 5.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: cao_part::ExtrusionMode::Add,
     });
 

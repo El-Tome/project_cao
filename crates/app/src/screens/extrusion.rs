@@ -1,4 +1,4 @@
-use cao_part::{ExtrusionMode, RevolutionAxis};
+use cao_part::{ExtrusionMode, Formula, RevolutionAxis, Unusable, Variables};
 use cao_sketch::SketchAxis;
 use glam::DVec2;
 
@@ -92,37 +92,53 @@ impl ExtrusionState {
         *self = Self::default();
     }
 
-    /// The value typed, in millimetres, signed by the chosen direction.
-    pub fn distance(&self) -> Option<f64> {
-        signed(&self.distance_input, self.reversed)
+    /// The value typed, in millimetres, as written and as what it comes to,
+    /// signed by the chosen direction.
+    pub fn distance(&self, variables: &Variables) -> Option<(Formula, f64)> {
+        signed(&self.distance_input, self.reversed, variables)
     }
 
-    /// The sweep typed, in degrees, signed by the chosen direction.
-    pub fn angle(&self) -> Option<f64> {
-        let value = signed(&self.angle_input, self.reversed)?;
-        (value.abs() <= 360.0).then_some(value)
+    /// The sweep typed, in degrees, as written and as what it comes to, signed
+    /// by the chosen direction.
+    pub fn angle(&self, variables: &Variables) -> Option<(Formula, f64)> {
+        signed(&self.angle_input, self.reversed, variables)
+            .filter(|(_, value)| value.abs() <= 360.0)
+    }
+
+    /// What is wrong with the value typed for the shape in hand, when it does
+    /// not read — said where it is typed, and nothing is applied.
+    pub fn wrong(&self, variables: &Variables) -> Option<Unusable> {
+        let typed = match self.shape {
+            Shape::Straight => &self.distance_input,
+            Shape::Revolution => &self.angle_input,
+        };
+        match typed.trim().is_empty() {
+            true => None,
+            false => variables.size_of(typed).err(),
+        }
     }
 
     /// Whether there is enough to apply: areas chosen, and a usable value.
-    pub fn is_ready(&self) -> bool {
+    pub fn is_ready(&self, variables: &Variables) -> bool {
         if self.picks.is_empty() {
             return false;
         }
         match self.shape {
-            Shape::Straight => self.distance().is_some(),
-            Shape::Revolution => self.angle().is_some(),
+            Shape::Straight => self.distance(variables).is_some(),
+            Shape::Revolution => self.angle(variables).is_some(),
         }
     }
 }
 
-fn signed(input: &str, reversed: bool) -> Option<f64> {
-    let value = input
-        .trim()
-        .replace(',', ".")
-        .parse::<f64>()
+fn signed(input: &str, reversed: bool, variables: &Variables) -> Option<(Formula, f64)> {
+    let (written, value) = variables
+        .size_of(input)
         .ok()
-        .filter(|value| value.abs() > 1e-6)?;
-    Some(if reversed { -value } else { value })
+        .filter(|(_, value)| value.abs() > 1e-6)?;
+    Some(match reversed {
+        true => (written.negated(), -value),
+        false => (written, value),
+    })
 }
 
 /// Turns the chosen areas into matter, or takes them out of it.
@@ -139,7 +155,7 @@ pub fn apply_extrusion(
     let (Some(sketch), Some(mode)) = (extrusion.sketch, extrusion.mode) else {
         return false;
     };
-    if !extrusion.is_ready() {
+    if !extrusion.is_ready(doc.variables()) {
         return false;
     }
 
@@ -152,14 +168,18 @@ pub fn apply_extrusion(
             sketch,
             areas,
             axis: extrusion.axis,
-            angle: extrusion.angle().unwrap_or_default(),
+            angle: extrusion
+                .angle(doc.variables())
+                .map_or(Formula::Number(0.0), |(written, _)| written),
             mode,
         }
     } else {
         cao_part::Operation::Extrude {
             sketch,
             areas,
-            distance: extrusion.distance().unwrap_or_default(),
+            distance: extrusion
+                .distance(doc.variables())
+                .map_or(Formula::Number(0.0), |(written, _)| written),
             mode,
         }
     };

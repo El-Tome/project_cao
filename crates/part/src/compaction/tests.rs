@@ -98,19 +98,19 @@ fn dragged_dimensioned_and_extruded() -> History {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 30.0,
+        value: 30.0.into(),
         placement: None,
     });
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 50.0,
+        value: 50.0.into(),
         placement: None,
     });
     history.push(Operation::Extrude {
         sketch: 0,
         areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(5.0, 5.0)]),
-        distance: 4.0,
+        distance: 4.0.into(),
         mode: crate::history::ExtrusionMode::Add,
     });
     history
@@ -176,13 +176,13 @@ fn two_independent_dimensions_keep_their_value_and_driven_state() {
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 40.0,
+        value: 40.0.into(),
         placement: None,
     });
     history.push(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(1)),
-        value: 20.0,
+        value: 20.0.into(),
         placement: None,
     });
 
@@ -280,7 +280,7 @@ fn a_revolution_around_a_segment_erased_afterwards_still_compacts() {
         sketch: 0,
         areas: PartState::rebuild(&history).areas_at(0, &[DVec2::new(4.0, 1.0)]),
         axis: RevolutionAxis::Segment(SegmentId(0)),
-        angle: 360.0,
+        angle: 360.0.into(),
         mode: crate::history::ExtrusionMode::Add,
     });
     // Tidying up an axis line once the feature that needed it has run is

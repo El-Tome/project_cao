@@ -39,7 +39,7 @@ pub fn circle_from(
             let centre = *places.first()?;
             Found {
                 centre,
-                radius: centre.distance(cursor),
+                radius: wanted.unwrap_or_else(|| centre.distance(cursor)),
             }
         }
         CircleMode::TwoPoints => {
@@ -97,9 +97,13 @@ pub fn circle_from(
 ///
 /// They are what the circle can afterwards be grabbed and measured by. A circle
 /// drawn against traits keeps none: what holds it is the tangencies.
-pub fn rim_of(mode: CircleMode, places: &[DVec2], cursor: DVec2, centre: DVec2) -> Vec<DVec2> {
+pub fn rim_of(mode: CircleMode, places: &[DVec2], cursor: DVec2, found: Found) -> Vec<DVec2> {
+    let centre = found.centre;
     let kept = match mode {
-        CircleMode::Center => vec![cursor],
+        // Where the cursor points, at the size the circle was typed to.
+        CircleMode::Center => {
+            vec![centre + (cursor - centre).normalize_or(DVec2::X) * found.radius]
+        }
         CircleMode::TwoPoints => match places.first() {
             Some(first) => vec![*first, centre * 2.0 - *first],
             None => Vec::new(),

@@ -1,4 +1,9 @@
 //! What part · dimensioning.rs is held to.
+//!
+//! Closes #423.
+//! - an angle never sets the scale — `an_angle_never_defines_the_scale`, which
+//!   held it before the issue and holds it still: the fix never reached here
+//! - a reference value stays a readout — `a_redundant_dimension_becomes_a_readout`
 
 use cao_sketch::{CircleId, DimensionTarget, SegmentId, WorkPlane};
 use glam::DVec2;
@@ -27,7 +32,7 @@ fn a_circle_takes_its_radius_from_the_scale() {
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Radius(CircleId(0)),
-        value: 20.0,
+        value: 20.0.into(),
         placement: None,
     });
     assert_eq!(
@@ -66,7 +71,7 @@ fn an_angle_never_defines_the_scale() {
             first: SegmentId(0),
             second: SegmentId(1),
         },
-        value: 45.0,
+        value: 45.0.into(),
         placement: None,
     });
 
@@ -137,7 +142,7 @@ fn give_it_everything_it_needs(state: &mut PartState) {
         state.apply(&Operation::SetDimension {
             sketch: 0,
             target,
-            value,
+            value: value.into(),
             placement: None,
         });
     }
@@ -178,7 +183,7 @@ fn a_further_angle_on_a_settled_rectangle_is_redundant() {
             first: SegmentId(3),
             second: SegmentId(0),
         },
-        value: 90.0,
+        value: 90.0.into(),
         placement: None,
     });
 
@@ -207,7 +212,7 @@ fn a_redundant_dimension_becomes_a_readout() {
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 100.0,
+        value: 100.0.into(),
         placement: None,
     });
     state.apply(&Operation::SetDimension {
@@ -216,7 +221,7 @@ fn a_redundant_dimension_becomes_a_readout() {
             segment: SegmentId(0),
             axis: cao_sketch::SketchAxis::U,
         },
-        value: 0.0,
+        value: 0.0.into(),
         placement: None,
     });
 
@@ -232,7 +237,7 @@ fn a_redundant_dimension_becomes_a_readout() {
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(1)),
-        value: 999.0,
+        value: 999.0.into(),
         placement: None,
     });
 

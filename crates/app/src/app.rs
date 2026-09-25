@@ -10,8 +10,8 @@ use crate::remembered::Remembered;
 use crate::screens::explorer::Explorer;
 use crate::screens::viewport::{ViewMode, ViewportState};
 use crate::screens::{
-    self, OpenPart, Screen, extrusion::ExtrusionState, history_tree::HistoryAction, ribbon::Ribbon,
-    sketch::SketchEditor, start_menu::StartMenuAction,
+    self, OpenPart, Screen, extrusion::ExtrusionState, ribbon::Ribbon, sketch::SketchEditor,
+    start_menu::StartMenuAction,
 };
 use crate::shortcuts::shortcuts_pressed;
 use crate::{MSAA_SAMPLES, adapters::files::DiskFiles, autosave::Autosave, wording};
@@ -115,6 +115,7 @@ impl CaoApp {
             editor: SketchEditor::default(),
             extrusion: ExtrusionState::default(),
             ribbon: Ribbon::new(),
+            variables: screens::variables::VariablesPanel::default(),
         }));
     }
 
@@ -164,6 +165,7 @@ impl CaoApp {
             editor,
             extrusion,
             ribbon,
+            variables,
         } = part.as_mut();
 
         // The viewport reads its own copy: it is handed to the renderer every
@@ -199,11 +201,20 @@ impl CaoApp {
         };
         asked.extend(ribbon.show(ui, &settings, &mut drawn, lang));
         asked.extend(
-            shortcuts_pressed(ui, &settings)
-                .into_iter()
-                .filter(|command| {
-                    crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)
-                }),
+            shortcuts_pressed(ui, &settings, |command| {
+                // Enter closes what a tool laying copies is gathering, as its
+                // prompt says, rather than finishing the sketch under it.
+                command == Command::FinishSketch
+                    && matches!(
+                        editor.tool_state,
+                        cao_sketch::ToolState::Copying {
+                            naming_the_target: false,
+                            ..
+                        }
+                    )
+            })
+            .into_iter()
+            .filter(|command| crate::screens::ribbon::is_enabled(*command, doc, editor, extrusion)),
         );
         let mut worked_on = screens::SketchContext {
             document: doc,
@@ -232,41 +243,8 @@ impl CaoApp {
             );
         }
 
-        if ribbon.part_tree_open {
-            match screens::part_tree::panel(ui, doc, lang) {
-                screens::part_tree::TreeAction::EditSketch(sketch) => {
-                    if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                        editor.begin_editing(sketch, plane);
-                        let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
-                        viewport.look_at_plane(plane, center, radius);
-                    }
-                }
-                screens::part_tree::TreeAction::None => {}
-            }
-        }
-
-        if ribbon.history_open {
-            match screens::history_tree::panel(ui, doc, &mut ribbon.history_compact_confirm, lang) {
-                HistoryAction::RewindTo(step) => {
-                    doc.rewind_to(step);
-                    commands::clamp_editor_to_document(editor, doc);
-                    changed = true;
-                }
-                HistoryAction::EditSketch(sketch) => {
-                    if let Some(plane) = doc.sketches().get(sketch).map(|s| s.plane) {
-                        editor.begin_editing(sketch, plane);
-                        let (center, radius) = commands::sketch_framing(doc, Some(sketch), plane);
-                        viewport.look_at_plane(plane, center, radius);
-                    }
-                }
-                HistoryAction::CompactHistory => {
-                    doc.compact_history();
-                    commands::clamp_editor_to_document(editor, doc);
-                    changed = true;
-                }
-                HistoryAction::None => {}
-            }
-        }
+        let beside = crate::panels::Beside { ribbon, variables };
+        changed |= crate::panels::beside_the_part(ui, doc, editor, viewport, beside, lang);
 
         egui::CentralPanel::no_frame().show(ui, |ui| {
             let mut context = screens::SketchContext {

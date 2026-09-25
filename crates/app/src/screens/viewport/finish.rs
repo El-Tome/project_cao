@@ -8,6 +8,7 @@ use super::input::{
     draw_line_point, draw_symmetric_line_point, hold_is_done, rectangle_corner, two_click_shape,
 };
 use super::render::paint_live_input;
+use super::values::refused_for_what_is_typed;
 use super::{PICK_PIXELS, ViewScale};
 use crate::screens::SketchContext;
 use crate::screens::sketch::Tool;
@@ -20,9 +21,18 @@ pub(crate) fn advance_on_enter(
     sketch: &mut SketchContext<'_>,
     scale: ViewScale,
 ) -> bool {
-    // The mirror has no live field for Enter to land in, so the key is read
-    // here rather than handed on by one.
-    if matches!(sketch.editor.tool_state, ToolState::Copying { .. }) {
+    // While what is held is gathered there is no field for Enter to land in,
+    // so the key is read here rather than handed on by one. Once it is done, a
+    // pattern shows the values it is laid with, and the click that names
+    // where lays it: Enter only settles the field it was pressed in.
+    if let ToolState::Copying {
+        naming_the_target, ..
+    } = sketch.editor.tool_state
+    {
+        if naming_the_target {
+            paint_live_input(ui, sketch);
+            return false;
+        }
         return ui.input(|input| input.key_pressed(egui::Key::Enter)) && hold_is_done(sketch);
     }
 
@@ -36,7 +46,7 @@ pub(crate) fn advance_on_enter(
             | ToolState::Ellipse { .. }
             | ToolState::Corner { .. }
     );
-    if !drawing || !paint_live_input(ui, sketch) {
+    if !drawing || !paint_live_input(ui, sketch) || refused_for_what_is_typed(sketch) {
         return false;
     }
     let Some(index) = sketch.editor.active_sketch() else {

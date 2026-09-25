@@ -41,7 +41,7 @@ fn a_trait_leaning_on_an_arm() -> Operation {
                 first: SegmentId(1),
                 second: SegmentId(0),
             },
-            value: 26.565,
+            value: 26.565.into(),
             placement: None,
         },
     ])
@@ -132,7 +132,7 @@ fn everything_recorded_after_a_mark_becomes_one_gesture() {
     document.apply(Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(SegmentId(0)),
-        value: 11.18,
+        value: 11.18.into(),
         placement: None,
     });
     document.history.fold_into_one_gesture(opened);

@@ -16,13 +16,17 @@ fn swept(axis: RevolutionAxis) -> Operation {
             inside: DVec2::ZERO,
         }],
         axis,
-        angle: 90.0,
+        angle: 90.0.into(),
         mode: ExtrusionMode::Add,
     }
 }
 
 fn unfolded(operation: &Operation) -> String {
-    detail(&Catalogue::french(), operation)
+    detail(
+        &Catalogue::french(),
+        &cao_part::Variables::default(),
+        operation,
+    )
 }
 
 #[test]
@@ -100,7 +104,7 @@ fn an_unfolded_step_says_which_sketch_it_belongs_to_and_what_it_touched() {
             Operation::SetDimension {
                 sketch: 0,
                 target: DimensionTarget::Radius(CircleId(3)),
-                value: 60.0,
+                value: 60.0.into(),
                 placement: None,
             },
             "Esquisse 0 · cercle 3",

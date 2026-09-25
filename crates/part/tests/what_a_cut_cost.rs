@@ -42,7 +42,7 @@ fn a_trait_spoken_of_twice() -> PartState {
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::Length(CUT),
-        value: 10.0,
+        value: 10.0.into(),
         placement: None,
     });
     for at in [(4.0, 1.0), (6.0, 1.0)] {

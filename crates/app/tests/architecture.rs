@@ -154,9 +154,9 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 4] = [
-    ("crates/app/src/screens/viewport/input/mod.rs", 534),
+    ("crates/app/src/screens/viewport/input/mod.rs", 486),
     ("crates/render/src/renderer.rs", 426),
-    ("crates/sketch/src/sketch.rs", 739),
+    ("crates/sketch/src/sketch.rs", 679),
     ("crates/sketch/src/solver.rs", 1143),
 ];
 
@@ -236,12 +236,10 @@ const SENTENCES_STILL_WRITTEN_OUT: [(&str, usize); 0] = [];
 /// screen knows, a `view.rs` that draws it. The list may only shrink.
 const MODES_WITHOUT_A_PRESENTER: [&str; 2] = ["settings", "sketch"];
 
-const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 5] = [
-    ("crates/app/src/screens/extrusion_row.rs", 2),
+const RAW_WIDGETS_LEFT_IN_THE_SCREENS: [(&str, usize); 3] = [
     ("crates/app/src/screens/history_tree.rs", 1),
     ("crates/app/src/screens/settings/viewport.rs", 3),
     ("crates/app/src/screens/start_menu.rs", 1),
-    ("crates/app/src/screens/viewport/render/live_fields.rs", 1),
 ];
 
 #[test]

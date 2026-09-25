@@ -33,13 +33,13 @@ fn a_curve_measured_twice() -> PartState {
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::ArcRadius(CUT),
-        value: REACH,
+        value: REACH.into(),
         placement: None,
     });
     state.apply(&Operation::SetDimension {
         sketch: 0,
         target: DimensionTarget::ArcSweep(CUT),
-        value: 180.0,
+        value: 180.0.into(),
         placement: None,
     });
     for degrees in [60.0, 120.0] {

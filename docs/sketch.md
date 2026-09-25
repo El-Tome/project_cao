@@ -105,6 +105,13 @@ left alone stays empty and shows the measurement as a ghost — keeping the
 measurement *in* the field meant the first keystroke landed behind it, and "40"
 typed over "0.000" read as 0.00040.
 
+Until something is typed, though, **a letter is still a shortcut**: a digit, a
+sign, a decimal separator or `=` is what starts the field, which then keeps
+every key until `Entrée` or `Échap`. `=` opens a formula over the part's
+variables, and the dimension the shape leaves keeps it — see
+[variables.md](variables.md). A field holding something that does not read
+refuses the click and says why.
+
 Left alone, they are plain readouts. **Typed into, they are decisions**: the
 trait can take no other value, and the matching dimension is placed by itself
 when the trait is validated. A trait drawn to a value does not have to be
@@ -120,10 +127,20 @@ Fixing one of the two leaves the other free, which is the whole point:
 
 A rectangle works the same way, side by side: a typed width fixes the width and
 lets the height follow the cursor. Both sizes then arrive as dimensions on the
-shape, along with its right angles. A circle takes its diameter the same way,
+shape, along with its right angles. A circle takes its diameter the same way —
+drawn from its centre too, where it turns with the cursor at the size typed —
 and a size too small to reach the points clicked is held at the smallest that
 does reach them: typing 150 goes through 1 and 15 on the way, and a circle that
 vanishes at the first keystroke takes with it the field being typed into.
+
+On a part that has **not been given a value yet**, a length typed does not
+redraw the shape at that size. It says what the shape measures on screen at
+the moment it is typed: the shape keeps that size, and only turns with the
+cursor, as a typed length always lets it. The dimension laid at the click is
+the part's first value, and gives it its scale — nothing moves. A second size
+typed on the same shape, the height of a rectangle or the second axis of an
+ellipse, is drawn at once at the scale the first one gives. See
+[Dimensions, and the scale](#dimensions-and-the-scale).
 
 Emptying a field takes the decision back. `Entrée` validates the shape without
 having to find the canvas again with the mouse.
@@ -189,6 +206,13 @@ anyway: better that it arrive where it belongs.
 The dimension is placed with the value the geometry already measures, so
 **placing a dimension never deforms anything**. It is by typing another value
 that the drawing is moved.
+
+The first dimension of a part is the exception, and only while its field is
+still open: a value typed straight into it is the value it is placed with, so
+it sets the part's scale rather than moving the drawing. Left as it reads, it
+is the first value itself — a unit is a millimetre, which is what the ruler
+already said — and a value typed into it afterwards moves the drawing like any
+other.
 
 ### A slanted trait reads three ways
 
@@ -1211,15 +1235,23 @@ when the drawing moves afterwards.
 
 ## Dimensions, and the scale
 
-A dimension behaves differently depending on whether it is the first of the
-document:
+A dimension behaves differently depending on whether it is the first value
+the document is given:
 
-- **The first dimension defines the scale.** Nothing moves: saying that a trait
-  is 100 mm simply teaches the document how many millimetres a world unit is
+- **The first value defines the scale.** Nothing moves: saying that a trait is
+  100 mm simply teaches the document how many millimetres a world unit is
   worth. That is what allows drawing by eye and then giving the drawing its
-  size afterwards, without deforming it.
+  size afterwards, without deforming it. The grid and the ruler follow, and
+  every value read anywhere with them.
+
+  It counts however it is given. Typed while a shape is drawn, it is worth
+  what the shape measured on screen when it was typed, and the shape keeps
+  that size — see [Drawing to a value](#drawing-to-a-value). Typed into the
+  first dimension placed with the dimension tool, it is the value that
+  dimension is placed with — see
+  [One clicks what is measured](#one-clicks-what-is-measured-then-where-the-dimension-sits).
 - **The following ones are constraints.** The geometry moves to respect the
-  length asked for.
+  length asked for. The scale is set once, and then stands.
 
 ### Angles
 

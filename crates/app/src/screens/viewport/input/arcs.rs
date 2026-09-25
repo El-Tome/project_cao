@@ -1,12 +1,12 @@
 //! What one click of the arc tool does, and what the canvas shows in between.
 
 use cao_part::{Operation, PointRef};
-use cao_sketch::{ArcDraft, ArcId, ArcMode, ToolState, arc_aimed, arc_from};
+use cao_sketch::{ArcDraft, ArcId, ArcMode, DimensionTarget, ToolState, arc_aimed, arc_from};
 use glam::DVec2;
 
-use super::{annotation_position, point_ref_at};
+use super::super::values::{lay_values, shape_scale};
+use super::point_ref_at;
 use crate::screens::SketchContext;
-use crate::wording::outcome;
 
 /// One click of the arc tool: takes the place pointed at, and draws the arc as
 /// soon as enough of it is known.
@@ -27,12 +27,16 @@ pub(crate) fn draw_arc(
         // to the next: whether it was typed has to be carried forward by
         // hand, or the arc could never be dimensioned for it once settled.
         let first_typed = context.editor.live.typed(0).is_some();
+        let leg_done = places.len() == 1;
         places.push(cursor);
         context.editor.tool_state = ToolState::Arc {
             places,
             first_typed,
         };
-        context.editor.live.open();
+        match leg_done {
+            true => context.editor.live.open_for_the_next_stage(),
+            false => context.editor.live.open(),
+        }
         context.editor.message = Some(asks_for);
         return false;
     }
@@ -105,7 +109,7 @@ fn dimension_the_arc(
     second_typed: bool,
     pixel: f64,
 ) {
-    let scale = context.document.scale();
+    let scale = shape_scale(context);
     let wanted = cao_sketch::arc_dimensions(
         &context.document.sketches()[index],
         arc,
@@ -114,18 +118,17 @@ fn dimension_the_arc(
         second_typed,
         scale,
     );
-    for (target, value) in wanted {
-        let applied = context.document.apply(Operation::SetDimension {
-            sketch: index,
-            target,
-            value,
-            placement: annotation_position(context, index, target, pixel)
-                .map(|placement| placement.offset),
-        });
-        if let Some(message) = outcome::message(context.lang, applied) {
-            context.editor.message = Some(message);
-        }
-    }
+    // The first leg was typed before the fields opened again for the second.
+    let first = context.editor.live.carried(0);
+    let second = context.editor.live.typed_as_written(0);
+    let typed = |target| match (mode, target) {
+        (ArcMode::ByCenter, DimensionTarget::ArcRadius(_))
+        | (ArcMode::ByEnds, DimensionTarget::Distance { .. }) => first.clone(),
+        (ArcMode::ByCenter, DimensionTarget::ArcSweep(_))
+        | (ArcMode::ByEnds, DimensionTarget::ArcRadius(_)) => second.clone(),
+        _ => None,
+    };
+    lay_values(context, index, wanted, typed, pixel);
 }
 
 /// The two radii a swept angle opens between, left on the drawing as
@@ -152,6 +155,6 @@ pub(crate) fn aimed(context: &SketchContext<'_>, places: &[DVec2], cursor: DVec2
         places,
         cursor,
         context.editor.live.typed(0),
-        context.document.scale(),
+        shape_scale(context),
     )
 }

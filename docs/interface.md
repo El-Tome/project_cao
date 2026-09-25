@@ -38,6 +38,14 @@ command makes no sense where one is.
 On the left, resizable, hidden by the "Historique" button of the toolbar. Its
 contents are described in [history.md](history.md).
 
+## The Variables panel
+
+On the left, beside the History panel, hidden by the "Variables" button at the
+far end of the tab row, in a sketch and outside one. One row per variable of
+the part — its name, its formula, what it comes to — and a row at the foot that
+adds one. What it does is in [variables.md](variables.md). The "Pièce" panel
+lists the variables too, read only.
+
 ## The Files panel
 
 On the left too, resizable, and showing before anybody asks for it. Its toggle

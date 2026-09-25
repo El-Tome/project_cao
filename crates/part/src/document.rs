@@ -17,6 +17,10 @@ use crate::state::PartState;
 
 mod design;
 mod geometry_cache;
+mod matter;
+mod variables;
+
+pub use variables::{Refused, Use};
 
 /// Bumped whenever the layout of a saved part changes.
 ///
@@ -317,8 +321,13 @@ impl PartDocument {
 
         let (history, design) = design::read(&mut archive)?;
         let print: Vec<&str> = design.iter().map(String::as_str).collect();
-        let state = geometry_cache::read(&mut archive, &print)
-            .unwrap_or_else(|| PartState::rebuild(&history));
+        let state = match geometry_cache::read(&mut archive, &print) {
+            Some(mut cached) => {
+                cached.read_variables(&history);
+                cached
+            }
+            None => PartState::rebuild(&history),
+        };
 
         Ok(Self {
             metadata,

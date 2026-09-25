@@ -2,6 +2,7 @@
 //! into.
 
 mod detail;
+mod moved;
 mod sized;
 mod values;
 

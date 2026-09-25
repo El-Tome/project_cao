@@ -2,6 +2,7 @@ use cao_part::history::Operation;
 use cao_part::{VariableChange, Variables};
 
 use crate::lang::Catalogue;
+use crate::wording::history::moved::moved;
 use crate::wording::history::sized;
 use crate::wording::history::values::{
     between, chosen_axis, point_label, revolution_axis, rounded,
@@ -96,48 +97,12 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
                 ("end", &point_label(lang, end)),
             ],
         ),
-        Operation::MovePoint {
-            sketch,
-            point,
-            position,
-            merged_into: Some(kept),
-            ..
-        } => lang.t_with(
-            "history.detail.point_dropped_on",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("point", &point.0.to_string()),
-                ("kept", &kept.0.to_string()),
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
-            ],
-        ),
-        Operation::MovePoint {
-            sketch,
-            point,
-            position,
-            ..
-        } => lang.t_with(
-            "history.detail.point_moved",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("point", &point.0.to_string()),
-                ("x", &rounded(position.x, 1)),
-                ("y", &rounded(position.y, 1)),
-            ],
-        ),
-        Operation::ResizeCircle {
-            sketch,
-            circle,
-            reach,
-        } => lang.t_with(
-            "history.detail.circle_resized",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("circle", &circle.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
-            ],
-        ),
+        Operation::MovePoint { .. }
+        | Operation::ResizeCircle { .. }
+        | Operation::ResizeArc { .. }
+        | Operation::ResizeEllipse { .. }
+        | Operation::MoveMany { .. }
+        | Operation::MoveDimension { .. } => moved(lang, operation),
         Operation::AddEllipse {
             sketch,
             center,
@@ -149,43 +114,6 @@ pub fn detail(lang: &Catalogue, variables: &Variables, operation: &Operation) ->
                 ("sketch", &sketch.to_string()),
                 ("center", &point_label(lang, center)),
                 ("end", &point_label(lang, &first[1])),
-            ],
-        ),
-        Operation::ResizeEllipse {
-            sketch,
-            ellipse,
-            reach,
-        } => lang.t_with(
-            "history.detail.ellipse_resized",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("ellipse", &ellipse.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
-            ],
-        ),
-        Operation::ResizeArc { sketch, arc, reach } => lang.t_with(
-            "history.detail.arc_resized",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("arc", &arc.0.to_string()),
-                ("reach", &rounded(*reach, 1)),
-            ],
-        ),
-        Operation::MoveMany { sketch, points, by } => lang.t_with(
-            "history.detail.many_moved",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("count", &points.len().to_string()),
-                ("x", &rounded(by.x, 1)),
-                ("y", &rounded(by.y, 1)),
-            ],
-        ),
-        Operation::MoveDimension { sketch, offset, .. } => lang.t_with(
-            "history.detail.dimension_moved",
-            &[
-                ("sketch", &sketch.to_string()),
-                ("x", &rounded(offset.x, 1)),
-                ("y", &rounded(offset.y, 1)),
             ],
         ),
         Operation::Extrude { sketch, areas, .. } => lang.t_with(

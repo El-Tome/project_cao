@@ -5,21 +5,44 @@ use glam::DVec2;
 
 use super::{LengthOutcome, PointId, Sketch};
 
-/// What the user is holding while a drag lasts, which the solver reads as
-/// immovable. Nothing to save: it lives only as long as the gesture.
+mod give;
+mod kept;
+mod pull;
+mod shape;
+
+pub(crate) use kept::Kept;
+pub use pull::PointPull;
+
+/// What the user is holding while a drag lasts: points the solver reads as
+/// immovable, and the lines the drag keeps where they lie. Nothing to save:
+/// it lives only as long as the gesture.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Held {
     pub(crate) points: Vec<PointId>,
+    pub(crate) lines: Vec<Kept>,
 }
 
 impl Sketch {
-    /// Puts a point where it was dropped and settles the rest of the drawing
-    /// around it, that point staying exactly where it was put.
-    ///
-    /// An end of an ellipse's axis turns and stretches the curve about its
-    /// centre, which is held where it stands for that: left free, it would
-    /// share the pull with the end and slide off towards the cursor.
+    /// Takes a point where it was dropped and settles the rest of the drawing
+    /// around it, as [`Sketch::pull`] reads the drag from the drawing as it
+    /// stands: what is replayed of a point moved by hand.
     pub fn settle_around(
+        &mut self,
+        point: PointId,
+        position: DVec2,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        let pull = self.pull(point, millimeters_per_unit);
+        self.settle_pulled(&pull, position, millimeters_per_unit)
+    }
+
+    /// The drag as it always was, for a point nothing else stays for: the
+    /// point exactly where it was put and the drawing settled around it.
+    ///
+    /// An end of an ellipse's axis stretches the curve about its centre,
+    /// which is held where it stands for that: left free, it would share the
+    /// pull with the end and slide off towards the cursor.
+    fn settle_plainly(
         &mut self,
         point: PointId,
         position: DVec2,
@@ -96,3 +119,6 @@ impl Sketch {
         LengthOutcome::BestEffort
     }
 }
+
+#[cfg(test)]
+mod tests;

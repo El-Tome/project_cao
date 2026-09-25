@@ -7,7 +7,10 @@
 //!   square to it and centred — `an_axis_end_dragged_round_turns_the_other_axis_with_it`,
 //!   and the centre stays where it was — `an_axis_end_dragged_alone_leaves_the_centre_where_it_was`,
 //!   even when the values given refuse the drag —
-//!   `an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was`
+//!   `an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was`.
+//!   Since #422 a drag of the end only stretches its axis along itself, and
+//!   the ellipse is turned by its curve: the second test says so now, and the
+//!   first holds what a turn of the axes still has to keep
 //! - dragging the curve scales the ellipse about its centre —
 //!   `the_curve_dragged_out_scales_the_ellipse_about_its_centre_and_keeps_its_shape`
 //! - erasing the ellipse takes its axes —
@@ -283,13 +286,18 @@ fn an_axis_end_dragged_alone_leaves_the_centre_where_it_was() {
 
     sketch.settle_around(east, DVec2::new(90.0, 25.0), 1.0);
 
-    let [centre, west, east, ..] = sketch.ellipse_points(id).map(|p| sketch.point(p));
+    let [centre, west, east, south, north] = sketch.ellipse_points(id).map(|p| sketch.point(p));
     assert!(
         centre.distance(DVec2::new(50.0, 20.0)) < 1e-4,
         "the centre moved to {centre}"
     );
-    assert!(east.distance(DVec2::new(90.0, 25.0)) < 1e-6);
-    assert!(west.distance(DVec2::new(10.0, 15.0)) < 1e-3, "{west}");
+    assert!(
+        east.distance(DVec2::new(90.0, 20.0)) < 1e-4,
+        "the end lengthens its axis along itself, and does not turn it: {east}"
+    );
+    assert!(west.distance(DVec2::new(10.0, 20.0)) < 1e-4, "{west}");
+    assert!(south.distance(DVec2::new(50.0, 10.0)) < 1e-4, "{south}");
+    assert!(north.distance(DVec2::new(50.0, 30.0)) < 1e-4, "{north}");
 }
 
 #[test]

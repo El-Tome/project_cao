@@ -11,6 +11,7 @@ mod arc_solver;
 mod axis_solver;
 mod ellipse_solver;
 mod hold_solver;
+mod kept_solver;
 mod orientation;
 mod tangent_solver;
 
@@ -222,7 +223,7 @@ impl Sketch {
         let pinned = self.pinned_points();
         let mut hot: Vec<Vec<PointId>> = Vec::new();
         let mut opened: Vec<(SegmentId, SegmentId)> = Vec::new();
-        let mut stretched: Vec<SegmentId> = Vec::new();
+        let mut stretched: Vec<SegmentId> = self.kept_segments();
 
         let mut entry: Vec<Equation> = Vec::new();
         for index in 0..self.equation_count() {
@@ -270,7 +271,7 @@ impl Sketch {
                     | Constraint::AxisParallel { segment, .. } => stretched.push(segment),
                     _ => {}
                 },
-                Row::Arc(_) | Row::Ellipse(_) => {}
+                Row::Arc(_) | Row::Ellipse(_) | Row::Kept(_) => {}
             }
         }
         if hot.is_empty() {
@@ -436,12 +437,19 @@ impl Sketch {
     /// Every equation the drawing must satisfy, including the pins that hold it
     /// in place.
     pub(crate) fn equations(&self, millimeters_per_unit: f64) -> Vec<Equation> {
-        self.equations_pinned_by(millimeters_per_unit, &self.pinned_points())
+        let pinned = self.pinned_points();
+        let mut equations = self.equations_pinned_by(millimeters_per_unit, &pinned);
+        self.kept_equations(&pinned, &mut equations);
+        equations
     }
 
     /// The same, told which points are to be treated as immovable. The solver
     /// and the verdict do not agree on that, so they each say.
-    fn equations_pinned_by(&self, millimeters_per_unit: f64, pinned: &[bool]) -> Vec<Equation> {
+    pub(crate) fn equations_pinned_by(
+        &self,
+        millimeters_per_unit: f64,
+        pinned: &[bool],
+    ) -> Vec<Equation> {
         let mut equations = Vec::new();
 
         for index in 0..self.dimension_count() {
@@ -457,11 +465,12 @@ impl Sketch {
         equations
     }
 
-    /// How many entries the drawing is made of: dimensions, then rules, then
-    /// one apiece for the arcs and the ellipses. An entry may bring more than
-    /// one equation.
+    /// How many entries the drawing is made of: the lines a drag keeps, then
+    /// dimensions, then rules, then one apiece for the arcs and the ellipses.
+    /// An entry may bring more than one equation.
     pub(super) fn equation_count(&self) -> usize {
-        self.dimension_count()
+        self.kept_lines().len()
+            + self.dimension_count()
             + self.constraints().len()
             + self.arcs().len()
             + self.ellipses().len()
@@ -470,6 +479,7 @@ impl Sketch {
     pub(super) fn row(&self, index: usize) -> Row {
         row_at(
             index,
+            self.kept_lines().len(),
             self.dimension_count(),
             self.constraints().len(),
             self.arcs().len(),
@@ -490,7 +500,8 @@ impl Sketch {
             Row::Rule(at) => self.rule_equations(at, pinned, into),
             Row::Arc(at) => self.arc_equation(ArcId(at), pinned, into),
             Row::Ellipse(at) => self.ellipse_equation(crate::ellipse::EllipseId(at), pinned, into),
-            Row::Dimension(_) => into.extend(self.equation(index, millimeters_per_unit, pinned)),
+            Row::Kept(at) => self.kept_equation(at, pinned, into),
+            Row::Dimension(at) => into.extend(self.equation(at, millimeters_per_unit, pinned)),
         }
     }
 

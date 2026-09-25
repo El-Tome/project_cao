@@ -73,7 +73,7 @@ pub struct Sketch {
 mod dimensions;
 mod holds_up;
 mod keeping;
-mod settling;
+pub(crate) mod settling;
 mod tangency;
 
 pub use crate::element::Element;

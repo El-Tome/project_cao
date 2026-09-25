@@ -13,8 +13,9 @@
 //! - a revolution, or a circular pattern's step, sets nothing —
 //!   `a_revolution_leaves_the_part_without_a_scale`,
 //!   `a_circular_patterns_angle_leaves_the_part_without_a_scale`
-//! - replaying the history rebuilds the same part, scale included —
-//!   `replaying_a_part_whose_depth_fixed_its_scale_rebuilds_it_the_same`
+//! - replaying the history rebuilds the same part, scale included, and so does
+//!   compacting it — `replaying_a_part_whose_depth_fixed_its_scale_rebuilds_it_the_same`,
+//!   `compacting_a_part_whose_depth_fixed_its_scale_keeps_it`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef, RevolutionAxis};
 use cao_part::{PartDocument, PartState};
@@ -247,5 +248,41 @@ fn replaying_a_part_whose_depth_fixed_its_scale_rebuilds_it_the_same() {
         (replayed.sketches[0].segment_length(SegmentId(0)) - 100.0).abs() < TOLERANCE,
         "the replay drew the side {} units across",
         replayed.sketches[0].segment_length(SegmentId(0)),
+    );
+}
+
+#[test]
+fn compacting_a_part_whose_depth_fixed_its_scale_keeps_it() {
+    let mut document = a_rectangle_nobody_has_measured();
+    let areas = document.areas_at(0, &[DVec2::new(35.0, 15.0)]);
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas,
+        distance: 20.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: SIDE,
+        value: 100.0.into(),
+        placement: None,
+    });
+
+    document.compact_history();
+
+    assert!(
+        (document.scale() - 1.0).abs() < 1e-12,
+        "compacting handed the scale to the dimension: {} millimetres to the unit",
+        document.scale(),
+    );
+    assert!(
+        (document.sketches()[0].segment_length(SegmentId(0)) - 100.0).abs() < TOLERANCE,
+        "the side came back {} units across",
+        document.sketches()[0].segment_length(SegmentId(0)),
+    );
+    assert!(
+        (depth_in_units(&document) - 20.0).abs() < TOLERANCE,
+        "the plate came back {} units deep",
+        depth_in_units(&document),
     );
 }

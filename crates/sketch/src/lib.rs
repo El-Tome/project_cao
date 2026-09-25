@@ -115,4 +115,4 @@ pub use trimming::arc::ArcTrimmed;
 pub use trimming::circle::CircleTrimmed;
 pub use trimming::ellipse::EllipseTrimmed;
 pub use trimming::going::{Going, Stretch};
-pub use turning::{Turn, angle_onto_grid};
+pub use turning::Turn;

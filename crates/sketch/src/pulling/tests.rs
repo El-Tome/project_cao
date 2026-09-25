@@ -5,22 +5,32 @@
 //!   opposite side stays; a trait on its own travels whole —
 //!   `a_side_pulled_across_travels_and_the_opposite_side_stays`,
 //!   `a_right_triangle_grows_when_its_hypotenuse_is_pulled_out`,
-//!   `a_lone_trait_pulled_across_travels_whole`
+//!   `a_lone_trait_pulled_across_travels_whole`,
+//!   `a_typed_tail_does_not_take_the_place_of_the_opposite_side`,
+//!   `a_d_shape_pulled_by_its_flat_keeps_its_curve`
 //! - 10: slid along itself, the side turns its shape about the shape's centre,
 //!   or about the point holding it, the place grabbed going round with the
 //!   hand — `a_side_slid_along_itself_turns_the_shape_about_its_centre`,
-//!   `a_shape_held_at_a_point_turns_about_it`
-//! - 11: which of the two is read at every instant, about the place the shape
-//!   turns on — `more_across_than_along_resizes_more_along_than_across_turns`,
-//!   `a_turn_past_a_quarter_stays_a_turn`
-//! - 12: a trait on its own has no along — `a_lone_trait_has_no_along`
+//!   `a_shape_held_at_a_point_turns_about_it`, and a shape sharing only the
+//!   origin with another turns alone —
+//!   `a_shape_sharing_only_the_origin_with_another_turns_alone`
+//! - 11: which of the two is read at every instant: a pull straight across
+//!   resizes wherever the side was pressed, a slide along turns, and a turn
+//!   stays a turn past a quarter —
+//!   `more_across_than_along_resizes_more_along_than_across_turns`,
+//!   `a_side_pulled_straight_across_resizes_wherever_it_was_pressed`,
+//!   `a_side_slid_along_near_its_end_turns`, `a_turn_past_a_quarter_stays_a_turn`
+//! - 12: a trait on its own has no along, nor a shape a rule holds upright —
+//!   `a_lone_trait_has_no_along`, `a_shape_held_upright_by_a_rule_has_no_along`
 //! - 13: a shape that cannot stretch across leaves the side where it is —
 //!   `a_shape_that_cannot_stretch_across_leaves_its_side_where_it_is`
 //! - 15: a curve pulled towards or away from its centre is drawn to its new
 //!   size as before — `a_curve_pulled_out_is_drawn_to_its_new_size_as_before`
 //! - 16: slid along, an arc turns keeping its radius and its sweep, an ellipse
-//!   keeping its axes — `an_arc_slid_along_its_curve_turns_keeping_its_radius_and_sweep`,
-//!   `an_ellipse_slid_along_its_curve_turns_keeping_its_axes`
+//!   keeping its axes, and what is joined to either turns with it —
+//!   `an_arc_slid_along_its_curve_turns_keeping_its_radius_and_sweep`,
+//!   `an_ellipse_slid_along_its_curve_turns_keeping_its_axes`,
+//!   `an_arc_slid_along_turns_what_is_joined_to_it_with_it`
 //! - 17: a circle is always drawn to its new size —
 //!   `a_circle_is_always_drawn_to_its_new_size`
 //! - 18: while a shape turns, the end nearest the hand is pulled onto a grid
@@ -496,4 +506,182 @@ fn an_ellipse_axis_and_a_side_that_cannot_move_are_not_taken_hold_of() {
 
     assert_eq!(sketch.pulled_at(DVec2::new(35.0, 20.0), 2.0, 1.0), None);
     assert_eq!(sketch.pulled_at(DVec2::new(60.0, 0.5), 2.0, 1.0), None);
+}
+
+#[test]
+fn a_side_pulled_straight_across_resizes_wherever_it_was_pressed() {
+    let (sketch, _, sides) = rectangle();
+
+    for x in [25.0, 70.0, 110.0, 118.0] {
+        let drag = sketch.side_drag(
+            sides[2],
+            DVec2::new(x, 70.0),
+            DVec2::new(x, 90.0),
+            &no_grid(),
+            1.0,
+        );
+        assert_eq!(
+            drag,
+            SideDrag::Across {
+                by: DVec2::new(0.0, 20.0)
+            },
+            "pressed at {x}"
+        );
+    }
+}
+
+#[test]
+fn a_side_slid_along_near_its_end_turns() {
+    let (sketch, _, sides) = rectangle();
+
+    let drag = sketch.side_drag(
+        sides[2],
+        DVec2::new(115.0, 70.0),
+        DVec2::new(135.0, 70.0),
+        &no_grid(),
+        1.0,
+    );
+
+    assert!(matches!(drag, SideDrag::Along(_)), "{drag:?}");
+}
+
+#[test]
+fn a_shape_sharing_only_the_origin_with_another_turns_alone() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        Sketch::ORIGIN,
+        sketch.add_point(DVec2::new(100.0, 0.0)),
+        sketch.add_point(DVec2::new(100.0, 50.0)),
+        sketch.add_point(DVec2::new(0.0, 50.0)),
+    ];
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+    for corner in 0..3 {
+        sketch.add_constraint(Constraint::Perpendicular {
+            first: sides[corner],
+            second: sides[corner + 1],
+        });
+    }
+    let other = sketch.add_point(DVec2::new(-60.0, -40.0));
+    sketch.add_segment(Sketch::ORIGIN, other);
+
+    let drag = sketch.side_drag(
+        sides[2],
+        DVec2::new(20.0, 50.0),
+        DVec2::new(0.0, 50.0),
+        &no_grid(),
+        1.0,
+    );
+
+    let SideDrag::Along(turn) = drag else {
+        panic!("sliding the top along turns: {drag:?}");
+    };
+    assert!(
+        !turn.points.contains(&other),
+        "the other shape is not taken along"
+    );
+    assert_near(turn.about, DVec2::ZERO, "about the origin holding it");
+}
+
+#[test]
+fn a_d_shape_pulled_by_its_flat_keeps_its_curve() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let half = (30.0_f64 * 30.0 - 15.0 * 15.0).sqrt();
+    let left = sketch.add_point(DVec2::new(50.0 - half, 65.0));
+    let right = sketch.add_point(DVec2::new(50.0 + half, 65.0));
+    let arc = sketch.add_arc(centre, right, left);
+    let flat = sketch.add_segment(left, right);
+
+    sketch.move_side(flat, DVec2::new(0.0, 5.0), 1.0);
+
+    assert_near(sketch.point(centre), DVec2::new(50.0, 50.0), "the centre");
+    assert!(
+        (sketch.arc_radius(arc) - 30.0).abs() < SETTLED,
+        "the radius {}",
+        sketch.arc_radius(arc)
+    );
+    assert!(
+        (sketch.point(left).y - 70.0).abs() < SETTLED,
+        "the flat went up: {}",
+        sketch.point(left)
+    );
+    assert!(
+        (sketch.point(left).distance(sketch.point(centre)) - 30.0).abs() < SETTLED,
+        "on the curve"
+    );
+}
+
+#[test]
+fn a_typed_tail_does_not_take_the_place_of_the_opposite_side() {
+    let (mut sketch, [a, b, c, d], sides) = rectangle();
+    let end = sketch.add_point(DVec2::new(120.0, -80.0));
+    let tail = sketch.add_segment(b, end);
+    sketch.set_dimension(DimensionTarget::Length(tail), 100.0, false);
+
+    sketch.move_side(sides[0], DVec2::new(0.0, -20.0), 1.0);
+
+    assert_near(sketch.point(a), DVec2::new(20.0, 0.0), "a bottom corner");
+    assert_near(
+        sketch.point(b),
+        DVec2::new(120.0, 0.0),
+        "the other bottom corner",
+    );
+    assert_near(sketch.point(c), DVec2::new(120.0, 70.0), "a top corner");
+    assert_near(
+        sketch.point(d),
+        DVec2::new(20.0, 70.0),
+        "the other top corner",
+    );
+}
+
+#[test]
+fn a_shape_held_upright_by_a_rule_has_no_along() {
+    let (mut sketch, _, sides) = rectangle();
+    sketch.add_constraint(Constraint::AxisParallel {
+        segment: sides[0],
+        axis: crate::constraints::SketchAxis::U,
+    });
+
+    let drag = sketch.side_drag(
+        sides[2],
+        DVec2::new(70.0, 70.0),
+        DVec2::new(100.0, 71.0),
+        &no_grid(),
+        1.0,
+    );
+
+    assert_eq!(
+        drag,
+        SideDrag::Across {
+            by: DVec2::new(0.0, 1.0)
+        }
+    );
+}
+
+#[test]
+fn an_arc_slid_along_turns_what_is_joined_to_it_with_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let start = sketch.add_point(DVec2::new(90.0, 50.0));
+    let end = sketch.add_point(DVec2::new(50.0, 90.0));
+    let arc = sketch.add_arc(centre, start, end);
+    let tip = sketch.add_point(DVec2::new(130.0, 50.0));
+    sketch.add_segment(start, tip);
+    let pressed = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.8) * 40.0;
+    let cursor = DVec2::new(50.0, 50.0) + DVec2::from_angle(1.1) * 40.0;
+
+    let CurveDrag::Along(turn) =
+        sketch.curve_drag(Curved::Arc(arc), pressed, cursor, cursor, &no_grid(), 1.0)
+    else {
+        panic!("sliding along the arc turns it");
+    };
+    sketch.turn_shape(&turn.points, turn.about, turn.angle, 1.0);
+
+    let went = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.3).rotate(DVec2::new(80.0, 0.0));
+    assert_near(
+        sketch.point(tip),
+        went,
+        "the trait joined to it turned with it",
+    );
 }

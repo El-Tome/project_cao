@@ -4,7 +4,7 @@
 //! preview shown while the hand moves, and the step written once on release.
 
 use cao_part::Operation;
-use cao_sketch::{SegmentId, SideDrag, Turn};
+use cao_sketch::{LengthOutcome, SegmentId, SideDrag, Turn};
 
 use crate::screens::SketchContext;
 
@@ -30,15 +30,16 @@ pub(super) fn drag_side(
         return false;
     };
     let drag = sketch.side_drag(side, pressed, gesture.raw_cursor, &gesture.magnets, scale);
+    let mut settling = sketch.clone();
+    let outcome = match &drag {
+        SideDrag::Across { by } => settling.move_side(side, *by, scale),
+        SideDrag::Along(turn) => settling.turn_shape(&turn.points, turn.about, turn.angle, scale),
+    };
+    // A side is pulled by the hand itself, not by the magnets: a mark saying
+    // where they would pull the cursor would say where the side does not go.
+    context.editor.snap = None;
 
     if !response.drag_stopped() {
-        let mut settling = sketch.clone();
-        match &drag {
-            SideDrag::Across { by } => settling.move_side(side, *by, scale),
-            SideDrag::Along(turn) => {
-                settling.turn_shape(&turn.points, turn.about, turn.angle, scale)
-            }
-        };
         if let Some(state) = context.editor.select_state() {
             state.drag_position = Some(gesture.raw_cursor);
             state.drag_preview = Some(settling);
@@ -52,7 +53,12 @@ pub(super) fn drag_side(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    match side_operation(index, side, &drag) {
+    // What the drawing refused writes nothing: a step that changes nothing is
+    // what the next undo would take back.
+    let written = (outcome == LengthOutcome::Exact)
+        .then(|| side_operation(index, side, &drag))
+        .flatten();
+    match written {
         Some(operation) => {
             context.document.apply(operation);
             true

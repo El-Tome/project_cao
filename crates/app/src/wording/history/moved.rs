@@ -1,5 +1,6 @@
 //! The line a step unfolds into when it moved something already drawn: a
-//! point, a selection, an annotation, or a curve drawn to another size.
+//! point, a selection, a side, a shape turned, an annotation, or a curve drawn
+//! to another size.
 
 use cao_part::history::Operation;
 

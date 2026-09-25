@@ -163,7 +163,7 @@ impl Sketch {
 /// end would stand at, turned by `angle`, has a grid point within the grid's
 /// reach, the end is pointed at it — and lands on it when the grid point is as
 /// far from `about` as the end is. Otherwise `angle` as it was.
-pub fn angle_onto_grid(about: DVec2, end: DVec2, angle: f64, grid: &SnapSettings) -> f64 {
+pub(crate) fn angle_onto_grid(about: DVec2, end: DVec2, angle: f64, grid: &SnapSettings) -> f64 {
     let turned = about + DVec2::from_angle(angle).rotate(end - about);
     let Some(node) = grid.node_near(turned) else {
         return angle;

@@ -25,7 +25,9 @@ pub(crate) struct Held {
 impl Sketch {
     /// Takes a point where it was dropped and settles the rest of the drawing
     /// around it, as [`Sketch::pull`] reads the drag from the drawing as it
-    /// stands: what is replayed of a point moved by hand.
+    /// stands — the pull read and laid down at once, for a drag of one frame.
+    /// A replay reads the pull before the drop lays its holds, and lays it
+    /// with [`Sketch::settle_pulled`].
     pub fn settle_around(
         &mut self,
         point: PointId,

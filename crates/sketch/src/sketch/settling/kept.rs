@@ -126,11 +126,11 @@ impl Sketch {
         tied
     }
 
-    /// What a drag of `dragged` keeps in its shape: the direction of every
-    /// trait tied by a rule of direction, and the ray from each arc's centre
-    /// to every one of its ends but the one being pulled, so that an arc
-    /// opens or closes by the end the hand holds and turns by neither.
-    pub(crate) fn lines_kept_in(&self, shape: &[PointId], dragged: PointId) -> Vec<Kept> {
+    /// What a drag of the points `dragged` keeps in its shape: the direction
+    /// of every trait tied by a rule of direction, and the ray from each arc's
+    /// centre to every one of its ends but those being pulled, so that an arc
+    /// opens or closes by the ends the hand holds and turns by none.
+    pub(crate) fn lines_kept_in(&self, shape: &[PointId], dragged: &[PointId]) -> Vec<Kept> {
         let mut lines: Vec<Kept> = self
             .tied_by_direction(shape)
             .into_iter()
@@ -144,7 +144,7 @@ impl Sketch {
                 continue;
             }
             for end in [arc.start, arc.end] {
-                if end != dragged {
+                if !dragged.contains(&end) {
                     lines.extend(Kept::direction(self, arc.center, end, None));
                 }
             }

@@ -28,7 +28,7 @@ pub struct SnapSettings {
 impl SnapSettings {
     /// The grid point nearest a place, when the grid pulls and the place is
     /// within its reach.
-    pub fn node_near(&self, place: DVec2) -> Option<DVec2> {
+    pub(crate) fn node_near(&self, place: DVec2) -> Option<DVec2> {
         let step = self.grid_step.filter(|step| *step > 0.0)?;
         let node = DVec2::new(
             (place.x / step).round() * step,

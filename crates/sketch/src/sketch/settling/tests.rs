@@ -12,11 +12,18 @@
 //!   `an_obtuse_parallelogram_pulled_by_a_corner_keeps_its_opposite_corner`,
 //!   `a_triangle_with_two_typed_angles_grows_without_turning`
 //! - 3: what stays is the point holding the shape, else the centre of the
-//!   curve the point is on, else the farthest point along the traits tied by
-//!   direction; a curve's centre still carries its curve —
+//!   curve the point is on, else the farthest point among those on the traits
+//!   tied by direction; a curve's centre still carries its curve —
 //!   `a_rectangle_held_at_a_corner_keeps_that_corner_and_stretches`,
 //!   `a_free_tail_does_not_take_the_place_of_the_opposite_corner`,
-//!   `a_circle_dragged_by_its_centre_is_carried_at_its_size`
+//!   `a_trapezoid_pulled_by_a_corner_keeps_its_far_corner`,
+//!   `a_circle_centred_on_a_corner_does_not_take_the_place_of_the_opposite_corner`,
+//!   `a_point_held_on_a_trait_leaves_the_far_end_whichever_way_the_trait_was_drawn`,
+//!   `a_circle_dragged_by_its_centre_is_carried_at_its_size`,
+//!   `a_corner_that_carries_a_circle_stretches_its_rectangle_and_carries_the_circle`;
+//!   a shape tied to another by a value lets that one follow —
+//!   `a_shape_tied_by_a_distance_to_another_lets_that_one_follow`; two shapes
+//!   sharing the origin pivot apart — `two_shapes_sharing_the_origin_pivot_apart`
 //! - 4: a shape that cannot stretch at all pivots about that point, the point
 //!   pulled stopping where its sizes allow; a turn a rule forbids leaves it
 //!   where it is — `a_free_trait_of_typed_length_pivots_about_its_other_end`,
@@ -24,16 +31,24 @@
 //!   `a_triangle_of_three_typed_sides_pivots_about_its_far_corner`,
 //!   `a_pivot_a_rule_forbids_leaves_the_shape_where_it_is`
 //! - 5: a shape that can stretch one way only follows the hand that way and no
-//!   further — `a_rectangle_with_only_its_width_typed_takes_its_height_from_the_cursor`
+//!   further — `a_rectangle_with_only_its_width_typed_takes_its_height_from_the_cursor`;
+//!   past its reach the point stops on the way to the hand and goes no
+//!   further back as the hand goes on —
+//!   `a_rectangle_pulled_past_its_far_side_stops_at_the_last_place_it_can_reach`,
+//!   `a_corner_held_back_by_a_typed_width_goes_no_further_back_as_the_hand_goes_on`,
+//!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`
 //! - 6: a trait of typed length whose other end is held still pivots about it —
 //!   `a_leaning_trait_of_typed_length_hung_off_the_origin_pivots_about_it`
 //! - 7: a point on a curve leaves the curve's centre in place: an arc's end
-//!   slides round, its other end keeping its direction —
-//!   `an_arc_end_slides_round_its_circle_and_the_other_end_keeps_its_direction`;
-//!   an ellipse's axis end lengthens its axis without turning it — no test:
-//!   here, `an_axis_end_dragged_alone_leaves_the_centre_where_it_was` in
-//!   ellipse/tests.rs says it; an ellipse whose axis is typed turns about its
-//!   centre — `an_ellipse_with_a_typed_axis_turns_about_its_centre`
+//!   slides round, its other end keeping its direction, all the way round
+//!   even when its radius is typed —
+//!   `an_arc_end_slides_round_its_circle_and_the_other_end_keeps_its_direction`,
+//!   `an_arc_end_of_typed_radius_slides_all_the_way_round`; an ellipse whose
+//!   axis is typed turns about its centre —
+//!   `an_ellipse_with_a_typed_axis_turns_about_its_centre`
+//! - 7, the ellipse's axis end lengthening its axis without turning it — no
+//!   test: here; `an_axis_end_dragged_alone_leaves_the_centre_where_it_was` in
+//!   ellipse/tests.rs holds it
 //! - 8: a trait held by nothing stretches freely —
 //!   `with_no_rules_only_the_dragged_point_moves`, and traits held by lengths
 //!   alone still bend — `two_typed_bars_hinged_together_bend_to_reach_the_cursor`
@@ -41,7 +56,11 @@
 //!   test: here, `a_rectangle_does_not_turn_when_one_of_its_sides_changes` in
 //!   sketch/tests/values.rs holds it, untouched
 //! - 18: a shape pivoting brings the dragged point onto a grid point within
-//!   reach — `a_pivoting_point_is_pulled_onto_a_grid_point_within_reach`
+//!   reach — `a_pivoting_point_is_pulled_onto_a_grid_point_within_reach`,
+//!   towards the hand before any magnet —
+//!   `a_pivoting_drag_is_taken_towards_the_hand_and_joins_only_what_it_lands_on`
+//! - 22: a point that stopped short of the hand is dropped on nothing —
+//!   `a_point_that_stopped_short_of_the_hand_is_joined_to_nothing`
 //! - 20: the verdict does not change — `a_drag_leaves_the_verdict_and_the_freedom_as_they_were`
 
 use glam::DVec2;
@@ -594,4 +613,309 @@ fn a_pivoting_point_is_pulled_onto_a_grid_point_within_reach() {
         DVec2::new(10.0, 10.0) + towards * 100.0,
         "no grid point near",
     );
+}
+
+#[test]
+fn a_rectangle_pulled_past_its_far_side_stops_at_the_last_place_it_can_reach() {
+    let (mut sketch, [a, _, c, _], _) = upright();
+
+    sketch.settle_around(a, DVec2::new(40.0, 80.0), 1.0);
+
+    let reached = sketch.point(a);
+    assert!(
+        reached.distance(DVec2::new(20.0, 20.0)) > 10.0,
+        "it did not snap back: {reached}"
+    );
+    assert!(
+        reached.y < 70.0,
+        "and it stopped short of the top: {reached}"
+    );
+    assert_near(
+        sketch.point(c),
+        DVec2::new(120.0, 70.0),
+        "the opposite corner",
+    );
+}
+
+#[test]
+fn a_corner_held_back_by_a_typed_width_goes_no_further_back_as_the_hand_goes_on() {
+    let (mut sketch, [a, ..], sides) = upright();
+    typed(&mut sketch, sides[0]);
+    let pull = sketch.pull(a, 1.0);
+
+    let mut heights = Vec::new();
+    for height in [60.0, 69.0, 75.0, 90.0, 120.0] {
+        let mut dragged = sketch.clone();
+        dragged.settle_pulled(&pull, DVec2::new(20.0, height), 1.0);
+        heights.push(dragged.point(a).y);
+    }
+
+    for pair in heights.windows(2) {
+        assert!(
+            pair[1] >= pair[0] - 1e-2,
+            "the corner came back down: {heights:?}"
+        );
+    }
+    assert!(
+        heights[4] > 69.9,
+        "and it stops just short of the top: {heights:?}"
+    );
+}
+
+#[test]
+fn a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let tip = sketch.add_point(DVec2::new(0.0, 0.0));
+    let knee = sketch.add_point(DVec2::new(50.0, 30.0));
+    let foot = sketch.add_point(DVec2::new(100.0, 0.0));
+    for (from, to) in [(tip, knee), (knee, foot)] {
+        let bar = sketch.add_segment(from, to);
+        typed(&mut sketch, bar);
+    }
+
+    sketch.settle_around(tip, DVec2::new(-80.0, 0.0), 1.0);
+
+    let reached = sketch.point(tip);
+    assert!(
+        reached.x < -15.0 && reached.y.abs() < 1.0,
+        "it stopped towards the hand: {reached}"
+    );
+    assert_near(sketch.point(foot), DVec2::new(100.0, 0.0), "the far end");
+}
+
+#[test]
+fn an_arc_end_of_typed_radius_slides_all_the_way_round() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let start = sketch.add_point(DVec2::new(80.0, 50.0));
+    let end = sketch.add_point(DVec2::new(50.0, 80.0));
+    let arc = sketch.add_arc(centre, start, end);
+    sketch.set_dimension(DimensionTarget::ArcRadius(arc), 30.0, false);
+    sketch.resolve(1.0);
+    let pull = sketch.pull(start, 1.0);
+
+    let cursor = DVec2::new(50.0, 50.0) + DVec2::from_angle((-100.0_f64).to_radians()) * 45.0;
+    let landing = sketch.slide(start, cursor);
+    sketch.settle_pulled(&pull, landing, 1.0);
+
+    let went = (sketch.point(start) - DVec2::new(50.0, 50.0))
+        .to_angle()
+        .to_degrees();
+    assert!((went + 100.0).abs() < 1e-3, "the end went round to {went}°");
+}
+
+#[test]
+fn a_shape_tied_by_a_distance_to_another_lets_that_one_follow() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let a = sketch.add_point(DVec2::new(20.0, 20.0));
+    let b = sketch.add_point(DVec2::new(120.0, 20.0));
+    sketch.add_segment(a, b);
+    let centre = sketch.add_point(DVec2::new(50.0, 45.0));
+    sketch.add_circle(centre, 5.0);
+    let apart = sketch.point(a).distance(sketch.point(centre));
+    sketch.set_dimension(
+        DimensionTarget::Distance {
+            from: a,
+            to: centre,
+        },
+        apart,
+        false,
+    );
+
+    sketch.settle_around(a, DVec2::new(0.0, -20.0), 1.0);
+
+    assert_near(
+        sketch.point(a),
+        DVec2::new(0.0, -20.0),
+        "the point, under the hand",
+    );
+    assert!((sketch.point(a).distance(sketch.point(centre)) - apart).abs() < SETTLED);
+}
+
+#[test]
+fn a_point_held_on_a_trait_leaves_the_far_end_whichever_way_the_trait_was_drawn() {
+    for backwards in [false, true] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let near = sketch.add_point(DVec2::new(100.0, 0.0));
+        let far = sketch.add_point(DVec2::new(0.0, 0.0));
+        let side = match backwards {
+            false => sketch.add_segment(far, near),
+            true => sketch.add_segment(near, far),
+        };
+        let held = sketch.add_point(DVec2::new(60.0, 0.0));
+        sketch.add_constraint(Constraint::OnSegment {
+            point: held,
+            segment: side,
+        });
+
+        sketch.settle_around(near, DVec2::new(100.0, 30.0), 1.0);
+
+        assert_near(sketch.point(far), DVec2::ZERO, "the far end");
+    }
+}
+
+#[test]
+fn a_trapezoid_pulled_by_a_corner_keeps_its_far_corner() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        DVec2::new(20.0, 50.0),
+        DVec2::new(80.0, 50.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(0.0, 0.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+    sketch.add_constraint(Constraint::Parallel {
+        first: sides[0],
+        second: sides[2],
+    });
+
+    sketch.settle_around(corners[0], DVec2::new(10.0, 80.0), 1.0);
+
+    assert_near(
+        sketch.point(corners[0]),
+        DVec2::new(10.0, 80.0),
+        "the corner pulled",
+    );
+    assert_near(
+        sketch.point(corners[2]),
+        DVec2::new(100.0, 0.0),
+        "the far corner",
+    );
+}
+
+#[test]
+fn a_circle_centred_on_a_corner_does_not_take_the_place_of_the_opposite_corner() {
+    let (mut sketch, [a, _, c, _], _) = upright();
+    sketch.add_circle(c, 8.0);
+
+    sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
+
+    assert_near(sketch.point(a), DVec2::new(5.0, 45.0), "the corner pulled");
+    assert_near(
+        sketch.point(c),
+        DVec2::new(120.0, 70.0),
+        "the opposite corner",
+    );
+}
+
+#[test]
+fn a_corner_that_carries_a_circle_stretches_its_rectangle_and_carries_the_circle() {
+    let (mut sketch, [a, _, c, _], _) = upright();
+    let circle = sketch.add_circle(a, 8.0);
+
+    sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
+
+    assert_near(
+        sketch.point(c),
+        DVec2::new(120.0, 70.0),
+        "the opposite corner",
+    );
+    assert_near(
+        sketch.point(sketch.circle(circle).center),
+        DVec2::new(5.0, 45.0),
+        "the circle came along",
+    );
+    assert!(
+        (sketch.circle(circle).radius - 8.0).abs() < SETTLED,
+        "at its size"
+    );
+}
+
+#[test]
+fn two_shapes_sharing_the_origin_pivot_apart() {
+    let (mut sketch, [a, _, c, _], sides) = rectangle([
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(100.0, 50.0),
+        DVec2::new(0.0, 50.0),
+    ]);
+    sketch.merge_points(Sketch::ORIGIN, a);
+    typed(&mut sketch, sides[0]);
+    typed(&mut sketch, sides[1]);
+    let other = sketch.add_point(DVec2::new(-60.0, -40.0));
+    sketch.add_segment(Sketch::ORIGIN, other);
+
+    sketch.settle_around(c, DVec2::new(50.0, 120.0), 1.0);
+
+    assert_near(
+        sketch.point(other),
+        DVec2::new(-60.0, -40.0),
+        "the other shape",
+    );
+    let reach = sketch.point(c).length();
+    assert!(
+        (reach - 100.0_f64.hypot(50.0)).abs() < 1e-3,
+        "pivoted about the origin: {reach}"
+    );
+}
+
+#[test]
+fn a_pivoting_drag_is_taken_towards_the_hand_and_joins_only_what_it_lands_on() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let stays = sketch.add_point(DVec2::new(10.0, 10.0));
+    let end = sketch.add_point(DVec2::new(110.0, 10.0));
+    let side = sketch.add_segment(stays, end);
+    typed(&mut sketch, side);
+    let near = sketch.add_point(DVec2::new(12.0, 107.0));
+    let pull = sketch.pull(end, 1.0);
+    let grid = crate::snap::SnapSettings {
+        point_reach: 5.0,
+        curve_reach: 5.0,
+        grid_step: Some(10.0),
+        grid_reach: 3.0,
+    };
+
+    let landing = pull.landing(
+        &sketch,
+        DVec2::new(12.0, 150.0),
+        DVec2::new(12.0, 107.0),
+        false,
+        &grid,
+    );
+    let mut settled = sketch.clone();
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    assert!(pull.turns());
+    assert_near(
+        landing,
+        DVec2::new(10.0, 110.0),
+        "towards the hand, onto the grid",
+    );
+    assert!(pull.arrived(&settled, landing));
+    assert_eq!(
+        pull.joined_to(&sketch, &settled, landing, 5.0),
+        None,
+        "near is not on"
+    );
+    let _ = near;
+}
+
+#[test]
+fn a_point_that_stopped_short_of_the_hand_is_joined_to_nothing() {
+    let (mut sketch, [a, ..], sides) = upright();
+    typed(&mut sketch, sides[0]);
+    let beside = sketch.add_point(DVec2::new(5.0, 45.0));
+    let pull = sketch.pull(a, 1.0);
+    let grid = crate::snap::SnapSettings {
+        point_reach: 5.0,
+        curve_reach: 5.0,
+        grid_step: None,
+        grid_reach: 0.0,
+    };
+
+    let landing = pull.landing(
+        &sketch,
+        DVec2::new(5.0, 45.0),
+        DVec2::new(5.0, 45.0),
+        false,
+        &grid,
+    );
+    let mut settled = sketch.clone();
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    assert!(!pull.arrived(&settled, landing), "the width held it back");
+    assert_eq!(pull.joined_to(&sketch, &settled, landing, 5.0), None);
+    let _ = beside;
 }

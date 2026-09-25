@@ -16,9 +16,11 @@ use crate::sketch::{PointId, Sketch};
 use crate::snap::SnapSettings;
 use crate::turning::angle_onto_grid;
 
-/// How many times the way to a place out of reach is halved, looking for the
-/// last one the shape can still follow to.
-const HALVINGS: usize = 7;
+/// How close to the last place a shape can still follow to the way there is
+/// halved, as a share of the drawing's size — a hundred-thousandth, the
+/// solver's own precision — and how many halvings that may take at the most.
+const REACHED_WITHIN: f64 = 1e-5;
+const HALVINGS: usize = 24;
 
 /// What a drag of one point may do to the drawing, read from the drawing as
 /// the press found it.
@@ -46,17 +48,14 @@ struct Holding {
     give: Give,
     shape: Vec<PointId>,
     about: Option<PointId>,
+    /// Whether the point is held on a curve, where the place the hand asks
+    /// for is already on what holds it.
+    on_a_curve: bool,
 }
 
 impl PointPull {
-    /// The point this drag moves.
-    pub fn point(&self) -> PointId {
-        self.point
-    }
-
-    /// Where the shape turns about when the drag can only turn it: the one
-    /// case where the point does not go where the hand is.
-    pub fn pivot(&self, sketch: &Sketch) -> Option<DVec2> {
+    /// Where the shape turns about when the drag can only turn it.
+    fn pivot(&self, sketch: &Sketch) -> Option<DVec2> {
         match &self.way {
             Way::Held(Holding {
                 give: Give::Nowhere,
@@ -64,6 +63,39 @@ impl PointPull {
                 ..
             }) => Some(sketch.point(*about)),
             _ => None,
+        }
+    }
+
+    /// Whether the drag can only turn the shape — the one drag that does not
+    /// follow the magnets, and does not go where the hand is.
+    pub fn turns(&self) -> bool {
+        matches!(
+            &self.way,
+            Way::Held(Holding {
+                give: Give::Nowhere,
+                about: Some(_),
+                ..
+            })
+        )
+    }
+
+    /// Where the point is taken at a frame of the drag: along whatever holds
+    /// it, towards the cursor as the magnets left it; with the key that pulls
+    /// it off what holds it, to that cursor itself; and when its shape can
+    /// only turn, towards the hand before any magnet, its end pulled onto the
+    /// grid.
+    pub fn landing(
+        &self,
+        sketch: &Sketch,
+        hand: DVec2,
+        snapped: DVec2,
+        letting_go: bool,
+        grid: &SnapSettings,
+    ) -> DVec2 {
+        match (letting_go, self.turns()) {
+            (true, _) => snapped,
+            (false, true) => self.onto_grid(sketch, hand, grid),
+            (false, false) => sketch.slide(self.point, snapped),
         }
     }
 
@@ -84,6 +116,39 @@ impl PointPull {
         let angle = angle_onto_grid(about, self.from, was.angle_to(wanted), grid);
         about + DVec2::from_angle(angle).rotate(self.from - about)
     }
+
+    /// Whether the drag took the point all the way to `landing` in the
+    /// drawing it settled — or stopped it short, the shape unable to follow.
+    pub fn arrived(&self, settled: &Sketch, landing: DVec2) -> bool {
+        settled
+            .points()
+            .get(self.point.0)
+            .is_some_and(|place| place.distance(landing) <= settled.drawing_size() * 1e-9)
+    }
+
+    /// The point a drop joins the dragged one to, when there is one within
+    /// `reach` of where it lands. Nothing for a point that stopped short of
+    /// the hand, since what the hand is over is not where the point is; and
+    /// when the shape turned, only a point the end landed on exactly — the
+    /// magnets never pulled that end, so being near is not being on.
+    pub fn joined_to(
+        &self,
+        sketch: &Sketch,
+        settled: &Sketch,
+        landing: DVec2,
+        reach: f64,
+    ) -> Option<PointId> {
+        if !self.arrived(settled, landing) {
+            return None;
+        }
+        let other = sketch
+            .nearest_point(landing, reach)
+            .filter(|other| *other != self.point)?;
+        match self.turns() {
+            true => (sketch.point(other).distance(landing) <= reach * 1e-6).then_some(other),
+            false => Some(other),
+        }
+    }
 }
 
 impl Sketch {
@@ -95,7 +160,7 @@ impl Sketch {
             from,
             way: Way::Plain,
         };
-        if point.0 >= self.points().len() || self.out_of_play(point) || self.is_a_centre(point) {
+        if point.0 >= self.points().len() || self.out_of_play(point) || self.only_a_centre(point) {
             return plain;
         }
         let halfway = self
@@ -119,9 +184,10 @@ impl Sketch {
             false => None,
         };
         let about = self.turned_about(&fixed, &centres, stay);
+        let on_a_curve = !centres.is_empty();
         let mut pins = centres;
         pins.extend(stay);
-        let lines = self.lines_kept_in(&shape, point);
+        let lines = self.lines_kept_in(&shape, &[point]);
         let give = self.give_of(point, &shape, &pins, &lines, about, millimeters_per_unit);
         PointPull {
             point,
@@ -132,6 +198,7 @@ impl Sketch {
                 give,
                 shape,
                 about,
+                on_a_curve,
             }),
         }
     }
@@ -153,16 +220,27 @@ impl Sketch {
         };
         let from = pull.from;
         let reached = match holding.give {
+            // The last place the hand's way can be followed to comes before
+            // letting the point go: let go of beyond its reach, the drawing
+            // pulls it back wherever it happens to settle, which can be the
+            // very shape the press found.
             Give::Free => {
                 self.stretch(pull.point, holding, position, millimeters_per_unit)
-                    || self.retract(pull, holding, position, millimeters_per_unit)
                     || self.stretch_towards(pull, holding, position, millimeters_per_unit)
+                    || self.retract(pull, holding, position, millimeters_per_unit)
             }
+            // The one line read at the press is only a tangent when the point
+            // is held on a curve: the place the hand asks for, already on the
+            // curve, is tried first there — and only there, since off the line
+            // it is a place no settling reaches, and finding that out costs
+            // every iteration the solver has.
             Give::Along(way) => {
                 let landing = from + way * (position - from).dot(way);
-                self.stretch(pull.point, holding, landing, millimeters_per_unit)
-                    || self.retract(pull, holding, landing, millimeters_per_unit)
+                (holding.on_a_curve
+                    && self.stretch(pull.point, holding, position, millimeters_per_unit))
+                    || self.stretch(pull.point, holding, landing, millimeters_per_unit)
                     || self.stretch_towards(pull, holding, landing, millimeters_per_unit)
+                    || self.retract(pull, holding, landing, millimeters_per_unit)
             }
             Give::Nowhere => self.pivot(pull, holding, position, millimeters_per_unit),
             Give::Stuck => false,
@@ -183,7 +261,11 @@ impl Sketch {
         millimeters_per_unit: f64,
     ) -> bool {
         let (mut reached, mut missed) = (0.0, 1.0);
+        let within = self.drawing_size() * REACHED_WITHIN / pull.from.distance(landing).max(1e-12);
         for _ in 0..HALVINGS {
+            if missed - reached <= within {
+                break;
+            }
             let halfway = (reached + missed) / 2.0;
             let place = pull.from.lerp(landing, halfway);
             let kept = self.shapes_now();

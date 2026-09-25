@@ -24,7 +24,9 @@ pub(crate) enum Give {
 
 impl Sketch {
     /// How `point` can follow the hand once `pins` stay put and `lines` are
-    /// kept, everything outside its shape held still.
+    /// kept, everything the drawing's rules do not tie to its shape held
+    /// still — a hole placed from a corner by a typed distance follows the
+    /// corner, and must count as free to.
     ///
     /// Read off the drawing's own equations as it stands — the directions the
     /// point can travel in without any of them giving. When a turn of the
@@ -41,17 +43,18 @@ impl Sketch {
         millimeters_per_unit: f64,
     ) -> Give {
         let mut pinned: Vec<bool> = self.pinned_points();
-        for (index, pinned) in pinned.iter_mut().enumerate() {
-            if !shape.contains(&PointId(index)) {
-                *pinned = true;
-            }
-        }
         for pin in pins {
             pinned[pin.0] = true;
         }
         pinned[point.0] = false;
+        let tied = self.tied_to(shape, &pinned, millimeters_per_unit);
+        for (index, pinned) in pinned.iter_mut().enumerate() {
+            if !tied[index] {
+                *pinned = true;
+            }
+        }
 
-        let mut system = self.rows_touching(shape, &pinned, lines, millimeters_per_unit);
+        let mut system = self.rows_touching(&tied, &pinned, lines, millimeters_per_unit);
         let turn = about
             .filter(|about| *about != point)
             .map(|about| self.turn_about(shape, about, &pinned))
@@ -80,25 +83,61 @@ impl Sketch {
     /// and the sizes of the circles centred in it.
     fn rows_touching(
         &self,
-        shape: &[PointId],
+        tied: &[bool],
         pinned: &[bool],
         lines: &[Kept],
         millimeters_per_unit: f64,
     ) -> Vec<Equation> {
-        let mut columns: Vec<usize> = shape
-            .iter()
-            .filter(|each| !pinned[each.0])
-            .flat_map(|each| [each.0 * 2, each.0 * 2 + 1])
+        let mut columns: Vec<usize> = (0..tied.len())
+            .filter(|index| tied[*index] && !pinned[*index])
+            .flat_map(|index| [index * 2, index * 2 + 1])
             .collect();
         columns.extend(
             self.live_circles()
-                .filter(|(_, round)| shape.contains(&round.center))
+                .filter(|(_, round)| tied.get(round.center.0).copied().unwrap_or(false))
                 .filter_map(|(id, _)| self.radius_column(id)),
         );
         let mut rows = self.equations_pinned_by(millimeters_per_unit, pinned);
         rows.extend(lines.iter().filter_map(|line| self.kept_row(line, pinned)));
         rows.retain(|row| columns.iter().any(|column| row.gradient[*column] != 0.0));
         rows
+    }
+
+    /// The points the drawing's rules tie to the shape, however far round: a
+    /// row that speaks of a point already tied brings every free point it
+    /// speaks of with it. What a pinned point holds stays apart, as it does in
+    /// the settling itself.
+    fn tied_to(&self, shape: &[PointId], pinned: &[bool], millimeters_per_unit: f64) -> Vec<bool> {
+        let count = self.points().len();
+        let mut tied = vec![false; count];
+        for point in shape {
+            tied[point.0] = true;
+        }
+        let rows = self.equations_pinned_by(millimeters_per_unit, pinned);
+        let spoken: Vec<Vec<usize>> = rows
+            .iter()
+            .map(|row| {
+                (0..count)
+                    .filter(|index| {
+                        row.gradient[index * 2] != 0.0 || row.gradient[index * 2 + 1] != 0.0
+                    })
+                    .collect()
+            })
+            .collect();
+        loop {
+            let mut grew = false;
+            for points in &spoken {
+                if points.iter().any(|index| tied[*index]) {
+                    for index in points {
+                        grew |= !tied[*index];
+                        tied[*index] = true;
+                    }
+                }
+            }
+            if !grew {
+                return tied;
+            }
+        }
     }
 
     /// A turn of the shape's free points about `about`, written as a row.

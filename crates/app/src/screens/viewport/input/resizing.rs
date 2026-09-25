@@ -7,7 +7,7 @@
 //! a drag resizes — and the centre still carries the whole shape.
 
 use cao_part::Operation;
-use cao_sketch::{CurveDrag, Curved};
+use cao_sketch::{CurveDrag, Curved, LengthOutcome};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
@@ -47,14 +47,18 @@ pub(super) fn drag_curve(
         scale,
     );
 
+    let mut settling = sketch.clone();
+    let outcome = match &drag {
+        CurveDrag::Resize { reach } => settling.resize(curve, *reach, scale),
+        CurveDrag::Along(turn) => {
+            // A curve slid round turns with the hand itself, not with the
+            // magnets, whose mark would say where it does not go.
+            context.editor.snap = None;
+            settling.turn_shape(&turn.points, turn.about, turn.angle, scale)
+        }
+    };
+
     if !response.drag_stopped() {
-        let mut settling = sketch.clone();
-        match &drag {
-            CurveDrag::Resize { reach } => settling.resize(curve, *reach, scale),
-            CurveDrag::Along(turn) => {
-                settling.turn_shape(&turn.points, turn.about, turn.angle, scale)
-            }
-        };
         if let Some(state) = context.editor.select_state() {
             state.drag_position = Some(cursor);
             state.drag_preview = Some(settling);
@@ -70,8 +74,12 @@ pub(super) fn drag_curve(
     }
     let reach = match drag {
         CurveDrag::Resize { reach } => reach,
+        // A turn the drawing refused writes nothing.
         CurveDrag::Along(turn) => {
-            return turn_operation(index, &turn)
+            let written = (outcome == LengthOutcome::Exact)
+                .then(|| turn_operation(index, &turn))
+                .flatten();
+            return written
                 .map(|operation| context.document.apply(operation))
                 .is_some();
         }

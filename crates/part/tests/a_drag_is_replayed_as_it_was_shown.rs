@@ -4,6 +4,9 @@
 //! Closes #422.
 //! - 21: a whole shape selected and dragged moves unbent and unturned —
 //!   `a_whole_rectangle_dragged_moves_unbent_and_unturned`
+//! - 21, the curve carried by its centre — no test: here;
+//!   `a_circle_dragged_by_its_centre_is_carried_at_its_size` in
+//!   cao_sketch's settling/tests.rs holds it
 //! - 22: replaying the history rebuilds the same drawing, how far a side
 //!   travelled and the angle a shape turned recorded with the step —
 //!   `a_side_moved_and_a_shape_turned_are_rebuilt_as_they_were_left`, a pivot

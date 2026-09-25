@@ -125,13 +125,17 @@ impl Sketch {
         if ((about - start).dot(normal)).abs() <= self.drawing_size() * 1e-6 {
             return across;
         }
-        let angle = turned(about, pressed, cursor);
-        let grabbed = DVec2::from_angle(angle).rotate(pressed - about);
-        let off_the_side =
-            (cursor - (about + grabbed)).dot(DVec2::from_angle(angle).rotate(normal));
-        if grabbed.length() * angle.abs() <= off_the_side.abs() {
+        // Whichever reading leaves the place grabbed nearer the hand: a pull
+        // across leaves it short by its slip along the side, a turn by how far
+        // the hand went out from or in towards the place it turns on. A pull
+        // straight across slips nothing, wherever the side was pressed; a hand
+        // going round slips nothing either, however far round it goes.
+        let across_slip = (cursor - pressed).dot(along).abs();
+        let along_slip = (cursor.distance(about) - pressed.distance(about)).abs();
+        if across_slip <= along_slip {
             return across;
         }
+        let angle = turned(about, pressed, cursor);
         let end = [line.start, line.end]
             .into_iter()
             .min_by(|one, other| {
@@ -237,17 +241,32 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_of(line.start);
-        let mut lines = self.lines_kept_in(&shape, line.start);
+        let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
         lines.extend(Kept::direction(self, line.start, line.end, Some(side)));
         lines.push(Kept::level(self, line.start, normal, travel));
         lines.push(Kept::level(self, line.end, normal, travel));
-        let pins: Vec<PointId> = self
-            .farthest_off(&shape, line.start, normal)
+        let mut pins: Vec<PointId> = self
+            .farthest_off(&shape, &[line.start, line.end], normal)
             .into_iter()
             .collect();
 
+        // An end lying on a curve slides round that curve to where the moved
+        // line crosses it: the curve keeps its centre and its size, which only
+        // the curve itself says.
         let kept = self.shapes_now();
+        for end in [line.start, line.end] {
+            let Some((centre, reach)) = self.curve_under(end) else {
+                continue;
+            };
+            let level = self.point(end).dot(normal) + travel;
+            let Some(place) = crossing(self.point(centre), reach, normal, level, self.point(end))
+            else {
+                return LengthOutcome::BestEffort;
+            };
+            self.move_point(end, place);
+            pins.extend([centre, end]);
+        }
         match self.settle_held(pins, lines, millimeters_per_unit) {
             true => LengthOutcome::Exact,
             false => {
@@ -260,29 +279,69 @@ impl Sketch {
     /// The point of a shape standing farthest off a line, which stays where it
     /// is while that line travels — nothing when something already holds the
     /// shape, or when every point of it lies on the line.
-    fn farthest_off(&self, shape: &[PointId], on: PointId, normal: DVec2) -> Option<PointId> {
+    ///
+    /// Taken among the points lying on the traits a rule of direction ties
+    /// first, as the point a drag keeps is: a tail hanging off a rectangle,
+    /// however far it reaches, does not take the place of its opposite side.
+    fn farthest_off(&self, shape: &[PointId], side: &[PointId], normal: DVec2) -> Option<PointId> {
         let pinned = self.pinned_points();
         if shape.iter().any(|point| pinned[point.0]) {
             return None;
         }
-        let level = self.point(on).dot(normal);
+        let level = self.point(side[0]).dot(normal);
+        let aside = self.held_aside();
+        let off = |point: &PointId| (self.point(*point).dot(normal) - level).abs();
+        let candidates = |among: Vec<PointId>| -> Vec<PointId> {
+            among
+                .into_iter()
+                .filter(|point| {
+                    !side.contains(point)
+                        && !self.only_a_centre(*point)
+                        && !aside.contains(point)
+                        && off(point) > self.drawing_size() * 1e-6
+                })
+                .collect()
+        };
+        let mut pool = candidates(self.points_on(&self.tied_by_direction(shape)));
+        if pool.is_empty() {
+            pool = candidates(shape.to_vec());
+        }
         let tie = self.drawing_size() * 1e-9;
         let mut best: Option<(PointId, f64)> = None;
-        for point in shape
-            .iter()
-            .copied()
-            .filter(|point| !self.is_a_centre(*point))
-        {
-            let off = (self.point(point).dot(normal) - level).abs();
-            if off <= self.drawing_size() * 1e-6 {
-                continue;
-            }
-            if best.is_none_or(|(_, far)| off > far + tie) {
-                best = Some((point, off));
+        for point in pool {
+            let far = off(&point);
+            if best.is_none_or(|(_, farthest)| far > farthest + tie) {
+                best = Some((point, far));
             }
         }
         best.map(|(point, _)| point)
     }
+
+    /// The centre and the reach of the circle or the arc a point lies on, when
+    /// it lies on exactly one: what it slides round.
+    fn curve_under(&self, point: PointId) -> Option<(PointId, f64)> {
+        let [centre] = self.centres_under(point)[..] else {
+            return None;
+        };
+        let round = self.live_circles().any(|(_, round)| round.center == centre)
+            || self.live_arcs().any(|(_, arc)| arc.center == centre);
+        round.then(|| (centre, self.point(point).distance(self.point(centre))))
+    }
+}
+
+/// Where the line of the plane `place · normal = level` crosses the circle
+/// about `centre`, on the side nearer `near`; nothing when it misses it.
+fn crossing(centre: DVec2, reach: f64, normal: DVec2, level: f64, near: DVec2) -> Option<DVec2> {
+    let foot = centre + normal * (level - centre.dot(normal));
+    let off = foot.distance(centre);
+    if off > reach {
+        return None;
+    }
+    let half = (reach * reach - off * off).sqrt();
+    let along = normal.perp();
+    [foot + along * half, foot - along * half]
+        .into_iter()
+        .min_by(|one, other| one.distance(near).total_cmp(&other.distance(near)))
 }
 
 /// How far round `about` the hand has gone from `pressed` to `cursor`, in

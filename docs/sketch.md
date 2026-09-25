@@ -55,9 +55,10 @@ the points it stands on: a curve that swings out of the box between its two ends
 is not held entirely, and a curve whose centre lies outside the box still is.
 
 Who answers the drag is decided **when the gesture starts** and stays so to the
-end: a point under the cursor at press time moves, otherwise it is a box.
-Without that the gesture would change nature halfway, the moment the cursor
-passed over a point.
+end: a point under the cursor at press time moves; otherwise an annotation, a
+side or a curve under it; otherwise it is a box. Without that the gesture would
+change nature halfway, the moment the cursor passed over a point. A drag that
+moves the view — a pan, an orbit — takes hold of nothing.
 
 `Cmd`/`Ctrl` (or `Shift`) while clicking **adds or removes** one element at a
 time, and works with the box too. That is what lets three traits be named that
@@ -451,10 +452,13 @@ the whole curve through its centre, as on a drawing. They are what it is
 measured by: a length on an axis is the ellipse's width that way, as a diameter
 is a circle's. Clicking the curve itself with the dimension tool lays nothing.
 
-- **Pulling an axis end** turns or stretches that axis about the centre, which
-  stays put; the other axis stays square to it.
+- **Pulling an axis end** lengthens or shortens that axis along itself, about
+  the centre, which stays put; the ellipse does not turn by its axis end. When
+  the axis's length is typed, pulling its end turns the ellipse about its
+  centre instead.
 - **Pulling the centre** moves the whole ellipse.
-- **Pulling the curve** scales it about its centre, both axes together.
+- **Pulling the curve** out or in scales it about its centre, both axes
+  together; **sliding along the curve** turns it, its axes kept.
 - The axes **go with the ellipse**: erasing it erases them, and erasing an axis
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole. Only the two-ends placement lays one
@@ -650,9 +654,10 @@ stands. Holding the let-go key while dragging that end frees it from the curve
 as it frees a point from what holds it. An end two arcs share follows neither
 — it has two circles to choose from.
 
-A **click** is still a click: it selects. Only a drag resizes, and a drag that
-starts on something already selected still moves the whole selection. The
-centre still carries the shape, which is how a circle travels.
+A **click** is still a click: it selects. Only a drag resizes — out or in; an
+arc or an ellipse slid along its curve turns instead, see "Sliding a curve" —
+and a drag that starts on something already selected still moves the whole
+selection. The centre still carries the shape, which is how a circle travels.
 
 The size is not a value: nothing is pinned, and no dimension is left behind.
 Type a diameter and it is the diameter that answers from then on — the drag

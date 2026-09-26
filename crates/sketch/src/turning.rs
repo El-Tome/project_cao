@@ -14,12 +14,6 @@ use crate::length::LengthOutcome;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 
-/// How far off a side an end has to stand, as a share of the farthest, to
-/// belong to the side opposite it: a rectangle's two far corners, both ends of
-/// a far side a little aslant, but not a hexagon's middle corners, halfway
-/// there, nor a house's walls under its roof.
-const OPPOSITE: f64 = 0.75;
-
 /// A shape turned about a place, as the hand asked: the points turned, where
 /// they turn about, and how far round, in radians — counter-clockwise when
 /// positive.
@@ -100,18 +94,20 @@ impl Sketch {
             .then_some(about)
     }
 
-    /// The middle of the side of `shape` standing opposite `side`. Of the
-    /// ends of its drawn traits — those a rule of direction ties, when any
-    /// drawn one is, so that a tail hanging off it does not count — the ones
-    /// standing nearly as far off `side` as the farthest, and the middle of the
-    /// first and the last of them along it: a triangle's far corner when that
-    /// one alone stands so far off.
+    /// The middle of the side of `shape` standing opposite `side`, read off
+    /// its drawn traits — those a rule of direction ties, when any drawn one
+    /// is, so that a tail hanging off it does not count. From the end standing
+    /// farthest off `side`, the trait whose other end stands farthest too: its
+    /// middle, when that other end is at least half as far off and no other
+    /// trait there reaches as far — a rectangle's far side, a trapezoid's
+    /// other leg, a slanted top. The far corner itself otherwise: a
+    /// triangle's, a roof's whose two slopes stand alike.
     fn opposite(&self, shape: &[PointId], side: SegmentId) -> Option<DVec2> {
         let line = self.segments().get(side.0).copied()?;
         let start = self.point(line.start);
-        let along = (self.point(line.end) - start).try_normalize()?;
+        let normal = (self.point(line.end) - start).try_normalize()?.perp();
         let tied = self.tied_by_direction(shape);
-        let drawn = |tied_only: bool| -> Vec<DVec2> {
+        let drawn = |tied_only: bool| -> Vec<(PointId, PointId)> {
             self.live_segments()
                 .filter(|(id, other)| {
                     *id != side
@@ -120,26 +116,39 @@ impl Sketch {
                         && shape.contains(&other.end)
                         && (!tied_only || tied.contains(id))
                 })
-                .flat_map(|(_, other)| [self.point(other.start), self.point(other.end)])
+                .map(|(_, other)| (other.start, other.end))
                 .collect()
         };
-        let mut ends = drawn(true);
-        if ends.is_empty() {
-            ends = drawn(false);
+        let mut traits = drawn(true);
+        if traits.is_empty() {
+            traits = drawn(false);
         }
-        let off = |place: &DVec2| (*place - start).dot(along.perp()).abs();
-        let far = ends.iter().map(off).fold(0.0, f64::max);
-        if far <= self.drawing_size() * 1e-6 {
+        let off = |point: PointId| (self.point(point) - start).dot(normal).abs();
+        let farthest = |one: &PointId, other: &PointId| off(*one).total_cmp(&off(*other));
+        let far = traits
+            .iter()
+            .flat_map(|(from, to)| [*from, *to])
+            .max_by(farthest)?;
+        if off(far) <= self.drawing_size() * 1e-6 {
             return None;
         }
-        let standing = || {
-            ends.iter()
-                .filter(|place| off(place) >= far * (OPPOSITE - 1e-9))
-        };
-        let along_it = |one: &&DVec2, other: &&DVec2| one.dot(along).total_cmp(&other.dot(along));
-        let first = standing().min_by(along_it)?;
-        let last = standing().max_by(along_it)?;
-        Some((*first + *last) / 2.0)
+        let others: Vec<PointId> = traits
+            .iter()
+            .filter_map(|(from, to)| match (*from == far, *to == far) {
+                (true, _) => Some(*to),
+                (_, true) => Some(*from),
+                _ => None,
+            })
+            .collect();
+        let across = others.iter().copied().max_by(farthest)?;
+        let alike = others
+            .iter()
+            .filter(|other| (off(**other) - off(across)).abs() <= self.drawing_size() * 1e-9)
+            .count();
+        Some(match off(across) >= off(far) / 2.0 && alike == 1 {
+            true => (self.point(far) + self.point(across)) / 2.0,
+            false => self.point(far),
+        })
     }
 
     /// Whether the whole shape can be turned about `about` without a single

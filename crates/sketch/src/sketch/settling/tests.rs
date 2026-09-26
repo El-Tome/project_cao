@@ -65,7 +65,9 @@
 //!   towards the hand before any magnet —
 //!   `a_pivoting_drag_is_taken_towards_the_hand_and_joins_only_what_it_lands_on`
 //! - 22: a point that stopped short of the hand is dropped on nothing —
-//!   `a_point_that_stopped_short_of_the_hand_is_joined_to_nothing`
+//!   `a_point_that_stopped_short_of_the_hand_is_joined_to_nothing`, nor
+//!   joined to a point the drag took away —
+//!   `a_point_the_drag_took_away_from_the_landing_is_not_joined_to`
 //! - 24: a corner pulled past the opposite one goes through, the shape coming
 //!   out the other way round —
 //!   `a_rectangle_pulled_past_its_opposite_corner_comes_out_the_other_way_round`,
@@ -992,7 +994,7 @@ fn a_pivoting_drag_is_taken_towards_the_hand_and_joins_only_what_it_lands_on() {
     );
     assert!(pull.arrived(&settled, landing));
     assert_eq!(
-        pull.joined_to(&sketch, &settled, landing, 5.0),
+        pull.joined_to(&settled, landing, 5.0),
         None,
         "near is not on"
     );
@@ -1023,7 +1025,7 @@ fn a_point_that_stopped_short_of_the_hand_is_joined_to_nothing() {
     settled.settle_pulled(&pull, landing, 1.0);
 
     assert!(!pull.arrived(&settled, landing), "the width held it back");
-    assert_eq!(pull.joined_to(&sketch, &settled, landing, 5.0), None);
+    assert_eq!(pull.joined_to(&settled, landing, 5.0), None);
     let _ = beside;
 }
 
@@ -1110,4 +1112,29 @@ fn an_arc_touching_a_side_midway_lets_its_rectangle_go_through() {
         DVec2::new(20.0, 70.0),
         "the corner beside it",
     );
+}
+
+#[test]
+fn a_point_the_drag_took_away_from_the_landing_is_not_joined_to() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let near = sketch.add_point(DVec2::new(0.0, 0.0));
+    let far = sketch.add_point(DVec2::new(50.0, 0.0));
+    let line = sketch.add_segment(near, far);
+    let middle = sketch.add_point(DVec2::new(25.0, 0.0));
+    sketch.add_constraint(Constraint::Midpoint {
+        point: middle,
+        segment: line,
+    });
+    let landing = DVec2::new(25.0, 0.0);
+    let pull = sketch.pull(far, 1.0);
+    let mut settled = sketch.clone();
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    assert!(pull.arrived(&settled, landing), "the end reached the hand");
+    assert_near(
+        settled.point(middle),
+        DVec2::new(12.5, 0.0),
+        "the middle went with it",
+    );
+    assert_eq!(pull.joined_to(&settled, landing, 1.0), None);
 }

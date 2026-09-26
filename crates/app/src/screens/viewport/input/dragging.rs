@@ -284,7 +284,7 @@ pub(super) fn drag_point(
     // It rides in the same step as the drag, because dropping a corner on
     // another is one gesture and one undo has to take the whole of it back.
     let arrived = pull.arrived(&settling, landing);
-    let merged_into = pull.joined_to(sketch, &settling, landing, snap);
+    let merged_into = pull.joined_to(&settling, landing, snap);
     // What the drop leaves the point held by. A point dropped on a trait is
     // held there exactly as one born on it is — but only a point nothing held
     // already: one sliding along its own trait would otherwise catch on the

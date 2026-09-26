@@ -125,3 +125,25 @@ fn a_point_dropped_on_a_trait_the_drag_left_in_place_is_held_on_it() {
 
     assert_eq!(held, vec![Support::Segment(SegmentId(0))]);
 }
+
+#[test]
+fn the_middle_of_a_trait_carried_sideways_is_not_held_on_it_again() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let west = sketch.add_point(DVec2::new(10.0, 10.0));
+    let east = sketch.add_point(DVec2::new(50.0, 10.0));
+    let line = sketch.add_segment(west, east);
+    let middle = sketch.add_point(DVec2::new(30.0, 10.0));
+    sketch.add_constraint(cao_sketch::Constraint::Midpoint {
+        point: middle,
+        segment: line,
+    });
+    let landing = DVec2::new(30.0, 40.0);
+    let mut settled = sketch.clone();
+    let pull = settled.pull(middle, 1.0);
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    assert!(
+        held_at_drop(&sketch, &settled, middle, landing).is_empty(),
+        "it stands on its trait by its own rule, not by where it was dropped"
+    );
+}

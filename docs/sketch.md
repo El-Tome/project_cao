@@ -869,11 +869,13 @@ shape would turn on:
   opposite the one pulled, which stays where it is — about its far corner when
   none stands opposite, a triangle's, or about the point holding it. The side
   opposite is read off the traits a rule of direction ties, construction left
-  out, among the ends standing at least three quarters as far off as the
-  farthest: a tail hanging off the shape does not count, and a shape the same
-  both sides turns about its middle. The place
-  grabbed goes round with the hand, and the end of the side nearest the hand is
-  pulled onto the grid. A shape whose pivot lies on the side's own line has no
+  out, so that a tail hanging off the shape does not count: from the end
+  farthest off the side pulled, the trait whose other end stands farthest too,
+  when that end is at least half as far off and no other trait there reaches as
+  far — a rectangle's far side, a trapezoid's other leg, a slanted top.
+  Otherwise the far corner itself: a triangle's, a roof's whose slopes stand
+  alike. The place grabbed goes round with the hand, and the end of the side
+  nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
   along, nor has a shape a rule holds upright, or one two fixed points nail
   down.
 

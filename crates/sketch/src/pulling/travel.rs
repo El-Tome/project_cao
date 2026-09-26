@@ -18,7 +18,9 @@ impl Sketch {
     /// side keeps its direction, and so does every trait of its shape a rule of
     /// direction ties; the point of the shape farthest off the side stays
     /// where it is. A trait on its own has no shape to stretch, and is carried
-    /// whole. What cannot be had is given back whole: the side stays.
+    /// whole where it can be; one that cannot stay whole — a ladder between
+    /// the two axes — travels across as any side does. What cannot be had is
+    /// given back whole: the side stays.
     pub fn move_side(
         &mut self,
         side: SegmentId,
@@ -38,8 +40,8 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_through(&[line.start, line.end]);
-        if self.travels_whole(&shape, side) {
-            return self.carry(shape, side, by, millimeters_per_unit);
+        if self.travels_whole(&shape, side) && self.carry(&shape, side, by, millimeters_per_unit) {
+            return LengthOutcome::Exact;
         }
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
@@ -115,32 +117,36 @@ impl Sketch {
     /// follows. When that place cannot be had — a rule holds it to an axis, or
     /// at a distance from a point — it is let go of there, whole, and the
     /// drawing takes it back as near as its rules allow, as long and as
-    /// upright as it was. The drawing given back when neither can be had.
+    /// upright as it was. Whether either moved it: taken all the way back, it
+    /// did not travel, and the drawing is given back.
     fn carry(
         &mut self,
-        shape: Vec<PointId>,
+        shape: &[PointId],
         side: SegmentId,
         by: DVec2,
         millimeters_per_unit: f64,
-    ) -> LengthOutcome {
+    ) -> bool {
         let line = self.segments()[side.0];
         let kept = self.shapes_now();
+        let stood = [line.start, line.end].map(|end| self.point(end));
         let carried = |sketch: &mut Self, held: Vec<PointId>, lines: Vec<Kept>| {
-            for point in &shape {
+            for point in shape {
                 let place = sketch.point(*point) + by;
                 sketch.move_point(*point, place);
             }
-            let whole = sketch.settle_held(held, lines, millimeters_per_unit);
+            let settled = sketch.settle_held(held, lines, millimeters_per_unit);
+            let travelled = [line.start, line.end]
+                .iter()
+                .zip(stood)
+                .any(|(end, was)| sketch.point(*end).distance(was) > sketch.drawing_size() * 1e-4);
+            let whole = settled && travelled;
             if !whole {
                 sketch.give_back(kept.clone());
             }
             whole
         };
         let lines = Kept::whole(self, line.start, line.end, Some(side));
-        match carried(self, shape.clone(), Vec::new()) || carried(self, Vec::new(), lines) {
-            true => LengthOutcome::Exact,
-            false => LengthOutcome::BestEffort,
-        }
+        carried(self, shape.to_vec(), Vec::new()) || carried(self, Vec::new(), lines)
     }
 
     /// The point of a shape standing farthest off a line, which stays where it

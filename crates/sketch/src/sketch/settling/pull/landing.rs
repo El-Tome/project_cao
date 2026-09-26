@@ -83,25 +83,21 @@ impl PointPull {
     }
 
     /// The point a drop joins the dragged one to, when there is one within
-    /// `reach` of where it lands. Nothing for a point that stopped short of
-    /// the hand, since what the hand is over is not where the point is; and
-    /// when the shape turned, only a point the end landed on exactly — the
-    /// magnets never pulled that end, so being near is not being on.
-    pub fn joined_to(
-        &self,
-        sketch: &Sketch,
-        settled: &Sketch,
-        landing: DVec2,
-        reach: f64,
-    ) -> Option<PointId> {
+    /// `reach` of where it lands in the drawing the drag `settled` — a point
+    /// the settling took away is no longer there. Nothing for a point that
+    /// stopped short of the hand, since what the hand is over is not where the
+    /// point is; and when the shape turned, only a point the end landed on
+    /// exactly — the magnets never pulled that end, so being near is not being
+    /// on.
+    pub fn joined_to(&self, settled: &Sketch, landing: DVec2, reach: f64) -> Option<PointId> {
         if !self.arrived(settled, landing) {
             return None;
         }
-        let other = sketch
+        let other = settled
             .nearest_point(landing, reach)
             .filter(|other| *other != self.point)?;
         match self.turns() {
-            true => (sketch.point(other).distance(landing) <= reach * 1e-6).then_some(other),
+            true => (settled.point(other).distance(landing) <= reach * 1e-6).then_some(other),
             false => Some(other),
         }
     }

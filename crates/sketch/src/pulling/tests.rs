@@ -20,7 +20,9 @@
 //!   else hangs off the shape or was drawn first —
 //!   `a_tail_or_a_construction_line_off_the_far_corner_does_not_take_the_place_of_the_opposite_side`,
 //!   `a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle`,
-//!   `a_house_slid_by_its_floor_turns_about_a_place_above_its_middle`,
+//!   `a_house_slid_by_its_floor_turns_about_the_top_of_its_roof`,
+//!   `a_trapezoid_slid_by_a_leg_turns_about_the_middle_of_the_other`,
+//!   `a_shape_slid_by_its_base_turns_about_the_middle_of_its_slanted_top`,
 //!   `a_regular_hexagon_slid_by_a_side_turns_about_the_middle_of_the_side_opposite`,
 //!   `a_triangle_with_a_construction_height_still_turns_about_its_far_corner`,
 //!   `a_shape_held_at_a_point_turns_about_it`, and a shape sharing only the
@@ -46,7 +48,10 @@
 //!   `a_lone_slanted_trait_held_to_an_axis_travels_along_it_whole`,
 //!   `a_lone_trait_kept_at_a_distance_from_the_origin_travels_whole_round_it`,
 //!   and what a rule ties it to follows —
-//!   `a_lone_trait_tied_to_another_by_a_rule_carries_it_along`;
+//!   `a_lone_trait_tied_to_another_by_a_rule_carries_it_along`; held where it
+//!   is, it writes nothing — `a_lone_trait_its_rules_hold_where_it_is_writes_no_travel`
+//!   — and one that cannot stay whole travels across as a side does —
+//!   `a_ladder_between_the_two_axes_slides_along_them`;
 //!   a shape whose pivot lies on
 //!   the pressed side's line, a rule holds upright or two fixed points nail
 //!   down has no along; a curve kept from turning is drawn to its size
@@ -1298,7 +1303,7 @@ fn a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle() {
 }
 
 #[test]
-fn a_house_slid_by_its_floor_turns_about_a_place_above_its_middle() {
+fn a_house_slid_by_its_floor_turns_about_the_top_of_its_roof() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let corners = [
         DVec2::new(0.0, 0.0),
@@ -1322,10 +1327,10 @@ fn a_house_slid_by_its_floor_turns_about_a_place_above_its_middle() {
     let SideDrag::Along(turn) = drag else {
         panic!("sliding the floor along turns: {drag:?}");
     };
-    assert!(
-        (turn.about.x - 50.0).abs() < 1e-9,
-        "a shape the same both sides turns about its middle: {}",
-        turn.about
+    assert_near(
+        turn.about,
+        DVec2::new(50.0, 100.0),
+        "a roof whose two slopes stand alike turns about its top",
     );
 }
 
@@ -1707,4 +1712,128 @@ fn an_arc_of_typed_radius_turned_back_near_square_is_pulled_onto_the_grid() {
         "brought back square: {}",
         turn.angle
     );
+}
+
+#[test]
+fn a_lone_trait_its_rules_hold_where_it_is_writes_no_travel() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let foot = sketch.add_point(DVec2::new(30.0, 0.0));
+    let head = sketch.add_point(DVec2::new(50.0, 40.0));
+    let line = sketch.add_segment(foot, head);
+    sketch.add_constraint(Constraint::OnAxis {
+        point: foot,
+        axis: crate::constraints::SketchAxis::U,
+    });
+    sketch.set_dimension(
+        DimensionTarget::Distance {
+            from: Sketch::ORIGIN,
+            to: foot,
+        },
+        30.0,
+        false,
+    );
+    sketch.set_dimension(
+        DimensionTarget::Length(line),
+        sketch.segment_length(line),
+        false,
+    );
+    let before = sketch.points().to_vec();
+
+    let outcome = sketch.move_side(line, DVec2::new(15.0, 5.0), 1.0);
+
+    assert_eq!(outcome, LengthOutcome::BestEffort);
+    assert_eq!(sketch.points(), before.as_slice(), "given back whole");
+}
+
+#[test]
+fn a_ladder_between_the_two_axes_slides_along_them() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let foot = sketch.add_point(DVec2::new(30.0, 0.0));
+    let head = sketch.add_point(DVec2::new(0.0, 40.0));
+    let line = sketch.add_segment(foot, head);
+    sketch.add_constraint(Constraint::OnAxis {
+        point: foot,
+        axis: crate::constraints::SketchAxis::U,
+    });
+    sketch.add_constraint(Constraint::OnAxis {
+        point: head,
+        axis: crate::constraints::SketchAxis::V,
+    });
+
+    let drag = sketch.side_drag(
+        line,
+        DVec2::new(15.0, 20.0),
+        DVec2::new(25.0, 28.0),
+        &no_grid(),
+        1.0,
+    );
+    laid(&mut sketch, &drag, line);
+
+    assert!(
+        sketch.point(foot).x > 31.0 && sketch.point(head).y > 41.0,
+        "it slid out along both axes: {} {}",
+        sketch.point(foot),
+        sketch.point(head)
+    );
+    assert!(sketch.point(foot).y.abs() < SETTLED && sketch.point(head).x.abs() < SETTLED);
+}
+
+#[test]
+fn a_trapezoid_slid_by_a_leg_turns_about_the_middle_of_the_other() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(80.0, 40.0),
+        DVec2::new(20.0, 40.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+    let middle = DVec2::new(90.0, 20.0);
+    let along = (DVec2::new(80.0, 40.0) - DVec2::new(100.0, 0.0)).normalize();
+
+    let drag = sketch.side_drag(
+        sides[1],
+        middle,
+        middle + along * 15.0 + along.perp(),
+        &no_grid(),
+        1.0,
+    );
+
+    let SideDrag::Along(turn) = drag else {
+        panic!("sliding the leg along turns: {drag:?}");
+    };
+    assert_near(
+        turn.about,
+        DVec2::new(10.0, 20.0),
+        "the middle of the other leg",
+    );
+}
+
+#[test]
+fn a_shape_slid_by_its_base_turns_about_the_middle_of_its_slanted_top() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(100.0, 60.0),
+        DVec2::new(0.0, 100.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+
+    let drag = sketch.side_drag(
+        sides[0],
+        DVec2::new(50.0, 0.0),
+        DVec2::new(65.0, -1.0),
+        &no_grid(),
+        1.0,
+    );
+
+    let SideDrag::Along(turn) = drag else {
+        panic!("sliding the base along turns: {drag:?}");
+    };
+    assert_near(turn.about, DVec2::new(50.0, 80.0), "the middle of the top");
 }

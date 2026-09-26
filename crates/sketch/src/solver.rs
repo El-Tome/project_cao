@@ -13,6 +13,7 @@ mod ellipse_solver;
 mod hold_solver;
 mod kept_solver;
 mod orientation;
+mod stall;
 mod tangent_solver;
 
 /// How the solve went.
@@ -153,7 +154,8 @@ impl Sketch {
         let mut entry: Vec<Equation> = Vec::new();
         let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
 
-        for _ in 0..MAX_ITERATIONS {
+        let mut stall = stall::Stall::new();
+        for iteration in 1..=MAX_ITERATIONS {
             let mut worst: f64 = 0.0;
             for index in 0..self.equation_count() {
                 let held_alone = self.held_alone(index, &pinned, &pulled);
@@ -203,6 +205,9 @@ impl Sketch {
 
             if worst < TOLERANCE {
                 return SolveOutcome::Solved;
+            }
+            if stall.stalled(iteration, worst) {
+                return SolveOutcome::Residual;
             }
         }
         SolveOutcome::Residual

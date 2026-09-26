@@ -13,6 +13,7 @@ use crate::arc::ArcId;
 use crate::constraints::Constraint;
 use crate::equation::Equation;
 use crate::independence::turns_nothing;
+use crate::length::LengthOutcome;
 use crate::sketch::{CircleId, PointId, SegmentId, Sketch};
 
 /// Where along what holds it a point stands.
@@ -53,7 +54,15 @@ impl Sketch {
                 rows.get_or_insert_with(|| self.equations_pinned_by(millimeters_per_unit, &pinned));
             let mut slide = Equation::new(self.variables());
             slide.add(point, way);
-            if rows.iter().all(|row| turns_nothing(row, &slide)) {
+            // A rule tying the point to a free neighbour does not place it: the
+            // neighbour can follow. What decides is whether it can slide with
+            // what holds it, and what the gesture holds, kept still.
+            let free = rows.iter().all(|row| turns_nothing(row, &slide)) || {
+                let mut still = except.to_vec();
+                still.extend(self.defining(along));
+                self.slides(point, way, &still, millimeters_per_unit)
+            };
+            if free {
                 shares.push(Share { point, along });
             }
         }
@@ -90,6 +99,34 @@ impl Sketch {
         }
     }
 
+    /// Settles the drawing after a value or a rule changed, each point held on
+    /// a trait, a circle or an arc kept at its place along it, as a gesture
+    /// does. Read once the change is made, so that a value placing the point
+    /// along what holds it is the value's.
+    pub fn resolve_keeping_places(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
+        let shares = self.shares(&[], millimeters_per_unit);
+        let outcome = self.resolve(millimeters_per_unit);
+        if outcome == LengthOutcome::Exact {
+            self.keep_shares(&shares, &[], &[], millimeters_per_unit);
+        }
+        outcome
+    }
+
+    /// The points that say where a trait, a circle or an arc stands.
+    fn defining(&self, along: Along) -> Vec<PointId> {
+        match along {
+            Along::Trait(segment, _) => {
+                let line = self.segments()[segment.0];
+                vec![line.start, line.end]
+            }
+            Along::Circle(circle, _) => vec![self.circle(circle).center],
+            Along::Arc(arc, _) => {
+                let curve = self.arc(arc);
+                vec![curve.center, curve.start, curve.end]
+            }
+        }
+    }
+
     /// The point a rule holds, where it stands along what holds it, and the
     /// way it would slide along it there.
     fn standing_along(&self, rule: Constraint) -> Option<(PointId, Along, DVec2)> {
@@ -112,8 +149,16 @@ impl Sketch {
                 let out = self.point(point) - drawn.centre;
                 let way = out.try_normalize()?.perp();
                 let sweep = self.arc_sweep(arc);
-                let round = (out.to_angle() - (drawn.start - drawn.centre).to_angle())
-                    .rem_euclid(std::f64::consts::TAU);
+                let tau = std::f64::consts::TAU;
+                let round =
+                    (out.to_angle() - (drawn.start - drawn.centre).to_angle()).rem_euclid(tau);
+                // Held on the arc's whole circle, a point may stand past either
+                // end: past the start it counts back from it, not nearly a whole
+                // turn on.
+                let round = match round > sweep && tau - round < round - sweep {
+                    true => round - tau,
+                    false => round,
+                };
                 (sweep > 1e-9).then(|| (point, Along::Arc(arc, round / sweep), way))
             }
             _ => None,

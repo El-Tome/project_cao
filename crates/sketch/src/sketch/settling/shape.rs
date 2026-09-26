@@ -16,20 +16,7 @@ impl Sketch {
     /// alone, it would count as nearer the start than the end is, and a drag
     /// of the end would keep it rather than the far end.
     pub(crate) fn joined_pairs(&self) -> Vec<(PointId, PointId)> {
-        let mut pairs: Vec<(PointId, PointId)> = self
-            .live_segments()
-            .map(|(_, line)| (line.start, line.end))
-            .collect();
-        for (_, arc) in self.live_arcs() {
-            pairs.extend([(arc.center, arc.start), (arc.center, arc.end)]);
-        }
-        for (id, ellipse) in self.live_ellipses() {
-            let [centre, ends @ ..] = self.ellipse_points(id);
-            pairs.extend(ends.map(|end| (centre, end)));
-            if let Some((from, to)) = ellipse.drawn {
-                pairs.extend([(centre, from), (centre, to)]);
-            }
-        }
+        let mut pairs = self.drawn_pairs();
         let ends_of = |segment: SegmentId| -> Vec<PointId> {
             self.segments()
                 .get(segment.0)
@@ -248,8 +235,41 @@ impl Sketch {
     /// tangency are never it: they are how a curve is held, not where a shape
     /// stands.
     pub(crate) fn stay_point(&self, point: PointId, shape: &[PointId]) -> Option<PointId> {
+        // Counted along what is drawn first: a trait standing on a point held
+        // on the shape — one drawn square off a side — only hangs from it, and
+        // its far end is not where the shape stands.
+        self.stay_along(point, shape, &self.drawn_pairs())
+            .or_else(|| self.stay_along(point, shape, &self.joined_pairs()))
+    }
+
+    /// The points drawn as one: a trait's two ends, an arc's centre and ends,
+    /// an ellipse's centre and the ends of its axes and of its drawn stretch.
+    fn drawn_pairs(&self) -> Vec<(PointId, PointId)> {
+        let mut pairs: Vec<(PointId, PointId)> = self
+            .live_segments()
+            .map(|(_, line)| (line.start, line.end))
+            .collect();
+        for (_, arc) in self.live_arcs() {
+            pairs.extend([(arc.center, arc.start), (arc.center, arc.end)]);
+        }
+        for (id, ellipse) in self.live_ellipses() {
+            let [centre, ends @ ..] = self.ellipse_points(id);
+            pairs.extend(ends.map(|end| (centre, end)));
+            if let Some((from, to)) = ellipse.drawn {
+                pairs.extend([(centre, from), (centre, to)]);
+            }
+        }
+        pairs
+    }
+
+    fn stay_along(
+        &self,
+        point: PointId,
+        shape: &[PointId],
+        pairs: &[(PointId, PointId)],
+    ) -> Option<PointId> {
         let aside = self.held_aside();
-        let steps = self.steps_from(point, &self.joined_pairs());
+        let steps = self.steps_from(point, pairs);
         let eligible = |each: &PointId| {
             *each != point
                 && !self.is_erased_point(*each)
@@ -286,8 +306,8 @@ impl Sketch {
         best.map(|(each, _, _)| each)
     }
 
-    /// The ends of an ellipse's axes and the touches of tangencies: held by a
-    /// curve, never where a shape stands.
+    /// The ends of an ellipse's axes, the touches of tangencies and the points
+    /// held on a circle or an arc: held by a curve, never where a shape stands.
     pub(crate) fn held_aside(&self) -> Vec<PointId> {
         let mut aside: Vec<PointId> = self
             .live_ellipses()
@@ -297,6 +317,7 @@ impl Sketch {
             Constraint::Tangent { at, .. }
             | Constraint::ArcTangent { at, .. }
             | Constraint::EllipseTangent { at, .. } => at,
+            Constraint::OnCircle { point, .. } | Constraint::OnArc { point, .. } => Some(point),
             _ => None,
         }));
         aside

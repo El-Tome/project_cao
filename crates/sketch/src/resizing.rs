@@ -162,9 +162,14 @@ impl Sketch {
             return LengthOutcome::Degenerate;
         }
         let kept = self.shapes_now();
+        let shares = self.shares(&[], millimeters_per_unit);
         self.set_circle_radius(circle, reach);
         let outcome = self.resolve(millimeters_per_unit);
-        self.keep_or_give_back(kept, outcome)
+        let outcome = self.keep_or_give_back(kept, outcome);
+        if outcome == LengthOutcome::Exact {
+            self.keep_shares(&shares, &[], &[], millimeters_per_unit);
+        }
+        outcome
     }
 
     /// The same for an arc: its two ends travel out to the new reach, keeping

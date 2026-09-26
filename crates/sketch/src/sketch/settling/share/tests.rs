@@ -6,22 +6,34 @@
 //!   belongs to is pulled —
 //!   `a_point_on_a_circle_keeps_its_angle_when_the_centre_is_dragged`,
 //!   `a_point_on_a_circle_keeps_its_angle_when_the_circle_is_drawn_to_another_size`,
-//!   `a_point_on_a_circle_keeps_its_angle_when_the_shape_it_belongs_to_is_pulled`
+//!   `a_point_on_a_circle_keeps_its_angle_when_the_shape_it_belongs_to_is_pulled`,
+//!   also where a value refuses the centre the hand's place —
+//!   `a_point_on_a_circle_whose_centre_a_value_places_keeps_its_angle_when_the_centre_is_dragged`,
+//!   and where the centre ends a trait —
+//!   `a_point_on_a_circle_whose_centre_ends_a_trait_keeps_its_angle_and_the_circle_its_size`
 //! - 2: a point held on a trait keeps its share when either end is pulled,
 //!   when the trait is pulled across, and when its shape stretches or turns —
 //!   `a_point_on_a_trait_keeps_its_share_when_either_end_is_pulled`,
 //!   `a_point_on_a_trait_keeps_its_share_when_the_trait_is_pulled_across`,
-//!   `a_point_on_a_side_keeps_its_share_when_its_rectangle_stretches_or_turns`
+//!   `a_point_on_a_side_keeps_its_share_when_its_rectangle_stretches_or_turns`,
+//!   `a_point_on_a_trait_off_a_circle_keeps_its_share_when_the_circle_is_drawn_to_another_size`,
+//!   also a point a trait leaves square from —
+//!   `a_point_a_trait_leaves_square_from_keeps_its_share_of_the_side`
 //! - 3: a point held on an arc keeps its share of the sweep when an end is
 //!   pulled round, when the arc is drawn to another size or slid round, and
 //!   when its centre is dragged —
 //!   `a_point_on_an_arc_keeps_its_share_when_an_end_is_pulled_round`,
 //!   `a_point_on_an_arc_keeps_its_share_when_the_arc_is_drawn_to_another_size_or_slid_round`,
-//!   `a_point_on_an_arc_keeps_its_share_when_its_centre_is_dragged`
+//!   `a_point_on_an_arc_keeps_its_share_when_its_centre_is_dragged`, a point
+//!   slid past the start staying past it —
+//!   `a_point_slid_just_behind_an_arc_s_start_stays_behind_it_as_the_arc_opens`
 //! - 4: a value that places the point wins over its share —
 //!   `a_point_a_value_places_on_its_trait_keeps_that_value`
 //! - 5: a point dragged along its support slides, and keeps the share it was
 //!   let go of at — `a_point_dragged_along_its_trait_keeps_the_share_it_was_let_go_at`
+//! - "Always, unless a value places it": a value typed that moves what holds
+//!   the point keeps it at its place too —
+//!   `a_point_keeps_its_place_when_a_value_typed_moves_what_holds_it`
 //! - 6: #374, #375 and #422's tests stay green — no test: here, the whole
 //!   suite is the check; a part replayed rebuilds the same drawing —
 //!   `a_trait_end_pulled_with_a_point_held_on_it_is_rebuilt_as_shown` in
@@ -340,4 +352,156 @@ fn a_point_dragged_along_its_trait_keeps_the_share_it_was_let_go_at() {
 
     let wanted = sketch.point(start).lerp(sketch.point(end), 0.3);
     assert_near(sketch.point(held), wanted, "at the 30 it was let go at");
+}
+
+#[test]
+fn a_point_on_a_circle_whose_centre_a_value_places_keeps_its_angle_when_the_centre_is_dragged() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(60.0, 80.0));
+    let circle = sketch.add_circle(centre, 20.0);
+    let held = sketch.add_point(DVec2::new(60.0, 80.0) + at(40.0) * 20.0);
+    sketch.add_constraint(Constraint::OnCircle {
+        point: held,
+        circle,
+    });
+    sketch.set_dimension(
+        DimensionTarget::Distance {
+            from: Sketch::ORIGIN,
+            to: centre,
+        },
+        100.0,
+        false,
+    );
+    sketch.resolve(1.0);
+
+    sketch.settle_around(centre, DVec2::new(95.0, 50.0), 1.0);
+
+    let now = sketch.point(centre);
+    assert!(
+        (now.length() - 100.0).abs() < SETTLED,
+        "the value held the centre"
+    );
+    assert_near(
+        sketch.point(held),
+        now + at(40.0) * sketch.circle(circle).radius,
+        "the point, at 40° still",
+    );
+}
+
+#[test]
+fn a_point_on_a_trait_off_a_circle_keeps_its_share_when_the_circle_is_drawn_to_another_size() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let circle = sketch.add_circle(centre, 30.0);
+    let rim = sketch.add_point(DVec2::new(80.0, 50.0));
+    sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+    let far = sketch.add_point(DVec2::new(140.0, 50.0));
+    let line = sketch.add_segment(rim, far);
+    let held = sketch.add_point(DVec2::new(110.0, 50.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: held,
+        segment: line,
+    });
+
+    sketch.resize(Curved::Circle(circle), 45.0, 1.0);
+
+    let wanted = sketch.point(rim).lerp(sketch.point(far), 0.5);
+    assert_near(sketch.point(held), wanted, "halfway along the trait still");
+}
+
+#[test]
+fn a_point_slid_just_behind_an_arc_s_start_stays_behind_it_as_the_arc_opens() {
+    let (mut sketch, [_, _, end], _, held) = an_arc();
+    sketch.settle_around(held, DVec2::new(50.0, 50.0) + at(-15.0) * 40.0, 1.0);
+
+    sketch.settle_around(end, DVec2::new(50.0, 50.0) + at(95.0) * 40.0, 1.0);
+
+    let angle = (sketch.point(held) - DVec2::new(50.0, 50.0))
+        .to_angle()
+        .to_degrees();
+    assert!(
+        (-17.0..-14.0).contains(&angle),
+        "still a sixth of the sweep behind the start: {angle}°"
+    );
+}
+
+#[test]
+fn a_point_a_trait_leaves_square_from_keeps_its_share_of_the_side() {
+    let (mut sketch, [_, b, c, d], sides) = a_rectangle();
+    let foot = sketch.add_point(DVec2::new(90.0, 70.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: foot,
+        segment: sides[2],
+    });
+    let tip = sketch.add_point(DVec2::new(90.0, 110.0));
+    let square = sketch.add_segment(foot, tip);
+    sketch.add_constraint(Constraint::Perpendicular {
+        first: sides[2],
+        second: square,
+    });
+
+    sketch.settle_around(b, DVec2::new(170.0, 20.0), 1.0);
+
+    let wanted = sketch.point(c).lerp(sketch.point(d), 0.3);
+    assert_near(
+        sketch.point(foot),
+        wanted,
+        "at 30 of the top from its start",
+    );
+}
+
+#[test]
+fn a_point_on_a_circle_whose_centre_ends_a_trait_keeps_its_angle_and_the_circle_its_size() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let tail = sketch.add_point(DVec2::new(30.0, 50.0));
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    sketch.add_segment(tail, centre);
+    let circle = sketch.add_circle(centre, 30.0);
+    let held = sketch.add_point(DVec2::new(50.0, 50.0) + at(40.0) * 30.0);
+    sketch.add_constraint(Constraint::OnCircle {
+        point: held,
+        circle,
+    });
+
+    sketch.settle_around(centre, DVec2::new(65.0, 65.0), 1.0);
+
+    assert!(
+        (sketch.circle(circle).radius - 30.0).abs() < SETTLED,
+        "the circle kept its size: {}",
+        sketch.circle(circle).radius
+    );
+    assert_near(
+        sketch.point(held),
+        sketch.point(centre) + at(40.0) * 30.0,
+        "the point, at 40°",
+    );
+}
+
+#[test]
+fn a_point_keeps_its_place_when_a_value_typed_moves_what_holds_it() {
+    let (mut sketch, [start, end], line, held) = a_trait();
+    sketch.set_dimension(DimensionTarget::Length(line), 150.0, false);
+
+    sketch.resolve_keeping_places(1.0);
+
+    let wanted = sketch.point(start).lerp(sketch.point(end), 0.7);
+    assert_near(sketch.point(held), wanted, "at 70 of the longer trait");
+
+    let (mut sketch, centre, _, held) = a_circle();
+    sketch.set_dimension(
+        DimensionTarget::Distance {
+            from: Sketch::ORIGIN,
+            to: centre,
+        },
+        110.0,
+        false,
+    );
+
+    sketch.resolve_keeping_places(1.0);
+
+    assert_near(
+        sketch.point(held),
+        sketch.point(centre) + at(40.0) * 30.0,
+        "at 40° about the centre the value moved",
+    );
 }

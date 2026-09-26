@@ -137,6 +137,9 @@ impl Sketch {
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
         if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
+            if outcome == LengthOutcome::Exact {
+                self.keep_shares(&shares, anchored, &[], millimeters_per_unit);
+            }
             return outcome;
         }
 

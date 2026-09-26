@@ -813,7 +813,9 @@ rather than stretch them. So a drag is read once, when the press lands
   the origin, a fixed point. Otherwise the centre of the curve the dragged point
   lies on. Otherwise the point of the shape farthest from the hand, counted
   first along the traits a rule of direction ties together, which is what makes
-  it a rectangle's opposite corner whatever free tail hangs off it.
+  it a rectangle's opposite corner whatever free tail hangs off it — and along
+  what is drawn, so that a trait standing on a point held on the shape, drawn
+  square off a side, only hangs from it.
 - **What keeps its direction.** Every trait a rule of direction ties — square,
   parallel, on one line, an angle, an ellipse's two axes — and the ray from an
   arc's centre to each end not being pulled. These are linear rows swept before
@@ -839,7 +841,7 @@ as far off the axis as along it.
 ### A point held keeps its place along what holds it
 
 A point held on a trait, a circle or an arc keeps its place along it while a
-gesture moves what holds it: its share of the trait from the trait's start, its
+gesture, a value typed or a rule laid moves what holds it: its share of the trait from the trait's start, its
 angle about the circle's centre, its share of the arc's sweep from the arc's
 start. At 70 of a trait it stays at 70 however the trait stretches; at 40° on a
 circle it stays at 40° wherever the circle goes; halfway round an arc it stays
@@ -847,7 +849,9 @@ halfway round as the arc opens. The place is read as the gesture starts and put
 back once the drawing has settled, so nothing is kept in the file for it.
 
 A point a value places along what holds it — a distance typed from the trait's
-start — is the value's, and so is one held on two things at once. The point
+start — is the value's, and so is one held on two things at once. A rule tying
+it to something free to follow does not place it: a trait drawn square off a
+side slides along the side with its foot. The point
 itself dragged slides along what holds it, and keeps the place it is let go of
 at. A shape turned whole carries what is held on it round with it.
 

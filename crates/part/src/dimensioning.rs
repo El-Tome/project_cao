@@ -135,7 +135,8 @@ impl PartState {
         // that cannot be fully honoured is refused rather than half-applied:
         // the drawing goes back to what it was, the same way a drag the
         // solver cannot satisfy already reverts in `settle_around_all`.
-        let outcome = sketch.resolve(scale);
+        // A point held on what the value moves keeps its place along it.
+        let outcome = sketch.resolve_keeping_places(scale);
         if outcome != LengthOutcome::Exact {
             self.sketches[index] = before;
         }

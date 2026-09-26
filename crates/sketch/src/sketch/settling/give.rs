@@ -81,6 +81,38 @@ impl Sketch {
 
     /// The rows that speak of anything the shape is free to move: its points
     /// and the sizes of the circles centred in it.
+    /// Whether `point` can slide `way` with what holds the drawing and the
+    /// points in `still` kept where they are, the rest free to follow — read
+    /// off the equations tied to it, as a drag's give is.
+    pub(crate) fn slides(
+        &self,
+        point: PointId,
+        way: DVec2,
+        still: &[PointId],
+        millimeters_per_unit: f64,
+    ) -> bool {
+        let mut pinned: Vec<bool> = self.pinned_points();
+        for each in still {
+            pinned[each.0] = true;
+        }
+        pinned[point.0] = false;
+        let tied = self.tied_to(&[point], &pinned, millimeters_per_unit);
+        for (index, pinned) in pinned.iter_mut().enumerate() {
+            if !tied[index] {
+                *pinned = true;
+            }
+        }
+        let system = self.rows_touching(&tied, &pinned, &[], millimeters_per_unit);
+        null_space(&system, &pinned, self.variables())
+            .iter()
+            .any(|free| {
+                DVec2::new(free[point.0 * 2], free[point.0 * 2 + 1])
+                    .dot(way)
+                    .abs()
+                    > 1e-3
+            })
+    }
+
     fn rows_touching(
         &self,
         tied: &[bool],

@@ -934,35 +934,4 @@ impl Sketch {
         equation.add(segment.end, gradient(d_cross_end, unit) * sign);
         Some(equation)
     }
-
-    /// The angle between a segment and a fixed direction of the sketch.
-    ///
-    /// Unlike an angle between two segments, this one has something immovable
-    /// to lean on, so it is what finally stops a drawing from spinning about
-    /// its anchor.
-    fn axis_angle_equation(
-        &self,
-        segment: crate::sketch::SegmentId,
-        axis: crate::constraints::SketchAxis,
-        degrees: f64,
-    ) -> Option<Equation> {
-        let segment = *self.segments().get(segment.0)?;
-        let span = self.point(segment.end) - self.point(segment.start);
-        let length = span.length_squared();
-        if length < 1e-12 {
-            return None;
-        }
-
-        let reference = axis.direction();
-        let signed = reference.perp_dot(span).atan2(reference.dot(span));
-        let sign = if signed < 0.0 { -1.0 } else { 1.0 };
-        let turn = DVec2::new(-span.y, span.x) / length;
-
-        let mut equation = Equation::new(self.variables());
-        equation.error = signed.abs() - degrees.to_radians();
-        equation.angular = true;
-        equation.add(segment.end, turn * sign);
-        equation.add(segment.start, -turn * sign);
-        Some(equation)
-    }
 }

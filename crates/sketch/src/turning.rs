@@ -14,6 +14,11 @@ use crate::length::LengthOutcome;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 
+/// How near the farthest an end has to stand, as a share of how far that
+/// is, to belong to the same far side: a hand-drawn top a hair aslant is one
+/// top, and a U's arms a hair apart are still both its top.
+const NEARLY: f64 = 0.05;
+
 /// A shape turned about a place, as the hand asked: the points turned, where
 /// they turn about, and how far round, in radians — counter-clockwise when
 /// positive.
@@ -96,19 +101,23 @@ impl Sketch {
 
     /// The middle of the side of `shape` standing opposite `side`, read off
     /// the ends of its drawn traits — those a rule of direction ties, when any
-    /// drawn one is, so that a tail hanging off it does not count. Of the ends
-    /// standing more than half as far off `side` as the farthest, the middle
-    /// of the first and the last along it: a rectangle's far side, a
-    /// trapezoid's other leg, a slanted top, the arms of a U, a far side drawn
-    /// in pieces — and a triangle's far corner, when that one alone stands so
-    /// far off. An end at half the way exactly, a hexagon's middle corner,
-    /// stays out whichever way rounding leans.
+    /// drawn one is, so that a tail hanging off it does not count — on the
+    /// side of `side` the shape stands on.
+    ///
+    /// The ends standing nearly as far off as the farthest are the far side,
+    /// whole or in pieces, and the middle of the first and the last of them
+    /// along `side` is the answer: a rectangle's, a U's arms, a top rounded or
+    /// cut short at its corners. One end alone that far is a corner: the far
+    /// side then runs down from it, along the one trait whose other end stands
+    /// more than half as far off — a trapezoid's other leg, a slanted top —
+    /// and is the corner itself when no trait does, or two alike do: a
+    /// triangle's, a roof's.
     fn opposite(&self, shape: &[PointId], side: SegmentId) -> Option<DVec2> {
         let line = self.segments().get(side.0).copied()?;
         let start = self.point(line.start);
         let along = (self.point(line.end) - start).try_normalize()?;
         let tied = self.tied_by_direction(shape);
-        let drawn = |tied_only: bool| -> Vec<DVec2> {
+        let drawn = |tied_only: bool| -> Vec<(PointId, PointId)> {
             self.live_segments()
                 .filter(|(id, other)| {
                     *id != side
@@ -117,27 +126,81 @@ impl Sketch {
                         && shape.contains(&other.end)
                         && (!tied_only || tied.contains(id))
                 })
-                .flat_map(|(_, other)| [self.point(other.start), self.point(other.end)])
+                .map(|(_, other)| (other.start, other.end))
                 .collect()
         };
-        let mut ends = drawn(true);
-        if ends.is_empty() {
-            ends = drawn(false);
+        let mut traits = drawn(true);
+        if traits.is_empty() {
+            traits = drawn(false);
         }
-        let off = |place: &DVec2| (*place - start).dot(along.perp()).abs();
-        let far = ends.iter().map(off).fold(0.0, f64::max);
-        if far <= self.drawing_size() * 1e-6 {
+        let mut ends: Vec<PointId> = traits.iter().flat_map(|(from, to)| [*from, *to]).collect();
+        ends.sort_by_key(|point| point.0);
+        ends.dedup();
+        let signed = |point: PointId| (self.point(point) - start).dot(along.perp());
+        let reach = ends
+            .iter()
+            .map(|point| signed(*point).abs())
+            .fold(0.0, f64::max);
+        if reach <= self.drawing_size() * 1e-6 {
             return None;
         }
-        let standing = || ends.iter().filter(|place| off(place) > far * (0.5 + 1e-6));
-        let along_it = |one: &&DVec2, other: &&DVec2| {
-            one.dot(along)
-                .total_cmp(&other.dot(along))
-                .then(off(one).total_cmp(&off(other)))
+        let nearly = reach * NEARLY;
+        let way = {
+            let highest = ends
+                .iter()
+                .map(|point| signed(*point))
+                .fold(f64::MIN, f64::max);
+            let lowest = ends
+                .iter()
+                .map(|point| signed(*point))
+                .fold(f64::MAX, f64::min);
+            match (highest >= reach - nearly, -lowest >= reach - nearly) {
+                (true, true) => match ends.iter().map(|point| signed(*point)).sum::<f64>() {
+                    bulk if bulk < 0.0 => -1.0,
+                    _ => 1.0,
+                },
+                (true, false) => 1.0,
+                (false, _) => -1.0,
+            }
         };
-        let first = standing().min_by(along_it)?;
-        let last = standing().max_by(along_it)?;
-        Some((*first + *last) / 2.0)
+        let off = |point: PointId| signed(point) * way;
+        let level: Vec<PointId> = ends
+            .iter()
+            .copied()
+            .filter(|point| off(*point) >= reach - nearly)
+            .collect();
+        let along_it = |one: &PointId, other: &PointId| {
+            (self.point(*one).dot(along)).total_cmp(&self.point(*other).dot(along))
+        };
+        if let [corner] = level[..] {
+            let down: Vec<PointId> = traits
+                .iter()
+                .filter_map(|(from, to)| match (*from == corner, *to == corner) {
+                    (true, _) => Some(*to),
+                    (_, true) => Some(*from),
+                    _ => None,
+                })
+                .filter(|other| off(*other) > reach / 2.0)
+                .collect();
+            let across = down
+                .iter()
+                .copied()
+                .max_by(|one, other| off(*one).total_cmp(&off(*other)));
+            let alike = |across: PointId| {
+                down.iter()
+                    .filter(|other| off(across) - off(**other) <= nearly)
+                    .count()
+            };
+            return Some(match across {
+                Some(across) if alike(across) == 1 => {
+                    (self.point(corner) + self.point(across)) / 2.0
+                }
+                _ => self.point(corner),
+            });
+        }
+        let first = level.iter().copied().min_by(along_it)?;
+        let last = level.iter().copied().max_by(along_it)?;
+        Some((self.point(first) + self.point(last)) / 2.0)
     }
 
     /// Whether the whole shape can be turned about `about` without a single

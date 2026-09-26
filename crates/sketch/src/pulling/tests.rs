@@ -20,7 +20,10 @@
 //!   else hangs off the shape or was drawn first —
 //!   `a_tail_or_a_construction_line_off_the_far_corner_does_not_take_the_place_of_the_opposite_side`,
 //!   `a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle`,
-//!   `a_house_slid_by_its_floor_turns_about_the_middle_of_its_walls_tops`,
+//!   `a_house_slid_by_its_floor_turns_about_the_top_of_its_roof`,
+//!   `a_far_side_cut_short_at_its_corners_is_still_the_side_the_shape_turns_about`,
+//!   `a_far_side_well_aslant_is_still_the_side_the_shape_turns_about`,
+//!   `an_inner_side_of_an_l_turns_it_about_the_middle_of_its_far_wall`,
 //!   `a_far_side_drawn_in_pieces_turns_its_shape_about_its_middle_whichever_way_it_was_drawn`,
 //!   `an_arched_door_slid_by_its_sill_turns_about_the_middle_of_its_walls_tops`,
 //!   `a_roof_a_hair_off_true_turns_its_house_about_the_same_place`,
@@ -1309,7 +1312,7 @@ fn a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle() {
 }
 
 #[test]
-fn a_house_slid_by_its_floor_turns_about_the_middle_of_its_walls_tops() {
+fn a_house_slid_by_its_floor_turns_about_the_top_of_its_roof() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let corners = [
         DVec2::new(0.0, 0.0),
@@ -1335,8 +1338,8 @@ fn a_house_slid_by_its_floor_turns_about_the_middle_of_its_walls_tops() {
     };
     assert_near(
         turn.about,
-        DVec2::new(50.0, 60.0),
-        "the middle of its walls' tops, under the roof",
+        DVec2::new(50.0, 100.0),
+        "a roof whose two slopes stand alike turns about its top",
     );
 }
 
@@ -2033,4 +2036,134 @@ fn a_free_arc_turned_on_the_grid_follows_the_hand_or_lands_its_end_on_a_grid_poi
             turn.angle
         );
     }
+}
+
+#[test]
+fn a_far_side_cut_short_at_its_corners_is_still_the_side_the_shape_turns_about() {
+    let chamfered = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(100.0, 40.0),
+        DVec2::new(90.0, 50.0),
+        DVec2::new(10.0, 50.0),
+        DVec2::new(0.0, 40.0),
+    ];
+    let octagon: Vec<DVec2> = (0..8)
+        .map(|rank| {
+            let degrees = 247.5 + 45.0 * f64::from(rank);
+            DVec2::new(50.0, 50.0) + DVec2::from_angle(degrees.to_radians()) * 40.0
+        })
+        .collect();
+    let long_hexagon = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(120.0, 30.5),
+        DVec2::new(100.0, 60.0),
+        DVec2::new(0.0, 60.0),
+        DVec2::new(-20.0, 30.5),
+    ];
+    let split_wall = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(100.0, 60.0),
+        DVec2::new(0.0, 60.0),
+        DVec2::new(0.0, 40.0),
+    ];
+    let octagon_top = octagon[4].y;
+    for backwards in [false, true] {
+        assert_near(
+            turned_about(&outline(&chamfered, backwards)),
+            DVec2::new(50.0, 50.0),
+            "a chamfered rectangle's top",
+        );
+        assert_near(
+            turned_about(&outline(&octagon, backwards)),
+            DVec2::new(50.0, octagon_top),
+            "an octagon's top",
+        );
+        assert_near(
+            turned_about(&outline(&long_hexagon, backwards)),
+            DVec2::new(50.0, 60.0),
+            "a long hexagon's top",
+        );
+        assert_near(
+            turned_about(&outline(&split_wall, backwards)),
+            DVec2::new(50.0, 60.0),
+            "a rectangle with a wall in two pieces",
+        );
+    }
+    let mut rounded = outline(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(100.0, 0.0),
+            DVec2::new(100.0, 60.0),
+            DVec2::new(0.0, 60.0),
+        ],
+        false,
+    );
+    rounded
+        .fillet(SegmentId(1), SegmentId(2), 20.0)
+        .expect("rounded");
+    rounded
+        .fillet(SegmentId(2), SegmentId(3), 20.0)
+        .expect("rounded");
+    assert_near(
+        turned_about(&rounded),
+        DVec2::new(50.0, 60.0),
+        "a rectangle rounded at its top corners",
+    );
+}
+
+#[test]
+fn an_inner_side_of_an_l_turns_it_about_the_middle_of_its_far_wall() {
+    let mut sketch = outline(
+        &[
+            DVec2::new(60.0, 20.0),
+            DVec2::new(60.0, 40.0),
+            DVec2::new(0.0, 40.0),
+            DVec2::new(0.0, 0.0),
+            DVec2::new(100.0, 0.0),
+            DVec2::new(100.0, 20.0),
+        ],
+        false,
+    );
+    let riser = SegmentId(0);
+
+    let drag = sketch.side_drag(
+        riser,
+        DVec2::new(60.0, 30.0),
+        DVec2::new(61.0, 45.0),
+        &no_grid(),
+        1.0,
+    );
+    let SideDrag::Along(turn) = drag else {
+        panic!("sliding the riser along turns: {drag:?}");
+    };
+    assert_near(
+        turn.about,
+        DVec2::new(0.0, 20.0),
+        "the middle of the far wall",
+    );
+    let _ = &mut sketch;
+}
+
+#[test]
+fn a_far_side_well_aslant_is_still_the_side_the_shape_turns_about() {
+    let sketch = outline(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(100.0, 0.0),
+            DVec2::new(120.0, 31.0),
+            DVec2::new(100.0, 55.0),
+            DVec2::new(0.0, 60.0),
+            DVec2::new(-20.0, 31.0),
+        ],
+        false,
+    );
+
+    assert_near(
+        turned_about(&sketch),
+        DVec2::new(50.0, 57.5),
+        "the middle of the top, a twentieth off level",
+    );
 }

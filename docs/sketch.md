@@ -869,13 +869,17 @@ shape would turn on:
   opposite the one pulled, which stays where it is — about its far corner when
   none stands opposite, a triangle's, or about the point holding it. The side
   opposite is read off the ends of the traits a rule of direction ties,
-  construction left out, so that a tail hanging off the shape does not count:
-  of those standing more than half as far off the side pulled as the farthest,
-  the middle of the first and the last along it — a rectangle's far side, a
-  trapezoid's other leg, a slanted top, the arms of a U, a far side drawn in
-  pieces, a house's walls under its roof. A hexagon's middle corners, at half
-  the way exactly, stay out. The place grabbed goes round with the hand, and
-  the end of the side nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
+  construction left out, so that a tail hanging off the shape does not count,
+  on the side of the pulled one the shape stands on. The ends standing nearly
+  as far off as the farthest — within a twentieth — are the far side, whole or
+  in pieces, and the shape turns about the middle of the first and the last of
+  them: a rectangle's top, a U's arms, a top rounded or chamfered at its
+  corners, a hexagon's or an octagon's. One end alone that far is a corner,
+  and the far side runs down from it along the one trait whose other end
+  stands more than half as far off — a trapezoid's other leg, a slanted top;
+  when no trait does, or two alike do, it is the corner itself — a
+  triangle's, a roof's. The place grabbed goes round with the hand, and the
+  end of the side nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
   along, nor has a shape a rule holds upright, or one two fixed points nail
   down.
 

@@ -365,26 +365,4 @@ impl Sketch {
         self.give_back(kept);
         false
     }
-
-    /// Settles the drawing with `points` held still and `lines` kept, and
-    /// says whether it came out whole: every value true, no trait squeezed to
-    /// nothing, no tangency slid off, nothing kept come out the other way
-    /// round where it may not (`Kept::runs_backwards`).
-    pub(crate) fn settle_held(
-        &mut self,
-        points: Vec<PointId>,
-        lines: Vec<Kept>,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        self.held.points = points;
-        self.held.lines = lines;
-        let outcome = self.resolve(millimeters_per_unit);
-        let backwards = self.held.lines.iter().any(|line| line.runs_backwards(self));
-        self.held.points.clear();
-        self.held.lines.clear();
-        outcome == LengthOutcome::Exact
-            && !backwards
-            && !self.has_a_collapsed_trait(self.drawing_size())
-            && !self.has_a_flipped_tangent()
-    }
 }

@@ -63,7 +63,7 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `PointPull` | — | What a drag of one point may do, read once when the press lands: what stays, what keeps its direction, where the point can go. |
 | stays | reste en place | The point a drag leaves where it is: the one holding the shape, the centre of the curve pulled on, or the farthest point along the traits tied by direction. |
 | kept direction | — | A trait, or an arc's ray, a drag holds to the direction it had, as a linear row swept first. Never part of the system outside a drag. |
-| across, along | en travers, le long | Which way a side or a curve is pulled: across resizes, along turns the shape. |
+| across, along | en travers, le long | Which way a side or a curve is pulled: across resizes, along turns the shape — about the side opposite, or the curve's centre. A trait on its own has neither, and goes wherever the hand takes it. |
 | erased | effacé | Marked as gone, still in the list. |
 
 > **Erased, not removed.** Taking a segment out of the middle would shift the

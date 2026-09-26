@@ -9,6 +9,7 @@
 
 use glam::DVec2;
 
+use crate::length::LengthOutcome;
 use crate::resizing::Curved;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
@@ -225,8 +226,14 @@ impl Sketch {
         if now < 1e-12 {
             return resize;
         }
-        let placed =
-            |at: DVec2| about + DVec2::from_angle(angle).rotate(at - about) * (reach / now);
+        // The size follows the hand only where no rule holds it: tried on a
+        // copy, the way the drawing will be asked.
+        let sized = (reach - now).abs() > now * 1e-9 && {
+            let mut trial = self.clone();
+            trial.resize_in_place(curve, reach, millimeters_per_unit) == LengthOutcome::Exact
+        };
+        let size = if sized { reach / now } else { 1.0 };
+        let placed = |at: DVec2| about + DVec2::from_angle(angle).rotate(at - about) * size;
         let end = handles
             .iter()
             .map(|point| self.point(*point))
@@ -236,17 +243,16 @@ impl Sketch {
                     .total_cmp(&placed(*other).distance(cursor))
             })
             .unwrap_or(pressed);
-        // The grid pulls the end nearest the hand onto a grid point near
-        // where it would land, turned and drawn to its size: both the angle
-        // and the size that put it there.
-        // With none near it, the end is turned onto one near where it would
-        // land at the size it has — the one it keeps when a rule holds it.
+        // The grid pulls the end nearest the hand onto a grid point near where
+        // it lands, turned and drawn to the size it takes: the angle that
+        // points it there, and the size that puts it there when the size is
+        // the curve's to change.
         let (angle, reach) = match (grid.node_near(placed(end)), (end - about).try_normalize()) {
             (Some(node), Some(was)) if node.distance(about) > 1e-12 => (
                 was.angle_to((node - about).normalize()),
                 now * node.distance(about) / end.distance(about),
             ),
-            _ => (angle_onto_grid(about, end, angle, grid), reach),
+            _ => (angle, reach),
         };
         CurveDrag::Along {
             turn: Turn {
@@ -254,7 +260,7 @@ impl Sketch {
                 about,
                 angle,
             },
-            reach: ((reach - now).abs() > now * 1e-9).then_some(reach),
+            reach: (sized && (reach - now).abs() > now * 1e-9).then_some(reach),
         }
     }
 }

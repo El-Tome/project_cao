@@ -8,6 +8,16 @@ use crate::length::LengthOutcome;
 use crate::sketch::settling::Kept;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
+/// What carrying a trait on its own came to.
+enum Carried {
+    Travelled,
+    /// It could travel whole, but not the way the hand went: it stays.
+    Stays,
+    /// No way of travelling whole is left to it — a ladder between the two
+    /// axes — so it travels across as any side does, and changes.
+    CannotStayWhole,
+}
+
 impl Sketch {
     /// Moves a side sideways by `by` and settles the drawing around it.
     ///
@@ -40,8 +50,12 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_through(&[line.start, line.end]);
-        if self.travels_whole(&shape, side) && self.carry(&shape, side, by, millimeters_per_unit) {
-            return LengthOutcome::Exact;
+        if self.travels_whole(&shape, side) {
+            match self.carry(&shape, side, by, millimeters_per_unit) {
+                Carried::Travelled => return LengthOutcome::Exact,
+                Carried::Stays => return LengthOutcome::BestEffort,
+                Carried::CannotStayWhole => {}
+            }
         }
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
@@ -117,15 +131,15 @@ impl Sketch {
     /// follows. When that place cannot be had — a rule holds it to an axis, or
     /// at a distance from a point — it is let go of there, whole, and the
     /// drawing takes it back as near as its rules allow, as long and as
-    /// upright as it was. Whether either moved it: taken all the way back, it
-    /// did not travel, and the drawing is given back.
+    /// upright as it was; taken all the way back, it stays. The drawing is
+    /// given back whenever it did not travel.
     fn carry(
         &mut self,
         shape: &[PointId],
         side: SegmentId,
         by: DVec2,
         millimeters_per_unit: f64,
-    ) -> bool {
+    ) -> Carried {
         let line = self.segments()[side.0];
         let kept = self.shapes_now();
         let stood = [line.start, line.end].map(|end| self.point(end));
@@ -139,14 +153,52 @@ impl Sketch {
                 .iter()
                 .zip(stood)
                 .any(|(end, was)| sketch.point(*end).distance(was) > sketch.drawing_size() * 1e-4);
-            let whole = settled && travelled;
-            if !whole {
+            if !(settled && travelled) {
                 sketch.give_back(kept.clone());
             }
-            whole
+            settled && travelled
         };
+        if carried(self, shape.to_vec(), Vec::new()) {
+            return Carried::Travelled;
+        }
+        if !self.travels_somehow(shape, millimeters_per_unit) {
+            return Carried::CannotStayWhole;
+        }
         let lines = Kept::whole(self, line.start, line.end, Some(side));
-        carried(self, shape.to_vec(), Vec::new()) || carried(self, Vec::new(), lines)
+        match carried(self, Vec::new(), lines) {
+            true => Carried::Travelled,
+            false => Carried::Stays,
+        }
+    }
+
+    /// Whether some way of travelling whole — every point of `shape` by the
+    /// same step — leaves every rule of the drawing true, read off the rules'
+    /// own slopes. A ladder between the two axes has none: whichever way it
+    /// went, one of its feet would leave its axis.
+    fn travels_somehow(&self, shape: &[PointId], millimeters_per_unit: f64) -> bool {
+        let pinned = self.pinned_points();
+        let mut blocking: Vec<DVec2> = Vec::new();
+        for row in self.equations_pinned_by(millimeters_per_unit, &pinned) {
+            let slope = shape.iter().fold(DVec2::ZERO, |sum, point| {
+                sum + DVec2::new(row.gradient[point.0 * 2], row.gradient[point.0 * 2 + 1])
+            });
+            let size = row
+                .gradient
+                .iter()
+                .map(|each| each * each)
+                .sum::<f64>()
+                .sqrt()
+                * (shape.len() as f64).sqrt();
+            if size > 1e-12 && slope.length() > size * 1e-3 {
+                blocking.push(slope.normalize());
+            }
+        }
+        match blocking.first() {
+            None => true,
+            Some(first) => blocking
+                .iter()
+                .all(|other| other.perp_dot(*first).abs() < 1e-3),
+        }
     }
 
     /// The point of a shape standing farthest off a line, which stays where it

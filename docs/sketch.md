@@ -868,14 +868,14 @@ shape would turn on:
 - **Along** — the shape turns, rigidly, about the middle of the side standing
   opposite the one pulled, which stays where it is — about its far corner when
   none stands opposite, a triangle's, or about the point holding it. The side
-  opposite is read off the traits a rule of direction ties, construction left
-  out, so that a tail hanging off the shape does not count: from the end
-  farthest off the side pulled, the trait whose other end stands farthest too,
-  when that end is at least half as far off and no other trait there reaches as
-  far — a rectangle's far side, a trapezoid's other leg, a slanted top.
-  Otherwise the far corner itself: a triangle's, a roof's whose slopes stand
-  alike. The place grabbed goes round with the hand, and the end of the side
-  nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
+  opposite is read off the ends of the traits a rule of direction ties,
+  construction left out, so that a tail hanging off the shape does not count:
+  of those standing more than half as far off the side pulled as the farthest,
+  the middle of the first and the last along it — a rectangle's far side, a
+  trapezoid's other leg, a slanted top, the arms of a U, a far side drawn in
+  pieces, a house's walls under its roof. A hexagon's middle corners, at half
+  the way exactly, stay out. The place grabbed goes round with the hand, and
+  the end of the side nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
   along, nor has a shape a rule holds upright, or one two fixed points nail
   down.
 
@@ -883,7 +883,9 @@ A trait on its own — nothing joined to it but points held on it, nothing
 holding it — has neither: it travels whole, wherever the hand takes it, and
 what a rule ties it to follows. Where its own rules forbid the place — held on
 an axis, kept at a distance from a point — it goes as near as they allow,
-still whole: along the axis, round the point.
+still whole: along the axis, round the point; and stays where it is when that
+is the nearest. Only one no way of travelling whole is left to — a ladder
+between the two axes — travels across as any side does, and changes.
 
 A turn nobody meant costs more than a resize nobody meant, so a turn has to be
 asked for plainly, one of two ways. The hand going along the side more than
@@ -907,7 +909,7 @@ to another size, as before. Slid round the centre — the hand gone round more
 than twice as far as out — an arc or an ellipse turns about its centre, its
 sweep or its shape kept, and is drawn to the size that keeps the place grabbed
 under the hand; what is joined to it turns with it, and the grid pulls the end
-nearest the hand onto a grid point near where it lands. A size a rule holds —
+nearest the hand onto a grid point near where it lands, at the size it takes. A size a rule holds —
 a radius typed, an axis typed — is kept, and the curve only turns about its
 centre. The turn and the size are one step in the history. A curve a rule
 keeps from turning is drawn to another size instead. A circle looks

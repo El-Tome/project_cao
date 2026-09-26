@@ -95,19 +95,20 @@ impl Sketch {
     }
 
     /// The middle of the side of `shape` standing opposite `side`, read off
-    /// its drawn traits — those a rule of direction ties, when any drawn one
-    /// is, so that a tail hanging off it does not count. From the end standing
-    /// farthest off `side`, the trait whose other end stands farthest too: its
-    /// middle, when that other end is at least half as far off and no other
-    /// trait there reaches as far — a rectangle's far side, a trapezoid's
-    /// other leg, a slanted top. The far corner itself otherwise: a
-    /// triangle's, a roof's whose two slopes stand alike.
+    /// the ends of its drawn traits — those a rule of direction ties, when any
+    /// drawn one is, so that a tail hanging off it does not count. Of the ends
+    /// standing more than half as far off `side` as the farthest, the middle
+    /// of the first and the last along it: a rectangle's far side, a
+    /// trapezoid's other leg, a slanted top, the arms of a U, a far side drawn
+    /// in pieces — and a triangle's far corner, when that one alone stands so
+    /// far off. An end at half the way exactly, a hexagon's middle corner,
+    /// stays out whichever way rounding leans.
     fn opposite(&self, shape: &[PointId], side: SegmentId) -> Option<DVec2> {
         let line = self.segments().get(side.0).copied()?;
         let start = self.point(line.start);
-        let normal = (self.point(line.end) - start).try_normalize()?.perp();
+        let along = (self.point(line.end) - start).try_normalize()?;
         let tied = self.tied_by_direction(shape);
-        let drawn = |tied_only: bool| -> Vec<(PointId, PointId)> {
+        let drawn = |tied_only: bool| -> Vec<DVec2> {
             self.live_segments()
                 .filter(|(id, other)| {
                     *id != side
@@ -116,39 +117,27 @@ impl Sketch {
                         && shape.contains(&other.end)
                         && (!tied_only || tied.contains(id))
                 })
-                .map(|(_, other)| (other.start, other.end))
+                .flat_map(|(_, other)| [self.point(other.start), self.point(other.end)])
                 .collect()
         };
-        let mut traits = drawn(true);
-        if traits.is_empty() {
-            traits = drawn(false);
+        let mut ends = drawn(true);
+        if ends.is_empty() {
+            ends = drawn(false);
         }
-        let off = |point: PointId| (self.point(point) - start).dot(normal).abs();
-        let farthest = |one: &PointId, other: &PointId| off(*one).total_cmp(&off(*other));
-        let far = traits
-            .iter()
-            .flat_map(|(from, to)| [*from, *to])
-            .max_by(farthest)?;
-        if off(far) <= self.drawing_size() * 1e-6 {
+        let off = |place: &DVec2| (*place - start).dot(along.perp()).abs();
+        let far = ends.iter().map(off).fold(0.0, f64::max);
+        if far <= self.drawing_size() * 1e-6 {
             return None;
         }
-        let others: Vec<PointId> = traits
-            .iter()
-            .filter_map(|(from, to)| match (*from == far, *to == far) {
-                (true, _) => Some(*to),
-                (_, true) => Some(*from),
-                _ => None,
-            })
-            .collect();
-        let across = others.iter().copied().max_by(farthest)?;
-        let alike = others
-            .iter()
-            .filter(|other| (off(**other) - off(across)).abs() <= self.drawing_size() * 1e-9)
-            .count();
-        Some(match off(across) >= off(far) / 2.0 && alike == 1 {
-            true => (self.point(far) + self.point(across)) / 2.0,
-            false => self.point(far),
-        })
+        let standing = || ends.iter().filter(|place| off(place) > far * (0.5 + 1e-6));
+        let along_it = |one: &&DVec2, other: &&DVec2| {
+            one.dot(along)
+                .total_cmp(&other.dot(along))
+                .then(off(one).total_cmp(&off(other)))
+        };
+        let first = standing().min_by(along_it)?;
+        let last = standing().max_by(along_it)?;
+        Some((*first + *last) / 2.0)
     }
 
     /// Whether the whole shape can be turned about `about` without a single

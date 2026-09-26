@@ -35,7 +35,8 @@
 //!   further — `a_rectangle_with_only_its_width_typed_takes_its_height_from_the_cursor`;
 //!   past its reach the point stops on the way to the hand and goes no
 //!   further back as the hand goes on —
-//!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`; a point whose
+//!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`,
+//!   `a_hinge_pulled_further_out_of_reach_goes_no_further_back`; a point whose
 //!   one way is round a curve goes round it towards the hand —
 //!   `a_corner_held_at_a_typed_distance_goes_round_towards_the_hand`
 //! - 6: a trait of typed length whose other end is held still pivots about it —
@@ -51,7 +52,8 @@
 //!   test: here; `an_axis_end_dragged_alone_leaves_the_centre_where_it_was` in
 //!   ellipse/tests.rs holds it; taken twice as far off its axis as along it,
 //!   the end follows the hand, the ellipse turning about its centre —
-//!   `an_axis_end_pulled_twice_as_far_off_its_axis_as_along_it_follows_the_hand`
+//!   `an_axis_end_pulled_twice_as_far_off_its_axis_as_along_it_follows_the_hand`,
+//!   `an_axis_end_swung_onto_a_place_as_far_out_as_it_stands_ends_there`
 //! - 8: a trait held by nothing stretches freely —
 //!   `with_no_rules_only_the_dragged_point_moves`, and traits held by lengths
 //!   alone still bend — `two_typed_bars_hinged_together_bend_to_reach_the_cursor`
@@ -67,7 +69,9 @@
 //! - 24: a corner pulled past the opposite one goes through, the shape coming
 //!   out the other way round —
 //!   `a_rectangle_pulled_past_its_opposite_corner_comes_out_the_other_way_round`,
-//!   `a_corner_held_to_its_height_by_a_typed_width_goes_through_the_opposite_side`
+//!   `a_corner_held_to_its_height_by_a_typed_width_goes_through_the_opposite_side`;
+//!   not a shape with a rounded corner, which would come out crossed —
+//!   `a_rounded_corner_keeps_its_rectangle_from_going_through_inside_out`
 //! - 20: the verdict does not change — `a_drag_leaves_the_verdict_and_the_freedom_as_they_were`
 
 use glam::DVec2;
@@ -526,6 +530,67 @@ fn an_axis_end_pulled_twice_as_far_off_its_axis_as_along_it_follows_the_hand() {
         DVec2::new(50.0, 20.0) + eighth.rotate(DVec2::new(0.0, 10.0)),
         "the other axis, turned with it at its length",
     );
+}
+
+#[test]
+fn an_axis_end_swung_onto_a_place_as_far_out_as_it_stands_ends_there() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 20.0));
+    let west = sketch.add_point(DVec2::new(37.0, 20.0));
+    let east = sketch.add_point(DVec2::new(63.0, 20.0));
+    let south = sketch.add_point(DVec2::new(50.0, 15.0));
+    let north = sketch.add_point(DVec2::new(50.0, 25.0));
+    sketch.add_ellipse(centre, [west, east], [south, north]);
+
+    sketch.settle_around(east, DVec2::new(62.0, 15.0), 1.0);
+
+    assert_near(sketch.point(east), DVec2::new(62.0, 15.0), "the end");
+    assert_near(sketch.point(centre), DVec2::new(50.0, 20.0), "the centre");
+}
+
+#[test]
+fn a_rounded_corner_keeps_its_rectangle_from_going_through_inside_out() {
+    let (mut sketch, [a, ..], sides) = upright();
+    sketch
+        .fillet(sides[1], sides[2], 10.0)
+        .expect("the top right corner rounded");
+
+    sketch.settle_around(a, DVec2::new(140.0, 90.0), 1.0);
+
+    assert!(
+        direction(&sketch, sides[1]).y > 0.0,
+        "the right side still runs up into the rounding: {}",
+        direction(&sketch, sides[1])
+    );
+    assert!(
+        direction(&sketch, sides[2]).x < 0.0,
+        "the top still runs away from it: {}",
+        direction(&sketch, sides[2])
+    );
+}
+
+#[test]
+fn a_hinge_pulled_further_out_of_reach_goes_no_further_back() {
+    let mut reached = Vec::new();
+    for hand in [-80.0, -100.0, -150.0] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let tip = sketch.add_point(DVec2::new(0.0, 0.0));
+        let knee = sketch.add_point(DVec2::new(50.0, 30.0));
+        let foot = sketch.add_point(DVec2::new(100.0, 0.0));
+        for (from, to) in [(tip, knee), (knee, foot)] {
+            let bar = sketch.add_segment(from, to);
+            typed(&mut sketch, bar);
+        }
+        sketch.settle_around(tip, DVec2::new(hand, 0.0), 1.0);
+        reached.push(sketch.point(tip).x);
+    }
+
+    for pair in reached.windows(2) {
+        assert!(
+            pair[1] <= pair[0] + 1e-3,
+            "the tip came back as the hand went on: {reached:?}"
+        );
+    }
 }
 
 #[test]

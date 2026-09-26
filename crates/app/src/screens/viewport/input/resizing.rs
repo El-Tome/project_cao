@@ -58,10 +58,14 @@ pub(super) fn drag_curve(
             Some(settling.turn_shape(&turn.points, turn.about, turn.angle, scale))
         }
     };
-    let reach = match &drag {
-        CurveDrag::Resize { reach } | CurveDrag::Along { reach, .. } => *reach,
+    // Slid round, the curve is drawn to the hand only about the centre it
+    // turned on: a size a rule holds is left as it was.
+    let sized = match &drag {
+        CurveDrag::Resize { reach } => Some(settling.resize(curve, *reach, scale)),
+        CurveDrag::Along { reach, .. } => {
+            reach.map(|reach| settling.resize_in_place(curve, reach, scale))
+        }
     };
-    let sized = settling.resize(curve, reach, scale);
 
     if !response.drag_stopped() {
         if let Some(state) = context.editor.select_state() {
@@ -77,19 +81,23 @@ pub(super) fn drag_curve(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    let CurveDrag::Along { turn, .. } = drag else {
-        context
-            .document
-            .apply(resize_operation(index, curve, reach));
-        return true;
+    let (turn, reach) = match drag {
+        CurveDrag::Resize { reach } => {
+            context
+                .document
+                .apply(resize_operation(index, curve, reach));
+            return true;
+        }
+        CurveDrag::Along { turn, reach } => (turn, reach),
     };
     // What the drawing refused writes nothing: a turn it would not take, a
-    // size it gave back. What it took is one step, undone whole.
+    // size it gave back, a size the curve already had. What it took is one
+    // step, undone whole.
     let mut done: Vec<Operation> = Vec::new();
     if turned == Some(LengthOutcome::Exact) {
         done.extend(turn_operation(index, &turn));
     }
-    if sized == LengthOutcome::Exact {
+    if let (Some(reach), Some(LengthOutcome::Exact)) = (reach, sized) {
         done.push(resize_operation(index, curve, reach));
     }
     let written = match done.len() {

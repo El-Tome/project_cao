@@ -21,6 +21,9 @@ pub(crate) struct Kept {
     /// Unit, square to the line kept.
     pub(crate) normal: DVec2,
     pub(crate) at: f64,
+    /// The way the line ran when it was kept, which its equation alone cannot
+    /// tell from the way back.
+    along: DVec2,
     /// The trait whose direction this is, when it is one.
     pub(crate) segment: Option<SegmentId>,
 }
@@ -40,6 +43,7 @@ impl Kept {
             to,
             normal: along.perp(),
             at: 0.0,
+            along,
             segment,
         })
     }
@@ -52,12 +56,43 @@ impl Kept {
             to: point,
             normal,
             at: sketch.point(point).dot(normal) + by,
+            along: DVec2::ZERO,
             segment: None,
         }
     }
 }
 
+impl Kept {
+    /// Whether a direction kept came out the other way round where it may
+    /// not. Its equation cannot see it — a line is the same line both ways —
+    /// but a direction that went through nought to get there has been turned
+    /// half round. A trait may: a corner pulled past the opposite one turns
+    /// its shape inside out. Not the ray from an arc's centre to its end,
+    /// which would turn the arc inside out, nor a trait rounded into a curve,
+    /// whose fillet or cap would come out crossed.
+    pub(crate) fn runs_backwards(&self, sketch: &Sketch) -> bool {
+        let Some(from) = self.from else {
+            return false;
+        };
+        if self
+            .segment
+            .is_some_and(|segment| !sketch.is_rounded(segment))
+        {
+            return false;
+        }
+        (sketch.point(self.to) - sketch.point(from)).dot(self.along) <= 0.0
+    }
+}
+
 impl Sketch {
+    /// Whether a trait runs into a curve it is tangent to — a fillet's side,
+    /// a slot's flat.
+    fn is_rounded(&self, segment: SegmentId) -> bool {
+        self.constraints().iter().any(|rule| {
+            matches!(rule, Constraint::ArcTangent { segment: rounded, .. } if *rounded == segment)
+        })
+    }
+
     /// The lines the drag under way keeps; none outside one.
     pub(crate) fn kept_lines(&self) -> &[Kept] {
         &self.held.lines

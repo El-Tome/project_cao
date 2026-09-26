@@ -92,6 +92,43 @@ impl Sketch {
     }
 }
 
+impl Sketch {
+    /// Draws a curve to a new size about the centre it stands on, and keeps
+    /// it only when the centre stayed there and an ellipse kept its shape. A
+    /// size a rule holds is given back whole, rather than had by moving the
+    /// curve off its centre: what a curve slid round is drawn to.
+    pub fn resize_in_place(
+        &mut self,
+        curve: Curved,
+        reach: f64,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        let centre = self.centre_of(curve);
+        let shape = self.proportion(curve);
+        let kept = self.shapes_now();
+        let outcome = self.resize(curve, reach, millimeters_per_unit);
+        let in_place = self.centre_of(curve).distance(centre) <= self.drawing_size() * 1e-5
+            && (self.proportion(curve) - shape).abs() <= shape * 1e-5;
+        if outcome == LengthOutcome::Exact && in_place {
+            return outcome;
+        }
+        self.give_back(kept);
+        LengthOutcome::BestEffort
+    }
+
+    /// How much longer an ellipse's first axis is than its second; one for a
+    /// round curve, which has no shape to lose.
+    fn proportion(&self, curve: Curved) -> f64 {
+        match curve {
+            Curved::Ellipse(ellipse) => {
+                let drawn = self.ellipse_draft(ellipse);
+                drawn.first.length() / drawn.second.max(1e-12)
+            }
+            Curved::Circle(_) | Curved::Arc(_) => 1.0,
+        }
+    }
+}
+
 /// Below this a circle is not a circle, and an arc turns about nothing.
 const NO_REACH: f64 = 1e-9;
 

@@ -16,14 +16,16 @@
 //!   the drawing the drag showed is the one recorded —
 //!   `a_corner_dragged_is_rebuilt_where_the_drag_showed_it`, an arc turned and
 //!   drawn to the hand in one step included —
-//!   `an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown`; and compacting
+//!   `an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown`, and an
+//!   ellipse's axis end swung onto a trait —
+//!   `an_axis_end_swung_onto_a_trait_is_rebuilt_where_the_drag_showed_it`; and compacting
 //!   the history keeps the shape both left —
 //!   `compacting_keeps_the_shape_a_side_moved_and_a_turn_left`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::{
-    ArcId, Constraint, CurveDrag, Curved, DimensionTarget, PointId, SegmentId, Sketch,
-    SnapSettings, WorkPlane,
+    ArcId, Constraint, CurveDrag, Curved, DimensionTarget, EllipseId, PointId, SegmentId, Sketch,
+    SnapSettings, Support, WorkPlane,
 };
 use chrono::{DateTime, Utc};
 use glam::DVec2;
@@ -286,14 +288,16 @@ fn an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown() {
     };
     let pressed = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.8) * 40.0;
     let cursor = DVec2::new(50.0, 50.0) + DVec2::from_angle(1.1) * 45.0;
-    let CurveDrag::Along { turn, reach } =
-        document.sketches()[0].curve_drag(curve, pressed, cursor, cursor, &no_grid, 1.0)
+    let CurveDrag::Along {
+        turn,
+        reach: Some(reach),
+    } = document.sketches()[0].curve_drag(curve, pressed, cursor, cursor, &no_grid, 1.0)
     else {
-        panic!("sliding along the arc turns it");
+        panic!("sliding along the arc turns it and draws it out");
     };
     let mut shown = document.sketches()[0].clone();
     shown.turn_shape(&turn.points, turn.about, turn.angle, 1.0);
-    shown.resize(curve, reach, 1.0);
+    shown.resize_in_place(curve, reach, 1.0);
 
     document.apply(Operation::Gesture(vec![
         Operation::TurnShape {
@@ -312,6 +316,56 @@ fn an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown() {
     assert_same(document.sketches()[0].points(), shown.points());
     document.undo();
     assert_same(document.sketches()[0].points(), &before);
+    document.redo();
+    assert_same(document.sketches()[0].points(), shown.points());
+}
+
+#[test]
+fn an_axis_end_swung_onto_a_trait_is_rebuilt_where_the_drag_showed_it() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(50.0, 20.0)),
+        first: [
+            PointRef::New(DVec2::new(20.0, 20.0)),
+            PointRef::New(DVec2::new(80.0, 20.0)),
+        ],
+        second: [
+            PointRef::New(DVec2::new(50.0, 10.0)),
+            PointRef::New(DVec2::new(50.0, 30.0)),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(60.0, 45.0)),
+        end: PointRef::New(DVec2::new(90.0, 45.0)),
+        construction: false,
+    });
+    let line = SegmentId(document.sketches()[0].segments().len() - 1);
+    let [_, _, east, ..] = document.sketches()[0].ellipse_points(EllipseId(0));
+    let landing = DVec2::new(75.0, 45.0);
+    let mut shown = document.sketches()[0].clone();
+    let pull = shown.pull(east, 1.0);
+    shown.settle_pulled(&pull, landing, 1.0);
+    assert!(pull.arrived(&shown, landing), "the end reached the hand");
+
+    document.apply(Operation::MovePoint {
+        sketch: 0,
+        point: east,
+        position: landing,
+        merged_into: None,
+        on: vec![Support::Segment(line)],
+        let_go: false,
+    });
+
+    assert_same(document.sketches()[0].points(), shown.points());
+    document.undo();
     document.redo();
     assert_same(document.sketches()[0].points(), shown.points());
 }

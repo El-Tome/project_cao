@@ -17,8 +17,8 @@ impl Sketch {
     /// side keeps its direction, and so does every trait of its shape a rule of
     /// direction ties; the point of the shape farthest off the side stays
     /// where it is. A trait on its own has no shape to stretch, and travels
-    /// the whole of `by`. What cannot be had is given back whole: the side
-    /// stays.
+    /// as much of `by` as its rules let it. What cannot be had is given back
+    /// whole: the side stays.
     pub fn move_side(
         &mut self,
         side: SegmentId,
@@ -38,8 +38,10 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_through(&[line.start, line.end]);
-        if self.travels_whole(&shape, self.point(line.start), normal) {
-            return self.carry(shape, by, millimeters_per_unit);
+        if self.travels_whole(&shape, self.point(line.start), normal)
+            && let Some(way) = self.free_way(&shape, by, along, millimeters_per_unit)
+        {
+            return self.carry(shape, way, millimeters_per_unit);
         }
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
@@ -101,6 +103,28 @@ impl Sketch {
         })
     }
 
+    /// How much of `by` a trait on its own can travel with every rule of the
+    /// drawing still true: all of it, or its share along the one way its rules
+    /// leave it free to go — along itself or square to itself, a trait held on
+    /// an axis. Nothing when neither is free, a trait kept at a distance from
+    /// a point for one: it then travels across as any side does, its ends
+    /// sliding along it.
+    fn free_way(
+        &self,
+        shape: &[PointId],
+        by: DVec2,
+        along: DVec2,
+        millimeters_per_unit: f64,
+    ) -> Option<DVec2> {
+        let free = |way: DVec2| self.travels_freely(shape, way, millimeters_per_unit);
+        match (free(along), free(along.perp())) {
+            (true, true) => Some(by),
+            (true, false) => Some(along * by.dot(along)),
+            (false, true) => Some(along.perp() * by.dot(along.perp())),
+            (false, false) => None,
+        }
+    }
+
     /// Every point of `shape` moved by `by` and held there while the rest of
     /// the drawing settles, or the drawing given back whole.
     fn carry(
@@ -130,12 +154,7 @@ impl Sketch {
     /// Taken among the points lying on the traits a rule of direction ties
     /// first, as the point a drag keeps is: a tail hanging off a rectangle,
     /// however far it reaches, does not take the place of its opposite side.
-    pub(crate) fn farthest_off(
-        &self,
-        shape: &[PointId],
-        side: &[PointId],
-        normal: DVec2,
-    ) -> Option<PointId> {
+    fn farthest_off(&self, shape: &[PointId], side: &[PointId], normal: DVec2) -> Option<PointId> {
         let pinned = self.pinned_points();
         if shape.iter().any(|point| pinned[point.0]) {
             return None;

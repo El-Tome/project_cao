@@ -4,7 +4,8 @@
 //!
 //! The rule it holds is the one a hand expects from a mouse: the shape
 //! stretches to follow, the point farthest from the hand stays where it is,
-//! and the shape turns only when stretching cannot follow at all.
+//! and the shape turns only when stretching cannot follow at all — or when an
+//! ellipse's axis end is taken well off its axis, which is asking for a turn.
 
 use glam::DVec2;
 
@@ -58,6 +59,18 @@ struct Holding {
     /// The centre an ellipse's axis end swings about, when the point is one:
     /// taken far enough off its axis, the end follows the hand.
     swings: Option<PointId>,
+}
+
+impl PointPull {
+    /// The same pull with its swing taken away: an axis end already turned
+    /// towards the hand only stretches, however little rounding leaves it
+    /// off the axis.
+    fn held_to_its_axis(mut self) -> Self {
+        if let Way::Held(holding) = &mut self.way {
+            holding.swings = None;
+        }
+        self
+    }
 }
 
 impl Sketch {
@@ -311,7 +324,9 @@ impl Sketch {
             millimeters_per_unit,
         );
         if turned == LengthOutcome::Exact {
-            let along = self.pull(pull.point, millimeters_per_unit);
+            let along = self
+                .pull(pull.point, millimeters_per_unit)
+                .held_to_its_axis();
             if self.settle_pulled(&along, position, millimeters_per_unit) == LengthOutcome::Exact {
                 return true;
             }
@@ -322,9 +337,8 @@ impl Sketch {
 
     /// Settles the drawing with `points` held still and `lines` kept, and
     /// says whether it came out whole: every value true, no trait squeezed to
-    /// nothing, no tangency slid off. A kept trait may come out the other way
-    /// round: a corner pulled past the opposite one turns its shape inside
-    /// out, as the hand asked.
+    /// nothing, no tangency slid off, nothing kept come out the other way
+    /// round where it may not (`Kept::runs_backwards`).
     pub(crate) fn settle_held(
         &mut self,
         points: Vec<PointId>,
@@ -334,9 +348,11 @@ impl Sketch {
         self.held.points = points;
         self.held.lines = lines;
         let outcome = self.resolve(millimeters_per_unit);
+        let backwards = self.held.lines.iter().any(|line| line.runs_backwards(self));
         self.held.points.clear();
         self.held.lines.clear();
         outcome == LengthOutcome::Exact
+            && !backwards
             && !self.has_a_collapsed_trait(self.drawing_size())
             && !self.has_a_flipped_tangent()
     }

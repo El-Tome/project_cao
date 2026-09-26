@@ -14,9 +14,11 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 use crate::turning::{Turn, angle_onto_grid};
 
-/// How much plainer a turn has to be than a pull before a gesture turns: a
-/// pull across that drifts sideways keeps resizing until the drift is twice
-/// the pull. A turn nobody meant costs more than a resize nobody meant.
+/// How much plainer a turn has to be than a pull before a gesture turns. At
+/// the middle of a side, a pull across that drifts sideways keeps resizing
+/// until the drift is twice the pull; nearer a corner, where a turn about the
+/// far side sets off on a slant, a pull slanting that way turns sooner. A turn
+/// nobody meant costs more than a resize nobody meant.
 pub(crate) const TURN_BIAS: f64 = 2.0;
 
 /// What a side pulled asks for.
@@ -36,8 +38,9 @@ pub enum CurveDrag {
     /// Drawn to another size about its centre, as #375 has it.
     Resize { reach: f64 },
     /// Turned with its shape, and drawn to the size that brings the place
-    /// grabbed under the hand: `reach` in [`Sketch::resize`]'s measure.
-    Along { turn: Turn, reach: f64 },
+    /// grabbed under the hand: `reach` in [`Sketch::resize`]'s measure,
+    /// nothing when that is the size the curve has.
+    Along { turn: Turn, reach: Option<f64> },
 }
 
 /// What a press takes hold of to pull, when it took hold of no point.
@@ -100,7 +103,8 @@ impl Sketch {
     /// hand's own places, before any magnet: pulled back onto the side it was
     /// pressed on, a pull would read as a slide.
     ///
-    /// A trait on its own travels whole, wherever the hand takes it. A shape
+    /// A trait on its own travels whole towards wherever the hand takes it,
+    /// as far as its rules let it (`Sketch::move_side`). A shape
     /// with no place to turn about, or whose place lies on the side's own
     /// line, has no along: it only travels sideways.
     pub fn side_drag(
@@ -247,7 +251,7 @@ impl Sketch {
                 about,
                 angle,
             },
-            reach,
+            reach: ((reach - now).abs() > now * 1e-9).then_some(reach),
         }
     }
 }

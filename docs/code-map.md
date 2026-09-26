@@ -85,7 +85,8 @@ in one of the two domains, never there.
 | Where a dragged point can go without its shape turning | `sketch/src/sketch/settling/give.rs` | `Give`, `give_of` |
 | The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |
 | The way-up guard of a drawing that settles | `sketch/src/solver/orientation.rs` | `orientations`, `hold_orientations`, `rotation_gauges` |
-| A side or a curve pulled: across or along, a side moved, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `move_side`, `SideDrag`, `CurveDrag` |
+| A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |
+| A side moved across, the shape stretching after it | `sketch/src/pulling/travel.rs` | `Sketch::move_side` |
 | A shape turned by hand, and the grid pulling its end | `sketch/src/turning.rs` | `Turn`, `Sketch::turn_shape`, `angle_onto_grid` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |

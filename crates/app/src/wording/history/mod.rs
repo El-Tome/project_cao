@@ -2,6 +2,7 @@
 //! into.
 
 mod detail;
+mod moved;
 mod sized;
 mod values;
 
@@ -44,6 +45,8 @@ pub fn label(lang: &Catalogue, variables: &Variables, operation: &Operation) -> 
             ..
         } => lang.t("history.points_merged"),
         Operation::MovePoint { .. } | Operation::MoveMany { .. } => lang.t("history.move"),
+        Operation::MoveSegment { .. } => lang.t("history.side_moved"),
+        Operation::TurnShape { .. } => lang.t("history.turned"),
         Operation::ResizeCircle { .. }
         | Operation::ResizeArc { .. }
         | Operation::ResizeEllipse { .. } => lang.t("history.resized"),

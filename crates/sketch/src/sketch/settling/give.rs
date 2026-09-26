@@ -1,0 +1,170 @@
+//! Where a dragged point is free to go without its shape turning, read once
+//! from the drawing as the press found it.
+
+use glam::DVec2;
+
+use super::kept::Kept;
+use crate::equation::Equation;
+use crate::independence::{null_space, turns_nothing};
+use crate::sketch::{PointId, Sketch};
+
+/// How a dragged point can follow the hand, its shape keeping its way up.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum Give {
+    /// Anywhere: the shape stretches to follow.
+    Free,
+    /// Along one line only, this way or the other: the shape stretches that
+    /// way and no further.
+    Along(DVec2),
+    /// Nowhere, and the shape can turn about the point that stays: it pivots.
+    Nowhere,
+    /// Nowhere, and turning would break a rule: nothing moves.
+    Stuck,
+}
+
+impl Sketch {
+    /// How `point` can follow the hand once `pins` stay put and `lines` are
+    /// kept, everything the drawing's rules do not tie to its shape held
+    /// still — a hole placed from a corner by a typed distance follows the
+    /// corner, and must count as free to.
+    ///
+    /// Read off the drawing's own equations as it stands — the directions the
+    /// point can travel in without any of them giving. When a turn of the
+    /// whole shape about the place it would pivot on is itself one of those
+    /// motions, it is taken out first: all that question asks is whether the
+    /// point can go anywhere without the shape turning.
+    pub(crate) fn give_of(
+        &self,
+        point: PointId,
+        shape: &[PointId],
+        pins: &[PointId],
+        lines: &[Kept],
+        about: Option<PointId>,
+        millimeters_per_unit: f64,
+    ) -> Give {
+        let mut pinned: Vec<bool> = self.pinned_points();
+        for pin in pins {
+            pinned[pin.0] = true;
+        }
+        pinned[point.0] = false;
+        let tied = self.tied_to(shape, &pinned, millimeters_per_unit);
+        for (index, pinned) in pinned.iter_mut().enumerate() {
+            if !tied[index] {
+                *pinned = true;
+            }
+        }
+
+        let mut system = self.rows_touching(&tied, &pinned, lines, millimeters_per_unit);
+        let turn = about
+            .filter(|about| *about != point)
+            .map(|about| self.turn_about(shape, about, &pinned))
+            .filter(|turn| system.iter().all(|row| turns_nothing(row, turn)));
+        let turning_is_free = turn.is_some();
+        system.extend(turn);
+        let free = null_space(&system, &pinned, self.variables());
+        let span = spanned(
+            free.iter()
+                .map(|way| DVec2::new(way[point.0 * 2], way[point.0 * 2 + 1])),
+        );
+
+        match (span.as_slice(), turning_is_free) {
+            ([], _) => match about.is_some_and(|about| {
+                self.turns_freely_about(shape, self.point(about), millimeters_per_unit)
+            }) {
+                true => Give::Nowhere,
+                false => Give::Stuck,
+            },
+            ([only], false) => Give::Along(*only),
+            _ => Give::Free,
+        }
+    }
+
+    /// The rows that speak of anything the shape is free to move: its points
+    /// and the sizes of the circles centred in it.
+    fn rows_touching(
+        &self,
+        tied: &[bool],
+        pinned: &[bool],
+        lines: &[Kept],
+        millimeters_per_unit: f64,
+    ) -> Vec<Equation> {
+        let mut columns: Vec<usize> = (0..tied.len())
+            .filter(|index| tied[*index] && !pinned[*index])
+            .flat_map(|index| [index * 2, index * 2 + 1])
+            .collect();
+        columns.extend(
+            self.live_circles()
+                .filter(|(_, round)| tied.get(round.center.0).copied().unwrap_or(false))
+                .filter_map(|(id, _)| self.radius_column(id)),
+        );
+        let mut rows = self.equations_pinned_by(millimeters_per_unit, pinned);
+        rows.extend(lines.iter().filter_map(|line| self.kept_row(line, pinned)));
+        rows.retain(|row| columns.iter().any(|column| row.gradient[*column] != 0.0));
+        rows
+    }
+
+    /// The points the drawing's rules tie to the shape, however far round: a
+    /// row that speaks of a point already tied brings every free point it
+    /// speaks of with it. What a pinned point holds stays apart, as it does in
+    /// the settling itself.
+    fn tied_to(&self, shape: &[PointId], pinned: &[bool], millimeters_per_unit: f64) -> Vec<bool> {
+        let count = self.points().len();
+        let mut tied = vec![false; count];
+        for point in shape {
+            tied[point.0] = true;
+        }
+        let rows = self.equations_pinned_by(millimeters_per_unit, pinned);
+        let spoken: Vec<Vec<usize>> = rows
+            .iter()
+            .map(|row| {
+                (0..count)
+                    .filter(|index| {
+                        row.gradient[index * 2] != 0.0 || row.gradient[index * 2 + 1] != 0.0
+                    })
+                    .collect()
+            })
+            .collect();
+        loop {
+            let mut grew = false;
+            for points in &spoken {
+                if points.iter().any(|index| tied[*index]) {
+                    for index in points {
+                        grew |= !tied[*index];
+                        tied[*index] = true;
+                    }
+                }
+            }
+            if !grew {
+                return tied;
+            }
+        }
+    }
+
+    /// A turn of the shape's free points about `about`, written as a row.
+    fn turn_about(&self, shape: &[PointId], about: PointId, pinned: &[bool]) -> Equation {
+        let centre = self.point(about);
+        let mut turn = Equation::new(self.variables());
+        for each in shape.iter().filter(|each| !pinned[each.0]) {
+            turn.add(*each, (self.point(*each) - centre).perp());
+        }
+        turn
+    }
+}
+
+/// The directions a handful of vectors span in the plane, as at most two unit
+/// vectors square to each other. What is too short to say anything is dust.
+fn spanned(ways: impl Iterator<Item = DVec2>) -> Vec<DVec2> {
+    let mut basis: Vec<DVec2> = Vec::new();
+    for way in ways {
+        let rest = basis
+            .iter()
+            .fold(way, |rest, each| rest - *each * rest.dot(*each));
+        if rest.length() > 1e-3 {
+            basis.push(rest.normalize());
+        }
+        if basis.len() == 2 {
+            break;
+        }
+    }
+    basis
+}

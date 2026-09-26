@@ -59,6 +59,22 @@ pub(crate) fn is_dependent(equations: &[Equation], candidate: &Equation) -> bool
     independent_rows(equations, Some(candidate)).1
 }
 
+/// Whether an equation says nothing about which way round the drawing sits.
+///
+/// A dimension taken against an axis already fixes the orientation; adding the
+/// implicit rule on top of it would take away a freedom twice and report a
+/// drawing as more settled than it is.
+pub(crate) fn turns_nothing(equation: &Equation, gauge: &Equation) -> bool {
+    let projection: f64 = equation
+        .gradient
+        .iter()
+        .zip(&gauge.gradient)
+        .map(|(a, b)| a * b)
+        .sum();
+    let sizes = norm(&equation.gradient) * norm(&gauge.gradient);
+    sizes < 1e-12 || (projection / sizes).abs() < 1e-3
+}
+
 fn independent_rows(equations: &[Equation], candidate: Option<&Equation>) -> (usize, bool) {
     let mut basis: Vec<Vec<f64>> = Vec::new();
 

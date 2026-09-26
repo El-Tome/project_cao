@@ -78,7 +78,17 @@ in one of the two domains, never there.
 | What a rule holding a point asks of the solver, and which of the two gives | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `held_alone`, `pulled_elsewhere` |
 | What being an ellipse asks of the solver: axes square and halved by the centre | `sketch/src/solver/ellipse_solver.rs` | `ellipse_equations` |
 | What a circle or an ellipse brushing a line asks of the solver | `sketch/src/solver/tangent_solver.rs` | `circle_tangent_equations`, `ellipse_tangent_equations` |
-| A point dropped and the drawing settled around it; an axis end held about its ellipse's centre | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
+| A point dropped and the drawing settled around it; a handful dropped at once | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
+| What a drag of one point may do: stretch, follow one way, pivot, or nothing | `sketch/src/sketch/settling/pull.rs` | `PointPull`, `Sketch::pull`, `settle_pulled` |
+| Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to` |
+| The shape a dragged point belongs to, and the point of it that stays | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `stay_point`, `centres_under`, `turned_about` |
+| The traits a drag keeps pointing the way they did | `sketch/src/sketch/settling/kept.rs` | `Kept`, `tied_by_direction`, `lines_kept_in` |
+| Where a dragged point can go without its shape turning | `sketch/src/sketch/settling/give.rs` | `Give`, `give_of` |
+| The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |
+| The way-up guard of a drawing that settles | `sketch/src/solver/orientation.rs` | `orientations`, `hold_orientations`, `rotation_gauges` |
+| A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |
+| A side moved across, the shape stretching after it | `sketch/src/pulling/travel.rs` | `Sketch::move_side` |
+| A shape turned by hand, and the grid pulling its end | `sketch/src/turning.rs` | `Turn`, `Sketch::turn_shape`, `angle_onto_grid` |
 | Kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | What the constraint tool is pointed at, and what it means once shown enough | `sketch/src/rule_intent.rs` | `rule_intent`, `Rule`, `RuleIntent`, `RulePick` |
 | Where a rule's mark is written, and the nearest one to a cursor | `sketch/src/rule_marks.rs` | `Sketch::rule_marks`, `Sketch::nearest_rule` |
@@ -89,7 +99,7 @@ in one of the two domains, never there.
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
-| A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_circle`, `resize_arc`, `resize_ellipse` |
+| A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_in_place`, `resize_circle`, `resize_arc`, `resize_ellipse` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
@@ -141,6 +151,7 @@ What it does: [`extrusion.md`](extrusion.md).
 | What a replay notes: what each operation laid, what was raised, which values left the drawing | `part/src/replay.rs` | `Replay`, `Laid`, `SetBy`, `next_value_set` |
 | The six ways a curve is replaced by other curves | `part/src/cutting.rs` | `PartState::trim`, `trim_arc`, `trim_circle`, `split`, `chamfer`, `fillet`, `PartState::area_rank` |
 | A circle, an arc or an ellipse laid down again as the history replays it | `part/src/curves.rs` | `PartState::add_circle`, `add_arc`, `add_ellipse` |
+| A side moved across or a shape turned, replayed | `part/src/pulled.rs` | `PartState::move_segment`, `turn_shape` |
 | A point, a trait, a symmetric trait or a rectangle laid down again as the history replays it | `part/src/straight.rs` | `PartState::add_point`, `add_segment`, `add_symmetric_segment`, `add_rectangle` |
 | What a drawing's curves became, so a name written before a cut can be read after it | `part/src/descent.rs` | `Descent::record`, `Descent::follow` |
 | What a part does when a tool lays copies down | `part/src/copying.rs` | `PartState::mirror`, `PartState::pattern_around`, `PartState::pattern_along` |
@@ -242,9 +253,12 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the copies a mirror or a pattern would lay, shown before the click that names where | `app/src/screens/viewport/input/copying/preview.rs` | `previewed` |
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
-| Canvas: drawing a circle, an arc or an ellipse to another size by its curve | `app/src/screens/viewport/input/resizing.rs` | `grabbed_curve`, `drag_curve` |
-| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `drag_group`, `drag_annotation`, `letting_go` |
-| Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
+| Canvas: drawing a circle, an arc or an ellipse to another size by its curve, or turning it | `app/src/screens/viewport/input/resizing.rs` | `drag_curve` |
+| Canvas: a side pulled across or slid along, and the step it writes — a curve slid round's too | `app/src/screens/viewport/input/sides.rs` | `drag_side`, `side_operation`, `turn_operation`, `curve_turn_operation`, `resize_operation` |
+| Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `letting_go`, `reshaped` |
+| Canvas: a selection pressed on and moved as one block | `app/src/screens/viewport/input/selection_drag.rs` | `grabbed_group`, `drag_group` |
+| Canvas: moving an annotation, finding the one under the cursor | `app/src/screens/viewport/input/annotation_drag.rs` | `drag_annotation`, `nearest_annotation`, `annotation_position` |
+| Canvas: what a point laid down by a tool lands on, and what a dragged one is held by once dropped | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `held_at_drop`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |

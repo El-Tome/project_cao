@@ -55,9 +55,10 @@ the points it stands on: a curve that swings out of the box between its two ends
 is not held entirely, and a curve whose centre lies outside the box still is.
 
 Who answers the drag is decided **when the gesture starts** and stays so to the
-end: a point under the cursor at press time moves, otherwise it is a box.
-Without that the gesture would change nature halfway, the moment the cursor
-passed over a point.
+end: a point under the cursor at press time moves; otherwise an annotation, a
+side or a curve under it; otherwise it is a box. Without that the gesture would
+change nature halfway, the moment the cursor passed over a point. A drag that
+moves the view — a pan, an orbit — takes hold of nothing.
 
 `Cmd`/`Ctrl` (or `Shift`) while clicking **adds or removes** one element at a
 time, and works with the box too. That is what lets three traits be named that
@@ -451,10 +452,15 @@ the whole curve through its centre, as on a drawing. They are what it is
 measured by: a length on an axis is the ellipse's width that way, as a diameter
 is a circle's. Clicking the curve itself with the dimension tool lays nothing.
 
-- **Pulling an axis end** turns or stretches that axis about the centre, which
-  stays put; the other axis stays square to it.
+- **Pulling an axis end** lengthens or shortens that axis along itself, about
+  the centre, which stays put. Taken twice as far off the axis as along it,
+  the end follows the hand: the ellipse turns about its centre and the axis
+  stretches to it at once. When the axis's length is typed, pulling its end
+  turns the ellipse about its centre instead.
 - **Pulling the centre** moves the whole ellipse.
-- **Pulling the curve** scales it about its centre, both axes together.
+- **Pulling the curve** out or in scales it about its centre, both axes
+  together; **sliding along the curve** turns it about its centre, and scales
+  it so the place grabbed stays under the hand.
 - The axes **go with the ellipse**: erasing it erases them, and erasing an axis
   erases the ellipse, which cannot stand without it. No tool cuts an axis back —
   trim, chamfer and fillet leave it whole. Only the two-ends placement lays one
@@ -650,9 +656,10 @@ stands. Holding the let-go key while dragging that end frees it from the curve
 as it frees a point from what holds it. An end two arcs share follows neither
 — it has two circles to choose from.
 
-A **click** is still a click: it selects. Only a drag resizes, and a drag that
-starts on something already selected still moves the whole selection. The
-centre still carries the shape, which is how a circle travels.
+A **click** is still a click: it selects. Only a drag resizes — out or in; an
+arc or an ellipse slid along its curve turns instead, see "Sliding a curve" —
+and a drag that starts on something already selected still moves the whole
+selection. The centre still carries the shape, which is how a circle travels.
 
 The size is not a value: nothing is pinned, and no dimension is left behind.
 Type a diameter and it is the diameter that answers from then on — the drag
@@ -775,11 +782,13 @@ radius being keyed in, and the grid of a pattern fills out as its count does.
 
 ### While a point is being moved
 
-The point held under the cursor **does not give way**: the drawing settles
-*around* it. The solver pins it for the length of the gesture, exactly like the
-origin point. Without that the constraints pull it partly back, the shape comes
-out from under the cursor — which is what made a tangent circle so tiresome to
-move.
+The point held under the cursor **does not give way** wherever the drawing lets
+it go: the drawing settles *around* it. The solver pins it for the length of the
+gesture, exactly like the origin point. Without that the constraints pull it
+partly back, the shape comes out from under the cursor — which is what made a
+tangent circle so tiresome to move. Where the drawing does not let it go all the
+way, it goes as far as its shape can follow: see "The shape stretches before it
+turns".
 
 The drawing is shown **as it will settle** if released there: the solver runs
 every frame, and the values already given pull the rest of the shape along with
@@ -793,27 +802,134 @@ while the lines they belong to moved away.
 Nothing is recorded for all that: the history receives one single operation, on
 release.
 
+### The shape stretches before it turns
+
+A shape pulled by one of its points would rather turn than give: turning it
+breaks none of its rules, and the solver's corrections for an angle turn traits
+rather than stretch them. So a drag is read once, when the press lands
+(`Sketch::pull`), and asks three things of the drawing:
+
+- **What stays where it is.** The point holding the shape when there is one —
+  the origin, a fixed point. Otherwise the centre of the curve the dragged point
+  lies on. Otherwise the point of the shape farthest from the hand, counted
+  first along the traits a rule of direction ties together, which is what makes
+  it a rectangle's opposite corner whatever free tail hangs off it.
+- **What keeps its direction.** Every trait a rule of direction ties — square,
+  parallel, on one line, an angle, an ellipse's two axes — and the ray from an
+  arc's centre to each end not being pulled. These are linear rows swept before
+  every other, so a rectangle lands on its answer in one sweep: its corner goes
+  under the cursor, the two sides meeting there change length, and the opposite
+  corner does not move. A trait held by a length alone keeps nothing: two bars
+  of typed length hinged together still bend.
+- **Where the point is free to go** without its shape turning, read off the
+  drawing's own equations. Anywhere, and the shape stretches to follow. Along
+  one line only — a rectangle whose width is typed — and the point follows the
+  hand that way and no further. Nowhere — every size typed — and the shape
+  pivots about what stays, the point stopping at the distance its sizes allow;
+  a pivot a rule forbids, a trait held level for one, leaves the shape where it
+  is. While a shape pivots, its end is turned onto a grid point within reach,
+  which is what brings a shape drawn on the grid back square in one gesture.
+
+A curve's centre still carries its curve, a point held halfway along a trait
+still carries the trait, and a point held on a curve still slides round it: an
+arc's end opens or closes the arc about its centre, and an ellipse's axis end
+lengthens that axis along itself — and turns the ellipse only when taken twice
+as far off the axis as along it.
+
 ### When the gesture is impossible
 
-Holding the point is not always within the drawing's reach: a corner pulled
-where no tangency can follow it, for instance. The values already given then
-win over the cursor — everything comes back into place and settles the ordinary
-way, the point going as far as the drawing lets it.
+A place the shape cannot take all the way is approached as far as it can go:
+the point is let go of there and the drawing pulls it back onto what it can
+really reach, or the way to it is halved until the last place it still follows
+to. And if nothing can be had — a trait would be crushed to nothing, a
+tangency's contact would slide off its segment — the gesture is **refused**: the
+point does not go there. A trait of zero length is not geometry, and its
+equations can no longer even be written.
 
-And if even that crushes a trait until nothing is left of it, the gesture is
-**refused**: the point does not go there. A trait of zero length is not
-geometry, and its equations can no longer even be written — the system would
-declare itself satisfied while the drawing had fallen apart.
+A corner pulled past the opposite one is not refused: it goes through, and the
+shape comes out the other way round, its traits on the lines they had. Not
+where that would turn a curve inside out — the ray from an arc's centre to its
+end, or a trait rounded into a fillet or a slot's cap, does not reverse.
+
+A point that stopped short of the hand is dropped on nothing: what the hand is
+over is not where the point is.
+
+### Pulling a side
+
+A press on a trait that is not selected takes hold of it, when it lies nearer
+than any curve. The gesture decides, at every instant, about the place the
+shape would turn on:
+
+- **Across** — the side travels sideways. Its line moves, not its two ends:
+  each end slides along the trait joining it, so a triangle pulled by its
+  hypotenuse grows. The point of the shape farthest off the side stays where it
+  is; a shape that cannot stretch across leaves its side where it was, and a
+  side pulled past the opposite one goes through.
+- **Along** — the shape turns, rigidly, about the middle of the side standing
+  opposite the one pulled, which stays where it is — about its far corner when
+  none stands opposite, a triangle's, or about the point holding it. The side
+  opposite is read off the ends of the traits a rule of direction ties,
+  construction left out, so that a tail hanging off the shape does not count,
+  on the side of the pulled one the shape stands on. The ends standing nearly
+  as far off as the farthest — within a twentieth — are the far side, whole or
+  in pieces, and the shape turns about the middle of the first and the last of
+  them: a rectangle's top, a U's arms, a top rounded or chamfered at its
+  corners, a hexagon's or an octagon's. One end alone that far is a corner,
+  and the far side runs down from it along the one trait whose other end
+  stands more than half as far off — a trapezoid's other leg, a slanted top;
+  when no trait does, or two alike do, it is the corner itself — a
+  triangle's, a roof's. The place grabbed goes round with the hand, and the
+  end of the side nearest the hand is pulled onto the grid. A shape whose pivot lies on the side's own line has no
+  along, nor has a shape a rule holds upright, or one two fixed points nail
+  down.
+
+A trait on its own — nothing joined to it but points held on it, nothing
+holding it — has neither: it travels whole, wherever the hand takes it, and
+what a rule ties it to follows. Where its own rules forbid the place — held on
+an axis, kept at a distance from a point — it goes as near as they allow,
+still whole: along the axis, round the point; and stays where it is when that
+is the nearest. Only one no way of travelling whole is left to — a ladder
+between the two axes — travels across as any side does, and changes.
+
+A turn nobody meant costs more than a resize nobody meant, so a turn has to be
+asked for plainly, one of two ways. The hand going along the side more than
+twice as far as across it reads a slide, wherever the side was pressed. Or a
+pull across would leave the place grabbed more than twice as far from the hand
+— short by its slip along the side — as a turn would, short by how far the hand
+went out from or in towards the place it turns on: a hand going round, however
+far round. So a pull straight across always resizes, and a hand going round
+stays a turn past a quarter. At the middle of a side, a pull drifting sideways
+goes on resizing until the drift is twice the pull; nearer a corner, where a
+turn about the far side sets off on a slant, a pull slanting that way turns
+sooner — it is, there, how a turn begins. Both are read from the hand's own
+places, before any magnet, which would put the press and the first pixels of
+the pull back on the very side pressed on. A press gathering a selection, on an
+ellipse's axis, or on a side that cannot move, still pulls a box.
+
+### Sliding a curve
+
+A circle, an arc or an ellipse pulled towards or away from its centre is drawn
+to another size, as before. Slid round the centre — the hand gone round more
+than twice as far as out — an arc or an ellipse turns about its centre, its
+sweep or its shape kept, and is drawn to the size that keeps the place grabbed
+under the hand; what is joined to it turns with it, and the grid pulls the end
+nearest the hand onto a grid point near where it lands, at the size it takes. A size a rule holds —
+a radius typed, an axis typed — is kept, and the curve only turns about its
+centre. The turn and the size are one step in the history. A curve a rule
+keeps from turning is drawn to another size instead. A circle looks
+the same whichever way up it is, so it is always drawn to another size.
 
 ### Moving a whole figure in one block
 
 A drag that starts **on something already selected** carries the whole
-selection, as a desktop moves a group of icons. Every named point advances by
+selection, as a desktop moves a group of icons — all but a lone corner picked
+and then pressed on, which is dragged as the corner it is and stretches its
+shape. Every named point advances by
 the same step: the shape is carried, never stretched, and the rest of the
 drawing settles around it. One single line in the history for the whole block.
 
-A drag that starts elsewhere stays what it was: a point under the cursor, or a
-selection box.
+A drag that starts elsewhere stays what it was: a point under the cursor, a
+side, a curve, or a selection box.
 
 ## What dimensions draw
 

@@ -13,15 +13,27 @@ use crate::sketch::PointId;
 /// more than one place. Naming it once is what stops a second reader from going
 /// on believing there are only dimensions and rules.
 pub(crate) enum Row {
+    /// A line a drag keeps where it lies. First, so that the sweep lays the
+    /// kept lines before any rule reads the shape they give it.
+    Kept(usize),
     Dimension(usize),
     Rule(usize),
     Arc(usize),
     Ellipse(usize),
 }
 
-/// The row an index names, given how many of the first three families there
+/// The row an index names, given how many of the first four families there
 /// are.
-pub(crate) fn row_at(index: usize, dimensions: usize, rules: usize, arcs: usize) -> Row {
+pub(crate) fn row_at(
+    index: usize,
+    kept: usize,
+    dimensions: usize,
+    rules: usize,
+    arcs: usize,
+) -> Row {
+    let Some(index) = index.checked_sub(kept) else {
+        return Row::Kept(index);
+    };
     let Some(past_dimensions) = index.checked_sub(dimensions) else {
         return Row::Dimension(index);
     };

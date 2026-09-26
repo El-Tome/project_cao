@@ -58,9 +58,11 @@ mod reading;
 use measure::{edit_dimension, measure};
 pub(crate) use reading::{read, showing as measure_showing};
 
+mod annotation_drag;
 mod dragging;
-pub(crate) use dragging::annotation_position;
-use dragging::{Gesture, drag_point, letting_go, nearest_annotation};
+pub(crate) use annotation_drag::annotation_position;
+use annotation_drag::nearest_annotation;
+use dragging::{Gesture, drag_point, letting_go};
 
 mod areas;
 pub(crate) use areas::pick_areas;
@@ -78,10 +80,12 @@ pub(crate) use corner::{
 };
 
 mod resizing;
-use resizing::{drag_curve, grabbed_curve};
+use resizing::drag_curve;
+mod selection_drag;
+mod sides;
 
 mod landing;
-pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
+pub(crate) use landing::{born_at, held_at_drop, landed_on, point_ref_at};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,
@@ -118,14 +122,14 @@ pub(crate) fn handle_sketch_input(
     else {
         return false;
     };
-    let Some(cursor) = plane.ray_intersection(origin, direction) else {
+    let Some(raw_cursor) = plane.ray_intersection(origin, direction) else {
         return false;
     };
 
     // Snapping to an existing point is what lets a contour actually close.
     let snap = scale.world_size_of(PICK_PIXELS);
     let magnets = scale.snapping(&state.config);
-    let (cursor, snapped_to) = context.document.sketches()[index].magnetise(cursor, &magnets);
+    let (cursor, snapped_to) = context.document.sketches()[index].magnetise(raw_cursor, &magnets);
     context.editor.snap = snapped_to;
 
     context.editor.cursor = Some(cursor);
@@ -153,26 +157,31 @@ pub(crate) fn handle_sketch_input(
         // cursor is when egui calls it a drag: by then it has already travelled
         // the few pixels of the drag threshold, which was enough to miss the
         // very point being aimed at.
-        let pressed = ui
+        let press = ui
             .input(|input| input.pointer.press_origin())
             .and_then(|position| {
                 let (origin, direction) = state
                     .camera
                     .ray(to_ndc(position, rect), rect.width() / rect.height());
                 plane.ray_intersection(origin.as_dvec3(), direction.as_dvec3())
-            })
-            .map(|position| {
-                context.document.sketches()[index]
-                    .magnetise(position, &magnets)
-                    .0
-            })
-            .unwrap_or(cursor);
+            });
+        let raw_pressed = press.unwrap_or(raw_cursor);
+        let pressed = press.map_or(cursor, |place| {
+            context.document.sketches()[index]
+                .magnetise(place, &magnets)
+                .0
+        });
 
         let adding = ui.input(|input| input.modifiers.command || input.modifiers.shift);
         let gesture = Gesture {
             snap,
             pixel: scale.units_per_pixel,
             letting_go: letting_go(ui, state.let_go),
+            adding,
+            raw_cursor,
+            raw_pressed,
+            magnets,
+            navigating: state.drag.is_some(),
         };
         if response.clicked() {
             let picked = pick(context, index, cursor, snap, scale.units_per_pixel);
@@ -215,24 +224,11 @@ pub(crate) fn handle_sketch_input(
             return erase(context, index, &held);
         }
 
-        // A drag that grabbed nothing pulls a box instead, the way a desktop
-        // does. Who grabs is settled at the start of the gesture and holds for
-        // the whole of it: deciding again every frame would swap gestures
-        // mid-drag, as soon as the cursor happened to pass over a point.
+        // Who grabs is settled at the start of the gesture and holds for the
+        // whole of it: deciding again every frame would swap gestures mid-drag,
+        // as soon as the cursor happened to pass over a point.
         if response.drag_started() {
-            let changed = drag_point(context, index, cursor, pressed, response, gesture);
-            let nothing_grabbed = matches!(
-                &context.editor.tool_state,
-                ToolState::Select(select)
-                    if select.dragged_point.is_none()
-                        && select.dragged_dimension.is_none()
-                        && select.dragged_curve.is_none()
-                        && select.dragged_group.is_empty()
-            );
-            if nothing_grabbed && let ToolState::Select(select) = &mut context.editor.tool_state {
-                select.band = Some((pressed, cursor));
-            }
-            return changed;
+            return drag_point(context, index, cursor, pressed, response, gesture);
         }
         let has_band = matches!(&context.editor.tool_state, ToolState::Select(select) if select.band.is_some());
         if has_band {

@@ -25,6 +25,19 @@ pub struct SnapSettings {
     pub grid_reach: f64,
 }
 
+impl SnapSettings {
+    /// The grid point nearest a place, when the grid pulls and the place is
+    /// within its reach.
+    pub(crate) fn node_near(&self, place: DVec2) -> Option<DVec2> {
+        let step = self.grid_step.filter(|step| *step > 0.0)?;
+        let node = DVec2::new(
+            (place.x / step).round() * step,
+            (place.y / step).round() * step,
+        );
+        (node.distance(place) <= self.grid_reach).then_some(node)
+    }
+}
+
 /// What the cursor has been pulled onto, when it is worth saying so.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Snap {
@@ -72,17 +85,7 @@ impl Sketch {
             return (at, Some(Snap::OnCurve(at)));
         }
 
-        let Some(step) = settings.grid_step.filter(|step| *step > 0.0) else {
-            return (cursor, None);
-        };
-        let snapped = DVec2::new(
-            (cursor.x / step).round() * step,
-            (cursor.y / step).round() * step,
-        );
-        match snapped.distance(cursor) <= settings.grid_reach {
-            true => (snapped, None),
-            false => (cursor, None),
-        }
+        (settings.node_near(cursor).unwrap_or(cursor), None)
     }
 
     /// The place on a drawn curve nearest the cursor, whichever kind of curve

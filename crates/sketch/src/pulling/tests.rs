@@ -7,6 +7,8 @@
 //!   `a_right_triangle_grows_when_its_hypotenuse_is_pulled_out`,
 //!   `a_typed_tail_does_not_take_the_place_of_the_opposite_side`,
 //!   `a_d_shape_pulled_by_its_flat_keeps_its_curve`,
+//!   `a_half_disc_pulled_by_its_diameter_keeps_its_centre`,
+//!   `a_trait_continued_by_another_is_not_carried_whole`,
 //!   `a_slot_pulled_by_its_flat_widens_and_its_other_flat_stays`,
 //!   `an_ellipse_closed_by_a_chord_keeps_its_centre_when_the_chord_is_pulled`
 //! - 10: slid along itself, the side turns its shape about the middle of the
@@ -75,7 +77,8 @@
 //!   `a_circle_is_always_drawn_to_its_new_size`
 //! - 18: while a shape turns, the end nearest the hand is pulled onto a grid
 //!   point within reach — `a_turned_side_brings_its_corner_onto_the_grid`,
-//!   `an_arc_turned_back_near_where_it_was_is_pulled_onto_the_grid`
+//!   `an_arc_turned_back_near_where_it_was_is_pulled_onto_the_grid`,
+//!   `an_arc_of_typed_radius_turned_back_near_square_is_pulled_onto_the_grid`
 //! - 14: a press on a side takes hold of it, and of the curve instead when the
 //!   curve is nearer; an ellipse's axis and a side that cannot move are not
 //!   taken, and a box is drawn there as before —
@@ -1613,5 +1616,95 @@ fn a_curve_whose_size_is_held_writes_no_size_it_did_not_reach() {
         (sketch.arc_radius(arc) - 30.0).abs() < 1e-9,
         "given back: {}",
         sketch.arc_radius(arc)
+    );
+}
+
+#[test]
+fn a_half_disc_pulled_by_its_diameter_keeps_its_centre() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let east = sketch.add_point(DVec2::new(80.0, 50.0));
+    let west = sketch.add_point(DVec2::new(20.0, 50.0));
+    sketch.add_arc(centre, east, west);
+    let flat = sketch.add_segment(west, east);
+
+    let drag = sketch.side_drag(
+        flat,
+        DVec2::new(40.0, 50.0),
+        DVec2::new(40.0, 60.0),
+        &no_grid(),
+        1.0,
+    );
+    laid(&mut sketch, &drag, flat);
+
+    assert_near(sketch.point(centre), DVec2::new(50.0, 50.0), "the centre");
+    assert!(
+        (sketch.point(west).y - 60.0).abs() < SETTLED
+            && (sketch.point(east).y - 60.0).abs() < SETTLED,
+        "the flat rose to a chord: {} {}",
+        sketch.point(west),
+        sketch.point(east)
+    );
+}
+
+#[test]
+fn a_trait_continued_by_another_is_not_carried_whole() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let first = sketch.add_point(DVec2::new(10.0, 10.0));
+    let middle = sketch.add_point(DVec2::new(60.0, 10.0));
+    let last = sketch.add_point(DVec2::new(110.0, 10.0));
+    let near = sketch.add_segment(first, middle);
+    sketch.add_segment(middle, last);
+
+    let drag = sketch.side_drag(
+        near,
+        DVec2::new(30.0, 10.0),
+        DVec2::new(30.0, 30.0),
+        &no_grid(),
+        1.0,
+    );
+    laid(&mut sketch, &drag, near);
+
+    assert_near(
+        sketch.point(last),
+        DVec2::new(110.0, 10.0),
+        "the far end of the other trait",
+    );
+    assert_near(sketch.point(first), DVec2::new(10.0, 30.0), "one end");
+    assert_near(
+        sketch.point(middle),
+        DVec2::new(60.0, 30.0),
+        "the other end",
+    );
+}
+
+#[test]
+fn an_arc_of_typed_radius_turned_back_near_square_is_pulled_onto_the_grid() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let about = DVec2::new(50.0, 50.0);
+    let centre = sketch.add_point(about);
+    let start = sketch.add_point(about + DVec2::from_angle(0.3) * 40.0);
+    let end = sketch.add_point(about + DVec2::from_angle(0.3 + std::f64::consts::FRAC_PI_2) * 40.0);
+    let arc = sketch.add_arc(centre, start, end);
+    sketch.set_dimension(DimensionTarget::ArcRadius(arc), 40.0, false);
+    let pressed = about + DVec2::from_angle(1.1) * 40.0;
+    let cursor = about + DVec2::from_angle(0.81) * 45.0;
+
+    let drag = sketch.curve_drag(
+        Curved::Arc(arc),
+        pressed,
+        cursor,
+        cursor,
+        &grid(10.0, 2.0),
+        1.0,
+    );
+
+    let CurveDrag::Along { turn, .. } = drag else {
+        panic!("sliding back round turns: {drag:?}");
+    };
+    assert!(
+        (turn.angle + 0.3).abs() < 1e-9,
+        "brought back square: {}",
+        turn.angle
     );
 }

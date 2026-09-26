@@ -6,14 +6,13 @@
 //! cursor is, about the centre it already has. A click is still a click — only
 //! a drag resizes — and the centre still carries the whole shape.
 
-use cao_part::Operation;
-use cao_sketch::{CurveDrag, Curved, LengthOutcome};
+use cao_sketch::{CurveDrag, Curved};
 use glam::DVec2;
 
 use crate::screens::SketchContext;
 
 use super::dragging::Gesture;
-use super::sides::turn_operation;
+use super::sides::{curve_turn_operation, resize_operation};
 
 /// One frame of that drag: shown as the curve the release would draw, written
 /// once on release, as a single entry in the history.
@@ -49,21 +48,20 @@ pub(super) fn drag_curve(
     );
 
     let mut settling = sketch.clone();
-    let turned = match &drag {
-        CurveDrag::Resize { .. } => None,
-        CurveDrag::Along { turn, .. } => {
+    let written = match &drag {
+        CurveDrag::Resize { reach } => {
+            settling.resize(curve, *reach, scale);
+            Some(resize_operation(index, curve, *reach))
+        }
+        CurveDrag::Along { turn, reach } => {
             // A curve slid round turns with the hand itself, not with the
             // magnets, whose mark would say where it does not go.
             context.editor.snap = None;
-            Some(settling.turn_shape(&turn.points, turn.about, turn.angle, scale))
-        }
-    };
-    // Slid round, the curve is drawn to the hand only about the centre it
-    // turned on: a size a rule holds is left as it was.
-    let sized = match &drag {
-        CurveDrag::Resize { reach } => Some(settling.resize(curve, *reach, scale)),
-        CurveDrag::Along { reach, .. } => {
-            reach.map(|reach| settling.resize_in_place(curve, reach, scale))
+            let turned = settling.turn_shape(&turn.points, turn.about, turn.angle, scale);
+            // It is drawn to the hand only about the centre it turned on: a
+            // size a rule holds is left as it was.
+            let resized = reach.map(|reach| (reach, settling.resize_in_place(curve, reach, scale)));
+            curve_turn_operation(index, curve, turn, turned, resized)
         }
     };
 
@@ -81,51 +79,11 @@ pub(super) fn drag_curve(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    let (turn, reach) = match drag {
-        CurveDrag::Resize { reach } => {
-            context
-                .document
-                .apply(resize_operation(index, curve, reach));
-            return true;
+    match written {
+        Some(operation) => {
+            context.document.apply(operation);
+            true
         }
-        CurveDrag::Along { turn, reach } => (turn, reach),
-    };
-    // What the drawing refused writes nothing: a turn it would not take, a
-    // size it gave back, a size the curve already had. What it took is one
-    // step, undone whole.
-    let mut done: Vec<Operation> = Vec::new();
-    if turned == Some(LengthOutcome::Exact) {
-        done.extend(turn_operation(index, &turn));
-    }
-    if let (Some(reach), Some(LengthOutcome::Exact)) = (reach, sized) {
-        done.push(resize_operation(index, curve, reach));
-    }
-    let written = match done.len() {
-        0 => return false,
-        1 => done.remove(0),
-        _ => Operation::Gesture(done),
-    };
-    context.document.apply(written);
-    true
-}
-
-/// The step that draws `curve` to `reach`.
-fn resize_operation(index: usize, curve: Curved, reach: f64) -> Operation {
-    match curve {
-        Curved::Circle(circle) => Operation::ResizeCircle {
-            sketch: index,
-            circle,
-            reach,
-        },
-        Curved::Arc(arc) => Operation::ResizeArc {
-            sketch: index,
-            arc,
-            reach,
-        },
-        Curved::Ellipse(ellipse) => Operation::ResizeEllipse {
-            sketch: index,
-            ellipse,
-            reach,
-        },
+        None => false,
     }
 }

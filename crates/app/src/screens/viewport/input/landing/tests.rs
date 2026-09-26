@@ -107,7 +107,21 @@ fn a_corner_dropped_where_a_trait_stood_before_the_drag_moved_it_is_held_by_noth
         "the tail ran through the place before the drag"
     );
     assert!(
-        dropped_on(&settled, corners[2], landing).is_empty(),
+        held_at_drop(&sketch, &settled, corners[2], landing).is_empty(),
         "the drag took it away, and the drop is held by nothing"
     );
+}
+
+#[test]
+fn a_point_dropped_on_a_trait_the_drag_left_in_place_is_held_on_it() {
+    let mut sketch = a_trait_and_a_circle();
+    let lone = sketch.add_point(DVec2::new(30.0, 40.0));
+    let landing = DVec2::new(30.0, 20.0);
+    let mut settled = sketch.clone();
+    let pull = settled.pull(lone, 1.0);
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    let held = held_at_drop(&sketch, &settled, lone, landing);
+
+    assert_eq!(held, vec![Support::Segment(SegmentId(0))]);
 }

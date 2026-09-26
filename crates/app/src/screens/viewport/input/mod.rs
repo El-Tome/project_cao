@@ -85,7 +85,7 @@ mod selection_drag;
 mod sides;
 
 mod landing;
-pub(crate) use landing::{born_at, dropped_on, landed_on, point_ref_at};
+pub(crate) use landing::{born_at, held_at_drop, landed_on, point_ref_at};
 
 pub(crate) fn handle_sketch_input(
     ui: &egui::Ui,

@@ -11,7 +11,7 @@ use crate::screens::SketchContext;
 use super::annotation_drag::{drag_annotation, nearest_annotation};
 use super::selection_drag::{drag_group, grabbed_group};
 use super::sides::drag_side;
-use super::{drag_curve, dropped_on};
+use super::{drag_curve, held_at_drop};
 
 /// What a drag needs beyond where the cursor is: how far a click reaches, what
 /// a pixel is worth in the drawing, whether the key that pulls a point off
@@ -290,13 +290,9 @@ pub(super) fn drag_point(
     // already: one sliding along its own trait would otherwise catch on the
     // first crossing it went over. Joining another point holds nothing: that
     // is a merge, and it is the other point that stands there afterwards.
-    // What it is held on is read off the drawing the drag settled, the one
-    // shown and the one the replay rebuilds: a trait the settling moved away
-    // no longer runs through the place, and a hold on it would not be met.
-    let free = sketch.holds_on(point).is_empty();
-    let on = match letting_go || merged_into.is_some() || !free || !arrived {
+    let on = match letting_go || merged_into.is_some() || !arrived {
         true => Vec::new(),
-        false => dropped_on(&settling, point, landing),
+        false => held_at_drop(sketch, &settling, point, landing),
     };
     // A drag that changed nothing — the drawing refused it, and it neither
     // joined, held nor let go of anything — writes nothing: a step that changes

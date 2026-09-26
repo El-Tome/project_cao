@@ -99,7 +99,7 @@ in one of the two domains, never there.
 | The blocks that keep their shape while the rest of the drawing settles | `sketch/src/rigid.rs` | `Block`, `rigidify`, `ownership` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |
 | How much of a drawing is already decided | `sketch/src/settled.rs` | `freedom`, `is_fully_constrained`, `settled_points` |
-| A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_circle`, `resize_arc`, `resize_ellipse` |
+| A circle, an arc or an ellipse drawn to another size about its centre | `sketch/src/resizing.rs` | `Curved`, `Sketch::curve_at`, `reach_through`, `resize`, `resize_in_place`, `resize_circle`, `resize_arc`, `resize_ellipse` |
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
@@ -254,11 +254,11 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | Canvas: the values a pattern's fields open on | `app/src/screens/viewport/input/copying/opening.rs` | `fields_open_on` |
 | Canvas: which closed areas an extrusion is offered, and which one a click takes | `app/src/screens/viewport/input/areas.rs` | `pick_areas` |
 | Canvas: drawing a circle, an arc or an ellipse to another size by its curve, or turning it | `app/src/screens/viewport/input/resizing.rs` | `drag_curve` |
-| Canvas: a side pulled across or slid along, and the step it writes | `app/src/screens/viewport/input/sides.rs` | `drag_side`, `side_operation`, `turn_operation` |
+| Canvas: a side pulled across or slid along, and the step it writes — a curve slid round's too | `app/src/screens/viewport/input/sides.rs` | `drag_side`, `side_operation`, `turn_operation`, `curve_turn_operation`, `resize_operation` |
 | Canvas: what a drag takes hold of and moves | `app/src/screens/viewport/input/dragging.rs` | `drag_point`, `letting_go`, `reshaped` |
 | Canvas: a selection pressed on and moved as one block | `app/src/screens/viewport/input/selection_drag.rs` | `grabbed_group`, `drag_group` |
 | Canvas: moving an annotation, finding the one under the cursor | `app/src/screens/viewport/input/annotation_drag.rs` | `drag_annotation`, `nearest_annotation`, `annotation_position` |
-| Canvas: what a point laid down by a tool lands on | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `dropped_on`, `point_ref_at`, `born_at` |
+| Canvas: what a point laid down by a tool lands on, and what a dragged one is held by once dropped | `app/src/screens/viewport/input/landing.rs` | `landed_on`, `held_at_drop`, `point_ref_at`, `born_at` |
 | Canvas: the camera's own gestures — orbit, pan, wheel, trackpad | `app/src/screens/viewport/navigation.rs` | `handle_navigation`, `advance_transition`, `ScrollInput` |
 | Canvas: what a box catches, and what deleting takes with it | `app/src/screens/viewport/input/selecting.rs` | `band_select`, `erase` |
 | Canvas: one click of the smart dimension tool | `app/src/screens/viewport/input/measure.rs` | `measure`, `place_dimension`, `measure_preview` |

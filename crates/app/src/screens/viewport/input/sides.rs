@@ -4,7 +4,7 @@
 //! preview shown while the hand moves, and the step written once on release.
 
 use cao_part::Operation;
-use cao_sketch::{LengthOutcome, SegmentId, SideDrag, Turn};
+use cao_sketch::{Curved, LengthOutcome, SegmentId, SideDrag, Turn};
 
 use crate::screens::SketchContext;
 
@@ -88,6 +88,51 @@ pub(super) fn turn_operation(index: usize, turn: &Turn) -> Option<Operation> {
         about: turn.about,
         angle: turn.angle,
     })
+}
+
+/// The step a curve slid round writes: its turn and the size it was drawn
+/// to, each only when the drawing took it, as one step undone whole. A size
+/// given back, or the size the curve already had, is no step; nothing taken
+/// is nothing written.
+pub(super) fn curve_turn_operation(
+    index: usize,
+    curve: Curved,
+    turn: &Turn,
+    turned: LengthOutcome,
+    resized: Option<(f64, LengthOutcome)>,
+) -> Option<Operation> {
+    let mut done: Vec<Operation> = Vec::new();
+    if turned == LengthOutcome::Exact {
+        done.extend(turn_operation(index, turn));
+    }
+    if let Some((reach, LengthOutcome::Exact)) = resized {
+        done.push(resize_operation(index, curve, reach));
+    }
+    match done.len() {
+        0 | 1 => done.pop(),
+        _ => Some(Operation::Gesture(done)),
+    }
+}
+
+/// The step that draws `curve` to `reach`.
+pub(super) fn resize_operation(index: usize, curve: Curved, reach: f64) -> Operation {
+    match curve {
+        Curved::Circle(circle) => Operation::ResizeCircle {
+            sketch: index,
+            circle,
+            reach,
+        },
+        Curved::Arc(arc) => Operation::ResizeArc {
+            sketch: index,
+            arc,
+            reach,
+        },
+        Curved::Ellipse(ellipse) => Operation::ResizeEllipse {
+            sketch: index,
+            ellipse,
+            reach,
+        },
+    }
 }
 
 #[cfg(test)]

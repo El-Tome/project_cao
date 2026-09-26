@@ -14,11 +14,12 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 use crate::turning::{Turn, angle_onto_grid};
 
-/// How much plainer a turn has to be than a pull before a gesture turns. At
-/// the middle of a side, a pull across that drifts sideways keeps resizing
-/// until the drift is twice the pull; nearer a corner, where a turn about the
-/// far side sets off on a slant, a pull slanting that way turns sooner. A turn
-/// nobody meant costs more than a resize nobody meant.
+/// How much plainer a turn has to be than a pull before a gesture turns: a
+/// side slid along, a curve slid round, an ellipse's axis end taken off its
+/// axis. At the middle of a side, a pull across that drifts sideways keeps
+/// resizing until the drift is twice the pull; nearer a corner, where a turn
+/// about the far side sets off on a slant, a pull slanting that way turns
+/// sooner. A turn nobody meant costs more than a resize nobody meant.
 pub(crate) const TURN_BIAS: f64 = 2.0;
 
 /// What a side pulled asks for.
@@ -128,7 +129,7 @@ impl Sketch {
         };
 
         let shape = self.shape_through(&[line.start, line.end]);
-        if self.travels_whole(&shape, start, normal) {
+        if self.travels_whole(&shape, side) {
             return SideDrag::Across {
                 by: cursor - pressed,
             };
@@ -238,12 +239,14 @@ impl Sketch {
         // The grid pulls the end nearest the hand onto a grid point near
         // where it would land, turned and drawn to its size: both the angle
         // and the size that put it there.
+        // With none near it, the end is turned onto one near where it would
+        // land at the size it has — the one it keeps when a rule holds it.
         let (angle, reach) = match (grid.node_near(placed(end)), (end - about).try_normalize()) {
             (Some(node), Some(was)) if node.distance(about) > 1e-12 => (
                 was.angle_to((node - about).normalize()),
                 now * node.distance(about) / end.distance(about),
             ),
-            _ => (angle, reach),
+            _ => (angle_onto_grid(about, end, angle, grid), reach),
         };
         CurveDrag::Along {
             turn: Turn {

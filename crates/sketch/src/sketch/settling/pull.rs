@@ -153,6 +153,7 @@ impl Sketch {
             // very shape the press found.
             Give::Free => {
                 self.stretch(pull.point, holding, position, millimeters_per_unit)
+                    || self.slide_back(pull, holding, position, millimeters_per_unit)
                     || self.stretch_towards(pull, holding, position, millimeters_per_unit)
                     || self.retract(pull, holding, position, millimeters_per_unit)
             }
@@ -173,6 +174,7 @@ impl Sketch {
                 (holding.on_a_curve
                     && self.stretch(pull.point, holding, position, millimeters_per_unit))
                     || self.stretch(pull.point, holding, landing, millimeters_per_unit)
+                    || self.slide_back(pull, holding, landing, millimeters_per_unit)
                     || self.stretch_towards(pull, holding, landing, millimeters_per_unit)
                     || self.retract(pull, holding, landing, millimeters_per_unit)
             }
@@ -183,6 +185,35 @@ impl Sketch {
             true => LengthOutcome::Exact,
             false => LengthOutcome::BestEffort,
         }
+    }
+
+    /// The point placed at `landing` and let go of along the hand's way: the
+    /// drawing pulls it back along that line to the last place its shape can
+    /// follow to — one settling, where halving the way takes a dozen. Taken
+    /// only when it comes to rest between the press and the hand.
+    fn slide_back(
+        &mut self,
+        pull: &PointPull,
+        holding: &Holding,
+        landing: DVec2,
+        millimeters_per_unit: f64,
+    ) -> bool {
+        let travel = landing - pull.from;
+        let Some(way) = travel.try_normalize() else {
+            return false;
+        };
+        let kept = self.shapes_now();
+        self.move_point(pull.point, landing);
+        let mut lines = holding.lines.clone();
+        lines.push(Kept::level(self, pull.point, way.perp(), 0.0));
+        let settled = self.settle_held(holding.pins.clone(), lines, millimeters_per_unit);
+        let gone = (self.point(pull.point) - pull.from).dot(way);
+        let size = self.drawing_size();
+        if settled && gone > size * PROGRESS && gone <= travel.length() + size * REACHED_WITHIN {
+            return true;
+        }
+        self.give_back(kept);
+        false
     }
 
     /// The point held as far towards `landing` as the shape can stretch: the

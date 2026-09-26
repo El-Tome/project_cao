@@ -51,6 +51,9 @@ const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
 const TOLERANCE: f64 = 1e-5;
+/// An equation this far below the tolerance is left alone: its correction
+/// would move nothing, and applying it walks every point of the drawing.
+const SETTLED_ALREADY: f64 = 1e-3;
 
 impl Sketch {
     /// Moves the drawing until every dimension holds at once.
@@ -162,7 +165,11 @@ impl Sketch {
                 let held_alone = self.held_alone(index, &pinned, &pulled);
                 self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
                 for equation in entry.iter_mut() {
-                    worst = worst.max(equation.off_by(scale));
+                    let off = equation.off_by(scale);
+                    worst = worst.max(off);
+                    if off < TOLERANCE * SETTLED_ALREADY {
+                        continue;
+                    }
                     // A point laid on a curve follows it: the step this row
                     // takes moves the point, and leaves the curve alone.
                     if let Some(point) = held_alone {

@@ -16,7 +16,9 @@ impl Sketch {
     /// triangle, and does not refuse because its ends were nailed across. The
     /// side keeps its direction, and so does every trait of its shape a rule of
     /// direction ties; the point of the shape farthest off the side stays
-    /// where it is. What cannot be had is given back whole: the side stays.
+    /// where it is. A trait on its own has no shape to stretch, and travels
+    /// the whole of `by`. What cannot be had is given back whole: the side
+    /// stays.
     pub fn move_side(
         &mut self,
         side: SegmentId,
@@ -36,6 +38,9 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_through(&[line.start, line.end]);
+        if self.travels_whole(&shape, self.point(line.start), normal) {
+            return self.carry(shape, by, millimeters_per_unit);
+        }
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
         lines.extend(Kept::direction(self, line.start, line.end, Some(side)));
@@ -84,6 +89,40 @@ impl Sketch {
         }
     }
 
+    /// Whether the shape through a side is that trait alone — nothing joins
+    /// it but points held on it, and nothing holds it where it is. With no
+    /// shape to stretch or to turn, it goes wherever the hand takes it.
+    pub(crate) fn travels_whole(&self, shape: &[PointId], on: DVec2, normal: DVec2) -> bool {
+        let pinned = self.pinned_points();
+        let level = on.dot(normal);
+        shape.iter().all(|point| {
+            !pinned[point.0]
+                && (self.point(*point).dot(normal) - level).abs() <= self.drawing_size() * 1e-6
+        })
+    }
+
+    /// Every point of `shape` moved by `by` and held there while the rest of
+    /// the drawing settles, or the drawing given back whole.
+    fn carry(
+        &mut self,
+        shape: Vec<PointId>,
+        by: DVec2,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        let kept = self.shapes_now();
+        for point in &shape {
+            let place = self.point(*point) + by;
+            self.move_point(*point, place);
+        }
+        match self.settle_held(shape, Vec::new(), millimeters_per_unit) {
+            true => LengthOutcome::Exact,
+            false => {
+                self.give_back(kept);
+                LengthOutcome::BestEffort
+            }
+        }
+    }
+
     /// The point of a shape standing farthest off a line, which stays where it
     /// is while that line travels — nothing when something already holds the
     /// shape, or when every point of it lies on the line.
@@ -91,7 +130,12 @@ impl Sketch {
     /// Taken among the points lying on the traits a rule of direction ties
     /// first, as the point a drag keeps is: a tail hanging off a rectangle,
     /// however far it reaches, does not take the place of its opposite side.
-    fn farthest_off(&self, shape: &[PointId], side: &[PointId], normal: DVec2) -> Option<PointId> {
+    pub(crate) fn farthest_off(
+        &self,
+        shape: &[PointId],
+        side: &[PointId],
+        normal: DVec2,
+    ) -> Option<PointId> {
         let pinned = self.pinned_points();
         if shape.iter().any(|point| pinned[point.0]) {
             return None;

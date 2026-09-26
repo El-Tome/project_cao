@@ -21,9 +21,6 @@ pub(crate) struct Kept {
     /// Unit, square to the line kept.
     pub(crate) normal: DVec2,
     pub(crate) at: f64,
-    /// The way the line ran when it was kept, which its equation alone cannot
-    /// tell from the way back.
-    along: DVec2,
     /// The trait whose direction this is, when it is one.
     pub(crate) segment: Option<SegmentId>,
 }
@@ -43,7 +40,6 @@ impl Kept {
             to,
             normal: along.perp(),
             at: 0.0,
-            along,
             segment,
         })
     }
@@ -56,19 +52,8 @@ impl Kept {
             to: point,
             normal,
             at: sketch.point(point).dot(normal) + by,
-            along: DVec2::ZERO,
             segment: None,
         }
-    }
-
-    /// Whether a direction kept has come out the other way round. Its equation
-    /// cannot see it — a line is the same line both ways — but a trait that
-    /// went through nought to get there has been turned half round.
-    pub(crate) fn runs_backwards(&self, sketch: &Sketch) -> bool {
-        let Some(from) = self.from else {
-            return false;
-        };
-        (sketch.point(self.to) - sketch.point(from)).dot(self.along) <= 0.0
     }
 }
 

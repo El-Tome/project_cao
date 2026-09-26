@@ -58,7 +58,7 @@ fn a_shape_held_level_by_a_rule_has_no_place_to_turn_about() {
         axis: crate::constraints::SketchAxis::U,
     });
 
-    assert_eq!(sketch.turning_centre(&corners, 1.0), None);
+    assert_eq!(sketch.turning_centre(&corners, base, 1.0), None);
 }
 
 #[test]

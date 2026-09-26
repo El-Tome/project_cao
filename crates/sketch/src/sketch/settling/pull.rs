@@ -368,7 +368,9 @@ impl Sketch {
 
     /// Settles the drawing with `points` held still and `lines` kept, and
     /// says whether it came out whole: every value true, no trait squeezed to
-    /// nothing, no tangency slid off, no kept trait turned round.
+    /// nothing, no tangency slid off. A kept trait may come out the other way
+    /// round: a corner pulled past the opposite one turns its shape inside
+    /// out, as the hand asked.
     pub(crate) fn settle_held(
         &mut self,
         points: Vec<PointId>,
@@ -378,11 +380,9 @@ impl Sketch {
         self.held.points = points;
         self.held.lines = lines;
         let outcome = self.resolve(millimeters_per_unit);
-        let backwards = self.held.lines.iter().any(|line| line.runs_backwards(self));
         self.held.points.clear();
         self.held.lines.clear();
         outcome == LengthOutcome::Exact
-            && !backwards
             && !self.has_a_collapsed_trait(self.drawing_size())
             && !self.has_a_flipped_tangent()
     }

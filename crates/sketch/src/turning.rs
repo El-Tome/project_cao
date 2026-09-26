@@ -11,7 +11,7 @@ use glam::DVec2;
 use crate::arcing::bounds_of;
 use crate::independence::turns_nothing;
 use crate::length::LengthOutcome;
-use crate::sketch::{PointId, Sketch};
+use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 
 /// A shape turned about a place, as the hand asked: the points turned, where
@@ -64,14 +64,17 @@ impl Sketch {
         }
     }
 
-    /// Where a shape turns about when the hand turns it: the one place that
-    /// holds it, or the middle of what it draws. Nothing when two different
-    /// places hold it, or when a rigid turn about that place would break one
-    /// of the drawing's rules — a trait held level, an angle against an axis,
-    /// a distance to something else.
+    /// Where a shape turns about when one of its sides is slid along itself:
+    /// the one place that holds it; else the middle of the side standing
+    /// opposite the one pulled, or the far corner when none stands opposite —
+    /// a triangle's; else the middle of what it draws. Nothing when two
+    /// different places hold it, or when a rigid turn about that place would
+    /// break one of the drawing's rules — a trait held level, an angle against
+    /// an axis, a distance to something else.
     pub(crate) fn turning_centre(
         &self,
         shape: &[PointId],
+        side: SegmentId,
         millimeters_per_unit: f64,
     ) -> Option<DVec2> {
         let pinned = self.pinned_points();
@@ -83,10 +86,36 @@ impl Sketch {
             Some(first) => held
                 .all(|place| place.distance(first) < 1e-9)
                 .then_some(first)?,
-            None => self.middle_of(shape)?,
+            None => self
+                .opposite(shape, side)
+                .or_else(|| self.middle_of(shape))?,
         };
         self.turns_freely_about(shape, about, millimeters_per_unit)
             .then_some(about)
+    }
+
+    /// The middle of the side of `shape` standing opposite `side`: the one
+    /// through the point farthest off it, whose other end stands more than
+    /// half as far off. The farthest point itself when no side does.
+    fn opposite(&self, shape: &[PointId], side: SegmentId) -> Option<DVec2> {
+        let line = self.segments().get(side.0).copied()?;
+        let start = self.point(line.start);
+        let normal = (self.point(line.end) - start).try_normalize()?.perp();
+        let far = self.farthest_off(shape, &[line.start, line.end], normal)?;
+        let off = |point: PointId| (self.point(point) - start).dot(normal).abs();
+        let across = self
+            .live_segments()
+            .filter_map(|(_, other)| match (other.start == far, other.end == far) {
+                (true, _) => Some(other.end),
+                (_, true) => Some(other.start),
+                _ => None,
+            })
+            .filter(|end| shape.contains(end) && off(*end) > off(far) / 2.0)
+            .max_by(|one, other| off(*one).total_cmp(&off(*other)));
+        Some(match across {
+            Some(end) => (self.point(far) + self.point(end)) / 2.0,
+            None => self.point(far),
+        })
     }
 
     /// Whether the whole shape can be turned about `about` without a single

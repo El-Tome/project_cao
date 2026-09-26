@@ -35,8 +35,6 @@
 //!   further — `a_rectangle_with_only_its_width_typed_takes_its_height_from_the_cursor`;
 //!   past its reach the point stops on the way to the hand and goes no
 //!   further back as the hand goes on —
-//!   `a_rectangle_pulled_past_its_far_side_stops_at_the_last_place_it_can_reach`,
-//!   `a_corner_held_back_by_a_typed_width_goes_no_further_back_as_the_hand_goes_on`,
 //!   `a_hinge_pulled_out_of_reach_stops_on_the_way_to_the_hand`; a point whose
 //!   one way is round a curve goes round it towards the hand —
 //!   `a_corner_held_at_a_typed_distance_goes_round_towards_the_hand`
@@ -64,6 +62,10 @@
 //!   `a_pivoting_drag_is_taken_towards_the_hand_and_joins_only_what_it_lands_on`
 //! - 22: a point that stopped short of the hand is dropped on nothing —
 //!   `a_point_that_stopped_short_of_the_hand_is_joined_to_nothing`
+//! - 24: a corner pulled past the opposite one goes through, the shape coming
+//!   out the other way round —
+//!   `a_rectangle_pulled_past_its_opposite_corner_comes_out_the_other_way_round`,
+//!   `a_corner_held_to_its_height_by_a_typed_width_goes_through_the_opposite_side`
 //! - 20: the verdict does not change — `a_drag_leaves_the_verdict_and_the_freedom_as_they_were`
 
 use glam::DVec2;
@@ -619,50 +621,59 @@ fn a_pivoting_point_is_pulled_onto_a_grid_point_within_reach() {
 }
 
 #[test]
-fn a_rectangle_pulled_past_its_far_side_stops_at_the_last_place_it_can_reach() {
-    let (mut sketch, [a, _, c, _], _) = upright();
+fn a_rectangle_pulled_past_its_opposite_corner_comes_out_the_other_way_round() {
+    let (mut sketch, [a, b, c, d], sides) = upright();
+    let before = sides.map(|side| direction(&sketch, side));
 
-    sketch.settle_around(a, DVec2::new(40.0, 80.0), 1.0);
+    sketch.settle_around(a, DVec2::new(140.0, 90.0), 1.0);
 
-    let reached = sketch.point(a);
-    assert!(
-        reached.distance(DVec2::new(20.0, 20.0)) > 10.0,
-        "it did not snap back: {reached}"
+    assert_near(
+        sketch.point(a),
+        DVec2::new(140.0, 90.0),
+        "the corner pulled",
     );
-    assert!(
-        reached.y < 70.0,
-        "and it stopped short of the top: {reached}"
+    assert_near(
+        sketch.point(b),
+        DVec2::new(120.0, 90.0),
+        "the corner after it",
     );
     assert_near(
         sketch.point(c),
         DVec2::new(120.0, 70.0),
         "the opposite corner",
     );
+    assert_near(
+        sketch.point(d),
+        DVec2::new(140.0, 70.0),
+        "the corner before it",
+    );
+    for (rank, side) in sides.iter().enumerate() {
+        let now = direction(&sketch, *side);
+        assert!(
+            now.perp_dot(before[rank]).abs() < UNTURNED,
+            "side {rank} lies as it did, only the other way round: {now}"
+        );
+    }
 }
 
 #[test]
-fn a_corner_held_back_by_a_typed_width_goes_no_further_back_as_the_hand_goes_on() {
-    let (mut sketch, [a, ..], sides) = upright();
+fn a_corner_held_to_its_height_by_a_typed_width_goes_through_the_opposite_side() {
+    let (mut sketch, [a, b, c, d], sides) = upright();
     typed(&mut sketch, sides[0]);
     let pull = sketch.pull(a, 1.0);
 
-    let mut heights = Vec::new();
-    for height in [60.0, 69.0, 75.0, 90.0, 120.0] {
+    for height in [60.0, 75.0, 120.0] {
         let mut dragged = sketch.clone();
         dragged.settle_pulled(&pull, DVec2::new(20.0, height), 1.0);
-        heights.push(dragged.point(a).y);
-    }
-
-    for pair in heights.windows(2) {
-        assert!(
-            pair[1] >= pair[0] - 1e-2,
-            "the corner came back down: {heights:?}"
+        assert_near(
+            dragged.point(a),
+            DVec2::new(20.0, height),
+            "the corner followed the hand",
         );
+        assert_near(dragged.point(b), DVec2::new(120.0, height), "its neighbour");
+        assert_near(dragged.point(c), DVec2::new(120.0, 70.0), "the far side");
+        assert_near(dragged.point(d), DVec2::new(20.0, 70.0), "the far side");
     }
-    assert!(
-        heights[4] > 69.9,
-        "and it stops just short of the top: {heights:?}"
-    );
 }
 
 #[test]

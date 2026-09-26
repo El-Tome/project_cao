@@ -14,10 +14,16 @@ use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 use crate::turning::{Turn, angle_onto_grid};
 
+/// How much plainer a turn has to be than a pull before a gesture turns: a
+/// pull across that drifts sideways keeps resizing until the drift is twice
+/// the pull. A turn nobody meant costs more than a resize nobody meant.
+pub(crate) const TURN_BIAS: f64 = 2.0;
+
 /// What a side pulled asks for.
 #[derive(Clone, Debug, PartialEq)]
 pub enum SideDrag {
-    /// Travel sideways by this much, square to the side.
+    /// Travel by this much: square to the side, or wherever the hand went
+    /// for a trait on its own.
     Across {
         by: DVec2,
     },
@@ -28,10 +34,10 @@ pub enum SideDrag {
 #[derive(Clone, Debug, PartialEq)]
 pub enum CurveDrag {
     /// Drawn to another size about its centre, as #375 has it.
-    Resize {
-        reach: f64,
-    },
-    Along(Turn),
+    Resize { reach: f64 },
+    /// Turned with its shape, and drawn to the size that brings the place
+    /// grabbed under the hand: `reach` in [`Sketch::resize`]'s measure.
+    Along { turn: Turn, reach: f64 },
 }
 
 /// What a press takes hold of to pull, when it took hold of no point.
@@ -94,8 +100,9 @@ impl Sketch {
     /// hand's own places, before any magnet: pulled back onto the side it was
     /// pressed on, a pull would read as a slide.
     ///
-    /// A shape with no place to turn about, or whose place lies on the side's
-    /// own line — a trait on its own — has no along: it only travels.
+    /// A trait on its own travels whole, wherever the hand takes it. A shape
+    /// with no place to turn about, or whose place lies on the side's own
+    /// line, has no along: it only travels sideways.
     pub fn side_drag(
         &self,
         side: SegmentId,
@@ -117,20 +124,29 @@ impl Sketch {
         };
 
         let shape = self.shape_through(&[line.start, line.end]);
-        let Some(about) = self.turning_centre(&shape, millimeters_per_unit) else {
+        if self.travels_whole(&shape, start, normal) {
+            return SideDrag::Across {
+                by: cursor - pressed,
+            };
+        }
+        let Some(about) = self.turning_centre(&shape, side, millimeters_per_unit) else {
             return across;
         };
         if ((about - start).dot(normal)).abs() <= self.drawing_size() * 1e-6 {
             return across;
         }
-        // Whichever reading leaves the place grabbed nearer the hand: a pull
-        // across leaves it short by its slip along the side, a turn by how far
-        // the hand went out from or in towards the place it turns on. A pull
-        // straight across slips nothing, wherever the side was pressed; a hand
-        // going round slips nothing either, however far round it goes.
-        let across_slip = (cursor - pressed).dot(along).abs();
+        // A turn has to be asked for plainly, one of two ways. The hand going
+        // along the side more than twice as far as across it reads a slide,
+        // wherever the side was pressed. Or the place grabbed left more than
+        // twice as far from the hand by a pull across — short by its slip
+        // along the side — as by a turn, short by how far the hand went out
+        // from or in towards the place it turns on: a hand going round, however
+        // far round. A pull straight across slips nothing and always resizes.
+        let travel = cursor - pressed;
+        let slides = travel.dot(along).abs() > TURN_BIAS * travel.dot(normal).abs();
+        let across_slip = travel.dot(along).abs();
         let along_slip = (cursor.distance(about) - pressed.distance(about)).abs();
-        if across_slip <= along_slip {
+        if !slides && across_slip <= TURN_BIAS * along_slip {
             return across;
         }
         let angle = turned(about, pressed, cursor);
@@ -157,9 +173,11 @@ impl Sketch {
     ///
     /// Towards or away from the centre it is drawn to another size, exactly as
     /// before — and the size is read at `snapped`, the cursor as the magnets
-    /// left it, as it always was. Round the centre it turns, with the shape it
-    /// belongs to. A circle looks the same whichever way up it is, so a circle
-    /// is always drawn to another size.
+    /// left it, as it always was. Round the centre it turns about that centre,
+    /// with the shape it belongs to, and is drawn to the size that keeps the
+    /// place grabbed under the hand; only a hand gone round more than twice as
+    /// far as it went out turns it. A circle looks the same whichever way up
+    /// it is, so a circle is always drawn to another size.
     pub fn curve_drag(
         &self,
         curve: Curved,
@@ -191,24 +209,46 @@ impl Sketch {
         let angle = turned(about, pressed, cursor);
         let round = pressed.distance(about) * angle.abs();
         let out = (cursor.distance(about) - pressed.distance(about)).abs();
-        if round <= out {
+        if round <= TURN_BIAS * out {
             return resize;
         }
+        let reach = self.reach_through(
+            curve,
+            about + DVec2::from_angle(-angle).rotate(cursor - about),
+        );
+        let now = self.reach_through(curve, self.point(handles[0]));
+        if now < 1e-12 {
+            return resize;
+        }
+        let placed =
+            |at: DVec2| about + DVec2::from_angle(angle).rotate(at - about) * (reach / now);
         let end = handles
             .iter()
             .map(|point| self.point(*point))
             .min_by(|one, other| {
-                let place = |at: DVec2| about + DVec2::from_angle(angle).rotate(at - about);
-                place(*one)
+                placed(*one)
                     .distance(cursor)
-                    .total_cmp(&place(*other).distance(cursor))
+                    .total_cmp(&placed(*other).distance(cursor))
             })
             .unwrap_or(pressed);
-        CurveDrag::Along(Turn {
-            points: shape,
-            about,
-            angle: angle_onto_grid(about, end, angle, grid),
-        })
+        // The grid pulls the end nearest the hand onto a grid point near
+        // where it would land, turned and drawn to its size: both the angle
+        // and the size that put it there.
+        let (angle, reach) = match (grid.node_near(placed(end)), (end - about).try_normalize()) {
+            (Some(node), Some(was)) if node.distance(about) > 1e-12 => (
+                was.angle_to((node - about).normalize()),
+                now * node.distance(about) / end.distance(about),
+            ),
+            _ => (angle, reach),
+        };
+        CurveDrag::Along {
+            turn: Turn {
+                points: shape,
+                about,
+                angle,
+            },
+            reach,
+        }
     }
 }
 

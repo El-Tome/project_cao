@@ -14,12 +14,17 @@
 //!   `a_trait_pivoted_onto_a_grid_point_is_rebuilt_on_it`; one undo takes the
 //!   whole gesture back — `one_undo_takes_back_a_side_moved_and_a_shape_turned`;
 //!   the drawing the drag showed is the one recorded —
-//!   `a_corner_dragged_is_rebuilt_where_the_drag_showed_it`; and compacting
+//!   `a_corner_dragged_is_rebuilt_where_the_drag_showed_it`, an arc turned and
+//!   drawn to the hand in one step included —
+//!   `an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown`; and compacting
 //!   the history keeps the shape both left —
 //!   `compacting_keeps_the_shape_a_side_moved_and_a_turn_left`
 
 use cao_part::{Operation, PartDocument, PointRef};
-use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, Sketch, WorkPlane};
+use cao_sketch::{
+    ArcId, Constraint, CurveDrag, Curved, DimensionTarget, PointId, SegmentId, Sketch,
+    SnapSettings, WorkPlane,
+};
 use chrono::{DateTime, Utc};
 use glam::DVec2;
 
@@ -255,4 +260,58 @@ fn compacting_keeps_the_shape_a_side_moved_and_a_turn_left() {
             "no corner at {was} once compacted: {drawn:?}"
         );
     }
+}
+
+#[test]
+fn an_arc_turned_and_drawn_to_the_hand_is_one_step_rebuilt_as_shown() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(50.0, 50.0)),
+        start: PointRef::New(DVec2::new(90.0, 50.0)),
+        end: PointRef::New(DVec2::new(50.0, 90.0)),
+        construction: false,
+    });
+    let before = document.sketches()[0].points().to_vec();
+    let curve = Curved::Arc(ArcId(0));
+    let no_grid = SnapSettings {
+        point_reach: 1.0,
+        curve_reach: 1.0,
+        grid_step: None,
+        grid_reach: 0.0,
+    };
+    let pressed = DVec2::new(50.0, 50.0) + DVec2::from_angle(0.8) * 40.0;
+    let cursor = DVec2::new(50.0, 50.0) + DVec2::from_angle(1.1) * 45.0;
+    let CurveDrag::Along { turn, reach } =
+        document.sketches()[0].curve_drag(curve, pressed, cursor, cursor, &no_grid, 1.0)
+    else {
+        panic!("sliding along the arc turns it");
+    };
+    let mut shown = document.sketches()[0].clone();
+    shown.turn_shape(&turn.points, turn.about, turn.angle, 1.0);
+    shown.resize(curve, reach, 1.0);
+
+    document.apply(Operation::Gesture(vec![
+        Operation::TurnShape {
+            sketch: 0,
+            points: turn.points.clone(),
+            about: turn.about,
+            angle: turn.angle,
+        },
+        Operation::ResizeArc {
+            sketch: 0,
+            arc: ArcId(0),
+            reach,
+        },
+    ]));
+
+    assert_same(document.sketches()[0].points(), shown.points());
+    document.undo();
+    assert_same(document.sketches()[0].points(), &before);
+    document.redo();
+    assert_same(document.sketches()[0].points(), shown.points());
 }

@@ -20,7 +20,8 @@ use super::sides::turn_operation;
 ///
 /// Towards or away from the centre it is drawn to another size, read at the
 /// cursor the magnets left as it always was; slid round the centre an arc or
-/// an ellipse turns, read from the hand's own places.
+/// an ellipse turns, read from the hand's own places, and is drawn to the size
+/// that keeps the place grabbed under the hand.
 pub(super) fn drag_curve(
     context: &mut SketchContext<'_>,
     index: usize,
@@ -48,15 +49,19 @@ pub(super) fn drag_curve(
     );
 
     let mut settling = sketch.clone();
-    let outcome = match &drag {
-        CurveDrag::Resize { reach } => settling.resize(curve, *reach, scale),
-        CurveDrag::Along(turn) => {
+    let turned = match &drag {
+        CurveDrag::Resize { .. } => None,
+        CurveDrag::Along { turn, .. } => {
             // A curve slid round turns with the hand itself, not with the
             // magnets, whose mark would say where it does not go.
             context.editor.snap = None;
-            settling.turn_shape(&turn.points, turn.about, turn.angle, scale)
+            Some(settling.turn_shape(&turn.points, turn.about, turn.angle, scale))
         }
     };
+    let reach = match &drag {
+        CurveDrag::Resize { reach } | CurveDrag::Along { reach, .. } => *reach,
+    };
+    let sized = settling.resize(curve, reach, scale);
 
     if !response.drag_stopped() {
         if let Some(state) = context.editor.select_state() {
@@ -72,19 +77,33 @@ pub(super) fn drag_curve(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    let reach = match drag {
-        CurveDrag::Resize { reach } => reach,
-        // A turn the drawing refused writes nothing.
-        CurveDrag::Along(turn) => {
-            let written = (outcome == LengthOutcome::Exact)
-                .then(|| turn_operation(index, &turn))
-                .flatten();
-            return written
-                .map(|operation| context.document.apply(operation))
-                .is_some();
-        }
+    let CurveDrag::Along { turn, .. } = drag else {
+        context
+            .document
+            .apply(resize_operation(index, curve, reach));
+        return true;
     };
-    context.document.apply(match curve {
+    // What the drawing refused writes nothing: a turn it would not take, a
+    // size it gave back. What it took is one step, undone whole.
+    let mut done: Vec<Operation> = Vec::new();
+    if turned == Some(LengthOutcome::Exact) {
+        done.extend(turn_operation(index, &turn));
+    }
+    if sized == LengthOutcome::Exact {
+        done.push(resize_operation(index, curve, reach));
+    }
+    let written = match done.len() {
+        0 => return false,
+        1 => done.remove(0),
+        _ => Operation::Gesture(done),
+    };
+    context.document.apply(written);
+    true
+}
+
+/// The step that draws `curve` to `reach`.
+fn resize_operation(index: usize, curve: Curved, reach: f64) -> Operation {
+    match curve {
         Curved::Circle(circle) => Operation::ResizeCircle {
             sketch: index,
             circle,
@@ -100,6 +119,5 @@ pub(super) fn drag_curve(
             ellipse,
             reach,
         },
-    });
-    true
+    }
 }

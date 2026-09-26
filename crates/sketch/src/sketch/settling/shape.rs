@@ -235,11 +235,32 @@ impl Sketch {
     /// tangency are never it: they are how a curve is held, not where a shape
     /// stands.
     pub(crate) fn stay_point(&self, point: PointId, shape: &[PointId]) -> Option<PointId> {
-        // Counted along what is drawn first: a trait standing on a point held
-        // on the shape — one drawn square off a side — only hangs from it, and
-        // its far end is not where the shape stands.
-        self.stay_along(point, shape, &self.drawn_pairs())
-            .or_else(|| self.stay_along(point, shape, &self.joined_pairs()))
+        // Counted along what is drawn first, when what is drawn with the point
+        // hangs from nothing: a trait standing on a point held on the shape —
+        // one drawn square off a side — only hangs from it, and its far end is
+        // not where the shape stands. What hangs from something is held by
+        // it, and stays by it.
+        let drawn = self.drawn_pairs();
+        let hangs = self
+            .steps_from(point, &drawn)
+            .iter()
+            .enumerate()
+            .any(|(each, step)| step.is_some() && !self.holds_on(PointId(each)).is_empty());
+        match hangs {
+            false => self
+                .stay_along(point, shape, &drawn)
+                .or_else(|| self.stay_along(point, shape, &self.joined_pairs())),
+            true => self.stay_along(point, shape, &self.joined_pairs()),
+        }
+    }
+
+    /// Whether a trait or an arc ends on a point.
+    fn ends_something(&self, point: PointId) -> bool {
+        self.live_segments()
+            .any(|(_, line)| line.start == point || line.end == point)
+            || self
+                .live_arcs()
+                .any(|(_, arc)| arc.start == point || arc.end == point)
     }
 
     /// The points drawn as one: a trait's two ends, an arc's centre and ends,
@@ -307,7 +328,9 @@ impl Sketch {
     }
 
     /// The ends of an ellipse's axes, the touches of tangencies and the points
-    /// held on a circle or an arc: held by a curve, never where a shape stands.
+    /// held on a circle or an arc that no trait or arc ends on: held by a
+    /// curve, never where a shape stands. A corner laid on a circle is still a
+    /// corner.
     pub(crate) fn held_aside(&self) -> Vec<PointId> {
         let mut aside: Vec<PointId> = self
             .live_ellipses()
@@ -317,7 +340,9 @@ impl Sketch {
             Constraint::Tangent { at, .. }
             | Constraint::ArcTangent { at, .. }
             | Constraint::EllipseTangent { at, .. } => at,
-            Constraint::OnCircle { point, .. } | Constraint::OnArc { point, .. } => Some(point),
+            Constraint::OnCircle { point, .. } | Constraint::OnArc { point, .. } => {
+                (!self.ends_something(point)).then_some(point)
+            }
             _ => None,
         }));
         aside

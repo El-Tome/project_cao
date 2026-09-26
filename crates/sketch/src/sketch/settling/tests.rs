@@ -1138,3 +1138,76 @@ fn a_point_the_drag_took_away_from_the_landing_is_not_joined_to() {
     );
     assert_eq!(pull.joined_to(&settled, landing, 1.0), None);
 }
+
+#[test]
+fn a_rectangle_whose_far_corner_sits_on_a_circle_still_follows_the_hand() {
+    let (mut sketch, [a, b, c, _], _) = upright();
+    let centre = sketch.add_point(DVec2::new(160.0, 100.0));
+    let circle = sketch.add_circle(centre, 50.0);
+    sketch.add_constraint(Constraint::OnCircle { point: c, circle });
+
+    sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
+
+    assert_near(
+        sketch.point(a),
+        DVec2::new(5.0, 45.0),
+        "the corner, under the hand",
+    );
+    assert_near(
+        sketch.point(b),
+        DVec2::new(120.0, 45.0),
+        "the corner after it",
+    );
+    assert_near(
+        sketch.point(c),
+        DVec2::new(120.0, 70.0),
+        "the corner on the circle, staying",
+    );
+}
+
+/// The upright rectangle with a trait standing square off its top, its foot
+/// held on the top at (90, 70) and its tip at (90, 110).
+fn a_rectangle_with_a_square_trait() -> (Sketch, PointId, PointId) {
+    let (mut sketch, _, sides) = upright();
+    let foot = sketch.add_point(DVec2::new(90.0, 70.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: foot,
+        segment: sides[2],
+    });
+    let tip = sketch.add_point(DVec2::new(90.0, 110.0));
+    let square = sketch.add_segment(foot, tip);
+    sketch.add_constraint(Constraint::Perpendicular {
+        first: sides[2],
+        second: square,
+    });
+    (sketch, foot, tip)
+}
+
+#[test]
+fn a_trait_standing_square_off_a_side_slides_along_it_by_its_foot_or_its_tip() {
+    let (mut sketch, foot, tip) = a_rectangle_with_a_square_trait();
+    sketch.settle_around(foot, DVec2::new(60.0, 70.0), 1.0);
+    assert_near(
+        sketch.point(foot),
+        DVec2::new(60.0, 70.0),
+        "the foot, slid along",
+    );
+    assert_near(
+        sketch.point(tip),
+        DVec2::new(60.0, 110.0),
+        "the tip, with it",
+    );
+
+    let (mut sketch, foot, tip) = a_rectangle_with_a_square_trait();
+    sketch.settle_around(tip, DVec2::new(60.0, 120.0), 1.0);
+    assert_near(
+        sketch.point(tip),
+        DVec2::new(60.0, 120.0),
+        "the tip, under the hand",
+    );
+    assert_near(
+        sketch.point(foot),
+        DVec2::new(60.0, 70.0),
+        "the foot, slid along with it",
+    );
+}

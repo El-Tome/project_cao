@@ -39,6 +39,11 @@ impl Sketch {
     /// the gesture holds itself, nor one held on two things at once, nor one a
     /// value or another rule places along what holds it: sliding it there
     /// would break that rule, and the rule wins.
+    ///
+    /// A rule tying the point to something free to follow does not place it:
+    /// a trait standing square on it slides along with it. One tying it only
+    /// to what does not move — what holds it, what the gesture holds, what
+    /// the drawing holds, the size of its circle — does.
     pub(crate) fn shares(&self, except: &[PointId], millimeters_per_unit: f64) -> Vec<Share> {
         let pinned = self.pinned_points();
         let mut rows: Option<Vec<Equation>> = None;
@@ -54,15 +59,24 @@ impl Sketch {
                 rows.get_or_insert_with(|| self.equations_pinned_by(millimeters_per_unit, &pinned));
             let mut slide = Equation::new(self.variables());
             slide.add(point, way);
-            // A rule tying the point to a free neighbour does not place it: the
-            // neighbour can follow. What decides is whether it can slide with
-            // what holds it, and what the gesture holds, kept still.
-            let free = rows.iter().all(|row| turns_nothing(row, &slide)) || {
-                let mut still = except.to_vec();
-                still.extend(self.defining(along));
-                self.slides(point, way, &still, millimeters_per_unit)
+            let mut still = except.to_vec();
+            still.extend(self.defining(along));
+            let followed = |row: &Equation| {
+                (0..self.points().len()).any(|other| {
+                    other != point.0
+                        && !pinned[other]
+                        && !still.contains(&PointId(other))
+                        && (row.gradient[other * 2] != 0.0 || row.gradient[other * 2 + 1] != 0.0)
+                })
             };
-            if free {
+            let speaks_of = |row: &&Equation| {
+                row.gradient[point.0 * 2] != 0.0 || row.gradient[point.0 * 2 + 1] != 0.0
+            };
+            if rows
+                .iter()
+                .filter(speaks_of)
+                .all(|row| turns_nothing(row, &slide) || followed(row))
+            {
                 shares.push(Share { point, along });
             }
         }
@@ -88,15 +102,43 @@ impl Sketch {
         if moved.is_empty() {
             return;
         }
+        if self.put_back(&moved, held, lines, millimeters_per_unit) {
+            return;
+        }
+        // Two places the drawing cannot have at once — two points a rule ties
+        // — cost none of the others theirs: they are put back one at a time,
+        // each kept when the drawing takes it.
+        let mut kept: Vec<(PointId, DVec2)> = Vec::new();
+        for each in moved {
+            kept.push(each);
+            if !self.put_back(&kept, held, lines, millimeters_per_unit) {
+                kept.pop();
+            }
+        }
+        self.put_back(&kept, held, lines, millimeters_per_unit);
+    }
+
+    /// The points of `moved` put at their places and the drawing settled with
+    /// them and `held` held still: whether it came out whole. Given back when
+    /// it does not.
+    fn put_back(
+        &mut self,
+        moved: &[(PointId, DVec2)],
+        held: &[PointId],
+        lines: &[Kept],
+        millimeters_per_unit: f64,
+    ) -> bool {
         let kept = self.shapes_now();
-        for (point, place) in &moved {
+        for (point, place) in moved {
             self.move_point(*point, *place);
         }
         let mut points = held.to_vec();
         points.extend(moved.iter().map(|(point, _)| *point));
-        if !self.settle_held(points, lines.to_vec(), millimeters_per_unit) {
-            self.give_back(kept);
+        if self.settle_held(points, lines.to_vec(), millimeters_per_unit) {
+            return true;
         }
+        self.give_back(kept);
+        false
     }
 
     /// Settles the drawing after a value or a rule changed, each point held on

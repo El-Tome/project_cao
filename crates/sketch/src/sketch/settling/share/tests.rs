@@ -505,3 +505,71 @@ fn a_point_keeps_its_place_when_a_value_typed_moves_what_holds_it() {
         "at 40° about the centre the value moved",
     );
 }
+
+#[test]
+fn a_point_on_a_circle_keeps_its_angle_beside_a_rim_point_a_rule_holds() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(60.0, 20.0));
+    let circle = sketch.add_circle(centre, 30.0);
+    let low = sketch.add_point(DVec2::new(60.0, -10.0));
+    sketch.add_constraint(Constraint::OnCircle { point: low, circle });
+    let level = sketch.add_segment(Sketch::ORIGIN, low);
+    sketch.add_constraint(Constraint::AxisParallel {
+        segment: level,
+        axis: crate::constraints::SketchAxis::U,
+    });
+    let held = sketch.add_point(DVec2::new(60.0, 20.0) + at(120.0) * 30.0);
+    sketch.add_constraint(Constraint::OnCircle {
+        point: held,
+        circle,
+    });
+    let loose = sketch.add_point(DVec2::new(0.0, 80.0));
+    sketch.add_segment(loose, held);
+
+    sketch.settle_around(centre, DVec2::new(72.0, 27.0), 1.0);
+
+    assert_near(
+        sketch.point(held),
+        sketch.point(centre) + at(120.0) * sketch.circle(circle).radius,
+        "the point, at 120° still",
+    );
+}
+
+#[test]
+fn two_held_points_a_rule_ties_do_not_cost_a_third_its_place() {
+    let (mut sketch, [_, b, c, d], sides) = a_rectangle();
+    let held = sketch.add_point(DVec2::new(90.0, 70.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: held,
+        segment: sides[2],
+    });
+    let loose = sketch.add_point(DVec2::new(90.0, 100.0));
+    sketch.add_segment(held, loose);
+    let bottom = sketch.add_point(DVec2::new(60.0, 20.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: bottom,
+        segment: sides[0],
+    });
+    let from = sketch.add_point(DVec2::new(0.0, -10.0));
+    let to = sketch.add_point(DVec2::new(140.0, -10.0));
+    let rail = sketch.add_construction_segment(from, to);
+    let under = sketch.add_point(DVec2::new(60.0, -10.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: under,
+        segment: rail,
+    });
+    let rib = sketch.add_segment(bottom, under);
+    sketch.add_constraint(Constraint::AxisParallel {
+        segment: rib,
+        axis: crate::constraints::SketchAxis::V,
+    });
+
+    sketch.settle_around(b, DVec2::new(160.0, 10.0), 1.0);
+
+    let wanted = sketch.point(c).lerp(sketch.point(d), 0.3);
+    assert_near(
+        sketch.point(held),
+        wanted,
+        "at 30 of the top from its start",
+    );
+}

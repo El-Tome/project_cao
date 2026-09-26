@@ -8,9 +8,10 @@
 //!   and the centre stays where it was — `an_axis_end_dragged_alone_leaves_the_centre_where_it_was`,
 //!   even when the values given refuse the drag —
 //!   `an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was`.
-//!   Since #422 a drag of the end only stretches its axis along itself, and
-//!   the ellipse is turned by its curve: the second test says so now, and the
-//!   first holds what a turn of the axes still has to keep
+//!   Since #422 a drag of the end stretches its axis along itself, and turns
+//!   the ellipse only when taken twice as far off the axis as along it: the
+//!   second test says so now, and the first holds what a turn of the axes
+//!   still has to keep
 //! - dragging the curve scales the ellipse about its centre —
 //!   `the_curve_dragged_out_scales_the_ellipse_about_its_centre_and_keeps_its_shape`
 //! - erasing the ellipse takes its axes —

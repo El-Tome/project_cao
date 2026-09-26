@@ -12,6 +12,7 @@ use super::give::Give;
 use super::kept::Kept;
 use crate::constraints::Constraint;
 use crate::length::LengthOutcome;
+use crate::pulling::TURN_BIAS;
 use crate::sketch::{PointId, Sketch};
 
 /// How close to the last place a shape can still follow to the way there is
@@ -54,6 +55,9 @@ struct Holding {
     /// Whether the point is held on a curve, where the place the hand asks
     /// for is already on what holds it.
     on_a_curve: bool,
+    /// The centre an ellipse's axis end swings about, when the point is one:
+    /// taken far enough off its axis, the end follows the hand.
+    swings: Option<PointId>,
 }
 
 impl Sketch {
@@ -94,6 +98,10 @@ impl Sketch {
         pins.extend(stay);
         let lines = self.lines_kept_in(&shape, &[point]);
         let give = self.give_of(point, &shape, &pins, &lines, about, millimeters_per_unit);
+        let swings = self.live_ellipses().find_map(|(id, _)| {
+            let [centre, ends @ ..] = self.ellipse_points(id);
+            ends.contains(&point).then_some(centre)
+        });
         PointPull {
             point,
             from,
@@ -104,6 +112,7 @@ impl Sketch {
                 shape,
                 about,
                 on_a_curve,
+                swings,
             }),
         }
     }
@@ -140,6 +149,13 @@ impl Sketch {
             // it is a place no settling reaches, and finding that out costs
             // every iteration the solver has.
             Give::Along(way) => {
+                let travel = position - from;
+                let off_the_axis = travel.dot(way.perp()).abs() > TURN_BIAS * travel.dot(way).abs();
+                if let Some(centre) = holding.swings.filter(|_| off_the_axis)
+                    && self.swing(pull, holding, centre, position, millimeters_per_unit)
+                {
+                    return LengthOutcome::Exact;
+                }
                 let landing = from + way * (position - from).dot(way);
                 (holding.on_a_curve
                     && self.stretch(pull.point, holding, position, millimeters_per_unit))
@@ -263,6 +279,42 @@ impl Sketch {
         }
         if self.settle_held(holding.shape.clone(), Vec::new(), millimeters_per_unit) {
             return true;
+        }
+        self.give_back(kept);
+        false
+    }
+
+    /// An ellipse's axis end taken off its axis: the shape turned about the
+    /// ellipse's centre until the end points at the hand, then the axis
+    /// stretched along itself towards it, as a fresh pull of the turned
+    /// drawing would. Given back whole when either cannot be had.
+    fn swing(
+        &mut self,
+        pull: &PointPull,
+        holding: &Holding,
+        centre: PointId,
+        position: DVec2,
+        millimeters_per_unit: f64,
+    ) -> bool {
+        let about = self.point(centre);
+        let (Some(was), Some(wanted)) = (
+            (pull.from - about).try_normalize(),
+            (position - about).try_normalize(),
+        ) else {
+            return false;
+        };
+        let kept = self.shapes_now();
+        let turned = self.turn_shape(
+            &holding.shape,
+            about,
+            was.angle_to(wanted),
+            millimeters_per_unit,
+        );
+        if turned == LengthOutcome::Exact {
+            let along = self.pull(pull.point, millimeters_per_unit);
+            if self.settle_pulled(&along, position, millimeters_per_unit) == LengthOutcome::Exact {
+                return true;
+            }
         }
         self.give_back(kept);
         false

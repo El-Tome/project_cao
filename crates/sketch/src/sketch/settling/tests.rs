@@ -49,7 +49,9 @@
 //!   `an_ellipse_with_a_typed_axis_turns_about_its_centre`
 //! - 7, the ellipse's axis end lengthening its axis without turning it — no
 //!   test: here; `an_axis_end_dragged_alone_leaves_the_centre_where_it_was` in
-//!   ellipse/tests.rs holds it
+//!   ellipse/tests.rs holds it; taken twice as far off its axis as along it,
+//!   the end follows the hand, the ellipse turning about its centre —
+//!   `an_axis_end_pulled_twice_as_far_off_its_axis_as_along_it_follows_the_hand`
 //! - 8: a trait held by nothing stretches freely —
 //!   `with_no_rules_only_the_dragged_point_moves`, and traits held by lengths
 //!   alone still bend — `two_typed_bars_hinged_together_bend_to_reach_the_cursor`
@@ -499,6 +501,30 @@ fn an_ellipse_with_a_typed_axis_turns_about_its_centre() {
         sketch.point(north),
         DVec2::new(40.0, 20.0),
         "the other axis turned with it",
+    );
+}
+
+#[test]
+fn an_axis_end_pulled_twice_as_far_off_its_axis_as_along_it_follows_the_hand() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 20.0));
+    let west = sketch.add_point(DVec2::new(20.0, 20.0));
+    let east = sketch.add_point(DVec2::new(80.0, 20.0));
+    let south = sketch.add_point(DVec2::new(50.0, 10.0));
+    let north = sketch.add_point(DVec2::new(50.0, 30.0));
+    sketch.add_ellipse(centre, [west, east], [south, north]);
+    let hand = DVec2::new(75.0, 45.0);
+
+    sketch.settle_around(east, hand, 1.0);
+
+    let eighth = DVec2::from_angle(std::f64::consts::FRAC_PI_4);
+    assert_near(sketch.point(centre), DVec2::new(50.0, 20.0), "the centre");
+    assert_near(sketch.point(east), hand, "the end, under the hand");
+    assert_near(sketch.point(west), DVec2::new(25.0, -5.0), "the other end");
+    assert_near(
+        sketch.point(north),
+        DVec2::new(50.0, 20.0) + eighth.rotate(DVec2::new(0.0, 10.0)),
+        "the other axis, turned with it at its length",
     );
 }
 

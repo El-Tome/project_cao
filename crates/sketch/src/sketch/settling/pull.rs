@@ -145,6 +145,9 @@ impl Sketch {
         let Way::Held(holding) = &pull.way else {
             return self.settle_plainly(pull.point, position, millimeters_per_unit);
         };
+        let mut still = holding.pins.clone();
+        still.push(pull.point);
+        let shares = self.shares(&still, millimeters_per_unit);
         let from = pull.from;
         let reached = match holding.give {
             // The last place the hand's way can be followed to comes before
@@ -181,6 +184,10 @@ impl Sketch {
             Give::Nowhere => self.pivot(pull, holding, position, millimeters_per_unit),
             Give::Stuck => false,
         };
+        // A shape turned whole carries what is held on it round with it.
+        if reached && !pull.turns() {
+            self.keep_shares(&shares, &still, &holding.lines, millimeters_per_unit);
+        }
         match reached {
             true => LengthOutcome::Exact,
             false => LengthOutcome::BestEffort,

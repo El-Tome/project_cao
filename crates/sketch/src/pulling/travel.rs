@@ -92,12 +92,18 @@ impl Sketch {
             landed.push((end, place));
             pins.extend([centre, end]);
         }
+        let mut still = pins.clone();
+        still.extend([line.start, line.end]);
+        let shares = self.shares(&still, millimeters_per_unit);
         let kept = self.shapes_now();
         for (end, place) in landed {
             self.move_point(end, place);
         }
-        match self.settle_held(pins, lines, millimeters_per_unit) {
-            true => LengthOutcome::Exact,
+        match self.settle_held(pins, lines.clone(), millimeters_per_unit) {
+            true => {
+                self.keep_shares(&shares, &still, &lines, millimeters_per_unit);
+                LengthOutcome::Exact
+            }
             false => {
                 self.give_back(kept);
                 LengthOutcome::BestEffort

@@ -836,6 +836,21 @@ arc's end opens or closes the arc about its centre, and an ellipse's axis end
 lengthens that axis along itself — and turns the ellipse only when taken twice
 as far off the axis as along it.
 
+### A point held keeps its place along what holds it
+
+A point held on a trait, a circle or an arc keeps its place along it while a
+gesture moves what holds it: its share of the trait from the trait's start, its
+angle about the circle's centre, its share of the arc's sweep from the arc's
+start. At 70 of a trait it stays at 70 however the trait stretches; at 40° on a
+circle it stays at 40° wherever the circle goes; halfway round an arc it stays
+halfway round as the arc opens. The place is read as the gesture starts and put
+back once the drawing has settled, so nothing is kept in the file for it.
+
+A point a value places along what holds it — a distance typed from the trait's
+start — is the value's, and so is one held on two things at once. The point
+itself dragged slides along what holds it, and keeps the place it is let go of
+at. A shape turned whole carries what is held on it round with it.
+
 ### When the gesture is impossible
 
 A place the shape cannot take all the way is approached as far as it can go:

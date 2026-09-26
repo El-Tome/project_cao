@@ -9,6 +9,7 @@ mod give;
 mod kept;
 mod pull;
 mod shape;
+mod share;
 
 pub(crate) use kept::Kept;
 pub use pull::PointPull;
@@ -117,12 +118,15 @@ impl Sketch {
                 sketch.move_point(*point, *position);
             }
         };
+        let still: Vec<PointId> = dropped.iter().map(|(point, _)| *point).collect();
+        let shares = self.shares(&still, millimeters_per_unit);
 
         place(self);
-        self.held.points = dropped.iter().map(|(point, _)| *point).collect();
+        self.held.points = still.clone();
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
         if outcome == LengthOutcome::Exact {
+            self.keep_shares(&shares, &still, &[], millimeters_per_unit);
             return outcome;
         }
 

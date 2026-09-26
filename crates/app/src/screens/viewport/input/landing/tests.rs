@@ -76,3 +76,38 @@ fn an_end_of_a_trait_dropped_back_along_it_is_held_by_nothing() {
          holds that end to nothing: {held:?}",
     );
 }
+
+#[test]
+fn a_corner_dropped_where_a_trait_stood_before_the_drag_moved_it_is_held_by_nothing() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        DVec2::new(20.0, 20.0),
+        DVec2::new(120.0, 20.0),
+        DVec2::new(120.0, 70.0),
+        DVec2::new(20.0, 70.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 4]));
+    for corner in 0..3 {
+        sketch.add_constraint(cao_sketch::Constraint::Perpendicular {
+            first: sides[corner],
+            second: sides[corner + 1],
+        });
+    }
+    let tip = sketch.add_point(DVec2::new(140.0, 60.0));
+    sketch.add_segment(corners[1], tip);
+    let landing = DVec2::new(130.0, 40.0);
+    let mut settled = sketch.clone();
+    let pull = settled.pull(corners[2], 1.0);
+    settled.settle_pulled(&pull, landing, 1.0);
+
+    assert!(
+        !dropped_on(&sketch, corners[2], landing).is_empty(),
+        "the tail ran through the place before the drag"
+    );
+    assert!(
+        dropped_on(&settled, corners[2], landing).is_empty(),
+        "the drag took it away, and the drop is held by nothing"
+    );
+}

@@ -867,16 +867,21 @@ shape would turn on:
   side pulled past the opposite one goes through.
 - **Along** — the shape turns, rigidly, about the middle of the side standing
   opposite the one pulled, which stays where it is — about its far corner when
-  none stands opposite, a triangle's, or about the point holding it. The place
+  none stands opposite, a triangle's, or about the point holding it. The side
+  opposite is read off the traits a rule of direction ties, construction left
+  out, among the ends standing at least three quarters as far off as the
+  farthest: a tail hanging off the shape does not count, and a shape the same
+  both sides turns about its middle. The place
   grabbed goes round with the hand, and the end of the side nearest the hand is
   pulled onto the grid. A shape whose pivot lies on the side's own line has no
   along, nor has a shape a rule holds upright, or one two fixed points nail
   down.
 
 A trait on its own — nothing joined to it but points held on it, nothing
-holding it — has neither: it travels whole, wherever the hand takes it, as far
-as its rules let it. Held on an axis, it slides along the axis; kept at a
-distance from a point, it travels across as any side does.
+holding it — has neither: it travels whole, wherever the hand takes it, and
+what a rule ties it to follows. Where its own rules forbid the place — held on
+an axis, kept at a distance from a point — it goes as near as they allow,
+still whole: along the axis, round the point.
 
 A turn nobody meant costs more than a resize nobody meant, so a turn has to be
 asked for plainly, one of two ways. The hand going along the side more than

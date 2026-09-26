@@ -290,10 +290,13 @@ pub(super) fn drag_point(
     // already: one sliding along its own trait would otherwise catch on the
     // first crossing it went over. Joining another point holds nothing: that
     // is a merge, and it is the other point that stands there afterwards.
+    // What it is held on is read off the drawing the drag settled, the one
+    // shown and the one the replay rebuilds: a trait the settling moved away
+    // no longer runs through the place, and a hold on it would not be met.
     let free = sketch.holds_on(point).is_empty();
     let on = match letting_go || merged_into.is_some() || !free || !arrived {
         true => Vec::new(),
-        false => dropped_on(sketch, point, landing),
+        false => dropped_on(&settling, point, landing),
     };
     // A drag that changed nothing — the drawing refused it, and it neither
     // joined, held nor let go of anything — writes nothing: a step that changes

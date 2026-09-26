@@ -48,6 +48,25 @@ impl Kept {
         })
     }
 
+    /// The trait from `from` to `to` kept whole: its direction, and how long
+    /// it runs that way.
+    pub(crate) fn whole(
+        sketch: &Sketch,
+        from: PointId,
+        to: PointId,
+        segment: Option<SegmentId>,
+    ) -> Vec<Self> {
+        let Some(direction) = Self::direction(sketch, from, to, segment) else {
+            return Vec::new();
+        };
+        let length = Self {
+            normal: direction.along,
+            at: (sketch.point(to) - sketch.point(from)).dot(direction.along),
+            ..direction
+        };
+        vec![direction, length]
+    }
+
     /// A point kept on the line of the plane it would stand on once moved `by`
     /// along `normal`, free to slide along that line.
     pub(crate) fn level(sketch: &Sketch, point: PointId, normal: DVec2, by: f64) -> Self {
@@ -85,11 +104,23 @@ impl Kept {
 }
 
 impl Sketch {
-    /// Whether a trait runs into a curve it is tangent to — a fillet's side,
-    /// a slot's flat.
+    /// Whether a trait runs into a curve it is tangent to at one of its ends —
+    /// a fillet's side, a slot's flat — rather than one touching it midway.
     fn is_rounded(&self, segment: SegmentId) -> bool {
-        self.constraints().iter().any(|rule| {
-            matches!(rule, Constraint::ArcTangent { segment: rounded, .. } if *rounded == segment)
+        let line = self.segments()[segment.0];
+        let ends = [line.start, line.end];
+        self.constraints().iter().any(|rule| match rule {
+            Constraint::ArcTangent {
+                arc,
+                segment: rounded,
+                at,
+            } if *rounded == segment => {
+                let curve = self.arc(*arc);
+                at.is_some_and(|touch| ends.contains(&touch))
+                    || ends.contains(&curve.start)
+                    || ends.contains(&curve.end)
+            }
+            _ => false,
         })
     }
 

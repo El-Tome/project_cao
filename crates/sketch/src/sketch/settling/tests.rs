@@ -71,7 +71,9 @@
 //!   `a_rectangle_pulled_past_its_opposite_corner_comes_out_the_other_way_round`,
 //!   `a_corner_held_to_its_height_by_a_typed_width_goes_through_the_opposite_side`;
 //!   not a shape with a rounded corner, which would come out crossed —
-//!   `a_rounded_corner_keeps_its_rectangle_from_going_through_inside_out`
+//!   `a_rounded_corner_keeps_its_rectangle_from_going_through_inside_out`;
+//!   an arc touching a side midway rounds nothing —
+//!   `an_arc_touching_a_side_midway_lets_its_rectangle_go_through`
 //! - 20: the verdict does not change — `a_drag_leaves_the_verdict_and_the_freedom_as_they_were`
 
 use glam::DVec2;
@@ -1071,4 +1073,41 @@ fn an_l_tied_by_a_collinear_rule_keeps_its_directions() {
             "trait {rank} turned"
         );
     }
+}
+
+#[test]
+fn an_arc_touching_a_side_midway_lets_its_rectangle_go_through() {
+    let (mut sketch, [a, b, c, d], sides) = upright();
+    let centre = sketch.add_point(DVec2::new(70.0, 35.0));
+    let start = sketch.add_point(DVec2::new(85.0, 35.0));
+    let end = sketch.add_point(DVec2::new(55.0, 35.0));
+    let arc = sketch.add_arc(centre, start, end);
+    sketch.add_constraint(Constraint::ArcTangent {
+        arc,
+        segment: sides[0],
+        at: None,
+    });
+
+    sketch.settle_around(c, DVec2::new(-20.0, 70.0), 1.0);
+
+    assert_near(
+        sketch.point(c),
+        DVec2::new(-20.0, 70.0),
+        "the corner pulled",
+    );
+    assert_near(
+        sketch.point(a),
+        DVec2::new(20.0, 20.0),
+        "the opposite corner",
+    );
+    assert_near(
+        sketch.point(b),
+        DVec2::new(-20.0, 20.0),
+        "the corner below it",
+    );
+    assert_near(
+        sketch.point(d),
+        DVec2::new(20.0, 70.0),
+        "the corner beside it",
+    );
 }

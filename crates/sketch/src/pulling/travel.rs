@@ -16,9 +16,8 @@ impl Sketch {
     /// triangle, and does not refuse because its ends were nailed across. The
     /// side keeps its direction, and so does every trait of its shape a rule of
     /// direction ties; the point of the shape farthest off the side stays
-    /// where it is. A trait on its own has no shape to stretch, and travels
-    /// as much of `by` as its rules let it. What cannot be had is given back
-    /// whole: the side stays.
+    /// where it is. A trait on its own has no shape to stretch, and is carried
+    /// whole. What cannot be had is given back whole: the side stays.
     pub fn move_side(
         &mut self,
         side: SegmentId,
@@ -38,10 +37,8 @@ impl Sketch {
         let travel = by.dot(normal);
 
         let shape = self.shape_through(&[line.start, line.end]);
-        if self.travels_whole(&shape, self.point(line.start), normal)
-            && let Some(way) = self.free_way(&shape, by, along, millimeters_per_unit)
-        {
-            return self.carry(shape, way, millimeters_per_unit);
+        if self.travels_whole(&shape, self.point(line.start), normal) {
+            return self.carry(shape, side, by, millimeters_per_unit);
         }
         let mut lines = self.lines_kept_in(&shape, &[line.start, line.end]);
         lines.retain(|kept| kept.segment != Some(side));
@@ -103,47 +100,36 @@ impl Sketch {
         })
     }
 
-    /// How much of `by` a trait on its own can travel with every rule of the
-    /// drawing still true: all of it, or its share along the one way its rules
-    /// leave it free to go — along itself or square to itself, a trait held on
-    /// an axis. Nothing when neither is free, a trait kept at a distance from
-    /// a point for one: it then travels across as any side does, its ends
-    /// sliding along it.
-    fn free_way(
-        &self,
-        shape: &[PointId],
-        by: DVec2,
-        along: DVec2,
-        millimeters_per_unit: f64,
-    ) -> Option<DVec2> {
-        let free = |way: DVec2| self.travels_freely(shape, way, millimeters_per_unit);
-        match (free(along), free(along.perp())) {
-            (true, true) => Some(by),
-            (true, false) => Some(along * by.dot(along)),
-            (false, true) => Some(along.perp() * by.dot(along.perp())),
-            (false, false) => None,
-        }
-    }
-
-    /// Every point of `shape` moved by `by` and held there while the rest of
-    /// the drawing settles, or the drawing given back whole.
+    /// A trait on its own carried by `by`, with what is held on it, and held
+    /// there while the rest of the drawing settles: what a rule ties it to
+    /// follows. When that place cannot be had — a rule holds it to an axis, or
+    /// at a distance from a point — it is let go of there, whole, and the
+    /// drawing takes it back as near as its rules allow, as long and as
+    /// upright as it was. The drawing given back when neither can be had.
     fn carry(
         &mut self,
         shape: Vec<PointId>,
+        side: SegmentId,
         by: DVec2,
         millimeters_per_unit: f64,
     ) -> LengthOutcome {
+        let line = self.segments()[side.0];
         let kept = self.shapes_now();
-        for point in &shape {
-            let place = self.point(*point) + by;
-            self.move_point(*point, place);
-        }
-        match self.settle_held(shape, Vec::new(), millimeters_per_unit) {
-            true => LengthOutcome::Exact,
-            false => {
-                self.give_back(kept);
-                LengthOutcome::BestEffort
+        let carried = |sketch: &mut Self, held: Vec<PointId>, lines: Vec<Kept>| {
+            for point in &shape {
+                let place = sketch.point(*point) + by;
+                sketch.move_point(*point, place);
             }
+            let whole = sketch.settle_held(held, lines, millimeters_per_unit);
+            if !whole {
+                sketch.give_back(kept.clone());
+            }
+            whole
+        };
+        let lines = Kept::whole(self, line.start, line.end, Some(side));
+        match carried(self, shape.clone(), Vec::new()) || carried(self, Vec::new(), lines) {
+            true => LengthOutcome::Exact,
+            false => LengthOutcome::BestEffort,
         }
     }
 

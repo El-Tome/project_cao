@@ -220,7 +220,7 @@ impl Sketch {
             curve,
             about + DVec2::from_angle(-angle).rotate(cursor - about),
         );
-        let now = self.reach_through(curve, self.point(handles[0]));
+        let now = self.reach_now(curve);
         if now < 1e-12 {
             return resize;
         }

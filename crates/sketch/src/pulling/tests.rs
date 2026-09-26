@@ -19,6 +19,8 @@
 //!   `a_tail_or_a_construction_line_off_the_far_corner_does_not_take_the_place_of_the_opposite_side`,
 //!   `a_point_held_on_the_opposite_side_does_not_take_the_place_of_its_middle`,
 //!   `a_house_slid_by_its_floor_turns_about_a_place_above_its_middle`,
+//!   `a_regular_hexagon_slid_by_a_side_turns_about_the_middle_of_the_side_opposite`,
+//!   `a_triangle_with_a_construction_height_still_turns_about_its_far_corner`,
 //!   `a_shape_held_at_a_point_turns_about_it`, and a shape sharing only the
 //!   origin with another turns alone —
 //!   `a_shape_sharing_only_the_origin_with_another_turns_alone`,
@@ -39,7 +41,10 @@
 //!   `a_lone_trait_travels_whole_wherever_the_hand_takes_it`,
 //!   `a_lone_trait_carries_the_point_held_on_it`,
 //!   `a_lone_trait_held_to_an_axis_travels_as_far_as_the_axis_lets_it`,
-//!   `a_lone_trait_kept_at_a_distance_from_the_origin_still_travels_across`;
+//!   `a_lone_slanted_trait_held_to_an_axis_travels_along_it_whole`,
+//!   `a_lone_trait_kept_at_a_distance_from_the_origin_travels_whole_round_it`,
+//!   and what a rule ties it to follows —
+//!   `a_lone_trait_tied_to_another_by_a_rule_carries_it_along`;
 //!   a shape whose pivot lies on
 //!   the pressed side's line, a rule holds upright or two fixed points nail
 //!   down has no along; a curve kept from turning is drawn to its size
@@ -62,7 +67,10 @@
 //!   `an_arc_slid_along_turns_what_is_joined_to_it_with_it`; a size a rule
 //!   holds is kept, the curve only turning about its centre —
 //!   `an_arc_of_typed_radius_slid_round_turns_at_its_radius_about_its_centre`,
-//!   `an_ellipse_with_a_typed_axis_slid_round_turns_keeping_its_shape`
+//!   `an_ellipse_with_a_typed_axis_slid_round_turns_keeping_its_shape`,
+//!   `a_curve_whose_size_is_held_writes_no_size_it_did_not_reach`; a curve
+//!   tangent to others still reaches the hand —
+//!   `a_slot_s_cap_slid_round_and_out_reaches_the_hand_about_its_centre`
 //! - 17: a circle is always drawn to its new size —
 //!   `a_circle_is_always_drawn_to_its_new_size`
 //! - 18: while a shape turns, the end nearest the hand is pulled onto a grid
@@ -1172,7 +1180,7 @@ fn a_lone_trait_held_to_an_axis_travels_as_far_as_the_axis_lets_it() {
 }
 
 #[test]
-fn a_lone_trait_kept_at_a_distance_from_the_origin_still_travels_across() {
+fn a_lone_trait_kept_at_a_distance_from_the_origin_travels_whole_round_it() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let foot = sketch.add_point(DVec2::new(30.0, 40.0));
     let head = sketch.add_point(DVec2::new(30.0, 90.0));
@@ -1198,16 +1206,19 @@ fn a_lone_trait_kept_at_a_distance_from_the_origin_still_travels_across() {
     };
 
     assert_eq!(sketch.move_side(line, by, 1.0), LengthOutcome::Exact);
-    for end in [foot, head] {
-        assert!(
-            (sketch.point(end).x - 40.0).abs() < SETTLED,
-            "it went across, its foot sliding along it: {}",
-            sketch.point(end)
-        );
-    }
+    assert!(
+        sketch.point(foot).x > 32.0,
+        "it went the hand's way: {}",
+        sketch.point(foot)
+    );
     assert!(
         (sketch.point(foot).length() - 50.0).abs() < SETTLED,
         "at its distance from the origin"
+    );
+    assert_near(
+        sketch.point(head) - sketch.point(foot),
+        DVec2::new(0.0, 50.0),
+        "whole, as long and as upright as it was",
     );
 }
 
@@ -1410,5 +1421,197 @@ fn an_ellipse_with_a_typed_axis_slid_round_turns_keeping_its_shape() {
         drawn.first.to_angle() > 0.1,
         "and it turned: {}",
         drawn.first
+    );
+}
+
+#[test]
+fn a_regular_hexagon_slid_by_a_side_turns_about_the_middle_of_the_side_opposite() {
+    for (start, way) in [(0.0_f64, 1.0_f64), (0.0, -1.0), (120.0, -1.0), (300.0, 1.0)] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let places: Vec<DVec2> = (0..6)
+            .map(|rank| {
+                let degrees = 240.0 + start + way * 60.0 * rank as f64;
+                DVec2::new(100.0, 100.0) + DVec2::from_angle(degrees.to_radians()) * 40.0
+            })
+            .collect();
+        let corners: Vec<PointId> = places
+            .iter()
+            .map(|place| sketch.add_point(*place))
+            .collect();
+        let sides: Vec<SegmentId> = (0..6)
+            .map(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 6]))
+            .collect();
+        let bottom = sides
+            .iter()
+            .copied()
+            .find(|side| {
+                let (from, to) = sketch.endpoints(*side);
+                from.y < 70.0 && to.y < 70.0
+            })
+            .expect("a flat bottom");
+        let floor = sketch.endpoints(bottom).0.y;
+
+        let drag = sketch.side_drag(
+            bottom,
+            DVec2::new(100.0, floor),
+            DVec2::new(115.0, floor - 1.0),
+            &no_grid(),
+            1.0,
+        );
+
+        let SideDrag::Along(turn) = drag else {
+            panic!("sliding the bottom along turns: {drag:?}");
+        };
+        assert_near(
+            turn.about,
+            DVec2::new(100.0, 100.0 + 40.0 * 60f64.to_radians().sin()),
+            "the middle of the top side",
+        );
+    }
+}
+
+#[test]
+fn a_triangle_with_a_construction_height_still_turns_about_its_far_corner() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        DVec2::new(10.0, 10.0),
+        DVec2::new(110.0, 10.0),
+        DVec2::new(50.0, 70.0),
+    ]
+    .map(|place| sketch.add_point(place));
+    let sides: [SegmentId; 3] =
+        std::array::from_fn(|rank| sketch.add_segment(corners[rank], corners[(rank + 1) % 3]));
+    let foot = sketch.add_point(DVec2::new(50.0, 10.0));
+    sketch.add_constraint(Constraint::OnSegment {
+        point: foot,
+        segment: sides[0],
+    });
+    let height = sketch.add_construction_segment(foot, corners[2]);
+    sketch.add_constraint(Constraint::Perpendicular {
+        first: sides[0],
+        second: height,
+    });
+
+    let drag = sketch.side_drag(
+        sides[0],
+        DVec2::new(60.0, 10.0),
+        DVec2::new(75.0, 9.0),
+        &no_grid(),
+        1.0,
+    );
+
+    let SideDrag::Along(turn) = drag else {
+        panic!("sliding the base along turns: {drag:?}");
+    };
+    assert_near(turn.about, DVec2::new(50.0, 70.0), "the far corner");
+}
+
+#[test]
+fn a_lone_trait_tied_to_another_by_a_rule_carries_it_along() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let from = sketch.add_point(DVec2::new(10.0, 10.0));
+    let to = sketch.add_point(DVec2::new(60.0, 10.0));
+    let line = sketch.add_segment(from, to);
+    let other_from = sketch.add_point(DVec2::new(80.0, 10.0));
+    let other_to = sketch.add_point(DVec2::new(130.0, 10.0));
+    let other = sketch.add_segment(other_from, other_to);
+    sketch.add_constraint(Constraint::Collinear {
+        first: line,
+        second: other,
+    });
+
+    let drag = sketch.side_drag(
+        line,
+        DVec2::new(30.0, 10.0),
+        DVec2::new(30.0, 30.0),
+        &no_grid(),
+        1.0,
+    );
+    laid(&mut sketch, &drag, line);
+
+    assert_near(sketch.point(from), DVec2::new(10.0, 30.0), "one end");
+    assert_near(sketch.point(to), DVec2::new(60.0, 30.0), "the other end");
+    assert!(
+        (sketch.point(other_from).y - 30.0).abs() < SETTLED
+            && (sketch.point(other_to).y - 30.0).abs() < SETTLED,
+        "the trait on its line came with it"
+    );
+}
+
+#[test]
+fn a_lone_slanted_trait_held_to_an_axis_travels_along_it_whole() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let foot = sketch.add_point(DVec2::new(30.0, 0.0));
+    let head = sketch.add_point(DVec2::new(60.0, 40.0));
+    let line = sketch.add_segment(foot, head);
+    sketch.add_constraint(Constraint::OnAxis {
+        point: foot,
+        axis: crate::constraints::SketchAxis::U,
+    });
+
+    let drag = sketch.side_drag(
+        line,
+        DVec2::new(45.0, 20.0),
+        DVec2::new(65.0, 22.0),
+        &no_grid(),
+        1.0,
+    );
+    laid(&mut sketch, &drag, line);
+
+    assert_near(
+        sketch.point(foot),
+        DVec2::new(50.0, 0.0),
+        "the foot, on the axis",
+    );
+    assert_near(
+        sketch.point(head),
+        DVec2::new(80.0, 40.0),
+        "the head, the same way",
+    );
+}
+
+#[test]
+fn a_slot_s_cap_slid_round_and_out_reaches_the_hand_about_its_centre() {
+    let (mut sketch, _, _) = slot();
+    let cap = Curved::Arc(crate::arc::ArcId(0));
+    let cursor = DVec2::new(130.0, 30.0) + DVec2::from_angle(0.5) * 24.0;
+
+    let drag = sketch.curve_drag(
+        cap,
+        DVec2::new(150.0, 30.0),
+        cursor,
+        cursor,
+        &no_grid(),
+        1.0,
+    );
+    laid_curve(&mut sketch, &drag, cap);
+
+    assert!(
+        (sketch.arc_radius(crate::arc::ArcId(0)) - 24.0).abs() < SETTLED,
+        "the cap reaches the hand: {}",
+        sketch.arc_radius(crate::arc::ArcId(0))
+    );
+    assert_near(
+        sketch.point(sketch.arc(crate::arc::ArcId(0)).center),
+        DVec2::new(130.0, 30.0),
+        "about its centre",
+    );
+}
+
+#[test]
+fn a_curve_whose_size_is_held_writes_no_size_it_did_not_reach() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(DVec2::new(30.0, 0.0));
+    let end = sketch.add_point(DVec2::new(0.0, 30.0));
+    let arc = sketch.add_arc(Sketch::ORIGIN, start, end);
+    sketch.set_dimension(DimensionTarget::ArcRadius(arc), 30.0, false);
+
+    let outcome = sketch.resize_in_place(Curved::Arc(arc), 34.0, 1.0);
+
+    assert_eq!(outcome, LengthOutcome::BestEffort);
+    assert!(
+        (sketch.arc_radius(arc) - 30.0).abs() < 1e-9,
+        "given back: {}",
+        sketch.arc_radius(arc)
     );
 }

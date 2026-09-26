@@ -14,6 +14,12 @@ use crate::length::LengthOutcome;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::snap::SnapSettings;
 
+/// How far off a side an end has to stand, as a share of the farthest, to
+/// belong to the side opposite it: a rectangle's two far corners, both ends of
+/// a far side a little aslant, but not a hexagon's middle corners, halfway
+/// there, nor a house's walls under its roof.
+const OPPOSITE: f64 = 0.75;
+
 /// A shape turned about a place, as the hand asked: the points turned, where
 /// they turn about, and how far round, in radians — counter-clockwise when
 /// positive.
@@ -96,32 +102,40 @@ impl Sketch {
 
     /// The middle of the side of `shape` standing opposite `side`. Of the
     /// ends of its drawn traits — those a rule of direction ties, when any
-    /// does, so that a tail hanging off it does not count — the ones at least
-    /// half as far off `side` as the farthest, and the middle of the first and
-    /// the last of them along it: a triangle's far corner when that one alone
-    /// stands so far off.
+    /// drawn one is, so that a tail hanging off it does not count — the ones
+    /// standing nearly as far off `side` as the farthest, and the middle of the
+    /// first and the last of them along it: a triangle's far corner when that
+    /// one alone stands so far off.
     fn opposite(&self, shape: &[PointId], side: SegmentId) -> Option<DVec2> {
         let line = self.segments().get(side.0).copied()?;
         let start = self.point(line.start);
         let along = (self.point(line.end) - start).try_normalize()?;
         let tied = self.tied_by_direction(shape);
-        let ends: Vec<DVec2> = self
-            .live_segments()
-            .filter(|(id, other)| {
-                *id != side
-                    && !other.construction
-                    && shape.contains(&other.start)
-                    && shape.contains(&other.end)
-                    && (tied.is_empty() || tied.contains(id))
-            })
-            .flat_map(|(_, other)| [self.point(other.start), self.point(other.end)])
-            .collect();
+        let drawn = |tied_only: bool| -> Vec<DVec2> {
+            self.live_segments()
+                .filter(|(id, other)| {
+                    *id != side
+                        && !other.construction
+                        && shape.contains(&other.start)
+                        && shape.contains(&other.end)
+                        && (!tied_only || tied.contains(id))
+                })
+                .flat_map(|(_, other)| [self.point(other.start), self.point(other.end)])
+                .collect()
+        };
+        let mut ends = drawn(true);
+        if ends.is_empty() {
+            ends = drawn(false);
+        }
         let off = |place: &DVec2| (*place - start).dot(along.perp()).abs();
         let far = ends.iter().map(off).fold(0.0, f64::max);
         if far <= self.drawing_size() * 1e-6 {
             return None;
         }
-        let standing = || ends.iter().filter(|place| off(place) >= far / 2.0);
+        let standing = || {
+            ends.iter()
+                .filter(|place| off(place) >= far * (OPPOSITE - 1e-9))
+        };
         let along_it = |one: &&DVec2, other: &&DVec2| one.dot(along).total_cmp(&other.dot(along));
         let first = standing().min_by(along_it)?;
         let last = standing().max_by(along_it)?;
@@ -143,38 +157,13 @@ impl Sketch {
         {
             return false;
         }
-        self.moves_nothing_else(shape, |place| (place - about).perp(), millimeters_per_unit)
-    }
-
-    /// Whether the whole shape can travel `way`, all of it together, without
-    /// a single rule of the drawing giving and with nothing holding it.
-    pub(crate) fn travels_freely(
-        &self,
-        shape: &[PointId],
-        way: DVec2,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        let pinned = self.pinned_points();
-        !shape.iter().any(|point| pinned[point.0])
-            && self.moves_nothing_else(shape, |_| way, millimeters_per_unit)
-    }
-
-    /// Whether the shape's free points set off at the pace `motion` gives each
-    /// place leave every rule of the drawing as true as it was.
-    fn moves_nothing_else(
-        &self,
-        shape: &[PointId],
-        motion: impl Fn(DVec2) -> DVec2,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        let pinned = self.pinned_points();
-        let mut moved = crate::equation::Equation::new(self.variables());
+        let mut turn = crate::equation::Equation::new(self.variables());
         for point in shape.iter().filter(|point| !pinned[point.0]) {
-            moved.add(*point, motion(self.point(*point)));
+            turn.add(*point, (self.point(*point) - about).perp());
         }
         self.equations_pinned_by(millimeters_per_unit, &pinned)
             .iter()
-            .all(|row| turns_nothing(row, &moved))
+            .all(|row| turns_nothing(row, &turn))
     }
 
     /// The middle of the box the shape's drawn curves fit in — construction

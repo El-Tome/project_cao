@@ -145,6 +145,9 @@ impl Sketch {
         let Way::Held(holding) = &pull.way else {
             return self.settle_plainly(pull.point, position, millimeters_per_unit);
         };
+        let mut still = holding.pins.clone();
+        still.push(pull.point);
+        let shares = self.shares(&still, millimeters_per_unit);
         let from = pull.from;
         let reached = match holding.give {
             // The last place the hand's way can be followed to comes before
@@ -181,6 +184,10 @@ impl Sketch {
             Give::Nowhere => self.pivot(pull, holding, position, millimeters_per_unit),
             Give::Stuck => false,
         };
+        // A shape turned whole carries what is held on it round with it.
+        if reached && !pull.turns() {
+            self.keep_shares(&shares, &still, &holding.lines, millimeters_per_unit);
+        }
         match reached {
             true => LengthOutcome::Exact,
             false => LengthOutcome::BestEffort,
@@ -364,27 +371,5 @@ impl Sketch {
         }
         self.give_back(kept);
         false
-    }
-
-    /// Settles the drawing with `points` held still and `lines` kept, and
-    /// says whether it came out whole: every value true, no trait squeezed to
-    /// nothing, no tangency slid off, nothing kept come out the other way
-    /// round where it may not (`Kept::runs_backwards`).
-    pub(crate) fn settle_held(
-        &mut self,
-        points: Vec<PointId>,
-        lines: Vec<Kept>,
-        millimeters_per_unit: f64,
-    ) -> bool {
-        self.held.points = points;
-        self.held.lines = lines;
-        let outcome = self.resolve(millimeters_per_unit);
-        let backwards = self.held.lines.iter().any(|line| line.runs_backwards(self));
-        self.held.points.clear();
-        self.held.lines.clear();
-        outcome == LengthOutcome::Exact
-            && !backwards
-            && !self.has_a_collapsed_trait(self.drawing_size())
-            && !self.has_a_flipped_tangent()
     }
 }

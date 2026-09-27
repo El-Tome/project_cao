@@ -369,3 +369,51 @@ fn an_axis_end_swung_onto_a_trait_is_rebuilt_where_the_drag_showed_it() {
     document.redo();
     assert_same(document.sketches()[0].points(), shown.points());
 }
+
+#[test]
+fn a_trait_end_pulled_with_a_point_held_on_it_is_rebuilt_as_shown() {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(DVec2::new(10.0, 10.0)),
+        end: PointRef::New(DVec2::new(110.0, 10.0)),
+        construction: false,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: DVec2::new(80.0, 10.0),
+        on: vec![Support::Segment(SegmentId(0))],
+    });
+    let end = document.sketches()[0].segments()[0].end;
+    let landing = DVec2::new(160.0, 30.0);
+    let mut shown = document.sketches()[0].clone();
+    let pull = shown.pull(end, 1.0);
+    shown.settle_pulled(&pull, landing, 1.0);
+
+    document.apply(Operation::MovePoint {
+        sketch: 0,
+        point: end,
+        position: landing,
+        merged_into: None,
+        on: Vec::new(),
+        let_go: false,
+    });
+
+    assert_same(document.sketches()[0].points(), shown.points());
+    document.undo();
+    document.redo();
+    assert_same(document.sketches()[0].points(), shown.points());
+    let held = document.sketches()[0]
+        .points()
+        .last()
+        .copied()
+        .expect("the point held");
+    assert!(
+        held.distance(DVec2::new(10.0, 10.0).lerp(landing, 0.7)) < 1e-3,
+        "at 70 of the trait: {held}"
+    );
+}

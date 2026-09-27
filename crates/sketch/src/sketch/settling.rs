@@ -9,6 +9,7 @@ mod give;
 mod kept;
 mod pull;
 mod shape;
+mod share;
 
 pub(crate) use kept::Kept;
 pub use pull::PointPull;
@@ -56,6 +57,28 @@ impl Sketch {
         self.settle_around_dropped(&dropped, &anchored, millimeters_per_unit)
     }
 
+    /// Settles the drawing with `points` held still and `lines` kept, and
+    /// says whether it came out whole: every value true, no trait squeezed to
+    /// nothing, no tangency slid off, nothing kept come out the other way
+    /// round where it may not (`Kept::runs_backwards`).
+    pub(crate) fn settle_held(
+        &mut self,
+        points: Vec<PointId>,
+        lines: Vec<Kept>,
+        millimeters_per_unit: f64,
+    ) -> bool {
+        self.held.points = points;
+        self.held.lines = lines;
+        let outcome = self.resolve(millimeters_per_unit);
+        let backwards = self.held.lines.iter().any(|line| line.runs_backwards(self));
+        self.held.points.clear();
+        self.held.lines.clear();
+        outcome == LengthOutcome::Exact
+            && !backwards
+            && !self.has_a_collapsed_trait(self.drawing_size())
+            && !self.has_a_flipped_tangent()
+    }
+
     /// The same for a whole handful of points dropped at once, which is how a
     /// selection is moved in one block.
     ///
@@ -95,12 +118,15 @@ impl Sketch {
                 sketch.move_point(*point, *position);
             }
         };
+        let still: Vec<PointId> = dropped.iter().map(|(point, _)| *point).collect();
+        let shares = self.shares(&still, millimeters_per_unit);
 
         place(self);
-        self.held.points = dropped.iter().map(|(point, _)| *point).collect();
+        self.held.points = still.clone();
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
         if outcome == LengthOutcome::Exact {
+            self.keep_shares(&shares, &still, &[], millimeters_per_unit);
             return outcome;
         }
 
@@ -111,6 +137,9 @@ impl Sketch {
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
         if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
+            if outcome == LengthOutcome::Exact {
+                self.keep_shares(&shares, anchored, &[], millimeters_per_unit);
+            }
             return outcome;
         }
 

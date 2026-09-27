@@ -31,7 +31,7 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// fix in the solver, in an extrusion, in a boolean. What was cached before
 /// then holds the shape as it was computed, which is no longer the shape the
 /// design describes.
-const REBUILT_BY: u32 = 1;
+const REBUILT_BY: u32 = 2;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

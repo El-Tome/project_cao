@@ -187,3 +187,31 @@ fn a_single_deletion_says_what_went_and_a_grouped_one_says_how_many() {
         "4 éléments supprimés",
     );
 }
+
+#[test]
+fn a_side_moved_and_a_shape_turned_say_so_and_unfold_into_what_they_did() {
+    let lang = Catalogue::french();
+    let variables = cao_part::Variables::default();
+    let moved = Operation::MoveSegment {
+        sketch: 0,
+        segment: SegmentId(2),
+        by: DVec2::new(0.0, 15.0),
+    };
+    let turned = Operation::TurnShape {
+        sketch: 0,
+        points: vec![PointId(1), PointId(2), PointId(3), PointId(4)],
+        about: DVec2::new(70.0, 52.5),
+        angle: std::f64::consts::FRAC_PI_6,
+    };
+
+    assert_eq!(said(&moved), "Côté déplacé");
+    assert_eq!(said(&turned), "Forme tournée");
+    assert_eq!(
+        detail(&lang, &variables, &moved),
+        "Esquisse 0 · trait 2 de (0.0, 15.0)"
+    );
+    assert_eq!(
+        detail(&lang, &variables, &turned),
+        "Esquisse 0 · 4 points tournés de 30.0° autour de (70.0, 52.5)"
+    );
+}

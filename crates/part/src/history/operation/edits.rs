@@ -37,6 +37,8 @@ impl Operation {
             | Self::ResizeArc { sketch, .. }
             | Self::ResizeEllipse { sketch, .. }
             | Self::MoveMany { sketch, .. }
+            | Self::MoveSegment { sketch, .. }
+            | Self::TurnShape { sketch, .. }
             | Self::MoveDimension { sketch, .. }
             | Self::SetDimension { sketch, .. }
             | Self::MergePoints { sketch, .. }

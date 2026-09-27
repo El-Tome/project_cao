@@ -181,6 +181,28 @@ pub enum Operation {
         points: Vec<PointId>,
         by: DVec2,
     },
+    /// A side pulled across by hand: its line travels by `by`, square to it,
+    /// and the shape stretches to follow. The travel the hand gave, recorded
+    /// rather than worked out again: the gesture read it off a cursor.
+    MoveSegment {
+        sketch: usize,
+        segment: SegmentId,
+        by: DVec2,
+    },
+    /// A shape turned by hand: `points` turned about `about` by `angle`, in
+    /// radians, counter-clockwise when positive — kept in radians, since a
+    /// round trip through degrees moves the last bits and an end meant to land
+    /// on a grid point would land beside it.
+    ///
+    /// The points are the shape as the press found it, and the angle the one
+    /// the grid pulled it to: the grid depends on the zoom, so what it decided
+    /// is recorded rather than asked again.
+    TurnShape {
+        sketch: usize,
+        points: Vec<PointId>,
+        about: DVec2,
+        angle: f64,
+    },
     /// Dragging an annotation away from where it sits by default.
     MoveDimension {
         sketch: usize,

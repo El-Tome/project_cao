@@ -24,10 +24,33 @@ pub(crate) fn landed_on(sketch: &Sketch, place: DVec2) -> Vec<Support> {
 }
 
 /// What a point the drawing already has is held by, once dropped there.
-pub(crate) fn dropped_on(sketch: &Sketch, point: PointId, place: DVec2) -> Vec<Support> {
+fn dropped_on(sketch: &Sketch, point: PointId, place: DVec2) -> Vec<Support> {
     let mut on = sketch.supports_for(point, place);
     on.truncate(AT_A_CROSSING);
     on
+}
+
+/// What a dragged point is held by, dropped at `landing`: what ran through
+/// the place before the drag and still does in the drawing it `settled` — the
+/// one shown and the one the replay rebuilds, so every hold laid is met
+/// there. A trait the settling moved away is not held on, nor one the point
+/// was carried onto by its own rule, a trait's middle or a tangency's contact.
+/// Only a point nothing held `before`: one sliding along its own trait would
+/// otherwise catch on the first crossing it went over.
+pub(crate) fn held_at_drop(
+    before: &Sketch,
+    settled: &Sketch,
+    point: PointId,
+    landing: DVec2,
+) -> Vec<Support> {
+    if !before.holds_on(point).is_empty() {
+        return Vec::new();
+    }
+    let was_there = dropped_on(before, point, landing);
+    dropped_on(settled, point, landing)
+        .into_iter()
+        .filter(|support| was_there.contains(support))
+        .collect()
 }
 
 /// A point already there, or a new one — held on whatever it lands on.

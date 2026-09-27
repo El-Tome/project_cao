@@ -20,7 +20,7 @@ pub struct EllipseId(pub usize);
 /// running across the whole curve through the centre — as on a drawing. They
 /// are what the ellipse is dimensioned by: a length on an axis is its width
 /// that way, as a diameter is a circle's. Their four ends are the handles it is
-/// turned and stretched by.
+/// stretched by; it is turned by its curve.
 ///
 /// Nothing else is kept. The size, the direction and the way round are all
 /// read off the axes, so none of them can disagree with what is drawn.

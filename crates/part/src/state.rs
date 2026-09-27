@@ -142,17 +142,19 @@ impl PartState {
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                // What the drag decided about what holds the point, before it
-                // moves: a rule laid on the place it is dropped at is already
-                // satisfied there, and the settling has one thing less to do.
                 if *let_go {
                     sketch.let_go(*point);
                 }
-                hold(sketch, *point, on);
                 // Moving a point by hand must not break the values already
-                // given, so the drawing settles again around it — around it,
-                // the point itself staying exactly where it was dropped.
-                sketch.settle_around(*point, *position, scale);
+                // given, so the drawing settles again around it, as the pull
+                // allows: stretching first, turning only when it cannot. It is
+                // the drawing the gesture was shown on, read and settled the
+                // same way; the drop's holds come after, already met at the
+                // place the point landed — laid before, they would pull on a
+                // shape still turning towards it.
+                let pull = sketch.pull(*point, scale);
+                sketch.settle_pulled(&pull, *position, scale);
+                hold(sketch, *point, on);
                 if let Some(kept) = merged_into {
                     sketch.merge_points(*kept, *point);
                     sketch.resolve(scale);
@@ -215,6 +217,17 @@ impl PartState {
                 sketch.settle_around_all(&dropped, scale);
                 None
             }
+            Operation::MoveSegment {
+                sketch,
+                segment,
+                by,
+            } => self.move_segment(*sketch, *segment, *by),
+            Operation::TurnShape {
+                sketch,
+                points,
+                about,
+                angle,
+            } => self.turn_shape(*sketch, points, *about, *angle),
             Operation::MoveDimension {
                 sketch,
                 target,

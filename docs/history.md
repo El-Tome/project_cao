@@ -62,6 +62,14 @@ distance). Replaying the snapping later could therefore weld different points
 and rebuild another drawing. The decision is taken once, at the click, and
 kept.
 
+The same goes for a shape pulled by hand. How far a side travelled
+(`MoveSegment`) and how far round a shape turned (`TurnShape`, in radians) are
+recorded with the step, the grid's pull already in; a point dragged records the
+place it was taken to, turned onto the grid when its shape pivots. What the
+drag may do — which point stays, which traits keep their direction — is read
+again at the replay, off the same drawing the gesture was shown on: before the
+drop lays its holds.
+
 ## The tree
 
 The left panel lists the operations, grouped under the one that opened the

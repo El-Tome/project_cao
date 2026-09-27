@@ -8,6 +8,11 @@ See also: [architecture](ARCHITECTURE.md)
 cargo run -p cao_app
 ```
 
+`cao_sketch` and `cao_solid` are built optimised even there (`Cargo.toml`,
+`[profile.dev.package]`): unoptimised, the solver runs some thirty times
+slower, and dragging a shape stutters. A debugger steps through them less
+faithfully for it.
+
 ## A Windows executable from macOS
 
 The project cross-compiles to Windows without a Windows machine.

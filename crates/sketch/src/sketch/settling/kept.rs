@@ -1,0 +1,205 @@
+//! The lines a drag keeps where they lie.
+//!
+//! A shape pulled by one of its points would rather turn than give: turning it
+//! breaks none of its rules, and the solver's corrections for an angle turn
+//! traits rather than stretch them. Keeping the direction of every trait a
+//! rule of direction ties leaves the shape one way to follow the hand, which
+//! is to stretch — and turning becomes what happens only when stretching
+//! cannot.
+
+use glam::DVec2;
+
+use crate::constraints::{Constraint, DimensionTarget};
+use crate::sketch::{PointId, SegmentId, Sketch};
+
+/// One line kept: `to` stays `at` along `normal` from `from`, or from the
+/// plane's own origin when there is no `from`.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Kept {
+    pub(crate) from: Option<PointId>,
+    pub(crate) to: PointId,
+    /// Unit, square to the line kept.
+    pub(crate) normal: DVec2,
+    pub(crate) at: f64,
+    /// The way the line ran when it was kept, which its equation alone cannot
+    /// tell from the way back.
+    along: DVec2,
+    /// The trait whose direction this is, when it is one.
+    pub(crate) segment: Option<SegmentId>,
+}
+
+impl Kept {
+    /// The direction `from` to `to` has now, kept. Nothing for two points on
+    /// top of each other, which have none.
+    pub(crate) fn direction(
+        sketch: &Sketch,
+        from: PointId,
+        to: PointId,
+        segment: Option<SegmentId>,
+    ) -> Option<Self> {
+        let along = (sketch.point(to) - sketch.point(from)).try_normalize()?;
+        Some(Self {
+            from: Some(from),
+            to,
+            normal: along.perp(),
+            at: 0.0,
+            along,
+            segment,
+        })
+    }
+
+    /// The trait from `from` to `to` kept whole: its direction, and how long
+    /// it runs that way.
+    pub(crate) fn whole(
+        sketch: &Sketch,
+        from: PointId,
+        to: PointId,
+        segment: Option<SegmentId>,
+    ) -> Vec<Self> {
+        let Some(direction) = Self::direction(sketch, from, to, segment) else {
+            return Vec::new();
+        };
+        let length = Self {
+            normal: direction.along,
+            at: (sketch.point(to) - sketch.point(from)).dot(direction.along),
+            ..direction
+        };
+        vec![direction, length]
+    }
+
+    /// A point kept on the line of the plane it would stand on once moved `by`
+    /// along `normal`, free to slide along that line.
+    pub(crate) fn level(sketch: &Sketch, point: PointId, normal: DVec2, by: f64) -> Self {
+        Self {
+            from: None,
+            to: point,
+            normal,
+            at: sketch.point(point).dot(normal) + by,
+            along: DVec2::ZERO,
+            segment: None,
+        }
+    }
+}
+
+impl Kept {
+    /// Whether a direction kept came out the other way round where it may
+    /// not. Its equation cannot see it — a line is the same line both ways —
+    /// but a direction that went through nought to get there has been turned
+    /// half round. A trait may: a corner pulled past the opposite one turns
+    /// its shape inside out. Not the ray from an arc's centre to its end,
+    /// which would turn the arc inside out, nor a trait rounded into a curve,
+    /// whose fillet or cap would come out crossed.
+    pub(crate) fn runs_backwards(&self, sketch: &Sketch) -> bool {
+        let Some(from) = self.from else {
+            return false;
+        };
+        if self
+            .segment
+            .is_some_and(|segment| !sketch.is_rounded(segment))
+        {
+            return false;
+        }
+        (sketch.point(self.to) - sketch.point(from)).dot(self.along) <= 0.0
+    }
+}
+
+impl Sketch {
+    /// Whether a trait runs into a curve it is tangent to at one of its ends —
+    /// a fillet's side, a slot's flat — rather than one touching it midway.
+    fn is_rounded(&self, segment: SegmentId) -> bool {
+        let line = self.segments()[segment.0];
+        let ends = [line.start, line.end];
+        self.constraints().iter().any(|rule| match rule {
+            Constraint::ArcTangent {
+                arc,
+                segment: rounded,
+                at,
+            } if *rounded == segment => {
+                let curve = self.arc(*arc);
+                at.is_some_and(|touch| ends.contains(&touch))
+                    || ends.contains(&curve.start)
+                    || ends.contains(&curve.end)
+            }
+            _ => false,
+        })
+    }
+
+    /// The lines the drag under way keeps; none outside one.
+    pub(crate) fn kept_lines(&self) -> &[Kept] {
+        &self.held.lines
+    }
+
+    /// The traits whose direction the drag under way keeps. A trait kept is
+    /// never welded rigid to its neighbours: it has to be free to stretch.
+    pub(crate) fn kept_segments(&self) -> Vec<SegmentId> {
+        self.held
+            .lines
+            .iter()
+            .filter_map(|line| line.segment)
+            .collect()
+    }
+
+    /// The traits of a shape a rule of direction ties to another: square,
+    /// parallel, on one line, an angle between them, or the two axes of an
+    /// ellipse, which are square to each other by what an ellipse is.
+    ///
+    /// A trait held by a length alone is left out: two bars of typed length
+    /// hinged together still have to be free to bend.
+    pub(crate) fn tied_by_direction(&self, shape: &[PointId]) -> Vec<SegmentId> {
+        let mut tied: Vec<SegmentId> = Vec::new();
+        for constraint in self.constraints() {
+            if let Constraint::Perpendicular { first, second }
+            | Constraint::Parallel { first, second }
+            | Constraint::Collinear { first, second } = *constraint
+            {
+                tied.extend([first, second]);
+            }
+        }
+        for dimension in self.dimensions() {
+            if let DimensionTarget::Angle { first, second }
+            | DimensionTarget::AngleBetween { first, second, .. } = dimension.target
+            {
+                tied.extend([first, second]);
+            }
+        }
+        for (_, ellipse) in self.live_ellipses() {
+            tied.extend([ellipse.first, ellipse.second]);
+        }
+        tied.sort();
+        tied.dedup();
+        tied.retain(|segment| {
+            !self.is_erased_segment(*segment)
+                && self
+                    .segments()
+                    .get(segment.0)
+                    .is_some_and(|line| shape.contains(&line.start) && shape.contains(&line.end))
+        });
+        tied
+    }
+
+    /// What a drag of the points `dragged` keeps in its shape: the direction
+    /// of every trait tied by a rule of direction, and the ray from each arc's
+    /// centre to every one of its ends but those being pulled, so that an arc
+    /// opens or closes by the ends the hand holds and turns by none.
+    pub(crate) fn lines_kept_in(&self, shape: &[PointId], dragged: &[PointId]) -> Vec<Kept> {
+        let mut lines: Vec<Kept> = self
+            .tied_by_direction(shape)
+            .into_iter()
+            .filter_map(|segment| {
+                let line = self.segments()[segment.0];
+                Kept::direction(self, line.start, line.end, Some(segment))
+            })
+            .collect();
+        for (_, arc) in self.live_arcs() {
+            if !shape.contains(&arc.center) {
+                continue;
+            }
+            for end in [arc.start, arc.end] {
+                if !dragged.contains(&end) {
+                    lines.extend(Kept::direction(self, arc.center, end, None));
+                }
+            }
+        }
+        lines
+    }
+}

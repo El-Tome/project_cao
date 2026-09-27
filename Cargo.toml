@@ -34,3 +34,13 @@ trash = "5"
 
 [profile.dev.package."*"]
 opt-level = 2
+
+# The drawing's own mathematics is built optimised in development too.
+# Unoptimised, the solver runs some thirty times slower: a drag that settles in
+# a third of a millisecond takes ten, which the hand feels on every frame.
+# Stepping through them in a debugger is less faithful; that is the price.
+[profile.dev.package.cao_sketch]
+opt-level = 2
+
+[profile.dev.package.cao_solid]
+opt-level = 2

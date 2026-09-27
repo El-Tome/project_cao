@@ -92,6 +92,54 @@ impl Sketch {
     }
 }
 
+impl Sketch {
+    /// Draws a curve to a new size about the centre it stands on, and keeps
+    /// it only when the centre stayed there and an ellipse kept its shape. A
+    /// size a rule holds is given back whole, rather than had by moving the
+    /// curve off its centre: what a curve slid round is drawn to.
+    pub fn resize_in_place(
+        &mut self,
+        curve: Curved,
+        reach: f64,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        let centre = self.centre_of(curve);
+        let shape = self.proportion(curve);
+        let kept = self.shapes_now();
+        let outcome = self.resize(curve, reach, millimeters_per_unit);
+        let in_place = self.centre_of(curve).distance(centre) <= self.drawing_size() * 1e-5
+            && (self.proportion(curve) - shape).abs() <= shape * 1e-5
+            && (self.reach_now(curve) - reach).abs() <= reach * 1e-5;
+        if outcome == LengthOutcome::Exact && in_place {
+            return outcome;
+        }
+        self.give_back(kept);
+        LengthOutcome::BestEffort
+    }
+
+    /// How far a curve reaches from its centre, in [`Sketch::resize`]'s
+    /// measure.
+    pub(crate) fn reach_now(&self, curve: Curved) -> f64 {
+        match curve {
+            Curved::Circle(circle) => self.circle(circle).radius,
+            Curved::Arc(arc) => self.arc_radius(arc),
+            Curved::Ellipse(ellipse) => self.ellipse_draft(ellipse).first.length(),
+        }
+    }
+
+    /// How much longer an ellipse's first axis is than its second; one for a
+    /// round curve, which has no shape to lose.
+    fn proportion(&self, curve: Curved) -> f64 {
+        match curve {
+            Curved::Ellipse(ellipse) => {
+                let drawn = self.ellipse_draft(ellipse);
+                drawn.first.length() / drawn.second.max(1e-12)
+            }
+            Curved::Circle(_) | Curved::Arc(_) => 1.0,
+        }
+    }
+}
+
 /// Below this a circle is not a circle, and an arc turns about nothing.
 const NO_REACH: f64 = 1e-9;
 
@@ -121,7 +169,7 @@ impl Sketch {
 
     /// The same for an arc: its two ends travel out to the new reach, keeping
     /// the sweep the curve was drawn with, and the drawing settles around
-    /// them.
+    /// them and the centre they stay about.
     ///
     /// The ends rather than a size of its own: an arc keeps no radius, it is
     /// read off the end it starts at, so drawing one bigger is moving both of
@@ -145,7 +193,10 @@ impl Sketch {
         let Some(dropped) = out(curve.start).zip(out(curve.end)) else {
             return LengthOutcome::Degenerate;
         };
-        self.settle_around_all(&[dropped.0, dropped.1], millimeters_per_unit)
+        self.settle_around_all(
+            &[(curve.center, centre), dropped.0, dropped.1],
+            millimeters_per_unit,
+        )
     }
 
     /// The same for an ellipse, scaled about its centre until its first axis

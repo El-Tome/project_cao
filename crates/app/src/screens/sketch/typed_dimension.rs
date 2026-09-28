@@ -2,7 +2,7 @@
 //! makes of it.
 
 use cao_part::{DimensionOutcome, Outcome, PartDocument, history::Operation};
-use cao_sketch::{DimensionTarget, LengthOutcome};
+use cao_sketch::{DimensionTarget, LengthOutcome, ToolState};
 
 use super::SketchEditor;
 
@@ -29,6 +29,12 @@ pub(crate) fn apply_dimension_value(
     if !target.takes(value) {
         editor.message = Some(lang.t("sketch.angle_would_lay_parallel"));
         return false;
+    }
+
+    // A value typed ends the gesture: the trait it was typed on stops being the
+    // first half of an angle the next click would complete.
+    if let ToolState::Dimension { picks, .. } = &mut editor.tool_state {
+        picks.first_angle_segment = None;
     }
 
     // The same value twice must not repeat an identical step in the history —

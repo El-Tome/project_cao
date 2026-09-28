@@ -207,7 +207,21 @@ fn select_target(context: &mut SketchContext<'_>, index: usize, target: Dimensio
             .dimension_of(target)
             .is_some()
     {
-        return edit_dimension(context, index, target);
+        edit_dimension(context, index, target);
+        // A trait is also the first half of an angle: a second trait clicked
+        // now makes it, as it does after a trait with no value yet.
+        if let DimensionTarget::Length(segment) = target
+            && context.editor.dimension_mode == DimensionMode::Auto
+        {
+            context.editor.tool_state = ToolState::Dimension {
+                placing: None,
+                picks: cao_sketch::DimensionPicks {
+                    first_angle_segment: Some(segment),
+                    ..Default::default()
+                },
+            };
+        }
+        return;
     }
 
     context.editor.select(None, None);

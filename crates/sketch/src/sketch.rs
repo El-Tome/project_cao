@@ -236,23 +236,22 @@ impl Sketch {
         &self.constraints
     }
 
-    /// Adds a rule, unless the drawing already carries it.
+    /// Adds a rule as it was clicked, unless the drawing already carries it
+    /// either way round.
     pub fn add_constraint(&mut self, constraint: Constraint) {
         if self.laid_as_a_tangency(constraint) {
             return;
         }
-        let constraint = constraint.normalised();
-        if !self.constraints.contains(&constraint) && self.holds_up(constraint) {
+        if !self.carries(constraint) && self.holds_up(constraint) {
             self.constraints.push(constraint);
         }
     }
 
     pub fn erase_constraint(&mut self, constraint: Constraint) {
-        if self.erased_as_a_tangency(constraint) {
-            return;
+        if !self.erased_as_a_tangency(constraint) {
+            self.constraints
+                .retain(|held| !held.is_the_same_as(constraint));
         }
-        let constraint = constraint.normalised();
-        self.constraints.retain(|held| *held != constraint);
     }
 
     /// Whether a piece of the drawing is held in place by a rule.

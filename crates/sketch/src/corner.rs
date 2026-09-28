@@ -185,15 +185,13 @@ impl Sketch {
     /// them. Read before the cut, since the cut is what takes them away.
     pub(crate) fn values_at(&self, sides: [SegmentId; 2]) -> CornerValues {
         CornerValues {
+            sides,
             lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).cloned()),
             opening: self
-                .dimension_of(
-                    DimensionTarget::Angle {
-                        first: sides[0],
-                        second: sides[1],
-                    }
-                    .normalised(),
-                )
+                .dimension_of(DimensionTarget::Angle {
+                    first: sides[0],
+                    second: sides[1],
+                })
                 .cloned(),
         }
     }
@@ -226,27 +224,31 @@ impl Sketch {
             );
         }
         if let Some(opening) = held.opening {
-            saved += self.rewrite(
-                opening,
-                DimensionTarget::Angle {
-                    first: stretches[0],
-                    second: stretches[1],
-                },
-            );
+            // The stretch standing for the trait the angle was typed from comes
+            // first, so the angle retyped still turns the other one.
+            let [first, second] = match opening.target {
+                DimensionTarget::Angle { first, .. } if first == held.sides[1] => {
+                    [stretches[1], stretches[0]]
+                }
+                _ => stretches,
+            };
+            saved += self.rewrite(opening, DimensionTarget::Angle { first, second });
         }
         saved
     }
 
     /// The same value, now said of something the drawing still has.
     fn rewrite(&mut self, held: Dimension, onto: DimensionTarget) -> usize {
-        self.carry_dimension(onto.normalised(), &held);
+        self.carry_dimension(onto, &held);
         1
     }
 }
 
 /// What a corner was worth before it was cut off.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub(crate) struct CornerValues {
+    /// The two sides, in the order they were named.
+    sides: [SegmentId; 2],
     /// The length each of the two sides was given, in the order they were
     /// named.
     lengths: [Option<Dimension>; 2],

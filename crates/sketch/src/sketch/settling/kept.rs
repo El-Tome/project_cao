@@ -114,6 +114,7 @@ impl Sketch {
                 arc,
                 segment: rounded,
                 at,
+                ..
             } if *rounded == segment => {
                 let curve = self.arc(*arc);
                 at.is_some_and(|touch| ends.contains(&touch))

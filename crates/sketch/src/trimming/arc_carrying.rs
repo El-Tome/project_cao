@@ -66,13 +66,17 @@ pub(super) fn still_holds(
                 second: moved(second),
             })
         }
-        Constraint::ArcTangent { arc, segment, at }
-            if arc == cut && place.is_some_and(|place| piece.holds(place)) =>
-        {
+        Constraint::ArcTangent {
+            arc,
+            segment,
+            at,
+            from,
+        } if arc == cut && place.is_some_and(|place| piece.holds(place)) => {
             Some(Constraint::ArcTangent {
                 arc: piece.id,
                 segment,
                 at,
+                from,
             })
         }
         // A point held on the curve follows the piece it sits on, as the

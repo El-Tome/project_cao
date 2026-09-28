@@ -10,7 +10,7 @@ use crate::constraints::{Dimension, DimensionTarget};
 impl Sketch {
     pub fn erase_dimension(&mut self, target: DimensionTarget) {
         self.dimensions
-            .retain(|dimension| dimension.target != target);
+            .retain(|dimension| !dimension.target.is_the_same_as(target));
     }
 
     /// Moves an annotation away from where it would sit on its own.
@@ -18,7 +18,7 @@ impl Sketch {
         if let Some(dimension) = self
             .dimensions
             .iter_mut()
-            .find(|dimension| dimension.target == target)
+            .find(|dimension| dimension.target.is_the_same_as(target))
         {
             dimension.offset = Some(offset);
         }
@@ -42,7 +42,7 @@ impl Sketch {
     pub fn dimension_of(&self, target: DimensionTarget) -> Option<&Dimension> {
         self.dimensions
             .iter()
-            .find(|dimension| dimension.target == target)
+            .find(|dimension| dimension.target.is_the_same_as(target))
     }
 
     /// Records a value the user typed, replacing any previous one on the same
@@ -53,7 +53,7 @@ impl Sketch {
         match self
             .dimensions
             .iter_mut()
-            .find(|dimension| dimension.target == target)
+            .find(|dimension| dimension.target.is_the_same_as(target))
         {
             Some(existing) => {
                 existing.value = value;
@@ -76,7 +76,7 @@ impl Sketch {
         if let Some(dimension) = self
             .dimensions
             .iter_mut()
-            .find(|dimension| dimension.target == target)
+            .find(|dimension| dimension.target.is_the_same_as(target))
         {
             dimension.written = written;
         }
@@ -88,7 +88,7 @@ impl Sketch {
         if let Some(dimension) = self
             .dimensions
             .iter_mut()
-            .find(|dimension| dimension.target == target)
+            .find(|dimension| dimension.target.is_the_same_as(target))
         {
             dimension.set_by = set_by;
         }

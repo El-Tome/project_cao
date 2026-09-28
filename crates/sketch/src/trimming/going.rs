@@ -101,7 +101,7 @@ impl Sketch {
             rules: self.rules_gone(&trial, |rule| {
                 pieces.iter().any(|piece| {
                     arc_carrying::still_holds(rule, arc, piece, ANYWHERE_ALONG)
-                        .is_some_and(|moved| carries(&trial, moved))
+                        .is_some_and(|moved| trial.carries(moved))
                 })
             }),
             values: self.values_gone(&trial, |value| {
@@ -182,7 +182,7 @@ impl Sketch {
             // the question, and the answer is already in hand.
             rules: self.rules_gone(&trial, |rule| {
                 left.and_then(|arc| self.circle_hands_over(rule, circle, between, arc))
-                    .is_some_and(|moved| carries(&trial, moved))
+                    .is_some_and(|moved| trial.carries(moved))
             }),
             values: self.values_gone(&trial, |value| {
                 left.and_then(|arc| read_again(value, circle, arc))
@@ -202,7 +202,7 @@ impl Sketch {
         self.constraints()
             .iter()
             .copied()
-            .filter(|rule| !carries(trial, *rule))
+            .filter(|rule| !trial.carries(*rule))
             .filter(|rule| !handed_over(*rule))
             .collect()
     }
@@ -253,17 +253,10 @@ fn arcs_of(ids: &[ArcId]) -> Vec<arc_carrying::Piece> {
         .collect()
 }
 
-fn carries(sketch: &Sketch, rule: Constraint) -> bool {
-    sketch.constraints().contains(&rule.normalised())
-}
-
-/// Whether the drawing measures this very target, read the way it was stored.
-///
-/// Not normalised, unlike `carries`: `add_constraint` puts a rule's pair in
-/// order as it lays it, but `set_dimension` keeps a target exactly as given,
-/// and a piece handed an angle is always ranked above the trait it meets.
-/// Normalising the one side only misses every such angle — which then reads as
-/// going on every cut that follows, wherever it falls.
+/// Whether the drawing measures this very target, whichever way round it was
+/// clicked. A piece handed an angle is always ranked above the trait it meets,
+/// and an angle compared as it was stored would be missed — which then reads
+/// as going on every cut that follows, wherever it falls.
 fn measures(sketch: &Sketch, target: DimensionTarget) -> bool {
     sketch.dimension_of(target).is_some()
 }

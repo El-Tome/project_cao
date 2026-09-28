@@ -198,7 +198,7 @@ impl Sketch {
             .filter(|rule| {
                 !pieces.iter().any(|piece| {
                     still_holds(**rule, id, piece, carried.place_of(**rule))
-                        .is_some_and(|moved| self.constraints().contains(&moved.normalised()))
+                        .is_some_and(|moved| self.carries(moved))
                 })
             })
             .count();
@@ -225,7 +225,9 @@ impl Sketch {
                 .constraints()
                 .iter()
                 .filter_map(|rule| match rule {
-                    Constraint::ArcTangent { arc, segment, at } if *arc == id => {
+                    Constraint::ArcTangent {
+                        arc, segment, at, ..
+                    } if *arc == id => {
                         let touches = self.contact(self.arc(id).center, *segment, *at)?;
                         Some((*rule, self.round_the_arc(id, touches)?))
                     }

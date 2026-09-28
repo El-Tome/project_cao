@@ -11,6 +11,7 @@
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, SketchAxis};
 use crate::ellipse::EllipseId;
+use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 
 /// What the constraint tool has been pointed at: a piece of the drawing, or
@@ -58,12 +59,12 @@ pub enum RuleIntent {
 
 /// Turns what the constraint tool has been shown into what it means.
 ///
-/// The order of the clicks does not matter: a point and a trait make the same
-/// coincidence whichever comes first, so this is built from the kinds
-/// gathered rather than from their order.
+/// The order of the clicks is kept where the rule has two things alike to it:
+/// the one clicked first stays where it is while the rule lands, and the other
+/// comes to it. A point and a trait make the same coincidence whichever comes
+/// first — the point comes onto the trait — so that one is built from the
+/// kinds gathered rather than from their order.
 pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<RuleIntent> {
-    // The order is kept: for an equality, the first trait clicked is the one
-    // whose length the other takes.
     let segments: Vec<SegmentId> = picks
         .iter()
         .filter_map(|pick| match pick {
@@ -137,29 +138,40 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             }),
             _ => None,
         },
-        Rule::Tangent => match (
-            circles.as_slice(),
-            segments.as_slice(),
-            arcs.as_slice(),
-            ellipses.as_slice(),
-        ) {
-            ([circle], [segment], [], []) => constrain(Constraint::Tangent {
-                at: None,
-                circle: *circle,
-                segment: *segment,
-            }),
-            ([], [segment], [arc], []) => constrain(Constraint::ArcTangent {
-                at: None,
-                arc: *arc,
-                segment: *segment,
-            }),
-            ([], [segment], [], [ellipse]) => constrain(Constraint::EllipseTangent {
-                at: None,
-                ellipse: *ellipse,
-                segment: *segment,
-            }),
-            _ => None,
-        },
+        Rule::Tangent => {
+            // A trait and a curve have no order of their own: the clicks give
+            // it, and the one clicked first is the one that stays.
+            let from = match picks.first() {
+                Some(RulePick::Element(Element::Segment(_))) => LaidFrom::Trait,
+                _ => LaidFrom::Curve,
+            };
+            match (
+                circles.as_slice(),
+                segments.as_slice(),
+                arcs.as_slice(),
+                ellipses.as_slice(),
+            ) {
+                ([circle], [segment], [], []) => constrain(Constraint::Tangent {
+                    at: None,
+                    circle: *circle,
+                    segment: *segment,
+                    from,
+                }),
+                ([], [segment], [arc], []) => constrain(Constraint::ArcTangent {
+                    at: None,
+                    arc: *arc,
+                    segment: *segment,
+                    from,
+                }),
+                ([], [segment], [], [ellipse]) => constrain(Constraint::EllipseTangent {
+                    at: None,
+                    ellipse: *ellipse,
+                    segment: *segment,
+                    from,
+                }),
+                _ => None,
+            }
+        }
         Rule::Midpoint => match (points.as_slice(), segments.as_slice()) {
             ([point], [segment]) => constrain(Constraint::Midpoint {
                 point: *point,

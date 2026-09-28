@@ -267,8 +267,7 @@ impl PartState {
             Operation::Constrain { sketch, constraint } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.add_constraint(*constraint);
-                sketch.resolve_keeping_places(scale);
+                sketch.lay_rule(*constraint, scale);
                 None
             }
             Operation::EraseMany {

@@ -99,6 +99,7 @@ pub(crate) fn draw_circle(
                         circle: drawn,
                         segment,
                         at: None,
+                        from: cao_sketch::LaidFrom::Nowhere,
                     },
                 });
             }

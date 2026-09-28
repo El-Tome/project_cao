@@ -7,6 +7,7 @@ use super::{LengthOutcome, PointId, Sketch};
 
 mod give;
 mod kept;
+mod landing;
 mod pull;
 mod shape;
 mod share;
@@ -15,12 +16,14 @@ pub(crate) use kept::Kept;
 pub use pull::PointPull;
 
 /// What the user is holding while a drag lasts: points the solver reads as
-/// immovable, and the lines the drag keeps where they lie. Nothing to save:
-/// it lives only as long as the gesture.
+/// immovable, and the lines the drag keeps where they lie — or, while a rule
+/// lands, what it was laid from, circles' sizes included. Nothing to save: it
+/// lives only as long as the gesture.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Held {
     pub(crate) points: Vec<PointId>,
     pub(crate) lines: Vec<Kept>,
+    pub(crate) sizes: Vec<super::CircleId>,
 }
 
 impl Sketch {

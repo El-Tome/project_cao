@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
 use crate::ellipse::EllipseId;
+use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
 
 /// One of the sketch's own axes, usable as the fixed reference of an angle.
@@ -138,38 +139,6 @@ impl DimensionTarget {
                 | Self::ArcSweep(_)
         )
     }
-
-    /// The same target with its pair put in a fixed order.
-    ///
-    /// Clicking two segments one way round and the other way round means the
-    /// same angle; without this they are two different targets, and the drawing
-    /// ends up carrying the same dimension twice.
-    pub fn normalised(self) -> Self {
-        match self {
-            Self::Distance { from, to } if to.0 < from.0 => Self::Distance { from: to, to: from },
-            Self::Angle { first, second } if second.0 < first.0 => Self::Angle {
-                first: second,
-                second: first,
-            },
-            Self::AngleBetween {
-                first,
-                first_toward,
-                second,
-                second_toward,
-            } if second.0 < first.0 => Self::AngleBetween {
-                first: second,
-                first_toward: second_toward,
-                second: first,
-                second_toward: first_toward,
-            },
-            Self::Projected { from, to, axis } if to.0 < from.0 => Self::Projected {
-                from: to,
-                to: from,
-                axis,
-            },
-            other => other,
-        }
-    }
 }
 
 /// A rule with no number to it.
@@ -179,6 +148,9 @@ impl DimensionTarget {
 /// counted the same way when working out what is still loose — they are kept
 /// apart only because one carries a value the user types and the other does
 /// not.
+///
+/// Kept in the order it was clicked in; the order-free form it is compared in,
+/// and which of its two things holds while it lands, are in `laid_from.rs`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Constraint {
     /// Two traits meeting at a right angle, without saying which way up.
@@ -232,6 +204,9 @@ pub enum Constraint {
         /// contact instead of sliding along the line.
         #[serde(default)]
         at: Option<PointId>,
+        /// Which of the two was clicked first, and so stays where it is.
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// An arc brushing a line: the line grazes it and no more.
     ArcTangent {
@@ -239,6 +214,8 @@ pub enum Constraint {
         segment: SegmentId,
         #[serde(default)]
         at: Option<PointId>,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on a circle's rim, wherever the circle goes and whatever
     /// size it takes. This is what makes the points clicked to draw a circle
@@ -265,6 +242,8 @@ pub enum Constraint {
         /// pins it to the one place they meet.
         #[serde(default)]
         at: Option<PointId>,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on an ellipse's curve, wherever the ellipse goes and
     /// whatever shape it takes.
@@ -299,40 +278,6 @@ pub enum Constraint {
     Fixed {
         element: Element,
     },
-}
-
-impl Constraint {
-    /// The same rule with its pair in a fixed order, so the two ways of
-    /// clicking it are one rule.
-    pub fn normalised(self) -> Self {
-        match self {
-            Self::Perpendicular { first, second } if second.0 < first.0 => Self::Perpendicular {
-                first: second,
-                second: first,
-            },
-            Self::Parallel { first, second } if second.0 < first.0 => Self::Parallel {
-                first: second,
-                second: first,
-            },
-            Self::Equal { first, second } if second.0 < first.0 => Self::Equal {
-                first: second,
-                second: first,
-            },
-            Self::EqualRadius { first, second } if second.0 < first.0 => Self::EqualRadius {
-                first: second,
-                second: first,
-            },
-            Self::EqualRadiusArc { first, second } if second.0 < first.0 => Self::EqualRadiusArc {
-                first: second,
-                second: first,
-            },
-            Self::Collinear { first, second } if second.0 < first.0 => Self::Collinear {
-                first: second,
-                second: first,
-            },
-            other => other,
-        }
-    }
 }
 
 /// A value the user has fixed.

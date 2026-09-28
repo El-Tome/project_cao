@@ -84,16 +84,19 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             circle: round,
             segment: side,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         },
         Constraint::ArcTangent {
             arc: bend,
             segment: side,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         },
         Constraint::EllipseTangent {
             ellipse: oval,
             segment: side,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         },
         Constraint::OnCircle {
             point: loose,

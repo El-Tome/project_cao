@@ -56,6 +56,7 @@ fn an_arc_told_tangent_to_a_line_settles_onto_it() {
         arc,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 

@@ -220,9 +220,7 @@ fn a_circle_held_the_same_reach_as_another_holds_the_arc_to_it() {
         .expect("an arc of the circle stayed");
 
     assert!(
-        sketch
-            .constraints()
-            .contains(&Constraint::EqualRadiusArcCircle { arc, circle: other }.normalised()),
+        sketch.carries(Constraint::EqualRadiusArcCircle { arc, circle: other }),
         "the arc is held to the other round's reach, as the circle was: {:?}",
         sketch.constraints(),
     );
@@ -240,6 +238,7 @@ fn a_round_a_trait_brushes(degrees: [f64; 2]) -> (Sketch, CircleId, [PointId; 2]
         circle,
         segment: below,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     let first = on_the_rim(&mut sketch, degrees[0]);
     let second = on_the_rim(&mut sketch, degrees[1]);

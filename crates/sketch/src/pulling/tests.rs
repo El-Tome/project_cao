@@ -917,6 +917,7 @@ fn slot() -> (Sketch, [PointId; 4], [SegmentId; 2]) {
             arc,
             segment,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         });
     }
     sketch.resolve(1.0);

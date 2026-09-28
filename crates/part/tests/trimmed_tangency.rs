@@ -35,6 +35,7 @@ fn a_circle_brushing_a_trait() -> History {
             circle: CircleId(0),
             segment: SegmentId(0),
             at: None,
+            from: cao_sketch::LaidFrom::Nowhere,
         },
     });
     history

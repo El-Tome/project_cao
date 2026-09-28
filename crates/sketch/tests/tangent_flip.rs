@@ -27,11 +27,13 @@ fn a_tangency_refuses_to_slide_its_contact_past_the_end_of_its_segment() {
         circle,
         segment: ab,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.add_constraint(Constraint::Tangent {
         circle,
         segment: bc,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 

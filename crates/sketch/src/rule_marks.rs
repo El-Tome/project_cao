@@ -67,6 +67,7 @@ impl Sketch {
                 circle: round,
                 segment,
                 at,
+                ..
             } => at
                 .and_then(point)
                 .or_else(|| {
@@ -80,6 +81,7 @@ impl Sketch {
                 arc: curve,
                 segment,
                 at,
+                ..
             } => at
                 .and_then(point)
                 .or_else(|| {
@@ -93,6 +95,7 @@ impl Sketch {
                 ellipse,
                 segment,
                 at,
+                ..
             } => at
                 .and_then(point)
                 .or_else(|| self.ellipse_touching(ellipse, segment))

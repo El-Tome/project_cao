@@ -98,6 +98,7 @@ fn a_drag_that_cannot_be_had_leaves_the_drawing_whole() {
             circle,
             segment: *segment,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         });
     }
     sketch.add_constraint(Constraint::Fixed {
@@ -209,6 +210,7 @@ fn a_circle_dragged_by_its_centre_stays_under_the_cursor() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
 
     let dropped = DVec2::new(35.0, 45.0);

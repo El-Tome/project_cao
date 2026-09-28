@@ -90,13 +90,10 @@ fn the_two_pieces_a_cut_leaves_are_held_the_same_reach_as_each_other() {
 
     let [below, above] = [trimmed.pieces[0], trimmed.pieces[1]];
     assert!(
-        sketch.constraints().contains(
-            &Constraint::EqualRadiusArc {
-                first: below,
-                second: above,
-            }
-            .normalised()
-        ),
+        sketch.carries(Constraint::EqualRadiusArc {
+            first: below,
+            second: above,
+        }),
         "the two pieces came off one circle and no longer say so",
     );
 }
@@ -162,13 +159,10 @@ fn two_arcs_held_the_same_reach_stay_so_on_every_piece_a_cut_leaves() {
 
     for piece in &trimmed.pieces {
         assert!(
-            sketch.constraints().contains(
-                &Constraint::EqualRadiusArc {
-                    first: *piece,
-                    second: other,
-                }
-                .normalised()
-            ),
+            sketch.carries(Constraint::EqualRadiusArc {
+                first: *piece,
+                second: other,
+            }),
             "the piece lost the reach it shared",
         );
     }
@@ -185,6 +179,7 @@ fn a_line_brushing_an_arc_goes_on_brushing_the_piece_it_touches() {
         arc,
         segment: grazing,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
 
     let trimmed = sketch
@@ -197,6 +192,7 @@ fn a_line_brushing_an_arc_goes_on_brushing_the_piece_it_touches() {
             arc: far,
             segment: grazing,
             at: None,
+            from: cao_sketch::LaidFrom::Nowhere,
         }),
         "the line touches the curve at the top, which the far piece still holds",
     );
@@ -213,6 +209,7 @@ fn a_cut_counts_the_brush_it_took_away_with_the_stretch_it_touched() {
         arc,
         segment: grazing,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
 
     let trimmed = sketch

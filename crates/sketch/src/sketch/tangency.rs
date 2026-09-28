@@ -10,30 +10,27 @@ use glam::DVec2;
 use super::{CircleId, Element, PointId, SegmentId, Sketch};
 use crate::constraints::Constraint;
 use crate::ellipse::EllipseId;
+use crate::laid_from::LaidFrom;
 
 impl Sketch {
     /// A circle told to brush a line, and the point where the two touch.
     pub fn add_tangency(&mut self, circle: CircleId, segment: SegmentId) {
-        self.lay_tangency(
-            Constraint::Tangent {
-                circle,
-                segment,
-                at: None,
-            },
-            |sketch| sketch.foot_on_segment(sketch.circle(circle).center, segment),
-        );
+        self.laid_as_a_tangency(Constraint::Tangent {
+            circle,
+            segment,
+            at: None,
+            from: LaidFrom::Nowhere,
+        });
     }
 
     /// An ellipse told to brush a line, and the point where the two touch.
     pub fn add_ellipse_tangency(&mut self, ellipse: EllipseId, segment: SegmentId) {
-        self.lay_tangency(
-            Constraint::EllipseTangent {
-                ellipse,
-                segment,
-                at: None,
-            },
-            |sketch| sketch.ellipse_touching(ellipse, segment),
-        );
+        self.laid_as_a_tangency(Constraint::EllipseTangent {
+            ellipse,
+            segment,
+            at: None,
+            from: LaidFrom::Nowhere,
+        });
     }
 
     /// Whether the rule is a tangency, and laid with its contact point if so.
@@ -43,16 +40,22 @@ impl Sketch {
                 circle,
                 segment,
                 at: None,
+                ..
             } => {
-                self.add_tangency(circle, segment);
+                self.lay_tangency(constraint, |sketch| {
+                    sketch.foot_on_segment(sketch.circle(circle).center, segment)
+                });
                 true
             }
             Constraint::EllipseTangent {
                 ellipse,
                 segment,
                 at: None,
+                ..
             } => {
-                self.add_ellipse_tangency(ellipse, segment);
+                self.lay_tangency(constraint, |sketch| {
+                    sketch.ellipse_touching(ellipse, segment)
+                });
                 true
             }
             _ => false,
@@ -95,9 +98,10 @@ impl Sketch {
     /// Where a tangency of the same two things stands among the rules, whatever
     /// contact point it was given.
     fn tangency_index(&self, constraint: Constraint) -> Option<usize> {
-        self.constraints
-            .iter()
-            .position(|held| with_contact(*held, None) == with_contact(constraint, None))
+        self.constraints.iter().position(|held| {
+            with_contact(*held, None).map(Constraint::normalised)
+                == with_contact(constraint, None).map(Constraint::normalised)
+        })
     }
 
     /// Whether a tangency's contact point has slid past one end of the
@@ -139,18 +143,26 @@ impl Sketch {
 fn with_contact(constraint: Constraint, at: Option<PointId>) -> Option<Constraint> {
     match constraint {
         Constraint::Tangent {
-            circle, segment, ..
+            circle,
+            segment,
+            from,
+            ..
         } => Some(Constraint::Tangent {
             circle,
             segment,
             at,
+            from,
         }),
         Constraint::EllipseTangent {
-            ellipse, segment, ..
+            ellipse,
+            segment,
+            from,
+            ..
         } => Some(Constraint::EllipseTangent {
             ellipse,
             segment,
             at,
+            from,
         }),
         _ => None,
     }

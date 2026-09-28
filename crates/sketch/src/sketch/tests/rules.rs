@@ -89,6 +89,7 @@ fn a_circle_brushes_a_line_drawn_the_other_way_round_too() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
 
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
@@ -113,6 +114,7 @@ fn a_tangency_keeps_a_point_where_the_two_touch() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
@@ -152,6 +154,7 @@ fn a_circle_told_to_brush_a_line_takes_the_size_that_touches() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 
@@ -179,6 +182,7 @@ fn a_circle_of_a_said_size_moves_to_keep_touching() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
     sketch.set_dimension(DimensionTarget::Radius(circle), 20.0, false);
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
@@ -214,6 +218,7 @@ fn an_inscribed_circle_follows_the_triangle_it_sits_in() {
             circle,
             segment,
             at: None,
+            from: crate::LaidFrom::Nowhere,
         });
     }
 
@@ -254,8 +259,8 @@ fn two_traits_can_be_laid_on_the_same_line() {
 fn the_second_trait_takes_the_length_of_the_first() {
     let (mut sketch, first, second) = corner();
     let wanted = sketch.segment_length(first);
-    sketch.add_constraint(Constraint::Equal { first, second });
-    assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
+    let rule = Constraint::Equal { first, second };
+    assert_eq!(sketch.lay_rule(rule, 1.0), LengthOutcome::Exact);
 
     assert!(
         (sketch.segment_length(first) - wanted).abs() < 1e-9,

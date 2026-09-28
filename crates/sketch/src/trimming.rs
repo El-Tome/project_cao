@@ -256,7 +256,7 @@ impl Sketch {
                 }
                 other => still_holds(other, cut, piece, place),
             };
-            moved.is_some_and(|moved| self.constraints().contains(&moved.normalised()))
+            moved.is_some_and(|moved| self.carries(moved))
         })
     }
 

@@ -192,17 +192,23 @@ git push -u origin <branch>
 gh pr create --base main --title "<type>(<scope>): <sentence>" --body "..."
 ```
 
-The body says what changed, what was decided and what was set aside, how it was
+The body opens on `Visible to the user: yes` or `no`, and why — in doubt, `yes`.
+A visible change carries a **To try it** section: the gestures, quoting the
+interface, and what should be seen, so that trying it in the app takes minutes
+rather than an exploration.
+
+Then it says what changed, what was decided and what was set aside, how it was
 verified — the gate, the test count, the command whose output you read — and
 **answers for each criterion of the issue in turn**, the reading above written
 out: answered and by which test, not answered and why, reworded and how. It
 ends on `Closes #n`. Never the list of files touched: `git` already has it. A
 pull request with no body is one nobody can review a month later.
 
-**Then stop: the pull request is not yours to merge.** It waits for a human
-review — read, and tried in the app when the user sees the change. Never run
-`gh pr merge` on your own initiative, even with a green gate; carry on with the
-next issue stacked on this branch instead of waiting.
+**Then stop: the pull request waits for a human's word.** Run `gh pr merge` once
+the human has said to, never on a green gate alone — and when they have, do not
+ask again whether it was tried: the word is the verification. Carry on with the
+next issue stacked on this branch instead of waiting. `CLAUDE.md` §How work is
+delivered has the rule, and #393 the reasoning.
 
 Move the issue's label from `in-progress`, and say to the human what was
 done and above all what was **not**: a part left aside, a decision deferred, a

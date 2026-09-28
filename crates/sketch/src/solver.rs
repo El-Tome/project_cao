@@ -377,21 +377,12 @@ impl Sketch {
         (circle.0 < self.circles().len()).then(|| self.points().len() * 2 + circle.0)
     }
 
-    /// Points that must not move. Only the sketch's own origin, which is what
-    /// everything else can be measured from.
+    /// Points that must not move: the sketch's own origin, whatever a `Fixed`
+    /// rule holds, and whatever the hand is holding while a drag lasts.
     pub(crate) fn pinned_points(&self) -> Vec<bool> {
-        let mut pinned: Vec<bool> = (0..self.points().len())
-            .map(|index| self.is_origin(PointId(index)) || self.is_held_still(PointId(index)))
-            .collect();
-        for constraint in self.constraints() {
-            let Constraint::Fixed { element } = constraint else {
-                continue;
-            };
-            for point in self.points_it_leans_on(*element) {
-                if point.0 < pinned.len() {
-                    pinned[point.0] = true;
-                }
-            }
+        let mut pinned = self.points_that_stay();
+        for (index, point) in pinned.iter_mut().enumerate() {
+            *point |= self.is_held_still(PointId(index));
         }
         pinned
     }
@@ -417,7 +408,8 @@ impl Sketch {
             .collect();
         let mut equations = self.equations_pinned_by(millimeters_per_unit, &anchored);
         let square = self.groups_lying_square();
-        for (owner, gauge) in self.rotation_gauges(&anchored) {
+        let about_the_origin = vec![DVec2::ZERO; self.points().len()];
+        for (owner, gauge) in self.rotation_gauges(&anchored, &about_the_origin) {
             if !square.contains(&owner) {
                 continue;
             }

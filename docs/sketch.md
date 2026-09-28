@@ -1015,7 +1015,7 @@ when none decides it.
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | **Both turn**, whichever came first: #451 |
-| Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | **It turns** about that point — about a degree over three heights retyped: #456 |
+| Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | **Both turn** alike, whichever came first: #451 |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |
@@ -1141,6 +1141,23 @@ The rule holds **per group of connected geometry**: two shapes drawn apart can
 turn relative to one another, so each answers for its own way round. A single
 shared rule would leave both free to swing against each other, and neither
 would ever be frozen.
+
+Each group keeps its way round **about the one point of it that stays for
+good** — the origin, a **Fixed**, later a corner of the part — and not about the
+origin alone: a shape nailed by one corner elsewhere swings about that corner,
+and a swing nobody looks for is a swing nobody undoes. Never about a point the
+hand holds for the length of a drag: a drawing turning under the cursor is the
+hand turning it, which is the hand's to do (#456). A group two points hold
+cannot turn at all, and it is the equations that say so.
+
+A group nothing holds keeps the origin for that, since it may still be measured
+from it. Such a group is free to travel as well as to turn, and turning it back
+about the origin carries it along — the further out it was drawn, the further
+it goes. Where a drawing free to travel lands when a value is typed is #455.
+
+What is held back this way is only a turn **no equation sees** — the drawing is
+read as the settle starts, never saved — so it can never stand against a value
+or a rule, and the way round a shape has just been turned to is the one kept.
 
 Placing an angle with an axis on a shape already square takes nothing away: as
 soon as a dimension says which way round a shape is laid, the implicit rule

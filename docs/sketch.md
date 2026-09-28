@@ -950,6 +950,74 @@ drawing settles around it. One single line in the history for the whole block.
 A drag that starts elsewhere stays what it was: a point under the cursor, a
 side, a curve, or a selection box.
 
+## What gives way first
+
+A gesture that reshapes a drawing — a point dragged, a value typed, a rule
+laid, and later the part changing shape under a sketch on its face — leaves
+something to give way. Each gesture used to find its own answer (#342, #375,
+#422); this is the order every one of them is checked against, set in #445.
+From what never gives to what gives first:
+
+1. **The origin.** Never.
+2. **Values and rules.** A value typed and a rule that carries none — square,
+   parallel, tangent, equal — weigh the same: whatever stands against them
+   gives. A point they hold entirely is green and does not answer the hand.
+3. **A corner or an edge of the part**, for a sketch on one of its faces. A
+   point laid on a corner follows it and attaches the drawing, as the origin
+   does: a trait with no value between two corners is green. It lets go only
+   when the part changes shape so that the values measured from the origin can
+   no longer all hold. A point laid on an edge follows it too, but keeps a
+   freedom along it, and is green only once a value places it there.
+4. **What is fixed.** **Fixed** keeps a point where it is when a value or a rule
+   would move it. It does not attach, so it turns nothing green. It gives only
+   when nothing else can, and then as few fixed points move as possible; among
+   as many, the one nearest the origin stays, and then the one fixed first. The
+   hand is the exception: a fixed point grabbed directly follows it, and is
+   fixed where it is let go of.
+5. **The hand.** The point being dragged goes where the hand takes it and the
+   drawing settles around it; where the drawing cannot follow, the point stops
+   short rather than anything above giving. A drag is never a case of no choice.
+6. **Ordinary points.** Among them, a length no value gives yields before an
+   angle no value gives: the shape stretches before it turns. A value typed
+   leaves the point nearest the origin where it is and moves the other, and
+   changes no size nobody typed on the way.
+7. **Construction left free.** It is scaffolding, and gives before anything the
+   profile is made of.
+
+A rule laid, or an angle typed, between two things the order ranks alike leaves
+**the first one clicked** where it is and brings the second to it, as **Equal** already does
+with a trait's length — except a point, which comes onto the trait or the curve
+it is laid on whichever was clicked first. The order decides before the clicks
+do.
+
+### The cases, against the code
+
+Each line is a gesture on a drawing, what the order says gives way, and what
+the code did when the order was written. A line that differs is an issue of its
+own. A case nobody had thought of is a line added here — and a rank added above,
+when none decides it.
+
+| Gesture | Drawing | What gives | The code |
+| --- | --- | --- | --- |
+| Drag a corner | A rectangle, nothing typed | The two sides meeting there stretch; the opposite corner stays | Same (#422) |
+| Drag a corner | A rectangle, every size typed | It turns about what holds it | Same (#422) |
+| Drag a point | Tied to a fixed point by a trait of typed length | The point stops at that length and turns round the fixed one | Same |
+| Drag a green point | — | Nothing: it does not answer the hand | Same |
+| Drag a fixed point | A trait, one end fixed | The fixed end follows the hand, and is fixed there | Follows, read off `settle_around`; not yet tried in the application |
+| Pull a side, slide a curve | — | As "Pulling a side" and "Sliding a curve" say | Same (#443) |
+| Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
+| Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
+| Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | **Refused**, the drawing put back: #453 |
+| Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
+| Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
+| Type a value | An angle between two free traits | The second trait clicked turns, the first stays | **Both turn**, whichever came first: #451 |
+| Lay a rule | Two free traits made square | The second clicked turns onto the first | **Both turn** alike, whichever came first: #451 |
+| Lay a rule | Two traits made equal | The second takes the first's length | Same |
+| Lay a rule | A point on a trait | The point comes onto the trait | Same |
+| Lay a rule | A profile trait and a free construction trait | The construction trait, whichever came first | **Both turn**: #452 |
+| Change the part | A sketch on a face, a point on a corner | It follows the corner, and lets go only when values from the origin cannot hold | Not built: #359, #372 |
+| Move a mirror's original | Its mirrored copy | The copy | Not built: the copy is not tied to its original yet (#320); settled when the mirror tool is taken up again |
+
 ## What dimensions draw
 
 A dimension is not just a number laid beside the drawing: it is **traced**,

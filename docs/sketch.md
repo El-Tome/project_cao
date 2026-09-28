@@ -983,6 +983,10 @@ From what never gives to what gives first:
    changes no size nobody typed on the way.
 7. **Construction left free.** It is scaffolding, and gives before anything the
    profile is made of.
+8. **The way round the drawing was drawn.** It is not a rule, and gives to
+   anything above: the hand turns it, a second point holding it turns it, an
+   angle typed turns it. Nothing else does — a value that says nothing about
+   direction turns nothing, wherever the drawing is nailed (#372).
 
 A rule laid, or an angle typed, between two things the order ranks alike leaves
 **the first one clicked** where it is and brings the second to it, as **Equal** already does
@@ -1011,6 +1015,7 @@ when none decides it.
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | **Both turn**, whichever came first: #451 |
+| Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | **It turns** about that point — about a degree over three heights retyped: #456 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | **Both turn** alike, whichever came first: #451 |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |

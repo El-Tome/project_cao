@@ -44,6 +44,18 @@ impl Sketch {
             },
         }
     }
+
+    /// Whether a piece of the drawing is construction: scaffolding, which
+    /// gives way before anything the profile is made of. A point is neither.
+    pub(crate) fn is_construction(&self, element: Element) -> bool {
+        match element {
+            Element::Point(_) => false,
+            Element::Segment(id) => self.segments().get(id.0).is_some_and(|it| it.construction),
+            Element::Circle(id) => self.circles().get(id.0).is_some_and(|it| it.construction),
+            Element::Arc(id) => self.arcs().get(id.0).is_some_and(|it| it.construction),
+            Element::Ellipse(id) => self.ellipses().get(id.0).is_some_and(|it| it.construction),
+        }
+    }
 }
 
 #[cfg(test)]

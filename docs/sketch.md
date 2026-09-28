@@ -982,7 +982,8 @@ From what never gives to what gives first:
    leaves the point nearest the origin where it is and moves the other, and
    changes no size nobody typed on the way.
 7. **Construction left free.** It is scaffolding, and gives before anything the
-   profile is made of.
+   profile is made of. A shape dragged stays by a point of the profile, never
+   by the far end of a construction trait hanging off it (#452).
 8. **The way round the drawing was drawn.** It is not a rule, and gives to
    anything above: the hand turns it, a second point holding it turns it, an
    angle typed turns it. Nothing else does — a value that says nothing about
@@ -994,7 +995,9 @@ length of a trait for **Equal**, the direction of a trait for a square, a
 parallel or an angle, a circle's place and size for a tangency. A point is the
 exception: it comes onto the trait or the curve it is laid on whichever was
 clicked first. The order decides before the clicks do: where holding the first
-leaves the rule no way to hold — the second is fixed — the first gives.
+leaves the rule no way to hold — the second is fixed — the first gives. A
+profile trait and a construction trait are not ranked alike: the construction
+one comes to the profile one, whichever was clicked first.
 
 The first one clicked is held only while the rule lands. Afterwards the two are
 as free as the rule leaves them: a length typed later on the second of two
@@ -1034,7 +1037,9 @@ when none decides it.
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |
-| Lay a rule | A profile trait and a free construction trait | The construction trait, whichever came first | **Both turn**: #452 |
+| Lay a rule | A profile trait and a free construction trait | The construction trait, whichever came first | Same (#452); both turned |
+| Type a value | An angle between a profile trait and a construction trait | The construction trait turns, whichever came first | Same (#452) |
+| Drag a corner | A rectangle, a construction trait running on from a side and kept parallel to it | The profile stretches as it would without it; the construction follows | Same (#452); the far end of the construction stayed and held the rectangle back |
 | Change the part | A sketch on a face, a point on a corner | It follows the corner, and lets go only when values from the origin cannot hold | Not built: #359, #372 |
 | Move a mirror's original | Its mirrored copy | The copy | Not built: the copy is not tied to its original yet (#320); settled when the mirror tool is taken up again |
 

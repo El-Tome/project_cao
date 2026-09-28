@@ -73,7 +73,7 @@ in one of the two domains, never there.
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
 | How wide a held selection stands, whichever way it is measured | `sketch/src/patterning/span.rs` | `Sketch::widest_span` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `erase_constraint` |
-| A rule or a value landing, the first thing clicked held while it does | `sketch/src/sketch/settling/landing.rs` | `Sketch::lay_rule`, `land_value` |
+| A rule or a value landing, the first thing clicked held while it does — the profile one, when the other is construction | `sketch/src/sketch/settling/landing.rs` | `Sketch::lay_rule`, `land_value` |
 | The order a pair was clicked in, kept and compared without | `sketch/src/laid_from.rs` | `LaidFrom`, `normalised`, `Sketch::carries` |
 | Setting a value on the drawing, moving where it is written, taking it away | `sketch/src/sketch/dimensions.rs` | `Sketch::set_dimension`, `dimension_of`, `offset_dimension`, `nearest_dimension`, `erase_dimension` |
 | What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `supports_for`, `holds_on`, `slide`, `let_go` |
@@ -83,7 +83,8 @@ in one of the two domains, never there.
 | A point dropped and the drawing settled around it; a handful dropped at once | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
 | What a drag of one point may do: stretch, follow one way, pivot, or nothing | `sketch/src/sketch/settling/pull.rs` | `PointPull`, `Sketch::pull`, `settle_pulled` |
 | Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to` |
-| The shape a dragged point belongs to, and the point of it that stays | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `stay_point`, `centres_under`, `turned_about` |
+| The shape a dragged point belongs to | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `centres_under`, `turned_about` |
+| The point of a dragged shape that stays, a profile point before a construction one | `sketch/src/sketch/settling/stay.rs` | `stay_point` |
 | The traits a drag keeps pointing the way they did | `sketch/src/sketch/settling/kept.rs` | `Kept`, `tied_by_direction`, `lines_kept_in` |
 | Where a dragged point can go without its shape turning | `sketch/src/sketch/settling/give.rs` | `Give`, `give_of` |
 | The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |

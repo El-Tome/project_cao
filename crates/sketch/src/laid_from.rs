@@ -30,34 +30,41 @@ pub enum LaidFrom {
 }
 
 impl Constraint {
-    /// What the rule was laid from: the thing clicked first, which the rule
-    /// never moves. `None` for a rule that has no order to it.
+    /// The two things the rule was laid between, the one clicked first
+    /// ahead: the first is what the rule never moves. `None` for a rule that
+    /// has no order to it.
     ///
     /// A point laid on a trait or a curve has none on purpose: the point comes
     /// onto what holds it whichever was clicked first.
-    pub(crate) fn laid_from(self) -> Option<Element> {
+    pub(crate) fn laid_between(self) -> Option<(Element, Element)> {
         match self {
-            Self::Perpendicular { first, .. }
-            | Self::Parallel { first, .. }
-            | Self::Equal { first, .. }
-            | Self::Collinear { first, .. } => Some(Element::Segment(first)),
-            Self::EqualRadius { first, .. } => Some(Element::Circle(first)),
-            Self::EqualRadiusArc { first, .. } => Some(Element::Arc(first)),
+            Self::Perpendicular { first, second }
+            | Self::Parallel { first, second }
+            | Self::Equal { first, second }
+            | Self::Collinear { first, second } => {
+                Some((Element::Segment(first), Element::Segment(second)))
+            }
+            Self::EqualRadius { first, second } => {
+                Some((Element::Circle(first), Element::Circle(second)))
+            }
+            Self::EqualRadiusArc { first, second } => {
+                Some((Element::Arc(first), Element::Arc(second)))
+            }
             Self::Tangent {
                 circle,
                 segment,
                 from,
                 ..
-            } => from.element(Element::Circle(circle), segment),
+            } => from.order(Element::Circle(circle), segment),
             Self::ArcTangent {
                 arc, segment, from, ..
-            } => from.element(Element::Arc(arc), segment),
+            } => from.order(Element::Arc(arc), segment),
             Self::EllipseTangent {
                 ellipse,
                 segment,
                 from,
                 ..
-            } => from.element(Element::Ellipse(ellipse), segment),
+            } => from.order(Element::Ellipse(ellipse), segment),
             Self::EqualRadiusArcCircle { .. }
             | Self::OnSegment { .. }
             | Self::OnCircle { .. }
@@ -158,22 +165,27 @@ impl Constraint {
 }
 
 impl LaidFrom {
-    fn element(self, curve: Element, segment: crate::sketch::SegmentId) -> Option<Element> {
+    fn order(
+        self,
+        curve: Element,
+        segment: crate::sketch::SegmentId,
+    ) -> Option<(Element, Element)> {
         match self {
             Self::Nowhere => None,
-            Self::Curve => Some(curve),
-            Self::Trait => Some(Element::Segment(segment)),
+            Self::Curve => Some((curve, Element::Segment(segment))),
+            Self::Trait => Some((Element::Segment(segment), curve)),
         }
     }
 }
 
 impl DimensionTarget {
-    /// What an angle was typed from: the trait clicked first, which the value
-    /// never turns. Retyped later, the same one stays.
-    pub(crate) fn laid_from(self) -> Option<Element> {
+    /// The two traits an angle was typed between, the one clicked first
+    /// ahead: the first is what the value never turns. Retyped later, the
+    /// same one stays.
+    pub(crate) fn laid_between(self) -> Option<(Element, Element)> {
         match self {
-            Self::Angle { first, .. } | Self::AngleBetween { first, .. } => {
-                Some(Element::Segment(first))
+            Self::Angle { first, second } | Self::AngleBetween { first, second, .. } => {
+                Some((Element::Segment(first), Element::Segment(second)))
             }
             Self::Length(_)
             | Self::Distance { .. }

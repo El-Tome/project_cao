@@ -11,6 +11,7 @@ mod landing;
 mod pull;
 mod shape;
 mod share;
+mod stay;
 
 pub(crate) use kept::Kept;
 pub use pull::PointPull;

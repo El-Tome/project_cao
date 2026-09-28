@@ -978,7 +978,9 @@ From what never gives to what gives first:
    drawing settles around it; where the drawing cannot follow, the point stops
    short rather than anything above giving. A drag is never a case of no choice.
 6. **Ordinary points.** Among them, a length no value gives yields before an
-   angle no value gives: the shape stretches before it turns.
+   angle no value gives: the shape stretches before it turns. A value typed
+   leaves the point nearest the origin where it is and moves the other, and
+   changes no size nobody typed on the way.
 7. **Construction left free.** It is scaffolding, and gives before anything the
    profile is made of.
 
@@ -1006,7 +1008,8 @@ when none decides it.
 | Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
 | Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | **Refused**, the drawing put back: #453 |
-| Type a value | A trait alone, both ends free | **Not decided yet** | Both ends move by half |
+| Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
+| Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | **Both turn** alike, whichever came first: #451 |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |

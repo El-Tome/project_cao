@@ -156,13 +156,26 @@ docs/24-storage-error-becomes-two-errors
 what was set aside, how it was verified, and `Closes #n`. A pull request with
 no body is one nobody can review a month later.
 
-**No pull request is merged before a human has reviewed it.** Read it, and for
-anything the user sees, tried it in the app. A green gate is not a review: it
-proves what the tests reach, and the tests do not reach the screen. An agent
-opens the pull request and stops there — it never runs `gh pr merge` on its own
-initiative, whatever the gate says. Merging is the human's call, as
-`CAO_SKIP_GATE` is. #300 to #322 were merged untested, and the first human test
-afterwards opened eight issues.
+**No pull request is merged without a human's word.** An agent opens the pull
+request and stops there; it runs `gh pr merge` once a human has said so — "c'est
+bon tu peux merge" — and never on a green gate alone. Merging is the human's
+call, as `CAO_SKIP_GATE` is.
+
+**What that word covers depends on what the user sees**, not on the type of
+commit nor on the paths touched: a `fix` or a `refactor` can leave the screen
+exactly as it was. Every pull request opens on `Visible to the user: yes` or
+`no`, and why. The agent judges; in doubt, it is `yes`.
+
+- **Visible:** the human tries it in the app before giving the word, and the
+  body carries a **To try it** section — the gestures, and what should be seen.
+  A green gate is no substitute: it proves what the tests reach, and the tests
+  do not reach the screen. #300 to #322 were merged untested, and the first
+  human test afterwards opened eight issues.
+- **Not visible:** the word is given on the summary. There is nothing to try.
+
+The word is the verification: an agent does not ask again whether it was tried.
+#393 has the reasoning, and why a `CODEOWNERS` with a required review was set
+aside.
 
 **Stack rather than wait.** An issue whose dependency is still in review
 branches off *that* branch and targets it as base, instead of blocking on a

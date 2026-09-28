@@ -60,6 +60,7 @@ fn a_tangency_writes_where_the_circle_touches() {
         circle,
         segment: line,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
     let constraint = *sketch
         .constraints()
@@ -108,6 +109,7 @@ fn a_tangency_on_an_ellipse_writes_where_the_curve_really_touches() {
         ellipse,
         segment,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     };
     sketch.add_constraint(constraint);
     sketch.resolve(1.0);

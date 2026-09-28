@@ -134,7 +134,7 @@ impl Sketch {
             .filter(|rule| {
                 !onto.as_ref().is_some_and(|(arc, kept)| {
                     self.moved_onto(**rule, id, *arc, kept)
-                        .is_some_and(|moved| self.constraints().contains(&moved.normalised()))
+                        .is_some_and(|moved| self.carries(moved))
                 })
             })
             .count();
@@ -207,10 +207,15 @@ impl Sketch {
                 circle,
                 segment,
                 at,
+                from,
             } if circle == cut => {
                 let touches = self.contact_round(cut, segment, at)?;
-                kept.holds(touches)
-                    .then_some(Constraint::ArcTangent { arc, segment, at })
+                kept.holds(touches).then_some(Constraint::ArcTangent {
+                    arc,
+                    segment,
+                    at,
+                    from,
+                })
             }
             Constraint::OnCircle { point, circle } if circle == cut => {
                 let place = self.points().get(point.0).copied()?;

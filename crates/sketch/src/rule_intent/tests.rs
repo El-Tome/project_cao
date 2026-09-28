@@ -176,8 +176,31 @@ fn an_arc_and_a_trait_shown_tangent_brush_each_other() {
             arc,
             segment,
             at: None,
+            from: crate::LaidFrom::Curve,
         })),
     );
+}
+
+#[test]
+fn a_tangency_remembers_which_of_the_two_was_clicked_first() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let start = sketch.add_point(glam::DVec2::new(-40.0, 20.0));
+    let end = sketch.add_point(glam::DVec2::new(40.0, 20.0));
+    let segment = sketch.add_segment(start, end);
+    let centre = sketch.add_point(glam::DVec2::ZERO);
+    let circle = sketch.add_circle(centre, 8.0);
+    let (round, line) = (
+        RulePick::Element(Element::Circle(circle)),
+        RulePick::Element(Element::Segment(segment)),
+    );
+
+    let laid_from = |picks: &[RulePick]| match rule_intent(Rule::Tangent, picks, &sketch) {
+        Some(RuleIntent::Constrain(Constraint::Tangent { from, .. })) => from,
+        other => panic!("a circle and a trait made {other:?}"),
+    };
+
+    assert_eq!(laid_from(&[round, line]), crate::LaidFrom::Curve);
+    assert_eq!(laid_from(&[line, round]), crate::LaidFrom::Trait);
 }
 
 #[test]

@@ -256,6 +256,33 @@ fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
 }
 
 #[test]
+fn a_chamfer_keeps_which_side_the_angle_was_typed_from() {
+    let (mut sketch, along, up, _pivot) = a_right_angle();
+    sketch.set_dimension(
+        DimensionTarget::Angle {
+            first: up,
+            second: along,
+        },
+        90.0,
+        false,
+    );
+
+    let chamfered = sketch
+        .chamfer(along, up, Chamfer::Equal(3.0))
+        .expect("a corner that can be cut");
+
+    let [_, stands_for_up] = chamfered.stretches;
+    assert!(
+        matches!(
+            sketch.dimensions()[0].target,
+            DimensionTarget::Angle { first, .. } if first == stands_for_up
+        ),
+        "the angle is read from the stretch that stood for the other side: {:?}",
+        sketch.dimensions()[0].target
+    );
+}
+
+#[test]
 fn a_chamfer_rehangs_on_the_corner_the_length_each_side_was_given() {
     let (mut sketch, along, up, pivot) = a_right_angle();
     sketch.set_dimension(DimensionTarget::Length(along), 10.0, false);

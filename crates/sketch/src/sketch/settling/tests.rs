@@ -1088,6 +1088,7 @@ fn an_arc_touching_a_side_midway_lets_its_rectangle_go_through() {
         arc,
         segment: sides[0],
         at: None,
+        from: crate::LaidFrom::Nowhere,
     });
 
     sketch.settle_around(c, DVec2::new(-20.0, 70.0), 1.0);

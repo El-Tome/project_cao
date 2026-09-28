@@ -318,6 +318,7 @@ fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
         ellipse,
         segment,
         at: None,
+        from: crate::LaidFrom::Nowhere,
     };
     sketch.add_constraint(rule);
     sketch.resolve(1.0);

@@ -17,14 +17,16 @@ impl Sketch {
                 circle,
                 segment,
                 at,
+                ..
             } => self.circle_tangent_equations(circle, segment, at, into),
-            Constraint::ArcTangent { arc, segment, at } => {
-                into.extend(self.arc_tangent_equations(arc, segment, at))
-            }
+            Constraint::ArcTangent {
+                arc, segment, at, ..
+            } => into.extend(self.arc_tangent_equations(arc, segment, at)),
             Constraint::EllipseTangent {
                 ellipse,
                 segment,
                 at,
+                ..
             } => self.ellipse_tangent_equations(ellipse, segment, at, into),
             _ => {}
         }

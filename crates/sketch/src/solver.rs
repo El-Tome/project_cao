@@ -175,6 +175,7 @@ impl Sketch {
                     if let Some(point) = held_alone {
                         equation.hold_to(point);
                     }
+                    self.hold_sizes(equation);
 
                     let norm = equation.norm_squared();
                     if norm < equation.flat_below(scale) {
@@ -638,20 +639,15 @@ impl Sketch {
             return None;
         }
 
-        // Only the second trait gives way: the first one clicked is the length
-        // wanted, and a rule that moved both would leave neither of them the
-        // size that was asked for. A corner the two share belongs to the first
-        // as much as to the second, so it stays put too — otherwise stretching
-        // the second would drag the first out of shape.
-        let shared = |point: PointId| point == one.start || point == one.end;
+        // Which of the two keeps its length is the landing's to say
+        // (`Sketch::lay_rule`), not the rule's: a rule that could only ever
+        // stretch the second would refuse a length typed on it later.
         let mut equation = Equation::new(self.variables());
         equation.error = second_length - first_length;
-        if !shared(other.end) {
-            equation.add(other.end, second_span / second_length);
-        }
-        if !shared(other.start) {
-            equation.add(other.start, -second_span / second_length);
-        }
+        equation.add(other.end, second_span / second_length);
+        equation.add(other.start, -second_span / second_length);
+        equation.add(one.end, -first_span / first_length);
+        equation.add(one.start, first_span / first_length);
         Some(equation)
     }
 

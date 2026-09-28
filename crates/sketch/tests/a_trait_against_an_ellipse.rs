@@ -126,6 +126,7 @@ fn a_trait_and_an_ellipse_make_a_tangency() {
                 ellipse,
                 segment,
                 at: None,
+                from: cao_sketch::LaidFrom::Trait,
             }
         )),
     );
@@ -141,6 +142,7 @@ fn a_trait_told_to_brush_an_ellipse_ends_up_touching_it() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 
@@ -160,6 +162,7 @@ fn the_tangency_leaves_a_point_where_the_two_touch() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 
@@ -185,6 +188,7 @@ fn the_tangency_leaves_a_point_where_the_two_touch() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
 
     assert_eq!(
@@ -233,6 +237,7 @@ fn the_touch_point_lands_on_the_curves_own_side_of_a_slanted_trait() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 
@@ -256,6 +261,7 @@ fn the_ellipse_slides_along_the_trait_when_its_touch_is_dragged() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
     let touch = the_touch_point(&sketch);
@@ -294,6 +300,7 @@ fn a_trait_pinned_at_one_end_turns_until_it_brushes() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 
@@ -328,6 +335,7 @@ fn an_ellipse_free_to_grow_swells_until_it_meets_the_trait() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 
@@ -352,6 +360,7 @@ fn the_ellipse_dragged_keeps_the_trait_against_it() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
     let centre = sketch.ellipses()[ellipse.0].center;
@@ -375,6 +384,7 @@ fn a_tangency_whose_touch_was_rubbed_out_still_holds_the_trait_exactly() {
             ellipse,
             segment,
             at: None,
+            from: cao_sketch::LaidFrom::Nowhere,
         });
         sketch.resolve(1.0);
         let touch = the_touch_point(&sketch);
@@ -399,6 +409,7 @@ fn the_trait_dragged_keeps_brushing_the_ellipse() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
     let end = sketch.segments()[segment.0].end;
@@ -423,6 +434,7 @@ fn an_arc_of_ellipse_is_brushed_where_it_is_drawn() {
         ellipse,
         segment,
         at: None,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     sketch.resolve(1.0);
 

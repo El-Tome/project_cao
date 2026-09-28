@@ -197,8 +197,6 @@ pub(crate) fn measure_preview(
 /// it measures has to be dragged off it anyway — this way it lands where it
 /// belongs from the start.
 fn select_target(context: &mut SketchContext<'_>, index: usize, target: DimensionTarget) {
-    let target = target.normalised();
-
     // The same measurement clicked again is the one already there: showing its
     // value to be retyped is what the user is after, not a second copy of it
     // laid over the first. A slanted trait is the exception — it has a width

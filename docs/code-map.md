@@ -73,6 +73,8 @@ in one of the two domains, never there.
 | Repeating a selection round a centre, or in rows | `sketch/src/patterning.rs` | `Sketch::pattern_around`, `Sketch::pattern_along`, `Repeats` |
 | How wide a held selection stands, whichever way it is measured | `sketch/src/patterning/span.rs` | `Sketch::widest_span` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `erase_constraint` |
+| A rule or a value landing, the first thing clicked held while it does | `sketch/src/sketch/settling/landing.rs` | `Sketch::lay_rule`, `land_value` |
+| The order a pair was clicked in, kept and compared without | `sketch/src/laid_from.rs` | `LaidFrom`, `normalised`, `Sketch::carries` |
 | Setting a value on the drawing, moving where it is written, taking it away | `sketch/src/sketch/dimensions.rs` | `Sketch::set_dimension`, `dimension_of`, `offset_dimension`, `nearest_dimension`, `erase_dimension` |
 | What holds a point where it was laid, and what that still lets it do | `sketch/src/holding.rs` | `Support`, `Sketch::supports_at`, `supports_for`, `holds_on`, `slide`, `let_go` |
 | What a rule holding a point asks of the solver, and which of the two gives | `sketch/src/solver/hold_solver.rs` | `hold_equations`, `held_alone`, `pulled_elsewhere` |

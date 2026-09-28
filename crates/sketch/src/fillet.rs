@@ -3,6 +3,7 @@ use std::f64::consts::{PI, TAU};
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::corner::piece_running_into;
+use crate::laid_from::LaidFrom;
 use crate::naming::{Became, CurveId};
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -92,6 +93,7 @@ impl Sketch {
                 arc: cut.arc,
                 segment: piece,
                 at: Some(touches),
+                from: LaidFrom::Nowhere,
             });
         }
 

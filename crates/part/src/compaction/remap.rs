@@ -123,24 +123,34 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             circle,
             segment,
             at,
+            from,
         } => Constraint::Tangent {
             circle: map.circles[&circle],
             segment: map.segments[&segment],
             at: at.map(|point| map.points[&point]),
+            from,
         },
-        Constraint::ArcTangent { arc, segment, at } => Constraint::ArcTangent {
+        Constraint::ArcTangent {
+            arc,
+            segment,
+            at,
+            from,
+        } => Constraint::ArcTangent {
             arc: map.arcs[&arc],
             segment: map.segments[&segment],
             at: at.map(|point| map.points[&point]),
+            from,
         },
         Constraint::EllipseTangent {
             ellipse,
             segment,
             at,
+            from,
         } => Constraint::EllipseTangent {
             ellipse: map.ellipses[&ellipse],
             segment: map.segments[&segment],
             at: at.map(|point| map.points[&point]),
+            from,
         },
         Constraint::OnCircle { point, circle } => Constraint::OnCircle {
             point: map.points[&point],

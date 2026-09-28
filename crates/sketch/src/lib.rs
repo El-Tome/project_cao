@@ -39,6 +39,7 @@ mod erased;
 mod fillet;
 mod holding;
 mod independence;
+mod laid_from;
 mod length;
 mod measuring;
 mod mirroring;
@@ -88,6 +89,7 @@ pub use ellipse_placing::{EllipseMode, Rise, ellipse_aimed, ellipse_from, rise_o
 pub use ellipsing::EllipseDraft;
 pub use fillet::Rounded;
 pub use holding::Support;
+pub use laid_from::LaidFrom;
 pub use length::LengthOutcome;
 pub use measuring::{DimensionMode, DimensionPick, DimensionPicks, measure_pick};
 pub use naming::{Area, Became, CurveId, Standing, area_under};

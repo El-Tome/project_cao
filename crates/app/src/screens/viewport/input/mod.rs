@@ -345,7 +345,7 @@ fn constrain(
         return false;
     };
     if let RuleIntent::Constrain(constraint) = intent
-        && sketch.constraints().contains(&constraint.normalised())
+        && sketch.carries(constraint)
     {
         // The drawing already carries it; recording the step again would fill
         // the history with entries that change nothing.

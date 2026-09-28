@@ -38,19 +38,10 @@ fn a_rule_about_a_traits_direction_holds_on_both_of_its_pieces() {
 
     for piece in pieces {
         assert!(
-            sketch.constraints().contains(
-                &Constraint::Parallel {
-                    first: piece,
-                    second: other
-                }
-                .normalised()
-            ) || sketch.constraints().contains(
-                &Constraint::Parallel {
-                    first: other,
-                    second: piece
-                }
-                .normalised()
-            ),
+            sketch.carries(Constraint::Parallel {
+                first: piece,
+                second: other
+            }),
             "{piece:?} is no longer parallel to what the trait was",
         );
     }

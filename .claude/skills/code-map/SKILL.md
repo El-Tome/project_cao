@@ -40,6 +40,7 @@ there. See the `architecture-rust` skill.
 | The sketch model, points, traits, circles | `sketch/src/sketch.rs` | `Sketch`, `live_points`, `live_segments`, `live_circles` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase`, `Erased` |
 | Placing or removing a constraint | `sketch/src/sketch.rs` | `add_constraint`, `add_tangency`, `erase_constraint` |
+| A rule or a value landing, the first thing clicked held while it does | `sketch/src/sketch/settling/landing.rs` | `lay_rule`, `land_value` |
 | The kinds of constraint and dimension | `sketch/src/constraints.rs` | `Constraint`, `Dimension`, `DimensionTarget`, `Freedom` |
 | **The solver** — making every value true together | `sketch/src/solver.rs` | `solve(millimeters_per_unit)` → `SolveOutcome` |
 | What a set of equations holds, and what it leaves free | `sketch/src/independence.rs` | `rank`, `null_space`, `is_dependent` |

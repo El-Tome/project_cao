@@ -47,11 +47,14 @@ impl Sketch {
                     circle,
                     segment,
                     at,
+                    ..
                 } => (
                     circle_centre(circle).into_iter().chain(at).collect(),
                     ends_of(segment),
                 ),
-                Constraint::ArcTangent { arc, segment, at } => (
+                Constraint::ArcTangent {
+                    arc, segment, at, ..
+                } => (
                     arc_centre(arc).into_iter().chain(at).collect(),
                     ends_of(segment),
                 ),
@@ -59,6 +62,7 @@ impl Sketch {
                     ellipse,
                     segment,
                     at,
+                    ..
                 } => (
                     ellipse_centre(ellipse).into_iter().chain(at).collect(),
                     ends_of(segment),

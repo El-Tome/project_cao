@@ -136,19 +136,23 @@ pub(super) fn still_holds(
             circle,
             segment,
             at,
+            from,
         } if segment == cut && fell_on_the_piece => Some(Constraint::Tangent {
             circle,
             segment: piece.id,
             at,
+            from,
         }),
         Constraint::EllipseTangent {
             ellipse,
             segment,
             at,
+            from,
         } if segment == cut && fell_on_the_piece => Some(Constraint::EllipseTangent {
             ellipse,
             segment: piece.id,
             at,
+            from,
         }),
         _ => None,
     }
@@ -260,6 +264,7 @@ impl Sketch {
                         ellipse,
                         segment: on,
                         at,
+                        ..
                     } if *on == segment => {
                         let touches = match at {
                             Some(point) => self.points().get(point.0).copied()?,

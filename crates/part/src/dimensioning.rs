@@ -151,8 +151,9 @@ impl PartState {
         // that cannot be fully honoured is refused rather than half-applied:
         // the drawing goes back to what it was, the same way a drag the
         // solver cannot satisfy already reverts in `settle_around_all`.
-        // A point held on what the value moves keeps its place along it.
-        let outcome = sketch.resolve_keeping_places(scale);
+        // A point held on what the value moves keeps its place along it, and
+        // an angle turns the second trait it was typed between, not the first.
+        let outcome = sketch.land_value(target, scale);
         if outcome != LengthOutcome::Exact {
             self.sketches[index] = before;
         }

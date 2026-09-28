@@ -989,10 +989,19 @@ From what never gives to what gives first:
    direction turns nothing, wherever the drawing is nailed (#372).
 
 A rule laid, or an angle typed, between two things the order ranks alike leaves
-**the first one clicked** where it is and brings the second to it, as **Equal** already does
-with a trait's length — except a point, which comes onto the trait or the curve
-it is laid on whichever was clicked first. The order decides before the clicks
-do.
+**the first one clicked** where it is and brings the second to it — the
+length of a trait for **Equal**, the direction of a trait for a square, a
+parallel or an angle, a circle's place and size for a tangency. A point is the
+exception: it comes onto the trait or the curve it is laid on whichever was
+clicked first. The order decides before the clicks do: where holding the first
+leaves the rule no way to hold — the second is fixed — the first gives.
+
+The first one clicked is held only while the rule lands. Afterwards the two are
+as free as the rule leaves them: a length typed later on the second of two
+equal traits changes both, rather than being refused. The rule keeps the order
+it was clicked in, so an angle retyped later — clicked either way round —
+turns the same trait again, and a part reopened lands every rule where it
+landed the first time (#451).
 
 ### The cases, against the code
 
@@ -1014,10 +1023,15 @@ when none decides it.
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | **Refused**, the drawing put back: #453 |
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
-| Type a value | An angle between two free traits | The second trait clicked turns, the first stays | **Both turn**, whichever came first: #451 |
+| Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |
 | Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
-| Lay a rule | Two free traits made square | The second clicked turns onto the first | **Both turn** alike, whichever came first: #451 |
+| Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
+| Lay a rule | A free trait and a free circle made tangent | Whichever was clicked second comes to touch the first | Same (#451) |
+| Lay a rule | Two free traits made square, the second fixed | The first gives: the order decides before the clicks | Same (#451) |
+| Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
+| Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
+| Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |
 | Lay a rule | A profile trait and a free construction trait | The construction trait, whichever came first | **Both turn**: #452 |
 | Change the part | A sketch on a face, a point on a corner | It follows the corner, and lets go only when values from the origin cannot hold | Not built: #359, #372 |

@@ -1028,6 +1028,7 @@ when none decides it.
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
 | Lay a rule | A free trait and a free circle made tangent | Whichever was clicked second comes to touch the first | Same (#451) |
+| Lay a rule | The same, the circle beside the end of the trait rather than over it | The second clicked also slides along the trait, just far enough for the circle to stand over it | Same (#451); both moved, the circle resizing, whichever came first |
 | Lay a rule | Two free traits made square, the second fixed | The first gives: the order decides before the clicks | Same (#451) |
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |

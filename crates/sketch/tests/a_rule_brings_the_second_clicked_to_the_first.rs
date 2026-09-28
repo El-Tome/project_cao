@@ -155,47 +155,65 @@ fn an_equality_keeps_the_length_of_the_first_trait_clicked() {
     }
 }
 
+/// What a tangency laid between a trait and a circle moved: how far the
+/// trait's ends went, and how far the circle's centre and rim went.
+fn touched(centre: DVec2, diameter: Option<f64>, from: LaidFrom) -> (f64, f64) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let a = sketch.add_point(DVec2::new(10.0, 10.0));
+    let b = sketch.add_point(DVec2::new(210.0, 10.0));
+    let segment = sketch.add_segment(a, b);
+    let centre = sketch.add_point(centre);
+    let circle = sketch.add_circle(centre, 30.0);
+    if let Some(diameter) = diameter {
+        sketch.set_dimension(DimensionTarget::Diameter(circle), diameter, false);
+        sketch.resolve(SCALE);
+    }
+
+    let before = (
+        ends(&sketch, 0),
+        sketch.point(centre),
+        sketch.circle(circle).radius,
+    );
+    let outcome = sketch.lay_rule(
+        Constraint::Tangent {
+            circle,
+            segment,
+            at: None,
+            from,
+        },
+        SCALE,
+    );
+    assert_eq!(outcome, LengthOutcome::Exact, "the tangency did not land");
+
+    (
+        moved(&sketch, 0, before.0),
+        sketch.point(centre).distance(before.1) + (sketch.circle(circle).radius - before.2).abs(),
+    )
+}
+
 #[test]
 fn a_tangent_brings_the_second_clicked_to_the_first() {
-    for from in [LaidFrom::Curve, LaidFrom::Trait] {
-        let mut sketch = Sketch::new(WorkPlane::XY);
-        let a = sketch.add_point(DVec2::new(10.0, 10.0));
-        let b = sketch.add_point(DVec2::new(210.0, 10.0));
-        let segment = sketch.add_segment(a, b);
-        let center = sketch.add_point(DVec2::new(100.0, 90.0));
-        let circle = sketch.add_circle(center, 30.0);
-
-        let before = (
-            ends(&sketch, 0),
-            sketch.point(center),
-            sketch.circle(circle).radius,
-        );
-        let outcome = sketch.lay_rule(
-            Constraint::Tangent {
-                circle,
-                segment,
-                at: None,
-                from,
-            },
-            SCALE,
-        );
-        assert_eq!(outcome, LengthOutcome::Exact, "the tangency did not land");
-
-        let trait_moved = moved(&sketch, 0, before.0);
-        let circle_moved = sketch.point(center).distance(before.1)
-            + (sketch.circle(circle).radius - before.2).abs();
-        let (stayed, came) = match from {
-            LaidFrom::Trait => (trait_moved, circle_moved),
-            _ => (circle_moved, trait_moved),
-        };
-        assert!(
-            stayed < CLOSE,
-            "{from:?}: the first clicked moved by {stayed}"
-        );
-        assert!(
-            came > CLOSE,
-            "{from:?}: the second clicked stayed where it was"
-        );
+    let over_the_trait = DVec2::new(100.0, 90.0);
+    let beside_its_end = DVec2::new(260.0, 90.0);
+    for centre in [over_the_trait, beside_its_end] {
+        for diameter in [None, Some(60.0)] {
+            for from in [LaidFrom::Curve, LaidFrom::Trait] {
+                let (trait_moved, circle_moved) = touched(centre, diameter, from);
+                let (stayed, came) = match from {
+                    LaidFrom::Trait => (trait_moved, circle_moved),
+                    _ => (circle_moved, trait_moved),
+                };
+                let case = format!("{from:?} first, centre at {centre}, diameter {diameter:?}");
+                assert!(
+                    stayed < CLOSE,
+                    "{case}: the first clicked moved by {stayed}"
+                );
+                assert!(
+                    came > CLOSE,
+                    "{case}: the second clicked stayed where it was"
+                );
+            }
+        }
     }
 }
 

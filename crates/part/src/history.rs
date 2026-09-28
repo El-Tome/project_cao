@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 mod operation;
 mod step;
 mod table;
+pub(crate) use operation::FirstValue;
 pub use operation::{
     ChamferAsked, ExtrusionMode, FaceAnchor, Operation, PointRef, RepeatsAsked, RevolutionAxis,
 };
@@ -231,6 +232,21 @@ impl History {
 
     pub fn applied_operations(&self) -> &[Operation] {
         &self.operations[..self.applied]
+    }
+
+    /// Whether the first size this part was ever given is one with nothing
+    /// drawn to read it against — a step of matter's depth, a pattern's step.
+    ///
+    /// Asked in the order things were typed, which [`Self::replay_order`] is
+    /// not: a value set on a drawing replays with that drawing's step, so a
+    /// dimension typed long after an extrusion still reaches the part before
+    /// it. Chronology is what "the part's first value" means, and a replay that
+    /// asked its own order would hand the scale to the dimension every time.
+    pub(crate) fn first_size_is_off_the_drawing(&self) -> bool {
+        self.applied_operations()
+            .iter()
+            .find_map(Operation::first_value)
+            == Some(FirstValue::OffTheDrawing)
     }
 
     pub fn is_empty(&self) -> bool {

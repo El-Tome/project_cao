@@ -17,6 +17,7 @@ mod raising;
 mod sizes;
 pub use point_ref::PointRef;
 pub use raising::{ExtrusionMode, FaceAnchor, RevolutionAxis};
+pub(crate) use sizes::FirstValue;
 pub use sizes::{ChamferAsked, RepeatsAsked};
 
 /// One step of the part's history. Replaying the list from the start rebuilds

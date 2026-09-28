@@ -16,10 +16,21 @@
 //!   `a_value_typed_right_after_a_later_dimension_is_placed_moves_the_drawing`
 //! - replaying the history rebuilds the same part, scale included —
 //!   `replaying_the_history_rebuilds_the_first_dimension_and_its_scale`
+//!
+//! Closes #460.
+//! - with the smart dimension tool, a trait carrying its length then a second
+//!   trait gives the angle between them, waiting to be placed —
+//!   `a_trait_carrying_its_length_then_a_second_trait_gives_the_angle`
+//! - the same click still opens the length for retyping, and a value typed
+//!   then retypes it — `a_trait_carrying_its_length_still_opens_it_for_retyping`
+//!
+//! Decided on the way: a value typed ends the gesture, so the next trait
+//! clicked gets its own length —
+//! `a_trait_clicked_after_a_length_was_retyped_gets_its_own_length`.
 
 use cao_part::history::PointRef;
 use cao_part::{Formula, Operation, PartDocument, VariableChange};
-use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
+use cao_sketch::{DimensionMode, DimensionTarget, SegmentId, ToolState, WorkPlane};
 use chrono::Utc;
 use glam::DVec2;
 
@@ -323,4 +334,131 @@ fn replaying_the_history_rebuilds_the_first_dimension_and_its_scale() {
         said(replayed.sketches[0].dimension_of(SIDE)),
         said(document.sketches()[0].dimension_of(SIDE)),
     );
+}
+
+/// Two traits meeting at (10, 10), one along to (34, 10) and carrying its
+/// length, the other up to (10, 40) carrying none.
+fn a_corner_with_one_side_measured() -> PartDocument {
+    let mut document = a_trait_and_no_scale();
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::Existing(cao_sketch::PointId(1)),
+        end: PointRef::New(DVec2::new(10.0, 40.0)),
+        construction: false,
+    });
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target: SIDE,
+        value: 24.0.into(),
+        placement: None,
+    });
+    document
+}
+
+const ON_THE_MEASURED_SIDE: DVec2 = DVec2::new(22.0, 10.0);
+const ON_THE_OTHER_SIDE: DVec2 = DVec2::new(10.0, 25.0);
+const OTHER_SIDE: DimensionTarget = DimensionTarget::Length(SegmentId(1));
+
+fn click(context: &mut SketchContext<'_>, at: DVec2) {
+    measure(context, 0, at, 1.0, 0.05);
+}
+
+fn placing(editor: &SketchEditor) -> Option<DimensionTarget> {
+    match editor.tool_state {
+        ToolState::Dimension { placing, .. } => placing,
+        _ => None,
+    }
+}
+
+#[test]
+fn a_trait_carrying_its_length_then_a_second_trait_gives_the_angle() {
+    let mut document = a_corner_with_one_side_measured();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    assert_eq!(context.editor.dimension_mode, DimensionMode::Auto);
+
+    click(&mut context, ON_THE_MEASURED_SIDE);
+    click(&mut context, ON_THE_OTHER_SIDE);
+
+    assert_eq!(
+        placing(&editor),
+        Some(DimensionTarget::Angle {
+            first: SegmentId(0),
+            second: SegmentId(1),
+        }),
+        "the second trait turned the first into an angle"
+    );
+    assert!(editor.editing.is_none(), "the length's field stayed open");
+}
+
+#[test]
+fn a_trait_carrying_its_length_still_opens_it_for_retyping() {
+    let mut document = a_corner_with_one_side_measured();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+
+    click(&mut context, ON_THE_MEASURED_SIDE);
+    let opened = editor.editing.as_ref().map(|editing| editing.target);
+    if let Some(editing) = editor.editing.as_mut() {
+        editing.input = "30".to_string();
+    }
+    assert!(apply_dimension_value(
+        &mut document,
+        &mut editor,
+        0,
+        SIDE,
+        &lang
+    ));
+
+    assert_eq!(opened, Some(SIDE), "the click did not open the length");
+    let retyped = document.sketches()[0].dimension_of(SIDE).map(|d| d.value);
+    assert_eq!(retyped, Some(30.0));
+}
+
+#[test]
+fn a_trait_clicked_after_a_length_was_retyped_gets_its_own_length() {
+    let mut document = a_corner_with_one_side_measured();
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    click(&mut context, ON_THE_MEASURED_SIDE);
+    if let Some(editing) = editor.editing.as_mut() {
+        editing.input = "30".to_string();
+    }
+    apply_dimension_value(&mut document, &mut editor, 0, SIDE, &lang);
+    editor.editing = None;
+
+    let other_side = document.sketches()[0].segments()[1];
+    let halfway = (document.sketches()[0].point(other_side.start)
+        + document.sketches()[0].point(other_side.end))
+        / 2.0;
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    click(&mut context, halfway);
+
+    assert_eq!(placing(&editor), Some(OTHER_SIDE));
 }

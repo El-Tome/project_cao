@@ -302,12 +302,10 @@ fn an_axis_end_dragged_alone_leaves_the_centre_where_it_was() {
 }
 
 #[test]
-fn an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was() {
+fn an_axis_end_dragged_against_the_values_given_carries_the_ellipse_whole() {
     let (mut sketch, id) = wide_ellipse();
     let [centre, _, east, ..] = sketch.ellipse_points(id);
     let first = sketch.ellipses()[id.0].first;
-    // A length and an angle leave the axis free to travel and nothing else, so
-    // the cursor is asking for something the drawing has already refused.
     sketch.set_dimension(DimensionTarget::Length(first), 60.0, false);
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
@@ -319,9 +317,18 @@ fn an_axis_end_dragged_against_the_values_given_leaves_the_centre_where_it_was()
     );
     sketch.resolve(1.0);
     let stood = sketch.point(centre);
+    let travel = DVec2::new(90.0, 60.0) - sketch.point(east);
 
     sketch.settle_around(east, DVec2::new(90.0, 60.0), 1.0);
 
-    let moved = sketch.point(centre).distance(stood);
-    assert!(moved < 1e-4, "the centre slid {moved} towards the cursor");
+    let carried = sketch.point(centre).distance(stood + travel);
+    assert!(
+        carried < 1e-4,
+        "the centre travels with the end it cannot stretch nor turn, off by {carried}"
+    );
+    assert!(
+        (sketch.segment_length(first) - 60.0).abs() < 1e-4,
+        "and the axis keeps its length: {}",
+        sketch.segment_length(first)
+    );
 }

@@ -182,7 +182,20 @@ impl Sketch {
                     || self.retract(pull, holding, landing, millimeters_per_unit)
             }
             Give::Nowhere => self.pivot(pull, holding, position, millimeters_per_unit),
-            Give::Stuck => false,
+            // Held where the press found it, the far point leaves the shape
+            // neither a way to stretch nor to turn — a trait whose length is
+            // typed and whose direction a rule holds. The shape travels whole
+            // with the hand instead, as a selection moved does, and what
+            // cannot travel either is given back (#473).
+            Give::Stuck => {
+                let travel = position - from;
+                let moved: Vec<(PointId, DVec2)> = holding
+                    .shape
+                    .iter()
+                    .map(|point| (*point, self.point(*point) + travel))
+                    .collect();
+                return self.settle_around_all(&moved, millimeters_per_unit);
+            }
         };
         // A shape turned whole carries what is held on it round with it.
         if reached && !pull.turns() {

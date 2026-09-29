@@ -1474,6 +1474,12 @@ It is useful: reading a length stays interesting even when fixing it makes no
 sense. And since it always shows what the geometry measures, it stays right
 when the drawing moves afterwards.
 
+"Already follows" is read from the origin, the values and the rules alone. A
+**Fixed** point does not count: it keeps a point where it is while something
+else changes, and decides nothing. A width that only a fixed corner holds is
+typed like any other, and the corner gives, as
+[What gives way first](#what-gives-way-first) says (#468).
+
 ## Dimensions, and the scale
 
 A dimension behaves differently depending on whether it is the first value

@@ -8,7 +8,6 @@ pub use crate::circle::{Circle, CircleId};
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::ellipse::Ellipse;
 use crate::erased::Erased;
-use crate::independence::is_dependent;
 use crate::length::LengthOutcome;
 use crate::plane::WorkPlane;
 use crate::solver::SolveOutcome;
@@ -73,6 +72,7 @@ pub struct Sketch {
 mod dimensions;
 mod holds_up;
 mod keeping;
+mod redundancy;
 pub(crate) mod settling;
 mod tangency;
 
@@ -606,65 +606,6 @@ impl Sketch {
 }
 
 impl Sketch {
-    /// Whether a value on this target would say anything new.
-    ///
-    /// A constraint is redundant when its equation is a combination of those
-    /// already there — exactly the case of a triangle's third side once its
-    /// other sides and angles are fixed. Counting constraints could never see
-    /// that; comparing their directions can.
-    pub fn would_be_redundant(&self, target: DimensionTarget, millimeters_per_unit: f64) -> bool {
-        if self.dimension_of(target).is_some() {
-            return false;
-        }
-
-        let existing = self.equations(millimeters_per_unit);
-        let Some(candidate) = self.candidate_equation(target, millimeters_per_unit) else {
-            return false;
-        };
-        is_dependent(&existing, &candidate)
-    }
-
-    /// The equation a not-yet-placed dimension would contribute, taken at the
-    /// value the geometry already has so only its direction matters.
-    fn candidate_equation(
-        &self,
-        target: DimensionTarget,
-        millimeters_per_unit: f64,
-    ) -> Option<crate::equation::Equation> {
-        let value = match target {
-            DimensionTarget::Length(segment) => {
-                (segment.0 < self.segments.len()).then(|| self.segment_length(segment))?
-                    * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::Distance { from, to } => {
-                let (a, b) = (self.points.get(from.0)?, self.points.get(to.0)?);
-                a.distance(*b) * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::Angle { first, second } => self.angle_between(first, second)?,
-            DimensionTarget::AngleBetween { .. } => self.opening(target)?,
-            DimensionTarget::AxisAngle { segment, axis } => self.angle_with_axis(segment, axis)?,
-            DimensionTarget::PointToSegment { point, segment } => {
-                self.point_to_segment(point, segment)? * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::Projected { from, to, axis } => {
-                self.projected_gap(from, to, axis)? * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::Radius(circle) => {
-                self.circles.get(circle.0)?.radius * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::Diameter(circle) => {
-                self.circles.get(circle.0)?.radius * 2.0 * millimeters_per_unit.max(1e-9)
-            }
-            DimensionTarget::ArcRadius(arc) => self.arc_radius_value(arc, millimeters_per_unit)?,
-            DimensionTarget::ArcSweep(arc) => self.arc_sweep_value(arc)?,
-        };
-
-        let mut probe = self.clone();
-        probe.dimensions.clear();
-        probe.set_dimension(target, value, false);
-        probe.equations(millimeters_per_unit).into_iter().next()
-    }
-
     /// Re-satisfies every dimension at once, reporting whether it managed.
     pub fn resolve(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         match self.solve(millimeters_per_unit) {

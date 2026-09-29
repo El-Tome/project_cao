@@ -404,9 +404,7 @@ impl Sketch {
     /// angle says nothing, and has to be told — an angle against an axis —
     /// before it can count as settled.
     pub(crate) fn anchored_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
-        let anchored: Vec<bool> = (0..self.points().len())
-            .map(|index| self.is_origin(PointId(index)))
-            .collect();
+        let anchored = self.only_the_origin();
         let mut equations = self.equations_pinned_by(millimeters_per_unit, &anchored);
         let square = self.groups_lying_square();
         let about_the_origin = vec![DVec2::ZERO; self.points().len()];

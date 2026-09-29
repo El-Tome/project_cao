@@ -50,7 +50,7 @@ const WELDS: usize = 4;
 const WORTH_ANOTHER_ROUND: f64 = 0.9;
 /// Below this, an equation counts as satisfied. Relative to the drawing's own
 /// size, so it means the same thing at any scale.
-const TOLERANCE: f64 = 1e-5;
+pub(crate) const TOLERANCE: f64 = 1e-5;
 /// An equation this far below the tolerance is left alone: its correction
 /// would move nothing, and applying it walks every point of the drawing.
 const SETTLED_ALREADY: f64 = 1e-3;
@@ -429,7 +429,7 @@ impl Sketch {
 
     /// A length representative of the drawing, used to judge errors relative to
     /// its size rather than in absolute units.
-    fn characteristic_size(&self) -> f64 {
+    pub(crate) fn characteristic_size(&self) -> f64 {
         self.bounds()
             .map(|(min, max)| (max - min).length())
             .filter(|size| *size > 1e-6)

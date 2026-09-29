@@ -1020,7 +1020,9 @@ when none decides it.
 | Pull a side, slide a curve | — | As "Pulling a side" and "Sliding a curve" say | Same (#443) |
 | Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
 | Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
-| Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | **Refused**, the drawing put back: #453 |
+| Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | Same (#453): the corner nearest the origin stays |
+| Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |
+| Lay a rule | A fixed trait laid along a sketch axis | The trait comes onto the axis and stays fixed there | Same (#453); the rule was kept and left untrue |
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |

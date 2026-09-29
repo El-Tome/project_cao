@@ -63,7 +63,8 @@ impl Sketch {
 
     /// The points that stay whatever happens: the sketch's own origin, which
     /// is what everything else is measured from, and whatever a `Fixed` rule
-    /// nails down.
+    /// nails down — but for a fixed point let go of while a value lands that
+    /// only it stood in the way of.
     ///
     /// Not what the hand is holding: that lasts one gesture, and a drawing
     /// turned about the cursor is the drag turning it, which is the hand's to
@@ -77,7 +78,7 @@ impl Sketch {
                 continue;
             };
             for point in self.points_it_leans_on(*element) {
-                if point.0 < stays.len() {
+                if point.0 < stays.len() && !self.is_let_go(point) {
                     stays[point.0] = true;
                 }
             }

@@ -67,20 +67,25 @@ impl Sketch {
 
     /// The rows that grant each group lying square the way up it was drawn,
     /// for the verdict "entirely constrained" — one per group free to turn
-    /// about the origin and holding a trait along an axis.
+    /// about the origin.
     ///
-    /// The row holds that trait's direction, not a turn of the whole group:
-    /// a group joined to a free shape by a parallel turns with it, and a turn
-    /// the free shape's travel could offset would leave the square able to
-    /// turn in the verdict's eyes (#471).
-    pub(crate) fn ways_up_granted(
+    /// A group standing alone is granted it as it always was, by a turn of
+    /// the whole group, when it holds a trait along an axis. Groups a rule
+    /// joins into one turn together (#471), and only the shape drawn from the
+    /// origin grants them a way up, by holding its own trait along an axis:
+    /// a turn of the whole could be offset by a free shape's travel, and a
+    /// level trait borrowed from another shape would say which way up a
+    /// leaning one is when nothing does.
+    pub(super) fn ways_up_granted(
         &self,
         equations: &[Equation],
         anchored: &[bool],
     ) -> Vec<Equation> {
         let about_the_origin = vec![DVec2::ZERO; self.points().len()];
+        let joined = self.point_groups();
         let groups = self.turning_groups(equations, anchored, &about_the_origin);
-        let square = self.traits_lying_square(&groups);
+        let square = self.traits_lying_square(&joined);
+        let origin = joined[Sketch::ORIGIN.0];
         self.rotation_gauges(&groups, anchored, &about_the_origin)
             .into_iter()
             // A group already measured against an axis says which way up it
@@ -90,8 +95,21 @@ impl Sketch {
                     .iter()
                     .all(|equation| turns_nothing(equation, gauge))
             })
-            .filter_map(|(owner, _)| {
-                let (_, (start, end)) = square.iter().find(|(group, _)| *group == owner)?;
+            .filter_map(|(owner, gauge)| {
+                let mut members = (0..joined.len())
+                    .filter(|index| groups[*index] == owner && !anchored[*index])
+                    .map(|index| joined[index]);
+                let first = members.next()?;
+                if members.all(|member| member == first) {
+                    return square
+                        .iter()
+                        .any(|(group, _)| *group == first)
+                        .then_some(gauge);
+                }
+                if groups[Sketch::ORIGIN.0] != owner {
+                    return None;
+                }
+                let (_, (start, end)) = square.iter().find(|(group, _)| *group == origin)?;
                 let span = self.point(*end) - self.point(*start);
                 let mut row = Equation::new(self.variables());
                 row.add(*end, span.perp());

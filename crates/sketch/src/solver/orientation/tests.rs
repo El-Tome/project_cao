@@ -23,6 +23,12 @@
 //!   `a_square_tied_by_a_parallel_to_a_free_trait_keeps_its_way_up_through_gestures`
 //! - a leaning shape tied by a parallel to a free trait is still not settled —
 //!   `a_leaning_square_tied_by_a_parallel_to_a_free_trait_is_not_settled`
+//!
+//! The review of the first version found two ways it went wrong, held here:
+//! a leaning square borrowing a way up from a level trait tied to it —
+//! `a_leaning_square_does_not_borrow_a_way_up_from_a_level_trait_tied_to_it` —
+//! and the rectangle's way up depending on which shape was drawn first —
+//! `the_rectangle_keeps_its_way_up_whichever_shape_was_drawn_first`.
 
 use super::*;
 
@@ -468,4 +474,95 @@ fn a_leaning_square_tied_by_a_parallel_to_a_free_trait_is_not_settled() {
         !settled[b.0],
         "a leaning square says nothing of its way up, parallel or not"
     );
+}
+
+#[test]
+fn a_leaning_square_does_not_borrow_a_way_up_from_a_level_trait_tied_to_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let a = Sketch::ORIGIN;
+    let b = sketch.add_point(DVec2::new(40.0, 30.0));
+    let c = sketch.add_point(DVec2::new(10.0, 70.0));
+    let d = sketch.add_point(DVec2::new(-30.0, 40.0));
+    let sides = [
+        sketch.add_segment(a, b),
+        sketch.add_segment(b, c),
+        sketch.add_segment(c, d),
+        sketch.add_segment(d, a),
+    ];
+    for pair in 0..3 {
+        sketch.add_constraint(Constraint::Perpendicular {
+            first: sides[pair],
+            second: sides[pair + 1],
+        });
+    }
+    sketch.set_dimension(DimensionTarget::Length(sides[0]), 50.0, false);
+    sketch.set_dimension(DimensionTarget::Length(sides[1]), 50.0, false);
+    let s_point = sketch.add_point(DVec2::new(36.25, 35.0));
+    let t_point = sketch.add_point(DVec2::new(-26.25, 35.0));
+    let chord = sketch.add_segment(t_point, s_point);
+    sketch.add_constraint(Constraint::OnSegment {
+        point: s_point,
+        segment: sides[1],
+    });
+    sketch.add_constraint(Constraint::OnSegment {
+        point: t_point,
+        segment: sides[3],
+    });
+    sketch.set_dimension(DimensionTarget::Length(chord), 62.5, false);
+    sketch.solve(SCALE);
+
+    let settled = sketch.settled_points(SCALE);
+    assert!(
+        !settled[b.0],
+        "a level trait held on the square says nothing of the square's way up"
+    );
+}
+
+#[test]
+fn the_rectangle_keeps_its_way_up_whichever_shape_was_drawn_first() {
+    for trait_first in [false, true] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let (start, end) = (DVec2::new(10.0, 90.0), DVec2::new(90.0, 90.0));
+        let early = trait_first.then(|| {
+            let [p, q] = [start, end].map(|at| sketch.add_point(at));
+            (p, sketch.add_segment(p, q))
+        });
+        let corners = [
+            Sketch::ORIGIN,
+            sketch.add_point(DVec2::new(50.0, 0.0)),
+            sketch.add_point(DVec2::new(50.0, 50.0)),
+            sketch.add_point(DVec2::new(0.0, 50.0)),
+        ];
+        let sides: [SegmentId; 4] =
+            std::array::from_fn(|side| sketch.add_segment(corners[side], corners[(side + 1) % 4]));
+        for pair in 0..3 {
+            sketch.add_constraint(Constraint::Perpendicular {
+                first: sides[pair],
+                second: sides[pair + 1],
+            });
+        }
+        sketch.set_dimension(DimensionTarget::Length(sides[0]), 50.0, false);
+        sketch.set_dimension(DimensionTarget::Length(sides[3]), 50.0, false);
+        let (near, _) = early.unwrap_or_else(|| {
+            let [p, q] = [start, end].map(|at| sketch.add_point(at));
+            (p, sketch.add_segment(p, q))
+        });
+        sketch.set_dimension(
+            DimensionTarget::Distance {
+                from: corners[2],
+                to: near,
+            },
+            60.0,
+            false,
+        );
+        sketch.solve(SCALE);
+
+        let settled = sketch.settled_points(SCALE);
+        for corner in corners {
+            assert!(
+                settled[corner.0],
+                "trait drawn first: {trait_first}; corner {corner:?} is not settled"
+            );
+        }
+    }
 }

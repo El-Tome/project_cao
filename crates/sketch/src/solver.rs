@@ -3,7 +3,6 @@ use glam::DVec2;
 use crate::arc::ArcId;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::{Equation, Row, row_at};
-use crate::independence::turns_nothing;
 use crate::rigid::{Block, ownership, rigidify};
 use crate::sketch::{PointId, SegmentId, Sketch};
 mod angle_solver;
@@ -406,22 +405,7 @@ impl Sketch {
     pub(crate) fn anchored_system(&self, millimeters_per_unit: f64) -> Vec<Equation> {
         let anchored = self.only_the_origin();
         let mut equations = self.equations_pinned_by(millimeters_per_unit, &anchored);
-        let square = self.groups_lying_square();
-        let about_the_origin = vec![DVec2::ZERO; self.points().len()];
-        for (owner, gauge) in self.rotation_gauges(&anchored, &about_the_origin) {
-            if !square.contains(&owner) {
-                continue;
-            }
-            // A shape already measured against an axis says which way up it is;
-            // adding the implicit rule on top would take that freedom twice and
-            // report a drawing as more settled than it is.
-            if equations
-                .iter()
-                .all(|equation| turns_nothing(equation, &gauge))
-            {
-                equations.push(gauge);
-            }
-        }
+        equations.extend(self.ways_up_granted(&equations, &anchored));
         equations
     }
 

@@ -14,6 +14,15 @@
 //! - a slanted shape held by one fixed point is not green without an angle
 //!   against an axis —
 //!   `a_slanted_square_held_by_one_fixed_point_is_not_settled_without_an_angle`
+//!
+//! Closes #471.
+//! - the rectangle, the parallel laid to a free trait: every corner of the
+//!   rectangle is still settled —
+//!   `a_square_tied_by_a_parallel_to_a_free_trait_is_still_settled`
+//! - no gesture but the hand turns the rectangle off the axes —
+//!   `a_square_tied_by_a_parallel_to_a_free_trait_keeps_its_way_up_through_gestures`
+//! - a leaning shape tied by a parallel to a free trait is still not settled —
+//!   `a_leaning_square_tied_by_a_parallel_to_a_free_trait_is_not_settled`
 
 use super::*;
 
@@ -336,5 +345,127 @@ fn a_rule_laid_turns_a_leaning_square_held_by_one_fixed_point() {
         direction(&sketch, sides[0]).abs() < A_HAIR,
         "the rule laid was to bring it back square, and it lies at {}°",
         direction(&sketch, sides[0]),
+    );
+}
+
+/// A square 50 wide from the origin, three right angles and two sizes
+/// typed, and a free trait above it with its length typed, laid parallel to
+/// the square's top.
+fn a_square_and_a_parallel_trait() -> (Sketch, [SegmentId; 4], SegmentId) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners = [
+        Sketch::ORIGIN,
+        sketch.add_point(DVec2::new(50.0, 0.0)),
+        sketch.add_point(DVec2::new(50.0, 50.0)),
+        sketch.add_point(DVec2::new(0.0, 50.0)),
+    ];
+    let sides: [SegmentId; 4] =
+        std::array::from_fn(|side| sketch.add_segment(corners[side], corners[(side + 1) % 4]));
+    for pair in 0..3 {
+        sketch.add_constraint(Constraint::Perpendicular {
+            first: sides[pair],
+            second: sides[pair + 1],
+        });
+    }
+    sketch.set_dimension(DimensionTarget::Length(sides[0]), 50.0, false);
+    sketch.set_dimension(DimensionTarget::Length(sides[3]), 50.0, false);
+    let [start, end] =
+        [DVec2::new(10.0, 90.0), DVec2::new(90.0, 110.0)].map(|at| sketch.add_point(at));
+    let free = sketch.add_segment(start, end);
+    sketch.set_dimension(DimensionTarget::Length(free), 80.0, false);
+    sketch.solve(SCALE);
+    sketch.lay_rule(
+        Constraint::Parallel {
+            first: free,
+            second: sides[2],
+        },
+        SCALE,
+    );
+    (sketch, sides, free)
+}
+
+fn corners_of(sketch: &Sketch, sides: [SegmentId; 4]) -> Vec<PointId> {
+    sides
+        .iter()
+        .map(|side| sketch.segments()[side.0].start)
+        .collect()
+}
+
+#[test]
+fn a_square_tied_by_a_parallel_to_a_free_trait_is_still_settled() {
+    let (sketch, sides, _) = a_square_and_a_parallel_trait();
+
+    let settled = sketch.settled_points(SCALE);
+    for corner in corners_of(&sketch, sides) {
+        assert!(settled[corner.0], "corner {corner:?} is not settled");
+    }
+}
+
+#[test]
+fn a_square_tied_by_a_parallel_to_a_free_trait_keeps_its_way_up_through_gestures() {
+    let (mut sketch, sides, free) = a_square_and_a_parallel_trait();
+    let end = sketch.segments()[free.0].end;
+
+    for length in [120.0, 40.0, 95.0] {
+        sketch.set_dimension(DimensionTarget::Length(free), length, false);
+        sketch.land_value(DimensionTarget::Length(free), SCALE);
+    }
+    for height in [80.0, 30.0] {
+        sketch.set_dimension(DimensionTarget::Length(sides[3]), height, false);
+        sketch.land_value(DimensionTarget::Length(sides[3]), SCALE);
+    }
+    let to = sketch.point(end) + DVec2::new(30.0, -20.0);
+    sketch.settle_around(end, to, SCALE);
+
+    let drift = direction(&sketch, sides[0]);
+    assert!(
+        drift.abs() < A_HAIR,
+        "the bottom still lies along the axis, not at {drift} degrees"
+    );
+    let top = direction(&sketch, sides[2]).rem_euclid(180.0);
+    let along = direction(&sketch, free).rem_euclid(180.0);
+    assert!(
+        (top - along).abs() < A_HAIR || (180.0 - (top - along).abs()) < A_HAIR,
+        "and the trait is still parallel to the top: {top} and {along}"
+    );
+}
+
+#[test]
+fn a_leaning_square_tied_by_a_parallel_to_a_free_trait_is_not_settled() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let a = Sketch::ORIGIN;
+    let b = sketch.add_point(DVec2::new(40.0, 30.0));
+    let c = sketch.add_point(DVec2::new(10.0, 70.0));
+    let d = sketch.add_point(DVec2::new(-30.0, 40.0));
+    let sides = [
+        sketch.add_segment(a, b),
+        sketch.add_segment(b, c),
+        sketch.add_segment(c, d),
+        sketch.add_segment(d, a),
+    ];
+    for pair in 0..3 {
+        sketch.add_constraint(Constraint::Perpendicular {
+            first: sides[pair],
+            second: sides[pair + 1],
+        });
+    }
+    sketch.set_dimension(DimensionTarget::Length(sides[0]), 50.0, false);
+    sketch.set_dimension(DimensionTarget::Length(sides[1]), 50.0, false);
+    let [start, end] =
+        [DVec2::new(20.0, 120.0), DVec2::new(90.0, 110.0)].map(|at| sketch.add_point(at));
+    let free = sketch.add_segment(start, end);
+    sketch.solve(SCALE);
+    sketch.lay_rule(
+        Constraint::Parallel {
+            first: free,
+            second: sides[2],
+        },
+        SCALE,
+    );
+
+    let settled = sketch.settled_points(SCALE);
+    assert!(
+        !settled[b.0],
+        "a leaning square says nothing of its way up, parallel or not"
     );
 }

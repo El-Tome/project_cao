@@ -984,9 +984,12 @@ From what never gives to what gives first:
 6. **Ordinary points.** Among them, a length no value gives yields before an
    angle no value gives: the shape stretches before it turns. A value typed
    leaves the point nearest the origin where it is and moves the other, and
-   changes no size nobody typed on the way. Construction geometry is ordinary
-   here: it settles like the profile, and gives neither first nor last
-   (#452 tried otherwise, and was turned down in use).
+   changes no size nobody typed on the way: the other point is taken where
+   the value says, what lies beyond it goes the whole way, what lies between
+   the two stretches, and the solver only mends what is left (#455). Of two
+   points as near the origin, the one drawn first stays. Construction
+   geometry is ordinary here: it settles like the profile, and gives neither
+   first nor last (#452 tried otherwise, and was turned down in use).
 7. **The way round the drawing was drawn.** It is not a rule, and gives to
    anything above: the hand turns it, a second point holding it turns it, an
    angle typed turns it. Nothing else does — a value that says nothing about
@@ -1043,8 +1046,8 @@ when none decides it.
 | Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |
 | Lay a rule | A fixed trait laid along a sketch axis | The trait comes onto the axis and stays fixed there | Same (#453); the rule was kept and left untrue |
 | Lay a rule | Two traits of typed lengths made equal | Nothing: the rule is refused, as a value is | Same (#467); the rule was kept and left untrue |
-| Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
-| Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
+| Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | Same (#455); both ends moved by half |
+| Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | Same (#455); both sides moved, and the height changed |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |
 | Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |
@@ -1190,7 +1193,8 @@ cannot turn at all, and it is the equations that say so.
 A group nothing holds keeps the origin for that, since it may still be measured
 from it. Such a group is free to travel as well as to turn, and turning it back
 about the origin carries it along — the further out it was drawn, the further
-it goes. Where a drawing free to travel lands when a value is typed is #455.
+it goes. A value typed holds the point of it nearest the origin while it
+lands, and the group turns about that one instead (#455).
 
 What is held back this way is only a turn **no equation sees** — the drawing is
 read as the settle starts, never saved — so it can never stand against a value

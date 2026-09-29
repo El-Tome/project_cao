@@ -9,6 +9,7 @@ mod fixed_gives;
 mod give;
 mod kept;
 mod landing;
+mod nearest;
 mod pull;
 mod shape;
 mod share;
@@ -19,14 +20,17 @@ pub use pull::PointPull;
 /// What the user is holding while a drag lasts: points the solver reads as
 /// immovable, and the lines the drag keeps where they lie — or, while a rule
 /// lands, what it was laid from, circles' sizes included — and the fixed points
-/// let go of while a value only they stand in the way of lands. Nothing to
-/// save: it lives only as long as the gesture.
+/// let go of while a value only they stand in the way of lands — and the free
+/// point a value typed leaves where it is, which stays as a fixed point does
+/// for as long as the value lands. Nothing to save: it lives only as long as
+/// the gesture.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Held {
     pub(crate) points: Vec<PointId>,
     pub(crate) lines: Vec<Kept>,
     pub(crate) sizes: Vec<super::CircleId>,
     pub(crate) released: Vec<PointId>,
+    pub(crate) stays: Vec<PointId>,
 }
 
 impl Sketch {

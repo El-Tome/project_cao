@@ -122,6 +122,14 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
             segment: side,
             axis: SketchAxis::U,
         },
+        Constraint::AxisParallel {
+            segment: side,
+            axis: SketchAxis::U,
+        },
+        Constraint::AxisPerpendicular {
+            segment: up,
+            axis: SketchAxis::U,
+        },
         Constraint::Fixed {
             element: Element::Point(loose),
         },
@@ -160,6 +168,7 @@ fn name_of(rule: &Constraint) -> &'static str {
         Constraint::Midpoint { .. } => "midpoint",
         Constraint::AxisCollinear { .. } => "on an axis, trait",
         Constraint::AxisParallel { .. } => "along an axis, trait",
+        Constraint::AxisPerpendicular { .. } => "square to an axis, trait",
         Constraint::Fixed { .. } => "fixed",
     }
 }

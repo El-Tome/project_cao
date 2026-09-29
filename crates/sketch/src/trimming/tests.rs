@@ -390,3 +390,33 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
         assert_eq!(value.set_by, Some((7, 0)), "and what set it");
     }
 }
+
+#[test]
+fn a_trait_laid_the_way_of_an_axis_leaves_both_pieces_that_way() {
+    let rules = [
+        |segment| Constraint::AxisParallel {
+            segment,
+            axis: crate::constraints::SketchAxis::U,
+        },
+        |segment| Constraint::AxisPerpendicular {
+            segment,
+            axis: crate::constraints::SketchAxis::V,
+        },
+    ];
+    for rule in rules {
+        let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
+        sketch.add_constraint(rule(segment));
+
+        let trimmed = sketch
+            .trim(segment, near, far)
+            .expect("the middle stretch goes");
+
+        for piece in trimmed.pieces {
+            assert!(
+                sketch.constraints().contains(&rule(piece)),
+                "the piece {piece:?} lost {:?}",
+                rule(segment),
+            );
+        }
+    }
+}

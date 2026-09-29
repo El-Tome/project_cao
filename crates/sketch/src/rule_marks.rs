@@ -57,7 +57,10 @@ impl Sketch {
                 circle: round,
             } => [arc(bent), circle(round)].into_iter().flatten().collect(),
             Constraint::AxisCollinear { segment, .. }
-            | Constraint::AxisParallel { segment, .. } => middle(segment).into_iter().collect(),
+            | Constraint::AxisParallel { segment, .. }
+            | Constraint::AxisPerpendicular { segment, .. } => {
+                middle(segment).into_iter().collect()
+            }
             Constraint::OnSegment { point: held, .. }
             | Constraint::OnAxis { point: held, .. }
             | Constraint::Midpoint { point: held, .. } => point(held).into_iter().collect(),

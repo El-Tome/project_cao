@@ -279,10 +279,8 @@ impl Sketch {
                         stretched.push(first);
                         stretched.push(second);
                     }
-                    Constraint::Tangent { segment, .. }
-                    | Constraint::AxisCollinear { segment, .. }
-                    | Constraint::AxisParallel { segment, .. } => stretched.push(segment),
-                    _ => {}
+                    Constraint::Tangent { segment, .. } => stretched.push(segment),
+                    rule => stretched.extend(rule.along_an_axis().map(|(segment, _)| segment)),
                 },
                 Row::Arc(_) | Row::Ellipse(_) | Row::Kept(_) => {}
             }
@@ -541,8 +539,8 @@ impl Sketch {
             Constraint::AxisCollinear { segment, axis } => {
                 self.on_axis_equations(segment, axis, into)
             }
-            Constraint::AxisParallel { segment, axis } => {
-                self.along_axis_equation(segment, axis, into)
+            Constraint::AxisParallel { .. } | Constraint::AxisPerpendicular { .. } => {
+                self.along_axis_equation(constraint, into)
             }
             // Held in place by the pins rather than by an equation: a fixed
             // point simply has nowhere to go.

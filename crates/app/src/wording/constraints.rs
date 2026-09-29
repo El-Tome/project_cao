@@ -5,7 +5,9 @@ use crate::lang::Catalogue;
 /// The only place a rule of the drawing is turned into a name.
 pub fn label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
-        Constraint::Perpendicular { .. } => "constraints.label.perpendicular",
+        Constraint::Perpendicular { .. } | Constraint::AxisPerpendicular { .. } => {
+            "constraints.label.perpendicular"
+        }
         Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => {
             "constraints.label.parallel"
         }
@@ -36,7 +38,9 @@ pub fn label(lang: &Catalogue, rule: Constraint) -> String {
 /// other rule reads feminine.
 pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
     lang.t(match rule {
-        Constraint::Perpendicular { .. } => "constraints.erased.perpendicular",
+        Constraint::Perpendicular { .. } | Constraint::AxisPerpendicular { .. } => {
+            "constraints.erased.perpendicular"
+        }
         Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => {
             "constraints.erased.parallel"
         }
@@ -68,7 +72,7 @@ pub fn erased_label(lang: &Catalogue, rule: Constraint) -> String {
 /// language file for the same reason a digit does: they are drawn, not read.
 pub fn mark(rule: Constraint) -> &'static str {
     match rule {
-        Constraint::Perpendicular { .. } => "|_",
+        Constraint::Perpendicular { .. } | Constraint::AxisPerpendicular { .. } => "|_",
         Constraint::Parallel { .. } | Constraint::AxisParallel { .. } => "//",
         Constraint::Equal { .. }
         | Constraint::EqualRadius { .. }

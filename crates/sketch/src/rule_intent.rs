@@ -112,10 +112,22 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
     let pair = |list: &[SegmentId]| (list.len() == 2).then(|| (list[0], list[1]));
 
     match rule {
-        Rule::Perpendicular => pair(&segments)
-            .and_then(|(first, second)| constrain(Constraint::Perpendicular { first, second })),
-        Rule::Parallel => pair(&segments)
-            .and_then(|(first, second)| constrain(Constraint::Parallel { first, second })),
+        Rule::Perpendicular => match (pair(&segments), segments.as_slice(), axes.as_slice()) {
+            (Some((first, second)), _, _) => constrain(Constraint::Perpendicular { first, second }),
+            (None, [segment], [axis]) => constrain(Constraint::AxisPerpendicular {
+                segment: *segment,
+                axis: *axis,
+            }),
+            _ => None,
+        },
+        Rule::Parallel => match (pair(&segments), segments.as_slice(), axes.as_slice()) {
+            (Some((first, second)), _, _) => constrain(Constraint::Parallel { first, second }),
+            (None, [segment], [axis]) => constrain(Constraint::AxisParallel {
+                segment: *segment,
+                axis: *axis,
+            }),
+            _ => None,
+        },
         Rule::Collinear => match (pair(&segments), segments.as_slice(), axes.as_slice()) {
             (Some((first, second)), _, _) => constrain(Constraint::Collinear { first, second }),
             // A trait laid on one of the sketch's own axes, which is the same

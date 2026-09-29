@@ -22,8 +22,11 @@ pub(super) fn nearest_rule_pick(
         .or_else(|| sketch.nearest_ellipse(cursor, snap).map(Element::Ellipse))
         .map(RulePick::Element)
         .or_else(|| {
-            (rule == Rule::Collinear)
+            matches!(rule, Rule::Collinear | Rule::Parallel | Rule::Perpendicular)
                 .then(|| cao_sketch::axis_under(cursor, snap).map(RulePick::Axis))
                 .flatten()
         })
 }
+
+#[cfg(test)]
+mod tests;

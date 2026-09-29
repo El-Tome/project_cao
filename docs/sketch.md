@@ -1025,6 +1025,7 @@ when none decides it.
 | Drag a fixed point | A trait, one end fixed | The fixed end follows the hand, and is fixed there | Follows, read off `settle_around`; not yet tried in the application |
 | Pull a side, slide a curve | — | As "Pulling a side" and "Sliding a curve" say | Same (#443) |
 | Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
+| Move a selection | A side of a rectangle whose sizes are typed, moved where they forbid | Nothing: the hand stops short | Same (#472); the right angles were left untrue, and every later drag refused |
 | Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | Same (#453): the corner nearest the origin stays |
 | Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |

@@ -3,7 +3,7 @@ use glam::DVec2;
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::plane::WorkPlane;
 use crate::resizing::Curved;
-use crate::sketch::Sketch;
+use crate::sketch::{Element, Sketch};
 
 #[test]
 fn a_circle_drawn_to_a_new_size_keeps_the_centre_it_had() {
@@ -124,5 +124,91 @@ fn the_nearer_of_a_circle_and_an_arc_is_the_one_taken_hold_of() {
         sketch.curve_at(DVec2::new(30.4, 30.0), 1.0),
         Some(Curved::Arc(bend)),
         "the arc runs a tenth nearer the press than the circle does",
+    );
+}
+
+#[test]
+fn an_arc_drawn_to_a_size_its_rules_forbid_is_left_as_it_was() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(20.0, 30.0));
+    let start = sketch.add_point(DVec2::new(30.0, 30.0));
+    let end = sketch.add_point(DVec2::new(20.0, 40.0));
+    let bend = sketch.add_arc(centre, start, end);
+    sketch.set_dimension(DimensionTarget::ArcRadius(bend), 10.0, false);
+    sketch.add_constraint(Constraint::Fixed {
+        element: Element::Arc(bend),
+    });
+    let before = sketch.points().to_vec();
+
+    sketch.resize_arc(bend, 16.0, 1.0);
+
+    assert!(
+        sketch
+            .points()
+            .iter()
+            .zip(&before)
+            .all(|(now, was)| now.distance(*was) < 1e-9),
+        "nothing moved: {:?}",
+        sketch.points()
+    );
+    assert!(
+        (sketch.arc_radius(bend) - 10.0).abs() < 1e-6,
+        "the radius typed is still true: {}",
+        sketch.arc_radius(bend)
+    );
+}
+
+#[test]
+fn an_ellipse_drawn_to_a_new_size_reaches_it_about_its_centre() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let first = [DVec2::new(30.0, 50.0), DVec2::new(70.0, 50.0)].map(|at| sketch.add_point(at));
+    let second = [DVec2::new(50.0, 40.0), DVec2::new(50.0, 60.0)].map(|at| sketch.add_point(at));
+    let oval = sketch.add_ellipse(centre, first, second);
+
+    sketch.resize_ellipse(oval, 30.0, 1.0);
+
+    let reach = sketch.point(first[1]).distance(sketch.point(centre));
+    assert!(
+        (reach - 30.0).abs() < 1e-6,
+        "its first axis reaches {reach}"
+    );
+    assert!(
+        sketch.point(centre).distance(DVec2::new(50.0, 50.0)) < 1e-9,
+        "about the centre it had, not {}",
+        sketch.point(centre)
+    );
+}
+
+#[test]
+fn an_ellipse_drawn_to_a_size_its_rules_forbid_is_left_as_it_was() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(50.0, 50.0));
+    let first = [DVec2::new(30.0, 50.0), DVec2::new(70.0, 50.0)].map(|at| sketch.add_point(at));
+    let second = [DVec2::new(50.0, 40.0), DVec2::new(50.0, 60.0)].map(|at| sketch.add_point(at));
+    let oval = sketch.add_ellipse(centre, first, second);
+    sketch.set_dimension(
+        DimensionTarget::Distance {
+            from: centre,
+            to: first[1],
+        },
+        20.0,
+        false,
+    );
+    sketch.add_constraint(Constraint::Fixed {
+        element: Element::Ellipse(oval),
+    });
+    let before = sketch.points().to_vec();
+
+    sketch.resize_ellipse(oval, 30.0, 1.0);
+
+    assert!(
+        sketch
+            .points()
+            .iter()
+            .zip(&before)
+            .all(|(now, was)| now.distance(*was) < 1e-9),
+        "nothing moved: {:?}",
+        sketch.points()
     );
 }

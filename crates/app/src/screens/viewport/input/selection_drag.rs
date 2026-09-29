@@ -7,6 +7,7 @@ use glam::DVec2;
 
 use crate::screens::SketchContext;
 
+use super::dragging::reshaped;
 use super::pick;
 
 /// The points a drag would carry along, when it starts on something the
@@ -55,18 +56,20 @@ pub(super) fn drag_group(
         .map(|state| state.dragged_group.clone())
         .unwrap_or_default();
 
+    let sketch = &context.document.sketches()[index];
+    let mut settling = sketch.clone();
+    let dropped: Vec<(PointId, DVec2)> = points
+        .iter()
+        .filter_map(|point| {
+            settling
+                .points()
+                .get(point.0)
+                .map(|place| (*point, *place + travelled))
+        })
+        .collect();
+    settling.settle_around_all(&dropped, context.document.scale());
+    let moved = reshaped(sketch, &settling);
     if !response.drag_stopped() {
-        let mut settling = context.document.sketches()[index].clone();
-        let dropped: Vec<(PointId, DVec2)> = points
-            .iter()
-            .filter_map(|point| {
-                settling
-                    .points()
-                    .get(point.0)
-                    .map(|place| (*point, *place + travelled))
-            })
-            .collect();
-        settling.settle_around_all(&dropped, context.document.scale());
         if let Some(state) = context.editor.select_state() {
             state.drag_position = Some(cursor);
             state.drag_preview = Some(settling);
@@ -80,7 +83,8 @@ pub(super) fn drag_group(
         state.drag_position = None;
         state.drag_preview = None;
     }
-    if travelled.length() < 1e-9 {
+    // A move the drawing refused writes nothing, as a point's drag does not.
+    if travelled.length() < 1e-9 || !moved {
         return false;
     }
     context.document.apply(Operation::MoveMany {

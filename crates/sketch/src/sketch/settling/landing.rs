@@ -16,7 +16,7 @@ impl Sketch {
             self.bring_alongside(rule);
         }
         self.add_constraint(rule);
-        self.land(rule.laid_from(), millimeters_per_unit)
+        self.land(rule.laid_from(), None, millimeters_per_unit)
     }
 
     /// A curve beside the end of a trait touches the trait's line, never the
@@ -87,7 +87,7 @@ impl Sketch {
             .iter()
             .find(|dimension| dimension.target.is_the_same_as(target))
             .and_then(|dimension| dimension.target.laid_from());
-        self.land(from, millimeters_per_unit)
+        self.land(from, Some(target), millimeters_per_unit)
     }
 
     /// Held only while it lands: once settled, the two are as free as the rule
@@ -97,15 +97,25 @@ impl Sketch {
     /// put back and settles as if nothing had been clicked first.
     ///
     /// Fixed points outrank the clicks, and give only when neither way lands.
-    fn land(&mut self, from: Option<Element>, millimeters_per_unit: f64) -> LengthOutcome {
+    fn land(
+        &mut self,
+        from: Option<Element>,
+        target: Option<DimensionTarget>,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
         self.landing_or_giving(millimeters_per_unit, |sketch| {
-            sketch.land_held(from, millimeters_per_unit)
+            sketch.land_held(from, target, millimeters_per_unit)
         })
     }
 
-    fn land_held(&mut self, from: Option<Element>, millimeters_per_unit: f64) -> LengthOutcome {
+    fn land_held(
+        &mut self,
+        from: Option<Element>,
+        target: Option<DimensionTarget>,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
         let Some(from) = from else {
-            return self.resolve_keeping_places(millimeters_per_unit);
+            return self.land_near(target, millimeters_per_unit);
         };
         let held = self.points_it_leans_on(from);
         let square = self.ways_up_kept();

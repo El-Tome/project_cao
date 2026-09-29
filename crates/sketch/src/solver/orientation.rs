@@ -187,13 +187,18 @@ impl Sketch {
     /// The points that stay whatever happens: the sketch's own origin, which
     /// is what everything else is measured from, and whatever a `Fixed` rule
     /// nails down — but for a fixed point let go of while a value lands that
-    /// only it stood in the way of.
+    /// only it stood in the way of — and the free point a value typed leaves
+    /// where it is, while it lands: the drawing it holds keeps its way round
+    /// about it, rather than turning about it as it would under the hand.
     ///
     /// Not what the hand is holding: that lasts one gesture, and a drawing
     /// turned about the cursor is the drag turning it, which is the hand's to
     /// do.
     pub(crate) fn points_that_stay(&self) -> Vec<bool> {
         let mut stays = self.only_the_origin();
+        for point in self.staying_while_it_lands() {
+            stays[point.0] = true;
+        }
         for constraint in self.constraints() {
             let Constraint::Fixed { element } = constraint else {
                 continue;
@@ -214,8 +219,8 @@ impl Sketch {
     /// nothing holds may still be measured from the origin — a distance typed
     /// from it — and that is a turn about the origin and no other. The price
     /// is that turning such a group back also carries it, the further the
-    /// further out it was drawn. Where a drawing free to travel lands when a
-    /// value is typed is #455, not this rule.
+    /// further out it was drawn. A value typed holds the point of it nearest
+    /// the origin while it lands, and the group turns about that one.
     ///
     /// A single point, never two: a group nailed at two places cannot turn,
     /// and it is the equations that say so.

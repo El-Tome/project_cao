@@ -96,6 +96,11 @@ pub fn axis(lang: &Catalogue, axis: SketchAxis) -> String {
     })
 }
 
+/// What is said when the drawing could not hold the rule, and did not take it.
+pub fn impossible(lang: &Catalogue) -> String {
+    lang.t("constraints.impossible")
+}
+
 /// What is said when the rule in hand already sits on the drawing.
 ///
 /// A full sentence per rule, for the same reason as `erased_label`: `Milieu`

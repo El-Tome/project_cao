@@ -161,6 +161,7 @@
   "constraints.already_there.midpoint": "Milieu : déjà posé",
   "constraints.already_there.fixed": "Fixe : déjà posée",
   "constraints.already_there.concentric": "Concentrique : déjà posée",
+  "constraints.impossible": "Règle impossible : elle contredit le dessin",
 
   "constraints.asks_for.perpendicular": "Cliquez deux traits à mettre d'équerre",
   "constraints.asks_for.parallel": "Cliquez deux traits à rendre parallèles",

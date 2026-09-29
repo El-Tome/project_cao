@@ -22,6 +22,9 @@ pub enum Outcome {
         /// so it is counted and said, rather than silently dropped.
         refused: usize,
     },
+    /// A rule the drawing could not hold, whatever gave way: the drawing is as
+    /// it was, and the rule was not laid.
+    RuleRefused,
 }
 
 impl Outcome {

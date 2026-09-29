@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
-use cao_sketch::{Sketch, Support};
+use cao_sketch::{LengthOutcome, Sketch, Support};
 use cao_solid::Mesh;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
@@ -267,8 +267,12 @@ impl PartState {
             Operation::Constrain { sketch, constraint } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.lay_rule(*constraint, scale);
-                None
+                let before = sketch.clone();
+                if sketch.lay_rule(*constraint, scale) != LengthOutcome::BestEffort {
+                    return None;
+                }
+                *sketch = before;
+                Some(Outcome::RuleRefused)
             }
             Operation::EraseMany {
                 sketch,

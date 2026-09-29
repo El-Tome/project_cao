@@ -94,9 +94,10 @@ impl Sketch {
     ///
     /// When holding them is more than the drawing can bear — a corner dragged
     /// somewhere no tangency can reach it — the values already given win over
-    /// the cursor: everything goes back and settles the ordinary way. Leaving
-    /// the half-solved state was what let a circle be dragged out of shape and
-    /// stay that way until the next change put it right.
+    /// the cursor: everything goes back and settles the ordinary way, and
+    /// when that leaves anything untrue too, nothing moves. Leaving the
+    /// half-solved state was what let a circle be dragged out of shape, and a
+    /// rectangle out of square (#472), and stay that way.
     pub fn settle_around_all(
         &mut self,
         dropped: &[(PointId, DVec2)],
@@ -142,16 +143,18 @@ impl Sketch {
         self.held.points = anchored.to_vec();
         let outcome = self.resolve(millimeters_per_unit);
         self.held.points.clear();
-        if !self.has_a_collapsed_trait(self.drawing_size()) && !self.has_a_flipped_tangent() {
-            if outcome == LengthOutcome::Exact {
-                self.keep_shares(&shares, anchored, &[], millimeters_per_unit);
-            }
+        if outcome == LengthOutcome::Exact
+            && !self.has_a_collapsed_trait(self.drawing_size())
+            && !self.has_a_flipped_tangent()
+        {
+            self.keep_shares(&shares, anchored, &[], millimeters_per_unit);
             return outcome;
         }
 
-        // Neither way leaves a drawing worth keeping: a trait may have collapsed,
-        // or a tangency's contact slid off its segment. The gesture is refused
-        // rather than the shape broken — the point simply does not go there.
+        // Neither way leaves a drawing worth keeping: a value or a rule left
+        // untrue, a trait collapsed, or a tangency's contact slid off its
+        // segment. The gesture is refused rather than the shape broken — the
+        // point simply does not go there (#472).
         self.give_back(kept);
         LengthOutcome::BestEffort
     }

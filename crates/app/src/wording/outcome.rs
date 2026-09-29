@@ -9,7 +9,7 @@ use cao_part::{DimensionOutcome, Outcome};
 use cao_sketch::LengthOutcome;
 
 use crate::lang::Catalogue;
-use crate::wording::dimension;
+use crate::wording::{constraints, dimension};
 
 pub fn message(lang: &Catalogue, outcome: Option<Outcome>) -> Option<String> {
     match outcome? {
@@ -28,6 +28,7 @@ pub fn message(lang: &Catalogue, outcome: Option<Outcome>) -> Option<String> {
             values,
             refused,
         } => cut_cost(lang, rules, values, refused),
+        Outcome::RuleRefused => Some(constraints::impossible(lang)),
     }
 }
 

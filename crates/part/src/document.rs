@@ -164,9 +164,13 @@ impl PartDocument {
     }
 
     /// Records an operation and applies it. Recording and applying go together
-    /// so the two can never fall out of step.
+    /// so the two can never fall out of step. A rule refused is neither: it
+    /// left the drawing as it was, and would only be a step that does nothing.
     pub fn apply(&mut self, operation: Operation) -> Option<Outcome> {
         let outcome = self.state.apply(&operation);
+        if outcome == Some(Outcome::RuleRefused) {
+            return outcome;
+        }
         self.history.push(operation);
         // An edit that lands in an earlier step is replayed before everything
         // raised after it, so the part is built again rather than patched:

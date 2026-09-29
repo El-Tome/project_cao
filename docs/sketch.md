@@ -1003,6 +1003,12 @@ it was clicked in, so an angle retyped later — clicked either way round —
 turns the same trait again, and a part reopened lands every rule where it
 landed the first time (#451).
 
+A rule that nothing below it can let hold — it contradicts a value, another
+rule or the origin — is **refused**: the drawing is as it was, the history takes
+no step, and the message bar reads « Règle impossible : elle contredit le
+dessin » (#467). A value refused is still recorded as a step that changes
+nothing; a rule is not.
+
 ### The cases, against the code
 
 Each line is a gesture on a drawing, what the order says gives way, and what
@@ -1023,6 +1029,7 @@ when none decides it.
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | Same (#453): the corner nearest the origin stays |
 | Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |
 | Lay a rule | A fixed trait laid along a sketch axis | The trait comes onto the axis and stays fixed there | Same (#453); the rule was kept and left untrue |
+| Lay a rule | Two traits of typed lengths made equal | Nothing: the rule is refused, as a value is | Same (#467); the rule was kept and left untrue |
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | **Both ends move** by half: #455 |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | **Both sides move**, and the height changes: #455 |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |

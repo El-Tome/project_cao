@@ -5,6 +5,7 @@
 //! What is painted from the state this leaves behind lives in
 //! [`super::render`].
 
+use cao_part::Outcome;
 use cao_part::history::{Operation, PointRef};
 use cao_sketch::{
     Aim, ChainAnchor, DimensionTarget, PointId, Rule, RuleIntent, SegmentId, Selection, ToolState,
@@ -363,7 +364,10 @@ fn constrain(
             dropped,
         },
     };
-    context.document.apply(operation);
+    if context.document.apply(operation) == Some(Outcome::RuleRefused) {
+        context.editor.message = Some(constraints::impossible(context.lang));
+        return false;
+    }
     context.editor.message = Some(constraints::rule_asks_for(context.lang, rule));
     true
 }

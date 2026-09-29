@@ -1,4 +1,8 @@
 //! What app · wording/outcome.rs is held to.
+//!
+//! Closes #467.
+//! - the message reads « Règle impossible : elle contredit le dessin » —
+//!   `a_refused_rule_says_it_contradicts_the_drawing`
 
 use super::*;
 
@@ -80,4 +84,12 @@ fn a_cut_that_took_nothing_with_it_says_nothing() {
 fn an_ordinary_dimension_says_nothing() {
     assert_eq!(said(DimensionOutcome::Geometry(LengthOutcome::Exact)), None);
     assert_eq!(message(&Catalogue::french(), None), None);
+}
+
+#[test]
+fn a_refused_rule_says_it_contradicts_the_drawing() {
+    assert_eq!(
+        message(&Catalogue::french(), Some(Outcome::RuleRefused)).as_deref(),
+        Some("Règle impossible : elle contredit le dessin"),
+    );
 }

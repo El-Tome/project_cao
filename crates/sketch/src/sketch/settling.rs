@@ -5,6 +5,7 @@ use glam::DVec2;
 
 use super::{LengthOutcome, PointId, Sketch};
 
+mod fixed_gives;
 mod give;
 mod kept;
 mod landing;
@@ -17,13 +18,15 @@ pub use pull::PointPull;
 
 /// What the user is holding while a drag lasts: points the solver reads as
 /// immovable, and the lines the drag keeps where they lie — or, while a rule
-/// lands, what it was laid from, circles' sizes included. Nothing to save: it
-/// lives only as long as the gesture.
+/// lands, what it was laid from, circles' sizes included — and the fixed points
+/// let go of while a value only they stand in the way of lands. Nothing to
+/// save: it lives only as long as the gesture.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Held {
     pub(crate) points: Vec<PointId>,
     pub(crate) lines: Vec<Kept>,
     pub(crate) sizes: Vec<super::CircleId>,
+    pub(crate) released: Vec<PointId>,
 }
 
 impl Sketch {

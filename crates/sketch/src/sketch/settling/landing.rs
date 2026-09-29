@@ -95,7 +95,15 @@ impl Sketch {
     /// it. Where holding it leaves the rule no way to hold — the thing clicked
     /// second is fixed, or outranks the clicks some other way — the drawing is
     /// put back and settles as if nothing had been clicked first.
+    ///
+    /// Fixed points outrank the clicks, and give only when neither way lands.
     fn land(&mut self, from: Option<Element>, millimeters_per_unit: f64) -> LengthOutcome {
+        self.landing_or_giving(millimeters_per_unit, |sketch| {
+            sketch.land_held(from, millimeters_per_unit)
+        })
+    }
+
+    fn land_held(&mut self, from: Option<Element>, millimeters_per_unit: f64) -> LengthOutcome {
         let Some(from) = from else {
             return self.resolve_keeping_places(millimeters_per_unit);
         };

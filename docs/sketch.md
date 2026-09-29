@@ -980,10 +980,10 @@ From what never gives to what gives first:
 6. **Ordinary points.** Among them, a length no value gives yields before an
    angle no value gives: the shape stretches before it turns. A value typed
    leaves the point nearest the origin where it is and moves the other, and
-   changes no size nobody typed on the way.
-7. **Construction left free.** It is scaffolding, and gives before anything the
-   profile is made of.
-8. **The way round the drawing was drawn.** It is not a rule, and gives to
+   changes no size nobody typed on the way. Construction geometry is ordinary
+   here: it settles like the profile, and gives neither first nor last
+   (#452 tried otherwise, and was turned down in use).
+7. **The way round the drawing was drawn.** It is not a rule, and gives to
    anything above: the hand turns it, a second point holding it turns it, an
    angle typed turns it. Nothing else does — a value that says nothing about
    direction turns nothing, wherever the drawing is nailed (#372).
@@ -1034,7 +1034,6 @@ when none decides it.
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |
-| Lay a rule | A profile trait and a free construction trait | The construction trait, whichever came first | **Both turn**: #452 |
 | Change the part | A sketch on a face, a point on a corner | It follows the corner, and lets go only when values from the origin cannot hold | Not built: #359, #372 |
 | Move a mirror's original | Its mirrored copy | The copy | Not built: the copy is not tied to its original yet (#320); settled when the mirror tool is taken up again |
 

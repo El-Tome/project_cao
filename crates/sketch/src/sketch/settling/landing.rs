@@ -1,7 +1,7 @@
 //! A rule laid, or an angle typed, between two things: the one clicked first
 //! stays where it is, and the second comes to it.
 
-use super::{LengthOutcome, Sketch};
+use super::{Kept, LengthOutcome, Sketch};
 use crate::constraints::{Constraint, DimensionTarget};
 use crate::equation::Equation;
 use crate::laid_from::LaidFrom;
@@ -108,19 +108,45 @@ impl Sketch {
             return self.resolve_keeping_places(millimeters_per_unit);
         };
         let held = self.points_it_leans_on(from);
-        let kept = self.shapes_now();
-        let shares = self.shares(&held, millimeters_per_unit);
-        if let Element::Circle(circle) = from {
-            self.held.sizes.push(circle);
-        }
-        let landed = self.settle_held(held.clone(), Vec::new(), millimeters_per_unit);
-        self.held.sizes.clear();
-        if !landed {
+        let square = self.ways_up_kept();
+        let tries = [
+            (held.clone(), square.clone()),
+            (Vec::new(), square),
+            (held, Vec::new()),
+        ];
+        for (held, lines) in tries
+            .into_iter()
+            .filter(|(held, lines)| !held.is_empty() || !lines.is_empty())
+        {
+            let kept = self.shapes_now();
+            let shares = self.shares(&held, millimeters_per_unit);
+            if let Element::Circle(circle) = from {
+                self.held.sizes.push(circle);
+            }
+            let landed = self.settle_held(held.clone(), lines, millimeters_per_unit);
+            self.held.sizes.clear();
+            if landed {
+                self.keep_shares(&shares, &held, &[], millimeters_per_unit);
+                return LengthOutcome::Exact;
+            }
             self.give_back(kept);
-            return self.resolve_keeping_places(millimeters_per_unit);
         }
-        self.keep_shares(&shares, &held, &[], millimeters_per_unit);
-        LengthOutcome::Exact
+        self.resolve_keeping_places(millimeters_per_unit)
+    }
+
+    /// The direction of a trait along an axis in the shape drawn from the
+    /// origin, kept while a rule lands: that shape keeps lying along the
+    /// origin's axes, and only the hand turns it off them (#471). Tried before
+    /// the clicks are, and given up when the rule cannot hold without turning
+    /// it — an angle typed against an axis still does. A shape drawn away from
+    /// the origin is left to the clicks (#451).
+    fn ways_up_kept(&self) -> Vec<Kept> {
+        let groups = self.point_groups();
+        self.traits_lying_square(&groups)
+            .into_iter()
+            .filter(|(owner, _)| *owner == groups[Sketch::ORIGIN.0])
+            .filter_map(|(_, (start, end))| Kept::direction(self, start, end, None))
+            .collect()
     }
 
     /// Takes the correction away from the sizes of the circles held while a

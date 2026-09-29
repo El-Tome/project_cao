@@ -987,6 +987,12 @@ From what never gives to what gives first:
    anything above: the hand turns it, a second point holding it turns it, an
    angle typed turns it. Nothing else does — a value that says nothing about
    direction turns nothing, wherever the drawing is nailed (#372).
+   A shape drawn from the origin and lying along its axes keeps that way up
+   through a rule laid too: a parallel to a free trait turns the trait, not
+   the shape, whichever was clicked first. Only the hand, or a value or a rule
+   that cannot hold otherwise, turns it off the axes (#471). Two shapes a rule
+   ties so that neither can turn alone — a parallel between them — keep one
+   way up between them, not none.
 
 A rule laid, or an angle typed, between two things the order ranks alike leaves
 **the first one clicked** where it is and brings the second to it — the
@@ -1039,6 +1045,7 @@ when none decides it.
 | Lay a rule | Two traits made equal | The second takes the first's length | Same |
 | Lay a rule | A free trait and a free circle made tangent | Whichever was clicked second comes to touch the first | Same (#451) |
 | Lay a rule | The same, the circle beside the end of the trait rather than over it | The second clicked also slides along the trait, just far enough for the circle to stand over it | Same (#451); both moved, the circle resizing, whichever came first |
+| Lay a rule | A rectangle drawn from the origin along its axes, made parallel to a free trait | The trait turns; the rectangle keeps lying along the axes, and stays green | Same (#471); the rectangle turned to the trait when clicked second, and turned yellow |
 | Lay a rule | Two free traits made square, the second fixed | The first gives: the order decides before the clicks | Same (#451) |
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |

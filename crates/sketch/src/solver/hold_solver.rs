@@ -66,12 +66,17 @@ impl Sketch {
         follows.then_some(point)
     }
 
-    /// The point a row holds, when the row is a rule holding one.
+    /// The point a row holds, when the row is a rule holding one. The middle
+    /// of a trait holds a point as the trait does: it is no place a point can
+    /// be laid on by a click, but the point comes to it all the same (#479).
     fn held_by_a_rule(&self, index: usize) -> Option<PointId> {
         let Row::Rule(at) = self.row(index) else {
             return None;
         };
-        Support::held_by(*self.constraints().get(at)?).map(|(point, _)| point)
+        match *self.constraints().get(at)? {
+            Constraint::Midpoint { point, .. } => Some(point),
+            rule => Support::held_by(rule).map(|(point, _)| point),
+        }
     }
 
     /// Which points something other than a rule holding them pulls on.
@@ -239,3 +244,6 @@ impl Sketch {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

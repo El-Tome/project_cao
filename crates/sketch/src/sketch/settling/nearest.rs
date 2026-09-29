@@ -153,15 +153,7 @@ impl Sketch {
         if points.iter().any(|point| stays[point.0]) {
             return None;
         }
-        // Read to a millionth of a unit, so that two points drawn as far out
-        // tie and the one drawn first stays.
-        let origin = self.point(Sketch::ORIGIN);
-        let far = |point: &PointId| (self.point(*point).distance(origin) * 1e6).round() as i64;
-        let near = points
-            .iter()
-            .copied()
-            .filter(|point| !self.out_of_play(*point))
-            .min_by_key(|point| (far(point), point.0))?;
+        let near = self.nearest_the_origin(&points)?;
         if points.len() != 2 {
             return Some((near, None));
         }
@@ -177,6 +169,20 @@ impl Sketch {
             }
         };
         Some((near, Some((other, moved))))
+    }
+
+    /// The point of `points` nearest the origin, or of two as near, the one
+    /// drawn first: what stays while a value, or a rule turning a shape, lands.
+    pub(super) fn nearest_the_origin(&self, points: &[PointId]) -> Option<PointId> {
+        // Read to a millionth of a unit, so that two points drawn as far out
+        // tie and the one drawn first stays.
+        let origin = self.point(Sketch::ORIGIN);
+        let far = |point: &PointId| (self.point(*point).distance(origin) * 1e6).round() as i64;
+        points
+            .iter()
+            .copied()
+            .filter(|point| !self.out_of_play(*point))
+            .min_by_key(|point| (far(point), point.0))
     }
 }
 

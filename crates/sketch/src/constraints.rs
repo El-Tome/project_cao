@@ -26,6 +26,14 @@ impl SketchAxis {
             Self::V => DVec2::Y,
         }
     }
+
+    /// The other axis: the one standing square to this one.
+    pub fn across(self) -> Self {
+        match self {
+            Self::U => Self::V,
+            Self::V => Self::U,
+        }
+    }
 }
 
 /// Which way along its trait one arm of an angle runs, out from where the two
@@ -273,11 +281,32 @@ pub enum Constraint {
         segment: SegmentId,
         axis: SketchAxis,
     },
+    /// A trait standing square to one of the sketch's own axes. The same line
+    /// as running the way of the other axis, kept apart because it is the rule
+    /// the user laid, and it is shown as such.
+    AxisPerpendicular {
+        segment: SegmentId,
+        axis: SketchAxis,
+    },
     /// Something that stays where it is put. Only its place is held: a fixed
     /// circle keeps its centre, not its radius.
     Fixed {
         element: Element,
     },
+}
+
+impl Constraint {
+    /// The trait a rule lays the way of one of the sketch's axes, and the axis
+    /// it then runs along: a trait square to one axis runs along the other.
+    pub(crate) fn along_an_axis(self) -> Option<(SegmentId, SketchAxis)> {
+        match self {
+            Self::AxisCollinear { segment, axis } | Self::AxisParallel { segment, axis } => {
+                Some((segment, axis))
+            }
+            Self::AxisPerpendicular { segment, axis } => Some((segment, axis.across())),
+            _ => None,
+        }
+    }
 }
 
 /// A value the user has fixed.

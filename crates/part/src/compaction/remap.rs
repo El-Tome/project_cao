@@ -176,6 +176,10 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             segment: map.segments[&segment],
             axis,
         },
+        Constraint::AxisPerpendicular { segment, axis } => Constraint::AxisPerpendicular {
+            segment: map.segments[&segment],
+            axis,
+        },
         Constraint::AxisCollinear { segment, axis } => Constraint::AxisCollinear {
             segment: map.segments[&segment],
             axis,

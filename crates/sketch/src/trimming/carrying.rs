@@ -132,6 +132,18 @@ pub(super) fn still_holds(
                 axis,
             })
         }
+        Constraint::AxisParallel { segment, axis } if segment == cut => {
+            Some(Constraint::AxisParallel {
+                segment: piece.id,
+                axis,
+            })
+        }
+        Constraint::AxisPerpendicular { segment, axis } if segment == cut => {
+            Some(Constraint::AxisPerpendicular {
+                segment: piece.id,
+                axis,
+            })
+        }
         Constraint::Tangent {
             circle,
             segment,

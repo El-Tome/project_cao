@@ -163,8 +163,8 @@
   "constraints.already_there.concentric": "Concentrique : déjà posée",
   "constraints.impossible": "Règle impossible : elle contredit le dessin",
 
-  "constraints.asks_for.perpendicular": "Cliquez deux traits à mettre d'équerre",
-  "constraints.asks_for.parallel": "Cliquez deux traits à rendre parallèles",
+  "constraints.asks_for.perpendicular": "Cliquez deux traits, ou un trait et un axe, à mettre d'équerre",
+  "constraints.asks_for.parallel": "Cliquez deux traits, ou un trait et un axe, à rendre parallèles",
   "constraints.asks_for.equal": "Cliquez deux traits, ou deux cercles, à égaliser",
   "constraints.asks_for.coincident": "Cliquez un point puis un trait, ou deux points",
   "constraints.asks_for.collinear": "Cliquez deux traits à coucher sur la même droite",

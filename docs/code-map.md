@@ -426,7 +426,6 @@ lives.
   - `crates/app/src/screens/viewport/input/mod.rs`;
   - `crates/app/src/screens/viewport/input/arcs.rs`;
   - `crates/app/src/screens/viewport/input/circles.rs`;
-  - `crates/app/src/screens/viewport/input/constrain.rs`;
   - `crates/app/src/screens/viewport/input/rectangle.rs`;
   - `crates/app/src/screens/viewport/input/resizing.rs`;
   - `crates/app/src/screens/viewport/input/symmetric_line.rs`;

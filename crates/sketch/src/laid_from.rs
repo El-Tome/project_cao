@@ -67,6 +67,7 @@ impl Constraint {
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
             | Self::AxisParallel { .. }
+            | Self::AxisPerpendicular { .. }
             | Self::Fixed { .. } => None,
         }
     }
@@ -146,6 +147,7 @@ impl Constraint {
             | Self::Midpoint { .. }
             | Self::AxisCollinear { .. }
             | Self::AxisParallel { .. }
+            | Self::AxisPerpendicular { .. }
             | Self::Fixed { .. }) => other,
         }
     }

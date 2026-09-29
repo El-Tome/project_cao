@@ -3,7 +3,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::SketchAxis;
+use crate::constraints::{Constraint, SketchAxis};
 use crate::equation::Equation;
 use crate::sketch::{SegmentId, Sketch};
 
@@ -36,12 +36,10 @@ impl Sketch {
     /// One equation where lying *on* the axis takes two — which is exactly the
     /// freedom the two differ by: an arm held this way can still be slid
     /// sideways, and only its direction is settled.
-    pub(super) fn along_axis_equation(
-        &self,
-        segment: SegmentId,
-        axis: SketchAxis,
-        into: &mut Vec<Equation>,
-    ) {
+    pub(super) fn along_axis_equation(&self, rule: Constraint, into: &mut Vec<Equation>) {
+        let Some((segment, axis)) = rule.along_an_axis() else {
+            return;
+        };
         let Some(line) = self.segments().get(segment.0).copied() else {
             return;
         };

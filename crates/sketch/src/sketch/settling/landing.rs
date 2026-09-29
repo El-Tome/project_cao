@@ -14,6 +14,7 @@ impl Sketch {
     pub fn lay_rule(&mut self, rule: Constraint, millimeters_per_unit: f64) -> LengthOutcome {
         if !self.carries(rule) && self.holds_up(rule) {
             self.bring_alongside(rule);
+            self.turn_onto_the_axis(rule);
         }
         self.add_constraint(rule);
         self.land(rule.laid_from(), None, millimeters_per_unit)

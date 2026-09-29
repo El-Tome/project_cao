@@ -977,6 +977,10 @@ From what never gives to what gives first:
 5. **The hand.** The point being dragged goes where the hand takes it and the
    drawing settles around it; where the drawing cannot follow, the point stops
    short rather than anything above giving. A drag is never a case of no choice.
+   A shape the drag can neither stretch nor turn — a trait whose length is
+   typed and whose direction a rule holds, an ellipse's axis with its length
+   and angle given — travels whole with the hand, as a selection moved does
+   (#473).
 6. **Ordinary points.** Among them, a length no value gives yields before an
    angle no value gives: the shape stretches before it turns. A value typed
    leaves the point nearest the origin where it is and moves the other, and
@@ -1027,6 +1031,8 @@ when none decides it.
 | Drag a corner | A rectangle, nothing typed | The two sides meeting there stretch; the opposite corner stays | Same (#422) |
 | Drag a corner | A rectangle, every size typed | It turns about what holds it | Same (#422) |
 | Drag a point | Tied to a fixed point by a trait of typed length | The point stops at that length and turns round the fixed one | Same |
+| Drag a point | An end of a trait of typed length made parallel to a rectangle | The trait travels whole, still parallel and still its length | Same (#473); nothing moved |
+| Drag a corner | A rectangle away from the origin, both sizes typed, one side made horizontal | It travels whole | Same (#473); nothing moved, by a test that said so |
 | Drag a green point | — | Nothing: it does not answer the hand | Same |
 | Drag a fixed point | A trait, one end fixed | The fixed end follows the hand, and is fixed there | Follows, read off `settle_around`; not yet tried in the application |
 | Pull a side, slide a curve | — | As "Pulling a side" and "Sliding a curve" say | Same (#443) |

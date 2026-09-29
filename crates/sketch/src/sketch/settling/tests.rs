@@ -405,7 +405,7 @@ fn a_triangle_of_three_typed_sides_pivots_about_its_far_corner() {
 }
 
 #[test]
-fn a_pivot_a_rule_forbids_leaves_the_shape_where_it_is() {
+fn a_shape_that_can_neither_stretch_nor_turn_travels_whole_with_the_hand() {
     let (mut sketch, [a, b, c, d], sides) = upright();
     typed(&mut sketch, sides[0]);
     typed(&mut sketch, sides[1]);
@@ -414,11 +414,12 @@ fn a_pivot_a_rule_forbids_leaves_the_shape_where_it_is() {
         axis: SketchAxis::U,
     });
     let before = [a, b, c, d].map(|point| sketch.point(point));
+    let travel = DVec2::new(5.0, 45.0) - before[0];
 
     sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
 
     for (rank, point) in [a, b, c, d].iter().enumerate() {
-        assert_near(sketch.point(*point), before[rank], "a corner");
+        assert_near(sketch.point(*point), before[rank] + travel, "a corner");
     }
 }
 

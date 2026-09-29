@@ -61,6 +61,15 @@ impl Sketch {
             .collect()
     }
 
+    /// The one point nothing ever moves, the origin: what a drawing counts as
+    /// decided is measured from it alone. A fixed point keeps its place while
+    /// something else changes; it decides nothing.
+    pub(crate) fn only_the_origin(&self) -> Vec<bool> {
+        (0..self.points().len())
+            .map(|index| self.is_origin(PointId(index)))
+            .collect()
+    }
+
     /// The points that stay whatever happens: the sketch's own origin, which
     /// is what everything else is measured from, and whatever a `Fixed` rule
     /// nails down — but for a fixed point let go of while a value lands that
@@ -70,9 +79,7 @@ impl Sketch {
     /// turned about the cursor is the drag turning it, which is the hand's to
     /// do.
     pub(crate) fn points_that_stay(&self) -> Vec<bool> {
-        let mut stays: Vec<bool> = (0..self.points().len())
-            .map(|index| self.is_origin(PointId(index)))
-            .collect();
+        let mut stays = self.only_the_origin();
         for constraint in self.constraints() {
             let Constraint::Fixed { element } = constraint else {
                 continue;

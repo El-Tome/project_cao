@@ -8,7 +8,7 @@ use cao_solid::Mesh;
 use cao_solid::brep::{Body, Listing};
 use cao_solid::profile::{Contour, Frame, Run};
 use cao_solid::soundness::Triangle;
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::{CIRCLE_STEPS, Case, Leaf, Mode, Outline};
 
@@ -30,6 +30,19 @@ pub trait Kernel {
     /// What a body lists itself as made of, and how far it reaches: nothing,
     /// for a kernel that keeps no such list.
     fn listing(&self, _body: &Self::Body) -> Option<(Listing, f64)> {
+        None
+    }
+
+    /// Where the line through `origin` along `direction` passes through the
+    /// exact body, each crossing with one going into the matter and minus one
+    /// coming out: nothing, for a kernel that keeps no exact body, or where
+    /// it cannot tell along that line.
+    fn crossings(
+        &self,
+        _body: &Self::Body,
+        _origin: DVec3,
+        _direction: DVec3,
+    ) -> Option<Vec<(f64, i32)>> {
         None
     }
 }
@@ -90,6 +103,11 @@ impl Kernel for Exact {
 
     fn listing(&self, body: &Body) -> Option<(Listing, f64)> {
         Some((body.listing(), body.scale().reach()))
+    }
+
+    fn crossings(&self, body: &Body, origin: DVec3, direction: DVec3) -> Option<Vec<(f64, i32)>> {
+        body.crossings_along(origin, direction, body.scale().eps())
+            .ok()
     }
 }
 

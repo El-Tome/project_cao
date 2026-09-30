@@ -36,6 +36,11 @@ const LINES: usize = 48;
 /// there are says how much of a campaign looked at nothing.
 const GRAZING: f64 = 0.05;
 
+/// How far the exact body may stand from the promise along a line, as a
+/// fraction of the reach: what the flats are held to along their own lines,
+/// a thousand times the kernel's tolerance.
+const EXACTLY: f64 = 1e-6;
+
 /// How many lines a case was held along, and how many were left out for
 /// grazing a curved wall, summed over every body the case was checked at.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -209,6 +214,7 @@ impl Held<'_> {
         if let Some((listing, reach)) = kernel.listing(body) {
             listed(&listing, reach)?;
         }
+        self.exactly(kernel, body)?;
         let (triangles, tolerance) = kernel.triangles(body);
         closed(&triangles)?;
         uncrossed(&triangles)?;
@@ -224,6 +230,47 @@ impl Held<'_> {
         )
     }
 
+    /// Whether the exact body holds along every line what was promised there,
+    /// before any triangle is laid: the kernel's own answer, held as tightly
+    /// as the flats are, where it can tell and no line grazes a curved wall.
+    fn exactly<K: Kernel>(&self, kernel: &K, body: &K::Body) -> Result<(), Flaw> {
+        let (low, high) = self.region;
+        let room = EXACTLY * low.abs().max(high.abs()).max_element().max(1.0);
+        for (index, promise) in self.promised.iter().enumerate() {
+            if self.grazes(index, promise) {
+                continue;
+            }
+            let (origin, direction) = self.lines.line(index);
+            let Some(crossings) = kernel.crossings(body, origin, direction) else {
+                continue;
+            };
+            let found = Spans::swept(crossings);
+            let gap = promise.without(&found).length()
+                + found.without(promise).length()
+                + found.surplus().abs();
+            if gap > room {
+                return Err(Flaw::Spans(Along {
+                    origin,
+                    direction,
+                    promised: promise.length(),
+                    enclosed: found.length() + found.surplus(),
+                }));
+            }
+        }
+        Ok(())
+    }
+
+    /// Whether a line ends a promised stretch on a curved wall it meets at a
+    /// slant too shallow to measure along.
+    fn grazes(&self, index: usize, promise: &Spans) -> bool {
+        promise
+            .stretches()
+            .iter()
+            .flat_map(|&(from, to)| [from, to])
+            .map(|at| self.crossed_at(index, at))
+            .any(|end| end.curved && end.cosine < GRAZING)
+    }
+
     /// Whether the triangles hold along every line what was promised there,
     /// but for the room their tolerance takes along it.
     fn along_every_line(
@@ -236,13 +283,7 @@ impl Held<'_> {
         let (low, high) = self.region;
         let rounding = Scale::of(low.abs().max(high.abs()).max_element()).eps();
         for (index, (promise, measure)) in self.promised.iter().zip(&found).enumerate() {
-            let grazing = promise
-                .stretches()
-                .iter()
-                .flat_map(|&(from, to)| [from, to])
-                .map(|at| self.crossed_at(index, at))
-                .any(|end| end.curved && end.cosine < GRAZING);
-            if grazing {
+            if self.grazes(index, promise) {
                 measured.grazing += 1;
                 continue;
             }

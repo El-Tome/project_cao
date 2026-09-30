@@ -60,6 +60,9 @@ pub enum Rule {
     Answers,
     /// What a body lists itself as made of stands on its geometry.
     Listed,
+    /// The exact body, before any triangle, encloses along every line what
+    /// arithmetic promised.
+    Spans,
 }
 
 /// A rule a solid broke, and where — enough for somebody to go and look.
@@ -96,6 +99,9 @@ pub enum Flaw {
     NoAnswer(Silence),
     /// A body's listing of its faces, edges and vertices does not hold.
     Mislisted(Mislisted),
+    /// The exact body encloses along a line other than what arithmetic
+    /// promised: the kernel's own answer is wrong, whatever its triangles.
+    Spans(Along),
 }
 
 /// How a kernel failed to answer.
@@ -132,6 +138,7 @@ impl Flaw {
             Flaw::NotUndone { .. } => Rule::Undone,
             Flaw::NoAnswer(_) => Rule::Answers,
             Flaw::Mislisted(_) => Rule::Listed,
+            Flaw::Spans(_) => Rule::Spans,
         }
     }
 }

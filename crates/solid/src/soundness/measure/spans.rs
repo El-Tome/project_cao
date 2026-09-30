@@ -21,6 +21,12 @@ impl Spans {
     /// Stretches in any order, overlapping or not, made into spans: sorted,
     /// joined where they meet, and the empty ones dropped. What a promise
     /// worked out by arithmetic starts from.
+    /// The stretches a line lies inside, from where it crosses a surface and
+    /// which way: one going into the matter, minus one coming out.
+    pub fn swept(crossings: Vec<(f64, i32)>) -> Spans {
+        sweep(crossings)
+    }
+
     pub fn gathered(mut stretches: Vec<(f64, f64)>) -> Spans {
         stretches.retain(|(from, to)| from < to);
         stretches.sort_by(|left, right| left.0.total_cmp(&right.0));

@@ -469,6 +469,7 @@ enum Breaking {
     ListsWrong,
     AnswersTwiceDifferently,
     LeavesMatterAside,
+    HoldsNothingExactly,
 }
 
 impl Broken {
@@ -517,6 +518,15 @@ impl Kernel for Broken {
             _ => {}
         }
         (triangles, tolerance)
+    }
+
+    fn crossings(
+        &self,
+        _body: &Mesh,
+        _origin: DVec3,
+        _direction: DVec3,
+    ) -> Option<Vec<(f64, i32)>> {
+        (self.breaking == Breaking::HoldsNothingExactly).then(Vec::new)
     }
 
     fn listing(&self, _body: &Mesh) -> Option<(Listing, f64)> {
@@ -577,6 +587,14 @@ fn a_kernel_that_answers_the_same_case_twice_differently_is_caught() {
         broken(Breaking::AnswersTwiceDifferently),
         Err(Flaw::Unrepeatable { .. })
     ));
+}
+
+#[test]
+fn a_kernel_whose_exact_body_holds_nothing_where_matter_was_promised_is_caught_before_its_triangles()
+ {
+    assert!(
+        matches!(broken(Breaking::HoldsNothingExactly), Err(Flaw::Spans(worst)) if worst.enclosed == 0.0 && worst.promised > 0.0)
+    );
 }
 
 #[test]

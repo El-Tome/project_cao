@@ -71,6 +71,9 @@ impl Body {
         for hole in holes {
             contours.push(read(hole, false)?);
         }
+        if !piece::apart(&contours, eps) {
+            return Err(Declined::Profile);
+        }
         Ok(walls::raise(lifted, lift, &contours, eps))
     }
 }

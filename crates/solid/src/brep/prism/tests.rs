@@ -477,3 +477,56 @@ fn a_run_of_nearly_straight_corners_keeps_every_corner_on_its_walls() {
         assert!(nearest <= eps, "{corner} stands {nearest} off every wall");
     }
 }
+
+#[test]
+fn a_profile_passing_twice_through_one_corner_is_declined() {
+    use crate::profile::Run;
+    use std::f64::consts::PI;
+    let raise = |outline: &Contour, holes: &[Contour]| {
+        Body::raised(outline, holes, ground(), DVec3::Z * 10.0).map(|_| ())
+    };
+    let circle_and_triangle = Contour {
+        corners: vec![
+            DVec2::new(5.0, 0.0),
+            DVec2::new(-5.0, 0.0),
+            DVec2::new(5.0, 0.0),
+            DVec2::new(10.0, -5.0),
+            DVec2::new(10.0, 5.0),
+        ],
+        runs: vec![
+            Run::Round {
+                center: DVec2::ZERO,
+                turn: PI,
+            },
+            Run::Round {
+                center: DVec2::ZERO,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Straight,
+            Run::Straight,
+        ],
+    };
+    assert_eq!(raise(&circle_and_triangle, &[]), Err(Declined::Profile));
+    let bow_tie = Contour::straight(vec![
+        DVec2::new(0.0, 0.0),
+        DVec2::new(2.0, 0.0),
+        DVec2::new(1.0, 1.0),
+        DVec2::new(2.0, 2.0),
+        DVec2::new(0.0, 2.0),
+        DVec2::new(1.0, 1.0 + 1e-12),
+    ]);
+    assert_eq!(raise(&bow_tie, &[]), Err(Declined::Profile));
+    let block = Contour::rectangle(DVec2::ZERO, DVec2::new(10.0, 10.0));
+    let in_the_corner = Contour::straight(vec![
+        DVec2::new(10.0, 10.0),
+        DVec2::new(5.0, 8.0),
+        DVec2::new(8.0, 5.0),
+    ]);
+    assert_eq!(
+        raise(&block, std::slice::from_ref(&in_the_corner)),
+        Err(Declined::Profile)
+    );
+    let hole = Contour::rectangle(DVec2::new(2.0, 2.0), DVec2::new(5.0, 5.0));
+    assert_eq!(raise(&block, &[hole]), Ok(()));
+}

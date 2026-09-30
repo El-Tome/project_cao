@@ -36,6 +36,7 @@ pub struct Region {
     pub unbounded: bool,
 }
 
+/// Every region the arcs cut a surface into, the unbounded ones included.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Overlay {
     pub regions: Vec<Region>,

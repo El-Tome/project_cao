@@ -131,11 +131,11 @@ fn clusters(pieces: &[Piece], period: Option<f64>) -> Vec<[f64; 2]> {
 impl Columns {
     /// The cluster an abscissa where a piece ends was taken into.
     pub fn cluster_of(&self, x: f64) -> usize {
+        let shifts = match self.period {
+            Some(period) => [-period, 0.0, period],
+            None => [0.0; 3],
+        };
         let apart = |cluster: &[f64; 2]| {
-            let shifts = match self.period {
-                Some(period) => vec![-period, 0.0, period],
-                None => vec![0.0],
-            };
             shifts
                 .into_iter()
                 .map(|shift| {

@@ -552,6 +552,16 @@ fn arcs_crossing_the_seam_of_the_angle_are_read_modulo_the_turn() {
     assert!(!band.unbounded);
 }
 
+#[test]
+fn no_arc_leaves_the_whole_surface_one_unbounded_region() {
+    for period in [None, ROUND] {
+        let overlay = Overlay::of(&[], &[], period).expect("nothing to cut");
+        assert_eq!(overlay.regions.len(), 1);
+        assert!(overlay.regions[0].unbounded);
+        assert!(overlay.regions[0].cycles.is_empty());
+    }
+}
+
 fn cycle_counts(regions: &[Region]) -> Vec<usize> {
     let mut counts: Vec<usize> = regions.iter().map(|region| region.cycles.len()).collect();
     counts.sort_unstable();

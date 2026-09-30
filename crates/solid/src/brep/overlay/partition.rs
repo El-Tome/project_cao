@@ -1,7 +1,7 @@
 //! The cycles grouped into regions. The cycle facing up from the top of each
 //! connected set of arcs belongs with whatever the first arc above it faces
-//! down to; every other cycle bounds a region of its own from outside, or,
-//! on a cylinder, from above everything under it.
+//! down to; every other cycle is the outer boundary of a region of its own,
+//! or on a cylinder the upper boundary of the band under it.
 
 use glam::DVec2;
 
@@ -13,18 +13,18 @@ use crate::brep::Declined;
 
 /// Sets of nodes, each named by its least member, so that the naming does
 /// not hang on the order the sets were joined in.
-pub(super) struct Sets {
+struct Sets {
     parent: Vec<usize>,
 }
 
 impl Sets {
-    pub fn new(count: usize) -> Sets {
+    fn new(count: usize) -> Sets {
         Sets {
             parent: (0..count).collect(),
         }
     }
 
-    pub fn find(&mut self, mut node: usize) -> usize {
+    fn find(&mut self, mut node: usize) -> usize {
         while self.parent[node] != node {
             self.parent[node] = self.parent[self.parent[node]];
             node = self.parent[node];
@@ -32,7 +32,7 @@ impl Sets {
         node
     }
 
-    pub fn join(&mut self, one: usize, other: usize) {
+    fn join(&mut self, one: usize, other: usize) {
         let (one, other) = (self.find(one), self.find(other));
         self.parent[one.max(other)] = one.min(other);
     }
@@ -94,7 +94,7 @@ impl Layout<'_> {
             if !placed[component] {
                 placed[component] = true;
                 let over = self.over_upright(component, &components, top)?;
-                sets.join(self.cycles.of_half[half(arc, true)], over);
+                sets.join(self.cycles.of_half[half(component, true)], over);
             }
         }
         let under = widest

@@ -14,11 +14,14 @@ mod wrapped;
 
 use std::collections::BTreeMap;
 
+use glam::{DVec2, DVec3};
+
 use super::Declined;
 use super::combine::{Arena, Operands, Operation};
 use super::overlay::{Arc, Overlay, Region};
+use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
-use wrapped::wrapped;
+use wrapped::{Wrapped, covering, wound};
 
 pub(super) fn selected(
     operands: &Operands,
@@ -49,12 +52,9 @@ fn on(
         if region.unbounded {
             continue;
         }
-        let point = geometry.point(region.inside);
-        let [first, second] = [0, 1].map(|operand| wrapped(operands, operand, surface, point));
-        let (first, second) = (first?, second?);
-        if !(first.covered || second.covered) {
+        let Some([first, second]) = wraps(operands, surface, geometry, region)? else {
             continue;
-        }
+        };
         let above = operation.holds(first.above >= 1, second.above >= 1);
         let below = operation.holds(first.below >= 1, second.below >= 1);
         if above != below {
@@ -62,6 +62,46 @@ fn on(
         }
     }
     Ok(faces)
+}
+
+/// How each operand wraps a region, or nothing where neither covers it.
+///
+/// Read at the region's point; where an operand touches the surface at that
+/// very point — a bar's cap resting on a post's wall — the answer is a tie,
+/// and it is read again further along the region's chord, where the answer
+/// is the same.
+fn wraps(
+    operands: &Operands,
+    surface: SurfaceId,
+    geometry: &Surface,
+    region: &Region,
+) -> Result<Option<[Wrapped; 2]>, Declined> {
+    let [low, high] = region.chord;
+    let along = [0.25, 0.75].map(|share| DVec2::new(region.inside.x, low + (high - low) * share));
+    for at in std::iter::once(region.inside).chain(along) {
+        match wrapped_at(operands, surface, geometry.point(at)) {
+            Err(Declined::Tie) => continue,
+            answer => return answer,
+        }
+    }
+    Err(Declined::Tie)
+}
+
+fn wrapped_at(
+    operands: &Operands,
+    surface: SurfaceId,
+    point: DVec3,
+) -> Result<Option<[Wrapped; 2]>, Declined> {
+    let covered = [0, 1].map(|operand| covering(operands, operand, surface, point));
+    let covered = [covered[0]?, covered[1]?];
+    if covered.iter().all(Option::is_none) {
+        return Ok(None);
+    }
+    let [first, second] = [0, 1].map(|operand| match covered[operand] {
+        Some(wrapped) => Ok(wrapped),
+        None => wound(operands, operand, point),
+    });
+    Ok(Some([first?, second?]))
 }
 
 /// The arcs lying on a surface, by the edge each is, and the regions they

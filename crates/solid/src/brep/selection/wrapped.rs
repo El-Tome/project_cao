@@ -23,17 +23,20 @@ pub(in crate::brep) struct Wrapped {
     pub below: i32,
 }
 
+/// Whether a face of the operand on `surface` covers `point`, and which: its
+/// matter on the side the surface's normal points to or on the other.
+///
 /// `point` stands inside a region of `surface`, away from its boundary, so
 /// from every face of the operand on that surface too, whose boundary the
 /// region's arcs already hold: which faces cover it is asked by parity alone,
 /// however thin the region, and a point exactly on the boundary of one is a
 /// tie the kernel does not settle.
-pub(in crate::brep) fn wrapped(
+pub(in crate::brep) fn covering(
     operands: &Operands,
     operand: usize,
     surface: SurfaceId,
     point: DVec3,
-) -> Result<Wrapped, Declined> {
+) -> Result<Option<Wrapped>, Declined> {
     let located = operands.located(operand, surface, point, 0.0)?;
     if located
         .iter()
@@ -47,20 +50,31 @@ pub(in crate::brep) fn wrapped(
     match (covering.next(), covering.next()) {
         (Some(&(face, _)), None) => {
             let flipped = operands.flipped(operand, face);
-            Ok(Wrapped {
+            Ok(Some(Wrapped {
                 covered: true,
                 above: i32::from(flipped),
                 below: i32::from(!flipped),
-            })
+            }))
         }
-        (None, _) => {
-            let winding = operands.bodies[operand].winding(point, operands.eps() * ROUNDING)?;
-            Ok(Wrapped {
-                covered: false,
-                above: winding,
-                below: winding,
-            })
-        }
+        (None, _) => Ok(None),
         (Some(_), Some(_)) => Err(Declined::Tie),
     }
+}
+
+/// How many times an operand no face of which covers `point` wraps it, on
+/// both sides alike, as a ray cast through the operand counts. Asked only
+/// where the other operand covers the point: a point of a region neither
+/// covers may stand on a face of either crossing the surface there, and
+/// nothing hangs on it.
+pub(in crate::brep) fn wound(
+    operands: &Operands,
+    operand: usize,
+    point: DVec3,
+) -> Result<Wrapped, Declined> {
+    let winding = operands.bodies[operand].winding(point, operands.eps() * ROUNDING)?;
+    Ok(Wrapped {
+        covered: false,
+        above: winding,
+        below: winding,
+    })
 }

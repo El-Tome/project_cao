@@ -74,33 +74,42 @@ pub(super) fn related(
 /// Every other pair of surfaces a registered curve lies on both of, related
 /// too, so that every curve such a pair shares is registered — the other line
 /// where a plane cuts a cylinder, though no edge runs along it — and a corner
-/// lying on both is told which of them it stands on. A pair of one operand
-/// alone is not the boolean's to decline.
+/// lying on both is told which of them it stands on. A curve a pair shares
+/// may come to lie on a third surface, making pairs of its own: they are
+/// related in turn, until none is left. A pair of one operand alone is not
+/// the boolean's to decline.
 pub(super) fn completed(
     operands: &Operands,
     registry: &mut Registry,
     done: &BTreeSet<[SurfaceId; 2]>,
 ) {
-    let mut pairs = BTreeSet::new();
-    for registered in &registry.list {
-        let support = &registered.support;
-        for (index, &one) in support.iter().enumerate() {
-            for &other in &support[index + 1..] {
-                if !done.contains(&[one, other]) {
-                    pairs.insert([one, other]);
+    let mut related = done.clone();
+    let list = &operands.surfaces.list;
+    loop {
+        let mut pairs = BTreeSet::new();
+        for registered in &registry.list {
+            let support = &registered.support;
+            for (index, &one) in support.iter().enumerate() {
+                for &other in &support[index + 1..] {
+                    if !related.contains(&[one, other]) {
+                        pairs.insert([one, other]);
+                    }
                 }
             }
         }
-    }
-    let list = &operands.surfaces.list;
-    for [one, other] in pairs {
-        let found = relation(
-            &list[one.0 as usize],
-            &list[other.0 as usize],
-            operands.scale,
-        );
-        for curve in found.curves() {
-            registry.register(curve, &[one, other]);
+        if pairs.is_empty() {
+            return;
+        }
+        for [one, other] in pairs {
+            related.insert([one, other]);
+            let found = relation(
+                &list[one.0 as usize],
+                &list[other.0 as usize],
+                operands.scale,
+            );
+            for curve in found.curves() {
+                registry.register(curve, &[one, other]);
+            }
         }
     }
 }

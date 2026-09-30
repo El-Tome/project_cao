@@ -533,3 +533,37 @@ fn a_snapped_meet_stays_within_the_tolerance_of_both_cylinders() {
         }
     }
 }
+
+#[test]
+fn a_point_at_a_node_names_every_pass_of_a_component_through_it_and_a_point_elsewhere_none() {
+    let eps = scale().eps();
+    for (a, b, d) in [
+        (5.0, 3.0, 2.0),
+        (5.0, 3.0, -2.0),
+        (3.0, 5.0, 2.0),
+        (4.0, 4.0, 0.0),
+    ] {
+        let (first, second) = pair(a, b, d, -2.5);
+        let meeting = Meeting::of(&first, &second, scale());
+        assert!(!meeting.nodes.is_empty(), "{a} {b} {d}");
+        for meet in &meeting.components {
+            for node in &meeting.nodes {
+                let named: Vec<f64> = node
+                    .on
+                    .iter()
+                    .filter(|(component, _)| *component == meet.component)
+                    .map(|(_, t)| *t)
+                    .collect();
+                let near = node.point + DVec3::splat(eps / 4.0);
+                assert_eq!(meet.passes(near, eps), named, "{a} {b} {d}");
+            }
+            let period = meet.period().expect("a component");
+            for t in [period / 8.0, period * 3.0 / 8.0, period * 5.0 / 8.0] {
+                assert!(
+                    meet.passes(meet.point(t), eps).is_empty(),
+                    "{a} {b} {d} at {t}"
+                );
+            }
+        }
+    }
+}

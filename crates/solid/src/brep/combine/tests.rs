@@ -218,6 +218,31 @@ fn a_corner_on_two_of_the_three_surfaces_a_line_lies_on_cuts_that_line() {
     assert!(cut.is_ok(), "{cut:?}");
 }
 
+/// Seed 197 of the campaign: a bar lying along X whose side touches, from
+/// inside, the wall of a cylinder standing on Z. The curve they meet along is
+/// a figure of eight through the point of touch, and passes it twice.
+#[test]
+fn a_bar_touching_a_cylinder_s_wall_from_inside_is_cut_where_their_curve_crosses_itself() {
+    let frame = Frame {
+        origin: DVec3::X * 7.0,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let center = DVec2::new(2.0, 4.0);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 2.5],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let bar = Body::raised(&circle, &[], frame, DVec3::X * 7.0).expect("a bar raises");
+    let post = standing([10.0, 4.0], 4.5, -2.0, 5.0);
+    let joined = bar.joined(&post).expect("the bar and the post join");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    let apart = block([20.0, 20.0, 0.0], [22.0, 22.0, 2.0]);
+    let again = joined.joined(&apart).expect("a block apart joins");
+    assert_eq!(listed(&again.listing(), again.scale().reach()), Ok(()));
+    assert_eq!(again.edges.len(), joined.edges.len() + 12);
+}
+
 /// Seed 793 of the campaign, made small: a boss whose cap stands a hair above
 /// the top is joined onto it, then another whose cap stands a hair below.
 /// Each cap is the top within the tolerance, and each circle crosses the
@@ -234,4 +259,53 @@ fn two_circles_laid_on_a_top_from_a_hair_either_side_of_it_cross_at_one_corner()
         .and_then(|joined| joined.joined(&below))
         .expect("the bosses join");
     assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+}
+
+/// Seeds 6000830 and 5000221 of the campaign: a bar lying along X across a
+/// post standing on Z, the post's wall reaching the bar's end cap just where
+/// the cap stands tangent to it, or its side where the post's side does. The
+/// curve the two meet along touches the cap's circle there to the fourth
+/// order: the two leave that corner with one direction and one bend, and
+/// rounding ordered them.
+#[test]
+fn a_curve_touching_a_circle_to_the_fourth_order_is_ordered_by_where_it_goes() {
+    let bar = |center: [f64; 2], radius: f64, from: f64, length: f64| {
+        let frame = Frame {
+            origin: DVec3::X * from,
+            u: DVec3::Y,
+            v: DVec3::Z,
+        };
+        let center = DVec2::from(center);
+        let circle = Contour {
+            corners: vec![center + DVec2::X * radius],
+            runs: vec![Run::Round { center, turn: TAU }],
+        };
+        Body::raised(&circle, &[], frame, DVec3::X * length).expect("a bar raises")
+    };
+    let joined = standing([10.0, 7.0], 6.0, 0.0, 9.0)
+        .joined(&bar([10.0, 8.0], 3.0, -2.0, 18.0))
+        .expect("the bar crosses the post");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    let bored = standing([30.0, 5.0], 25.0, -5.0, 35.0)
+        .cut_by(&bar([35.0, 15.0], 30.0, 5.0, 18.0))
+        .expect("the post is bored");
+    assert_eq!(listed(&bored.listing(), bored.scale().reach()), Ok(()));
+}
+
+/// Seed 6000233 of the campaign: a block given a boss on its side and bored
+/// by a hole whose wall touches the boss's, both centred on the side. The
+/// line where the side cuts the hole a second time was never registered as
+/// lying on the side: the pair of the two came to share a curve only as
+/// another pair was completed, and a corner on the side and the hole was put
+/// on the other line, where the hole touches the boss.
+#[test]
+fn a_pair_a_curve_comes_to_lie_on_as_another_pair_is_completed_is_completed_too() {
+    let bossed = block([5.0, 9.0, 0.0], [10.5, 15.0, 8.0])
+        .joined(&standing([10.5, 12.0], 1.0, -1.0, 14.0))
+        .and_then(|bossed| bossed.cut_by(&standing([10.5, 14.0], 1.0, -1.0, 29.0)))
+        .expect("the block is bossed and bored");
+    let cut = bossed
+        .cut_by(&block([1.0, 0.0, 5.0], [11.0, 10.0, 8.0]))
+        .expect("a corner is cut off");
+    assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
 }

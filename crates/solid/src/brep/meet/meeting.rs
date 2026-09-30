@@ -48,40 +48,45 @@ impl Meeting {
                 component,
             })
             .collect();
-        let at_end = |y: f64| pair.world(DVec3::new(0.0, y, pair.e));
-        let singular = [
-            pair.x_vanishes()[0] && pair.z_vanishes()[0],
-            pair.x_vanishes()[1] && pair.z_vanishes()[1],
-        ];
-        let nodes = match configuration {
-            Configuration::TwoEllipses => vec![
-                Node {
-                    point: at_end(pair.low),
-                    on: vec![(0, 0.0), (1, 0.0)],
-                },
-                Node {
-                    point: at_end(pair.high),
-                    on: vec![(0, PI), (1, PI)],
-                },
-            ],
-            Configuration::FigureOfEight if singular[1] => vec![Node {
-                point: at_end(pair.high),
-                on: vec![(0, PI), (0, 3.0 * PI)],
-            }],
-            Configuration::FigureOfEight => vec![Node {
-                point: at_end(pair.low),
-                on: vec![(0, 0.0), (0, TAU)],
-            }],
-            _ => Vec::new(),
-        };
+        let nodes = nodes(&pair);
         let contact = (configuration == Configuration::Contact)
-            .then(|| at_end(if pair.d > 0.0 { pair.high } else { pair.low }));
+            .then(|| pair.at_end(if pair.d > 0.0 { pair.high } else { pair.low }));
         Meeting {
             configuration,
             components,
             nodes,
             contact,
         }
+    }
+}
+
+/// Where the curve of a pair crosses itself, each node with the parameter
+/// of every pass of a component through it.
+pub(super) fn nodes(pair: &Pair) -> Vec<Node> {
+    let singular = [
+        pair.x_vanishes()[0] && pair.z_vanishes()[0],
+        pair.x_vanishes()[1] && pair.z_vanishes()[1],
+    ];
+    match pair.configuration() {
+        Configuration::TwoEllipses => vec![
+            Node {
+                point: pair.at_end(pair.low),
+                on: vec![(0, 0.0), (1, 0.0)],
+            },
+            Node {
+                point: pair.at_end(pair.high),
+                on: vec![(0, PI), (1, PI)],
+            },
+        ],
+        Configuration::FigureOfEight if singular[1] => vec![Node {
+            point: pair.at_end(pair.high),
+            on: vec![(0, PI), (0, 3.0 * PI)],
+        }],
+        Configuration::FigureOfEight => vec![Node {
+            point: pair.at_end(pair.low),
+            on: vec![(0, 0.0), (0, TAU)],
+        }],
+        _ => Vec::new(),
     }
 }
 

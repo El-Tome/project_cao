@@ -158,6 +158,11 @@ impl Pair {
         ]
     }
 
+    /// The point of the curve at the height `y`, where both roots vanish.
+    pub fn at_end(&self, y: f64) -> DVec3 {
+        self.world(DVec3::new(0.0, y, self.e))
+    }
+
     pub fn world(&self, local: DVec3) -> DVec3 {
         self.origin + self.direction(local)
     }

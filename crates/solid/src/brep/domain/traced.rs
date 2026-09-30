@@ -11,6 +11,11 @@ use crate::brep::trace::Trace;
 /// The stretch of `curve` from parameter `from` to `to`, seen in the
 /// parameters of `surface`: declined where the surface would see an ellipse,
 /// or a curve it cannot carry.
+///
+/// That the curve lies on the surface was decided before; what is read here
+/// is only how. The curve two cylinders meet along is seen on the one whose
+/// axis the surface's runs along — the second moved, by less than the
+/// tolerance, onto a touch their pair decided, and carried so by the curve.
 pub(in crate::brep) fn traced(
     curve: &Curve,
     surface: &Surface,
@@ -54,11 +59,12 @@ pub(in crate::brep) fn traced(
             })
         }
         (Surface::Cylinder(cylinder), Curve::Meet(meet))
-            if *cylinder == meet.first || *cylinder == meet.second =>
+            if parallel(cylinder.axis, meet.first.axis)
+                || parallel(cylinder.axis, meet.second.axis) =>
         {
             Ok(Trace::Graph {
                 meet: *meet,
-                on_first: *cylinder == meet.first,
+                on_first: parallel(cylinder.axis, meet.first.axis),
                 from,
                 to,
             })

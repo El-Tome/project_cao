@@ -12,7 +12,7 @@ mod related;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Pool, Registry};
+use super::canonical::{Apart, Planes, Pool, Registry};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -66,12 +66,14 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
 /// The arena of two operands, decided once: surfaces, relations, curves,
 /// corners and arcs.
 pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
-    let mut registry = Registry::new(operands.scale);
+    let list = &operands.surfaces.list;
+    let apart = Apart::of(list, operands.scale);
+    let mut registry = Registry::new(operands.scale, apart, Planes::of(list));
     let (held, ending) = held::held(operands, &mut registry);
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
-    let pool = pooled(operands, &ending, &special, &found);
+    let pool = pooled(operands, &registry, &ending, &special, &found);
     cut::cut(operands, &registry, &pool, &held)
 }
 
@@ -79,6 +81,7 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
 /// the second's, the relations' special points, the crossings — merged.
 fn pooled(
     operands: &Operands,
+    registry: &Registry,
     ending: &held::Ending,
     special: &[Special],
     found: &[crossed::Found],
@@ -92,14 +95,24 @@ fn pooled(
                 .iter()
                 .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0);
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
-            pool.add(vertex.point, surfaces, curves);
+            pool.add(vertex.point, surfaces, curves, registry);
         }
     }
     for point in special {
-        pool.add(point.point, point.surfaces, point.curves.iter().copied());
+        pool.add(
+            point.point,
+            point.surfaces,
+            point.curves.iter().copied(),
+            registry,
+        );
     }
     for crossing in found {
-        pool.add(crossing.point, [crossing.surface], [crossing.curve]);
+        pool.add(
+            crossing.point,
+            [crossing.surface],
+            [crossing.curve],
+            registry,
+        );
     }
     pool
 }

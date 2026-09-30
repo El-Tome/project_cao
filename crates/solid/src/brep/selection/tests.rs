@@ -139,3 +139,65 @@ fn a_sliver_of_a_face_standing_a_hair_past_the_other_operand_s_face_on_its_plane
         vec![true]
     );
 }
+
+/// Seed 6000336 of the campaign: a slab under a tower, cut by a column at the
+/// tower's corner, flush with two of its sides and with the slab's bottom.
+/// The slab's top under the tower is covered by neither operand, and the
+/// point chosen inside it lies on the column's side: asking the column how
+/// it wraps the point was a tie, and nothing needed asking.
+#[test]
+fn a_region_neither_operand_covers_is_left_without_asking_either_how_it_wraps_it() {
+    let tower = block([6.0, 4.0, -2.0], [8.0, 6.0, 2.0]);
+    let slab = block([4.0, 2.0, -2.0], [10.0, 8.0, 0.0]);
+    let column = block([6.0, 5.0, -2.0], [7.0, 6.0, 3.0]);
+    let joined = tower.joined(&slab).expect("the tower stands on the slab");
+    let cut = joined.cut_by(&column);
+    assert!(cut.is_ok(), "{cut:?}");
+}
+
+/// The same slab, read where it tied: a point of its top under the tower that
+/// the column's side runs through, though no arc of the top does — the
+/// column has no face on the top, and the joined body none there either.
+/// Neither covers the point, so nothing hangs on how either wraps it, and
+/// neither is asked: the column, asked, would tie on its own face.
+#[test]
+fn a_point_neither_operand_covers_is_left_unasked_though_it_lies_on_a_face_of_one() {
+    let tower = block([6.0, 4.0, -2.0], [8.0, 6.0, 2.0]);
+    let slab = block([4.0, 2.0, -2.0], [10.0, 8.0, 0.0]);
+    let column = block([6.0, 5.0, -2.0], [7.0, 6.0, 3.0]);
+    let joined = tower.joined(&slab).expect("the tower stands on the slab");
+    let operands = Operands::of(&joined, &column, joined.scale().joined(column.scale()));
+    let top = operands
+        .surfaces
+        .list
+        .iter()
+        .position(|surface| {
+            matches!(surface, Surface::Plane(plane)
+                if plane.normal.abs_diff_eq(DVec3::Z, 1e-12) && plane.offset().abs() < 1e-12)
+        })
+        .expect("the slab's top is there");
+    let wrapped = wrapped_at(&operands, SurfaceId(top as u32), DVec3::new(6.5, 5.0, 0.0));
+    assert!(matches!(wrapped, Ok(None)), "{wrapped:?}");
+}
+
+/// Seed 5000221 of the campaign: a bar lying along X whose cap touches a
+/// post standing on Z at a single point of its wall, the very point the
+/// post's band of wall is read at. Asking the bar how it wraps that point is
+/// a tie; another point along the same chord of the band answers.
+#[test]
+fn a_region_whose_point_the_other_operand_touches_is_read_at_another_point_of_its_chord() {
+    let post = standing([30.0, 5.0], 25.0, -5.0, 35.0);
+    let frame = Frame {
+        origin: DVec3::X * 5.0,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let center = DVec2::new(35.0, 15.0);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 30.0],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let bar = Body::raised(&circle, &[], frame, DVec3::NEG_X * 18.0).expect("a bar raises");
+    let cut = post.cut_by(&bar);
+    assert!(cut.is_ok(), "{cut:?}");
+}

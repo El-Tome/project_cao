@@ -26,13 +26,16 @@ pub struct Arc {
 /// A piece of the surface the arcs cut out: the cycles bounding it, each as
 /// arcs run along their own way or against it with the region on their
 /// left, every arc used once each way over all the regions; and a point
-/// inside it, as far from its boundary as a vertical chord through it lets.
-/// Unbounded on a plane for the region outside everything, on a cylinder
-/// for those above and below everything.
+/// inside it, as far from its boundary as a vertical chord through it lets,
+/// with the heights the chord runs between: every point of it strictly
+/// between them is inside the region too. Unbounded on a plane for the
+/// region outside everything, on a cylinder for those above and below
+/// everything.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Region {
     pub cycles: Vec<Vec<(usize, bool)>>,
     pub inside: DVec2,
+    pub chord: [f64; 2],
     pub unbounded: bool,
 }
 
@@ -59,11 +62,12 @@ impl Overlay {
                 regions: vec![Region {
                     cycles: Vec::new(),
                     inside: DVec2::ZERO,
+                    chord: [0.0; 2],
                     unbounded: true,
                 }],
             });
         }
-        let cycles = star::cycles(arcs)?;
+        let cycles = star::cycles(arcs, vertices, period)?;
         let pieces = piece::pieces(arcs);
         let columns = column::columns(arcs, &pieces, period);
         let layout = partition::Layout {

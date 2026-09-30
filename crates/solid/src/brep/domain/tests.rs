@@ -3,7 +3,7 @@ use std::f64::consts::{PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::curve::{Circle, Curve, Line};
+use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::profile::{Contour, Frame};
 
@@ -86,6 +86,34 @@ fn a_ruling_of_a_cylinder_is_a_vertical_segment() {
     assert_eq!(start.x, end.x);
     assert!(close(start, DVec2::new(2.5, 0.0)));
     assert!(close(end, DVec2::new(2.5, 10.0)));
+}
+
+/// Seed 290 of the campaign: the pair decided a touch and moved the second
+/// cylinder onto it by less than the tolerance, which the curve carries. The
+/// curve still lies on the cylinder the body stands on, and is seen there as
+/// it is seen on its own.
+#[test]
+fn a_meet_whose_second_cylinder_was_moved_onto_a_touch_is_seen_on_the_cylinder_it_was_moved_from() {
+    let first = Cylinder::about(DVec3::new(7.0, 7.0, 0.0), DVec3::Z, 4.5);
+    let standing = Cylinder::about(DVec3::new(3.499_999_99, 0.0, 2.0), DVec3::Y, 1.0);
+    let moved = Cylinder::about(DVec3::new(3.5, 0.0, 2.0), DVec3::Y, 1.0);
+    let meet = Meet {
+        first,
+        second: moved,
+        component: 0,
+    };
+    for (surface, on_first) in [(standing, false), (first, true)] {
+        let trace = traced(&Curve::Meet(meet), &Surface::Cylinder(surface), 0.5, 2.0);
+        assert_eq!(
+            trace,
+            Ok(Trace::Graph {
+                meet,
+                on_first,
+                from: 0.5,
+                to: 2.0,
+            })
+        );
+    }
 }
 
 #[test]

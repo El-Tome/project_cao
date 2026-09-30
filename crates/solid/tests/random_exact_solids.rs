@@ -167,6 +167,60 @@ fn a_prism_of_circles_holds_along_every_line_what_its_flats_hold_but_for_their_s
 }
 
 #[test]
+fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
+    let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
+    let leaves = drawn_prisms(|_| true);
+    assert!(
+        leaves
+            .iter()
+            .any(|leaf| matches!(leaf.plane(), Plane::Tilted { .. })),
+        "no prism drawn on a turned plane"
+    );
+    for leaf in &leaves {
+        let (low, high) = leaf.bounds().expect("a prism has a box");
+        let flats = leaf.solid().expect("a leaf the flats raise");
+        let (flat_low, flat_high) = flats.bounds().expect("a solid with a box");
+        let reach = flat_low.abs().max(flat_high.abs()).max_element().max(1.0);
+        let sagitta = match leaf {
+            Leaf::Prism {
+                outline: Outline::Circle { radius, .. },
+                ..
+            } => radius * (1.0 - inscribed),
+            Leaf::Prism {
+                outline: Outline::Ring { outer, .. },
+                ..
+            } => outer * (1.0 - inscribed),
+            _ => 0.0,
+        };
+        let near = 1e-9 * reach;
+        let within =
+            |one: DVec3, other: DVec3, room: f64| (one - other).abs().max_element() <= room;
+        assert!(
+            flat_low.cmpge(low - near).all() && flat_high.cmple(high + near).all(),
+            "{leaf}: the flats span {flat_low}..{flat_high} beyond {low}..{high}"
+        );
+        assert!(
+            within(low, flat_low, sagitta + near) && within(high, flat_high, sagitta + near),
+            "{leaf}: {low}..{high} against the flats' {flat_low}..{flat_high}"
+        );
+    }
+}
+
+#[test]
+fn a_block_on_a_turned_plane_is_held_by_the_flats_to_the_arithmetic() {
+    let case = Case::new(
+        Leaf::prism(
+            Plane::tilted([1.0, 2.0, 0.0], [0.0, 0.0, 45.0]),
+            Outline::rectangle([0.0, 0.0], [4.0, 3.0]),
+            2.0,
+        ),
+        vec![],
+    );
+    let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+    assert!(measured.is_ok(), "{measured:?}");
+}
+
+#[test]
 fn a_leaf_grown_holds_every_line_it_held_and_a_leaf_shrunk_holds_none_it_did_not() {
     let leaves = drawn_prisms(|outline| !matches!(outline, Outline::Star { .. }));
     for leaf in &leaves {

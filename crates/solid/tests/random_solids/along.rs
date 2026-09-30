@@ -132,9 +132,14 @@ impl Leaf {
             [middle - spread, middle + spread]
         };
         let corners: Vec<DVec3> = match outline {
-            Outline::Rectangle { low, high } => [*low, *high]
-                .map(|corner| base + u * corner.x + v * corner.y)
-                .to_vec(),
+            Outline::Rectangle { low, high } => [
+                *low,
+                DVec2::new(high.x, low.y),
+                *high,
+                DVec2::new(low.x, high.y),
+            ]
+            .map(|corner| base + u * corner.x + v * corner.y)
+            .to_vec(),
             Outline::Circle { center, radius, .. } => round(*center, *radius).to_vec(),
             Outline::Ring { center, outer, .. } => round(*center, *outer).to_vec(),
             Outline::Star { corners, .. } => corners

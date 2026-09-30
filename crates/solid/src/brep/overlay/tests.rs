@@ -613,6 +613,54 @@ fn a_hair_of_side_leaving_a_tangent_circle_is_told_apart_by_how_it_bends_whateve
 }
 
 #[test]
+fn a_sliver_a_hair_thick_between_two_sides_holds_a_point_of_its_own_inside_it() {
+    for hair in [1e-7, 5e-9, 1e-10] {
+        for upright in [false, true] {
+            let turn = |[x, y]: [f64; 2]| if upright { [y, x] } else { [x, y] };
+            let mut drawing = Drawing::default();
+            let corners = drawing.polygon(&[
+                turn([0.0, 0.0]),
+                turn([20.0, 0.0]),
+                turn([20.0, 10.0]),
+                turn([20.0, 10.0 + hair]),
+                turn([20.0, 20.0]),
+                turn([0.0, 20.0]),
+                turn([0.0, 10.0 + hair]),
+                turn([0.0, 10.0]),
+            ]);
+            drawing.line(corners[7], corners[2]);
+            drawing.line(corners[6], corners[3]);
+            let overlay =
+                Overlay::of(&drawing.vertices, &drawing.arcs, None).expect("the sliver is kept");
+            assert_eq!(overlay.regions.len(), 4, "a hair of {hair}");
+            for (rank, region) in overlay.regions.iter().enumerate() {
+                for (other, cycles) in overlay.regions.iter().enumerate() {
+                    assert_eq!(
+                        located_in(&drawing.arcs, &cycles.cycles, None, region.inside),
+                        other == rank,
+                        "a hair of {hair}, upright {upright}: the point {} of region {rank} against region {other}",
+                        region.inside
+                    );
+                }
+                let apart = drawing
+                    .arcs
+                    .iter()
+                    .map(|arc| {
+                        let [from, to] = [arc.trace.start(), arc.trace.end()];
+                        distance_to_side(region.inside, from, to, None)
+                    })
+                    .fold(f64::INFINITY, f64::min);
+                assert!(
+                    apart > 0.25 * hair,
+                    "a hair of {hair}, upright {upright}: the point {} stands {apart} from a side",
+                    region.inside
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn two_holes_whose_circles_touch_leave_the_square_one_region() {
     let mut drawing = Drawing::default();
     drawing.square([-10.0, -10.0], [10.0, 10.0]);

@@ -137,7 +137,7 @@ pub(super) fn contacts(
     let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     along_meets(body, meets, &mut own);
     through_vertices(body, walls, &mut own);
-    let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
+    let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
         for other in &walls[at + 1..] {
@@ -153,16 +153,8 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            let taken = |wall: &Wall| own.get(&wall.0).map_or(&[][..], Vec::as_slice);
-            let shared =
-                together::sampled((outer, taken(outer)), (inner, taken(inner)), tolerance, eps);
-            if let Some(shared) = shared {
-                let [on_outer, on_inner] = shared.contacts;
-                let [off_outer, off_inner] = shared.dropped;
-                contacts.entry(outer.0).or_default().join(on_outer);
-                contacts.entry(inner.0).or_default().join(on_inner);
-                dropped.entry(outer.0).or_default().extend(off_outer);
-                dropped.entry(inner.0).or_default().extend(off_inner);
+            if together::sampled((outer, &[]), (inner, &[]), tolerance, eps).is_some() {
+                close.push((outer, inner));
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
@@ -177,14 +169,8 @@ pub(super) fn contacts(
             }
         }
     }
-    for (wall, rays) in own {
-        let off = dropped.get(&wall).map_or(&[][..], Vec::as_slice);
-        let kept = rays
-            .into_iter()
-            .enumerate()
-            .filter(|(rank, _)| !off.contains(rank))
-            .map(|(_, way)| way);
-        contacts.entry(wall).or_default().rays.extend(kept);
+    for (wall, contact) in together::shared(&close, own, tolerance, eps) {
+        contacts.entry(wall).or_default().join(contact);
     }
     contacts
 }

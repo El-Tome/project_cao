@@ -474,6 +474,40 @@ fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds
 }
 
 #[test]
+fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
+    let mut build = fixtures::Build::new();
+    let outer = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let middle = DVec3::X * fixtures::STOCK_RADIUS / 2.0;
+    let between = build.cylinder(middle, DVec3::Z, fixtures::STOCK_RADIUS / 2.0);
+    let inner = build.cylinder(
+        middle + DVec3::Y * fixtures::HOLE_RADIUS,
+        DVec3::Z,
+        fixtures::HOLE_RADIUS,
+    );
+    let rings = [outer, between, inner].map(|wall| build.circle(wall, 0.0, None));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [outer, between, inner].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let [one, other] = [rings[0], rings[1]].map(|ring| angles_round(&samples, ring, middle));
+        assert_eq!(
+            one.len(),
+            other.len(),
+            "within {tolerance}: {one:?} against {other:?}"
+        );
+        for (one, other) in one.iter().zip(&other) {
+            assert!(
+                (one - other).abs() < 1e-9,
+                "{one} and {other} within {tolerance}"
+            );
+        }
+    }
+}
+
+#[test]
 fn the_rings_of_two_walls_a_hair_across_each_other_are_sampled_on_the_lines_they_cross_along() {
     let (radius, offset) = (fixtures::HOLE_RADIUS, 1e-5);
     let mut build = fixtures::Build::new();

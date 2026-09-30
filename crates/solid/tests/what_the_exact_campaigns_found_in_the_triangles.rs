@@ -303,3 +303,60 @@ fn seed_7000204_a_boss_barely_off_a_cylinder_of_one_radius_leaves_the_block_clos
         ],
     ));
 }
+
+#[test]
+fn seed_6002092_three_cylinders_each_touching_the_next_inside_it_leave_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(7.0), Outline::circle([6.0, 2.0], 2.5), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([6.0, 3.0], 1.5),
+                8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([6.5, 3.0], 1.0),
+                16.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_9000717_a_hole_touching_two_crossing_cylinders_inside_leaves_their_cap_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(6.0), Outline::circle([5.0, 5.0], 3.5), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::circle([3.0, 2.0], 2.5),
+                20.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::circle([5.0, 2.0], 0.5),
+                40.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_9002788_a_boss_touching_a_bore_touching_the_stock_inside_leaves_its_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(4.0), Outline::circle([5.5, 1.0], 6.0), 7.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(3.0000002),
+                Outline::circle([5.5, 3.5], 3.5),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(2.9999902),
+                Outline::circle([5.0, 3.5], 3.0),
+                3.0,
+            )),
+        ],
+    ));
+}

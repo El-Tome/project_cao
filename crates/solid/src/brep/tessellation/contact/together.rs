@@ -1,12 +1,102 @@
 //! Two parallel walls standing within twice a chord's sag of each other, one
 //! inside the other or crossing it by no more, sampled on common rays.
 
+use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
 use super::super::sampling::divisions;
 use super::{APART, Contact, Wall};
+use crate::brep::topology::SurfaceId;
+
+/// How many times rays are passed on between walls close to each other: a
+/// ray one wall takes from a second reaches a third close to the first in
+/// the next round, down a chain of walls each touching the next inside it.
+const ROUNDS: usize = 4;
+
+/// What every wall close to another takes from the others, and the steps of
+/// its grid it leaves out, starting from the rays each took on its own: in
+/// rounds, each pair of `close` walls sharing what both hold, until no wall
+/// holds more. A ray a wall already holds, to within the kernel's tolerance
+/// along its circle, is not taken twice.
+pub(super) fn shared(
+    close: &[(&Wall, &Wall)],
+    mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
+    tolerance: f64,
+    eps: f64,
+) -> BTreeMap<SurfaceId, Contact> {
+    let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
+    for _ in 0..ROUNDS {
+        let mut received: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+        let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
+        for &(outer, inner) in close {
+            let held = |wall: &Wall| taken.get(&wall.0).map_or(&[][..], Vec::as_slice);
+            let Some(together) =
+                sampled((outer, held(outer)), (inner, held(inner)), tolerance, eps)
+            else {
+                continue;
+            };
+            for (wall, contact, off) in [outer, inner]
+                .into_iter()
+                .zip(together.contacts)
+                .zip(together.dropped)
+                .map(|((wall, contact), off)| (wall, contact, off))
+            {
+                received.entry(wall.0).or_default().extend(contact.rays);
+                let steps = withheld.entry(wall.0).or_default();
+                for step in contact.withheld {
+                    if !steps.contains(&step) {
+                        steps.push(step);
+                    }
+                }
+                dropped.entry(wall.0).or_default().extend(off);
+            }
+        }
+        let mut grown = false;
+        for &wall in close.iter().flat_map(|(outer, inner)| [outer, inner]) {
+            let off = dropped.remove(&wall.0).unwrap_or_default();
+            let Some(fresh) = received.remove(&wall.0) else {
+                continue;
+            };
+            let old = taken.remove(&wall.0).unwrap_or_default();
+            let before = old.len();
+            let mut rays: Vec<DVec3> = old
+                .into_iter()
+                .enumerate()
+                .filter(|(rank, _)| !off.contains(rank))
+                .map(|(_, way)| way)
+                .chain(fresh)
+                .collect();
+            once_each(&mut rays, wall, eps);
+            grown |= rays.len() != before;
+            taken.insert(wall.0, rays);
+        }
+        if !grown {
+            break;
+        }
+    }
+    let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
+    for (wall, rays) in taken {
+        contacts.entry(wall).or_default().rays = rays;
+    }
+    for (wall, steps) in withheld {
+        contacts.entry(wall).or_default().withheld = steps;
+    }
+    contacts
+}
+
+/// The rays of a wall in the order of their angle, one of each: two closer
+/// along its circle than the kernel's tolerance are one.
+fn once_each(rays: &mut Vec<DVec3>, (_, cylinder): &Wall, eps: f64) {
+    let angle = |way: &DVec3| way.dot(cylinder.v).atan2(way.dot(cylinder.u));
+    rays.sort_by(|one, other| angle(one).total_cmp(&angle(other)));
+    let gap = eps / cylinder.radius;
+    rays.dedup_by(|later, earlier| angle(later) - angle(earlier) <= gap);
+    if rays.len() > 1 && angle(&rays[0]) + TAU - angle(&rays[rays.len() - 1]) <= gap {
+        rays.pop();
+    }
+}
 
 /// What the outer wall's circles and the inner one's take and leave out, and
 /// which of the rays each took on its own the two leave out.

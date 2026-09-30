@@ -16,9 +16,9 @@
 //!   `a_floor_raised_a_billionth_leaves_the_block_closed`
 //! - what the first runs find is written down, one issue per distinct failure,
 //!   and nothing is fixed here — no test: #486, #487, #488, #489, #490, #491,
-//!   #492, #493 and #494, found by campaigns over some 90 000 random solids
-//!   and 900 random parts; this file and the ignored tests beside the part
-//!   campaign keep their cases
+//!   #492, #493 and #494, found by campaigns over some hundred thousand
+//!   random solids and five hundred random parts; this file and the ignored
+//!   tests beside the part campaign keep their cases
 
 // The drawing and the shrinking are the campaign's; this file only builds
 // cases and holds them.

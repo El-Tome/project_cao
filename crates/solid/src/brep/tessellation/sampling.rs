@@ -14,7 +14,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::contact;
+use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -60,18 +60,19 @@ impl Samples {
             vertices: body.vertex_ids().count(),
         };
         let eps = body.scale().eps();
-        let rays = contact::rays(body, tolerance);
+        let contacts = contact::contacts(body, tolerance);
+        let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let extra = (0..body.surfaces.len() as u32)
+                    let contact = (0..body.surfaces.len() as u32)
                         .map(SurfaceId)
                         .find(|surface| lies_on(body, circle, *surface))
-                        .and_then(|surface| rays.get(&surface))
-                        .map_or(&[][..], Vec::as_slice);
-                    on_circle(circle, edge, tolerance, eps, extra)
+                        .and_then(|surface| contacts.get(&surface))
+                        .unwrap_or(&alone);
+                    on_circle(circle, edge, tolerance, eps, contact)
                 }
                 Curve::Meet(meet) => on_meet(meet, edge),
             };
@@ -117,14 +118,15 @@ fn lies_on(body: &Body, circle: &Circle, surface: SurfaceId) -> bool {
 }
 
 /// The points of a circle's edge between its ends, in the way the edge runs:
-/// on the grid, and along the directions `extra` from its centre. A place
-/// closer than `eps` to an end is that end, and to a grid angle that angle.
+/// on the grid but for the steps its contact withholds, and along the rays it
+/// adds. A place closer than `eps` to an end is that end, and to a grid angle
+/// that angle.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
-    extra: &[DVec3],
+    contact: &Contact,
 ) -> Vec<DVec3> {
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
@@ -146,12 +148,17 @@ fn on_circle(
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
         ..=(high / step).ceil() as i64)
         .filter(|rank| inside(*rank as f64 * step))
+        .filter(|rank| {
+            !contact
+                .withheld
+                .contains(&(rank.rem_euclid(steps as i64) as usize))
+        })
         .map(|rank| {
             let angle = TAU * rank.rem_euclid(steps as i64) as f64 / steps as f64;
             (rank as f64 * step, true, angle)
         })
         .collect();
-    for way in extra {
+    for way in &contact.rays {
         let angle = way.dot(circle.v).atan2(way.dot(circle.u));
         let mut at = angle + TAU * ((low - angle) / TAU).ceil();
         while at < high {

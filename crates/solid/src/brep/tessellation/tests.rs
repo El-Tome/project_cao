@@ -1,5 +1,7 @@
 pub(crate) mod fixtures;
 
+use std::f64::consts::{PI, TAU};
+
 use glam::DVec3;
 
 use crate::brep::topology::Body;
@@ -237,6 +239,62 @@ fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed(
             annulus * fixtures::HEIGHT - (to - from) / whole * annulus * fixtures::WINDOW_HEIGHT;
         let body = fixtures::tube_with_a_window(from, to);
         for tolerance in [0.02, 0.5, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}
+
+/// Angles a tangency is placed at: a few anywhere, and a few a hair either
+/// side of a grid angle every grid shares, from below the kernel's own
+/// tolerance to a hundred thousandth of a turn — where the first samples on
+/// either side stand closer to the other wall than the rules can tell apart.
+fn round_a_grid_angle() -> Vec<f64> {
+    let shared = 3.0 * TAU / 16.0;
+    let mut angles = vec![0.3, 2.0, PI - 1e-7, -PI + 1e-7];
+    for offset in [1.5e-9, 1e-7, 1e-5] {
+        angles.extend([shared - offset, shared + offset]);
+    }
+    angles
+}
+
+#[test]
+fn a_hole_tangent_inside_the_stock_stays_closed_and_uncrossed_wherever_it_touches() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::HOLE_RADIUS);
+    for angle in round_a_grid_angle() {
+        let body = fixtures::stock_with_a_hole_tangent_at(angle);
+        for tolerance in [1e-6, 0.02, 0.1, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}
+
+#[test]
+fn two_holes_touching_stay_closed_and_uncrossed_wherever_they_touch() {
+    let hole = fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    for angle in round_a_grid_angle() {
+        let body = fixtures::block_with_two_holes_touching_at(angle);
+        for tolerance in [1e-6, 0.02, 0.1, 10.0] {
+            held(
+                &body,
+                tolerance,
+                fixtures::block_volume() - 2.0 * hole,
+                2.0 * wall(fixtures::HOLE_RADIUS),
+            );
+        }
+    }
+}
+
+#[test]
+fn a_slit_a_hair_from_the_first_grid_angle_of_a_wall_going_round_is_drawn_closed() {
+    let depth = fixtures::POCKET_DEPTH;
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, depth);
+    let area = wall(fixtures::STOCK_RADIUS) + std::f64::consts::TAU * fixtures::HOLE_RADIUS * depth;
+    for angle in [-2e-9, 2e-9, 3e-8] {
+        let body = fixtures::stock_with_a_pocket_tangent_at(angle, 1000.0);
+        for tolerance in [1e-6, 0.02, 10.0] {
             held(&body, tolerance, volume, area);
         }
     }

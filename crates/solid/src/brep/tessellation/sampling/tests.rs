@@ -3,6 +3,7 @@ use std::f64::consts::{PI, TAU};
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
 use crate::brep::curve::Curve;
+use crate::brep::surface::Surface;
 use crate::brep::topology::Body;
 
 const CLOSE: f64 = 1e-12;
@@ -136,6 +137,50 @@ fn the_circles_of_a_hole_tangent_inside_the_stock_are_sampled_on_common_rays_fro
                 (one - other).abs() < 1e-9,
                 "{one} and {other} within {tolerance}"
             );
+        }
+    }
+}
+
+#[test]
+fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_other_but_their_vertices()
+ {
+    let near_a_grid_angle = 3.0 * TAU / 16.0 + 1e-6;
+    for body in [
+        fixtures::stock_with_a_hole_tangent_at(near_a_grid_angle),
+        fixtures::block_with_two_holes_touching_at(near_a_grid_angle),
+    ] {
+        let eps = body.scale().eps();
+        let cylinders: Vec<_> = body
+            .surfaces
+            .iter()
+            .filter_map(|surface| match surface {
+                Surface::Cylinder(cylinder) => Some(*cylinder),
+                Surface::Plane(_) => None,
+            })
+            .collect();
+        for tolerance in [1e-6, 0.02, 10.0] {
+            let samples = Samples::of(&body, tolerance);
+            for edge in body.edge_ids() {
+                let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+                    continue;
+                };
+                for id in samples.edge(edge) {
+                    if samples.is_vertex(*id) {
+                        continue;
+                    }
+                    let point = samples.point(*id);
+                    for other in &cylinders {
+                        if (other.origin - circle.center).cross(other.axis).length() < eps {
+                            continue;
+                        }
+                        let apart = other.distance(point).abs();
+                        assert!(
+                            apart >= eps,
+                            "{point} is {apart} from a wall within {tolerance}"
+                        );
+                    }
+                }
+            }
         }
     }
 }

@@ -6,9 +6,13 @@ use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact;
 use crate::brep::topology::{Body, Edge, VertexId};
 
+use super::TOLD;
+
 /// What the ends of a circle's edge, its start then its end, lie on besides
 /// the circle: whether a plane touching the circle's wall there, and every
-/// surface other than those holding the circle.
+/// surface other than those holding the circle — to within rounding, not the
+/// kernel's tolerance: a wall a hair off the circle's own, decided apart from
+/// it, is another surface however the tolerance has grown since.
 pub(super) struct Ends {
     pub(super) touched: [bool; 2],
     pub(super) through: [Vec<Surface>; 2],
@@ -24,12 +28,13 @@ impl Ends {
             }
             Surface::Cylinder(_) => false,
         };
+        let own = eps * TOLD;
         let holds = |surface: &Surface| match surface {
             Surface::Plane(plane) => {
                 plane.normal.cross(circle.axis).length() <= Scale::RELATIVE
-                    && plane.distance(circle.center).abs() <= eps
+                    && plane.distance(circle.center).abs() <= own
             }
-            Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, eps),
+            Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
         };
         let surfaces = |vertex: VertexId| {
             body.vertex(vertex)

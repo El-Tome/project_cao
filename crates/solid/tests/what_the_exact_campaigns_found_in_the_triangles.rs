@@ -740,6 +740,68 @@ fn seed_20001018_two_cylinders_of_one_radius_a_hair_apart_joined_leave_their_cap
     ));
 }
 
+#[test]
+fn seed_22003491_a_block_notched_by_a_cylinder_a_hair_inside_its_side_leaves_its_top_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(15.0),
+            Outline::rectangle([0.0, 40.0], [17.5, 80.0]),
+            45.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(10.0),
+            Outline::circle([17.4999999, 60.0], 10.0),
+            90.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_22005443_two_cylinders_a_hair_apart_joined_then_marked_by_a_cut_leave_their_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::circle_from([3.0, 7.0], 2.0, 337.60470308278093),
+            4.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([3.00000001, 7.0], 2.0),
+                3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([1.5, 5.5], [4.5, 8.5]),
+                -10.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_23003087_a_bore_poking_a_hair_through_the_stock_it_touches_inside_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(120.0),
+            Outline::circle([210.0, 90.0], 165.0),
+            165.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(150.0),
+                Outline::circle([209.9999982, 90.0], 45.0),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(120.000006),
+                Outline::circle([210.0, 150.0], 105.0000003),
+                330.0,
+            )),
+        ],
+    ));
+}
+
 /// The cut leaves a sliver of the first cylinder 5e-8 thick, more than the
 /// kernel's tolerance then, 4.5e-8. The block reaches further, and the
 /// tolerance grows to 5.5e-8 (failure 1-6): its side x = 45 is decided to

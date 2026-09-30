@@ -894,3 +894,24 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         "{start} is missed"
     );
 }
+
+#[test]
+fn a_circle_within_the_tolerance_of_two_walls_belongs_to_the_nearer() {
+    use crate::brep::curve::Circle;
+    use crate::brep::surface::Cylinder;
+    use crate::brep::topology::SurfaceId;
+
+    let eps = 1e-8;
+    let first = Cylinder::about(DVec3::ZERO, DVec3::Z, 2.0);
+    let second = Cylinder::about(DVec3::X * 0.6 * eps, DVec3::Z, 2.0);
+    for walls in [
+        [(SurfaceId(0), first), (SurfaceId(1), second)],
+        [(SurfaceId(1), second), (SurfaceId(0), first)],
+    ] {
+        for (id, wall) in [(0, first), (1, second)] {
+            let circle = Circle::on(&wall, 1.0);
+            let found = super::super::contact::wall_of(&circle, &walls, eps);
+            assert_eq!(found.map(|(surface, _)| surface.0), Some(id));
+        }
+    }
+}

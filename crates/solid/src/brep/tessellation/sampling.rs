@@ -73,7 +73,9 @@ pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
 
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
-/// not come back to it.
+/// not come back to it. No point between stands within the kernel's
+/// tolerance of either vertex: a place of the grid a rounding past the end,
+/// moved to where a vertex at its angle stands, would be that end twice.
 ///
 /// Points are numbered: the vertices first, by rank, then the rest.
 pub(super) struct Samples {
@@ -108,9 +110,7 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = walls
-                        .iter()
-                        .find(|(_, wall)| contact::lies_on(circle, wall, eps))
+                    let contact = contact::wall_of(circle, &walls, eps)
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
                     let ends = Ends::of(body, circle, edge);
@@ -119,6 +119,15 @@ impl Samples {
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
+            let ends: Vec<DVec3> = edge
+                .ends
+                .into_iter()
+                .flatten()
+                .map(|end| body.vertex(end).point)
+                .collect();
+            let between = between
+                .into_iter()
+                .filter(|point| ends.iter().all(|end| (*point - *end).length() > eps));
             let first = samples.points.len();
             samples.points.extend(between);
             let inner = first..samples.points.len();
@@ -198,7 +207,7 @@ fn on_meets(
 /// line it touches along: a ray a partner passed on, through its own grid,
 /// would lay a strip of the wall on the plane's face. So too beside a line
 /// the wall touches or crosses another along: a ray is not taken where the
-/// circle stands within a fifth of `eps` of the other wall a step or less
+/// circle stands within the pair's room of the other wall a step or less
 /// from an end standing so too. The vertex is the line's sample there, and a
 /// second a hair round from it — through the other end of a line the kernel
 /// laid leaning a hair — would stand as good as on the other wall's circle,
@@ -242,7 +251,7 @@ fn on_circle(
         vec![edge.from, edge.to]
     };
     let beside =
-        |at: f64, other: &Cylinder| other.distance(circle.point(at)).abs() < eps * contact::APART;
+        |at: f64, (other, room): &(Cylinder, f64)| other.distance(circle.point(at)).abs() < *room;
     let beside_a_plane = |at: f64| {
         let point = circle.point(at);
         planes.iter().any(|plane| {

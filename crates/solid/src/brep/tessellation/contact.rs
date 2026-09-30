@@ -65,9 +65,10 @@ pub(super) struct Contact {
     /// decided it, rather than on the exact circle a hair away — the line two
     /// surfaces were decided to touch along then holds the samples of both.
     pub(super) anchors: Vec<DVec3>,
-    /// The cylinders parallel to it it touches or crosses: beside the lines
-    /// they meet along, an arc ending there is sampled at its end alone.
-    pub(super) beside: Vec<Cylinder>,
+    /// The cylinders parallel to it it touches or crosses, each with how near
+    /// it the two all but meet: beside the lines they meet along, an arc
+    /// ending there is sampled at its end alone.
+    pub(super) beside: Vec<(Cylinder, f64)>,
 }
 
 impl Contact {
@@ -119,10 +120,26 @@ pub(super) fn walls(body: &Body) -> Vec<Wall> {
 /// Whether a circle is one of the circles of a cylinder: of its radius about
 /// its axis.
 pub(super) fn lies_on(circle: &Circle, cylinder: &Cylinder, eps: f64) -> bool {
+    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE && off(circle, cylinder) <= eps
+}
+
+/// How far a circle stands from being one of a parallel cylinder's: its
+/// radius against the cylinder's, and its centre off the axis.
+fn off(circle: &Circle, cylinder: &Cylinder) -> f64 {
     let from = circle.center - cylinder.origin;
-    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE
-        && (cylinder.radius - circle.radius).abs() <= eps
-        && (from - cylinder.axis * cylinder.axis.dot(from)).length() <= eps
+    (cylinder.radius - circle.radius)
+        .abs()
+        .max((from - cylinder.axis * cylinder.axis.dot(from)).length())
+}
+
+/// The wall a circle belongs to: of those it lies on, the nearest. Two walls
+/// the tolerance has grown to hold within it — decided apart when it was
+/// smaller — both take the circle, and only the nearest is its own.
+pub(super) fn wall_of<'a>(circle: &Circle, walls: &'a [Wall], eps: f64) -> Option<&'a Wall> {
+    walls
+        .iter()
+        .filter(|(_, wall)| lies_on(circle, wall, eps))
+        .min_by(|(_, one), (_, other)| off(circle, one).total_cmp(&off(circle, other)))
 }
 
 /// Whether a vertex lies on a wall: as decided, on a surface of the body; by
@@ -161,10 +178,15 @@ pub(super) fn contacts(
             if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
                 continue;
             }
+            let Some(facing) = zones.between(one.0, other.0) else {
+                continue;
+            };
             let lines = meeting_lines(&one.1, &other.1, eps);
             if !lines.is_empty() {
-                contacts.entry(one.0).or_default().beside.push(other.1);
-                contacts.entry(other.0).or_default().beside.push(one.1);
+                for (wall, partner) in [(one, other), (other, one)] {
+                    let near = (partner.1, facing.room());
+                    contacts.entry(wall.0).or_default().beside.push(near);
+                }
             }
             for [to_one, to_other] in lines {
                 contacts.entry(one.0).or_default().rays.push(to_one);
@@ -174,9 +196,6 @@ pub(super) fn contacts(
                 (one, other)
             } else {
                 (other, one)
-            };
-            let Some(facing) = zones.between(one.0, other.0) else {
-                continue;
             };
             if together::sampled((outer, &[]), (inner, &[]), facing, tolerance, eps).is_some() {
                 close.push((outer, inner, facing));
@@ -331,7 +350,7 @@ fn meeting_lines(one: &Cylinder, other: &Cylinder, eps: f64) -> Vec<[DVec3; 2]> 
         .collect()
 }
 
-/// The steps of a cylinder's grid standing within a fifth of `eps` of another
+/// The steps of a cylinder's grid standing within the pair's room of another
 /// cylinder parallel to it, where the two face each other: none unless their
 /// circles come that close somewhere.
 fn touching(
@@ -355,7 +374,7 @@ fn touching(
         .filter(|step| {
             let angle = TAU * *step as f64 / steps as f64;
             let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-            other.distance(point).abs() < eps * APART && facing.at(point)
+            other.distance(point).abs() < facing.room() && facing.at(point)
         })
         .collect()
 }

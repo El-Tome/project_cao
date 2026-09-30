@@ -26,16 +26,35 @@ use crate::brep::topology::{Body, FaceId, SurfaceId};
 pub(in crate::brep::tessellation) struct Facing<'a> {
     body: &'a Body,
     walls: [Wall; 2],
+    room: f64,
     known: OnceCell<([Vec<FaceId>; 2], Vec<f64>)>,
 }
 
 impl<'a> Facing<'a> {
     pub(super) fn of(body: &'a Body, one: &Wall, other: &Wall) -> Facing<'a> {
+        let eps = body.scale().eps();
+        let between = other.1.origin - one.1.origin;
+        let apart = (between - one.1.axis * one.1.axis.dot(between)).length();
+        let [near, far] = [
+            (one.1.radius - other.1.radius).abs(),
+            one.1.radius + other.1.radius,
+        ];
+        let touching = (apart - near).abs() <= eps || (apart - far).abs() <= eps;
         Facing {
             body,
             walls: [*one, *other],
+            room: if touching { eps } else { eps * APART },
             known: OnceCell::new(),
         }
+    }
+
+    /// How near each other the two walls stand where they all but meet, and
+    /// no sample of either is taken: a fifth of the kernel's tolerance, twice
+    /// what the rules tell apart — or the whole of it for two walls decided
+    /// to touch, which the kernel may have left overlapping by that much, so
+    /// that round the line they touch along one pokes through the other.
+    pub(super) fn room(&self) -> f64 {
+        self.room
     }
 
     fn known(&self) -> &([Vec<FaceId>; 2], Vec<f64>) {
@@ -126,12 +145,11 @@ impl<'a> Zones<'a> {
         })
     }
 
-    /// Whether `point`, on `cylinder`, stands within a fifth of `eps` of a
-    /// parallel wall that faces that one there: a sample there would be as
-    /// good as on the other wall.
+    /// Whether `point`, on `cylinder`, stands within the room of a parallel
+    /// wall that faces that one there: a sample there would be as good as on
+    /// the other wall.
     pub(in crate::brep::tessellation) fn crowded(&self, cylinder: &Cylinder, point: DVec3) -> bool {
         self.pairs.iter().any(|facing| {
-            let eps = facing.body.scale().eps();
             let [one, other] = facing.walls;
             let partner = if one.1 == *cylinder {
                 other.1
@@ -140,7 +158,7 @@ impl<'a> Zones<'a> {
             } else {
                 return false;
             };
-            partner.distance(point).abs() < eps * APART && facing.at(point)
+            partner.distance(point).abs() < facing.room() && facing.at(point)
         })
     }
 }

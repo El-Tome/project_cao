@@ -8,7 +8,7 @@ use glam::DVec3;
 
 use super::super::sampling::divisions;
 use super::facing::Facing;
-use super::{APART, Contact, Wall};
+use super::{Contact, Wall};
 use crate::brep::topology::SurfaceId;
 
 /// How many times rays are passed on between walls close to each other: a
@@ -21,7 +21,7 @@ const ROUNDS: usize = 4;
 /// rounds, each pair of `close` walls sharing what both hold, until no wall
 /// holds more. A ray a wall already holds, to within the kernel's tolerance
 /// along its circle, is not taken twice; nor one that falls where it stands
-/// closer to any of its partners than a fifth of `eps`, as a ray of its own
+/// closer to any of its partners than their room, as a ray of its own
 /// there is left out — else a partner it passed its grid on to would pass a
 /// step it withholds back to it.
 pub(super) fn shared(
@@ -88,7 +88,7 @@ pub(super) fn shared(
                 .map(|(_, way)| way)
                 .chain(fresh)
                 .filter(|way| {
-                    partners(wall).all(|(other, facing)| !beside(wall, other, facing, *way, eps))
+                    partners(wall).all(|(other, facing)| !beside(wall, other, facing, *way))
                 })
                 .collect();
             once_each(&mut rays, wall, eps);
@@ -109,12 +109,12 @@ pub(super) fn shared(
     contacts
 }
 
-/// Whether a wall stands along `way` from its axis closer to another than a
-/// fifth of `eps`, the two face to face there: no ray it takes there,
-/// whichever partner passed it on.
-fn beside((_, wall): &Wall, (_, other): &Wall, facing: &Facing, way: DVec3, eps: f64) -> bool {
+/// Whether a wall stands along `way` from its axis closer to another than
+/// their room, the two face to face there: no ray it takes there, whichever
+/// partner passed it on.
+fn beside((_, wall): &Wall, (_, other): &Wall, facing: &Facing, way: DVec3) -> bool {
     let point = wall.origin + way * wall.radius;
-    other.distance(point).abs() < eps * APART && facing.at(point)
+    other.distance(point).abs() < facing.room() && facing.at(point)
 }
 
 /// The rays of a wall in the order of their angle, one of each: two closer
@@ -149,7 +149,7 @@ enum From {
 /// chords from its wall, or crosses it by no more: every ray the one takes
 /// the other takes too — its grid's, and those it took on its own, through
 /// its vertices and the curves it meets another along — and a ray along
-/// which the two stand closer than a fifth of `eps` neither takes.
+/// which the two stand closer than their room neither takes.
 ///
 /// Crossing by a hair, as two walls of one radius a hair apart do, the two
 /// bound a sliver thinner than a chord sags on either side of it, as long as
@@ -215,7 +215,7 @@ pub(super) fn sampled(
     let mut on_inner = Vec::new();
     for (point, from) in through_outer {
         let from_axis = point - offset;
-        if (from_axis.length() - inner.radius).abs() >= eps * APART
+        if (from_axis.length() - inner.radius).abs() >= facing.room()
             || !facing.at(outer.origin + point)
         {
             on_inner.push(from_axis.normalize());
@@ -227,7 +227,7 @@ pub(super) fn sampled(
     for (way, from) in from_inner {
         let along = offset.dot(way);
         let reach = -along + (along * along - outside).sqrt();
-        if (reach - inner.radius).abs() >= eps * APART
+        if (reach - inner.radius).abs() >= facing.room()
             || !facing.at(outer.origin + offset + way * reach)
         {
             on_outer.push((offset + way * reach).normalize());

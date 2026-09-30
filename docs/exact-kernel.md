@@ -142,7 +142,8 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
 
 - **Watertight by construction.** Every edge is sampled once, and every face
   using it takes those samples, bit for bit, with the vertices' own points at
-  the ends.
+  the ends. No sample between stands within `EPS` of an end: it would be that
+  end a second time.
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
@@ -186,8 +187,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   the next inside it. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
-  round the turn. Nor does a wall take such a ray from a third it shares rays
-  with: a bore touching the stock inside passes its grid on to the stock,
+  round the turn. Two walls decided to touch take the whole of it, though:
+  the kernel may leave them overlapping by that much, one poking through the
+  other round the line they touch along, and a ray passed on there puts a
+  sample of a cap's arc on the wrong side of the other. A circle belongs to
+  the nearest wall it lies on: two walls decided apart may both hold it once
+  a later leaf grows the tolerance, and an end lies on a surface other than
+  its circle's own only as far as rounding allows. Nor does a wall take such a
+  ray from a third it shares rays with: a bore touching the stock inside passes its grid on to the stock,
   and the stock would pass back the very steps the bore withholds beside a
   boss crossing it. Such a ray is withheld only where both walls hold a face,
   at a height they share: a union keeps each wall where the other is gone,

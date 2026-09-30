@@ -339,3 +339,74 @@ fn two_corners_on_three_planes_whose_normals_span_space_are_one_however_far_apar
     assert_eq!((first, second, third), (0, 0, 1));
     assert_eq!(pool.corners[0].point, corner);
 }
+
+/// Seed 1034172 of the campaign: a block's bottom touches a bore along a
+/// line six tenths of a micron short of the block's side, at a reach of 315.
+/// The block's corner lies on both within the tolerance, as every place of a
+/// band millimetres wide does where two surfaces touch, and is not on the
+/// line they touch along: two surfaces touching fix no line the way two
+/// crossing do.
+#[test]
+fn a_corner_on_a_plane_and_a_cylinder_touching_it_lies_on_their_line_only_within_the_tolerance() {
+    let scale = Scale::of(315.0);
+    let surfaces = vec![
+        plane_at(180.0, DVec3::Z),
+        Surface::Cylinder(Cylinder::about(
+            DVec3::new(0.0, 209.999_999_4, 225.0),
+            DVec3::X,
+            45.0,
+        )),
+    ];
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let [bottom, bore] = [0, 1].map(SurfaceId);
+    let touch = registry.register(
+        Curve::Line(Line::through(
+            DVec3::new(0.0, 209.999_999_4, 180.0),
+            DVec3::X,
+        )),
+        &[bottom, bore],
+    );
+    let on = [bottom, bore];
+    let corner = DVec3::new(105.0, 210.0, 180.0);
+    assert!(!lies_on(corner, &on, touch, &registry, scale.eps()));
+    let near = DVec3::new(105.0, 209.999_999_6, 180.0);
+    assert!(lies_on(near, &on, touch, &registry, scale.eps()));
+}
+
+/// Seed 1019570 of the campaign: a circle of radius 2.5 tangent to a block's
+/// bottom side, its centre two hundredths of a micron short of the block's
+/// end side, at a reach of 13. From where it touches the side to the corner
+/// it runs within a hair of the side, and round the other way it leaves it.
+#[test]
+fn a_circle_parts_from_a_side_it_touches_by_a_hair_up_to_a_corner_a_hair_along_it() {
+    let eps = Scale::of(13.0).eps();
+    let cylinder = Cylinder::about(DVec3::new(4.0, 4.499_999_98, 10.5), DVec3::X, 2.5);
+    let circle = Circle::on(&cylinder, 4.0);
+    let side = Line::through(DVec3::new(4.0, 0.0, 8.0), DVec3::Y);
+    let [touch, corner] = [4.499_999_98, 4.5].map(|y| DVec3::new(4.0, y, 8.0));
+    let [one, other] = [touch, corner].map(|point| circle.parameter(point));
+    let short = [one.min(other), one.max(other)];
+    let long = [one.max(other), one.min(other) + TAU];
+    let along = [touch, corner].map(|point| side.parameter(point));
+    let along = [along[0].min(along[1]), along[0].max(along[1])];
+    let [circle, side] = [Curve::Circle(circle), Curve::Line(side)];
+    assert!(parting(&circle, short, &side, along) < eps / 1000.0);
+    assert!(parting(&side, along, &circle, short) < eps / 1000.0);
+    assert!(parting(&circle, long, &side, along) > 1.0);
+}
+
+/// Two circles of one radius on one plane, their centres three tenths of a
+/// micron apart: they cross where the line between the centres is square to
+/// the radius, and part by the whole offset where it runs along it.
+#[test]
+fn two_circles_of_one_radius_a_hair_apart_part_by_the_offset_where_they_run_across_it() {
+    let offset = 3e-7;
+    let one = Circle::on(&Cylinder::about(DVec3::ZERO, DVec3::Z, 10.0), 0.0);
+    let other = Circle::on(&Cylinder::about(DVec3::X * offset, DVec3::Z, 10.0), 0.0);
+    let [one, other] = [one, other].map(Curve::Circle);
+    let near = [PI / 2.0 - 1e-3, PI / 2.0 + 1e-3];
+    let whole = [0.0, TAU];
+    assert!(parting(&one, near, &other, near) < 1e-9);
+    let far = parting(&one, whole, &other, whole);
+    assert!((far - offset).abs() < 1e-12, "{far}");
+}

@@ -115,7 +115,7 @@ fn the_quadrature_along_a_circle_agrees_with_its_closed_form() {
     let [from, to] = [-2.5, 1.75];
     let on_cylinder = Surface::Cylinder(cylinder);
     let on_plane = Surface::Plane(plane);
-    let trace = traced(&Curve::Circle(circle), &on_plane, from, to).expect("a round");
+    let trace = traced(&Curve::Circle(circle), &on_plane, from, to, 1e-9).expect("a round");
     let exact = [
         wall(&cylinder, from, to, 4.0, 4.0).expect("a level circle"),
         plane.offset() * swept(&trace).expect("a round has an area"),

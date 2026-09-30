@@ -23,6 +23,17 @@ pub(in crate::brep) struct Wrapped {
     pub below: i32,
 }
 
+impl Wrapped {
+    /// The same, seen from a surface whose normal points the other way.
+    pub fn turned(self) -> Wrapped {
+        Wrapped {
+            above: self.below,
+            below: self.above,
+            ..self
+        }
+    }
+}
+
 /// Whether a face of the operand on `surface` covers `point`, and which: its
 /// matter on the side the surface's normal points to or on the other.
 ///

@@ -7,6 +7,7 @@
 mod crossed;
 mod cut;
 mod held;
+mod identified;
 mod operands;
 mod related;
 
@@ -36,9 +37,9 @@ impl Operation {
     }
 }
 
-/// Both operands laid on each other: the shared surfaces, every curve with
-/// the surfaces it lies on, every corner, and the arcs kept as edges; no face
-/// yet.
+/// Both operands laid on each other: the shared surfaces, every curve, every
+/// corner, and the arcs kept as edges, each with the surfaces it lies on; no
+/// face yet.
 pub(super) struct Arena {
     pub body: Body,
     pub supports: Vec<Vec<SurfaceId>>,

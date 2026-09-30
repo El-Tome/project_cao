@@ -34,6 +34,7 @@ impl Body {
             self.surface(surface),
             stretch.from,
             stretch.to,
+            self.scale.eps(),
         )
     }
 

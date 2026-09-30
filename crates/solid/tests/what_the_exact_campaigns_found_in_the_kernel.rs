@@ -127,15 +127,13 @@ fn seed_460_two_bores_a_hair_more_than_the_tolerance_apart_are_two_walls() {
 /// area than rounding, turned the right way and read backwards by the
 /// listing's check, which now leaves unread a loop too thin to be read.
 ///
-/// What is left: over that stretch the side and the wall stand closer than
-/// the tolerance, and the corner lies on both, so the kernel keeps a skin of
-/// matter thinner than it can tell between two faces, back to back — their
-/// triangles lie on each other. The arc of the circle and the side's edge
-/// run between the same two corners within the tolerance of each other; the
-/// kernel would have to take them for one edge, which no decision of the
-/// design does yet.
+/// Over that stretch the side and the wall stand closer than the tolerance,
+/// and the kernel kept a skin of matter thinner than it can tell between two
+/// faces, back to back, their triangles on each other. The arc of the circle
+/// and the side's edge between the same two corners are now one edge
+/// (decision 6), and the strip of the side and the strip of the wall they
+/// bound are one piece of surface, decided once: the cut takes it.
 #[test]
-#[ignore = "skin"]
 fn seed_2790_a_block_cut_by_a_circle_centred_a_hair_inside_its_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -236,9 +234,21 @@ fn seed_5001310_a_block_whose_corner_stands_a_hair_short_of_touching_a_post() {
 /// circle was read about the plane's origin, eleven away, where the offset
 /// of its corner from the circle, within the tolerance, swept a million
 /// times its area and turned it backwards; it is now read about a place of
-/// its face. What is left is seed 2790's skin.
+/// its face.
+///
+/// What is left is a skin decision 6 does not reach. The block is the join
+/// of two, and its side keeps the seam where the two sides met, an edge
+/// between two faces of one plane that nothing else uses. The strip of the
+/// side between the line the bore touches it along and that seam is closed
+/// at its top by another seam, the first block's top edge on the side; the
+/// bore's wall beside it has no arc there, the circle where that top meets
+/// the wall being on no face, and the two strips are not bounded by the
+/// same arcs. Both are kept, back to back five hundredths of a nanometre
+/// apart, and their triangles cross. Faces merged across the seams an
+/// operation leaves — step 8 of the boolean, not written yet — would leave
+/// no strip to keep.
 #[test]
-#[ignore = "skin"]
+#[ignore = "seam"]
 fn seed_5000136_a_sliver_far_from_the_origin_is_not_read_backwards() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -433,9 +443,8 @@ fn seed_6000839_two_posts_a_hair_apart_both_touching_a_block_s_side() {
 /// unjudged while it counted the room at every corner times its distance
 /// from where the face is read, and the campaign saw only the triangles
 /// left open. Two arcs between the same two corners closer than rounding
-/// are one edge, which no decision of the design makes yet.
+/// are now one edge (decision 6), and the slivers are gone.
 #[test]
-#[ignore = "sliver"]
 fn seed_7000099_two_posts_a_hair_apart_leave_the_top_a_face_running_backwards() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -453,6 +462,248 @@ fn seed_7000099_two_posts_a_hair_apart_leave_the_top_a_face_running_backwards() 
                 Plane::xy(2.0),
                 Outline::circle([8.99999994, 4.75], 2.5),
                 4.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 1: a block given a boss whose circle touches the
+/// block's bottom and top, its centre two hundredths of a micron short of
+/// the block's side. From each touch to the corner a hair along the side the
+/// circle runs within rounding of the side's edge, and the two bounded a
+/// sliver of the cap no point could be found inside. They are one edge now,
+/// a line lying on the boss's wall too (decision 6); the strip of the bottom
+/// and the strip of the wall between the line they touch along and the
+/// side's edge are one piece of surface, kept once, on the plane.
+#[test]
+fn seed_1019570_a_boss_touching_a_block_s_bottom_and_top_a_hair_short_of_its_side_is_joined() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(4.0),
+            Outline::rectangle([2.0, 8.0], [4.5, 13.0]),
+            5.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(4.0),
+            Outline::circle([4.49999998, 10.5], 2.5),
+            9.0,
+        ))],
+    ));
+}
+
+/// The same joined body cut by a block that misses it. Its edge where the
+/// cap's circle was taken for the bottom's edge lies on the boss's wall only
+/// between its two corners: registered with the wall, the whole line of the
+/// bottom's edge came to lie on it, and every corner along it.
+#[test]
+fn seed_1019570_the_joined_body_keeps_its_edge_on_the_wall_to_its_own_stretch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(4.0),
+            Outline::rectangle([2.0, 8.0], [4.5, 13.0]),
+            5.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(4.0),
+                Outline::circle([4.49999998, 10.5], 2.5),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::rectangle([3.0, -1.0], [5.0, 1.0]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 cut rather than joined: the bore takes the strip of the
+/// bottom and the strip of its wall, one piece of surface, whose points were
+/// ties for a ray, standing a hundred thousandth of a micron from both.
+#[test]
+fn seed_1042977_a_bore_touching_a_block_s_bottom_and_top_a_hair_short_of_its_side_cuts_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(40.0),
+            Outline::rectangle([5.0, 45.0], [32.5, 55.0]),
+            50.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(35.0),
+            Outline::circle([32.499999, 50.0], 5.0),
+            100.0,
+        ))],
+    ));
+}
+
+/// The same on the XZ plane, the bore flush with the block's end.
+#[test]
+fn seed_1025756_a_bore_flush_with_a_block_s_end_touching_its_sides_a_hair_short_of_the_third() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(2.0),
+            Outline::rectangle([4.0, 10.0], [6.5, 16.0]),
+            1.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(2.0),
+            Outline::circle([6.49999994, 13.0], 3.0),
+            4.0,
+        ))],
+    ));
+}
+
+/// The same bored through a thin bar: the triangles of the cap crossed each
+/// other at the sliver, drawn from two edges a hair apart.
+#[test]
+fn seed_1002077_a_hole_through_a_bar_touching_its_sides_a_hair_short_of_its_end_is_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rectangle([4.0, 8.5], [11.5, 9.5]),
+            7.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(2.0),
+            Outline::circle([11.4999998, 9.0], 0.5),
+            13.0,
+        ))],
+    ));
+}
+
+/// A block cut by a bore touching its bottom and top six tenths of a micron
+/// short of its side, then given a block far off, whose reach doubles the
+/// tolerance. The block's corner lies on the bottom and on the bore within
+/// it, as every place of a band millimetres wide does where two surfaces
+/// touch, and was put on the line they touch along: a corner lies on that
+/// line only within the tolerance.
+#[test]
+fn seed_1034172_a_corner_near_where_a_bore_touches_a_block_stays_off_the_line_of_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(90.0),
+            Outline::rectangle([120.0, 180.0], [210.0, 270.0]),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(60.0),
+                Outline::circle([209.9999994, 225.0], 45.0),
+                45.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([90.0, 270.0], [165.0, 315.0]),
+                75.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 over three steps: a bar given a boss touching its sides a
+/// hair past its end, cut twice by blocks.
+#[test]
+fn seed_1002023_a_bar_given_a_boss_touching_its_sides_a_hair_past_its_end_is_cut_twice() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(30.0),
+            Outline::rectangle([25.0, 35.0], [65.0, 40.0]),
+            33.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(24.9999999),
+                Outline::circle([65.0000001, 37.5], 2.5),
+                33.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([45.0, 30.0], [65.0, 68.0]),
+                48.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(20.0000001),
+                Outline::rectangle([35.0, 40.0], [68.0, 68.0]),
+                40.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 1: a block bored by a post, then by a second of
+/// its radius three tenths of a micron aside. Where the two circles run
+/// within the tolerance of each other near where they cross, their arcs
+/// bounded slivers of the cap no point could be found inside; they are one
+/// edge now (decision 6).
+#[test]
+fn seed_1015786_two_bores_of_one_radius_a_hair_apart_grazing_each_other() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(-5.0),
+            Outline::rectangle([20.0, 13.0], [55.0, 53.0]),
+            15.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(1e-7),
+                Outline::circle([55.0, 32.5], 10.0),
+                15.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-5.0),
+                Outline::circle([55.0000003, 32.5], 10.0),
+                15.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with bores sunk the other way, two microns apart at a reach of
+/// 450: the listing's check read a loop of the slivers backwards.
+#[test]
+fn seed_1002151_two_bores_of_one_radius_two_microns_apart_leave_no_face_running_backwards() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::rectangle([270.0, 270.0], [375.0, 450.0]),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::circle([375.0, 360.0], 45.0),
+                -270.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::circle([374.9999982, 360.0], 45.0),
+                -300.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-8 of campaign 1: a block cut by a bore touching its sides a
+/// hundredth of a micron past its end, then cut across by a block.
+#[test]
+fn seed_1045974_a_block_bored_a_hair_past_its_end_is_cut_across() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(1.0),
+            Outline::rectangle([0.0, 2.0], [2.0, 6.0]),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(1.0000001),
+                Outline::circle([2.00000001, 4.0], 2.5),
+                3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(0.0),
+                Outline::rectangle([-4.5, 2.5], [6.5, 13.5]),
+                3.0,
             )),
         ],
     ));

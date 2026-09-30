@@ -176,7 +176,10 @@ fn a_point_neither_operand_covers_is_left_unasked_though_it_lies_on_a_face_of_on
                 if plane.normal.abs_diff_eq(DVec3::Z, 1e-12) && plane.offset().abs() < 1e-12)
         })
         .expect("the slab's top is there");
-    let wrapped = wrapped_at(&operands, SurfaceId(top as u32), DVec3::new(6.5, 5.0, 0.0));
+    let wrapped = wrapped_at(
+        &operands,
+        &[(SurfaceId(top as u32), DVec3::new(6.5, 5.0, 0.0), false)],
+    );
     assert!(matches!(wrapped, Ok(None)), "{wrapped:?}");
 }
 

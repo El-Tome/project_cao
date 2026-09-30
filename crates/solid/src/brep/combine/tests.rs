@@ -38,6 +38,17 @@ fn arena(first: &Body, second: &Body) -> Arena {
     laid(&operands).expect("the arena is laid")
 }
 
+/// The surfaces an arc of the arena lies on.
+fn support_of<'a>(laid: &'a Arena, edge: &Edge) -> &'a [SurfaceId] {
+    let rank = laid
+        .body
+        .edges
+        .iter()
+        .position(|known| std::ptr::eq(known, edge))
+        .expect("an arc of the arena");
+    &laid.supports[rank]
+}
+
 /// The ranks of the planes of `body` at `offset` along a world axis.
 fn plane_at(body: &Body, axis: DVec3, offset: f64) -> SurfaceId {
     let rank = body
@@ -89,7 +100,7 @@ fn a_hole_s_circle_on_the_cap_it_is_flush_with_is_one_edge_on_the_cap_and_on_the
         panic!("one edge: {on_the_top_of_the_hole:?}");
     };
     assert_eq!(edge.ends, None);
-    let support = &laid.supports[edge.curve.0 as usize];
+    let support = support_of(&laid, edge);
     assert_eq!(support.len(), 2);
     assert!(support.contains(&top), "{support:?}");
     assert_eq!(laid.body.edges.len(), 4);
@@ -155,7 +166,7 @@ fn a_ruling_where_a_hole_touches_a_side_is_one_edge_between_the_two_corners_it_t
     let ends = ruling.ends.expect("a ruling has two corners");
     let heights = ends.map(|end| laid.body.vertex(end).point.z);
     assert_eq!(heights, [0.0, 10.0]);
-    assert_eq!(laid.supports[ruling.curve.0 as usize].len(), 2);
+    assert_eq!(support_of(&laid, ruling).len(), 2);
 }
 
 /// A profile drawn on the plane `y = offset` in `(x, z)` and raised towards
@@ -290,6 +301,89 @@ fn a_curve_touching_a_circle_to_the_fourth_order_is_ordered_by_where_it_goes() {
         .cut_by(&bar([35.0, 15.0], 30.0, 5.0, 18.0))
         .expect("the post is bored");
     assert_eq!(listed(&bored.listing(), bored.scale().reach()), Ok(()));
+}
+
+/// A profile drawn on the plane `x = offset` in `(y, z)` and raised towards
+/// `+x`.
+fn along_x(offset: f64, outline: Contour, height: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::X * offset,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    Body::raised(&outline, &[], frame, DVec3::X * height).expect("a prism raises")
+}
+
+fn circle(center: [f64; 2], radius: f64) -> Contour {
+    let center = DVec2::from(center);
+    Contour {
+        corners: vec![center + DVec2::X * radius],
+        runs: vec![Run::Round { center, turn: TAU }],
+    }
+}
+
+/// Seed 1019570 of the campaign: a block given a boss whose circle touches
+/// its bottom and its top, its centre two hundredths of a micron short of
+/// the block's side. On the cap both stand on, the circle runs from where it
+/// touches the bottom to the corner within a hair of the bottom's edge: the
+/// two are one edge, a line, lying on the boss's wall too.
+#[test]
+fn a_circle_running_within_the_tolerance_of_a_side_between_two_corners_is_that_side() {
+    let block = along_x(4.0, rectangle([2.0, 8.0], [4.5, 13.0]), 5.0);
+    let boss = along_x(4.0, circle([4.499_999_98, 10.5], 2.5), 9.0);
+    let laid = arena(&block, &boss);
+    let body = &laid.body;
+    let [touch, corner] = [4.499_999_98, 4.5].map(|y| DVec3::new(4.0, y, 8.0));
+    let vertex = |point: DVec3| {
+        body.vertex_ids()
+            .find(|id| body.vertex(*id).point.distance(point) < 1e-12)
+            .expect("a corner there")
+    };
+    let [touch, corner] = [touch, corner].map(vertex);
+    let between: Vec<&Edge> = body
+        .edges
+        .iter()
+        .filter(|edge| matches!(edge.ends, Some(ends) if ends.contains(&touch) && ends.contains(&corner)))
+        .collect();
+    let [edge] = between.as_slice() else {
+        panic!("one edge between the two corners: {between:?}");
+    };
+    assert!(matches!(body.curves[edge.curve.0 as usize], Curve::Line(_)));
+    let wall = SurfaceId(
+        body.surfaces
+            .iter()
+            .position(|surface| matches!(surface, Surface::Cylinder(_)))
+            .expect("the boss's wall") as u32,
+    );
+    assert!(support_of(&laid, edge).contains(&wall));
+}
+
+/// Seed 1044340 of the campaign, shrunk: a bar lying along X, its axis on
+/// the top of a post lying along Y, is cut from the post. The post's wall
+/// inside the loop the two meet along and the bar's are both bounded by that
+/// one loop alone, and far apart: two caps, not one piece of surface, and
+/// the groove is cut.
+#[test]
+fn two_walls_bounded_by_the_one_loop_they_meet_along_are_two_faces() {
+    let post = Body::raised(
+        &circle([10.0, 30.0], 20.0),
+        &[],
+        Frame {
+            origin: DVec3::Y * 40.0,
+            u: DVec3::X,
+            v: DVec3::Z,
+        },
+        DVec3::NEG_Y * 45.0,
+    )
+    .expect("a post raises");
+    let bar = along_x(-10.0, circle([25.0, 50.0], 8.0), 45.0);
+    let grooved = post.cut_by(&bar).expect("the bar is cut from the post");
+    assert_eq!(listed(&grooved.listing(), grooved.scale().reach()), Ok(()));
+    assert!(
+        grooved.volume() < post.volume() - 1000.0,
+        "{}",
+        grooved.volume()
+    );
 }
 
 /// Seed 6000233 of the campaign: a block given a boss on its side and bored

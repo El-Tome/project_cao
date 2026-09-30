@@ -50,9 +50,42 @@ The decisions, in the order taken, once per operation:
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
    their supports joined — unless the merge would put one point on two
    surfaces decided apart, which is refused.
+6. **Arc identity.** Once every curve is cut into arcs at the pooled
+   corners, two arcs lying on one surface between the same two corners,
+   which part by no more than `EPS` anywhere along them — measured exactly
+   for lines and circles, whose distance turns only where a closed form
+   says, and on dense samples along the perpendicular curve — are one arc.
+   One curve is kept for it: a line before a circle before a meet, then the
+   first registered. The arc lies on the surfaces of both, over its own
+   stretch alone, so supports are carried by arcs rather than by curves: an
+   arc lies on its curve's surfaces and on those of the arcs taken for it,
+   and an edge a later operation reads lies on its curve's surfaces all
+   along and on the others over its stretch. Two arcs whose surfaces
+   include two decided apart stay two.
+
+   A plane decided tangent to a cylinder thus keeps its tangent line, and a
+   circle that runs within `EPS` of a side between two corners becomes that
+   side. The strip of the plane and the strip of the wall between the line
+   they touch along and the side's edge are then bounded by the very same
+   arcs: two regions of two surfaces bounded by the same arcs, a point
+   inside each within `EPS` of the other surface, are one piece of surface,
+   decided once from how each operand covers either and kept on the first —
+   a plane before a cylinder, then the lower id. That is what keeps a skin
+   thinner than the tolerance from being left between two faces back to
+   back, and what gives an answer where a point of either strip stands too
+   close to the other for a ray to wind it. The kernel declines, as a tie,
+   where one operand covers both twins, which only a skin an earlier
+   operation kept could make; the point inside each is what tells twins from
+   the two caps two crossing cylinders bound with the one loop they meet
+   along.
 
 Everything else is derived. A vertex lies on a curve exactly when the curve's
-support is among the surfaces the vertex lies on. A triple of surfaces is
+support is among the surfaces the vertex lies on — but for the line two
+surfaces decided tangent touch along: they stand within `EPS` of each other
+over a band far wider than it, so a corner on both lies on that line only
+within `EPS`. A line or a circle lying on a cylinder only because an arc of
+it was taken for the curve (decision 6) is seen there as the segment between
+where its ends stand. A triple of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then
 any line against the third surface, then a circle, then the perpendicular
 curve. What remains are signs of exact evaluations with no tolerance at all —
@@ -101,7 +134,7 @@ covered once from each side.
    meet where the other operand's faces do, so these are all the corners.
 4. **Arcs.** Every curve is cut at the corners lying on it, by support. An arc
    is kept if it is part of an input edge, or lies inside a face of each
-   operand on two of its surfaces.
+   operand on two of its surfaces; kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
    angle, ties broken by signed curvature — a second tie declines. Cycles are
    traced, then grouped into regions by a ray up the second parameter from
@@ -110,7 +143,8 @@ covered once from each side.
    normal, against it, or not at all. Covered gives the winding on each side
    of it; not covered gives the same winding on both, from an exact ray cast
    through that operand's faces, retried along another direction when it
-   grazes or lands near an edge.
+   grazes or lands near an edge. Twin regions of two surfaces are wound
+   once, together (6).
 7. **Selection.** A region is kept when the operation — or, or and-not — says
    something different on its two sides; its outside is the side where the
    operation is false. One rule gives coincident faces once, drops a shared

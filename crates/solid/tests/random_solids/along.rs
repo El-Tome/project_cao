@@ -303,8 +303,19 @@ fn ring(seen: &Seen, center: DVec2, outer: f64, inner: f64) -> Vec<Stretch> {
 }
 
 /// The line against a polygon: everywhere it crosses a side, and inside
-/// between every other pair of crossings.
+/// between every other pair of crossings. A line square to the plane crosses
+/// no side, and is inside all along or nowhere.
 fn polygon(seen: &Seen, corners: &[DVec2]) -> Vec<Stretch> {
+    if seen.step == DVec2::ZERO {
+        return if encloses(corners, seen.start) {
+            vec![Stretch {
+                from: far(f64::NEG_INFINITY),
+                to: far(f64::INFINITY),
+            }]
+        } else {
+            Vec::new()
+        };
+    }
     let mut crossings: Vec<Crossing> = Vec::new();
     for (index, &from) in corners.iter().enumerate() {
         let side = corners[(index + 1) % corners.len()] - from;
@@ -329,4 +340,21 @@ fn polygon(seen: &Seen, corners: &[DVec2]) -> Vec<Stretch> {
         .filter(|[from, to]| from.at < to.at)
         .map(|&[from, to]| Stretch { from, to })
         .collect()
+}
+
+/// Whether a place lies inside a polygon: an odd number of its sides cross the
+/// ray from it along the first axis, a side counted with its lower end and
+/// not its upper, so that a ray through a corner counts it once.
+fn encloses(corners: &[DVec2], place: DVec2) -> bool {
+    let mut inside = false;
+    for (index, &from) in corners.iter().enumerate() {
+        let to = corners[(index + 1) % corners.len()];
+        if (from.y > place.y) != (to.y > place.y) {
+            let across = from.x + (place.y - from.y) / (to.y - from.y) * (to.x - from.x);
+            if place.x < across {
+                inside = !inside;
+            }
+        }
+    }
+    inside
 }

@@ -604,6 +604,36 @@ fn a_line_through_a_prism_is_told_how_squarely_it_crosses_each_end_and_whether_i
 }
 
 #[test]
+fn a_line_square_to_a_star_holds_the_whole_prism_inside_the_star_and_nothing_between_its_points() {
+    let center = DVec2::new(1.0, 1.0);
+    let corners: Vec<DVec2> = (0..10)
+        .map(|index| {
+            let reach = if index % 2 == 0 { 2.0 } else { 0.8 };
+            center + DVec2::from_angle(0.3 + std::f64::consts::TAU * index as f64 / 10.0) * reach
+        })
+        .collect();
+    let leaf = Leaf::prism(
+        Plane::xy(1.0),
+        Outline::Star {
+            center,
+            corners: corners.clone(),
+        },
+        3.0,
+    );
+    let square = |at: DVec2| {
+        leaf.along(at.extend(-1.0), DVec3::Z)
+            .expect("a prism")
+            .iter()
+            .map(|stretch| (stretch.from.at, stretch.to.at))
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(square(center), [(2.0, 5.0)]);
+    let between = center + (corners[1] - center) * 1.5;
+    assert_eq!(square(between), []);
+    assert_eq!(square(center + DVec2::X * 5.0), []);
+}
+
+#[test]
 fn a_circle_is_handed_to_the_exact_kernel_as_one_whole_turn_from_where_its_flats_start() {
     let circle = random_solids::whole_circle(DVec2::new(3.0, -1.0), 2.0, 90.0);
     let [corner] = circle.corners.as_slice() else {

@@ -662,6 +662,28 @@ fn a_ruling_on_the_seam_where_the_circles_start_lies_in_the_band() {
 }
 
 #[test]
+fn a_ruling_written_turns_away_from_where_the_cylinder_reads_it_lies_in_the_square_round_it() {
+    for turns in [-2.0, 2.0, 3.0] {
+        let mut drawing = Drawing::default();
+        drawing.round_the_cylinder(0.0, -PI);
+        drawing.round_the_cylinder(5.0, -PI);
+        drawing.square([2.5, 0.5], [3.5, 4.5]);
+        drawing.square([-2.0, 1.0], [-1.0, 4.0]);
+        let [low, high] = [[3.0, 1.0], [3.0, 4.0]].map(|at| drawing.vertex(at));
+        let x = 3.0 + turns * TURN;
+        drawing.arc(
+            Trace::Segment {
+                from: DVec2::new(x, 1.0),
+                to: DVec2::new(x, 4.0),
+            },
+            Some([low, high]),
+        );
+        let regions = drawing.regions(ROUND);
+        assert_eq!(cycle_counts(&regions), vec![1, 1, 1, 2, 4], "{turns} turns");
+    }
+}
+
+#[test]
 fn the_turns_of_a_round_are_found_again_from_its_derivatives_alone() {
     for (start, sweep) in [(0.3, 5.0), (-2.0, -4.5), (1.0, TURN), (PI, 1.0), (0.1, 0.2)] {
         let trace = Trace::Round {

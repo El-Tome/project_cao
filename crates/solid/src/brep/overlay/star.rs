@@ -109,10 +109,10 @@ fn stars(
 /// may have turned that angle, how it bends from there, positive to its
 /// left, and a bend under which rounding hides it over its lever, where it
 /// is read off derivatives rather than given by a formula; how far
-/// the vertex stands from the arc's end, rounding included; and how far its
-/// chord to a point a tenth of the way along turns from the angle it sets
-/// off at, which parts two arcs that set off together and bend alike,
-/// touching to a higher order.
+/// the vertex stands from the arc's end, rounding included, and how long
+/// the arc runs; and how far its chord to a point a tenth of the way along
+/// turns from the angle it sets off at, which parts two arcs that set off
+/// together and bend alike, touching to a higher order.
 #[derive(Clone, Copy)]
 struct Leaving {
     half: usize,
@@ -121,6 +121,7 @@ struct Leaving {
     bend: f64,
     flat: f64,
     off: f64,
+    length: f64,
     turn: f64,
 }
 
@@ -149,7 +150,27 @@ fn leaving(arcs: &[Arc], half: usize, rounding: f64, off: f64) -> Leaving {
             Trace::Segment { .. } | Trace::Round { .. } => 0.0,
         },
         off,
+        length: length(trace),
         turn: (turned + PI).rem_euclid(TAU) - PI,
+    }
+}
+
+/// How many chords a trace with no short formula for its length is measured
+/// along.
+const PIECES: usize = 16;
+
+/// How long a trace runs in its surface's parameters, along chords where it
+/// has no short formula.
+fn length(trace: &Trace) -> f64 {
+    match *trace {
+        Trace::Segment { from, to } => from.distance(to),
+        Trace::Round { radius, sweep, .. } => radius * sweep.abs(),
+        Trace::Graph { .. } => (0..PIECES)
+            .map(|piece| {
+                let at = |piece: usize| trace.at(piece as f64 / PIECES as f64)[0];
+                at(piece).distance(at(piece + 1))
+            })
+            .sum(),
     }
 }
 
@@ -162,9 +183,20 @@ fn leaving(arcs: &[Arc], half: usize, rounding: f64, off: f64) -> Leaving {
 /// touch itself sits right on the bound. Two arcs whose directions part by
 /// less than that from rounding alone come nearer to touching than any
 /// tolerance, and were decided to touch.
+///
+/// Arcs parting by `a` and bending back towards each other meet again `2a/k`
+/// on. Where that is not well within the shorter of them, they touch
+/// nowhere: they cross there, at their next corner — a circle crossing a
+/// side twice a hair from touching it — and part by where they head.
 fn together(one: &Leaving, other: &Leaving) -> bool {
-    let touch = (2.0 * (one.off + other.off) * (one.bend - other.bend).abs()).sqrt();
-    (other.angle - one.angle).abs() <= ANGLE_TIE + one.blur + other.blur + 2.0 * touch
+    let apart = (other.angle - one.angle).abs();
+    let bent = (one.bend - other.bend).abs();
+    let touch = if 4.0 * apart <= bent * one.length.min(other.length) {
+        (2.0 * (one.off + other.off) * bent).sqrt()
+    } else {
+        0.0
+    };
+    apart <= ANGLE_TIE + one.blur + other.blur + 2.0 * touch
 }
 
 /// Two directions closer than this, in radians, set off together, even on

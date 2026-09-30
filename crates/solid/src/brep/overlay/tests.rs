@@ -694,6 +694,51 @@ fn two_circles_bending_alike_that_set_off_with_a_side_are_ordered_by_where_they_
     assert!(cycles.is_ok(), "the circles are told apart");
 }
 
+/// A side and a circle of radius sixty crossing it twice, eight thousandths
+/// apart: the sagitta between them is 1.3 tenths of a micron, above the
+/// tolerance of a reach of a hundred, so their pair was decided to cross and
+/// not to touch. The corner where they first cross was merged with another
+/// a tolerance off. The circle sets off above the side, bending back down
+/// to it, and they meet again at the next corner: the lens between them is
+/// a region, and the rest of the disc another. That their directions part
+/// by less than a corner standing that far off could turn them is no touch
+/// when they cross again before either ends: they are ordered by where they
+/// head, not by how they bend.
+#[test]
+fn a_circle_crossing_a_side_twice_a_hair_from_touching_it_bounds_a_lens_at_a_corner_standing_off() {
+    let (half, radius, off): (f64, f64, f64) = (4e-3, 60.0, 1e-7);
+    let sagitta = radius - (radius * radius - half * half).sqrt();
+    let center = [-half, sagitta - radius];
+    let start = (radius - sagitta).atan2(half);
+    let end = PI - start;
+    let vertices = vec![DVec2::new(0.0, off), DVec2::new(-2.0 * half, 0.0)];
+    let arcs = vec![
+        segment([0.0, 0.0], [-2.0 * half, 0.0], Some([0, 1])),
+        round(center, radius, start, end - start, Some([0, 1])),
+        round(center, radius, end, start + TURN - end, Some([1, 0])),
+    ];
+    let overlay = Overlay::of(&vertices, &arcs, None).expect("the arcs are ordered");
+    let mut bounded: Vec<Vec<(usize, bool)>> = overlay
+        .regions
+        .iter()
+        .filter(|region| !region.unbounded)
+        .flat_map(|region| region.cycles.clone())
+        .map(|mut cycle| {
+            let first = (0..cycle.len())
+                .min_by_key(|&rank| cycle[rank])
+                .unwrap_or(0);
+            cycle.rotate_left(first);
+            cycle
+        })
+        .collect();
+    bounded.sort();
+    assert_eq!(
+        bounded,
+        vec![vec![(0, false), (1, true)], vec![(0, true), (2, true)]],
+        "{overlay:?}"
+    );
+}
+
 #[test]
 fn a_sliver_a_hair_thick_between_two_sides_holds_a_point_of_its_own_inside_it() {
     for hair in [1e-7, 5e-9, 1e-10] {

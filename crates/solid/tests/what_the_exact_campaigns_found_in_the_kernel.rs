@@ -935,3 +935,36 @@ fn seed_1014146_a_block_notched_a_hair_deep_given_a_post_through_its_corner() {
         ],
     ));
 }
+
+/// The same seed shrunk once more: the block cut through but for a wall
+/// three tenths of a micron thick on its end, then the post through its
+/// corner. The corner the wall's inner face, its top and the block's side
+/// share was merged with where the post's rim crosses the side's edge, three
+/// tenths away on the end: it took the post's wall, and with it the block's
+/// edge on the end and the line the post crosses the inner face along, four
+/// tenths away. Both ran up to it beside the wall's inner edge. No corner
+/// lies on a curve on a surface apart from one of its own, and two corners
+/// are not merged where a surface of each crosses the other's along lines
+/// that all stand further than the tolerance from them.
+#[test]
+fn seed_1014146_a_wall_a_hair_thick_given_a_post_through_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(60.0),
+            Outline::rectangle([225.0, 60.0], [255.0, 270.0]),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(59.9999997),
+                Outline::rectangle([210.0, 120.0], [300.0, 210.0]),
+                -30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([0.0, 300.0], 75.0),
+                255.0,
+            )),
+        ],
+    ));
+}

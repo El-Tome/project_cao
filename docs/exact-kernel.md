@@ -56,7 +56,9 @@ The decisions, in the order taken, once per operation:
 4. **A line meeting a cylinder at a double root**, once per pair.
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
    their supports joined — unless the merge would put one point on two
-   surfaces decided apart, which is refused.
+   surfaces decided apart, or on two surfaces, one from each, crossing along
+   lines that all stand further than `EPS` from it, which is refused. No
+   corner lies on a curve on a surface apart from one of its own.
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly

@@ -17,9 +17,29 @@ impl Case {
     /// The case a seed stands for. The same seed always draws the same case,
     /// which is what lets a failure be named by its seed alone.
     pub fn drawn(seed: u64) -> Case {
+        Case::drawn_among(seed, false)
+    }
+
+    /// The case a seed stands for among the solids the exact kernel of #498
+    /// raises: prisms of rectangles and circles on the three planes of the
+    /// origin, none tilted, still weighted towards the coincidences and the
+    /// hairs. Not the case `drawn` gives the same seed.
+    pub fn drawn_square(seed: u64) -> Case {
+        Case::drawn_among(seed, true)
+    }
+
+    /// The case a seed stands for. `square` keeps out every solid but prisms
+    /// of rectangles and circles on the planes of the origin, by drawing
+    /// among fewer kinds rather than drawing again: the cases `drawn` gives
+    /// are the ones a seed has always named.
+    fn drawn_among(seed: u64, square: bool) -> Case {
         let mut random = Random::seeded(seed);
         let scale = *random.pick(&[1.0, 1.0, 1.0, 5.0, 30.0]);
-        let mut drawing = Drawing { random, scale };
+        let mut drawing = Drawing {
+            random,
+            scale,
+            square,
+        };
 
         let start = drawing.leaf(None);
         let count = *drawing.random.pick(&[1, 1, 1, 2, 2, 2, 3, 3, 4, 5]);
@@ -50,6 +70,9 @@ struct Drawing {
     /// How big the case is drawn: most on a lattice of units, some thirty
     /// times larger, where a tolerance taken in absolute units stops holding.
     scale: f64,
+    /// Prisms of rectangles and circles on the planes of the origin, and
+    /// nothing else.
+    square: bool,
 }
 
 impl Drawing {
@@ -90,7 +113,8 @@ impl Drawing {
 
     fn plane(&mut self) -> Plane {
         let offset = self.coordinate(-2.0, 8.0);
-        match self.random.below(20) {
+        let kinds = if self.square { 17 } else { 20 };
+        match self.random.below(kinds) {
             0..=10 => Plane::Xy(offset),
             11..=13 => Plane::Xz(offset),
             14..=16 => Plane::Yz(offset),
@@ -124,7 +148,8 @@ impl Drawing {
     }
 
     fn outline(&mut self) -> Outline {
-        match self.random.below(20) {
+        let kinds = if self.square { 15 } else { 20 };
+        match self.random.below(kinds) {
             0..=8 => {
                 let low = self.point();
                 let size = DVec2::new(self.length(1.0, 8.0), self.length(1.0, 8.0));
@@ -212,7 +237,7 @@ impl Drawing {
             return self.related(before);
         }
         let plane = self.plane();
-        if self.random.chance(0.15) {
+        if !self.square && self.random.chance(0.15) {
             self.revolution(plane)
         } else {
             Leaf::Prism {
@@ -291,7 +316,7 @@ impl Drawing {
         };
         let plane = shifted(plane, self.nudge());
         match plane {
-            Plane::Xy(offset) if self.random.chance(0.1) => Plane::Tilted {
+            Plane::Xy(offset) if !self.square && self.random.chance(0.1) => Plane::Tilted {
                 origin: DVec3::Z * offset,
                 turn: DVec3::X * *self.random.pick(&[1e-7, 1e-5, 1e-3]),
             },

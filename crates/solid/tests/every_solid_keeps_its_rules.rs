@@ -43,6 +43,9 @@
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
 //! as no answer.
 
+// The promise worked out by arithmetic and the square drawing are the exact
+// kernel's campaign's; this file draws every kind and measures the flats.
+#[allow(dead_code, unused_imports)]
 mod random_solids;
 
 use std::sync::Arc;

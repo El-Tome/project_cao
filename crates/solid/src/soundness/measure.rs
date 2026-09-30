@@ -7,6 +7,11 @@ use glam::{BVec3, DVec2, DVec3};
 
 use super::{Flaw, Triangle};
 
+mod spans;
+
+pub use spans::Spans;
+use spans::sweep;
+
 /// The volume a closed surface encloses, from the signed volumes of the
 /// tetrahedra its triangles make with the origin. Negative when the surface is
 /// inside out.
@@ -15,92 +20,6 @@ pub fn enclosed(triangles: &[Triangle]) -> f64 {
         .iter()
         .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
         .sum()
-}
-
-/// The stretches of one line that lie inside a solid, as distances along it,
-/// in order and apart.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct Spans {
-    stretches: Vec<(f64, f64)>,
-    /// What a surface that bounds no solid counts along the line beyond its
-    /// stretches: a shell left inside another wraps a place twice, one turned
-    /// inside out on its own wraps it the wrong way. Neither is a stretch of
-    /// more or less matter, yet both are a wrong answer, and one no other rule
-    /// sees: every edge still has its two faces, no face crosses another.
-    ///
-    /// Always nothing for spans made from others: `union` and `without` build
-    /// a promise, and a promise is only ever a place in or out.
-    surplus: f64,
-}
-
-impl Spans {
-    /// Stretches in any order, overlapping or not, made into spans: sorted,
-    /// joined where they meet, and the empty ones dropped.
-    fn gathered(mut stretches: Vec<(f64, f64)>) -> Spans {
-        stretches.retain(|(from, to)| from < to);
-        stretches.sort_by(|left, right| left.0.total_cmp(&right.0));
-        let mut joined: Vec<(f64, f64)> = Vec::with_capacity(stretches.len());
-        for (from, to) in stretches {
-            match joined.last_mut() {
-                Some(last) if from <= last.1 => last.1 = last.1.max(to),
-                _ => joined.push((from, to)),
-            }
-        }
-        Spans {
-            stretches: joined,
-            surplus: 0.0,
-        }
-    }
-
-    pub fn stretches(&self) -> &[(f64, f64)] {
-        &self.stretches
-    }
-
-    /// How much of the line lies inside.
-    pub fn length(&self) -> f64 {
-        self.stretches.iter().map(|(from, to)| to - from).sum()
-    }
-
-    /// The matter along the line by the surface's own account: every place
-    /// counted as many times as the surface wraps it, and against it where it
-    /// is wrapped the wrong way — what `enclosed` counts, one line at a time.
-    fn held(&self) -> f64 {
-        self.length() + self.surplus
-    }
-
-    /// What is inside either: the promise for matter added.
-    pub fn union(&self, other: &Spans) -> Spans {
-        let both = self.stretches.iter().chain(&other.stretches);
-        Spans::gathered(both.copied().collect())
-    }
-
-    /// What is inside this and not the other: the promise for matter taken
-    /// away.
-    pub fn without(&self, other: &Spans) -> Spans {
-        let (mut left, mut first, holes) = (Vec::new(), 0, &other.stretches);
-        for &(from, to) in &self.stretches {
-            while holes.get(first).is_some_and(|&(_, end)| end <= from) {
-                first += 1;
-            }
-            let mut start = from;
-            for &(hole_from, hole_to) in holes[first..]
-                .iter()
-                .take_while(|(hole_from, _)| *hole_from < to)
-            {
-                if hole_from > start {
-                    left.push((start, hole_from));
-                }
-                start = start.max(hole_to);
-            }
-            if start < to {
-                left.push((start, to));
-            }
-        }
-        Spans {
-            stretches: left,
-            surplus: 0.0,
-        }
-    }
 }
 
 /// One line of measure along which a solid and its promise disagree.
@@ -179,6 +98,21 @@ impl Lines {
         crossings.into_iter().map(sweep).collect()
     }
 
+    /// How many lines the bundle holds: as many as `inside` gives spans.
+    pub fn count(&self) -> usize {
+        self.count * self.count
+    }
+
+    /// Line `index` as a point and a direction of unit length: the point at
+    /// `origin + direction * t` is the one at distance `t` along it, as
+    /// `inside` counts distances. What a promise worked out by arithmetic
+    /// along the same lines needs to agree with the stretches measured.
+    pub fn line(&self, index: usize) -> (DVec3, DVec3) {
+        let place = self.place(index);
+        let origin = self.across * place.x + self.up * place.y + self.direction * self.start;
+        (origin, self.direction)
+    }
+
     /// The volume a set of spans adds up to, one per line, counted the way
     /// `enclosed` counts it.
     pub fn volume(&self, spans: &[Spans]) -> f64 {
@@ -201,13 +135,13 @@ impl Lines {
         let Some(index) = worst else {
             return Ok(());
         };
-        let place = self.place(index);
+        let (origin, direction) = self.line(index);
         Err(Flaw::Volume {
             promised: self.volume(promised),
             enclosed: self.volume(enclosed),
             worst: Some(Along {
-                origin: self.across * place.x + self.up * place.y + self.direction * self.start,
-                direction: self.direction,
+                origin,
+                direction,
                 promised: promised[index].held(),
                 enclosed: enclosed[index].held(),
             }),
@@ -326,27 +260,6 @@ const OFF_CENTRE: DVec2 = DVec2::new(0.618_033_988_749_894_8, 0.414_213_562_373_
 /// still far below what a face missing, doubled or out of place leaves along
 /// every line through it.
 const ALONG_A_LINE: f64 = 1e-6;
-
-/// The stretches of one line inside a surface, from where it crosses the
-/// surface and which way. Crossings at the same distance are taken together,
-/// so that a line through an edge leaves no stretch of no length.
-fn sweep(mut crossings: Vec<(f64, i32)>) -> Spans {
-    crossings.sort_by(|left, right| left.0.total_cmp(&right.0));
-    let mut stretches = Vec::new();
-    let (mut depth, mut from, mut last, mut surplus) = (0, 0.0, 0.0, 0.0);
-    for group in crossings.chunk_by(|left, right| left.0 == right.0) {
-        let at = group[0].0;
-        surplus += f64::from(depth - i32::from(depth > 0)) * (at - last);
-        let after = depth + group.iter().map(|(_, step)| step).sum::<i32>();
-        if depth <= 0 && after > 0 {
-            from = at;
-        } else if depth > 0 && after <= 0 {
-            stretches.push((from, at));
-        }
-        (depth, last) = (after, at);
-    }
-    Spans { stretches, surplus }
-}
 
 /// Whether a point lies on a triangle turning anticlockwise, and if so how
 /// much of each corner is in it.

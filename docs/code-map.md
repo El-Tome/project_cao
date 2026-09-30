@@ -144,6 +144,7 @@ What it does: [`sketch.md`](sketch.md).
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
 | A campaign over random solids | `solid/tests/every_solid_keeps_its_rules.rs` | `a_campaign_of_random_solids_keeps_every_rule` |
 | A campaign over random parts, every gesture undone | `part/tests/an_undo_gives_back_the_part.rs` | `undoes` |
+| What the campaigns found, waiting on their issues | `solid/tests/what_random_solids_found.rs` | `#[ignore = "#n"]` |
 
 What it does: [`extrusion.md`](extrusion.md), and for the rules and the
 campaigns [`soundness.md`](soundness.md).

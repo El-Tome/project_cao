@@ -146,6 +146,11 @@ it is not the harness's job, and some will not be worth fixing in a
 representation about to be left (#447).
 
 A case whose issue is still open is kept as a named test under
-`#[ignore = "#n"]`, in `crates/solid/tests/what_random_solids_found.rs`, so
-that it stays in the repository and runs with `--ignored`. The commit that
+`#[ignore = "#n"]` — a solid in `crates/solid/tests/what_random_solids_found.rs`,
+a part beside its campaign in `crates/part/tests/an_undo_gives_back_the_part.rs`
+— so that it stays in the repository and runs with `--ignored`. The commit that
 fixes it takes the `ignore` off, and from then on the gate holds it.
+
+The first campaigns, over some hundred thousand random solids and five hundred
+random parts, found nine: #486 to #494. Whether campaigns run on a timer is
+#495.

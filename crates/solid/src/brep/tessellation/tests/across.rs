@@ -12,6 +12,7 @@ use glam::DVec3;
 
 use super::fixtures::{Build, HEIGHT, STOCK_RADIUS};
 use crate::brep::curve::Meet;
+use crate::brep::meet::Configuration;
 use crate::brep::topology::{Body, Coedge, EdgeId, VertexId};
 
 /// The height of the axis of every cylinder lying across the stock.
@@ -255,24 +256,157 @@ pub(crate) fn stock_crossed() -> Body {
     build.finish(ARM)
 }
 
-/// The matter the stock and a cylinder of `radius` lying across it through
-/// `(0, across, MIDDLE)` have in common, the cylinder passing through it
-/// whole: over the cylinder's disc, the chord the stock has along the
-/// cylinder's axis, integrated numerically.
+/// The radius of two equal cylinders crossing, and how far each reaches
+/// either way from where their axes meet.
+pub(crate) const EQUAL: f64 = 5.0;
+pub(crate) const EQUAL_REACH: f64 = 15.0;
+
+/// A post along Z and a beam along X, both of radius `EQUAL` about axes
+/// meeting at the origin, joined: they meet along two ellipses, in the planes
+/// `z = x` and `z = −x`, crossing at two nodes on Y where the walls touch.
+/// Each ellipse is two edges between the nodes; the post keeps its wall above
+/// and below the ellipses, the beam east and west of them, four faces
+/// meeting at each node, and each wall goes all the way round to its end.
+pub(crate) fn equal_cylinders_crossed() -> Body {
+    let mut build = Build::new();
+    let post = build.cylinder(DVec3::ZERO, DVec3::Z, EQUAL);
+    let beam = build.cylinder(DVec3::ZERO, DVec3::X, EQUAL);
+    let meeting = build.meeting(post, beam, EQUAL_REACH);
+    assert_eq!(meeting.configuration, Configuration::TwoEllipses);
+    let [south, north] = [0, 1].map(|node| build.vertex(meeting.nodes[node].point));
+    let mut between = |component: usize| {
+        let meet = meeting.components[component];
+        [
+            build.meet_edge(meet, Some([south, north]), 0.0, PI),
+            build.meet_edge(meet, Some([north, south]), PI, TAU),
+        ]
+    };
+    let [upper_east, lower_west] = between(0);
+    let [lower_east, upper_west] = between(1);
+    let post_top = build.circle(post, EQUAL_REACH, None);
+    let post_bottom = build.circle(post, -EQUAL_REACH, None);
+    let beam_east = build.circle(beam, EQUAL_REACH, None);
+    let beam_west = build.circle(beam, -EQUAL_REACH, None);
+
+    let lap = |uses: &[(EdgeId, bool)]| uses.iter().map(|&(e, f)| use_of(e, f)).collect();
+    build.face(
+        post,
+        false,
+        vec![
+            lap(&[(upper_east, true), (upper_west, true)]),
+            lap(&[(post_top, false)]),
+        ],
+    );
+    build.face(
+        post,
+        false,
+        vec![
+            lap(&[(lower_east, false), (lower_west, false)]),
+            lap(&[(post_bottom, true)]),
+        ],
+    );
+    build.face(
+        beam,
+        false,
+        vec![
+            lap(&[(lower_east, true), (upper_east, false)]),
+            lap(&[(beam_east, false)]),
+        ],
+    );
+    build.face(
+        beam,
+        false,
+        vec![
+            lap(&[(lower_west, true), (upper_west, false)]),
+            lap(&[(beam_west, true)]),
+        ],
+    );
+    for (ring, way, forward) in [
+        (post_top, DVec3::Z, true),
+        (post_bottom, DVec3::NEG_Z, false),
+        (beam_east, DVec3::X, true),
+        (beam_west, DVec3::NEG_X, false),
+    ] {
+        let (cap, flipped) = build.plane(way * EQUAL_REACH, way);
+        build.face(cap, flipped, vec![lap(&[(ring, forward)])]);
+    }
+    build.finish(EQUAL_REACH)
+}
+
+/// The radius of the bore whose wall touches the stock's from inside.
+pub(crate) const TOUCHING: f64 = 3.0;
+
+/// The stock bored across along X by a cylinder of radius `TOUCHING` whose
+/// axis stands `STOCK_RADIUS − TOUCHING` from the stock's, on Y at the middle
+/// height: its wall touches the stock's from inside at one point, and the two
+/// meet along a figure of eight through a node there. Each lobe is an edge
+/// from the node round to it: two windows in the stock's wall touching at the
+/// node, and between them the bore's wall, pinched to that point, one face
+/// with a single loop that visits the node twice.
+pub(crate) fn stock_bored_touching_its_wall() -> Body {
+    let mut build = Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let axis = DVec3::new(0.0, STOCK_RADIUS - TOUCHING, MIDDLE);
+    let bore = build.cylinder(axis, DVec3::X, TOUCHING);
+    let meeting = build.meeting(stock, bore, STOCK_RADIUS);
+    assert_eq!(meeting.configuration, Configuration::FigureOfEight);
+    let meet = meeting.components[0];
+    let period = meet.period().expect("a component closes on itself");
+    let [(_, first), (_, second)] = [meeting.nodes[0].on[0], meeting.nodes[0].on[1]];
+    let node = build.vertex(meeting.nodes[0].point);
+    let west = build.meet_edge(meet, Some([node, node]), first, second);
+    let east = build.meet_edge(meet, Some([node, node]), second, first + period);
+    let (low, high) = (
+        build.circle(stock, 0.0, None),
+        build.circle(stock, HEIGHT, None),
+    );
+    build.face(
+        stock,
+        false,
+        vec![
+            vec![use_of(low, true)],
+            vec![use_of(high, false)],
+            vec![use_of(west, false)],
+            vec![use_of(east, true)],
+        ],
+    );
+    build.face(
+        bore,
+        true,
+        vec![vec![use_of(east, false), use_of(west, true)]],
+    );
+    let (top, top_flipped) = build.plane(DVec3::Z * HEIGHT, DVec3::Z);
+    build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::NEG_Z);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
+    build.finish(STOCK_RADIUS)
+}
+
+/// The matter a cylinder of radius `standing` along Z and a cylinder of
+/// `radius` lying across it, `across` from its axis, have in common, each
+/// passing through the other whole — within their heights and lengths: over
+/// the lying cylinder's disc, the chord the standing one has along the lying
+/// one's axis, integrated numerically.
 ///
 /// Across the disc at `s = r sin φ` from its centre the disc is `2r cos φ`
 /// high, and `ds = r cos φ dφ`: the integrand `2r² cos² φ · chord` is smooth
 /// and periodic in `φ`, so the rule of the midpoints over a whole turn, which
 /// runs the disc twice, converges faster than any power of the step.
-pub(crate) fn common_across(radius: f64, across: f64) -> f64 {
+pub(crate) fn common(standing: f64, radius: f64, across: f64) -> f64 {
     const PLACES: usize = 4096;
     let step = TAU / PLACES as f64;
     let mut total = 0.0;
     for place in 0..PLACES {
         let (sin, cos) = ((place as f64 + 0.5) * step).sin_cos();
         let y = across + radius * sin;
-        let chord = 2.0 * (STOCK_RADIUS * STOCK_RADIUS - y * y).max(0.0).sqrt();
+        let chord = 2.0 * (standing * standing - y * y).max(0.0).sqrt();
         total += radius * radius * cos * cos * chord * step;
     }
     total
+}
+
+/// What a cylinder of `radius` lying across the stock, `across` from its axis,
+/// has in common with it.
+pub(crate) fn common_across(radius: f64, across: f64) -> f64 {
+    common(STOCK_RADIUS, radius, across)
 }

@@ -65,7 +65,18 @@ impl Samples {
             vertices: body.vertex_ids().count(),
         };
         let eps = body.scale().eps();
-        let contacts = contact::contacts(body, tolerance);
+        let meets: Vec<Vec<DVec3>> = body
+            .edge_ids()
+            .map(|id| {
+                let edge = body.edge(id);
+                match body.curve(edge.curve) {
+                    Curve::Meet(meet) => meet::on_meet(meet, edge, tolerance, eps),
+                    Curve::Line(_) | Curve::Circle(_) => Vec::new(),
+                }
+            })
+            .collect();
+        let mut contacts = contact::contacts(body, tolerance);
+        contact::touching_at_nodes(body, &meets, &mut contacts);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
@@ -79,7 +90,7 @@ impl Samples {
                         .unwrap_or(&alone);
                     on_circle(circle, edge, tolerance, eps, contact)
                 }
-                Curve::Meet(meet) => meet::on_meet(meet, edge, tolerance, eps),
+                Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
             let first = samples.points.len();
             samples.points.extend(between);

@@ -319,3 +319,54 @@ fn every_chord_of_a_meet_stands_within_the_tolerance_of_the_curve_however_fine()
         }
     }
 }
+
+/// The angles round the stock's axis, from X, of every sample of `edge`.
+fn angles_of(samples: &Samples, edge: EdgeId) -> Vec<f64> {
+    samples
+        .edge(edge)
+        .iter()
+        .map(|id| {
+            let point = samples.point(*id);
+            point.y.atan2(point.x)
+        })
+        .collect()
+}
+
+#[test]
+fn the_rings_of_the_stock_a_bore_touches_at_a_node_are_sampled_through_every_sample_of_the_curve() {
+    let body = super::super::tests::across::stock_bored_touching_its_wall();
+    for tolerance in [1e-3, 0.02, 0.5, 10.0] {
+        let samples = Samples::of(&body, tolerance);
+        let mut rings = Vec::new();
+        let mut curve = Vec::new();
+        for edge in body.edge_ids() {
+            match body.curve(body.edge(edge).curve) {
+                Curve::Circle(_) => rings.push(angles_of(&samples, edge)),
+                Curve::Meet(_) => curve.extend(angles_of(&samples, edge)),
+                Curve::Line(_) => {}
+            }
+        }
+        assert_eq!(rings.len(), 2);
+        for ring in &rings {
+            for angle in &curve {
+                assert!(
+                    ring.iter().any(|on| (on - angle).abs() < 1e-9),
+                    "{angle} is not a sample of the ring within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_rings_of_the_stock_a_bore_crosses_clear_of_its_wall_keep_their_grid_alone() {
+    let body = super::super::tests::across::stock_bored_across(3.0, DVec3::X);
+    let tolerance = 0.02;
+    let samples = Samples::of(&body, tolerance);
+    let steps = divisions(fixtures::STOCK_RADIUS, tolerance);
+    for edge in body.edge_ids() {
+        if let Curve::Circle(_) = body.curve(body.edge(edge).curve) {
+            assert_eq!(samples.edge(edge).len(), steps);
+        }
+    }
+}

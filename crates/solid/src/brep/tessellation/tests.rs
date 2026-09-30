@@ -125,6 +125,8 @@ fn the_same_body_is_drawn_twice_to_the_same_bits() {
         fixtures::block_with_a_lying_cylinder(),
         across::stock_bored_flush_across(),
         across::stock_crossed(),
+        across::equal_cylinders_crossed(),
+        across::stock_bored_touching_its_wall(),
     ] {
         let first = body.triangles(DRAWN);
         crate::soundness::repeatable(&first, &body.triangles(DRAWN)).expect("the same bits");
@@ -498,6 +500,8 @@ fn no_triangle_of_a_wall_a_meet_bounds_stands_further_inside_its_cylinder_than_t
         across::stock_bored_across(3.0, DVec3::X),
         across::stock_bored_flush_across(),
         across::stock_crossed(),
+        across::equal_cylinders_crossed(),
+        across::stock_bored_touching_its_wall(),
     ] {
         for tolerance in [3e-3, DRAWN, 0.5] {
             let deepest = deepest_of_any_wall(&body, &body.triangles(tolerance));
@@ -506,5 +510,32 @@ fn no_triangle_of_a_wall_a_meet_bounds_stands_further_inside_its_cylinder_than_t
                 "{deepest} inside a wall within {tolerance}"
             );
         }
+    }
+}
+
+#[test]
+fn two_equal_cylinders_crossing_are_drawn_closed_and_uncrossed_where_their_walls_touch() {
+    let (radius, reach) = (across::EQUAL, across::EQUAL_REACH);
+    let each = fixtures::disc_volume(radius, 2.0 * reach);
+    let area = 2.0 * TAU * radius * 2.0 * reach;
+    let body = across::equal_cylinders_crossed();
+    listed(&body);
+    let volume = holds(&body, 2.0 * each - across::common(radius, radius, 0.0));
+    for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, area);
+    }
+}
+
+#[test]
+fn a_bore_touching_the_stock_s_wall_from_inside_is_drawn_closed_and_uncrossed_round_the_node() {
+    let radius = across::TOUCHING;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * fixtures::STOCK_RADIUS;
+    let body = across::stock_bored_touching_its_wall();
+    listed(&body);
+    let taken = across::common_across(radius, fixtures::STOCK_RADIUS - radius);
+    let volume = holds(&body, stock - taken);
+    for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, area);
     }
 }

@@ -567,3 +567,41 @@ fn a_profile_raised_in_a_leaning_frame_far_from_the_origin_is_sound() {
         }
     }
 }
+
+/// A block of 10 by 1 whose top bulges along an arc of `radius`.
+fn bulging(radius: f64) -> Contour {
+    use crate::profile::Run;
+    let center = DVec2::new(5.0, 1.0 - (radius * radius - 25.0).sqrt());
+    Contour {
+        corners: vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(10.0, 1.0),
+            DVec2::new(0.0, 1.0),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Straight,
+            Run::Round {
+                center,
+                turn: 2.0 * (5.0 / (1.0 - center.y)).atan(),
+            },
+            Run::Straight,
+        ],
+    }
+}
+
+#[test]
+fn an_arc_too_large_for_its_points_to_be_held_within_the_tolerance_is_declined() {
+    let raise = |radius| Body::raised(&bulging(radius), &[], ground(), DVec3::Z);
+    for radius in [1e3, 1e5] {
+        assert_sound(&raise(radius).expect("a gentle bulge raises"));
+    }
+    for radius in [1e8, 1e9] {
+        assert_eq!(
+            raise(radius).map(|_| ()),
+            Err(Declined::Profile),
+            "{radius}"
+        );
+    }
+}

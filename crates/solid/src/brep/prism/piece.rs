@@ -9,6 +9,11 @@ use glam::DVec2;
 use crate::brep::Declined;
 use crate::profile::{Contour, Run};
 
+/// How many roundings of its radius a point of a circle carries once it is
+/// computed from a centre that far away: an arc so large that they reach the
+/// tolerance cannot keep its own points on its surface.
+const ROUNDINGS: f64 = 16.0;
+
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Piece {
     Straight {
@@ -166,7 +171,8 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
         Run::Straight => Ok(Piece::Straight { from, to }),
         Run::Round { center, turn } => {
             let radius = from.distance(center);
-            if !(turn.abs() < TAU && radius > eps && lands(from, center, turn, to, eps)) {
+            let held = radius > eps && radius * ROUNDINGS * f64::EPSILON <= eps;
+            if !(turn.abs() < TAU && held && lands(from, center, turn, to, eps)) {
                 return Err(Declined::Profile);
             }
             Ok(Piece::Arc {

@@ -38,13 +38,15 @@ enum Reason {
 /// The points of an edge along a meet between its ends, in the way the edge
 /// runs: none for a component the pair does not have. A whole loop's points
 /// start at its start and do not come back to it. `rays` are the angles the
-/// circles of its first cylinder and of its second take besides their grid.
+/// circles of its first cylinder and of its second take besides their grid;
+/// a place on the grid or on a ray is kept only where `clear` says so.
 pub(in crate::brep::tessellation) fn on_meet(
     meet: &Meet,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
     rays: [&[f64]; 2],
+    clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
     let Some(period) = meet.period() else {
         return Vec::new();
@@ -82,6 +84,9 @@ pub(in crate::brep::tessellation) fn on_meet(
     let mut kept: Vec<(f64, Reason, DVec3)> = Vec::with_capacity(marks.len());
     for (t, reason) in marks {
         let point = meet.point(t);
+        if reason >= Reason::Grid && !clear(point) {
+            continue;
+        }
         match kept.last_mut() {
             Some(last) if (last.2 - point).length() <= eps => {
                 if reason < last.1 {

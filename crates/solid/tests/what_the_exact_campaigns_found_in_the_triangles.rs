@@ -682,3 +682,152 @@ fn seed_1023983_a_boss_filling_a_bore_but_for_a_hair_leaves_the_wall_the_bore_cr
         ],
     ));
 }
+
+#[test]
+fn seed_1006613_a_boss_dipping_a_hair_into_a_disc_whose_wall_a_cut_crosses_is_drawn_closed_and_uncrossed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([8.0, 3.0], 1.5), -3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([7.9999999, 3.0], 1.5),
+                -2.49999994,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::circle([9.0, 5.0], 1.5),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_1006613_a_boss_lying_on_a_disc_a_hair_thick_leaves_no_sample_where_it_grazes_the_disc_s_top()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([8.0, 3.0], 1.5), -2.5),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([7.9999999, 3.0], 1.5),
+                -2.49999994,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::circle([9.0, 5.0], 1.5),
+                8.5,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_20001018_two_cylinders_of_one_radius_a_hair_apart_joined_leave_their_cap_closed_where_they_cross()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::circle_from([9.0, 7.0], 6.0, 30.78758763175507),
+            6.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-2.0),
+            Outline::circle([8.99999998, 7.0], 6.0),
+            12.0,
+        ))],
+    ));
+}
+
+/// The cut leaves a sliver of the first cylinder 5e-8 thick, more than the
+/// kernel's tolerance then, 4.5e-8. The block reaches further, and the
+/// tolerance grows to 5.5e-8 (failure 1-6): its side x = 45 is decided to
+/// touch both walls of the sliver, along two lines 5e-8 apart that are never
+/// made one. The side holds both as slits, one a hair beside the other,
+/// which lie along the same line of its parameters: no sweep can lay that
+/// out, and the side is left open. The two lines have to be one, which is
+/// the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_1026142_a_block_touching_both_walls_of_a_sliver_the_tolerance_outgrew_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(32.5), Outline::circle([40.0, 35.0], 5.0), 23.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(37.5),
+                Outline::circle([39.99999995, 35.0], 5.0),
+                23.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(37.4999999),
+                Outline::rectangle([45.0, 30.0], [55.0, 40.0]),
+                23.0,
+            )),
+        ],
+    ));
+}
+
+/// The boss, of radius 0.49999999 about z = 8, stands 1e-8 over the top of
+/// the second block, z = 7.5, and is decided to touch it along x =
+/// 12.5000002; the first block's side x = 12.5 crosses the boss's wall 2e-7
+/// from that line, 1e-8 over the top, and the kernel puts the corner there
+/// on the side, the top and the boss's wall alike (failure 1-2). The strip
+/// of the wall between that corner and the line is then a face lying on the
+/// top: the triangles of both lie on each other, however they are cut. The
+/// corner has to stay off one of them, or the strip go, which is the
+/// boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_1016356_a_boss_a_hair_over_a_block_it_touches_beside_a_side_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(-1.5),
+            Outline::rectangle([8.0, 0.0], [12.5, 8.0]),
+            2.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(-0.5),
+                Outline::rectangle([9.0, 0.5], [16.0, 7.5]),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(-0.5),
+                Outline::circle([12.5000002, 8.0], 0.49999999),
+                14.0,
+            )),
+        ],
+    ));
+}
+
+/// The block's floor, z = 30, touches the boss along x = 45.0000003; the
+/// first block's side x = 45 crosses the boss's wall 3e-7 from that line,
+/// 1.8e-14 under the floor, and the corner there is put on the side, the
+/// floor and the wall (failure 1-2). The strip of the wall between that
+/// corner and the line, and the strip of the floor over it, are two faces
+/// lying on each other, and their triangles are the same triangle twice.
+/// As for seed 1016356, the boolean has to keep the corner off one of them.
+#[test]
+#[ignore = "kernel"]
+fn seed_1016543_a_block_resting_on_a_boss_beside_the_side_it_touches_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(-5.0),
+            Outline::rectangle([10.0, 15.0], [45.0, 40.0]),
+            15.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(1e-6),
+                Outline::circle([45.0000003, 27.5], 2.5),
+                30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(10.0),
+                Outline::rectangle([35.0, 30.0], [53.0, 50.0]),
+                45.0,
+            )),
+        ],
+    ));
+}

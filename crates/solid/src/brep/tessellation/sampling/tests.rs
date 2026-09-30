@@ -257,7 +257,8 @@ fn a_meet_is_sampled_at_the_angle_of_every_ray_the_circles_of_either_cylinder_ta
                 } else {
                     [&[], &off_the_grid]
                 };
-                let points = super::meet::on_meet(meet, body.edge(edge), tolerance, eps, rays);
+                let points =
+                    super::meet::on_meet(meet, body.edge(edge), tolerance, eps, rays, &|_| true);
                 for angle in off_the_grid {
                     for t in meet.at_angle(on_first, angle) {
                         let place = meet.point(t);
@@ -884,7 +885,7 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         0.02,
         eps,
         &contact,
-        [false; 2],
+        &super::Ends::of(&body, &circle, body.edge(edge)),
         &[],
     );
     let start = circle.point(0.0);

@@ -41,6 +41,7 @@ use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
 use facing::Facing;
+pub(super) use facing::Zones;
 
 /// How close to another wall, as a share of the kernel's tolerance, no sample
 /// of a wall stands but on the lines they meet along: twice what the rules
@@ -144,6 +145,7 @@ fn bears(body: &Body, vertex: &Vertex, (id, cylinder): &Wall) -> bool {
 pub(super) fn contacts(
     body: &Body,
     walls: &[Wall],
+    zones: &Zones,
     meets: &[Vec<DVec3>],
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
@@ -173,13 +175,15 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            let facing = Facing::of(body, one, other);
-            if together::sampled((outer, &[]), (inner, &[]), &facing, tolerance, eps).is_some() {
+            let Some(facing) = zones.between(one.0, other.0) else {
+                continue;
+            };
+            if together::sampled((outer, &[]), (inner, &[]), facing, tolerance, eps).is_some() {
                 close.push((outer, inner, facing));
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
-                let withheld = touching(&near.1, &far.1, &facing, tolerance, eps);
+                let withheld = touching(&near.1, &far.1, facing, tolerance, eps);
                 if !withheld.is_empty() {
                     contacts
                         .entry(near.0)

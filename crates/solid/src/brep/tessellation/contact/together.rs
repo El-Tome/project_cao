@@ -25,7 +25,7 @@ const ROUNDS: usize = 4;
 /// there is left out — else a partner it passed its grid on to would pass a
 /// step it withholds back to it.
 pub(super) fn shared(
-    close: &[(&Wall, &Wall, Facing)],
+    close: &[(&Wall, &Wall, &Facing)],
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
     eps: f64,
@@ -33,11 +33,11 @@ pub(super) fn shared(
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     let partners = |(id, _): &Wall| {
         let id = *id;
-        close.iter().filter_map(move |(outer, inner, facing)| {
+        close.iter().filter_map(move |&(outer, inner, facing)| {
             if outer.0 == id {
-                Some((*inner, facing))
+                Some((inner, facing))
             } else if inner.0 == id {
-                Some((*outer, facing))
+                Some((outer, facing))
             } else {
                 None
             }
@@ -46,7 +46,7 @@ pub(super) fn shared(
     for _ in 0..ROUNDS {
         let mut received: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
         let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
-        for &(outer, inner, ref facing) in close {
+        for &(outer, inner, facing) in close {
             let held = |wall: &Wall| taken.get(&wall.0).map_or(&[][..], Vec::as_slice);
             let Some(together) = sampled(
                 (outer, held(outer)),

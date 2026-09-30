@@ -18,8 +18,13 @@
 //! withheld. A circle whose wall is gone — a cylinder swallowed by one it
 //! touches leaves its circles on the caps — is sampled as the circles of a
 //! cylinder of its own. The curve two perpendicular cylinders meet along is
-//! sampled on the grids of both, by [`meet`].
+//! sampled on the grids of both and on the rays their circles take, by
+//! [`meet`]: the rays come of the curves' own samples, so the curves are
+//! sampled twice, the second time on the rays the first gave. Nowhere is it
+//! sampled where either cylinder all but lies on a wall facing it, as a
+//! circle is not at the steps it withholds.
 
+mod ends;
 mod meet;
 
 use std::collections::BTreeMap;
@@ -27,11 +32,23 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::contact::{self, Contact};
+use super::contact::{self, Contact, Zones};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
-use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId, VertexId};
+use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
+use ends::Ends;
+
+/// How far from another surface, as a share of the kernel's tolerance, a
+/// place of the grid a step or less from an end lying on that surface must
+/// stand to be kept: far over the rounding of a point, a ten-millionth of
+/// the tolerance, so that exact signs tell it from the other surface, and
+/// far under what the arc covers in a step, so that dropping it lengthens
+/// no chord by much. Two circles of one radius crossing a hair apart stand
+/// within the rounding of each other a long way round from the vertex they
+/// cross at, and a place there on each, not on a ray the two share, has the
+/// arcs cross back and forth between them.
+const TOLD: f64 = 1e-3;
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -74,12 +91,16 @@ impl Samples {
         };
         let eps = body.scale().eps();
         let walls = contact::walls(body);
+        let zones = Zones::of(body, &walls);
         let alone = BTreeMap::new();
-        let mut meets = on_meets(body, &walls, &alone, tolerance);
-        let mut contacts = contact::contacts(body, &walls, &meets, tolerance);
-        if meets.iter().any(|points| !points.is_empty()) {
-            meets = on_meets(body, &walls, &contacts, tolerance);
-            contacts = contact::contacts(body, &walls, &meets, tolerance);
+        let mut meets = on_meets(body, &walls, &zones, &alone, tolerance);
+        let mut contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
+        let meeting = body
+            .edge_ids()
+            .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
+        if meeting {
+            meets = on_meets(body, &walls, &zones, &contacts, tolerance);
+            contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
         }
         let alone = Contact::default();
         for id in body.edge_ids() {
@@ -92,9 +113,9 @@ impl Samples {
                         .find(|(_, wall)| contact::lies_on(circle, wall, eps))
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
-                    let touched = touched_ends(body, circle, edge);
+                    let ends = Ends::of(body, circle, edge);
                     let planes = touching_planes(body, circle);
-                    on_circle(circle, edge, tolerance, eps, contact, touched, &planes)
+                    on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
@@ -127,10 +148,12 @@ impl Samples {
 }
 
 /// The points of every edge along a meet between its ends, each on the rays
-/// its two cylinders take in `contacts`; none for any other edge.
+/// its two cylinders take in `contacts`, and none where either cylinder all
+/// but lies on a wall facing it; none for any other edge.
 fn on_meets(
     body: &Body,
     walls: &[contact::Wall],
+    zones: &Zones,
     contacts: &BTreeMap<SurfaceId, Contact>,
     tolerance: f64,
 ) -> Vec<Vec<DVec3>> {
@@ -154,7 +177,10 @@ fn on_meets(
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
                     let [first, second] = [angles(&meet.first), angles(&meet.second)];
-                    meet::on_meet(meet, edge, tolerance, eps, [&first, &second])
+                    let clear = |point: DVec3| {
+                        !zones.crowded(&meet.first, point) && !zones.crowded(&meet.second, point)
+                    };
+                    meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
                 }
                 Curve::Line(_) | Curve::Circle(_) => Vec::new(),
             }
@@ -176,21 +202,25 @@ fn on_meets(
 /// from an end standing so too. The vertex is the line's sample there, and a
 /// second a hair round from it — through the other end of a line the kernel
 /// laid leaning a hair — would stand as good as on the other wall's circle,
-/// which ends at the same vertex.
+/// which ends at the same vertex. So too beside any surface an end lies on
+/// and the circle does not, where the circle all but lies on it a step or
+/// less from that end: a wall grazing the plane of the circle there.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
     contact: &Contact,
-    touched: [bool; 2],
+    ends_of: &Ends,
     planes: &[Plane],
 ) -> Vec<DVec3> {
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
     let beside_end = gap.max((2.0 * eps * contact::APART / circle.radius).sqrt());
-    let [at_from, at_to] = touched.map(|touched| if touched { beside_end } else { gap });
+    let [at_from, at_to] = ends_of
+        .touched
+        .map(|touched| if touched { beside_end } else { gap });
     let whole = edge.ends.is_none();
     let (low, high) = if whole {
         (edge.from, edge.from + TAU)
@@ -220,18 +250,27 @@ fn on_circle(
             plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
         })
     };
-    let by_an_end = |at: f64| {
-        contact.beside.iter().any(|other| {
-            beside(at, other)
-                && ends
+    let grazed = |at: f64, room: f64| {
+        ends.iter().zip(&ends_of.through).any(|(end, surfaces)| {
+            (end - at).abs() <= step
+                && surfaces
                     .iter()
-                    .any(|end| (end - at).abs() <= step && beside(*end, other))
+                    .any(|surface| surface.distance(circle.point(at)).abs() < room)
         })
+    };
+    let by_an_end = |at: f64| {
+        grazed(at, eps * contact::APART)
+            || contact.beside.iter().any(|other| {
+                beside(at, other)
+                    && ends
+                        .iter()
+                        .any(|end| (end - at).abs() <= step && beside(*end, other))
+            })
     };
 
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
         ..=(high / step).ceil() as i64)
-        .filter(|rank| inside(*rank as f64 * step))
+        .filter(|rank| inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD))
         .filter(|rank| {
             !contact
                 .withheld
@@ -314,25 +353,6 @@ fn touching_planes(body: &Body, circle: &Circle) -> Vec<Plane> {
                 && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
         })
         .collect()
-}
-
-/// Whether each end of a circle's edge, its start then its end, is a vertex
-/// lying on a plane that touches the circle's wall there.
-fn touched_ends(body: &Body, circle: &Circle, edge: &Edge) -> [bool; 2] {
-    let eps = body.scale().eps();
-    let touches = |vertex: VertexId| {
-        body.vertex(vertex)
-            .on
-            .iter()
-            .any(|surface| match body.surface(*surface) {
-                Surface::Plane(plane) => {
-                    plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
-                        && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
-                }
-                Surface::Cylinder(_) => false,
-            })
-    };
-    edge.ends.map_or([false; 2], |ends| ends.map(touches))
 }
 
 #[cfg(test)]

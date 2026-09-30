@@ -197,7 +197,16 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of
-  the curve than the curve's own, would pass under the face beyond it. What
+  the curve than the curve's own, would pass under the face beyond it. It is
+  not sampled where either wall all but lies on one facing it, as a circle
+  withholds its steps there. Nor does an arc take a ray a step or less from
+  its end where it all but lies on a surface that end lies on and it does
+  not: a wall grazing the plane of the arc there stands on the plane's face
+  over a band far wider than the rules tell apart. Nor a place of its grid
+  where it stands within a thousandth of `EPS` of such a surface: two circles
+  of one radius crossing a hair apart stand within the rounding of each other
+  a long way round from their vertex, and a place of each there, on no ray
+  they share, has the two arcs of a cap cross back and forth. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 

@@ -115,6 +115,75 @@ fn a_hole_tangent_inside_the_stock_stays_uncrossed_however_fine_or_coarse_the_gr
 }
 
 #[test]
+fn the_same_body_is_drawn_twice_to_the_same_bits() {
+    for body in [
+        fixtures::stock_with_a_tangent_hole(),
+        fixtures::block_with_a_lying_cylinder(),
+    ] {
+        let first = body.triangles(DRAWN);
+        crate::soundness::repeatable(&first, &body.triangles(DRAWN)).expect("the same bits");
+    }
+}
+
+/// How far inside a cylinder standing on the XY plane about `(x, y)` the
+/// triangles of its wall reach at their deepest: the triangles with every
+/// corner on it and not all at one height, read at points spread over each.
+fn deepest(triangles: &[[DVec3; 3]], x: f64, y: f64, radius: f64) -> f64 {
+    let from_axis = |point: DVec3| (point.truncate() - glam::DVec2::new(x, y)).length();
+    let mut deepest = 0.0f64;
+    for corners in triangles {
+        let on = corners
+            .iter()
+            .all(|corner| (from_axis(*corner) - radius).abs() < 1e-9);
+        if !on || corners.iter().all(|corner| corner.z == corners[0].z) {
+            continue;
+        }
+        for one in 0..=8 {
+            for other in 0..=8 - one {
+                let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
+                let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
+                deepest = deepest.max(radius - from_axis(point));
+            }
+        }
+    }
+    deepest
+}
+
+#[test]
+fn no_triangle_of_a_wall_stands_further_inside_its_cylinder_than_the_tolerance() {
+    let center = fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS;
+    for tolerance in [3e-3, DRAWN, 0.5] {
+        let triangles = fixtures::stock_with_a_tangent_hole().triangles(tolerance);
+        let outer = deepest(&triangles, 0.0, 0.0, fixtures::STOCK_RADIUS);
+        let inner = deepest(&triangles, center, 0.0, fixtures::HOLE_RADIUS);
+        assert!(
+            outer > 0.0 && outer <= tolerance,
+            "{outer} within {tolerance}"
+        );
+        assert!(
+            inner > 0.0 && inner <= tolerance,
+            "{inner} within {tolerance}"
+        );
+    }
+}
+
+#[test]
+fn a_pocket_tangent_inside_the_stock_hangs_a_slit_in_its_wall_drawn_closed_and_uncrossed() {
+    let depth = fixtures::POCKET_DEPTH;
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, depth);
+    let area = wall(fixtures::STOCK_RADIUS) + std::f64::consts::TAU * fixtures::HOLE_RADIUS * depth;
+    for tolerance in [1e-6, 0.02, 10.0] {
+        held(
+            &fixtures::stock_with_a_tangent_pocket(),
+            tolerance,
+            volume,
+            area,
+        );
+    }
+}
+
+#[test]
 fn a_hole_a_hair_inside_the_stock_s_wall_stays_uncrossed_however_fine_or_coarse_the_grids() {
     let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
         - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);

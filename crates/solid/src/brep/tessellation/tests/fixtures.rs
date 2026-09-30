@@ -290,26 +290,36 @@ pub(crate) fn block_with_a_hole() -> Body {
     build.finish(HALF_SIDE)
 }
 
-/// A line up the height of the block, which two walls touch along: each goes
-/// round from it back to it, and the line has four uses.
+/// A line up from `bottom` to the top of the block, which two walls touch
+/// along: each goes round from it back to it, and the line has four uses.
 struct Touching {
     line: EdgeId,
     low: VertexId,
     high: VertexId,
+    bottom: f64,
 }
 
 impl Touching {
     fn at(build: &mut Build, point: DVec3) -> Touching {
-        let low = build.vertex(point);
+        Touching::down_to(build, point, 0.0)
+    }
+
+    fn down_to(build: &mut Build, point: DVec3, bottom: f64) -> Touching {
+        let low = build.vertex(point + DVec3::Z * bottom);
         let high = build.vertex(point + DVec3::Z * HEIGHT);
         let line = build.line(low, high);
-        Touching { line, low, high }
+        Touching {
+            line,
+            low,
+            high,
+            bottom,
+        }
     }
 
     /// A wall from the line round to it again, and the circles it ends on.
     /// Flipped for a hole, whose matter lies outside it.
     fn wall(&self, build: &mut Build, wall: SurfaceId, flipped: bool) -> (EdgeId, EdgeId) {
-        let low = build.circle(wall, 0.0, Some(self.low));
+        let low = build.circle(wall, self.bottom, Some(self.low));
         let high = build.circle(wall, HEIGHT, Some(self.high));
         let use_of = |edge, forward| Coedge { edge, forward };
         let (up, down) = (
@@ -343,6 +353,39 @@ pub(crate) fn stock_with_a_tangent_hole() -> Body {
     build.face(top, top_flipped, vec![top_lap]);
     let bottom_lap = vec![use_of(outer_low, false), use_of(inner_low, true)];
     build.face(bottom, bottom_flipped, vec![bottom_lap]);
+    build.finish(STOCK_RADIUS)
+}
+
+/// How deep the pocket tangent to the stock's wall goes from the top.
+pub(crate) const POCKET_DEPTH: f64 = 5.0;
+
+/// The stock with a pocket sunk from its top at (15, 0), its wall touching the
+/// stock's inside along a line that stops at the pocket's floor: the stock's
+/// wall, which goes all the way round, has that line hanging from its top as
+/// a slit.
+pub(crate) fn stock_with_a_tangent_pocket() -> Body {
+    let mut build = Build::new();
+    let floor = HEIGHT - POCKET_DEPTH;
+    let touching = Touching::down_to(&mut build, DVec3::new(STOCK_RADIUS, 0.0, 0.0), floor);
+    let outer = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let ring = build.circle(outer, 0.0, None);
+    let outer_high = build.circle(outer, HEIGHT, Some(touching.high));
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let (up, down) = (
+        build.leaving(touching.line, touching.low),
+        build.leaving(touching.line, touching.high),
+    );
+    let hanging = vec![use_of(outer_high, false), down, up];
+    build.face(outer, false, vec![vec![use_of(ring, true)], hanging]);
+    let center = DVec3::new(STOCK_RADIUS - HOLE_RADIUS, 0.0, 0.0);
+    let inner = build.cylinder(center, DVec3::Z, HOLE_RADIUS);
+    let (inner_low, inner_high) = touching.wall(&mut build, inner, true);
+    let ((top, top_flipped), (bottom, bottom_flipped)) = caps(&mut build);
+    let top_lap = vec![use_of(outer_high, true), use_of(inner_high, false)];
+    build.face(top, top_flipped, vec![top_lap]);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(ring, false)]]);
+    let (sunk, sunk_flipped) = build.plane(DVec3::Z * floor, DVec3::Z);
+    build.face(sunk, sunk_flipped, vec![vec![use_of(inner_low, true)]]);
     build.finish(STOCK_RADIUS)
 }
 

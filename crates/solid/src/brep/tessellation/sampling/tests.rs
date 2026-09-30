@@ -280,6 +280,25 @@ fn a_meet_between_two_vertices_runs_from_the_first_to_the_last_with_every_sample
     }
 }
 
+#[test]
+fn a_meet_shorter_than_the_kernel_s_tolerance_keeps_its_two_ends_and_nothing_between() {
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let bore = build.cylinder(DVec3::Z * 5.0, DVec3::X, 3.0);
+    let meet = build
+        .meeting(stock, bore, fixtures::STOCK_RADIUS)
+        .components[0];
+    let [from, to] = [1.0, 1.0 + 1e-12];
+    let ends = [from, to].map(|t| build.vertex(meet.point(t)));
+    let edge = build.meet_edge(meet, Some(ends), from, to);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let samples = Samples::of(&body, 0.02);
+    assert_eq!(
+        samples.edge(edge),
+        &[ends[0].0 as usize, ends[1].0 as usize]
+    );
+}
+
 /// How far `point` stands from the segment between `start` and `end`.
 fn off_the_chord(point: DVec3, start: DVec3, end: DVec3) -> f64 {
     let along = end - start;

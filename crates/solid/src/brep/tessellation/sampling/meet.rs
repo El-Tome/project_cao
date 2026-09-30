@@ -81,6 +81,9 @@ pub(in crate::brep::tessellation) fn on_meet(
             _ => kept.push((t, reason, point)),
         }
     }
+    if kept.len() < 2 {
+        return Vec::new();
+    }
 
     let mut places = vec![kept[0].0];
     for pair in kept.windows(2) {

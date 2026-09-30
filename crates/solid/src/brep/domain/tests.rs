@@ -577,3 +577,103 @@ fn the_loops_of_a_face_are_traces_that_follow_each_other_modulo_a_turn() {
         }
     }
 }
+
+#[test]
+fn a_point_near_where_a_hole_touches_its_disc_from_inside_is_told_apart() {
+    let stock = Contour::circle(DVec2::ZERO, 20.0);
+    let hole = Contour::circle(DVec2::new(15.0, 0.0), 5.0);
+    let body = Body::raised(&stock, &[hole], ground(), DVec3::Z * 10.0).expect("a bored disc");
+    let mut cases = vec![
+        (DVec2::new(19.9999, 0.0), Location::Outside),
+        (DVec2::new(19.9999, 0.05), Location::Inside),
+        (DVec2::new(19.9999, -0.05), Location::Inside),
+        (DVec2::new(20.0, 0.0), Location::Boundary),
+        (DVec2::new(20.0 - 1e-12, 0.0), Location::Boundary),
+        (DVec2::new(20.0 + 2.0 * EPS * 20.0, 0.0), Location::Outside),
+        (DVec2::new(15.0, 0.0), Location::Outside),
+        (DVec2::new(-19.0, 0.0), Location::Inside),
+    ];
+    for x in [10.5, 12.0, 17.0, 19.0, 19.99] {
+        let inner = (25.0f64 - (x - 15.0) * (x - 15.0)).sqrt();
+        let outer = (400.0f64 - x * x).sqrt();
+        cases.extend([
+            (DVec2::new(x, (inner + outer) / 2.0), Location::Inside),
+            (DVec2::new(x, -(inner + outer) / 2.0), Location::Inside),
+            (DVec2::new(x, inner / 2.0), Location::Outside),
+        ]);
+    }
+    assert_located(&body, top_of(&body), &cases);
+    for face in body.face_ids() {
+        let at = body
+            .point_inside(face)
+            .expect("a raised face is traced")
+            .expect("a face has an inside");
+        assert_located(&body, face, &[(at, Location::Inside)]);
+    }
+    let volume = (400.0 - 25.0) * PI * 10.0;
+    assert!((body.volume() - volume).abs() <= 1e-12 * volume);
+}
+
+/// Three quarters of a disc, as an outline and as a hole in a plate.
+fn three_quarters(shift: DVec2) -> Contour {
+    use crate::profile::Run;
+    Contour {
+        corners: vec![
+            shift + DVec2::new(5.0, 0.0),
+            shift + DVec2::new(0.0, -5.0),
+            shift,
+        ],
+        runs: vec![
+            Run::Round {
+                center: shift,
+                turn: 1.5 * PI,
+            },
+            Run::Straight,
+            Run::Straight,
+        ],
+    }
+}
+
+#[test]
+fn a_wall_turning_three_quarters_round_keeps_its_matter_on_the_left_and_its_volume() {
+    let leaning = Frame {
+        origin: DVec3::new(3.0, -2.0, 5.0),
+        u: DVec3::new(1.0, 1.0, 0.0) / 2f64.sqrt(),
+        v: DVec3::new(-1.0, 1.0, 2f64.sqrt()) / 2.0,
+    };
+    let plate = Contour::rectangle(DVec2::new(-30.0, -30.0), DVec2::new(30.0, 30.0));
+    let quarter = 0.75 * PI * 25.0;
+    let holed = [three_quarters(DVec2::new(-15.0, -15.0))];
+    let cases: [(&Contour, &[Contour], f64); 2] = [
+        (&three_quarters(DVec2::ZERO), &[], quarter),
+        (&plate, &holed, 3600.0 - quarter),
+    ];
+    for frame in [ground(), leaning] {
+        for height in [10.0, -7.0] {
+            for (outline, holes, area) in cases {
+                let body = Body::raised(outline, holes, frame, frame.normal() * height)
+                    .expect("it raises");
+                let volume = area * height.abs();
+                assert!((body.volume() - volume).abs() <= 1e-12 * volume);
+                for face in body.face_ids() {
+                    let flipped = body.face(face).flipped;
+                    for trace in body.traces(face).expect("traced").iter().flatten() {
+                        for share in [0.1, 0.5, 0.9] {
+                            let [middle, pace, _] = trace.at(share);
+                            let left = pace.normalize().perp() * 1e-3;
+                            let inward = if flipped { -left } else { left };
+                            assert_located(
+                                &body,
+                                face,
+                                &[
+                                    (middle + inward, Location::Inside),
+                                    (middle - inward, Location::Outside),
+                                ],
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

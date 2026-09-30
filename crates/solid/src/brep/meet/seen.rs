@@ -58,6 +58,9 @@ impl Meet {
     /// is found once.
     pub fn at_angle(&self, on_first: bool, theta: f64) -> Vec<f64> {
         let pair = self.pair();
+        if self.component >= pair.components() {
+            return Vec::new();
+        }
         let signs = pair.signs(self.component);
         let period = pair.period();
         let (radius, gaps, from) = if on_first {
@@ -104,6 +107,34 @@ impl Meet {
         .collect();
         found.sort_by(f64::total_cmp);
         found.dedup();
+        found
+    }
+
+    /// Every parameter in the first period where the component turns back in
+    /// the angle of the first cylinder or of the second, sorted: the ends of
+    /// its span where that cylinder's own root does not vanish, since the
+    /// point stands still on that cylinder's circle there. Along an arc the
+    /// height across both axes is monotone and the root keeps its sign, so
+    /// the angle is monotone too.
+    pub fn turns(&self, on_first: bool) -> Vec<f64> {
+        let pair = self.pair();
+        if self.component >= pair.components() {
+            return Vec::new();
+        }
+        let period = pair.period();
+        let vanishes = if on_first {
+            pair.x_vanishes()
+        } else {
+            pair.z_vanishes()
+        };
+        let mut found: Vec<f64> = [0.0, PI]
+            .into_iter()
+            .zip(vanishes)
+            .filter(|&(_, vanishes)| !vanishes)
+            .flat_map(|(end, _)| [end, end + TAU])
+            .filter(|&t| t < period)
+            .collect();
+        found.sort_by(f64::total_cmp);
         found
     }
 }

@@ -246,6 +246,48 @@ fn a_meet_turning_back_at_an_angle_is_found_there_once() {
     }
 }
 
+#[test]
+fn a_meet_turns_back_on_a_cylinder_exactly_where_its_angle_stops_and_nowhere_else() {
+    let scan = 4000;
+    for (first, second) in every_shape().into_iter().chain(turned()) {
+        for meet in components(first, second) {
+            let period = meet.period().expect("a component closes on itself");
+            for on_first in [true, false] {
+                let turns = meet.turns(on_first);
+                for &t in &turns {
+                    assert!((0.0..period).contains(&t));
+                    assert!(
+                        meet.seen_on(on_first, t)[1].x.abs() < 1e-12,
+                        "{meet:?} at {t}"
+                    );
+                }
+                let turning = |t: f64| meet.seen_on(on_first, t)[1].x;
+                for step in 0..scan {
+                    let [from, to] = [step, step + 1].map(|k| period * k as f64 / scan as f64);
+                    if turning(from) * turning(to) < 0.0 {
+                        assert!(
+                            turns.iter().any(|&t| (from..=to).contains(&t)),
+                            "{meet:?} turns back between {from} and {to}, missed: {turns:?}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_component_the_pair_does_not_have_crosses_no_angle_and_never_turns() {
+    let (first, second) = pair(5.0, 3.0, 4.0, 2.0);
+    let missing = Meet {
+        first,
+        second,
+        component: 1,
+    };
+    assert!(missing.at_angle(true, 0.0).is_empty());
+    assert!(missing.turns(true).is_empty());
+}
+
 fn configuration(a: f64, b: f64, d: f64) -> Configuration {
     let (first, second) = pair(a, b, d, 1.5);
     Meeting::of(&first, &second, scale()).configuration

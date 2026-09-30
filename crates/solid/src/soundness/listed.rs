@@ -36,6 +36,9 @@ pub enum Mislisted {
     },
     /// An edge no face uses, which bounds nothing.
     Unused { edge: usize },
+    /// A face with no loop round it: a whole plane or a whole cylinder, which
+    /// no solid is bounded by.
+    Unbounded { face: usize },
     /// A use that does not start where the one before it in its loop ends,
     /// or a whole closed curve sharing its loop with another use.
     Unclosed { face: usize, lap: usize, at: usize },
@@ -145,8 +148,9 @@ fn uses(listing: &Listing) -> Vec<Vec<(usize, bool)>> {
     uses
 }
 
-/// Every loop closes: each use starts at the vertex the one before it ends
-/// at, and a whole closed curve, which has no vertex, stands alone.
+/// Every face has a loop, and every loop closes: each use starts at the
+/// vertex the one before it ends at, and a whole closed curve, which has no
+/// vertex, stands alone.
 fn closed(listing: &Listing) -> Result<(), Mislisted> {
     let ends = |(edge, forward): (usize, bool)| {
         listing.edges[edge]
@@ -154,6 +158,9 @@ fn closed(listing: &Listing) -> Result<(), Mislisted> {
             .map(|[from, to]| if forward { [from, to] } else { [to, from] })
     };
     for (face, listed) in listing.faces.iter().enumerate() {
+        if listed.loops.is_empty() {
+            return Err(Mislisted::Unbounded { face });
+        }
         for (lap, uses) in listed.loops.iter().enumerate() {
             let open = Err(Mislisted::Unclosed { face, lap, at: 0 });
             let Some(&last) = uses.last() else {

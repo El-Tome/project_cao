@@ -27,7 +27,7 @@ pub(super) fn lying(
     for (vertex, faces) in around.iter().enumerate() {
         for &face in faces {
             let distance = off(&listing.faces[face].surface, listing.vertices[vertex]);
-            if distance > room {
+            if !within(distance, room) {
                 return Err(Mislisted::VertexOffFace {
                     vertex,
                     face,
@@ -43,7 +43,7 @@ pub(super) fn lying(
         };
         for (end, (vertex, at)) in ends.into_iter().zip([listed.from, listed.to]).enumerate() {
             let distance = (point(&listed.curve, at) - listing.vertices[vertex]).length();
-            if distance > room {
+            if !within(distance, room) {
                 return Err(Mislisted::EndAway {
                     edge,
                     end,
@@ -60,7 +60,7 @@ pub(super) fn lying(
             let place = point(&listed.curve, at);
             for &(face, _) in &uses[edge] {
                 let distance = off(&listing.faces[face].surface, place);
-                if distance > room {
+                if !within(distance, room) {
                     return Err(Mislisted::OffFace {
                         edge,
                         face,
@@ -72,6 +72,13 @@ pub(super) fn lying(
         }
     }
     Ok(())
+}
+
+/// Whether a distance is short enough, a distance that is no number never
+/// being: a kernel that divided by a length of nought must not pass for one
+/// that measured nought.
+fn within(distance: f64, room: f64) -> bool {
+    distance <= room
 }
 
 /// How far a place stands from a surface, either side.

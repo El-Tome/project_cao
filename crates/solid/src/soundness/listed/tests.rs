@@ -272,6 +272,20 @@ fn two_uses_swapped_in_their_loop_leave_it_open() {
 }
 
 #[test]
+fn a_face_bounded_by_no_loop_is_found() {
+    let mut listing = brick();
+    listing.faces.push(ListedFace {
+        surface: listing.faces[0].surface,
+        outward: true,
+        loops: Vec::new(),
+    });
+    assert_eq!(
+        listed(&listing, REACH),
+        Err(Mislisted::Unbounded { face: 6 })
+    );
+}
+
+#[test]
 fn a_whole_circle_sharing_its_loop_leaves_the_loop_open() {
     let mut listing = stock();
     listing.faces[2].loops = vec![vec![(0, true), (1, false)]];
@@ -317,6 +331,45 @@ fn a_corner_moved_off_its_planes_is_found_off_the_faces_around_it() {
                 ..
             })
         ),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_corner_that_is_no_number_is_found_off_the_faces_around_it() {
+    let mut listing = brick();
+    listing.vertices[7] = DVec3::NAN;
+    let found = listed(&listing, REACH);
+    assert!(
+        matches!(found, Err(Mislisted::VertexOffFace { vertex: 7, .. })),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn an_edge_along_a_line_with_no_direction_is_found_away_from_its_ends() {
+    let mut listing = brick();
+    let Curve::Line(line) = &mut listing.edges[0].curve else {
+        unreachable!("the edges of a block are lines")
+    };
+    *line = Line::through(line.origin, DVec3::ZERO);
+    let found = listed(&listing, REACH);
+    assert!(
+        matches!(found, Err(Mislisted::EndAway { edge: 0, .. })),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_face_on_a_plane_that_is_no_number_is_found_off_its_corners() {
+    let mut listing = brick();
+    let Surface::Plane(side) = &mut listing.faces[3].surface else {
+        unreachable!("the faces of a block are planes")
+    };
+    side.normal = DVec3::NAN;
+    let found = listed(&listing, REACH);
+    assert!(
+        matches!(found, Err(Mislisted::VertexOffFace { face: 3, .. })),
         "{found:?}"
     );
 }

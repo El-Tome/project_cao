@@ -10,14 +10,17 @@
 //! cylinder in contact with another is also sampled on the rays [`contact`]
 //! gives it, and not at the steps it withholds: there the triangle next to
 //! the line two walls touch along spans more than one step, by the stretch
-//! withheld.
+//! withheld. The curve two perpendicular cylinders meet along is sampled on
+//! the grids of both, by [`meet`].
+
+mod meet;
 
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
 use super::contact::{self, Contact};
-use crate::brep::curve::{Circle, Curve, Meet};
+use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
@@ -62,7 +65,18 @@ impl Samples {
             vertices: body.vertex_ids().count(),
         };
         let eps = body.scale().eps();
-        let contacts = contact::contacts(body, tolerance);
+        let meets: Vec<Vec<DVec3>> = body
+            .edge_ids()
+            .map(|id| {
+                let edge = body.edge(id);
+                match body.curve(edge.curve) {
+                    Curve::Meet(meet) => meet::on_meet(meet, edge, tolerance, eps),
+                    Curve::Line(_) | Curve::Circle(_) => Vec::new(),
+                }
+            })
+            .collect();
+        let mut contacts = contact::contacts(body, tolerance);
+        contact::along_meets(body, &meets, &mut contacts);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
@@ -76,7 +90,7 @@ impl Samples {
                         .unwrap_or(&alone);
                     on_circle(circle, edge, tolerance, eps, contact)
                 }
-                Curve::Meet(meet) => on_meet(meet, edge),
+                Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
             let first = samples.points.len();
             samples.points.extend(between);
@@ -191,19 +205,6 @@ fn on_circle(
     kept.into_iter()
         .map(|(_, _, angle)| circle.point(angle))
         .collect()
-}
-
-/// The points of an edge along the curve two perpendicular cylinders meet
-/// along, between its ends. Not sampled yet: `meet.rs` does not evaluate the
-/// curve, so the edge keeps its two ends and nothing between, and a face
-/// bounded by a whole loop of it is left open.
-///
-/// What it is to take, once the curve is evaluated: the parameters where its
-/// angle on either cylinder, read through `Meet::seen_on`, crosses that
-/// cylinder's grid, and those where it turns back in either angle, so that on
-/// both cylinders it has a point at every grid angle as circles do.
-fn on_meet(_meet: &Meet, _edge: &Edge) -> Vec<DVec3> {
-    Vec::new()
 }
 
 #[cfg(test)]

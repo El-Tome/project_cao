@@ -19,6 +19,10 @@
 //! chords are as good as lying on the other wall's. Such a step of the grid is
 //! withheld from both, so that the first chords from the line reach out to
 //! where the walls stand apart.
+//!
+//! Two perpendicular cylinders meet along a curve, and touch, if they do, at
+//! a node of it: the circles of both take the rays through that curve's
+//! samples, so that both walls are cut in strips between them.
 
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
@@ -26,6 +30,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::sampling::divisions;
+use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId};
@@ -88,6 +93,61 @@ pub(super) fn contacts(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Conta
         }
     }
     contacts
+}
+
+/// What the circles of two perpendicular cylinders take for the curve they
+/// meet along: the rays through every sample of it and through its ends.
+///
+/// Where one wall is cut from the other, each lies over the other along the
+/// curve, and they part slowly: as the square of the distance from a node
+/// where they touch, or from a waist where they all but touch, and along
+/// the curve wherever it runs down a wall's ruling, at the tip of a window.
+/// A triangle of the large wall fanned from a sample of its circle a grid
+/// step away sags there below the small wall, and at a fine tolerance the
+/// curve's own samples are much closer than a step of the grid. Sampled along
+/// these rays, each wall is cut into strips between two samples of the curve,
+/// the large one's square to them and the small one's, between its two mirror
+/// lobes, across them: within a strip each sags as the square of its width,
+/// and the two stay ordered.
+///
+/// `meets` holds every edge's samples between its ends, empty but for the
+/// curves two cylinders meet along.
+pub(super) fn along_meets(
+    body: &Body,
+    meets: &[Vec<DVec3>],
+    contacts: &mut BTreeMap<SurfaceId, Contact>,
+) {
+    for id in body.edge_ids() {
+        let edge = body.edge(id);
+        let Curve::Meet(meet) = body.curve(edge.curve) else {
+            continue;
+        };
+        let ends = edge
+            .ends
+            .into_iter()
+            .flatten()
+            .map(|end| body.vertex(end).point);
+        let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
+        for cylinder in [meet.first, meet.second] {
+            let flat = |point: DVec3| {
+                let from = point - cylinder.origin;
+                from - cylinder.axis * cylinder.axis.dot(from)
+            };
+            let rays: Vec<DVec3> = through
+                .iter()
+                .map(|point| flat(*point).normalize())
+                .collect();
+            for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
+                if *body.surface(surface) == Surface::Cylinder(cylinder) {
+                    contacts
+                        .entry(surface)
+                        .or_default()
+                        .rays
+                        .extend(rays.iter().copied());
+                }
+            }
+        }
+    }
 }
 
 /// The steps of a cylinder's grid standing within `eps` of another cylinder

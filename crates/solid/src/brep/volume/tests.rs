@@ -134,3 +134,32 @@ fn an_outline_drawn_clockwise_still_holds_a_positive_volume() {
     let body = Body::raised(&block, &[], ground(), DVec3::Z * 2.0).expect("a block raises");
     assert_relative(body.volume(), 24.0);
 }
+
+/// The stock bored across, its bore a hair either side of touching the
+/// stock's wall from inside: the curve they meet along turns within the
+/// square root of that hair of its parameter, at the waist between its two
+/// windows or at the neck of its one.
+#[test]
+fn a_bore_a_hair_from_the_stock_s_wall_holds_what_arithmetic_promises_however_thin_the_waist() {
+    use crate::brep::tessellation::tests::{across, fixtures};
+    let radius = across::TOUCHING;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    for hair in [1e-7, 1e-5, 1e-3, 1e-1, 1.0] {
+        let inside = fixtures::STOCK_RADIUS - radius - hair;
+        let through = fixtures::STOCK_RADIUS - radius + hair;
+        for (offset, body) in [
+            (
+                inside,
+                across::stock_bored_across_at(radius, DVec3::X, inside),
+            ),
+            (through, across::stock_bored_through_its_wall(through)),
+        ] {
+            let promised = stock - across::common_across(radius, offset);
+            assert!(
+                (body.volume() - promised).abs() <= 1e-10 * promised,
+                "{hair}: {} against {promised}",
+                body.volume()
+            );
+        }
+    }
+}

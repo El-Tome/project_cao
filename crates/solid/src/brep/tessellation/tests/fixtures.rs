@@ -14,6 +14,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use crate::brep::curve::{Circle, Curve, Line, Meet};
+use crate::brep::meet::Meeting;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{
@@ -145,6 +146,37 @@ impl Build {
         let end = circle.parameter(self.body.vertex(to).point);
         let end = start + (end - start).rem_euclid(TAU);
         self.edge(Curve::Circle(circle), Some([from, to]), start, end)
+    }
+
+    /// What two cylinders of the body make together, decided as the kernel
+    /// decides it within the tolerance of `reach`. The cylinder the meeting
+    /// takes second may have been moved onto the touch it decided: the body
+    /// takes it moved, so that its curves lie on its surfaces bit for bit.
+    pub(crate) fn meeting(&mut self, one: SurfaceId, other: SurfaceId, reach: f64) -> Meeting {
+        let cylinder = |build: &Build, id: SurfaceId| match *build.body.surface(id) {
+            Surface::Cylinder(cylinder) => cylinder,
+            Surface::Plane(_) => panic!("a meeting is of two cylinders"),
+        };
+        let (first, second) = (cylinder(self, one), cylinder(self, other));
+        let meeting = Meeting::of(&first, &second, Scale::of(reach));
+        if let Some(meet) = meeting.components.first() {
+            let moved = if meet.first == first { other } else { one };
+            self.body.surfaces[moved.0 as usize] = Surface::Cylinder(meet.second);
+        }
+        meeting
+    }
+
+    /// A stretch of a component of the curve two cylinders meet along, from
+    /// parameter `from` up to `to`: whole round its period with no vertex,
+    /// or between two vertices standing where it passes them.
+    pub(crate) fn meet_edge(
+        &mut self,
+        meet: Meet,
+        ends: Option<[VertexId; 2]>,
+        from: f64,
+        to: f64,
+    ) -> EdgeId {
+        self.edge(Curve::Meet(meet), ends, from, to)
     }
 
     /// One whole loop of the curve two perpendicular cylinders meet along,

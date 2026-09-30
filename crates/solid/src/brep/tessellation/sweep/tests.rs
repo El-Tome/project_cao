@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec2;
 
@@ -277,4 +277,104 @@ fn stars_of_any_spikiness_are_cut_with_a_star_shaped_hole_inside() {
             Region::new().with_loop(&outline).with_loop(&hole).cut();
         }
     }
+}
+
+/// A corner of the lattice the squares below stand on.
+type Corner = (i64, i64);
+
+/// A region of whole squares of a lattice, drawn with `draw`: its boundary
+/// is every side of a filled square not shared with another, cut into
+/// `parts` in a row, and some shared sides are kept both ways as slits — none
+/// closing a loop, which would part the region in two. Holes, pinches where
+/// two squares meet at a corner, slits from the boundary, between two holes
+/// and hanging free all come out of it.
+fn squares(draw: &mut impl FnMut(u64) -> u64) -> Region {
+    let size = 2 + draw(6) as i64;
+    let fill = 30 + draw(60);
+    let parts = [1, 2, 4][draw(3) as usize];
+    let slits = draw(2) == 0;
+    let mut filled = BTreeSet::new();
+    for x in 0..size {
+        for y in 0..size {
+            if draw(100) < fill {
+                filled.insert((x, y));
+            }
+        }
+    }
+    let mut sides: BTreeSet<[Corner; 2]> = BTreeSet::new();
+    let mut shared = Vec::new();
+    for &(x, y) in &filled {
+        let corners = [(x, y), (x + 1, y), (x + 1, y + 1), (x, y + 1)];
+        for at in 0..4 {
+            let (from, to) = (corners[at], corners[(at + 1) % 4]);
+            if !sides.remove(&[to, from]) {
+                sides.insert([from, to]);
+            } else {
+                shared.push([from, to]);
+            }
+        }
+    }
+    let mut parent: BTreeMap<Corner, Corner> = BTreeMap::new();
+    for &[from, to] in &sides {
+        let (one, other) = (root(&parent, from), root(&parent, to));
+        if one != other {
+            parent.insert(one, other);
+        }
+    }
+    for [from, to] in shared {
+        let (one, other) = (root(&parent, from), root(&parent, to));
+        if slits && one != other && draw(100) < 40 {
+            parent.insert(one, other);
+            sides.insert([from, to]);
+            sides.insert([to, from]);
+        }
+    }
+    let mut region = Region::new();
+    for &[(fx, fy), (tx, ty)] in &sides {
+        let low = (fx, fy).min((tx, ty));
+        let high = (fx, fy).max((tx, ty));
+        let place = |part: i64| {
+            let from_low = if (fx, fy) == low { part } else { parts - part };
+            let along = from_low as f64 / parts as f64;
+            DVec2::new(
+                low.0 as f64 + (high.0 - low.0) as f64 * along,
+                low.1 as f64 + (high.1 - low.1) as f64 * along,
+            )
+        };
+        for part in 0..parts {
+            let (from, to) = (region.point(place(part)), region.point(place(part + 1)));
+            region.segments.push([from, to]);
+        }
+    }
+    region
+}
+
+/// The corner standing for every corner joined to `at` so far.
+fn root(parent: &BTreeMap<Corner, Corner>, at: Corner) -> Corner {
+    let mut at = at;
+    while let Some(&up) = parent.get(&at) {
+        at = up;
+    }
+    at
+}
+
+#[test]
+fn any_region_of_whole_squares_with_its_holes_pinches_and_slits_is_cut_exactly() {
+    let mut seed: u64 = 498;
+    let mut draw = |below: u64| {
+        seed = seed
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1_442_695_040_888_963_407);
+        (seed >> 33) % below
+    };
+    let mut slits = 0;
+    for _ in 0..2000 {
+        let region = squares(&mut draw);
+        if !region.segments.is_empty() {
+            region.cut();
+        }
+        let both_ways = |[from, to]: &[usize; 2]| region.segments.contains(&[*to, *from]);
+        slits += usize::from(region.segments.iter().any(both_ways));
+    }
+    assert!(slits > 100, "only {slits} regions with a slit");
 }

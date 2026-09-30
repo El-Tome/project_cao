@@ -646,3 +646,139 @@ pub(crate) fn tube_with_a_window(from: f64, to: f64) -> Body {
     );
     build.finish(STOCK_RADIUS)
 }
+
+/// The block with holes of radius five bored through at `centers`, each a
+/// ring on the top and the bottom.
+pub(crate) fn block_with_holes_at(centers: &[DVec3]) -> Body {
+    let mut build = Build::new();
+    let (top, bottom) = block_in(&mut build);
+    for center in centers {
+        bore(&mut build, top, bottom, *center);
+    }
+    build.finish(HALF_SIDE)
+}
+
+/// How far each half round of the slot stands from its middle.
+pub(crate) const SLOT_HALF_LENGTH: f64 = 10.0;
+
+/// A slot: two half rounds of radius five about (±10, 0) joined by straight
+/// sides, raised from 0 to 10, the whole turned round Z by `angle`. Its two
+/// walls are half cylinders, each running from vertex to vertex, the left one
+/// across the angle where the parameters wrap.
+pub(crate) fn slot_turned_by(angle: f64) -> Body {
+    let mut build = Build::new();
+    let (sin, cos) = angle.sin_cos();
+    let turn = |x: f64, y: f64| DVec3::new(cos * x - sin * y, sin * x + cos * y, 0.0);
+    let (along, across) = (SLOT_HALF_LENGTH, HOLE_RADIUS);
+    let mut column = |x: f64, y: f64| {
+        let foot = turn(x, y);
+        [build.vertex(foot), build.vertex(foot + DVec3::Z * HEIGHT)]
+    };
+    let [right_down, right_up, left_up, left_down] = [
+        column(along, -across),
+        column(along, across),
+        column(-along, across),
+        column(-along, -across),
+    ];
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let half_round = |build: &mut Build, x: f64, start: [VertexId; 2], end: [VertexId; 2]| {
+        let on = build.cylinder(turn(x, 0.0), DVec3::Z, HOLE_RADIUS);
+        let arcs = [
+            build.arc(on, 0.0, start[0], end[0]),
+            build.arc(on, HEIGHT, start[1], end[1]),
+        ];
+        let (up, down) = (build.line(end[0], end[1]), build.line(start[0], start[1]));
+        let lap = vec![
+            use_of(arcs[0], true),
+            build.leaving(up, end[0]),
+            use_of(arcs[1], false),
+            build.leaving(down, start[1]),
+        ];
+        build.face(on, false, vec![lap]);
+        arcs
+    };
+    let right = half_round(&mut build, along, right_down, right_up);
+    let left = half_round(&mut build, -along, left_up, left_down);
+    build.polygon(
+        &[right_up[0], left_up[0], left_up[1], right_up[1]],
+        turn(0.0, 1.0),
+    );
+    build.polygon(
+        &[left_down[0], right_down[0], right_down[1], left_down[1]],
+        turn(0.0, -1.0),
+    );
+    let side = |build: &mut Build, from: VertexId, to: VertexId| {
+        let edge = build.line(from, to);
+        build.leaving(edge, from)
+    };
+    let (top, top_flipped) = build.plane(DVec3::Z * HEIGHT, DVec3::Z);
+    let top_lap = vec![
+        use_of(right[1], true),
+        side(&mut build, right_up[1], left_up[1]),
+        use_of(left[1], true),
+        side(&mut build, left_down[1], right_down[1]),
+    ];
+    build.face(top, top_flipped, vec![top_lap]);
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::NEG_Z);
+    let bottom_lap = vec![
+        side(&mut build, right_down[0], left_down[0]),
+        use_of(left[0], false),
+        side(&mut build, left_up[0], right_up[0]),
+        use_of(right[0], false),
+    ];
+    build.face(bottom, bottom_flipped, vec![bottom_lap]);
+    build.finish(HALF_SIDE)
+}
+
+/// The stock with two holes bored through, each touching its inside along
+/// the line at one of `angles` from X: the stock's wall is two faces, each
+/// from one line round to the other.
+pub(crate) fn stock_with_two_holes_tangent_at(angles: [f64; 2]) -> Body {
+    let mut build = Build::new();
+    let outer = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let ways = angles.map(|angle| {
+        let (sin, cos) = angle.sin_cos();
+        DVec3::new(cos, sin, 0.0)
+    });
+    let touching = ways.map(|way| Touching::at(&mut build, way * STOCK_RADIUS));
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let [first, second] = &touching;
+    let low = [
+        build.arc(outer, 0.0, first.low, second.low),
+        build.arc(outer, 0.0, second.low, first.low),
+    ];
+    let high = [
+        build.arc(outer, HEIGHT, first.high, second.high),
+        build.arc(outer, HEIGHT, second.high, first.high),
+    ];
+    for (side, (from, to)) in [(first, second), (second, first)].into_iter().enumerate() {
+        let lap = vec![
+            use_of(low[side], true),
+            build.leaving(to.line, to.low),
+            use_of(high[side], false),
+            build.leaving(from.line, from.high),
+        ];
+        build.face(outer, false, vec![lap]);
+    }
+    let mut holes = Vec::new();
+    for (way, touching) in ways.iter().zip(&touching) {
+        let inner = build.cylinder(*way * (STOCK_RADIUS - HOLE_RADIUS), DVec3::Z, HOLE_RADIUS);
+        holes.push(touching.wall(&mut build, inner, true));
+    }
+    let ((top, top_flipped), (bottom, bottom_flipped)) = caps(&mut build);
+    let top_lap = vec![
+        use_of(high[0], true),
+        use_of(holes[1].1, false),
+        use_of(high[1], true),
+        use_of(holes[0].1, false),
+    ];
+    build.face(top, top_flipped, vec![top_lap]);
+    let bottom_lap = vec![
+        use_of(low[1], false),
+        use_of(holes[1].0, true),
+        use_of(low[0], false),
+        use_of(holes[0].0, true),
+    ];
+    build.face(bottom, bottom_flipped, vec![bottom_lap]);
+    build.finish(STOCK_RADIUS)
+}

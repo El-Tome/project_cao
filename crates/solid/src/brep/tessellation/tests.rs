@@ -299,3 +299,81 @@ fn a_slit_a_hair_from_the_first_grid_angle_of_a_wall_going_round_is_drawn_closed
         }
     }
 }
+
+#[test]
+fn a_slot_whose_half_rounds_run_across_the_angle_where_the_parameters_wrap_is_drawn_closed() {
+    let straight = 2.0 * fixtures::SLOT_HALF_LENGTH * 2.0 * fixtures::HOLE_RADIUS;
+    let volume = straight * fixtures::HEIGHT
+        + fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    for angle in [0.0, 0.3, PI / 2.0, PI - 1e-12, PI, -2.0] {
+        let body = fixtures::slot_turned_by(angle);
+        for tolerance in [1e-6, 0.02, 10.0] {
+            held(&body, tolerance, volume, wall(fixtures::HOLE_RADIUS));
+        }
+    }
+}
+
+/// Gaps a hair wide: half the kernel's own tolerance, and a ten-millionth.
+const HAIRS: [f64; 2] = [5e-10 * fixtures::HALF_SIDE, 1e-7];
+
+#[test]
+fn holes_a_hair_apart_or_a_hair_from_the_block_s_side_stay_closed_and_uncrossed() {
+    let hole = fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    for gap in HAIRS {
+        for angle in [0.0, 0.1, 3.0 * TAU / 16.0 + 1e-6] {
+            let way =
+                DVec3::new(angle.cos(), angle.sin(), 0.0) * (fixtures::HOLE_RADIUS + gap / 2.0);
+            let body = fixtures::block_with_holes_at(&[-way, way]);
+            for tolerance in [1e-6, 0.02, 10.0] {
+                let volume = fixtures::block_volume() - 2.0 * hole;
+                held(&body, tolerance, volume, 2.0 * wall(fixtures::HOLE_RADIUS));
+            }
+        }
+        let inside = fixtures::HALF_SIDE - fixtures::HOLE_RADIUS - gap;
+        for center in [
+            DVec3::new(inside, 0.0, 0.0),
+            DVec3::new(inside, inside, 0.0),
+        ] {
+            let body = fixtures::block_with_holes_at(&[center]);
+            for tolerance in [1e-6, 0.02, 10.0] {
+                let volume = fixtures::block_volume() - hole;
+                held(&body, tolerance, volume, wall(fixtures::HOLE_RADIUS));
+            }
+        }
+    }
+}
+
+#[test]
+fn a_hole_a_hair_inside_the_stock_s_wall_on_a_grid_angle_or_off_it_stays_closed_and_uncrossed() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::HOLE_RADIUS);
+    for gap in HAIRS {
+        let away = fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS - gap;
+        for angle in [0.0, 0.1, PI] {
+            let center = DVec3::new(angle.cos(), angle.sin(), 0.0) * away;
+            for tolerance in [1e-6, 0.02, 10.0] {
+                held(
+                    &fixtures::stock_with_a_hole_at(center),
+                    tolerance,
+                    volume,
+                    area,
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn two_holes_tangent_inside_the_stock_at_once_part_its_wall_in_two_drawn_closed_and_uncrossed() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - 2.0 * fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + 2.0 * wall(fixtures::HOLE_RADIUS);
+    let shared = 3.0 * TAU / 16.0;
+    for angles in [[0.0, PI], [0.3, 1.7], [shared + 1e-7, PI + 0.2]] {
+        let body = fixtures::stock_with_two_holes_tangent_at(angles);
+        for tolerance in [1e-6, 0.02, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}

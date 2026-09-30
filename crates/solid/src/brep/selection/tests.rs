@@ -154,3 +154,25 @@ fn a_region_neither_operand_covers_is_left_without_asking_either_how_it_wraps_it
     let cut = joined.cut_by(&column);
     assert!(cut.is_ok(), "{cut:?}");
 }
+
+/// Seed 5000221 of the campaign: a bar lying along X whose cap touches a
+/// post standing on Z at a single point of its wall, the very point the
+/// post's band of wall is read at. Asking the bar how it wraps that point is
+/// a tie; another point along the same chord of the band answers.
+#[test]
+fn a_region_whose_point_the_other_operand_touches_is_read_at_another_point_of_its_chord() {
+    let post = standing([30.0, 5.0], 25.0, -5.0, 35.0);
+    let frame = Frame {
+        origin: DVec3::X * 5.0,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let center = DVec2::new(35.0, 15.0);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 30.0],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let bar = Body::raised(&circle, &[], frame, DVec3::NEG_X * 18.0).expect("a bar raises");
+    let cut = post.cut_by(&bar);
+    assert!(cut.is_ok(), "{cut:?}");
+}

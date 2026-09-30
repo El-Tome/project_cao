@@ -376,6 +376,22 @@ fn seed_5000221_a_post_bored_where_the_bore_s_cap_touches_its_wall() {
     ));
 }
 
+/// The same bar raised the other way: its cap touches the post at a single
+/// point of its wall, the very point the post's band of wall was read at,
+/// and asking the bar how it wraps it was a tie. The band is read again
+/// further along the same chord.
+#[test]
+fn seed_5000221_a_bar_whose_cap_touches_a_post_at_one_point_cuts_nothing() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-5.0), Outline::circle([30.0, 5.0], 25.0), 40.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(5.0),
+            Outline::circle([35.0, 15.0], 30.0),
+            -18.0,
+        ))],
+    ));
+}
+
 /// A post given a block and cut by a second post of its radius three tenths
 /// of a micron aside, more than the tolerance. The two circles and a side of
 /// the block run within a millionth of a micron of each other between two

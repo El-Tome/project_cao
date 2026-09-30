@@ -180,7 +180,7 @@ impl Layout<'_> {
         bottom: usize,
         widest: Option<usize>,
     ) -> Result<Vec<Region>, Declined> {
-        let mut best: Vec<Option<(f64, DVec2)>> = vec![None; self.cycles.list.len() + 2];
+        let mut best: Vec<Option<(f64, DVec2, [f64; 2])>> = vec![None; self.cycles.list.len() + 2];
         for column in &self.columns.list {
             for pair in column.crossings.windows(2) {
                 let (low, high) = (pair[0], pair[1]);
@@ -189,9 +189,13 @@ impl Layout<'_> {
                     continue;
                 }
                 let score = (high.height - low.height).min(column.width);
-                if best[root].is_none_or(|(kept, _)| score > kept) {
+                if best[root].is_none_or(|(kept, _, _)| score > kept) {
                     let middle = 0.5 * (low.height + high.height);
-                    best[root] = Some((score, DVec2::new(self.principal(column.x), middle)));
+                    best[root] = Some((
+                        score,
+                        DVec2::new(self.principal(column.x), middle),
+                        [low.height, high.height],
+                    ));
                 }
             }
         }
@@ -204,17 +208,19 @@ impl Layout<'_> {
             let place = match roots.iter().position(|&known| known == root) {
                 Some(place) => place,
                 None => {
-                    let inside = if root == top {
-                        far_above
+                    let (inside, chord) = if root == top {
+                        (far_above, [far_above.y; 2])
                     } else if root == bottom {
-                        far_below
+                        (far_below, [far_below.y; 2])
                     } else {
-                        best[root].ok_or(Declined::Tie)?.1
+                        let (_, inside, chord) = best[root].ok_or(Declined::Tie)?;
+                        (inside, chord)
                     };
                     roots.push(root);
                     regions.push(Region {
                         cycles: Vec::new(),
                         inside,
+                        chord,
                         unbounded: root == top || root == bottom,
                     });
                     regions.len() - 1

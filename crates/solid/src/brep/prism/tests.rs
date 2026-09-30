@@ -220,9 +220,17 @@ fn a_profile_or_a_frame_holding_a_number_that_is_not_one_is_declined() {
         turn: std::f64::consts::PI,
     };
     let lost_corner = Contour::rectangle(DVec2::ZERO, DVec2::new(f64::NAN, 1.0));
-    for contour in [&lost_center, &lost_corner] {
-        let raised = Body::raised(contour, &[], ground(), DVec3::Z);
-        assert_eq!(raised.map(|_| ()), Err(Declined::Profile), "{contour:?}");
+    let endless_corner = Contour::rectangle(DVec2::ZERO, DVec2::new(f64::INFINITY, 1.0));
+    let askew = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::ONE.normalize(),
+        v: DVec3::new(1.0, -2.0, 1.0).normalize(),
+    };
+    for contour in [&lost_center, &lost_corner, &endless_corner] {
+        for frame in [ground(), askew] {
+            let raised = Body::raised(contour, &[], frame, frame.normal());
+            assert_eq!(raised.map(|_| ()), Err(Declined::Profile), "{contour:?}");
+        }
     }
     let block = Contour::rectangle(DVec2::ZERO, DVec2::ONE);
     let adrift = Frame {

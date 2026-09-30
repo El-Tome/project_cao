@@ -546,6 +546,25 @@ fn seed_17000598_a_boss_a_hair_off_a_bore_touching_the_stock_inside_stays_uncros
 }
 
 #[test]
+fn seed_16000754_a_boss_a_hair_inside_a_notched_cylinder_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([2.0, 9.5], 1.0), 7.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([1.0, 9.0], [2.0, 10.0]),
+                13.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([1.50001, 9.5], 0.5),
+                13.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
 fn seed_17000616_a_boss_crossing_the_rim_of_a_wider_one_under_a_block_leaves_its_foot_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

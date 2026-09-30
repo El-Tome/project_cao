@@ -513,6 +513,48 @@ fn no_sample_of_an_arc_stands_so_near_its_end_that_it_lies_on_a_plane_touching_t
     }
 }
 
+/// A ring passing the line a plane touches its wall along, and a vertex of
+/// the wall a hair round from that line, further than the kernel's
+/// tolerance: the ring would take a ray through it, where it stands on the
+/// plane as good as the line does.
+#[test]
+fn no_sample_of_a_ring_passing_a_plane_touching_its_wall_lies_on_the_plane_but_the_line_itself() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let hair: f64 = 1e-5;
+    let off = build.vertex(DVec3::new(hair.cos(), hair.sin(), 0.0) * radius + DVec3::Z * 5.0);
+    let ring = build.circle(wall, 0.0, None);
+    let through = build.circle(wall, 5.0, Some(off));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(through, false)]],
+    );
+    let corners = [
+        DVec3::new(radius, 0.0, 0.0),
+        DVec3::new(radius, -1.0, 0.0),
+        DVec3::new(radius, -1.0, 1.0),
+        DVec3::new(radius, 0.0, 1.0),
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&corners, DVec3::X);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for id in samples.edge(ring) {
+            let point = samples.point(*id);
+            let on_the_line = (point - DVec3::X * radius).length() <= eps;
+            assert!(
+                on_the_line || (radius - point.x).abs() >= eps * APART,
+                "{point} lies on the plane x = {radius} within {tolerance}"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_ring_is_sampled_at_the_angle_of_a_corner_standing_inside_its_wall_closer_than_a_chord_sags() {
     let mut build = fixtures::Build::new();
@@ -764,7 +806,15 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         beside: Vec::new(),
     };
     let eps = body.scale().eps();
-    let points = super::on_circle(&circle, body.edge(edge), 0.02, eps, &contact, [false; 2]);
+    let points = super::on_circle(
+        &circle,
+        body.edge(edge),
+        0.02,
+        eps,
+        &contact,
+        [false; 2],
+        &[],
+    );
     let start = circle.point(0.0);
     assert!(
         points.iter().any(|point| (*point - start).length() < 1e-9),

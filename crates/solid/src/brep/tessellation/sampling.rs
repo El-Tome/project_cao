@@ -29,7 +29,7 @@ use glam::DVec3;
 use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, Edge, EdgeId, VertexId};
 
 const LEAST: usize = 16;
@@ -96,7 +96,8 @@ impl Samples {
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
                     let touched = touched_ends(body, circle, edge);
-                    on_circle(circle, edge, tolerance, eps, contact, touched)
+                    let planes = touching_planes(body, circle);
+                    on_circle(circle, edge, tolerance, eps, contact, touched, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
@@ -133,13 +134,16 @@ impl Samples {
 /// adds. A place closer than `eps` to a grid angle is that angle, and to an
 /// end that end — or, at an end a plane touches the wall at, a place so near
 /// it that the circle there stands within a fifth of `eps` of the plane: the
-/// sample would lie on the plane's edge. So too beside a line the wall
-/// touches or crosses another along: a ray is not taken where the circle
-/// stands within a fifth of `eps` of the other wall a step or less from an
-/// end standing so too. The vertex is the line's sample there, and a second
-/// a hair round from it — through the other end of a line the kernel laid
-/// leaning a hair — would stand as good as on the other wall's circle, which
-/// ends at the same vertex.
+/// sample would lie on the plane's edge. Nor is a ray taken, on any circle of
+/// the wall, where the circle stands so near such a plane but not on the
+/// line it touches along: a ray a partner passed on, through its own grid,
+/// would lay a strip of the wall on the plane's face. So too beside a line
+/// the wall touches or crosses another along: a ray is not taken where the
+/// circle stands within a fifth of `eps` of the other wall a step or less
+/// from an end standing so too. The vertex is the line's sample there, and a
+/// second a hair round from it — through the other end of a line the kernel
+/// laid leaning a hair — would stand as good as on the other wall's circle,
+/// which ends at the same vertex.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
@@ -147,6 +151,7 @@ fn on_circle(
     eps: f64,
     contact: &Contact,
     touched: [bool; 2],
+    planes: &[Plane],
 ) -> Vec<DVec3> {
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
@@ -175,6 +180,13 @@ fn on_circle(
     };
     let beside =
         |at: f64, other: &Cylinder| other.distance(circle.point(at)).abs() < eps * contact::APART;
+    let beside_a_plane = |at: f64| {
+        let point = circle.point(at);
+        planes.iter().any(|plane| {
+            let touching = circle.center - plane.normal * plane.distance(circle.center);
+            plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
+        })
+    };
     let by_an_end = |at: f64| {
         contact.beside.iter().any(|other| {
             beside(at, other)
@@ -204,7 +216,7 @@ fn on_circle(
             at = low;
         }
         while at < high {
-            if inside(at) && !by_an_end(at) {
+            if inside(at) && !by_an_end(at) && !beside_a_plane(at) {
                 places.push((at, false, angle));
             }
             at += TAU;
@@ -253,6 +265,22 @@ fn on_circle(
         points.pop();
     }
     points
+}
+
+/// The planes of the body touching a circle's wall along a line.
+fn touching_planes(body: &Body, circle: &Circle) -> Vec<Plane> {
+    let eps = body.scale().eps();
+    body.surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Plane(plane) => Some(*plane),
+            Surface::Cylinder(_) => None,
+        })
+        .filter(|plane| {
+            plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
+                && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
+        })
+        .collect()
 }
 
 /// Whether each end of a circle's edge, its start then its end, is a vertex

@@ -95,9 +95,15 @@ origin, from 0 to 10.
   merging what one cause shows under several rules: **nineteen distinct
   failures**, ten the kernel's, eight the triangles', one the harness's.
   [`exact-kernel-failures.md`](exact-kernel-failures.md) names them.
-- Not reviewed yet: the reviewers of the boolean and of the perpendicular
-  triangles were cut short by the account's spending limit; the fixing
-  lanes' reviewers read the same code again.
+- The two fixing lanes came back and were merged at 23:57, each reviewer
+  having confirmed and fixed more than it was handed. Run again, 107 of
+  campaign 1's 138 shrunk seeds hold: twelve of the nineteen failures are
+  gone entirely, six in part, one not at all. The sixteen cases stay green.
+- Campaign 2 started at 23:57 from seed 2 000 000 on the merged kernel, for
+  an hour, the same draw and the same rules as campaign 1.
+- Not reviewed as written: the reviewers of the boolean and of the
+  perpendicular triangles were cut short by the account's spending limit;
+  the fixing lanes' reviewers read the same code again.
 - What took the time: the decision that a whole circle is an edge with no
   vertex — as Parasolid holds it, and as the application will want to pick
   it — against the literal "its two vertices" of #498. A phantom vertex on a

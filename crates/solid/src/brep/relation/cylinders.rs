@@ -36,19 +36,15 @@ fn side_by_side(large: &Cylinder, small: &Cylinder, scale: Scale) -> Relation {
     let across = between - large.axis * large.axis.dot(between);
     let distance = across.length();
     let (outer, inner) = (large.radius, small.radius);
-    if distance <= eps {
-        return if outer - inner <= eps {
-            Relation::Same { agree: true }
-        } else {
-            Relation::Apart
-        };
+    if distance <= eps && outer - inner <= eps {
+        return Relation::Same { agree: true };
     }
-    let towards = across / distance;
     let outside = distance - (outer + inner);
     let inside = (outer - inner) - distance;
     if outside > eps || inside > eps {
         return Relation::Apart;
     }
+    let towards = across / distance;
     if outside >= -eps {
         let touch = large.origin + towards * (distance * outer / (outer + inner));
         return Relation::Tangent(Line::through(touch, large.axis));

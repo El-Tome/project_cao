@@ -203,6 +203,24 @@ fn parallel_cylinders_cross_touch_or_are_one_as_their_axes_stand() {
 }
 
 #[test]
+fn parallel_cylinders_a_hair_off_one_axis_touch_inside_where_their_gap_closes() {
+    let eps = scale().eps();
+    let stock = cylinder(DVec3::ZERO, DVec3::Z, 20.0);
+    for (x, expected) in [
+        (0.9 * eps, "tangent"),
+        (0.6 * eps, "tangent"),
+        (0.4 * eps, "apart"),
+        (0.0, "apart"),
+    ] {
+        let tool = cylinder(DVec3::new(x, 0.0, 0.0), DVec3::Z, 20.0 - 1.5 * eps);
+        let found = relation(&stock, &tool, scale());
+        assert_eq!(class(&found), expected, "{x}: {found:?}");
+        assert_on_both(&found, &stock, &tool, eps);
+        assert_eq!(relation(&tool, &stock, scale()), found);
+    }
+}
+
+#[test]
 fn parallel_cylinders_touching_exactly_meet_along_the_line_where_they_touch() {
     let stock = cylinder(DVec3::ZERO, DVec3::Z, 20.0);
     for (x, touch) in [(15.0, 20.0), (25.0, 20.0), (-15.0, -20.0)] {

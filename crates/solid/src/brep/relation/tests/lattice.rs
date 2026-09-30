@@ -128,12 +128,8 @@ fn expected(one: Piece, other: Piece, eps: f64) -> &'static str {
         ) => {
             if one_axis == other_axis {
                 let distance = (one_at[0] - other_at[0]).hypot(one_at[1] - other_at[1]);
-                if distance <= eps {
-                    return if (one_radius - other_radius).abs() <= eps {
-                        "same"
-                    } else {
-                        "apart"
-                    };
+                if distance <= eps && (one_radius - other_radius).abs() <= eps {
+                    return "same";
                 }
                 let outside = touching(distance - (one_radius + other_radius), eps);
                 let inside = touching((one_radius - other_radius).abs() - distance, eps);

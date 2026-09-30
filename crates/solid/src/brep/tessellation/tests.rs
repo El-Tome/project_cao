@@ -5,6 +5,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::Body;
 use crate::soundness::{closed, enclosed, uncrossed};
 
@@ -122,6 +123,8 @@ fn the_same_body_is_drawn_twice_to_the_same_bits() {
     for body in [
         fixtures::stock_with_a_tangent_hole(),
         fixtures::block_with_a_lying_cylinder(),
+        across::stock_bored_flush_across(),
+        across::stock_crossed(),
     ] {
         let first = body.triangles(DRAWN);
         crate::soundness::repeatable(&first, &body.triangles(DRAWN)).expect("the same bits");
@@ -407,6 +410,101 @@ fn the_stock_bored_across_clear_of_its_top_is_drawn_closed_round_both_windows() 
         let volume = holds(&body, stock - across::common_across(radius, 0.0));
         for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
             held(&body, tolerance, volume, area);
+        }
+    }
+}
+
+#[test]
+fn the_stock_bored_across_flush_with_its_top_and_bottom_is_drawn_closed_on_both_sides_of_the_touch()
+{
+    let radius = across::MIDDLE;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * fixtures::STOCK_RADIUS;
+    let body = across::stock_bored_flush_across();
+    listed(&body);
+    let volume = holds(&body, stock - across::common_across(radius, 0.0));
+    for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, area);
+    }
+}
+
+#[test]
+fn the_stock_crossed_by_a_cylinder_lying_through_it_is_drawn_closed_north_and_south_of_the_arms() {
+    let radius = across::MIDDLE;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let arm = fixtures::disc_volume(radius, 2.0 * across::ARM);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * across::ARM;
+    let body = across::stock_crossed();
+    listed(&body);
+    let volume = holds(&body, stock + arm - across::common_across(radius, 0.0));
+    for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, area);
+    }
+}
+
+/// How far inside `cylinder` a triangle with every corner on it reaches at its
+/// deepest, read at points spread over it. None when a corner is off it, or
+/// when every corner stands at one height along its axis: a cap square to the
+/// axis is not its wall.
+fn depth_in(corners: &[DVec3; 3], cylinder: &Cylinder) -> Option<f64> {
+    let height = |point: DVec3| (point - cylinder.origin).dot(cylinder.axis);
+    let on = corners
+        .iter()
+        .all(|corner| cylinder.distance(*corner).abs() < 1e-9);
+    if !on
+        || corners
+            .iter()
+            .all(|corner| height(*corner) == height(corners[0]))
+    {
+        return None;
+    }
+    let mut deepest = 0.0f64;
+    for one in 0..=8 {
+        for other in 0..=8 - one {
+            let (a, b) = (one as f64 / 8.0, other as f64 / 8.0);
+            let point = corners[0] * (1.0 - a - b) + corners[1] * a + corners[2] * b;
+            deepest = deepest.max(-cylinder.distance(point));
+        }
+    }
+    Some(deepest)
+}
+
+/// How far inside its cylinder a triangle of a wall reaches, at the deepest
+/// of them all. A triangle whose corners all lie where two cylinders meet
+/// lies on both: it is held to the one it stays closest to.
+fn deepest_of_any_wall(body: &Body, triangles: &[[DVec3; 3]]) -> f64 {
+    let cylinders: Vec<Cylinder> = body
+        .surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Cylinder(cylinder) => Some(*cylinder),
+            Surface::Plane(_) => None,
+        })
+        .collect();
+    triangles
+        .iter()
+        .filter_map(|corners| {
+            cylinders
+                .iter()
+                .filter_map(|cylinder| depth_in(corners, cylinder))
+                .reduce(f64::min)
+        })
+        .fold(0.0, f64::max)
+}
+
+#[test]
+fn no_triangle_of_a_wall_a_meet_bounds_stands_further_inside_its_cylinder_than_the_tolerance() {
+    for body in [
+        across::stock_bored_across(3.0, DVec3::X),
+        across::stock_bored_flush_across(),
+        across::stock_crossed(),
+    ] {
+        for tolerance in [3e-3, DRAWN, 0.5] {
+            let deepest = deepest_of_any_wall(&body, &body.triangles(tolerance));
+            assert!(
+                deepest > 0.0 && deepest <= tolerance,
+                "{deepest} inside a wall within {tolerance}"
+            );
         }
     }
 }

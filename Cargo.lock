@@ -611,6 +611,7 @@ dependencies = [
 name = "cao_solid"
 version = "0.1.0"
 dependencies = [
+ "cao_solid",
  "glam",
  "serde",
 ]

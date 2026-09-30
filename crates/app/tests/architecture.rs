@@ -313,6 +313,24 @@ name = \"probe\"
 }
 
 #[test]
+fn a_crate_naming_itself_for_its_own_tests_reaches_for_nothing_new() {
+    let manifest = "\
+[package]
+name = \"cao_solid\"
+
+[dependencies]
+glam = \"0.33\"
+
+[dev-dependencies]
+cao_solid = { path = \".\", features = [\"test-support\"] }
+";
+
+    let expected: BTreeSet<String> = ["glam".to_string()].into_iter().collect();
+
+    assert_eq!(declared_dependencies(manifest), expected);
+}
+
+#[test]
 fn the_two_geometry_crates_stay_alone_with_their_maths() {
     let expected: BTreeSet<String> = ["glam", "serde"]
         .iter()
@@ -866,18 +884,30 @@ fn manifest(directory: &str) -> String {
 /// Every table that declares an edge, not just `[dependencies]`: a crate reached
 /// only by the tests or only on one platform is still a crate this manifest
 /// pulls in, and the rules below have nothing to say about it if it is invisible.
+/// The crates a manifest reaches for, leaving out the crate itself: a crate
+/// that names itself as a dev-dependency does so to switch a feature of its
+/// own on for its integration tests, which reaches nothing it did not have.
 fn declared_dependencies(manifest: &str) -> BTreeSet<String> {
     let mut names = BTreeSet::new();
     let mut inside = false;
+    let mut in_package = false;
+    let mut own = None;
 
     for line in manifest.lines() {
         let line = line.trim();
         if let Some(header) = table_header(line) {
             inside = declares_dependencies(header);
+            in_package = header == "package";
             if let Some(name) = dependency_given_its_own_table(header) {
                 names.insert(name.to_string());
             }
             continue;
+        }
+        if in_package
+            && let Some(("name", value)) =
+                line.split_once('=').map(|(key, value)| (key.trim(), value))
+        {
+            own = Some(value.trim().trim_matches('"').to_string());
         }
         if !inside || line.is_empty() || line.starts_with('#') {
             continue;
@@ -893,6 +923,9 @@ fn declared_dependencies(manifest: &str) -> BTreeSet<String> {
         if !name.is_empty() {
             names.insert(name.to_string());
         }
+    }
+    if let Some(own) = own {
+        names.remove(&own);
     }
     names
 }

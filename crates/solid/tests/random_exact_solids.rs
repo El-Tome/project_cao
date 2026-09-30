@@ -15,9 +15,9 @@
 //! The arithmetic is held to the flats here, where it can be: on straight
 //! sides it is what the flats measure, on circles it is within their
 //! sagitta, and the check that holds the exact kernel keeps every case the
-//! flats keep their own rules on — two thousand one hundred of the first
-//! three thousand square cases, when it was written — and breaks every one
-//! they break.
+//! flats keep their own rules on — some two thirds of the first three
+//! thousand square cases, when it was written — and breaks every one they
+//! break.
 //!
 //! The campaign is run by hand:
 //!

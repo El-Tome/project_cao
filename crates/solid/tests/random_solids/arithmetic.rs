@@ -34,7 +34,7 @@ const LINES: usize = 48;
 /// Under this cosine, a line crossing a curved wall is left out and counted,
 /// rather than held with a room as long as the stretch it grazes: how many
 /// there are says how much of a campaign looked at nothing.
-pub const GRAZING: f64 = 0.05;
+const GRAZING: f64 = 0.05;
 
 /// How many lines a case was held along, and how many were left out for
 /// grazing a curved wall, summed over every body the case was checked at.

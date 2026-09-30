@@ -105,18 +105,23 @@ impl Samples {
             meets = on_meets(body, &walls, &zones, &contacts, tolerance);
             contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
         }
-        let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = contact::wall_of(circle, &walls, eps)
+                    let wall = contact::wall_of(circle, &walls, eps);
+                    let mut contact = wall
                         .and_then(|(surface, _)| contacts.get(surface))
-                        .unwrap_or(&alone);
+                        .map_or_else(Contact::default, Contact::clone);
+                    if let Some((_, wall)) = wall {
+                        let steps = divisions(wall.radius, tolerance);
+                        let level = circle.center.dot(wall.axis);
+                        contact.withheld = zones.withheld_at(wall, &contact.withheld, steps, level);
+                    }
                     let ends = Ends::of(body, circle, edge);
                     let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
-                    on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
+                    on_circle(circle, edge, tolerance, eps, &contact, &ends, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };

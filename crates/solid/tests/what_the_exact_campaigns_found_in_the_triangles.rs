@@ -821,6 +821,25 @@ fn seed_28000951_a_bar_a_hair_proud_of_the_side_a_cylinder_touches_leaves_that_s
     ));
 }
 
+#[test]
+fn seed_29002495_a_disc_hollowed_from_below_a_hair_off_its_axis_keeps_its_rim_round_above() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(0.0), Outline::circle([120.0, 270.0], 90.0), 30.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([255.0, 180.0], [405.0, 390.0]),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-30.0),
+                Outline::circle([119.99999, 270.0], 90.0),
+                45.0,
+            )),
+        ],
+    ));
+}
+
 /// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
 /// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
 /// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex

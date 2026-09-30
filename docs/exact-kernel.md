@@ -200,7 +200,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   at a height they share: a union keeps each wall where the other is gone,
   and two cylinders stacked keep each wall at its own heights, so there the
   place is one wall's alone and the step stays, or the chord across would sag
-  past the tolerance. A place two rays put at one vertex is taken once. A
+  past the tolerance. So too for each circle: it leaves out a step so withheld
+  only where the two face each other just above or just below its own height,
+  and the rim of a disc a bore hollowed a hair off its axis, standing over
+  what the bore left, keeps it. A place two rays put at one vertex is taken
+  once. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

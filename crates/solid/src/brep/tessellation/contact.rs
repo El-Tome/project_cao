@@ -53,7 +53,7 @@ pub(super) const APART: f64 = 0.2;
 
 /// What the circles of a cylinder take besides their grid, and what of it
 /// they leave out, for the cylinders it stands close to.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(super) struct Contact {
     /// Directions square to its axis, from its axis, its circles are also
     /// sampled along.

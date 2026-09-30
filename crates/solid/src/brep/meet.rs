@@ -25,7 +25,7 @@ mod meeting;
 mod pair;
 mod seen;
 
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
@@ -119,6 +119,52 @@ impl Meet {
         let pair = self.pair();
         (self.component < pair.components()).then(|| pair.period())
     }
+
+    /// A box holding the component from `from` to `to`: the height across
+    /// both axes spans what `m − l cos t` covers there, and each root is at
+    /// most what that height leaves it, `x² = a² − y²` and
+    /// `(z − e)² = b² − (y − d)²`, whichever its sign.
+    pub(in crate::brep) fn bounds(&self, from: f64, to: f64) -> [DVec3; 2] {
+        let pair = self.pair();
+        let (from, to) = (from.min(to), from.max(to));
+        let half = (pair.high - pair.low) / 2.0;
+        let middle = (pair.high + pair.low) / 2.0;
+        let [start, end] = [from, to].map(f64::cos);
+        let most = if passes(from, to, 0.0) {
+            1.0
+        } else {
+            start.max(end)
+        };
+        let least = if passes(from, to, PI) {
+            -1.0
+        } else {
+            start.min(end)
+        };
+        let (low, high) = (middle - half * most, middle - half * least);
+        let nearest = |centre: f64| (low - centre).max(centre - high).max(0.0);
+        let room = |radius: f64, centre: f64| {
+            (radius * radius - nearest(centre).powi(2)).max(0.0).sqrt() + pair.rounding
+        };
+        let (x, z) = (room(pair.a, 0.0), room(pair.b, pair.d));
+        let (low, high) = (low - pair.rounding, high + pair.rounding);
+        let mut bounds = [DVec3::INFINITY, DVec3::NEG_INFINITY];
+        for corner in 0..8 {
+            let local = DVec3::new(
+                if corner & 1 == 0 { -x } else { x },
+                if corner & 2 == 0 { low } else { high },
+                pair.e + if corner & 4 == 0 { -z } else { z },
+            );
+            let world = pair.world(local);
+            bounds = [bounds[0].min(world), bounds[1].max(world)];
+        }
+        bounds
+    }
+}
+
+/// Whether the stretch from `from` to `to` holds an angle a whole number of
+/// turns from `angle`.
+fn passes(from: f64, to: f64, angle: f64) -> bool {
+    angle + TAU * ((from - angle) / TAU).ceil() <= to
 }
 
 #[cfg(test)]

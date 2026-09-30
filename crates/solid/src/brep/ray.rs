@@ -6,6 +6,7 @@
 //! planes of the origin can hold; one that grazes a face, lands near an edge
 //! or starts on a face is cast again along the next.
 
+mod boxes;
 mod hits;
 
 use glam::DVec3;
@@ -13,6 +14,7 @@ use glam::DVec3;
 use super::Declined;
 use super::domain::Location;
 use super::topology::{Body, FaceId};
+use boxes::Boxes;
 use hits::{Hits, hits};
 
 /// Directions with no simple ratio between their components, so that no
@@ -45,8 +47,9 @@ impl Body {
     /// nought outside. A point on a face has no answer; one within `eps` of
     /// a face is taken on whichever side it stands.
     pub fn winding(&self, point: DVec3, eps: f64) -> Result<i32, Declined> {
+        let boxes = Boxes::of(self, eps);
         for direction in DIRECTIONS.map(|direction| DVec3::from(direction).normalize()) {
-            if let Some(winding) = self.cast(point, direction, eps)? {
+            if let Some(winding) = self.cast(point, direction, eps, &boxes)? {
                 return Ok(winding);
             }
         }
@@ -63,10 +66,30 @@ impl Body {
         direction: DVec3,
         eps: f64,
     ) -> Result<Vec<(f64, i32)>, Declined> {
+        self.crossings_through(origin, direction, eps, Some(&Boxes::of(self, eps)))
+    }
+
+    /// The crossings along a line, the faces whose box a place of the line
+    /// misses left untraced when `boxes` are given.
+    fn crossings_through(
+        &self,
+        origin: DVec3,
+        direction: DVec3,
+        eps: f64,
+        boxes: Option<&Boxes>,
+    ) -> Result<Vec<(f64, i32)>, Declined> {
         let unit = direction.length();
         let mut found = Vec::new();
         for face in self.face_ids() {
-            for met in self.met(face, origin, direction / unit, f64::NEG_INFINITY, eps)? {
+            let met = self.met(
+                face,
+                origin,
+                direction / unit,
+                f64::NEG_INFINITY,
+                eps,
+                boxes,
+            )?;
+            for met in met.into_iter().flatten() {
                 match met {
                     Met::Through { at, step } => found.push((at / unit, -step)),
                     Met::Missed => {}
@@ -79,10 +102,17 @@ impl Body {
     }
 
     /// The winding along one ray, or none when the ray is doubtful.
-    fn cast(&self, origin: DVec3, direction: DVec3, eps: f64) -> Result<Option<i32>, Declined> {
+    fn cast(
+        &self,
+        origin: DVec3,
+        direction: DVec3,
+        eps: f64,
+        boxes: &Boxes,
+    ) -> Result<Option<i32>, Declined> {
         let mut winding = 0;
         for face in self.face_ids() {
-            for met in self.met(face, origin, direction, -eps, eps)? {
+            let met = self.met(face, origin, direction, -eps, eps, Some(boxes))?;
+            for met in met.into_iter().flatten() {
                 match met {
                     Met::Through { at, .. } if at <= eps => return Ok(None),
                     Met::Through { step, .. } => winding += step,
@@ -96,7 +126,7 @@ impl Body {
 
     /// Where the line through `origin` along the unit `direction` meets a
     /// face from the parameter `from` on, each crossing with one for coming
-    /// out of the matter there.
+    /// out of the matter there: twice at most.
     fn met(
         &self,
         face: FaceId,
@@ -104,20 +134,30 @@ impl Body {
         direction: DVec3,
         from: f64,
         eps: f64,
-    ) -> Result<Vec<Met>, Declined> {
+        boxes: Option<&Boxes>,
+    ) -> Result<[Option<Met>; 2], Declined> {
         let lying = self.face(face);
         let surface = self.surface(lying.surface);
         let found = match hits(surface, origin, direction, eps) {
-            Hits::Along => return Ok(vec![Met::Doubtful]),
+            Hits::Along => return Ok([Some(Met::Doubtful), None]),
             Hits::At(found) => found,
         };
-        let mut met = Vec::new();
-        for (at, normal) in found.into_iter().filter(|(at, _)| *at >= from) {
+        let mut met = [None, None];
+        for (slot, (at, normal)) in met
+            .iter_mut()
+            .zip(found)
+            .filter_map(|(slot, hit)| Some((slot, hit?)))
+            .filter(|(_, (at, _))| *at >= from)
+        {
             let point = origin + direction * at;
+            if boxes.is_some_and(|boxes| boxes.misses(face, point)) {
+                *slot = Some(Met::Missed);
+                continue;
+            }
             let located = self.locate(face, surface.parameters(point), eps)?;
             let outward = if lying.flipped { -normal } else { normal };
             let across = outward.dot(direction);
-            met.push(match located {
+            *slot = Some(match located {
                 Location::Outside => Met::Missed,
                 Location::Boundary => Met::Doubtful,
                 Location::Inside if across.abs() < GRAZING => Met::Doubtful,

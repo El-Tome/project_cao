@@ -150,3 +150,81 @@ fn a_line_through_an_edge_of_a_block_is_declined_rather_than_counted_twice() {
     let found = body.crossings_along(DVec3::new(20.0, 0.0, 10.0), DVec3::new(1.0, 0.3, 1.0), EPS);
     assert_eq!(found, Err(Declined::Tie));
 }
+
+fn lying(center: [f64; 2], radius: f64, from: f64, to: f64) -> Body {
+    let center = DVec2::from(center);
+    let outline = Contour {
+        corners: vec![center + DVec2::X * radius],
+        runs: vec![Run::Round {
+            center,
+            turn: std::f64::consts::TAU,
+        }],
+    };
+    let frame = Frame {
+        origin: DVec3::Y * from,
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    Body::raised(&outline, &[], frame, DVec3::Y * (to - from)).expect("a cylinder lies")
+}
+
+/// The bodies of the sixteen cases of `docs/exact-kernel-journal.md`.
+fn sixteen() -> Vec<Body> {
+    let stock = || standing([0.0, 0.0], 20.0, 0.0, 10.0);
+    let slab = || block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
+    let hole = |x: f64, from: f64, to: f64| standing([x, 0.0], 5.0, from, to);
+    let cut = |body: Body, tool: Body| body.cut_by(&tool).expect("a case the kernel answers");
+    let add = |body: Body, tool: Body| body.joined(&tool).expect("a case the kernel answers");
+    vec![
+        stock(),
+        cut(stock(), hole(8.0, 0.0, 10.0)),
+        cut(stock(), hole(8.0, -1.0, 11.0)),
+        cut(stock(), hole(15.0, 0.0, 10.0)),
+        cut(stock(), hole(15.0, -1.0, 11.0)),
+        cut(stock(), hole(0.0, 0.0, 10.0)),
+        cut(stock(), hole(0.0, -1.0, 11.0)),
+        cut(stock(), hole(8.0, 1e-7, 10.0)),
+        add(stock(), hole(8.0, 10.0, 15.0)),
+        add(stock(), hole(8.0, 9.0, 15.0)),
+        add(stock(), hole(18.0, 10.0, 15.0)),
+        add(slab(), block([15.0, -5.0, 10.0], [25.0, 5.0, 15.0])),
+        add(slab(), block([20.0, -20.0, 0.0], [60.0, 20.0, 10.0])),
+        add(slab(), block([20.0, -10.0, 0.0], [60.0, 30.0, 10.0])),
+        cut(slab(), hole(15.0, 0.0, 10.0)),
+        add(slab(), lying([0.0, 15.0], 5.0, -15.0, 15.0)),
+        cut(cut(stock(), hole(-5.0, 0.0, 10.0)), hole(5.0, 0.0, 10.0)),
+        cut(slab(), block([10.0, -5.0, 5.0], [20.0, 5.0, 10.0])),
+    ]
+}
+
+/// Bodies whose walls meet across each other along the curve of `meet.rs`:
+/// the stock bored across, a bar through it, a post and a bar of one radius.
+fn meeting() -> Vec<Body> {
+    let stock = || standing([0.0, 0.0], 20.0, 0.0, 10.0);
+    vec![
+        stock().cut_by(&lying([3.0, 5.0], 3.0, -25.0, 25.0)),
+        stock().joined(&lying([-4.0, 6.0], 5.0, -30.0, 30.0)),
+        standing([0.0, 0.0], 5.0, 0.0, 20.0).joined(&lying([0.0, 10.0], 5.0, -12.0, 12.0)),
+    ]
+    .into_iter()
+    .map(|body| body.expect("a case the kernel answers"))
+    .collect()
+}
+
+#[test]
+fn the_crossings_along_a_line_are_those_every_face_gives_on_the_sixteen_cases_and_walls_meeting() {
+    let mut crossed = 0;
+    for body in sixteen().into_iter().chain(meeting()) {
+        let reach = DVec3::splat(body.reach() + 1.0);
+        let lines = crate::soundness::Lines::across(-reach, reach, 48);
+        let eps = body.scale().eps();
+        for index in 0..lines.count() {
+            let (origin, direction) = lines.line(index);
+            let boxed = body.crossings_along(origin, direction, eps);
+            let every = body.crossings_through(origin, direction, eps, None);
+            assert_eq!(boxed, every, "line {index} across {body:?}");
+            crossed += usize::from(matches!(&boxed, Ok(found) if !found.is_empty()));
+        }
+    }
+    assert!(crossed > 10_000, "{crossed} lines crossed a body");
+}

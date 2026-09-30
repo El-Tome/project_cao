@@ -6,7 +6,7 @@ mod distance;
 mod inside;
 mod traced;
 
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::Declined;
 use super::surface::Surface;
@@ -66,10 +66,10 @@ impl Body {
     pub fn locate(&self, face: FaceId, at: DVec2, eps: f64) -> Result<Location, Declined> {
         let loops = self.traces(face)?;
         let radius = self.unrolled_at(face);
-        let near = loops
-            .iter()
-            .flatten()
-            .any(|trace| distance::distance(trace, at, radius) <= eps);
+        let place = self.surface(self.face(face).surface).point(at);
+        let near = loops.iter().flatten().any(|trace| {
+            !self.far_from(trace, place, eps) && distance::distance(trace, at, radius) <= eps
+        });
         if near {
             return Ok(Location::Boundary);
         }
@@ -91,6 +91,20 @@ impl Body {
             &self.traces(face)?,
             self.unrolled_at(face),
         ))
+    }
+
+    /// Whether `place` stands further than `eps` from the curve two cylinders
+    /// meet along that a trace follows, told from the box round it before
+    /// the distance is sought along it: on a surface a distance is never
+    /// shorter than straight across, and the box holds every point of the
+    /// curve. Other traces are measured in closed form at once.
+    fn far_from(&self, trace: &Trace, place: DVec3, eps: f64) -> bool {
+        let Trace::Graph { meet, from, to, .. } = *trace else {
+            return false;
+        };
+        let [low, high] = meet.bounds(from, to);
+        let room = eps + self.scale.eps();
+        place.cmplt(low - room).any() || place.cmpgt(high + room).any()
     }
 
     /// The radius a face's parameters unroll at: its cylinder's, and none on

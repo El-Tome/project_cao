@@ -4,9 +4,11 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::Curve;
+use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Edge, Vertex};
 use crate::profile::{Contour, Frame, Run};
+use crate::soundness::listed;
 
 fn ground(height: f64) -> Frame {
     Frame {
@@ -214,4 +216,22 @@ fn a_corner_on_two_of_the_three_surfaces_a_line_lies_on_cuts_that_line() {
     };
     let cut = joined.cut_by(&standing_on(3.000_000_02, circle, 9.500_000_1));
     assert!(cut.is_ok(), "{cut:?}");
+}
+
+/// Seed 793 of the campaign, made small: a boss whose cap stands a hair above
+/// the top is joined onto it, then another whose cap stands a hair below.
+/// Each cap is the top within the tolerance, and each circle crosses the
+/// other where the top and the two walls meet: one corner, whichever circle
+/// it is found on.
+#[test]
+fn two_circles_laid_on_a_top_from_a_hair_either_side_of_it_cross_at_one_corner() {
+    let hair = 0.8 * Scale::of(20.0).eps();
+    let one = block([0.0, 0.0, 0.0], [20.0, 20.0, 10.0]);
+    let above = standing([20.0, 8.0], 4.0, 5.0, 10.0 + hair);
+    let below = standing([20.0, 12.0], 4.0, 5.0, 10.0 - hair);
+    let body = one
+        .joined(&above)
+        .and_then(|joined| joined.joined(&below))
+        .expect("the bosses join");
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
 }

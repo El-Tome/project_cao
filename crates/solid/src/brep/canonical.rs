@@ -9,7 +9,7 @@ mod curves;
 mod surfaces;
 
 pub(super) use corners::{Pool, lies_on};
-pub(super) use curves::{Registered, Registry};
+pub(super) use curves::{Registered, Registry, same};
 pub(super) use surfaces::Surfaces;
 
 #[cfg(test)]

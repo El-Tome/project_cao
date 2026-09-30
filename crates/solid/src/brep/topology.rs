@@ -142,7 +142,7 @@ impl Body {
     }
 
     /// The points of an edge where a coordinate is largest or smallest.
-    fn extremes(&self, edge: &Edge) -> Vec<DVec3> {
+    pub(super) fn extremes(&self, edge: &Edge) -> Vec<DVec3> {
         let curve = self.curve(edge.curve);
         let mut found = vec![curve.point(edge.from), curve.point(edge.to)];
         match curve {

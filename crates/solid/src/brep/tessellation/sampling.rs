@@ -6,12 +6,16 @@
 //! on — the angles `2πk/N` from the cylinder's `u`, which a circle of that
 //! cylinder shares — so that on a cylinder every curve has a point at every
 //! grid angle, and no triangle cut between two of them spans more than one
-//! step. The ends of an edge are its vertices' own points. A circle of a
+//! step. The ends of an edge are its vertices' own points. A circle is also
+//! sampled at the angle of every vertex on its cylinder, so that a ruling
+//! from a vertex meets a sample on every rim of its wall. A circle of a
 //! cylinder in contact with another is also sampled on the rays [`contact`]
 //! gives it, and not at the steps it withholds: there the triangle next to
 //! the line two walls touch along spans more than one step, by the stretch
-//! withheld. The curve two perpendicular cylinders meet along is sampled on
-//! the grids of both, by [`meet`].
+//! withheld. A circle whose wall is gone — a cylinder swallowed by one it
+//! touches leaves its circles on the caps — is sampled as the circles of a
+//! cylinder of its own. The curve two perpendicular cylinders meet along is
+//! sampled on the grids of both, by [`meet`].
 
 mod meet;
 
@@ -21,9 +25,7 @@ use glam::DVec3;
 
 use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
-use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
+use crate::brep::topology::{Body, Edge, EdgeId};
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -75,18 +77,20 @@ impl Samples {
                 }
             })
             .collect();
-        let mut contacts = contact::contacts(body, tolerance);
+        let walls = contact::walls(body);
+        let mut contacts = contact::contacts(body, &walls, tolerance);
         contact::along_meets(body, &meets, &mut contacts);
+        contact::through_vertices(body, &walls, &mut contacts);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = (0..body.surfaces.len() as u32)
-                        .map(SurfaceId)
-                        .find(|surface| lies_on(body, circle, *surface))
-                        .and_then(|surface| contacts.get(&surface))
+                    let contact = walls
+                        .iter()
+                        .find(|(_, wall)| contact::lies_on(circle, wall, eps))
+                        .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
                     on_circle(circle, edge, tolerance, eps, contact)
                 }
@@ -118,19 +122,6 @@ impl Samples {
     pub(super) fn is_vertex(&self, id: usize) -> bool {
         id < self.vertices
     }
-}
-
-/// Whether a circle is one of the circles of a surface of the body: a
-/// cylinder of its radius about its axis.
-fn lies_on(body: &Body, circle: &Circle, surface: SurfaceId) -> bool {
-    let Surface::Cylinder(cylinder) = body.surface(surface) else {
-        return false;
-    };
-    let eps = body.scale().eps();
-    let from = circle.center - cylinder.origin;
-    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE
-        && (cylinder.radius - circle.radius).abs() <= eps
-        && (from - cylinder.axis * cylinder.axis.dot(from)).length() <= eps
 }
 
 /// The points of a circle's edge between its ends, in the way the edge runs:

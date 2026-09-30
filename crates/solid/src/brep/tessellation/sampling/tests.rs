@@ -383,3 +383,62 @@ fn the_rings_of_the_stock_a_bore_crosses_are_sampled_through_every_sample_of_the
         }
     }
 }
+
+#[test]
+fn the_rings_of_two_walls_touching_are_sampled_on_the_line_they_touch_along() {
+    let inside = DVec3::X * (fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS);
+    let beside = DVec3::X * fixtures::HOLE_RADIUS;
+    let bodies = [
+        (
+            fixtures::stock_with_a_hole_at(inside),
+            fixtures::STOCK_RADIUS,
+        ),
+        (fixtures::block_with_holes_at(&[-beside, beside]), 0.0),
+    ];
+    for (body, touching) in &bodies {
+        for tolerance in [1e-3, 0.02, 0.5] {
+            let samples = Samples::of(body, tolerance);
+            let mut rings = 0;
+            for edge in body.edge_ids() {
+                let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+                    continue;
+                };
+                let line = DVec3::new(*touching, 0.0, circle.center.z);
+                rings += 1;
+                assert!(
+                    sampled(&samples, edge, line),
+                    "the ring of radius {} misses {line} within {tolerance}",
+                    circle.radius
+                );
+            }
+            assert_eq!(rings, 4);
+        }
+    }
+}
+
+#[test]
+fn every_ring_of_a_cylinder_is_sampled_at_the_angle_of_every_vertex_on_that_cylinder() {
+    let (from, to) = (0.3 + 1e-4, 0.3 + 3e-4);
+    let body = fixtures::tube_with_a_window(from, to);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let mut rings = 0;
+        for edge in body.edge_ids() {
+            if body.edge(edge).ends.is_some() {
+                continue;
+            }
+            let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+                continue;
+            };
+            rings += 1;
+            for angle in [from, to] {
+                assert!(
+                    sampled(&samples, edge, circle.point(angle)),
+                    "the ring of radius {} misses {angle} within {tolerance}",
+                    circle.radius
+                );
+            }
+        }
+        assert_eq!(rings, 4);
+    }
+}

@@ -227,6 +227,34 @@ fn a_face_whose_loops_bound_no_region_is_left_open_rather_than_ending_the_progra
 }
 
 #[test]
+fn a_disc_touching_the_rim_of_a_cap_is_drawn_closed_though_its_wall_is_gone() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let body = fixtures::stock_with_a_disc_touching_its_rim();
+    for tolerance in [1e-6, 0.02, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, wall(fixtures::STOCK_RADIUS));
+    }
+}
+
+#[test]
+fn a_wall_slit_from_top_to_bottom_is_drawn_whole_round_a_window_in_it() {
+    let (from, to) = (2.0, 4.0);
+    let body = fixtures::slit_wall_with_a_window(from, to);
+    let radius = fixtures::STOCK_RADIUS;
+    let exact = TAU * radius * fixtures::HEIGHT - (to - from) * radius * fixtures::WINDOW_HEIGHT;
+    for tolerance in [DRAWN, 0.5] {
+        let area: f64 = body
+            .triangles(tolerance)
+            .iter()
+            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() / 2.0)
+            .sum();
+        assert!(
+            (area - exact).abs() <= exact * tolerance / radius,
+            "the triangles cover {area} of {exact} within {tolerance}"
+        );
+    }
+}
+
+#[test]
 fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed() {
     let annulus =
         std::f64::consts::PI * (fixtures::STOCK_RADIUS.powi(2) - fixtures::BORE_RADIUS.powi(2));

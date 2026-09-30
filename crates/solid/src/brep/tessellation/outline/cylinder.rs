@@ -118,8 +118,8 @@ impl Outline {
                 .max_by(|one, other| one.area().total_cmp(&other.area()))?;
             let low = outer.lowest();
             for ((ids, raw), lap) in laps.iter().zip(&raws).zip(&laid) {
-                let within = low + (lap.placed[0].0.x - low).rem_euclid(TAU);
-                let placed = Lap::from(raw, ids, 0, within).placed;
+                let turns = ((low - lap.lowest()) / TAU).ceil();
+                let placed = Lap::from(raw, ids, 0, lap.placed[0].0.x + TAU * turns).placed;
                 self.chain(&placed);
             }
             return Some(());

@@ -146,7 +146,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
-  points where planes of the origin touch a cylinder are always samples.
+  points where planes of the origin touch a cylinder are always samples. A
+  circle is also sampled at the angle of every vertex on its cylinder, so that
+  a ruling from a vertex off the grid meets a sample on every rim of its wall:
+  otherwise a strip a hair high — a skin left under a cap — is cut by a
+  triangle reaching from the vertex to the next step of the other rim, lying
+  flat over the face beside it. Two cylinders touching are both sampled on the
+  line they touch along, vertex or not, and a circle whose wall is gone is
+  sampled as its own cylinder's.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,
   at every place a curve turns back, and on a cylinder at every grid angle.
   Inside a strip the arcs are graphs that do not cross, so each piece of face

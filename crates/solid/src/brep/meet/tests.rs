@@ -247,6 +247,52 @@ fn a_meet_turning_back_at_an_angle_is_found_there_once() {
 }
 
 #[test]
+fn a_meet_turning_back_at_an_angle_its_sine_rounds_is_still_found_there_once() {
+    let apart = |one: f64, other: f64, period: f64| {
+        let gap = (one - other).rem_euclid(period);
+        gap.min(period - gap)
+    };
+    for (a, b) in [(20.0, 5.0), (20.0, 10.0), (20.0, 20.0)] {
+        for d in (-6..=6).map(|step| 5.0 * step as f64) {
+            for (one, other) in [
+                (DVec3::Z, DVec3::X),
+                (DVec3::X, DVec3::Y),
+                (DVec3::Y, DVec3::Z),
+            ] {
+                let first = Cylinder::about(DVec3::ZERO, one, a);
+                let second = Cylinder::about(one.cross(other) * d + one, other, b);
+                for meet in Meeting::of(&first, &second, scale()).components {
+                    let period = meet.period().expect("a component closes on itself");
+                    for on_first in [true, false] {
+                        for turn in meet.turns(on_first) {
+                            let angle = meet.seen_on(on_first, turn)[0].x;
+                            let found = meet.at_angle(on_first, angle);
+                            let there = found
+                                .iter()
+                                .filter(|&&t| apart(t, turn, period) < 1e-6)
+                                .count();
+                            assert_eq!(there, 1, "{a} {b} {d} {one}: {turn} in {found:?}");
+                        }
+                        for grid in 0..96 {
+                            let angle = TAU * grid as f64 / 96.0 - PI;
+                            let found = meet.at_angle(on_first, angle);
+                            for (index, &t) in found.iter().enumerate() {
+                                for &other in &found[index + 1..] {
+                                    assert!(
+                                        apart(t, other, period) > 1e-6,
+                                        "{a} {b} {d} {one} at {angle}: {found:?}"
+                                    );
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn a_meet_turns_back_on_a_cylinder_exactly_where_its_angle_stops_and_nowhere_else() {
     let scan = 4000;
     for (first, second) in every_shape().into_iter().chain(turned()) {

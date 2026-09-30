@@ -54,8 +54,9 @@ impl Meet {
     /// Exact but for rounding: the angle fixes a point of the cylinder's
     /// circle, so a height across both axes, which the half-angle of the
     /// parameter is read off; the side of the root that does not vanish there
-    /// tells which arcs pass. Where the component turns back at that angle it
-    /// is found once.
+    /// tells which arcs pass. A height within rounding of an end of the span is
+    /// that end, so where the component turns back at that angle it is found
+    /// once rather than as two roots a square root of the rounding apart.
     pub fn at_angle(&self, on_first: bool, theta: f64) -> Vec<f64> {
         let pair = self.pair();
         if self.component >= pair.components() {
@@ -85,10 +86,12 @@ impl Meet {
                 sin,
             )
         };
-        if below < -pair.rounding || above < -pair.rounding {
+        let at_an_end = |gap: f64| if gap.abs() <= pair.rounding { 0.0 } else { gap };
+        let (below, above) = (at_an_end(below), at_an_end(above));
+        if below < 0.0 || above < 0.0 {
             return Vec::new();
         }
-        let half = above.max(0.0).sqrt().atan2(below.max(0.0).sqrt());
+        let half = above.sqrt().atan2(below.sqrt());
         let on_its_end = side.abs() * radius <= pair.rounding;
         let mut found: Vec<f64> = [
             2.0 * half,
@@ -97,8 +100,7 @@ impl Meet {
             2.0 * TAU - 2.0 * half,
         ]
         .into_iter()
-        .map(|t| t.rem_euclid(period))
-        .map(|t| if t < period { t } else { 0.0 })
+        .filter(|&t| t < period)
         .filter(|&t| {
             let point = pair.local(signs, t)[0];
             let root = if on_first { point.x } else { point.z - pair.e };

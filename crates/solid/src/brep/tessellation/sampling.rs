@@ -22,6 +22,7 @@
 
 mod meet;
 
+use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
@@ -30,7 +31,7 @@ use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
-use crate::brep::topology::{Body, Edge, EdgeId, VertexId};
+use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId, VertexId};
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -72,18 +73,14 @@ impl Samples {
             vertices: body.vertex_ids().count(),
         };
         let eps = body.scale().eps();
-        let meets: Vec<Vec<DVec3>> = body
-            .edge_ids()
-            .map(|id| {
-                let edge = body.edge(id);
-                match body.curve(edge.curve) {
-                    Curve::Meet(meet) => meet::on_meet(meet, edge, tolerance, eps),
-                    Curve::Line(_) | Curve::Circle(_) => Vec::new(),
-                }
-            })
-            .collect();
         let walls = contact::walls(body);
-        let contacts = contact::contacts(body, &walls, &meets, tolerance);
+        let alone = BTreeMap::new();
+        let mut meets = on_meets(body, &walls, &alone, tolerance);
+        let mut contacts = contact::contacts(body, &walls, &meets, tolerance);
+        if meets.iter().any(|points| !points.is_empty()) {
+            meets = on_meets(body, &walls, &contacts, tolerance);
+            contacts = contact::contacts(body, &walls, &meets, tolerance);
+        }
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
@@ -127,6 +124,42 @@ impl Samples {
     pub(super) fn is_vertex(&self, id: usize) -> bool {
         id < self.vertices
     }
+}
+
+/// The points of every edge along a meet between its ends, each on the rays
+/// its two cylinders take in `contacts`; none for any other edge.
+fn on_meets(
+    body: &Body,
+    walls: &[contact::Wall],
+    contacts: &BTreeMap<SurfaceId, Contact>,
+    tolerance: f64,
+) -> Vec<Vec<DVec3>> {
+    let eps = body.scale().eps();
+    let angles = |cylinder: &Cylinder| -> Vec<f64> {
+        walls
+            .iter()
+            .find(|(_, wall)| wall == cylinder)
+            .and_then(|(id, _)| contacts.get(id))
+            .map_or_else(Vec::new, |contact| {
+                contact
+                    .rays
+                    .iter()
+                    .map(|way| way.dot(cylinder.v).atan2(way.dot(cylinder.u)))
+                    .collect()
+            })
+    };
+    body.edge_ids()
+        .map(|id| {
+            let edge = body.edge(id);
+            match body.curve(edge.curve) {
+                Curve::Meet(meet) => {
+                    let [first, second] = [angles(&meet.first), angles(&meet.second)];
+                    meet::on_meet(meet, edge, tolerance, eps, [&first, &second])
+                }
+                Curve::Line(_) | Curve::Circle(_) => Vec::new(),
+            }
+        })
+        .collect()
 }
 
 /// The points of a circle's edge between its ends, in the way the edge runs:

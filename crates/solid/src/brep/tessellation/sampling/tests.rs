@@ -245,6 +245,34 @@ fn a_meet_is_sampled_at_every_grid_angle_of_either_cylinder_and_wherever_it_turn
 }
 
 #[test]
+fn a_meet_is_sampled_at_the_angle_of_every_ray_the_circles_of_either_cylinder_take() {
+    let (body, meets) = loops_across_the_stock(3.0, DVec3::X);
+    let eps = body.scale().eps();
+    let off_the_grid = [0.123, 1.234, 2.345];
+    for tolerance in [1e-3, 0.02, 0.5] {
+        for (edge, meet) in body.edge_ids().zip(&meets) {
+            for on_first in [true, false] {
+                let rays: [&[f64]; 2] = if on_first {
+                    [&off_the_grid, &[]]
+                } else {
+                    [&[], &off_the_grid]
+                };
+                let points = super::meet::on_meet(meet, body.edge(edge), tolerance, eps, rays);
+                for angle in off_the_grid {
+                    for t in meet.at_angle(on_first, angle) {
+                        let place = meet.point(t);
+                        assert!(
+                            points.iter().any(|point| (*point - place).length() < 1e-9),
+                            "{angle} on the first {on_first} is missed within {tolerance}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn a_meet_between_two_vertices_runs_from_the_first_to_the_last_with_every_sample_between() {
     let mut build = fixtures::Build::new();
     let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
@@ -759,6 +787,50 @@ fn the_rings_of_two_walls_a_hair_across_each_other_are_sampled_on_the_lines_they
                 assert!(
                     sampled(&samples, ring, line),
                     "{line} is missed within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+/// Two bands of one radius, their axes a hair apart, the second standing
+/// above the first: nowhere do the two walls face each other.
+fn bands_a_hair_apart_one_above_the_other(offset: f64) -> (Body, [EdgeId; 4]) {
+    let mut build = fixtures::Build::new();
+    let first = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::HOLE_RADIUS);
+    let second = build.cylinder(DVec3::X * offset, DVec3::Z, fixtures::HOLE_RADIUS);
+    let rings = [(first, 0.0), (first, 1.0), (second, 2.0), (second, 3.0)]
+        .map(|(wall, height)| build.circle(wall, height, None));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, [low, high]) in [
+        (first, [rings[0], rings[1]]),
+        (second, [rings[2], rings[3]]),
+    ] {
+        build.face(
+            wall,
+            false,
+            vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+        );
+    }
+    (build.finish(fixtures::STOCK_RADIUS), rings)
+}
+
+#[test]
+fn two_walls_a_hair_across_each_other_at_heights_apart_keep_every_step_of_their_grid() {
+    let (body, rings) = bands_a_hair_apart_one_above_the_other(1.5 * 2e-8);
+    for tolerance in [1e-3, 0.02] {
+        let samples = Samples::of(&body, tolerance);
+        let steps = divisions(fixtures::HOLE_RADIUS, tolerance);
+        for ring in rings {
+            let Curve::Circle(circle) = *body.curve(body.edge(ring).curve) else {
+                panic!("a band is bounded by rings");
+            };
+            for step in 0..steps {
+                let angle = TAU * step as f64 / steps as f64;
+                assert!(
+                    sampled(&samples, ring, circle.point(angle)),
+                    "the ring at {} misses step {step} within {tolerance}",
+                    circle.center.z
                 );
             }
         }

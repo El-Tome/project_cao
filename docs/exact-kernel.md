@@ -189,7 +189,15 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   round the turn. Nor does a wall take such a ray from a third it shares rays
   with: a bore touching the stock inside passes its grid on to the stock,
   and the stock would pass back the very steps the bore withholds beside a
-  boss crossing it. A place two rays put at one vertex is taken once. What
+  boss crossing it. Such a ray is withheld only where both walls hold a face,
+  at a height they share: a union keeps each wall where the other is gone,
+  and two cylinders stacked keep each wall at its own heights, so there the
+  place is one wall's alone and the step stays, or the chord across would sag
+  past the tolerance. A place two rays put at one vertex is taken once. A
+  curve two perpendicular cylinders meet along is sampled on every ray the
+  circles of either take: a wall a hair inside one of them takes the rays of
+  that one's other curves, and its chords, shallower between two samples of
+  the curve than the curve's own, would pass under the face beyond it. What
   still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 

@@ -592,23 +592,7 @@ fn seed_17000616_a_boss_crossing_the_rim_of_a_wider_one_under_a_block_leaves_its
     ));
 }
 
-/// As seed 10001163: walls of radius 25 kept 1e-7 apart, a third more than
-/// the kernel's tolerance, closer than a fifth of it over some nine degrees
-/// either side of each line they cross along, the grid's steps a little
-/// over eight: the chord across sags twice the tolerance.
-///
-/// What was tried. The stretch need only be withheld where the two walls
-/// stand face to face — a sliver a cut leaves between them. In a union each
-/// wall stands where the other is gone, and sampling the stretch there on
-/// common rays draws this seed and 10003386 whole. But the cap where both
-/// circles end at the crossing line then holds two arcs closer than the
-/// rules tell apart, and rays through the vertex, seen from the other axis,
-/// put samples a hair from it on both: the crescent between them folds
-/// (seeds 7002169 and 7000204 were left open). Withholding below a tenth of
-/// the tolerance there instead of a fifth kept those closed, but left
-/// 10001163's chords too long and 7000204's front open.
 #[test]
-#[ignore = "zone"]
 fn seed_13000096_two_cylinders_of_one_radius_barely_apart_at_heights_apart_enclose_their_union() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(-5.0), Outline::circle([50.0, 10.0], 25.0), 23.0),
@@ -620,18 +604,7 @@ fn seed_13000096_two_cylinders_of_one_radius_barely_apart_at_heights_apart_enclo
     ));
 }
 
-/// Two walls of one radius 2e-8 apart, the kernel's tolerance 1.2e-8: they
-/// cross along two lines at a slant a hair from nought, and stand closer
-/// than a fifth of the tolerance over three steps of the grid about each.
-/// Those steps are withheld from both, and the chord from the line to the
-/// next step left spans two steps and sags four times the tolerance: the
-/// triangles are short by that along the lines passing there. Samples where
-/// the walls first stand a fifth of the tolerance apart, either side of the
-/// line, would bound the chord to one step; put there exactly, they broke
-/// the rays two holes tangent inside one wall share through it, and the
-/// sliver of seed 5000951.
 #[test]
-#[ignore = "zone"]
 fn seed_10001163_two_cylinders_of_one_radius_barely_apart_enclose_their_union() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([6.0, 8.0], 6.0), 2.0),
@@ -643,11 +616,7 @@ fn seed_10001163_two_cylinders_of_one_radius_barely_apart_enclose_their_union() 
     ));
 }
 
-/// As seed 10001163: walls of radius 22.5 kept apart by 1e-7, closer than a
-/// fifth of the tolerance over three steps of ten degrees about each line
-/// they cross along, and the chord across them sags four times it.
 #[test]
-#[ignore = "zone"]
 fn seed_10003386_two_cylinders_one_wall_but_for_a_hair_enclose_their_union() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(15.0), Outline::circle([27.5, 30.0], 22.5), 43.0),
@@ -656,5 +625,60 @@ fn seed_10003386_two_cylinders_one_wall_but_for_a_hair_enclose_their_union() {
             Outline::circle([27.4999999, 30.0], 22.5),
             85.0,
         ))],
+    ));
+}
+
+#[test]
+fn seed_1006751_two_cylinders_of_one_radius_a_hair_apart_one_above_the_other_enclose_their_union() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(149.9999982),
+            Outline::circle([165.0, 135.0], 75.0),
+            45.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(150.0000003),
+            Outline::circle([164.9999997, 135.0], 75.0),
+            -60.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_1008037_two_cylinders_of_one_radius_a_hair_apart_joined_enclose_their_union_once_the_tolerance_grows()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(0.0), Outline::circle([1.0, 0.0], 4.5), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(0.0),
+                Outline::circle([0.99999998, 0.0], 4.5),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([4.0, 4.0], [7.0, 9.0]),
+                20.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_1023983_a_boss_filling_a_bore_but_for_a_hair_leaves_the_wall_the_bore_crossed_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-7.5), Outline::circle([30.0, 0.0], 15.0), 38.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(10.0),
+                Outline::circle([0.0, 0.0], 20.0),
+                30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(10.0),
+                Outline::circle([1e-7, 0.0], 20.0),
+                30.0,
+            )),
+        ],
     ));
 }

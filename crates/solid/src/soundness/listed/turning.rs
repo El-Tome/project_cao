@@ -8,11 +8,12 @@
 //! turns it — positive round the outside of a face, negative round a hole.
 //!
 //! Every place of a listing may stand `room` off where its geometry says: an
-//! edge off its surface, its end off its vertex. Areas are read about a place
-//! of the face, so that what the room sweeps is `room` times the loop's
-//! length and times how far its corners stand from that place: a loop
-//! sweeping less — a sliver between a side and a circle tangent to it —
-//! turns neither way that can be read, and is not judged.
+//! edge off its surface, its end off its vertex. An edge off its surface
+//! sweeps `room` times its length; an edge ending off the next one's start
+//! leaves the area hanging on the place it is read about, by the gap times
+//! how far it stands from that place — a place of the face, not the origin.
+//! A loop sweeping less than both — a sliver between a side and a circle
+//! tangent to it — turns neither way that can be read, and is not judged.
 
 use std::f64::consts::TAU;
 
@@ -72,22 +73,7 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
         let blurred: Vec<f64> = listed
             .loops
             .iter()
-            .map(|uses| {
-                let reach: f64 = uses
-                    .iter()
-                    .map(|&(edge, _)| {
-                        let listed = &listing.edges[edge];
-                        let corners: f64 = listed
-                            .ends
-                            .iter()
-                            .flatten()
-                            .map(|&vertex| listing.vertices[vertex].distance(about))
-                            .sum();
-                        length(listed) + corners
-                    })
-                    .sum();
-                room * reach / unrolled
-            })
+            .map(|uses| blur(listing, uses, about, room) / unrolled)
             .collect();
         let backwards = |lap: usize| Err(Mislisted::Backwards { face, lap });
 
@@ -121,6 +107,31 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
         }
     }
     Ok(())
+}
+
+/// What a loop sweeps unread: `room` along its length, and at each gap
+/// between the end of an edge and the start of the next, the gap times how
+/// far it stands from `about`.
+fn blur(listing: &Listing, uses: &[(usize, bool)], about: DVec3, room: f64) -> f64 {
+    let ends = |&(edge, forward): &(usize, bool)| {
+        let listed = &listing.edges[edge];
+        let [start, end] = [listed.from, listed.to].map(|at| point(&listed.curve, at));
+        if forward { [start, end] } else { [end, start] }
+    };
+    let long: f64 = uses
+        .iter()
+        .map(|&(edge, _)| length(&listing.edges[edge]))
+        .sum();
+    let gaps: f64 = uses
+        .iter()
+        .zip(uses.iter().cycle().skip(1))
+        .map(|(one, next)| {
+            let ([_, end], [start, _]) = (ends(one), ends(next));
+            let gap = end.distance(start);
+            gap * (end.distance(about) + gap)
+        })
+        .sum();
+    room * long + gaps
 }
 
 /// How long an edge runs, along chords where it has no short formula.

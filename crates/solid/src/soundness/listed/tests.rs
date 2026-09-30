@@ -607,27 +607,35 @@ fn an_arc_listed_round_the_other_half_of_its_circle_is_found_running_backwards()
 /// the top's plane: both its loops turned the wrong way, the top's hole round
 /// it anticlockwise and the sliver's own clockwise.
 fn block_with_a_sliver(thickness: f64) -> Listing {
-    let mut listing = block(DVec3::ZERO, DVec3::splat(10.0));
-    let first = listing.vertices.len();
-    let corners = [
+    block_with_a_plug(&[
         DVec3::new(3.0, 5.0, 10.0),
         DVec3::new(7.0, 5.0, 10.0),
         DVec3::new(5.0, 5.0 + thickness, 10.0),
-    ];
+    ])
+}
+
+/// A block from the origin to ten each way whose top holds a plug, a face
+/// of its own on the top's plane between `corners`, given anticlockwise:
+/// both its loops turned the wrong way, the top's hole round it
+/// anticlockwise and the plug's own clockwise.
+fn block_with_a_plug(corners: &[DVec3]) -> Listing {
+    let mut listing = block(DVec3::ZERO, DVec3::splat(10.0));
+    let first = listing.vertices.len();
+    let count = corners.len();
     listing.vertices.extend(corners);
     for (rank, &from) in corners.iter().enumerate() {
-        let to = corners[(rank + 1) % 3];
+        let to = corners[(rank + 1) % count];
         let line = Line::through(from, to - from);
         listing.edges.push(ListedEdge {
             curve: Curve::Line(line),
             from: line.parameter(from),
             to: line.parameter(to),
-            ends: Some([first + rank, first + (rank + 1) % 3]),
+            ends: Some([first + rank, first + (rank + 1) % count]),
             sides: Vec::new(),
         });
     }
-    let sides = listing.edges.len() - 3;
-    let round: Vec<(usize, bool)> = (sides..sides + 3).map(|edge| (edge, true)).collect();
+    let sides = listing.edges.len() - count;
+    let round: Vec<(usize, bool)> = (sides..sides + count).map(|edge| (edge, true)).collect();
     listing.faces[5].loops.push(round.clone());
     listing.faces.push(ListedFace {
         loops: vec![round.iter().rev().map(|&(edge, _)| (edge, false)).collect()],
@@ -647,6 +655,30 @@ fn a_sliver_thinner_than_a_listing_can_be_read_is_turned_neither_way_and_a_thick
     assert_eq!(listed(&block_with_a_sliver(1e-12), 10.0), Ok(()));
     assert_eq!(
         listed(&block_with_a_sliver(1e-3), 10.0),
+        Err(Mislisted::Backwards { face: 5, lap: 1 })
+    );
+}
+
+/// A block's top holding, beside its outline, a second loop turned the same
+/// way: an island a thousandth wide that is a face of its own, merged into
+/// the top by mistake, by the corner farthest from where the top's area is
+/// read. A hundred thousand times what a listing of reach ten may stand off
+/// its geometry, it is read, and found turned the wrong way for a hole: that
+/// distance counts only where an edge ends off the next one's start, times
+/// the gap between them, and here none does. The faces round the island
+/// being right, nothing else in the listing tells.
+#[test]
+fn an_island_a_thousandth_wide_far_from_where_its_face_is_read_is_found_turned_the_wrong_way() {
+    let [low, high] = [9.9, 9.901];
+    let mut listing = block_with_a_plug(&[
+        DVec3::new(low, low, 10.0),
+        DVec3::new(high, low, 10.0),
+        DVec3::new(high, high, 10.0),
+        DVec3::new(low, high, 10.0),
+    ]);
+    listing.faces.pop();
+    assert_eq!(
+        turning::turning(&listing, ON * 10.0),
         Err(Mislisted::Backwards { face: 5, lap: 1 })
     );
 }

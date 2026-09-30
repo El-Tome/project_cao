@@ -60,6 +60,9 @@ pub(super) struct Contact {
     /// decided it, rather than on the exact circle a hair away — the line two
     /// surfaces were decided to touch along then holds the samples of both.
     pub(super) anchors: Vec<DVec3>,
+    /// The cylinders parallel to it it touches or crosses: beside the lines
+    /// they meet along, an arc ending there is sampled at its end alone.
+    pub(super) beside: Vec<Cylinder>,
 }
 
 impl Contact {
@@ -67,6 +70,7 @@ impl Contact {
         self.rays.extend(other.rays);
         self.withheld.extend(other.withheld);
         self.anchors.extend(other.anchors);
+        self.beside.extend(other.beside);
     }
 }
 
@@ -151,7 +155,12 @@ pub(super) fn contacts(
             if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
                 continue;
             }
-            for [to_one, to_other] in meeting_lines(&one.1, &other.1, eps) {
+            let lines = meeting_lines(&one.1, &other.1, eps);
+            if !lines.is_empty() {
+                contacts.entry(one.0).or_default().beside.push(other.1);
+                contacts.entry(other.0).or_default().beside.push(one.1);
+            }
+            for [to_one, to_other] in lines {
                 contacts.entry(one.0).or_default().rays.push(to_one);
                 contacts.entry(other.0).or_default().rays.push(to_other);
             }

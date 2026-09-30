@@ -29,7 +29,7 @@ use glam::DVec3;
 use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, Edge, EdgeId, VertexId};
 
 const LEAST: usize = 16;
@@ -133,7 +133,13 @@ impl Samples {
 /// adds. A place closer than `eps` to a grid angle is that angle, and to an
 /// end that end — or, at an end a plane touches the wall at, a place so near
 /// it that the circle there stands within a fifth of `eps` of the plane: the
-/// sample would lie on the plane's edge.
+/// sample would lie on the plane's edge. So too beside a line the wall
+/// touches or crosses another along: a ray is not taken where the circle
+/// stands within a fifth of `eps` of the other wall a step or less from an
+/// end standing so too. The vertex is the line's sample there, and a second
+/// a hair round from it — through the other end of a line the kernel laid
+/// leaning a hair — would stand as good as on the other wall's circle, which
+/// ends at the same vertex.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
@@ -162,6 +168,21 @@ fn on_circle(
             low < at && at < high
         }
     };
+    let ends = if whole {
+        Vec::new()
+    } else {
+        vec![edge.from, edge.to]
+    };
+    let beside =
+        |at: f64, other: &Cylinder| other.distance(circle.point(at)).abs() < eps * contact::APART;
+    let by_an_end = |at: f64| {
+        contact.beside.iter().any(|other| {
+            beside(at, other)
+                && ends
+                    .iter()
+                    .any(|end| (end - at).abs() <= step && beside(*end, other))
+        })
+    };
 
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
         ..=(high / step).ceil() as i64)
@@ -183,7 +204,7 @@ fn on_circle(
             at = low;
         }
         while at < high {
-            if inside(at) {
+            if inside(at) && !by_an_end(at) {
                 places.push((at, false, angle));
             }
             at += TAU;

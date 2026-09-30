@@ -514,6 +514,31 @@ pub(crate) fn block_with_two_holes_touching_at(angle: f64) -> Body {
     build.finish(HALF_SIDE)
 }
 
+/// The two holes touching at the origin, the line they touch along leaning by
+/// `lean` round them from the bottom to the top: its two ends stand a hair
+/// apart round each wall, as the kernel leaves them when both lie within its
+/// tolerance of either wall.
+pub(crate) fn block_with_two_holes_touching_along_a_lean(lean: f64) -> Body {
+    let mut build = Build::new();
+    let (top, bottom) = block_in(&mut build);
+    let low = build.vertex(DVec3::ZERO);
+    let high = build.vertex(DVec3::new(0.0, lean, HEIGHT));
+    let touching = Touching {
+        line: build.line(low, high),
+        low,
+        high,
+        bottom: 0.0,
+    };
+    let use_of = |edge, forward| Coedge { edge, forward };
+    for side in [-1.0, 1.0] {
+        let wall = build.cylinder(DVec3::X * side * HOLE_RADIUS, DVec3::Z, HOLE_RADIUS);
+        let (low, high) = touching.wall(&mut build, wall, true);
+        build.add_loop(top, vec![use_of(high, false)]);
+        build.add_loop(bottom, vec![use_of(low, true)]);
+    }
+    build.finish(HALF_SIDE)
+}
+
 /// The radius and the length of the cylinder lying on the block.
 pub(crate) const LYING_RADIUS: f64 = 4.0;
 pub(crate) const LYING_LENGTH: f64 = 20.0;

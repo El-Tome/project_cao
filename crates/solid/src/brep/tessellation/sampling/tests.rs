@@ -148,12 +148,15 @@ fn the_circles_of_a_hole_tangent_inside_the_stock_are_sampled_on_common_rays_fro
 fn no_sample_of_two_walls_touching_stands_closer_to_the_other_than_a_fifth_of_the_kernel_s_tolerance_but_their_vertices()
  {
     let grid_angle = 3.0 * TAU / 16.0;
-    let bodies = [1e-6, 7e-5].into_iter().flat_map(|off| {
-        [
-            fixtures::stock_with_a_hole_tangent_at(grid_angle + off),
-            fixtures::block_with_two_holes_touching_at(grid_angle + off),
-        ]
-    });
+    let bodies = [1e-6, 7e-5]
+        .into_iter()
+        .flat_map(|off| {
+            [
+                fixtures::stock_with_a_hole_tangent_at(grid_angle + off),
+                fixtures::block_with_two_holes_touching_at(grid_angle + off),
+            ]
+        })
+        .chain([fixtures::block_with_two_holes_touching_along_a_lean(5e-8)]);
     for body in bodies {
         let eps = body.scale().eps();
         let cylinders: Vec<_> = body
@@ -671,6 +674,7 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
         rays: vec![circle.u - circle.v * 1e-17],
         withheld: vec![0],
         anchors: Vec::new(),
+        beside: Vec::new(),
     };
     let eps = body.scale().eps();
     let points = super::on_circle(&circle, body.edge(edge), 0.02, eps, &contact, [false; 2]);

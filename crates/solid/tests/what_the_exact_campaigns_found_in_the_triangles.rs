@@ -497,6 +497,35 @@ fn seed_11003014_two_cylinders_whose_walls_would_cross_on_the_grid_at_heights_ap
     ));
 }
 
+#[test]
+fn seed_11000066_a_boss_swallowed_by_the_block_it_touches_a_bore_beside_leaves_the_face_it_marks_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(6.0),
+            Outline::rectangle([-6.0, 4.0], [6.0, 16.0]),
+            4.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.5),
+                Outline::rectangle([0.0, 4.0], [8.0, 8.0]),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(5.0),
+                Outline::circle([0.0, 1.0], 3.5),
+                8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(6.0),
+                Outline::circle([-6e-8, 10.0], 5.5),
+                4.0,
+            )),
+        ],
+    ));
+}
+
 /// Two walls of one radius 2e-8 apart, the kernel's tolerance 1.2e-8: they
 /// cross along two lines at a slant a hair from nought, and stand closer
 /// than a fifth of the tolerance over three steps of the grid about each.

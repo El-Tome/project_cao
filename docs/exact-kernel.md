@@ -159,10 +159,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   twice a chord's sag — a pocket's corner a hair inside it — gives the wall's
   circles a sample at its angle too, so that no chord passes inside it. An
   arc ending where a plane touches its wall takes no sample so near that end
-  that it would stand on the plane's edge. Two
-  cylinders touching are both sampled on the
-  line they touch along, vertex or not, and a circle whose wall is gone is
-  sampled as its own cylinder's.
+  that it would stand on the plane's edge. Two cylinders touching are both
+  sampled on the line they touch along, vertex or not, and a circle whose
+  wall is gone is sampled as its own cylinder's. An arc ending on that line,
+  though, is sampled there at its end alone: the kernel may lay the line
+  leaning a hair, its two ends within `EPS` of both walls, and a ray through
+  the other end, or through the exact line, would put a sample a hair from
+  the vertex, as good as on the other wall's arc ending at the same vertex —
+  a cap holding both arcs would fold back on itself there.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,
   at every place a curve turns back, and on a cylinder at every grid angle.
   Inside a strip the arcs are graphs that do not cross, so each piece of face

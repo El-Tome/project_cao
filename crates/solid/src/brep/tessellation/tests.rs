@@ -77,6 +77,26 @@ fn two_holes_touching_along_a_line_are_drawn_closed_and_apart() {
     );
 }
 
+/// How far round the walls the top of the line two holes touch along stands
+/// from its foot: more than the kernel's tolerance, two hundred millionths
+/// on the block, and far less than the stretch round which the two walls
+/// stand closer than a fifth of it.
+const LEAN: f64 = 5e-8;
+
+#[test]
+fn two_holes_touching_along_a_line_leaning_a_hair_are_drawn_closed_and_apart() {
+    let hole = fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let body = fixtures::block_with_two_holes_touching_along_a_lean(LEAN);
+    for tolerance in [1e-3, DRAWN, 0.5] {
+        held(
+            &body,
+            tolerance,
+            fixtures::block_volume() - 2.0 * hole,
+            2.0 * wall(fixtures::HOLE_RADIUS),
+        );
+    }
+}
+
 #[test]
 fn a_cylinder_lying_on_the_block_leaves_a_slit_in_the_top_drawn_on_both_sides() {
     let lying = fixtures::disc_volume(fixtures::LYING_RADIUS, fixtures::LYING_LENGTH);

@@ -659,3 +659,24 @@ fn every_ring_of_a_cylinder_is_sampled_at_the_angle_of_every_vertex_on_that_cyli
         assert_eq!(rings, 4);
     }
 }
+
+#[test]
+fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
+    let body = fixtures::stock();
+    let edge = body.edge_ids().next().expect("the stock's first ring");
+    let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+        panic!("the stock's edges are its two rings");
+    };
+    let contact = super::Contact {
+        rays: vec![circle.u - circle.v * 1e-17],
+        withheld: vec![0],
+        anchors: Vec::new(),
+    };
+    let eps = body.scale().eps();
+    let points = super::on_circle(&circle, body.edge(edge), 0.02, eps, &contact, [false; 2]);
+    let start = circle.point(0.0);
+    assert!(
+        points.iter().any(|point| (*point - start).length() < 1e-9),
+        "{start} is missed"
+    );
+}

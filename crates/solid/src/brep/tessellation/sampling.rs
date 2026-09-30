@@ -179,6 +179,9 @@ fn on_circle(
     for way in &contact.rays {
         let angle = way.dot(circle.v).atan2(way.dot(circle.u));
         let mut at = angle + TAU * ((low - angle) / TAU).ceil();
+        if whole && at >= high {
+            at = low;
+        }
         while at < high {
             if inside(at) {
                 places.push((at, false, angle));

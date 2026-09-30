@@ -526,6 +526,34 @@ fn seed_11000066_a_boss_swallowed_by_the_block_it_touches_a_bore_beside_leaves_t
     ));
 }
 
+/// As seed 10001163: walls of radius 25 kept 1e-7 apart, a third more than
+/// the kernel's tolerance, closer than a fifth of it over some nine degrees
+/// either side of each line they cross along, the grid's steps a little
+/// over eight: the chord across sags twice the tolerance.
+///
+/// What was tried. The stretch need only be withheld where the two walls
+/// stand face to face — a sliver a cut leaves between them. In a union each
+/// wall stands where the other is gone, and sampling the stretch there on
+/// common rays draws this seed and 10003386 whole. But the cap where both
+/// circles end at the crossing line then holds two arcs closer than the
+/// rules tell apart, and rays through the vertex, seen from the other axis,
+/// put samples a hair from it on both: the crescent between them folds
+/// (seeds 7002169 and 7000204 were left open). Withholding below a tenth of
+/// the tolerance there instead of a fifth kept those closed, but left
+/// 10001163's chords too long and 7000204's front open.
+#[test]
+#[ignore = "zone"]
+fn seed_13000096_two_cylinders_of_one_radius_barely_apart_at_heights_apart_enclose_their_union() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-5.0), Outline::circle([50.0, 10.0], 25.0), 23.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(-5.0),
+            Outline::circle([50.0000001, 10.0], 25.0),
+            35.0,
+        ))],
+    ));
+}
+
 /// Two walls of one radius 2e-8 apart, the kernel's tolerance 1.2e-8: they
 /// cross along two lines at a slant a hair from nought, and stand closer
 /// than a fifth of the tolerance over three steps of the grid about each.

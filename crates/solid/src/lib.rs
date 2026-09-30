@@ -3,9 +3,11 @@
 //! no interface, like `cao_sketch`.
 
 mod boolean;
+pub mod brep;
 mod clipping;
 pub mod exact;
 mod mesh;
+pub mod profile;
 #[cfg(any(test, feature = "test-support"))]
 pub mod soundness;
 mod sweep;

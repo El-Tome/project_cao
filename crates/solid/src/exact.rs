@@ -2,68 +2,19 @@
 //! this profile, join, cut, and hand back the triangles to draw.
 
 use glam::{DVec2, DVec3};
+
+pub use crate::profile::{Contour, Frame, Run};
 use truck_meshalgo::prelude::*;
 use truck_modeling::{Face, Point3, Solid, Vector3, Wire, builder};
 
 pub type Triangle = [DVec3; 3];
 
-/// How a stretch of a profile runs to the next corner.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Run {
-    Straight,
-    /// Along the circle about `center`, the short way round or the long way
-    /// as `turn` says, in radians, signed as the turn goes.
-    Round {
-        center: DVec2,
-        turn: f64,
-    },
-}
-
-/// A closed loop of a profile: `corners[i]` runs to `corners[i + 1]` as
-/// `runs[i]` says.
-#[derive(Clone, Debug, PartialEq)]
-pub struct Contour {
-    pub corners: Vec<DVec2>,
-    pub runs: Vec<Run>,
-}
-
-impl Contour {
-    pub fn straight(corners: Vec<DVec2>) -> Self {
-        let runs = vec![Run::Straight; corners.len()];
-        Self { corners, runs }
-    }
-
-    /// A whole circle, as two halves: truck refuses an edge whose two ends are
-    /// one vertex.
-    pub fn circle(center: DVec2, radius: f64) -> Self {
-        let half = std::f64::consts::PI;
-        Self {
-            corners: vec![center + DVec2::X * radius, center - DVec2::X * radius],
-            runs: vec![
-                Run::Round { center, turn: half },
-                Run::Round { center, turn: half },
-            ],
-        }
-    }
-}
-
-/// Where a profile stands: an origin and two axes, square and of unit length.
-#[derive(Clone, Copy, Debug)]
-pub struct Frame {
-    pub origin: DVec3,
-    pub u: DVec3,
-    pub v: DVec3,
-}
-
-impl Frame {
-    fn at(&self, point: DVec2) -> Point3 {
-        let world = self.origin + self.u * point.x + self.v * point.y;
-        Point3::new(world.x, world.y, world.z)
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Body(Solid);
+
+fn point(of: DVec3) -> Point3 {
+    Point3::new(of.x, of.y, of.z)
+}
 
 fn vector(of: DVec3) -> Vector3 {
     Vector3::new(of.x, of.y, of.z)
@@ -73,7 +24,7 @@ fn wire(contour: &Contour, frame: &Frame) -> Wire {
     let vertices: Vec<_> = contour
         .corners
         .iter()
-        .map(|corner| builder::vertex(frame.at(*corner)))
+        .map(|corner| builder::vertex(point(frame.at(*corner))))
         .collect();
     let count = vertices.len();
     (0..count)
@@ -84,7 +35,7 @@ fn wire(contour: &Contour, frame: &Frame) -> Wire {
                 Run::Round { center, turn } => {
                     let start = contour.corners[index] - center;
                     let middle = center + DVec2::from_angle(turn / 2.0).rotate(start);
-                    builder::circle_arc(from, to, frame.at(middle))
+                    builder::circle_arc(from, to, point(frame.at(middle)))
                 }
             }
         })

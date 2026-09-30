@@ -484,3 +484,101 @@ fn an_edge_with_no_vertex_short_of_a_whole_turn_is_found() {
     listing.edges[1].to = 0.0;
     assert_eq!(listed(&listing, REACH), Err(Mislisted::Endless { edge: 1 }));
 }
+
+/// Half a round stock, the half on the negative side of X: its arcs run from
+/// a quarter turn to three quarters, across the angle where a turn is read
+/// again from minus a half, and its round wall is a piece of cylinder bounded
+/// by two arcs and two rulings.
+fn half_round() -> Listing {
+    let (radius, height) = (2.0, 3.0);
+    let cylinder = Cylinder::about(DVec3::ZERO, DVec3::Z, radius);
+    let vertices = vec![
+        DVec3::new(0.0, -radius, 0.0),
+        DVec3::new(0.0, radius, 0.0),
+        DVec3::new(0.0, -radius, height),
+        DVec3::new(0.0, radius, height),
+    ];
+    let arc = |h: f64, ends: [usize; 2]| ListedEdge {
+        curve: Curve::Circle(Circle::on(&cylinder, h)),
+        from: PI / 2.0,
+        to: 3.0 * PI / 2.0,
+        ends: Some(ends),
+        sides: Vec::new(),
+    };
+    let line = |from: usize, to: usize| {
+        let direction = (vertices[to] - vertices[from]).normalize();
+        let line = Line::through(vertices[from], direction);
+        ListedEdge {
+            curve: Curve::Line(line),
+            from: line.parameter(vertices[from]),
+            to: line.parameter(vertices[to]),
+            ends: Some([from, to]),
+            sides: Vec::new(),
+        }
+    };
+    let edges = vec![
+        arc(0.0, [1, 0]),
+        arc(height, [3, 2]),
+        line(0, 1),
+        line(2, 3),
+        line(0, 2),
+        line(1, 3),
+    ];
+    let plane = |point: DVec3, normal: DVec3| Surface::Plane(Plane::through(point, normal).0);
+    let face = |surface: Surface, outward: bool, uses: Vec<(usize, bool)>| ListedFace {
+        surface,
+        outward,
+        loops: vec![uses],
+    };
+    with_sides(Listing {
+        faces: vec![
+            face(
+                plane(DVec3::Z * height, DVec3::Z),
+                true,
+                vec![(1, true), (3, true)],
+            ),
+            face(
+                plane(DVec3::ZERO, DVec3::Z),
+                false,
+                vec![(2, false), (0, false)],
+            ),
+            face(
+                plane(DVec3::ZERO, DVec3::X),
+                true,
+                vec![(2, true), (5, true), (3, false), (4, false)],
+            ),
+            face(
+                Surface::Cylinder(cylinder),
+                true,
+                vec![(0, true), (4, true), (1, false), (5, false)],
+            ),
+        ],
+        edges,
+        vertices,
+    })
+}
+
+#[test]
+fn half_a_round_stock_whose_arcs_run_across_half_a_turn_keeps_every_rule_of_a_listing() {
+    assert_eq!(listed(&half_round(), REACH), Ok(()));
+}
+
+#[test]
+fn an_arc_listed_round_the_other_half_of_its_circle_is_found_running_backwards() {
+    let mut listing = half_round();
+    listing.edges[0].to = -PI / 2.0;
+    let found = listed(&listing, REACH);
+    assert!(
+        matches!(found, Err(Mislisted::Backwards { .. })),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn half_a_round_stock_with_every_loop_turned_round_keeps_its_faces_on_its_right() {
+    let found = listed(&turned_round(half_round()), REACH);
+    assert!(
+        matches!(found, Err(Mislisted::Backwards { .. })),
+        "{found:?}"
+    );
+}

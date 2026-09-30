@@ -220,3 +220,24 @@ fn a_face_bounded_by_a_curve_not_sampled_yet_is_left_open_rather_than_ending_the
             .is_empty()
     );
 }
+
+#[test]
+fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed() {
+    let annulus =
+        std::f64::consts::PI * (fixtures::STOCK_RADIUS.powi(2) - fixtures::BORE_RADIUS.powi(2));
+    let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::BORE_RADIUS);
+    let whole = std::f64::consts::TAU;
+    for (from, to) in [
+        (0.3, 1.2),
+        (3.0, 3.5),
+        (0.3, 0.1 + whole),
+        (1.0, 0.99 + whole),
+    ] {
+        let volume =
+            annulus * fixtures::HEIGHT - (to - from) / whole * annulus * fixtures::WINDOW_HEIGHT;
+        let body = fixtures::tube_with_a_window(from, to);
+        for tolerance in [0.02, 0.5, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}

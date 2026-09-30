@@ -1,10 +1,12 @@
 //! Bodies built by hand whose faces are bounded by the curve two
-//! perpendicular cylinders meet along: the stock bored across, the stock
-//! crossed by a cylinder lying through it, two equal cylinders crossing, a
-//! bore touching the stock's wall from inside.
+//! perpendicular cylinders meet along: the stock bored across clear of its
+//! top or flush with it, the stock crossed by a cylinder lying through it,
+//! two equal cylinders crossing, joined or one bored through the other, and a
+//! bore touching the stock's wall from inside, or a hair either side of that.
 //!
 //! Every cylinder lying across stands on the stock's middle height, and the
-//! curves are the kernel's own, from `Meeting::of`.
+//! curves are the kernel's own, from `Meeting::of`. Beside each body, the
+//! arithmetic its volume is held against.
 
 use std::f64::consts::{PI, TAU};
 

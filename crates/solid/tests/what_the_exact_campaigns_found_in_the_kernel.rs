@@ -186,3 +186,77 @@ fn seed_10495_a_block_given_a_boss_centred_a_hair_inside_its_side() {
         ))],
     ));
 }
+
+/// Two blocks whose side and bottom stand three tenths of a micron from each
+/// other's, within the tolerance each way: each plane is one, but the corner
+/// of each where the side meets the bottom stood more than the tolerance
+/// from the other's, and the edges there too. Three planes whose normals
+/// span space fix one corner, and two across each other one line, however
+/// far apart they were found.
+#[test]
+fn seed_5001541_two_blocks_a_hair_apart_each_way_share_their_corners() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(180.0),
+            Outline::rectangle([105.0, 240.0], [315.0, 420.0]),
+            -300.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(180.0),
+            Outline::rectangle([104.9999997, 240.0], [375.0, 420.0]),
+            -299.9999997,
+        ))],
+    ));
+}
+
+/// A post whose wall a block's side is tangent to, the block's corner three
+/// tenths of a micron short of the touch, within the tolerance. Read at the
+/// corner, the circle where the block's bottom cuts the post still rose
+/// towards the side and was ordered above it, though it runs below it: the
+/// directions leaving a corner are known only to the tolerance it was
+/// merged within, over the arc's lever.
+#[test]
+fn seed_5001310_a_block_whose_corner_stands_a_hair_short_of_touching_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::circle([239.9999997, 165.0], 60.0),
+            390.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(150.0),
+            Outline::rectangle([90.0, 180.0], [240.0, 225.0]),
+            45.0,
+        ))],
+    ));
+}
+
+/// A block cut by a circle tangent to two of its sides, its centre a hundred
+/// thousandth inside the third: the sliver left between a side and the
+/// circle was read about the plane's origin, eleven away, where the offset
+/// of its corner from the circle, within the tolerance, swept a million
+/// times its area and turned it backwards; it is now read about a place of
+/// its face. What is left is seed 2790's skin.
+#[test]
+#[ignore = "skin"]
+fn seed_5000136_a_sliver_far_from_the_origin_is_not_read_backwards() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([9.0, 4.0], [11.5, 6.0]),
+            6.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([11.0, 5.0], [12.0, 6.0]),
+                11.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([11.49999002, 5.0], 1.0),
+                11.0,
+            )),
+        ],
+    ));
+}

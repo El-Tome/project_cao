@@ -651,6 +651,47 @@ fn a_sliver_thinner_than_a_listing_can_be_read_is_turned_neither_way_and_a_thick
     );
 }
 
+/// Seed 5000136 of the exact campaigns: a sliver far from the origin, its
+/// loop turned the right way, and a corner its two edges end half the room
+/// either side of. Read about the plane's origin, the gap between those
+/// ends sweeps their offset times the distance to the origin, far more than
+/// the sliver; read about a place of the face, only times the face's size.
+#[test]
+fn a_sliver_far_from_the_origin_whose_corner_its_edges_end_either_side_of_is_read_neither_way() {
+    let mut listing = block(DVec3::new(1000.0, 0.0, 0.0), DVec3::new(1010.0, 10.0, 10.0));
+    let reach = 1010.0;
+    let off = 0.5e-9 * reach;
+    let first = listing.vertices.len();
+    let [a, b, c] = [
+        DVec3::new(1003.0, 5.0, 10.0),
+        DVec3::new(1007.0, 5.0, 10.0),
+        DVec3::new(1005.0, 5.0 + 1e-9, 10.0),
+    ];
+    listing.vertices.extend([a, b, c]);
+    let mut side = |from: DVec3, to: DVec3, ends: [usize; 2]| {
+        let line = Line::through(from, to - from);
+        listing.edges.push(ListedEdge {
+            curve: Curve::Line(line),
+            from: line.parameter(from),
+            to: line.parameter(to),
+            ends: Some(ends),
+            sides: Vec::new(),
+        });
+        listing.edges.len() - 1
+    };
+    let up = side(a, c + DVec3::Y * off, [first, first + 2]);
+    let down = side(c - DVec3::Y * off, b, [first + 2, first + 1]);
+    let back = side(b, a, [first + 1, first]);
+    listing.faces[5]
+        .loops
+        .push(vec![(up, true), (down, true), (back, true)]);
+    listing.faces.push(ListedFace {
+        loops: vec![vec![(back, false), (down, false), (up, false)]],
+        ..listing.faces[5].clone()
+    });
+    assert_eq!(listed(&with_sides(listing), reach), Ok(()));
+}
+
 #[test]
 fn half_a_round_stock_with_every_loop_turned_round_keeps_its_faces_on_its_right() {
     let found = listed(&turned_round(half_round()), REACH);

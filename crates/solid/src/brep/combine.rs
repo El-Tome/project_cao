@@ -12,7 +12,7 @@ mod related;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Pool, Registry};
+use super::canonical::{Apart, Planes, Pool, Registry};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -66,8 +66,9 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
 /// The arena of two operands, decided once: surfaces, relations, curves,
 /// corners and arcs.
 pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
-    let apart = Apart::of(&operands.surfaces.list, operands.scale);
-    let mut registry = Registry::new(operands.scale, apart);
+    let list = &operands.surfaces.list;
+    let apart = Apart::of(list, operands.scale);
+    let mut registry = Registry::new(operands.scale, apart, Planes::of(list));
     let (held, ending) = held::held(operands, &mut registry);
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;

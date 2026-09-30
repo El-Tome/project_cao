@@ -63,7 +63,7 @@ impl Overlay {
                 }],
             });
         }
-        let cycles = star::cycles(arcs)?;
+        let cycles = star::cycles(arcs, vertices, period)?;
         let pieces = piece::pieces(arcs);
         let columns = column::columns(arcs, &pieces, period);
         let layout = partition::Layout {

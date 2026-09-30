@@ -37,8 +37,8 @@ fn square(low: [f64; 2], high: [f64; 2], first: usize) -> (Vec<DVec2>, Vec<Arc>)
 
 #[test]
 fn the_corners_of_a_square_trace_its_inside_one_way_and_its_outside_the_other() {
-    let (_, arcs) = square([0.0, 0.0], [10.0, 10.0], 0);
-    let cycles = star::cycles(&arcs).expect("a square is ordered");
+    let (vertices, arcs) = square([0.0, 0.0], [10.0, 10.0], 0);
+    let cycles = star::cycles(&arcs, &vertices, None).expect("a square is ordered");
     assert_eq!(
         cycles.list,
         vec![
@@ -74,8 +74,8 @@ fn tangent_inside() -> (Vec<DVec2>, Vec<Arc>) {
 
 #[test]
 fn a_disc_tangent_inside_a_disc_at_a_corner_is_told_apart_by_how_it_bends() {
-    let (_, arcs) = tangent_inside();
-    let cycles = star::cycles(&arcs).expect("the two circles bend apart");
+    let (vertices, arcs) = tangent_inside();
+    let cycles = star::cycles(&arcs, &vertices, None).expect("the two circles bend apart");
     assert_eq!(
         cycles.list,
         vec![
@@ -92,7 +92,11 @@ fn two_arcs_leaving_a_corner_along_one_another_are_declined() {
         segment([0.0, 0.0], [4.0, 0.0], Some([0, 1])),
         segment([0.0, 0.0], [9.0, 0.0], Some([0, 2])),
     ];
-    assert!(matches!(star::cycles(&arcs), Err(Declined::Tie)));
+    let vertices = [DVec2::ZERO, DVec2::new(4.0, 0.0), DVec2::new(9.0, 0.0)];
+    assert!(matches!(
+        star::cycles(&arcs, &vertices, None),
+        Err(Declined::Tie)
+    ));
 }
 
 const SAMPLES: usize = 400;
@@ -610,6 +614,59 @@ fn a_hair_of_side_leaving_a_tangent_circle_is_told_apart_by_how_it_bends_whateve
             );
         }
     }
+}
+
+/// Seed 5001310 of the campaign: a block's corner stands on a cylinder its
+/// side is tangent to, three tenths of a micron short of where the side
+/// touches it — within the tolerance at a reach of 330. Read at the corner,
+/// the circle where the block's bottom cuts the cylinder still rises towards
+/// the side and sets off above it; it touches the side from below a hair
+/// further on, and runs below it from there. Directions closer than the
+/// tolerance over the arc's lever set off together, and how the arcs bend
+/// orders them.
+#[test]
+fn a_circle_leaving_a_corner_a_tolerance_short_of_touching_a_side_is_ordered_by_how_it_bends() {
+    let center = [239.999_999_7, 165.0];
+    let corner = DVec2::new(240.0, 225.0);
+    let foot = DVec2::new(181.905_249_506_888_74, 180.0);
+    let angle = |point: DVec2| (point.y - center[1]).atan2(point.x - center[0]);
+    let vertices = vec![
+        corner,
+        DVec2::new(90.0, 225.0),
+        DVec2::new(90.0, 180.0),
+        foot,
+        DVec2::new(240.0, 180.0),
+    ];
+    let arcs = vec![
+        segment([240.0, 225.0], [90.0, 225.0], Some([0, 1])),
+        segment([90.0, 225.0], [90.0, 180.0], Some([1, 2])),
+        segment([90.0, 180.0], foot.to_array(), Some([2, 3])),
+        round(
+            center,
+            60.0,
+            angle(foot),
+            angle(corner) - angle(foot),
+            Some([3, 0]),
+        ),
+        segment(foot.to_array(), [240.0, 180.0], Some([3, 4])),
+        segment([240.0, 180.0], [240.0, 225.0], Some([4, 0])),
+    ];
+    let overlay = Overlay::of(&vertices, &arcs, None).expect("the arcs are ordered");
+    let mut cycles: Vec<Vec<(usize, bool)>> = overlay
+        .regions
+        .iter()
+        .filter(|region| !region.unbounded)
+        .flat_map(|region| region.cycles.clone())
+        .collect();
+    cycles.sort();
+    assert_eq!(
+        cycles,
+        vec![
+            vec![(0, true), (1, true), (2, true), (3, true)],
+            vec![(3, false), (4, true), (5, true)],
+        ],
+        "{overlay:?}"
+    );
 }
 
 #[test]

@@ -7,11 +7,13 @@
 mod apart;
 mod corners;
 mod curves;
+mod planes;
 mod surfaces;
 
 pub(super) use apart::Apart;
 pub(super) use corners::{Pool, lies_on};
 pub(super) use curves::{Registered, Registry, same};
+pub(super) use planes::Planes;
 pub(super) use surfaces::Surfaces;
 
 #[cfg(test)]

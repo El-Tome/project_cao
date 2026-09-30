@@ -65,7 +65,7 @@ fn a_surface_of_the_first_operand_is_never_taken_for_another_of_its_own() {
 #[test]
 fn a_line_found_twice_within_the_tolerance_is_one_curve_lying_on_every_surface_it_was_found_on() {
     let eps = scale().eps();
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let edge = Line::through(DVec3::new(20.0, 0.0, 10.0), DVec3::Y);
     let again = Line::through(DVec3::new(20.0 + eps / 2.0, 3.0, 10.0), -DVec3::Y);
     let apart = Line::through(DVec3::new(20.0 + 2.0 * eps, 3.0, 10.0), DVec3::Y);
@@ -81,7 +81,7 @@ fn a_line_found_twice_within_the_tolerance_is_one_curve_lying_on_every_surface_i
 #[test]
 fn a_circle_found_on_a_cap_and_on_its_hole_is_one_curve() {
     let hole = Cylinder::about(DVec3::new(8.0, 0.0, 0.0), DVec3::Z, 5.0);
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let cap = Circle::on(&hole, 10.0);
     let turned = Circle {
         axis: -cap.axis,
@@ -112,7 +112,7 @@ fn a_stretch_of_a_circle_turning_the_other_way_is_read_up_the_registered_one() {
         v: -cap.v,
         ..cap
     };
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let rank = registry.register(Curve::Circle(cap), &[]);
     let [from, to] = registry.stretch(rank, &Curve::Circle(turned), 0.5, 0.5 + PI / 2.0);
     assert!((from - (-0.5 - PI / 2.0)).abs() < 1e-12, "{from}");
@@ -124,7 +124,7 @@ fn a_stretch_of_a_circle_turning_the_other_way_is_read_up_the_registered_one() {
 #[test]
 fn corners_found_within_the_tolerance_are_one_and_lie_on_every_surface_either_was_found_on() {
     let eps = scale().eps();
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let edge = registry.register(
         Curve::Line(Line::through(DVec3::new(20.0, 0.0, 10.0), DVec3::Y)),
         &[SurfaceId(1), SurfaceId(4)],
@@ -145,7 +145,7 @@ fn corners_found_within_the_tolerance_are_one_and_lie_on_every_surface_either_wa
 #[test]
 fn a_corner_lies_on_the_nearer_of_the_two_lines_a_plane_cuts_a_cylinder_along() {
     let eps = scale().eps();
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let [plane, cylinder, cap] = [SurfaceId(0), SurfaceId(1), SurfaceId(2)];
     let near = registry.register(
         Curve::Line(Line::through(DVec3::new(20.0, -3.0, 0.0), DVec3::Z)),
@@ -165,7 +165,7 @@ fn a_corner_lies_on_the_nearer_of_the_two_lines_a_plane_cuts_a_cylinder_along() 
 #[test]
 fn a_corner_on_the_one_surface_a_curve_was_found_on_lies_on_it_only_where_it_stands() {
     let eps = scale().eps();
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let [plane, other] = [SurfaceId(0), SurfaceId(1)];
     let hole = Cylinder::about(DVec3::new(7.0, 5.0, 0.0), DVec3::Z, 4.0);
     let circle = registry.register(Curve::Circle(Circle::on(&hole, 6.0)), &[plane]);
@@ -178,7 +178,7 @@ fn a_corner_on_the_one_surface_a_curve_was_found_on_lies_on_it_only_where_it_sta
 #[test]
 fn a_corner_found_on_two_surfaces_of_a_line_lying_on_three_lies_on_the_line_and_on_the_third() {
     let eps = scale().eps();
-    let mut registry = Registry::new(scale(), Apart::default());
+    let mut registry = Registry::new(scale(), Apart::default(), Planes::default());
     let [side, tangent, cylinder, top] = [SurfaceId(0), SurfaceId(1), SurfaceId(2), SurfaceId(3)];
     let edge = registry.register(
         Curve::Line(Line::through(DVec3::new(2.5, 4.0, 0.0), DVec3::Z)),
@@ -255,7 +255,7 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
 #[test]
 fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale));
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
     let [one, other, side] = [0, 1, 2].map(SurfaceId);
     let first = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -274,7 +274,7 @@ fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
 #[test]
 fn corners_within_the_tolerance_on_two_surfaces_decided_apart_are_two_corners() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale));
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
     let [one, other, side, floor] = [0, 1, 2, 3].map(SurfaceId);
     let edge = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -294,4 +294,48 @@ fn corners_within_the_tolerance_on_two_surfaces_decided_apart_are_two_corners() 
     let supports = pool.supports(&registry);
     assert_eq!(supports[0], vec![one, side, floor]);
     assert_eq!(supports[1], vec![other, side, floor]);
+}
+
+/// Seed 5001541 of the campaign: two blocks whose sides and bottoms stand
+/// within the tolerance of each other's, three tenths of a micron apart each
+/// way, at a reach of 420. Each plane is one, and the corner of each block
+/// where the side meets the bottom stands more than the tolerance from the
+/// other's.
+fn nearly_one_corner() -> (Registry, [SurfaceId; 3]) {
+    let scale = Scale::of(420.0);
+    let surfaces = vec![
+        plane_at(-120.0, DVec3::Z),
+        plane_at(105.0, DVec3::X),
+        plane_at(240.0, DVec3::Y),
+    ];
+    let registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    (registry, [0, 1, 2].map(SurfaceId))
+}
+
+#[test]
+fn two_lines_on_two_planes_across_each_other_are_one_curve_however_far_apart_they_were_found() {
+    let (mut registry, [bottom, side, _]) = nearly_one_corner();
+    let first = registry.register(
+        Curve::Line(Line::through(DVec3::new(105.0, 0.0, -120.0), DVec3::Y)),
+        &[bottom, side],
+    );
+    let apart = DVec3::new(104.999_999_7, 0.0, -119.999_999_7);
+    assert!(apart.distance(DVec3::new(105.0, 0.0, -120.0)) > Scale::of(420.0).eps());
+    let second = registry.register(Curve::Line(Line::through(apart, DVec3::Y)), &[side, bottom]);
+    let alone = registry.register(Curve::Line(Line::through(apart, DVec3::Y)), &[side]);
+    assert_eq!((first, second, alone), (0, 0, 1));
+}
+
+#[test]
+fn two_corners_on_three_planes_whose_normals_span_space_are_one_however_far_apart_they_were_found()
+{
+    let (registry, [bottom, side, front]) = nearly_one_corner();
+    let mut pool = Pool::new(Scale::of(420.0).eps());
+    let corner = DVec3::new(105.0, 240.0, -120.0);
+    let apart = DVec3::new(104.999_999_7, 240.0, -119.999_999_7);
+    let first = pool.add(corner, [bottom, side, front], [], &registry);
+    let second = pool.add(apart, [front, side, bottom], [], &registry);
+    let third = pool.add(apart, [front, side], [], &registry);
+    assert_eq!((first, second, third), (0, 0, 1));
+    assert_eq!(pool.corners[0].point, corner);
 }

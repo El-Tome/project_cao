@@ -5,6 +5,7 @@
 use glam::DVec3;
 
 use super::apart::Apart;
+use super::planes::Planes;
 use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -20,24 +21,30 @@ pub(in crate::brep) struct Registered {
 pub(in crate::brep) struct Registry {
     pub list: Vec<Registered>,
     pub apart: Apart,
+    pub planes: Planes,
     scale: Scale,
 }
 
 impl Registry {
-    pub fn new(scale: Scale, apart: Apart) -> Registry {
+    pub fn new(scale: Scale, apart: Apart, planes: Planes) -> Registry {
         Registry {
             list: Vec::new(),
             apart,
+            planes,
             scale,
         }
     }
 
     /// The rank of the curve, the first registered within the tolerance of
-    /// it and lying on no surface apart from `support`, or a new one; either
-    /// way lying on `support` from now on.
+    /// it — or a line on two planes across each other `support` lies on —
+    /// and lying on no surface apart from `support`, or a new one; either way
+    /// lying on `support` from now on.
     pub fn register(&mut self, curve: Curve, support: &[SurfaceId]) -> usize {
         let found = self.list.iter().position(|known| {
-            same(&known.curve, &curve, self.scale) && !self.apart.across(&known.support, support)
+            let fixed = matches!((&known.curve, &curve), (Curve::Line(_), Curve::Line(_)))
+                && self.planes.fix_a_line(&known.support, support);
+            (fixed || same(&known.curve, &curve, self.scale))
+                && !self.apart.across(&known.support, support)
         });
         let rank = found.unwrap_or_else(|| {
             self.list.push(Registered {

@@ -37,8 +37,9 @@ impl Pool {
     }
 
     /// The rank of the corner at `point`: the first already there within the
-    /// tolerance and on no surface apart from those `point` was found on, or
-    /// a new one.
+    /// tolerance — or found on three planes whose normals span space that
+    /// `point` was found on too — and on no surface apart from those `point`
+    /// was found on, or a new one.
     pub fn add(
         &mut self,
         point: DVec3,
@@ -50,10 +51,10 @@ impl Pool {
         let curves: BTreeSet<usize> = curves.into_iter().collect();
         let found_on = on(&surfaces, &curves, registry);
         let found = self.corners.iter().position(|corner| {
-            corner.point.distance(point) <= self.eps
-                && !registry
-                    .apart
-                    .across(&on(&corner.surfaces, &corner.curves, registry), &found_on)
+            let known = on(&corner.surfaces, &corner.curves, registry);
+            (corner.point.distance(point) <= self.eps
+                || registry.planes.fix_a_place(&known, &found_on))
+                && !registry.apart.across(&known, &found_on)
         });
         let rank = found.unwrap_or_else(|| {
             self.corners.push(Corner {

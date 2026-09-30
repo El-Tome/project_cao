@@ -3,6 +3,8 @@
 
 use std::f64::consts::TAU;
 
+use glam::DVec2;
+
 use super::Arc;
 use crate::brep::Declined;
 use crate::brep::trace::Trace;
@@ -23,8 +25,12 @@ pub(super) struct Cycles {
     pub of_half: Vec<usize>,
 }
 
-pub(super) fn cycles(arcs: &[Arc]) -> Result<Cycles, Declined> {
-    let stars = stars(arcs)?;
+pub(super) fn cycles(
+    arcs: &[Arc],
+    vertices: &[DVec2],
+    period: Option<f64>,
+) -> Result<Cycles, Declined> {
+    let stars = stars(arcs, vertices, period)?;
     let halves = 2 * arcs.len();
     let mut place = vec![(usize::MAX, 0); halves];
     for (vertex, star) in stars.iter().enumerate() {
@@ -63,7 +69,11 @@ pub(super) fn cycles(arcs: &[Arc]) -> Result<Cycles, Declined> {
 }
 
 /// The halves leaving each vertex, counterclockwise.
-fn stars(arcs: &[Arc]) -> Result<Vec<Vec<usize>>, Declined> {
+fn stars(
+    arcs: &[Arc],
+    vertices: &[DVec2],
+    period: Option<f64>,
+) -> Result<Vec<Vec<usize>>, Declined> {
     let count = arcs
         .iter()
         .filter_map(|arc| arc.ends)
@@ -76,28 +86,39 @@ fn stars(arcs: &[Arc]) -> Result<Vec<Vec<usize>>, Declined> {
         .fold(1.0_f64, |largest, point| {
             largest.max(point.abs().max_element())
         });
+    let rounding = ROUNDING * largest;
+    let off = |at: DVec2, vertex: usize| {
+        let mut apart = at - vertices[vertex];
+        if let Some(period) = period {
+            apart.x -= (apart.x / period).round() * period;
+        }
+        apart.length() + rounding
+    };
     let mut stars = vec![Vec::new(); count];
     for (rank, arc) in arcs.iter().enumerate() {
         if let Some([start, end]) = arc.ends {
-            stars[start].push(leaving(arcs, half(rank, true), largest));
-            stars[end].push(leaving(arcs, half(rank, false), largest));
+            let [from, to] = [arc.trace.start(), arc.trace.end()];
+            stars[start].push(leaving(arcs, half(rank, true), rounding, off(from, start)));
+            stars[end].push(leaving(arcs, half(rank, false), rounding, off(to, end)));
         }
     }
     stars.into_iter().map(ordered).collect()
 }
 
 /// How a half leaves its vertex: the angle it sets off at, how far rounding
-/// may have turned that angle, and how it bends from there, positive to its
-/// left.
+/// may have turned that angle, how it bends from there, positive to its
+/// left, and how far the vertex stands from the arc's end, rounding
+/// included.
 #[derive(Clone, Copy)]
 struct Leaving {
     half: usize,
     angle: f64,
     blur: f64,
     bend: f64,
+    off: f64,
 }
 
-fn leaving(arcs: &[Arc], half: usize, largest: f64) -> Leaving {
+fn leaving(arcs: &[Arc], half: usize, rounding: f64, off: f64) -> Leaving {
     let (arc, forward) = arc_of(half);
     let trace = &arcs[arc].trace;
     let [_, first, second] = trace.at(if forward { 0.0 } else { 1.0 });
@@ -109,9 +130,24 @@ fn leaving(arcs: &[Arc], half: usize, largest: f64) -> Leaving {
     Leaving {
         half,
         angle: direction.y.atan2(direction.x),
-        blur: ROUNDING * largest / lever,
+        blur: rounding / lever,
         bend: direction.perp_dot(second) / direction.length().powi(3),
+        off,
     }
+}
+
+/// Whether two halves set off together. Beside rounding, two arcs a vertex
+/// stands `h` off, bending `k` apart, stay on one side of each other
+/// wherever their directions part by less than `√(2hk)`, whichever way they
+/// point: a corner standing short of where a circle touches a side, within
+/// the tolerance it was merged within, reads the circle still rising towards
+/// the side and off to the wrong side of it. Twice that is taken, for the
+/// touch itself sits right on the bound. Two arcs whose directions part by
+/// less than that from rounding alone come nearer to touching than any
+/// tolerance, and were decided to touch.
+fn together(one: &Leaving, other: &Leaving) -> bool {
+    let touch = (2.0 * (one.off + other.off) * (one.bend - other.bend).abs()).sqrt();
+    (other.angle - one.angle).abs() <= ANGLE_TIE + one.blur + other.blur + 2.0 * touch
 }
 
 /// Two directions closer than this, in radians, set off together, even on
@@ -150,10 +186,7 @@ fn ordered(mut star: Vec<Leaving>) -> Result<Vec<usize>, Declined> {
     let mut start = 0;
     while start < count {
         let mut end = start + 1;
-        while end < count
-            && star[end].angle - star[end - 1].angle
-                <= ANGLE_TIE + star[end].blur + star[end - 1].blur
-        {
+        while end < count && together(&star[end - 1], &star[end]) {
             end += 1;
         }
         let together = &mut star[start..end];

@@ -126,3 +126,16 @@ fn a_sliver_of_a_face_thinner_than_twice_the_tolerance_is_told_covered_all_the_s
         vec![false]
     );
 }
+
+#[test]
+fn a_sliver_of_a_face_standing_a_hair_past_the_other_operand_s_face_on_its_plane_is_wound_all_the_same()
+ {
+    let one = block([0.0, 0.0, 0.0], [10.0, 10.0, 10.0]);
+    let eps = Scale::of(20.0).eps();
+    let over = block([0.0, 0.0, 10.0], [10.0 + 1.5 * eps, 10.0, 20.0]);
+    assert_eq!(over.scale(), Scale::of(20.0));
+    assert_eq!(
+        kept_on(&one, &over, Operation::Or, DVec3::Z, 10.0),
+        vec![true]
+    );
+}

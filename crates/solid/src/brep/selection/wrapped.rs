@@ -7,6 +7,13 @@ use crate::brep::combine::Operands;
 use crate::brep::domain::Location;
 use crate::brep::topology::SurfaceId;
 
+/// A ray from a region's inside point is cast with this share of the
+/// tolerance, where rounding alone could put a point on the wrong side of a
+/// face: the arcs have decided where the operand's boundary runs across the
+/// region's surface, so a point standing a hair past it, or a hair off one of
+/// its faces, is taken where it stands.
+const ROUNDING: f64 = 1e-6;
+
 /// An operand's winding just on the side a surface's own normal points to,
 /// and just on the other; `covered` when a face of the operand lies there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -47,7 +54,7 @@ pub(in crate::brep) fn wrapped(
             })
         }
         (None, _) => {
-            let winding = operands.bodies[operand].winding(point, operands.eps())?;
+            let winding = operands.bodies[operand].winding(point, operands.eps() * ROUNDING)?;
             Ok(Wrapped {
                 covered: false,
                 above: winding,

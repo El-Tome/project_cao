@@ -68,8 +68,9 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
 pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let mut registry = Registry::new(operands.scale);
     let (held, ending) = held::held(operands, &mut registry);
-    let special = related::related(operands, &mut registry)?;
+    let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
+    related::completed(operands, &mut registry, &done);
     let pool = pooled(operands, &ending, &special, &found);
     cut::cut(operands, &registry, &pool, &held)
 }

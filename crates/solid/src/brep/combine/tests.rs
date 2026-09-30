@@ -155,3 +155,39 @@ fn a_ruling_where_a_hole_touches_a_side_is_one_edge_between_the_two_corners_it_t
     assert_eq!(heights, [0.0, 10.0]);
     assert_eq!(laid.supports[ruling.curve.0 as usize].len(), 2);
 }
+
+/// A profile drawn on the plane `y = offset` in `(x, z)` and raised towards
+/// `-y`.
+fn across(offset: f64, outline: Contour, height: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Y * offset,
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    Body::raised(&outline, &[], frame, DVec3::NEG_Y * height).expect("a prism raises")
+}
+
+fn rectangle(low: [f64; 2], high: [f64; 2]) -> Contour {
+    Contour::rectangle(DVec2::from(low), DVec2::from(high))
+}
+
+/// Seed 750 of the campaign: a corner an earlier cut left on the top plane
+/// and on the bored cylinder stands on the one of the two lines they meet
+/// along that is no edge of the body.
+#[test]
+fn a_corner_on_a_plane_and_a_cylinder_lies_on_the_line_it_stands_on_even_where_that_line_is_no_edge()
+ {
+    let bored = across(7.0, rectangle([6.0, 8.0], [12.5, 10.5]), 8.0)
+        .joined(&across(7.0, rectangle([5.0, 9.0], [9.5, 11.5]), 16.0))
+        .and_then(|joined| {
+            let center = DVec2::new(9.499_999_98, 10.25);
+            let circle = Contour {
+                corners: vec![center + DVec2::X * 2.0],
+                runs: vec![Run::Round { center, turn: TAU }],
+            };
+            joined.cut_by(&across(8.0, circle, 32.0))
+        })
+        .expect("the block is bored");
+    let cut = bored.cut_by(&across(7.0, rectangle([6.0, 6.0], [14.0, 9.0]), 32.0));
+    assert!(cut.is_ok(), "{cut:?}");
+}

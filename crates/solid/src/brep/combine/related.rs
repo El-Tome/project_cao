@@ -3,6 +3,8 @@
 //! on both, and the points where such a curve crosses itself or where two
 //! cylinders only touch.
 
+use std::collections::BTreeSet;
+
 use glam::DVec3;
 
 use super::operands::Operands;
@@ -20,18 +22,21 @@ pub(super) struct Special {
     pub curves: Vec<usize>,
 }
 
+/// The special points, and the pairs related.
 pub(super) fn related(
     operands: &Operands,
     registry: &mut Registry,
-) -> Result<Vec<Special>, Declined> {
+) -> Result<(Vec<Special>, BTreeSet<[SurfaceId; 2]>), Declined> {
     let list = &operands.surfaces.list;
     let mut special = Vec::new();
+    let mut done = BTreeSet::new();
     for one in 0..list.len() {
         for other in one + 1..list.len() {
             let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
             if !facing(operands, pair) {
                 continue;
             }
+            done.insert(pair);
             let found = relation(&list[one], &list[other], operands.scale);
             if found == Relation::Unsupported {
                 return Err(Declined::Unsupported);
@@ -63,7 +68,41 @@ pub(super) fn related(
             }
         }
     }
-    Ok(special)
+    Ok((special, done))
+}
+
+/// Every other pair of surfaces a registered curve lies on both of, related
+/// too, so that every curve such a pair shares is registered — the other line
+/// where a plane cuts a cylinder, though no edge runs along it — and a corner
+/// lying on both is told which of them it stands on. A pair of one operand
+/// alone is not the boolean's to decline.
+pub(super) fn completed(
+    operands: &Operands,
+    registry: &mut Registry,
+    done: &BTreeSet<[SurfaceId; 2]>,
+) {
+    let mut pairs = BTreeSet::new();
+    for registered in &registry.list {
+        let support = &registered.support;
+        for (index, &one) in support.iter().enumerate() {
+            for &other in &support[index + 1..] {
+                if !done.contains(&[one, other]) {
+                    pairs.insert([one, other]);
+                }
+            }
+        }
+    }
+    let list = &operands.surfaces.list;
+    for [one, other] in pairs {
+        let found = relation(
+            &list[one.0 as usize],
+            &list[other.0 as usize],
+            operands.scale,
+        );
+        for curve in found.curves() {
+            registry.register(curve, &[one, other]);
+        }
+    }
 }
 
 /// Whether a face of one operand on one surface of the pair and a face of

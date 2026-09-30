@@ -5,7 +5,8 @@
 //! two faces along an edge stand on the same points and the triangles close
 //! by construction. No point is added inside a face: on a plane none is
 //! needed, and on a cylinder every curve has a sample at every angle of the
-//! grid, so that no triangle spans more than one step of it.
+//! grid, so that no triangle spans more than one step of it — but beside a
+//! line where two walls touch, whose nearest steps [`contact`] withholds.
 
 mod contact;
 mod orientation;

@@ -8,7 +8,9 @@
 //! grid angle, and no triangle cut between two of them spans more than one
 //! step. The ends of an edge are its vertices' own points. A circle of a
 //! cylinder in contact with another is also sampled on the rays [`contact`]
-//! gives it.
+//! gives it, and not at the steps it withholds: there the triangle next to
+//! the line two walls touch along spans more than one step, by the stretch
+//! withheld.
 
 use std::f64::consts::{PI, TAU};
 

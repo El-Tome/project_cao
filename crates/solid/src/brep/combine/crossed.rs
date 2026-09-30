@@ -17,6 +17,7 @@ use super::held::Held;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Registry, same};
+use crate::brep::curve::Curve;
 use crate::brep::relation::{Crossings, crossings, relation};
 use crate::brep::topology::SurfaceId;
 
@@ -83,10 +84,19 @@ pub(super) fn crossed(
 }
 
 /// Whether a registered curve lies on `surface`: none of its surfaces is
-/// apart from it, and one of them meets it along that very curve.
+/// apart from it, and one of them meets it along that very curve — one no
+/// other curve, lying on a surface apart from this one's, was taken for.
 fn along(operands: &Operands, registry: &Registry, curve: usize, surface: SurfaceId) -> bool {
     let list = &operands.surfaces.list;
     let known = &registry.list[curve];
+    let elsewhere = |shared: &Curve| {
+        registry.list.iter().enumerate().any(|(rank, other)| {
+            rank != curve
+                && other.support.contains(&surface)
+                && registry.apart.across(&other.support, &known.support)
+                && same(shared, &other.curve, operands.scale)
+        })
+    };
     registry.admits(curve, surface)
         && known.support.iter().any(|own| {
             relation(
@@ -96,6 +106,6 @@ fn along(operands: &Operands, registry: &Registry, curve: usize, surface: Surfac
             )
             .curves()
             .iter()
-            .any(|shared| same(shared, &known.curve, operands.scale))
+            .any(|shared| same(shared, &known.curve, operands.scale) && !elsewhere(shared))
         })
 }

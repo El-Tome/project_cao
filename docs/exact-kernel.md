@@ -49,7 +49,10 @@ The decisions, in the order taken, once per operation:
    only place a tangency is decided; once decided, it is built exactly — one
    line from a formula, never a double root.
 3. **Line identity.** The same line comes out of several pairs; lines within
-   `EPS` over the box are one, and their supports are joined.
+   `EPS` over the box are one, and their supports are joined — never across
+   two surfaces decided apart. A line a pair's line was taken for is that
+   pair's alone: another within `EPS` of it, on a surface apart from the
+   first's, does not lie on the pair's surfaces for that.
 4. **A line meeting a cylinder at a double root**, once per pair.
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
    their supports joined — unless the merge would put one point on two

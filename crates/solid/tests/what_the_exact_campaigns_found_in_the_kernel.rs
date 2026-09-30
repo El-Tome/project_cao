@@ -903,3 +903,35 @@ fn seed_1014146_a_grooved_block_given_a_post_through_its_corner() {
         ],
     ));
 }
+
+/// The same seed shrunk further once that was fixed: the groove a notch
+/// across the block's end. At the post's reach the notch's edge on the
+/// block's side stands within the tolerance of the line the side and the
+/// post's wall cross along — the block's own edge, three tenths of a micron
+/// away and apart from the notch's — and was taken to lie on the post: a
+/// stretch of it past the notch, up to the block's top, stood on the side
+/// beside the block's edge, and the two left the top's corner as one. A
+/// curve lies along a surface through a pair only when the pair's curve is
+/// not already another curve apart from it.
+#[test]
+fn seed_1014146_a_block_notched_a_hair_deep_given_a_post_through_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(60.0),
+            Outline::rectangle([225.0, 60.0], [255.0, 270.0]),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(59.9999997),
+                Outline::rectangle([210.0, 120.0], [300.0, 210.0]),
+                30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([0.0, 300.0], 75.0),
+                255.0,
+            )),
+        ],
+    ));
+}

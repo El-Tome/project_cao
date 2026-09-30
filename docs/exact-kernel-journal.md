@@ -81,6 +81,20 @@ origin, from 0 to 10.
 - Campaign 1, the hour #498 asks for, started at 21:06 from seed 1 000 000
   on the kernel as it stands. Meanwhile two lanes fix what campaign 0
   shrank, one in the kernel, one in the triangles.
+- Campaign 1 ended at 22:06: 51 298 cases, 980 broke a rule (1.91 %) —
+  Answers 384, Volume 375, Uncrossed 156, Closed 47, Listed 18, **Spans
+  none**. Whenever the kernel answered, its exact body held along every line
+  what the arithmetic promised, to a millionth of the reach; every volume
+  found wrong was the triangles'. A probe over three hundred cases checked
+  that this is not a check that never runs: the exact crossings answered on
+  every one of 686 592 lines. The campaign ran seventeen times slower than
+  campaign 0, that check being the cost — one ray against every face, 2 304
+  lines per body.
+- A sample of each rule of campaign 1, 138 seeds, was shrunk and sorted by
+  five readers, one per rule, each cause checked by a probe, then by a sixth
+  merging what one cause shows under several rules: **nineteen distinct
+  failures**, ten the kernel's, eight the triangles', one the harness's.
+  [`exact-kernel-failures.md`](exact-kernel-failures.md) names them.
 - Not reviewed yet: the reviewers of the boolean and of the perpendicular
   triangles were cut short by the account's spending limit; the fixing
   lanes' reviewers read the same code again.

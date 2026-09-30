@@ -16,16 +16,18 @@ pub(in crate::brep) struct Wrapped {
     pub below: i32,
 }
 
-/// `point` stands inside a region of `surface`, well away from its boundary,
-/// so from every face of the operand on that surface too: one on the
-/// boundary of such a face is a tie the kernel does not settle.
+/// `point` stands inside a region of `surface`, away from its boundary, so
+/// from every face of the operand on that surface too, whose boundary the
+/// region's arcs already hold: which faces cover it is asked by parity alone,
+/// however thin the region, and a point exactly on the boundary of one is a
+/// tie the kernel does not settle.
 pub(in crate::brep) fn wrapped(
     operands: &Operands,
     operand: usize,
     surface: SurfaceId,
     point: DVec3,
 ) -> Result<Wrapped, Declined> {
-    let located = operands.located(operand, surface, point)?;
+    let located = operands.located(operand, surface, point, 0.0)?;
     if located
         .iter()
         .any(|(_, location)| *location == Location::Boundary)

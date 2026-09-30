@@ -161,3 +161,16 @@ fn a_corner_lies_on_the_nearer_of_the_two_lines_a_plane_cuts_a_cylinder_along() 
     assert!(!lies_on(corner, &support, far, &registry, eps));
     assert!(!lies_on(corner, &[plane, cap], near, &registry, eps));
 }
+
+#[test]
+fn a_corner_on_the_one_surface_a_curve_was_found_on_lies_on_it_only_where_it_stands() {
+    let eps = scale().eps();
+    let mut registry = Registry::new(scale());
+    let [plane, other] = [SurfaceId(0), SurfaceId(1)];
+    let hole = Cylinder::about(DVec3::new(7.0, 5.0, 0.0), DVec3::Z, 4.0);
+    let circle = registry.register(Curve::Circle(Circle::on(&hole, 6.0)), &[plane]);
+    let on_it = Circle::on(&hole, 6.0).point(1.0);
+    let off_it = DVec3::new(1.0, 3.0, 6.0);
+    assert!(lies_on(on_it, &[plane, other], circle, &registry, eps));
+    assert!(!lies_on(off_it, &[plane, other], circle, &registry, eps));
+}

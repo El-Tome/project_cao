@@ -91,19 +91,20 @@ impl<'a> Operands<'a> {
     }
 
     /// Where `point`, on a shared surface, stands against each face of an
-    /// operand lying on it.
+    /// operand lying on it, on its boundary within `eps` of it.
     pub fn located(
         &self,
         operand: usize,
         surface: SurfaceId,
         point: DVec3,
+        eps: f64,
     ) -> Result<Vec<(FaceId, Location)>, Declined> {
         let body = self.bodies[operand];
         self.lying[operand][surface.0 as usize]
             .iter()
             .map(|&face| {
                 let own = body.surface(body.face(face).surface);
-                Ok((face, body.locate(face, own.parameters(point), self.eps())?))
+                Ok((face, body.locate(face, own.parameters(point), eps)?))
             })
             .collect()
     }
@@ -117,7 +118,7 @@ impl<'a> Operands<'a> {
         point: DVec3,
     ) -> Result<bool, Declined> {
         Ok(self
-            .located(operand, surface, point)?
+            .located(operand, surface, point, self.eps())?
             .iter()
             .any(|(_, location)| *location != Location::Outside))
     }

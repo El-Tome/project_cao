@@ -79,6 +79,10 @@ impl Pool {
 /// surfaces too — the two lines a plane cuts a cylinder along, the two loops
 /// two cylinders meet along — it stands on the nearest, or within the
 /// tolerance of it where two of them cross.
+///
+/// A curve found on one surface alone — an edge between two faces of one
+/// surface an earlier operation left — is not fixed by its support, and a
+/// corner lies on it where it stands within the tolerance of it.
 pub(in crate::brep) fn lies_on(
     point: DVec3,
     support: &[SurfaceId],
@@ -97,6 +101,9 @@ pub(in crate::brep) fn lies_on(
     }
     let own = &registry.list[curve];
     let away = distance(&own.curve, point);
+    if own.support.len() < 2 {
+        return away <= eps;
+    }
     registry
         .list
         .iter()

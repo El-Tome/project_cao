@@ -4,6 +4,7 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::combine::laid;
+use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::Body;
 use crate::profile::{Contour, Frame, Run};
@@ -111,5 +112,17 @@ fn a_region_covered_by_one_operand_is_kept_where_the_other_does_not_wrap_it() {
     assert_eq!(
         kept_on(&one, &inside, Operation::AndNot, DVec3::Z, 8.0),
         vec![true]
+    );
+}
+
+#[test]
+fn a_sliver_of_a_face_thinner_than_twice_the_tolerance_is_told_covered_all_the_same() {
+    let one = block([0.0, 0.0, 0.0], [10.0, 10.0, 10.0]);
+    let eps = Scale::of(15.0).eps();
+    let almost = block([-5.0, -5.0, 5.0], [10.0 - 1.5 * eps, 15.0, 15.0]);
+    assert_eq!(almost.scale(), Scale::of(15.0));
+    assert_eq!(
+        kept_on(&one, &almost, Operation::AndNot, DVec3::Z, 10.0),
+        vec![false]
     );
 }

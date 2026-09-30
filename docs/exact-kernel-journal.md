@@ -40,5 +40,25 @@ origin, from 0 to 10.
 
 - Branch made from #498 on top of #449's. #449's table runs again as it was
   left: the flats keep every rule on nine of the ten cases, truck on four.
-- Four designs of the kernel written independently and judged against the
-  sixteen cases and the harness, before any code.
+- Four designs of the kernel written independently — a classic boolean made
+  consistent by a pool of corners, a plane-based one after Campen and Kobbelt,
+  a cell complex of both boundaries, and a risk-first one — and judged by three
+  readers against the sixteen cases, the harness and the product, before any
+  code. The three judges agreed on the decisions and disagreed on the base, so
+  the synthesis took the decisions, not a design: one relative tolerance and
+  each fact decided once and read back as a symbol; the boolean as one overlay
+  per surface with a winding rule; the scope cut to planes and parallel or
+  perpendicular cylinders, anything else declined and counted; an oracle for
+  the campaign written from the leaves by arithmetic, apart from the kernel.
+  [`exact-kernel.md`](exact-kernel.md) has it.
+- The vocabulary every lane builds against is frozen and committed: canonical
+  surfaces and curves, the arenas of the topology, the listing, and a curve's
+  trace in a surface's parameters.
+- Five lanes started in parallel, each with an adversarial reviewer: the
+  geometry of pairs (relations, the perpendicular curve), the body (raise,
+  exact volume, point in face), the triangles, the overlay, and the harness
+  (the listing's check, the analytic promise, the campaign, the table).
+- What took the time: the decision that a whole circle is an edge with no
+  vertex — as Parasolid holds it, and as the application will want to pick
+  it — against the literal "its two vertices" of #498. A phantom vertex on a
+  circle would be something the user can click on and that means nothing.

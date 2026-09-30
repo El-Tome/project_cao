@@ -164,15 +164,18 @@ fn fused(first: &Taken, second: &Taken, eps: f64) -> Result<Option<Taken>, Decli
 /// Every check below is written as what must hold, so that a number which
 /// is not one fails it.
 fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
-    if !(from.is_finite() && to.is_finite() && from.distance(to) > eps) {
+    if !(from.is_finite() && to.is_finite()) {
         return Err(Declined::Profile);
     }
     match run {
-        Run::Straight => Ok(Piece::Straight { from, to }),
+        Run::Straight if from.distance(to) > eps => Ok(Piece::Straight { from, to }),
+        Run::Straight => Err(Declined::Profile),
         Run::Round { center, turn } => {
             let radius = from.distance(center);
             let held = radius > eps && radius * ROUNDINGS * f64::EPSILON <= eps;
-            if !(turn.abs() < TAU && held && lands(from, center, turn, to, eps)) {
+            let whole = radius * (turn.abs() - TAU).abs() <= eps;
+            let apart = from.distance(to) > eps && turn.abs() < TAU;
+            if !((whole || apart) && held && lands(from, center, turn, to, eps)) {
                 return Err(Declined::Profile);
             }
             Ok(Piece::Arc {

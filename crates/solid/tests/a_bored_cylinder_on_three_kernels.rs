@@ -669,7 +669,7 @@ const SEEN: [Seen; 18] = [
         "a circle raised",
         "keeps",
         "keeps",
-        "silent",
+        "keeps",
         EXACT_AS_QUOTED,
     ),
     seen(

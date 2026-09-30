@@ -26,6 +26,37 @@ fn a_circle_raised_is_three_faces_two_rings_and_no_corner() {
     assert!(body.edges.iter().all(|edge| edge.ends.is_none()));
 }
 
+#[test]
+fn a_whole_circle_given_as_one_corner_turning_once_raises_as_the_two_halves_do() {
+    let once = Contour {
+        corners: vec![DVec2::new(20.0, 0.0)],
+        runs: vec![crate::profile::Run::Round {
+            center: DVec2::ZERO,
+            turn: std::f64::consts::TAU,
+        }],
+    };
+    let halves = Body::raised(
+        &Contour::circle(DVec2::ZERO, 20.0),
+        &[],
+        ground(),
+        DVec3::Z * 10.0,
+    )
+    .expect("two halves raise");
+    let whole = Body::raised(&once, &[], ground(), DVec3::Z * 10.0).expect("one turn raises");
+    assert_eq!(counts(&whole), counts(&halves));
+    assert!((whole.volume() - halves.volume()).abs() < 1e-9 * halves.volume());
+    let backwards = Contour {
+        runs: vec![crate::profile::Run::Round {
+            center: DVec2::ZERO,
+            turn: -std::f64::consts::TAU,
+        }],
+        ..once
+    };
+    let whole = Body::raised(&backwards, &[], ground(), DVec3::Z * 10.0)
+        .expect("one turn backwards raises");
+    assert!((whole.volume() - halves.volume()).abs() < 1e-9 * halves.volume());
+}
+
 /// Every edge on the surfaces of the faces using it, its ends on its vertices,
 /// used once along its way and once against it, and every loop closed.
 fn assert_sound(body: &Body) {

@@ -4,6 +4,7 @@
 
 mod boolean;
 mod clipping;
+pub mod exact;
 mod mesh;
 #[cfg(any(test, feature = "test-support"))]
 pub mod soundness;

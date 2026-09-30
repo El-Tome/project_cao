@@ -7,6 +7,11 @@ license.workspace = true
 [dependencies]
 glam.workspace = true
 serde.workspace = true
+# #449's maquette only, on a branch not meant to be merged: truck behind the
+# interpreter, to see whether its booleans hold on the shapes the part makes.
+truck-modeling = "0.6.0"
+truck-shapeops = { version = "0.4.0", default-features = false }
+truck-meshalgo = { version = "0.4.0", default-features = false, features = ["tessellation", "analyzers"] }
 
 [features]
 # The rules every solid must keep, for the tests of the crates above this one.

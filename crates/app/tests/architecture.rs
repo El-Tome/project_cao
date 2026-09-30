@@ -332,12 +332,17 @@ cao_solid = { path = \".\", features = [\"test-support\"] }
 
 #[test]
 fn the_two_geometry_crates_stay_alone_with_their_maths() {
-    let expected: BTreeSet<String> = ["glam", "serde"]
-        .iter()
-        .map(|name| name.to_string())
-        .collect();
-
+    // #449's maquette puts truck behind cao_solid on a branch not meant to be
+    // merged, and names it here rather than widening the rule unseen (#447).
+    let kernel = ["truck-meshalgo", "truck-modeling", "truck-shapeops"];
     for directory in ["sketch", "solid"] {
+        let mut expected: BTreeSet<String> = ["glam", "serde"]
+            .iter()
+            .map(|name| name.to_string())
+            .collect();
+        if directory == "solid" {
+            expected.extend(kernel.iter().map(|name| name.to_string()));
+        }
         assert_eq!(
             declared_dependencies(&manifest(directory)),
             expected,

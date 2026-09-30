@@ -8,7 +8,10 @@
 //! grid angle, and no triangle cut between two of them spans more than one
 //! step. The ends of an edge are its vertices' own points. A circle is also
 //! sampled at the angle of every vertex on its cylinder, so that a ruling
-//! from a vertex meets a sample on every rim of its wall. A circle of a
+//! from a vertex meets a sample on every rim of its wall, and that sample
+//! stands square to the axis from the vertex nearest it, where the kernel
+//! put the vertex — within its tolerance of the circle, and on the other
+//! surface the kernel decided the wall touches there. A circle of a
 //! cylinder in contact with another is also sampled on the rays [`contact`]
 //! gives it, and not at the steps it withholds: there the triangle next to
 //! the line two walls touch along spans more than one step, by the stretch
@@ -191,8 +194,24 @@ fn on_circle(
     if edge.to < edge.from {
         kept.reverse();
     }
+    let apart = |one: f64, other: f64| ((one - other + PI).rem_euclid(TAU) - PI).abs();
+    let anchored = |angle: f64| {
+        contact
+            .anchors
+            .iter()
+            .map(|point| {
+                let from = *point - circle.center;
+                let along = circle.axis.dot(from);
+                (from - circle.axis * along, along.abs())
+            })
+            .filter(|(flat, _)| apart(flat.dot(circle.v).atan2(flat.dot(circle.u)), angle) <= gap)
+            .min_by(|one, other| one.1.total_cmp(&other.1))
+    };
     kept.into_iter()
-        .map(|(_, _, angle)| circle.point(angle))
+        .map(|(_, _, angle)| match anchored(angle) {
+            Some((flat, _)) => circle.center + flat,
+            None => circle.point(angle),
+        })
         .collect()
 }
 

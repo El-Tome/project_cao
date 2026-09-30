@@ -360,3 +360,120 @@ fn seed_9002788_a_boss_touching_a_bore_touching_the_stock_inside_leaves_its_caps
         ],
     ));
 }
+
+/// The pocket, 1e-7 deep, pokes 1e-8 out of the block's side at x = 11; the
+/// kernel decides it touches the side, and puts the vertex at the foot of
+/// the line they touch along on the pocket's circle, at x = 11.00000001:
+/// 1e-8 off the plane of the side it was decided on, ten times what the
+/// rules tell apart. The side's triangles and the pocket's wall, a hair
+/// high and so drawn by triangles lying nearly flat, both stand on that
+/// vertex, and the wall's first triangle passes 1e-8 through the side
+/// beside it. The triangles take the vertices where the kernel put them; a
+/// vertex decided on a plane has to be put on it, which is the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_6000059_a_pocket_a_hair_deep_touching_the_side_of_a_block_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([3.0, -4.0], [11.0, 4.0]),
+            -8.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(1.9999999),
+            Outline::circle([9.5, 0.0], 1.50000001),
+            15.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_6002157_a_bore_a_hair_across_the_side_of_a_notch_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(1.0),
+            Outline::rectangle([8.0, 5.0], [12.0, 7.0]),
+            6.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(1.00000006),
+                Outline::rectangle([10.0000002, 3.75], [14.0000002, 7.75]),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-3.9999999920559044e-8),
+                Outline::circle([8.0000002, 5.75], 2.00000001),
+                11.0,
+            )),
+        ],
+    ));
+}
+
+/// The boss, of radius 0.50000001 about (8, 4.5), passes 1e-8 beyond the
+/// block's side at y = 4 and stands 2e-8 into its floor; the kernel decides
+/// it touches the side, and puts the vertex where its top circle meets the
+/// side at (8, 3.99999999, 4.00000002), on the circle and 1e-8 off the side's
+/// plane — ten times what the rules tell apart — while the block's corner
+/// beside it stands at (8, 4, 4). The boss's wall, fanned from that vertex,
+/// passes through the block's floor between the two. As for seed 6000059,
+/// the vertex has to be put on the plane it was decided on.
+#[test]
+#[ignore = "kernel"]
+fn seed_8001749_a_boss_a_hair_across_the_side_it_stands_on_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([10.0, 1.0], [16.0, 4.0]),
+            3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([7.0, 2.0], [9.0, 4.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.00000002),
+                Outline::circle([8.0, 4.5], 0.50000001),
+                -3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_9000909_two_cylinders_a_hair_across_each_other_side_by_side_stay_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([6.0, 7.0], 4.0), 5.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(5.0),
+            Outline::circle([0.5, 7.0], 1.50000001),
+            10.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_9001168_a_bore_a_hair_out_of_the_cylinder_it_touches_inside_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(35.0), Outline::circle([5.0, 45.0], 10.0), 33.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(35.00001),
+            Outline::circle([7.5, 45.0], 7.50000005),
+            65.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_9002637_a_block_a_hair_into_the_cylinder_it_rests_on_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::circle([1.0, 8.0], 5.5), 6.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(2.0000000399999998),
+            Outline::rectangle([-3.50000002, 13.49999998], [5.50000002, 22.50000002]),
+            7.0,
+        ))],
+    ));
+}

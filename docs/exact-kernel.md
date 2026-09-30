@@ -151,7 +151,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   a ruling from a vertex off the grid meets a sample on every rim of its wall:
   otherwise a strip a hair high — a skin left under a cap — is cut by a
   triangle reaching from the vertex to the next step of the other rim, lying
-  flat over the face beside it. Two cylinders touching are both sampled on the
+  flat over the face beside it. That sample stands where the vertex nearest
+  it in height stands, moved along the axis: a tangency decided within `EPS`
+  leaves the exact surfaces overlapping by up to `EPS`, ten times what the
+  rules tell apart, and the vertices of the line they touch along are where
+  both walls' samples meet. Two cylinders touching are both sampled on the
   line they touch along, vertex or not, and a circle whose wall is gone is
   sampled as its own cylinder's.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,

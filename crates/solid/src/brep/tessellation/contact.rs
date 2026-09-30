@@ -55,12 +55,18 @@ pub(super) struct Contact {
     pub(super) rays: Vec<DVec3>,
     /// Steps of its grid its circles are not sampled at.
     pub(super) withheld: Vec<usize>,
+    /// The vertices lying on it: a sample of its circles at a vertex's angle
+    /// is put square to the axis from the nearest of them, where the kernel
+    /// decided it, rather than on the exact circle a hair away — the line two
+    /// surfaces were decided to touch along then holds the samples of both.
+    pub(super) anchors: Vec<DVec3>,
 }
 
 impl Contact {
     fn join(&mut self, other: Contact) {
         self.rays.extend(other.rays);
         self.withheld.extend(other.withheld);
+        self.anchors.extend(other.anchors);
     }
 }
 
@@ -136,7 +142,8 @@ pub(super) fn contacts(
     let eps = body.scale().eps();
     let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     along_meets(body, meets, &mut own);
-    through_vertices(body, walls, &mut own);
+    let mut anchors: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+    through_vertices(body, walls, &mut own, &mut anchors);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
@@ -171,6 +178,9 @@ pub(super) fn contacts(
     }
     for (wall, contact) in together::shared(&close, own, tolerance, eps) {
         contacts.entry(wall).or_default().join(contact);
+    }
+    for (wall, points) in anchors {
+        contacts.entry(wall).or_default().anchors = points;
     }
     contacts
 }
@@ -224,7 +234,12 @@ fn along_meets(body: &Body, meets: &[Vec<DVec3>], own: &mut BTreeMap<SurfaceId, 
 /// grid, and a strip of the wall beside it must meet a sample on every rim at
 /// that angle, or its triangle reaches from the vertex to the other rim's next
 /// step — lying flat where the wall is a hair high, over the face beside it.
-fn through_vertices(body: &Body, walls: &[Wall], own: &mut BTreeMap<SurfaceId, Vec<DVec3>>) {
+fn through_vertices(
+    body: &Body,
+    walls: &[Wall],
+    own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
+    anchors: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
+) {
     for wall in walls {
         let (id, cylinder) = wall;
         for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
@@ -235,6 +250,7 @@ fn through_vertices(body: &Body, walls: &[Wall], own: &mut BTreeMap<SurfaceId, V
             let flat = from - cylinder.axis * cylinder.axis.dot(from);
             if flat.length() > 0.0 {
                 own.entry(*id).or_default().push(flat.normalize());
+                anchors.entry(*id).or_default().push(vertex.point);
             }
         }
     }

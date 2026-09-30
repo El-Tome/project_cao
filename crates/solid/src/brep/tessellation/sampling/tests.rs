@@ -474,6 +474,35 @@ fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds
 }
 
 #[test]
+fn a_ring_is_sampled_at_a_vertex_s_angle_where_the_kernel_put_the_vertex_a_hair_off_the_wall() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let off = DVec3::new(radius + 1e-8, 0.0, fixtures::HEIGHT);
+    let vertex = build.vertex(off);
+    let ring = build.circle(wall, 0.0, None);
+    let through = build.circle(wall, fixtures::HEIGHT, Some(vertex));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(through, false)]],
+    );
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let below = DVec3::new(off.x, off.y, 0.0);
+        assert!(
+            samples
+                .edge(ring)
+                .iter()
+                .any(|id| (samples.point(*id) - below).length() < 1e-12),
+            "the ring misses {below} within {tolerance}"
+        );
+    }
+}
+
+#[test]
 fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
     let mut build = fixtures::Build::new();
     let outer = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);

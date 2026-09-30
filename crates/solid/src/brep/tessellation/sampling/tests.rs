@@ -1,10 +1,12 @@
 use std::f64::consts::{PI, TAU};
 
+use glam::DVec3;
+
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
-use crate::brep::curve::Curve;
+use crate::brep::curve::{Curve, Meet};
 use crate::brep::surface::Surface;
-use crate::brep::topology::Body;
+use crate::brep::topology::{Body, EdgeId};
 
 const CLOSE: f64 = 1e-12;
 
@@ -177,6 +179,139 @@ fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_o
                         assert!(
                             apart >= eps,
                             "{point} is {apart} from a wall within {tolerance}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A body holding nothing but the whole loops where a cylinder of `radius`
+/// lying along `axis` through `(0, 0, 5)` crosses the stock: what sampling
+/// reads of it is its edges alone.
+fn loops_across_the_stock(radius: f64, axis: DVec3) -> (Body, Vec<Meet>) {
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let bore = build.cylinder(DVec3::Z * 5.0, axis, radius);
+    let meeting = build.meeting(stock, bore, fixtures::STOCK_RADIUS);
+    for meet in &meeting.components {
+        let period = meet.period().expect("a component closes on itself");
+        build.meet_edge(*meet, None, 0.0, period);
+    }
+    (build.finish(fixtures::STOCK_RADIUS), meeting.components)
+}
+
+/// Whether `point` is one of the samples of `edge`, to within rounding.
+fn sampled(samples: &Samples, edge: EdgeId, point: DVec3) -> bool {
+    samples
+        .edge(edge)
+        .iter()
+        .any(|id| (samples.point(*id) - point).length() < 1e-9)
+}
+
+#[test]
+fn a_meet_is_sampled_at_every_grid_angle_of_either_cylinder_and_wherever_it_turns_back() {
+    for (radius, axis) in [(3.0, DVec3::X), (5.0, DVec3::Y)] {
+        let (body, meets) = loops_across_the_stock(radius, axis);
+        assert_eq!(meets.len(), 2);
+        for tolerance in [1e-3, 0.02, 0.5] {
+            let samples = Samples::of(&body, tolerance);
+            for (edge, meet) in body.edge_ids().zip(&meets) {
+                for (on_first, cylinder) in [(true, meet.first), (false, meet.second)] {
+                    let steps = divisions(cylinder.radius, tolerance);
+                    let mut places = meet.turns(on_first);
+                    for step in 0..steps {
+                        places.extend(meet.at_angle(on_first, TAU * step as f64 / steps as f64));
+                    }
+                    assert!(!places.is_empty());
+                    for t in places {
+                        assert!(
+                            sampled(&samples, edge, meet.point(t)),
+                            "{radius} within {tolerance}: {t} on the first {on_first} is missed"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_meet_between_two_vertices_runs_from_the_first_to_the_last_with_every_sample_between() {
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let bore = build.cylinder(DVec3::Z * 5.0, DVec3::Y, fixtures::HOLE_RADIUS);
+    let meet = build
+        .meeting(stock, bore, fixtures::STOCK_RADIUS)
+        .components[0];
+    let [top, bottom] = [PI / 2.0, 3.0 * PI / 2.0];
+    let ends = [
+        build.vertex(DVec3::new(0.0, fixtures::STOCK_RADIUS, fixtures::HEIGHT)),
+        build.vertex(DVec3::new(0.0, fixtures::STOCK_RADIUS, 0.0)),
+    ];
+    let halves = [
+        build.meet_edge(meet, Some(ends), top, bottom),
+        build.meet_edge(meet, Some([ends[1], ends[0]]), bottom, top + TAU),
+    ];
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for (end, &vertex) in ends.iter().enumerate() {
+        assert!((meet.point([top, bottom][end]) - body.vertex(vertex).point).length() < 1e-12);
+    }
+    let eps = body.scale().eps();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for (half, [from, to]) in halves.iter().zip([[top, bottom], [bottom, top + TAU]]) {
+            let ids = samples.edge(*half);
+            let listed = body.edge(*half).ends.expect("between two vertices");
+            assert_eq!(ids[0], listed[0].0 as usize);
+            assert_eq!(ids[ids.len() - 1], listed[1].0 as usize);
+            let mut before = from;
+            for id in &ids[1..ids.len() - 1] {
+                assert!(!samples.is_vertex(*id));
+                let point = samples.point(*id);
+                let t = body.parameter_on(*half, point);
+                assert!(before < t && t < to, "{t} out of order within {tolerance}");
+                assert!((meet.point(from) - point).length() > eps);
+                assert!((meet.point(to) - point).length() > eps);
+                before = t;
+            }
+        }
+    }
+}
+
+/// How far `point` stands from the segment between `start` and `end`.
+fn off_the_chord(point: DVec3, start: DVec3, end: DVec3) -> f64 {
+    let along = end - start;
+    let share = ((point - start).dot(along) / along.length_squared()).clamp(0.0, 1.0);
+    (point - (start + along * share)).length()
+}
+
+#[test]
+fn every_chord_of_a_meet_stands_within_the_tolerance_of_the_curve_however_fine() {
+    for (radius, axis) in [(3.0, DVec3::X), (5.0, DVec3::Y)] {
+        let (body, meets) = loops_across_the_stock(radius, axis);
+        for tolerance in [1e-6, 1e-3, 0.02, 0.5] {
+            let samples = Samples::of(&body, tolerance);
+            for (edge, meet) in body.edge_ids().zip(&meets) {
+                let period = meet.period().expect("a component closes on itself");
+                let mut places: Vec<f64> = samples
+                    .edge(edge)
+                    .iter()
+                    .map(|id| meet.parameter(samples.point(*id)))
+                    .collect();
+                assert!(places.windows(2).all(|pair| pair[0] < pair[1]));
+                places.push(period);
+                for pair in places.windows(2) {
+                    let (start, end) = (meet.point(pair[0]), meet.point(pair[1]));
+                    for part in 1..32 {
+                        let at = pair[0] + (pair[1] - pair[0]) * part as f64 / 32.0;
+                        let off = off_the_chord(meet.point(at), start, end);
+                        assert!(
+                            off <= tolerance * (1.0 + 1e-9),
+                            "{radius} within {tolerance}: {off} off between {} and {}",
+                            pair[0],
+                            pair[1]
                         );
                     }
                 }

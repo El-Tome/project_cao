@@ -1,3 +1,4 @@
+pub(crate) mod across;
 pub(crate) mod fixtures;
 
 use std::f64::consts::{PI, TAU};
@@ -203,7 +204,7 @@ fn a_hole_a_hair_inside_the_stock_s_wall_stays_uncrossed_however_fine_or_coarse_
 }
 
 #[test]
-fn a_face_bounded_by_a_curve_not_sampled_yet_is_left_open_rather_than_ending_the_program() {
+fn a_face_whose_loops_bound_no_region_is_left_open_rather_than_ending_the_program() {
     let mut build = fixtures::Build::new();
     let wall = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
     let across = build.cylinder(DVec3::Z * 5.0, DVec3::X, fixtures::HOLE_RADIUS);
@@ -373,6 +374,38 @@ fn two_holes_tangent_inside_the_stock_at_once_part_its_wall_in_two_drawn_closed_
     for angles in [[0.0, PI], [0.3, 1.7], [shared + 1e-7, PI + 0.2]] {
         let body = fixtures::stock_with_two_holes_tangent_at(angles);
         for tolerance in [1e-6, 0.02, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}
+
+/// A body's account of what it is made of, held by the rules written apart
+/// from the kernel.
+fn listed(body: &Body) {
+    crate::soundness::listed(&body.listing(), body.scale().reach()).expect("the listing holds");
+}
+
+/// The exact volume of a body against the one arithmetic promises, to within
+/// what the quadrature along its curves and the rule of the reference leave.
+fn holds(body: &Body, promised: f64) -> f64 {
+    let volume = body.volume();
+    assert!(
+        (volume - promised).abs() <= 1e-9 * promised,
+        "the body holds {volume}, arithmetic promised {promised}"
+    );
+    volume
+}
+
+#[test]
+fn the_stock_bored_across_clear_of_its_top_is_drawn_closed_round_both_windows() {
+    let radius = 3.0;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * fixtures::STOCK_RADIUS;
+    for axis in [DVec3::X, DVec3::Y] {
+        let body = across::stock_bored_across(radius, axis);
+        listed(&body);
+        let volume = holds(&body, stock - across::common_across(radius, 0.0));
+        for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
             held(&body, tolerance, volume, area);
         }
     }

@@ -477,3 +477,19 @@ fn seed_9002637_a_block_a_hair_into_the_cylinder_it_rests_on_stays_uncrossed() {
         ))],
     ));
 }
+
+#[test]
+fn seed_7003668_a_pocket_whose_corner_stands_a_hair_inside_the_wall_stays_under_its_chords() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(120.0),
+            Outline::circle([225.0, 240.0], 75.0),
+            -225.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::rectangle([165.0000018, 195.0], [405.0, 300.0]),
+            60.0,
+        ))],
+    ));
+}

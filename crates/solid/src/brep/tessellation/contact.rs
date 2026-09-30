@@ -28,7 +28,7 @@
 mod together;
 
 use std::collections::BTreeMap;
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
@@ -143,7 +143,7 @@ pub(super) fn contacts(
     let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     along_meets(body, meets, &mut own);
     let mut anchors: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
-    through_vertices(body, walls, &mut own, &mut anchors);
+    through_vertices(body, walls, tolerance, &mut own, &mut anchors);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
@@ -234,23 +234,35 @@ fn along_meets(body: &Body, meets: &[Vec<DVec3>], own: &mut BTreeMap<SurfaceId, 
 /// grid, and a strip of the wall beside it must meet a sample on every rim at
 /// that angle, or its triangle reaches from the vertex to the other rim's next
 /// step — lying flat where the wall is a hair high, over the face beside it.
+///
+/// So too for a vertex standing inside the wall closer than twice a chord's
+/// sag — the corner of a pocket a hair inside it: the wall's chords sag
+/// towards the axis, and a chord across that angle would pass inside the
+/// corner. Sampled there, the wall stands on its own surface at the corner.
 fn through_vertices(
     body: &Body,
     walls: &[Wall],
+    tolerance: f64,
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
     anchors: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
 ) {
     for wall in walls {
         let (id, cylinder) = wall;
+        let sag =
+            cylinder.radius * (1.0 - (PI / divisions(cylinder.radius, tolerance) as f64).cos());
         for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
-            if !bears(body, vertex, wall) {
+            let on = bears(body, vertex, wall);
+            let inside = cylinder.distance(vertex.point);
+            if !on && !(-2.0 * sag..0.0).contains(&inside) {
                 continue;
             }
             let from = vertex.point - cylinder.origin;
             let flat = from - cylinder.axis * cylinder.axis.dot(from);
             if flat.length() > 0.0 {
                 own.entry(*id).or_default().push(flat.normalize());
-                anchors.entry(*id).or_default().push(vertex.point);
+                if on {
+                    anchors.entry(*id).or_default().push(vertex.point);
+                }
             }
         }
     }

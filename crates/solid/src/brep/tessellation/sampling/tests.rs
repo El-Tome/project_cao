@@ -474,6 +474,36 @@ fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds
 }
 
 #[test]
+fn a_ring_is_sampled_at_the_angle_of_a_corner_standing_inside_its_wall_closer_than_a_chord_sags() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::STOCK_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let ring = build.circle(wall, 0.0, None);
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    let angle: f64 = 0.3;
+    let inside = radius - 1e-6;
+    let corner = DVec3::new(angle.cos() * inside, angle.sin() * inside, 5.0);
+    let corners = [
+        corner,
+        corner - DVec3::X * 4.0,
+        corner - DVec3::X * 4.0 + DVec3::Z,
+        corner + DVec3::Z,
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&corners, DVec3::Y);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let below = DVec3::new(angle.cos(), angle.sin(), 0.0) * radius;
+        assert!(
+            sampled(&samples, ring, below),
+            "the ring misses {below} within {tolerance}"
+        );
+    }
+}
+
+#[test]
 fn a_ring_is_sampled_at_a_vertex_s_angle_where_the_kernel_put_the_vertex_a_hair_off_the_wall() {
     let mut build = fixtures::Build::new();
     let radius = fixtures::HOLE_RADIUS;

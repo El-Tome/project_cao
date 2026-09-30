@@ -155,7 +155,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   it in height stands, moved along the axis: a tangency decided within `EPS`
   leaves the exact surfaces overlapping by up to `EPS`, ten times what the
   rules tell apart, and the vertices of the line they touch along are where
-  both walls' samples meet. Two cylinders touching are both sampled on the
+  both walls' samples meet. A vertex standing inside a wall closer than
+  twice a chord's sag — a pocket's corner a hair inside it — gives the wall's
+  circles a sample at its angle too, so that no chord passes inside it. Two
+  cylinders touching are both sampled on the
   line they touch along, vertex or not, and a circle whose wall is gone is
   sampled as its own cylinder's.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,

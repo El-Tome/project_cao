@@ -416,6 +416,59 @@ fn the_rings_of_two_walls_touching_are_sampled_on_the_line_they_touch_along() {
     }
 }
 
+/// The angles round `center`, from X, of every sample of `edge`, sorted, a
+/// circle's vertex counted once.
+fn angles_round(samples: &Samples, edge: EdgeId, center: DVec3) -> Vec<f64> {
+    let mut ids = samples.edge(edge).to_vec();
+    if ids.len() > 1 && ids[0] == ids[ids.len() - 1] {
+        ids.pop();
+    }
+    let mut angles: Vec<f64> = ids
+        .iter()
+        .map(|id| {
+            let from = samples.point(*id) - center;
+            from.y.atan2(from.x).rem_euclid(TAU)
+        })
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+#[test]
+fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds_a_vertex() {
+    let radius = fixtures::HOLE_RADIUS;
+    for (other_radius, offset) in [(radius, 1e-5), (radius - 1e-3, 1.1e-3)] {
+        let mut build = fixtures::Build::new();
+        let first = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+        let center = DVec3::X * offset;
+        let second = build.cylinder(center, DVec3::Z, other_radius);
+        let (sin, cos) = 0.3f64.sin_cos();
+        let vertex = build.vertex(DVec3::new(cos, sin, 0.0) * radius);
+        let through = build.circle(first, 0.0, Some(vertex));
+        let ring = build.circle(second, 0.0, None);
+        let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+        build.face(first, false, vec![vec![use_of(through, true)]]);
+        build.face(second, false, vec![vec![use_of(ring, true)]]);
+        let body = build.finish(radius);
+        for tolerance in [1e-3, 0.02, 0.5] {
+            let samples = Samples::of(&body, tolerance);
+            let one = angles_round(&samples, through, center);
+            let other = angles_round(&samples, ring, center);
+            assert_eq!(
+                one.len(),
+                other.len(),
+                "{offset} apart within {tolerance}: {one:?} against {other:?}"
+            );
+            for (one, other) in one.iter().zip(&other) {
+                assert!(
+                    (one - other).abs() < 1e-9,
+                    "{one} and {other}, {offset} apart within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn every_ring_of_a_cylinder_is_sampled_at_the_angle_of_every_vertex_on_that_cylinder() {
     let (from, to) = (0.3 + 1e-4, 0.3 + 3e-4);

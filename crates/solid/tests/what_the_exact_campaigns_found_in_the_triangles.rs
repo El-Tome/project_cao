@@ -147,3 +147,22 @@ fn seed_268_a_boss_inside_a_bore_touching_its_line_where_its_wall_is_gone_enclos
         ],
     ));
 }
+
+#[test]
+fn seed_5000951_two_cylinders_of_one_radius_a_hair_apart_leave_their_slivers_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(7.0), Outline::circle([10.0, 4.0], 1.5), 9.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([9.99999, 4.0], 1.5),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([8.99999, 4.0], 0.50000001),
+                11.0,
+            )),
+        ],
+    ));
+}

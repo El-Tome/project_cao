@@ -285,9 +285,15 @@ fn touching(cylinder: &Cylinder, other: &Cylinder, tolerance: f64, eps: f64) -> 
 }
 
 /// What the outer cylinder's circles and the inner one's take and leave out,
-/// when the inner stands inside the outer within twice the sag of the outer's
-/// chords from its wall: every ray the one takes the other takes too, and a
-/// ray along which the two stand closer than `eps` neither takes.
+/// when the inner stands inside the outer within twice the sag of either's
+/// chords from its wall, or crosses it by no more: every ray the one takes
+/// the other takes too, and a ray along which the two stand closer than `eps`
+/// neither takes.
+///
+/// Crossing by a hair, as two walls of one radius a hair apart do, the two
+/// bound a sliver thinner than a chord sags on either side of it, as long as
+/// half the turn: sampled on common rays, both walls keep their order on
+/// each side of the lines they cross along.
 fn common(
     body: &Body,
     outer_wall: &Wall,
@@ -297,18 +303,22 @@ fn common(
     let (outer, inner) = (outer_wall.1, inner_wall.1);
     let eps = body.scale().eps();
     let axis = outer.axis;
-    if inner.radius > outer.radius - eps {
-        return None;
-    }
     let flat = |vector: DVec3| vector - axis * axis.dot(vector);
     let offset = flat(inner.origin - outer.origin);
-    let outer_steps = divisions(outer.radius, tolerance);
-    let sag = outer.radius * (1.0 - (PI / outer_steps as f64).cos());
+    if offset.length() <= eps && outer.radius - inner.radius <= eps {
+        return None;
+    }
+    let outside = offset.length_squared() - outer.radius * outer.radius;
+    if outside >= 0.0 {
+        return None;
+    }
+    let sag = |radius: f64| radius * (1.0 - (PI / divisions(radius, tolerance) as f64).cos());
     let gap = outer.radius - inner.radius - offset.length();
-    if gap > 2.0 * sag || gap < -eps {
+    if gap.abs() > 2.0 * sag(outer.radius).max(sag(inner.radius)) {
         return None;
     }
 
+    let outer_steps = divisions(outer.radius, tolerance);
     let inner_steps = divisions(inner.radius, tolerance);
     let mut through_outer: Vec<(DVec3, Option<usize>)> = (0..outer_steps)
         .map(|step| {
@@ -340,17 +350,16 @@ fn common(
     let mut on_inner = Contact::default();
     for (point, step) in through_outer {
         let from_axis = point - offset;
-        if from_axis.length() - inner.radius >= eps {
+        if (from_axis.length() - inner.radius).abs() >= eps {
             on_inner.rays.push(from_axis.normalize());
         } else if let Some(step) = step {
             on_outer.withheld.push(step);
         }
     }
-    let outside = offset.length_squared() - outer.radius * outer.radius;
     for (way, step) in from_inner {
         let along = offset.dot(way);
         let reach = -along + (along * along - outside).sqrt();
-        if reach - inner.radius >= eps {
+        if (reach - inner.radius).abs() >= eps {
             on_outer.rays.push((offset + way * reach).normalize());
         } else if let Some(step) = step {
             on_inner.withheld.push(step);

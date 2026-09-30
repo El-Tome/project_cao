@@ -589,6 +589,30 @@ fn a_circle_resting_on_a_side_at_a_shared_corner_pinches_the_square_without_part
 }
 
 #[test]
+fn a_hair_of_side_leaving_a_tangent_circle_is_told_apart_by_how_it_bends_whatever_the_rounding() {
+    for hair in [1e-7, 1e-5] {
+        for rounding in [4e-15, -4e-15] {
+            let mut drawing = Drawing::default();
+            let corners = drawing.polygon(&[
+                [0.0, 0.0],
+                [5.0, 0.0],
+                [5.0 + hair, rounding],
+                [10.0, 0.0],
+                [10.0, 10.0],
+                [0.0, 10.0],
+            ]);
+            drawing.round([5.0, 3.0], corners[1], corners[1], true);
+            let regions = drawing.regions(None);
+            assert_eq!(
+                cycle_counts(&regions),
+                vec![1, 1, 1],
+                "a hair of {hair} risen by {rounding}"
+            );
+        }
+    }
+}
+
+#[test]
 fn two_holes_whose_circles_touch_leave_the_square_one_region() {
     let mut drawing = Drawing::default();
     drawing.square([-10.0, -10.0], [10.0, 10.0]);

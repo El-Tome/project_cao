@@ -5,6 +5,7 @@ use std::f64::consts::TAU;
 
 use super::Arc;
 use crate::brep::Declined;
+use crate::brep::trace::Trace;
 
 /// A half of an arc by rank: the arc run along its own way, or against it.
 pub(super) fn half(arc: usize, forward: bool) -> usize {
@@ -69,40 +70,59 @@ fn stars(arcs: &[Arc]) -> Result<Vec<Vec<usize>>, Declined> {
         .flatten()
         .max()
         .map_or(0, |last| last + 1);
+    let largest = arcs
+        .iter()
+        .flat_map(|arc| [arc.trace.start(), arc.trace.end()])
+        .fold(1.0_f64, |largest, point| {
+            largest.max(point.abs().max_element())
+        });
     let mut stars = vec![Vec::new(); count];
     for (rank, arc) in arcs.iter().enumerate() {
         if let Some([start, end]) = arc.ends {
-            stars[start].push(leaving(arcs, half(rank, true)));
-            stars[end].push(leaving(arcs, half(rank, false)));
+            stars[start].push(leaving(arcs, half(rank, true), largest));
+            stars[end].push(leaving(arcs, half(rank, false), largest));
         }
     }
     stars.into_iter().map(ordered).collect()
 }
 
-/// How a half leaves its vertex: the angle it sets off at, and how it bends
-/// from there, positive to its left.
+/// How a half leaves its vertex: the angle it sets off at, how far rounding
+/// may have turned that angle, and how it bends from there, positive to its
+/// left.
 #[derive(Clone, Copy)]
 struct Leaving {
     half: usize,
     angle: f64,
+    blur: f64,
     bend: f64,
 }
 
-fn leaving(arcs: &[Arc], half: usize) -> Leaving {
+fn leaving(arcs: &[Arc], half: usize, largest: f64) -> Leaving {
     let (arc, forward) = arc_of(half);
-    let [_, first, second] = arcs[arc].trace.at(if forward { 0.0 } else { 1.0 });
+    let trace = &arcs[arc].trace;
+    let [_, first, second] = trace.at(if forward { 0.0 } else { 1.0 });
     let direction = if forward { first } else { -first };
+    let lever = match *trace {
+        Trace::Round { radius, .. } => radius,
+        _ => direction.length(),
+    };
     Leaving {
         half,
         angle: direction.y.atan2(direction.x),
+        blur: ROUNDING * largest / lever,
         bend: direction.perp_dot(second) / direction.length().powi(3),
     }
 }
 
-/// Two directions closer than this, in radians, set off together: rounding
-/// is all that parts arcs tangent at their vertex, and nothing the boolean
-/// cut comes this close without touching.
+/// Two directions closer than this, in radians, set off together, even on
+/// long arcs whose ends rounding barely moves.
 const ANGLE_TIE: f64 = 1e-10;
+
+/// How far rounding may have moved a position, relative to the largest
+/// coordinate drawn. Over a short arc it turns the direction set by its ends
+/// by far more than `ANGLE_TIE`: a side a hair long leaving a circle it is
+/// tangent to would set off to the wrong side of it.
+const ROUNDING: f64 = 1e-14;
 
 /// Two bends closer than this, relative to the larger, cannot be told apart.
 const BEND_TIE: f64 = 1e-9;
@@ -130,7 +150,10 @@ fn ordered(mut star: Vec<Leaving>) -> Result<Vec<usize>, Declined> {
     let mut start = 0;
     while start < count {
         let mut end = start + 1;
-        while end < count && star[end].angle - star[end - 1].angle <= ANGLE_TIE {
+        while end < count
+            && star[end].angle - star[end - 1].angle
+                <= ANGLE_TIE + star[end].blur + star[end - 1].blur
+        {
             end += 1;
         }
         let together = &mut star[start..end];

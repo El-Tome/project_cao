@@ -58,6 +58,14 @@ origin, from 0 to 10.
   geometry of pairs (relations, the perpendicular curve), the body (raise,
   exact volume, point in face), the triangles, the overlay, and the harness
   (the listing's check, the analytic promise, the campaign, the table).
+- The five lanes came back and were merged, each reviewer having found and
+  fixed real defects in its lane — a tangency of parallel cylinders a hair
+  off one axis, two walls a hair apart taken for one surface, a hair of side
+  leaving a tangent circle ordered by rounding, a listing that passed with a
+  face bounded by nothing. Row 1 of the table keeps every rule on the exact
+  kernel, its exact volume the arithmetic's to the last digit printed.
+- Started: the boolean itself, in one lane with its reviewer, and the
+  triangles of the curve two perpendicular cylinders meet along.
 - What took the time: the decision that a whole circle is an edge with no
   vertex — as Parasolid holds it, and as the application will want to pick
   it — against the literal "its two vertices" of #498. A phantom vertex on a

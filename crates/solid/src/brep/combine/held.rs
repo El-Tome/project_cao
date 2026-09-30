@@ -8,6 +8,10 @@
 //! them would be a hair more off at every later operation, and two corners
 //! found on it and on its neighbour, one each way, would no longer be one.
 //!
+//! Two edges of one operand on two of its curves are never laid on one: the
+//! operation that made it kept them apart, at a tolerance this one's may have
+//! grown past.
+//!
 //! An edge an earlier operation took for an arc of another curve (decision
 //! 6) lies on that curve's surfaces only between its two corners — a line
 //! across a cylinder's axis, a circle off it: its curve is registered on the
@@ -24,7 +28,7 @@ use crate::brep::curve::Curve;
 use crate::brep::relation::relation;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
-use crate::brep::topology::{EdgeId, SurfaceId, VertexId};
+use crate::brep::topology::{CurveId, EdgeId, SurfaceId, VertexId};
 
 /// An edge of an operand, on a registered curve, over a stretch of that
 /// curve's parameter, and the surfaces it lies on over that stretch alone.
@@ -46,6 +50,7 @@ pub(super) type Ending = BTreeMap<(usize, VertexId), Vec<usize>>;
 pub(super) fn held(operands: &Operands, registry: &mut Registry) -> (Vec<Held>, Ending) {
     let mut found = Vec::new();
     let mut ending = BTreeMap::new();
+    let mut claimed: BTreeMap<usize, (usize, CurveId)> = BTreeMap::new();
     for (operand, body) in operands.bodies.iter().enumerate() {
         for edge in body.edge_ids() {
             let stretch = body.edge(edge);
@@ -60,7 +65,17 @@ pub(super) fn held(operands: &Operands, registry: &mut Registry) -> (Vec<Held>, 
                         operands.scale,
                     )
                 });
-            let curve = registry.register(shared(operands, operand, edge, own, &around), &around);
+            let theirs = (operand, stretch.curve);
+            let curve = registry.register_beside(
+                shared(operands, operand, edge, own, &around),
+                &around,
+                |rank| {
+                    claimed
+                        .get(&rank)
+                        .is_some_and(|&(by, of)| by == operand && of != stretch.curve)
+                },
+            );
+            claimed.entry(curve).or_insert(theirs);
             for end in stretch.ends.iter().flatten() {
                 ending
                     .entry((operand, *end))

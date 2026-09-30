@@ -968,3 +968,75 @@ fn seed_1014146_a_wall_a_hair_thick_given_a_post_through_its_corner() {
         ],
     ));
 }
+
+/// Failure 1-6 of campaign 1: a block on a bar whose side stands two
+/// hundredths of a micron in from the block's, the bar bored through above
+/// the block, then a third block apart from both. The bore left the block's
+/// top two faces, a strip beside the bar's old side and the floor of the
+/// bore, parted by a stretch of that side's line lying on the top alone. The
+/// third block read it again at the same tolerance, and took that stretch
+/// for the block's own edge on its top, two hundredths away: the strip lost
+/// its side. Two curves of one operand are never taken for one.
+#[test]
+fn seed_1004747_a_block_bored_beside_a_step_a_hair_high_then_given_a_block_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(8.0),
+            Outline::rectangle([3.0, 10.0], [5.0, 12.0]),
+            9.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(8.0),
+                Outline::rectangle([3.00000002, 10.0], [7.0, 12.0]),
+                -6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(7.99999998),
+                Outline::circle([5.0, 10.0], 2.5),
+                -12.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([8.0, 5.0], [12.0, 9.0]),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// Seed 1014146 shrunk once the wall and the notch hold: the block bored
+/// through across its end but for a wall three tenths of a micron thick,
+/// the bore's bottom at the height of the post's cap, which it touches along
+/// the line through the corner the post's wall passes.
+///
+/// Understood and left: failure 1-12's configuration. The curve the post
+/// and the bore meet along touches the post's rim at that corner to the
+/// second order, and runs within a femtometre of it back to where the rim
+/// crosses the block's end — a corner four tenths of a micron off the line
+/// the cap and the bore touch along, so not on the bore by its support. The
+/// two arcs share one corner and overlap, set off from it at one angle, and
+/// are both too short for their bends to part them: the star ties.
+#[test]
+#[ignore = "tangent"]
+fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(60.0),
+            Outline::rectangle([225.0, 60.0], [255.0, 270.0]),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(59.9999997),
+                Outline::circle([255.0, 165.0], 45.0),
+                -30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([3.0000000000000004e-7, 300.0], 75.0),
+                255.0,
+            )),
+        ],
+    ));
+}

@@ -50,7 +50,8 @@ The decisions, in the order taken, once per operation:
    line from a formula, never a double root.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
-   two surfaces decided apart. A line a pair's line was taken for is that
+   two surfaces decided apart, and never two curves of one operand, which
+   the operation that made it kept apart. A line a pair's line was taken for is that
    pair's alone: another within `EPS` of it, on a surface apart from the
    first's, does not lie on the pair's surfaces for that.
 4. **A line meeting a cylinder at a double root**, once per pair.

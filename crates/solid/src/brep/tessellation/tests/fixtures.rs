@@ -129,6 +129,25 @@ impl Build {
         }
     }
 
+    /// The circle `cylinder` has at `height`, from a vertex round to it, the
+    /// cylinder itself no surface of the body: what a union leaves on a cap
+    /// when the wall the circle came from is swallowed.
+    pub(crate) fn circle_about(
+        &mut self,
+        cylinder: Cylinder,
+        height: f64,
+        through: VertexId,
+    ) -> EdgeId {
+        let circle = Circle::on(&cylinder, height);
+        let from = circle.parameter(self.body.vertex(through).point);
+        self.edge(
+            Curve::Circle(circle),
+            Some([through, through]),
+            from,
+            from + TAU,
+        )
+    }
+
     /// The arc a cylinder has at `height`, from vertex `from` round the way
     /// its angle grows to vertex `to`.
     pub(crate) fn arc(
@@ -495,6 +514,31 @@ pub(crate) fn block_with_two_holes_touching_at(angle: f64) -> Body {
     build.finish(HALF_SIDE)
 }
 
+/// The two holes touching at the origin, the line they touch along leaning by
+/// `lean` round them from the bottom to the top: its two ends stand a hair
+/// apart round each wall, as the kernel leaves them when both lie within its
+/// tolerance of either wall.
+pub(crate) fn block_with_two_holes_touching_along_a_lean(lean: f64) -> Body {
+    let mut build = Build::new();
+    let (top, bottom) = block_in(&mut build);
+    let low = build.vertex(DVec3::ZERO);
+    let high = build.vertex(DVec3::new(0.0, lean, HEIGHT));
+    let touching = Touching {
+        line: build.line(low, high),
+        low,
+        high,
+        bottom: 0.0,
+    };
+    let use_of = |edge, forward| Coedge { edge, forward };
+    for side in [-1.0, 1.0] {
+        let wall = build.cylinder(DVec3::X * side * HOLE_RADIUS, DVec3::Z, HOLE_RADIUS);
+        let (low, high) = touching.wall(&mut build, wall, true);
+        build.add_loop(top, vec![use_of(high, false)]);
+        build.add_loop(bottom, vec![use_of(low, true)]);
+    }
+    build.finish(HALF_SIDE)
+}
+
 /// The radius and the length of the cylinder lying on the block.
 pub(crate) const LYING_RADIUS: f64 = 4.0;
 pub(crate) const LYING_LENGTH: f64 = 20.0;
@@ -812,5 +856,89 @@ pub(crate) fn stock_with_two_holes_tangent_at(angles: [f64; 2]) -> Body {
         use_of(holes[0].0, true),
     ];
     build.face(bottom, bottom_flipped, vec![bottom_lap]);
+    build.finish(STOCK_RADIUS)
+}
+
+/// The stock's wall alone, slit along the line at angle nought where a wall
+/// touching it from outside would stand, with a window through it from angle
+/// `from` round to `to` and from height 4 to 6. Its outer loop starts on the
+/// top from the slit, walking it backwards as a wall facing out is walked, so
+/// that it is laid out from its highest angle down.
+pub(crate) fn slit_wall_with_a_window(from: f64, to: f64) -> Body {
+    let mut build = Build::new();
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let low = build.vertex(DVec3::new(STOCK_RADIUS, 0.0, 0.0));
+    let high = build.vertex(DVec3::new(STOCK_RADIUS, 0.0, HEIGHT));
+    let slit = build.line(low, high);
+    let bottom = build.circle(wall, 0.0, Some(low));
+    let top = build.circle(wall, HEIGHT, Some(high));
+    let use_of = |edge, forward| Coedge { edge, forward };
+    let outer = vec![
+        use_of(top, false),
+        build.leaving(slit, high),
+        use_of(bottom, true),
+        build.leaving(slit, low),
+    ];
+    let sill = (HEIGHT - WINDOW_HEIGHT) / 2.0;
+    let lintel = sill + WINDOW_HEIGHT;
+    let mut column = |angle: f64| {
+        let (sin, cos) = angle.sin_cos();
+        let foot = DVec3::new(cos, sin, 0.0) * STOCK_RADIUS;
+        [
+            build.vertex(foot + DVec3::Z * sill),
+            build.vertex(foot + DVec3::Z * lintel),
+        ]
+    };
+    let (left, right) = (column(from), column(to));
+    let arcs = [
+        build.arc(wall, sill, left[0], right[0]),
+        build.arc(wall, lintel, left[1], right[1]),
+    ];
+    let (rising, falling) = (build.line(left[0], left[1]), build.line(right[0], right[1]));
+    let window = vec![
+        build.leaving(rising, left[0]),
+        use_of(arcs[1], true),
+        build.leaving(falling, right[1]),
+        use_of(arcs[0], false),
+    ];
+    build.face(wall, false, vec![outer, window]);
+    build.finish(STOCK_RADIUS)
+}
+
+/// The stock with a disc of radius five drawn on its top and its bottom,
+/// touching its rim at (20, 0): each cap is two faces, the disc and the
+/// crescent round it, as a union leaves them when a cylinder standing inside
+/// the stock touches its wall from end to end. The disc's cylinder is no
+/// surface of the body: only its circles are left of it.
+pub(crate) fn stock_with_a_disc_touching_its_rim() -> Body {
+    let mut build = Build::new();
+    let outer = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let rim = DVec3::X * STOCK_RADIUS;
+    let (low, high) = (build.vertex(rim), build.vertex(rim + DVec3::Z * HEIGHT));
+    let outer_low = build.circle(outer, 0.0, Some(low));
+    let outer_high = build.circle(outer, HEIGHT, Some(high));
+    let use_of = |edge, forward| Coedge { edge, forward };
+    build.face(
+        outer,
+        false,
+        vec![
+            vec![use_of(outer_low, true)],
+            vec![use_of(outer_high, false)],
+        ],
+    );
+    let disc = Cylinder::about(
+        DVec3::X * (STOCK_RADIUS - HOLE_RADIUS),
+        DVec3::Z,
+        HOLE_RADIUS,
+    );
+    let inner_low = build.circle_about(disc, 0.0, low);
+    let inner_high = build.circle_about(disc, HEIGHT, high);
+    let ((top, top_flipped), (bottom, bottom_flipped)) = caps(&mut build);
+    let crescent = vec![use_of(outer_high, true), use_of(inner_high, false)];
+    build.face(top, top_flipped, vec![crescent]);
+    build.face(top, top_flipped, vec![vec![use_of(inner_high, true)]]);
+    let crescent = vec![use_of(outer_low, false), use_of(inner_low, true)];
+    build.face(bottom, bottom_flipped, vec![crescent]);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(inner_low, false)]]);
     build.finish(STOCK_RADIUS)
 }

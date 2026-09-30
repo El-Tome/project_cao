@@ -6,12 +6,19 @@
 //! on — the angles `2πk/N` from the cylinder's `u`, which a circle of that
 //! cylinder shares — so that on a cylinder every curve has a point at every
 //! grid angle, and no triangle cut between two of them spans more than one
-//! step. The ends of an edge are its vertices' own points. A circle of a
+//! step. The ends of an edge are its vertices' own points. A circle is also
+//! sampled at the angle of every vertex on its cylinder, so that a ruling
+//! from a vertex meets a sample on every rim of its wall, and that sample
+//! stands square to the axis from the vertex nearest it, where the kernel
+//! put the vertex — within its tolerance of the circle, and on the other
+//! surface the kernel decided the wall touches there. A circle of a
 //! cylinder in contact with another is also sampled on the rays [`contact`]
 //! gives it, and not at the steps it withholds: there the triangle next to
 //! the line two walls touch along spans more than one step, by the stretch
-//! withheld. The curve two perpendicular cylinders meet along is sampled on
-//! the grids of both, by [`meet`].
+//! withheld. A circle whose wall is gone — a cylinder swallowed by one it
+//! touches leaves its circles on the caps — is sampled as the circles of a
+//! cylinder of its own. The curve two perpendicular cylinders meet along is
+//! sampled on the grids of both, by [`meet`].
 
 mod meet;
 
@@ -22,8 +29,8 @@ use glam::DVec3;
 use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
-use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
+use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::topology::{Body, Edge, EdgeId, VertexId};
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -75,20 +82,22 @@ impl Samples {
                 }
             })
             .collect();
-        let mut contacts = contact::contacts(body, tolerance);
-        contact::along_meets(body, &meets, &mut contacts);
+        let walls = contact::walls(body);
+        let contacts = contact::contacts(body, &walls, &meets, tolerance);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = (0..body.surfaces.len() as u32)
-                        .map(SurfaceId)
-                        .find(|surface| lies_on(body, circle, *surface))
-                        .and_then(|surface| contacts.get(&surface))
+                    let contact = walls
+                        .iter()
+                        .find(|(_, wall)| contact::lies_on(circle, wall, eps))
+                        .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
-                    on_circle(circle, edge, tolerance, eps, contact)
+                    let touched = touched_ends(body, circle, edge);
+                    let planes = touching_planes(body, circle);
+                    on_circle(circle, edge, tolerance, eps, contact, touched, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
@@ -120,38 +129,42 @@ impl Samples {
     }
 }
 
-/// Whether a circle is one of the circles of a surface of the body: a
-/// cylinder of its radius about its axis.
-fn lies_on(body: &Body, circle: &Circle, surface: SurfaceId) -> bool {
-    let Surface::Cylinder(cylinder) = body.surface(surface) else {
-        return false;
-    };
-    let eps = body.scale().eps();
-    let from = circle.center - cylinder.origin;
-    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE
-        && (cylinder.radius - circle.radius).abs() <= eps
-        && (from - cylinder.axis * cylinder.axis.dot(from)).length() <= eps
-}
-
 /// The points of a circle's edge between its ends, in the way the edge runs:
 /// on the grid but for the steps its contact withholds, and along the rays it
-/// adds. A place closer than `eps` to an end is that end, and to a grid angle
-/// that angle.
+/// adds. A place closer than `eps` to a grid angle is that angle, and to an
+/// end that end — or, at an end a plane touches the wall at, a place so near
+/// it that the circle there stands within a fifth of `eps` of the plane: the
+/// sample would lie on the plane's edge. Nor is a ray taken, on any circle of
+/// the wall, where the circle stands so near such a plane but not on the
+/// line it touches along: a ray a partner passed on, through its own grid,
+/// would lay a strip of the wall on the plane's face. So too beside a line
+/// the wall touches or crosses another along: a ray is not taken where the
+/// circle stands within a fifth of `eps` of the other wall a step or less
+/// from an end standing so too. The vertex is the line's sample there, and a
+/// second a hair round from it — through the other end of a line the kernel
+/// laid leaning a hair — would stand as good as on the other wall's circle,
+/// which ends at the same vertex.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
     contact: &Contact,
+    touched: [bool; 2],
+    planes: &[Plane],
 ) -> Vec<DVec3> {
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
+    let beside_end = gap.max((2.0 * eps * contact::APART / circle.radius).sqrt());
+    let [at_from, at_to] = touched.map(|touched| if touched { beside_end } else { gap });
     let whole = edge.ends.is_none();
     let (low, high) = if whole {
         (edge.from, edge.from + TAU)
+    } else if edge.from <= edge.to {
+        (edge.from + at_from, edge.to - at_to)
     } else {
-        (edge.from.min(edge.to) + gap, edge.from.max(edge.to) - gap)
+        (edge.to + at_to, edge.from - at_from)
     };
     let inside = |at: f64| {
         if whole {
@@ -159,6 +172,28 @@ fn on_circle(
         } else {
             low < at && at < high
         }
+    };
+    let ends = if whole {
+        Vec::new()
+    } else {
+        vec![edge.from, edge.to]
+    };
+    let beside =
+        |at: f64, other: &Cylinder| other.distance(circle.point(at)).abs() < eps * contact::APART;
+    let beside_a_plane = |at: f64| {
+        let point = circle.point(at);
+        planes.iter().any(|plane| {
+            let touching = circle.center - plane.normal * plane.distance(circle.center);
+            plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
+        })
+    };
+    let by_an_end = |at: f64| {
+        contact.beside.iter().any(|other| {
+            beside(at, other)
+                && ends
+                    .iter()
+                    .any(|end| (end - at).abs() <= step && beside(*end, other))
+        })
     };
 
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
@@ -177,8 +212,11 @@ fn on_circle(
     for way in &contact.rays {
         let angle = way.dot(circle.v).atan2(way.dot(circle.u));
         let mut at = angle + TAU * ((low - angle) / TAU).ceil();
+        if whole && at >= high {
+            at = low;
+        }
         while at < high {
-            if inside(at) {
+            if inside(at) && !by_an_end(at) && !beside_a_plane(at) {
                 places.push((at, false, angle));
             }
             at += TAU;
@@ -202,9 +240,66 @@ fn on_circle(
     if edge.to < edge.from {
         kept.reverse();
     }
-    kept.into_iter()
-        .map(|(_, _, angle)| circle.point(angle))
+    let apart = |one: f64, other: f64| ((one - other + PI).rem_euclid(TAU) - PI).abs();
+    let anchored = |angle: f64| {
+        contact
+            .anchors
+            .iter()
+            .map(|point| {
+                let from = *point - circle.center;
+                let along = circle.axis.dot(from);
+                (from - circle.axis * along, along.abs())
+            })
+            .filter(|(flat, _)| apart(flat.dot(circle.v).atan2(flat.dot(circle.u)), angle) <= gap)
+            .min_by(|one, other| one.1.total_cmp(&other.1))
+    };
+    let mut points: Vec<DVec3> = kept
+        .into_iter()
+        .map(|(_, _, angle)| match anchored(angle) {
+            Some((flat, _)) => circle.center + flat,
+            None => circle.point(angle),
+        })
+        .collect();
+    points.dedup();
+    if whole && points.len() > 1 && points[0] == points[points.len() - 1] {
+        points.pop();
+    }
+    points
+}
+
+/// The planes of the body touching a circle's wall along a line.
+fn touching_planes(body: &Body, circle: &Circle) -> Vec<Plane> {
+    let eps = body.scale().eps();
+    body.surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Plane(plane) => Some(*plane),
+            Surface::Cylinder(_) => None,
+        })
+        .filter(|plane| {
+            plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
+                && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
+        })
         .collect()
+}
+
+/// Whether each end of a circle's edge, its start then its end, is a vertex
+/// lying on a plane that touches the circle's wall there.
+fn touched_ends(body: &Body, circle: &Circle, edge: &Edge) -> [bool; 2] {
+    let eps = body.scale().eps();
+    let touches = |vertex: VertexId| {
+        body.vertex(vertex)
+            .on
+            .iter()
+            .any(|surface| match body.surface(*surface) {
+                Surface::Plane(plane) => {
+                    plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
+                        && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
+                }
+                Surface::Cylinder(_) => false,
+            })
+    };
+    edge.ends.map_or([false; 2], |ends| ends.map(touches))
 }
 
 #[cfg(test)]

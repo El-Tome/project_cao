@@ -77,6 +77,26 @@ fn two_holes_touching_along_a_line_are_drawn_closed_and_apart() {
     );
 }
 
+/// How far round the walls the top of the line two holes touch along stands
+/// from its foot: more than the kernel's tolerance, two hundred millionths
+/// on the block, and far less than the stretch round which the two walls
+/// stand closer than a fifth of it.
+const LEAN: f64 = 5e-8;
+
+#[test]
+fn two_holes_touching_along_a_line_leaning_a_hair_are_drawn_closed_and_apart() {
+    let hole = fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let body = fixtures::block_with_two_holes_touching_along_a_lean(LEAN);
+    for tolerance in [1e-3, DRAWN, 0.5] {
+        held(
+            &body,
+            tolerance,
+            fixtures::block_volume() - 2.0 * hole,
+            2.0 * wall(fixtures::HOLE_RADIUS),
+        );
+    }
+}
+
 #[test]
 fn a_cylinder_lying_on_the_block_leaves_a_slit_in_the_top_drawn_on_both_sides() {
     let lying = fixtures::disc_volume(fixtures::LYING_RADIUS, fixtures::LYING_LENGTH);
@@ -227,6 +247,34 @@ fn a_face_whose_loops_bound_no_region_is_left_open_rather_than_ending_the_progra
 }
 
 #[test]
+fn a_disc_touching_the_rim_of_a_cap_is_drawn_closed_though_its_wall_is_gone() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let body = fixtures::stock_with_a_disc_touching_its_rim();
+    for tolerance in [1e-6, 0.02, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, wall(fixtures::STOCK_RADIUS));
+    }
+}
+
+#[test]
+fn a_wall_slit_from_top_to_bottom_is_drawn_whole_round_a_window_in_it() {
+    let (from, to) = (2.0, 4.0);
+    let body = fixtures::slit_wall_with_a_window(from, to);
+    let radius = fixtures::STOCK_RADIUS;
+    let exact = TAU * radius * fixtures::HEIGHT - (to - from) * radius * fixtures::WINDOW_HEIGHT;
+    for tolerance in [DRAWN, 0.5] {
+        let area: f64 = body
+            .triangles(tolerance)
+            .iter()
+            .map(|[a, b, c]| (*b - *a).cross(*c - *a).length() / 2.0)
+            .sum();
+        assert!(
+            (area - exact).abs() <= exact * tolerance / radius,
+            "the triangles cover {area} of {exact} within {tolerance}"
+        );
+    }
+}
+
+#[test]
 fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed() {
     let annulus =
         std::f64::consts::PI * (fixtures::STOCK_RADIUS.powi(2) - fixtures::BORE_RADIUS.powi(2));
@@ -250,11 +298,13 @@ fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed(
 /// Angles a tangency is placed at: a few anywhere, and a few a hair either
 /// side of a grid angle every grid shares, from below the kernel's own
 /// tolerance to a hundred thousandth of a turn — where the first samples on
-/// either side stand closer to the other wall than the rules can tell apart.
+/// either side stand closer to the other wall than the rules can tell apart —
+/// and on to where they stand between a fifth of the kernel's tolerance and
+/// the whole of it from the other wall.
 fn round_a_grid_angle() -> Vec<f64> {
     let shared = 3.0 * TAU / 16.0;
     let mut angles = vec![0.3, 2.0, PI - 1e-7, -PI + 1e-7];
-    for offset in [1.5e-9, 1e-7, 1e-5] {
+    for offset in [1.5e-9, 1e-7, 1e-5, 5e-5, 8e-5] {
         angles.extend([shared - offset, shared + offset]);
     }
     angles

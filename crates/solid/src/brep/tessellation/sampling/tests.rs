@@ -2,6 +2,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
+use super::super::contact::APART;
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
 use crate::brep::curve::{Curve, Meet};
@@ -144,13 +145,19 @@ fn the_circles_of_a_hole_tangent_inside_the_stock_are_sampled_on_common_rays_fro
 }
 
 #[test]
-fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_other_but_their_vertices()
+fn no_sample_of_two_walls_touching_stands_closer_to_the_other_than_a_fifth_of_the_kernel_s_tolerance_but_their_vertices()
  {
-    let near_a_grid_angle = 3.0 * TAU / 16.0 + 1e-6;
-    for body in [
-        fixtures::stock_with_a_hole_tangent_at(near_a_grid_angle),
-        fixtures::block_with_two_holes_touching_at(near_a_grid_angle),
-    ] {
+    let grid_angle = 3.0 * TAU / 16.0;
+    let bodies = [1e-6, 7e-5]
+        .into_iter()
+        .flat_map(|off| {
+            [
+                fixtures::stock_with_a_hole_tangent_at(grid_angle + off),
+                fixtures::block_with_two_holes_touching_at(grid_angle + off),
+            ]
+        })
+        .chain([fixtures::block_with_two_holes_touching_along_a_lean(5e-8)]);
+    for body in bodies {
         let eps = body.scale().eps();
         let cylinders: Vec<_> = body
             .surfaces
@@ -177,7 +184,7 @@ fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_o
                         }
                         let apart = other.distance(point).abs();
                         assert!(
-                            apart >= eps,
+                            apart >= eps * APART,
                             "{point} is {apart} from a wall within {tolerance}"
                         );
                     }
@@ -382,4 +389,435 @@ fn the_rings_of_the_stock_a_bore_crosses_are_sampled_through_every_sample_of_the
             }
         }
     }
+}
+
+#[test]
+fn the_rings_of_two_walls_touching_are_sampled_on_the_line_they_touch_along() {
+    let inside = DVec3::X * (fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS);
+    let beside = DVec3::X * fixtures::HOLE_RADIUS;
+    let bodies = [
+        (
+            fixtures::stock_with_a_hole_at(inside),
+            fixtures::STOCK_RADIUS,
+        ),
+        (fixtures::block_with_holes_at(&[-beside, beside]), 0.0),
+    ];
+    for (body, touching) in &bodies {
+        for tolerance in [1e-3, 0.02, 0.5] {
+            let samples = Samples::of(body, tolerance);
+            let mut rings = 0;
+            for edge in body.edge_ids() {
+                let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+                    continue;
+                };
+                let line = DVec3::new(*touching, 0.0, circle.center.z);
+                rings += 1;
+                assert!(
+                    sampled(&samples, edge, line),
+                    "the ring of radius {} misses {line} within {tolerance}",
+                    circle.radius
+                );
+            }
+            assert_eq!(rings, 4);
+        }
+    }
+}
+
+/// The angles round `center`, from X, of every sample of `edge`, sorted, a
+/// circle's vertex counted once.
+fn angles_round(samples: &Samples, edge: EdgeId, center: DVec3) -> Vec<f64> {
+    let mut ids = samples.edge(edge).to_vec();
+    if ids.len() > 1 && ids[0] == ids[ids.len() - 1] {
+        ids.pop();
+    }
+    let mut angles: Vec<f64> = ids
+        .iter()
+        .map(|id| {
+            let from = samples.point(*id) - center;
+            from.y.atan2(from.x).rem_euclid(TAU)
+        })
+        .collect();
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+#[test]
+fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds_a_vertex() {
+    let radius = fixtures::HOLE_RADIUS;
+    for (other_radius, offset) in [(radius, 1e-5), (radius - 1e-3, 1.1e-3)] {
+        let mut build = fixtures::Build::new();
+        let first = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+        let center = DVec3::X * offset;
+        let second = build.cylinder(center, DVec3::Z, other_radius);
+        let (sin, cos) = 0.3f64.sin_cos();
+        let vertex = build.vertex(DVec3::new(cos, sin, 0.0) * radius);
+        let through = build.circle(first, 0.0, Some(vertex));
+        let ring = build.circle(second, 0.0, None);
+        let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+        build.face(first, false, vec![vec![use_of(through, true)]]);
+        build.face(second, false, vec![vec![use_of(ring, true)]]);
+        let body = build.finish(radius);
+        for tolerance in [1e-3, 0.02, 0.5] {
+            let samples = Samples::of(&body, tolerance);
+            let one = angles_round(&samples, through, center);
+            let other = angles_round(&samples, ring, center);
+            assert_eq!(
+                one.len(),
+                other.len(),
+                "{offset} apart within {tolerance}: {one:?} against {other:?}"
+            );
+            for (one, other) in one.iter().zip(&other) {
+                assert!(
+                    (one - other).abs() < 1e-9,
+                    "{one} and {other}, {offset} apart within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn no_sample_of_an_arc_stands_so_near_its_end_that_it_lies_on_a_plane_touching_the_wall_there() {
+    let mut build = fixtures::Build::new();
+    let radius = 1.5;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let start = build.vertex(DVec3::X * radius);
+    let end = build.vertex(DVec3::Y * radius);
+    let arc = build.arc(wall, 0.0, start, end);
+    let hair: f64 = 3e-8;
+    let near = build.vertex(DVec3::new(hair.cos(), hair.sin(), 0.0) * radius + DVec3::Z * 5.0);
+    let through = build.circle(wall, 5.0, Some(near));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(wall, false, vec![vec![use_of(arc, true)]]);
+    build.face(wall, false, vec![vec![use_of(through, true)]]);
+    let beside = [
+        DVec3::new(radius, -1.0, 0.0),
+        DVec3::new(radius, -1.0, 1.0),
+        DVec3::new(radius, 0.0, 1.0),
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&[start, beside[0], beside[1], beside[2]], DVec3::X);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    let touching = |point: DVec3| (radius - point.x).abs();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let ids = samples.edge(arc);
+        for id in &ids[1..ids.len() - 1] {
+            let point = samples.point(*id);
+            assert!(
+                touching(point) >= eps * APART,
+                "{point} lies on the plane x = {radius} within {tolerance}"
+            );
+        }
+    }
+}
+
+/// A ring passing the line a plane touches its wall along, and a vertex of
+/// the wall a hair round from that line, further than the kernel's
+/// tolerance: the ring would take a ray through it, where it stands on the
+/// plane as good as the line does.
+#[test]
+fn no_sample_of_a_ring_passing_a_plane_touching_its_wall_lies_on_the_plane_but_the_line_itself() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let hair: f64 = 1e-5;
+    let off = build.vertex(DVec3::new(hair.cos(), hair.sin(), 0.0) * radius + DVec3::Z * 5.0);
+    let ring = build.circle(wall, 0.0, None);
+    let through = build.circle(wall, 5.0, Some(off));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(through, false)]],
+    );
+    let corners = [
+        DVec3::new(radius, 0.0, 0.0),
+        DVec3::new(radius, -1.0, 0.0),
+        DVec3::new(radius, -1.0, 1.0),
+        DVec3::new(radius, 0.0, 1.0),
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&corners, DVec3::X);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for id in samples.edge(ring) {
+            let point = samples.point(*id);
+            let on_the_line = (point - DVec3::X * radius).length() <= eps;
+            assert!(
+                on_the_line || (radius - point.x).abs() >= eps * APART,
+                "{point} lies on the plane x = {radius} within {tolerance}"
+            );
+        }
+    }
+}
+
+#[test]
+fn a_ring_is_sampled_at_the_angle_of_a_corner_standing_inside_its_wall_closer_than_a_chord_sags() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::STOCK_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let ring = build.circle(wall, 0.0, None);
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    let angle: f64 = 0.3;
+    let inside = radius - 1e-6;
+    let corner = DVec3::new(angle.cos() * inside, angle.sin() * inside, 5.0);
+    let corners = [
+        corner,
+        corner - DVec3::X * 4.0,
+        corner - DVec3::X * 4.0 + DVec3::Z,
+        corner + DVec3::Z,
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&corners, DVec3::Y);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let below = DVec3::new(angle.cos(), angle.sin(), 0.0) * radius;
+        assert!(
+            sampled(&samples, ring, below),
+            "the ring misses {below} within {tolerance}"
+        );
+    }
+}
+
+#[test]
+fn a_ring_is_sampled_at_a_vertex_s_angle_where_the_kernel_put_the_vertex_a_hair_off_the_wall() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let off = DVec3::new(radius + 1e-8, 0.0, fixtures::HEIGHT);
+    let vertex = build.vertex(off);
+    let ring = build.circle(wall, 0.0, None);
+    let through = build.circle(wall, fixtures::HEIGHT, Some(vertex));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(through, false)]],
+    );
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let below = DVec3::new(off.x, off.y, 0.0);
+        assert!(
+            samples
+                .edge(ring)
+                .iter()
+                .any(|id| (samples.point(*id) - below).length() < 1e-12),
+            "the ring misses {below} within {tolerance}"
+        );
+    }
+}
+
+/// A place of the ring at the grid angle nought and another a little more
+/// than the kernel's tolerance round from it, both within it of a vertex
+/// between them: each is put where the vertex nearest in height stands.
+#[test]
+fn no_two_samples_of_a_ring_stand_at_one_place_where_two_of_its_angles_are_put_at_one_vertex() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let cylinder = crate::brep::surface::Cylinder::about(DVec3::ZERO, DVec3::Z, radius);
+    let gap = crate::brep::scale::Scale::of(fixtures::STOCK_RADIUS).eps() / radius;
+    let on_wall = |angle: f64, height: f64| {
+        cylinder.origin + cylinder.radial(angle) * radius + DVec3::Z * height
+    };
+    let near = build.vertex(on_wall(0.9 * gap, 1.0));
+    let far = build.vertex(on_wall(1.8 * gap, fixtures::HEIGHT));
+    let ring = build.circle(wall, 0.0, None);
+    let low = build.circle(wall, 1.0, Some(near));
+    let high = build.circle(wall, fixtures::HEIGHT, Some(far));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(low, false)]],
+    );
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+    );
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let points: Vec<DVec3> = samples
+            .edge(ring)
+            .iter()
+            .map(|id| samples.point(*id))
+            .collect();
+        for (at, point) in points.iter().enumerate() {
+            assert_ne!(
+                *point,
+                points[(at + 1) % points.len()],
+                "sampled twice in a row within {tolerance}"
+            );
+        }
+    }
+}
+
+/// A bore touching the stock inside, and a boss of its radius a hair off its
+/// axis, crossing it along two lines: the stock takes the rays of the bore's
+/// grid, and would pass them back to it round the lines where it stands
+/// closer to the boss than a fifth of the kernel's tolerance.
+#[test]
+fn a_wall_takes_no_ray_passed_on_by_one_partner_where_it_all_but_lies_on_another() {
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let center = DVec3::X * (fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS);
+    let off = 1e-7;
+    let bore = build.cylinder(center, DVec3::Z, fixtures::HOLE_RADIUS);
+    let boss = build.cylinder(center + DVec3::X * off, DVec3::Z, fixtures::HOLE_RADIUS);
+    let rings = [stock, bore, boss].map(|wall| build.circle(wall, 0.0, None));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [stock, bore, boss].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    let walls = [bore, boss].map(|wall| match body.surface(wall) {
+        Surface::Cylinder(cylinder) => *cylinder,
+        Surface::Plane(_) => unreachable!("a bore and a boss are cylinders"),
+    });
+    let across = (fixtures::HOLE_RADIUS.powi(2) - off * off / 4.0).sqrt();
+    let lines = [-1.0, 1.0].map(|side| center + DVec3::new(off / 2.0, side * across, 0.0));
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for (ring, other) in [(rings[1], walls[1]), (rings[2], walls[0])] {
+            for id in samples.edge(ring) {
+                let point = samples.point(*id);
+                let on_a_line = lines.iter().any(|line| (point - *line).length() < eps);
+                assert!(
+                    on_a_line || other.distance(point).abs() >= eps * APART,
+                    "{point} all but lies on the other wall within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
+    let mut build = fixtures::Build::new();
+    let outer = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let middle = DVec3::X * fixtures::STOCK_RADIUS / 2.0;
+    let between = build.cylinder(middle, DVec3::Z, fixtures::STOCK_RADIUS / 2.0);
+    let inner = build.cylinder(
+        middle + DVec3::Y * fixtures::HOLE_RADIUS,
+        DVec3::Z,
+        fixtures::HOLE_RADIUS,
+    );
+    let rings = [outer, between, inner].map(|wall| build.circle(wall, 0.0, None));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [outer, between, inner].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let [one, other] = [rings[0], rings[1]].map(|ring| angles_round(&samples, ring, middle));
+        assert_eq!(
+            one.len(),
+            other.len(),
+            "within {tolerance}: {one:?} against {other:?}"
+        );
+        for (one, other) in one.iter().zip(&other) {
+            assert!(
+                (one - other).abs() < 1e-9,
+                "{one} and {other} within {tolerance}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_rings_of_two_walls_a_hair_across_each_other_are_sampled_on_the_lines_they_cross_along() {
+    let (radius, offset) = (fixtures::HOLE_RADIUS, 1e-5);
+    let mut build = fixtures::Build::new();
+    let first = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let second = build.cylinder(DVec3::X * offset, DVec3::Z, radius);
+    let rings = [
+        build.circle(first, 0.0, None),
+        build.circle(second, fixtures::HEIGHT, None),
+    ];
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [first, second].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let across = (radius * radius - offset * offset / 4.0).sqrt();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for (ring, height) in rings.into_iter().zip([0.0, fixtures::HEIGHT]) {
+            for side in [-1.0, 1.0] {
+                let line = DVec3::new(offset / 2.0, side * across, height);
+                assert!(
+                    sampled(&samples, ring, line),
+                    "{line} is missed within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn every_ring_of_a_cylinder_is_sampled_at_the_angle_of_every_vertex_on_that_cylinder() {
+    let (from, to) = (0.3 + 1e-4, 0.3 + 3e-4);
+    let body = fixtures::tube_with_a_window(from, to);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let mut rings = 0;
+        for edge in body.edge_ids() {
+            if body.edge(edge).ends.is_some() {
+                continue;
+            }
+            let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+                continue;
+            };
+            rings += 1;
+            for angle in [from, to] {
+                assert!(
+                    sampled(&samples, edge, circle.point(angle)),
+                    "the ring of radius {} misses {angle} within {tolerance}",
+                    circle.radius
+                );
+            }
+        }
+        assert_eq!(rings, 4);
+    }
+}
+
+#[test]
+fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
+    let body = fixtures::stock();
+    let edge = body.edge_ids().next().expect("the stock's first ring");
+    let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+        panic!("the stock's edges are its two rings");
+    };
+    let contact = super::Contact {
+        rays: vec![circle.u - circle.v * 1e-17],
+        withheld: vec![0],
+        anchors: Vec::new(),
+        beside: Vec::new(),
+    };
+    let eps = body.scale().eps();
+    let points = super::on_circle(
+        &circle,
+        body.edge(edge),
+        0.02,
+        eps,
+        &contact,
+        [false; 2],
+        &[],
+    );
+    let start = circle.point(0.0);
+    assert!(
+        points.iter().any(|point| (*point - start).length() < 1e-9),
+        "{start} is missed"
+    );
 }

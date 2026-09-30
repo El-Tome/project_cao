@@ -146,7 +146,29 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
-  points where planes of the origin touch a cylinder are always samples.
+  points where planes of the origin touch a cylinder are always samples. A
+  circle is also sampled at the angle of every vertex on its cylinder, so that
+  a ruling from a vertex off the grid meets a sample on every rim of its wall:
+  otherwise a strip a hair high — a skin left under a cap — is cut by a
+  triangle reaching from the vertex to the next step of the other rim, lying
+  flat over the face beside it. That sample stands where the vertex nearest
+  it in height stands, moved along the axis: a tangency decided within `EPS`
+  leaves the exact surfaces overlapping by up to `EPS`, ten times what the
+  rules tell apart, and the vertices of the line they touch along are where
+  both walls' samples meet. A vertex standing inside a wall closer than
+  twice a chord's sag — a pocket's corner a hair inside it — gives the wall's
+  circles a sample at its angle too, so that no chord passes inside it. An
+  arc ending where a plane touches its wall takes no sample so near that end
+  that it would stand on the plane's edge, and no circle of the wall takes a
+  ray so near the line the plane touches along that it would stand on the
+  plane: a strip of the wall a hair wide would lie on the plane's face. Two cylinders touching are both
+  sampled on the line they touch along, vertex or not, and a circle whose
+  wall is gone is sampled as its own cylinder's. An arc ending on that line,
+  though, is sampled there at its end alone: the kernel may lay the line
+  leaning a hair, its two ends within `EPS` of both walls, and a ray through
+  the other end, or through the exact line, would put a sample a hair from
+  the vertex, as good as on the other wall's arc ending at the same vertex —
+  a cap holding both arcs would fold back on itself there.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,
   at every place a curve turns back, and on a cylinder at every grid angle.
   Inside a strip the arcs are graphs that do not cross, so each piece of face
@@ -157,8 +179,19 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   their hollow side closer than a chord's sag — an internal tangency, a near
   miss — both are sampled on common abscissae along the common tangent, or on
   common rays from the smaller centre further out, so that their polylines
-  stay ordered. What still crosses is refined locally, and what survives that
-  is reported as a failure of the triangles, apart from the kernel's.
+  stay ordered. So are two walls crossing each other by less than twice a
+  chord's sag — cylinders of one radius a hair off one axis — and every ray
+  either takes on its own, through a vertex or a curve it meets a third wall
+  along, the other takes too, and so on down a chain of walls each touching
+  the next inside it. A ray along which the two stand closer than a
+  fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
+  of `EPS` would leave walls barely more than it apart with hardly a sample
+  round the turn. Nor does a wall take such a ray from a third it shares rays
+  with: a bore touching the stock inside passes its grid on to the stock,
+  and the stock would pass back the very steps the bore withholds beside a
+  boss crossing it. A place two rays put at one vertex is taken once. What
+  still crosses is refined locally, and what survives
+  that is reported as a failure of the triangles, apart from the kernel's.
 
 ## How it is held
 

@@ -2,6 +2,7 @@
 
 use super::*;
 use crate::brep::curve::Meet;
+use crate::brep::meet::Meeting;
 
 /// The crossings found, each checked to lie on the curve at its parameter and
 /// on the surface, and the list sorted.
@@ -219,6 +220,38 @@ fn a_meet_touching_a_plane_touches_it_once_at_each_top() {
         tangents(&found(&meet, &top(3.0 - 2.0 * eps), 1e-12 * REACH)),
         [false; 4]
     );
+}
+
+#[test]
+fn a_meet_touching_a_plane_where_it_starts_gives_the_touch_within_its_first_period() {
+    let eps = scale().eps();
+    let centre = DVec3::new(1.0, 2.0, 0.0);
+    for step in 0..400 {
+        let angle = 0.013 + step as f64 * 0.0157;
+        let along = DVec3::new(angle.cos(), angle.sin(), 0.0);
+        let across = DVec3::Z.cross(along);
+        for (a, b, d, e) in [
+            (5.0, 3.0, 4.0, 2.0),
+            (5.0, 3.0, 0.5, 0.0),
+            (5.0, 3.0, 2.0, 1.0),
+            (4.0, 4.0, 0.0, 3.0),
+        ] {
+            let first = Cylinder::about(centre, DVec3::Z, a);
+            let second = Cylinder::about(centre + across * d + DVec3::Z * e, along, b);
+            for meet in Meeting::of(&first, &second, scale()).components {
+                let period = meet.period().expect("a component closes on itself");
+                for y in [(-a).max(d - b), a.min(d + b)] {
+                    let side = plane(centre + across * y, across);
+                    for crossing in found(&Curve::Meet(meet), &side, eps) {
+                        assert!(
+                            (0.0..period).contains(&crossing.parameter),
+                            "{angle} {a} {b} {d} {e}: {crossing:?} is not within {period}"
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
 
 #[test]

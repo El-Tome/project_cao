@@ -58,11 +58,15 @@ pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> 
         return Solved::At(Vec::new());
     }
 
+    let within = |t: f64| {
+        let t = t.rem_euclid(period);
+        if t < period { t } else { 0.0 }
+    };
     let touching = |t: f64| distance(t).abs() <= eps;
     let mut found: Vec<(f64, bool)> = extrema
         .iter()
         .filter(|&&t| touching(t))
-        .map(|&t| (t, true))
+        .map(|&t| (within(t), true))
         .collect();
     for (index, &from) in extrema.iter().enumerate() {
         let to = match extrema.get(index + 1) {
@@ -72,7 +76,7 @@ pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> 
         if touching(from) || touching(to) || distance(from) * distance(to) > 0.0 {
             continue;
         }
-        found.push((halved(&distance, from, to).rem_euclid(period), false));
+        found.push((within(halved(&distance, from, to)), false));
     }
     Solved::At(found)
 }

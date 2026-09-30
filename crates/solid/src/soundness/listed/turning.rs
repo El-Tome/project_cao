@@ -73,12 +73,26 @@ pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
             widest
         };
         for (lap, &(area, turns)) in swept.iter().enumerate() {
-            if turns == 0.0 && Some(lap) != outside && area >= 0.0 {
+            let slit = is_slit(&listed.loops[lap]);
+            if turns == 0.0 && Some(lap) != outside && area >= 0.0 && !slit {
                 return backwards(lap);
             }
         }
     }
     Ok(())
+}
+
+/// Whether a loop runs each of its edges once each way: a slit, where a face
+/// is touched along a line inside it, which bounds no area and turns neither
+/// way.
+fn is_slit(uses: &[(usize, bool)]) -> bool {
+    uses.iter().all(|&(edge, forward)| {
+        uses.iter()
+            .filter(|&&(other, _)| other == edge)
+            .map(|&(_, way)| if way == forward { 1 } else { -1 })
+            .sum::<i32>()
+            == 0
+    })
 }
 
 /// The area an edge run along its own way sweeps in a surface's parameters,

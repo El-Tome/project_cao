@@ -14,7 +14,7 @@ use std::f64::consts::{PI, TAU};
 use cao_solid::brep::{Body, Curve, Declined, Surface};
 use cao_solid::exact::MESH;
 use cao_solid::profile::{Contour, Frame, Run};
-use cao_solid::soundness::{Mislisted, closed, listed, uncrossed};
+use cao_solid::soundness::{closed, listed, uncrossed};
 use glam::{DVec2, DVec3};
 
 const HEIGHT: f64 = 10.0;
@@ -302,23 +302,16 @@ fn a_cylinder_resting_against_a_flat_face_touches_it_along_an_edge_the_listing_t
         line.direction.abs().abs_diff_eq(DVec3::Y, 1e-12),
         "{line:?}"
     );
-    let (top, slit) = listing
-        .faces
-        .iter()
-        .enumerate()
-        .find_map(|(face, listed)| {
-            let slit = listed.loops.iter().position(|lap| {
+    let slit = listing.faces.iter().any(|listed| {
+        matches!(listed.surface, Surface::Plane(_))
+            && listed.loops.iter().any(|lap| {
                 lap == &vec![(*contact, true), (*contact, false)]
                     || lap == &vec![(*contact, false), (*contact, true)]
-            })?;
-            matches!(listed.surface, Surface::Plane(_)).then_some((face, slit))
-        })
-        .expect("the top runs the contact both ways as a loop of its own");
-    assert_eq!(
-        listed(&listing, body.scale().reach()),
-        Err(Mislisted::Backwards {
-            face: top,
-            lap: slit
-        })
+            })
+    });
+    assert!(
+        slit,
+        "the top runs the contact both ways as a loop of its own"
     );
+    assert_eq!(listed(&listing, body.scale().reach()), Ok(()));
 }

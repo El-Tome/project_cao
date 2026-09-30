@@ -429,6 +429,35 @@ fn a_block_bored_through_listed_by_hand_keeps_every_rule_of_a_listing() {
     assert_eq!(listed(&plate(), REACH), Ok(()));
 }
 
+/// A block whose top holds a slit: a line inside it that a cylinder lying on
+/// the top touches, run once each way by the top's own loop.
+fn block_with_a_slit() -> Listing {
+    let mut listing = block(DVec3::ZERO, DVec3::splat(10.0));
+    let first = listing.vertices.len();
+    listing.vertices.push(DVec3::new(3.0, 5.0, 10.0));
+    listing.vertices.push(DVec3::new(7.0, 5.0, 10.0));
+    listing.edges.push(ListedEdge {
+        curve: Curve::Line(Line {
+            origin: DVec3::new(0.0, 5.0, 10.0),
+            direction: DVec3::X,
+        }),
+        from: 3.0,
+        to: 7.0,
+        ends: Some([first, first + 1]),
+        sides: Vec::new(),
+    });
+    let slit = listing.edges.len() - 1;
+    listing.faces[5]
+        .loops
+        .push(vec![(slit, true), (slit, false)]);
+    with_sides(listing)
+}
+
+#[test]
+fn a_slit_run_once_each_way_inside_a_face_is_no_hole_turned_the_wrong_way() {
+    assert_eq!(listed(&block_with_a_slit(), 10.0), Ok(()));
+}
+
 #[test]
 fn a_block_with_every_loop_turned_round_keeps_its_faces_on_its_right() {
     assert_eq!(

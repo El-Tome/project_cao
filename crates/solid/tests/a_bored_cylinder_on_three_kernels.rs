@@ -774,7 +774,7 @@ const SEEN: [Seen; 18] = [
         "a cylinder resting against a flat face",
         "keeps",
         "silent",
-        "breaks",
+        "keeps",
         NOT_MEASURED,
     ),
     seen(

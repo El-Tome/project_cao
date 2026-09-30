@@ -88,7 +88,9 @@ fn sound(triangles: &[Triangle]) -> Result<(), Flaw> {
     uncrossed(triangles)
 }
 
-fn kept_its_promise(leaf: &Leaf, triangles: &[Triangle]) -> Result<(), Flaw> {
+/// Whether a solid raised on its own encloses what arithmetic promised for
+/// its leaf.
+pub fn kept_its_promise(leaf: &Leaf, triangles: &[Triangle]) -> Result<(), Flaw> {
     let (promised, loss) = leaf.promise();
     let got = enclosed(triangles);
     let rounding = PRISM * promised.max(1.0);

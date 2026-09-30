@@ -14,7 +14,7 @@ mod smaller;
 
 use glam::{DQuat, DVec2, DVec3};
 
-pub use checking::{check, holds};
+pub use checking::{check, holds, kept_its_promise};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Case {

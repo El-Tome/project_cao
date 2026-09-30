@@ -226,7 +226,7 @@ impl Leaf {
 }
 
 /// How much of a curved surface's volume its flats may lose: at sixty-four
-/// flats a turn they stand inside the curve and give up 0.16 %. Half a percent
-/// leaves room for a kernel that lays fewer, and none for one that loses a
-/// face.
-pub const FACETING: f64 = 5e-3;
+/// flats a turn they stand inside the curve and give up 0.16 %. A fifth of a
+/// percent covers that, and a kernel meshing a true curve to a hundredth of a
+/// unit, and nothing like a face gone missing.
+pub const FACETING: f64 = 2e-3;

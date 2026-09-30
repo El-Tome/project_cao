@@ -40,8 +40,8 @@ two solids touch along an edge and nothing more, which is a legitimate result.
 **The volume is promised two ways.** A solid raised on its own is held against
 arithmetic: a prism against its area times its height, exactly — the kernel
 was handed the flats a circle was sampled into, and those are what it promised
-to raise; a revolution against Pappus, less at most half a percent for the
-flats laid round the curve. A boolean is held against **the same lines of
+to raise; a revolution against Pappus, less at most a fifth of a percent for
+the flats laid round the curve. A boolean is held against **the same lines of
 measure**: a bundle of parallel lines is laid across the case, and along every
 one of them the length inside the result must equal the length inside the
 operation applied to its inputs — union or difference of stretches of a line,
@@ -72,9 +72,11 @@ towards the places it does. Corners sit on a lattice of round numbers, so that
 faces land in one plane on their own. Half the tools are drawn from a solid
 before them: the same plane, the same height, the same centre, a radius that
 makes two circles touch. And a coincidence is now and then **missed by a
-hair** — a billionth of the part's size, a tenth of that, the solver's own
-tolerance — which is the band where a cut judges two faces one plane at some
-corners and not at others. Some cases are drawn thirty times larger, where a
+hair** — from half a billionth of the part's size up to the solver's own
+tolerance — which takes in the band where the kernel written here judges two
+faces one plane at some corners and not at others. Never finer than five times
+the rules' own tolerance: below that, a thin skin the kernel was right to leave
+could not be told from two faces laid on each other. Some cases are drawn thirty times larger, where a
 tolerance taken in absolute units stops holding.
 
 ## Running a campaign

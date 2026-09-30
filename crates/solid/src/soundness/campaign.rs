@@ -1,5 +1,6 @@
 //! A search for cases that break a rule, for as long as whoever runs it says.
 
+use std::cell::Cell;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 use std::sync::mpsc;
@@ -64,10 +65,11 @@ pub fn answer<C: Send + 'static>(
 
 /// Draws a case per seed and checks it, until `keep_going` says to stop.
 ///
-/// A case that fails is shrunk to the smallest one still breaking the same
-/// rule, while the search is allowed to go on. A check that never came back
-/// ends the campaign: its thread is still running, and every case after it
-/// would be timed against a machine it is slowing down.
+/// A case that fails is shrunk to the smallest one still failing the same
+/// way, while the search is allowed to go on. A check that never came back —
+/// drawn so, or met while shrinking — ends the campaign: its thread is still
+/// running, and every case after it would be timed against a machine it is
+/// slowing down.
 pub fn campaign<C: Clone + PartialEq + Send + 'static>(
     seeds: impl IntoIterator<Item = u64>,
     draw: impl Fn(u64) -> C,
@@ -95,7 +97,7 @@ pub fn campaign<C: Clone + PartialEq + Send + 'static>(
             Some((_, count)) => *count += 1,
             None => report.broken.push((rule, 1)),
         }
-        let hung = matches!(flaw, Flaw::NoAnswer(Silence::Late(_)));
+        let hung = Cell::new(matches!(flaw, Flaw::NoAnswer(Silence::Late(_))));
         let kept = report
             .findings
             .iter()
@@ -103,20 +105,24 @@ pub fn campaign<C: Clone + PartialEq + Send + 'static>(
             .count();
         if kept < KEPT_PER_RULE {
             let mut last = flaw.clone();
-            let shrunk = if hung {
+            let shrunk = if hung.get() {
                 drawn.clone()
             } else {
                 shrink(
                     drawn.clone(),
                     &smaller,
                     |candidate| match answer(candidate.clone(), &check, patience) {
-                        Err(broken) if broken.rule() == rule => {
+                        Err(broken) if broken.is_like(&flaw) => {
                             last = broken;
                             true
                         }
+                        Err(Flaw::NoAnswer(Silence::Late(_))) => {
+                            hung.set(true);
+                            false
+                        }
                         _ => false,
                     },
-                    &mut keep_going,
+                    || !hung.get() && keep_going(),
                 )
             };
             let shrunk_flaw = if shrunk == drawn { flaw.clone() } else { last };
@@ -134,7 +140,7 @@ pub fn campaign<C: Clone + PartialEq + Send + 'static>(
                 });
             }
         }
-        if hung {
+        if hung.get() {
             break;
         }
     }

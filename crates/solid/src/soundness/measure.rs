@@ -320,8 +320,8 @@ const OFF_CENTRE: DVec2 = DVec2::new(0.618_033_988_749_894_8, 0.414_213_562_373_
 /// fraction of how far the region reaches.
 ///
 /// A crossing is placed from the corners of the face it passes through, and a
-/// kernel that cut that face may have moved them by its own tolerance, `NEAR`
-/// of the reach. A face met at a slant stretches that shift along the line. A
+/// kernel that cut that face may have moved them by its own tolerance — a
+/// billionth of the reach, for the one written here. A face met at a slant stretches that shift along the line. A
 /// millionth leaves a thousand times the kernel's noise for the slant, and is
 /// still far below what a face missing, doubled or out of place leaves along
 /// every line through it.

@@ -80,8 +80,6 @@ fn a_triangle_resting_one_corner_on_a_face_is_uncrossed() {
     assert_eq!(uncrossed(&[flat(), resting]), Ok(()));
 }
 
-/// Sunk half the tolerance into the face: what a cut leaves where it rounded a
-/// corner that should have landed on it.
 #[test]
 fn a_corner_sunk_into_a_face_by_less_than_the_tolerance_rests_on_it() {
     let sunk = -0.5 * NEAR * reach(&[flat()]);
@@ -89,9 +87,6 @@ fn a_corner_sunk_into_a_face_by_less_than_the_tolerance_rests_on_it() {
     assert_eq!(uncrossed(&[flat(), resting]), Ok(()));
 }
 
-/// The same, on a triangle lying almost flat: its sunk corner is still within
-/// the tolerance of the face, though the line where it rises back through the
-/// face's plane lies further in than the tolerance.
 #[test]
 fn a_nearly_flat_triangle_with_a_corner_sunk_by_less_than_the_tolerance_rests_on_the_face() {
     let sunk = -0.5 * NEAR * reach(&[flat()]);
@@ -175,8 +170,6 @@ fn two_triangles_in_one_plane_side_by_side_are_uncrossed() {
     assert_eq!(uncrossed(&[flat(), beside]), Ok(()));
 }
 
-/// Pushed over the shared edge by half the tolerance: the two overlap along a
-/// strip no thicker than the rounding of a cut.
 #[test]
 fn two_triangles_in_one_plane_overlapping_by_less_than_the_tolerance_are_uncrossed() {
     let over = 0.5 * NEAR * reach(&[flat()]);
@@ -184,8 +177,6 @@ fn two_triangles_in_one_plane_overlapping_by_less_than_the_tolerance_are_uncross
     assert_eq!(uncrossed(&[flat(), beside]), Ok(()));
 }
 
-/// Pushed over the shared edge by one and a half times the tolerance: thicker
-/// than rounding leaves, however little.
 #[test]
 fn two_squares_in_one_plane_overlapping_by_a_little_more_than_the_tolerance_lie_on_each_other() {
     let over = 1.5 * NEAR * 4.0;
@@ -201,9 +192,6 @@ fn two_squares_in_one_plane_overlapping_by_a_little_more_than_the_tolerance_lie_
     assert!(matches!(uncrossed(&both), Err(Flaw::Crossing { .. })));
 }
 
-/// Ten long and a few billionths wide, parallel, and nearly twice the tolerance
-/// apart all along. The plane of a face that thin, worked out carelessly, tilts
-/// enough to make each look as if it passed through the other.
 #[test]
 fn two_thin_faces_side_by_side_further_apart_than_the_tolerance_are_uncrossed() {
     let one = [
@@ -274,10 +262,6 @@ fn a_triangle_with_no_area_crosses_nothing() {
     assert_eq!(uncrossed(&[needle, flat()]), Ok(()));
 }
 
-/// Its corners are all within a few tolerances of the face and of one line,
-/// but tilted so that two of them stand just above the face and one just
-/// below: taken for a triangle, it would cross the face along a third of its
-/// length.
 #[test]
 fn a_sliver_leaning_across_a_face_within_the_tolerance_crosses_nothing() {
     let (rise, off_line) = (10.0 * NEAR, 3.5 * NEAR);
@@ -351,9 +335,6 @@ fn turned_over(triangles: Vec<Triangle>) -> Vec<Triangle> {
     triangles.into_iter().map(|[a, b, c]| [a, c, b]).collect()
 }
 
-/// The skin of `z < 0` and the skin of `x < 1`, each cut along the line where
-/// they cross and every piece kept: no face there has that line inside it,
-/// only along its edge, and yet one skin goes right through the other.
 #[test]
 fn two_skins_cut_along_the_line_where_they_cross_and_all_kept_cross() {
     let crossed = soup(&[
@@ -365,8 +346,6 @@ fn two_skins_cut_along_the_line_where_they_cross_and_all_kept_cross() {
     assert!(matches!(uncrossed(&crossed), Err(Flaw::Crossing { .. })));
 }
 
-/// The same four strips, each facing the way the skin of `z < 0, x > 1` and
-/// that of `x < 1, z > 0` face: two solids touching along a line.
 #[test]
 fn two_solids_touching_along_a_line_where_each_of_their_faces_ends_are_uncrossed() {
     let touching = soup(&[
@@ -378,8 +357,6 @@ fn two_solids_touching_along_a_line_where_each_of_their_faces_ends_are_uncrossed
     assert_eq!(uncrossed(&touching), Ok(()));
 }
 
-/// The union's skin and the intersection's, laid together: two surfaces cut
-/// by the kernel along every line where they cross, the wrong pieces kept.
 #[test]
 fn the_union_and_the_intersection_of_two_boxes_laid_together_cross() {
     let (one, other) = (
@@ -393,7 +370,6 @@ fn the_union_and_the_intersection_of_two_boxes_laid_together_cross() {
     assert!(matches!(uncrossed(&both), Err(Flaw::Crossing { .. })));
 }
 
-/// Each box less the other: the same lines, where two solids now only touch.
 #[test]
 fn what_each_of_two_boxes_keeps_outside_the_other_laid_together_is_uncrossed() {
     let (one, other) = (
@@ -424,8 +400,6 @@ fn bar(sides: usize, radius: f64, from: DVec3, push: DVec3) -> Mesh {
     )
 }
 
-/// Two bars crossing at right angles, each less the other: two solids that
-/// touch only along the curves where the bars' walls cross.
 #[test]
 fn two_round_bars_crossing_each_less_the_other_laid_together_are_uncrossed() {
     let upright = bar(48, 2.0, DVec3::ZERO, DVec3::Z * 4.0);
@@ -487,8 +461,6 @@ fn boxes_far_from_the_origin_joined_and_cut_are_uncrossed() {
     assert_eq!(uncrossed(&solid.triangles()), Ok(()));
 }
 
-/// Each box added cuts the faces of all the ones before it, and leaves corners
-/// partway along the edges of faces it did not cut.
 #[test]
 fn a_row_of_boxes_joined_one_after_another_is_uncrossed() {
     let row = (1..12).fold(box_of(4.0, 4.0, DVec3::ZERO), |row, step| {
@@ -535,8 +507,6 @@ fn a_ring_cut_by_a_box_is_uncrossed() {
     assert_eq!(uncrossed(&cut.triangles()), Ok(()));
 }
 
-/// A half disc swept right round the axis it stands on: its facets narrow to
-/// nothing at the poles.
 #[test]
 fn a_sphere_with_a_box_cut_out_of_it_is_uncrossed() {
     let half_disc: Vec<DVec2> = (0..=40)
@@ -559,8 +529,6 @@ fn a_sphere_with_a_box_cut_out_of_it_is_uncrossed() {
     assert_eq!(uncrossed(&cut.triangles()), Ok(()));
 }
 
-/// Twenty thousand triangles: a rule that weighs every pair against every
-/// other takes seconds over it rather than a fraction of one.
 #[test]
 fn a_ring_of_twenty_thousand_triangles_is_judged_in_well_under_a_second() {
     let triangles = ring(160, std::f64::consts::TAU).triangles();
@@ -591,8 +559,6 @@ fn prism_on(sides: usize, radius: f64, push: DVec3) -> Vec<Triangle> {
     .triangles()
 }
 
-/// Every triangle of a cap has the corner the fan starts from, so the box
-/// around each holds that corner, and every other triangle of the cap.
 #[test]
 fn a_prism_whose_caps_are_fans_of_five_thousand_triangles_is_judged_in_well_under_a_second() {
     let solid = prism_on(5000, 10.0, DVec3::Z * 5.0);
@@ -607,8 +573,6 @@ fn a_prism_whose_caps_are_fans_of_five_thousand_triangles_is_judged_in_well_unde
     );
 }
 
-/// Pushed slantwise, a bar's every wall runs corner to corner of the box
-/// around the whole bar, and so does the box around each wall.
 #[test]
 fn a_round_bar_of_five_thousand_sides_pushed_slantwise_is_judged_in_well_under_a_second() {
     let bar = prism_on(5000, 1.0, DVec3::splat(100.0));

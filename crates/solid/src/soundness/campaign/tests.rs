@@ -116,3 +116,51 @@ fn a_campaign_told_to_stop_tries_nothing_more() {
     );
     assert!(report.tried <= 3, "{}", report.tried);
 }
+
+/// Sevens panic, and a case left with nothing but its sevens hangs.
+fn sevens_panic_until_bare() -> Check<Vec<u64>> {
+    Arc::new(|case: &Vec<u64>| {
+        if case.is_empty() || !case.contains(&7) {
+            return Ok(());
+        }
+        if case.iter().all(|number| *number == 7) {
+            std::thread::sleep(Duration::from_secs(2));
+            return Ok(());
+        }
+        panic!("seven")
+    })
+}
+
+#[test]
+fn a_panic_is_never_shrunk_into_a_case_that_hangs() {
+    let report = campaign(
+        [17],
+        |_| vec![3, 7, 1],
+        sevens_panic_until_bare(),
+        |case: &Vec<u64>| shorter(case),
+        Duration::from_millis(200),
+        || true,
+    );
+    let finding = &report.findings[0];
+    assert!(
+        finding.shrunk.contains(&7) && finding.shrunk.len() == 2,
+        "{finding:?}"
+    );
+    assert!(
+        matches!(finding.shrunk_flaw, Flaw::NoAnswer(Silence::Panicked(_))),
+        "{finding:?}"
+    );
+}
+
+#[test]
+fn a_case_that_hangs_while_shrinking_ends_the_campaign() {
+    let report = campaign(
+        0..40,
+        |_| vec![3, 7, 1],
+        sevens_panic_until_bare(),
+        |case: &Vec<u64>| shorter(case),
+        Duration::from_millis(200),
+        || true,
+    );
+    assert_eq!(report.tried, 1, "{report:?}");
+}

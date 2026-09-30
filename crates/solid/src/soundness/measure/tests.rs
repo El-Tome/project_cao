@@ -502,8 +502,6 @@ fn twenty_thousand_long_facets_slanting_across_the_lines_are_measured_within_a_s
     assert!(took.as_secs_f64() < 1.0, "{took:?}");
 }
 
-/// Where a face lies flat on the grid, or so nearly that which way it turns is
-/// rounding, whether it covers a line is rounding too: those are left out.
 #[test]
 fn a_face_is_tried_against_every_line_it_covers_however_it_lies_on_the_grid() {
     let lines = Lines::across(DVec3::ZERO, DVec3::ONE, 16);

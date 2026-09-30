@@ -3,7 +3,11 @@
 //!
 //! Closes #448.
 //! - closed, every stretch of edge bordered by exactly two faces, T-junctions
-//!   included, caught out by a solid broken on purpose —
+//!   included — reworded as "as many faces each way along every stretch":
+//!   two solids touching along one edge are a right answer with four faces
+//!   there, two each way, and "exactly two" would fail it; a face laid twice
+//!   or turned round still breaks the rule. Caught out by a solid broken on
+//!   purpose —
 //!   `a_cube_missing_a_triangle_is_open_along_an_edge_of_the_hole`,
 //!   `a_triangle_laid_twice_is_open_two_against_one`,
 //!   `a_top_cut_into_pieces_that_meet_at_a_t_is_still_closed`,
@@ -123,9 +127,6 @@ fn two_cubes_touching_along_one_edge_are_closed_with_two_faces_each_way_on_it() 
     assert_eq!(closed(&touching), Ok(()));
 }
 
-/// The left half of the top is one piece; the right half is two, whose shared
-/// corner lies in the middle of the left piece's edge. The pieces also put a
-/// corner in the middle of the top edge of two of the walls.
 #[test]
 fn a_top_cut_into_pieces_that_meet_at_a_t_is_still_closed() {
     let pieces = [
@@ -153,9 +154,6 @@ fn a_corner_that_stops_short_of_its_neighbours_edge_leaves_a_hole() {
     );
 }
 
-/// The top written with a corner in the middle of its first edge: the fan
-/// from the first corner makes a triangle with no area, which runs along that
-/// edge both ways and cancels out.
 #[test]
 fn a_face_with_a_corner_in_line_with_its_neighbours_is_still_closed() {
     let top_with_a_corner_in_line = fan(&[
@@ -173,9 +171,6 @@ fn a_face_with_a_corner_in_line_with_its_neighbours_is_still_closed() {
     );
 }
 
-/// The corner is more than `near` from the end of the edge, so it is not that
-/// end, and less than `near` off the edge, so it lies on it — though its
-/// shadow on the edge falls closer to the end than `near`.
 #[test]
 fn a_corner_a_hair_off_an_edge_close_to_its_end_still_splits_it() {
     let near = NEAR * reach(&unit_cube());
@@ -291,8 +286,6 @@ fn a_quarter_turn_capped_at_both_ends_by_the_kernel_is_closed() {
     assert_eq!(closed(&quarter.triangles()), Ok(()));
 }
 
-/// Every step of the sweep brings a triangle to the same point on the axis,
-/// and the wall lying along the axis sweeps nothing at all.
 #[test]
 fn a_cylinder_turned_about_its_own_side_by_the_kernel_is_closed() {
     let cylinder = turned(&rectangle(DVec2::ZERO, DVec2::new(3.0, 2.0)), TAU);
@@ -306,8 +299,6 @@ fn a_ring_cut_into_by_the_kernel_is_closed() {
     assert_eq!(closed(&cut.triangles()), Ok(()));
 }
 
-/// Forty thousand triangles, judged in tens of milliseconds. Looking along
-/// every edge for every corner takes seconds here instead.
 #[test]
 fn a_finely_turned_torus_is_judged_in_well_under_a_second() {
     let torus = turned(&ring(DVec2::new(6.0, 0.0), 2.0, 320), TAU).triangles();
@@ -322,9 +313,6 @@ fn a_finely_turned_torus_is_judged_in_well_under_a_second() {
     );
 }
 
-/// The torus alone is spread evenly; a small cube far off stretches the box
-/// around the whole to a hundred thousand times its size, and a search sized
-/// on that box finds every corner of the torus in the same few places.
 #[test]
 fn a_torus_with_a_small_cube_far_off_is_judged_in_well_under_a_second() {
     let mut soup = turned(&ring(DVec2::new(6.0, 0.0), 2.0, 320), TAU).triangles();
@@ -339,8 +327,6 @@ fn a_torus_with_a_small_cube_far_off_is_judged_in_well_under_a_second() {
     );
 }
 
-/// Each cap is a fan of triangles from one corner, so most edges cross the
-/// whole polygon, past no corner but their own two.
 #[test]
 fn a_prism_on_a_polygon_of_twenty_thousand_sides_is_judged_in_well_under_a_second() {
     let outline = ring(DVec2::ZERO, 10.0, 20_000);
@@ -375,8 +361,6 @@ fn a_corner_that_is_not_a_number_leaves_a_hole() {
     );
 }
 
-/// Corners so far out that the length of an edge between them is more than a
-/// float holds. The answer does not matter as much as getting one.
 #[test]
 fn a_cube_too_large_to_measure_is_still_judged() {
     let huge = cube(DVec3::splat(-1e200), DVec3::splat(1e200));

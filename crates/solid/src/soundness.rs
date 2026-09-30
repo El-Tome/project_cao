@@ -102,6 +102,19 @@ pub enum Silence {
 }
 
 impl Flaw {
+    /// Whether two flaws are the same failure: the same rule broken, and for
+    /// a kernel that gave no answer, the same kind of silence. A panic that
+    /// shrinks into a case that never comes back is two bugs, and would be
+    /// reported as neither.
+    pub fn is_like(&self, other: &Flaw) -> bool {
+        match (self, other) {
+            (Flaw::NoAnswer(one), Flaw::NoAnswer(other)) => {
+                std::mem::discriminant(one) == std::mem::discriminant(other)
+            }
+            _ => self.rule() == other.rule(),
+        }
+    }
+
     pub fn rule(&self) -> Rule {
         match self {
             Flaw::Open { .. } => Rule::Closed,

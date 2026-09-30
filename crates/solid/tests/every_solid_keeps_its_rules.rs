@@ -14,14 +14,18 @@
 //!   `the_printed_rust_builds_the_case_it_was_printed_from`
 //! - the run sits behind a flag, bounded by a deadline, out of the gate —
 //!   `a_campaign_of_random_solids_keeps_every_rule`
-//! - the gate does not get slower — no test: the campaign is ignored by
-//!   default, and what the gate runs here is drawing and printing, which
-//!   builds no solid; measured in the pull request
-//! - the existing tests do not move — no test: settled by the diff, which
-//!   touches none of them
+//! - the gate does not get slower — no test: measured, the tests this adds
+//!   to the gate take about a third of a second of the test run; no campaign
+//!   runs there
+//! - the existing tests do not move — no test: no existing assertion changed.
+//!   One helper under the architecture test did: `declared_dependencies` now
+//!   leaves a crate's own name out, held by
+//!   `a_crate_naming_itself_for_its_own_tests_reaches_for_nothing_new` there
 //! - the volume of a solid raised on its own is the arithmetic: a prism its
 //!   area times its height, a revolution Pappus, less what its flats lose —
-//!   `a_prism_is_promised_its_area_times_its_height_and_a_turn_pappus`
+//!   `a_prism_is_promised_its_area_times_its_height_and_a_turn_pappus`,
+//!   caught out by a solid broken on purpose —
+//!   `a_solid_raised_short_of_its_promise_is_a_volume_flaw`
 //! - a case that keeps every rule is held in the gate by name —
 //!   `a_block_bored_through_and_given_a_boss_keeps_every_rule`
 //!
@@ -203,9 +207,6 @@ fn the_generator_draws_every_kind_of_solid_and_step() {
     );
 }
 
-/// A case drawn with a leaf that is no solid — a rectangle rounded flat, a star
-/// whose centre falls outside it — would count as a failure of the kernel's
-/// what is a failure of the drawing.
 #[test]
 fn every_leaf_drawn_is_a_solid() {
     for seed in 0..2000 {
@@ -268,6 +269,44 @@ fn a_prism_is_promised_its_area_times_its_height_and_a_turn_pappus() {
     let expected = std::f64::consts::FRAC_PI_2 / 2.0 * (16.0 - 4.0) * 3.0;
     assert!((pappus - expected).abs() < 1e-9, "{pappus}");
     assert!(loss > 0.0 && loss < 0.01 * pappus, "{loss}");
+}
+
+#[test]
+fn a_solid_raised_short_of_its_promise_is_a_volume_flaw() {
+    let block = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rectangle([0.0, 0.0], [4.0, 2.5]),
+        6.0,
+    );
+    let lower = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rectangle([0.0, 0.0], [4.0, 2.5]),
+        5.0,
+    );
+    let raised = |leaf: &Leaf| leaf.solid().expect("a solid").triangles();
+
+    assert_eq!(
+        random_solids::kept_its_promise(&block, &raised(&block)),
+        Ok(())
+    );
+    assert!(matches!(
+        random_solids::kept_its_promise(&block, &raised(&lower)),
+        Err(Flaw::Volume { promised: 60.0, .. })
+    ));
+
+    let turned = Leaf::revolution(Plane::xy(0.0), [2.0, 0.0], [4.0, 3.0], 360.0);
+    let shrunk: Vec<[glam::DVec3; 3]> = raised(&turned)
+        .iter()
+        .map(|triangle| triangle.map(|corner| corner * 0.998))
+        .collect();
+    assert_eq!(
+        random_solids::kept_its_promise(&turned, &raised(&turned)),
+        Ok(())
+    );
+    assert!(matches!(
+        random_solids::kept_its_promise(&turned, &shrunk),
+        Err(Flaw::Volume { .. })
+    ));
 }
 
 fn every_kind() -> Case {

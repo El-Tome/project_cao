@@ -8,8 +8,10 @@
 //! Closes #448.
 //! - an operation and its undo give back the part it started from, at the
 //!   level of `cao_part` — `a_rectangle_raised_then_undone_gives_back_the_empty_part`,
-//!   `a_part_whose_undo_changed_a_bit_is_caught`,
-//!   `a_campaign_of_random_parts_undoes_every_gesture`
+//!   `a_campaign_of_random_parts_undoes_every_gesture`; caught out by a part
+//!   broken on purpose — `a_part_whose_undo_leaves_the_matter_standing_is_caught`
+//! - a broken part prints as Rust that pastes into a named test —
+//!   `a_part_prints_as_the_rust_that_builds_it`
 //!
 //! The campaign is run by hand, like the one over solids:
 //!
@@ -38,30 +40,69 @@ use glam::{DVec2, DVec3};
 /// is shrunk.
 #[derive(Clone, Debug, PartialEq)]
 enum Move {
-    /// A drawing on one of the three planes of the origin: 0 for XY, 1 for
-    /// XZ, 2 for YZ.
-    Sketch(usize),
+    Sketch(Origin),
     /// A drawing on a flat face of the part, the rank-th one counting round.
-    SketchOn(usize),
-    Rectangle([f64; 2], [f64; 2]),
-    Circle([f64; 2], f64),
-    /// The area under a place, raised or cut by a depth.
-    Raise([f64; 2], f64, bool),
+    SketchOnFace(usize),
+    Rectangle {
+        low: [f64; 2],
+        high: [f64; 2],
+    },
+    Circle {
+        center: [f64; 2],
+        radius: f64,
+    },
+    /// The area under a place, raised by a depth or cut into the part.
+    Raise {
+        at: [f64; 2],
+        depth: f64,
+        cut: bool,
+    },
     /// The area under a place, turned about one of the drawing's axes.
-    Turn([f64; 2], bool, f64, bool),
+    Turn {
+        at: [f64; 2],
+        about: SketchAxis,
+        degrees: f64,
+        cut: bool,
+    },
+}
+
+/// The three planes of the origin a drawing can be opened on.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Origin {
+    Xy,
+    Xz,
+    Yz,
 }
 
 impl Display for Move {
     fn fmt(&self, out: &mut Formatter<'_>) -> fmt::Result {
         match self {
-            Move::Sketch(plane) => write!(out, "Move::Sketch({plane})"),
-            Move::SketchOn(rank) => write!(out, "Move::SketchOn({rank})"),
-            Move::Rectangle(low, high) => write!(out, "Move::Rectangle({low:?}, {high:?})"),
-            Move::Circle(center, radius) => write!(out, "Move::Circle({center:?}, {radius:?})"),
-            Move::Raise(at, depth, cut) => write!(out, "Move::Raise({at:?}, {depth:?}, {cut})"),
-            Move::Turn(at, about_v, degrees, cut) => {
-                write!(out, "Move::Turn({at:?}, {about_v}, {degrees:?}, {cut})")
+            Move::Sketch(origin) => write!(out, "Move::Sketch(Origin::{origin:?})"),
+            Move::SketchOnFace(rank) => write!(out, "Move::SketchOnFace({rank})"),
+            Move::Rectangle { low, high } => {
+                write!(out, "Move::Rectangle {{ low: {low:?}, high: {high:?} }}")
             }
+            Move::Circle { center, radius } => {
+                write!(
+                    out,
+                    "Move::Circle {{ center: {center:?}, radius: {radius:?} }}"
+                )
+            }
+            Move::Raise { at, depth, cut } => {
+                write!(
+                    out,
+                    "Move::Raise {{ at: {at:?}, depth: {depth:?}, cut: {cut} }}"
+                )
+            }
+            Move::Turn {
+                at,
+                about,
+                degrees,
+                cut,
+            } => write!(
+                out,
+                "Move::Turn {{ at: {at:?}, about: SketchAxis::{about:?}, degrees: {degrees:?}, cut: {cut} }}"
+            ),
         }
     }
 }
@@ -91,11 +132,15 @@ fn mode(cut: bool) -> ExtrusionMode {
 fn operation(document: &PartDocument, gesture: &Move) -> Option<Operation> {
     let sketch = document.sketches().len().checked_sub(1);
     match *gesture {
-        Move::Sketch(plane) => Some(Operation::CreateSketch {
-            plane: WorkPlane::ORIGIN_PLANES[plane % 3],
+        Move::Sketch(origin) => Some(Operation::CreateSketch {
+            plane: match origin {
+                Origin::Xy => WorkPlane::XY,
+                Origin::Xz => WorkPlane::XZ,
+                Origin::Yz => WorkPlane::YZ,
+            },
             on: None,
         }),
-        Move::SketchOn(rank) => {
+        Move::SketchOnFace(rank) => {
             let body = document.body();
             let flat: Vec<usize> = (0..body.faces_end())
                 .filter(|face| body.is_flat(*face))
@@ -117,20 +162,20 @@ fn operation(document: &PartDocument, gesture: &Move) -> Option<Operation> {
                 on: Some(FaceAnchor { face, up }),
             })
         }
-        Move::Rectangle(low, high) => Some(Operation::AddRectangle {
+        Move::Rectangle { low, high } => Some(Operation::AddRectangle {
             sketch: sketch?,
             corner: PointRef::New(DVec2::from(low)),
             opposite: PointRef::New(DVec2::from(high)),
             construction: false,
         }),
-        Move::Circle(center, radius) => Some(Operation::AddCircle {
+        Move::Circle { center, radius } => Some(Operation::AddCircle {
             sketch: sketch?,
             center: PointRef::New(DVec2::from(center)),
             radius,
             rim: Vec::new(),
             construction: false,
         }),
-        Move::Raise(at, depth, cut) => {
+        Move::Raise { at, depth, cut } => {
             let areas = document.areas_at(sketch?, &[DVec2::from(at)]);
             (!areas.is_empty()).then(|| Operation::Extrude {
                 sketch: sketch.unwrap_or_default(),
@@ -139,16 +184,17 @@ fn operation(document: &PartDocument, gesture: &Move) -> Option<Operation> {
                 mode: mode(cut),
             })
         }
-        Move::Turn(at, about_v, degrees, cut) => {
+        Move::Turn {
+            at,
+            about,
+            degrees,
+            cut,
+        } => {
             let areas = document.areas_at(sketch?, &[DVec2::from(at)]);
             (!areas.is_empty()).then(|| Operation::Revolve {
                 sketch: sketch.unwrap_or_default(),
                 areas,
-                axis: RevolutionAxis::Sketch(if about_v {
-                    SketchAxis::V
-                } else {
-                    SketchAxis::U
-                }),
+                axis: RevolutionAxis::Sketch(about),
                 angle: degrees.into(),
                 mode: mode(cut),
             })
@@ -164,41 +210,72 @@ fn fresh() -> PartDocument {
     PartDocument::new("random", "2026-09-30T09:00:00Z".parse().expect("a date"))
 }
 
+/// What the undo rule needs of a part: to be shown a gesture, and to take it
+/// back and do it again.
+trait Undoable {
+    fn document(&self) -> &PartDocument;
+    fn apply(&mut self, operation: Operation);
+    fn undo(&mut self);
+    fn redo(&mut self);
+}
+
+impl Undoable for PartDocument {
+    fn document(&self) -> &PartDocument {
+        self
+    }
+
+    fn apply(&mut self, operation: Operation) {
+        PartDocument::apply(self, operation);
+    }
+
+    fn undo(&mut self) {
+        PartDocument::undo(self);
+    }
+
+    fn redo(&mut self) {
+        PartDocument::redo(self);
+    }
+}
+
 /// Plays the gestures one by one, and after each one takes it back and does
 /// it again: the part after the undo must be the part before the gesture, and
 /// the part after the redo the part after it. Every part on the way must be
 /// sound, and the whole history, replayed twice, the same part twice.
 fn undoes(gestures: &[Move]) -> Result<(), Flaw> {
-    let mut document = fresh();
-    let mut before = triangles(&document);
+    undoes_on(fresh(), gestures)
+}
+
+fn undoes_on(mut part: impl Undoable, gestures: &[Move]) -> Result<(), Flaw> {
+    let mut before = triangles(part.document());
     for gesture in gestures {
-        let Some(operation) = operation(&document, gesture) else {
+        let Some(operation) = operation(part.document(), gesture) else {
             continue;
         };
-        let applied = document.history.applied();
-        document.apply(operation);
-        if document.history.applied() == applied {
+        let applied = part.document().history.applied();
+        part.apply(operation);
+        if part.document().history.applied() == applied {
             continue;
         }
-        let after = triangles(&document);
+        let after = triangles(part.document());
         closed(&after)?;
         uncrossed(&after)?;
 
-        document.undo();
-        if let Some(at) = first_difference(&before, &triangles(&document)) {
+        part.undo();
+        if let Some(at) = first_difference(&before, &triangles(part.document())) {
             return Err(Flaw::NotUndone { at });
         }
-        document.redo();
-        if let Some(at) = first_difference(&after, &triangles(&document)) {
+        part.redo();
+        if let Some(at) = first_difference(&after, &triangles(part.document())) {
             return Err(Flaw::NotUndone { at });
         }
         before = after;
     }
+    let history = &part.document().history;
     let (mut first, mut second) = (fresh(), fresh());
-    first.history = document.history.clone();
-    second.history = document.history.clone();
-    first.rewind_to(first.history.applied());
-    second.rewind_to(second.history.applied());
+    first.history = history.clone();
+    second.history = history.clone();
+    first.rewind_to(history.applied());
+    second.rewind_to(history.applied());
     repeatable(&triangles(&first), &triangles(&second))
 }
 
@@ -214,9 +291,9 @@ fn drawn(seed: u64) -> Vec<Move> {
     };
     for drawing in 0..1 + random.below(3) {
         gestures.push(if drawing > 0 && random.chance(0.6) {
-            Move::SketchOn(random.below(12))
+            Move::SketchOnFace(random.below(12))
         } else {
-            Move::Sketch(random.below(3))
+            Move::Sketch(*random.pick(&[Origin::Xy, Origin::Xz, Origin::Yz]))
         });
         let mut shapes: Vec<[f64; 2]> = Vec::new();
         for _ in 0..1 + random.below(3) {
@@ -226,10 +303,16 @@ fn drawn(seed: u64) -> Vec<Move> {
                     random.on_lattice(1.0, 12.0, 1.0),
                     random.on_lattice(1.0, 12.0, 1.0),
                 ];
-                gestures.push(Move::Rectangle(low, [low[0] + size[0], low[1] + size[1]]));
+                gestures.push(Move::Rectangle {
+                    low,
+                    high: [low[0] + size[0], low[1] + size[1]],
+                });
                 shapes.push([low[0] + size[0] / 2.0, low[1] + size[1] / 2.0]);
             } else {
-                gestures.push(Move::Circle(low, random.on_lattice(1.0, 8.0, 0.5)));
+                gestures.push(Move::Circle {
+                    center: low,
+                    radius: random.on_lattice(1.0, 8.0, 0.5),
+                });
                 shapes.push(low);
             }
         }
@@ -238,11 +321,17 @@ fn drawn(seed: u64) -> Vec<Move> {
             let cut = random.chance(0.5);
             if random.chance(0.15) {
                 let degrees = *random.pick(&[90.0, 180.0, 360.0, -45.0]);
-                gestures.push(Move::Turn(at, random.chance(0.5), degrees, cut));
+                let about = *random.pick(&[SketchAxis::U, SketchAxis::V]);
+                gestures.push(Move::Turn {
+                    at,
+                    about,
+                    degrees,
+                    cut,
+                });
             } else {
                 let depth =
                     random.on_lattice(1.0, 10.0, 1.0) * if random.chance(0.2) { -1.0 } else { 1.0 };
-                gestures.push(Move::Raise(at, depth, cut));
+                gestures.push(Move::Raise { at, depth, cut });
             }
         }
     }
@@ -260,33 +349,115 @@ fn fewer(gestures: &[Move]) -> Vec<Vec<Move>> {
         .collect()
 }
 
-#[test]
-fn a_rectangle_raised_then_undone_gives_back_the_empty_part() {
-    assert_eq!(
-        undoes(&[
-            Move::Sketch(0),
-            Move::Rectangle([0.0, 0.0], [10.0, 5.0]),
-            Move::Raise([5.0, 2.0], 4.0, false),
-        ]),
-        Ok(())
-    );
+fn a_block_raised() -> Vec<Move> {
+    vec![
+        Move::Sketch(Origin::Xy),
+        Move::Rectangle {
+            low: [0.0, 0.0],
+            high: [10.0, 5.0],
+        },
+        Move::Raise {
+            at: [5.0, 2.0],
+            depth: 4.0,
+            cut: false,
+        },
+    ]
 }
 
 #[test]
-fn a_part_whose_undo_changed_a_bit_is_caught() {
-    let mut document = fresh();
-    for gesture in [
-        Move::Sketch(0),
-        Move::Rectangle([0.0, 0.0], [10.0, 5.0]),
-        Move::Raise([5.0, 2.0], 4.0, false),
-    ] {
-        let operation = operation(&document, &gesture).expect("something to act on");
-        document.apply(operation);
-    }
-    let mut nudged = triangles(&document);
-    nudged[3][2].z = f64::from_bits(nudged[3][2].z.to_bits() ^ 1);
+fn a_rectangle_raised_then_undone_gives_back_the_empty_part() {
+    assert_eq!(undoes(&a_block_raised()), Ok(()));
+}
 
-    assert_eq!(first_difference(&triangles(&document), &nudged), Some(3));
+/// A part whose undo takes the history back and leaves the matter standing.
+struct Forgetful(PartDocument);
+
+impl Undoable for Forgetful {
+    fn document(&self) -> &PartDocument {
+        &self.0
+    }
+
+    fn apply(&mut self, operation: Operation) {
+        self.0.apply(operation);
+    }
+
+    fn undo(&mut self) {
+        self.0.history.undo();
+    }
+
+    fn redo(&mut self) {
+        self.0.history.redo();
+    }
+}
+
+#[test]
+fn a_part_whose_undo_leaves_the_matter_standing_is_caught() {
+    assert!(matches!(
+        undoes_on(Forgetful(fresh()), &a_block_raised()),
+        Err(Flaw::NotUndone { at: 0 })
+    ));
+}
+
+#[test]
+fn a_part_prints_as_the_rust_that_builds_it() {
+    let gestures = vec![
+        Move::Sketch(Origin::Xz),
+        Move::Circle {
+            center: [3.0, 4.5],
+            radius: 2.5,
+        },
+        Move::Turn {
+            at: [3.0, 4.5],
+            about: SketchAxis::V,
+            degrees: -45.0,
+            cut: false,
+        },
+        Move::SketchOnFace(3),
+        Move::Rectangle {
+            low: [0.0, 0.0],
+            high: [1e-7, 5.0],
+        },
+        Move::Raise {
+            at: [0.5, 2.0],
+            depth: -4.0,
+            cut: true,
+        },
+    ];
+    assert_eq!(
+        Moves(&gestures).to_string(),
+        "&[
+    Move::Sketch(Origin::Xz),
+    Move::Circle { center: [3.0, 4.5], radius: 2.5 },
+    Move::Turn { at: [3.0, 4.5], about: SketchAxis::V, degrees: -45.0, cut: false },
+    Move::SketchOnFace(3),
+    Move::Rectangle { low: [0.0, 0.0], high: [1e-7, 5.0] },
+    Move::Raise { at: [0.5, 2.0], depth: -4.0, cut: true },
+]"
+    );
+    let pasted: &[Move] = &[
+        Move::Sketch(Origin::Xz),
+        Move::Circle {
+            center: [3.0, 4.5],
+            radius: 2.5,
+        },
+        Move::Turn {
+            at: [3.0, 4.5],
+            about: SketchAxis::V,
+            degrees: -45.0,
+            cut: false,
+        },
+        Move::SketchOnFace(3),
+        Move::Rectangle {
+            low: [0.0, 0.0],
+            high: [1e-7, 5.0],
+        },
+        Move::Raise {
+            at: [0.5, 2.0],
+            depth: -4.0,
+            cut: true,
+        },
+    ];
+    assert_eq!(pasted, gestures.as_slice());
 }
 
 #[test]

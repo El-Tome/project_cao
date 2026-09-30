@@ -63,23 +63,28 @@ impl Drawing {
         self.random.on_lattice(low, high, 0.5) * self.scale
     }
 
-    /// Nothing most of the time; otherwise a miss by a hair: around the
-    /// billionth of the part's size the kernel's own tolerance is set at,
-    /// where a cut judges two faces one plane at some corners and not at
-    /// others, and up to the noise of a face plane and the solver's tolerance.
+    /// Nothing most of the time; otherwise a miss by a hair: from half the
+    /// billionth of a corner's distance the kernel written here judges two
+    /// faces one plane by, where it does so at some corners and not at
+    /// others, up to the noise of a face plane and the solver's tolerance.
     ///
-    /// Never finer than thirty times the rules' own `NEAR`: under that, a
-    /// skin the kernel was right to leave reads as two faces lying on each
-    /// other, and the failure would be the harness's.
+    /// Never finer than five times the rules' own `NEAR`: under that, a skin
+    /// the kernel was right to leave cannot be told from two faces lying on
+    /// each other, and the failure would be the harness's.
     fn nudge(&mut self) -> f64 {
         if self.random.chance(0.6) {
             return 0.0;
         }
         let reach = 20.0 * self.scale;
-        let hair = *self
-            .random
-            .pick(&[1e-9 * reach, 3e-9 * reach, 1e-8 * reach, 1e-7, 1e-5]);
-        let hair = hair.max(30.0 * NEAR * reach);
+        let hair = *self.random.pick(&[
+            5e-10 * reach,
+            1e-9 * reach,
+            3e-9 * reach,
+            1e-8 * reach,
+            1e-7,
+            1e-5,
+        ]);
+        let hair = hair.max(5.0 * NEAR * reach);
         if self.random.chance(0.5) { hair } else { -hair }
     }
 

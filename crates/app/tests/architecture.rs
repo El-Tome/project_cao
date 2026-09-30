@@ -884,6 +884,7 @@ fn manifest(directory: &str) -> String {
 /// Every table that declares an edge, not just `[dependencies]`: a crate reached
 /// only by the tests or only on one platform is still a crate this manifest
 /// pulls in, and the rules below have nothing to say about it if it is invisible.
+///
 /// The crates a manifest reaches for, leaving out the crate itself: a crate
 /// that names itself as a dev-dependency does so to switch a feature of its
 /// own on for its integration tests, which reaches nothing it did not have.

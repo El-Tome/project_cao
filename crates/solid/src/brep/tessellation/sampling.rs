@@ -22,7 +22,8 @@
 //! [`meet`]: the rays come of the curves' own samples, so the curves are
 //! sampled twice, the second time on the rays the first gave. Nowhere is it
 //! sampled where either cylinder all but lies on a wall facing it, as a
-//! circle is not at the steps it withholds.
+//! circle is not at the steps it withholds, nor on a plane touching either
+//! off the line they touch along.
 
 mod ends;
 mod meet;
@@ -114,7 +115,7 @@ impl Samples {
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
                     let ends = Ends::of(body, circle, edge);
-                    let planes = touching_planes(body, circle);
+                    let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
                     on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
@@ -158,7 +159,9 @@ impl Samples {
 
 /// The points of every edge along a meet between its ends, each on the rays
 /// its two cylinders take in `contacts`, and none where either cylinder all
-/// but lies on a wall facing it; none for any other edge.
+/// but lies on a wall facing it, nor on a plane touching it but off the line
+/// they touch along, as a circle takes no ray there; none for any other
+/// edge.
 fn on_meets(
     body: &Body,
     walls: &[contact::Wall],
@@ -186,8 +189,16 @@ fn on_meets(
             match body.curve(edge.curve) {
                 Curve::Meet(meet) => {
                     let [first, second] = [angles(&meet.first), angles(&meet.second)];
+                    let walls = [meet.first, meet.second];
+                    let planes = walls
+                        .map(|wall| touching_planes(body, wall.origin, wall.axis, wall.radius));
                     let clear = |point: DVec3| {
-                        !zones.crowded(&meet.first, point) && !zones.crowded(&meet.second, point)
+                        walls.iter().zip(&planes).all(|(wall, planes)| {
+                            !zones.crowded(wall, point)
+                                && !planes.iter().any(|plane| {
+                                    on_a_plane(plane, wall.origin, wall.axis, point, eps)
+                                })
+                        })
                     };
                     meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
                 }
@@ -254,10 +265,9 @@ fn on_circle(
         |at: f64, (other, room): &(Cylinder, f64)| other.distance(circle.point(at)).abs() < *room;
     let beside_a_plane = |at: f64| {
         let point = circle.point(at);
-        planes.iter().any(|plane| {
-            let touching = circle.center - plane.normal * plane.distance(circle.center);
-            plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
-        })
+        planes
+            .iter()
+            .any(|plane| on_a_plane(plane, circle.center, circle.axis, point, eps))
     };
     let grazed = |at: f64, room: f64| {
         ends.iter().zip(&ends_of.through).any(|(end, surfaces)| {
@@ -348,8 +358,18 @@ fn on_circle(
     points
 }
 
-/// The planes of the body touching a circle's wall along a line.
-fn touching_planes(body: &Body, circle: &Circle) -> Vec<Plane> {
+/// Whether `point`, on a wall about `center` and `axis` that `plane` touches
+/// along a line, stands within a fifth of `eps` of the plane but not on
+/// that line: a sample there would lay a strip of the wall on the plane.
+fn on_a_plane(plane: &Plane, center: DVec3, axis: DVec3, point: DVec3, eps: f64) -> bool {
+    let foot = center - plane.normal * plane.distance(center);
+    let touching = foot + axis * axis.dot(point - foot);
+    plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
+}
+
+/// The planes of the body touching a wall of `radius` about `center` and
+/// `axis` along a line.
+fn touching_planes(body: &Body, center: DVec3, axis: DVec3, radius: f64) -> Vec<Plane> {
     let eps = body.scale().eps();
     body.surfaces
         .iter()
@@ -358,8 +378,8 @@ fn touching_planes(body: &Body, circle: &Circle) -> Vec<Plane> {
             Surface::Cylinder(_) => None,
         })
         .filter(|plane| {
-            plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
-                && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
+            plane.normal.dot(axis).abs() <= Scale::RELATIVE
+                && (plane.distance(center).abs() - radius).abs() <= eps
         })
         .collect()
 }

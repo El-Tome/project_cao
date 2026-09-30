@@ -802,6 +802,65 @@ fn seed_23003087_a_bore_poking_a_hair_through_the_stock_it_touches_inside_leaves
     ));
 }
 
+#[test]
+fn seed_28000951_a_bar_a_hair_proud_of_the_side_a_cylinder_touches_leaves_that_side_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(20.0), Outline::circle([0.0, 30.0], 25.0), 15.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(25.0),
+                Outline::rectangle([15.0, 20.0], [45.0, 50.0]),
+                15.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(24.99999),
+                Outline::circle([29.99999, 35.0], 10.0),
+                50.0,
+            )),
+        ],
+    ));
+}
+
+/// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
+/// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
+/// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex
+/// where the circle crosses the bar's side x = 210, 3.75e-7 above the
+/// corner, lying on the front plane alone, the side being gone. One of the
+/// front's faces then passes through both twice, along an arc and a line
+/// between them, each about the tolerance long: a loop pinched round a
+/// sliver of no area, which no sweep can lay out, and the face is left open.
+/// The corner and the crossing have to be one point or two decided apart,
+/// which is the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leaves_the_front_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(180.0),
+            Outline::rectangle([-120.0, -120.0], [240.0, 240.0]),
+            195.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(180.0),
+                Outline::circle([165.0, 60.0], 74.9999997),
+                390.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(180.0),
+                Outline::rectangle([210.0, 0.0], [300.0, 75.0]),
+                195.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([225.0, 15.0], [360.0, 60.0]),
+                150.0,
+            )),
+        ],
+    ));
+}
+
 /// The cut leaves a sliver of the first cylinder 5e-8 thick, more than the
 /// kernel's tolerance then, 4.5e-8. The block reaches further, and the
 /// tolerance grows to 5.5e-8 (failure 1-6): its side x = 45 is decided to

@@ -206,7 +206,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   that one's other curves, and its chords, shallower between two samples of
   the curve than the curve's own, would pass under the face beyond it. It is
   not sampled where either wall all but lies on one facing it, as a circle
-  withholds its steps there. Nor does an arc take a ray a step or less from
+  withholds its steps there, nor where it all but lies on a plane touching
+  either wall off the line they touch along: a bar a hair proud of a side a
+  cylinder touches meets the cylinder a hair from that line, and a sample
+  there lays a strip of the wall on the side. Nor does an arc take a ray a step or less from
   its end where it all but lies on a surface that end lies on and it does
   not: a wall grazing the plane of the arc there stands on the plane's face
   over a band far wider than the rules tell apart. Nor a place of its grid

@@ -7,16 +7,20 @@
 //! a campaign pastes into a named test as it is.
 
 mod along;
+mod arithmetic;
 mod building;
 mod checking;
 mod drawing;
+mod kernels;
 mod printing;
 mod smaller;
 
 use glam::{DQuat, DVec2, DVec3};
 
 pub use along::{Crossing, Stretch};
+pub use arithmetic::{GRAZING, Measured, held_to_arithmetic, holds_exactly};
 pub use checking::{check, holds, kept_its_promise, within_reach};
+pub use kernels::{Exact, Flats, Kernel, TESSELLATION, whole_circle};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Case {

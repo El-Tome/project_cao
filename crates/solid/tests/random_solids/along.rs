@@ -48,6 +48,17 @@ impl Leaf {
     /// `origin + direction * t`. `None` for a revolution, which no kernel
     /// held this way raises.
     pub fn along(&self, origin: DVec3, direction: DVec3) -> Option<Vec<Stretch>> {
+        self.along_grown(origin, direction, 0.0)
+    }
+
+    /// The same, for the leaf grown by `by` all round — its outline pushed out
+    /// by `by` and each of its ends moved out by `by` — or shrunk when `by` is
+    /// negative. A prism rather than the rounded solid a ball rolled round the
+    /// leaf would sweep: a little larger grown and a little smaller shrunk,
+    /// which is the side a room for a tolerance may err on. `None` for a
+    /// revolution, and for a star grown at all, whose offset no formula here
+    /// draws.
+    pub fn along_grown(&self, origin: DVec3, direction: DVec3, by: f64) -> Option<Vec<Stretch>> {
         let Leaf::Prism {
             plane,
             outline,
@@ -67,16 +78,17 @@ impl Leaf {
             speed: direction.length(),
         };
         let areas = match outline {
-            Outline::Rectangle { low, high } => rectangle(&seen, *low, *high),
-            Outline::Circle { center, radius, .. } => disc(&seen, *center, *radius),
+            Outline::Rectangle { low, high } => rectangle(&seen, *low - by, *high + by),
+            Outline::Circle { center, radius, .. } => disc(&seen, *center, *radius + by),
             Outline::Ring {
                 center,
                 outer,
                 inner,
-            } => ring(&seen, *center, *outer, *inner),
-            Outline::Star { corners, .. } => polygon(&seen, corners),
+            } => ring(&seen, *center, *outer + by, *inner - by),
+            Outline::Star { corners, .. } if by == 0.0 => polygon(&seen, corners),
+            Outline::Star { .. } => return None,
         };
-        let Some(slab) = slab(&seen, *height) else {
+        let Some(slab) = slab(&seen, height.min(0.0) - by, height.max(0.0) + by) else {
             return Some(Vec::new());
         };
         Some(
@@ -100,9 +112,50 @@ impl Leaf {
     }
 }
 
-/// Where the line lies between the two ends of the prism.
-fn slab(seen: &Seen, height: f64) -> Option<Stretch> {
-    let (low, high) = (height.min(0.0), height.max(0.0));
+impl Leaf {
+    /// The box a prism spans, from its outline and its two ends: its true
+    /// circles rather than their flats. `None` for a revolution.
+    pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
+        let Leaf::Prism {
+            plane,
+            outline,
+            height,
+        } = self
+        else {
+            return None;
+        };
+        let (base, u, v) = plane.frame();
+        let travel = u.cross(v) * *height;
+        let round = |center: DVec2, radius: f64| {
+            let middle = base + u * center.x + v * center.y;
+            let spread = (u * u + v * v).map(f64::sqrt) * radius;
+            [middle - spread, middle + spread]
+        };
+        let corners: Vec<DVec3> = match outline {
+            Outline::Rectangle { low, high } => [*low, *high]
+                .map(|corner| base + u * corner.x + v * corner.y)
+                .to_vec(),
+            Outline::Circle { center, radius, .. } => round(*center, *radius).to_vec(),
+            Outline::Ring { center, outer, .. } => round(*center, *outer).to_vec(),
+            Outline::Star { corners, .. } => corners
+                .iter()
+                .map(|corner| base + u * corner.x + v * corner.y)
+                .collect(),
+        };
+        corners
+            .iter()
+            .flat_map(|corner| [*corner, *corner + travel])
+            .map(|corner| (corner, corner))
+            .reduce(|(low, high), (other, _)| (low.min(other), high.max(other)))
+    }
+}
+
+/// Where the line lies between the two ends of the prism, at the heights
+/// `low` and `high` along the plane's normal.
+fn slab(seen: &Seen, low: f64, high: f64) -> Option<Stretch> {
+    if low >= high {
+        return None;
+    }
     if seen.rise == 0.0 {
         return (low <= seen.level && seen.level <= high).then_some(Stretch {
             from: far(f64::NEG_INFINITY),
@@ -139,6 +192,9 @@ fn far(at: f64) -> Crossing {
 /// The line against a rectangle, one pair of sides at a time: Liang and
 /// Barsky's clipping.
 fn rectangle(seen: &Seen, low: DVec2, high: DVec2) -> Vec<Stretch> {
+    if low.cmpge(high).any() {
+        return Vec::new();
+    }
     let (mut from, mut to) = (far(f64::NEG_INFINITY), far(f64::INFINITY));
     for axis in 0..2 {
         let (start, step) = (seen.start[axis], seen.step[axis]);
@@ -176,6 +232,9 @@ fn rectangle(seen: &Seen, low: DVec2, high: DVec2) -> Vec<Stretch> {
 /// The line against a disc: the two roots of a quadratic, worked out so that
 /// neither loses its digits to the other.
 fn disc(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
+    if radius <= 0.0 {
+        return Vec::new();
+    }
     let away = seen.start - center;
     let (a, b, c) = (
         seen.step.length_squared(),

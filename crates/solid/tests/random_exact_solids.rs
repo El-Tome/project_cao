@@ -44,7 +44,8 @@ use cao_solid::Mesh;
 use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
 use cao_solid::profile::Run;
 use cao_solid::soundness::{
-    Check, Flaw, Lines, Mislisted, Random, Report, Silence, Spans, Triangle, campaign,
+    Check, Flaw, Lines, Mislisted, Random, Report, Silence, Spans, Triangle, answer, campaign,
+    shrink,
 };
 use glam::{DVec2, DVec3};
 use random_solids::{Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Plane, Step, Stretch};
@@ -731,6 +732,49 @@ fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
         report.broken.iter().map(|(_, count)| count).sum::<usize>(),
         report.tried
     );
+}
+
+/// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
+/// shrunk while it still breaks the same rule, and printed as a test: what a
+/// campaign's failures are sorted into distinct ones from.
+#[test]
+#[ignore = "run by hand on the seeds a campaign named"]
+fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
+    let seeds: Vec<u64> = std::env::var("CAO_TRIAGE_SEEDS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|seed| seed.trim().parse().ok())
+        .collect();
+    let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+    let check: Check<Case> = Arc::new(exactly);
+    let quiet = std::panic::take_hook();
+    std::panic::set_hook(Box::new(|_| {}));
+    for seed in seeds {
+        let drawn = Case::drawn_square(seed);
+        let Err(flaw) = answer(drawn.clone(), &check, patience) else {
+            println!("\n── holds, seed {seed} ──");
+            continue;
+        };
+        let mut last = flaw.clone();
+        let shrunk = shrink(
+            drawn.clone(),
+            Case::smaller,
+            |candidate| match answer(candidate.clone(), &check, patience) {
+                Err(broken) if broken.is_like(&flaw) => {
+                    last = broken;
+                    true
+                }
+                _ => false,
+            },
+            || true,
+        );
+        println!(
+            "\n── {:?}, seed {seed} ──\nas drawn: {flaw:?}\nshrunk:   {last:?}\n{}",
+            flaw.rule(),
+            shrunk.to_string().replace('\n', "\n    "),
+        );
+    }
+    std::panic::set_hook(quiet);
 }
 
 fn print_report(report: &Report<Case>) {

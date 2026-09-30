@@ -64,8 +64,26 @@ origin, from 0 to 10.
   leaving a tangent circle ordered by rounding, a listing that passed with a
   face bounded by nothing. Row 1 of the table keeps every rule on the exact
   kernel, its exact volume the arithmetic's to the last digit printed.
-- Started: the boolean itself, in one lane with its reviewer, and the
-  triangles of the curve two perpendicular cylinders meet along.
+- The boolean landed, and so did the triangles of the curve two perpendicular
+  cylinders meet along. **Every row of the table keeps every rule on the exact
+  kernel** — all sixteen cases, with 11 and 12 in both their variants — with
+  its exact volume the arithmetic's to the digits printed and each boolean
+  under a millisecond. The last row to turn was the cylinder resting on a
+  face: the kernel was right, and the listing's check read the slit the
+  contact leaves in the block's top as a hole turned the wrong way.
+- Campaign 0, five minutes from seed 1, as a first look: 69 256 cases, 1 338
+  broke a rule (1.9 %) — Volume 533, Answers 523, Uncrossed 194, Closed 73,
+  Listed 15. The shrunk cases pointed mostly at the triangles, not at the
+  exact body, so the exact body's own crossings along every line are now a
+  rule of their own (Spans), held before any triangle is laid; and every
+  failing seed is named, so that a campaign's failures can be sorted into
+  distinct ones afterwards.
+- Campaign 1, the hour #498 asks for, started at 21:06 from seed 1 000 000
+  on the kernel as it stands. Meanwhile two lanes fix what campaign 0
+  shrank, one in the kernel, one in the triangles.
+- Not reviewed yet: the reviewers of the boolean and of the perpendicular
+  triangles were cut short by the account's spending limit; the fixing
+  lanes' reviewers read the same code again.
 - What took the time: the decision that a whole circle is an edge with no
   vertex — as Parasolid holds it, and as the application will want to pick
   it — against the literal "its two vertices" of #498. A phantom vertex on a

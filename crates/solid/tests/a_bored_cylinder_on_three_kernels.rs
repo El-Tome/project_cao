@@ -492,10 +492,16 @@ fn by_flats(case: &Case) -> Verdict {
 /// Whether triangles are closed, uncrossed, and enclose the arithmetic
 /// within `MESHED`.
 fn meshed(case: &Case, triangles: &[Triangle]) -> Result<(), Flaw> {
-    let volume = enclosed(triangles);
     closed(triangles)?;
     uncrossed(triangles)?;
-    if ((volume - case.arithmetic) / case.arithmetic).abs() > MESHED {
+    near_the_arithmetic(case, enclosed(triangles), MESHED)
+}
+
+/// Whether a volume lands within `share` of the arithmetic, as a fraction of
+/// it: never a volume that is no number, which compares false either way.
+fn near_the_arithmetic(case: &Case, volume: f64, share: f64) -> Result<(), Flaw> {
+    let off = ((volume - case.arithmetic) / case.arithmetic).abs();
+    if off.is_nan() || off > share {
         return Err(Flaw::Volume {
             promised: case.arithmetic,
             enclosed: volume,
@@ -579,16 +585,7 @@ fn by_exact(case: &Case) -> Verdict {
     let rules = listed(&body.listing(), body.scale().reach())
         .map_err(Flaw::from)
         .and_then(|()| meshed(case, &triangles))
-        .and_then(|()| {
-            if ((volume - case.arithmetic) / case.arithmetic).abs() > EXACT {
-                return Err(Flaw::Volume {
-                    promised: case.arithmetic,
-                    enclosed: volume,
-                    worst: None,
-                });
-            }
-            Ok(())
-        });
+        .and_then(|()| near_the_arithmetic(case, volume, EXACT));
     Verdict {
         rules,
         volume: Some(enclosed(&triangles)),
@@ -868,5 +865,22 @@ fn the_arithmetic_of_every_case_is_what_the_flats_enclose_but_for_their_sagitta(
                 case.arithmetic
             );
         }
+    }
+}
+
+#[test]
+fn a_volume_that_is_no_number_is_not_the_volume_arithmetic_promised() {
+    for case in cases() {
+        assert_eq!(
+            near_the_arithmetic(&case, case.arithmetic, EXACT),
+            Ok(()),
+            "{}",
+            case.name
+        );
+        assert!(
+            near_the_arithmetic(&case, f64::NAN, MESHED).is_err(),
+            "{}",
+            case.name
+        );
     }
 }

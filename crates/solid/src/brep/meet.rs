@@ -100,6 +100,19 @@ impl Meet {
         if t < period { t } else { 0.0 }
     }
 
+    /// Every parameter at which the component passes through a node of its
+    /// curve standing within `eps` of `point`, in order: a vertex there cuts
+    /// the curve at each. Nothing where no node stands.
+    pub fn passes(&self, point: DVec3, eps: f64) -> Vec<f64> {
+        meeting::nodes(&self.pair())
+            .into_iter()
+            .filter(|node| node.point.distance(point) <= eps)
+            .flat_map(|node| node.on)
+            .filter(|(component, _)| *component == self.component)
+            .map(|(_, t)| t)
+            .collect()
+    }
+
     /// How far `t` runs round the component, or nothing when the pair has no
     /// such component.
     pub fn period(&self) -> Option<f64> {

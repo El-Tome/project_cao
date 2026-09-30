@@ -2,11 +2,14 @@
 //! say, into arcs; an arc is kept when an operand's edge covers it, or when it
 //! lies in a face of each operand on two of its surfaces.
 
+use glam::DVec3;
+
 use super::Arena;
 use super::held::Held;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Pool, Registered, Registry, lies_on};
+use crate::brep::curve::Curve;
 use crate::brep::topology::{Body, CurveId, Edge, SurfaceId, Vertex, VertexId};
 
 pub(super) fn cut(
@@ -27,7 +30,11 @@ pub(super) fn cut(
             .filter(|(vertex, corner)| {
                 lies_on(corner.point, &supports[*vertex], rank, registry, eps)
             })
-            .map(|(vertex, corner)| (curve.parameter(corner.point), VertexId(vertex as u32)))
+            .flat_map(|(vertex, corner)| {
+                passes(curve, corner.point, eps)
+                    .into_iter()
+                    .map(move |at| (at, VertexId(vertex as u32)))
+            })
             .collect();
         on.sort_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)));
         let id = CurveId(rank as u32);
@@ -93,6 +100,20 @@ pub(super) fn cut(
             .map(|known| known.support.clone())
             .collect(),
     })
+}
+
+/// Every parameter at which a curve passes through a corner lying on it:
+/// once, or at a node of the curve two cylinders meet along, at each pass.
+fn passes(curve: &Curve, point: DVec3, eps: f64) -> Vec<f64> {
+    let at_node = match curve {
+        Curve::Meet(meet) => meet.passes(point, eps),
+        _ => Vec::new(),
+    };
+    if at_node.is_empty() {
+        vec![curve.parameter(point)]
+    } else {
+        at_node
+    }
 }
 
 /// Whether an arc is part of an operand's edge, or lies inside or on the

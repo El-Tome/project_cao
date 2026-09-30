@@ -6,6 +6,11 @@
 //! other, and both read the same from the edge alone. What tells is the area a
 //! loop sweeps in its surface's own parameters, signed as its surface's normal
 //! turns it — positive round the outside of a face, negative round a hole.
+//!
+//! Every place of a listing may stand `room` off where its geometry says, so
+//! a loop's area is known only to `room` times its length: a loop sweeping
+//! less — a sliver between a side and a circle tangent to it — turns neither
+//! way that can be read, and is not judged.
 
 use std::f64::consts::TAU;
 
@@ -26,9 +31,13 @@ const CHORDS: usize = 64;
 /// each wind round the axis once, opposite ways: the area between them is
 /// what has to come out positive, and every loop that winds round nothing is
 /// a hole.
-pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
+pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
+        let unrolled = match listed.surface {
+            Surface::Plane(_) => 1.0,
+            Surface::Cylinder(cylinder) => cylinder.radius,
+        };
         let swept: Vec<(f64, f64)> = listed
             .loops
             .iter()
@@ -49,6 +58,17 @@ pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
                 (area * side, (turns / TAU).round() * side)
             })
             .collect();
+        let blurred: Vec<f64> = listed
+            .loops
+            .iter()
+            .map(|uses| {
+                let length: f64 = uses
+                    .iter()
+                    .map(|&(edge, _)| length(&listing.edges[edge]))
+                    .sum();
+                room * length / unrolled
+            })
+            .collect();
         let backwards = |lap: usize| Err(Mislisted::Backwards { face, lap });
 
         let round: Vec<usize> = (0..swept.len())
@@ -58,7 +78,8 @@ pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
             let (area, turns) = round.iter().fold((0.0, 0.0), |(area, turns), &lap| {
                 (area + swept[lap].0, turns + swept[lap].1)
             });
-            if turns != 0.0 || area <= 0.0 {
+            let blur: f64 = round.iter().map(|&lap| blurred[lap]).sum();
+            if turns != 0.0 || area <= -blur {
                 return backwards(first);
             }
             None
@@ -66,7 +87,7 @@ pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
             let widest = (0..swept.len())
                 .max_by(|&one, &other| swept[one].0.abs().total_cmp(&swept[other].0.abs()));
             if let Some(widest) = widest
-                && swept[widest].0 <= 0.0
+                && swept[widest].0 <= -blurred[widest]
             {
                 return backwards(widest);
             }
@@ -74,12 +95,31 @@ pub(super) fn turning(listing: &Listing) -> Result<(), Mislisted> {
         };
         for (lap, &(area, turns)) in swept.iter().enumerate() {
             let slit = is_slit(&listed.loops[lap]);
-            if turns == 0.0 && Some(lap) != outside && area >= 0.0 && !slit {
+            if turns == 0.0 && Some(lap) != outside && area >= blurred[lap] && !slit {
                 return backwards(lap);
             }
         }
     }
     Ok(())
+}
+
+/// How long an edge runs, along chords where it has no short formula.
+fn length(edge: &ListedEdge) -> f64 {
+    match edge.curve {
+        Curve::Line(_) => (edge.to - edge.from).abs(),
+        Curve::Circle(circle) => circle.radius * (edge.to - edge.from).abs(),
+        Curve::Meet(_) => (0..CHORDS)
+            .map(|piece| {
+                let at = |piece: usize| {
+                    point(
+                        &edge.curve,
+                        edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64,
+                    )
+                };
+                at(piece).distance(at(piece + 1))
+            })
+            .sum(),
+    }
 }
 
 /// Whether a loop runs each of its edges once each way: a slit, where a face

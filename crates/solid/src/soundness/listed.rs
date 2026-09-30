@@ -101,7 +101,7 @@ pub fn listed(listing: &Listing, reach: f64) -> Result<(), Mislisted> {
     closed(listing)?;
     whole(listing, reach)?;
     lying::lying(listing, &uses, ON * reach.max(1.0))?;
-    turning::turning(listing)
+    turning::turning(listing, ON * reach.max(1.0))
 }
 
 /// Every rank the listing names is one it holds.

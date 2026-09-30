@@ -6,15 +6,18 @@
 //!
 //! A crossing counts where it lies on the edge and on a face of the other
 //! operand, its boundary included; a curve lying along the surface lies on
-//! it from then on.
+//! it from then on — when the pair of a surface it lies on with that one
+//! shares it, as decision 3 reads it. A curve running within the tolerance of
+//! a surface it was decided off, on a surface decided apart from it or a hair
+//! beside the curve they share, never meets it.
 
 use glam::DVec3;
 
 use super::held::Held;
 use super::operands::Operands;
 use crate::brep::Declined;
-use crate::brep::canonical::Registry;
-use crate::brep::relation::{Crossings, crossings};
+use crate::brep::canonical::{Registry, same};
+use crate::brep::relation::{Crossings, crossings, relation};
 use crate::brep::topology::SurfaceId;
 
 /// A corner found where a registered curve passes through a surface.
@@ -47,7 +50,9 @@ pub(super) fn crossed(
             let geometry = registry.list[curve].curve;
             let list = match crossings(&geometry, &operands.surfaces.list[rank], operands.scale) {
                 Crossings::Along => {
-                    registry.join(curve, surface);
+                    if along(operands, registry, curve, surface) {
+                        registry.join(curve, surface);
+                    }
                     continue;
                 }
                 Crossings::Unsupported => continue,
@@ -75,4 +80,22 @@ pub(super) fn crossed(
         }
     }
     Ok(found)
+}
+
+/// Whether a registered curve lies on `surface`: none of its surfaces is
+/// apart from it, and one of them meets it along that very curve.
+fn along(operands: &Operands, registry: &Registry, curve: usize, surface: SurfaceId) -> bool {
+    let list = &operands.surfaces.list;
+    let known = &registry.list[curve];
+    registry.admits(curve, surface)
+        && known.support.iter().any(|own| {
+            relation(
+                &list[own.0 as usize],
+                &list[surface.0 as usize],
+                operands.scale,
+            )
+            .curves()
+            .iter()
+            .any(|shared| same(shared, &known.curve, operands.scale))
+        })
 }

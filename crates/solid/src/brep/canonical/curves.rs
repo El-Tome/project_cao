@@ -4,6 +4,7 @@
 
 use glam::DVec3;
 
+use super::apart::Apart;
 use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Cylinder;
@@ -18,24 +19,26 @@ pub(in crate::brep) struct Registered {
 
 pub(in crate::brep) struct Registry {
     pub list: Vec<Registered>,
+    pub apart: Apart,
     scale: Scale,
 }
 
 impl Registry {
-    pub fn new(scale: Scale) -> Registry {
+    pub fn new(scale: Scale, apart: Apart) -> Registry {
         Registry {
             list: Vec::new(),
+            apart,
             scale,
         }
     }
 
     /// The rank of the curve, the first registered within the tolerance of
-    /// it, or a new one; either way lying on `support` from now on.
+    /// it and lying on no surface apart from `support`, or a new one; either
+    /// way lying on `support` from now on.
     pub fn register(&mut self, curve: Curve, support: &[SurfaceId]) -> usize {
-        let found = self
-            .list
-            .iter()
-            .position(|known| same(&known.curve, &curve, self.scale));
+        let found = self.list.iter().position(|known| {
+            same(&known.curve, &curve, self.scale) && !self.apart.across(&known.support, support)
+        });
         let rank = found.unwrap_or_else(|| {
             self.list.push(Registered {
                 curve,
@@ -49,6 +52,12 @@ impl Registry {
         rank
     }
 
+    /// Whether a curve may lie on `surface` too: it lies on no surface
+    /// decided apart from it.
+    pub fn admits(&self, curve: usize, surface: SurfaceId) -> bool {
+        !self.apart.across(&self.list[curve].support, &[surface])
+    }
+
     pub fn join(&mut self, curve: usize, surface: SurfaceId) {
         let support = &mut self.list[curve].support;
         if let Err(place) = support.binary_search(&surface) {
@@ -59,8 +68,14 @@ impl Registry {
     /// The stretch of a registered curve that a stretch of `own`, one with it
     /// within the tolerance, covers: from `from` to `to` on `own`, read in the
     /// registered curve's parameter and running up it.
+    ///
+    /// On the curve two cylinders meet along, an end may be a node the curve
+    /// passes twice: the stretch is read from its middle, which is never one.
     pub fn stretch(&self, curve: usize, own: &Curve, from: f64, to: f64) -> [f64; 2] {
         let registered = &self.list[curve].curve;
+        if registered == own {
+            return [from, to];
+        }
         let [start, end] = [from, to].map(|at| registered.parameter(own.point(at)));
         match (registered, own) {
             (Curve::Circle(one), Curve::Circle(other)) => {
@@ -70,7 +85,11 @@ impl Registry {
                     [end, end + (to - from)]
                 }
             }
-            (Curve::Meet(_), _) => [start, start + (to - from)],
+            (Curve::Meet(_), _) => {
+                let half = (to - from) / 2.0;
+                let middle = registered.parameter(own.point(from + half));
+                [middle - half, middle + half]
+            }
             _ => [start.min(end), start.max(end)],
         }
     }

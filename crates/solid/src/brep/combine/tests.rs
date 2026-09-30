@@ -218,6 +218,31 @@ fn a_corner_on_two_of_the_three_surfaces_a_line_lies_on_cuts_that_line() {
     assert!(cut.is_ok(), "{cut:?}");
 }
 
+/// Seed 197 of the campaign: a bar lying along X whose side touches, from
+/// inside, the wall of a cylinder standing on Z. The curve they meet along is
+/// a figure of eight through the point of touch, and passes it twice.
+#[test]
+fn a_bar_touching_a_cylinder_s_wall_from_inside_is_cut_where_their_curve_crosses_itself() {
+    let frame = Frame {
+        origin: DVec3::X * 7.0,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let center = DVec2::new(2.0, 4.0);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 2.5],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let bar = Body::raised(&circle, &[], frame, DVec3::X * 7.0).expect("a bar raises");
+    let post = standing([10.0, 4.0], 4.5, -2.0, 5.0);
+    let joined = bar.joined(&post).expect("the bar and the post join");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    let apart = block([20.0, 20.0, 0.0], [22.0, 22.0, 2.0]);
+    let again = joined.joined(&apart).expect("a block apart joins");
+    assert_eq!(listed(&again.listing(), again.scale().reach()), Ok(()));
+    assert_eq!(again.edges.len(), joined.edges.len() + 12);
+}
+
 /// Seed 793 of the campaign, made small: a boss whose cap stands a hair above
 /// the top is joined onto it, then another whose cap stands a hair below.
 /// Each cap is the top within the tolerance, and each circle crosses the

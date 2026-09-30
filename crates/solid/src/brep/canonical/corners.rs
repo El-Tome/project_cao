@@ -4,6 +4,10 @@
 //! supports are final, a corner lies on every surface of every curve it was
 //! found along; from then on, whether it lies on a curve is read off the
 //! supports rather than measured.
+//!
+//! Two corners are never one where that would put the corner on two surfaces
+//! decided apart: the walls of a slit an earlier operation left thinner than
+//! this one's tolerance keep their corners each.
 
 use std::collections::BTreeSet;
 
@@ -33,17 +37,24 @@ impl Pool {
     }
 
     /// The rank of the corner at `point`: the first already there within the
-    /// tolerance, or a new one.
+    /// tolerance and on no surface apart from those `point` was found on, or
+    /// a new one.
     pub fn add(
         &mut self,
         point: DVec3,
         surfaces: impl IntoIterator<Item = SurfaceId>,
         curves: impl IntoIterator<Item = usize>,
+        registry: &Registry,
     ) -> usize {
-        let found = self
-            .corners
-            .iter()
-            .position(|corner| corner.point.distance(point) <= self.eps);
+        let surfaces: BTreeSet<SurfaceId> = surfaces.into_iter().collect();
+        let curves: BTreeSet<usize> = curves.into_iter().collect();
+        let found_on = on(&surfaces, &curves, registry);
+        let found = self.corners.iter().position(|corner| {
+            corner.point.distance(point) <= self.eps
+                && !registry
+                    .apart
+                    .across(&on(&corner.surfaces, &corner.curves, registry), &found_on)
+        });
         let rank = found.unwrap_or_else(|| {
             self.corners.push(Corner {
                 point,
@@ -83,6 +94,7 @@ impl Pool {
                         .support
                         .iter()
                         .all(|surface| support.contains(surface))
+                        || registry.apart.across(&known.support, &sorted)
                         || !lies_on(corner.point, &sorted, rank, registry, self.eps)
                     {
                         continue;
@@ -100,6 +112,20 @@ impl Pool {
             .map(|support| support.into_iter().collect())
             .collect()
     }
+}
+
+/// The surfaces a place was found on and those of the curves it was found
+/// along, sorted.
+fn on(
+    surfaces: &BTreeSet<SurfaceId>,
+    curves: &BTreeSet<usize>,
+    registry: &Registry,
+) -> Vec<SurfaceId> {
+    let mut on = surfaces.clone();
+    for curve in curves {
+        on.extend(registry.list[*curve].support.iter().copied());
+    }
+    on.into_iter().collect()
 }
 
 /// Whether a corner lies on a registered curve: two surfaces the curve lies on

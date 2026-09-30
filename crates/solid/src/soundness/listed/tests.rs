@@ -603,6 +603,54 @@ fn an_arc_listed_round_the_other_half_of_its_circle_is_found_running_backwards()
     );
 }
 
+/// A block whose top holds a sliver `thickness` thick, a face of its own on
+/// the top's plane: both its loops turned the wrong way, the top's hole round
+/// it anticlockwise and the sliver's own clockwise.
+fn block_with_a_sliver(thickness: f64) -> Listing {
+    let mut listing = block(DVec3::ZERO, DVec3::splat(10.0));
+    let first = listing.vertices.len();
+    let corners = [
+        DVec3::new(3.0, 5.0, 10.0),
+        DVec3::new(7.0, 5.0, 10.0),
+        DVec3::new(5.0, 5.0 + thickness, 10.0),
+    ];
+    listing.vertices.extend(corners);
+    for (rank, &from) in corners.iter().enumerate() {
+        let to = corners[(rank + 1) % 3];
+        let line = Line::through(from, to - from);
+        listing.edges.push(ListedEdge {
+            curve: Curve::Line(line),
+            from: line.parameter(from),
+            to: line.parameter(to),
+            ends: Some([first + rank, first + (rank + 1) % 3]),
+            sides: Vec::new(),
+        });
+    }
+    let sides = listing.edges.len() - 3;
+    let round: Vec<(usize, bool)> = (sides..sides + 3).map(|edge| (edge, true)).collect();
+    listing.faces[5].loops.push(round.clone());
+    listing.faces.push(ListedFace {
+        loops: vec![round.iter().rev().map(|&(edge, _)| (edge, false)).collect()],
+        ..listing.faces[5].clone()
+    });
+    with_sides(listing)
+}
+
+/// Every place of a listing may stand a billionth of the reach off where
+/// its geometry says, so a loop's area is known only to that much times its
+/// length: a loop sweeping less turns neither way that can be read. Seeds
+/// 2790, 4901 and 10495 of the exact campaigns left such a loop, turned the
+/// right way, round a sliver between a side and a circle tangent to it, and
+/// rounding read it backwards.
+#[test]
+fn a_sliver_thinner_than_a_listing_can_be_read_is_turned_neither_way_and_a_thicker_one_is() {
+    assert_eq!(listed(&block_with_a_sliver(1e-12), 10.0), Ok(()));
+    assert_eq!(
+        listed(&block_with_a_sliver(1e-3), 10.0),
+        Err(Mislisted::Backwards { face: 5, lap: 1 })
+    );
+}
+
 #[test]
 fn half_a_round_stock_with_every_loop_turned_round_keeps_its_faces_on_its_right() {
     let found = listed(&turned_round(half_round()), REACH);

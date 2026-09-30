@@ -402,6 +402,18 @@ fn holds(body: &Body, promised: f64) -> f64 {
 }
 
 #[test]
+fn the_reference_integral_gives_two_equal_cylinders_crossing_what_steinmetz_did() {
+    for radius in [0.5, 5.0, 20.0] {
+        let steinmetz = 16.0 * radius * radius * radius / 3.0;
+        let found = across::common(radius, radius, 0.0);
+        assert!(
+            (found - steinmetz).abs() <= 1e-12 * steinmetz,
+            "{found} against {steinmetz}"
+        );
+    }
+}
+
+#[test]
 fn the_stock_bored_across_clear_of_its_top_is_drawn_closed_round_both_windows() {
     let radius = 3.0;
     let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
@@ -537,5 +549,51 @@ fn a_bore_touching_the_stock_s_wall_from_inside_is_drawn_closed_and_uncrossed_ro
     let volume = holds(&body, stock - taken);
     for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
         held(&body, tolerance, volume, area);
+    }
+}
+
+#[test]
+fn a_bore_a_hair_inside_the_stock_s_wall_leaves_two_windows_drawn_closed_and_uncrossed() {
+    let radius = across::TOUCHING;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * fixtures::STOCK_RADIUS;
+    for hair in HAIRS_FROM_A_TOUCH {
+        let across = fixtures::STOCK_RADIUS - radius - hair;
+        let body = across::stock_bored_across_at(radius, DVec3::X, across);
+        listed(&body);
+        let volume = holds(&body, stock - across::common_across(radius, across));
+        for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
+    }
+}
+
+/// How far a bore stands from touching a wall, from twice the kernel's
+/// tolerance, under which it would be decided touching, to a tenth.
+const HAIRS_FROM_A_TOUCH: [f64; 5] = [1e-7, 1e-5, 1e-3, 1e-2, 1e-1];
+
+/// Beside the neck a bore breaking through the stock's wall leaves, the
+/// matter between the bore's top and the wall thins to nothing: a hair `ε`
+/// through leaves it `((z − 5)² − 6ε)/6` thick at the height `z`. Broken
+/// through by the least hair the kernel keeps apart from a touch, it stays
+/// thinner than the rules' `NEAR` over a band some millionths wide beside the
+/// neck, and drawn within a millionth the triangles resolve that band: the
+/// rules cannot tell its two sides from one face laid twice. That hair is
+/// drawn no finer than a thousandth.
+#[test]
+fn a_bore_a_hair_through_the_stock_s_wall_leaves_one_window_with_a_neck_drawn_closed_and_uncrossed()
+{
+    let radius = across::TOUCHING;
+    let stock = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + TAU * radius * 2.0 * fixtures::STOCK_RADIUS;
+    for hair in HAIRS_FROM_A_TOUCH {
+        let across = fixtures::STOCK_RADIUS - radius + hair;
+        let body = across::stock_bored_through_its_wall(across);
+        listed(&body);
+        let volume = holds(&body, stock - across::common_across(radius, across));
+        let finest = if hair < 1e-6 { 1e-3 } else { 1e-6 };
+        for tolerance in [finest, 1e-3, DRAWN, 0.5, 10.0] {
+            held(&body, tolerance, volume, area);
+        }
     }
 }

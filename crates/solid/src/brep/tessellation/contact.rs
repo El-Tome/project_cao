@@ -20,8 +20,8 @@
 //! withheld from both, so that the first chords from the line reach out to
 //! where the walls stand apart.
 //!
-//! Two perpendicular cylinders touch at a point instead, a node of the curve
-//! they meet along: there their circles take the rays through that curve's
+//! Two perpendicular cylinders meet along a curve, and touch, if they do, at
+//! a node of it: the circles of both take the rays through that curve's
 //! samples, so that both walls are cut in strips between them.
 
 use std::collections::BTreeMap;
@@ -31,7 +31,6 @@ use glam::DVec3;
 
 use super::sampling::divisions;
 use crate::brep::curve::Curve;
-use crate::brep::meet::Meeting;
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId};
@@ -96,22 +95,24 @@ pub(super) fn contacts(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Conta
     contacts
 }
 
-/// What the circles of two perpendicular cylinders take where they touch at
-/// a node of the curve they meet along: a small one inside a large one
-/// touching its wall, two equal ones whose axes meet.
+/// What the circles of two perpendicular cylinders take for the curve they
+/// meet along: the rays through every sample of it and through its ends.
 ///
-/// About the node the two walls part only as the square of the distance
-/// from it, and where one face is cut from the other each lies over the
-/// other: the large wall's chords, fanned from a sample of its circle a grid
-/// step away, sag below the small wall there. Sampled along the rays through
-/// every sample of the curve and through its ends, each wall is cut into
-/// strips between two samples of the curve, the large one's square to them
-/// and the small one's, between its two mirror lobes, across them: within a
-/// strip each sags as the square of its width, and the two stay ordered.
+/// Where one wall is cut from the other, each lies over the other along the
+/// curve, and they part slowly: as the square of the distance from a node
+/// where they touch, or from a waist where they all but touch, and along
+/// the curve wherever it runs down a wall's ruling, at the tip of a window.
+/// A triangle of the large wall fanned from a sample of its circle a grid
+/// step away sags there below the small wall, and at a fine tolerance the
+/// curve's own samples are much closer than a step of the grid. Sampled along
+/// these rays, each wall is cut into strips between two samples of the curve,
+/// the large one's square to them and the small one's, between its two mirror
+/// lobes, across them: within a strip each sags as the square of its width,
+/// and the two stay ordered.
 ///
 /// `meets` holds every edge's samples between its ends, empty but for the
 /// curves two cylinders meet along.
-pub(super) fn touching_at_nodes(
+pub(super) fn along_meets(
     body: &Body,
     meets: &[Vec<DVec3>],
     contacts: &mut BTreeMap<SurfaceId, Contact>,
@@ -121,12 +122,6 @@ pub(super) fn touching_at_nodes(
         let Curve::Meet(meet) = body.curve(edge.curve) else {
             continue;
         };
-        if Meeting::of(&meet.first, &meet.second, body.scale())
-            .nodes
-            .is_empty()
-        {
-            continue;
-        }
         let ends = edge
             .ends
             .into_iter()

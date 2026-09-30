@@ -6,6 +6,8 @@
 //! anticlockwise in the surface's parameters when the face is not flipped,
 //! so a flipped face gives its flux the right sign by itself.
 
+use std::f64::consts::PI;
+
 use glam::DVec3;
 
 use super::curve::Curve;
@@ -97,11 +99,9 @@ fn wall(cylinder: &Cylinder, from: f64, to: f64, low: f64, high: f64) -> Option<
 /// The flux a stretch of any curve adds on either surface, by composite
 /// Gauss–Legendre over the curve's own parameter.
 fn along(curve: &Curve, from: f64, to: f64, surface: &Surface) -> f64 {
-    const PANELS: usize = 64;
-    let width = (to - from) / PANELS as f64;
     let mut total = 0.0;
-    for panel in 0..PANELS {
-        let middle = from + width * (panel as f64 + 0.5);
+    for [start, end] in panels(curve, from, to) {
+        let (middle, width) = ((start + end) / 2.0, end - start);
         for (node, weight) in GAUSS_LEGENDRE {
             for side in [-1.0, 1.0] {
                 let t = middle + side * node * width / 2.0;
@@ -115,6 +115,51 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface) -> f64 {
         }
     }
     total
+}
+
+/// The panels a stretch is integrated over, from `from` to `to`.
+///
+/// Equal ones in general. The curve two perpendicular cylinders meet along
+/// reaches an end of its span at every multiple of π, where one of its roots
+/// vanishes, or nearly: a bore a hair from touching a wall leaves a waist
+/// there, which the curve turns through within the square root of that hair
+/// of its parameter, much narrower than any equal panel. Its stretch is cut
+/// at those places, and each piece in panels halving towards both of its
+/// ends, down to far below any waist the kernel keeps apart from a touch.
+fn panels(curve: &Curve, from: f64, to: f64) -> Vec<[f64; 2]> {
+    const EQUAL: usize = 64;
+    const HALVINGS: i32 = 40;
+    let Curve::Meet(_) = curve else {
+        let width = (to - from) / EQUAL as f64;
+        return (0..EQUAL)
+            .map(|panel| [panel, panel + 1].map(|end| from + width * end as f64))
+            .collect();
+    };
+    let mut cuts = vec![from];
+    let (low, high) = (from.min(to), from.max(to));
+    let mut end = (low / PI).floor() + 1.0;
+    while end * PI < high {
+        cuts.push(end * PI);
+        end += 1.0;
+    }
+    cuts.push(to);
+    let last = cuts.len() - 1;
+    if to < from {
+        cuts[1..last].reverse();
+    }
+    let mut panels = Vec::new();
+    for piece in cuts.windows(2) {
+        let (start, half) = (piece[0], (piece[1] - piece[0]) / 2.0);
+        let mut places: Vec<f64> = (0..=HALVINGS)
+            .rev()
+            .map(|halving| start + half * 0.5f64.powi(halving))
+            .collect();
+        places.extend((1..=HALVINGS).map(|halving| piece[1] - half * 0.5f64.powi(halving)));
+        places.insert(0, start);
+        places.push(piece[1]);
+        panels.extend(places.windows(2).map(|pair| [pair[0], pair[1]]));
+    }
+    panels
 }
 
 fn planar(plane: &Plane, point: DVec3, speed: DVec3) -> f64 {

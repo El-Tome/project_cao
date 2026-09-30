@@ -76,7 +76,7 @@ impl Samples {
             })
             .collect();
         let mut contacts = contact::contacts(body, tolerance);
-        contact::touching_at_nodes(body, &meets, &mut contacts);
+        contact::along_meets(body, &meets, &mut contacts);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);

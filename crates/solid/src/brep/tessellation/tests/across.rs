@@ -36,13 +36,21 @@ fn whole(build: &mut Build, meet: Meet) -> EdgeId {
 /// points to, and runs round it clockwise seen from outside the stock, round
 /// the bore's axis the way its angle falls.
 pub(crate) fn stock_bored_across(radius: f64, axis: DVec3) -> Body {
+    stock_bored_across_at(radius, axis, 0.0)
+}
+
+/// The same bore, its axis moved `across` from the stock's, square to both
+/// axes along `Z × axis`: two windows still, as long as the bore stays
+/// inside the stock's wall where it is nearest, however close to it.
+pub(crate) fn stock_bored_across_at(radius: f64, axis: DVec3, across: f64) -> Body {
     assert!(
         radius < MIDDLE,
         "the bore stays clear of the top and the bottom"
     );
     let mut build = Build::new();
     let stock = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
-    let bore = build.cylinder(DVec3::Z * MIDDLE, axis, radius);
+    let aside = DVec3::Z.cross(axis) * across;
+    let bore = build.cylinder(DVec3::Z * MIDDLE + aside, axis, radius);
     let meeting = build.meeting(stock, bore, STOCK_RADIUS);
     let [near, far] = [0, 1].map(|component| whole(&mut build, meeting.components[component]));
     let (low, high) = (
@@ -382,27 +390,73 @@ pub(crate) fn stock_bored_touching_its_wall() -> Body {
     build.finish(STOCK_RADIUS)
 }
 
+/// The stock bored across along X by a cylinder of radius `TOUCHING` whose
+/// axis stands `across` from the stock's, on Y at the middle height, so far
+/// out that it breaks through the stock's wall there, however little: the
+/// two meet along one loop, a single window in the stock's wall, with a neck
+/// where the bore breaks through, and the bore's wall inside the stock no
+/// longer goes round its axis.
+pub(crate) fn stock_bored_through_its_wall(across: f64) -> Body {
+    let mut build = Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
+    let axis = DVec3::new(0.0, across, MIDDLE);
+    let bore = build.cylinder(axis, DVec3::X, TOUCHING);
+    let meeting = build.meeting(stock, bore, STOCK_RADIUS);
+    assert_eq!(meeting.configuration, Configuration::OneLoop);
+    let window = whole(&mut build, meeting.components[0]);
+    let (low, high) = (
+        build.circle(stock, 0.0, None),
+        build.circle(stock, HEIGHT, None),
+    );
+    build.face(
+        stock,
+        false,
+        vec![
+            vec![use_of(low, true)],
+            vec![use_of(high, false)],
+            vec![use_of(window, true)],
+        ],
+    );
+    build.face(bore, true, vec![vec![use_of(window, false)]]);
+    let (top, top_flipped) = build.plane(DVec3::Z * HEIGHT, DVec3::Z);
+    build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
+    let (bottom, bottom_flipped) = build.plane(DVec3::ZERO, DVec3::NEG_Z);
+    build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
+    build.finish(STOCK_RADIUS)
+}
+
 /// The matter a cylinder of radius `standing` along Z and a cylinder of
-/// `radius` lying across it, `across` from its axis, have in common, each
-/// passing through the other whole — within their heights and lengths: over
-/// the lying cylinder's disc, the chord the standing one has along the lying
-/// one's axis, integrated numerically.
+/// `radius` lying across it, `across` from its axis, have in common within
+/// their heights and lengths: over the heights `y` across both axes they
+/// share, the chord the standing one has along the lying one's axis times
+/// the height of the lying one's disc, integrated numerically.
 ///
-/// Across the disc at `s = r sin φ` from its centre the disc is `2r cos φ`
-/// high, and `ds = r cos φ dφ`: the integrand `2r² cos² φ · chord` is smooth
-/// and periodic in `φ`, so the rule of the midpoints over a whole turn, which
-/// runs the disc twice, converges faster than any power of the step.
+/// Both are square roots, each vanishing at an end of the heights shared or
+/// beyond it. Run as `y = lo + (hi − lo)(1 − cos u)/2`, each root that
+/// vanishes at an end becomes a sine or a cosine of `u/2`, so the integrand
+/// times `|sin u|` is smooth and periodic over a whole turn, which runs the
+/// heights twice: the rule of the midpoints converges faster than any power
+/// of the step, but where both vanish at one end, at a touch.
 pub(crate) fn common(standing: f64, radius: f64, across: f64) -> f64 {
     const PLACES: usize = 4096;
+    let (low, high) = (
+        (across - radius).max(-standing),
+        (across + radius).min(standing),
+    );
+    if high <= low {
+        return 0.0;
+    }
+    let root = |one: f64, other: f64| (one * other).max(0.0).sqrt();
     let step = TAU / PLACES as f64;
     let mut total = 0.0;
     for place in 0..PLACES {
         let (sin, cos) = ((place as f64 + 0.5) * step).sin_cos();
-        let y = across + radius * sin;
-        let chord = 2.0 * (standing * standing - y * y).max(0.0).sqrt();
-        total += radius * radius * cos * cos * chord * step;
+        let y = low + (high - low) * (1.0 - cos) / 2.0;
+        let chord = 2.0 * root(standing - y, standing + y);
+        let height = 2.0 * root(radius - (y - across), radius + (y - across));
+        total += chord * height * sin.abs() * step;
     }
-    total
+    total * (high - low) / 4.0
 }
 
 /// What a cylinder of `radius` lying across the stock, `across` from its axis,

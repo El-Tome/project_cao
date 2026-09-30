@@ -538,3 +538,32 @@ fn a_profile_passing_twice_through_one_corner_is_declined() {
     let hole = Contour::rectangle(DVec2::new(2.0, 2.0), DVec2::new(5.0, 5.0));
     assert_eq!(raise(&block, &[hole]), Ok(()));
 }
+
+#[test]
+fn a_profile_raised_in_a_leaning_frame_far_from_the_origin_is_sound() {
+    let leaning = Frame {
+        origin: DVec3::new(300.0, -2000.0, 50.0),
+        u: DVec3::new(1.0, 1.0, 0.0) / 2f64.sqrt(),
+        v: DVec3::new(-1.0, 1.0, 2f64.sqrt()) / 2.0,
+    };
+    let askew = Frame {
+        origin: DVec3::new(-7.0, 3.0, 11.0),
+        u: DVec3::ONE.normalize(),
+        v: DVec3::new(1.0, -2.0, 1.0).normalize(),
+    };
+    let plate = Contour::rectangle(DVec2::new(-20.0, -20.0), DVec2::new(20.0, 20.0));
+    let holes = [
+        Contour::circle(DVec2::new(8.0, 0.0), 5.0),
+        Contour::rectangle(DVec2::new(-15.0, -15.0), DVec2::new(-5.0, -5.0)),
+    ];
+    let disc = Contour::circle(DVec2::new(3.0, 1.0), 4.0);
+    let profiles: [(&Contour, &[Contour]); 3] = [(&plate, &holes), (&slot(), &[]), (&disc, &[])];
+    for frame in [leaning, askew] {
+        for height in [10.0, -7.0, 1e-3] {
+            for (outline, holes) in profiles {
+                let travel = frame.normal() * height;
+                assert_sound(&Body::raised(outline, holes, frame, travel).expect("it raises"));
+            }
+        }
+    }
+}

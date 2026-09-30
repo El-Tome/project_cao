@@ -62,13 +62,22 @@ pub(super) fn turns(trace: &Trace) -> Vec<f64> {
             let last = (start.max(end) / PI).floor() as i64;
             let mut turns: Vec<f64> = (first..=last)
                 .map(|multiple| (multiple as f64 * PI - start) / sweep)
-                .filter(|&along| along > 0.0 && along < 1.0)
+                .filter(|&along| within(along))
                 .collect();
             turns.sort_by(f64::total_cmp);
             turns
         }
         Trace::Graph { .. } => sampled_turns(trace),
     }
+}
+
+/// A turn closer than this to an end of its trace, in the trace's own
+/// parameter, is that end: a turn standing on an end is one rounding moves
+/// to either side of it.
+const AT_AN_END: f64 = 1e-9;
+
+fn within(along: f64) -> bool {
+    along > AT_AN_END && along < 1.0 - AT_AN_END
 }
 
 /// How finely a trace with no closed form for its turns is searched for
@@ -94,7 +103,7 @@ pub(super) fn sampled_turns(trace: &Trace) -> Vec<f64> {
         }
         last = Some((along, here.signum()));
     }
-    turns.retain(|&along| along > 0.0 && along < 1.0);
+    turns.retain(|&along| within(along));
     turns
 }
 

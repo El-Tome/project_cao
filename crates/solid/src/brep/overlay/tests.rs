@@ -1,3 +1,5 @@
+use std::f64::consts::{PI, TAU as TURN};
+
 use glam::DVec2;
 
 use super::*;
@@ -137,24 +139,30 @@ fn unwrapped(arcs: &[Arc], cycle: &[(usize, bool)], period: Option<f64>) -> Vec<
 /// round the point, and on a cylinder whether it stands above a cycle going
 /// round.
 fn crossed_below(points: &[DVec2], point: DVec2, period: Option<f64>) -> i32 {
-    points
-        .windows(2)
-        .map(|pair| {
-            let (start, end) = (pair[0], pair[1]);
-            let (low, high) = (start.x.min(end.x), start.x.max(end.x));
-            let x = match period {
-                Some(period) => low + (point.x - low).rem_euclid(period),
-                None => point.x,
-            };
-            if low == high || x < low || x >= high {
-                return 0;
-            }
-            let y = start.y + (end.y - start.y) * (x - start.x) / (end.x - start.x);
-            match (y < point.y, end.x > start.x) {
-                (false, _) => 0,
-                (true, true) => 1,
-                (true, false) => -1,
-            }
+    let turns = match period {
+        Some(period) => (-3..=3).map(|turn| f64::from(turn) * period).collect(),
+        None => vec![0.0],
+    };
+    turns
+        .into_iter()
+        .map(|shift| {
+            let x = point.x + shift;
+            points
+                .windows(2)
+                .map(|pair| {
+                    let (start, end) = (pair[0], pair[1]);
+                    let (low, high) = (start.x.min(end.x), start.x.max(end.x));
+                    if x < low || x >= high {
+                        return 0;
+                    }
+                    let y = start.y + (end.y - start.y) * (x - start.x) / (end.x - start.x);
+                    match (y < point.y, end.x > start.x) {
+                        (false, _) => 0,
+                        (true, true) => 1,
+                        (true, false) => -1,
+                    }
+                })
+                .sum::<i32>()
         })
         .sum()
 }
@@ -215,6 +223,26 @@ impl Drawing {
     fn arc(&mut self, trace: Trace, ends: Option<[usize; 2]>) -> usize {
         self.arcs.push(Arc { trace, ends });
         self.arcs.len() - 1
+    }
+
+    /// A straight arc from a vertex to another reached at `at`, which on a
+    /// cylinder may lie a turn away from where the vertex is given.
+    fn line_to(&mut self, from: usize, to: usize, at: [f64; 2]) -> usize {
+        let trace = Trace::Segment {
+            from: self.vertices[from],
+            to: DVec2::from(at),
+        };
+        self.arc(trace, Some([from, to]))
+    }
+
+    /// A closed straight arc with no vertex, all the way round a cylinder at
+    /// height `height`, from the angle `start`.
+    fn round_the_cylinder(&mut self, height: f64, start: f64) -> usize {
+        let trace = Trace::Segment {
+            from: DVec2::new(start, height),
+            to: DVec2::new(start + TURN, height),
+        };
+        self.arc(trace, None)
     }
 
     fn line(&mut self, from: usize, to: usize) -> usize {
@@ -433,4 +461,533 @@ fn nested_holes_alternate_with_the_rings_between_them() {
         .filter(|region| region.cycles.len() == 2)
         .count();
     assert_eq!(rings, 3);
+}
+
+const ROUND: Option<f64> = Some(TURN);
+
+#[test]
+fn two_circles_round_a_cylinder_bound_a_band_between_two_unbounded_ends() {
+    let mut drawing = Drawing::default();
+    drawing.round_the_cylinder(0.0, -PI);
+    drawing.round_the_cylinder(5.0, -PI);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 3);
+    assert_eq!(bounded(&regions), 1);
+    let band = regions
+        .iter()
+        .find(|region| !region.unbounded)
+        .expect("the band is bounded");
+    assert_eq!(band.cycles, vec![vec![(0, true)], vec![(1, false)]]);
+}
+
+#[test]
+fn a_ruling_across_the_band_opens_it_into_one_disc() {
+    let mut drawing = Drawing::default();
+    let low = drawing.vertex([0.0, 0.0]);
+    let high = drawing.vertex([0.0, 5.0]);
+    drawing.line_to(low, low, [TURN, 0.0]);
+    drawing.line_to(high, high, [TURN, 5.0]);
+    drawing.line(low, high);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 3);
+    let band = regions
+        .iter()
+        .find(|region| !region.unbounded)
+        .expect("the band is bounded");
+    assert_eq!(band.cycles.len(), 1);
+    assert_eq!(band.cycles[0].len(), 4);
+}
+
+#[test]
+fn a_hole_in_the_band_is_one_more_cycle_of_it() {
+    let mut drawing = Drawing::default();
+    drawing.round_the_cylinder(0.0, 1.0);
+    drawing.round_the_cylinder(5.0, 1.0);
+    drawing.square([1.0, 2.0], [2.0, 3.0]);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 4);
+    assert_eq!(bounded(&regions), 2);
+    let band = regions
+        .iter()
+        .find(|region| region.cycles.len() == 3)
+        .expect("the band is bounded by both circles and the hole");
+    assert!(!band.unbounded);
+}
+
+#[test]
+fn a_ruling_alone_in_a_band_leaves_the_band_whole() {
+    let mut drawing = Drawing::default();
+    drawing.round_the_cylinder(0.0, 0.5);
+    drawing.round_the_cylinder(5.0, 0.5);
+    let [low, high] = [[-2.0, 1.0], [-2.0, 4.0]].map(|at| drawing.vertex(at));
+    drawing.line(low, high);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 3);
+    let band = regions
+        .iter()
+        .find(|region| !region.unbounded)
+        .expect("the band is bounded");
+    assert_eq!(band.cycles.len(), 3);
+}
+
+#[test]
+fn arcs_crossing_the_seam_of_the_angle_are_read_modulo_the_turn() {
+    let mut drawing = Drawing::default();
+    drawing.round_the_cylinder(0.0, 2.5);
+    drawing.round_the_cylinder(5.0, 2.5);
+    let corners =
+        [[2.8, 1.0], [3.6 - TURN, 1.0], [3.6 - TURN, 2.0], [2.8, 2.0]].map(|at| drawing.vertex(at));
+    drawing.line_to(corners[0], corners[1], [3.6, 1.0]);
+    drawing.line(corners[1], corners[2]);
+    drawing.line_to(corners[2], corners[3], [2.8 - TURN, 2.0]);
+    drawing.line(corners[3], corners[0]);
+    drawing.circle([PI, 3.5], 0.4, 0.0);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 5);
+    assert_eq!(bounded(&regions), 3);
+    let band = regions
+        .iter()
+        .find(|region| region.cycles.len() == 4)
+        .expect("the band is bounded by both circles and both holes");
+    assert!(!band.unbounded);
+}
+
+fn cycle_counts(regions: &[Region]) -> Vec<usize> {
+    let mut counts: Vec<usize> = regions.iter().map(|region| region.cycles.len()).collect();
+    counts.sort_unstable();
+    counts
+}
+
+#[test]
+fn a_circle_resting_on_a_side_at_a_shared_corner_pinches_the_square_without_parting_it() {
+    let mut drawing = Drawing::default();
+    let corners = drawing.polygon(&[
+        [0.0, 0.0],
+        [5.0, 0.0],
+        [10.0, 0.0],
+        [10.0, 10.0],
+        [0.0, 10.0],
+    ]);
+    drawing.round([5.0, 3.0], corners[1], corners[1], true);
+    let regions = drawing.regions(None);
+    assert_eq!(cycle_counts(&regions), vec![1, 1, 1]);
+    let pinched = regions
+        .iter()
+        .find(|region| !region.unbounded && region.cycles[0].len() == 6)
+        .expect("the square less the disc runs round the square and round the disc");
+    assert!(pinched.cycles[0].contains(&(5, false)));
+}
+
+#[test]
+fn two_holes_whose_circles_touch_leave_the_square_one_region() {
+    let mut drawing = Drawing::default();
+    drawing.square([-10.0, -10.0], [10.0, 10.0]);
+    let touch = drawing.vertex([0.0, 1.0]);
+    drawing.round([-3.0, 1.0], touch, touch, false);
+    drawing.round([2.0, 1.0], touch, touch, true);
+    let regions = drawing.regions(None);
+    assert_eq!(cycle_counts(&regions), vec![1, 1, 1, 2]);
+}
+
+#[test]
+fn a_disc_touching_a_circle_round_the_cylinder_from_below_hangs_in_the_band() {
+    let mut drawing = Drawing::default();
+    let touch = drawing.vertex([1.0, 5.0]);
+    drawing.round_the_cylinder(0.0, -PI);
+    drawing.line_to(touch, touch, [1.0 + TURN, 5.0]);
+    drawing.round([1.0, 3.5], touch, touch, true);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(regions.len(), 4);
+    assert_eq!(bounded(&regions), 2);
+}
+
+#[test]
+fn an_upright_slit_right_under_or_over_a_corner_lies_in_the_region_beside_that_corner() {
+    let mut drawing = Drawing::default();
+    drawing.square([0.0, 0.0], [10.0, 10.0]);
+    drawing.square([2.0, 2.0], [4.0, 4.0]);
+    for [low, high] in [
+        [[0.0, -5.0], [0.0, -2.0]],
+        [[10.0, 12.0], [10.0, 15.0]],
+        [[2.0, 5.0], [2.0, 8.0]],
+    ] {
+        let [low, high] = [low, high].map(|at| drawing.vertex(at));
+        drawing.line(low, high);
+    }
+    let regions = drawing.regions(None);
+    assert_eq!(cycle_counts(&regions), vec![1, 3, 3]);
+}
+
+#[test]
+fn an_upright_slit_at_the_side_of_a_circle_lies_beside_it() {
+    let mut drawing = Drawing::default();
+    drawing.square([-10.0, -10.0], [20.0, 20.0]);
+    drawing.circle([10.0, 5.0], 5.0, 1.0);
+    for [low, high] in [
+        [[5.0, 1.0], [5.0, 3.0]],
+        [[5.0, 7.0], [5.0, 9.0]],
+        [[15.0, 6.0], [15.0, 8.0]],
+    ] {
+        let [low, high] = [low, high].map(|at| drawing.vertex(at));
+        drawing.line(low, high);
+    }
+    let regions = drawing.regions(None);
+    assert_eq!(cycle_counts(&regions), vec![1, 1, 5]);
+}
+
+#[test]
+fn a_ruling_on_the_seam_where_the_circles_start_lies_in_the_band() {
+    let mut drawing = Drawing::default();
+    drawing.round_the_cylinder(0.0, -PI);
+    drawing.round_the_cylinder(5.0, -PI);
+    let [low, high] = [[PI, 1.0], [PI, 4.0]].map(|at| drawing.vertex(at));
+    drawing.line(low, high);
+    let regions = drawing.regions(ROUND);
+    assert_eq!(cycle_counts(&regions), vec![1, 1, 3]);
+    let band = regions
+        .iter()
+        .find(|region| region.cycles.len() == 3)
+        .expect("the band holds the ruling");
+    assert!(!band.unbounded);
+}
+
+#[test]
+fn the_turns_of_a_round_are_found_again_from_its_derivatives_alone() {
+    for (start, sweep) in [(0.3, 5.0), (-2.0, -4.5), (1.0, TURN), (PI, 1.0), (0.1, 0.2)] {
+        let trace = Trace::Round {
+            center: DVec2::new(3.0, -1.0),
+            radius: 2.0,
+            start,
+            sweep,
+        };
+        let exact = piece::turns(&trace);
+        let sampled = piece::sampled_turns(&trace);
+        assert_eq!(exact.len(), sampled.len(), "{start} {sweep}");
+        for (exact, sampled) in exact.iter().zip(&sampled) {
+            assert!((exact - sampled).abs() < 1e-12, "{exact} {sampled}");
+        }
+    }
+}
+
+/// Numbers in a fixed sequence, so that a failing drawing comes back from
+/// its seed.
+struct Draws(u64);
+
+impl Draws {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, count: usize) -> usize {
+        (self.next() % count as u64) as usize
+    }
+
+    fn pick<T: Copy>(&mut self, among: &[T]) -> T {
+        among[self.below(among.len())]
+    }
+
+    /// A multiple of `step` from `low` to `high`: on a coarse grid, where
+    /// the abscissae of different shapes meet exactly and often.
+    fn on_grid(&mut self, low: f64, high: f64, step: f64) -> f64 {
+        let steps = ((high - low) / step).round() as usize;
+        low + step * self.below(steps + 1) as f64
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct Frame {
+    low: DVec2,
+    high: DVec2,
+}
+
+impl Frame {
+    fn shifted(self, shift: f64) -> Frame {
+        let by = DVec2::new(shift, 0.0);
+        Frame {
+            low: self.low + by,
+            high: self.high + by,
+        }
+    }
+
+    fn apart(self, other: Frame) -> bool {
+        self.high.x < other.low.x
+            || other.high.x < self.low.x
+            || self.high.y < other.low.y
+            || other.high.y < self.low.y
+    }
+
+    fn within(self, outer: Frame) -> bool {
+        outer.low.x < self.low.x
+            && self.high.x < outer.high.x
+            && outer.low.y < self.low.y
+            && self.high.y < outer.high.y
+    }
+}
+
+/// Where a shape stands, and the box inside it another shape may stand in
+/// without meeting it.
+struct Footprint {
+    outer: Frame,
+    inner: Option<Frame>,
+}
+
+impl Footprint {
+    fn clear_of(&self, other: &Footprint, period: Option<f64>) -> bool {
+        let shifts = match period {
+            Some(period) => vec![-period, 0.0, period],
+            None => vec![0.0],
+        };
+        shifts.into_iter().all(|shift| {
+            let outer = other.outer.shifted(shift);
+            let inner = other.inner.map(|inner| inner.shifted(shift));
+            self.outer.apart(outer)
+                || inner.is_some_and(|inner| self.outer.within(inner))
+                || self.inner.is_some_and(|mine| outer.within(mine))
+        })
+    }
+}
+
+impl Drawing {
+    /// A vertex given where a cylinder reads it, within the turn about
+    /// nought, whatever turn `at` is written in.
+    fn corner(&mut self, at: DVec2, period: Option<f64>) -> usize {
+        let x = period.map_or(at.x, |period| at.x - (at.x / period).round() * period);
+        self.vertex([x, at.y])
+    }
+
+    fn straight(&mut self, from: (usize, DVec2), to: (usize, DVec2)) -> usize {
+        self.arc(
+            Trace::Segment {
+                from: from.1,
+                to: to.1,
+            },
+            Some([from.0, to.0]),
+        )
+    }
+
+    /// A closed path through corners, each joined to the next.
+    fn path(&mut self, corners: &[DVec2], period: Option<f64>) -> Vec<usize> {
+        let ranks: Vec<usize> = corners
+            .iter()
+            .map(|&corner| self.corner(corner, period))
+            .collect();
+        for side in 0..corners.len() {
+            let next = (side + 1) % corners.len();
+            self.straight((ranks[side], corners[side]), (ranks[next], corners[next]));
+        }
+        ranks
+    }
+}
+
+/// Places a random shape clear of those already placed, and says how many
+/// bounded regions it adds.
+fn place(
+    drawing: &mut Drawing,
+    draws: &mut Draws,
+    period: Option<f64>,
+    placed: &mut Vec<Footprint>,
+) -> usize {
+    let [left, right] = match period {
+        Some(_) => [-PI - 1.0, PI],
+        None => [-6.0, 6.0],
+    };
+    for _ in 0..30 {
+        let kind = draws.below(5);
+        let at = DVec2::new(
+            draws.on_grid(left, right, 0.5),
+            draws.on_grid(-6.0, 6.0, 0.5),
+        );
+        let size = DVec2::new(
+            draws.pick(&[0.5, 1.0, 1.5, 2.0]),
+            draws.pick(&[0.5, 1.0, 1.5, 2.0]),
+        );
+        let (footprint, regions) = match kind {
+            0 | 1 => {
+                let size = if kind == 1 {
+                    size.max(DVec2::ONE)
+                } else {
+                    size
+                };
+                let frame = Frame {
+                    low: at,
+                    high: at + size,
+                };
+                let inner = (kind == 0).then_some(frame);
+                (
+                    Footprint {
+                        outer: frame,
+                        inner,
+                    },
+                    1 + kind,
+                )
+            }
+            2 => {
+                let radius = size.x;
+                let reach = DVec2::splat(radius);
+                let inscribed = reach / std::f64::consts::SQRT_2;
+                let footprint = Footprint {
+                    outer: Frame {
+                        low: at - reach,
+                        high: at + reach,
+                    },
+                    inner: Some(Frame {
+                        low: at - inscribed,
+                        high: at + inscribed,
+                    }),
+                };
+                (footprint, 1)
+            }
+            _ => {
+                let end = if kind == 3 {
+                    at + DVec2::new(0.0, size.y)
+                } else {
+                    at + DVec2::new(size.x, 0.0)
+                };
+                let footprint = Footprint {
+                    outer: Frame { low: at, high: end },
+                    inner: None,
+                };
+                (footprint, 0)
+            }
+        };
+        if placed
+            .iter()
+            .any(|other| !footprint.clear_of(other, period))
+        {
+            continue;
+        }
+        let Frame { low, high } = footprint.outer;
+        match kind {
+            0 => {
+                drawing.path(
+                    &[
+                        low,
+                        DVec2::new(high.x, low.y),
+                        high,
+                        DVec2::new(low.x, high.y),
+                    ],
+                    period,
+                );
+            }
+            1 => {
+                let middle = low.x + 0.5 * ((high.x - low.x) / 0.5).floor().max(1.0) * 0.5;
+                let ranks = drawing.path(
+                    &[
+                        low,
+                        DVec2::new(middle, low.y),
+                        DVec2::new(high.x, low.y),
+                        high,
+                        DVec2::new(middle, high.y),
+                        DVec2::new(low.x, high.y),
+                    ],
+                    period,
+                );
+                drawing.straight(
+                    (ranks[1], DVec2::new(middle, low.y)),
+                    (ranks[4], DVec2::new(middle, high.y)),
+                );
+            }
+            2 => circle_in_pieces(drawing, draws, period, at, size.x),
+            _ => {
+                let [start, end] = [low, high].map(|point| (drawing.corner(point, period), point));
+                drawing.straight(start, end);
+            }
+        }
+        placed.push(footprint);
+        return regions;
+    }
+    0
+}
+
+/// A circle whole with no vertex, looped at one vertex, or in two arcs
+/// between two, the vertices often where it turns back.
+fn circle_in_pieces(
+    drawing: &mut Drawing,
+    draws: &mut Draws,
+    period: Option<f64>,
+    center: DVec2,
+    radius: f64,
+) {
+    let angles = [0.0, PI, 0.5 * PI, -0.5 * PI, 0.7];
+    let first = draws.pick(&angles);
+    let round = |start: f64, sweep: f64| Trace::Round {
+        center,
+        radius,
+        start,
+        sweep,
+    };
+    match draws.below(3) {
+        0 => {
+            drawing.arc(round(first, TURN), None);
+        }
+        1 => {
+            let vertex = drawing.corner(center + DVec2::from_angle(first) * radius, period);
+            drawing.arc(round(first, TURN), Some([vertex, vertex]));
+        }
+        _ => {
+            let second = first + draws.pick(&[PI, 0.5 * PI, 2.0]);
+            let [one, other] = [first, second]
+                .map(|angle| drawing.corner(center + DVec2::from_angle(angle) * radius, period));
+            let sweep = second - first;
+            drawing.arc(round(first, sweep), Some([one, other]));
+            drawing.arc(round(second, TURN - sweep), Some([other, one]));
+        }
+    }
+}
+
+fn random_drawing(seed: u64, period: Option<f64>) -> (Drawing, usize, usize) {
+    let mut draws = Draws(seed.wrapping_mul(0x9E37_79B9_7F4A_7C15) | 1);
+    let mut drawing = Drawing::default();
+    let mut placed = Vec::new();
+    let mut rounds = 0;
+    if period.is_some() {
+        for _ in 0..draws.below(3) {
+            let height = draws.on_grid(-7.0, 7.0, 0.5);
+            let footprint = Footprint {
+                outer: Frame {
+                    low: DVec2::new(-10.0, height),
+                    high: DVec2::new(10.0, height),
+                },
+                inner: None,
+            };
+            if placed.iter().any(|other| !footprint.clear_of(other, None)) {
+                continue;
+            }
+            drawing.round_the_cylinder(height, draws.pick(&[-PI, 0.5, 2.0]));
+            placed.push(footprint);
+            rounds += 1;
+        }
+    }
+    let mut regions = 1 + rounds;
+    for _ in 0..1 + draws.below(8) {
+        regions += place(&mut drawing, &mut draws, period, &mut placed);
+    }
+    let unbounded = if rounds > 0 { 2 } else { 1 };
+    (drawing, regions, unbounded)
+}
+
+fn random_drawings_hold(period: Option<f64>) {
+    for seed in 0..300 {
+        let (drawing, expected, unbounded) = random_drawing(seed, period);
+        if drawing.arcs.is_empty() {
+            continue;
+        }
+        println!("seed {seed}");
+        let regions = drawing.regions(period);
+        assert_eq!(regions.len(), expected, "seed {seed}");
+        assert_eq!(regions.len() - bounded(&regions), unbounded, "seed {seed}");
+    }
+}
+
+#[test]
+fn random_shapes_on_a_plane_part_it_into_the_regions_they_bound() {
+    random_drawings_hold(None);
+}
+
+#[test]
+fn random_shapes_on_a_cylinder_part_it_into_the_regions_they_bound() {
+    random_drawings_hold(ROUND);
 }

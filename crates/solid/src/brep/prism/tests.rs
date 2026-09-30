@@ -301,3 +301,37 @@ fn a_disc_raised_keeps_its_rings_on_its_wall_and_its_caps() {
     assert_sound(&body);
     assert_eq!(body.faces[2].loops.len(), 2);
 }
+
+/// A block of 10 by 1 whose top bulges along an arc of a circle a hundred
+/// times larger than the block, landing `astray` off its end.
+fn lens(astray: f64) -> Contour {
+    use crate::profile::Run;
+    let center = DVec2::new(5.0, -99.0);
+    let radius = DVec2::new(10.0, 1.0).distance(center);
+    let turn = 2.0 * (5.0f64 / 100.0).atan() + astray / radius;
+    Contour {
+        corners: vec![
+            DVec2::new(0.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(10.0, 1.0),
+            DVec2::new(0.0, 1.0),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Straight,
+            Run::Round { center, turn },
+            Run::Straight,
+        ],
+    }
+}
+
+#[test]
+fn an_arc_is_read_at_the_tolerance_of_the_body_it_makes_not_of_the_circle_it_runs_on() {
+    let body = Body::raised(&lens(0.0), &[], ground(), DVec3::Z).expect("a lens raises");
+    assert_sound(&body);
+    let eps = body.scale().eps();
+    assert_eq!(
+        Body::raised(&lens(5.0 * eps), &[], ground(), DVec3::Z).map(|_| ()),
+        Err(Declined::Profile)
+    );
+}

@@ -3,11 +3,14 @@
 mod piece;
 mod walls;
 
+use std::f64::consts::TAU;
+
 use glam::DVec3;
 
 use super::Declined;
+use super::curve::Circle;
 use super::scale::Scale;
-use super::topology::Body;
+use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame, Run};
 use piece::Piece;
 
@@ -40,7 +43,16 @@ impl Body {
             return Err(Declined::Travel);
         }
         let backwards = height < 0.0;
-        let scale = Scale::of(reach(outline, holes, frame, travel));
+        let lifted = if backwards {
+            Frame {
+                v: -frame.v,
+                ..frame
+            }
+        } else {
+            frame
+        };
+        let lift = lifted.normal() * height.abs() / normal.length_squared();
+        let scale = Scale::of(reach(outline, holes, frame, lift));
         let eps = scale.eps();
         let read = |contour: &Contour, anticlockwise: bool| -> Result<Vec<Piece>, Declined> {
             let mut pieces = piece::pieces(contour, eps)?;
@@ -56,38 +68,40 @@ impl Body {
         for hole in holes {
             contours.push(read(hole, false)?);
         }
-        let lifted = if backwards {
-            Frame {
-                v: -frame.v,
-                ..frame
-            }
-        } else {
-            frame
-        };
-        let lift = lifted.normal() * height.abs() / normal.length_squared();
         Ok(walls::raise(lifted, lift, &contours, eps))
     }
 }
 
-/// The largest coordinate the profile's corners reach at either end, and the
-/// boxes of the circles its arcs run on: the reach the profile is read at.
-fn reach(outline: &Contour, holes: &[Contour], frame: Frame, travel: DVec3) -> f64 {
-    let mut reach: f64 = 0.0;
+/// The largest coordinate the body will reach, at either end: its corners and
+/// the points where an arc turns back in a coordinate. Read exactly, so that
+/// the profile is decided at the tolerance of the body it makes.
+fn reach(outline: &Contour, holes: &[Contour], frame: Frame, lift: DVec3) -> f64 {
+    let mut points = Vec::new();
     for contour in std::iter::once(outline).chain(holes) {
         for (corner, run) in contour.corners.iter().zip(&contour.runs) {
-            let (center, radius) = match *run {
-                Run::Straight => (*corner, 0.0),
-                Run::Round { center, .. } => (center, corner.distance(center)),
-            };
-            let (corner, center) = (frame.at(*corner), frame.at(center));
-            for shift in [DVec3::ZERO, travel] {
-                reach = reach
-                    .max((corner + shift).abs().max_element())
-                    .max((center + shift).abs().max_element() + radius);
+            points.push(frame.at(*corner));
+            if let Run::Round { center, turn } = *run
+                && turn.abs() < TAU
+            {
+                let away = *corner - center;
+                let circle = Circle {
+                    center: frame.at(center),
+                    axis: frame.normal(),
+                    radius: away.length(),
+                    u: frame.u,
+                    v: frame.v,
+                };
+                let start = away.y.atan2(away.x);
+                let (from, to) = (start.min(start + turn), start.max(start + turn));
+                points.extend(turning_points(&circle, from, to));
             }
         }
     }
-    reach
+    points
+        .iter()
+        .flat_map(|point| [*point, *point + lift])
+        .map(|point| point.abs().max_element())
+        .fold(0.0, f64::max)
 }
 
 #[cfg(test)]

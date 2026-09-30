@@ -5,7 +5,7 @@ use std::f64::consts::PI;
 
 use glam::DVec3;
 
-use super::curve::Curve;
+use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
@@ -147,14 +147,7 @@ impl Body {
         let mut found = vec![curve.point(edge.from), curve.point(edge.to)];
         match curve {
             Curve::Line(_) => {}
-            Curve::Circle(circle) => {
-                for axis in 0..3 {
-                    let phase = circle.v[axis].atan2(circle.u[axis]);
-                    let first = ((edge.from - phase) / PI).ceil() as i64;
-                    let last = ((edge.to - phase) / PI).floor() as i64;
-                    found.extend((first..=last).map(|turn| circle.point(phase + turn as f64 * PI)));
-                }
-            }
+            Curve::Circle(circle) => found.extend(turning_points(circle, edge.from, edge.to)),
             Curve::Meet(_) => {
                 const SAMPLES: usize = 64;
                 let step = (edge.to - edge.from) / SAMPLES as f64;
@@ -178,6 +171,19 @@ impl Body {
             })
             .collect()
     }
+}
+
+/// The points of a circle, between two of its parameters, where a coordinate
+/// is largest or smallest.
+pub(super) fn turning_points(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
+    let mut found = Vec::new();
+    for axis in 0..3 {
+        let phase = circle.v[axis].atan2(circle.u[axis]);
+        let first = ((from - phase) / PI).ceil() as i64;
+        let last = ((to - phase) / PI).floor() as i64;
+        found.extend((first..=last).map(|turn| circle.point(phase + turn as f64 * PI)));
+    }
+    found
 }
 
 #[cfg(test)]

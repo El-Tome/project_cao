@@ -116,7 +116,7 @@ fn snapped(first: &Cylinder, second: &Cylinder, eps: f64) -> Cylinder {
     )
 }
 
-fn goes_first(one: &Cylinder, other: &Cylinder) -> Ordering {
+pub(in crate::brep) fn goes_first(one: &Cylinder, other: &Cylinder) -> Ordering {
     other
         .radius
         .total_cmp(&one.radius)

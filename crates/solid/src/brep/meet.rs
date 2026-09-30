@@ -30,6 +30,7 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::curve::Meet;
+pub(super) use meeting::goes_first;
 pub use meeting::{Meeting, Node};
 pub use pair::Configuration;
 use pair::Pair;

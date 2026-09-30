@@ -120,6 +120,444 @@ fn a_circle_of_a_cylinder_is_a_level_segment_with_its_angle_unwrapped() {
     );
 }
 
+const EPS: f64 = 1e-9;
+
+fn top_of(body: &Body) -> FaceId {
+    body.face_ids()
+        .find(|face| {
+            let face = body.face(*face);
+            matches!(body.surface(face.surface), Surface::Plane(plane) if plane.normal.z > 0.5 && plane.offset() > 0.0)
+        })
+        .expect("a raised body has a top")
+}
+
+fn assert_located(body: &Body, face: FaceId, cases: &[(DVec2, Location)]) {
+    for (at, expected) in cases {
+        let found = body
+            .locate(face, *at, EPS)
+            .expect("a raised face is traced");
+        assert_eq!(found, *expected, "{at} on face {face:?}");
+    }
+}
+
+#[test]
+fn a_point_of_a_square_with_a_square_hole_is_inside_outside_or_on_it() {
+    let plate = Contour::rectangle(DVec2::new(-20.0, -20.0), DVec2::new(20.0, 20.0));
+    let hole = Contour::rectangle(DVec2::new(-5.0, -5.0), DVec2::new(5.0, 5.0));
+    let body = Body::raised(&plate, &[hole], ground(), DVec3::Z * 10.0).expect("a plate raises");
+    let top = top_of(&body);
+    let near = 2.0 * EPS;
+    assert_located(
+        &body,
+        top,
+        &[
+            (DVec2::new(10.0, 3.0), Location::Inside),
+            (DVec2::new(0.0, 0.0), Location::Outside),
+            (DVec2::new(25.0, 0.0), Location::Outside),
+            (DVec2::new(0.0, -12.0), Location::Inside),
+            (DVec2::new(5.0, 5.0), Location::Boundary),
+            (DVec2::new(5.0, 0.5 * EPS), Location::Boundary),
+            (DVec2::new(20.0, 3.0), Location::Boundary),
+            (DVec2::new(20.0 - near, 3.0), Location::Inside),
+            (DVec2::new(20.0 + near, 3.0), Location::Outside),
+            (DVec2::new(5.0 + near, 5.0), Location::Inside),
+            (DVec2::new(5.0 - near, 0.0), Location::Outside),
+            (DVec2::new(-5.0, -20.0 + near), Location::Inside),
+            (DVec2::new(5.0, 20.0 + near), Location::Outside),
+        ],
+    );
+}
+
+#[test]
+fn a_point_of_a_disc_or_an_annulus_is_inside_outside_or_on_it() {
+    let disc = Contour::circle(DVec2::new(8.0, 0.0), 5.0);
+    let solid = Body::raised(&disc, &[], ground(), DVec3::Z * 10.0).expect("a disc raises");
+    let outer = Contour::circle(DVec2::ZERO, 20.0);
+    let ring = Body::raised(
+        &outer,
+        std::slice::from_ref(&disc),
+        ground(),
+        DVec3::Z * 10.0,
+    )
+    .expect("an annulus raises");
+    let near = 2.0 * EPS;
+    let shared = [
+        (DVec2::new(13.0, 0.0), Location::Boundary),
+        (DVec2::new(8.0, 5.0 - 0.5 * EPS), Location::Boundary),
+        (DVec2::new(8.0, -5.0), Location::Boundary),
+        (DVec2::new(8.0 + 3.0, 4.0), Location::Boundary),
+    ];
+    assert_located(&solid, top_of(&solid), &shared);
+    assert_located(&ring, top_of(&ring), &shared);
+    assert_located(
+        &solid,
+        top_of(&solid),
+        &[
+            (DVec2::new(8.0, 0.0), Location::Inside),
+            (DVec2::new(3.0 + near, 0.0), Location::Inside),
+            (DVec2::new(3.0 - near, 0.0), Location::Outside),
+            (DVec2::new(8.0, 5.0 + near), Location::Outside),
+            (DVec2::new(8.0, -5.0 + near), Location::Inside),
+            (DVec2::new(13.0, 0.1), Location::Outside),
+            (DVec2::new(0.0, 0.0), Location::Outside),
+        ],
+    );
+    assert_located(
+        &ring,
+        top_of(&ring),
+        &[
+            (DVec2::new(8.0, 0.0), Location::Outside),
+            (DVec2::new(3.0 + near, 0.0), Location::Outside),
+            (DVec2::new(3.0 - near, 0.0), Location::Inside),
+            (DVec2::new(8.0, 5.0 + near), Location::Inside),
+            (DVec2::new(8.0, 15.0), Location::Inside),
+            (DVec2::new(8.0, 19.0), Location::Outside),
+            (DVec2::new(0.0, 20.0 + near), Location::Outside),
+            (DVec2::new(0.0, -20.0 + near), Location::Inside),
+            (DVec2::new(-20.0, 0.0), Location::Boundary),
+            (DVec2::new(20.0 + near, 0.0), Location::Outside),
+        ],
+    );
+}
+
+fn walls_of(body: &Body) -> Vec<FaceId> {
+    body.face_ids()
+        .filter(|face| matches!(body.surface(body.face(*face).surface), Surface::Cylinder(_)))
+        .collect()
+}
+
+#[test]
+fn a_point_of_a_band_is_inside_between_its_rings_all_the_way_round() {
+    let disc = Contour::circle(DVec2::new(8.0, 0.0), 5.0);
+    let body = Body::raised(&disc, &[], ground(), DVec3::Z * 10.0).expect("a disc raises");
+    let [band] = walls_of(&body)[..] else {
+        panic!("a disc has one wall");
+    };
+    let near = 2.0 * EPS;
+    let mut cases = Vec::new();
+    for theta in [-PI, -3.1, -1.0, 0.0, 1e-17, 2.0, PI, 3.1, 7.0, -12.0] {
+        cases.extend([
+            (DVec2::new(theta, 5.0), Location::Inside),
+            (DVec2::new(theta, near), Location::Inside),
+            (DVec2::new(theta, -near), Location::Outside),
+            (DVec2::new(theta, 10.0 + near), Location::Outside),
+            (DVec2::new(theta, 10.0 - 0.5 * EPS), Location::Boundary),
+            (DVec2::new(theta, 0.0), Location::Boundary),
+            (DVec2::new(theta, 25.0), Location::Outside),
+        ]);
+    }
+    assert_located(&body, band, &cases);
+}
+
+fn slot() -> Contour {
+    use crate::profile::Run;
+    Contour {
+        corners: vec![
+            DVec2::new(-10.0, -5.0),
+            DVec2::new(10.0, -5.0),
+            DVec2::new(10.0, 5.0),
+            DVec2::new(-10.0, 5.0),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(10.0, 0.0),
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(-10.0, 0.0),
+                turn: PI,
+            },
+        ],
+    }
+}
+
+#[test]
+fn a_point_of_a_half_band_is_inside_between_its_rulings_even_across_a_half_turn() {
+    let body = Body::raised(&slot(), &[], ground(), DVec3::Z * 10.0).expect("a slot raises");
+    let walls = walls_of(&body);
+    let right = walls
+        .iter()
+        .copied()
+        .find(|face| {
+            let Surface::Cylinder(cylinder) = body.surface(body.face(*face).surface) else {
+                return false;
+            };
+            cylinder.origin.x > 0.0
+        })
+        .expect("the slot has a right end");
+    let left = walls
+        .into_iter()
+        .find(|face| *face != right)
+        .expect("and a left one");
+    let across = 2.0 * EPS / 5.0;
+    let half = std::f64::consts::FRAC_PI_2;
+    assert_located(
+        &body,
+        right,
+        &[
+            (DVec2::new(0.0, 5.0), Location::Inside),
+            (DVec2::new(PI, 5.0), Location::Outside),
+            (DVec2::new(half - across, 5.0), Location::Inside),
+            (DVec2::new(half + across, 5.0), Location::Outside),
+            (DVec2::new(-half + across, 5.0), Location::Inside),
+            (DVec2::new(-half - across, 5.0), Location::Outside),
+            (DVec2::new(half, 5.0), Location::Boundary),
+            (DVec2::new(0.0, 11.0), Location::Outside),
+            (DVec2::new(TAU, 5.0), Location::Inside),
+        ],
+    );
+    assert_located(
+        &body,
+        left,
+        &[
+            (DVec2::new(PI, 5.0), Location::Inside),
+            (DVec2::new(-PI, 5.0), Location::Inside),
+            (DVec2::new(-3.0, 5.0), Location::Inside),
+            (DVec2::new(3.0, 5.0), Location::Inside),
+            (DVec2::new(0.0, 5.0), Location::Outside),
+            (DVec2::new(half + across, 5.0), Location::Inside),
+            (DVec2::new(half - across, 5.0), Location::Outside),
+            (DVec2::new(-half - across, 5.0), Location::Inside),
+            (DVec2::new(-half + across, 5.0), Location::Outside),
+            (DVec2::new(-half, 5.0), Location::Boundary),
+            (DVec2::new(PI, -1.0), Location::Outside),
+        ],
+    );
+}
+
+/// A cylinder's wall that goes all the way round from the ruling at `seam`,
+/// its two circles running a whole turn from that ruling back to it.
+fn band_cut_open(seam: f64) -> Body {
+    use crate::brep::scale::Scale;
+    use crate::brep::topology::{Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
+    let cylinder = Cylinder::about(DVec3::ZERO, DVec3::Z, 5.0);
+    let [bottom, top] = [0.0, 10.0].map(|height| cylinder.point(DVec2::new(seam, height)));
+    let ruling = Line::through(bottom, DVec3::Z);
+    let whole = |curve: u32| Edge {
+        curve: CurveId(curve),
+        ends: Some([VertexId(curve), VertexId(curve)]),
+        from: seam,
+        to: seam + TAU,
+    };
+    let edges = vec![
+        whole(0),
+        whole(1),
+        Edge {
+            curve: CurveId(2),
+            ends: Some([VertexId(0), VertexId(1)]),
+            from: ruling.parameter(bottom),
+            to: ruling.parameter(top),
+        },
+    ];
+    let used = |edge: u32, forward: bool| Coedge {
+        edge: EdgeId(edge),
+        forward,
+    };
+    Body {
+        surfaces: vec![Surface::Cylinder(cylinder)],
+        curves: vec![
+            Curve::Circle(Circle::on(&cylinder, 0.0)),
+            Curve::Circle(Circle::on(&cylinder, 10.0)),
+            Curve::Line(ruling),
+        ],
+        vertices: [bottom, top]
+            .map(|point| Vertex {
+                point,
+                on: vec![SurfaceId(0)],
+            })
+            .to_vec(),
+        edges,
+        faces: vec![Face {
+            surface: SurfaceId(0),
+            flipped: false,
+            loops: vec![vec![
+                used(0, true),
+                used(2, true),
+                used(1, false),
+                used(2, false),
+            ]],
+        }],
+        scale: Scale::of(10.0),
+    }
+}
+
+#[test]
+fn a_point_of_a_band_cut_open_by_a_ruling_is_inside_on_both_sides_of_it() {
+    let across = 2.0 * EPS / 5.0;
+    for seam in [0.0, 3.0, -PI, 1.0] {
+        let body = band_cut_open(seam);
+        let face = FaceId(0);
+        let mut cases = vec![
+            (DVec2::new(seam, 5.0), Location::Boundary),
+            (DVec2::new(seam + TAU, 5.0), Location::Boundary),
+            (DVec2::new(seam + across, 5.0), Location::Inside),
+            (DVec2::new(seam - across, 5.0), Location::Inside),
+            (DVec2::new(seam, 11.0), Location::Outside),
+            (DVec2::new(seam + across, -2.0 * EPS), Location::Outside),
+            (
+                DVec2::new(seam - across, 10.0 + 2.0 * EPS),
+                Location::Outside,
+            ),
+        ];
+        for theta in [-3.0, -1.0, 0.5, 2.0, 3.1] {
+            cases.push((DVec2::new(theta, 2.0), Location::Inside));
+            cases.push((DVec2::new(theta, 12.0), Location::Outside));
+        }
+        assert_located(&body, face, &cases);
+    }
+}
+
+/// Frames leaning or not, travels either way, and profiles with every kind of
+/// wall: what a raised body can be.
+fn raised_bodies() -> Vec<Body> {
+    let leaning = Frame {
+        origin: DVec3::new(3.0, -2.0, 5.0),
+        u: DVec3::new(1.0, 1.0, 0.0) / 2f64.sqrt(),
+        v: DVec3::new(-1.0, 1.0, 2f64.sqrt()) / 2.0,
+    };
+    let plate = Contour::rectangle(DVec2::new(-20.0, -20.0), DVec2::new(20.0, 20.0));
+    let hole = Contour::circle(DVec2::new(8.0, 0.0), 5.0);
+    let square = Contour::rectangle(DVec2::new(-15.0, -15.0), DVec2::new(-5.0, -5.0));
+    let profiles: [(Contour, Vec<Contour>); 3] = [
+        (plate, vec![hole.clone(), square]),
+        (slot(), Vec::new()),
+        (Contour::circle(DVec2::new(8.0, 0.0), 5.0), Vec::new()),
+    ];
+    let mut bodies = Vec::new();
+    for frame in [ground(), leaning] {
+        for height in [10.0, -7.0] {
+            for (outline, holes) in &profiles {
+                bodies.push(
+                    Body::raised(outline, holes, frame, frame.normal() * height)
+                        .expect("a profile raises"),
+                );
+            }
+        }
+    }
+    bodies
+}
+
+#[test]
+fn a_raised_face_lies_on_the_left_of_each_of_its_loops_seen_from_outside() {
+    const STEP: f64 = 1e-3;
+    for body in raised_bodies() {
+        for face in body.face_ids() {
+            let flipped = body.face(face).flipped;
+            for trace in body
+                .traces(face)
+                .expect("a raised face is traced")
+                .iter()
+                .flatten()
+            {
+                let [middle, pace, _] = trace.at(0.5);
+                let left = pace.normalize().perp();
+                let inward = if flipped { -left } else { left };
+                assert_located(
+                    &body,
+                    face,
+                    &[
+                        (middle + inward * STEP, Location::Inside),
+                        (middle - inward * STEP, Location::Outside),
+                    ],
+                );
+            }
+        }
+    }
+}
+
+/// How far a point of a face stands from its nearest edge, on the surface.
+fn clearance(body: &Body, face: FaceId, at: DVec2) -> f64 {
+    let radius = match body.surface(body.face(face).surface) {
+        Surface::Cylinder(cylinder) => Some(cylinder.radius),
+        Surface::Plane(_) => None,
+    };
+    body.traces(face)
+        .expect("a raised face is traced")
+        .iter()
+        .flatten()
+        .map(|trace| distance::distance(trace, at, radius))
+        .fold(f64::INFINITY, f64::min)
+}
+
+#[test]
+fn the_point_inside_a_face_is_inside_and_well_away_from_its_edges() {
+    let mut bodies = raised_bodies();
+    bodies.extend([0.0, 3.0, -PI].map(band_cut_open));
+    for body in bodies {
+        for face in body.face_ids() {
+            let at = body
+                .point_inside(face)
+                .expect("a raised face is traced")
+                .expect("a face has an inside");
+            assert_located(&body, face, &[(at, Location::Inside)]);
+            let clear = clearance(&body, face, at);
+            assert!(
+                clear >= 2.5,
+                "{at} on face {face:?} is {clear} from an edge"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_sampled_cuts_heights_and_distances_agree_with_those_of_a_round() {
+    let round = Trace::Round {
+        center: DVec2::new(8.0, -1.0),
+        radius: 5.0,
+        start: 2.5,
+        sweep: -4.5,
+    };
+    let exact: Vec<f64> = crossing::stretches(&round, false)
+        .iter()
+        .skip(1)
+        .map(|stretch| stretch.from)
+        .collect();
+    let sampled = crossing::sampled(&round, false);
+    assert_eq!(exact.len(), sampled.len(), "{exact:?} against {sampled:?}");
+    for (exact, sampled) in exact.iter().zip(&sampled) {
+        assert!(
+            (exact - sampled).abs() <= CLOSE,
+            "{exact} against {sampled}"
+        );
+    }
+    for stretch in crossing::stretches(&round, false) {
+        let (start, end) = (stretch.start(), stretch.end());
+        let target = start + (end - start) * 0.3;
+        let heights = crossing::heights(&[vec![round]], target, false);
+        let bisected = crossing::bisected(&stretch, target);
+        assert!(
+            heights
+                .iter()
+                .any(|height| (height - bisected).abs() <= 1e-9),
+            "{bisected} is none of {heights:?}"
+        );
+    }
+    for at in [
+        DVec2::new(8.0, 3.0),
+        DVec2::new(14.0, -2.0),
+        DVec2::new(0.0, 0.0),
+    ] {
+        let exact = distance::distance(&round, at, None);
+        let sampled = distance::sampled(&round, at, None);
+        assert!((exact - sampled).abs() <= 1e-9, "{exact} against {sampled}");
+    }
+}
+
+#[test]
+fn a_trace_sampled_on_a_cylinder_is_cut_every_quarter_turn() {
+    let level = Trace::Segment {
+        from: DVec2::new(3.0, 2.0),
+        to: DVec2::new(3.0 - TAU, 2.0),
+    };
+    let cuts = crossing::sampled(&level, true);
+    assert_eq!(cuts.len(), 3);
+    for (index, cut) in cuts.iter().enumerate() {
+        assert!((cut - (index + 1) as f64 / 4.0).abs() <= CLOSE, "{cuts:?}");
+    }
+}
+
 #[test]
 fn the_loops_of_a_face_are_traces_that_follow_each_other_modulo_a_turn() {
     let plate = Contour::rectangle(DVec2::new(-20.0, -20.0), DVec2::new(20.0, 20.0));

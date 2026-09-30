@@ -23,6 +23,7 @@ mod trace;
 mod volume;
 
 pub use curve::{Circle, Curve, Line, Meet};
+pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use scale::Scale;
 pub use surface::{Cylinder, Plane, Surface};

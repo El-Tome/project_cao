@@ -54,6 +54,9 @@ impl Body {
         let lift = lifted.normal() * height.abs() / normal.length_squared();
         let scale = Scale::of(reach(outline, holes, frame, lift));
         let eps = scale.eps();
+        if lift.length() <= eps {
+            return Err(Declined::Travel);
+        }
         let read = |contour: &Contour, anticlockwise: bool| -> Result<Vec<Piece>, Declined> {
             let mut pieces = piece::pieces(contour, eps)?;
             if backwards {

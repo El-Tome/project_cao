@@ -335,3 +335,13 @@ fn an_arc_is_read_at_the_tolerance_of_the_body_it_makes_not_of_the_circle_it_run
         Err(Declined::Profile)
     );
 }
+
+#[test]
+fn a_travel_shorter_than_the_tolerance_is_declined() {
+    let block = Contour::rectangle(DVec2::ZERO, DVec2::ONE);
+    let raise = |travel| Body::raised(&block, &[], ground(), travel).map(|_| ());
+    let eps = crate::brep::scale::Scale::of(1.0).eps();
+    assert_eq!(raise(DVec3::Z * 1e-12), Err(Declined::Travel));
+    assert_eq!(raise(DVec3::Z * -0.5 * eps), Err(Declined::Travel));
+    assert_eq!(raise(DVec3::Z * 3.0 * eps), Ok(()));
+}

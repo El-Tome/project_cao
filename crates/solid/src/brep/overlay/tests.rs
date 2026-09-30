@@ -694,6 +694,25 @@ fn two_circles_bending_alike_that_set_off_with_a_side_are_ordered_by_where_they_
     assert!(cycles.is_ok(), "the circles are told apart");
 }
 
+/// The bounded regions of an overlay, each cycle read from its least arc.
+fn bounded_cycles(overlay: &Overlay) -> Vec<Vec<(usize, bool)>> {
+    let mut cycles: Vec<Vec<(usize, bool)>> = overlay
+        .regions
+        .iter()
+        .filter(|region| !region.unbounded)
+        .flat_map(|region| region.cycles.clone())
+        .map(|mut cycle| {
+            let first = (0..cycle.len())
+                .min_by_key(|&rank| cycle[rank])
+                .unwrap_or(0);
+            cycle.rotate_left(first);
+            cycle
+        })
+        .collect();
+    cycles.sort();
+    cycles
+}
+
 /// A side and a circle of radius sixty crossing it twice, eight thousandths
 /// apart: the sagitta between them is 1.3 tenths of a micron, above the
 /// tolerance of a reach of a hundred, so their pair was decided to cross and
@@ -718,23 +737,35 @@ fn a_circle_crossing_a_side_twice_a_hair_from_touching_it_bounds_a_lens_at_a_cor
         round(center, radius, end, start + TURN - end, Some([1, 0])),
     ];
     let overlay = Overlay::of(&vertices, &arcs, None).expect("the arcs are ordered");
-    let mut bounded: Vec<Vec<(usize, bool)>> = overlay
-        .regions
-        .iter()
-        .filter(|region| !region.unbounded)
-        .flat_map(|region| region.cycles.clone())
-        .map(|mut cycle| {
-            let first = (0..cycle.len())
-                .min_by_key(|&rank| cycle[rank])
-                .unwrap_or(0);
-            cycle.rotate_left(first);
-            cycle
-        })
-        .collect();
-    bounded.sort();
     assert_eq!(
-        bounded,
+        bounded_cycles(&overlay),
         vec![vec![(0, false), (1, true)], vec![(0, true), (2, true)]],
+        "{overlay:?}"
+    );
+}
+
+/// A circle of radius one touching a side at a corner of its own, and
+/// passing a hundred thousandth further on within the tolerance of the
+/// side's other corner, which it runs through: between the two corners the
+/// side and the circle bound a sliver. At the far corner the circle heads
+/// down to the side it touches at the near one, bending away from it: the
+/// circle sets off above the side, as it runs, though it points below it.
+#[test]
+fn a_circle_touching_a_side_at_the_next_corner_is_ordered_above_it_where_it_heads_down_to_it() {
+    let reach: f64 = 1e-5;
+    let center = [-reach, 1.0];
+    let bottom = -std::f64::consts::FRAC_PI_2;
+    let start = (-1.0_f64).atan2(reach);
+    let vertices = vec![DVec2::ZERO, DVec2::new(-reach, 0.0)];
+    let arcs = vec![
+        segment([0.0, 0.0], [-reach, 0.0], Some([0, 1])),
+        round(center, 1.0, start, bottom - start, Some([0, 1])),
+        round(center, 1.0, bottom, start - bottom - TURN, Some([1, 0])),
+    ];
+    let overlay = Overlay::of(&vertices, &arcs, None).expect("the arcs are ordered");
+    assert_eq!(
+        bounded_cycles(&overlay),
+        vec![vec![(0, false), (1, true)], vec![(1, false), (2, false)]],
         "{overlay:?}"
     );
 }

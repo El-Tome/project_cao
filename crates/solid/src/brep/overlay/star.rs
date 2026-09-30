@@ -1,6 +1,7 @@
 //! The arcs leaving each vertex, in turn round it, and the cycles they bound:
 //! each keeps what it bounds on its left.
 
+use std::cmp::Ordering;
 use std::f64::consts::{PI, TAU};
 
 use glam::DVec2;
@@ -87,19 +88,24 @@ fn stars(
             largest.max(point.abs().max_element())
         });
     let rounding = ROUNDING * largest;
-    let off = |at: DVec2, vertex: usize| {
+    let beside = |at: DVec2, vertex: usize| {
         let mut apart = at - vertices[vertex];
         if let Some(period) = period {
             apart.x -= (apart.x / period).round() * period;
         }
-        apart.length() + rounding
+        at - apart
     };
     let mut stars = vec![Vec::new(); count];
     for (rank, arc) in arcs.iter().enumerate() {
         if let Some([start, end]) = arc.ends {
             let [from, to] = [arc.trace.start(), arc.trace.end()];
-            stars[start].push(leaving(arcs, half(rank, true), rounding, off(from, start)));
-            stars[end].push(leaving(arcs, half(rank, false), rounding, off(to, end)));
+            stars[start].push(leaving(
+                arcs,
+                half(rank, true),
+                rounding,
+                beside(from, start),
+            ));
+            stars[end].push(leaving(arcs, half(rank, false), rounding, beside(to, end)));
         }
     }
     stars.into_iter().map(ordered).collect()
@@ -109,10 +115,11 @@ fn stars(
 /// may have turned that angle, how it bends from there, positive to its
 /// left, and a bend under which rounding hides it over its lever, where it
 /// is read off derivatives rather than given by a formula; how far
-/// the vertex stands from the arc's end, rounding included, and how long
-/// the arc runs; and how far its chord to a point a tenth of the way along
-/// turns from the angle it sets off at, which parts two arcs that set off
-/// together and bend alike, touching to a higher order.
+/// the vertex stands from the arc's end, rounding included; and how far its
+/// chord to a point a tenth of the way along turns from the angle it sets
+/// off at, which parts two arcs that set off together and bend alike,
+/// touching to a higher order. With them, the arc itself, how long it runs,
+/// and its vertex as it stands beside it, to see where it goes from there.
 #[derive(Clone, Copy)]
 struct Leaving {
     half: usize,
@@ -121,14 +128,18 @@ struct Leaving {
     bend: f64,
     flat: f64,
     off: f64,
-    length: f64,
     turn: f64,
+    trace: Trace,
+    forward: bool,
+    length: f64,
+    vertex: DVec2,
+    rounding: f64,
 }
 
 /// How far along an arc its chord is drawn to, as a share of the arc.
 const CHORD: f64 = 0.1;
 
-fn leaving(arcs: &[Arc], half: usize, rounding: f64, off: f64) -> Leaving {
+fn leaving(arcs: &[Arc], half: usize, rounding: f64, vertex: DVec2) -> Leaving {
     let (arc, forward) = arc_of(half);
     let trace = &arcs[arc].trace;
     let [start, first, second] = trace.at(if forward { 0.0 } else { 1.0 });
@@ -149,9 +160,13 @@ fn leaving(arcs: &[Arc], half: usize, rounding: f64, off: f64) -> Leaving {
             Trace::Graph { .. } => 2.0 * rounding / (lever * lever),
             Trace::Segment { .. } | Trace::Round { .. } => 0.0,
         },
-        off,
-        length: length(trace),
+        off: start.distance(vertex) + rounding,
         turn: (turned + PI).rem_euclid(TAU) - PI,
+        trace: *trace,
+        forward,
+        length: length(trace),
+        vertex,
+        rounding,
     }
 }
 
@@ -183,20 +198,41 @@ fn length(trace: &Trace) -> f64 {
 /// touch itself sits right on the bound. Two arcs whose directions part by
 /// less than that from rounding alone come nearer to touching than any
 /// tolerance, and were decided to touch.
-///
-/// Arcs parting by `a` and bending back towards each other meet again `2a/k`
-/// on. Where that is not well within the shorter of them, they touch
-/// nowhere: they cross there, at their next corner — a circle crossing a
-/// side twice a hair from touching it — and part by where they head.
 fn together(one: &Leaving, other: &Leaving) -> bool {
-    let apart = (other.angle - one.angle).abs();
-    let bent = (one.bend - other.bend).abs();
-    let touch = if 4.0 * apart <= bent * one.length.min(other.length) {
-        (2.0 * (one.off + other.off) * bent).sqrt()
-    } else {
-        0.0
-    };
-    apart <= ANGLE_TIE + one.blur + other.blur + 2.0 * touch
+    let touch = (2.0 * (one.off + other.off) * (one.bend - other.bend).abs()).sqrt();
+    (other.angle - one.angle).abs() <= ANGLE_TIE + one.blur + other.blur + 2.0 * touch
+}
+
+/// Whether two halves set off together as far as rounding can tell.
+fn tied(one: &Leaving, other: &Leaving) -> bool {
+    (other.angle - one.angle).abs() <= ANGLE_TIE + one.blur + other.blur
+}
+
+/// Where two halves setting off together stand as they run, seen from their
+/// vertex: the angles of the chords to where each is, half the shorter of
+/// them along, and no further than a bend turns either by a radian. Neither
+/// crosses the other before its next corner, so from there on each keeps
+/// the side it leaves on — which a corner standing off the touch of a
+/// circle and a side does not show at the corner itself, and a circle
+/// crossing the side twice a hair from touching it, towards where it heads,
+/// shows either. Nothing where rounding would blur that far.
+fn sides(one: &Leaving, other: &Leaving) -> Option<[f64; 2]> {
+    let bend = one.bend.abs().max(other.bend.abs());
+    let run = (0.5 * one.length.min(other.length)).min(1.0 / bend);
+    let [first, second] = [one, other].map(|leaving| seen(leaving, run));
+    ((second - first).abs() > CHORD_TIE + 2.0 * one.rounding.max(other.rounding) / run)
+        .then_some([first, second])
+}
+
+/// The angle of the chord from a half's vertex to where it stands once it
+/// has run `run`, read with its angle as it is unwrapped.
+fn seen(leaving: &Leaving, run: f64) -> f64 {
+    let share = (run / leaving.length).min(1.0);
+    let at = leaving
+        .trace
+        .at(if leaving.forward { share } else { 1.0 - share })[0];
+    let chord = at - leaving.vertex;
+    leaving.angle + (chord.y.atan2(chord.x) - leaving.angle + PI).rem_euclid(TAU) - PI
 }
 
 /// Two directions closer than this, in radians, set off together, even on
@@ -223,6 +259,26 @@ const CHORD_TIE: f64 = 1e-9;
 /// The angle of a half's chord, read with its angle as it is unwrapped.
 fn chord(leaving: &Leaving) -> f64 {
     leaving.angle + leaving.turn
+}
+
+/// Which of two halves in a group setting off together comes first
+/// counterclockwise, or nothing where they cannot be told apart. Parted
+/// from rounding only by a corner standing off them, they come in the order
+/// they stand in as they run; set off together from rounding alone, the
+/// one bending further left comes after, and of two bending alike, the one
+/// whose chord turns further left; two that are gathered only through a
+/// third part by where they head.
+fn counterclockwise(left: &Leaving, right: &Leaving) -> Option<Ordering> {
+    let touching = together(left, right) && !tied(left, right);
+    if let Some([one, other]) = touching.then(|| sides(left, right)).flatten() {
+        return Some(one.total_cmp(&other));
+    }
+    match (alike(left, right), together(left, right)) {
+        (false, _) => Some(left.bend.total_cmp(&right.bend)),
+        (true, false) => Some(left.angle.total_cmp(&right.angle)),
+        (true, true) => ((chord(right) - chord(left)).abs() > CHORD_TIE)
+            .then(|| chord(left).total_cmp(&chord(right))),
+    }
 }
 
 /// Counterclockwise by angle, an arc bending further left after one setting
@@ -255,18 +311,11 @@ fn ordered(mut star: Vec<Leaving>) -> Result<Vec<usize>, Declined> {
             end += 1;
         }
         let group = &mut star[start..end];
-        group.sort_by(
-            |left, right| match (alike(left, right), together(left, right)) {
-                (false, _) => left.bend.total_cmp(&right.bend),
-                (true, false) => left.angle.total_cmp(&right.angle),
-                (true, true) => chord(left).total_cmp(&chord(right)),
-            },
-        );
-        if group.windows(2).any(|pair| {
-            alike(&pair[0], &pair[1])
-                && together(&pair[0], &pair[1])
-                && (chord(&pair[1]) - chord(&pair[0])).abs() <= CHORD_TIE
-        }) {
+        group.sort_by(|left, right| counterclockwise(left, right).unwrap_or(Ordering::Equal));
+        if group
+            .windows(2)
+            .any(|pair| counterclockwise(&pair[0], &pair[1]).is_none())
+        {
             return Err(Declined::Tie);
         }
         order.extend(group.iter().map(|leaving| leaving.half));

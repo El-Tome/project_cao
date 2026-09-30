@@ -108,3 +108,15 @@ origin, from 0 to 10.
   vertex — as Parasolid holds it, and as the application will want to pick
   it — against the literal "its two vertices" of #498. A phantom vertex on a
   circle would be something the user can click on and that means nothing.
+
+### Day 2 — 2026-10-01
+
+- Campaign 2 ended at 00:57: 49 659 cases, **188 broke a rule (0.38 %),
+  against 1.91 % for campaign 1** — five times fewer. Answers 161,
+  Uncrossed 20, Listed 4, Closed 3; no Volume where campaign 1 had 375, and
+  still no Spans. What remains is mostly the kernel declining.
+
+| campaign | kernel | cases | broke a rule | per thousand |
+| --- | --- | --- | --- | --- |
+| 1 | 30 Sept., as first written | 51 298 | 980 | 19.1 |
+| 2 | after round 1 | 49 659 | 188 | 3.8 |

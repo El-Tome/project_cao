@@ -268,15 +268,17 @@ fn closed(mut pieces: Vec<Piece>, eps: f64) -> Result<Vec<Piece>, Declined> {
 /// passing twice through one corner, or a hole touching the outline there,
 /// would make two vertices of one point. A ring has no corner.
 pub(super) fn apart(contours: &[Vec<Piece>], eps: f64) -> bool {
-    let corners: Vec<DVec2> = contours
+    let mut corners: Vec<DVec2> = contours
         .iter()
         .filter(|pieces| !matches!(pieces.as_slice(), [ring] if ring.is_ring()))
         .flatten()
         .map(Piece::from)
         .collect();
+    corners.sort_by(|one, other| one.x.total_cmp(&other.x));
     corners.iter().enumerate().all(|(rank, corner)| {
         corners[rank + 1..]
             .iter()
+            .take_while(|other| other.x - corner.x <= eps)
             .all(|other| corner.distance(*other) > eps)
     })
 }

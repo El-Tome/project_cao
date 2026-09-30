@@ -18,7 +18,7 @@ use super::Declined;
 use super::combine::{Arena, Operands, Operation};
 use super::overlay::{Arc, Overlay, Region};
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
-use wrapped::wrapped;
+use wrapped::{covering, wound};
 
 pub(super) fn selected(
     operands: &Operands,
@@ -50,11 +50,16 @@ fn on(
             continue;
         }
         let point = geometry.point(region.inside);
-        let [first, second] = [0, 1].map(|operand| wrapped(operands, operand, surface, point));
-        let (first, second) = (first?, second?);
-        if !(first.covered || second.covered) {
+        let covered = [0, 1].map(|operand| covering(operands, operand, surface, point));
+        let covered = [covered[0]?, covered[1]?];
+        if covered.iter().all(Option::is_none) {
             continue;
         }
+        let [first, second] = [0, 1].map(|operand| match covered[operand] {
+            Some(wrapped) => Ok(wrapped),
+            None => wound(operands, operand, point),
+        });
+        let (first, second) = (first?, second?);
         let above = operation.holds(first.above >= 1, second.above >= 1);
         let below = operation.holds(first.below >= 1, second.below >= 1);
         if above != below {

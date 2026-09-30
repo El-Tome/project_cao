@@ -139,3 +139,18 @@ fn a_sliver_of_a_face_standing_a_hair_past_the_other_operand_s_face_on_its_plane
         vec![true]
     );
 }
+
+/// Seed 6000336 of the campaign: a slab under a tower, cut by a column at the
+/// tower's corner, flush with two of its sides and with the slab's bottom.
+/// The slab's top under the tower is covered by neither operand, and the
+/// point chosen inside it lies on the column's side: asking the column how
+/// it wraps the point was a tie, and nothing needed asking.
+#[test]
+fn a_region_neither_operand_covers_is_left_without_asking_either_how_it_wraps_it() {
+    let tower = block([6.0, 4.0, -2.0], [8.0, 6.0, 2.0]);
+    let slab = block([4.0, 2.0, -2.0], [10.0, 8.0, 0.0]);
+    let column = block([6.0, 5.0, -2.0], [7.0, 6.0, 3.0]);
+    let joined = tower.joined(&slab).expect("the tower stands on the slab");
+    let cut = joined.cut_by(&column);
+    assert!(cut.is_ok(), "{cut:?}");
+}

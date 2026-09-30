@@ -669,6 +669,31 @@ fn a_circle_leaving_a_corner_a_tolerance_short_of_touching_a_side_is_ordered_by_
     );
 }
 
+/// Seed 6000839 of the campaign: two circles of one radius, their centres
+/// three tenths of a micron apart, leave a corner beside a side both are
+/// tangent to within rounding. The side sets off with each, and orders
+/// against each by how they bend; the two circles bend alike, and part by
+/// their directions, which rounding cannot turn that far.
+#[test]
+fn two_circles_bending_alike_that_set_off_with_a_side_are_ordered_by_where_they_head() {
+    let hair = 3e-7;
+    let vertices = vec![
+        DVec2::ZERO,
+        DVec2::new(-10.0, 0.0),
+        DVec2::new(-hair - 60.0 * 0.1_f64.sin(), 60.0 * 0.1_f64.cos() - 60.0),
+        DVec2::new(-60.0 * 0.1_f64.sin(), 60.0 * 0.1_f64.cos() - 60.0),
+    ];
+    let top = std::f64::consts::FRAC_PI_2;
+    let aside = (hair / 60.0).atan();
+    let arcs = vec![
+        segment([0.0, 0.0], [-10.0, 0.0], Some([0, 1])),
+        round([-hair, -60.0], 60.0, top - aside, 0.1 + aside, Some([0, 2])),
+        round([0.0, -60.0], 60.0, top, 0.1, Some([0, 3])),
+    ];
+    let cycles = star::cycles(&arcs, &vertices, None);
+    assert!(cycles.is_ok(), "the circles are told apart");
+}
+
 #[test]
 fn a_sliver_a_hair_thick_between_two_sides_holds_a_point_of_its_own_inside_it() {
     for hair in [1e-7, 5e-9, 1e-10] {

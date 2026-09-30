@@ -673,7 +673,9 @@ fn a_circle_leaving_a_corner_a_tolerance_short_of_touching_a_side_is_ordered_by_
 /// three tenths of a micron apart, leave a corner beside a side both are
 /// tangent to within rounding. The side sets off with each, and orders
 /// against each by how they bend; the two circles bend alike, and part by
-/// their directions, which rounding cannot turn that far.
+/// their directions, which rounding cannot turn that far: the one tangent a
+/// hair along the side sets off above the other, and runs between it and
+/// the side.
 #[test]
 fn two_circles_bending_alike_that_set_off_with_a_side_are_ordered_by_where_they_head() {
     let hair = 3e-7;
@@ -690,8 +692,18 @@ fn two_circles_bending_alike_that_set_off_with_a_side_are_ordered_by_where_they_
         round([-hair, -60.0], 60.0, top - aside, 0.1 + aside, Some([0, 2])),
         round([0.0, -60.0], 60.0, top, 0.1, Some([0, 3])),
     ];
-    let cycles = star::cycles(&arcs, &vertices, None);
-    assert!(cycles.is_ok(), "the circles are told apart");
+    let cycles = star::cycles(&arcs, &vertices, None).expect("the circles are told apart");
+    assert_eq!(
+        cycles.list,
+        vec![vec![
+            (0, true),
+            (0, false),
+            (2, true),
+            (2, false),
+            (1, true),
+            (1, false)
+        ]]
+    );
 }
 
 /// The bounded regions of an overlay, each cycle read from its least arc.

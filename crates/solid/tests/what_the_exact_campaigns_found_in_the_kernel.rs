@@ -416,3 +416,44 @@ fn seed_6000839_two_posts_a_hair_apart_both_touching_a_block_s_side() {
         ],
     ));
 }
+
+/// A block given a post, then a second post of its radius six hundredths of
+/// a micron aside cut from above, touching nothing but the top. The two
+/// circles cross each other at a hair's angle three hundredths of a micron
+/// short of where the block's side meets the first at its lowest and its
+/// highest point; between each crossing and that corner they part by less
+/// than a billionth of a micron, under what rounding reads at a reach of
+/// eleven and a half.
+///
+/// The top came out with the lune between the two circles' halves inside
+/// the block listed twice, as two faces turned opposite ways: one runs round
+/// it counterclockwise, the other clockwise and through both crossings
+/// twice, taking in the slivers at each end. What that face sweeps the wrong
+/// way, 3e-7, is more than the room along it; the listing's check left it
+/// unjudged while it counted the room at every corner times its distance
+/// from where the face is read, and the campaign saw only the triangles
+/// left open. Two arcs between the same two corners closer than rounding
+/// are one edge, which no decision of the design makes yet.
+#[test]
+#[ignore = "sliver"]
+fn seed_7000099_two_posts_a_hair_apart_leave_the_top_a_face_running_backwards() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([6.0, 1.0], [9.0, 9.0]),
+            -5.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([9.0, 4.75], 2.5),
+                -5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([8.99999994, 4.75], 2.5),
+                4.0,
+            )),
+        ],
+    ));
+}

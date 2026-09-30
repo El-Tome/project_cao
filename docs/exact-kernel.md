@@ -37,8 +37,12 @@ The decisions, in the order taken, once per operation:
    the first's, never a body's surface with its own: planes one when parallel
    and their offsets within `EPS`; cylinders one when their axes are parallel,
    within `EPS` of each other over the box, and their radii within `EPS`. The
-   first operand's copy is kept. From here on, coplanar, coaxial and flush are
-   comparisons of ids.
+   first operand's copy is kept — the nearest, where two of the first's stand
+   within `EPS` — and a plane standing strictly between two planes of the
+   first within `EPS` of each is taken for neither: taken for one, it would
+   stand, as its own operand was made, across the strip of wall between the
+   two, where the boolean asks that operand which side a point is on. From
+   here on, coplanar, coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
@@ -85,10 +89,15 @@ surfaces decided tangent touch along: they stand within `EPS` of each other
 over a band far wider than it, so a corner on both lies on that line only
 within `EPS`. A line or a circle lying on a cylinder only because an arc of
 it was taken for the curve (decision 6) is seen there as the segment between
-where its ends stand. A triple of surfaces is
+where its ends stand. A corner whose support holds only planes, three of
+them spanning space, stands where they meet — each plane taken for another
+within `EPS`, the place they fix moves by more. A triple of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then
 any line against the third surface, then a circle, then the perpendicular
-curve. What remains are signs of exact evaluations with no tolerance at all —
+curve — which is crossed with a surface through the lines that surface makes
+with one of its two cylinders wherever it makes any, rather than by scanning
+it, since two cylinders crossing at a grazing angle stand within `EPS` of
+each other over millimetres of it. What remains are signs of exact evaluations with no tolerance at all —
 point in a face, order along a curve, order around a vertex — and the
 decisions above are what keep every point they are asked about away from a
 boundary.

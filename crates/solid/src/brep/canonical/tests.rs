@@ -221,6 +221,30 @@ fn a_surface_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest()
     assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
 }
 
+/// Seed 1008675 of the campaign: two blocks joined with their tops six tenths
+/// of a micron apart, more than the tolerance at a reach of 465, then a third
+/// whose top stands halfway between, within it of both. Taken for either,
+/// the third's top would stand, as the third was made, across the strip of
+/// wall between the two: it is taken for neither.
+#[test]
+fn a_surface_of_the_tool_between_two_of_the_body_s_within_the_tolerance_of_each_is_its_own() {
+    let scale = Scale::of(465.0);
+    let one = with_surfaces(vec![
+        plane_at(150.0, DVec3::Y),
+        plane_at(150.000_000_6, DVec3::Y),
+    ]);
+    let between = with_surfaces(vec![plane_at(150.000_000_3, DVec3::Y)]);
+    assert_eq!(
+        Surfaces::of(&one, &between, scale).mapped[1],
+        vec![(SurfaceId(2), true)]
+    );
+    let beyond = with_surfaces(vec![plane_at(150.000_000_8, DVec3::Y)]);
+    assert_eq!(
+        Surfaces::of(&one, &beyond, scale).mapped[1],
+        vec![(SurfaceId(1), true)]
+    );
+}
+
 /// Seed 243 of the campaign: a slit a tenth of a micron wide, left by a cut
 /// at a reach of 95, and a later cut reaching 198, whose tolerance is twice
 /// the slit.
@@ -371,6 +395,47 @@ fn a_corner_on_a_plane_and_a_cylinder_touching_it_lies_on_their_line_only_within
     assert!(!lies_on(corner, &on, touch, &registry, scale.eps()));
     let near = DVec3::new(105.0, 209.999_999_6, 180.0);
     assert!(lies_on(near, &on, touch, &registry, scale.eps()));
+}
+
+/// Seed 1026137 of the campaign: a block's side a boss touches a tenth of a
+/// micron off, within the tolerance at a reach of 110, and a corner an
+/// earlier cut left on the side, where another wall touched it five
+/// hundredths of a micron inside. The corner stands within the tolerance of
+/// the line the side and the boss touch along, and that line within it of
+/// the boss, but the corner not: it is not on the line.
+#[test]
+fn a_corner_within_the_tolerance_of_a_line_of_touch_but_not_of_both_surfaces_is_off_it() {
+    let scale = Scale::of(110.0);
+    let surfaces = vec![
+        plane_at(42.5, DVec3::Y),
+        Surface::Cylinder(Cylinder::about(
+            DVec3::new(0.0, 47.5, 25.0),
+            DVec3::X,
+            4.999_999_9,
+        )),
+    ];
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let [side, boss] = [0, 1].map(SurfaceId);
+    let touch = registry.register(
+        Curve::Line(Line::through(DVec3::new(0.0, 42.5, 25.0), DVec3::X)),
+        &[side, boss],
+    );
+    let corner = DVec3::new(10.000_000_1, 42.499_999_95, 25.0);
+    assert!(!lies_on(
+        corner,
+        &[side, boss],
+        touch,
+        &registry,
+        scale.eps()
+    ));
+    let on_both = DVec3::new(10.000_000_1, 42.500_000_05, 25.0);
+    assert!(lies_on(
+        on_both,
+        &[side, boss],
+        touch,
+        &registry,
+        scale.eps()
+    ));
 }
 
 /// Seed 1019570 of the campaign: a circle of radius 2.5 tangent to a block's

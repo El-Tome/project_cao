@@ -11,9 +11,14 @@
 //!
 //! Beside them, the pairs decision 2 finds touching: two such surfaces stand
 //! within the tolerance of each other over a band far wider than it, so that
-//! a place on both is not for that on the line they touch along.
+//! a place on both is not for that on the line they touch along — and the
+//! line, laid on one of them, may stand a hair off the other: a place within
+//! the tolerance of the line is on it only where it is within the tolerance
+//! of both surfaces too, which are kept here to be measured.
 
 use std::collections::BTreeSet;
+
+use glam::DVec3;
 
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -24,6 +29,7 @@ use crate::brep::topology::SurfaceId;
 pub(in crate::brep) struct Apart {
     pairs: BTreeSet<[SurfaceId; 2]>,
     touching: BTreeSet<[SurfaceId; 2]>,
+    surfaces: Vec<Surface>,
 }
 
 impl Apart {
@@ -44,7 +50,11 @@ impl Apart {
                 }
             }
         }
-        Apart { pairs, touching }
+        Apart {
+            pairs,
+            touching,
+            surfaces: surfaces.to_vec(),
+        }
     }
 
     pub fn pair(&self, one: SurfaceId, other: SurfaceId) -> bool {
@@ -54,6 +64,13 @@ impl Apart {
     /// Whether two surfaces were decided to touch along a line.
     pub fn touch(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.touching.contains(&[one.min(other), one.max(other)])
+    }
+
+    /// Whether a place stands within `eps` of a surface.
+    pub fn near(&self, surface: SurfaceId, point: DVec3, eps: f64) -> bool {
+        self.surfaces
+            .get(surface.0 as usize)
+            .is_none_or(|surface| surface.distance(point).abs() <= eps)
     }
 
     /// Whether a surface of `one` is apart from a surface of `other`.

@@ -138,8 +138,8 @@ fn on(
 /// A curve found on one surface alone — an edge between two faces of one
 /// surface an earlier operation left — is not fixed by its support, and a
 /// corner lies on it where it stands within the tolerance of it. Nor is the
-/// line two surfaces touch along: a corner on both lies on it only within
-/// the tolerance.
+/// line two surfaces touch along: a corner lies on it only within the
+/// tolerance of it and of both surfaces.
 pub(in crate::brep) fn lies_on(
     point: DVec3,
     support: &[SurfaceId],
@@ -161,7 +161,9 @@ pub(in crate::brep) fn lies_on(
     shared.iter().enumerate().any(|(index, &one)| {
         shared[index + 1..].iter().any(|&other| {
             if registry.apart.touch(one, other) {
-                return away <= eps;
+                return away <= eps
+                    && registry.apart.near(one, point, eps)
+                    && registry.apart.near(other, point, eps);
             }
             registry
                 .list

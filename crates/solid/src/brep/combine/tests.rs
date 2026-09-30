@@ -358,6 +358,30 @@ fn a_circle_running_within_the_tolerance_of_a_side_between_two_corners_is_that_s
     assert!(support_of(&laid, edge).contains(&wall));
 }
 
+/// Seed 1026137 of the campaign: a block cut by a block flush with its side
+/// and its bottom, both a twentieth of a micron off, within the tolerance at
+/// a reach of 65, and apart from its end. The tool's corner on its end, the
+/// side and the bottom kept the tool's own place, which the lines the block's
+/// side and bottom share with that end pass seven hundredths of a micron
+/// from: three planes whose normals span space fix one place, and a corner
+/// on them stands there.
+#[test]
+fn a_corner_on_three_planes_whose_normals_span_space_stands_where_they_meet() {
+    let block = standing_on(15.0, rectangle([7.5, 7.5], [42.5, 42.5]), 50.0);
+    let flush = along_x(
+        10.000_000_1,
+        rectangle(
+            [42.499_999_95, 14.999_999_95],
+            [62.500_000_05, 35.000_000_05],
+        ),
+        50.0,
+    );
+    let cut = block
+        .cut_by(&flush)
+        .expect("a block flush with a side is cut");
+    assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
+}
+
 /// Seed 1044340 of the campaign, shrunk: a bar lying along X, its axis on
 /// the top of a post lying along Y, is cut from the post. The post's wall
 /// inside the loop the two meet along and the bar's are both bounded by that

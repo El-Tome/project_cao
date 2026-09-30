@@ -27,7 +27,7 @@ impl Surfaces {
         let shared = list.len();
         let mut other = Vec::with_capacity(second.surfaces.len());
         for surface in &second.surfaces {
-            let same = list[..shared]
+            let alike: Vec<(f64, SurfaceId, bool)> = list[..shared]
                 .iter()
                 .enumerate()
                 .filter_map(|(rank, known)| match relation(known, surface, scale) {
@@ -36,7 +36,12 @@ impl Surfaces {
                     }
                     _ => None,
                 })
+                .collect();
+            let same = alike
+                .iter()
+                .copied()
                 .min_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)))
+                .filter(|_| !between(&list, &alike, surface, scale))
                 .map(|(_, rank, agree)| (rank, agree));
             other.push(same.unwrap_or_else(|| {
                 list.push(*surface);
@@ -49,6 +54,36 @@ impl Surfaces {
         }
     }
 }
+
+/// Whether a plane stands strictly between two planes of the first operand it
+/// is within the tolerance of: taken for either, it would stand, as its own
+/// operand was made, across the strip of wall between the two, where the
+/// boolean asks that operand which side a point is on.
+fn between(
+    list: &[Surface],
+    alike: &[(f64, SurfaceId, bool)],
+    surface: &Surface,
+    scale: Scale,
+) -> bool {
+    let Surface::Plane(plane) = surface else {
+        return false;
+    };
+    let rounding = scale.eps() * ROUNDING;
+    let sides: Vec<f64> = alike
+        .iter()
+        .filter_map(|(_, rank, _)| match &list[rank.0 as usize] {
+            Surface::Plane(known) => {
+                let facing = known.normal.dot(plane.normal).signum();
+                Some(facing * known.offset() - plane.offset())
+            }
+            Surface::Cylinder(_) => None,
+        })
+        .collect();
+    sides.iter().any(|side| *side > rounding) && sides.iter().any(|side| *side < -rounding)
+}
+
+/// Under this share of the tolerance, two offsets are one.
+const ROUNDING: f64 = 1e-6;
 
 /// How far apart two surfaces one within the tolerance stand: their offsets
 /// along the normal, or their axes and radii.

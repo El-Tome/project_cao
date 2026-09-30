@@ -1,9 +1,11 @@
 //! What a body is made of: arenas of vertices, edges and faces, each naming
 //! the others by rank.
 
+use std::f64::consts::PI;
+
 use glam::DVec3;
 
-use super::curve::Curve;
+use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
@@ -112,6 +114,50 @@ impl Body {
         self.curve(self.edge(edge).curve).point(t)
     }
 
+    /// The parameter of a point lying on an edge, in the stretch the edge
+    /// runs over: an arc may run past the end of its circle's first period,
+    /// where the curve alone would give the point a turn less.
+    pub fn parameter_on(&self, edge: EdgeId, point: DVec3) -> f64 {
+        let stretch = self.edge(edge);
+        let curve = self.curve(stretch.curve);
+        let t = curve.parameter(point);
+        match curve.period() {
+            Some(period) => {
+                let middle = (stretch.from + stretch.to) / 2.0;
+                t + period * ((middle - t) / period).round()
+            }
+            None => t,
+        }
+    }
+
+    /// The largest coordinate, in absolute value, any point of the body
+    /// reaches: what its scale is taken against.
+    pub fn reach(&self) -> f64 {
+        let corners = self.vertices.iter().map(|vertex| vertex.point);
+        let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
+        corners
+            .chain(arcs)
+            .map(|point| point.abs().max_element())
+            .fold(0.0, f64::max)
+    }
+
+    /// The points of an edge where a coordinate is largest or smallest.
+    fn extremes(&self, edge: &Edge) -> Vec<DVec3> {
+        let curve = self.curve(edge.curve);
+        let mut found = vec![curve.point(edge.from), curve.point(edge.to)];
+        match curve {
+            Curve::Line(_) => {}
+            Curve::Circle(circle) => found.extend(turning_points(circle, edge.from, edge.to)),
+            Curve::Meet(_) => {
+                const SAMPLES: usize = 64;
+                let step = (edge.to - edge.from) / SAMPLES as f64;
+                found
+                    .extend((1..SAMPLES).map(|index| curve.point(edge.from + step * index as f64)));
+            }
+        }
+        found
+    }
+
     /// The faces using an edge, and which way each runs along it.
     pub fn uses(&self, edge: EdgeId) -> Vec<(FaceId, bool)> {
         self.face_ids()
@@ -126,3 +172,19 @@ impl Body {
             .collect()
     }
 }
+
+/// The points of a circle, between two of its parameters, where a coordinate
+/// is largest or smallest.
+pub(super) fn turning_points(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
+    let mut found = Vec::new();
+    for axis in 0..3 {
+        let phase = circle.v[axis].atan2(circle.u[axis]);
+        let first = ((from - phase) / PI).ceil() as i64;
+        let last = ((to - phase) / PI).floor() as i64;
+        found.extend((first..=last).map(|turn| circle.point(phase + turn as f64 * PI)));
+    }
+    found
+}
+
+#[cfg(test)]
+mod tests;

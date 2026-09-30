@@ -1,6 +1,8 @@
 //! What a body is made of: arenas of vertices, edges and faces, each naming
 //! the others by rank.
 
+use std::f64::consts::PI;
+
 use glam::DVec3;
 
 use super::curve::Curve;
@@ -110,6 +112,41 @@ impl Body {
     /// The point of an edge at its parameter `t`.
     pub fn point_on(&self, edge: EdgeId, t: f64) -> DVec3 {
         self.curve(self.edge(edge).curve).point(t)
+    }
+
+    /// The largest coordinate, in absolute value, any point of the body
+    /// reaches: what its scale is taken against.
+    pub fn reach(&self) -> f64 {
+        let corners = self.vertices.iter().map(|vertex| vertex.point);
+        let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
+        corners
+            .chain(arcs)
+            .map(|point| point.abs().max_element())
+            .fold(0.0, f64::max)
+    }
+
+    /// The points of an edge where a coordinate is largest or smallest.
+    fn extremes(&self, edge: &Edge) -> Vec<DVec3> {
+        let curve = self.curve(edge.curve);
+        let mut found = vec![curve.point(edge.from), curve.point(edge.to)];
+        match curve {
+            Curve::Line(_) => {}
+            Curve::Circle(circle) => {
+                for axis in 0..3 {
+                    let phase = circle.v[axis].atan2(circle.u[axis]);
+                    let first = ((edge.from - phase) / PI).ceil() as i64;
+                    let last = ((edge.to - phase) / PI).floor() as i64;
+                    found.extend((first..=last).map(|turn| circle.point(phase + turn as f64 * PI)));
+                }
+            }
+            Curve::Meet(_) => {
+                const SAMPLES: usize = 64;
+                let step = (edge.to - edge.from) / SAMPLES as f64;
+                found
+                    .extend((1..SAMPLES).map(|index| curve.point(edge.from + step * index as f64)));
+            }
+        }
+        found
     }
 
     /// The faces using an edge, and which way each runs along it.

@@ -12,6 +12,10 @@
 //!   broken on purpose — `a_part_whose_undo_leaves_the_matter_standing_is_caught`
 //! - a broken part prints as Rust that pastes into a named test —
 //!   `a_part_prints_as_the_rust_that_builds_it`
+//! - the cases a campaign finds come back as named tests, ignored until their
+//!   issue is fixed — `a_quarter_turn_backwards_undoes_every_gesture`,
+//!   `two_rectangles_whose_sides_lie_along_each_other_are_raised_one_at_a_time`,
+//!   `a_block_raised_beside_a_turned_circle_answers_within_the_patience`
 //!
 //! The campaign is run by hand, like the one over solids:
 //!
@@ -28,7 +32,7 @@ use cao_part::PartDocument;
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 use cao_sketch::{SketchAxis, WorkPlane};
 use cao_solid::soundness::{
-    Check, Flaw, Random, Report, Triangle, campaign, closed, first_difference, repeatable,
+    Check, Flaw, Random, Report, Triangle, answer, campaign, closed, first_difference, repeatable,
     uncrossed,
 };
 use glam::{DVec2, DVec3};
@@ -465,6 +469,80 @@ fn the_same_seed_draws_the_same_part() {
     for seed in 0..100 {
         assert_eq!(drawn(seed), drawn(seed));
     }
+}
+
+#[test]
+#[ignore = "#486"]
+fn a_quarter_turn_backwards_undoes_every_gesture() {
+    assert_eq!(
+        undoes(&[
+            Move::Sketch(Origin::Xy),
+            Move::Rectangle {
+                low: [1.0, 0.0],
+                high: [2.0, 1.0],
+            },
+            Move::Turn {
+                at: [1.5, 0.5],
+                about: SketchAxis::V,
+                degrees: -45.0,
+                cut: false,
+            },
+        ]),
+        Ok(())
+    );
+}
+
+#[test]
+#[ignore = "#493"]
+fn two_rectangles_whose_sides_lie_along_each_other_are_raised_one_at_a_time() {
+    assert_eq!(
+        undoes(&[
+            Move::Sketch(Origin::Xy),
+            Move::Rectangle {
+                low: [0.0, 0.0],
+                high: [1.0, 2.0],
+            },
+            Move::Rectangle {
+                low: [1.0, 1.0],
+                high: [2.0, 3.0],
+            },
+            Move::Raise {
+                at: [1.5, 2.0],
+                depth: 1.0,
+                cut: false,
+            },
+        ]),
+        Ok(())
+    );
+}
+
+#[test]
+#[ignore = "#492"]
+fn a_block_raised_beside_a_turned_circle_answers_within_the_patience() {
+    let check: Check<Vec<Move>> = Arc::new(|gestures: &Vec<Move>| undoes(gestures));
+    let gestures = vec![
+        Move::Sketch(Origin::Xy),
+        Move::Circle {
+            center: [16.0, 16.0],
+            radius: 2.5,
+        },
+        Move::Turn {
+            at: [16.0, 16.0],
+            about: SketchAxis::U,
+            degrees: 360.0,
+            cut: false,
+        },
+        Move::Rectangle {
+            low: [1.0, 20.0],
+            high: [12.0, 23.0],
+        },
+        Move::Raise {
+            at: [6.5, 21.5],
+            depth: 1.0,
+            cut: false,
+        },
+    ];
+    assert_eq!(answer(gestures, &check, Duration::from_secs(5)), Ok(()));
 }
 
 fn from_the_environment(name: &str) -> Option<u64> {

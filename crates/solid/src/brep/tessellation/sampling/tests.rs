@@ -474,6 +474,43 @@ fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds
 }
 
 #[test]
+fn no_sample_of_an_arc_stands_so_near_its_end_that_it_lies_on_a_plane_touching_the_wall_there() {
+    let mut build = fixtures::Build::new();
+    let radius = 1.5;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let start = build.vertex(DVec3::X * radius);
+    let end = build.vertex(DVec3::Y * radius);
+    let arc = build.arc(wall, 0.0, start, end);
+    let hair: f64 = 3e-8;
+    let near = build.vertex(DVec3::new(hair.cos(), hair.sin(), 0.0) * radius + DVec3::Z * 5.0);
+    let through = build.circle(wall, 5.0, Some(near));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(wall, false, vec![vec![use_of(arc, true)]]);
+    build.face(wall, false, vec![vec![use_of(through, true)]]);
+    let beside = [
+        DVec3::new(radius, -1.0, 0.0),
+        DVec3::new(radius, -1.0, 1.0),
+        DVec3::new(radius, 0.0, 1.0),
+    ]
+    .map(|point| build.vertex(point));
+    build.polygon(&[start, beside[0], beside[1], beside[2]], DVec3::X);
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    let touching = |point: DVec3| (radius - point.x).abs();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let ids = samples.edge(arc);
+        for id in &ids[1..ids.len() - 1] {
+            let point = samples.point(*id);
+            assert!(
+                touching(point) >= eps * APART,
+                "{point} lies on the plane x = {radius} within {tolerance}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_ring_is_sampled_at_the_angle_of_a_corner_standing_inside_its_wall_closer_than_a_chord_sags() {
     let mut build = fixtures::Build::new();
     let radius = fixtures::STOCK_RADIUS;

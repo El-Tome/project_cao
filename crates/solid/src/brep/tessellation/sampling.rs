@@ -28,7 +28,9 @@ use glam::DVec3;
 
 use super::contact::{self, Contact};
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::topology::{Body, Edge, EdgeId};
+use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
+use crate::brep::topology::{Body, Edge, EdgeId, VertexId};
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -93,7 +95,8 @@ impl Samples {
                         .find(|(_, wall)| contact::lies_on(circle, wall, eps))
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
-                    on_circle(circle, edge, tolerance, eps, contact)
+                    let touched = touched_ends(body, circle, edge);
+                    on_circle(circle, edge, tolerance, eps, contact, touched)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
@@ -127,23 +130,30 @@ impl Samples {
 
 /// The points of a circle's edge between its ends, in the way the edge runs:
 /// on the grid but for the steps its contact withholds, and along the rays it
-/// adds. A place closer than `eps` to an end is that end, and to a grid angle
-/// that angle.
+/// adds. A place closer than `eps` to a grid angle is that angle, and to an
+/// end that end — or, at an end a plane touches the wall at, a place so near
+/// it that the circle there stands within a fifth of `eps` of the plane: the
+/// sample would lie on the plane's edge.
 fn on_circle(
     circle: &Circle,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
     contact: &Contact,
+    touched: [bool; 2],
 ) -> Vec<DVec3> {
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
+    let beside_end = gap.max((2.0 * eps * contact::APART / circle.radius).sqrt());
+    let [at_from, at_to] = touched.map(|touched| if touched { beside_end } else { gap });
     let whole = edge.ends.is_none();
     let (low, high) = if whole {
         (edge.from, edge.from + TAU)
+    } else if edge.from <= edge.to {
+        (edge.from + at_from, edge.to - at_to)
     } else {
-        (edge.from.min(edge.to) + gap, edge.from.max(edge.to) - gap)
+        (edge.to + at_to, edge.from - at_from)
     };
     let inside = |at: f64| {
         if whole {
@@ -213,6 +223,25 @@ fn on_circle(
             None => circle.point(angle),
         })
         .collect()
+}
+
+/// Whether each end of a circle's edge, its start then its end, is a vertex
+/// lying on a plane that touches the circle's wall there.
+fn touched_ends(body: &Body, circle: &Circle, edge: &Edge) -> [bool; 2] {
+    let eps = body.scale().eps();
+    let touches = |vertex: VertexId| {
+        body.vertex(vertex)
+            .on
+            .iter()
+            .any(|surface| match body.surface(*surface) {
+                Surface::Plane(plane) => {
+                    plane.normal.dot(circle.axis).abs() <= Scale::RELATIVE
+                        && (plane.distance(circle.center).abs() - circle.radius).abs() <= eps
+                }
+                Surface::Cylinder(_) => false,
+            })
+    };
+    edge.ends.map_or([false; 2], |ends| ends.map(touches))
 }
 
 #[cfg(test)]

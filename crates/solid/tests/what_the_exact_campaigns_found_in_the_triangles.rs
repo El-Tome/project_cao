@@ -270,19 +270,9 @@ fn seed_6000349_two_lying_cylinders_barely_apart_leave_their_sliver_drawn_closed
     ));
 }
 
-/// The boss, of radius 1.5 about (8.00000002, 3), touches the block's top at
-/// its highest point, a vertex; the cylinder it swallows, of radius
-/// 1.49999998 about (8, 3), stands 2e-8 below that top. The two share their
-/// rays, and the smaller one's grid step at the top, 2e-8 from the plane and
-/// so kept, puts a sample on the boss 2e-8 along its circle from the vertex,
-/// which is 1e-16 from the top's edge: on it, for the sweep of the front
-/// face, which is left open. A sample within a fifth of the kernel's
-/// tolerance of a plane touching its wall, but on the line they touch along,
-/// should be left out of both walls, as beside a wall it touches; the rule
-/// is not written yet.
 #[test]
-#[ignore = "tangency"]
-fn seed_7000204_a_boss_barely_off_a_cylinder_of_one_radius_leaves_the_block_closed() {
+fn seed_7000204_a_boss_touching_the_block_s_top_beside_a_cylinder_a_hair_inside_it_leaves_the_front_closed()
+ {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
             Plane::xz(-2.0),

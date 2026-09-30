@@ -341,6 +341,68 @@ pub(crate) fn equal_cylinders_crossed() -> Body {
     build.finish(EQUAL_REACH)
 }
 
+/// The post of `equal_cylinders_crossed` bored through by its beam: the post
+/// keeps its wall above and below the ellipses as when joined, and the
+/// beam's wall inside the post, whose matter lies outside it, is two faces,
+/// above the post's axis and below, each a lens pinched to both nodes. Beside
+/// a node the post's wall and the beam's lie over each other, parting only
+/// as the square of the distance from it.
+pub(crate) fn equal_cylinders_bored() -> Body {
+    let mut build = Build::new();
+    let post = build.cylinder(DVec3::ZERO, DVec3::Z, EQUAL);
+    let beam = build.cylinder(DVec3::ZERO, DVec3::X, EQUAL);
+    let meeting = build.meeting(post, beam, EQUAL_REACH);
+    assert_eq!(meeting.configuration, Configuration::TwoEllipses);
+    let [south, north] = [0, 1].map(|node| build.vertex(meeting.nodes[node].point));
+    let mut between = |component: usize| {
+        let meet = meeting.components[component];
+        [
+            build.meet_edge(meet, Some([south, north]), 0.0, PI),
+            build.meet_edge(meet, Some([north, south]), PI, TAU),
+        ]
+    };
+    let [upper_east, lower_west] = between(0);
+    let [lower_east, upper_west] = between(1);
+    let post_top = build.circle(post, EQUAL_REACH, None);
+    let post_bottom = build.circle(post, -EQUAL_REACH, None);
+
+    let lap = |uses: &[(EdgeId, bool)]| uses.iter().map(|&(e, f)| use_of(e, f)).collect();
+    build.face(
+        post,
+        false,
+        vec![
+            lap(&[(upper_east, true), (upper_west, true)]),
+            lap(&[(post_top, false)]),
+        ],
+    );
+    build.face(
+        post,
+        false,
+        vec![
+            lap(&[(lower_east, false), (lower_west, false)]),
+            lap(&[(post_bottom, true)]),
+        ],
+    );
+    build.face(
+        beam,
+        true,
+        vec![lap(&[(upper_east, false), (upper_west, false)])],
+    );
+    build.face(
+        beam,
+        true,
+        vec![lap(&[(lower_east, true), (lower_west, true)])],
+    );
+    for (ring, way, forward) in [
+        (post_top, DVec3::Z, true),
+        (post_bottom, DVec3::NEG_Z, false),
+    ] {
+        let (cap, flipped) = build.plane(way * EQUAL_REACH, way);
+        build.face(cap, flipped, vec![lap(&[(ring, forward)])]);
+    }
+    build.finish(EQUAL_REACH)
+}
+
 /// The radius of the bore whose wall touches the stock's from inside.
 pub(crate) const TOUCHING: f64 = 3.0;
 

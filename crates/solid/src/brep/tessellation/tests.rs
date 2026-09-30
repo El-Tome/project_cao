@@ -120,14 +120,11 @@ fn a_hole_tangent_inside_the_stock_stays_uncrossed_however_fine_or_coarse_the_gr
 
 #[test]
 fn the_same_body_is_drawn_twice_to_the_same_bits() {
-    for body in [
+    let by_hand = [
         fixtures::stock_with_a_tangent_hole(),
         fixtures::block_with_a_lying_cylinder(),
-        across::stock_bored_flush_across(),
-        across::stock_crossed(),
-        across::equal_cylinders_crossed(),
-        across::stock_bored_touching_its_wall(),
-    ] {
+    ];
+    for body in by_hand.into_iter().chain(bounded_by_meets()) {
         let first = body.triangles(DRAWN);
         crate::soundness::repeatable(&first, &body.triangles(DRAWN)).expect("the same bits");
     }
@@ -508,18 +505,73 @@ fn deepest_of_any_wall(body: &Body, triangles: &[[DVec3; 3]]) -> f64 {
 
 #[test]
 fn no_triangle_of_a_wall_a_meet_bounds_stands_further_inside_its_cylinder_than_the_tolerance() {
-    for body in [
-        across::stock_bored_across(3.0, DVec3::X),
-        across::stock_bored_flush_across(),
-        across::stock_crossed(),
-        across::equal_cylinders_crossed(),
-        across::stock_bored_touching_its_wall(),
-    ] {
+    for body in bounded_by_meets() {
         for tolerance in [3e-3, DRAWN, 0.5] {
             let deepest = deepest_of_any_wall(&body, &body.triangles(tolerance));
             assert!(
                 deepest > 0.0 && deepest <= tolerance,
                 "{deepest} inside a wall within {tolerance}"
+            );
+        }
+    }
+}
+
+/// Every body built by hand whose faces the curve two cylinders meet along
+/// bounds, near a touch or far from one.
+fn bounded_by_meets() -> Vec<Body> {
+    let near = fixtures::STOCK_RADIUS - across::TOUCHING;
+    vec![
+        across::stock_bored_across(3.0, DVec3::X),
+        across::stock_bored_flush_across(),
+        across::stock_crossed(),
+        across::equal_cylinders_crossed(),
+        across::equal_cylinders_bored(),
+        across::stock_bored_touching_its_wall(),
+        across::stock_bored_across_at(across::TOUCHING, DVec3::X, near - 1e-3),
+        across::stock_bored_through_its_wall(near + 1e-3),
+    ]
+}
+
+/// How many steps of its cylinder's grid the widest triangle of a wall spans
+/// round its axis: a triangle whose corners all lie on two cylinders is held
+/// to the one it stays closest to.
+fn widest_in_steps(body: &Body, triangles: &[[DVec3; 3]], tolerance: f64) -> f64 {
+    let cylinders: Vec<Cylinder> = body
+        .surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Cylinder(cylinder) => Some(*cylinder),
+            Surface::Plane(_) => None,
+        })
+        .collect();
+    let mut widest = 0.0f64;
+    for corners in triangles {
+        let held_to = cylinders
+            .iter()
+            .filter_map(|cylinder| Some((depth_in(corners, cylinder)?, cylinder)))
+            .min_by(|one, other| one.0.total_cmp(&other.0));
+        let Some((_, cylinder)) = held_to else {
+            continue;
+        };
+        let angles = corners.map(|corner| cylinder.parameters(corner).x);
+        let apart = |one: f64, other: f64| (one - other + PI).rem_euclid(TAU) - PI;
+        let span = (0..3)
+            .map(|at| apart(angles[at], angles[(at + 1) % 3]).abs())
+            .fold(0.0, f64::max);
+        let step = TAU / super::sampling::divisions(cylinder.radius, tolerance) as f64;
+        widest = widest.max(span / step);
+    }
+    widest
+}
+
+#[test]
+fn no_triangle_of_a_wall_a_meet_bounds_spans_more_than_one_step_of_its_grid() {
+    for body in bounded_by_meets() {
+        for tolerance in [1e-3, DRAWN, 0.5, 10.0] {
+            let widest = widest_in_steps(&body, &body.triangles(tolerance), tolerance);
+            assert!(
+                widest > 0.0 && widest <= 1.0 + 1e-9,
+                "a triangle spans {widest} steps within {tolerance}"
             );
         }
     }
@@ -533,6 +585,20 @@ fn two_equal_cylinders_crossing_are_drawn_closed_and_uncrossed_where_their_walls
     let body = across::equal_cylinders_crossed();
     listed(&body);
     let volume = holds(&body, 2.0 * each - across::common(radius, radius, 0.0));
+    for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
+        held(&body, tolerance, volume, area);
+    }
+}
+
+#[test]
+fn a_cylinder_bored_through_by_an_equal_one_is_drawn_closed_and_uncrossed_where_their_walls_touch()
+{
+    let (radius, reach) = (across::EQUAL, across::EQUAL_REACH);
+    let post = fixtures::disc_volume(radius, 2.0 * reach);
+    let area = TAU * radius * 2.0 * reach + TAU * radius * 2.0 * radius;
+    let body = across::equal_cylinders_bored();
+    listed(&body);
+    let volume = holds(&body, post - across::common(radius, radius, 0.0));
     for tolerance in [1e-6, 1e-3, DRAWN, 0.5, 10.0] {
         held(&body, tolerance, volume, area);
     }

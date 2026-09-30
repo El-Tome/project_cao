@@ -136,13 +136,18 @@ What it does: [`sketch.md`](sketch.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | Mesh, faces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruding an area into a prism | `solid/src/mesh.rs` | `prism(...)` |
-| Turning an area around an axis | `solid/src/mesh.rs` | `revolution(...)` |
+| Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)` |
+| Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
-| Keeping only what lies behind a plane, for looking rather than for cutting | `solid/src/clipping.rs` | `Mesh::behind` |
+| The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign` |
+| Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
+| A campaign over random solids | `solid/tests/every_solid_keeps_its_rules.rs` | `a_campaign_of_random_solids_keeps_every_rule` |
+| A campaign over random parts, every gesture undone | `part/tests/an_undo_gives_back_the_part.rs` | `undoes` |
+| What the campaigns found, waiting on their issues | `solid/tests/what_random_solids_found.rs` | `#[ignore = "#n"]` |
 
-What it does: [`extrusion.md`](extrusion.md).
+What it does: [`extrusion.md`](extrusion.md), and for the rules and the
+campaigns [`soundness.md`](soundness.md).
 
 ## History and persistence — `cao_part`
 

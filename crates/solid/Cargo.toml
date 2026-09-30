@@ -7,3 +7,12 @@ license.workspace = true
 [dependencies]
 glam.workspace = true
 serde.workspace = true
+
+[features]
+# The rules every solid must keep, for the tests of the crates above this one.
+# The application never checks its own solids at run time.
+test-support = []
+
+# The crate itself, with the rules switched on, for its integration tests.
+[dev-dependencies]
+cao_solid = { path = ".", features = ["test-support"] }

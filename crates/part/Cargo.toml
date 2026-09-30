@@ -21,3 +21,6 @@ thiserror.workspace = true
 [[example]]
 name = "draw_a_part"
 required-features = ["test-support"]
+
+[dev-dependencies]
+cao_solid = { path = "../solid", features = ["test-support"] }

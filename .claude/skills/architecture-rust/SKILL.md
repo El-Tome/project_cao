@@ -47,7 +47,11 @@ the platform once, at startup, and hands the answer down as a `Locations`.
 every table that declares an edge — `[dev-dependencies]` and
 `[target.'cfg(…)'.dependencies]` alongside `[dependencies]` — so `egui` under
 `[dev-dependencies]` of a crate below the shell fails the same way it would
-above the line. Only `cao_render` and `cao_prefs` declare any today.
+above the line. A crate naming **itself** there is the one exception, and it is
+not a dependency: `cao_solid` does it to switch its `test-support` rules on for
+its own integration tests (#448), and the test leaves a crate's own name out of
+what it reaches for. `cao_part` names `cao_solid` again there for the same
+feature, an edge it already had.
 
 **No crate below `cao_app` depends on a UI crate, and that is not
 negotiable**: it is the condition for a future tablet or web front-end to reuse

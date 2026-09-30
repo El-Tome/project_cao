@@ -5,6 +5,8 @@
 mod boolean;
 mod clipping;
 mod mesh;
+#[cfg(any(test, feature = "test-support"))]
+pub mod soundness;
 mod sweep;
 
 pub use mesh::{FaceHit, Mesh, Polygon};

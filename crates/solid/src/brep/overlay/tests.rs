@@ -1085,15 +1085,16 @@ fn meet_between_ends(one: [Cell; 2], other: [Cell; 2]) -> bool {
 }
 
 /// A drawing grown at random on a grid: straight arcs between grid points,
-/// slanted as often as not, meeting only at their ends; then rounds, whole
-/// or bulging between two grid points, kept clear of everything but the
-/// ends they share. On a cylinder the grid closes on itself after `cells`.
+/// slanted as often as not, meeting only at their ends; then rounds, whole,
+/// bulging between two grid points or hung tangent on a side at one of its
+/// ends, kept clear of everything but the ends they share. On a cylinder the
+/// grid closes on itself after `cells`.
 struct Web {
     drawing: Drawing,
     cells: Option<i64>,
     step: f64,
     corners: std::collections::BTreeMap<Cell, usize>,
-    sides: Vec<[Cell; 2]>,
+    sides: Vec<([Cell; 2], usize)>,
     rounds: Vec<(Vec<DVec2>, Option<[usize; 2]>)>,
     links: Vec<([usize; 2], i64)>,
     closed: usize,
@@ -1154,7 +1155,7 @@ impl Web {
             return;
         }
         let shifts = self.cells.map_or(vec![0], |cells| vec![-cells, 0, cells]);
-        let clashes = self.sides.iter().any(|&[one, other]| {
+        let clashes = self.sides.iter().any(|&([one, other], _)| {
             shifts.iter().any(|&shift| {
                 let moved = [(one.0 + shift, one.1), (other.0 + shift, other.1)];
                 meet_between_ends([from, to], moved)
@@ -1168,8 +1169,8 @@ impl Web {
             from: self.at(from),
             to: self.at(to),
         };
-        self.drawing.arc(trace, Some(ends));
-        self.sides.push([from, to]);
+        let arc = self.drawing.arc(trace, Some(ends));
+        self.sides.push(([from, to], arc));
     }
 
     fn apart(&self, one: DVec2, other: DVec2) -> f64 {
@@ -1181,11 +1182,13 @@ impl Web {
     }
 
     /// Whether a round through `samples`, ending at `ends`, keeps clear of
-    /// every arc and corner drawn: near an end it shares, only of the arcs
-    /// that do not reach that end, and leaving it well apart from those
-    /// that do.
-    fn clear(&self, samples: &[DVec2], ends: Option<[usize; 2]>) -> bool {
-        const NEAR: f64 = 0.05;
+    /// every arc and corner drawn, far enough for the regions between them
+    /// to hold a point clear of both: near an end it shares, only of the
+    /// arcs that do not reach that end, and leaving it well apart from those
+    /// that do; along the side it is hung on, only away from where it
+    /// touches it.
+    fn clear(&self, samples: &[DVec2], ends: Option<[usize; 2]>, hung: Option<Hang>) -> bool {
+        const NEAR: f64 = 0.12;
         const SHARED: f64 = 0.08;
         let shared = ends.map_or(Vec::new(), |ends| ends.to_vec());
         let excused = |sample: DVec2, reaches: &[usize]| {
@@ -1193,7 +1196,13 @@ impl Web {
                 shared.contains(&end) && self.apart(sample, self.drawing.vertices[end]) < SHARED
             })
         };
-        let sides_clear = self.sides.iter().all(|&[one, other]| {
+        let hugged = |sample: DVec2, arc: usize| {
+            hung.is_some_and(|hang| {
+                hang.side == arc
+                    && self.apart(sample, self.drawing.vertices[hang.corner]) < hang.reach
+            })
+        };
+        let sides_clear = self.sides.iter().all(|&([one, other], arc)| {
             let reaches = [
                 self.corners[&self.turns(one).0],
                 self.corners[&self.turns(other).0],
@@ -1201,6 +1210,7 @@ impl Web {
             let (from, to) = (self.at(one), self.at(other));
             samples.iter().all(|&sample| {
                 excused(sample, &reaches)
+                    || hugged(sample, arc)
                     || distance_to_side(sample, from, to, self.period()) > NEAR
             })
         });
@@ -1217,12 +1227,19 @@ impl Web {
                     .iter()
                     .all(|&sample| self.apart(sample, self.drawing.vertices[corner]) > NEAR)
         });
-        sides_clear && rounds_clear && corners_clear && self.leaves_apart(samples, ends)
+        let hugging = hung.map(|hang| hang.side);
+        sides_clear && rounds_clear && corners_clear && self.leaves_apart(samples, ends, hugging)
     }
 
     /// Whether a round leaves each end it shares at least half a radian
-    /// away from every arc already leaving that end.
-    fn leaves_apart(&self, samples: &[DVec2], ends: Option<[usize; 2]>) -> bool {
+    /// away from every arc already leaving that end, but the one it is hung
+    /// on.
+    fn leaves_apart(
+        &self,
+        samples: &[DVec2],
+        ends: Option<[usize; 2]>,
+        hugging: Option<usize>,
+    ) -> bool {
         let Some([first, last]) = ends else {
             return true;
         };
@@ -1235,10 +1252,13 @@ impl Web {
             ),
         ];
         mine.iter().all(|&(end, leaving)| {
-            self.drawing.arcs.iter().all(|arc| {
+            self.drawing.arcs.iter().enumerate().all(|(rank, arc)| {
                 let Some([start, finish]) = arc.ends else {
                     return true;
                 };
+                if hugging == Some(rank) {
+                    return true;
+                }
                 let [_, first, _] = arc.trace.at(0.0);
                 let [_, last, _] = arc.trace.at(1.0);
                 [(start, first), (finish, -last)]
@@ -1260,7 +1280,7 @@ impl Web {
             sweep: TURN,
         };
         let samples = sampled(&Arc { trace, ends: None }, true);
-        if self.clear(&samples, None) {
+        if self.clear(&samples, None, None) {
             self.drawing.arc(trace, None);
             self.rounds.push((samples, None));
             self.closed += 1;
@@ -1285,9 +1305,41 @@ impl Web {
         let ends = [known(from), known(to)];
         let shared = [ends[0].unwrap_or(usize::MAX), ends[1].unwrap_or(usize::MAX)];
         let samples = sampled(&Arc { trace, ends: None }, true);
-        if self.clear(&samples, Some(shared)) {
+        if self.clear(&samples, Some(shared), None) {
             let ends = self.link(from, to);
             self.drawing.arc(trace, Some(ends));
+            self.rounds.push((samples, Some(ends)));
+        }
+    }
+
+    /// A whole round looped at an end of a side and tangent to it there, on
+    /// its left or on its right, run either way.
+    fn hang(&mut self, side: usize, at_start: bool, radius: f64, left: bool, sweep: f64) {
+        let ([from, to], arc) = self.sides[side];
+        let (corner, along) = if at_start {
+            (from, self.at(to) - self.at(from))
+        } else {
+            (to, self.at(from) - self.at(to))
+        };
+        let corner = self.corners[&self.turns(corner).0];
+        let touch = self.drawing.vertices[corner];
+        let across = along.normalize().perp() * if left { radius } else { -radius };
+        let trace = Trace::Round {
+            center: touch + across,
+            radius,
+            start: (-across).y.atan2(-across.x),
+            sweep,
+        };
+        let samples = sampled(&Arc { trace, ends: None }, true);
+        let hang = Hang {
+            side: arc,
+            corner,
+            reach: 2.0 * (2.0 * radius * 0.12).sqrt(),
+        };
+        if self.clear(&samples, Some([corner, corner]), Some(hang)) {
+            let ends = [corner, corner];
+            self.drawing.arc(trace, Some(ends));
+            self.links.push((ends, 0));
             self.rounds.push((samples, Some(ends)));
         }
     }
@@ -1333,6 +1385,16 @@ impl Web {
     }
 }
 
+/// A round hung on the side drawn as arc `side`, touching it at `corner`:
+/// within `reach` of there the two run too close for the clearance asked of
+/// anything else.
+#[derive(Clone, Copy)]
+struct Hang {
+    side: usize,
+    corner: usize,
+    reach: f64,
+}
+
 fn distance_to_side(point: DVec2, from: DVec2, to: DVec2, period: Option<f64>) -> f64 {
     let shifts = period.map_or(vec![0.0], |period| vec![-period, 0.0, period]);
     shifts
@@ -1366,11 +1428,16 @@ fn random_web(seed: u64, cells: Option<i64>) -> Web {
         };
         web.side(from, to);
     }
-    for _ in 0..draws.below(6) {
-        if draws.below(2) == 0 {
+    for _ in 0..draws.below(8) {
+        let radius = draws.pick(&[0.3, 0.6, 1.1, 2.3]);
+        let kind = draws.below(3);
+        if kind == 0 {
             let center = web.at(cell(&mut draws)) + DVec2::splat(0.25 * draws.below(4) as f64);
-            let radius = draws.pick(&[0.3, 0.6, 1.1, 2.3]);
             web.whole(center, radius, draws.pick(&[0.0, PI, 0.5 * PI, 1.3]));
+        } else if kind == 1 && !web.sides.is_empty() {
+            let side = draws.below(web.sides.len());
+            let [at_start, left] = [draws.below(2) == 0, draws.below(2) == 0];
+            web.hang(side, at_start, radius, left, draws.pick(&[TURN, -TURN]));
         } else {
             let from = cell(&mut draws);
             let to = (
@@ -1398,11 +1465,13 @@ fn random_webs_hold(cells: Option<i64>) {
 }
 
 #[test]
-fn random_webs_of_slanted_sides_and_bulging_rounds_part_a_plane_into_the_regions_they_bound() {
+fn random_webs_of_slanted_sides_and_rounds_bulging_between_or_tangent_to_them_part_a_plane_into_the_regions_they_bound()
+ {
     random_webs_hold(None);
 }
 
 #[test]
-fn random_webs_of_slanted_sides_and_bulging_rounds_part_a_cylinder_into_the_regions_they_bound() {
+fn random_webs_of_slanted_sides_and_rounds_bulging_between_or_tangent_to_them_part_a_cylinder_into_the_regions_they_bound()
+ {
     random_webs_hold(Some(12));
 }

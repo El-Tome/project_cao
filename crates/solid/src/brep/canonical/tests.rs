@@ -174,3 +174,24 @@ fn a_corner_on_the_one_surface_a_curve_was_found_on_lies_on_it_only_where_it_sta
     assert!(lies_on(on_it, &[plane, other], circle, &registry, eps));
     assert!(!lies_on(off_it, &[plane, other], circle, &registry, eps));
 }
+
+#[test]
+fn a_corner_found_on_two_surfaces_of_a_line_lying_on_three_lies_on_the_line_and_on_the_third() {
+    let eps = scale().eps();
+    let mut registry = Registry::new(scale());
+    let [side, tangent, cylinder, top] = [SurfaceId(0), SurfaceId(1), SurfaceId(2), SurfaceId(3)];
+    let edge = registry.register(
+        Curve::Line(Line::through(DVec3::new(2.5, 4.0, 0.0), DVec3::Z)),
+        &[side, tangent, cylinder],
+    );
+    let across = registry.register(
+        Curve::Line(Line::through(DVec3::new(2.5, 0.0, 12.5), DVec3::Y)),
+        &[side, top],
+    );
+    let mut pool = Pool::new(eps);
+    let corner = DVec3::new(2.5, 4.0, 12.5);
+    pool.add(corner, [cylinder], [across]);
+    let supports = pool.supports(&registry);
+    assert_eq!(supports[0], vec![side, tangent, cylinder, top]);
+    assert!(lies_on(corner, &supports[0], edge, &registry, eps));
+}

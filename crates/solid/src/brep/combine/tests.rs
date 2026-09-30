@@ -191,3 +191,27 @@ fn a_corner_on_a_plane_and_a_cylinder_lies_on_the_line_it_stands_on_even_where_t
     let cut = bored.cut_by(&across(7.0, rectangle([6.0, 6.0], [14.0, 9.0]), 32.0));
     assert!(cut.is_ok(), "{cut:?}");
 }
+
+fn standing_on(offset: f64, outline: Contour, height: f64) -> Body {
+    Body::raised(&outline, &[], ground(offset), DVec3::Z * height).expect("a prism raises")
+}
+
+/// Seed 533 of the campaign: a hole whose axis lies in a side of the block
+/// and whose wall touches a face an earlier join left, a hair above the top.
+#[test]
+fn a_corner_on_two_of_the_three_surfaces_a_line_lies_on_cuts_that_line() {
+    let joined = standing_on(3.0, rectangle([0.0, 3.0], [2.5, 6.0]), 9.5)
+        .joined(&standing_on(
+            2.0,
+            rectangle([1.000_000_1, 4.0], [4.5, 5.0]),
+            6.0,
+        ))
+        .expect("the blocks join");
+    let center = DVec2::new(2.5, 4.5);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 0.5],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let cut = joined.cut_by(&standing_on(3.000_000_02, circle, 9.500_000_1));
+    assert!(cut.is_ok(), "{cut:?}");
+}

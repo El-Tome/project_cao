@@ -58,27 +58,55 @@ impl Pool {
         rank
     }
 
-    /// Every corner's support: the surfaces it was found on, and those of the
-    /// curves it was found along.
+    /// Every corner's support: the surfaces it was found on, those of the
+    /// curves it was found along, and those of every curve it lies on as
+    /// `lies_on` reads it, until none is added — a corner found on two of the
+    /// three surfaces a line lies on lies on the third.
     pub fn supports(&self, registry: &Registry) -> Vec<Vec<SurfaceId>> {
-        self.corners
+        let mut supports: Vec<BTreeSet<SurfaceId>> = self
+            .corners
             .iter()
             .map(|corner| {
                 let mut support = corner.surfaces.clone();
                 for curve in &corner.curves {
                     support.extend(registry.list[*curve].support.iter().copied());
                 }
-                support.into_iter().collect()
+                support
             })
+            .collect();
+        loop {
+            let mut grown = false;
+            for (corner, support) in self.corners.iter().zip(&mut supports) {
+                for (rank, known) in registry.list.iter().enumerate() {
+                    let sorted: Vec<SurfaceId> = support.iter().copied().collect();
+                    if known
+                        .support
+                        .iter()
+                        .all(|surface| support.contains(surface))
+                        || !lies_on(corner.point, &sorted, rank, registry, self.eps)
+                    {
+                        continue;
+                    }
+                    support.extend(known.support.iter().copied());
+                    grown = true;
+                }
+            }
+            if !grown {
+                break;
+            }
+        }
+        supports
+            .into_iter()
+            .map(|support| support.into_iter().collect())
             .collect()
     }
 }
 
-/// Whether a corner lies on a registered curve: every surface the curve lies
-/// on is one the corner lies on, and of the curves lying on two of those
-/// surfaces too — the two lines a plane cuts a cylinder along, the two loops
-/// two cylinders meet along — it stands on the nearest, or within the
-/// tolerance of it where two of them cross.
+/// Whether a corner lies on a registered curve: two surfaces the curve lies on
+/// are among those the corner lies on, and of the curves lying on both — the
+/// two lines a plane cuts a cylinder along, the two loops two cylinders meet
+/// along — it stands on the nearest, or within the tolerance of it where two
+/// of them cross.
 ///
 /// A curve found on one surface alone — an edge between two faces of one
 /// surface an earlier operation left — is not fixed by its support, and a
@@ -90,33 +118,29 @@ pub(in crate::brep) fn lies_on(
     registry: &Registry,
     eps: f64,
 ) -> bool {
-    let within = |rank: usize| {
-        registry.list[rank]
-            .support
-            .iter()
-            .all(|surface| support.binary_search(surface).is_ok())
-    };
-    if !within(curve) {
-        return false;
-    }
     let own = &registry.list[curve];
     let away = distance(&own.curve, point);
-    if own.support.len() < 2 {
-        return away <= eps;
-    }
-    registry
-        .list
+    let shared: Vec<SurfaceId> = own
+        .support
         .iter()
-        .enumerate()
-        .filter(|&(rank, other)| {
-            rank != curve
-                && other
-                    .support
-                    .iter()
-                    .filter(|surface| own.support.binary_search(surface).is_ok())
-                    .count()
-                    >= 2
-                && within(rank)
+        .copied()
+        .filter(|surface| support.binary_search(surface).is_ok())
+        .collect();
+    if own.support.len() < 2 {
+        return shared.len() == own.support.len() && away <= eps;
+    }
+    shared.iter().enumerate().any(|(index, &one)| {
+        shared[index + 1..].iter().any(|&other| {
+            registry
+                .list
+                .iter()
+                .enumerate()
+                .filter(|&(rank, known)| {
+                    rank != curve
+                        && known.support.binary_search(&one).is_ok()
+                        && known.support.binary_search(&other).is_ok()
+                })
+                .all(|(_, known)| away <= distance(&known.curve, point).max(eps))
         })
-        .all(|(_, other)| away <= distance(&other.curve, point).max(eps))
+    })
 }

@@ -1,0 +1,237 @@
+use std::f64::consts::TAU;
+
+use glam::{DVec2, DVec3};
+
+use super::*;
+use crate::brep::curve::Curve;
+use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
+use crate::brep::topology::{Edge, Vertex};
+use crate::profile::{Contour, Frame, Run};
+use crate::soundness::listed;
+
+fn ground(height: f64) -> Frame {
+    Frame {
+        origin: DVec3::Z * height,
+        u: DVec3::X,
+        v: DVec3::Y,
+    }
+}
+
+fn block(low: [f64; 3], high: [f64; 3]) -> Body {
+    let outline = Contour::rectangle(DVec2::new(low[0], low[1]), DVec2::new(high[0], high[1]));
+    Body::raised(&outline, &[], ground(low[2]), DVec3::Z * (high[2] - low[2]))
+        .expect("a block raises")
+}
+
+fn standing(center: [f64; 2], radius: f64, from: f64, to: f64) -> Body {
+    let center = DVec2::from(center);
+    let outline = Contour {
+        corners: vec![center + DVec2::X * radius],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    Body::raised(&outline, &[], ground(from), DVec3::Z * (to - from)).expect("a cylinder raises")
+}
+
+fn arena(first: &Body, second: &Body) -> Arena {
+    let operands = Operands::of(first, second, first.scale().joined(second.scale()));
+    laid(&operands).expect("the arena is laid")
+}
+
+/// The ranks of the planes of `body` at `offset` along a world axis.
+fn plane_at(body: &Body, axis: DVec3, offset: f64) -> SurfaceId {
+    let rank = body
+        .surfaces
+        .iter()
+        .position(|surface| {
+            matches!(surface, Surface::Plane(plane)
+                if plane.normal.abs_diff_eq(axis, 1e-12) && (plane.offset() - offset).abs() < 1e-12)
+        })
+        .expect("the plane is there");
+    SurfaceId(rank as u32)
+}
+
+#[test]
+fn two_blocks_sharing_a_wall_share_the_four_corners_of_that_wall() {
+    let one = block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
+    let other = block([20.0, -20.0, 0.0], [60.0, 20.0, 10.0]);
+    let laid = arena(&one, &other);
+    assert_eq!(laid.body.vertices.len(), 12);
+    let wall = plane_at(&laid.body, DVec3::X, 20.0);
+    let on_the_wall: Vec<&Vertex> = laid
+        .body
+        .vertices
+        .iter()
+        .filter(|vertex| vertex.on.contains(&wall))
+        .collect();
+    assert_eq!(on_the_wall.len(), 4);
+    for vertex in on_the_wall {
+        assert_eq!(vertex.on.len(), 3, "{vertex:?}");
+    }
+}
+
+#[test]
+fn a_hole_s_circle_on_the_cap_it_is_flush_with_is_one_edge_on_the_cap_and_on_the_hole() {
+    let stock = standing([0.0, 0.0], 20.0, 0.0, 10.0);
+    let hole = standing([8.0, 0.0], 5.0, 0.0, 10.0);
+    let laid = arena(&stock, &hole);
+    let top = plane_at(&laid.body, DVec3::Z, 10.0);
+    let on_the_top_of_the_hole: Vec<&Edge> = laid
+        .body
+        .edges
+        .iter()
+        .filter(|edge| {
+            matches!(laid.body.curve(edge.curve), Curve::Circle(circle)
+                if circle.radius == 5.0 && circle.center.z == 10.0)
+        })
+        .collect();
+    let [edge] = on_the_top_of_the_hole.as_slice() else {
+        panic!("one edge: {on_the_top_of_the_hole:?}");
+    };
+    assert_eq!(edge.ends, None);
+    let support = &laid.supports[edge.curve.0 as usize];
+    assert_eq!(support.len(), 2);
+    assert!(support.contains(&top), "{support:?}");
+    assert_eq!(laid.body.edges.len(), 4);
+}
+
+#[test]
+fn a_circle_where_a_top_meets_a_cylinder_is_kept_across_the_top_and_nowhere_else() {
+    let one = block([0.0, 0.0, 0.0], [10.0, 10.0, 10.0]);
+    let tall = standing([12.0, 5.0], 5.0, -5.0, 15.0);
+    let laid = arena(&one, &tall);
+    let kept: Vec<&Edge> = laid
+        .body
+        .edges
+        .iter()
+        .filter(|edge| {
+            matches!(laid.body.curve(edge.curve), Curve::Circle(circle) if circle.center.z == 10.0)
+        })
+        .collect();
+    let [edge] = kept.as_slice() else {
+        panic!("one arc of the circle: {kept:?}");
+    };
+    let middle = laid
+        .body
+        .curve(edge.curve)
+        .point((edge.from + edge.to) / 2.0);
+    assert!(middle.x < 10.0, "{middle}");
+    assert!(edge.ends.is_some());
+}
+
+#[test]
+fn an_edge_of_one_block_crossing_the_other_s_plane_off_its_face_makes_no_corner() {
+    let one = block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
+    let pocket = block([10.0, -5.0, 5.0], [20.0, 5.0, 10.0]);
+    let laid = arena(&one, &pocket);
+    let far = DVec3::new(10.0, -20.0, 10.0);
+    assert!(
+        laid.body
+            .vertices
+            .iter()
+            .all(|vertex| vertex.point.distance(far) > 1.0)
+    );
+    assert_eq!(laid.body.vertices.len(), 16);
+}
+
+#[test]
+fn a_ruling_where_a_hole_touches_a_side_is_one_edge_between_the_two_corners_it_touches_at() {
+    let one = block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
+    let hole = standing([15.0, 0.0], 5.0, 0.0, 10.0);
+    let laid = arena(&one, &hole);
+    let rulings: Vec<&Edge> = laid
+        .body
+        .edges
+        .iter()
+        .filter(|edge| {
+            matches!(laid.body.curve(edge.curve), Curve::Line(line)
+                if line.direction.abs_diff_eq(DVec3::Z, 1e-12)
+                    && line.origin.abs_diff_eq(DVec3::new(20.0, 0.0, 0.0), 1e-9))
+        })
+        .collect();
+    let [ruling] = rulings.as_slice() else {
+        panic!("one ruling: {rulings:?}");
+    };
+    let ends = ruling.ends.expect("a ruling has two corners");
+    let heights = ends.map(|end| laid.body.vertex(end).point.z);
+    assert_eq!(heights, [0.0, 10.0]);
+    assert_eq!(laid.supports[ruling.curve.0 as usize].len(), 2);
+}
+
+/// A profile drawn on the plane `y = offset` in `(x, z)` and raised towards
+/// `-y`.
+fn across(offset: f64, outline: Contour, height: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Y * offset,
+        u: DVec3::X,
+        v: DVec3::Z,
+    };
+    Body::raised(&outline, &[], frame, DVec3::NEG_Y * height).expect("a prism raises")
+}
+
+fn rectangle(low: [f64; 2], high: [f64; 2]) -> Contour {
+    Contour::rectangle(DVec2::from(low), DVec2::from(high))
+}
+
+/// Seed 750 of the campaign: a corner an earlier cut left on the top plane
+/// and on the bored cylinder stands on the one of the two lines they meet
+/// along that is no edge of the body.
+#[test]
+fn a_corner_on_a_plane_and_a_cylinder_lies_on_the_line_it_stands_on_even_where_that_line_is_no_edge()
+ {
+    let bored = across(7.0, rectangle([6.0, 8.0], [12.5, 10.5]), 8.0)
+        .joined(&across(7.0, rectangle([5.0, 9.0], [9.5, 11.5]), 16.0))
+        .and_then(|joined| {
+            let center = DVec2::new(9.499_999_98, 10.25);
+            let circle = Contour {
+                corners: vec![center + DVec2::X * 2.0],
+                runs: vec![Run::Round { center, turn: TAU }],
+            };
+            joined.cut_by(&across(8.0, circle, 32.0))
+        })
+        .expect("the block is bored");
+    let cut = bored.cut_by(&across(7.0, rectangle([6.0, 6.0], [14.0, 9.0]), 32.0));
+    assert!(cut.is_ok(), "{cut:?}");
+}
+
+fn standing_on(offset: f64, outline: Contour, height: f64) -> Body {
+    Body::raised(&outline, &[], ground(offset), DVec3::Z * height).expect("a prism raises")
+}
+
+/// Seed 533 of the campaign: a hole whose axis lies in a side of the block
+/// and whose wall touches a face an earlier join left, a hair above the top.
+#[test]
+fn a_corner_on_two_of_the_three_surfaces_a_line_lies_on_cuts_that_line() {
+    let joined = standing_on(3.0, rectangle([0.0, 3.0], [2.5, 6.0]), 9.5)
+        .joined(&standing_on(
+            2.0,
+            rectangle([1.000_000_1, 4.0], [4.5, 5.0]),
+            6.0,
+        ))
+        .expect("the blocks join");
+    let center = DVec2::new(2.5, 4.5);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 0.5],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let cut = joined.cut_by(&standing_on(3.000_000_02, circle, 9.500_000_1));
+    assert!(cut.is_ok(), "{cut:?}");
+}
+
+/// Seed 793 of the campaign, made small: a boss whose cap stands a hair above
+/// the top is joined onto it, then another whose cap stands a hair below.
+/// Each cap is the top within the tolerance, and each circle crosses the
+/// other where the top and the two walls meet: one corner, whichever circle
+/// it is found on.
+#[test]
+fn two_circles_laid_on_a_top_from_a_hair_either_side_of_it_cross_at_one_corner() {
+    let hair = 0.8 * Scale::of(20.0).eps();
+    let one = block([0.0, 0.0, 0.0], [20.0, 20.0, 10.0]);
+    let above = standing([20.0, 8.0], 4.0, 5.0, 10.0 + hair);
+    let below = standing([20.0, 12.0], 4.0, 5.0, 10.0 - hair);
+    let body = one
+        .joined(&above)
+        .and_then(|joined| joined.joined(&below))
+        .expect("the bosses join");
+    assert_eq!(listed(&body.listing(), body.scale().reach()), Ok(()));
+}

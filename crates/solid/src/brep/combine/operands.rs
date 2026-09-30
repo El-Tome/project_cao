@@ -1,0 +1,138 @@
+//! The two bodies a boolean reads, laid on the surfaces they share: which
+//! faces of each lie on which surface, the box round each face, and where a
+//! point of a surface stands against an operand's faces lying on it — asked of
+//! the operand as it was built, never of anything the boolean made.
+
+use glam::DVec3;
+
+use crate::brep::Declined;
+use crate::brep::canonical::Surfaces;
+use crate::brep::domain::Location;
+use crate::brep::scale::Scale;
+use crate::brep::topology::{Body, EdgeId, FaceId, SurfaceId};
+
+pub(in crate::brep) struct Operands<'a> {
+    pub bodies: [&'a Body; 2],
+    pub scale: Scale,
+    pub surfaces: Surfaces,
+    /// For each operand, the faces lying on each of the shared surfaces.
+    pub lying: [Vec<Vec<FaceId>>; 2],
+    boxes: [Vec<[DVec3; 2]>; 2],
+}
+
+impl<'a> Operands<'a> {
+    pub fn of(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
+        let surfaces = Surfaces::of(first, second, scale);
+        let bodies = [first, second];
+        let lying = [0, 1].map(|operand| {
+            let mut lying = vec![Vec::new(); surfaces.list.len()];
+            let body = bodies[operand];
+            for face in body.face_ids() {
+                let (surface, _) = surfaces.mapped[operand][body.face(face).surface.0 as usize];
+                lying[surface.0 as usize].push(face);
+            }
+            lying
+        });
+        let boxes = bodies.map(|body| {
+            body.face_ids()
+                .map(|face| boxed(body, face, scale.eps()))
+                .collect()
+        });
+        Operands {
+            bodies,
+            scale,
+            surfaces,
+            lying,
+            boxes,
+        }
+    }
+
+    pub fn eps(&self) -> f64 {
+        self.scale.eps()
+    }
+
+    /// The shared surface an operand's face lies on.
+    pub fn surface_of(&self, operand: usize, face: FaceId) -> SurfaceId {
+        let own = self.bodies[operand].face(face).surface;
+        self.surfaces.mapped[operand][own.0 as usize].0
+    }
+
+    /// Whether an operand's face turns its matter to the side the shared
+    /// surface's own normal points to.
+    pub fn flipped(&self, operand: usize, face: FaceId) -> bool {
+        let lying = self.bodies[operand].face(face);
+        let (_, agree) = self.surfaces.mapped[operand][lying.surface.0 as usize];
+        lying.flipped != !agree
+    }
+
+    /// The shared surfaces of the faces of an operand using one of its edges.
+    pub fn around(&self, operand: usize, edge: EdgeId) -> Vec<SurfaceId> {
+        let mut around: Vec<SurfaceId> = self.bodies[operand]
+            .uses(edge)
+            .into_iter()
+            .map(|(face, _)| self.surface_of(operand, face))
+            .collect();
+        around.sort();
+        around.dedup();
+        around
+    }
+
+    pub fn carries(&self, operand: usize, surface: SurfaceId) -> bool {
+        !self.lying[operand][surface.0 as usize].is_empty()
+    }
+
+    /// Whether the boxes round two faces, one of each operand, meet.
+    pub fn near(&self, first: FaceId, second: FaceId) -> bool {
+        let [one, other] = [
+            self.boxes[0][first.0 as usize],
+            self.boxes[1][second.0 as usize],
+        ];
+        one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
+    }
+
+    /// Where `point`, on a shared surface, stands against each face of an
+    /// operand lying on it, on its boundary within `eps` of it.
+    pub fn located(
+        &self,
+        operand: usize,
+        surface: SurfaceId,
+        point: DVec3,
+        eps: f64,
+    ) -> Result<Vec<(FaceId, Location)>, Declined> {
+        let body = self.bodies[operand];
+        self.lying[operand][surface.0 as usize]
+            .iter()
+            .map(|&face| {
+                let own = body.surface(body.face(face).surface);
+                Ok((face, body.locate(face, own.parameters(point), eps)?))
+            })
+            .collect()
+    }
+
+    /// Whether `point` lies inside or on the boundary of a face of an
+    /// operand on a shared surface.
+    pub fn touched(
+        &self,
+        operand: usize,
+        surface: SurfaceId,
+        point: DVec3,
+    ) -> Result<bool, Declined> {
+        Ok(self
+            .located(operand, surface, point, self.eps())?
+            .iter()
+            .any(|(_, location)| *location != Location::Outside))
+    }
+}
+
+/// The box round a face, from the extremes of its edges, grown by `eps`.
+fn boxed(body: &Body, face: FaceId, eps: f64) -> [DVec3; 2] {
+    let mut low = DVec3::INFINITY;
+    let mut high = DVec3::NEG_INFINITY;
+    for coedge in body.face(face).loops.iter().flatten() {
+        for point in body.extremes(body.edge(coedge.edge)) {
+            low = low.min(point);
+            high = high.max(point);
+        }
+    }
+    [low - DVec3::splat(eps), high + DVec3::splat(eps)]
+}

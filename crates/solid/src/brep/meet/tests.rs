@@ -392,6 +392,63 @@ fn a_pair_twice_the_tolerance_from_a_touch_is_left_as_it_is() {
 }
 
 #[test]
+fn a_pair_a_hair_wider_than_the_tolerance_from_a_touch_keeps_its_curve_exact_through_the_waist() {
+    let hair = 1e-7;
+    assert!(hair > 2.0 * scale().eps());
+    for (a, b, d) in [
+        (5.0, 3.0, 2.0 + hair),
+        (5.0, 3.0, 2.0 - hair),
+        (5.0, 3.0, -2.0 + hair),
+        (4.0, 4.0 - hair, 0.0),
+        (4.0, 4.0, hair),
+        (5.0, 3.0, 8.0 - hair),
+    ] {
+        let (first, second) = pair(a, b, d, 1.5);
+        let meeting = Meeting::of(&first, &second, scale());
+        assert!(!meeting.components.is_empty(), "{a} {b} {d}");
+        for meet in meeting.components {
+            assert_eq!(meet.second, second, "{a} {b} {d}: moved");
+            let period = meet.period().expect("a component closes on itself");
+            let mut near_the_ends = samples(&meet);
+            for end in [0.0, PI, TAU, 3.0 * PI]
+                .into_iter()
+                .filter(|&end| end < period)
+            {
+                for step in [1e-6, 1e-5, 1e-4, 1e-3] {
+                    near_the_ends.extend([end + step, (end - step).rem_euclid(period)]);
+                }
+            }
+            for t in near_the_ends {
+                let point = meet.point(t);
+                for cylinder in [first, second] {
+                    assert!(
+                        cylinder.distance(point).abs() < 1e-12 * REACH,
+                        "{a} {b} {d} at {t}: off by {}",
+                        cylinder.distance(point)
+                    );
+                }
+                let back = meet.parameter(point);
+                let gap = (back - t).rem_euclid(period);
+                assert!(
+                    gap.min(period - gap) < 1e-9,
+                    "{a} {b} {d}: {t} came back as {back}"
+                );
+                for on_first in [true, false] {
+                    let seen = meet.seen_on(on_first, t)[0];
+                    let cylinder = if on_first { first } else { second };
+                    let read = cylinder.parameters(point);
+                    assert!(
+                        around(seen.x - read.x).abs() < 1e-12
+                            && (seen.y - read.y).abs() < 1e-12 * REACH,
+                        "{a} {b} {d} at {t} on the first {on_first}: {seen} against {read}"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
 fn a_node_is_where_its_components_pass_at_the_parameters_it_names() {
     let eps = scale().eps();
     for ((a, b, d), nodes, passes) in [

@@ -26,6 +26,7 @@ pub use curve::{Circle, Curve, Line, Meet};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use meet::{Configuration, Meeting, Node};
+pub use overlay::{Arc, Overlay, Region};
 pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;
 pub use surface::{Cylinder, Plane, Surface};
@@ -38,10 +39,12 @@ pub use trace::Trace;
 /// build or could not verify.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Declined {
-    /// The profile describes no solid: corners on each other, an arc whose
-    /// ends are not on its circle, a loop crossing itself.
+    /// The profile describes no solid: corners on each other within a loop
+    /// or across loops, an arc whose ends are not on its circle or too large
+    /// for the tolerance to hold its points, a number that is not one.
     Profile,
-    /// The travel does not stand square to the profile's plane.
+    /// The travel does not stand square to the profile's plane, or is shorter
+    /// than the tolerance.
     Travel,
     /// Two surfaces meet in a way the kernel does not build: a plane oblique
     /// to a cylinder's axis, two cylinders at a skew angle.

@@ -873,3 +873,33 @@ fn seed_1026137_a_seam_a_bore_left_on_a_post_is_kept_off_a_boss_touching_it() {
         ],
     ));
 }
+
+/// Failure 1-6 of campaign 1: a block grooved three tenths of a micron deep
+/// on its end, the tolerance of the groove's reach, then a post whose wall
+/// passes through the block's corner. At the post's reach the groove's floor
+/// stands within the tolerance of the end, and a stretch of the groove's rim
+/// four tenths of a micron long was taken for the post's circle between the
+/// same two corners: seen on the post, a circle square to its axis was
+/// declined rather than read as the chord it stands within the tolerance of.
+#[test]
+fn seed_1014146_a_grooved_block_given_a_post_through_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(60.0),
+            Outline::rectangle([225.0, 60.0], [255.0, 270.0]),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(59.9999997),
+                Outline::circle([255.0, 165.0], 45.0),
+                30.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([3.0000000000000004e-7, 300.0], 75.0),
+                255.0,
+            )),
+        ],
+    ));
+}

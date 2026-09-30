@@ -19,10 +19,13 @@ use crate::brep::trace::Trace;
 /// axis the surface's runs along — the second moved, by less than the
 /// tolerance, onto a touch their pair decided, and carried so by the curve.
 ///
-/// A line across a cylinder's axis, or a circle whose centre stands further
-/// than `eps` off it, lies on the cylinder only because an arc of the
-/// cylinder was taken for it (decision 6), within the tolerance and between
-/// two corners: it is seen as the segment between where its ends stand.
+/// A curve a surface does not carry — a line across a cylinder's axis, a
+/// circle whose centre stands further than `eps` off it or square to
+/// another axis — lies on the surface only because an arc of the surface
+/// was taken for it (decision 6), within the tolerance and between two
+/// corners: where it stands within `eps` of the chord between them, it is
+/// seen as the segment between where its ends stand, and it is declined
+/// otherwise, as a circle leaning on a plane is.
 pub(in crate::brep) fn traced(
     curve: &Curve,
     surface: &Surface,
@@ -55,14 +58,6 @@ pub(in crate::brep) fn traced(
                 to: DVec2::new(start.x, height),
             })
         }
-        (Surface::Cylinder(cylinder), Curve::Line(line)) => {
-            let start = cylinder.parameters(line.point(from));
-            let end = cylinder.parameters(line.point(to));
-            Ok(Trace::Segment {
-                from: start,
-                to: DVec2::new(unwrapped(end.x, start.x), end.y),
-            })
-        }
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if parallel(circle.axis, cylinder.axis) =>
         {
@@ -92,8 +87,38 @@ pub(in crate::brep) fn traced(
                 to,
             })
         }
-        _ => Err(Declined::Unsupported),
+        _ => chord(curve, surface, from, to, eps),
     }
+}
+
+/// The segment between the parameters of a stretch's ends, when the stretch
+/// stands within `eps` of its chord at its middle.
+fn chord(
+    curve: &Curve,
+    surface: &Surface,
+    from: f64,
+    to: f64,
+    eps: f64,
+) -> Result<Trace, Declined> {
+    let [start, end] = [from, to].map(|at| curve.point(at));
+    let middle = curve.point((from + to) / 2.0) - start;
+    let along = end - start;
+    let share = if along.length_squared() == 0.0 {
+        0.0
+    } else {
+        (middle.dot(along) / along.length_squared()).clamp(0.0, 1.0)
+    };
+    if (middle - along * share).length() > eps {
+        return Err(Declined::Unsupported);
+    }
+    let [from, to] = [start, end].map(|point| surface.parameters(point));
+    Ok(Trace::Segment {
+        from,
+        to: match surface {
+            Surface::Cylinder(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
+            Surface::Plane(_) => to,
+        },
+    })
 }
 
 /// How far a circle's centre stands off a cylinder's axis.

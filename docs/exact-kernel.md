@@ -87,9 +87,11 @@ Everything else is derived. A vertex lies on a curve exactly when the curve's
 support is among the surfaces the vertex lies on — but for the line two
 surfaces decided tangent touch along: they stand within `EPS` of each other
 over a band far wider than it, so a corner on both lies on that line only
-within `EPS`. A line or a circle lying on a cylinder only because an arc of
-it was taken for the curve (decision 6) is seen there as the segment between
-where its ends stand. A corner whose support holds only planes, three of
+within `EPS`. A line or a circle lying on a surface that does not carry it,
+only because an arc of it was taken for an arc of the surface (decision 6), is
+seen there as the segment between where its ends stand — a circle square to a
+cylinder's axis or leaning on a plane only where its stretch stands within
+`EPS` of that chord. A corner whose support holds only planes, three of
 them spanning space, stands where they meet — each plane taken for another
 within `EPS`, the place they fix moves by more. A triple of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then

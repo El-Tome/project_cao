@@ -239,6 +239,43 @@ fn a_circle_off_a_cylinder_s_axis_is_seen_between_its_ends_angles_on_that_cylind
     }
 }
 
+/// Seed 1014146 of the campaign: a stretch of a circle four tenths of a
+/// micron long, taken for the arc of a post square to its axis between the
+/// same two corners, is seen on the post between where its ends stand; a
+/// quarter of the same circle, far from any chord, is declined.
+#[test]
+fn a_short_stretch_of_a_circle_square_to_a_cylinder_is_seen_along_its_chord() {
+    let groove = Cylinder::about(DVec3::new(0.0, 255.0, 165.0), DVec3::X, 45.0);
+    let circle = Circle::on(&groove, 60.0);
+    let post = Cylinder::about(DVec3::new(3e-7, 300.0, 0.0), DVec3::Z, 75.0);
+    let [from, to] = [-PI / 2.0 - 8.9e-9, -PI / 2.0];
+    let trace = traced(
+        &Curve::Circle(circle),
+        &Surface::Cylinder(post),
+        from,
+        to,
+        EPS * 400.0,
+    );
+    let [start, end] = [from, to].map(|at| post.parameters(circle.point(at)));
+    assert_eq!(
+        trace,
+        Ok(Trace::Segment {
+            from: start,
+            to: end
+        })
+    );
+    assert_eq!(
+        traced(
+            &Curve::Circle(circle),
+            &Surface::Cylinder(post),
+            0.0,
+            PI / 2.0,
+            EPS * 400.0
+        ),
+        Err(Declined::Unsupported)
+    );
+}
+
 fn top_of(body: &Body) -> FaceId {
     body.face_ids()
         .find(|face| {

@@ -167,9 +167,10 @@ impl Drawing {
         }
     }
 
-    /// A rectangle turned about the plane's second axis: mostly off the axis,
-    /// sometimes on it — a solid cylinder — and now and then a hair either
-    /// side of it, which the kernel takes as touching.
+    /// A rectangle turned about the plane's second axis, either way round and
+    /// on either side of it: mostly off the axis, sometimes on it — a solid
+    /// cylinder — and now and then a hair either side of it, which is a
+    /// profile meant to touch the axis and drawn with a solver's noise.
     fn revolution(&mut self, plane: Plane) -> Leaf {
         let width = self.length(1.0, 5.0);
         let near = match self.random.below(8) {
@@ -179,15 +180,28 @@ impl Drawing {
         };
         let low = DVec2::new(near, self.coordinate(-3.0, 5.0));
         let size = DVec2::new(width, self.length(1.0, 6.0));
+        let (low, high) = if self.random.chance(0.25) {
+            (
+                DVec2::new(-low.x - size.x, low.y),
+                DVec2::new(-low.x, low.y + size.y),
+            )
+        } else {
+            (low, low + size)
+        };
         let degrees = if self.random.chance(0.5) {
             360.0
         } else {
             self.random.on_lattice(15.0, 345.0, 15.0)
         };
+        let degrees = if self.random.chance(0.3) {
+            -degrees
+        } else {
+            degrees
+        };
         Leaf::Revolution {
             plane,
             low,
-            high: low + size,
+            high,
             degrees,
         }
     }

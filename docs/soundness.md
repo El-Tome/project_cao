@@ -26,7 +26,7 @@ behind `cao_solid` (#447).
 | Volume | `enclosed`, `Lines` | the matter enclosed is not what the operation promised |
 | Repeatable | `repeatable` | the same input answered twice, differently, down to one bit |
 | Undone | `first_difference`, in `cao_part`'s tests | an operation and its undo give back a part other than the one they started from |
-| Answers | `answer` | the kernel panics, or does not come back within the patience given |
+| Answers | `answer` | the kernel panics, does not come back within the patience given, or declines to raise a solid its input describes |
 
 A few decisions are worth knowing before reading a report.
 
@@ -48,7 +48,8 @@ operation applied to its inputs — union or difference of stretches of a line,
 which is arithmetic nobody can get wrong. Measuring both sides along the same
 lines is what lets the tolerance be tight: the grid's own error is the same on
 both sides and cancels. When the rule breaks, the report names the line the two
-disagree most along.
+disagree most along. The lines only cover the box the inputs span, so matter a
+result leaves outside that box breaks the rule on its own.
 
 **Every tolerance is relative** to how far the solid reaches, for the reason
 `boolean.rs` gives: the noise of a coordinate grows with its size.
@@ -96,6 +97,15 @@ CAO_FUZZ_SECONDS=300 cargo test --release -p cao_part \
 `CAO_FUZZ_PATIENCE` is how many seconds a single case may take before it counts
 as no answer. `--release` is worth it: the same minutes try several times more
 cases.
+
+The deadline is checked between cases, so a run can overshoot it by one
+patience. The seed being tried is written on the standard error as it goes: a
+kernel that blows its stack ends the program, which nothing can catch, and the
+last seed written is the one to run again.
+
+A campaign shrinks the first three failures of each rule and counts the rest.
+One rule broken by a common cause can hide a rarer one behind it: several
+campaigns from different seeds see more than one long one.
 
 ## Reading a finding
 

@@ -240,7 +240,8 @@ impl Undoable for PartDocument {
 /// Plays the gestures one by one, and after each one takes it back and does
 /// it again: the part after the undo must be the part before the gesture, and
 /// the part after the redo the part after it. Every part on the way must be
-/// sound, and the whole history, replayed twice, the same part twice.
+/// sound too — judged after the undo, so that a kernel's own flaw does not
+/// hide one — and the whole history, replayed twice, the same part twice.
 fn undoes(gestures: &[Move]) -> Result<(), Flaw> {
     undoes_on(fresh(), gestures)
 }
@@ -257,9 +258,6 @@ fn undoes_on(mut part: impl Undoable, gestures: &[Move]) -> Result<(), Flaw> {
             continue;
         }
         let after = triangles(part.document());
-        closed(&after)?;
-        uncrossed(&after)?;
-
         part.undo();
         if let Some(at) = first_difference(&before, &triangles(part.document())) {
             return Err(Flaw::NotUndone { at });
@@ -268,6 +266,8 @@ fn undoes_on(mut part: impl Undoable, gestures: &[Move]) -> Result<(), Flaw> {
         if let Some(at) = first_difference(&after, &triangles(part.document())) {
             return Err(Flaw::NotUndone { at });
         }
+        closed(&after)?;
+        uncrossed(&after)?;
         before = after;
     }
     let history = &part.document().history;
@@ -476,9 +476,10 @@ fn from_the_environment(name: &str) -> Option<u64> {
 fn a_campaign_of_random_parts_undoes_every_gesture() {
     let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
     let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
-        SystemTime::now()
+        let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_or(1, |since| since.as_secs())
+            .map_or(1, |since| since.as_nanos() as u64);
+        Random::seeded(now).number() >> 16
     });
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(60));
     let deadline = Instant::now() + Duration::from_secs(seconds);
@@ -489,7 +490,10 @@ fn a_campaign_of_random_parts_undoes_every_gesture() {
     std::panic::set_hook(Box::new(|_| {}));
     let report = campaign(
         first..,
-        drawn,
+        |seed| {
+            eprint!("\rseed {seed} ");
+            drawn(seed)
+        },
         check,
         |gestures: &Vec<Move>| fewer(gestures),
         patience,

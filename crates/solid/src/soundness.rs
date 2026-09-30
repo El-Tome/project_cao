@@ -99,6 +99,8 @@ pub enum Silence {
     Panicked(Option<String>),
     /// It was still working when the patience given ran out.
     Late(std::time::Duration),
+    /// It declined: no solid for an input that describes one.
+    Refused,
 }
 
 impl Flaw {

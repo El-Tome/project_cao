@@ -31,6 +31,11 @@ pub struct Report<C> {
     pub findings: Vec<Finding<C>>,
 }
 
+/// The stack a check runs on. A kernel that recurses ends the program when
+/// it runs out, which no `catch_unwind` can turn into a finding; a deep stack
+/// makes that the last thing to go, and costs nothing until it is used.
+const STACK: usize = 256 << 20;
+
 /// How many shrunk cases are kept for one rule. The rest are counted: past a
 /// few, the same failure found again says nothing a human needs to read.
 const KEPT_PER_RULE: usize = 3;
@@ -47,10 +52,13 @@ pub fn answer<C: Send + 'static>(
 ) -> Result<(), Flaw> {
     let (sender, receiver) = mpsc::channel();
     let check = Arc::clone(check);
-    std::thread::spawn(move || {
-        let outcome = catch_unwind(AssertUnwindSafe(|| check(&case)));
-        let _ = sender.send(outcome);
-    });
+    std::thread::Builder::new()
+        .stack_size(STACK)
+        .spawn(move || {
+            let outcome = catch_unwind(AssertUnwindSafe(|| check(&case)));
+            let _ = sender.send(outcome);
+        })
+        .expect("a thread to run the check on");
     match receiver.recv_timeout(patience) {
         Ok(Ok(verdict)) => verdict,
         Ok(Err(payload)) => Err(Flaw::NoAnswer(Silence::Panicked(

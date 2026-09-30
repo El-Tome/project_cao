@@ -1,7 +1,9 @@
 //! A case run through the kernel, and held to every rule at every step.
 
 use cao_solid::Mesh;
-use cao_solid::soundness::{Flaw, Lines, Spans, Triangle, closed, enclosed, repeatable, uncrossed};
+use cao_solid::soundness::{
+    Flaw, Lines, NEAR, Silence, Spans, Triangle, closed, enclosed, reach, repeatable, uncrossed,
+};
 use glam::DVec3;
 
 use super::{Case, Leaf, Mode};
@@ -18,12 +20,15 @@ const PRISM: f64 = 1e-9;
 /// Whether a case keeps every rule: every solid it raises, and the part after
 /// every one of its steps.
 ///
-/// A case whose leaf the kernel refuses to raise — a turn around an axis its
-/// profile straddles — holds nothing and breaks nothing: a shrunk case can land
-/// there, and is not a failure of the kind it came from.
+/// A case with a leaf that is no solid — a shrunk case can round a rectangle
+/// flat — holds nothing and breaks nothing. A leaf that is one and that the
+/// kernel declines to raise is a kernel giving no answer.
 pub fn check(case: &Case) -> Result<(), Flaw> {
-    let Some(leaves) = raised(case) else {
+    if !case.leaves().all(Leaf::is_solid) {
         return Ok(());
+    }
+    let Some(leaves) = raised(case) else {
+        return Err(Flaw::NoAnswer(Silence::Refused));
     };
     for (leaf, solid) in case.leaves().zip(&leaves) {
         let triangles = solid.triangles();
@@ -31,7 +36,8 @@ pub fn check(case: &Case) -> Result<(), Flaw> {
         kept_its_promise(leaf, &triangles)?;
     }
 
-    let lines = lines_across(&leaves);
+    let region = span(&leaves);
+    let lines = Lines::across(region.0, region.1, LINES);
     let mut body = leaves[0].clone();
     let mut promised = lines.inside(&body.triangles());
     for (step, tool) in case.steps.iter().zip(&leaves[1..]) {
@@ -49,6 +55,7 @@ pub fn check(case: &Case) -> Result<(), Flaw> {
         let triangles = body.triangles();
         sound(&triangles)?;
         lines.compare(&promised, &lines.inside(&triangles))?;
+        within_reach(region, &lines, &promised, &triangles)?;
     }
 
     let again = raised(case).map(|leaves| replayed(case, &leaves));
@@ -104,11 +111,33 @@ pub fn kept_its_promise(leaf: &Leaf, triangles: &[Triangle]) -> Result<(), Flaw>
     Ok(())
 }
 
-fn lines_across(leaves: &[Mesh]) -> Lines {
-    let (low, high) = leaves
+/// Whether a result stays inside the box its inputs span: matter found outside
+/// it was promised nowhere, and no line of measure passes there to see it.
+pub fn within_reach(
+    (low, high): (DVec3, DVec3),
+    lines: &Lines,
+    promised: &[Spans],
+    triangles: &[Triangle],
+) -> Result<(), Flaw> {
+    let room = NEAR * reach(triangles);
+    let outside = triangles
+        .iter()
+        .flatten()
+        .any(|corner| corner.cmplt(low - room).any() || corner.cmpgt(high + room).any());
+    if outside {
+        return Err(Flaw::Volume {
+            promised: lines.volume(promised),
+            enclosed: enclosed(triangles),
+            worst: None,
+        });
+    }
+    Ok(())
+}
+
+fn span(leaves: &[Mesh]) -> (DVec3, DVec3) {
+    leaves
         .iter()
         .filter_map(Mesh::bounds)
         .reduce(|(low, high), (other_low, other_high)| (low.min(other_low), high.max(other_high)))
-        .unwrap_or((DVec3::ZERO, DVec3::ONE));
-    Lines::across(low, high, LINES)
+        .unwrap_or((DVec3::ZERO, DVec3::ONE))
 }

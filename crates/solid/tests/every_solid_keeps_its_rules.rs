@@ -21,11 +21,14 @@
 //!   One helper under the architecture test did: `declared_dependencies` now
 //!   leaves a crate's own name out, held by
 //!   `a_crate_naming_itself_for_its_own_tests_reaches_for_nothing_new` there
-//! - the volume of a solid raised on its own is the arithmetic: a prism its
-//!   area times its height, a revolution Pappus, less what its flats lose —
-//!   `a_prism_is_promised_its_area_times_its_height_and_a_turn_pappus`,
-//!   caught out by a solid broken on purpose —
-//!   `a_solid_raised_short_of_its_promise_is_a_volume_flaw`
+//! - the volume is what the operation promised: for a solid raised on its
+//!   own, the arithmetic — a prism its area times its height, a revolution
+//!   Pappus, less what its flats lose —
+//!   `a_prism_is_promised_its_area_times_its_height_and_a_turn_pappus`; for a
+//!   boolean, nothing outside the box its inputs span, where no line of measure
+//!   passes — caught out by solids broken on purpose —
+//!   `a_solid_raised_short_of_its_promise_is_a_volume_flaw`,
+//!   `a_result_with_matter_outside_what_its_inputs_span_is_a_volume_flaw`
 //! - a case that keeps every rule is held in the gate by name —
 //!   `a_block_bored_through_and_given_a_boss_keeps_every_rule`
 //!
@@ -45,7 +48,7 @@ mod random_solids;
 use std::sync::Arc;
 use std::time::{Duration, Instant, SystemTime};
 
-use cao_solid::soundness::{Check, Flaw, Report, campaign, shrink};
+use cao_solid::soundness::{Check, Flaw, Random, Report, campaign, shrink};
 use glam::DVec2;
 use random_solids::{Case, Leaf, Mode, Outline, Plane, Step};
 
@@ -163,6 +166,14 @@ fn the_generator_draws_every_kind_of_solid_and_step() {
     seen(
         "a circle not started at nought",
         leaves().any(|leaf| matches!(leaf, Leaf::Prism { outline: Outline::Circle { from, .. }, .. } if *from != 0.0)),
+    );
+    seen(
+        "a turn backwards",
+        leaves().any(|leaf| matches!(leaf, Leaf::Revolution { degrees, .. } if *degrees < 0.0)),
+    );
+    seen(
+        "a profile on the far side of its axis",
+        leaves().any(|leaf| matches!(leaf, Leaf::Revolution { high, .. } if high.x <= 0.0)),
     );
     seen(
         "a turn a hair off its axis",
@@ -305,6 +316,37 @@ fn a_solid_raised_short_of_its_promise_is_a_volume_flaw() {
     );
     assert!(matches!(
         random_solids::kept_its_promise(&turned, &shrunk),
+        Err(Flaw::Volume { .. })
+    ));
+}
+
+#[test]
+fn a_result_with_matter_outside_what_its_inputs_span_is_a_volume_flaw() {
+    let block = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rectangle([0.0, 0.0], [10.0, 10.0]),
+        10.0,
+    );
+    let stray = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rectangle([30.0, 0.0], [40.0, 10.0]),
+        10.0,
+    );
+    let (block, stray) = (
+        block.solid().expect("a block"),
+        stray.solid().expect("a cube"),
+    );
+    let region = block.bounds().expect("a box");
+    let lines = cao_solid::soundness::Lines::across(region.0, region.1, 16);
+    let promised = lines.inside(&block.triangles());
+
+    assert_eq!(
+        random_solids::within_reach(region, &lines, &promised, &block.triangles()),
+        Ok(())
+    );
+    let both = [block.triangles(), stray.triangles()].concat();
+    assert!(matches!(
+        random_solids::within_reach(region, &lines, &promised, &both),
         Err(Flaw::Volume { .. })
     ));
 }
@@ -454,6 +496,13 @@ fn shrinking_any_drawn_case_comes_to_an_end() {
     }
 }
 
+/// The case a seed stands for, with the seed written where a campaign that
+/// ends the program — a stack blown by a kernel — still leaves it to be read.
+fn drawn(seed: u64) -> Case {
+    eprint!("\rseed {seed} ");
+    Case::drawn(seed)
+}
+
 fn from_the_environment(name: &str) -> Option<u64> {
     std::env::var(name).ok()?.parse().ok()
 }
@@ -463,9 +512,10 @@ fn from_the_environment(name: &str) -> Option<u64> {
 fn a_campaign_of_random_solids_keeps_every_rule() {
     let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
     let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
-        SystemTime::now()
+        let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
-            .map_or(1, |since| since.as_secs())
+            .map_or(1, |since| since.as_nanos() as u64);
+        Random::seeded(now).number() >> 16
     });
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let deadline = Instant::now() + Duration::from_secs(seconds);
@@ -474,7 +524,7 @@ fn a_campaign_of_random_solids_keeps_every_rule() {
     let check: Check<Case> = Arc::new(random_solids::check);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(first.., Case::drawn, check, Case::smaller, patience, || {
+    let report = campaign(first.., drawn, check, Case::smaller, patience, || {
         Instant::now() < deadline
     });
     std::panic::set_hook(quiet);

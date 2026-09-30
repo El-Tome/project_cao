@@ -116,8 +116,10 @@ fn signed_area(points: &[DVec2]) -> f64 {
 
 impl Leaf {
     /// Whether the leaf describes a solid at all: an area that encloses
-    /// something, pushed or turned by something. A shrunk case can round a
-    /// rectangle flat, and a solid of no volume is no failure of the kernel's.
+    /// something, pushed or turned by something, and turned about an axis it
+    /// keeps to one side of — bar a hair, which is a profile meant to touch
+    /// the axis. A shrunk case can round a rectangle flat, and a solid of no
+    /// volume is no failure of the kernel's.
     pub fn is_solid(&self) -> bool {
         match self {
             Leaf::Prism {
@@ -133,13 +135,18 @@ impl Leaf {
             }
             Leaf::Revolution {
                 low, high, degrees, ..
-            } => low.x < high.x && low.y < high.y && *degrees != 0.0,
+            } => {
+                let hair = 1e-3 * (high.x - low.x);
+                low.x < high.x
+                    && low.y < high.y
+                    && *degrees != 0.0
+                    && (low.x >= -hair || high.x <= hair)
+            }
         }
     }
 
-    /// The solid the kernel raises for this leaf, or `None` when it refuses
-    /// to raise one — a revolution whose profile straddles its axis — or when
-    /// the leaf is no solid at all.
+    /// The solid the kernel raises for this leaf, or `None` when the leaf is
+    /// no solid at all or the kernel declined to raise one.
     pub fn solid(&self) -> Option<Mesh> {
         if !self.is_solid() {
             return None;

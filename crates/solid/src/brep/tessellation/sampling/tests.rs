@@ -572,6 +572,53 @@ fn a_ring_is_sampled_at_a_vertex_s_angle_where_the_kernel_put_the_vertex_a_hair_
     }
 }
 
+/// A place of the ring at the grid angle nought and another a little more
+/// than the kernel's tolerance round from it, both within it of a vertex
+/// between them: each is put where the vertex nearest in height stands.
+#[test]
+fn no_two_samples_of_a_ring_stand_at_one_place_where_two_of_its_angles_are_put_at_one_vertex() {
+    let mut build = fixtures::Build::new();
+    let radius = fixtures::HOLE_RADIUS;
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let cylinder = crate::brep::surface::Cylinder::about(DVec3::ZERO, DVec3::Z, radius);
+    let gap = crate::brep::scale::Scale::of(fixtures::STOCK_RADIUS).eps() / radius;
+    let on_wall = |angle: f64, height: f64| {
+        cylinder.origin + cylinder.radial(angle) * radius + DVec3::Z * height
+    };
+    let near = build.vertex(on_wall(0.9 * gap, 1.0));
+    let far = build.vertex(on_wall(1.8 * gap, fixtures::HEIGHT));
+    let ring = build.circle(wall, 0.0, None);
+    let low = build.circle(wall, 1.0, Some(near));
+    let high = build.circle(wall, fixtures::HEIGHT, Some(far));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(low, false)]],
+    );
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(low, true)], vec![use_of(high, false)]],
+    );
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        let points: Vec<DVec3> = samples
+            .edge(ring)
+            .iter()
+            .map(|id| samples.point(*id))
+            .collect();
+        for (at, point) in points.iter().enumerate() {
+            assert_ne!(
+                *point,
+                points[(at + 1) % points.len()],
+                "sampled twice in a row within {tolerance}"
+            );
+        }
+    }
+}
+
 #[test]
 fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
     let mut build = fixtures::Build::new();

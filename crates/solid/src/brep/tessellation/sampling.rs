@@ -241,12 +241,18 @@ fn on_circle(
             .filter(|(flat, _)| apart(flat.dot(circle.v).atan2(flat.dot(circle.u)), angle) <= gap)
             .min_by(|one, other| one.1.total_cmp(&other.1))
     };
-    kept.into_iter()
+    let mut points: Vec<DVec3> = kept
+        .into_iter()
         .map(|(_, _, angle)| match anchored(angle) {
             Some((flat, _)) => circle.center + flat,
             None => circle.point(angle),
         })
-        .collect()
+        .collect();
+    points.dedup();
+    if whole && points.len() > 1 && points[0] == points[points.len() - 1] {
+        points.pop();
+    }
+    points
 }
 
 /// Whether each end of a circle's edge, its start then its end, is a vertex

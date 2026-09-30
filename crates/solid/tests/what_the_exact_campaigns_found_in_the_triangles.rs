@@ -526,6 +526,34 @@ fn seed_11000066_a_boss_swallowed_by_the_block_it_touches_a_bore_beside_leaves_t
     ));
 }
 
+#[test]
+fn seed_17000616_a_boss_crossing_the_rim_of_a_wider_one_under_a_block_leaves_its_foot_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(90.0),
+            Outline::rectangle([300.0, 180.0], [465.0, 405.0]),
+            30.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([465.0000003, 292.5], 15.0),
+                225.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::rectangle([435.0, 278.0], [465.0, 308.0]),
+                450.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([450.0, 293.0], 30.0),
+                75.0,
+            )),
+        ],
+    ));
+}
+
 /// As seed 10001163: walls of radius 25 kept 1e-7 apart, a third more than
 /// the kernel's tolerance, closer than a fifth of it over some nine degrees
 /// either side of each line they cross along, the grid's steps a little

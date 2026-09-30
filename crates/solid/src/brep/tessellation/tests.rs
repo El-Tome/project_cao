@@ -278,11 +278,13 @@ fn a_tube_whose_window_leaves_a_strut_narrower_than_a_grid_step_is_drawn_closed(
 /// Angles a tangency is placed at: a few anywhere, and a few a hair either
 /// side of a grid angle every grid shares, from below the kernel's own
 /// tolerance to a hundred thousandth of a turn — where the first samples on
-/// either side stand closer to the other wall than the rules can tell apart.
+/// either side stand closer to the other wall than the rules can tell apart —
+/// and on to where they stand between a fifth of the kernel's tolerance and
+/// the whole of it from the other wall.
 fn round_a_grid_angle() -> Vec<f64> {
     let shared = 3.0 * TAU / 16.0;
     let mut angles = vec![0.3, 2.0, PI - 1e-7, -PI + 1e-7];
-    for offset in [1.5e-9, 1e-7, 1e-5] {
+    for offset in [1.5e-9, 1e-7, 1e-5, 5e-5, 8e-5] {
         angles.extend([shared - offset, shared + offset]);
     }
     angles

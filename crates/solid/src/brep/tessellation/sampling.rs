@@ -78,9 +78,7 @@ impl Samples {
             })
             .collect();
         let walls = contact::walls(body);
-        let mut contacts = contact::contacts(body, &walls, tolerance);
-        contact::along_meets(body, &meets, &mut contacts);
-        contact::through_vertices(body, &walls, &mut contacts);
+        let contacts = contact::contacts(body, &walls, &meets, tolerance);
         let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);

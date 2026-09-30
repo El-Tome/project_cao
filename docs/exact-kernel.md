@@ -164,8 +164,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   their hollow side closer than a chord's sag — an internal tangency, a near
   miss — both are sampled on common abscissae along the common tangent, or on
   common rays from the smaller centre further out, so that their polylines
-  stay ordered. What still crosses is refined locally, and what survives that
-  is reported as a failure of the triangles, apart from the kernel's.
+  stay ordered. So are two walls crossing each other by less than twice a
+  chord's sag — cylinders of one radius a hair off one axis — and every ray
+  either takes on its own, through a vertex or a curve it meets a third wall
+  along, the other takes too. A ray along which the two stand closer than a
+  fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
+  of `EPS` would leave walls barely more than it apart with hardly a sample
+  round the turn. What still crosses is refined locally, and what survives
+  that is reported as a failure of the triangles, apart from the kernel's.
 
 ## How it is held
 

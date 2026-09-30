@@ -15,17 +15,20 @@
 //!
 //! Where two walls touch along a line, inside or side by side, they part only
 //! as the square of the distance from it: a sample a hair from that line
-//! stands closer to the other wall than the kernel tells places apart, and its
+//! stands closer to the other wall than the rules tell places apart, and its
 //! chords are as good as lying on the other wall's. Such a step of the grid is
 //! withheld from both, and both take the line itself, so that the first chords
-//! from the line reach out to where the walls stand apart.
+//! from the line reach out to where the walls stand apart. So too beside the
+//! lines two walls cross along at a slant a hair from nought.
 //!
 //! Two perpendicular cylinders meet along a curve, and touch, if they do, at
 //! a node of it: the circles of both take the rays through that curve's
 //! samples, so that both walls are cut in strips between them.
 
+mod together;
+
 use std::collections::BTreeMap;
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::TAU;
 
 use glam::DVec3;
 
@@ -34,6 +37,14 @@ use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
+
+/// How close to another wall, as a share of the kernel's tolerance, no sample
+/// of a wall stands but on the lines they meet along: twice what the rules
+/// tell apart, a tenth of it. Not the whole of it: two walls barely more than
+/// the kernel's tolerance apart — cylinders of one radius a hair off one axis
+/// — stand closer than that round most of the turn, and withheld there, their
+/// chords would cut across whole quarters.
+pub(super) const APART: f64 = 0.2;
 
 /// What the circles of a cylinder take besides their grid, and what of it
 /// they leave out, for the cylinders it stands close to.
@@ -109,21 +120,31 @@ fn bears(body: &Body, vertex: &Vertex, (id, cylinder): &Wall) -> bool {
     }
 }
 
-/// For each wall close to another, parallel to it, what its circles take and
-/// leave out.
+/// For each wall, what its circles take besides their grid and what of it
+/// they leave out: the rays through its vertices and through the curves it
+/// meets a perpendicular wall along, and for each wall parallel to it and
+/// close, the rays through the lines they meet along and those the two share.
+///
+/// `meets` holds every edge's samples between its ends, empty but for the
+/// curves two cylinders meet along.
 pub(super) fn contacts(
     body: &Body,
     walls: &[Wall],
+    meets: &[Vec<DVec3>],
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let eps = body.scale().eps();
+    let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+    along_meets(body, meets, &mut own);
+    through_vertices(body, walls, &mut own);
+    let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
         for other in &walls[at + 1..] {
             if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
                 continue;
             }
-            if let Some([to_one, to_other]) = touching_line(&one.1, &other.1, eps) {
+            for [to_one, to_other] in meeting_lines(&one.1, &other.1, eps) {
                 contacts.entry(one.0).or_default().rays.push(to_one);
                 contacts.entry(other.0).or_default().rays.push(to_other);
             }
@@ -132,9 +153,16 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            if let Some([on_outer, on_inner]) = common(body, outer, inner, tolerance) {
+            let taken = |wall: &Wall| own.get(&wall.0).map_or(&[][..], Vec::as_slice);
+            let shared =
+                together::sampled((outer, taken(outer)), (inner, taken(inner)), tolerance, eps);
+            if let Some(shared) = shared {
+                let [on_outer, on_inner] = shared.contacts;
+                let [off_outer, off_inner] = shared.dropped;
                 contacts.entry(outer.0).or_default().join(on_outer);
                 contacts.entry(inner.0).or_default().join(on_inner);
+                dropped.entry(outer.0).or_default().extend(off_outer);
+                dropped.entry(inner.0).or_default().extend(off_inner);
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
@@ -148,6 +176,15 @@ pub(super) fn contacts(
                 }
             }
         }
+    }
+    for (wall, rays) in own {
+        let off = dropped.get(&wall).map_or(&[][..], Vec::as_slice);
+        let kept = rays
+            .into_iter()
+            .enumerate()
+            .filter(|(rank, _)| !off.contains(rank))
+            .map(|(_, way)| way);
+        contacts.entry(wall).or_default().rays.extend(kept);
     }
     contacts
 }
@@ -166,14 +203,7 @@ pub(super) fn contacts(
 /// the large one's square to them and the small one's, between its two mirror
 /// lobes, across them: within a strip each sags as the square of its width,
 /// and the two stay ordered.
-///
-/// `meets` holds every edge's samples between its ends, empty but for the
-/// curves two cylinders meet along.
-pub(super) fn along_meets(
-    body: &Body,
-    meets: &[Vec<DVec3>],
-    contacts: &mut BTreeMap<SurfaceId, Contact>,
-) {
+fn along_meets(body: &Body, meets: &[Vec<DVec3>], own: &mut BTreeMap<SurfaceId, Vec<DVec3>>) {
     for id in body.edge_ids() {
         let edge = body.edge(id);
         let Curve::Meet(meet) = body.curve(edge.curve) else {
@@ -196,11 +226,7 @@ pub(super) fn along_meets(
                 .collect();
             for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
                 if *body.surface(surface) == Surface::Cylinder(cylinder) {
-                    contacts
-                        .entry(surface)
-                        .or_default()
-                        .rays
-                        .extend(rays.iter().copied());
+                    own.entry(surface).or_default().extend(rays.iter().copied());
                 }
             }
         }
@@ -212,11 +238,7 @@ pub(super) fn along_meets(
 /// grid, and a strip of the wall beside it must meet a sample on every rim at
 /// that angle, or its triangle reaches from the vertex to the other rim's next
 /// step — lying flat where the wall is a hair high, over the face beside it.
-pub(super) fn through_vertices(
-    body: &Body,
-    walls: &[Wall],
-    contacts: &mut BTreeMap<SurfaceId, Contact>,
-) {
+fn through_vertices(body: &Body, walls: &[Wall], own: &mut BTreeMap<SurfaceId, Vec<DVec3>>) {
     for wall in walls {
         let (id, cylinder) = wall;
         for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
@@ -226,44 +248,60 @@ pub(super) fn through_vertices(
             let from = vertex.point - cylinder.origin;
             let flat = from - cylinder.axis * cylinder.axis.dot(from);
             if flat.length() > 0.0 {
-                contacts.entry(*id).or_default().rays.push(flat.normalize());
+                own.entry(*id).or_default().push(flat.normalize());
             }
         }
     }
 }
 
-/// The directions from the axes of two parallel cylinders to the line their
-/// walls touch along, when they touch, side by side or one inside the other.
+/// The directions from the axes of two parallel cylinders to each line their
+/// walls meet along: the one they touch along, side by side or one inside
+/// the other, or the two they cross along.
 ///
-/// Every circle of either is sampled on that line, vertex or not: the steps
-/// of the grid beside it are withheld, and a ring passing it with no vertex
-/// there — its wall touching the other only further along, or not at all
-/// where the other's wall is gone — would otherwise cut across it by a chord
-/// several steps long.
-fn touching_line(one: &Cylinder, other: &Cylinder, eps: f64) -> Option<[DVec3; 2]> {
+/// Every circle of either is sampled on those lines, vertex or not: the steps
+/// of the grid beside them are withheld, and a ring passing one with no
+/// vertex there — its wall meeting the other only further along, or not at
+/// all where the other's wall is gone — would otherwise cut across it by a
+/// chord several steps long.
+fn meeting_lines(one: &Cylinder, other: &Cylinder, eps: f64) -> Vec<[DVec3; 2]> {
     let between = other.origin - one.origin;
     let flat = between - one.axis * one.axis.dot(between);
     let apart = flat.length();
     if apart == 0.0 {
-        return None;
+        return Vec::new();
     }
     let way = flat / apart;
-    if (apart - (one.radius + other.radius)).abs() <= eps {
-        Some([way, -way])
-    } else if (apart - (one.radius - other.radius).abs()).abs() <= eps {
+    let (near, far) = ((one.radius - other.radius).abs(), one.radius + other.radius);
+    if (apart - far).abs() <= eps {
+        return vec![[way, -way]];
+    }
+    if (apart - near).abs() <= eps {
         let out = if one.radius >= other.radius {
             way
         } else {
             -way
         };
-        Some([out, out])
-    } else {
-        None
+        return vec![[out, out]];
     }
+    if apart < near || apart > far {
+        return Vec::new();
+    }
+    let along =
+        apart / 2.0 + (one.radius - other.radius) * (one.radius + other.radius) / (2.0 * apart);
+    let aside = (one.radius * one.radius - along * along).max(0.0).sqrt();
+    let square = one.axis.cross(way);
+    [-1.0, 1.0]
+        .into_iter()
+        .map(|side| {
+            let line = way * along + square * side * aside;
+            [line.normalize(), (line - flat).normalize()]
+        })
+        .collect()
 }
 
-/// The steps of a cylinder's grid standing within `eps` of another cylinder
-/// parallel to it: none unless their circles come that close somewhere.
+/// The steps of a cylinder's grid standing within a fifth of `eps` of another
+/// cylinder parallel to it: none unless their circles come that close
+/// somewhere.
 fn touching(cylinder: &Cylinder, other: &Cylinder, tolerance: f64, eps: f64) -> Vec<usize> {
     let between = cylinder.origin - other.origin;
     let apart = (between - other.axis * other.axis.dot(between)).length();
@@ -279,91 +317,7 @@ fn touching(cylinder: &Cylinder, other: &Cylinder, tolerance: f64, eps: f64) -> 
         .filter(|step| {
             let angle = TAU * *step as f64 / steps as f64;
             let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-            other.distance(point).abs() < eps
+            other.distance(point).abs() < eps * APART
         })
         .collect()
-}
-
-/// What the outer cylinder's circles and the inner one's take and leave out,
-/// when the inner stands inside the outer within twice the sag of either's
-/// chords from its wall, or crosses it by no more: every ray the one takes
-/// the other takes too, and a ray along which the two stand closer than `eps`
-/// neither takes.
-///
-/// Crossing by a hair, as two walls of one radius a hair apart do, the two
-/// bound a sliver thinner than a chord sags on either side of it, as long as
-/// half the turn: sampled on common rays, both walls keep their order on
-/// each side of the lines they cross along.
-fn common(
-    body: &Body,
-    outer_wall: &Wall,
-    inner_wall: &Wall,
-    tolerance: f64,
-) -> Option<[Contact; 2]> {
-    let (outer, inner) = (outer_wall.1, inner_wall.1);
-    let eps = body.scale().eps();
-    let axis = outer.axis;
-    let flat = |vector: DVec3| vector - axis * axis.dot(vector);
-    let offset = flat(inner.origin - outer.origin);
-    if offset.length() <= eps && outer.radius - inner.radius <= eps {
-        return None;
-    }
-    let outside = offset.length_squared() - outer.radius * outer.radius;
-    if outside >= 0.0 {
-        return None;
-    }
-    let sag = |radius: f64| radius * (1.0 - (PI / divisions(radius, tolerance) as f64).cos());
-    let gap = outer.radius - inner.radius - offset.length();
-    if gap.abs() > 2.0 * sag(outer.radius).max(sag(inner.radius)) {
-        return None;
-    }
-
-    let outer_steps = divisions(outer.radius, tolerance);
-    let inner_steps = divisions(inner.radius, tolerance);
-    let mut through_outer: Vec<(DVec3, Option<usize>)> = (0..outer_steps)
-        .map(|step| {
-            let angle = TAU * step as f64 / outer_steps as f64;
-            (outer.radial(angle) * outer.radius, Some(step))
-        })
-        .collect();
-    let mut from_inner: Vec<(DVec3, Option<usize>)> = (0..inner_steps)
-        .map(|step| {
-            (
-                inner.radial(TAU * step as f64 / inner_steps as f64),
-                Some(step),
-            )
-        })
-        .collect();
-    for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
-        let (on_outer, on_inner) = (
-            bears(body, vertex, outer_wall),
-            bears(body, vertex, inner_wall),
-        );
-        if on_outer && !on_inner {
-            through_outer.push((flat(vertex.point - outer.origin), None));
-        } else if on_inner && !on_outer {
-            from_inner.push((flat(vertex.point - inner.origin).normalize(), None));
-        }
-    }
-
-    let mut on_outer = Contact::default();
-    let mut on_inner = Contact::default();
-    for (point, step) in through_outer {
-        let from_axis = point - offset;
-        if (from_axis.length() - inner.radius).abs() >= eps {
-            on_inner.rays.push(from_axis.normalize());
-        } else if let Some(step) = step {
-            on_outer.withheld.push(step);
-        }
-    }
-    for (way, step) in from_inner {
-        let along = offset.dot(way);
-        let reach = -along + (along * along - outside).sqrt();
-        if (reach - inner.radius).abs() >= eps {
-            on_outer.rays.push((offset + way * reach).normalize());
-        } else if let Some(step) = step {
-            on_inner.withheld.push(step);
-        }
-    }
-    Some([on_outer, on_inner])
 }

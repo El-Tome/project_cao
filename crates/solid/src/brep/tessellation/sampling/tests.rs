@@ -2,6 +2,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
+use super::super::contact::APART;
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
 use crate::brep::curve::{Curve, Meet};
@@ -144,13 +145,16 @@ fn the_circles_of_a_hole_tangent_inside_the_stock_are_sampled_on_common_rays_fro
 }
 
 #[test]
-fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_other_but_their_vertices()
+fn no_sample_of_two_walls_touching_stands_closer_to_the_other_than_a_fifth_of_the_kernel_s_tolerance_but_their_vertices()
  {
-    let near_a_grid_angle = 3.0 * TAU / 16.0 + 1e-6;
-    for body in [
-        fixtures::stock_with_a_hole_tangent_at(near_a_grid_angle),
-        fixtures::block_with_two_holes_touching_at(near_a_grid_angle),
-    ] {
+    let grid_angle = 3.0 * TAU / 16.0;
+    let bodies = [1e-6, 7e-5].into_iter().flat_map(|off| {
+        [
+            fixtures::stock_with_a_hole_tangent_at(grid_angle + off),
+            fixtures::block_with_two_holes_touching_at(grid_angle + off),
+        ]
+    });
+    for body in bodies {
         let eps = body.scale().eps();
         let cylinders: Vec<_> = body
             .surfaces
@@ -177,7 +181,7 @@ fn no_sample_of_two_walls_touching_stands_within_the_kernel_s_tolerance_of_the_o
                         }
                         let apart = other.distance(point).abs();
                         assert!(
-                            apart >= eps,
+                            apart >= eps * APART,
                             "{point} is {apart} from a wall within {tolerance}"
                         );
                     }
@@ -463,6 +467,36 @@ fn two_walls_a_hair_across_each_other_are_sampled_on_common_rays_whichever_holds
                 assert!(
                     (one - other).abs() < 1e-9,
                     "{one} and {other}, {offset} apart within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn the_rings_of_two_walls_a_hair_across_each_other_are_sampled_on_the_lines_they_cross_along() {
+    let (radius, offset) = (fixtures::HOLE_RADIUS, 1e-5);
+    let mut build = fixtures::Build::new();
+    let first = build.cylinder(DVec3::ZERO, DVec3::Z, radius);
+    let second = build.cylinder(DVec3::X * offset, DVec3::Z, radius);
+    let rings = [
+        build.circle(first, 0.0, None),
+        build.circle(second, fixtures::HEIGHT, None),
+    ];
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [first, second].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let across = (radius * radius - offset * offset / 4.0).sqrt();
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for (ring, height) in rings.into_iter().zip([0.0, fixtures::HEIGHT]) {
+            for side in [-1.0, 1.0] {
+                let line = DVec3::new(offset / 2.0, side * across, height);
+                assert!(
+                    sampled(&samples, ring, line),
+                    "{line} is missed within {tolerance}"
                 );
             }
         }

@@ -166,3 +166,140 @@ fn seed_5000951_two_cylinders_of_one_radius_a_hair_apart_leave_their_slivers_dra
         ],
     ));
 }
+
+#[test]
+fn seed_6000920_two_cylinders_a_hair_off_one_axis_at_heights_apart_enclose_their_volume() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(25.0),
+            Outline::circle([35.00001, 40.0], 25.0),
+            25.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(20.0),
+            Outline::circle([35.0, 40.0], 25.0),
+            -13.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_6001028_two_cylinders_of_one_radius_barely_apart_enclose_their_union() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(8.0), Outline::circle([2.0, 9.0], 2.0), 7.0),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(8.0),
+            Outline::circle([2.00000002, 9.0], 2.0),
+            10.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_7000173_two_cylinders_of_one_radius_barely_apart_enclose_their_union() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::circle([1.0, 3.0], 2.0), 5.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(2.0),
+            Outline::circle([0.99999998, 3.0], 2.0),
+            9.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_7000227_a_cylinder_cut_by_one_barely_off_its_axis_encloses_what_is_left() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(38.0), Outline::circle([10.0, 0.0], 10.0), 43.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(33.0),
+            Outline::circle([10.0000001, 0.0], 10.0),
+            43.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_7002169_two_cylinders_of_one_radius_barely_apart_enclose_their_union() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::circle([27.4999999, 15.0], 15.0),
+            38.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(0.0),
+            Outline::circle([27.5, 15.0], 15.0),
+            10.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_7002841_a_cylinder_cut_by_one_barely_off_its_axis_encloses_what_is_left() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(39.99999),
+            Outline::circle([62.49999995, 8.75], 15.0),
+            65.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(35.0000003),
+            Outline::circle([62.4999997, 8.75], 15.0),
+            45.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_6000349_two_lying_cylinders_barely_apart_leave_their_sliver_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(23.0), Outline::circle([23.0, 30.0], 25.0), -5.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(2.5),
+                Outline::circle([15.0, 12.5], 10.0),
+                35.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(7.49999995),
+                Outline::circle([15.000001, 12.5], 10.0),
+                35.0,
+            )),
+        ],
+    ));
+}
+
+/// The boss, of radius 1.5 about (8.00000002, 3), touches the block's top at
+/// its highest point, a vertex; the cylinder it swallows, of radius
+/// 1.49999998 about (8, 3), stands 2e-8 below that top. The two share their
+/// rays, and the smaller one's grid step at the top, 2e-8 from the plane and
+/// so kept, puts a sample on the boss 2e-8 along its circle from the vertex,
+/// which is 1e-16 from the top's edge: on it, for the sweep of the front
+/// face, which is left open. A sample within a fifth of the kernel's
+/// tolerance of a plane touching its wall, but on the line they touch along,
+/// should be left out of both walls, as beside a wall it touches; the rule
+/// is not written yet.
+#[test]
+#[ignore = "tangency"]
+fn seed_7000204_a_boss_barely_off_a_cylinder_of_one_radius_leaves_the_block_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(-2.0),
+            Outline::rectangle([5.5, -0.5], [10.5, 4.5]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(-2.0),
+                Outline::circle([8.0, 3.0], 1.49999998),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(-2.00000001),
+                Outline::circle([8.00000002, 3.0], 1.5),
+                2.0,
+            )),
+        ],
+    ));
+}

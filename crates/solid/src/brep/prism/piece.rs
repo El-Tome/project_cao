@@ -121,8 +121,10 @@ pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined
     closed(merged, eps)
 }
 
+/// Every check below is written as what must hold, so that a number which
+/// is not one fails it.
 fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
-    if !(from.is_finite() && to.is_finite()) || from.distance(to) <= eps {
+    if !(from.is_finite() && to.is_finite() && from.distance(to) > eps) {
         return Err(Declined::Profile);
     }
     match run {
@@ -130,8 +132,7 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
         Run::Round { center, turn } => {
             let radius = from.distance(center);
             let landed = center + DVec2::from_angle(turn).rotate(from - center);
-            if !turn.is_finite() || turn.abs() >= TAU || radius <= eps || landed.distance(to) > eps
-            {
+            if !(turn.abs() < TAU && radius > eps && landed.distance(to) <= eps) {
                 return Err(Declined::Profile);
             }
             Ok(Piece::Arc {

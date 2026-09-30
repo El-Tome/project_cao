@@ -212,6 +212,41 @@ fn a_profile_that_describes_no_solid_is_declined() {
 }
 
 #[test]
+fn a_profile_or_a_frame_holding_a_number_that_is_not_one_is_declined() {
+    use crate::profile::Run;
+    let mut lost_center = Contour::circle(DVec2::ZERO, 1.0);
+    lost_center.runs[1] = Run::Round {
+        center: DVec2::new(f64::NAN, 0.0),
+        turn: std::f64::consts::PI,
+    };
+    let lost_corner = Contour::rectangle(DVec2::ZERO, DVec2::new(f64::NAN, 1.0));
+    for contour in [&lost_center, &lost_corner] {
+        let raised = Body::raised(contour, &[], ground(), DVec3::Z);
+        assert_eq!(raised.map(|_| ()), Err(Declined::Profile), "{contour:?}");
+    }
+    let block = Contour::rectangle(DVec2::ZERO, DVec2::ONE);
+    let adrift = Frame {
+        origin: DVec3::new(f64::NAN, 0.0, 0.0),
+        ..ground()
+    };
+    let unturned = Frame {
+        u: DVec3::new(f64::NAN, 0.0, 0.0),
+        ..ground()
+    };
+    for frame in [adrift, unturned] {
+        assert!(
+            Body::raised(&block, &[], frame, DVec3::Z).is_err(),
+            "{frame:?}"
+        );
+    }
+    let endless = DVec3::new(0.0, 0.0, f64::INFINITY);
+    assert_eq!(
+        Body::raised(&block, &[], ground(), endless).map(|_| ()),
+        Err(Declined::Travel)
+    );
+}
+
+#[test]
 fn two_runs_on_one_line_make_one_wall_and_two_walls_on_one_line_one_plane() {
     let notched = Contour::straight(vec![
         DVec2::new(0.0, 0.0),

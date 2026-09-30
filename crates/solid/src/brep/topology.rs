@@ -114,6 +114,22 @@ impl Body {
         self.curve(self.edge(edge).curve).point(t)
     }
 
+    /// The parameter of a point lying on an edge, in the stretch the edge
+    /// runs over: an arc may run past the end of its circle's first period,
+    /// where the curve alone would give the point a turn less.
+    pub fn parameter_on(&self, edge: EdgeId, point: DVec3) -> f64 {
+        let stretch = self.edge(edge);
+        let curve = self.curve(stretch.curve);
+        let t = curve.parameter(point);
+        match curve.period() {
+            Some(period) => {
+                let middle = (stretch.from + stretch.to) / 2.0;
+                t + period * ((middle - t) / period).round()
+            }
+            None => t,
+        }
+    }
+
     /// The largest coordinate, in absolute value, any point of the body
     /// reaches: what its scale is taken against.
     pub fn reach(&self) -> f64 {
@@ -163,3 +179,6 @@ impl Body {
             .collect()
     }
 }
+
+#[cfg(test)]
+mod tests;

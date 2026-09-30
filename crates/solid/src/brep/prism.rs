@@ -27,11 +27,15 @@ impl Body {
         frame: Frame,
         travel: DVec3,
     ) -> Result<Body, Declined> {
+        if !frame.origin.is_finite() {
+            return Err(Declined::Profile);
+        }
         let normal = frame.normal();
         let height = travel.dot(normal);
-        if !travel.is_finite()
-            || height == 0.0
-            || travel.cross(normal).length() > SQUARE * travel.length() * normal.length()
+        let lean = travel.cross(normal).length();
+        if !(height.is_finite()
+            && height != 0.0
+            && lean <= SQUARE * travel.length() * normal.length())
         {
             return Err(Declined::Travel);
         }

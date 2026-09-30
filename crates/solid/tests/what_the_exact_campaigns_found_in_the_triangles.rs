@@ -527,6 +527,25 @@ fn seed_11000066_a_boss_swallowed_by_the_block_it_touches_a_bore_beside_leaves_t
 }
 
 #[test]
+fn seed_17000598_a_boss_a_hair_off_a_bore_touching_the_stock_inside_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(3.0), Outline::circle([4.0, 6.0], 1.5), -7.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([5.0, 6.0], 0.5),
+                14.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.49999),
+                Outline::circle([5.00000006, 6.0], 0.5),
+                -28.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
 fn seed_17000616_a_boss_crossing_the_rim_of_a_wider_one_under_a_block_leaves_its_foot_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

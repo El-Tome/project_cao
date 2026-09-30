@@ -184,7 +184,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   the next inside it. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
-  round the turn. What still crosses is refined locally, and what survives
+  round the turn. Nor does a wall take such a ray from a third it shares rays
+  with: a bore touching the stock inside passes its grid on to the stock,
+  and the stock would pass back the very steps the bore withholds beside a
+  boss crossing it. A place two rays put at one vertex is taken once. What
+  still crosses is refined locally, and what survives
   that is reported as a failure of the triangles, apart from the kernel's.
 
 ## How it is held

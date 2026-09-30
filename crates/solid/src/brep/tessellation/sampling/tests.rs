@@ -619,6 +619,46 @@ fn no_two_samples_of_a_ring_stand_at_one_place_where_two_of_its_angles_are_put_a
     }
 }
 
+/// A bore touching the stock inside, and a boss of its radius a hair off its
+/// axis, crossing it along two lines: the stock takes the rays of the bore's
+/// grid, and would pass them back to it round the lines where it stands
+/// closer to the boss than a fifth of the kernel's tolerance.
+#[test]
+fn a_wall_takes_no_ray_passed_on_by_one_partner_where_it_all_but_lies_on_another() {
+    let mut build = fixtures::Build::new();
+    let stock = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let center = DVec3::X * (fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS);
+    let off = 1e-7;
+    let bore = build.cylinder(center, DVec3::Z, fixtures::HOLE_RADIUS);
+    let boss = build.cylinder(center + DVec3::X * off, DVec3::Z, fixtures::HOLE_RADIUS);
+    let rings = [stock, bore, boss].map(|wall| build.circle(wall, 0.0, None));
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    for (wall, ring) in [stock, bore, boss].into_iter().zip(rings) {
+        build.face(wall, false, vec![vec![use_of(ring, true)]]);
+    }
+    let body = build.finish(fixtures::STOCK_RADIUS);
+    let eps = body.scale().eps();
+    let walls = [bore, boss].map(|wall| match body.surface(wall) {
+        Surface::Cylinder(cylinder) => *cylinder,
+        Surface::Plane(_) => unreachable!("a bore and a boss are cylinders"),
+    });
+    let across = (fixtures::HOLE_RADIUS.powi(2) - off * off / 4.0).sqrt();
+    let lines = [-1.0, 1.0].map(|side| center + DVec3::new(off / 2.0, side * across, 0.0));
+    for tolerance in [1e-3, 0.02, 0.5] {
+        let samples = Samples::of(&body, tolerance);
+        for (ring, other) in [(rings[1], walls[1]), (rings[2], walls[0])] {
+            for id in samples.edge(ring) {
+                let point = samples.point(*id);
+                let on_a_line = lines.iter().any(|line| (point - *line).length() < eps);
+                assert!(
+                    on_a_line || other.distance(point).abs() >= eps * APART,
+                    "{point} all but lies on the other wall within {tolerance}"
+                );
+            }
+        }
+    }
+}
+
 #[test]
 fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
     let mut build = fixtures::Build::new();

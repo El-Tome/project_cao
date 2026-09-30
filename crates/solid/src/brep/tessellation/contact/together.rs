@@ -19,7 +19,10 @@ const ROUNDS: usize = 4;
 /// its grid it leaves out, starting from the rays each took on its own: in
 /// rounds, each pair of `close` walls sharing what both hold, until no wall
 /// holds more. A ray a wall already holds, to within the kernel's tolerance
-/// along its circle, is not taken twice.
+/// along its circle, is not taken twice; nor one that falls where it stands
+/// closer to any of its partners than a fifth of `eps`, as a ray of its own
+/// there is left out — else a partner it passed its grid on to would pass a
+/// step it withholds back to it.
 pub(super) fn shared(
     close: &[(&Wall, &Wall)],
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
@@ -27,6 +30,18 @@ pub(super) fn shared(
     eps: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
+    let partners = |(id, _): &Wall| {
+        let id = *id;
+        close.iter().filter_map(move |&(outer, inner)| {
+            if outer.0 == id {
+                Some(inner)
+            } else if inner.0 == id {
+                Some(outer)
+            } else {
+                None
+            }
+        })
+    };
     for _ in 0..ROUNDS {
         let mut received: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
         let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
@@ -67,6 +82,7 @@ pub(super) fn shared(
                 .filter(|(rank, _)| !off.contains(rank))
                 .map(|(_, way)| way)
                 .chain(fresh)
+                .filter(|way| partners(wall).all(|other| !beside(wall, other, *way, eps)))
                 .collect();
             once_each(&mut rays, wall, eps);
             grown |= rays.len() != before;
@@ -84,6 +100,12 @@ pub(super) fn shared(
         contacts.entry(wall).or_default().withheld = steps;
     }
     contacts
+}
+
+/// Whether a wall stands along `way` from its axis closer to another than a
+/// fifth of `eps`: no ray it takes there, whichever partner passed it on.
+fn beside((_, wall): &Wall, (_, other): &Wall, way: DVec3, eps: f64) -> bool {
+    other.distance(wall.origin + way * wall.radius).abs() < eps * APART
 }
 
 /// The rays of a wall in the order of their angle, one of each: two closer

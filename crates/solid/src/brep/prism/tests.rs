@@ -455,3 +455,25 @@ fn two_arcs_on_one_circle_make_one_wall_only_when_the_whole_arc_lands_on_their_e
         Err(Declined::Profile)
     );
 }
+
+#[test]
+fn a_run_of_nearly_straight_corners_keeps_every_corner_on_its_walls() {
+    let steps = 1000;
+    let bow = |step: usize| 1e-12 * (step * (steps - step)) as f64;
+    let mut corners: Vec<DVec2> = (0..=steps)
+        .map(|step| DVec2::new(step as f64 / 100.0, bow(step)))
+        .collect();
+    corners.extend([DVec2::new(10.0, -5.0), DVec2::new(0.0, -5.0)]);
+    let bowed = Contour::straight(corners.clone());
+    let body = Body::raised(&bowed, &[], ground(), DVec3::Z).expect("a bowed block raises");
+    assert_sound(&body);
+    let eps = body.scale().eps();
+    for corner in corners {
+        let at = DVec3::new(corner.x, corner.y, 0.0);
+        let nearest = body.faces[2..]
+            .iter()
+            .map(|wall| body.surface(wall.surface).distance(at).abs())
+            .fold(f64::INFINITY, f64::min);
+        assert!(nearest <= eps, "{corner} stands {nearest} off every wall");
+    }
+}

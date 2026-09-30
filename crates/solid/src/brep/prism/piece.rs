@@ -43,6 +43,18 @@ impl Piece {
         matches!(*self, Piece::Arc { sweep, .. } if sweep.abs() == TAU)
     }
 
+    /// Whether `corner` lies within `eps` of the line or the circle the piece
+    /// runs along.
+    fn holds(&self, corner: DVec2, eps: f64) -> bool {
+        match *self {
+            Piece::Straight { from, to } => {
+                let along = to - from;
+                along.perp_dot(corner - from).abs() <= eps * along.length()
+            }
+            Piece::Arc { center, radius, .. } => (corner.distance(center) - radius).abs() <= eps,
+        }
+    }
+
     fn reversed(&self) -> Piece {
         match *self {
             Piece::Straight { from, to } => Piece::Straight { from: to, to: from },
@@ -93,7 +105,7 @@ pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined
     if count == 0 || contour.runs.len() != count {
         return Err(Declined::Profile);
     }
-    let mut merged: Vec<Piece> = Vec::new();
+    let mut merged: Vec<Taken> = Vec::new();
     for index in 0..count {
         let piece = read(
             contour.corners[index],
@@ -101,24 +113,47 @@ pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined
             contour.runs[index],
             eps,
         )?;
-        let joined = match merged.last() {
-            Some(last) => joined(last, &piece, eps)?,
+        let piece = (piece, Vec::new());
+        let whole = match merged.last() {
+            Some(last) => fused(last, &piece, eps)?,
             None => None,
         };
-        match (joined, merged.last_mut()) {
-            (Some(joined), Some(last)) => *last = joined,
+        match (whole, merged.last_mut()) {
+            (Some(whole), Some(last)) => *last = whole,
             _ => merged.push(piece),
         }
     }
     while merged.len() > 1 {
-        let last = merged[merged.len() - 1];
-        let Some(joined) = joined(&last, &merged[0], eps)? else {
+        let Some(whole) = fused(&merged[merged.len() - 1], &merged[0], eps)? else {
             break;
         };
-        merged[0] = joined;
+        merged[0] = whole;
         merged.pop();
     }
-    closed(merged, eps)
+    closed(merged.into_iter().map(|(piece, _)| piece).collect(), eps)
+}
+
+/// A piece, and the corners of its contour that merging took away from
+/// inside it.
+type Taken = (Piece, Vec<DVec2>);
+
+/// Two consecutive pieces as one, when `joined` makes them one and every
+/// corner the merge takes away still lies on it: checked against the whole
+/// piece each time, so that a long run of corners each a hair off the
+/// chord of its neighbours cannot bow away from the wall it becomes.
+fn fused(first: &Taken, second: &Taken, eps: f64) -> Result<Option<Taken>, Declined> {
+    let Some(whole) = joined(&first.0, &second.0, eps)? else {
+        return Ok(None);
+    };
+    let inner: Vec<DVec2> = first
+        .1
+        .iter()
+        .copied()
+        .chain(std::iter::once(first.0.to()))
+        .chain(second.1.iter().copied())
+        .collect();
+    let holds = inner.iter().all(|corner| whole.holds(*corner, eps));
+    Ok(holds.then_some((whole, inner)))
 }
 
 /// Every check below is written as what must hold, so that a number which

@@ -414,3 +414,44 @@ fn two_walls_nearly_on_one_surface_share_it_only_when_each_lies_on_it_within_the
     assert_sound(&two_circles);
     assert_eq!(two_circles.surfaces.len(), 8);
 }
+
+/// Half a disc of radius 5 whose arc is drawn in two quarters, the second
+/// about a centre `shift` below the first's and ending `astray` further out.
+fn half_disc_in_two_quarters(shift: f64, astray: f64) -> Contour {
+    use crate::profile::Run;
+    use std::f64::consts::FRAC_PI_2;
+    let lower = DVec2::new(0.0, -shift);
+    let top = DVec2::new(0.0, 5.0);
+    let landed = lower + DVec2::from_angle(FRAC_PI_2).rotate(top - lower);
+    Contour {
+        corners: vec![
+            DVec2::new(5.0, 0.0),
+            top,
+            landed - DVec2::ONE.normalize() * astray,
+        ],
+        runs: vec![
+            Run::Round {
+                center: DVec2::ZERO,
+                turn: FRAC_PI_2,
+            },
+            Run::Round {
+                center: lower,
+                turn: FRAC_PI_2,
+            },
+            Run::Straight,
+        ],
+    }
+}
+
+#[test]
+fn two_arcs_on_one_circle_make_one_wall_only_when_the_whole_arc_lands_on_their_end() {
+    let raise = |outline: &Contour| Body::raised(outline, &[], ground(), DVec3::Z * 10.0);
+    let whole = raise(&half_disc_in_two_quarters(0.0, 0.0)).expect("half a disc raises");
+    assert_sound(&whole);
+    assert_eq!(counts(&whole), [4, 6, 4]);
+    let eps = whole.scale().eps();
+    assert_eq!(
+        raise(&half_disc_in_two_quarters(0.4 * eps, 0.8 * eps)).map(|_| ()),
+        Err(Declined::Profile)
+    );
+}

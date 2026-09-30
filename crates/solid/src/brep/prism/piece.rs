@@ -131,8 +131,7 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
         Run::Straight => Ok(Piece::Straight { from, to }),
         Run::Round { center, turn } => {
             let radius = from.distance(center);
-            let landed = center + DVec2::from_angle(turn).rotate(from - center);
-            if !(turn.abs() < TAU && radius > eps && landed.distance(to) <= eps) {
+            if !(turn.abs() < TAU && radius > eps && lands(from, center, turn, to, eps)) {
                 return Err(Declined::Profile);
             }
             Ok(Piece::Arc {
@@ -146,9 +145,15 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
     }
 }
 
+/// Whether `from`, turned about `center` by `turn`, lands on `to`.
+fn lands(from: DVec2, center: DVec2, turn: f64, to: DVec2, eps: f64) -> bool {
+    let landed = center + DVec2::from_angle(turn).rotate(from - center);
+    landed.distance(to) <= eps
+}
+
 /// One piece for two consecutive ones on the same line or circle, none when
 /// they stand on different ones, and a refusal when the second turns back
-/// over the first.
+/// over the first or when the whole arc misses the second's end.
 fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<Piece>, Declined> {
     match (*first, *second) {
         (Piece::Straight { from, to: corner }, Piece::Straight { to, .. }) => {
@@ -185,7 +190,10 @@ fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<Piece>, Decl
                 return Ok(None);
             }
             let total = sweep + other_sweep;
-            if sweep * other_sweep < 0.0 || radius * (total.abs() - TAU) > eps {
+            if sweep * other_sweep < 0.0
+                || radius * (total.abs() - TAU) > eps
+                || !lands(from, center, total, to, eps)
+            {
                 return Err(Declined::Profile);
             }
             Ok(Some(Piece::Arc {

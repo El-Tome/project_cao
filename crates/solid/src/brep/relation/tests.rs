@@ -245,4 +245,5 @@ fn two_planes_one_within_the_tolerance_say_when_their_canonical_normals_part() {
     );
 }
 
+mod crossing;
 mod lattice;

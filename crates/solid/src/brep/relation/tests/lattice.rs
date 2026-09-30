@@ -184,6 +184,52 @@ fn lattice() -> Vec<Piece> {
 }
 
 #[test]
+fn every_corner_of_a_smaller_lattice_lies_on_its_three_surfaces() {
+    let eps = scale().eps();
+    let mut surfaces = Vec::new();
+    for axis in 0..3 {
+        for offset in [-10.0, 0.0, 10.0] {
+            surfaces.push(
+                Piece::Flat {
+                    normal: axis,
+                    offset,
+                }
+                .surface(),
+            );
+        }
+        for at in [[-5.0, 0.0], [0.0, 0.0], [5.0, 5.0]] {
+            for radius in [5.0, 10.0] {
+                surfaces.push(Piece::Round { axis, at, radius }.surface());
+            }
+        }
+    }
+    let mut corners = 0;
+    for (index, one) in surfaces.iter().enumerate() {
+        for other in &surfaces[index + 1..] {
+            for curve in relation(one, other, scale()).curves() {
+                for third in &surfaces {
+                    let Crossings::At(found) = crossings(&curve, third, scale()) else {
+                        continue;
+                    };
+                    for crossing in found {
+                        let within = if crossing.tangent { eps } else { 1e-12 * REACH };
+                        for surface in [one, other] {
+                            assert!(surface.distance(crossing.point).abs() <= eps);
+                        }
+                        assert!(
+                            third.distance(crossing.point).abs() <= within,
+                            "{curve:?} against {third:?}: {crossing:?}"
+                        );
+                        corners += 1;
+                    }
+                }
+            }
+        }
+    }
+    assert!(corners > 1000, "{corners}");
+}
+
+#[test]
 fn every_pair_of_the_lattice_meets_as_arithmetic_says_exactly_and_a_hair_away() {
     let eps = scale().eps();
     let pieces = lattice();

@@ -25,7 +25,7 @@ mod volume;
 pub use curve::{Circle, Curve, Line, Meet};
 pub use listing::{ListedEdge, ListedFace, Listing};
 pub use meet::{Configuration, Meeting, Node};
-pub use relation::{Relation, relation};
+pub use relation::{Crossing, Crossings, Relation, crossings, relation};
 pub use scale::Scale;
 pub use surface::{Cylinder, Plane, Surface};
 pub use topology::{

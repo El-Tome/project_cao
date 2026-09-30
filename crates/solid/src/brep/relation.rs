@@ -2,6 +2,7 @@
 //! and the only place a tangency is decided. What is decided is built exactly
 //! from a formula — a tangent line is never a double root.
 
+mod crossing;
 mod cylinders;
 mod planar;
 
@@ -11,6 +12,7 @@ use super::curve::{Circle, Curve, Line};
 use super::meet::Meeting;
 use super::scale::Scale;
 use super::surface::Surface;
+pub use crossing::{Crossing, Crossings, crossings};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {

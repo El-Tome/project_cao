@@ -6,6 +6,7 @@
 //! Its vocabulary is the one a printed case is written in, so a case found by
 //! a campaign pastes into a named test as it is.
 
+mod along;
 mod building;
 mod checking;
 mod drawing;
@@ -14,6 +15,7 @@ mod smaller;
 
 use glam::{DQuat, DVec2, DVec3};
 
+pub use along::{Crossing, Stretch};
 pub use checking::{check, holds, kept_its_promise, within_reach};
 
 #[derive(Clone, Debug, PartialEq)]

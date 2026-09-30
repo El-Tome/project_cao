@@ -743,6 +743,9 @@ fn print_report(report: &Report<Case>) {
     for (rule, count) in &report.broken {
         println!("  {rule:?}: broken by {count}");
     }
+    for (seed, rule) in &report.failed {
+        println!("failed {seed} {rule:?}");
+    }
     for finding in &report.findings {
         println!(
             "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_on_the_exact_kernel() {{\n    random_solids::holds_exactly(&{});\n}}",

@@ -29,6 +29,9 @@ pub struct Report<C> {
     pub broken: Vec<(Rule, usize)>,
     /// A few cases per rule, shrunk, the first ones found.
     pub findings: Vec<Finding<C>>,
+    /// Every seed that broke a rule, and which: what a campaign's failures are
+    /// sorted into distinct ones from, after it has run.
+    pub failed: Vec<(u64, Rule)>,
 }
 
 /// The stack a check runs on. A kernel that recurses ends the program when
@@ -90,6 +93,7 @@ pub fn campaign<C: Clone + PartialEq + Send + 'static>(
         tried: 0,
         broken: Vec::new(),
         findings: Vec::new(),
+        failed: Vec::new(),
     };
     for seed in seeds {
         if !keep_going() {
@@ -101,6 +105,7 @@ pub fn campaign<C: Clone + PartialEq + Send + 'static>(
             continue;
         };
         let rule = flaw.rule();
+        report.failed.push((seed, rule));
         match report.broken.iter_mut().find(|(broken, _)| *broken == rule) {
             Some((_, count)) => *count += 1,
             None => report.broken.push((rule, 1)),

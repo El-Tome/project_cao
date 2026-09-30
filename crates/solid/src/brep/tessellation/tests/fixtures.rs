@@ -247,23 +247,39 @@ pub(crate) fn block() -> Body {
     build.finish(HALF_SIDE)
 }
 
-/// The stock: a wall going all the way round between two rings, no vertex.
-pub(crate) fn stock() -> Body {
-    let mut build = Build::new();
+/// The stock's three faces, its top and its bottom handed back so that holes
+/// can be bored through them.
+fn stock_in(build: &mut Build) -> (FaceId, FaceId) {
     let wall = build.cylinder(DVec3::ZERO, DVec3::Z, STOCK_RADIUS);
     let (low, high) = (
         build.circle(wall, 0.0, None),
         build.circle(wall, HEIGHT, None),
     );
-    let ((top, top_flipped), (bottom, bottom_flipped)) = caps(&mut build);
+    let ((top, top_flipped), (bottom, bottom_flipped)) = caps(build);
     let use_of = |edge, forward| Coedge { edge, forward };
     build.face(
         wall,
         false,
         vec![vec![use_of(low, true)], vec![use_of(high, false)]],
     );
-    build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
-    build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
+    let top = build.face(top, top_flipped, vec![vec![use_of(high, true)]]);
+    let bottom = build.face(bottom, bottom_flipped, vec![vec![use_of(low, false)]]);
+    (top, bottom)
+}
+
+/// The stock: a wall going all the way round between two rings, no vertex.
+pub(crate) fn stock() -> Body {
+    let mut build = Build::new();
+    stock_in(&mut build);
+    build.finish(STOCK_RADIUS)
+}
+
+/// The stock with a hole bored through at `center`, clear of its wall: its
+/// top and its bottom each have two rings.
+pub(crate) fn stock_with_a_hole_at(center: DVec3) -> Body {
+    let mut build = Build::new();
+    let (top, bottom) = stock_in(&mut build);
+    bore(&mut build, top, bottom, center);
     build.finish(STOCK_RADIUS)
 }
 

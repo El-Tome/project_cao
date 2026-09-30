@@ -7,15 +7,18 @@ use crate::soundness::{closed, enclosed, uncrossed};
 
 /// The triangles of a body, held to the rules: closed, uncrossed, and
 /// enclosing the exact volume within what the chords take off the curved
-/// faces — at most the tolerance over their area.
+/// faces — at most their sag over their area. The sag is the tolerance, or
+/// what a thousand and twenty-four steps a turn leave on the stock when the
+/// tolerance asks for finer.
 fn held(body: &Body, tolerance: f64, exact: f64, curved_area: f64) -> Vec<[DVec3; 3]> {
     let triangles = body.triangles(tolerance);
     closed(&triangles).expect("the triangles close");
     uncrossed(&triangles).expect("no triangle crosses another");
     let volume = enclosed(&triangles);
+    let finest = fixtures::STOCK_RADIUS * (1.0 - (std::f64::consts::PI / 1024.0).cos());
     assert!(
-        (volume - exact).abs() <= tolerance * curved_area + 1e-9 * exact,
-        "the triangles enclose {volume}, the body {exact}",
+        (volume - exact).abs() <= tolerance.max(finest) * curved_area + 1e-9 * exact,
+        "the triangles enclose {volume}, the body {exact}, within {tolerance}",
     );
     triangles
 }
@@ -94,4 +97,36 @@ fn a_hole_tangent_inside_the_stock_is_drawn_closed_and_uncrossed() {
         - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
     let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::HOLE_RADIUS);
     held(&fixtures::stock_with_a_tangent_hole(), DRAWN, volume, area);
+}
+
+#[test]
+fn a_hole_tangent_inside_the_stock_stays_uncrossed_however_fine_or_coarse_the_grids() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::HOLE_RADIUS);
+    for tolerance in [1e-6, 1e-4, 3e-3, 0.02, 0.1, 0.5, 2.0, 10.0] {
+        held(
+            &fixtures::stock_with_a_tangent_hole(),
+            tolerance,
+            volume,
+            area,
+        );
+    }
+}
+
+#[test]
+fn a_hole_a_hair_inside_the_stock_s_wall_stays_uncrossed_however_fine_or_coarse_the_grids() {
+    let volume = fixtures::disc_volume(fixtures::STOCK_RADIUS, fixtures::HEIGHT)
+        - fixtures::disc_volume(fixtures::HOLE_RADIUS, fixtures::HEIGHT);
+    let area = wall(fixtures::STOCK_RADIUS) + wall(fixtures::HOLE_RADIUS);
+    let away = fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS - 1e-6;
+    let center = DVec3::new(0.1f64.cos(), 0.1f64.sin(), 0.0) * away;
+    for tolerance in [1e-6, 1e-4, 3e-3, 0.02, 0.1, 0.5, 2.0, 10.0] {
+        held(
+            &fixtures::stock_with_a_hole_at(center),
+            tolerance,
+            volume,
+            area,
+        );
+    }
 }

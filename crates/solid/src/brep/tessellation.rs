@@ -7,6 +7,7 @@
 //! needed, and on a cylinder every curve has a sample at every angle of the
 //! grid, so that no triangle spans more than one step of it.
 
+mod contact;
 mod orientation;
 mod outline;
 mod sampling;

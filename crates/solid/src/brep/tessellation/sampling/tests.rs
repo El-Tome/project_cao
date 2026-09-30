@@ -3,6 +3,7 @@ use std::f64::consts::{PI, TAU};
 use super::super::tests::fixtures;
 use super::{Samples, divisions};
 use crate::brep::curve::Curve;
+use crate::brep::topology::Body;
 
 const CLOSE: f64 = 1e-12;
 
@@ -96,6 +97,45 @@ fn a_ring_is_sampled_at_every_angle_of_the_grid_from_its_start() {
         for (step, id) in ids.iter().enumerate() {
             let expected = circle.point(TAU * step as f64 / steps as f64);
             assert!((samples.point(*id) - expected).length() < CLOSE);
+        }
+    }
+}
+
+/// The angles round `(center, 0)`, from X, of the samples of every circle of
+/// `radius` at the top of the block, sorted.
+fn rays_round(body: &Body, samples: &Samples, center: f64, radius: f64) -> Vec<f64> {
+    let mut angles = Vec::new();
+    for edge in body.edge_ids() {
+        let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+            continue;
+        };
+        if circle.radius != radius || circle.center.z != fixtures::HEIGHT {
+            continue;
+        }
+        let ids = samples.edge(edge);
+        for id in &ids[..ids.len() - 1] {
+            let point = samples.point(*id);
+            angles.push(point.y.atan2(point.x - center).rem_euclid(TAU));
+        }
+    }
+    angles.sort_by(f64::total_cmp);
+    angles
+}
+
+#[test]
+fn the_circles_of_a_hole_tangent_inside_the_stock_are_sampled_on_common_rays_from_its_axis() {
+    let body = fixtures::stock_with_a_tangent_hole();
+    let center = fixtures::STOCK_RADIUS - fixtures::HOLE_RADIUS;
+    for tolerance in [1e-6, 0.02, 10.0] {
+        let samples = Samples::of(&body, tolerance);
+        let outer = rays_round(&body, &samples, center, fixtures::STOCK_RADIUS);
+        let inner = rays_round(&body, &samples, center, fixtures::HOLE_RADIUS);
+        assert_eq!(outer.len(), inner.len(), "within {tolerance}");
+        for (one, other) in outer.iter().zip(&inner) {
+            assert!(
+                (one - other).abs() < 1e-9,
+                "{one} and {other} within {tolerance}"
+            );
         }
     }
 }

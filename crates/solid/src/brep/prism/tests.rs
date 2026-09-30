@@ -345,3 +345,72 @@ fn a_travel_shorter_than_the_tolerance_is_declined() {
     assert_eq!(raise(DVec3::Z * -0.5 * eps), Err(Declined::Travel));
     assert_eq!(raise(DVec3::Z * 3.0 * eps), Ok(()));
 }
+
+/// A block 200 wide with a notch in its top, the top left of the notch
+/// raised by `near` at the notch and `far` at the block's end.
+fn notched_with_a_hair(near: f64, far: f64) -> Contour {
+    Contour::straight(vec![
+        DVec2::new(-100.0, 0.0),
+        DVec2::new(100.0, 0.0),
+        DVec2::new(100.0, 50.0),
+        DVec2::new(20.0, 50.0),
+        DVec2::new(20.0, 30.0),
+        DVec2::new(-20.0, 30.0),
+        DVec2::new(-20.0, 50.0 + near),
+        DVec2::new(-100.0, 50.0 + far),
+    ])
+}
+
+/// A disc of radius 5 with a notch on either side, its lower arc drawn about
+/// a centre `shift` away from the upper arc's, along the lower arc's start.
+fn disc_notched_twice(shift: f64) -> Contour {
+    use crate::profile::Run;
+    use std::f64::consts::PI;
+    let at = |angle: f64| DVec2::from_angle(angle);
+    let lower = at(PI + 0.3) * shift;
+    Contour {
+        corners: vec![
+            at(0.3) * 5.0,
+            at(PI - 0.3) * 5.0,
+            DVec2::new(-2.0, 0.0),
+            lower + at(PI + 0.3) * (5.0 + shift),
+            lower + at(-0.3) * (5.0 + shift),
+            DVec2::new(2.0, 0.0),
+        ],
+        runs: vec![
+            Run::Round {
+                center: DVec2::ZERO,
+                turn: PI - 0.6,
+            },
+            Run::Straight,
+            Run::Straight,
+            Run::Round {
+                center: lower,
+                turn: PI - 0.6,
+            },
+            Run::Straight,
+            Run::Straight,
+        ],
+    }
+}
+
+#[test]
+fn two_walls_nearly_on_one_surface_share_it_only_when_each_lies_on_it_within_the_tolerance() {
+    let eps = crate::brep::scale::Scale::of(100.0).eps();
+    let raise = |outline: &Contour| {
+        Body::raised(outline, &[], ground(), DVec3::Z * 10.0).expect("a notched block raises")
+    };
+    let shared = raise(&notched_with_a_hair(0.3 * eps, 0.3 * eps));
+    assert_sound(&shared);
+    assert_eq!(shared.surfaces.len(), 9);
+    let apart = raise(&notched_with_a_hair(1.1375 * eps, 1.8875 * eps));
+    assert_sound(&apart);
+    assert_eq!(apart.surfaces.len(), 10);
+    let eps = crate::brep::scale::Scale::of(10.0).eps();
+    let one_circle = raise(&disc_notched_twice(0.0));
+    assert_sound(&one_circle);
+    assert_eq!(one_circle.surfaces.len(), 7);
+    let two_circles = raise(&disc_notched_twice(0.9 * eps));
+    assert_sound(&two_circles);
+    assert_eq!(two_circles.surfaces.len(), 8);
+}

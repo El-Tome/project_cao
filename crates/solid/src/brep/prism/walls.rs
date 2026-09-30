@@ -139,10 +139,12 @@ impl Walls {
     }
 
     fn side(&mut self, piece: &Piece) -> Side {
+        let [from, to] = [piece.from(), piece.to()].map(|corner| self.frame.at(corner));
+        let corners = [from, to, from + self.lift, to + self.lift];
         match *piece {
-            Piece::Straight { from, to } => {
-                let along = self.frame.at(to) - self.frame.at(from);
-                let (surface, flipped) = self.plane(self.frame.at(from), along.cross(self.up));
+            Piece::Straight { .. } => {
+                let (plane, flipped) = Plane::through(from, (to - from).cross(self.up));
+                let surface = self.surface(Surface::Plane(plane), &corners);
                 Side {
                     surface,
                     flipped,
@@ -157,7 +159,7 @@ impl Walls {
             } => {
                 let cylinder = Cylinder::about(self.frame.at(center), self.up, radius);
                 Side {
-                    surface: self.surface(Surface::Cylinder(cylinder)),
+                    surface: self.surface(Surface::Cylinder(cylinder), &corners),
                     flipped: sweep < 0.0,
                     cylinder: Some(cylinder),
                 }
@@ -168,27 +170,33 @@ impl Walls {
     /// The plane through `point` whose matter lies against `outward`.
     fn plane(&mut self, point: DVec3, outward: DVec3) -> (SurfaceId, bool) {
         let (plane, turned) = Plane::through(point, outward);
-        (self.surface(Surface::Plane(plane)), turned)
+        (self.surface(Surface::Plane(plane), &[point]), turned)
     }
 
-    /// The surface's id, shared with a surface already there that it is
-    /// within `eps` of: two runs of a contour on one line stand on one plane.
-    fn surface(&mut self, surface: Surface) -> SurfaceId {
-        let parallel = |one: DVec3, other: DVec3| {
-            one.dot(other) > 0.0 && one.cross(other).length() <= Scale::RELATIVE
-        };
+    /// The surface's id, shared with a surface already there when the piece
+    /// standing on it would stand on that one within `eps` too: each of its
+    /// `corners`, and on a cylinder each point of its circles. Two runs of a
+    /// contour on one line stand on one plane; two a hair apart do not.
+    fn surface(&mut self, surface: Surface, corners: &[DVec3]) -> SurfaceId {
         let eps = self.eps;
-        let same = |known: &Surface| match (known, &surface) {
-            (Surface::Plane(known), Surface::Plane(plane)) => {
-                parallel(known.normal, plane.normal)
-                    && (known.offset() - plane.offset()).abs() <= eps
-            }
-            (Surface::Cylinder(known), Surface::Cylinder(cylinder)) => {
-                parallel(known.axis, cylinder.axis)
-                    && known.origin.distance(cylinder.origin) <= eps
-                    && (known.radius - cylinder.radius).abs() <= eps
-            }
-            _ => false,
+        let same = |known: &Surface| {
+            let alike = match (known, &surface) {
+                (Surface::Plane(known), Surface::Plane(plane)) => {
+                    known.normal.dot(plane.normal) > 0.0
+                }
+                (Surface::Cylinder(known), Surface::Cylinder(cylinder)) => {
+                    known.axis.dot(cylinder.axis) > 0.0
+                        && known.axis.cross(cylinder.axis).length() <= Scale::RELATIVE
+                        && known.origin.distance(cylinder.origin)
+                            + (known.radius - cylinder.radius).abs()
+                            <= eps
+                }
+                _ => false,
+            };
+            alike
+                && corners
+                    .iter()
+                    .all(|corner| known.distance(*corner).abs() <= eps)
         };
         let found = self.body.surfaces.iter().position(same);
         let index = found.unwrap_or_else(|| {

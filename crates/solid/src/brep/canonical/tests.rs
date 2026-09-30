@@ -195,3 +195,28 @@ fn a_corner_found_on_two_surfaces_of_a_line_lying_on_three_lies_on_the_line_and_
     assert_eq!(supports[0], vec![side, tangent, cylinder, top]);
     assert!(lies_on(corner, &supports[0], edge, &registry, eps));
 }
+
+fn with_surfaces(surfaces: Vec<Surface>) -> Body {
+    Body {
+        surfaces,
+        curves: Vec::new(),
+        vertices: Vec::new(),
+        edges: Vec::new(),
+        faces: Vec::new(),
+        scale: Scale::of(1.0),
+    }
+}
+
+#[test]
+fn a_surface_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest() {
+    let scale = Scale::of(25.0);
+    let hair = 0.8 * scale.eps();
+    let one = with_surfaces(vec![
+        plane_at(7.0, DVec3::Z),
+        plane_at(7.0 + hair, DVec3::Z),
+        plane_at(7.0 - hair / 2.0, DVec3::Z),
+    ]);
+    let other = with_surfaces(vec![plane_at(7.0 + hair, DVec3::Z)]);
+    let surfaces = Surfaces::of(&one, &other, scale);
+    assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
+}

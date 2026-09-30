@@ -53,6 +53,9 @@ impl Outline {
                 ids
             })
             .collect();
+        if laps.iter().any(|lap| lap.len() < 2) {
+            return None;
+        }
         let mut outline = Outline {
             points: Vec::new(),
             samples: Vec::new(),

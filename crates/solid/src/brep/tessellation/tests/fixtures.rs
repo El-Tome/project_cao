@@ -13,7 +13,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use crate::brep::curve::{Circle, Curve, Line};
+use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{
@@ -126,6 +126,21 @@ impl Build {
             }
             None => self.edge(Curve::Circle(circle), None, 0.0, TAU),
         }
+    }
+
+    /// One whole loop of the curve two perpendicular cylinders meet along,
+    /// with no vertex on it.
+    pub(crate) fn meet(&mut self, first: SurfaceId, second: SurfaceId) -> EdgeId {
+        let cylinder = |id| match *self.body.surface(id) {
+            Surface::Cylinder(cylinder) => cylinder,
+            Surface::Plane(_) => panic!("the curve is where two cylinders meet"),
+        };
+        let meet = Meet {
+            first: cylinder(first),
+            second: cylinder(second),
+            component: 0,
+        };
+        self.edge(Curve::Meet(meet), None, 0.0, TAU)
     }
 
     /// The use of an edge leaving `from`: along its way when it starts there.

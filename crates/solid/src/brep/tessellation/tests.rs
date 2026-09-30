@@ -199,3 +199,24 @@ fn a_hole_a_hair_inside_the_stock_s_wall_stays_uncrossed_however_fine_or_coarse_
         );
     }
 }
+
+#[test]
+fn a_face_bounded_by_a_curve_not_sampled_yet_is_left_open_rather_than_ending_the_program() {
+    let mut build = fixtures::Build::new();
+    let wall = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
+    let across = build.cylinder(DVec3::Z * 5.0, DVec3::X, fixtures::HOLE_RADIUS);
+    let ring = build.circle(wall, 0.0, None);
+    let meet = build.meet(wall, across);
+    let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
+    build.face(
+        wall,
+        false,
+        vec![vec![use_of(ring, true)], vec![use_of(meet, false)]],
+    );
+    assert!(
+        build
+            .finish(fixtures::STOCK_RADIUS)
+            .triangles(DRAWN)
+            .is_empty()
+    );
+}

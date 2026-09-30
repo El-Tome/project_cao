@@ -18,7 +18,7 @@ use super::contact;
 use crate::brep::curve::{Circle, Curve, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
-use crate::brep::topology::{Body, Edge, EdgeId};
+use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
 
 const LEAST: usize = 16;
 const MOST: usize = 1024;
@@ -67,7 +67,7 @@ impl Samples {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
                     let extra = (0..body.surfaces.len() as u32)
-                        .map(crate::brep::topology::SurfaceId)
+                        .map(SurfaceId)
                         .find(|surface| lies_on(body, circle, *surface))
                         .and_then(|surface| rays.get(&surface))
                         .map_or(&[][..], Vec::as_slice);
@@ -105,7 +105,7 @@ impl Samples {
 
 /// Whether a circle is one of the circles of a surface of the body: a
 /// cylinder of its radius about its axis.
-fn lies_on(body: &Body, circle: &Circle, surface: crate::brep::topology::SurfaceId) -> bool {
+fn lies_on(body: &Body, circle: &Circle, surface: SurfaceId) -> bool {
     let Surface::Cylinder(cylinder) = body.surface(surface) else {
         return false;
     };
@@ -184,9 +184,15 @@ fn on_circle(
         .collect()
 }
 
-/// The curve two perpendicular cylinders meet along is to be sampled at the
-/// grid angles of both, seen on either. `meet.rs` does not evaluate it yet, so
-/// an edge along it keeps its two ends and nothing between.
+/// The points of an edge along the curve two perpendicular cylinders meet
+/// along, between its ends. Not sampled yet: `meet.rs` does not evaluate the
+/// curve, so the edge keeps its two ends and nothing between, and a face
+/// bounded by a whole loop of it is left open.
+///
+/// What it is to take, once the curve is evaluated: the parameters where its
+/// angle on either cylinder, read through `Meet::seen_on`, crosses that
+/// cylinder's grid, and those where it turns back in either angle, so that on
+/// both cylinders it has a point at every grid angle as circles do.
 fn on_meet(_meet: &Meet, _edge: &Edge) -> Vec<DVec3> {
     Vec::new()
 }

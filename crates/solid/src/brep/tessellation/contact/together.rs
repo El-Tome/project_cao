@@ -30,7 +30,7 @@ pub(super) fn shared(
     tolerance: f64,
     eps: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
-    let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
+    let mut withheld: BTreeMap<SurfaceId, Vec<(usize, [f64; 2])>> = BTreeMap::new();
     let partners = |(id, _): &Wall| {
         let id = *id;
         close.iter().filter_map(move |&(outer, inner, facing)| {
@@ -87,9 +87,7 @@ pub(super) fn shared(
                 .filter(|(rank, _)| !off.contains(rank))
                 .map(|(_, way)| way)
                 .chain(fresh)
-                .filter(|way| {
-                    partners(wall).all(|(other, facing)| !beside(wall, other, facing, *way))
-                })
+                .filter(|way| partners(wall).all(|(_, facing)| !beside(wall, facing, *way)))
                 .collect();
             once_each(&mut rays, wall, eps);
             grown |= rays.len() != before;
@@ -112,9 +110,9 @@ pub(super) fn shared(
 /// Whether a wall stands along `way` from its axis closer to another than
 /// their room, the two face to face there: no ray it takes there, whichever
 /// partner passed it on.
-fn beside((_, wall): &Wall, (_, other): &Wall, facing: &Facing, way: DVec3) -> bool {
+fn beside((_, wall): &Wall, facing: &Facing, way: DVec3) -> bool {
     let point = wall.origin + way * wall.radius;
-    other.distance(point).abs() < facing.room() && facing.at(point)
+    facing.crowds(wall, point) && facing.at(point)
 }
 
 /// The rays of a wall in the order of their angle, one of each: two closer
@@ -208,31 +206,39 @@ pub(super) fn sampled(
         contacts: [Contact::default(), Contact::default()],
         dropped: [Vec::new(), Vec::new()],
     };
-    let mut leave = |wall: usize, from: From| match from {
-        From::Step(step) => shared.contacts[wall].withheld.push(step),
+    let mut leave = |wall: usize, from: From, over: Vec<[f64; 2]>| match from {
+        From::Step(step) => shared.contacts[wall]
+            .withheld
+            .extend(over.into_iter().map(|stretch| (step, stretch))),
         From::Own(rank) => shared.dropped[wall].push(rank),
     };
     let mut on_inner = Vec::new();
     for (point, from) in through_outer {
         let from_axis = point - offset;
-        if (from_axis.length() - inner.radius).abs() >= facing.room()
-            || !facing.at(outer.origin + point)
-        {
+        let over = if facing.crowds(&outer, outer.origin + point) {
+            facing.withheld(outer_wall.0, outer.origin + point)
+        } else {
+            Vec::new()
+        };
+        if over.is_empty() {
             on_inner.push(from_axis.normalize());
         } else {
-            leave(0, from);
+            leave(0, from, over);
         }
     }
     let mut on_outer = Vec::new();
     for (way, from) in from_inner {
         let along = offset.dot(way);
         let reach = -along + (along * along - outside).sqrt();
-        if (reach - inner.radius).abs() >= facing.room()
-            || !facing.at(outer.origin + offset + way * reach)
-        {
+        let over = if facing.crowds(&inner, outer.origin + offset + way * inner.radius) {
+            facing.withheld(inner_wall.0, outer.origin + offset + way * inner.radius)
+        } else {
+            Vec::new()
+        };
+        if over.is_empty() {
             on_outer.push((offset + way * reach).normalize());
         } else {
-            leave(1, from);
+            leave(1, from, over);
         }
     }
     shared.contacts[0].rays = on_outer;

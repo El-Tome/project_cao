@@ -1232,3 +1232,186 @@ fn seed_1016543_a_block_resting_on_a_boss_beside_the_side_it_touches_stays_uncro
         ],
     ));
 }
+
+#[test]
+fn seed_3224477_a_cut_of_one_radius_a_hair_and_a_half_off_the_axis_leaves_the_cap_above_it_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([8.0, 1.0], 6.0), 9.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([8.00000002, 1.0], 6.0),
+            8.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_3044779_a_crescent_a_hair_wide_under_a_notch_leaves_the_disc_above_it_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([3.0, 6.0], 2.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.99999999, 6.0], 2.0),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([1.0, 5.0], [9.0, 9.0]),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3282114_a_boss_a_hair_off_the_hole_it_fills_keeps_its_rim_round_above_the_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([9.0, 0.0], [15.0, 5.0]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.0, 0.0], 6.0),
+                2.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.00000002, 0.0], 6.0),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3217438_a_circle_a_hair_off_the_rim_printed_on_a_disc_s_cap_leaves_its_other_rim_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(2.0), Outline::circle([1.0, 4.0], 2.0), -1.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(1.9999998),
+                Outline::rectangle([1.0, 4.0], [2.0, 5.0]),
+                2.5,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(3.0),
+                Outline::circle([1.00000001, 4.0], 2.0),
+                -6.5,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3174852_a_bore_touching_a_boss_inside_keeps_its_rim_above_the_block_off_the_boss() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([-1.0, 3.0], [11.0, 15.0]),
+            2.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0, 9.0], 3.0),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0000001, 9.5], 2.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3174852_two_bores_one_a_hair_inside_the_other_touching_it_leave_the_block_whole_round_them()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rectangle([2.0, 6.0], [8.0, 12.0]),
+            2.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0, 9.5], 2.4999999),
+                3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.00001),
+                Outline::circle([5.0000001, 9.5], 2.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3115386_a_bore_a_hair_narrower_than_its_stock_on_one_axis_leaves_the_stock_round_once_the_tolerance_grows()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 9.0], 0.50000001), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-0.0),
+                Outline::circle([6.0, 9.0], 0.5),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([7.0, 4.0], [11.0, 7.0]),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3175702_a_bore_touching_two_others_a_hair_from_their_line_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([8.0, 10.0], 4.5), 4.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([12.0, 10.0], 0.50000002),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([11.0, 10.0], 1.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3049074_three_bores_touching_inside_along_one_line_under_a_notch_leave_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([8.0, 9.0], 2.5), 2.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([9.0, 9.0], 1.5),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([10.0, 9.0], 0.50000006),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::rectangle([5.0, 9.0], [10.0, 16.0]),
+                2.0,
+            )),
+        ],
+    ));
+}

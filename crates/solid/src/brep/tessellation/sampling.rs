@@ -34,7 +34,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::contact::{self, Contact, Zones};
+use super::contact::{self, Contact, Gap, Zones};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cylinder, Plane};
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
@@ -246,6 +246,7 @@ fn on_circle(
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
+    let level = circle.center.dot(circle.axis);
     let beside_end = gap.max((2.0 * eps * contact::APART / circle.radius).sqrt());
     let [at_from, at_to] = ends_of
         .touched
@@ -270,8 +271,7 @@ fn on_circle(
     } else {
         vec![edge.from, edge.to]
     };
-    let beside =
-        |at: f64, (other, room): &(Cylinder, f64)| other.distance(circle.point(at)).abs() < *room;
+    let beside = |at: f64, (own, gap): &(Cylinder, Gap)| gap.crowds(own, circle.point(at));
     let beside_a_plane = |at: f64| {
         let point = circle.point(at);
         planes
@@ -300,9 +300,10 @@ fn on_circle(
         ..=(high / step).ceil() as i64)
         .filter(|rank| inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD))
         .filter(|rank| {
-            !contact
-                .withheld
-                .contains(&(rank.rem_euclid(steps as i64) as usize))
+            let step = rank.rem_euclid(steps as i64) as usize;
+            !contact.withheld.iter().any(|(withheld, [low, high])| {
+                *withheld == step && *low - eps <= level && level <= *high + eps
+            })
         })
         .map(|rank| {
             let angle = TAU * rank.rem_euclid(steps as i64) as f64 / steps as f64;

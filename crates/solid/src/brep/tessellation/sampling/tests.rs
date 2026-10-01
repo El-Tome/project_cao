@@ -874,7 +874,7 @@ fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
     };
     let contact = super::Contact {
         rays: vec![circle.u - circle.v * 1e-17],
-        withheld: vec![0],
+        withheld: vec![(0, [f64::NEG_INFINITY, f64::INFINITY])],
         anchors: Vec::new(),
         beside: Vec::new(),
     };

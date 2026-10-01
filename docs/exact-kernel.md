@@ -245,10 +245,15 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   the next inside it. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
-  round the turn. Two walls decided to touch take the whole of it, though:
-  the kernel may leave them overlapping by that much, one poking through the
-  other round the line they touch along, and a ray passed on there puts a
-  sample of a cap's arc on the wrong side of the other. A circle belongs to
+  round the turn. Two walls decided to touch take no ray either where one
+  stands on the wrong side of the other, however deep: the kernel may leave
+  them overlapping by up to `EPS`, one poking through the other round the
+  line they touch along, and a ray passed on there puts a sample of a cap's
+  arc on the wrong side of the other. On the side they were decided to
+  stand on, a fifth of `EPS` is room enough, and the whole of it would
+  withhold a wide arc of two walls nearly concentric. The gap is measured
+  along the common ray from the smaller wall's axis, the same sum on
+  either wall, so that a ray is crowded for both or for neither. A circle belongs to
   the nearest wall it lies on: two walls decided apart may both hold it once
   a later leaf grows the tolerance, and an end lies on a surface other than
   its circle's own only as far as rounding allows. Nor does a wall take such a
@@ -258,9 +263,19 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   at a height they share: a union keeps each wall where the other is gone,
   and two cylinders stacked keep each wall at its own heights, so there the
   place is one wall's alone and the step stays, or the chord across would sag
-  past the tolerance. A wall holding no face, its circles printed on a cap,
-  is taken to hold one everywhere: a circle printed round a hole it touches
-  inside is sampled in common with the hole. Two walls of radii apart
+  past the tolerance. And it is withheld only from the circles bounding a
+  stretch of height both walls hold a face over there: the rim of a disc
+  left whole above a crescent two walls bound below it faces nothing, and
+  keeps its whole grid. Its triangles reach down the wall to the circles
+  that do withhold the step, and sag less than the other wall's chords
+  beside the line the two meet along: that keeps them clear of it where it
+  stands on the rim's hollow side further than the rules tell apart, and
+  would have them pass through it anywhere else — a bore's rim above a
+  boss it touches inside — so there every circle of the wall withholds the
+  step. A wall holding no face, its circles printed on a cap, faces the
+  other at the heights of its circles alone: a circle printed round a hole
+  it touches inside is sampled in common with the hole's rim on that cap,
+  and the hole's other rims are not. Two walls of radii apart
   decided to touch face each other too where a circle of each stands at one
   height at that angle, though the walls stand at heights apart: a pocket's
   floor round a hole touching the pocket's wall inside is bounded by both.

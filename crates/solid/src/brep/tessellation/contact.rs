@@ -28,6 +28,7 @@
 //! samples, so that both walls are cut in strips between them.
 
 mod facing;
+mod gap;
 mod together;
 
 use std::collections::BTreeMap;
@@ -42,6 +43,7 @@ use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
 use facing::Facing;
 pub(super) use facing::Zones;
+pub(super) use gap::Gap;
 
 /// How close to another wall, as a share of the kernel's tolerance, no sample
 /// of a wall stands but on the lines they meet along: twice what the rules
@@ -58,17 +60,19 @@ pub(super) struct Contact {
     /// Directions square to its axis, from its axis, its circles are also
     /// sampled along.
     pub(super) rays: Vec<DVec3>,
-    /// Steps of its grid its circles are not sampled at.
-    pub(super) withheld: Vec<usize>,
+    /// Steps of its grid its circles are not sampled at, each with the
+    /// stretch of height its partner faces it over there: only a circle
+    /// standing at the end of such a stretch, or within it, withholds it.
+    pub(super) withheld: Vec<(usize, [f64; 2])>,
     /// The vertices lying on it: a sample of its circles at a vertex's angle
     /// is put square to the axis from the nearest of them, where the kernel
     /// decided it, rather than on the exact circle a hair away — the line two
     /// surfaces were decided to touch along then holds the samples of both.
     pub(super) anchors: Vec<DVec3>,
-    /// The cylinders parallel to it it touches or crosses, each with how near
-    /// it the two all but meet: beside the lines they meet along, an arc
-    /// ending there is sampled at its end alone.
-    pub(super) beside: Vec<(Cylinder, f64)>,
+    /// The cylinders parallel to it it touches or crosses, as the pair tells
+    /// a place crowded, with its own: beside the lines they meet along, an
+    /// arc ending there is sampled at its end alone.
+    pub(super) beside: Vec<(Cylinder, Gap)>,
 }
 
 impl Contact {
@@ -183,8 +187,8 @@ pub(super) fn contacts(
             };
             let lines = meeting_lines(&one.1, &other.1, eps);
             if !lines.is_empty() {
-                for (wall, partner) in [(one, other), (other, one)] {
-                    let near = (partner.1, facing.room());
+                for wall in [one, other] {
+                    let near = (wall.1, facing.gap());
                     contacts.entry(wall.0).or_default().beside.push(near);
                 }
             }
@@ -202,7 +206,7 @@ pub(super) fn contacts(
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
-                let withheld = touching(&near.1, &far.1, facing, tolerance, eps);
+                let withheld = touching(near, &far.1, facing, tolerance, eps);
                 if !withheld.is_empty() {
                     contacts
                         .entry(near.0)
@@ -351,15 +355,16 @@ fn meeting_lines(one: &Cylinder, other: &Cylinder, eps: f64) -> Vec<[DVec3; 2]> 
 }
 
 /// The steps of a cylinder's grid standing within the pair's room of another
-/// cylinder parallel to it, where the two face each other: none unless their
-/// circles come that close somewhere.
+/// cylinder parallel to it, where the two face each other, each with the
+/// stretches of height they face each other over: none unless their circles
+/// come that close somewhere.
 fn touching(
-    cylinder: &Cylinder,
+    (id, cylinder): &Wall,
     other: &Cylinder,
     facing: &Facing,
     tolerance: f64,
     eps: f64,
-) -> Vec<usize> {
+) -> Vec<(usize, [f64; 2])> {
     let between = cylinder.origin - other.origin;
     let apart = (between - other.axis * other.axis.dot(between)).length();
     let (low, high) = (
@@ -371,10 +376,15 @@ fn touching(
     }
     let steps = divisions(cylinder.radius, tolerance);
     (0..steps)
-        .filter(|step| {
-            let angle = TAU * *step as f64 / steps as f64;
+        .flat_map(|step| {
+            let angle = TAU * step as f64 / steps as f64;
             let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-            other.distance(point).abs() < facing.room() && facing.at(point)
+            let over = if facing.crowds(cylinder, point) {
+                facing.withheld(*id, point)
+            } else {
+                Vec::new()
+            };
+            over.into_iter().map(move |stretch| (step, stretch))
         })
         .collect()
 }

@@ -283,3 +283,22 @@ fn two_walls_crossing_at_a_grazing_angle_are_ordered_at_the_middle_of_the_stretc
         Some(false)
     );
 }
+
+/// Seed 3192987 of the campaign, shrunk another way and stood on Z: a bar
+/// bored along its length by a bore touching it inside at its top, then a
+/// block whose top both walls touch, 1.8e-6 apart, joined to it. The strip
+/// of the block's top between the two lines of touch stands within the
+/// tolerance of both walls all across, and both lie under it: the nearer,
+/// the bar's, tells that the strip stands outside the bar's matter, which
+/// the bore's alone would put it in.
+#[test]
+fn a_strip_both_walls_of_a_cusp_lie_under_is_wound_as_the_nearer_wall_s_matter_lies() {
+    let bored = standing([344.9999982, 285.0], 90.0, -89.99999, 480.00001)
+        .cut_by(&standing([345.0, 315.0], 60.0, -89.99999, 1050.00001))
+        .expect("the bar is bored");
+    let block = block([255.0, 195.0, -60.0], [435.0, 375.0, 195.0]);
+    let operands = Operands::of(&bored, &block, bored.scale().joined(block.scale()));
+    let arena = laid(&operands).expect("the arena is laid");
+    let selected = selected(&operands, &arena, Operation::Or);
+    assert!(selected.is_ok(), "{:?}", selected.err());
+}

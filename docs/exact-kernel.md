@@ -164,19 +164,20 @@ The decisions, in the order taken, once per operation:
    covers it, but one of whose faces on the other lies over the region's
    point — its foot on that surface located in the face — wraps the region
    once where it stands on that face's matter side, and not at all on the
-   other. Which side of the face the region stands on is read off the pair
-   as the arena decided it, not measured: a cylinder touching a plane
-   stands on its axis's side of it, the inner of two touching cylinders
-   inside the outer, and two surfaces crossing stand one above the other
-   all along each stretch between the lines they cross along, read at its
-   middle. All across is read on the region's point and along every arc
+   other. Two such faces on one side, the walls of a cusp both lying under
+   a plane they touch, are read by the nearer. Which side of a face the
+   region stands on, and which of two is nearer, is read off the pairs as
+   the arena decided them, not measured: a cylinder touching a plane stands
+   on its axis's side of it, the inner of two touching cylinders inside the
+   outer, and two surfaces crossing stand one above the other all along
+   each stretch between the lines they cross along, read at its middle. All across is read on the region's point and along every arc
    bounding it: both surfaces are smooth and the region thin, so a region
    whose boundary stands within `EPS` of a surface stands within it inside
    too. Two planes are never read this way — decision 1 takes them for one
    or keeps them apart — nor two surfaces crossing steeper than a band can
    turn, which a sliver stands within `EPS` of only for being a sliver.
-   Where the foot lands on the face's boundary, or two faces disagree, a
-   ray is cast as before.
+   Where the foot lands on the face's boundary, or the faces either side
+   disagree, a ray is cast as before.
 
    The region is wound beside the face, not covered by it. Taken for the
    face's twin and covered as the face covers it, as two regions bounded

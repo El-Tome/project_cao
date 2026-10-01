@@ -94,37 +94,82 @@ fn bounding(body: &Body, region: &Region, edges: &[EdgeId]) -> Vec<DVec3> {
 
 /// How many times an operand none of whose faces on a region's surface
 /// covers the region wraps it, read off its faces the region stands within
-/// the tolerance of all across: once where the region stands on the side of
-/// such a face its matter is on, nought where it stands on the other. Which
-/// side of the face's surface the region stands on is read off how the
-/// arena decided the two surfaces — a cylinder touching a plane lies on its
-/// axis's side of it — never off where the region's point stands, within
-/// rounding of the face. None where no face of the operand lies over the
-/// region's point, where its foot lands on a face's boundary, or where that
-/// side cannot be read: a ray is cast instead.
+/// the tolerance of all across. Stacked along the region's normal, the
+/// nearest such face on either side tells: the region is in the operand's
+/// matter where it stands on that face's matter side. Which side of a face
+/// the region stands on, and which of two faces on one side is nearer, is
+/// read off how the arena decided the surfaces — a cylinder touching a
+/// plane lies on its axis's side of it, the inner of two touching cylinders
+/// inside the outer — never off where the region's point stands, within
+/// rounding of them. None where no face of the operand lies over the
+/// region's point, where its foot lands on a face's boundary, or where the
+/// order cannot be read or the two sides disagree: a ray is cast instead.
 pub(super) fn wound_beside(operands: &Operands, operand: usize, places: &[Place]) -> Option<i32> {
     let mut found = None;
     for place in places {
-        let own = place.geometry;
-        let normal = own.normal(own.parameters(place.point));
-        for &other in place.beside {
-            let surface = &operands.surfaces.list[other.0 as usize];
-            let foot = surface.point(surface.parameters(place.point));
-            let wrapped = match covering(operands, operand, other, foot) {
-                Ok(Some(wrapped)) => wrapped,
-                Ok(None) => continue,
-                Err(_) => return None,
-            };
-            let agree = surface.normal(surface.parameters(foot)).dot(normal) > 0.0;
-            let matter_above = (wrapped.above == 1) == agree;
-            let pair = [place.surface, other];
-            let lying_above = lies_above(operands, operands.scale_of(pair), pair, place.point)?;
-            let winding = i32::from(matter_above != lying_above);
-            if found.is_some_and(|known| known != winding) {
-                return None;
-            }
-            found = Some(winding);
+        let winding = wound_at(operands, operand, place)?;
+        if winding.is_some_and(|winding| found.is_some_and(|known| known != winding)) {
+            return None;
         }
+        found = winding.or(found);
     }
     found
+}
+
+/// A face of the operand over a place, on another surface: whether its
+/// matter and the surface itself stand on the side the place's normal
+/// points to, and whether its surface's normal points that way too.
+struct Over {
+    surface: SurfaceId,
+    matter_above: bool,
+    lying_above: bool,
+    agree: bool,
+}
+
+/// The winding at one place, or none where no face of the operand lies over
+/// it; `None` outright where the faces cannot be read.
+fn wound_at(operands: &Operands, operand: usize, place: &Place) -> Option<Option<i32>> {
+    let own = place.geometry;
+    let normal = own.normal(own.parameters(place.point));
+    let mut over = Vec::new();
+    for &other in place.beside {
+        let surface = &operands.surfaces.list[other.0 as usize];
+        let foot = surface.point(surface.parameters(place.point));
+        let wrapped = match covering(operands, operand, other, foot) {
+            Ok(Some(wrapped)) => wrapped,
+            Ok(None) => continue,
+            Err(_) => return None,
+        };
+        let agree = surface.normal(surface.parameters(foot)).dot(normal) > 0.0;
+        let pair = [place.surface, other];
+        over.push(Over {
+            surface: other,
+            matter_above: (wrapped.above == 1) == agree,
+            lying_above: lies_above(operands, operands.scale_of(pair), pair, place.point)?,
+            agree,
+        });
+    }
+    let mut winding = None;
+    for side in [true, false] {
+        let mut nearest: Option<&Over> = None;
+        for face in over.iter().filter(|face| face.lying_above == side) {
+            nearest = match nearest {
+                None => Some(face),
+                Some(known) => {
+                    let pair = [known.surface, face.surface];
+                    let higher = lies_above(operands, operands.scale_of(pair), pair, place.point)?
+                        == known.agree;
+                    Some(if higher != side { face } else { known })
+                }
+            };
+        }
+        if let Some(face) = nearest {
+            let inside = i32::from(face.matter_above != side);
+            if winding.is_some_and(|known| known != inside) {
+                return None;
+            }
+            winding = Some(inside);
+        }
+    }
+    Some(winding)
 }

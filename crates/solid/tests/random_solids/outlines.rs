@@ -11,6 +11,12 @@ use glam::DVec2;
 
 use super::{CIRCLE_STEPS, Outline};
 
+/// How much longer than its two corners a side of a rounded rectangle must
+/// be, as a fraction of its length, to keep a straight run: a few thousand
+/// roundings, and a thousand times under the finest hair a case is drawn
+/// with.
+const ROUNDING: f64 = 1e-12;
+
 /// Rectangles, each from its low corner to its high one, and discs, each a
 /// centre and a radius, whose union is an outline.
 pub struct Pieces {
@@ -67,7 +73,9 @@ impl Outline {
 
 /// The four sides from the bottom one round, each a straight run and the
 /// quarter circle that turns into the next. A side no longer than the two
-/// quarters at its ends takes up has no straight run left.
+/// quarters at its ends take up has no straight run left — nor one longer by
+/// a rounding of its corners, which a radius drawn as half a side can leave
+/// once the side has been moved by a hair.
 fn rounded(low: DVec2, high: DVec2, radius: f64) -> Contour {
     let (near, far) = (low + radius, high - radius);
     let size = high - low;
@@ -102,7 +110,7 @@ fn rounded(low: DVec2, high: DVec2, radius: f64) -> Contour {
         runs: Vec::new(),
     };
     for (start, end, center, length) in sides {
-        if length > 2.0 * radius {
+        if length - 2.0 * radius > ROUNDING * length {
             contour.corners.push(start);
             contour.runs.push(Run::Straight);
         }

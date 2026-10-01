@@ -1020,6 +1020,93 @@ fn a_line_square_to_a_star_holds_the_whole_prism_inside_the_star_and_nothing_bet
     assert_eq!(square(center + DVec2::X * 5.0), []);
 }
 
+/// The area a profile encloses, by the formula for its shape.
+fn area(outline: &Outline) -> f64 {
+    use std::f64::consts::PI;
+    match outline {
+        Outline::Rectangle { low, high } => (*high - *low).x * (*high - *low).y,
+        Outline::Circle { radius, .. } => PI * radius * radius,
+        Outline::Ring { outer, inner, .. } => PI * (outer * outer - inner * inner),
+        Outline::Rounded { low, high, radius } => {
+            (*high - *low).x * (*high - *low).y - (4.0 - PI) * radius * radius
+        }
+        Outline::Slot { from, to, radius } => {
+            2.0 * radius * from.distance(*to) + PI * radius * radius
+        }
+        Outline::Star { .. } => unreachable!("a star is not raised by the exact kernel"),
+    }
+}
+
+#[test]
+fn every_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_its_area_times_its_height()
+ {
+    let leaves: Vec<Leaf> = (0..200)
+        .flat_map(|seed| {
+            Case::drawn_profiles(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| {
+            matches!(
+                leaf,
+                Leaf::Prism {
+                    outline: Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. },
+                    ..
+                }
+            )
+        })
+        .collect();
+    assert!(leaves.len() > 60, "{} leaves", leaves.len());
+    for leaf in &leaves {
+        let alone = Case::new(leaf.clone(), vec![]);
+        let held = random_solids::held_to_arithmetic(&alone, &Exact);
+        assert!(held.is_ok(), "{leaf}: {held:?}");
+        let Leaf::Prism {
+            outline, height, ..
+        } = leaf
+        else {
+            unreachable!("only prisms were kept")
+        };
+        let promised = area(outline) * height.abs();
+        let volume = Exact.raised(leaf).expect("a raised profile").volume();
+        assert!(
+            (volume - promised).abs() <= 1e-9 * promised,
+            "{leaf}: {volume} against {promised}"
+        );
+    }
+}
+
+#[test]
+fn a_rounded_rectangle_is_handed_over_with_a_straight_run_only_on_a_side_longer_than_its_two_corners()
+ {
+    let straight = |outline: Outline| {
+        let contour = outline.contour().expect("an outline of runs and arcs");
+        assert_eq!(contour.corners.len(), contour.runs.len());
+        contour
+            .runs
+            .iter()
+            .filter(|run| matches!(run, Run::Straight))
+            .count()
+    };
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0)), 4);
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [10.0, 6.0], 3.0)), 2);
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [6.0, 6.0], 3.0)), 0);
+    assert_eq!(straight(Outline::slot([0.0, 0.0], [0.0, 4.0], 1.0)), 2);
+}
+
+#[test]
+fn a_rounded_rectangle_is_its_rectangle_less_four_corners_a_circle_never_filled() {
+    let block = Leaf::prism(
+        Plane::xz(1.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        -3.0,
+    );
+    let volume = Exact.raised(&block).expect("a rounded block").volume();
+    let promised = 3.0 * (60.0 - (4.0 - std::f64::consts::PI) * 4.0);
+    assert!((volume - promised).abs() < 1e-9, "{volume}");
+}
+
 #[test]
 fn a_circle_is_handed_to_the_exact_kernel_as_one_whole_turn_from_where_its_flats_start() {
     let circle = random_solids::whole_circle(DVec2::new(3.0, -1.0), 2.0, 90.0);

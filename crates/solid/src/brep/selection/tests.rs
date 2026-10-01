@@ -303,6 +303,54 @@ fn a_strip_both_walls_of_a_cusp_lie_under_is_wound_as_the_nearer_wall_s_matter_l
     assert!(selected.is_ok(), "{:?}", selected.err());
 }
 
+/// The same cusp, read at a point of the strip: the bar's wall and the
+/// bore's both lie under it, the bar's nearer, and the strip stands outside
+/// the bar's matter though on the matter side of the bore's wall. The nearer
+/// tells, whichever of the two walls is listed first.
+#[test]
+fn a_strip_over_both_walls_of_a_cusp_is_wound_by_the_nearer_whichever_is_listed_first() {
+    let bored = standing([344.9999982, 285.0], 90.0, -89.99999, 480.00001)
+        .cut_by(&standing([345.0, 315.0], 60.0, -89.99999, 1050.00001))
+        .expect("the bar is bored");
+    let block = block([255.0, 195.0, -60.0], [435.0, 375.0, 195.0]);
+    let operands = Operands::of(&bored, &block, bored.scale().joined(block.scale()));
+    let list = &operands.surfaces.list;
+    let top = list
+        .iter()
+        .position(|surface| {
+            matches!(surface, Surface::Plane(plane)
+                if plane.normal.abs().abs_diff_eq(DVec3::Y, 1e-12)
+                    && (plane.offset().abs() - 375.0).abs() < 1e-6)
+        })
+        .expect("the block's top is there");
+    let wall = |radius: f64| {
+        let rank = list
+            .iter()
+            .position(|surface| {
+                matches!(surface, Surface::Cylinder(cylinder) if (cylinder.radius - radius).abs() < 1e-6)
+            })
+            .expect("the wall is there");
+        SurfaceId(rank as u32)
+    };
+    let (bar, bore) = (wall(90.0), wall(60.0));
+    let geometry = &list[top];
+    let point = geometry.point(geometry.parameters(DVec3::new(344.9999991, 375.0, 100.0)));
+    for beside in [[bar, bore], [bore, bar]] {
+        let place = Place {
+            surface: SurfaceId(top as u32),
+            geometry,
+            point,
+            turned: false,
+            beside: &beside,
+        };
+        assert_eq!(
+            band::wound_beside(&operands, 0, &[place]),
+            Some(0),
+            "{beside:?}"
+        );
+    }
+}
+
 /// Seed 3150523 of the campaign: a stock bored by a bore touching it inside
 /// at its top, then a pin a hair over half a unit across, whose bottom dips
 /// 2e-7 into both walls, cut from above. The pin's wall crosses the stock's

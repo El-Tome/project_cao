@@ -900,6 +900,44 @@ fn a_ring_starting_on_a_step_of_its_grid_or_a_rounding_beside_it_keeps_every_ste
 }
 
 #[test]
+fn a_ring_starting_on_a_ray_or_a_rounding_beside_it_keeps_that_ray_on_either_half_turn() {
+    let tolerance = 0.02;
+    let mut body = fixtures::stock();
+    let edge = body.edge_ids().next().expect("the stock's first ring");
+    let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+        panic!("the stock's edges are its two rings");
+    };
+    let eps = body.scale().eps();
+    let steps = divisions(circle.radius, tolerance);
+    for rank in 0..steps {
+        let on = TAU * (rank as f64 + 0.5) / steps as f64;
+        let way = circle.u * on.cos() + circle.v * on.sin();
+        let contact = super::Contact {
+            rays: vec![way],
+            ..Default::default()
+        };
+        let ray = circle.point(way.dot(circle.v).atan2(way.dot(circle.u)));
+        for from in [on.next_down(), on, on.next_up()] {
+            body.edges[edge.0 as usize].from = from;
+            body.edges[edge.0 as usize].to = from + TAU;
+            let points = super::on_circle(
+                &circle,
+                body.edge(edge),
+                tolerance,
+                eps,
+                &contact,
+                &super::Ends::of(&body, &circle, body.edge(edge)),
+                &[],
+            );
+            assert!(
+                points.iter().any(|point| (*point - ray).length() < CLOSE),
+                "a ring from {from} misses its ray at {on}"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
     let body = fixtures::stock();
     let edge = body.edge_ids().next().expect("the stock's first ring");

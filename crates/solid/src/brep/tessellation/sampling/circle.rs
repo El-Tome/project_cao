@@ -95,13 +95,13 @@ pub(super) fn on_circle(
             })
     };
 
-    let at_rank = |rank: i64| {
-        let at = rank as f64 * step;
-        if !whole {
-            return at;
-        }
+    let on_the_turn = |at: f64| {
         let round = low + (at - low).rem_euclid(TAU);
         if round < high { round } else { low }
+    };
+    let at_rank = |rank: i64| {
+        let at = rank as f64 * step;
+        if whole { on_the_turn(at) } else { at }
     };
     let ranks = if whole {
         0..=steps as i64 - 1
@@ -123,10 +123,11 @@ pub(super) fn on_circle(
         .collect();
     for way in &contact.rays {
         let angle = way.dot(circle.v).atan2(way.dot(circle.u));
-        let mut at = angle + TAU * ((low - angle) / TAU).ceil();
-        if whole && at >= high {
-            at = low;
-        }
+        let mut at = if whole {
+            on_the_turn(angle)
+        } else {
+            angle + TAU * ((low - angle) / TAU).ceil()
+        };
         while at < high {
             let kept = contact.beneath.contains(way) || !by_an_end(at);
             if inside(at) && kept && !beside_a_plane(at) {

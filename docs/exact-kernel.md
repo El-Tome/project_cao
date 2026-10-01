@@ -336,9 +336,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
   points where planes of the origin touch a cylinder are always samples. A
-  ring takes each step once, wherever the range a merge left it starts: a
-  range starting on a step, a rounding past it, would lose that step at
-  both ends. A
+  ring takes each step and each ray once, wherever the range a merge left
+  it starts: a range starting on a step or a ray, or a rounding past it,
+  would lose that place at both ends — a ray at the very angle it starts
+  at too, past half a turn, its angle given on the other half. A
   circle is also sampled at the angle of every vertex on its cylinder, so that
   a ruling from a vertex off the grid meets a sample on every rim of its wall:
   otherwise a strip a hair high — a skin left under a cap — is cut by a

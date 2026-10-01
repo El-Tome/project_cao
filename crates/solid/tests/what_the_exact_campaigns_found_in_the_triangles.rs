@@ -1943,9 +1943,10 @@ fn seed_3243921_a_disc_floored_a_hair_up_and_joined_to_its_twin_a_hair_aside_lea
 /// at that line's angle where the kernel put its vertex, so the two walls
 /// meet along it at every height, and between it and the crossing line
 /// they are drawn on the same two rulings: the floor's outline runs out to
-/// the crossing and back on itself, which no sweep follows, and drawn as
-/// a hair the two walls would lie on each other there. The sliver beyond
-/// the notch's side is thinner than what the rules tell apart.
+/// the crossing and back on itself as a hair, and the two walls lie on each
+/// other there. The sliver beyond the notch's side is thinner than what the
+/// rules tell apart; drawing it wants the two walls apart by that much
+/// rather than pinched along the notch's side at every height.
 #[test]
 #[ignore = "triangles"]
 fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leaves_its_floor_closed()
@@ -2011,6 +2012,43 @@ fn seed_3061547_a_twin_a_hair_aside_joined_over_a_bore_touching_the_stock_inside
                 Plane::yz(3.0),
                 Outline::circle([2e-8, 4.0], 4.0),
                 8.0,
+            )),
+        ],
+    ));
+}
+
+/// A post and a bore of one radius, their axes 30 tolerances apart, leave
+/// a sliver beside the post's wall up to the bore's ceiling, and a lying
+/// cut takes the post's top off above it. The post's wall faces the bore
+/// over the sliver's height only, and goes on alone above the ceiling: its
+/// strip beside the line the two cross along is one triangle from the
+/// sliver's floor, through the vertex where that line meets the ceiling,
+/// up to the curve the lying cut meets the post along. That triangle's
+/// section at the ceiling's height chords inside the post and passes
+/// through the ceiling's triangle reaching the same vertex: the post's
+/// wall has no sample at the ceiling's height at that angle, its edge
+/// there being the bore's rim, a hair inside. As for seed 3194537, a wall
+/// facing another over part of its height only wants samples inside its
+/// face where the facing ends.
+#[test]
+#[ignore = "triangles"]
+fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::circle([270.0, 180.0], 15.0),
+            195.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([270.00001, 180.0], 15.0),
+                60.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(210.0),
+                Outline::circle([180.0, 210.0], 120.0),
+                90.0,
             )),
         ],
     ));

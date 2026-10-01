@@ -69,7 +69,7 @@ fn on_its_surfaces(body: &Body) {
 
 #[test]
 fn a_slot_whose_cap_stands_a_hair_across_from_a_post_of_its_radius_is_moved_whole_onto_it() {
-    let hair = 30.0 * scale().eps();
+    let hair = 15.0 * scale().eps();
     let one = post(DVec2::ZERO, 2.0);
     let other = slot(DVec2::new(0.0, hair), DVec2::new(-6.0, hair), 2.0);
     let moved = closed(&one, &other, scale()).expect("the slot moves");
@@ -90,7 +90,7 @@ fn a_slot_whose_cap_stands_a_hair_across_from_a_post_of_its_radius_is_moved_whol
 
 #[test]
 fn a_slot_whose_cap_stands_a_hair_along_from_a_post_moves_its_near_cap_alone() {
-    let hair = 30.0 * scale().eps();
+    let hair = 15.0 * scale().eps();
     let one = post(DVec2::ZERO, 2.0);
     let other = slot(DVec2::new(hair, 0.0), DVec2::new(-6.0, 0.0), 2.0);
     let moved = closed(&one, &other, scale()).expect("the cap moves");
@@ -122,7 +122,7 @@ fn a_wall_within_the_tolerance_of_another_radius_or_further_than_a_hair_is_not_m
 
 #[test]
 fn a_slot_whose_side_is_one_with_the_body_s_is_not_moved_onto_a_wall_a_hair_across() {
-    let hair = 30.0 * scale().eps();
+    let hair = 15.0 * scale().eps();
     let one = raised(&Contour {
         corners: vec![
             DVec2::new(0.0, -2.0),

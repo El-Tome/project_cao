@@ -29,7 +29,7 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-One pair alone is read wider, at fifty times it: two parallel walls of
+One pair alone is read wider, at twenty times it: two parallel walls of
 one radius (decision 8). The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
@@ -216,7 +216,7 @@ The decisions, in the order taken, once per operation:
    rounding — and answers where no ray can.
 8. **Two walls of one radius a hair apart.** Two parallel cylinders, one
    of each operand, their radii within `EPS` and their axes within
-   `G = 50 · EPS` of each other — five hundred-millionths of the reach —
+   `G = 20 · EPS` of each other — two hundred-millionths of the reach —
    are one surface, the second operand's taken for the first's as decision
    1 takes
    one within `EPS`. This is the kernel's one tolerance wider than `EPS`,
@@ -226,23 +226,34 @@ The decisions, in the order taken, once per operation:
    cylinders of one radius `d` apart cross along two rulings at an angle
    `d / r`, and a band a thousand tolerances wide surrounds the crossing,
    where every corner a third surface makes is ill conditioned. The
-   crescent merged away is at most `G` thick, a twentieth of what a line of
-   measure resolves, and is almost always what was meant: a slot's cap, a
-   rounded corner or a bore drawn on a hole of its radius, a hair off.
+   crescent merged away is at most `G` thick and is almost always what was
+   meant: a slot's cap, a rounded corner or a bore drawn on a hole of its
+   radius, a hair off.
 
-   Fifty rather than the hundred first set, measured: a line crossing the
-   moved wall at a slant sees it moved by the offset over the cosine, at
-   each of its two crossings, and the harness holds lines down to a cosine
-   of a twentieth. On a campaign of profiles of five minutes from seed
-   80 500 000, against the 85 failures of the kernel before it, `G` of ten
-   tolerances fixed 47 and made none; twenty, 56 and none; fifty, 64 and
-   none; a hundred, 64 and one, a line at a slant seeing the move; a
-   thousand, 65 and 104, the merge seen along lines wherever it was made.
-   A second campaign from 81 000 000 gave a hundred three such failures
-   more than fifty, and the same failures otherwise; on the square draw,
-   fifty and a hundred did alike. At fifty, the crescents merged were at
-   most `5e-8` of the reach thick and `1.3e-7` of its cube in volume, half
-   of them under `1e-9`.
+   Twenty, bounded rather than measured alone. A line crossing the moved
+   wall at a slant sees it moved by the offset over the cosine, at each of
+   its two crossings, and the harness holds lines down to a cosine of a
+   twentieth: a move of `G` is seen as forty `G` at worst, under the
+   thousand tolerances a line resolves only while `G` stays under
+   twenty-five, and twenty keeps a fifth of that room for the curve of the
+   wall. The hundred first set was seen by a campaign of profiles, a disc
+   moved onto a slot's cap at a slant of a sixth (80 502 201); the fifty
+   round 5's kernel lane chose next went unseen over some forty-eight
+   thousand random cases, but a block bored twice forty-eight tolerances
+   apart is seen at a slant of a nineteenth, a line holding half again its
+   room (the review of round 5). A merge the rules can see is a wrong
+   answer; two walls left two decline, at worst, in the band of 1-9.
+
+   What the lower hair costs, on five-minute campaigns of profiles, counted
+   over the seeds both runs reached: from seed 80 500 000, against the 85
+   failures of the kernel before decision 8, `G` of ten tolerances fixed 47,
+   twenty 57, twenty-five 61, fifty 65, a hundred 65 while making one, a
+   thousand 65 while making 104, the merge seen along lines wherever it was
+   made; from 82 500 000, against 104, twenty fixed 71, twenty-five 74 and
+   fifty 78. What twenty leaves of what fifty fixed is two walls of one
+   radius between twenty and fifty tolerances apart, crossing at a grazing
+   angle. At fifty, the crescents merged were at most `5e-8` of the reach
+   thick and `1.3e-7` of its cube in volume, half of them under `1e-9`.
 
    What the second operand built on the wall goes with it, as it does
    after decision 1: the second operand is moved square to the axis, by

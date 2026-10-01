@@ -260,7 +260,8 @@ the profile draw. Two changes, both in [`exact-kernel.md`](exact-kernel.md):
   their axes within fifty tolerances, are one surface; the second operand
   is moved onto the first's wall with what it built on it. Its hair was
   measured before it was set, on five-minute campaigns of profiles: the
-  numbers are in the decision. It fixes 4-3.
+  numbers are in the decision. It fixes 4-3. The review brought the hair
+  down to twenty tolerances, the most no line of measure can see.
 - **Decision 2's moves onto a touch**, rewritten: every touch of a surface
   read before it moves, a cylinder between two parallel planes moved
   midway, only pairs whose faces' boxes meet, the second operand's

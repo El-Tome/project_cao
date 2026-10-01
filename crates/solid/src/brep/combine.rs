@@ -68,7 +68,7 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
 /// corners and arcs.
 pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let list = &operands.surfaces.list;
-    let apart = Apart::of(list, operands.scale);
+    let apart = Apart::of(list, |pair| operands.scale_of(pair));
     let mut registry = Registry::new(operands.scale, apart, Planes::of(list));
     let (held, ending) = held::held(operands, &mut registry);
     let (special, done) = related::related(operands, &mut registry)?;

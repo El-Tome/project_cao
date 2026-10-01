@@ -769,8 +769,10 @@ fn seed_22003491_a_block_notched_by_a_cylinder_a_hair_inside_its_side_leaves_its
 /// (failure 1-9), whose tolerance a later leaf then grows (1-6), fail the
 /// check of their own listing at the second step once round 2's refusals
 /// keep apart what the first step decided. The kernel's, still open.
+/// It holds since a pair of surfaces one operand alone carries is decided
+/// at that operand's tolerance, and two parallel cylinders of one operand
+/// covering twins are read one above the other where they stand apart.
 #[test]
-#[ignore = "kernel"]
 fn seed_22005443_two_cylinders_a_hair_apart_joined_then_marked_by_a_cut_leave_their_caps_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

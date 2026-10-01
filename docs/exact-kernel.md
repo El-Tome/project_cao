@@ -29,7 +29,11 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-The result of an operation carries the larger reach of its operands.
+The result of an operation carries the larger reach of its operands. A pair
+of surfaces one operand alone carries is decided at that operand's own
+tolerance, as it stood when the operand was made: a later leaf growing the
+reach does not make one of two walls of a crescent a hair wide, crossing
+along two rulings the operand's own corners stand on.
 
 The decisions, in the order taken, once per operation:
 
@@ -118,7 +122,11 @@ The decisions, in the order taken, once per operation:
    other, a skin, it wraps neither side once the sheet is gone; turning it
    away, a crack, it wraps both. Which way is towards is read off the pair's
    touch, not measured: a cylinder touching a plane stands on its axis's
-   side of it. Twins of a pair not decided to touch are still a tie. The
+   side of it. Two parallel cylinders of one operand a hair apart, crossing
+   at a grazing angle, stand one above the other all along the stretch
+   between the lines they cross along, read at the twins' place where they
+   stand further apart than rounding. Other twins of a pair not decided to
+   touch are still a tie. The
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
 

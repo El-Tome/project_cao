@@ -73,6 +73,19 @@ impl<'a> Operands<'a> {
         !self.lying[operand][surface.0 as usize].is_empty()
     }
 
+    /// The scale a pair of shared surfaces is decided at: an operand's own
+    /// where it alone carries both, as it decided them when it was made, and
+    /// the boolean's otherwise.
+    pub fn scale_of(&self, pair: [SurfaceId; 2]) -> Scale {
+        (0..2)
+            .find(|&operand| {
+                pair.iter().all(|&surface| {
+                    self.carries(operand, surface) && !self.carries(1 - operand, surface)
+                })
+            })
+            .map_or(self.scale, |operand| self.bodies[operand].scale())
+    }
+
     /// Whether the boxes round two faces, one of each operand, meet.
     pub fn near(&self, first: FaceId, second: FaceId) -> bool {
         let [one, other] = [

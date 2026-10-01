@@ -2205,3 +2205,195 @@ fn seed_3173439_a_side_inside_the_band_two_pins_a_hair_apart_cross_on() {
         ],
     ));
 }
+
+/// Found by the 120-second campaign from seed 50 000 000 (failure 1-6): a
+/// post cut by a cylinder of its radius 5e-8 aside leaves a crescent, its
+/// two walls crossing at a grazing angle along two rulings — decided to
+/// cross at the post's tolerance, 4.8e-8. A block cut from its tip grows
+/// the reach, and at 5.5e-8 the two walls were one: decided apart, so no
+/// corner lay on both, and the crescent's own corners were cut into neither
+/// rim. A pair of surfaces one operand alone carries is now decided at that
+/// operand's tolerance, as it stood when it was made.
+///
+/// Understood and left: the cut's radius, read off a corner and a centre,
+/// is 22.499999999999996, and that rounding moves the line the walls cross
+/// along 1.6e-6 from halfway between their axes, along the band where they
+/// stand within the tolerance of each other. The block's side x = 15 passes
+/// halfway, and on both walls the strip between its line and the crescent's
+/// own is a twin the post covers on both sides, straddling where the walls
+/// truly cross: which one stands above cannot be read there, and the kernel
+/// declines. Crossing two walls of one radius but for rounding halfway
+/// makes it hold, and leaves the triangles of seed 7002841's crescent
+/// crossing: the triangles' sampling round a crossing line is tuned to
+/// where the rounding puts it.
+#[test]
+#[ignore = "straddled"]
+fn seed_50002029_a_crescent_a_hair_wide_cut_at_its_tip_by_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(28.0), Outline::circle([15.0, 20.0], 22.5), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(28.0),
+                Outline::circle([15.00000005, 20.0], 22.5),
+                20.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(25.0),
+                Outline::rectangle([15.0, 35.0], [55.0, 45.0]),
+                25.0,
+            )),
+        ],
+    ));
+}
+
+/// The same crescent on a pin, given a block that swallows it.
+#[test]
+fn seed_50002633_a_crescent_a_hair_wide_swallowed_by_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(40.0), Outline::circle([35.0, 40.0], 2.5), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(44.99999),
+                Outline::circle([35.00000005, 40.0], 2.5),
+                20.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::rectangle([-8.0, -23.0], [48.0, 33.0]),
+                15.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with two posts 3e-7 apart joined, then cut by a block whose
+/// reach grows the tolerance past their gap: taken for one at the new
+/// tolerance, the posts' walls were decided apart, and no corner of the
+/// union lay on both.
+#[test]
+fn seed_50006672_two_posts_a_hair_apart_joined_then_cut_by_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(90.0), Outline::circle([30.0, 0.0], 15.0), 165.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([29.9999997, 0.0], 15.0),
+                165.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(90.0),
+                Outline::rectangle([0.0, 210.0], [240.0, 435.0]),
+                165.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3: two bars of one radius 1e-7 apart joined, then
+/// a block whose reach grows the tolerance past their gap.
+#[test]
+fn seed_3137406_two_bars_a_hair_apart_joined_then_given_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(30.0), Outline::circle([32.5, 40.0], 15.0), 45.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::circle([32.4999999, 40.0], 15.0),
+                90.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([28.0, -10.0], [68.0, 30.0]),
+                180.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with two pins, and a block cut through them.
+#[test]
+fn seed_3248399_two_pins_a_hair_apart_joined_then_cut_by_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(20.0), Outline::circle([5.0, 50.0], 2.5), 23.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(19.999999),
+                Outline::circle([5.0000001, 50.0], 2.5),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(20.0),
+                Outline::rectangle([3.0, -13.0], [38.0, 23.0]),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 3, its reach grown by the last block: two posts
+/// of one radius 1e-7 apart joined, then cut by a block reaching further.
+#[test]
+fn seed_3069912_two_posts_a_hair_apart_joined_then_cut_by_a_block_further_out() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(10.0), Outline::circle([2.5, 7.5], 12.5), 28.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(10.0),
+                Outline::circle([2.4999999, 7.5], 12.5),
+                20.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([-10.0, -5.0], [30.0, 35.0]),
+                110.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3, found by the triangles: two posts 5e-8 apart
+/// joined, then cut by a block reaching further; a lune between their rings
+/// was left on the bottom.
+#[test]
+fn seed_3033847_two_posts_a_hair_apart_joined_leave_no_lune_on_their_floor() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(0.0), Outline::circle([27.5, 10.0], 20.0), 35.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([27.50000005, 10.0], 20.0),
+                35.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::rectangle([40.0, 15.0], [50.0, 53.0]),
+                25.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 3: the crescent two bores of one radius 1e-7
+/// apart leave, cut by a third cylinder near its tip. Both walls of the
+/// crescent cover the twins the cut leaves there, and the kernel declined:
+/// the pair was not decided to touch. Two parallel cylinders of one operand
+/// stand one above the other wherever they stand further apart than
+/// rounding, which the crescent's walls do at the twins' place.
+#[test]
+fn seed_3113289_the_crescent_of_two_bores_a_hair_apart_cut_near_its_tip() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(32.5), Outline::circle([25.0, 40.0], 5.0), 30.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(32.5),
+                Outline::circle([25.0000001, 40.0], 5.0),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(32.499999),
+                Outline::circle([35.0, 25.0], 22.5),
+                60.0,
+            )),
+        ],
+    ));
+}

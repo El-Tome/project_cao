@@ -130,12 +130,16 @@ fn wrapped_at(
         let mut found = Vec::new();
         for &(surface, point, turned) in places {
             if let Some(wrapped) = covering(operands, operand, surface, point)? {
-                found.push((surface, if turned { wrapped.turned() } else { wrapped }));
+                found.push((
+                    surface,
+                    point,
+                    if turned { wrapped.turned() } else { wrapped },
+                ));
             }
         }
         match found.as_slice() {
             [] => {}
-            [(_, wrapped)] => covered[operand] = Some(*wrapped),
+            [(_, _, wrapped)] => covered[operand] = Some(*wrapped),
             [one, other] => sheet[operand] = Some(collapsed(operands, [*one, *other])?),
             _ => return Err(Declined::Tie),
         }

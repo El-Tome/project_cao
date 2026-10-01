@@ -6,7 +6,7 @@ use crate::brep::Declined;
 use crate::brep::combine::Operands;
 use crate::brep::domain::Location;
 use crate::brep::relation::{Relation, relation};
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::SurfaceId;
 
 /// A ray from a region's inside point is cast with this share of the
@@ -82,12 +82,17 @@ pub(in crate::brep) fn covering(
 /// is read off the pair's touch: a cylinder touching a plane stands on the
 /// side of it its axis is, a plane touching a cylinder outside it, a
 /// parallel cylinder outside one it touches outside, and inside one larger
-/// it touches inside. Twins of a pair not decided to touch are a tie.
+/// it touches inside. Two parallel cylinders of one operand a hair apart,
+/// crossing at a grazing angle or one at this tolerance though the operand
+/// kept them two, stand one above the other all along the stretch between
+/// the lines they cross along: read at the first twin's place, where they
+/// stand further apart than rounding. Other twins of a pair not decided to
+/// touch are a tie.
 pub(in crate::brep) fn collapsed(
     operands: &Operands,
-    [(first, one), (second, other)]: [(SurfaceId, Wrapped); 2],
+    [(first, place, one), (second, _, other)]: [(SurfaceId, DVec3, Wrapped); 2],
 ) -> Result<i32, Declined> {
-    let above = lies_above(operands, first, second).ok_or(Declined::Tie)?;
+    let above = lies_above(operands, first, second, place).ok_or(Declined::Tie)?;
     let (towards, away) = if above {
         ((one.above, other.below), (one.below, other.above))
     } else {
@@ -101,15 +106,21 @@ pub(in crate::brep) fn collapsed(
 }
 
 /// Whether `other` stands on the side of `one` its own normal points to,
-/// along the line the two were decided to touch along; none where they
-/// were not.
-fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId) -> Option<bool> {
+/// along the line the two were decided to touch along, or at `place` where
+/// two parallel cylinders not decided to touch stand further apart than
+/// rounding; none otherwise.
+fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId, place: DVec3) -> Option<bool> {
     let [first, second] = [one, other].map(|surface| &operands.surfaces.list[surface.0 as usize]);
     if !matches!(
         relation(first, second, operands.scale),
         Relation::Tangent(_)
     ) {
-        return None;
+        return match (first, second) {
+            (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+                above_at(first, second, place, operands.eps() * ROUNDING)
+            }
+            _ => None,
+        };
     }
     match (first, second) {
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
@@ -125,6 +136,18 @@ fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId) -> Option<b
         }
         (Surface::Plane(_), Surface::Plane(_)) => None,
     }
+}
+
+/// Whether `second`, parallel to `first`, stands outside it at the angle of
+/// `place`, where the two stand further than `rounding` apart there.
+fn above_at(first: &Cylinder, second: &Cylinder, place: DVec3, rounding: f64) -> Option<bool> {
+    let square = |v: DVec3| v - first.axis * first.axis.dot(v);
+    if first.axis.cross(second.axis).length() > ROUNDING {
+        return None;
+    }
+    let outward = square(place - first.origin).normalize_or_zero();
+    let gap = square(second.origin - first.origin).dot(outward) + second.radius - first.radius;
+    (gap.abs() > rounding).then_some(gap > 0.0)
 }
 
 /// How many times an operand no face of which covers `point` wraps it, on

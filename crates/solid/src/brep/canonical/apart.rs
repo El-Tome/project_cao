@@ -37,14 +37,18 @@ pub(in crate::brep) struct Apart {
 }
 
 impl Apart {
-    pub fn of(surfaces: &[Surface], scale: Scale) -> Apart {
+    /// Every pair decided at the scale `scale_of` gives it: an operand's own
+    /// tolerance for a pair it alone carries, which it decided when it was
+    /// made — two walls of a crescent a hair wide crossing along two rulings
+    /// still cross, whatever tolerance a later leaf brings.
+    pub fn of(surfaces: &[Surface], scale_of: impl Fn([SurfaceId; 2]) -> Scale) -> Apart {
         let mut pairs = BTreeSet::new();
         let mut touching = BTreeSet::new();
         let mut points = BTreeMap::new();
         for (one, first) in surfaces.iter().enumerate() {
             for (other, second) in surfaces.iter().enumerate().skip(one + 1) {
                 let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
-                match relation(first, second, scale) {
+                match relation(first, second, scale_of(pair)) {
                     Relation::Same { .. } | Relation::Apart => {
                         pairs.insert(pair);
                     }

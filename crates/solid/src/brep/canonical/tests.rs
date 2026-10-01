@@ -267,7 +267,7 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
     let beside = Cylinder::about(DVec3::X * 4.0, DVec3::Z, 3.0);
     let mut surfaces = walls;
     surfaces.extend([tube, bore, beside].map(Surface::Cylinder));
-    let apart = Apart::of(&surfaces, scale);
+    let apart = Apart::of(&surfaces, |_| scale);
     let [one, other, side, floor] = [0, 1, 2, 3].map(SurfaceId);
     let [tube, bore, beside] = [4, 5, 6].map(SurfaceId);
     assert!(apart.pair(one, other) && apart.pair(other, one));
@@ -279,7 +279,7 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
 #[test]
 fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, |_| scale), Planes::default());
     let [one, other, side] = [0, 1, 2].map(SurfaceId);
     let first = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -298,7 +298,7 @@ fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
 #[test]
 fn corners_within_the_tolerance_on_two_surfaces_decided_apart_are_two_corners() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, |_| scale), Planes::default());
     let [one, other, side, floor] = [0, 1, 2, 3].map(SurfaceId);
     let edge = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -332,7 +332,11 @@ fn nearly_one_corner() -> (Registry, [SurfaceId; 3]) {
         plane_at(105.0, DVec3::X),
         plane_at(240.0, DVec3::Y),
     ];
-    let registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     (registry, [0, 1, 2].map(SurfaceId))
 }
 
@@ -381,7 +385,11 @@ fn a_corner_on_a_plane_and_a_cylinder_touching_it_lies_on_their_line_only_within
             45.0,
         )),
     ];
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     let [bottom, bore] = [0, 1].map(SurfaceId);
     let touch = registry.register(
         Curve::Line(Line::through(
@@ -414,7 +422,11 @@ fn a_corner_within_the_tolerance_of_a_line_of_touch_but_not_of_both_surfaces_is_
             4.999_999_9,
         )),
     ];
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     let [side, boss] = [0, 1].map(SurfaceId);
     let touch = registry.register(
         Curve::Line(Line::through(DVec3::new(0.0, 42.5, 25.0), DVec3::X)),

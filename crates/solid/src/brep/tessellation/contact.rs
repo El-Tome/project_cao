@@ -76,8 +76,9 @@ pub(super) struct Contact {
     /// a place crowded, with its own: beside the lines they meet along, an
     /// arc ending there is sampled at its end alone.
     pub(super) beside: Vec<(Cylinder, Gap)>,
-    /// The rays through vertices standing just inside it, not on it: they
-    /// are taken beside an end too. A third wall crossing two touching walls
+    /// The rays through vertices standing just inside it, not on it, and
+    /// through the samples of other curves standing there: they are taken
+    /// beside an end too. A third wall crossing two touching walls
     /// a hair from the line they touch along puts a vertex on the inner one
     /// there, and the outer one's arc, ending where the third crosses it,
     /// must pass outside that vertex rather than chord under it.

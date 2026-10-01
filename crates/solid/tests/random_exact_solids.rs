@@ -362,6 +362,218 @@ fn the_square_generator_draws_every_kind_it_keeps() {
     );
 }
 
+fn outline_of(leaf: &Leaf) -> Option<&Outline> {
+    match leaf {
+        Leaf::Prism { outline, .. } => Some(outline),
+        Leaf::Revolution { .. } => None,
+    }
+}
+
+#[test]
+fn the_same_seed_draws_the_same_profile_case_and_not_the_square_one() {
+    for seed in 0..200 {
+        assert_eq!(
+            Case::drawn_profiles(seed),
+            Case::drawn_profiles(seed),
+            "seed {seed}"
+        );
+    }
+    let distinct: std::collections::BTreeSet<String> = (0..200)
+        .map(|seed| Case::drawn_profiles(seed).to_string())
+        .collect();
+    assert!(distinct.len() > 190, "{} distinct cases", distinct.len());
+    let same = (0..200)
+        .filter(|seed| Case::drawn_profiles(*seed) == Case::drawn_square(*seed))
+        .count();
+    assert!(same < 100, "{same} profile cases are the square ones");
+}
+
+#[test]
+fn a_profile_case_holds_solid_prisms_on_the_planes_of_the_origin_alone_and_no_star() {
+    for seed in 0..3000 {
+        let case = Case::drawn_profiles(seed);
+        for leaf in case.leaves() {
+            let kept = match leaf {
+                Leaf::Prism { plane, outline, .. } => {
+                    !matches!(plane, Plane::Tilted { .. })
+                        && !matches!(outline, Outline::Star { .. })
+                }
+                Leaf::Revolution { .. } => false,
+            };
+            assert!(kept, "seed {seed}: {case}");
+            assert!(leaf.is_solid(), "seed {seed}: {case}");
+        }
+    }
+}
+
+#[test]
+fn the_profile_generator_draws_every_kind_it_keeps_and_rectangles_and_circles_for_about_half() {
+    let cases: Vec<Case> = (0..1000).map(Case::drawn_profiles).collect();
+    let leaves = || cases.iter().flat_map(Case::leaves);
+    let outlines = || leaves().filter_map(outline_of);
+    let seen = |what: &str, found: bool| assert!(found, "no profile case drew {what}");
+
+    seen(
+        "a rounded rectangle with a straight run on every side",
+        outlines().any(|outline| {
+            matches!(outline, Outline::Rounded { low, high, radius }
+                if 2.0 * radius < (*high - *low).min_element())
+        }),
+    );
+    seen(
+        "a rounded rectangle whose radius is half its shorter side",
+        outlines().any(|outline| {
+            matches!(outline, Outline::Rounded { low, high, radius }
+                if 2.0 * radius == (*high - *low).min_element())
+        }),
+    );
+    seen(
+        "a slot along the plane's first axis",
+        outlines()
+            .any(|outline| matches!(outline, Outline::Slot { from, to, .. } if from.y == to.y)),
+    );
+    seen(
+        "a slot along the plane's second axis",
+        outlines()
+            .any(|outline| matches!(outline, Outline::Slot { from, to, .. } if from.x == to.x)),
+    );
+    seen(
+        "a ring",
+        outlines().any(|outline| matches!(outline, Outline::Ring { .. })),
+    );
+    seen(
+        "a prism pushed backwards",
+        leaves().any(|leaf| matches!(leaf, Leaf::Prism { height, .. } if *height < 0.0)),
+    );
+    for (name, kind) in [
+        ("XY", Plane::xy(0.0)),
+        ("XZ", Plane::xz(0.0)),
+        ("YZ", Plane::yz(0.0)),
+    ] {
+        seen(
+            name,
+            leaves()
+                .any(|leaf| std::mem::discriminant(leaf.plane()) == std::mem::discriminant(&kind)),
+        );
+    }
+    seen(
+        "a case drawn thirty times larger",
+        leaves().any(|leaf| matches!(leaf, Leaf::Prism { height, .. } if height.abs() > 60.0)),
+    );
+
+    let earlier_and_later = |related: &dyn Fn(&Outline, &Outline) -> bool| {
+        cases.iter().any(|case| {
+            let outlines: Vec<&Outline> = case.leaves().filter_map(outline_of).collect();
+            (1..outlines.len()).any(|later| {
+                outlines[..later]
+                    .iter()
+                    .any(|earlier| related(earlier, outlines[later]))
+            })
+        })
+    };
+    seen(
+        "a corner radius equal to a circle's drawn before, on its centre",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (
+                Outline::Circle { center, radius, .. },
+                Outline::Rounded {
+                    low,
+                    radius: corner,
+                    ..
+                },
+            ) => corner == radius && *low + *corner == *center,
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's end on a circle's centre",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Circle { center, .. }, Outline::Slot { from, .. }) => from == center,
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's end missed by a hair",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Circle { center, .. }, Outline::Slot { from, .. }) => {
+                from != center && from.distance(*center) < 1e-4
+            }
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's straight run on a rectangle's side",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Rectangle { high, .. }, Outline::Slot { from, to, radius }) => {
+                from.y == to.y && (from.y - radius == high.y || from.y + radius == high.y)
+            }
+            _ => false,
+        }),
+    );
+    seen(
+        "a ring's bore equal to a circle drawn before",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (
+                Outline::Circle { center, radius, .. },
+                Outline::Ring {
+                    center: hub, inner, ..
+                },
+            ) => center == hub && radius == inner,
+            _ => false,
+        }),
+    );
+
+    let count = leaves().count();
+    let plain = outlines()
+        .filter(|outline| matches!(outline, Outline::Rectangle { .. } | Outline::Circle { .. }))
+        .count();
+    let share = plain as f64 / count as f64;
+    assert!(
+        (0.4..0.6).contains(&share),
+        "rectangles and circles are {plain} leaves of {count}"
+    );
+}
+
+#[test]
+fn a_profile_case_prints_as_the_rust_that_builds_it_again() {
+    let pasted = Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rounded([0.0, 0.0], [10.0, 6.0], 1.5),
+            4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-1.0),
+                Outline::slot([2.0, 1.0], [2.0, 3.5], 0.75),
+                -8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::ring([5.0, 3.0], 2.5, 1.0),
+                2.0,
+            )),
+        ],
+    );
+    assert_eq!(
+        pasted.to_string(),
+        "Case::new(
+    Leaf::prism(Plane::xy(0.0), Outline::rounded([0.0, 0.0], [10.0, 6.0], 1.5), 4.0),
+    vec![
+        Step::cut(Leaf::prism(Plane::xz(-1.0), Outline::slot([2.0, 1.0], [2.0, 3.5], 0.75), -8.0)),
+        Step::add(Leaf::prism(Plane::xy(4.0), Outline::ring([5.0, 3.0], 2.5, 1.0), 2.0)),
+    ],
+)"
+    );
+    for seed in 0..200 {
+        let printed = Case::drawn_profiles(seed).to_string();
+        assert!(
+            !printed.contains("NaN") && !printed.contains("inf"),
+            "seed {seed} prints a number Rust cannot read back: {printed}"
+        );
+    }
+}
+
 fn bored_and_bossed() -> Case {
     Case::new(
         Leaf::prism(

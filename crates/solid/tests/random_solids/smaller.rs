@@ -139,7 +139,10 @@ impl Plane {
 impl Outline {
     fn bounds(&self) -> (DVec2, DVec2) {
         match self {
-            Outline::Rectangle { low, high } => (*low, *high),
+            Outline::Rectangle { low, high } | Outline::Rounded { low, high, .. } => (*low, *high),
+            Outline::Slot { from, to, radius } => {
+                (from.min(*to) - *radius, from.max(*to) + *radius)
+            }
             Outline::Circle { center, radius, .. }
             | Outline::Ring {
                 center,
@@ -195,6 +198,7 @@ impl Outline {
                 });
                 simpler.push(Outline::Rectangle { low, high });
             }
+            Outline::Rounded { .. } | Outline::Slot { .. } => {}
             Outline::Star { center, corners } => {
                 simpler.push(Outline::Rectangle { low, high });
                 if corners.len() > 3 {

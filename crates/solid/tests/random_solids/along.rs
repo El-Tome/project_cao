@@ -86,7 +86,7 @@ impl Leaf {
                 inner,
             } => ring(&seen, *center, *outer + by, *inner - by),
             Outline::Star { corners, .. } if by == 0.0 => polygon(&seen, corners),
-            Outline::Star { .. } => return None,
+            Outline::Star { .. } | Outline::Rounded { .. } | Outline::Slot { .. } => return None,
         };
         let Some(slab) = slab(&seen, height.min(0.0) - by, height.max(0.0) + by) else {
             return Some(Vec::new());
@@ -146,6 +146,7 @@ impl Leaf {
                 .iter()
                 .map(|corner| base + u * corner.x + v * corner.y)
                 .collect(),
+            Outline::Rounded { .. } | Outline::Slot { .. } => return None,
         };
         corners
             .iter()

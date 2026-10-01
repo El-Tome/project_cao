@@ -76,7 +76,10 @@ impl Kernel for Exact {
                 radius,
                 from,
             } => whole_circle(*center, *radius, *from),
-            Outline::Star { .. } | Outline::Ring { .. } => return None,
+            Outline::Star { .. }
+            | Outline::Ring { .. }
+            | Outline::Rounded { .. }
+            | Outline::Slot { .. } => return None,
         };
         let (origin, u, v) = plane.frame();
         Body::raised(

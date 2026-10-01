@@ -9,10 +9,11 @@
 //! lengthen its chords past the tolerance.
 
 use std::cell::OnceCell;
+use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
-use super::{APART, Wall, bears, lies_on};
+use super::{APART, Wall, bears, wall_of};
 use crate::brep::curve::Curve;
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
@@ -27,7 +28,7 @@ pub(in crate::brep::tessellation) struct Facing<'a> {
     body: &'a Body,
     walls: [Wall; 2],
     room: f64,
-    known: OnceCell<([Vec<FaceId>; 2], Vec<f64>)>,
+    known: OnceCell<Known>,
 }
 
 impl<'a> Facing<'a> {
@@ -57,7 +58,7 @@ impl<'a> Facing<'a> {
         self.room
     }
 
-    fn known(&self) -> &([Vec<FaceId>; 2], Vec<f64>) {
+    fn known(&self) -> &Known {
         self.known.get_or_init(|| {
             let body = self.body;
             let eps = body.scale().eps();
@@ -68,16 +69,27 @@ impl<'a> Facing<'a> {
                     .filter(|face| body.face(*face).surface == id)
                     .collect()
             });
-            let circles = body
-                .edge_ids()
-                .filter_map(|id| match body.curve(body.edge(id).curve) {
-                    Curve::Circle(circle)
-                        if walls.iter().any(|(_, wall)| lies_on(circle, wall, eps)) =>
-                    {
-                        Some(circle.center.dot(axis))
-                    }
-                    _ => None,
-                });
+            let arcs = walls.map(|(own, _)| {
+                body.edge_ids()
+                    .filter_map(|id| {
+                        let edge = body.edge(id);
+                        match body.curve(edge.curve) {
+                            Curve::Circle(circle)
+                                if wall_of(circle, &walls, eps)
+                                    .is_some_and(|wall| wall.0 == own) =>
+                            {
+                                let (from, to) = match edge.ends {
+                                    Some(_) => (edge.from.min(edge.to), edge.from.max(edge.to)),
+                                    None => (0.0, TAU),
+                                };
+                                Some([circle.center.dot(axis), from, to])
+                            }
+                            _ => None,
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            });
+            let circles = arcs.iter().flatten().map(|[level, _, _]| *level);
             let vertices = body
                 .vertex_ids()
                 .map(|id| body.vertex(id))
@@ -90,7 +102,11 @@ impl<'a> Facing<'a> {
                 .windows(2)
                 .map(|pair| (pair[0] + pair[1]) / 2.0)
                 .collect();
-            (faces, heights)
+            Known {
+                faces,
+                heights,
+                arcs,
+            }
         })
     }
 
@@ -99,13 +115,33 @@ impl<'a> Facing<'a> {
     /// that cannot be told: a wall standing at one height alone, a wall
     /// holding no face — a circle printed on a cap, its wall gone — or a
     /// face the kernel cannot locate a place against.
+    ///
+    /// So too, for two walls of radii apart decided to touch, where a
+    /// circle of each stands at one height at the angle of `point`: the two
+    /// bound one cap there, a pocket's floor round a hole touching its wall
+    /// inside, though the walls stand at heights apart. Not for walls
+    /// crossing or all but one: a union keeps both circles on its caps all
+    /// round, and withholding their steps would lengthen the walls' chords.
     pub(super) fn at(&self, point: DVec3) -> bool {
-        let (_, heights) = self.known();
-        heights.is_empty() || heights.iter().any(|height| self.both(point, *height))
+        let known = self.known();
+        let eps = self.body.scale().eps();
+        let angles = [0, 1].map(|side| self.walls[side].1.parameters(point).x);
+        let at_level = |side: usize, level: f64| {
+            known.arcs[side].iter().any(|[height, from, to]| {
+                (height - level).abs() <= eps && from + (angles[side] - from).rem_euclid(TAU) <= *to
+            })
+        };
+        known.heights.is_empty()
+            || known.heights.iter().any(|height| self.both(point, *height))
+            || (self.room >= eps
+                && (self.walls[0].1.radius - self.walls[1].1.radius).abs() > eps
+                && known.arcs[0]
+                    .iter()
+                    .any(|[level, _, _]| at_level(0, *level) && at_level(1, *level)))
     }
 
     fn both(&self, point: DVec3, height: f64) -> bool {
-        let (faces, _) = self.known();
+        let faces = &self.known().faces;
         let eps = self.body.scale().eps();
         let holds = |side: usize| {
             let angle = self.walls[side].1.parameters(point).x;
@@ -119,6 +155,14 @@ impl<'a> Facing<'a> {
         };
         holds(0) && holds(1)
     }
+}
+
+/// The faces of two walls, the heights they are compared at, and the arcs
+/// of their circles: the height each stands at and the angles it spans.
+struct Known {
+    faces: [Vec<FaceId>; 2],
+    heights: Vec<f64>,
+    arcs: [Vec<[f64; 3]>; 2],
 }
 
 /// Every two parallel walls of a body, and where they face each other.

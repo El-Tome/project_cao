@@ -209,8 +209,12 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   place is one wall's alone and the step stays, or the chord across would sag
   past the tolerance. A wall holding no face, its circles printed on a cap,
   is taken to hold one everywhere: a circle printed round a hole it touches
-  inside is sampled in common with the hole. A place two rays put at one
-  vertex is taken once. A
+  inside is sampled in common with the hole. Two walls of radii apart
+  decided to touch face each other too where a circle of each stands at one
+  height at that angle, though the walls stand at heights apart: a pocket's
+  floor round a hole touching the pocket's wall inside is bounded by both.
+  Not two walls crossing or all but one: a union keeps both circles on its
+  caps all round. A place two rays put at one vertex is taken once. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

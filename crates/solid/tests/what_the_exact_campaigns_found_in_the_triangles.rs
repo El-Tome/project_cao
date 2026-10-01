@@ -2217,3 +2217,34 @@ fn seed_4136179_a_ring_whose_range_starts_on_a_step_of_its_grid_keeps_that_step(
         ],
     ));
 }
+
+/// A bore along x ends at x = 52.5 inside a post along y, and its cap's
+/// rim passes 0.0035 inside the post's wall where the block's top, y = 40,
+/// meets it — no vertex there, the block's top being covered by the post.
+/// The post's circle at y = 40 was sampled on its grid alone, its chord
+/// past x = 52.5 sagging 0.08 inside the wall, and the cap's triangles
+/// poked through the wall's. It holds since a wall's circles take a ray
+/// through every sample of a curve not parallel to it standing just inside
+/// it where it holds a face, as they do through a vertex there.
+#[test]
+fn seed_4058038_a_bore_s_cap_a_hair_inside_a_lying_post_stays_under_its_chords() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(20.0000001),
+            Outline::circle([47.5, 15.0], 20.0),
+            -65.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(40.0),
+                Outline::rectangle([13.0, -3.0], [68.0, 53.0]),
+                23.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(20.0),
+                Outline::circle([30.0, 20.0], 17.5),
+                32.5,
+            )),
+        ],
+    ));
+}

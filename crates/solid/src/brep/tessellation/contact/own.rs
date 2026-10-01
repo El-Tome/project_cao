@@ -80,9 +80,12 @@ pub(super) fn along_meets(
 /// sag — the corner of a pocket a hair inside it: the wall's chords sag
 /// towards the axis, and a chord across that angle would pass inside the
 /// corner. Sampled there, the wall stands on its own surface at the corner.
+/// So too for each point `inside` names for the wall: a sample of another
+/// curve standing there.
 pub(super) fn through_vertices(
     body: &Body,
     walls: &[Wall],
+    inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
     own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
 ) -> Through {
@@ -91,13 +94,21 @@ pub(super) fn through_vertices(
         let (id, cylinder) = wall;
         let sag =
             cylinder.radius * (1.0 - (PI / divisions(cylinder.radius, tolerance) as f64).cos());
-        for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
-            let on = bears(body, vertex, wall);
-            let inside = cylinder.distance(vertex.point);
-            if !on && !(-2.0 * sag..0.0).contains(&inside) {
-                continue;
-            }
-            let flat = flat_from(cylinder, vertex.point);
+        let vertices = body
+            .vertex_ids()
+            .map(|id| body.vertex(id))
+            .filter_map(|vertex| {
+                let on = bears(body, vertex, wall);
+                let inside = cylinder.distance(vertex.point);
+                (on || (-2.0 * sag..0.0).contains(&inside)).then_some((vertex.point, on))
+            });
+        let samples = inside
+            .get(id)
+            .into_iter()
+            .flatten()
+            .map(|point| (*point, false));
+        for (point, on) in vertices.chain(samples) {
+            let flat = flat_from(cylinder, point);
             if flat.length() > 0.0 {
                 own.entry(*id).or_default().push(flat.normalize());
                 through
@@ -106,7 +117,7 @@ pub(super) fn through_vertices(
                     .or_default()
                     .push(flat.normalize());
                 if on {
-                    through.anchors.entry(*id).or_default().push(vertex.point);
+                    through.anchors.entry(*id).or_default().push(point);
                 } else {
                     through
                         .beneath

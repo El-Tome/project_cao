@@ -25,6 +25,7 @@
 //! circle is not at the steps it withholds, nor on a plane touching either
 //! off the line they touch along.
 
+mod beneath;
 mod circle;
 mod ends;
 mod meet;
@@ -94,24 +95,43 @@ pub(super) struct Samples {
 }
 
 impl Samples {
+    /// Sampled twice where a curve's samples stand just inside a wall they
+    /// do not lie on, the second time on the rays through them.
     pub(super) fn of(body: &Body, tolerance: f64) -> Samples {
+        let walls = contact::walls(body);
+        let zones = Zones::of(body, &walls);
+        let first = Samples::through(body, &walls, &zones, &BTreeMap::new(), tolerance);
+        let beneath = beneath::walls(body, &walls, &first, tolerance);
+        if beneath.is_empty() {
+            return first;
+        }
+        Samples::through(body, &walls, &zones, &beneath, tolerance)
+    }
+
+    /// Every edge sampled, each wall's circles also on the rays through the
+    /// points `beneath` gives it.
+    fn through(
+        body: &Body,
+        walls: &[contact::Wall],
+        zones: &Zones,
+        beneath: &BTreeMap<SurfaceId, Vec<DVec3>>,
+        tolerance: f64,
+    ) -> Samples {
         let mut samples = Samples {
             points: body.vertex_ids().map(|id| body.vertex(id).point).collect(),
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
         };
         let eps = body.scale().eps();
-        let walls = contact::walls(body);
-        let zones = Zones::of(body, &walls);
         let alone = BTreeMap::new();
-        let mut meets = on_meets(body, &walls, &zones, &alone, tolerance);
-        let mut contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
+        let mut meets = on_meets(body, walls, zones, &alone, tolerance);
+        let mut contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
-            meets = on_meets(body, &walls, &zones, &contacts, tolerance);
-            contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
+            meets = on_meets(body, walls, zones, &contacts, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
         }
         let vertices = samples.points.clone();
         let alone = Contact::default();
@@ -120,7 +140,7 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = contact::wall_of(circle, &walls, eps)
+                    let contact = contact::wall_of(circle, walls, eps)
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
                     let ends = Ends::of(body, circle, edge);

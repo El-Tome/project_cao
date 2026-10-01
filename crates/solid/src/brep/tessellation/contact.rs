@@ -172,12 +172,14 @@ fn bears(body: &Body, vertex: &Vertex, (id, cylinder): &Wall) -> bool {
 /// close, the rays through the lines they meet along and those the two share.
 ///
 /// `meets` holds every edge's samples between its ends, empty but for the
-/// curves two cylinders meet along.
+/// curves two cylinders meet along; `inside`, for each wall, the samples of
+/// other curves standing just inside it, taken as vertices standing there.
 pub(super) fn contacts(
     body: &Body,
     walls: &[Wall],
     zones: &Zones,
     meets: &[Vec<DVec3>],
+    inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let eps = body.scale().eps();
@@ -187,7 +189,7 @@ pub(super) fn contacts(
         anchors,
         mut pinned,
         beneath,
-    } = through_vertices(body, walls, tolerance, &mut own);
+    } = through_vertices(body, walls, inside, tolerance, &mut own);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {

@@ -218,3 +218,20 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   itself. The profile draw's first hour: 6.73 per thousand — Answers 622,
   Uncrossed 389, Closed 41, Volume 11, Listed 6, and still no Spans: the
   kernel is never wrong along a line, it declines or its triangles cross.
+
+### Day 3 — 2026-10-02
+
+- Round 5 merged at 00:50. Decision 8: two parallel walls of one radius,
+  one of each operand, their axes within twenty tolerances, are one wall,
+  and the second operand moves onto it with what it built on it. The hair
+  was measured before it was set — ten, twenty, fifty, a hundred and a
+  thousand tolerances on the same campaigns — and set at twenty by the
+  review, which found a line crossing the moved wall at a slant seeing a
+  move of fifty: twenty is what no line the rules hold can see. On
+  five-minute campaigns of the profile draw, failures fell from about 6.8
+  per thousand to about 2. The moves onto a touch now gather every touch a
+  surface holds before moving it (4-1), and never move the first operand's
+  wall (4-2). The triangles' lane fixed its named cases, with no change a
+  campaign could see.
+- Campaigns 6a and 6b started at 00:53 on the kernel after round 5, an hour
+  each, the square draw from 6 000 000 and the profile draw from 6 500 000.

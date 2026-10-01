@@ -299,7 +299,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   height at that angle, though the walls stand at heights apart: a pocket's
   floor round a hole touching the pocket's wall inside is bounded by both.
   Not two walls crossing or all but one: a union keeps both circles on its
-  caps all round. A place two rays put at one vertex is taken once. A
+  caps all round. A place two rays put at one vertex is taken once. Two
+  perpendicular walls decided to touch at a point, side by side, leave no
+  curve and no vertex, and may overlap there by up to `EPS`; the point
+  stands on a step of both grids, and each wall's ruling through it would
+  pass through the other's triangles. Where both hold a face there, that
+  step is withheld from the circles round it on both walls, and the chords
+  across sag apart. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

@@ -1753,3 +1753,26 @@ fn seed_3194537_a_bore_touching_its_stock_inside_a_hair_off_its_axis_leaves_the_
         ))],
     ));
 }
+
+#[test]
+fn seed_3079219_a_bore_touching_a_cross_cut_at_a_point_a_hair_into_it_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(35.0),
+            Outline::rectangle([45.0, 10.0], [63.0, 43.0]),
+            35.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(35.0),
+                Outline::circle([62.49999995, 26.25], 2.5),
+                35.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([43.0, 45.0], 15.0),
+                25.0,
+            )),
+        ],
+    ));
+}

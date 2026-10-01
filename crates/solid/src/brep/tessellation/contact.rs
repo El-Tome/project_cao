@@ -30,6 +30,7 @@
 mod facing;
 mod gap;
 mod own;
+mod point;
 mod together;
 
 use std::collections::BTreeMap;
@@ -239,6 +240,9 @@ pub(super) fn contacts(
     }
     for (wall, rays) in beneath {
         contacts.entry(wall).or_default().beneath = rays;
+    }
+    for (wall, step) in point::withheld(body, walls, tolerance) {
+        contacts.entry(wall).or_default().withheld.push(step);
     }
     contacts
 }

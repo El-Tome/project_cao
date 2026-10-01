@@ -142,9 +142,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
 
 - **Watertight by construction.** Every edge is sampled once, and every face
   using it takes those samples, bit for bit, with the vertices' own points at
-  the ends. No sample between stands within `EPS` of a vertex: it would be
-  that vertex a second time — an end, or a corner the kernel left a hair off
-  the curve, which a ray through it lands on.
+  the ends. No sample between stands within `EPS` of an end, nor within
+  rounding of any vertex: it would be that vertex a second time — a corner
+  the kernel left a hair off the curve, which a ray through it lands on. A
+  sample a hair from a vertex off the edge stays: on the ray through the end
+  of a curve beside it, it keeps the two in order.
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the

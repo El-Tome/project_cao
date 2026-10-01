@@ -27,6 +27,7 @@
 
 mod ends;
 mod meet;
+mod planes;
 
 use std::collections::BTreeMap;
 use std::f64::consts::{PI, TAU};
@@ -35,10 +36,10 @@ use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cylinder, Plane};
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
 use ends::Ends;
+use planes::{on_a_plane, touching_planes};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
 /// place of the grid a step or less from an end lying on that surface must
@@ -75,10 +76,12 @@ pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
 /// not come back to it. No point between stands within the kernel's
-/// tolerance of a vertex: it would be that vertex twice — a place of the
-/// grid a rounding past an end, moved to where the vertex at its angle
-/// stands, or a place on the ray through a corner the kernel left a hair
-/// off the curve, at the corner's own height.
+/// tolerance of an end, nor within rounding of any vertex: it would be that
+/// vertex twice — a place of the grid a rounding past an end, moved to where
+/// the vertex at its angle stands, or a place on the ray through a corner
+/// the kernel left a hair off the curve, at the corner's own height. A place
+/// a hair from a vertex off the edge stays: on the ray through the end of a
+/// curve beside it, it keeps the two in order.
 ///
 /// Points are numbered: the vertices first, by rank, then the rest.
 pub(super) struct Samples {
@@ -123,10 +126,17 @@ impl Samples {
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
+            let ends: Vec<DVec3> = edge
+                .ends
+                .into_iter()
+                .flatten()
+                .map(|end| body.vertex(end).point)
+                .collect();
             let between = between.into_iter().filter(|point| {
-                vertices
-                    .iter()
-                    .all(|vertex| (*point - *vertex).length() > eps)
+                ends.iter().all(|end| (*point - *end).length() > eps)
+                    && vertices
+                        .iter()
+                        .all(|vertex| (*point - *vertex).length() > eps * TOLD)
             });
             let first = samples.points.len();
             samples.points.extend(between);
@@ -355,42 +365,6 @@ fn on_circle(
         points.pop();
     }
     points
-}
-
-/// Whether `point`, on a wall about `center` and `axis` that `plane` touches
-/// along a line, stands within a fifth of `eps` of the plane but not on
-/// that line: a sample there would lay a strip of the wall on the plane.
-fn on_a_plane(plane: &Plane, center: DVec3, axis: DVec3, point: DVec3, eps: f64) -> bool {
-    let foot = center - plane.normal * plane.distance(center);
-    let touching = foot + axis * axis.dot(point - foot);
-    plane.distance(point).abs() < eps * contact::APART && (point - touching).length() > eps
-}
-
-/// The planes of the body touching a wall of `radius` about `center` and
-/// `axis` along a line the body holds: a vertex lies on both. A plane whose
-/// faces stand far from that line touches nothing of the wall.
-fn touching_planes(body: &Body, center: DVec3, axis: DVec3, radius: f64) -> Vec<Plane> {
-    let eps = body.scale().eps();
-    let on_wall = |point: DVec3| {
-        let from = point - center;
-        ((from - axis * axis.dot(from)).length() - radius).abs() <= eps
-    };
-    (0..body.surfaces.len() as u32)
-        .map(SurfaceId)
-        .filter_map(|id| match body.surface(id) {
-            Surface::Plane(plane) => Some((id, *plane)),
-            Surface::Cylinder(_) => None,
-        })
-        .filter(|(id, plane)| {
-            plane.normal.dot(axis).abs() <= Scale::RELATIVE
-                && (plane.distance(center).abs() - radius).abs() <= eps
-                && body
-                    .vertex_ids()
-                    .map(|vertex| body.vertex(vertex))
-                    .any(|vertex| vertex.on.contains(id) && on_wall(vertex.point))
-        })
-        .map(|(_, plane)| plane)
-        .collect()
 }
 
 #[cfg(test)]

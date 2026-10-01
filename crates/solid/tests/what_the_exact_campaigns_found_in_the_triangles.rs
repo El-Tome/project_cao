@@ -958,6 +958,48 @@ fn seed_38002065_a_disc_hollowed_from_below_a_hair_off_its_axis_keeps_its_sliver
     ));
 }
 
+#[test]
+fn seed_39000224_a_crescent_left_by_a_cut_a_hair_off_the_axis_under_a_notch_closes_its_cap() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(7.0), Outline::circle([5.5, 5.0], 1.0), 3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::circle([5.5, 5.5], 0.50000006),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(5.99999994),
+                Outline::circle([5.50001, 5.0], 1.0),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_37000855_a_bore_filled_but_for_a_crescent_by_a_boss_it_touches_inside_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(120.0),
+            Outline::rectangle([-180.0, -60.0], [180.0, 300.0]),
+            150.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([0.0, 165.0], 135.00001),
+                300.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([-1e-5, 165.0], 135.0),
+                300.0,
+            )),
+        ],
+    ));
+}
+
 /// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
 /// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
 /// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex

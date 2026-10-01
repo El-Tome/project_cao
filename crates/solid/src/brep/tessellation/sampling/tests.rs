@@ -866,6 +866,40 @@ fn every_ring_of_a_cylinder_is_sampled_at_the_angle_of_every_vertex_on_that_cyli
 }
 
 #[test]
+fn a_ring_starting_on_a_step_of_its_grid_or_a_rounding_beside_it_keeps_every_step() {
+    let tolerance = 0.02;
+    let mut body = fixtures::stock();
+    let edge = body.edge_ids().next().expect("the stock's first ring");
+    let Curve::Circle(circle) = *body.curve(body.edge(edge).curve) else {
+        panic!("the stock's edges are its two rings");
+    };
+    let steps = divisions(circle.radius, tolerance);
+    for rank in 0..steps {
+        let on = TAU * rank as f64 / steps as f64;
+        for from in [on.next_down(), on, on.next_up()] {
+            body.edges[edge.0 as usize].from = from;
+            body.edges[edge.0 as usize].to = from + TAU;
+            let samples = Samples::of(&body, tolerance);
+            let ids = samples.edge(edge);
+            assert_eq!(
+                ids.len(),
+                steps,
+                "a ring from {from} has {} samples",
+                ids.len()
+            );
+            for step in 0..steps {
+                let expected = circle.point(TAU * step as f64 / steps as f64);
+                assert!(
+                    ids.iter()
+                        .any(|id| (samples.point(*id) - expected).length() < CLOSE),
+                    "a ring from {from} misses step {step}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn a_ring_takes_a_ray_a_rounding_short_of_the_angle_it_starts_at() {
     let body = fixtures::stock();
     let edge = body.edge_ids().next().expect("the stock's first ring");

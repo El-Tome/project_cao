@@ -2182,3 +2182,38 @@ fn seed_3108326_a_lying_cut_touching_the_floor_a_hair_from_the_block_s_side_leav
         ],
     ));
 }
+
+/// The four cuts take nothing from the disc, but the second splits its top
+/// rim at 30 degrees and the merge after it leaves the rim a ring whose
+/// range starts there, on a step of its grid, a rounding past it. The step
+/// fell outside the range at both ends, and the chord across it, two steps
+/// long, sagged four times the tolerance. It holds since a ring takes every
+/// step of its grid, wherever its range starts.
+#[test]
+fn seed_4136179_a_ring_whose_range_starts_on_a_step_of_its_grid_keeps_that_step() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(4.0), Outline::circle([3.0, 6.0], 4.0), 3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([-1.0, 10.0], [1.0, 11.0]),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(8.0),
+                Outline::rectangle([5.0, 8.0], [11.0, 15.5]),
+                -1.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(8.0),
+                Outline::rectangle([9.0, 3.0], [16.0, 7.0]),
+                -4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([0.0, 4.0], [6.0, 5.0]),
+                3.0,
+            )),
+        ],
+    ));
+}

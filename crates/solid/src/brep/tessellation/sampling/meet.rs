@@ -15,7 +15,8 @@ use glam::DVec3;
 
 use super::divisions;
 use crate::brep::curve::Meet;
-use crate::brep::topology::Edge;
+use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::topology::{Body, Edge};
 
 /// How many times a stretch is halved at most: past this, a chord is shorter
 /// than the rounding of the parameter along a curve of any reach.
@@ -150,4 +151,46 @@ fn from_chord(point: DVec3, start: DVec3, end: DVec3) -> f64 {
         0.0
     };
     (point - (start + along * share)).length()
+}
+
+/// Whether a place of an edge along the curve two cylinders meet stands
+/// within `room` of a surface one of its ends lies on and the curve does
+/// not, a step of the finer grid or less from that end: the curve grazing a
+/// cap there, as a circle grazes the plane of an arc it meets, a sample a
+/// hair from the end would lie on the cap's own arc ending at the same
+/// vertex.
+pub(in crate::brep::tessellation) fn grazing_ends<'a>(
+    body: &'a Body,
+    edge: &'a Edge,
+    walls: &[Cylinder; 2],
+    tolerance: f64,
+) -> impl Fn(DVec3, f64) -> bool + 'a {
+    let step = walls
+        .iter()
+        .map(|wall| TAU * wall.radius / divisions(wall.radius, tolerance) as f64)
+        .fold(f64::INFINITY, f64::min);
+    let own = walls.map(Surface::Cylinder);
+    let ends: Vec<(DVec3, Vec<Surface>)> = edge
+        .ends
+        .into_iter()
+        .flatten()
+        .map(|end| {
+            let vertex = body.vertex(end);
+            let surfaces = vertex
+                .on
+                .iter()
+                .map(|id| *body.surface(*id))
+                .filter(|surface| !own.contains(surface))
+                .collect();
+            (vertex.point, surfaces)
+        })
+        .collect();
+    move |point: DVec3, room: f64| {
+        ends.iter().any(|(end, surfaces)| {
+            (point - *end).length() <= step
+                && surfaces
+                    .iter()
+                    .any(|surface| surface.distance(point).abs() < room)
+        })
+    }
 }

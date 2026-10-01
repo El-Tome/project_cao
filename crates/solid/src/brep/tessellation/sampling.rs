@@ -201,13 +201,15 @@ fn on_meets(
                     let walls = [meet.first, meet.second];
                     let planes = walls
                         .map(|wall| touching_planes(body, wall.origin, wall.axis, wall.radius));
+                    let grazed = meet::grazing_ends(body, edge, &walls, tolerance);
                     let clear = |point: DVec3| {
-                        walls.iter().zip(&planes).all(|(wall, planes)| {
-                            !zones.crowded(wall, point)
-                                && !planes.iter().any(|plane| {
-                                    on_a_plane(plane, wall.origin, wall.axis, point, eps)
-                                })
-                        })
+                        !grazed(point, eps * contact::APART)
+                            && walls.iter().zip(&planes).all(|(wall, planes)| {
+                                !zones.crowded(wall, point)
+                                    && !planes.iter().any(|plane| {
+                                        on_a_plane(plane, wall.origin, wall.axis, point, eps)
+                                    })
+                            })
                     };
                     meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
                 }

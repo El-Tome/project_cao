@@ -301,7 +301,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   there lays a strip of the wall on the side. Nor does an arc take a ray a step or less from
   its end where it all but lies on a surface that end lies on and it does
   not: a wall grazing the plane of the arc there stands on the plane's face
-  over a band far wider than the rules tell apart. Nor a place of its grid
+  over a band far wider than the rules tell apart. Nor does the curve two
+  perpendicular cylinders meet along, a step of the finer grid or less from
+  its end: a ray a cylinder takes from a wall a hair off its own would put a
+  sample of the curve on the cap's arc ending at the same vertex. Nor a place of its grid
   where it stands within a thousandth of `EPS` of such a surface: two circles
   of one radius crossing a hair apart stand within the rounding of each other
   a long way round from their vertex, and a place of each there, on no ray

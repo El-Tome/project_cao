@@ -1625,3 +1625,23 @@ fn seed_3011236_a_bore_a_hair_narrower_than_the_boss_it_runs_through_touching_th
         ],
     ));
 }
+
+#[test]
+fn seed_3092335_a_bore_crossing_two_lying_cylinders_a_hair_apart_keeps_its_curve_off_the_step_between_them()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(240.0), Outline::circle([150.0, 0.0], 75.0), 210.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(240.00001),
+                Outline::circle([149.9999997, 0.0], 75.0),
+                75.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([90.000006, 90.0], 75.00001),
+                240.0,
+            )),
+        ],
+    ));
+}

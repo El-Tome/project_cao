@@ -1000,6 +1000,72 @@ fn seed_37000855_a_bore_filled_but_for_a_crescent_by_a_boss_it_touches_inside_st
     ));
 }
 
+/// A cut of the stock's radius 6e-6 off its axis leaves a crescent of it,
+/// and a wide boss stands on the crescent, touching the stock inside at
+/// (60, -15). The crescent's two walls cross at (59.999997, -15), 3e-6 from
+/// that point, and the boss's floor is bounded there by both: its own
+/// circle down to the point of contact, the stock's for 3e-6, then the
+/// cut's. The boss's circle withholds every ray where it stands within the
+/// tolerance of the stock's wall, the crossing's too, and its chord into
+/// the point of contact passes 1.2e-7 inside the crossing; the cut's chord
+/// from the crossing passes through it. A sample of the boss's circle on
+/// the crossing's ray would stand within rounding of the crossing itself,
+/// and one of the cut's on the contact's ray within rounding of the
+/// contact: the three walls want sampling in common across a tangency and
+/// a crossing, which they are not yet.
+#[test]
+#[ignore = "triangles"]
+fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_floor_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(30.0), Outline::circle([60.0, 0.0], 15.0), -270.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([59.999994, 0.0], 15.0),
+                -540.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-45.0),
+                Outline::circle([60.0, 60.0], 75.0),
+                135.0,
+            )),
+        ],
+    ));
+}
+
+/// The cut only touches the bottom of the block and of the boss on it, and
+/// prints its circle there, of the boss's radius 1e-5 off its axis. The two
+/// circles cross 5e-6 from the block's side, and the kernel keeps both
+/// arcs between the crossing and the side though only the bottom face uses
+/// them, on both sides: the face's loop runs round the lens between them
+/// twice, once each way, and with no sample between their ends the two
+/// arcs are one segment four times over, which no sweep can lay out. An
+/// arc a face uses on both sides and nothing else uses has to go when the
+/// faces beside it are merged, which is the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_36003534_a_circle_printed_a_hair_off_a_boss_s_own_leaves_the_bottom_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(17.5),
+            Outline::rectangle([2.5, 10.0], [12.5, 42.5]),
+            8.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(17.5),
+                Outline::circle([12.5, 26.25], 15.0),
+                50.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(17.5),
+                Outline::circle([12.49999, 26.25], 15.0),
+                -13.0,
+            )),
+        ],
+    ));
+}
+
 /// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
 /// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
 /// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex

@@ -1776,3 +1776,36 @@ fn seed_3079219_a_bore_touching_a_cross_cut_at_a_point_a_hair_into_it_stays_uncr
         ],
     ));
 }
+
+#[test]
+fn seed_3047709_a_boss_crossing_a_cut_of_one_radius_a_hair_off_a_far_plane_keeps_its_wall_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(7.0),
+            Outline::rectangle([1.0, 8.0], [4.5, 15.0]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(8.0000002),
+                Outline::circle([4.500009899999999, 11.5], 3.0),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.99999),
+                Outline::circle([4.5, 11.5], 3.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([10.0, 6.0], [13.0, 11.0]),
+                6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::rectangle([7.0, 8.0], [11.0, 12.0]),
+                9.5,
+            )),
+        ],
+    ));
+}

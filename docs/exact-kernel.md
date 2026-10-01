@@ -224,9 +224,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   ray so near the line the plane touches along that it would stand on the
   plane: a strip of the wall a hair wide would lie on the plane's face. A
   plane touches a wall only where the body holds the line, a vertex lying on
-  both: the plane of a face far off along it touches nothing, and the rays it
-  would take from the wall leave the rim of a disc a bore hollowed a hair
-  off its axis without a sample for two steps. Two cylinders touching are both
+  both and on a face of the plane: the plane of a face far off along it
+  touches nothing, and the rays it would take from the wall leave the rim of
+  a disc a bore hollowed a hair off its axis without a sample for two steps —
+  nor does a block's top far off across the wall, though a side crossing the
+  wall a hair from where that top would touch it leaves a vertex taken to
+  lie on it: the line two walls of one radius cross along there, a ray of
+  both, would be dropped beside the steps they withhold. Two cylinders touching are both
   sampled on the line they touch along, vertex or not, and a circle whose
   wall is gone is sampled as its own cylinder's. An arc ending on that line,
   though, is sampled there at its end alone: the kernel may lay the line

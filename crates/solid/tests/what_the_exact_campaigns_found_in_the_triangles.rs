@@ -360,8 +360,9 @@ fn seed_9002788_a_boss_touching_a_bore_touching_the_stock_inside_leaves_its_caps
 /// vertex, and the wall's first triangle passes 1e-8 through the side
 /// beside it. The triangles take the vertices where the kernel put them; a
 /// vertex decided on a plane has to be put on it, which is the boolean's.
+/// It holds since a touch decided a hair apart is made exact on the
+/// surfaces, the second operand's moved onto it (decision 2).
 #[test]
-#[ignore = "kernel"]
 fn seed_6000059_a_pocket_a_hair_deep_touching_the_side_of_a_block_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -408,8 +409,9 @@ fn seed_6002157_a_bore_a_hair_across_the_side_of_a_notch_stays_uncrossed() {
 /// beside it stands at (8, 4, 4). The boss's wall, fanned from that vertex,
 /// passes through the block's floor between the two. As for seed 6000059,
 /// the vertex has to be put on the plane it was decided on.
+/// It holds since a touch decided a hair apart is made exact on the
+/// surfaces, the second operand's moved onto it (decision 2).
 #[test]
-#[ignore = "kernel"]
 fn seed_8001749_a_boss_a_hair_across_the_side_it_stands_on_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -649,8 +651,12 @@ fn seed_1006751_two_cylinders_of_one_radius_a_hair_apart_one_above_the_other_enc
 /// (failure 1-9), whose tolerance a later leaf then grows (1-6), fail the
 /// check of their own listing at the second step once round 2's refusals
 /// keep apart what the first step decided. The kernel's, still open.
+/// It holds since a pair of surfaces one operand alone carries is decided
+/// at that operand's tolerance, and two arcs between the same corners are
+/// one only where each stands within the tolerance of the other's arc, not
+/// of its whole curve: the half of one post's rim and the other half of the
+/// second's, a hair apart, were taken for one arc.
 #[test]
-#[ignore = "kernel"]
 fn seed_1008037_two_cylinders_of_one_radius_a_hair_apart_joined_enclose_their_union_once_the_tolerance_grows()
  {
     random_solids::holds_exactly(&Case::new(
@@ -767,8 +773,10 @@ fn seed_22003491_a_block_notched_by_a_cylinder_a_hair_inside_its_side_leaves_its
 /// (failure 1-9), whose tolerance a later leaf then grows (1-6), fail the
 /// check of their own listing at the second step once round 2's refusals
 /// keep apart what the first step decided. The kernel's, still open.
+/// It holds since a pair of surfaces one operand alone carries is decided
+/// at that operand's tolerance, and two parallel cylinders of one operand
+/// covering twins are read one above the other where they stand apart.
 #[test]
-#[ignore = "kernel"]
 fn seed_22005443_two_cylinders_a_hair_apart_joined_then_marked_by_a_cut_leave_their_caps_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -907,8 +915,10 @@ fn seed_32000053_a_circle_printed_round_a_hole_it_touches_inside_leaves_the_top_
 /// its edges. A sample of the circle lies on the pad's edge, and no sweep
 /// can lay out a boundary touching itself away from a vertex. The point has
 /// to be a vertex of both edges, which is the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_34002812_a_swallowed_cylinder_tangent_to_a_pad_a_hair_off_the_side_leaves_the_side_closed()
 {
     random_solids::holds_exactly(&Case::new(
@@ -1054,8 +1064,9 @@ fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_flo
 /// arcs are one segment four times over, which no sweep can lay out. An
 /// arc a face uses on both sides and nothing else uses has to go when the
 /// faces beside it are merged, which is the boolean's.
+/// It held from the merge of the kernel's round 2, before step 8 was
+/// written, and stayed ignored until round 3 found it holding.
 #[test]
-#[ignore = "kernel"]
 fn seed_36003534_a_circle_printed_a_hair_off_a_boss_s_own_leaves_the_bottom_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1111,8 +1122,9 @@ fn seed_32000053_a_pocket_whose_floor_a_hole_touches_inside_leaves_the_floor_clo
 /// sliver of no area, which no sweep can lay out, and the face is left open.
 /// The corner and the crossing have to be one point or two decided apart,
 /// which is the boolean's.
+/// It held from the merge of the kernel's round 2, before step 8 was
+/// written, and stayed ignored until round 3 found it holding.
 #[test]
-#[ignore = "kernel"]
 fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leaves_the_front_closed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1149,8 +1161,10 @@ fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leav
 /// which lie along the same line of its parameters: no sweep can lay that
 /// out, and the side is left open. The two lines have to be one, which is
 /// the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_1026142_a_block_touching_both_walls_of_a_sliver_the_tolerance_outgrew_is_drawn_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(32.5), Outline::circle([40.0, 35.0], 5.0), 23.0),

@@ -24,7 +24,7 @@ use super::overlay::{Arc, Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
 use twins::{Twin, twins};
-use wrapped::{Wrapped, covering, wound};
+use wrapped::{Wrapped, collapsed, covering, wound};
 
 pub(super) fn selected(
     operands: &Operands,
@@ -47,6 +47,18 @@ pub(super) fn selected(
         })
         .collect();
     let twins = twins(&seen, operands.eps());
+    let corners: Vec<Vec<DVec3>> = carried
+        .iter()
+        .map(|surface| {
+            arena
+                .body
+                .vertices
+                .iter()
+                .filter(|vertex| vertex.on.binary_search(surface).is_ok())
+                .map(|vertex| vertex.point)
+                .collect()
+        })
+        .collect();
     let mut faces = Vec::new();
     for (rank, &surface) in carried.iter().enumerate() {
         let (edges, overlay) = &parted[rank];
@@ -64,6 +76,7 @@ pub(super) fn selected(
                     geometry: seen[rank].0,
                     region: &parted[rank].1.regions[index],
                     turned,
+                    corners: &corners[rank],
                 })
                 .collect();
             let Some([first, second]) = wraps(operands, &members)? else {
@@ -86,6 +99,8 @@ struct Member<'a> {
     geometry: &'a Surface,
     region: &'a Region,
     turned: bool,
+    /// The corners lying on the member's surface.
+    corners: &'a [DVec3],
 }
 
 /// How each operand wraps a region and its twins, as the first's surface
@@ -94,9 +109,22 @@ struct Member<'a> {
 /// Read at each region's point; where an operand touches the surface at that
 /// very point — a bar's cap resting on a post's wall — the answer is a tie,
 /// and it is read again further along each region's chord, where the answer
-/// is the same.
+/// is the same. So it is where the point stands on a corner of the surface:
+/// a corner inside a region is where another surface touches it at a point,
+/// a post made to touch a bar's wall, and a ray from there is taken on
+/// whichever side of the post rounding leaves it.
 fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>, Declined> {
+    let on_a_corner = members.iter().any(|member| {
+        let point = member.geometry.point(member.region.inside);
+        member
+            .corners
+            .iter()
+            .any(|corner| corner.distance(point) <= operands.eps())
+    });
     for share in [None, Some(0.25), Some(0.75)] {
+        if share.is_none() && on_a_corner {
+            continue;
+        }
         let places: Vec<(SurfaceId, DVec3, bool)> = members
             .iter()
             .map(|member| {
@@ -117,29 +145,45 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
 }
 
 /// An operand covering two twins at once lies back to back with itself
-/// there, which is a tie.
+/// there: a skin or a crack an earlier operation left thinner than this
+/// one's tolerance, which wraps both sides alike once the sheet is gone
+/// ([`collapsed`]), and covers neither.
 fn wrapped_at(
     operands: &Operands,
     places: &[(SurfaceId, DVec3, bool)],
 ) -> Result<Option<[Wrapped; 2]>, Declined> {
     let mut covered = [None, None];
-    for (operand, covered) in covered.iter_mut().enumerate() {
+    let mut sheet = [None, None];
+    for operand in 0..2 {
+        let mut found = Vec::new();
         for &(surface, point, turned) in places {
             if let Some(wrapped) = covering(operands, operand, surface, point)? {
-                let wrapped = if turned { wrapped.turned() } else { wrapped };
-                if covered.replace(wrapped).is_some() {
-                    return Err(Declined::Tie);
-                }
+                found.push((
+                    surface,
+                    point,
+                    if turned { wrapped.turned() } else { wrapped },
+                ));
             }
+        }
+        match found.as_slice() {
+            [] => {}
+            [(_, _, wrapped)] => covered[operand] = Some(*wrapped),
+            [one, other] => sheet[operand] = Some(collapsed(operands, operand, [*one, *other])?),
+            _ => return Err(Declined::Tie),
         }
     }
     if covered.iter().all(Option::is_none) {
         return Ok(None);
     }
     let point = places[0].1;
-    let [first, second] = [0, 1].map(|operand| match covered[operand] {
-        Some(wrapped) => Ok(wrapped),
-        None => wound(operands, operand, point),
+    let [first, second] = [0, 1].map(|operand| match (covered[operand], sheet[operand]) {
+        (Some(wrapped), _) => Ok(wrapped),
+        (None, Some(winding)) => Ok(Wrapped {
+            covered: false,
+            above: winding,
+            below: winding,
+        }),
+        (None, None) => wound(operands, operand, point),
     });
     Ok(Some([first?, second?]))
 }

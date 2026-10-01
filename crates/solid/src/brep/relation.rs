@@ -12,7 +12,7 @@ use super::curve::{Circle, Curve, Line};
 use super::meet::Meeting;
 use super::scale::Scale;
 use super::surface::Surface;
-pub use crossing::{Crossing, Crossings, crossings};
+pub use crossing::{Crossing, Crossings, Touches, crossings, crossings_given};
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {

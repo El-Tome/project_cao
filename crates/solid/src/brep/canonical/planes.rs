@@ -34,6 +34,12 @@ impl Planes {
         }
     }
 
+    pub fn is_plane(&self, surface: SurfaceId) -> bool {
+        self.planes
+            .get(surface.0 as usize)
+            .is_some_and(Option::is_some)
+    }
+
     /// Whether both sets lie on two planes across each other.
     pub fn fix_a_line(&self, one: &[SurfaceId], other: &[SurfaceId]) -> bool {
         let shared = self.shared(one, other);
@@ -51,10 +57,14 @@ impl Planes {
 
     /// The place three planes of `support` whose normals span space meet at,
     /// of all such triples the one spanning the most; none where no three do,
-    /// nor where `support` holds a cylinder, which fixes the place as well.
-    pub fn place(&self, support: &[SurfaceId]) -> Option<DVec3> {
+    /// nor where `support` holds a cylinder that fixes the place as well:
+    /// one `held` does not say the planes hold.
+    pub fn place(&self, support: &[SurfaceId], held: impl Fn(SurfaceId) -> bool) -> Option<DVec3> {
         let planes = self.shared(support, support);
-        if planes.len() < support.len() {
+        if support
+            .iter()
+            .any(|&surface| !self.is_plane(surface) && !held(surface))
+        {
             return None;
         }
         let [one, other, third] = self.spanning(&planes)?;

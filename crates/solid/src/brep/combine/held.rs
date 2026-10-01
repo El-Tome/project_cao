@@ -23,7 +23,7 @@ use std::collections::BTreeMap;
 use glam::DVec3;
 
 use super::operands::Operands;
-use crate::brep::canonical::{Registry, same};
+use crate::brep::canonical::{Registry, distance, within};
 use crate::brep::curve::Curve;
 use crate::brep::relation::relation;
 use crate::brep::scale::Scale;
@@ -55,16 +55,7 @@ pub(super) fn held(operands: &Operands, registry: &mut Registry) -> (Vec<Held>, 
         for edge in body.edge_ids() {
             let stretch = body.edge(edge);
             let own = body.curve(stretch.curve);
-            let (around, partly): (Vec<SurfaceId>, Vec<SurfaceId>) = operands
-                .around(operand, edge)
-                .into_iter()
-                .partition(|surface| {
-                    carries(
-                        &operands.surfaces.list[surface.0 as usize],
-                        own,
-                        operands.scale,
-                    )
-                });
+            let (around, partly) = beside(operands, operand, edge, own);
             let theirs = (operand, stretch.curve);
             let curve = registry.register_beside(
                 shared(operands, operand, edge, own, &around),
@@ -94,9 +85,44 @@ pub(super) fn held(operands: &Operands, registry: &mut Registry) -> (Vec<Held>, 
     (found, ending)
 }
 
+/// The shared surfaces of the faces beside an operand's edge, parted into
+/// those that carry its curve all along and the others, as the operand was
+/// built: a surface the boolean took for another or moved onto a touch
+/// stands up to the tolerance off the curve, and a rim of a bore moved onto
+/// a side would no longer be its wall's.
+fn beside(
+    operands: &Operands,
+    operand: usize,
+    edge: EdgeId,
+    own: &Curve,
+) -> (Vec<SurfaceId>, Vec<SurfaceId>) {
+    let body = operands.bodies[operand];
+    let mut around = Vec::new();
+    let mut partly = Vec::new();
+    for (face, _) in body.uses(edge) {
+        let lying = body.surface(body.face(face).surface);
+        let shared = operands.surface_of(operand, face);
+        if carries(lying, own, operands.scale) {
+            around.push(shared);
+        } else {
+            partly.push(shared);
+        }
+    }
+    around.sort();
+    around.dedup();
+    partly.sort();
+    partly.dedup();
+    partly.retain(|surface| around.binary_search(surface).is_err());
+    (around, partly)
+}
+
 /// An edge's own curve, or, when a face beside it lies on a surface the
-/// boolean took for another, the curve two of the surfaces it now lies on
-/// share within the tolerance of it.
+/// boolean took for another or moved onto a touch, the curve two of the
+/// surfaces it now lies on share nearest it. Each of the two may stand up to
+/// the tolerance from the edge's own surface, so the curve they share may
+/// stand further than the tolerance from the edge: a rim of a bore moved onto
+/// a side, its floor taken for one a hair off, stands √2 hairs from the
+/// circle the moved wall and that floor share.
 fn shared(
     operands: &Operands,
     operand: usize,
@@ -114,6 +140,8 @@ fn shared(
         return *own;
     }
     let list = &operands.surfaces.list;
+    let stretch = body.edge(edge);
+    let middle = own.point((stretch.from + stretch.to) / 2.0);
     around
         .iter()
         .enumerate()
@@ -126,9 +154,15 @@ fn shared(
             )
             .curves()
         })
-        .find(|shared| same(shared, own, operands.scale))
+        .filter(|shared| within(shared, own, operands.scale, MOVED * operands.eps()))
+        .min_by(|one, other| distance(one, middle).total_cmp(&distance(other, middle)))
         .unwrap_or(*own)
 }
+
+/// How far, in tolerances, the curve two surfaces share moves when each is
+/// taken for another or moved onto a touch by up to the tolerance: √2 where
+/// they stand square, as two planes of the origin or a cap and its wall do.
+const MOVED: f64 = 2.0;
 
 /// Whether a surface carries a curve all along it, within the tolerance: a
 /// line on a cylinder runs along its axis, a circle on a plane or a cylinder

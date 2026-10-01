@@ -43,6 +43,7 @@ impl Build {
                 edges: Vec::new(),
                 faces: Vec::new(),
                 scale: Scale::of(1.0),
+                arrivals: Vec::new(),
             },
             lines: BTreeMap::new(),
         }

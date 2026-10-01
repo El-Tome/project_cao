@@ -176,10 +176,12 @@ fn on(
 }
 
 /// Whether a corner lies on a registered curve: two surfaces the curve lies on
-/// are among those the corner lies on, and of the curves lying on both — the
-/// two lines a plane cuts a cylinder along, the two loops two cylinders meet
-/// along — it stands on the nearest, or within the tolerance of it where two
-/// of them cross.
+/// are among those the corner lies on, and it stands within the tolerance of
+/// the curve. Two surfaces crossing at a grazing angle stand within the
+/// tolerance of each other microns from the curve they meet along, and so
+/// may a corner on both, or one merged from two corners of a chain: a curve
+/// cut there would end that far from its vertex, and two curves cut at one
+/// vertex from places that far apart would leave it side by side.
 ///
 /// A curve found on one surface alone — an edge between two faces of one
 /// surface an earlier operation left — is not fixed by its support, and a
@@ -195,10 +197,9 @@ pub(in crate::brep) fn lies_on(
     eps: f64,
 ) -> bool {
     let own = &registry.list[curve];
-    if registry.apart.across(&own.support, support) {
+    if registry.apart.across(&own.support, support) || distance(&own.curve, point) > eps {
         return false;
     }
-    let away = distance(&own.curve, point);
     let shared: Vec<SurfaceId> = own
         .support
         .iter()
@@ -206,25 +207,12 @@ pub(in crate::brep) fn lies_on(
         .filter(|surface| support.binary_search(surface).is_ok())
         .collect();
     if own.support.len() < 2 {
-        return shared.len() == own.support.len() && away <= eps;
+        return shared.len() == own.support.len();
     }
     shared.iter().enumerate().any(|(index, &one)| {
         shared[index + 1..].iter().any(|&other| {
-            if registry.apart.touch(one, other) {
-                return away <= eps
-                    && registry.apart.near(one, point, eps)
-                    && registry.apart.near(other, point, eps);
-            }
-            registry
-                .list
-                .iter()
-                .enumerate()
-                .filter(|&(rank, known)| {
-                    rank != curve
-                        && known.support.binary_search(&one).is_ok()
-                        && known.support.binary_search(&other).is_ok()
-                })
-                .all(|(_, known)| away <= distance(&known.curve, point).max(eps))
+            !registry.apart.touch(one, other)
+                || registry.apart.near(one, point, eps) && registry.apart.near(other, point, eps)
         })
     })
 }

@@ -60,6 +60,22 @@ impl Meeting {
     }
 }
 
+/// The cylinder of two perpendicular ones that `Meeting::of` moves onto the
+/// touch it decides, by its rank in the pair as asked, and where it moves it
+/// to; none where nothing moves.
+pub(in crate::brep) fn moved(
+    one: &Cylinder,
+    other: &Cylinder,
+    scale: Scale,
+) -> Option<(usize, Cylinder)> {
+    let (first, second, rank) = match goes_first(one, other) {
+        Ordering::Greater => (other, one, 0),
+        Ordering::Less | Ordering::Equal => (one, other, 1),
+    };
+    let snapped = snapped(first, second, scale.eps());
+    (snapped != *second).then_some((rank, snapped))
+}
+
 /// Where the curve of a pair crosses itself, each node with the parameter
 /// of every pass of a component through it.
 pub(super) fn nodes(pair: &Pair) -> Vec<Node> {

@@ -1,10 +1,15 @@
 //! Where a curve crosses a surface: what the corners of a triple stand on.
 //!
 //! A line or a circle against a plane or a cylinder is solved in closed form,
-//! exact but for rounding, a double root decided within the tolerance as one
-//! touch. The curve two perpendicular cylinders meet along is solved through
-//! the lines the surface makes with one of its two cylinders where it makes
-//! any, and numerically otherwise, in `scan.rs`.
+//! exact but for rounding. A double root is one touch where the curve passes
+//! outside the surface within the tolerance, where its two roots stand
+//! within the tolerance of each other, or where a surface it lies on was
+//! decided to touch the other there ([`Touches`], decision 4): a line a hair
+//! inside a wall otherwise crosses it twice, its two roots many tolerances
+//! apart, and a corner between them would stand that far off every other
+//! curve through either. The curve two perpendicular cylinders
+//! meet along is solved through the lines the surface makes with one of its
+//! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
 
 mod scan;
 
@@ -44,14 +49,45 @@ enum Solved {
     Unsupported,
 }
 
+/// What the surfaces a curve lies on were decided to make with a surface it
+/// crosses (decision 2): whether one of them touches it along a line — a
+/// plane touching a wall, two parallel walls touching — and the points where
+/// one of them touches it at a point, a node or the contact of two
+/// perpendicular cylinders. A double root within the tolerance of the
+/// surface, inside it or out, is a touch where it stands on such a line or
+/// within the tolerance of such a point.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Touches {
+    pub along: bool,
+    pub at: Vec<DVec3>,
+}
+
+impl Touches {
+    fn here(&self, point: DVec3, scale: Scale) -> bool {
+        self.along || self.at.iter().any(|at| at.distance(point) <= scale.eps())
+    }
+}
+
+/// Where a curve lying on no surface decided to touch `surface` crosses it.
 pub fn crossings(curve: &Curve, surface: &Surface, scale: Scale) -> Crossings {
+    crossings_given(curve, surface, scale, &Touches::default())
+}
+
+/// Where a curve crosses `surface`, given what the surfaces it lies on were
+/// decided to make with it.
+pub fn crossings_given(
+    curve: &Curve,
+    surface: &Surface,
+    scale: Scale,
+    touching: &Touches,
+) -> Crossings {
     let solved = match (curve, surface) {
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
-            line_and_cylinder(line, cylinder, scale)
+            line_and_cylinder(line, cylinder, scale, touching)
         }
-        (Curve::Circle(circle), surface) => circle_and_surface(circle, surface, scale),
-        (Curve::Meet(meet), surface) => meet_through_lines(meet, surface, scale)
+        (Curve::Circle(circle), surface) => circle_and_surface(circle, surface, scale, touching),
+        (Curve::Meet(meet), surface) => meet_through_lines(meet, surface, scale, touching)
             .unwrap_or_else(|| scan::meet_and_surface(meet, surface, scale)),
     };
     match solved {
@@ -65,7 +101,12 @@ pub fn crossings(curve: &Curve, surface: &Surface, scale: Scale) -> Crossings {
 /// with the one or the other — decided as the relation of that pair decides
 /// it — is lines, and those lines against the circle are the crossings. A
 /// line the surface only touches gives only touches.
-fn circle_and_surface(circle: &Circle, surface: &Surface, scale: Scale) -> Solved {
+fn circle_and_surface(
+    circle: &Circle,
+    surface: &Surface,
+    scale: Scale,
+    touching: &Touches,
+) -> Solved {
     let (own_plane, _) = Plane::through(circle.center, circle.axis);
     let own_cylinder = Cylinder::about(circle.center, circle.axis, circle.radius);
     let (relation, across) = match surface {
@@ -86,13 +127,19 @@ fn circle_and_surface(circle: &Circle, surface: &Surface, scale: Scale) -> Solve
         }
     };
     let mut found = Vec::new();
-    for (line, touching) in lines {
+    for (line, along_a_touch) in lines {
         if across {
-            found.extend(line_across_circle(&line, circle, touching, scale));
+            found.extend(line_across_circle(
+                &line,
+                circle,
+                along_a_touch,
+                touching,
+                scale,
+            ));
         } else {
             let height =
                 (circle.center - line.origin).dot(circle.axis) / line.direction.dot(circle.axis);
-            found.push((circle.parameter(line.point(height)), touching));
+            found.push((circle.parameter(line.point(height)), along_a_touch));
         }
     }
     Solved::At(found)
@@ -105,7 +152,12 @@ fn circle_and_surface(circle: &Circle, surface: &Surface, scale: Scale) -> Solve
 /// each kept where it stands on this component. A line the surface only
 /// touches gives only touches. None where neither cylinder makes lines with
 /// the surface, which is left to the scan.
-fn meet_through_lines(meet: &Meet, surface: &Surface, scale: Scale) -> Option<Solved> {
+fn meet_through_lines(
+    meet: &Meet,
+    surface: &Surface,
+    scale: Scale,
+    touching: &Touches,
+) -> Option<Solved> {
     let (lines, other) = [(meet.first, meet.second), (meet.second, meet.first)]
         .into_iter()
         .find_map(|(own, other)| {
@@ -118,15 +170,15 @@ fn meet_through_lines(meet: &Meet, surface: &Surface, scale: Scale) -> Option<So
         })?;
     let curve = Curve::Meet(*meet);
     let mut found = Vec::new();
-    for (line, touching) in lines {
-        let Solved::At(crossed) = line_and_cylinder(&line, &other, scale) else {
+    for (line, along_a_touch) in lines {
+        let Solved::At(crossed) = line_and_cylinder(&line, &other, scale, touching) else {
             continue;
         };
         for (at, touch) in crossed {
             let point = line.point(at);
             let parameter = meet.parameter(point);
             if curve.point(parameter).distance(point) <= scale.eps() {
-                found.push((parameter, touching || touch));
+                found.push((parameter, along_a_touch || touch));
             }
         }
     }
@@ -143,11 +195,13 @@ fn relation_with(own: &Cylinder, surface: &Surface, scale: Scale) -> Relation {
 }
 
 /// A line lying in the circle's plane passes the centre at its closest, and
-/// touches the circle when that is within the tolerance of the radius.
+/// touches the circle there when it passes within the tolerance of the
+/// radius, as `touches` decides.
 fn line_across_circle(
     line: &Line,
     circle: &Circle,
-    touching: bool,
+    along_a_touch: bool,
+    touching: &Touches,
     scale: Scale,
 ) -> Vec<(f64, bool)> {
     let closest = line.point(line.parameter(circle.center));
@@ -156,13 +210,34 @@ fn line_across_circle(
     if gap > scale.eps() {
         return Vec::new();
     }
-    if gap >= -scale.eps() {
+    let half = ((circle.radius - passing) * (circle.radius + passing))
+        .max(0.0)
+        .sqrt();
+    if touches(gap, half, touching.here(closest, scale), scale) {
         return vec![(circle.parameter(closest), true)];
     }
-    let half = ((circle.radius - passing) * (circle.radius + passing)).sqrt();
     [-half, half]
-        .map(|along| (circle.parameter(closest + line.direction * along), touching))
+        .map(|along| {
+            (
+                circle.parameter(closest + line.direction * along),
+                along_a_touch,
+            )
+        })
         .to_vec()
+}
+
+/// Whether a curve passing `gap` from a surface, outside it or within it,
+/// its two roots `half` either side of where it passes closest, only
+/// touches it there: within the tolerance outside, its roots within the
+/// tolerance of each other inside, or anywhere within the tolerance where
+/// it passes closest on a touch decided there. A cap a hair from the node of
+/// two cylinders touching inside cuts one along a ruling a femtometre inside
+/// the other, which it crosses a fraction of a micron either side of the
+/// node, where the curve the two meet along passes; the ruling through the
+/// node only touches the other there, whatever rounding left of the touch.
+fn touches(gap: f64, half: f64, touching: bool, scale: Scale) -> bool {
+    let eps = scale.eps();
+    gap.abs() <= eps && (touching || gap >= 0.0 || half <= eps)
 }
 
 /// The parameters found, as crossings on the curve, sorted.
@@ -200,7 +275,7 @@ fn beside(away: f64, scale: Scale) -> Solved {
 
 /// Quadratic, seen square to the axis: the line passes the axis at its
 /// closest, and touches when that is within the tolerance of the radius.
-fn line_and_cylinder(line: &Line, cylinder: &Cylinder, scale: Scale) -> Solved {
+fn line_and_cylinder(line: &Line, cylinder: &Cylinder, scale: Scale, touching: &Touches) -> Solved {
     let flat = |v: DVec3| v - cylinder.axis * cylinder.axis.dot(v);
     let (from, towards) = (flat(line.origin - cylinder.origin), flat(line.direction));
     if parallel(line.direction, cylinder.axis, scale) {
@@ -213,9 +288,11 @@ fn line_and_cylinder(line: &Line, cylinder: &Cylinder, scale: Scale) -> Solved {
     if gap > scale.eps() {
         return Solved::At(Vec::new());
     }
-    if gap >= -scale.eps() {
+    let half = ((cylinder.radius - passing) * (cylinder.radius + passing) / speed)
+        .max(0.0)
+        .sqrt();
+    if touches(gap, half, touching.here(line.point(closest), scale), scale) {
         return Solved::At(vec![(closest, true)]);
     }
-    let half = ((cylinder.radius - passing) * (cylinder.radius + passing) / speed).sqrt();
     Solved::At(vec![(closest - half, false), (closest + half, false)])
 }

@@ -204,6 +204,7 @@ fn with_surfaces(surfaces: Vec<Surface>) -> Body {
         edges: Vec::new(),
         faces: Vec::new(),
         scale: Scale::of(1.0),
+        arrivals: Vec::new(),
     }
 }
 
@@ -267,7 +268,7 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
     let beside = Cylinder::about(DVec3::X * 4.0, DVec3::Z, 3.0);
     let mut surfaces = walls;
     surfaces.extend([tube, bore, beside].map(Surface::Cylinder));
-    let apart = Apart::of(&surfaces, scale);
+    let apart = Apart::of(&surfaces, |_| scale);
     let [one, other, side, floor] = [0, 1, 2, 3].map(SurfaceId);
     let [tube, bore, beside] = [4, 5, 6].map(SurfaceId);
     assert!(apart.pair(one, other) && apart.pair(other, one));
@@ -279,7 +280,7 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
 #[test]
 fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, |_| scale), Planes::default());
     let [one, other, side] = [0, 1, 2].map(SurfaceId);
     let first = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -298,7 +299,7 @@ fn lines_within_the_tolerance_on_two_surfaces_decided_apart_are_two_curves() {
 #[test]
 fn corners_within_the_tolerance_on_two_surfaces_decided_apart_are_two_corners() {
     let (surfaces, scale) = slit_walls();
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::default());
+    let mut registry = Registry::new(scale, Apart::of(&surfaces, |_| scale), Planes::default());
     let [one, other, side, floor] = [0, 1, 2, 3].map(SurfaceId);
     let edge = registry.register(
         Curve::Line(Line::through(DVec3::new(22.5, 42.5, 0.0), DVec3::Z)),
@@ -332,7 +333,11 @@ fn nearly_one_corner() -> (Registry, [SurfaceId; 3]) {
         plane_at(105.0, DVec3::X),
         plane_at(240.0, DVec3::Y),
     ];
-    let registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     (registry, [0, 1, 2].map(SurfaceId))
 }
 
@@ -381,7 +386,11 @@ fn a_corner_on_a_plane_and_a_cylinder_touching_it_lies_on_their_line_only_within
             45.0,
         )),
     ];
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     let [bottom, bore] = [0, 1].map(SurfaceId);
     let touch = registry.register(
         Curve::Line(Line::through(
@@ -414,7 +423,11 @@ fn a_corner_within_the_tolerance_of_a_line_of_touch_but_not_of_both_surfaces_is_
             4.999_999_9,
         )),
     ];
-    let mut registry = Registry::new(scale, Apart::of(&surfaces, scale), Planes::of(&surfaces));
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
     let [side, boss] = [0, 1].map(SurfaceId);
     let touch = registry.register(
         Curve::Line(Line::through(DVec3::new(0.0, 42.5, 25.0), DVec3::X)),
@@ -474,4 +487,111 @@ fn two_circles_of_one_radius_a_hair_apart_part_by_the_offset_where_they_run_acro
     assert!(parting(&one, near, &other, near) < 1e-9);
     let far = parting(&one, whole, &other, whole);
     assert!((far - offset).abs() < 1e-12, "{far}");
+}
+
+/// Seed 1008037 of the campaign: two circles of one radius two hundredths
+/// of a micron apart cross where the line between their centres is square
+/// to the radius. The half of one on the one side and the half of the other
+/// on the other side run between the same two crossings, each within a hair
+/// of the other's circle all along, and still part by the diameter: what
+/// is measured is how far each stands from the other's arc, not its curve.
+#[test]
+fn opposite_halves_of_two_circles_a_hair_apart_part_by_the_diameter() {
+    let offset = 2e-8;
+    let one = Circle::on(&Cylinder::about(DVec3::ZERO, DVec3::Z, 4.5), 0.0);
+    let other = Circle::on(&Cylinder::about(DVec3::X * offset, DVec3::Z, 4.5), 0.0);
+    let [one, other] = [one, other].map(Curve::Circle);
+    let right = [-PI / 2.0, PI / 2.0];
+    let left = [PI / 2.0, 3.0 * PI / 2.0];
+    assert!(parting(&one, right, &other, left) > 4.0);
+    assert!(parting(&one, right, &other, right) < 1e-7);
+}
+
+/// The surfaces of a pair, the first carried by the first operand, the
+/// second by the second, and by the first too when `both` says so.
+fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
+    let mut surfaces = Surfaces {
+        list: vec![first, second],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| match (operand, surface.0) {
+            (0, 0) | (1, 1) => true,
+            (0, 1) => both,
+            _ => false,
+        },
+        scale(),
+    );
+    surfaces.list
+}
+
+/// Decision 2: a hole a hair past touching a block's top, within the
+/// tolerance, is moved onto the touch, as a surface, so that the line they
+/// touch along lies on both; the block's plane stays where it was made.
+#[test]
+fn a_cylinder_of_the_second_operand_a_hair_past_touching_a_plane_is_moved_onto_it() {
+    let top = plane_at(10.0, DVec3::Z);
+    let hole = Cylinder::about(
+        DVec3::new(0.0, 5.0, 7.0),
+        DVec3::X,
+        3.0 + scale().eps() / 2.0,
+    );
+    let [plane, moved] = snapped_pair(top, Surface::Cylinder(hole), false)[..] else {
+        panic!("two surfaces");
+    };
+    assert_eq!(plane, top);
+    let Surface::Cylinder(moved) = moved else {
+        panic!("a cylinder");
+    };
+    assert_eq!(moved.radius, hole.radius);
+    assert!((10.0 - moved.origin.z - moved.radius).abs() < 1e-14);
+}
+
+/// The same with the plane the second operand's: the plane moves.
+#[test]
+fn a_plane_of_the_second_operand_a_hair_from_touching_a_cylinder_is_moved_onto_it() {
+    let post = Cylinder::about(DVec3::new(0.0, 5.0, 7.0), DVec3::X, 3.0);
+    let lid = plane_at(10.0 - scale().eps() / 2.0, DVec3::Z);
+    let [kept, moved] = snapped_pair(Surface::Cylinder(post), lid, false)[..] else {
+        panic!("two surfaces");
+    };
+    assert_eq!(kept, Surface::Cylinder(post));
+    assert_eq!(moved, plane_at(10.0, DVec3::Z));
+}
+
+/// Two parallel cylinders a hair inside touching move the second operand's
+/// onto the touch; a surface both operands carry is never moved.
+#[test]
+fn a_bore_a_hair_past_touching_the_stock_inside_is_moved_onto_it_but_not_a_shared_surface() {
+    let stock = Cylinder::about(DVec3::ZERO, DVec3::Z, 10.0);
+    let bore = Cylinder::about(DVec3::X * 4.0, DVec3::Z, 6.0 + scale().eps() / 2.0);
+    let [_, moved] = snapped_pair(Surface::Cylinder(stock), Surface::Cylinder(bore), false)[..]
+    else {
+        panic!("two surfaces");
+    };
+    let Surface::Cylinder(moved) = moved else {
+        panic!("a cylinder");
+    };
+    assert!((moved.origin.x + moved.radius - 10.0).abs() < 1e-14);
+    let shared = snapped_pair(Surface::Cylinder(stock), Surface::Cylinder(bore), true);
+    assert_eq!(shared, [Surface::Cylinder(stock), Surface::Cylinder(bore)]);
+}
+
+/// A hole touching one wall of a slot exactly and the other a hair off is
+/// left where it is: moved onto the second, it would leave the first.
+#[test]
+fn a_cylinder_touching_one_plane_exactly_is_not_moved_onto_another() {
+    let eps = scale().eps();
+    let floor = plane_at(0.0, DVec3::Y);
+    let ceiling = plane_at(6.0 + eps / 2.0, DVec3::Y);
+    let hole = Cylinder::about(DVec3::new(0.0, 3.0, 0.0), DVec3::Z, 3.0);
+    let mut surfaces = Surfaces {
+        list: vec![floor, ceiling, Surface::Cylinder(hole)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        scale(),
+    );
+    assert_eq!(surfaces.list, [floor, ceiling, Surface::Cylinder(hole)]);
 }

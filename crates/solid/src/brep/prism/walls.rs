@@ -26,6 +26,7 @@ pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Piece>], eps: f64
             edges: Vec::new(),
             faces: Vec::new(),
             scale: Scale::of(1.0),
+            arrivals: Vec::new(),
         },
         frame,
         lift,
@@ -55,6 +56,7 @@ pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Piece>], eps: f64
     ];
     walls.body.faces = caps.into_iter().chain(sides).collect();
     walls.body.scale = Scale::of(walls.body.reach());
+    walls.body.arrivals = vec![walls.body.scale; walls.body.surfaces.len()];
     walls.body
 }
 

@@ -375,6 +375,265 @@ fn a_line_through_the_place_a_straight_run_meets_an_arc_is_told_the_slant_of_the
     );
 }
 
+/// A profile's wall nearest a place: how far the place stands outside the
+/// profile, or inside it when negative; the wall's outward normal, unless
+/// the place is at a square corner; and whether the wall curves there, unless
+/// the place is where a straight run meets an arc — where which of the two a
+/// line is told it crosses is left to a rounding.
+struct Wall {
+    outside: f64,
+    normal: Option<DVec2>,
+    curved: Option<bool>,
+}
+
+/// The wall of a profile grown by `by` nearest a place, worked out from what
+/// the profile is rounded from — the box of a rounded rectangle's arc
+/// centres, the segment between a slot's — rather than from its pieces.
+/// `near` is how close to a change of wall a place is taken to be on it.
+fn wall_of(outline: &Outline, place: DVec2, by: f64, near: f64) -> Wall {
+    let rounded_about = |out: DVec2, beyond: bool, between: bool, radius: f64| Wall {
+        outside: out.length() - radius,
+        normal: Some(out.normalize_or_zero()),
+        curved: if beyond {
+            Some(true)
+        } else if between {
+            Some(false)
+        } else {
+            None
+        },
+    };
+    match *outline {
+        Outline::Rounded { low, high, radius } if radius + by > 0.0 => {
+            let (first, last) = (low + radius, high - radius);
+            let out = place - place.clamp(first, last);
+            let beyond = (0..2)
+                .all(|axis| place[axis] < first[axis] - near || place[axis] > last[axis] + near);
+            let between = (0..2)
+                .any(|axis| first[axis] + near < place[axis] && place[axis] < last[axis] - near);
+            rounded_about(out, beyond, between, radius + by)
+        }
+        Outline::Rounded { low, high, .. } => {
+            let (low, high) = (low - by, high + by);
+            let mut walls = [
+                (low.x - place.x, DVec2::NEG_X),
+                (place.x - high.x, DVec2::X),
+                (low.y - place.y, DVec2::NEG_Y),
+                (place.y - high.y, DVec2::Y),
+            ];
+            walls.sort_by(|one, other| other.0.total_cmp(&one.0));
+            let beyond = (place - place.clamp(low, high)).length();
+            Wall {
+                outside: if beyond > 0.0 { beyond } else { walls[0].0 },
+                normal: (walls[0].0 - walls[1].0 > near).then_some(walls[0].1),
+                curved: Some(false),
+            }
+        }
+        Outline::Slot { from, to, radius } => {
+            let way = to - from;
+            let along = (place - from).dot(way) / way.length();
+            let out = place - (from + way * (along / way.length()).clamp(0.0, 1.0));
+            rounded_about(
+                out,
+                along < -near || along > way.length() + near,
+                near < along && along < way.length() - near,
+                radius + by,
+            )
+        }
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => {
+            let out = place - center;
+            let (rim, bore) = (out.length() - outer - by, inner - by - out.length());
+            let (outside, normal) = if inner - by <= 0.0 || rim >= bore {
+                (rim, out.normalize_or_zero())
+            } else {
+                (bore, -out.normalize_or_zero())
+            };
+            Wall {
+                outside,
+                normal: Some(normal),
+                curved: Some(true),
+            }
+        }
+        _ => unreachable!("only rounded rectangles, slots and rings are measured"),
+    }
+}
+
+/// Lines through the places a profile's walls change — the arcs' centres and
+/// ends, the middle of a slot or a bore — along the plane, square to it and
+/// slanted, some a hair off square or off the plane.
+fn lines_through_a_profile(leaf: &Leaf) -> Vec<(DVec3, DVec3)> {
+    let Leaf::Prism {
+        plane,
+        outline,
+        height,
+    } = leaf
+    else {
+        unreachable!("only prisms are measured")
+    };
+    let (base, u, v) = plane.frame();
+    let normal = u.cross(v);
+    let places: Vec<DVec2> = match *outline {
+        Outline::Rounded { low, high, radius } => {
+            let (near, far) = (low + radius, high - radius);
+            vec![
+                near,
+                far,
+                DVec2::new(near.x, low.y),
+                DVec2::new(far.x, high.y),
+                DVec2::new(low.x, near.y),
+                DVec2::new(high.x, far.y),
+                low,
+                (low + high) / 2.0,
+            ]
+        }
+        Outline::Slot { from, to, radius } => {
+            let side = (to - from).normalize().perp() * radius;
+            vec![from, to, from - side, to + side, (from + to) / 2.0]
+        }
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => vec![center, center + DVec2::X * inner, center + DVec2::Y * outer],
+        _ => unreachable!("only rounded rectangles, slots and rings are measured"),
+    };
+    let ways = [
+        u,
+        v,
+        u + v,
+        u - v * 0.3,
+        normal,
+        u * 0.1 + v - normal * 0.3,
+        u + v * 1e-9,
+        v - u * 1e-7,
+        normal + u * 1e-9,
+        DVec3::new(std::f64::consts::FRAC_1_PI, 5f64.sqrt() - 2.0, 1.0),
+    ];
+    places
+        .iter()
+        .flat_map(|place| {
+            [0.0, height / 2.0, *height]
+                .map(|level| base + u * place.x + v * place.y + normal * level)
+        })
+        .flat_map(|origin| ways.map(|way| (origin, way)))
+        .collect()
+}
+
+#[test]
+fn a_rounded_rectangle_a_slot_or_a_ring_grown_or_shrunk_holds_along_any_line_the_places_within_it_and_ends_at_the_slant_of_its_wall()
+ {
+    let mut leaves: Vec<Leaf> = (0..100)
+        .flat_map(|seed| {
+            Case::drawn_profiles(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| {
+            matches!(
+                leaf,
+                Leaf::Prism {
+                    outline: Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. },
+                    ..
+                }
+            )
+        })
+        .collect();
+    for plane in [Plane::xy(1.5), Plane::xz(-2.0), Plane::yz(3.0)] {
+        for height in [4.0, -2.5] {
+            for outline in [
+                Outline::rounded([0.0, -1.0], [4.0, 1.0], 1.0),
+                Outline::rounded([0.5, 0.5], [3.5, 6.0], 0.5),
+                Outline::slot([1.0, 2.0], [1.0, -1.5], 1.5),
+                Outline::slot([-2.0, 0.0], [3.0, 0.0], 0.5),
+                Outline::ring([1.0, 1.0], 3.0, 1.0),
+            ] {
+                leaves.push(Leaf::prism(plane, outline, height));
+            }
+        }
+    }
+    assert!(leaves.len() > 100, "{} leaves", leaves.len());
+
+    let mut ends = 0;
+    for leaf in &leaves {
+        let Leaf::Prism {
+            plane,
+            outline,
+            height,
+        } = leaf
+        else {
+            unreachable!("only prisms were kept")
+        };
+        let (base, u, v) = plane.frame();
+        let normal = u.cross(v);
+        let (low, high) = leaf.bounds().expect("a prism");
+        let reach = low.abs().max(high.abs()).max_element().max(1.0);
+        let size = (high - low).max_element();
+        let near = 1e-9 * reach;
+        let measured = |point: DVec3, by: f64| {
+            let offset = point - base;
+            let level = offset.dot(normal);
+            let slab = (height.min(0.0) - by - level).max(level - height.max(0.0) - by);
+            let place = DVec2::new(offset.dot(u), offset.dot(v));
+            (slab, wall_of(outline, place, by, 1e3 * near))
+        };
+        for (origin, way) in lines_through_a_profile(leaf) {
+            for by in [0.0, 0.1, -0.1, 0.6, -0.6].map(|share| share * size) {
+                let stretches = leaf.along_grown(origin, way, by).expect("a prism");
+                let held = |at: f64| {
+                    stretches
+                        .iter()
+                        .any(|stretch| stretch.from.at <= at && at <= stretch.to.at)
+                };
+                let span = 4.0 * (reach + size) / way.length();
+                for step in 0..=600 {
+                    let at = span * (step as f64 / 300.0 - 1.0) + 1e-3;
+                    let (slab, wall) = measured(origin + way * at, by);
+                    let depth = slab.max(wall.outside);
+                    if depth.abs() > near {
+                        assert_eq!(
+                            held(at),
+                            depth < 0.0,
+                            "{leaf} grown by {by}, at {at} along {way} from {origin}: {stretches:?}"
+                        );
+                    }
+                }
+                let step = DVec2::new(way.dot(u), way.dot(v));
+                for end in stretches
+                    .iter()
+                    .flat_map(|stretch| [stretch.from, stretch.to])
+                    .filter(|end| end.at.is_finite())
+                {
+                    let (slab, wall) = measured(origin + way * end.at, by);
+                    let on_wall = wall.outside.abs() < 1e3 * near;
+                    let (cosine, curved) = if slab.abs() < 1e3 * near && !on_wall {
+                        (way.dot(normal).abs() / way.length(), false)
+                    } else if let (Some(wall_normal), Some(curved)) = (wall.normal, wall.curved)
+                        && on_wall
+                        && slab < -1e3 * near
+                    {
+                        (wall_normal.dot(step).abs() / way.length(), curved)
+                    } else {
+                        continue;
+                    };
+                    if cosine < 1e-6 {
+                        continue;
+                    }
+                    ends += 1;
+                    assert!(
+                        (end.cosine - cosine).abs() < 1e-6 && end.curved == curved,
+                        "{leaf} grown by {by}, along {way} from {origin}: {end:?} crosses at {cosine}, curved {curved}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(ends > 10_000, "{ends} ends");
+}
+
 #[test]
 fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
     let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();

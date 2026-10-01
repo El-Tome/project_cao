@@ -863,6 +863,29 @@ fn seed_31003842_a_circle_printed_a_hair_past_the_corner_of_a_pad_leaves_the_top
     ));
 }
 
+#[test]
+fn seed_32000053_a_circle_printed_round_a_hole_it_touches_inside_leaves_the_top_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([7.0, 0.0], [14.0, 7.0]),
+            -4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-0.0),
+                Outline::circle([10.00001, 3.5], 1.5),
+                -7.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([10.0, 5.0], 3.0),
+                3.0,
+            )),
+        ],
+    ));
+}
+
 /// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
 /// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
 /// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex

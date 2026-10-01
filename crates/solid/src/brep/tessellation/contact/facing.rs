@@ -97,8 +97,9 @@ impl<'a> Facing<'a> {
 
     /// Whether both walls hold a face at the angle of `point`, seen from
     /// each one's axis, at a height they share. So it is taken to be when
-    /// that cannot be told: a wall standing at one height alone, or a face
-    /// the kernel cannot locate a place against.
+    /// that cannot be told: a wall standing at one height alone, a wall
+    /// holding no face — a circle printed on a cap, its wall gone — or a
+    /// face the kernel cannot locate a place against.
     pub(super) fn at(&self, point: DVec3) -> bool {
         let (_, heights) = self.known();
         heights.is_empty() || heights.iter().any(|height| self.both(point, *height))
@@ -123,12 +124,13 @@ impl<'a> Facing<'a> {
         let eps = self.body.scale().eps();
         let holds = |side: usize| {
             let angle = self.walls[side].1.parameters(point).x;
-            faces[side].iter().any(|face| {
-                !matches!(
-                    self.body.locate(*face, DVec2::new(angle, height), eps),
-                    Ok(Location::Outside)
-                )
-            })
+            faces[side].is_empty()
+                || faces[side].iter().any(|face| {
+                    !matches!(
+                        self.body.locate(*face, DVec2::new(angle, height), eps),
+                        Ok(Location::Outside)
+                    )
+                })
         };
         holds(0) && holds(1)
     }

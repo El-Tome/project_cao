@@ -120,3 +120,28 @@ origin, from 0 to 10.
 | --- | --- | --- | --- | --- |
 | 1 | 30 Sept., as first written | 51 298 | 980 | 19.1 |
 | 2 | after round 1 | 49 659 | 188 | 3.8 |
+| 3 | after round 2 | 298 949 | 370 | 1.24 |
+
+- Campaign 2's sample of 67 was sorted: fifteen distinct failures, seven of
+  campaign 1's still open, eight new — and every new one a configuration a
+  round-1 fix made hold, moved by a hair. That is the tail #447 feared, seen
+  arriving: each exact degeneracy fixed has a near one behind it.
+- Round 2 was cut twice by the account's spending limit and resumed in the
+  same worktrees. The kernel took a sixth decision, arc identity, and widened
+  the refusals of decisions 3 and 5; the triangles took common sampling to the
+  cases round 1 left. Merged at 02:59; two cases the lanes met on went back to
+  the kernel declining and wait on it, with their diagnosis. Campaign 2's
+  sample run again: 39 of 67 hold.
+- Campaign 3, from seed 3 000 000 on the kernel after round 2, with no lane
+  running beside it and the exact rays now skipping the faces a line's box
+  misses: **298 949 cases, 370 failures, 1.24 per thousand**. Still no Spans.
+  Volume came back, 13, the triangles' again. The fall slows: a fifth, then a
+  third.
+- Tom, asked what the 3D part should hold: after the sketch come all the 3D
+  tools — revolutions with arcs and slanted traits, fillets and chamfers
+  including where fillets meet at a corner, shell, draft, loft between
+  profiles; not sweep along a path, not planned. Then assemblies with their
+  own constraints, essential but not framed yet. Told that #497 names shell,
+  draft, loft and corner fillets as what this road reaches late and
+  OpenCascade on day one, he chose to stay on this road: some tools missing at
+  first is not dramatic. The answer on #497 will say so.

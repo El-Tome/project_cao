@@ -250,3 +250,45 @@ from seed 71 000 000, four Answers and five Uncrossed, on some twenty
 thousand cases each — and decision 7 answered for a handful of regions in
 all of them: in random cases, the band is still rarely where a region
 stands.
+
+## Round 5: the kernel lane
+
+The kernel's lane of 1 October night, on the kernel after round 4, beside
+the profile draw. Two changes, both in [`exact-kernel.md`](exact-kernel.md):
+
+- **Decision 8**: two parallel walls of one radius, one of each operand,
+  their axes within fifty tolerances, are one surface; the second operand
+  is moved onto the first's wall with what it built on it. Its hair was
+  measured before it was set, on five-minute campaigns of profiles: the
+  numbers are in the decision. It fixes 4-3.
+- **Decision 2's moves onto a touch**, rewritten: every touch of a surface
+  read before it moves, a cylinder between two parallel planes moved
+  midway, only pairs whose faces' boxes meet, the second operand's
+  cylinder moved rather than the first's at a perpendicular node. It
+  fixes 4-1 and 4-2: the eleven shrunk cases of campaign 4 hold.
+
+Five-minute campaigns from fixed seeds, before and after, on the same
+machine under a similar load:
+
+| draw | from seed | before | after | fixed | made |
+| --- | --- | --- | --- | --- | --- |
+| square | 80 000 000 | 21 151 cases, 10 failures, 0.47 per thousand | 22 751 cases, 4 failures, 0.18 per thousand | 6 | 0 |
+| profiles | 80 500 000 | 12 427 cases, 85 failures, 6.8 per thousand | 13 534 cases, 22 failures, 1.6 per thousand | 65 | 0 |
+
+Fixed and made are counted over the seeds both runs reached. Seven
+findings ignored until now hold, two of the kernel's file and five of the
+triangles': their walls of one radius a hair apart are one wall now.
+
+What stays of the twenty failures of the profile draw over that range:
+
+- **Two walls of one radius further apart than the hair**, eleven: a hair
+  of 1e-5 on a body of a reach of ten to a hundred, a hundred to a
+  thousand tolerances. Taken for one, the wall would move by more than a
+  line at a slant can miss; kept two, the walls cross at a grazing angle
+  and the band of 1-9 is back. 80505830 and 80509593 are named, ignored.
+- **A rounded rectangle's straight runs a hair off a block's sides**,
+  planes three tenths of a tolerance to a few tolerances apart with the
+  corner's wall touching both: the band of 1-2 on the profile draw
+  (80500532, 80505325, 80507291, 80507349).
+- The rest, one each: a Closed of the triangles (80510549), and band
+  shapes of a plane, a wall and a third surface a hair from each other.

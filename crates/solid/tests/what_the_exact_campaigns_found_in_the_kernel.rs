@@ -3038,6 +3038,67 @@ fn seed_80501596_a_rounded_pocket_a_hair_aside_bored_at_its_corner() {
     ));
 }
 
+/// A block bored by a hole touching its side and 1e-5 off its floor, then
+/// cut by a bore of its radius touching both, 1e-5 aside: seven hundred
+/// tolerances at a reach of fourteen.
+///
+/// Understood and left: beyond decision 8's hair, which a line of measure
+/// crossing the moved wall at a slant would see, the two walls stay two.
+/// They cross along two rulings at an angle of four millionths, within a
+/// hair of the side both touch, and the kernel declines: failure 1-9, the
+/// band of two walls of one radius a few hundred tolerances apart.
+#[test]
+#[ignore = "band"]
+fn seed_80505830_a_hole_bored_again_seven_hundred_tolerances_aside_where_both_touch_a_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(5.0),
+            Outline::rectangle([7.0, 2.0], [13.0, 9.0]),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(5.0),
+                Outline::circle([9.75, 4.75001], 2.75),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(4.99999994),
+                Outline::circle([9.75, 4.75], 2.75),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a profile: a slot given a disc of its radius 1e-5 across
+/// its cap, five hundred tolerances at a reach of fifteen, then a block
+/// over the cap. Understood and left, as for seed 80505830: the disc and
+/// the cap stay two walls crossing at a grazing angle.
+#[test]
+#[ignore = "band"]
+fn seed_80509593_a_slot_given_a_disc_five_hundred_tolerances_across_its_cap() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(1.0),
+            Outline::slot([7.0, 3.0], [13.0, 3.0], 2.0),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(1.0),
+                Outline::circle([13.0, 2.99999], 2.0),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([11.0, 1.0], [15.0, 7.0]),
+                10.0,
+            )),
+        ],
+    ));
+}
+
 /// A slot given a disc of its radius a hundred tolerances off its cap, 1e-5
 /// at a reach of a hundred, standing far above it. Taken for the cap with a
 /// hair of a hundred tolerances, the disc was moved by 1e-5, and a line of

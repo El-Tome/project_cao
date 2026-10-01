@@ -100,7 +100,10 @@ The decisions, in the order taken, once per operation:
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly
    for lines and circles, whose distance turns only where a closed form
-   says, and on dense samples along the perpendicular curve — are one arc.
+   says, and on dense samples along the perpendicular curve, each against
+   the other's arc rather than its whole curve: two halves of two circles a
+   hair apart, one each side, run between the same corners within a hair
+   of each other's circle all along — are one arc.
    One curve is kept for it: a line before a circle before a meet, then the
    first registered. The arc lies on the surfaces of both, over its own
    stretch alone, so supports are carried by arcs rather than by curves: an

@@ -488,6 +488,24 @@ fn two_circles_of_one_radius_a_hair_apart_part_by_the_offset_where_they_run_acro
     assert!((far - offset).abs() < 1e-12, "{far}");
 }
 
+/// Seed 1008037 of the campaign: two circles of one radius two hundredths
+/// of a micron apart cross where the line between their centres is square
+/// to the radius. The half of one on the one side and the half of the other
+/// on the other side run between the same two crossings, each within a hair
+/// of the other's circle all along, and still part by the diameter: what
+/// is measured is how far each stands from the other's arc, not its curve.
+#[test]
+fn opposite_halves_of_two_circles_a_hair_apart_part_by_the_diameter() {
+    let offset = 2e-8;
+    let one = Circle::on(&Cylinder::about(DVec3::ZERO, DVec3::Z, 4.5), 0.0);
+    let other = Circle::on(&Cylinder::about(DVec3::X * offset, DVec3::Z, 4.5), 0.0);
+    let [one, other] = [one, other].map(Curve::Circle);
+    let right = [-PI / 2.0, PI / 2.0];
+    let left = [PI / 2.0, 3.0 * PI / 2.0];
+    assert!(parting(&one, right, &other, left) > 4.0);
+    assert!(parting(&one, right, &other, right) < 1e-7);
+}
+
 /// The surfaces of a pair, the first carried by the first operand, the
 /// second by the second, and by the first too when `both` says so.
 fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {

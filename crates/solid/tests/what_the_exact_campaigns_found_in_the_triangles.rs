@@ -651,8 +651,12 @@ fn seed_1006751_two_cylinders_of_one_radius_a_hair_apart_one_above_the_other_enc
 /// (failure 1-9), whose tolerance a later leaf then grows (1-6), fail the
 /// check of their own listing at the second step once round 2's refusals
 /// keep apart what the first step decided. The kernel's, still open.
+/// It holds since a pair of surfaces one operand alone carries is decided
+/// at that operand's tolerance, and two arcs between the same corners are
+/// one only where each stands within the tolerance of the other's arc, not
+/// of its whole curve: the half of one post's rim and the other half of the
+/// second's, a hair apart, were taken for one arc.
 #[test]
-#[ignore = "kernel"]
 fn seed_1008037_two_cylinders_of_one_radius_a_hair_apart_joined_enclose_their_union_once_the_tolerance_grows()
  {
     random_solids::holds_exactly(&Case::new(

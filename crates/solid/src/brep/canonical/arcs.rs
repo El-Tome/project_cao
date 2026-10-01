@@ -6,30 +6,63 @@
 
 use std::f64::consts::{PI, TAU};
 
+use glam::DVec3;
+
 use super::curves::distance;
 use crate::brep::curve::Curve;
 
 /// How many stretches an arc with no closed form is cut into to be measured.
 const SAMPLES: usize = 64;
 
-/// The largest distance a point of either stretch stands from the other's
-/// curve: of `one` from `from` to `to`, of `other` over `along`.
+/// The largest distance a point of either stretch stands from the other's:
+/// of `one` from `from` to `to`, of `other` over `along`. An end is
+/// measured against the other's curve, the corner both stretches end at;
+/// a point between, against the other's curve where it stands beside its
+/// stretch and against the nearer end of it otherwise: two halves of two
+/// circles a hair apart, one each side, run between the same two corners
+/// within a hair of each other's circle all along.
 pub(in crate::brep) fn parting(
     one: &Curve,
     [from, to]: [f64; 2],
     other: &Curve,
     along: [f64; 2],
 ) -> f64 {
-    reach(one, [from, to], other).max(reach(other, along, one))
+    reach(one, [from, to], other, along).max(reach(other, along, one, [from, to]))
 }
 
-/// How far the stretch of `one` from `from` to `to` stands from `other` at
-/// its farthest.
-fn reach(one: &Curve, [from, to]: [f64; 2], other: &Curve) -> f64 {
+/// How far the stretch of `one` from `from` to `to` stands from the stretch
+/// of `other` over `along` at its farthest.
+fn reach(one: &Curve, [from, to]: [f64; 2], other: &Curve, along: [f64; 2]) -> f64 {
     turning(one, from, to, other)
         .into_iter()
-        .map(|at| distance(other, one.point(at)))
+        .chain([(from + to) / 2.0])
+        .map(|at| {
+            let point = one.point(at);
+            if at == from || at == to {
+                distance(other, point)
+            } else {
+                beside(other, along, point)
+            }
+        })
         .fold(0.0, f64::max)
+}
+
+/// How far a point stands from a stretch of a curve: from the curve where
+/// its foot falls within the stretch, from the nearer end otherwise.
+fn beside(curve: &Curve, [from, to]: [f64; 2], point: DVec3) -> f64 {
+    let foot = curve.parameter(point);
+    let foot = match curve.period() {
+        Some(period) => foot - period * ((foot - from) / period).floor(),
+        None => foot,
+    };
+    if foot >= from && foot <= to {
+        distance(curve, point)
+    } else {
+        [from, to]
+            .map(|end| curve.point(end).distance(point))
+            .into_iter()
+            .fold(f64::INFINITY, f64::min)
+    }
 }
 
 /// The parameters of `one` between `from` and `to` where its distance from

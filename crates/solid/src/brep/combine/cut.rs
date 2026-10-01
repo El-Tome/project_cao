@@ -1,11 +1,14 @@
 //! Every registered curve cut at the corners lying on it, as their supports
 //! say, into arcs; an arc is kept when an operand's edge covers it, or when it
-//! lies in a face of each operand on two of its surfaces.
+//! lies in a face of each operand on two of its surfaces. An arc lies on the
+//! surfaces of its curve, and on those an edge covering it lies on over its
+//! stretch alone.
 
 use glam::DVec3;
 
 use super::Arena;
 use super::held::Held;
+use super::identified::identified;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Pool, Registered, Registry, lies_on};
@@ -19,19 +22,23 @@ pub(super) fn cut(
     held: &[Held],
 ) -> Result<Arena, Declined> {
     let eps = operands.eps();
-    let supports = pool.supports(registry);
+    let corners = pool.supports(registry);
+    let points: Vec<DVec3> = pool
+        .corners
+        .iter()
+        .zip(&corners)
+        .map(|(corner, support)| placed(corner.point, support, registry, eps))
+        .collect();
     let mut edges = Vec::new();
+    let mut lying = Vec::new();
     for (rank, registered) in registry.list.iter().enumerate() {
         let curve = &registered.curve;
-        let mut on: Vec<(f64, VertexId)> = pool
-            .corners
+        let mut on: Vec<(f64, VertexId)> = points
             .iter()
             .enumerate()
-            .filter(|(vertex, corner)| {
-                lies_on(corner.point, &supports[*vertex], rank, registry, eps)
-            })
-            .flat_map(|(vertex, corner)| {
-                passes(curve, corner.point, eps)
+            .filter(|(vertex, point)| lies_on(**point, &corners[*vertex], rank, registry, eps))
+            .flat_map(|(vertex, point)| {
+                passes(curve, *point, eps)
                     .into_iter()
                     .map(move |at| (at, VertexId(vertex as u32)))
             })
@@ -72,19 +79,21 @@ pub(super) fn cut(
         };
         for edge in pieces {
             if edge.from < edge.to && kept(operands, rank, registered, held, &edge)? {
+                lying.push(lies(rank, registered, held, &edge));
                 edges.push(edge);
             }
         }
     }
+    let curves: Vec<Curve> = registry.list.iter().map(|known| known.curve).collect();
+    let (edges, supports) = identified(edges, lying, &curves, &registry.apart, eps);
     let body = Body {
         surfaces: operands.surfaces.list.clone(),
-        curves: registry.list.iter().map(|known| known.curve).collect(),
-        vertices: pool
-            .corners
+        curves,
+        vertices: points
             .iter()
-            .zip(&supports)
-            .map(|(corner, support)| Vertex {
-                point: corner.point,
+            .zip(&corners)
+            .map(|(point, support)| Vertex {
+                point: *point,
                 on: support.clone(),
             })
             .collect(),
@@ -92,14 +101,38 @@ pub(super) fn cut(
         faces: Vec::new(),
         scale: operands.scale,
     };
-    Ok(Arena {
-        body,
-        supports: registry
-            .list
-            .iter()
-            .map(|known| known.support.clone())
-            .collect(),
-    })
+    Ok(Arena { body, supports })
+}
+
+/// Where a corner stands: where three planes it lies on meet, when their
+/// normals span space and it was found off that place by more than
+/// rounding — each plane taken for another within the tolerance, the place
+/// they fix moved — and where it was found otherwise.
+fn placed(point: DVec3, support: &[SurfaceId], registry: &Registry, eps: f64) -> DVec3 {
+    match registry.planes.place(support) {
+        Some(place) if place.distance(point) > eps * ROUNDING => place,
+        _ => point,
+    }
+}
+
+/// Under this share of the tolerance, a corner is where its planes meet.
+const ROUNDING: f64 = 1e-3;
+
+/// The surfaces an arc lies on: its curve's, and those an operand's edge
+/// covering it lies on over its stretch alone.
+fn lies(rank: usize, registered: &Registered, held: &[Held], edge: &Edge) -> Vec<SurfaceId> {
+    let middle = (edge.from + edge.to) / 2.0;
+    let period = registered.curve.period();
+    let mut support = registered.support.clone();
+    for held in held
+        .iter()
+        .filter(|held| held.curve == rank && held.covers(middle, period, 0.0))
+    {
+        support.extend(held.partly.iter().copied());
+    }
+    support.sort();
+    support.dedup();
+    support
 }
 
 /// Every parameter at which a curve passes through a corner lying on it:

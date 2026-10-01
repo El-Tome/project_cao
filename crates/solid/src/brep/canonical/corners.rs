@@ -7,13 +7,18 @@
 //!
 //! Two corners are never one where that would put the corner on two surfaces
 //! decided apart: the walls of a slit an earlier operation left thinner than
-//! this one's tolerance keep their corners each.
+//! this one's tolerance keep their corners each. Nor where it would put the
+//! corner on two surfaces, one from each, whose curves all stand further
+//! than the tolerance from it: each within the tolerance of the other, the
+//! two corners would still not be within it of one place on all their
+//! surfaces.
 
 use std::collections::BTreeSet;
 
 use glam::DVec3;
 
 use super::curves::{Registry, distance};
+use crate::brep::curve::Curve;
 use crate::brep::topology::SurfaceId;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -53,6 +58,7 @@ impl Pool {
         let found = self.corners.iter().position(|corner| {
             let known = on(&corner.surfaces, &corner.curves, registry);
             (corner.point.distance(point) <= self.eps
+                && !parted(corner.point, &known, &found_on, registry, self.eps)
                 || registry.planes.fix_a_place(&known, &found_on))
                 && !registry.apart.across(&known, &found_on)
         });
@@ -117,6 +123,46 @@ impl Pool {
 
 /// The surfaces a place was found on and those of the curves it was found
 /// along, sorted.
+/// Whether a surface of `one` the other lacks and a surface of `other` the
+/// first lacks cross along lines, none of them within `eps` of `point`. Two
+/// surfaces touching stand within `eps` of each other far from the line they
+/// touch along, and a place on both is not for that on it; nor is a place
+/// within `eps` of two cylinders meeting at a grazing angle near the curve
+/// they meet along.
+fn parted(
+    point: DVec3,
+    one: &[SurfaceId],
+    other: &[SurfaceId],
+    registry: &Registry,
+    eps: f64,
+) -> bool {
+    let only = |list: &[SurfaceId], without: &[SurfaceId]| -> Vec<SurfaceId> {
+        list.iter()
+            .copied()
+            .filter(|surface| without.binary_search(surface).is_err())
+            .collect()
+    };
+    let [first, second] = [only(one, other), only(other, one)];
+    first.iter().any(|&a| {
+        second.iter().any(|&b| {
+            if registry.apart.touch(a, b) {
+                return false;
+            }
+            let mut shared = registry.list.iter().filter(|known| {
+                matches!(known.curve, Curve::Line(_))
+                    && known.support.binary_search(&a).is_ok()
+                    && known.support.binary_search(&b).is_ok()
+            });
+            let mut any = false;
+            let far = shared.all(|known| {
+                any = true;
+                distance(&known.curve, point) > eps
+            });
+            any && far
+        })
+    })
+}
+
 fn on(
     surfaces: &BTreeSet<SurfaceId>,
     curves: &BTreeSet<usize>,
@@ -137,7 +183,10 @@ fn on(
 ///
 /// A curve found on one surface alone — an edge between two faces of one
 /// surface an earlier operation left — is not fixed by its support, and a
-/// corner lies on it where it stands within the tolerance of it.
+/// corner lies on it where it stands within the tolerance of it. Nor is the
+/// line two surfaces touch along: a corner lies on it only within the
+/// tolerance of it and of both surfaces. And no corner lies on a curve one of
+/// whose surfaces is decided apart from one of the corner's (decision 5).
 pub(in crate::brep) fn lies_on(
     point: DVec3,
     support: &[SurfaceId],
@@ -146,6 +195,9 @@ pub(in crate::brep) fn lies_on(
     eps: f64,
 ) -> bool {
     let own = &registry.list[curve];
+    if registry.apart.across(&own.support, support) {
+        return false;
+    }
     let away = distance(&own.curve, point);
     let shared: Vec<SurfaceId> = own
         .support
@@ -158,6 +210,11 @@ pub(in crate::brep) fn lies_on(
     }
     shared.iter().enumerate().any(|(index, &one)| {
         shared[index + 1..].iter().any(|&other| {
+            if registry.apart.touch(one, other) {
+                return away <= eps
+                    && registry.apart.near(one, point, eps)
+                    && registry.apart.near(other, point, eps);
+            }
             registry
                 .list
                 .iter()

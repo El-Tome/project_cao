@@ -8,8 +8,10 @@
 //! nought on the other; no face covering it says the same on both sides, as
 //! a ray cast through the operand counts. One rule gives coincident faces
 //! once, drops a shared wall, cuts a flush hole, and leaves a non-manifold
-//! edge its four uses.
+//! edge its four uses. Regions of two surfaces bounded by the same arcs are
+//! one piece of surface, decided once ([`twins`]).
 
+mod twins;
 mod wrapped;
 
 use std::collections::BTreeMap;
@@ -21,6 +23,7 @@ use super::combine::{Arena, Operands, Operation};
 use super::overlay::{Arc, Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
+use twins::{Twin, twins};
 use wrapped::{Wrapped, covering, wound};
 
 pub(super) fn selected(
@@ -28,58 +31,84 @@ pub(super) fn selected(
     arena: &Arena,
     operation: Operation,
 ) -> Result<Vec<Face>, Declined> {
+    let carried: Vec<SurfaceId> = (0..operands.surfaces.list.len() as u32)
+        .map(SurfaceId)
+        .filter(|surface| operands.carries(0, *surface) || operands.carries(1, *surface))
+        .collect();
+    let parted = carried
+        .iter()
+        .map(|surface| parted(arena, *surface))
+        .collect::<Result<Vec<_>, _>>()?;
+    let seen: Vec<(&Surface, &[EdgeId], &Overlay)> = carried
+        .iter()
+        .zip(&parted)
+        .map(|(surface, (edges, overlay))| {
+            (arena.body.surface(*surface), edges.as_slice(), overlay)
+        })
+        .collect();
+    let twins = twins(&seen, operands.eps());
     let mut faces = Vec::new();
-    for rank in 0..operands.surfaces.list.len() {
-        let surface = SurfaceId(rank as u32);
-        if operands.carries(0, surface) || operands.carries(1, surface) {
-            faces.extend(on(operands, arena, surface, operation)?);
+    for (rank, &surface) in carried.iter().enumerate() {
+        let (edges, overlay) = &parted[rank];
+        for (index, region) in overlay.regions.iter().enumerate() {
+            let others: &[(usize, usize, bool)] = match &twins[rank][index] {
+                _ if region.unbounded => continue,
+                Twin::Other => continue,
+                Twin::Alone => &[],
+                Twin::First(others) => others,
+            };
+            let members: Vec<Member> = std::iter::once((rank, index, false))
+                .chain(others.iter().copied())
+                .map(|(rank, index, turned)| Member {
+                    surface: carried[rank],
+                    geometry: seen[rank].0,
+                    region: &parted[rank].1.regions[index],
+                    turned,
+                })
+                .collect();
+            let Some([first, second]) = wraps(operands, &members)? else {
+                continue;
+            };
+            let above = operation.holds(first.above >= 1, second.above >= 1);
+            let below = operation.holds(first.below >= 1, second.below >= 1);
+            if above != below {
+                faces.push(face(surface, above, region, edges));
+            }
         }
     }
     Ok(faces)
 }
 
-/// The faces kept on one surface.
-fn on(
-    operands: &Operands,
-    arena: &Arena,
+/// A region to be decided, and whether its surface's normal points the other
+/// way from the first's.
+struct Member<'a> {
     surface: SurfaceId,
-    operation: Operation,
-) -> Result<Vec<Face>, Declined> {
-    let (edges, overlay) = parted(arena, surface)?;
-    let geometry = arena.body.surface(surface);
-    let mut faces = Vec::new();
-    for region in &overlay.regions {
-        if region.unbounded {
-            continue;
-        }
-        let Some([first, second]) = wraps(operands, surface, geometry, region)? else {
-            continue;
-        };
-        let above = operation.holds(first.above >= 1, second.above >= 1);
-        let below = operation.holds(first.below >= 1, second.below >= 1);
-        if above != below {
-            faces.push(face(surface, above, region, &edges));
-        }
-    }
-    Ok(faces)
+    geometry: &'a Surface,
+    region: &'a Region,
+    turned: bool,
 }
 
-/// How each operand wraps a region, or nothing where neither covers it.
+/// How each operand wraps a region and its twins, as the first's surface
+/// sees it, or nothing where neither covers any of them.
 ///
-/// Read at the region's point; where an operand touches the surface at that
+/// Read at each region's point; where an operand touches the surface at that
 /// very point — a bar's cap resting on a post's wall — the answer is a tie,
-/// and it is read again further along the region's chord, where the answer
+/// and it is read again further along each region's chord, where the answer
 /// is the same.
-fn wraps(
-    operands: &Operands,
-    surface: SurfaceId,
-    geometry: &Surface,
-    region: &Region,
-) -> Result<Option<[Wrapped; 2]>, Declined> {
-    let [low, high] = region.chord;
-    let along = [0.25, 0.75].map(|share| DVec2::new(region.inside.x, low + (high - low) * share));
-    for at in std::iter::once(region.inside).chain(along) {
-        match wrapped_at(operands, surface, geometry.point(at)) {
+fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>, Declined> {
+    for share in [None, Some(0.25), Some(0.75)] {
+        let places: Vec<(SurfaceId, DVec3, bool)> = members
+            .iter()
+            .map(|member| {
+                let region = member.region;
+                let [low, high] = region.chord;
+                let at = share.map_or(region.inside, |share| {
+                    DVec2::new(region.inside.x, low + (high - low) * share)
+                });
+                (member.surface, member.geometry.point(at), member.turned)
+            })
+            .collect();
+        match wrapped_at(operands, &places) {
             Err(Declined::Tie) => continue,
             answer => return answer,
         }
@@ -87,16 +116,27 @@ fn wraps(
     Err(Declined::Tie)
 }
 
+/// An operand covering two twins at once lies back to back with itself
+/// there, which is a tie.
 fn wrapped_at(
     operands: &Operands,
-    surface: SurfaceId,
-    point: DVec3,
+    places: &[(SurfaceId, DVec3, bool)],
 ) -> Result<Option<[Wrapped; 2]>, Declined> {
-    let covered = [0, 1].map(|operand| covering(operands, operand, surface, point));
-    let covered = [covered[0]?, covered[1]?];
+    let mut covered = [None, None];
+    for (operand, covered) in covered.iter_mut().enumerate() {
+        for &(surface, point, turned) in places {
+            if let Some(wrapped) = covering(operands, operand, surface, point)? {
+                let wrapped = if turned { wrapped.turned() } else { wrapped };
+                if covered.replace(wrapped).is_some() {
+                    return Err(Declined::Tie);
+                }
+            }
+        }
+    }
     if covered.iter().all(Option::is_none) {
         return Ok(None);
     }
+    let point = places[0].1;
     let [first, second] = [0, 1].map(|operand| match covered[operand] {
         Some(wrapped) => Ok(wrapped),
         None => wound(operands, operand, point),
@@ -115,7 +155,7 @@ pub(super) fn parted(
     let edges: Vec<EdgeId> = body
         .edge_ids()
         .filter(|edge| {
-            arena.supports[body.edge(*edge).curve.0 as usize]
+            arena.supports[edge.0 as usize]
                 .binary_search(&surface)
                 .is_ok()
         })

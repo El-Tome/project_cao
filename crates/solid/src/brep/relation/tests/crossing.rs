@@ -281,6 +281,43 @@ fn a_meet_crosses_a_third_cylinder_everywhere_its_distance_changes_sign() {
     assert_eq!(crossings(&meet, &across, scale()), Crossings::Along);
 }
 
+/// Seed 1044340 of the campaign: a post along Y grooved by a bar along X,
+/// then cut by a post of its radius a tenth of a micron aside. The two posts
+/// cross along two lines at a grazing angle, and the curve the first meets
+/// the bar along crosses the second where those lines pass through the bar:
+/// found by scanning the curve, where the second stands within the
+/// tolerance over a stretch millimetres long, it came out eight tenths of a
+/// micron off. A triple is solved from its most degenerate pair.
+#[test]
+fn a_meet_crosses_a_cylinder_parallel_to_one_of_its_own_where_their_lines_cross_the_other() {
+    let post = Cylinder::about(DVec3::new(10.0, 0.0, 30.0), DVec3::Y, 20.0);
+    let bar = Cylinder::about(DVec3::new(0.0, 25.0, 50.0), DVec3::X, 8.0);
+    let aside = cylinder(DVec3::new(10.000_000_1, 0.0, 30.0), DVec3::Y, 20.0);
+    let scale = Scale::of(60.0);
+    let mut crossed = Vec::new();
+    for meet in Meeting::of(&post, &bar, scale).components {
+        let Crossings::At(found) = crossings(&Curve::Meet(meet), &aside, scale) else {
+            panic!("points expected");
+        };
+        for crossing in &found {
+            let point = Curve::Meet(meet).point(crossing.parameter);
+            assert!(
+                (point - crossing.point).length() < 1e-12 * REACH,
+                "{crossing:?}"
+            );
+        }
+        crossed.extend(found);
+    }
+    assert_eq!(crossed.len(), 2, "{crossed:?}");
+    for crossing in crossed {
+        assert!(
+            (crossing.point.x - 10.000_000_05).abs() < 1e-12 * REACH,
+            "{crossing:?}"
+        );
+        assert!((crossing.point.z - 50.0).abs() < 1e-9, "{crossing:?}");
+    }
+}
+
 #[test]
 fn an_ellipse_of_two_equal_cylinders_lies_along_its_own_plane() {
     let first = Cylinder::about(DVec3::ZERO, DVec3::Z, 4.0);

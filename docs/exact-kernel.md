@@ -37,25 +37,75 @@ The decisions, in the order taken, once per operation:
    the first's, never a body's surface with its own: planes one when parallel
    and their offsets within `EPS`; cylinders one when their axes are parallel,
    within `EPS` of each other over the box, and their radii within `EPS`. The
-   first operand's copy is kept. From here on, coplanar, coaxial and flush are
-   comparisons of ids.
+   first operand's copy is kept — the nearest, where two of the first's stand
+   within `EPS` — and a plane standing strictly between two planes of the
+   first within `EPS` of each is taken for neither: taken for one, it would
+   stand, as its own operand was made, across the strip of wall between the
+   two, where the boolean asks that operand which side a point is on. From
+   here on, coplanar, coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
    only place a tangency is decided; once decided, it is built exactly — one
    line from a formula, never a double root.
 3. **Line identity.** The same line comes out of several pairs; lines within
-   `EPS` over the box are one, and their supports are joined.
+   `EPS` over the box are one, and their supports are joined — never across
+   two surfaces decided apart, and never two curves of one operand, which
+   the operation that made it kept apart. A line a pair's line was taken for is that
+   pair's alone: another within `EPS` of it, on a surface apart from the
+   first's, does not lie on the pair's surfaces for that.
 4. **A line meeting a cylinder at a double root**, once per pair.
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
    their supports joined — unless the merge would put one point on two
-   surfaces decided apart, which is refused.
+   surfaces decided apart, or on two surfaces, one from each, crossing along
+   lines that all stand further than `EPS` from it, which is refused. No
+   corner lies on a curve on a surface apart from one of its own.
+6. **Arc identity.** Once every curve is cut into arcs at the pooled
+   corners, two arcs lying on one surface between the same two corners,
+   which part by no more than `EPS` anywhere along them — measured exactly
+   for lines and circles, whose distance turns only where a closed form
+   says, and on dense samples along the perpendicular curve — are one arc.
+   One curve is kept for it: a line before a circle before a meet, then the
+   first registered. The arc lies on the surfaces of both, over its own
+   stretch alone, so supports are carried by arcs rather than by curves: an
+   arc lies on its curve's surfaces and on those of the arcs taken for it,
+   and an edge a later operation reads lies on its curve's surfaces all
+   along and on the others over its stretch. Two arcs whose surfaces
+   include two decided apart stay two.
+
+   A plane decided tangent to a cylinder thus keeps its tangent line, and a
+   circle that runs within `EPS` of a side between two corners becomes that
+   side. The strip of the plane and the strip of the wall between the line
+   they touch along and the side's edge are then bounded by the very same
+   arcs: two regions of two surfaces bounded by the same arcs, a point
+   inside each within `EPS` of the other surface, are one piece of surface,
+   decided once from how each operand covers either and kept on the first —
+   a plane before a cylinder, then the lower id. That is what keeps a skin
+   thinner than the tolerance from being left between two faces back to
+   back, and what gives an answer where a point of either strip stands too
+   close to the other for a ray to wind it. The kernel declines, as a tie,
+   where one operand covers both twins, which only a skin an earlier
+   operation kept could make; the point inside each is what tells twins from
+   the two caps two crossing cylinders bound with the one loop they meet
+   along.
 
 Everything else is derived. A vertex lies on a curve exactly when the curve's
-support is among the surfaces the vertex lies on. A triple of surfaces is
+support is among the surfaces the vertex lies on — but for the line two
+surfaces decided tangent touch along: they stand within `EPS` of each other
+over a band far wider than it, so a corner on both lies on that line only
+within `EPS`. A line or a circle lying on a surface that does not carry it,
+only because an arc of it was taken for an arc of the surface (decision 6), is
+seen there as the segment between where its ends stand — a circle square to a
+cylinder's axis or leaning on a plane only where its stretch stands within
+`EPS` of that chord. A corner whose support holds only planes, three of
+them spanning space, stands where they meet — each plane taken for another
+within `EPS`, the place they fix moves by more. A triple of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then
 any line against the third surface, then a circle, then the perpendicular
-curve. What remains are signs of exact evaluations with no tolerance at all —
+curve — which is crossed with a surface through the lines that surface makes
+with one of its two cylinders wherever it makes any, rather than by scanning
+it, since two cylinders crossing at a grazing angle stand within `EPS` of
+each other over millimetres of it. What remains are signs of exact evaluations with no tolerance at all —
 point in a face, order along a curve, order around a vertex — and the
 decisions above are what keep every point they are asked about away from a
 boundary.
@@ -101,7 +151,7 @@ covered once from each side.
    meet where the other operand's faces do, so these are all the corners.
 4. **Arcs.** Every curve is cut at the corners lying on it, by support. An arc
    is kept if it is part of an input edge, or lies inside a face of each
-   operand on two of its surfaces.
+   operand on two of its surfaces; kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
    angle, ties broken by signed curvature — a second tie declines. Cycles are
    traced, then grouped into regions by a ray up the second parameter from
@@ -110,7 +160,8 @@ covered once from each side.
    normal, against it, or not at all. Covered gives the winding on each side
    of it; not covered gives the same winding on both, from an exact ray cast
    through that operand's faces, retried along another direction when it
-   grazes or lands near an edge.
+   grazes or lands near an edge. Twin regions of two surfaces are wound
+   once, together (6).
 7. **Selection.** A region is kept when the operation — or, or and-not — says
    something different on its two sides; its outside is the side where the
    operation is false. One rule gives coincident faces once, drops a shared

@@ -5,12 +5,14 @@
 //! corners are one and the surfaces each lies on (decision 5).
 
 mod apart;
+mod arcs;
 mod corners;
 mod curves;
 mod planes;
 mod surfaces;
 
 pub(super) use apart::Apart;
+pub(super) use arcs::parting;
 pub(super) use corners::{Pool, lies_on};
 pub(super) use curves::{Registered, Registry, same};
 pub(super) use planes::Planes;

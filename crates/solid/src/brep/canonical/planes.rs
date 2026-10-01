@@ -3,7 +3,7 @@
 //! same two such planes are one curve, and two corners found on the same
 //! three one corner, however far apart they were found — each plane taken
 //! for another within the tolerance by decision 1, their crossing moves by
-//! more than the tolerance.
+//! more than the tolerance. Such a corner stands where the three meet.
 
 use glam::DVec3;
 
@@ -17,16 +17,17 @@ const ACROSS: f64 = 1e-3;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::brep) struct Planes {
-    normals: Vec<Option<DVec3>>,
+    /// Each surface's normal and offset, when it is a plane.
+    planes: Vec<Option<(DVec3, f64)>>,
 }
 
 impl Planes {
     pub fn of(surfaces: &[Surface]) -> Planes {
         Planes {
-            normals: surfaces
+            planes: surfaces
                 .iter()
                 .map(|surface| match surface {
-                    Surface::Plane(plane) => Some(plane.normal),
+                    Surface::Plane(plane) => Some((plane.normal, plane.offset())),
                     Surface::Cylinder(_) => None,
                 })
                 .collect(),
@@ -39,27 +40,55 @@ impl Planes {
         shared.iter().enumerate().any(|(index, first)| {
             shared[index + 1..]
                 .iter()
-                .any(|second| first.cross(*second).length() >= ACROSS)
+                .any(|second| first.0.cross(second.0).length() >= ACROSS)
         })
     }
 
     /// Whether both sets lie on three planes whose normals span space.
     pub fn fix_a_place(&self, one: &[SurfaceId], other: &[SurfaceId]) -> bool {
-        let shared = self.shared(one, other);
-        (0..shared.len()).any(|first| {
-            (first + 1..shared.len()).any(|second| {
-                (second + 1..shared.len()).any(|third| {
-                    shared[first].dot(shared[second].cross(shared[third])).abs() >= ACROSS
-                })
-            })
-        })
+        self.spanning(&self.shared(one, other)).is_some()
     }
 
-    /// The normals of the planes both sets lie on.
-    fn shared(&self, one: &[SurfaceId], other: &[SurfaceId]) -> Vec<DVec3> {
+    /// The place three planes of `support` whose normals span space meet at,
+    /// of all such triples the one spanning the most; none where no three do,
+    /// nor where `support` holds a cylinder, which fixes the place as well.
+    pub fn place(&self, support: &[SurfaceId]) -> Option<DVec3> {
+        let planes = self.shared(support, support);
+        if planes.len() < support.len() {
+            return None;
+        }
+        let [one, other, third] = self.spanning(&planes)?;
+        let volume = one.0.dot(other.0.cross(third.0));
+        Some(
+            (other.0.cross(third.0) * one.1
+                + third.0.cross(one.0) * other.1
+                + one.0.cross(other.0) * third.1)
+                / volume,
+        )
+    }
+
+    /// The triple of planes whose normals span the most, when some span.
+    fn spanning(&self, planes: &[(DVec3, f64)]) -> Option<[(DVec3, f64); 3]> {
+        let mut best: Option<(f64, [(DVec3, f64); 3])> = None;
+        for first in 0..planes.len() {
+            for second in first + 1..planes.len() {
+                for third in second + 1..planes.len() {
+                    let triple = [planes[first], planes[second], planes[third]];
+                    let volume = triple[0].0.dot(triple[1].0.cross(triple[2].0)).abs();
+                    if volume >= ACROSS && best.is_none_or(|(most, _)| volume > most) {
+                        best = Some((volume, triple));
+                    }
+                }
+            }
+        }
+        best.map(|(_, triple)| triple)
+    }
+
+    /// The planes both sets lie on, as normals and offsets.
+    fn shared(&self, one: &[SurfaceId], other: &[SurfaceId]) -> Vec<(DVec3, f64)> {
         one.iter()
             .filter(|surface| other.contains(surface))
-            .filter_map(|surface| self.normals.get(surface.0 as usize).copied().flatten())
+            .filter_map(|surface| self.planes.get(surface.0 as usize).copied().flatten())
             .collect()
     }
 }

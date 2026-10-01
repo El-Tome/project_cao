@@ -38,7 +38,10 @@ impl Body {
     fn flux_along(&self, surface: &Surface, coedge: Coedge) -> f64 {
         let edge = self.edge(coedge.edge);
         let curve = self.curve(edge.curve);
-        let exact = match (surface, traced(curve, surface, edge.from, edge.to)) {
+        let exact = match (
+            surface,
+            traced(curve, surface, edge.from, edge.to, self.scale.eps()),
+        ) {
             (Surface::Plane(plane), Ok(trace)) => swept(&trace).map(|area| plane.offset() * area),
             (Surface::Cylinder(cylinder), Ok(Trace::Segment { from, to })) => {
                 wall(cylinder, from.x, to.x, from.y, to.y)

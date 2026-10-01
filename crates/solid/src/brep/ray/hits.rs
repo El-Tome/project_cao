@@ -7,8 +7,9 @@ use glam::DVec3;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 
 pub(super) enum Hits {
-    /// Parameters along the line, each with the surface's own normal there.
-    At(Vec<(f64, DVec3)>),
+    /// Parameters along the line, each with the surface's own normal there:
+    /// a line meets a plane once and a cylinder twice at most.
+    At([Option<(f64, DVec3)>; 2]),
     /// The line runs along the surface, within the tolerance.
     Along,
 }
@@ -28,10 +29,10 @@ fn on_plane(plane: &Plane, origin: DVec3, direction: DVec3, eps: f64) -> Hits {
         return if away.abs() <= eps {
             Hits::Along
         } else {
-            Hits::At(Vec::new())
+            Hits::At([None; 2])
         };
     }
-    Hits::At(vec![(-away / across, plane.normal)])
+    Hits::At([Some((-away / across, plane.normal)), None])
 }
 
 fn on_cylinder(cylinder: &Cylinder, origin: DVec3, direction: DVec3, eps: f64) -> Hits {
@@ -43,27 +44,24 @@ fn on_cylinder(cylinder: &Cylinder, origin: DVec3, direction: DVec3, eps: f64) -
         return if (from.length() - radius).abs() <= eps {
             Hits::Along
         } else {
-            Hits::At(Vec::new())
+            Hits::At([None; 2])
         };
     }
     let half = from.dot(towards);
     let rest = (from.length() - radius) * (from.length() + radius);
     let discriminant = half * half - speed * rest;
     if discriminant < 0.0 {
-        return Hits::At(Vec::new());
+        return Hits::At([None; 2]);
     }
     let far = -(half + discriminant.sqrt().copysign(half));
     let roots = if far == 0.0 {
-        vec![0.0]
+        [Some(0.0), None]
     } else {
-        let mut roots = vec![far / speed, rest / far];
-        roots.sort_by(f64::total_cmp);
-        roots
+        let [one, other] = [far / speed, rest / far];
+        match one.total_cmp(&other) {
+            std::cmp::Ordering::Greater => [Some(other), Some(one)],
+            _ => [Some(one), Some(other)],
+        }
     };
-    Hits::At(
-        roots
-            .into_iter()
-            .map(|at| (at, (from + towards * at) / radius))
-            .collect(),
-    )
+    Hits::At(roots.map(|root| root.map(|at| (at, (from + towards * at) / radius))))
 }

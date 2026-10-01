@@ -40,11 +40,23 @@ impl Registry {
     /// and lying on no surface apart from `support`, or a new one; either way
     /// lying on `support` from now on.
     pub fn register(&mut self, curve: Curve, support: &[SurfaceId]) -> usize {
-        let found = self.list.iter().position(|known| {
+        self.register_beside(curve, support, |_| false)
+    }
+
+    /// As `register`, but never onto a curve `other` says the curve was
+    /// already decided apart from.
+    pub fn register_beside(
+        &mut self,
+        curve: Curve,
+        support: &[SurfaceId],
+        other: impl Fn(usize) -> bool,
+    ) -> usize {
+        let found = self.list.iter().enumerate().position(|(rank, known)| {
             let fixed = matches!((&known.curve, &curve), (Curve::Line(_), Curve::Line(_)))
                 && self.planes.fix_a_line(&known.support, support);
             (fixed || same(&known.curve, &curve, self.scale))
                 && !self.apart.across(&known.support, support)
+                && !other(rank)
         });
         let rank = found.unwrap_or_else(|| {
             self.list.push(Registered {

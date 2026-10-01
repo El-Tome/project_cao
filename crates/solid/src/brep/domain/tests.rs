@@ -26,7 +26,7 @@ fn a_line_on_a_plane_is_a_segment_between_its_ends_parameters() {
     let (plane, _) = Plane::through(DVec3::new(0.0, 0.0, 10.0), DVec3::Z);
     let line = Line::through(DVec3::new(1.0, 2.0, 10.0), DVec3::new(3.0, -1.0, 0.0));
     let [from, to] = [-2.0, 5.0];
-    let trace = traced(&Curve::Line(line), &Surface::Plane(plane), from, to);
+    let trace = traced(&Curve::Line(line), &Surface::Plane(plane), from, to, EPS);
     let Ok(Trace::Segment {
         from: start,
         to: end,
@@ -49,8 +49,14 @@ fn a_circle_square_to_a_plane_is_a_round_turning_the_way_its_axis_says() {
         ..circle
     };
     for circle in [circle, backwards] {
-        let trace = traced(&Curve::Circle(circle), &Surface::Plane(plane), 0.5, 2.0)
-            .expect("a circle square to a plane is a round");
+        let trace = traced(
+            &Curve::Circle(circle),
+            &Surface::Plane(plane),
+            0.5,
+            2.0,
+            EPS,
+        )
+        .expect("a circle square to a plane is a round");
         for u in [0.0, 0.3, 1.0] {
             let expected = plane.parameters(circle.point(0.5 + 1.5 * u));
             assert!(close(trace.at(u)[0], expected), "{trace:?} at {u}");
@@ -64,7 +70,7 @@ fn a_circle_leaning_on_a_plane_is_declined() {
     let cylinder = Cylinder::about(DVec3::ZERO, DVec3::new(0.0, 1.0, 1.0), 5.0);
     let circle = Curve::Circle(Circle::on(&cylinder, 0.0));
     assert_eq!(
-        traced(&circle, &Surface::Plane(plane), 0.0, 1.0),
+        traced(&circle, &Surface::Plane(plane), 0.0, 1.0, EPS),
         Err(Declined::Unsupported)
     );
 }
@@ -75,7 +81,13 @@ fn a_ruling_of_a_cylinder_is_a_vertical_segment() {
     let foot = cylinder.point(DVec2::new(2.5, 0.0));
     let line = Line::through(foot, -DVec3::Z);
     let [from, to] = [line.parameter(foot), line.parameter(foot + DVec3::Z * 10.0)];
-    let trace = traced(&Curve::Line(line), &Surface::Cylinder(cylinder), from, to);
+    let trace = traced(
+        &Curve::Line(line),
+        &Surface::Cylinder(cylinder),
+        from,
+        to,
+        EPS,
+    );
     let Ok(Trace::Segment {
         from: start,
         to: end,
@@ -103,7 +115,13 @@ fn a_meet_whose_second_cylinder_was_moved_onto_a_touch_is_seen_on_the_cylinder_i
         component: 0,
     };
     for (surface, on_first) in [(standing, false), (first, true)] {
-        let trace = traced(&Curve::Meet(meet), &Surface::Cylinder(surface), 0.5, 2.0);
+        let trace = traced(
+            &Curve::Meet(meet),
+            &Surface::Cylinder(surface),
+            0.5,
+            2.0,
+            EPS,
+        );
         assert_eq!(
             trace,
             Ok(Trace::Graph {
@@ -125,6 +143,7 @@ fn a_circle_of_a_cylinder_is_a_level_segment_with_its_angle_unwrapped() {
         &Surface::Cylinder(cylinder),
         3.0,
         3.0 + PI,
+        EPS,
     );
     assert_eq!(
         trace,
@@ -138,6 +157,7 @@ fn a_circle_of_a_cylinder_is_a_level_segment_with_its_angle_unwrapped() {
         &Surface::Cylinder(cylinder),
         0.0,
         TAU,
+        EPS,
     );
     assert_eq!(
         whole,
@@ -149,6 +169,112 @@ fn a_circle_of_a_cylinder_is_a_level_segment_with_its_angle_unwrapped() {
 }
 
 const EPS: f64 = 1e-9;
+
+/// Seed 1019570 of the campaign: the arc of a cap's circle from where it
+/// touches a side to a corner a hair along it is one with the side's edge,
+/// and the line kept for both lies on the circle's cylinder only within the
+/// tolerance: it is seen there between its ends' parameters, as the arc was.
+#[test]
+fn a_line_lying_on_a_cylinder_across_its_axis_is_a_segment_between_its_ends_parameters() {
+    let cylinder = Cylinder::about(DVec3::new(0.0, 4.499_999_98, 10.5), DVec3::X, 2.5);
+    let side = Line::through(DVec3::new(4.0, 0.0, 8.0), DVec3::Y);
+    let [from, to] = [4.499_999_98, 4.5];
+    let trace = traced(
+        &Curve::Line(side),
+        &Surface::Cylinder(cylinder),
+        from,
+        to,
+        EPS,
+    );
+    let arc = Circle::on(&cylinder, 4.0);
+    let expected = [from, to].map(|y| cylinder.parameters(DVec3::new(4.0, y, 8.0)));
+    assert_eq!(
+        trace,
+        Ok(Trace::Segment {
+            from: expected[0],
+            to: expected[1],
+        })
+    );
+    let [start, end] = [from, to].map(|y| arc.parameter(DVec3::new(4.0, y, 8.0)));
+    assert!((expected[1].x - expected[0].x - (end - start)).abs() < 1e-15);
+}
+
+/// Seed 1040082 of the campaign: two circles of one radius a tenth of a
+/// micron apart, each on its own cylinder, run within the tolerance of each
+/// other near where they cross, and the arc kept for both lies on the other
+/// cylinder there: it is seen between the angles its ends stand at on that
+/// cylinder, not at its own angles, which are the other's turned by the
+/// offset over the radius.
+#[test]
+fn a_circle_off_a_cylinder_s_axis_is_seen_between_its_ends_angles_on_that_cylinder() {
+    let own = Cylinder::about(DVec3::ZERO, DVec3::Z, 2.5);
+    let other = Cylinder::about(DVec3::X * 1e-7, DVec3::Z, 2.5);
+    let circle = Circle::on(&own, 3.0);
+    for (from, to) in [(1.5, 1.6), (1.6, 1.5 + TAU), (-3.0, -3.1 + TAU)] {
+        let trace = traced(
+            &Curve::Circle(circle),
+            &Surface::Cylinder(other),
+            from,
+            to,
+            EPS,
+        )
+        .expect("a circle square to the axis");
+        for (u, at) in [(0.0, from), (1.0, to)] {
+            let expected = other.parameters(circle.point(at));
+            let [point] = [trace.at(u)[0]];
+            let turns = ((point.x - expected.x) / TAU).round();
+            assert!(
+                close(point - DVec2::new(turns * TAU, 0.0), expected),
+                "{trace:?}"
+            );
+        }
+        let Trace::Segment {
+            from: start,
+            to: end,
+        } = trace
+        else {
+            panic!("a level segment: {trace:?}");
+        };
+        assert!(((end.x - start.x) - (to - from)).abs() < 1e-6, "{trace:?}");
+    }
+}
+
+/// Seed 1014146 of the campaign: a stretch of a circle four tenths of a
+/// micron long, taken for the arc of a post square to its axis between the
+/// same two corners, is seen on the post between where its ends stand; a
+/// quarter of the same circle, far from any chord, is declined.
+#[test]
+fn a_short_stretch_of_a_circle_square_to_a_cylinder_is_seen_along_its_chord() {
+    let groove = Cylinder::about(DVec3::new(0.0, 255.0, 165.0), DVec3::X, 45.0);
+    let circle = Circle::on(&groove, 60.0);
+    let post = Cylinder::about(DVec3::new(3e-7, 300.0, 0.0), DVec3::Z, 75.0);
+    let [from, to] = [-PI / 2.0 - 8.9e-9, -PI / 2.0];
+    let trace = traced(
+        &Curve::Circle(circle),
+        &Surface::Cylinder(post),
+        from,
+        to,
+        EPS * 400.0,
+    );
+    let [start, end] = [from, to].map(|at| post.parameters(circle.point(at)));
+    assert_eq!(
+        trace,
+        Ok(Trace::Segment {
+            from: start,
+            to: end
+        })
+    );
+    assert_eq!(
+        traced(
+            &Curve::Circle(circle),
+            &Surface::Cylinder(post),
+            0.0,
+            PI / 2.0,
+            EPS * 400.0
+        ),
+        Err(Declined::Unsupported)
+    );
+}
 
 fn top_of(body: &Body) -> FaceId {
     body.face_ids()

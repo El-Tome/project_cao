@@ -129,6 +129,31 @@ fn turned() -> Vec<(Cylinder, Cylinder)> {
         .collect()
 }
 
+#[test]
+fn every_point_of_a_stretch_of_a_meet_lies_in_its_box() {
+    for (first, second) in every_shape().into_iter().chain(turned()) {
+        for meet in components(first, second) {
+            let period = meet.period().expect("a component closes on itself");
+            for (from, to) in [
+                (0.0, period),
+                (0.3, 1.1),
+                (2.0, 5.5),
+                (period - 0.4, period + 0.9),
+                (1.0, 1.0 + 1e-6),
+            ] {
+                let [low, high] = meet.bounds(from, to);
+                for step in 0..=2000 {
+                    let point = meet.point(from + (to - from) * step as f64 / 2000.0);
+                    assert!(
+                        point.cmpge(low).all() && point.cmple(high).all(),
+                        "{meet:?} from {from} to {to}: {point} outside {low}..{high}"
+                    );
+                }
+            }
+        }
+    }
+}
+
 fn around(angle: f64) -> f64 {
     (angle + PI).rem_euclid(TAU) - PI
 }

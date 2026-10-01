@@ -189,3 +189,20 @@ origin, from 0 to 10.
   rules as two faces laid on each other. Dropping it means the kernel cutting
   the matter at the band's edge, with edges there: a step of design, not a
   rule more.
+- The draw widened, as Tom asked: rounded rectangles, slots and rings beside
+  rectangles and circles, with their arithmetic along every line, as a
+  second campaign; the square draw is untouched so campaigns stay
+  comparable. Its first two minutes: **15.6 failures per thousand**, as many
+  as campaign 1 — and 75 of its 80 are one configuration, two cylinders of
+  one radius whose axes stand a hair apart: a slot's cap or a rounded corner
+  on a hole of the same radius. The square draw almost never made it; the
+  shapes a part is made of make it all the time. All of them are the kernel
+  declining, none a wrong answer.
+- Campaigns 5a (the square draw, seed 5 000 000) and 5b (the profile draw,
+  seed 5 500 000) started at 22:46 on the kernel after round 4, an hour each.
+- Round 5 started: decision 8, two parallel cylinders of one radius whose
+  axes stand within a hundred tolerances are one surface — the kernel's own
+  fuzzy tolerance, kept to the one pair whose crossing is ill conditioned;
+  two parallel planes a hair apart never cross and keep their skin — and the
+  moves onto a touch round 3 made, which campaign 4 found breaking a second
+  touch.

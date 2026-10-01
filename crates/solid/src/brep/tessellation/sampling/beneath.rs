@@ -5,7 +5,11 @@
 //! rim of a bore's cap ending inside a lying post, a hair under its wall —
 //! has its samples outside the wall's triangles, and the faces it bounds
 //! poke through them. A vertex there gives the wall's circles a ray through
-//! it; a sample of such a curve does too, where the wall holds a face.
+//! it; a sample of such a curve does too, where the wall holds a face, and
+//! however little inside it stands, as a vertex does: the kernel puts no
+//! vertex where a cap's rim passes the line its plane leaves on the wall
+//! by its tolerance, and seen from the wall's axis the rim stands inside
+//! by less than that wherever the cap leans to the wall.
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -60,7 +64,7 @@ pub(super) fn walls(
                 }
                 let point = samples.point(*sample);
                 let inside = cylinder.distance(point);
-                if (-2.0 * sag..-eps).contains(&inside) && holds(point) {
+                if (-2.0 * sag..0.0).contains(&inside) && holds(point) {
                     beneath.entry(*id).or_default().push(point);
                 }
             }

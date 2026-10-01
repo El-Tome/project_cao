@@ -2588,3 +2588,29 @@ fn seed_4159169_a_circle_printed_on_a_crescent_where_its_walls_cross_stays_uncro
         ],
     ));
 }
+
+/// Not a seed: round 5's review built it. A bore along x ends at x = 2
+/// inside a post of radius 10 about z, its cap's rim passing the line the
+/// cap's plane leaves on the post's wall by the kernel's tolerance or a
+/// hair more, so the kernel puts no vertex there. Seen from the post's
+/// axis, the rim stands inside the wall by that distance times the cosine
+/// of the angle between the wall and the cap, a fiftieth less: under the
+/// tolerance, where samples of a curve standing inside a wall were taken
+/// to lie on it, though a vertex there gives the wall a ray. The post's
+/// chords passed inside the rim and the cap poked through them. It holds
+/// since a sample of a curve gives the wall a ray wherever a vertex there
+/// would.
+#[test]
+fn a_bore_s_cap_passing_the_kernel_s_tolerance_inside_a_post_with_no_vertex_stays_under_its_chords()
+{
+    for center in [7.797958961132711, 7.797958961032711, 7.797958960932711] {
+        random_solids::holds_exactly(&Case::new(
+            Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 10.0), 10.0),
+            vec![Step::cut(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([center, 5.0], 2.0),
+                2.0,
+            ))],
+        ));
+    }
+}

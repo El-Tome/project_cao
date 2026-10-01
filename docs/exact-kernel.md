@@ -358,7 +358,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   vertex of the inner one just inside the outer, whose arc ends where the
   third crosses it. So does a sample of a curve not parallel to the wall
   standing there, where the wall holds a face: the rim of a bore's cap
-  ending inside a lying post a hair under its wall, with no vertex there.
+  ending inside a lying post a hair under its wall, with no vertex there —
+  however little inside, as for a vertex: the kernel puts no vertex where
+  the rim passes the line the cap's plane leaves on the wall by `EPS`, and
+  seen from the wall's axis the rim stands inside by less than that.
   The edges are then sampled a second time, on those rays. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a

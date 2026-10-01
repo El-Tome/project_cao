@@ -331,6 +331,51 @@ fn a_line_through_a_rounded_rectangle_or_a_slot_is_told_whether_it_crosses_a_str
 }
 
 #[test]
+fn a_line_through_the_place_a_straight_run_meets_an_arc_is_told_the_slant_of_the_wall_there() {
+    let slant = |stretch: Stretch| [stretch.from, stretch.to].map(|end| (end.at, end.cosine));
+
+    let slot = Leaf::prism(
+        Plane::xy(4.0),
+        Outline::slot([4.5, -1.0], [6.5, -1.0], 0.5),
+        -5.0,
+    );
+    let square = 1.0 / 1.01_f64.sqrt();
+    let [entering] = slot
+        .along(DVec3::new(4.5, -1.5, 3.0), DVec3::new(0.1, 1.0, 0.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch into the slot");
+    };
+    let [(at, cosine), _] = slant(entering);
+    assert!(at == 0.0 && (cosine - square).abs() < 1e-12, "{entering:?}");
+    let [leaving] = slot
+        .along(DVec3::new(6.5, -0.5, 3.0), DVec3::new(0.1, 1.0, 0.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch out of the slot");
+    };
+    let [_, (at, cosine)] = slant(leaving);
+    assert!(at == 0.0 && (cosine - square).abs() < 1e-12, "{leaving:?}");
+
+    let block = Leaf::prism(
+        Plane::xz(1.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        -3.0,
+    );
+    let [entering] = block
+        .along(DVec3::new(2.0, 2.5, 0.0), DVec3::new(0.1, -0.3, 1.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch into the block");
+    };
+    let [(at, cosine), _] = slant(entering);
+    assert!(
+        at == 0.0 && (cosine - 1.0 / 1.1_f64.sqrt()).abs() < 1e-12,
+        "{entering:?}"
+    );
+}
+
+#[test]
 fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
     let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
     let leaves = drawn_prisms(|_| true);

@@ -92,7 +92,7 @@ impl Leaf {
                 let rectangles = pieces
                     .rectangles
                     .iter()
-                    .flat_map(|(low, high)| rectangle(&seen, *low, *high));
+                    .flat_map(|band| clipped(&seen, band.low, band.high, Some(band.walled)));
                 let discs = pieces
                     .discs
                     .iter()
@@ -216,6 +216,14 @@ fn far(at: f64) -> Crossing {
 /// The line against a rectangle, one pair of sides at a time: Liang and
 /// Barsky's clipping.
 fn rectangle(seen: &Seen, low: DVec2, high: DVec2) -> Vec<Stretch> {
+    clipped(seen, low, high, None)
+}
+
+/// The same for a rectangle that is a piece of a larger area, only the pair
+/// of sides square to the axis `walled` lying on its outline: a line through
+/// a corner, where a straight run meets an arc, crosses that pair and not the
+/// one inside the area.
+fn clipped(seen: &Seen, low: DVec2, high: DVec2, walled: Option<usize>) -> Vec<Stretch> {
     if low.cmpge(high).any() {
         return Vec::new();
     }
@@ -231,14 +239,15 @@ fn rectangle(seen: &Seen, low: DVec2, high: DVec2) -> Vec<Stretch> {
         let cosine = step.abs() / seen.speed;
         let [one, other] = [low[axis], high[axis]].map(|side| (side - start) / step);
         let (enter, leave) = (one.min(other), one.max(other));
-        if enter > from.at {
+        let walled = walled == Some(axis);
+        if enter > from.at || walled && enter == from.at {
             from = Crossing {
                 at: enter,
                 cosine,
                 curved: false,
             };
         }
-        if leave < to.at {
+        if leave < to.at || walled && leave == to.at {
             to = Crossing {
                 at: leave,
                 cosine,

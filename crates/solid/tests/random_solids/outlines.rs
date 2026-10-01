@@ -17,11 +17,21 @@ use super::{CIRCLE_STEPS, Outline};
 /// with.
 const ROUNDING: f64 = 1e-12;
 
-/// Rectangles, each from its low corner to its high one, and discs, each a
-/// centre and a radius, whose union is an outline.
+/// Rectangles and discs whose union is an outline.
 pub struct Pieces {
-    pub rectangles: Vec<(DVec2, DVec2)>,
+    pub rectangles: Vec<Band>,
+    /// Each a centre and a radius.
     pub discs: Vec<(DVec2, f64)>,
+}
+
+/// A rectangle from its low corner to its high one whose sides square to the
+/// axis `walled` lie on the outline. The other pair runs inside it, from one
+/// arc's centre to another's, unless the arcs have shrunk to nothing.
+#[derive(Clone, Copy)]
+pub struct Band {
+    pub low: DVec2,
+    pub high: DVec2,
+    pub walled: usize,
 }
 
 impl Outline {
@@ -50,8 +60,16 @@ impl Outline {
                 let (near, far) = (low + radius, high - radius);
                 Some(Pieces {
                     rectangles: vec![
-                        (near.with_y(low.y), far.with_y(high.y)),
-                        (low.with_y(near.y), high.with_y(far.y)),
+                        Band {
+                            low: near.with_y(low.y),
+                            high: far.with_y(high.y),
+                            walled: 1,
+                        },
+                        Band {
+                            low: low.with_y(near.y),
+                            high: high.with_y(far.y),
+                            walled: 0,
+                        },
                     ],
                     discs: [near, far.with_y(near.y), far, near.with_y(far.y)]
                         .map(|center| (center, radius))
@@ -60,9 +78,14 @@ impl Outline {
             }
             Outline::Slot { from, to, radius } => {
                 let radius = radius + by;
-                let across = if from.y == to.y { DVec2::Y } else { DVec2::X } * radius;
+                let walled = if from.y == to.y { 1 } else { 0 };
+                let across = DVec2::AXES[walled] * radius;
                 Some(Pieces {
-                    rectangles: vec![(from.min(to) - across, from.max(to) + across)],
+                    rectangles: vec![Band {
+                        low: from.min(to) - across,
+                        high: from.max(to) + across,
+                        walled,
+                    }],
                     discs: vec![(from, radius), (to, radius)],
                 })
             }

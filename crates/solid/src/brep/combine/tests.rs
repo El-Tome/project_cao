@@ -4,8 +4,9 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::Curve;
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Plane, Surface};
 use crate::brep::topology::{Edge, Vertex};
 use crate::profile::{Contour, Frame, Run};
 use crate::soundness::listed;
@@ -426,4 +427,35 @@ fn a_pair_a_curve_comes_to_lie_on_as_another_pair_is_completed_is_completed_too(
         .cut_by(&block([1.0, 0.0, 5.0], [11.0, 10.0, 8.0]))
         .expect("a corner is cut off");
     assert_eq!(listed(&cut.listing(), cut.scale().reach()), Ok(()));
+}
+
+/// A bar a hair into the plane of a block's top, standing far beside the
+/// block: no face of the one stands near a face of the other, so the two
+/// touch nowhere, and the bar is left where it was drawn.
+#[test]
+fn a_bar_a_hair_into_a_plane_whose_faces_stand_far_from_its_own_is_not_moved_onto_it() {
+    let block = block([0.0, 0.0, 0.0], [10.0, 10.0, 10.0]);
+    let eps = Scale::of(53.0).eps();
+    let bar = along_x(0.0, circle([50.0, 7.0], 3.0 + eps / 2.0), 10.0);
+    let operands = Operands::of(&block, &bar, block.scale().joined(bar.scale()));
+    let top = Surface::Plane(Plane::through(DVec3::Z * 10.0, DVec3::Z).0);
+    let walls: Vec<&Surface> = operands
+        .surfaces
+        .list
+        .iter()
+        .filter(|surface| matches!(surface, Surface::Cylinder(_)))
+        .collect();
+    let [wall] = walls[..] else {
+        panic!("one wall: {walls:?}");
+    };
+    let own = bar
+        .surfaces
+        .iter()
+        .find(|surface| matches!(surface, Surface::Cylinder(_)))
+        .expect("the bar's wall");
+    assert!(matches!(
+        relation(&top, own, operands.scale),
+        Relation::Tangent(_)
+    ));
+    assert_eq!(wall, own);
 }

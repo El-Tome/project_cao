@@ -24,6 +24,20 @@ pub(in crate::brep) struct Operands<'a> {
 
 impl<'a> Operands<'a> {
     pub fn of(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
+        Operands::laid(first, second, scale, true)
+    }
+
+    /// The two operands with every move onto a touch made, a slide of a
+    /// wall the second operand drew corners on along an exact touch too:
+    /// what decision 2 would move were the corners carried along.
+    pub fn sliding(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
+        Operands::laid(first, second, scale, false)
+    }
+
+    /// The two operands laid on their shared surfaces; a wall the second
+    /// operand drew corners on is `pinned` against a slide along an exact
+    /// touch.
+    fn laid(first: &'a Body, second: &'a Body, scale: Scale, pinned: bool) -> Operands<'a> {
         let mut surfaces = Surfaces::of(first, second, scale);
         let bodies = [first, second];
         let lying = [0, 1].map(|operand| {
@@ -35,15 +49,34 @@ impl<'a> Operands<'a> {
             }
             lying
         });
-        let moved = surfaces.snapped(
-            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
-            scale,
-        );
-        let boxes = bodies.map(|body| {
+        let boxes: [Vec<[DVec3; 2]>; 2] = bodies.map(|body| {
             body.face_ids()
                 .map(|face| boxed(body, face, scale.eps()))
                 .collect()
         });
+        let near = |one: SurfaceId, other: SurfaceId| {
+            let (lying, boxes) = (&lying, &boxes);
+            let faces = |surface: SurfaceId| {
+                (0..2).flat_map(move |operand| {
+                    lying[operand][surface.0 as usize]
+                        .iter()
+                        .map(move |face| boxes[operand][face.0 as usize])
+                })
+            };
+            faces(one).any(|first| faces(other).any(|second| meet(first, second)))
+        };
+        let mut cornered = vec![false; surfaces.list.len()];
+        for vertex in second.vertices.iter().filter(|_| pinned) {
+            for own in &vertex.on {
+                cornered[surfaces.mapped[1][own.0 as usize].0.0 as usize] = true;
+            }
+        }
+        let moved = surfaces.snapped(
+            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
+            near,
+            |surface: SurfaceId| cornered[surface.0 as usize],
+            scale,
+        );
         Operands {
             bodies,
             scale,
@@ -130,11 +163,10 @@ impl<'a> Operands<'a> {
 
     /// Whether the boxes round two faces, one of each operand, meet.
     pub fn near(&self, first: FaceId, second: FaceId) -> bool {
-        let [one, other] = [
+        meet(
             self.boxes[0][first.0 as usize],
             self.boxes[1][second.0 as usize],
-        ];
-        one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
+        )
     }
 
     /// Where `point`, on a shared surface, stands against each face of an
@@ -169,6 +201,11 @@ impl<'a> Operands<'a> {
             .iter()
             .any(|(_, location)| *location != Location::Outside))
     }
+}
+
+/// Whether two boxes meet.
+fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
+    one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
 }
 
 /// The box round a face, from the extremes of its edges, grown by `eps`.

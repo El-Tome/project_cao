@@ -592,3 +592,17 @@ fn a_point_at_a_node_names_every_pass_of_a_component_through_it_and_a_point_else
         }
     }
 }
+
+/// At a node of two perpendicular cylinders of one radius but for a hair,
+/// the one moved instead of its partner takes the partner's radius: the
+/// two then stand at a node of two equal radii exactly, and nothing is
+/// left for the pair to move.
+#[test]
+fn a_cylinder_moved_instead_onto_a_node_takes_its_partner_s_radius() {
+    let (post, bar) = pair(20.0 + 0.3 * scale().eps(), 20.0, 0.0, 5.0);
+    let (rank, instead) = moved_instead(&post, &bar, scale()).expect("the post moves");
+    assert_eq!(rank, 0);
+    assert_eq!(instead, Cylinder::about(post.origin, post.axis, 20.0));
+    assert_eq!(moved(&instead, &bar, scale()), None);
+    assert!(!Meeting::of(&instead, &bar, scale()).nodes.is_empty());
+}

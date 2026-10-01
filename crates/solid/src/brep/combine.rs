@@ -10,14 +10,16 @@ mod held;
 mod identified;
 mod operands;
 mod related;
+mod slid;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Planes, Pool, Registry};
+use super::canonical::{Apart, Planes, Pool, Registry, closed};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
 use related::Special;
+use slid::slid;
 
 /// What is kept of the two operands' matter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,7 +60,11 @@ impl Body {
 }
 
 pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Result<Body, Declined> {
-    let operands = Operands::of(first, second, first.scale().joined(second.scale()));
+    let scale = first.scale().joined(second.scale());
+    let closed = closed(first, second, scale);
+    let second = closed.as_ref().unwrap_or(second);
+    let slid = slid(first, second, scale);
+    let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
     let arena = laid(&operands)?;
     let faces = selected(&operands, &arena, operation)?;
     assembled(arena, faces)

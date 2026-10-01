@@ -250,3 +250,92 @@ from seed 71 000 000, four Answers and five Uncrossed, on some twenty
 thousand cases each — and decision 7 answered for a handful of regions in
 all of them: in random cases, the band is still rarely where a region
 stands.
+
+## Round 5: the kernel lane
+
+The kernel's lane of 1 October night, on the kernel after round 4, beside
+the profile draw. Two changes, both in [`exact-kernel.md`](exact-kernel.md):
+
+- **Decision 8**: two parallel walls of one radius, one of each operand,
+  their axes within fifty tolerances, are one surface; the second operand
+  is moved onto the first's wall with what it built on it. Its hair was
+  measured before it was set, on five-minute campaigns of profiles: the
+  numbers are in the decision. It fixes 4-3. The review brought the hair
+  down to twenty tolerances, the most no line of measure can see.
+- **Decision 2's moves onto a touch**, rewritten: every touch of a surface
+  read before it moves, a cylinder between two parallel planes moved
+  midway, only pairs whose faces' boxes meet, the second operand's
+  cylinder moved rather than the first's at a perpendicular node. It
+  fixes 4-1 and 4-2: the eleven shrunk cases of campaign 4 hold.
+
+Five-minute campaigns from fixed seeds, before and after, on the same
+machine under a similar load:
+
+| draw | from seed | before | after | fixed | made |
+| --- | --- | --- | --- | --- | --- |
+| square | 80 000 000 | 21 151 cases, 10 failures, 0.47 per thousand | 22 751 cases, 4 failures, 0.18 per thousand | 6 | 0 |
+| profiles | 80 500 000 | 12 427 cases, 85 failures, 6.8 per thousand | 13 534 cases, 22 failures, 1.6 per thousand | 65 | 0 |
+
+Fixed and made are counted over the seeds both runs reached. Seven
+findings ignored until now hold, two of the kernel's file and five of the
+triangles': their walls of one radius a hair apart are one wall now.
+
+What stays of the twenty failures of the profile draw over that range:
+
+- **Two walls of one radius further apart than the hair**, eleven: a hair
+  of 1e-5 on a body of a reach of ten to a hundred, a hundred to a
+  thousand tolerances. Taken for one, the wall would move by more than a
+  line at a slant can miss; kept two, the walls cross at a grazing angle
+  and the band of 1-9 is back. 80505830 and 80509593 are named, ignored.
+- **A rounded rectangle's straight runs a hair off a block's sides**,
+  planes three tenths of a tolerance to a few tolerances apart with the
+  corner's wall touching both: the band of 1-2 on the profile draw
+  (80500532, 80505325, 80507291, 80507349).
+- The rest, one each: a Closed of the triangles (80510549), and band
+  shapes of a plane, a wall and a third surface a hair from each other.
+
+Reviewed the same night. Four things were found, each with a test:
+
+- **The hair was seen.** At fifty tolerances, a line crossing the moved
+  wall by a tangent, at a slant of a nineteenth, saw the move nineteen
+  times over at each of its two crossings: a block bored twice
+  forty-eight tolerances apart came out bored as the first bore alone,
+  the line holding half again its room. No line the rules hold can see
+  twenty, which decision 8 now takes. 80506598, 80509744 and the
+  triangles' 3202168, thirty to thirty-seven tolerances apart, are
+  ignored again: two walls crossing in the band.
+- **Not sliding broke what sliding had held.** Kept from sliding along a
+  touch it holds exactly, a wall its operand drew corners on stays a hair
+  off its other touch, and seed 82504133 of a campaign of profiles, which
+  round 3 held, declined. The slide is now made with the operand, as
+  decision 8 moves it: 80501596 holds through it, and so do three
+  failures of the profile draw from seed 80 500 000 (80505325, one of the
+  band 1-2 above, 80506660 and 80513180) and five from 82 500 000.
+- **Decision 8 makes failures of its own**: two in some twelve thousand
+  profiles from seed 82 500 000 (82508905, 82512408). It moves the line
+  the second operand touched a side along by a few tolerances, and a
+  later leaf drawn touching the side on the old line stands in the band
+  of 2-1. Named, ignored.
+- **Three guards no test needed.** The faces' boxes read in
+  `Operands::of`, the opposite sides the move midway asks for, and the
+  radius the cylinder moved instead takes at a node: each was taken out
+  in turn and the whole suite stayed green. Each has a unit test now. The
+  named findings of 4-1 hold through several guards at once: seven of
+  the twelve shrunk cases of campaign 4 fail only with the move midway,
+  the reading of every touch and the faces' boxes all three taken out.
+
+Five-minute campaigns from fixed seeds on the same machine, the kernel
+before the review (round 5's kernel lane as it stood) and after it, fixed
+and made counted over the seeds both runs reached:
+
+| draw | from seed | before the review | after | fixed | made |
+| --- | --- | --- | --- | --- | --- |
+| square | 82 000 000 | 21 378 cases, 4 failures, 0.19 per thousand | 22 832 cases, 4 failures, 0.18 per thousand | 0 | 0 |
+| profiles | 82 500 000 | 13 141 cases, 29 failures, 2.2 per thousand | 14 102 cases, 34 failures, 2.4 per thousand | 5 | 7 |
+| profiles | 80 500 000 | 13 534 cases, 22 failures, 1.6 per thousand | 14 012 cases, 27 failures, 1.9 per thousand | 3 | 8 |
+
+Every failure made is the hair's: two walls of one radius between twenty
+and fifty tolerances apart, which fifty merged where a line could see it,
+left two, crossing at a grazing angle, and declined. Against the kernel
+before round 5, the profile draw falls from 104 failures to 30 over the
+seeds both reached from 82 500 000, and from 85 to 26 from 80 500 000.

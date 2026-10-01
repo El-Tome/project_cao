@@ -411,8 +411,9 @@ fn seed_5000221_a_bar_whose_cap_touches_a_post_at_one_point_cuts_nothing() {
 /// decision 7, which reads a region lying along the surface it stands
 /// within the tolerance of, does not reach them, and the listing comes out
 /// with edges used one way only.
+/// It holds since two parallel cylinders of one radius within twenty
+/// tolerances are one surface (decision 8): there are no two circles left.
 #[test]
-#[ignore = "sliver"]
 fn seed_6000839_two_posts_a_hair_apart_both_touching_a_block_s_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(120.0), Outline::circle([30.0, 30.0], 60.0), 270.0),
@@ -1142,8 +1143,9 @@ fn seed_1031984_a_post_of_a_block_s_width_bored_by_a_hole_touching_it_and_the_si
 /// out with edges used one way only. Decision 7 does not reach it — what
 /// fails is the corners and the loops through them, before any region is
 /// read.
+/// It holds since decision 8: the second post is the first's wall, and
+/// there is no crossing left.
 #[test]
-#[ignore = "band"]
 fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2865,6 +2867,567 @@ fn seed_3024043_two_pins_a_hair_apart_cut_by_a_pin_touching_both_at_their_tops()
                 Plane::xy(7.0),
                 Outline::circle([4.99999994, 4.5], 0.5),
                 6.5,
+            )),
+        ],
+    ));
+}
+
+/// Failure 4-3 of campaign 4: a post cut by a post of its radius whose axis
+/// stands 5.0000000058e-8 off, a rounding more than the tolerance at a reach
+/// of fifty. Not one surface, the two were taken to touch inside and moved
+/// onto each other as two, and the floor's rims stood on both a rounding
+/// apart, a ring no point could be found inside. Two parallel cylinders of
+/// one radius within twenty tolerances are one surface (decision 8).
+#[test]
+fn seed_4178972_a_post_cut_by_a_post_of_its_radius_a_tolerance_aside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(10.0), Outline::circle([17.5, 30.0], 20.0), 5.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(10.0),
+            Outline::circle([17.50000005, 30.0], 20.0),
+            10.0,
+        ))],
+    ));
+}
+
+/// From a campaign of profiles, decision 8: a post cut by a slot of its
+/// radius whose first cap stands 5e-8 along the slot from the post's axis.
+/// The two walls crossed along two rulings at a grazing angle, and the
+/// triangles of the floor crossed there. The cap is the post's wall now;
+/// the slot's sides, which the move slides along, stay where they were made.
+#[test]
+fn seed_80503332_a_post_cut_by_a_slot_of_its_radius_whose_cap_stands_a_hair_along() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(20.0), Outline::circle([10.0, 0.0], 15.0), 25.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(15.0),
+            Outline::slot([10.00000005, 0.0], [35.00000005, 0.0], 15.0),
+            25.0,
+        ))],
+    ));
+}
+
+/// The same across: a slot bored at its end by a circle of its radius 6e-8
+/// across its axis, then cut by a block. The circle is moved onto the cap.
+#[test]
+fn seed_80504197_a_slot_bored_at_its_end_a_hair_across_then_cut_by_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::slot([7.0, 6.0], [4.0, 6.0], 1.5),
+            7.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([4.0, 6.00000006], 1.5),
+                7.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle(
+                    [2.5000099999999996, 5.999999963535174e-8],
+                    [5.50001, 7.50000006],
+                ),
+                13.0,
+            )),
+        ],
+    ));
+}
+
+/// A rounded block bored at a corner by a hole of the corner's radius 1e-5
+/// across, thirty-three tolerances at a reach of three hundred, then given a
+/// cylinder lying across it: the kernel declined.
+///
+/// Understood and left: with a hair of fifty tolerances, decision 8 took the
+/// hole for the corner's wall and it held. The hair is twenty, which no
+/// line of measure crossing the moved wall at a slant can see: the two walls
+/// stay two, crossing at a grazing angle within a hair of the sides the
+/// corner touches, and the kernel declines — failure 1-9, the band.
+#[test]
+#[ignore = "band"]
+fn seed_80506598_a_rounded_block_bored_a_hair_off_its_corner_then_given_a_cylinder_across() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::rounded([120.0, 120.0], [195.0, 315.0], 15.0),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([135.0, 134.99999], 15.0),
+                225.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(120.0),
+                Outline::circle([150.0, 30.0], 120.0),
+                105.0,
+            )),
+        ],
+    ));
+}
+
+/// A block whose rounded pocket is filled again by a rounded block 6e-8
+/// aside, its corners each a hair off the pocket's: the kernel declined.
+/// The whole outline is moved onto the pocket's, its sides with its
+/// corners, and it fills the pocket but for its shorter end.
+#[test]
+fn seed_80505156_a_rounded_pocket_filled_again_by_a_rounded_block_a_hair_aside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::rectangle([10.0, 9.0], [12.0, 13.0]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::rounded([10.0, 9.0], [12.0, 13.0], 1.0),
+                9.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::rounded([9.99999994, 9.0], [11.99999994, 12.5], 1.0),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// A ring filled by a disc of its bore's radius a tolerance aside: a crescent
+/// of the bore was lost, and the body came out short of matter by a volume
+/// any line saw. The disc's wall is the bore's.
+#[test]
+fn seed_80511593_a_ring_filled_by_a_disc_a_tolerance_off_its_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(15.0),
+            Outline::ring([0.0, 10.0], 27.5, 17.5),
+            18.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(14.99999995),
+            Outline::circle([5.0000000000000004e-8, 10.0], 17.5),
+            35.0,
+        ))],
+    ));
+}
+
+/// A block pocketed by a rounded rectangle 1e-8 aside, then bored at the
+/// pocket's corner. The corner's wall touches the block's bottom side
+/// exactly and its end side a hair off: moved along the bottom side onto
+/// the end, it took its line of touch with the bottom side along, and left
+/// the pocket's own corner on that line where it was drawn, a hair off the
+/// line the bore then cut. A wall carrying corners of its operand, slid
+/// along a touch that holds exactly, takes them along: the pocket moves
+/// with it, its end side and its other corner too.
+#[test]
+fn seed_80501596_a_rounded_pocket_a_hair_aside_bored_at_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(8.0),
+            Outline::rectangle([4.0, 4.0], [10.0, 12.0]),
+            -4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::rounded([4.00000001, 4.0], [10.00000001, 12.0], 2.5),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([6.5, 6.5], 2.5),
+                -7.0,
+            )),
+        ],
+    ));
+}
+
+/// A block bored by a hole touching its side and 1e-5 off its floor, then
+/// cut by a bore of its radius touching both, 1e-5 aside: seven hundred
+/// tolerances at a reach of fourteen.
+///
+/// Understood and left: beyond decision 8's hair, which a line of measure
+/// crossing the moved wall at a slant would see, the two walls stay two.
+/// They cross along two rulings at an angle of four millionths, within a
+/// hair of the side both touch, and the kernel declines: failure 1-9, the
+/// band of two walls of one radius a few hundred tolerances apart.
+#[test]
+#[ignore = "band"]
+fn seed_80505830_a_hole_bored_again_seven_hundred_tolerances_aside_where_both_touch_a_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(5.0),
+            Outline::rectangle([7.0, 2.0], [13.0, 9.0]),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(5.0),
+                Outline::circle([9.75, 4.75001], 2.75),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(4.99999994),
+                Outline::circle([9.75, 4.75], 2.75),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a profile: a slot given a disc of its radius 1e-5 across
+/// its cap, five hundred tolerances at a reach of fifteen, then a block
+/// over the cap. Understood and left, as for seed 80505830: the disc and
+/// the cap stay two walls crossing at a grazing angle.
+#[test]
+#[ignore = "band"]
+fn seed_80509593_a_slot_given_a_disc_five_hundred_tolerances_across_its_cap() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(1.0),
+            Outline::slot([7.0, 3.0], [13.0, 3.0], 2.0),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(1.0),
+                Outline::circle([13.0, 2.99999], 2.0),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([11.0, 1.0], [15.0, 7.0]),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// A slot given a disc of its radius a hundred tolerances off its cap, 1e-5
+/// at a reach of a hundred, standing far above it. Taken for the cap with a
+/// hair of a hundred tolerances, the disc was moved by 1e-5, and a line of
+/// measure crossing its wall at a slant of a sixth saw it moved by 1.3e-4,
+/// more than the room along a line. Twenty tolerances is the hair: the two
+/// walls stay two and cross, as they did before decision 8.
+#[test]
+fn seed_80502201_a_disc_a_hundred_tolerances_off_a_slot_s_cap_stays_where_it_was_drawn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(25.0),
+            Outline::slot([30.0, 10.0], [30.0, 35.0], 15.0),
+            40.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(20.00000005),
+            Outline::circle([30.0, 34.99999], 15.0),
+            80.0,
+        ))],
+    ));
+}
+
+/// Found by the review of round 5: a block bored, then bored again by a
+/// hole of its radius 2.4e-6 aside, forty-eight tolerances at a reach of
+/// fifty. Taken for the first bore with a hair of fifty tolerances, the
+/// second was moved onto it by its whole offset, and a line of measure
+/// crossing the wall by a tangent, at a slant of a nineteenth, saw the move
+/// nineteen times over at each of its two crossings: half again the room
+/// along a line. The hair is twenty tolerances, which no line the rules
+/// hold can see; two bores further apart stay two, and cross.
+#[test]
+fn a_block_bored_twice_forty_eight_tolerances_apart_is_bored_where_both_were_drawn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([0.0, 0.0], [50.0, 50.0]),
+            40.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([22.125, 25.0], 10.0),
+                40.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([22.125, 24.9999976], 10.0),
+                40.0,
+            )),
+        ],
+    ));
+}
+
+/// Found by the review of round 5, from seed 82504133 of a campaign of
+/// profiles: a rounded block notched at a corner, the notch's floor 1e-5
+/// above the block's bottom, then cut by a rounded rectangle whose bottom
+/// is the notch's floor and whose side stands 3e-7 off the block's, six
+/// tenths of a tolerance. The corner's wall touches its own bottom exactly
+/// and the block's side a hair off. Not slid along its bottom onto the
+/// side, since it carries its operand's corners, it was left a hair off,
+/// and the kernel declined, where round 3 slid it and held. Slid, the wall
+/// takes its operand's corners along, as decision 8 takes them, and the
+/// side, the other corner and the lines between with it.
+#[test]
+fn seed_82504133_a_notched_rounded_block_cut_by_a_rounded_rectangle_a_hair_off_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-60.0),
+            Outline::rounded([270.0, 180.0], [315.0, 390.0], 15.0),
+            60.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-60.000006),
+                Outline::rectangle([270.0, 180.00001], [300.0, 210.00001]),
+                120.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-60.0),
+                Outline::rounded([270.0000003, 180.00001], [495.0000003, 390.00001], 15.0),
+                240.0,
+            )),
+        ],
+    ));
+}
+
+/// A block bored by a hole touching two of its sides but for 1e-5 off one,
+/// then the hole filled by a post touching both: thirty-seven tolerances at
+/// a reach of two hundred and seventy.
+///
+/// Understood and left: with a hair of fifty tolerances, decision 8 took the
+/// post for the hole, and it filled it. The hair is twenty, which no line of
+/// measure can see the merge through: the post and the hole stay two walls
+/// of one radius crossing at a grazing angle where both touch a side, and
+/// the kernel declines — failure 1-9, the band.
+#[test]
+#[ignore = "band"]
+fn seed_80509744_a_hole_a_hair_off_a_side_filled_by_a_post_touching_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(60.0),
+            Outline::rectangle([90.0, 90.0], [270.0, 255.0]),
+            60.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(60.0),
+                Outline::circle([105.0, 105.00001], 15.0),
+                120.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(60.0),
+                Outline::circle([105.0, 105.0], 15.0),
+                120.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 4-1 of campaign 4: a post of radius 0.50000001 between two
+/// parallel sides of the body a unit apart, a hair inside touching each.
+/// Moved onto one touch, it went twice as deep into the other, past the
+/// tolerance, and the kernel declined. A cylinder between two parallel
+/// planes it touches on opposite sides is moved midway between them, its
+/// radius half their gap: both touches are exact.
+#[test]
+fn seed_4105585_a_post_a_hair_wider_than_the_gap_between_two_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([7.0, 8.0], [14.5, 15.5]),
+            3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([13.5, 11.0], [15.5, 13.0]),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([15.0, 11.75], 0.50000001),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a cut, the second side a plane of the body whose face
+/// stands far from the post: a touch of faces that never meet moved the
+/// post and broke the touch beside it. Only the pairs whose faces' boxes
+/// meet are moved onto a touch.
+#[test]
+fn seed_4071426_a_hole_a_hair_wider_than_a_bar_beside_a_plane_whose_face_is_far() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(6.0),
+            Outline::rectangle([10.0, 8.0], [17.0, 16.0]),
+            4.5,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([3.5, -0.5], [4.5, 0.5]),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([4.0, 1.0], 0.50000001),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// A post notched by a block, then given a bar of radius 15 touching the
+/// notch's floor and ceiling exactly and the post's wall from inside 3e-7
+/// off. Settled by its exact touches, the bar was left off the post. It
+/// moves along the planes it touches, which keeps both touches, onto the
+/// post.
+#[test]
+fn seed_4146145_a_bar_touching_two_planes_exactly_is_moved_along_them_onto_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(120.0),
+            Outline::circle([120.0, 210.0], 165.0),
+            285.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::rectangle([300.0, 180.0], [360.0, 210.0]),
+                300.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::circle([359.9999997, 195.0], 15.0),
+                -45.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 4-2 of campaign 4: a bar of radius 105 cut by a post, then by a
+/// second post of radius 105.0000003 whose axis crosses the bar's. The
+/// node they meet at moved the bar, the first operand's, to the post's
+/// radius, and the bar's own corners and edges stayed on its old wall. A
+/// cylinder carrying the first operand's corners is never moved: the post
+/// is, to the bar's radius.
+#[test]
+fn seed_4048009_a_bar_cut_by_a_post_of_its_radius_but_for_a_hair_keeps_its_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(180.0),
+            Outline::circle([210.0, 30.0], 105.0),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([270.0, 210.0], 135.0),
+                300.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([240.0, 210.0], 105.0000003),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// A bore 5e-8 from touching a boss inside along X and 5e-8 from touching a
+/// block's side along Y. Moved once, onto the side, it left the touch with
+/// the boss open, and the line they touch along was laid a hair off both.
+/// A surface moves onto each of its touches in turn, so long as no move
+/// parts it from a touch it had.
+#[test]
+fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-5.0),
+            Outline::rectangle([15.0, 45.0], [27.5, 62.5]),
+            43.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::circle([10.0, 25.0], 5.0),
+                43.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::circle([12.5, 25.0], 2.49999995),
+                42.4999997,
+            )),
+        ],
+    ));
+}
+
+/// Found by the review of round 5 in a campaign of profiles, and made by
+/// decision 8: a slot given a disc of its cap's radius 1e-7 across, three
+/// tolerances at a reach of thirty-five, then a post touching the slot's
+/// side where the disc touches it. Taken for the cap, the disc is moved
+/// 1e-7 along the side, and the line it touched the side along is the
+/// cap's. The post, drawn on the disc's line, then touches the side and the
+/// cap along three lines within three tolerances of one another.
+///
+/// Understood and left: failure 2-1, the band. Before decision 8 the disc,
+/// the side and the post touched along one line, and the case held; a
+/// merge moves what the second operand touched, and a later leaf drawn on
+/// it stands a hair off.
+#[test]
+#[ignore = "band"]
+fn seed_82512408_a_slot_given_a_disc_a_hair_off_its_cap_then_a_post_on_the_disc_s_line() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::slot([20.0, 15.0], [20.0, 2.5], 15.0),
+            25.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([20.0, 2.5000001], 15.0),
+                25.0000001,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([2.5, 2.5000001], 2.5),
+                43.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a rounded block a unit wide, its end one wall: bored at
+/// the end by a hole of its radius 6e-8 across, six tolerances, then given
+/// a post touching the side where the hole does. Taken for the end's wall,
+/// the hole's line of touch with the side moves with it, and the post
+/// stands a hair from the end's: the kernel declines.
+///
+/// Understood and left, as for seed 82512408: failure 2-1, the band.
+#[test]
+#[ignore = "band"]
+fn seed_82508905_a_rounded_end_bored_a_hair_across_then_given_a_post_on_the_bore_s_line() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::rounded([2.0, 2.0], [3.0, 10.0], 0.5),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.5, 2.50000006], 0.5),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([1.5, 2.50000006], 0.5),
+                6.0,
             )),
         ],
     ));

@@ -948,8 +948,9 @@ fn seed_34002812_a_swallowed_cylinder_tangent_to_a_pad_a_hair_off_the_side_leave
 /// there, and within what the rules tell apart of the second wall's
 /// triangle along the line, folded onto it. The line has to be one line,
 /// which is the boolean's.
+/// It holds since the kernel takes the third wall for the first (decision
+/// 8): their two lines of contact are one.
 #[test]
-#[ignore = "kernel"]
 fn seed_30000434_a_cylinder_a_hair_off_one_touching_its_neighbour_leaves_the_neighbour_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(4.0), Outline::circle([7.0, 5.0], 3.5), 5.0),
@@ -1894,8 +1895,9 @@ fn seed_53006876_a_bar_a_hair_into_a_post_it_touches_at_a_point_stays_uncrossed(
 /// times the tolerance, and the volume falls short. As for seed 3194537,
 /// withholding steps cannot draw a wall that faces another over part of
 /// its height only.
+/// It holds since the kernel takes two parallel walls of one radius within
+/// twenty tolerances for one (decision 8): no sliver is left to draw.
 #[test]
-#[ignore = "triangles"]
 fn seed_3033420_a_cut_and_a_boss_of_one_radius_a_hair_off_one_axis_keep_the_cut_s_wall_round_below_the_boss()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1964,8 +1966,9 @@ fn seed_3243921_a_disc_floored_a_hair_up_and_joined_to_its_twin_a_hair_aside_lea
 /// other there. The sliver beyond the notch's side is thinner than what the
 /// rules tell apart; drawing it wants the two walls apart by that much
 /// rather than pinched along the notch's side at every height.
+/// It holds since the kernel takes the stock and the cut for one wall
+/// (decision 8): there is no sliver.
 #[test]
-#[ignore = "triangles"]
 fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leaves_its_floor_closed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1995,8 +1998,9 @@ fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leav
 /// out with three edges used unevenly, two of them three times: the faces
 /// kept along the lines the three walls touch and cross along in the band
 /// do not close. Still the kernel's.
+/// It holds since the kernel takes the cut for the wall of its radius a
+/// hair off (decision 8): it crosses nothing in the band.
 #[test]
-#[ignore = "kernel"]
 fn seed_3108235_a_bore_touching_another_inside_where_a_cut_of_one_radius_crosses_it_leaves_the_side_closed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -2058,6 +2062,10 @@ fn seed_3061547_a_twin_a_hair_aside_joined_over_a_bore_touching_the_stock_inside
 /// there being the bore's rim, a hair inside. As for seed 3194537, a wall
 /// facing another over part of its height only wants samples inside its
 /// face where the facing ends.
+/// It held while decision 8 took the bore for the post's wall with a hair
+/// of fifty tolerances. The hair is twenty, which no line of measure can
+/// see the merge through, and thirty tolerances are left two walls again:
+/// the sliver is back.
 #[test]
 #[ignore = "triangles"]
 fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncrossed() {

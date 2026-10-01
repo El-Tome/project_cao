@@ -6,14 +6,19 @@
 
 mod apart;
 mod arcs;
+mod carried;
 mod corners;
+mod crescent;
 mod curves;
 mod planes;
 mod surfaces;
+mod touches;
 
 pub(super) use apart::Apart;
 pub(super) use arcs::parting;
+pub(super) use carried::carried_along;
 pub(super) use corners::{Pool, lies_on};
+pub(super) use crescent::closed;
 pub(super) use curves::{Registered, Registry, distance, same, within};
 pub(super) use planes::Planes;
 pub(super) use surfaces::Surfaces;

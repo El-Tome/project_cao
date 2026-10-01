@@ -161,6 +161,10 @@ impl Flats {
                     outline: Outline::Ring { outer, .. },
                     ..
                 } => Some(*outer),
+                Leaf::Prism {
+                    outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+                    ..
+                } => Some(*radius),
                 _ => None,
             })
             .map(|radius| radius * (1.0 - (std::f64::consts::PI / CIRCLE_STEPS as f64).cos()))

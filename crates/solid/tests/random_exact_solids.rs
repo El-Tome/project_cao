@@ -3,7 +3,12 @@
 //!
 //! The cases are #448's, drawn among what the kernel raises: prisms of
 //! rectangles and circles on the three planes of the origin
-//! (`Case::drawn_square`), still weighted towards coincidences and hairs.
+//! (`Case::drawn_square`), still weighted towards coincidences and hairs —
+//! or, in a campaign of its own, among the profiles the application makes all
+//! the time (`Case::drawn_profiles`): rectangles with rounded corners, slots
+//! and rings beside rectangles and circles, each handed to the kernel as its
+//! straight runs and arcs. Both draws stay what they were for a seed, so a
+//! campaign on either is comparable with the ones before it.
 //! Every leaf is raised by `cao_solid::brep::Body::raised` and every step
 //! joined or cut; a leaf or a step declined is no answer. At every step the
 //! body's listing is held to its geometry, its triangles are closed and
@@ -19,16 +24,22 @@
 //! thousand square cases, when it was written — and breaks every one they
 //! break.
 //!
-//! The campaign is run by hand:
+//! A campaign is run by hand, the square one or the one of profiles:
 //!
 //! ```text
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
-//!     --test random_exact_solids -- --ignored --nocapture
+//!     --test random_exact_solids -- --ignored --nocapture \
+//!     a_campaign_of_random_square_solids
+//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
+//!     --test random_exact_solids -- --ignored --nocapture \
+//!     a_campaign_of_random_profiles
 //! ```
 //!
 //! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock, and
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
-//! as no answer.
+//! as no answer. The seeds it names are shrunk one by one by
+//! `the_seeds_a_campaign_named_are_shrunk_one_by_one`, given in
+//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles.
 
 // The drawing, the promise and the checks are shared with the flats'
 // campaign; each file uses its own part of them.
@@ -899,6 +910,33 @@ fn square_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_
 }
 
 #[test]
+fn profile_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+    let mut held = 0;
+    let mut profiles = 0;
+    for seed in 0..120 {
+        let case = Case::drawn_profiles(seed);
+        if random_solids::check(&case).is_err() {
+            continue;
+        }
+        held += 1;
+        profiles += case
+            .leaves()
+            .filter_map(outline_of)
+            .filter(|outline| {
+                matches!(
+                    outline,
+                    Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. }
+                )
+            })
+            .count();
+        let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+        assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
+    }
+    assert!(held > 60, "{held} cases held");
+    assert!(profiles > 60, "{profiles} profiles held");
+}
+
+#[test]
 fn lines_grazing_a_curved_wall_are_left_out_and_counted() {
     let case = Case::new(
         Leaf::prism(Plane::xz(2.0), Outline::circle([1.0, 3.0], 4.0), 5.0),
@@ -1241,6 +1279,12 @@ fn drawn(seed: u64) -> Case {
     Case::drawn_square(seed)
 }
 
+/// The same, among the profiles.
+fn drawn_profile(seed: u64) -> Case {
+    eprint!("\rseed {seed} ");
+    Case::drawn_profiles(seed)
+}
+
 fn from_the_environment(name: &str) -> Option<u64> {
     std::env::var(name).ok()?.parse().ok()
 }
@@ -1248,6 +1292,18 @@ fn from_the_environment(name: &str) -> Option<u64> {
 #[test]
 #[ignore = "a campaign, run by hand: see the head of this file"]
 fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
+    campaign_over("square solids", drawn);
+}
+
+#[test]
+#[ignore = "a campaign, run by hand: see the head of this file"]
+fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
+    campaign_over("profiles", drawn_profile);
+}
+
+/// A campaign on the exact kernel over the cases `draw` gives, for as long as
+/// the environment says, and its report.
+fn campaign_over(what: &str, draw: fn(u64) -> Case) {
     let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
     let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
         let now = SystemTime::now()
@@ -1257,12 +1313,12 @@ fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
     });
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let deadline = Instant::now() + Duration::from_secs(seconds);
-    println!("campaign on the exact kernel from seed {first}, for {seconds} s");
+    println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
 
     let check: Check<Case> = Arc::new(exactly);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(first.., drawn, check, Case::smaller, patience, || {
+    let report = campaign(first.., draw, check, Case::smaller, patience, || {
         Instant::now() < deadline
     });
     std::panic::set_hook(quiet);
@@ -1278,7 +1334,8 @@ fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
 
 /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
 /// shrunk while it still breaks the same rule, and printed as a test: what a
-/// campaign's failures are sorted into distinct ones from.
+/// campaign's failures are sorted into distinct ones from. The seeds name
+/// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`.
 #[test]
 #[ignore = "run by hand on the seeds a campaign named"]
 fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
@@ -1287,12 +1344,16 @@ fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
         .split(',')
         .filter_map(|seed| seed.trim().parse().ok())
         .collect();
+    let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
+        Ok("profiles") => Case::drawn_profiles,
+        _ => Case::drawn_square,
+    };
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let check: Check<Case> = Arc::new(exactly);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     for seed in seeds {
-        let drawn = Case::drawn_square(seed);
+        let drawn = draw(seed);
         let Err(flaw) = answer(drawn.clone(), &check, patience) else {
             println!("\n── holds, seed {seed} ──");
             continue;

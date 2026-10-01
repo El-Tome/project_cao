@@ -6,6 +6,18 @@
 //!   `two_overlapping_cubes_laid_together_cross`,
 //!   `two_cubes_laid_together_face_against_face_lie_on_each_other`,
 //!   `the_union_and_the_intersection_of_two_boxes_laid_together_cross`
+//!
+//! Closes #502.
+//! - the gate passes on `main` on a machine slower than the CI, each test run
+//!   alone as well as within the whole suite —
+//!   `a_round_bar_of_five_thousand_sides_pushed_slantwise_is_judged_ahead_of_a_quadratic_pass`,
+//!   `a_prism_whose_caps_are_fans_of_five_thousand_triangles_is_judged_ahead_of_a_quadratic_pass`
+//! - every timed test still fails on a quadratic pass — no test: measured,
+//!   each check against the pass over every pair it avoids, written down in
+//!   #502
+//! - the gate is no slower — no test: the bounds only widen
+//! - no file of #498's branch is touched beyond these assertions and names —
+//!   no test: read off `git diff --stat origin/main`
 
 use std::f64::consts::TAU;
 use std::time::{Duration, Instant};
@@ -560,28 +572,28 @@ fn prism_on(sides: usize, radius: f64, push: DVec3) -> Vec<Triangle> {
 }
 
 #[test]
-fn a_prism_whose_caps_are_fans_of_five_thousand_triangles_is_judged_in_well_under_a_second() {
+fn a_prism_whose_caps_are_fans_of_five_thousand_triangles_is_judged_ahead_of_a_quadratic_pass() {
     let solid = prism_on(5000, 10.0, DVec3::Z * 5.0);
     assert!(solid.len() > 19_990, "{}", solid.len());
 
     let started = Instant::now();
     assert_eq!(uncrossed(&solid), Ok(()));
     assert!(
-        started.elapsed() < Duration::from_secs(1),
+        started.elapsed() < Duration::from_secs(5),
         "{:?}",
         started.elapsed()
     );
 }
 
 #[test]
-fn a_round_bar_of_five_thousand_sides_pushed_slantwise_is_judged_in_well_under_a_second() {
+fn a_round_bar_of_five_thousand_sides_pushed_slantwise_is_judged_ahead_of_a_quadratic_pass() {
     let bar = prism_on(5000, 1.0, DVec3::splat(100.0));
     assert!(bar.len() > 19_990, "{}", bar.len());
 
     let started = Instant::now();
     assert_eq!(uncrossed(&bar), Ok(()));
     assert!(
-        started.elapsed() < Duration::from_secs(1),
+        started.elapsed() < Duration::from_secs(5),
         "{:?}",
         started.elapsed()
     );

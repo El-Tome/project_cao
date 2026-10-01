@@ -64,8 +64,13 @@ impl Surfaces {
     /// one their pair puts second; a line of touch moves the surface the
     /// second operand alone carries. Only pairs of a surface `carried` by
     /// each operand are moved, a surface once, and never one another was
-    /// moved against, nor one that touches another exactly already.
-    pub fn snapped(&mut self, carried: impl Fn(usize, SurfaceId) -> bool, scale: Scale) {
+    /// moved against, nor one that touches another exactly already. Whether
+    /// each surface was moved.
+    pub fn snapped(
+        &mut self,
+        carried: impl Fn(usize, SurfaceId) -> bool,
+        scale: Scale,
+    ) -> Vec<bool> {
         let own = |surface: usize| {
             let surface = SurfaceId(surface as u32);
             carried(1, surface) && !carried(0, surface)
@@ -78,6 +83,7 @@ impl Surfaces {
             })
             .collect();
         let mut settled = vec![false; self.list.len()];
+        let mut moved = vec![false; self.list.len()];
         for &[one, other] in &pairs {
             if matches!(
                 relation(&self.list[one], &self.list[other], scale),
@@ -109,9 +115,11 @@ impl Surfaces {
                 continue;
             }
             self.list[shifted] = surface;
+            moved[shifted] = true;
             settled[one] = true;
             settled[other] = true;
         }
+        moved
     }
 }
 

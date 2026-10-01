@@ -18,6 +18,8 @@ pub(in crate::brep) struct Operands<'a> {
     /// For each operand, the faces lying on each of the shared surfaces.
     pub lying: [Vec<Vec<FaceId>>; 2],
     boxes: [Vec<[DVec3; 2]>; 2],
+    /// Whether decision 2 moved each shared surface onto a touch.
+    moved: Vec<bool>,
 }
 
 impl<'a> Operands<'a> {
@@ -33,7 +35,7 @@ impl<'a> Operands<'a> {
             }
             lying
         });
-        surfaces.snapped(
+        let moved = surfaces.snapped(
             |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
             scale,
         );
@@ -48,6 +50,7 @@ impl<'a> Operands<'a> {
             surfaces,
             lying,
             boxes,
+            moved,
         }
     }
 
@@ -91,8 +94,8 @@ impl<'a> Operands<'a> {
 
     /// For each shared surface, the scale of the operation that brought it
     /// into the result: the first operand's own where it alone carries it,
-    /// this one's otherwise — the boolean decides every pair it makes with
-    /// the first's surfaces. A pair of the second operand's own surfaces is
+    /// unmoved, this one's otherwise — the boolean decides every pair it
+    /// makes with the first's surfaces. A pair of the second operand's own surfaces is
     /// read at this scale too, a little coarser than it was decided at: a
     /// second operand is a leaf, whose own surfaces stand far apart.
     pub fn arrivals(&self) -> Vec<Scale> {
@@ -104,8 +107,13 @@ impl<'a> Operands<'a> {
             .collect()
     }
 
+    /// Whether an operand alone carries a surface as it decided it: one the
+    /// boolean moved onto a touch is the boolean's, whose every pair is
+    /// decided again at its scale.
     fn alone(&self, operand: usize, surface: SurfaceId) -> bool {
-        self.carries(operand, surface) && !self.carries(1 - operand, surface)
+        self.carries(operand, surface)
+            && !self.carries(1 - operand, surface)
+            && !self.moved[surface.0 as usize]
     }
 
     /// The scale of the operation that brought a shared surface into an

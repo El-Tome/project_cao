@@ -2414,6 +2414,42 @@ fn seed_3137406_the_same_bars_given_a_block_apart_then_the_block() {
     ));
 }
 
+/// Found by the review of round 3, a regression of the scale each surface
+/// came in at: a bar joined beside a block, touching its side, then a block
+/// apart growing the reach, then a post joined a hair from touching the bar
+/// outside. The post and the bar are made to touch by moving the bar, the
+/// first operand's, by a little under the new tolerance; read again at the
+/// scale the bar came in at, the moved bar no longer touched the side but
+/// crossed it along two lines, and the kernel declined. A surface the
+/// boolean moves is the boolean's: its pairs are decided at its scale.
+#[test]
+fn a_bar_beside_a_block_then_a_block_apart_then_a_post_a_hair_from_the_bar() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([0.0, 0.0], [20.0, 20.0]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([22.0, 5.0], 2.0),
+                20.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([290.0, 290.0], [300.0, 300.0]),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([10.0, 27.0000002], 3.0),
+                15.0,
+            )),
+        ],
+    ));
+}
+
 /// The same with two pins, and a block cut through them.
 #[test]
 fn seed_3248399_two_pins_a_hair_apart_joined_then_cut_by_a_block_further_out() {

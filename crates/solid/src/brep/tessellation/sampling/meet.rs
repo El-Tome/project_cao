@@ -3,7 +3,10 @@
 //! At every parameter where it crosses a grid angle of either cylinder, so
 //! that on both it has a point at every grid angle as a circle has; wherever
 //! it turns back in the angle of either, so that between two of its points it
-//! runs one way on both; at its ends. Then, between two of those, wherever
+//! runs one way on both; at its ends. At the angle of every ray the circles
+//! of either cylinder take, so that it stands on the same rays as a wall a
+//! hair inside its own, whose chords would otherwise stand shallower than
+//! its own between two of its points. Then, between two of those, wherever
 //! the chord would stand further from the curve than the tolerance.
 
 use std::f64::consts::TAU;
@@ -29,16 +32,21 @@ enum Reason {
     End,
     Turn,
     Grid,
+    Ray,
 }
 
 /// The points of an edge along a meet between its ends, in the way the edge
 /// runs: none for a component the pair does not have. A whole loop's points
-/// start at its start and do not come back to it.
+/// start at its start and do not come back to it. `rays` are the angles the
+/// circles of its first cylinder and of its second take besides their grid;
+/// a place on the grid or on a ray is kept only where `clear` says so.
 pub(in crate::brep::tessellation) fn on_meet(
     meet: &Meet,
     edge: &Edge,
     tolerance: f64,
     eps: f64,
+    rays: [&[f64]; 2],
+    clear: &dyn Fn(DVec3) -> bool,
 ) -> Vec<DVec3> {
     let Some(period) = meet.period() else {
         return Vec::new();
@@ -50,7 +58,7 @@ pub(in crate::brep::tessellation) fn on_meet(
         (edge.from.min(edge.to), edge.from.max(edge.to))
     };
     let mut marks = vec![(low, Reason::End), (high, Reason::End)];
-    for on_first in [true, false] {
+    for (on_first, taken) in [true, false].into_iter().zip(rays) {
         let radius = if on_first {
             meet.first.radius
         } else {
@@ -61,7 +69,11 @@ pub(in crate::brep::tessellation) fn on_meet(
         let grid = (0..steps)
             .flat_map(|step| meet.at_angle(on_first, TAU * step as f64 / steps as f64))
             .map(|t| (t, Reason::Grid));
-        for (t, reason) in turns.chain(grid) {
+        let through = taken
+            .iter()
+            .flat_map(|angle| meet.at_angle(on_first, *angle))
+            .map(|t| (t, Reason::Ray));
+        for (t, reason) in turns.chain(grid).chain(through) {
             let first = ((low - t) / period).ceil() as i64;
             let last = ((high - t) / period).floor() as i64;
             marks.extend((first..=last).map(|turn| (t + period * turn as f64, reason)));
@@ -72,6 +84,9 @@ pub(in crate::brep::tessellation) fn on_meet(
     let mut kept: Vec<(f64, Reason, DVec3)> = Vec::with_capacity(marks.len());
     for (t, reason) in marks {
         let point = meet.point(t);
+        if reason >= Reason::Grid && !clear(point) {
+            continue;
+        }
         match kept.last_mut() {
             Some(last) if (last.2 - point).length() <= eps => {
                 if reason < last.1 {

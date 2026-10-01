@@ -16,15 +16,18 @@
 //! Where two walls touch along a line, inside or side by side, they part only
 //! as the square of the distance from it: a sample a hair from that line
 //! stands closer to the other wall than the rules tell places apart, and its
-//! chords are as good as lying on the other wall's. Such a step of the grid is
-//! withheld from both, and both take the line itself, so that the first chords
-//! from the line reach out to where the walls stand apart. So too beside the
-//! lines two walls cross along at a slant a hair from nought.
+//! chords are as good as lying on the other wall's. Where both walls hold a
+//! face there — [`facing`] — such a step of the grid is withheld from both,
+//! and both take the line itself, so that the first chords from the line reach
+//! out to where the walls stand apart. So too beside the lines two walls cross
+//! along at a slant a hair from nought. Where one of them is gone the step is
+//! the other's alone, and kept.
 //!
 //! Two perpendicular cylinders meet along a curve, and touch, if they do, at
 //! a node of it: the circles of both take the rays through that curve's
 //! samples, so that both walls are cut in strips between them.
 
+mod facing;
 mod together;
 
 use std::collections::BTreeMap;
@@ -37,6 +40,8 @@ use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
+use facing::Facing;
+pub(super) use facing::Zones;
 
 /// How close to another wall, as a share of the kernel's tolerance, no sample
 /// of a wall stands but on the lines they meet along: twice what the rules
@@ -60,9 +65,10 @@ pub(super) struct Contact {
     /// decided it, rather than on the exact circle a hair away — the line two
     /// surfaces were decided to touch along then holds the samples of both.
     pub(super) anchors: Vec<DVec3>,
-    /// The cylinders parallel to it it touches or crosses: beside the lines
-    /// they meet along, an arc ending there is sampled at its end alone.
-    pub(super) beside: Vec<Cylinder>,
+    /// The cylinders parallel to it it touches or crosses, each with how near
+    /// it the two all but meet: beside the lines they meet along, an arc
+    /// ending there is sampled at its end alone.
+    pub(super) beside: Vec<(Cylinder, f64)>,
 }
 
 impl Contact {
@@ -114,10 +120,26 @@ pub(super) fn walls(body: &Body) -> Vec<Wall> {
 /// Whether a circle is one of the circles of a cylinder: of its radius about
 /// its axis.
 pub(super) fn lies_on(circle: &Circle, cylinder: &Cylinder, eps: f64) -> bool {
+    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE && off(circle, cylinder) <= eps
+}
+
+/// How far a circle stands from being one of a parallel cylinder's: its
+/// radius against the cylinder's, and its centre off the axis.
+fn off(circle: &Circle, cylinder: &Cylinder) -> f64 {
     let from = circle.center - cylinder.origin;
-    cylinder.axis.cross(circle.axis).length() <= Scale::RELATIVE
-        && (cylinder.radius - circle.radius).abs() <= eps
-        && (from - cylinder.axis * cylinder.axis.dot(from)).length() <= eps
+    (cylinder.radius - circle.radius)
+        .abs()
+        .max((from - cylinder.axis * cylinder.axis.dot(from)).length())
+}
+
+/// The wall a circle belongs to: of those it lies on, the nearest. Two walls
+/// the tolerance has grown to hold within it — decided apart when it was
+/// smaller — both take the circle, and only the nearest is its own.
+pub(super) fn wall_of<'a>(circle: &Circle, walls: &'a [Wall], eps: f64) -> Option<&'a Wall> {
+    walls
+        .iter()
+        .filter(|(_, wall)| lies_on(circle, wall, eps))
+        .min_by(|(_, one), (_, other)| off(circle, one).total_cmp(&off(circle, other)))
 }
 
 /// Whether a vertex lies on a wall: as decided, on a surface of the body; by
@@ -140,6 +162,7 @@ fn bears(body: &Body, vertex: &Vertex, (id, cylinder): &Wall) -> bool {
 pub(super) fn contacts(
     body: &Body,
     walls: &[Wall],
+    zones: &Zones,
     meets: &[Vec<DVec3>],
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
@@ -155,10 +178,15 @@ pub(super) fn contacts(
             if one.1.axis.cross(other.1.axis).length() > Scale::RELATIVE {
                 continue;
             }
+            let Some(facing) = zones.between(one.0, other.0) else {
+                continue;
+            };
             let lines = meeting_lines(&one.1, &other.1, eps);
             if !lines.is_empty() {
-                contacts.entry(one.0).or_default().beside.push(other.1);
-                contacts.entry(other.0).or_default().beside.push(one.1);
+                for (wall, partner) in [(one, other), (other, one)] {
+                    let near = (partner.1, facing.room());
+                    contacts.entry(wall.0).or_default().beside.push(near);
+                }
             }
             for [to_one, to_other] in lines {
                 contacts.entry(one.0).or_default().rays.push(to_one);
@@ -169,12 +197,12 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            if together::sampled((outer, &[]), (inner, &[]), tolerance, eps).is_some() {
-                close.push((outer, inner));
+            if together::sampled((outer, &[]), (inner, &[]), facing, tolerance, eps).is_some() {
+                close.push((outer, inner, facing));
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
-                let withheld = touching(&near.1, &far.1, tolerance, eps);
+                let withheld = touching(&near.1, &far.1, facing, tolerance, eps);
                 if !withheld.is_empty() {
                     contacts
                         .entry(near.0)
@@ -322,10 +350,16 @@ fn meeting_lines(one: &Cylinder, other: &Cylinder, eps: f64) -> Vec<[DVec3; 2]> 
         .collect()
 }
 
-/// The steps of a cylinder's grid standing within a fifth of `eps` of another
-/// cylinder parallel to it: none unless their circles come that close
-/// somewhere.
-fn touching(cylinder: &Cylinder, other: &Cylinder, tolerance: f64, eps: f64) -> Vec<usize> {
+/// The steps of a cylinder's grid standing within the pair's room of another
+/// cylinder parallel to it, where the two face each other: none unless their
+/// circles come that close somewhere.
+fn touching(
+    cylinder: &Cylinder,
+    other: &Cylinder,
+    facing: &Facing,
+    tolerance: f64,
+    eps: f64,
+) -> Vec<usize> {
     let between = cylinder.origin - other.origin;
     let apart = (between - other.axis * other.axis.dot(between)).length();
     let (low, high) = (
@@ -340,7 +374,7 @@ fn touching(cylinder: &Cylinder, other: &Cylinder, tolerance: f64, eps: f64) -> 
         .filter(|step| {
             let angle = TAU * *step as f64 / steps as f64;
             let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-            other.distance(point).abs() < eps * APART
+            other.distance(point).abs() < facing.room() && facing.at(point)
         })
         .collect()
 }

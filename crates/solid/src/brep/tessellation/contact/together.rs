@@ -7,7 +7,8 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::super::sampling::divisions;
-use super::{APART, Contact, Wall};
+use super::facing::Facing;
+use super::{Contact, Wall};
 use crate::brep::topology::SurfaceId;
 
 /// How many times rays are passed on between walls close to each other: a
@@ -20,11 +21,11 @@ const ROUNDS: usize = 4;
 /// rounds, each pair of `close` walls sharing what both hold, until no wall
 /// holds more. A ray a wall already holds, to within the kernel's tolerance
 /// along its circle, is not taken twice; nor one that falls where it stands
-/// closer to any of its partners than a fifth of `eps`, as a ray of its own
+/// closer to any of its partners than their room, as a ray of its own
 /// there is left out — else a partner it passed its grid on to would pass a
 /// step it withholds back to it.
 pub(super) fn shared(
-    close: &[(&Wall, &Wall)],
+    close: &[(&Wall, &Wall, &Facing)],
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
     eps: f64,
@@ -32,11 +33,11 @@ pub(super) fn shared(
     let mut withheld: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
     let partners = |(id, _): &Wall| {
         let id = *id;
-        close.iter().filter_map(move |&(outer, inner)| {
+        close.iter().filter_map(move |&(outer, inner, facing)| {
             if outer.0 == id {
-                Some(inner)
+                Some((inner, facing))
             } else if inner.0 == id {
-                Some(outer)
+                Some((outer, facing))
             } else {
                 None
             }
@@ -45,11 +46,15 @@ pub(super) fn shared(
     for _ in 0..ROUNDS {
         let mut received: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
         let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
-        for &(outer, inner) in close {
+        for &(outer, inner, facing) in close {
             let held = |wall: &Wall| taken.get(&wall.0).map_or(&[][..], Vec::as_slice);
-            let Some(together) =
-                sampled((outer, held(outer)), (inner, held(inner)), tolerance, eps)
-            else {
+            let Some(together) = sampled(
+                (outer, held(outer)),
+                (inner, held(inner)),
+                facing,
+                tolerance,
+                eps,
+            ) else {
                 continue;
             };
             for (wall, contact, off) in [outer, inner]
@@ -69,7 +74,7 @@ pub(super) fn shared(
             }
         }
         let mut grown = false;
-        for &wall in close.iter().flat_map(|(outer, inner)| [outer, inner]) {
+        for &wall in close.iter().flat_map(|(outer, inner, _)| [outer, inner]) {
             let off = dropped.remove(&wall.0).unwrap_or_default();
             let Some(fresh) = received.remove(&wall.0) else {
                 continue;
@@ -82,7 +87,9 @@ pub(super) fn shared(
                 .filter(|(rank, _)| !off.contains(rank))
                 .map(|(_, way)| way)
                 .chain(fresh)
-                .filter(|way| partners(wall).all(|other| !beside(wall, other, *way, eps)))
+                .filter(|way| {
+                    partners(wall).all(|(other, facing)| !beside(wall, other, facing, *way))
+                })
                 .collect();
             once_each(&mut rays, wall, eps);
             grown |= rays.len() != before;
@@ -102,10 +109,12 @@ pub(super) fn shared(
     contacts
 }
 
-/// Whether a wall stands along `way` from its axis closer to another than a
-/// fifth of `eps`: no ray it takes there, whichever partner passed it on.
-fn beside((_, wall): &Wall, (_, other): &Wall, way: DVec3, eps: f64) -> bool {
-    other.distance(wall.origin + way * wall.radius).abs() < eps * APART
+/// Whether a wall stands along `way` from its axis closer to another than
+/// their room, the two face to face there: no ray it takes there, whichever
+/// partner passed it on.
+fn beside((_, wall): &Wall, (_, other): &Wall, facing: &Facing, way: DVec3) -> bool {
+    let point = wall.origin + way * wall.radius;
+    other.distance(point).abs() < facing.room() && facing.at(point)
 }
 
 /// The rays of a wall in the order of their angle, one of each: two closer
@@ -140,7 +149,7 @@ enum From {
 /// chords from its wall, or crosses it by no more: every ray the one takes
 /// the other takes too — its grid's, and those it took on its own, through
 /// its vertices and the curves it meets another along — and a ray along
-/// which the two stand closer than a fifth of `eps` neither takes.
+/// which the two stand closer than their room neither takes.
 ///
 /// Crossing by a hair, as two walls of one radius a hair apart do, the two
 /// bound a sliver thinner than a chord sags on either side of it, as long as
@@ -149,6 +158,7 @@ enum From {
 pub(super) fn sampled(
     (outer_wall, own_outer): (&Wall, &[DVec3]),
     (inner_wall, own_inner): (&Wall, &[DVec3]),
+    facing: &Facing,
     tolerance: f64,
     eps: f64,
 ) -> Option<Together> {
@@ -205,7 +215,9 @@ pub(super) fn sampled(
     let mut on_inner = Vec::new();
     for (point, from) in through_outer {
         let from_axis = point - offset;
-        if (from_axis.length() - inner.radius).abs() >= eps * APART {
+        if (from_axis.length() - inner.radius).abs() >= facing.room()
+            || !facing.at(outer.origin + point)
+        {
             on_inner.push(from_axis.normalize());
         } else {
             leave(0, from);
@@ -215,7 +227,9 @@ pub(super) fn sampled(
     for (way, from) in from_inner {
         let along = offset.dot(way);
         let reach = -along + (along * along - outside).sqrt();
-        if (reach - inner.radius).abs() >= eps * APART {
+        if (reach - inner.radius).abs() >= facing.room()
+            || !facing.at(outer.origin + offset + way * reach)
+        {
             on_outer.push((offset + way * reach).normalize());
         } else {
             leave(1, from);

@@ -130,17 +130,24 @@ impl Flaw {
     }
 }
 
-/// How far two measures read off the same curves may differ: the rounding
-/// of sums of products, against the square of how far the drawing reaches.
+/// How far a tint and a measure read off the same curves may differ: the
+/// rounding of sums of products, against the square of how far the area
+/// reaches.
 const ROUNDING: f64 = 1e-9;
 
-/// How far the size of one area may move when its drawing is laid again, as a
-/// share of how far the drawing reaches: the walk welds a point onto a curve
-/// within a distance that grows with how far out the point stands
-/// (`off_by`, `crates/sketch/src/edges.rs`), so a point standing near that
-/// distance from a curve is welded in one laying and not in the other, and
-/// the run it ends is sampled from a place that far off the curve.
+/// How far a corner of an area may stand elsewhere when its drawing is laid
+/// again, against how far out the corner lands. The walk welds a point onto a
+/// curve within a tenth of a millionth of that (`off_by`,
+/// `crates/sketch/src/edges.rs`), so a corner may be moved by it in one laying
+/// and not in the other, or each way in each — twice it — and five times that
+/// again for margin.
 const WELDED: f64 = 1e-6;
+
+/// How far a sum of products of coordinates may round, for each product in
+/// it, against the square of how far the coordinates reach: a measure read off
+/// an outline adds a product or two per corner, each off by a few parts in
+/// ten million billion.
+const SUMMED: f64 = 16.0 * f64::EPSILON;
 
 /// The triangles of every area cover what its outline encloses, give or take
 /// what the sampling of its curves allows.
@@ -187,6 +194,11 @@ pub fn nothing_extra(areas: &[Area], places: &[Place]) -> Result<(), Flaw> {
 
 /// The areas of a drawing laid again are the areas it had: as many, and every
 /// place — carried along by `carried` — in an area of the same size.
+///
+/// The same size give or take what welding moves, read on each area alone:
+/// each of its corners by the distance the walk welds at where the corner
+/// lands, which moves the area by no more than that times how far round it
+/// is, and the rounding of the sums it is measured with.
 pub fn laid_alike(
     how: Relaying,
     first: &[Area],
@@ -202,41 +214,31 @@ pub fn laid_alike(
             at: None,
         });
     }
-    let reach = first
-        .iter()
-        .map(|area| reach(&area.outline))
-        .fold(1.0, f64::max);
-    let alike = |one: &[f64], other: &[f64]| {
-        one.len() == other.len()
-            && one
-                .iter()
-                .zip(other)
-                .all(|(one, other)| (one - other).abs() <= WELDED * (1.0 + reach) * reach)
+    let alike = |one: &[Size], other: &[Size]| {
+        one.len() == other.len() && one.iter().zip(other).all(|(one, other)| one.is_like(other))
     };
-    let sizes = |areas: &[Area]| {
-        let mut sizes: Vec<f64> = areas.iter().map(|area| area.measure).collect();
-        sizes.sort_by(f64::total_cmp);
+    let sizes = |areas: &[&Area], carried: &dyn Fn(DVec2) -> DVec2| {
+        let mut sizes: Vec<Size> = areas.iter().map(|area| Size::of(area, carried)).collect();
+        sizes.sort_by(|one, other| one.measure.total_cmp(&other.measure));
         sizes
     };
-    if !alike(&sizes(first), &sizes(second)) {
+    let stays = |at: DVec2| at;
+    let every = |areas: &[Area], carried: &dyn Fn(DVec2) -> DVec2| {
+        sizes(&areas.iter().collect::<Vec<_>>(), carried)
+    };
+    if !alike(&every(first, &carried), &every(second, &stays)) {
         return Err(Flaw::Relaid {
             how,
             areas,
             at: None,
         });
     }
-    let held = |areas: &[Area], at: DVec2| {
-        let mut sizes: Vec<f64> = holding(areas, at)
-            .into_iter()
-            .map(|area| area.measure)
-            .collect();
-        sizes.sort_by(f64::total_cmp);
-        sizes
-    };
-    match places
-        .iter()
-        .find(|at| !alike(&held(first, **at), &held(second, carried(**at))))
-    {
+    match places.iter().find(|at| {
+        !alike(
+            &sizes(&holding(first, **at), &carried),
+            &sizes(&holding(second, carried(**at)), &stays),
+        )
+    }) {
         Some(at) => Err(Flaw::Relaid {
             how,
             areas,
@@ -257,6 +259,52 @@ pub fn holding(areas: &[Area], at: DVec2) -> Vec<&Area> {
                 && !area.holes.iter().any(|hole| in_loop(at, hole))
         })
         .collect()
+}
+
+/// What one area laid twice is compared by.
+struct Size {
+    measure: f64,
+    /// How far round it is, its holes included.
+    round: f64,
+    /// How far out its furthest corner stands, as drawn or carried, whichever
+    /// is further, and never less than one.
+    out: f64,
+    /// How many corners its outline and its holes have.
+    corners: usize,
+}
+
+impl Size {
+    fn of(area: &Area, carried: &dyn Fn(DVec2) -> DVec2) -> Self {
+        let corners = || std::iter::once(&area.outline).chain(&area.holes).flatten();
+        Size {
+            measure: area.measure,
+            round: perimeter(area),
+            out: 1.0
+                + corners()
+                    .map(|at| at.abs().max(carried(*at).abs()).max_element())
+                    .fold(0.0, f64::max),
+            corners: corners().count(),
+        }
+    }
+
+    fn is_like(&self, other: &Size) -> bool {
+        let out = self.out.max(other.out);
+        let allowed = WELDED * out * self.round.max(other.round)
+            + SUMMED * self.corners.max(other.corners) as f64 * out * out;
+        (self.measure - other.measure).abs() <= allowed
+    }
+}
+
+/// How far round an area is, its holes included.
+fn perimeter(area: &Area) -> f64 {
+    std::iter::once(&area.outline)
+        .chain(&area.holes)
+        .map(|places| {
+            (0..places.len())
+                .map(|index| places[index].distance(places[(index + 1) % places.len()]))
+                .sum::<f64>()
+        })
+        .sum()
 }
 
 pub fn surface([a, b, c]: &[DVec2; 3]) -> f64 {

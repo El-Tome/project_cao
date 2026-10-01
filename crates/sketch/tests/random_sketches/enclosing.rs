@@ -573,14 +573,30 @@ pub struct Enclosure {
     /// Whether two curves, or a curve and an end, stand where the walk and
     /// this reckoning may each read a touch the other does not.
     doubtful: bool,
+    /// Where two curves, or a curve and an end, come nearest to touching, and
+    /// how far apart they stand there.
+    misses: Vec<(f64, DVec2)>,
 }
 
 impl Enclosure {
-    /// Whether the drawing holds a near touch the walk may read either way:
-    /// what a drawing moved or turned may then read the other way, as its
-    /// tolerance grows with how far out a place stands.
-    pub fn is_doubtful(&self) -> bool {
-        self.doubtful
+    /// Whether the walk may read a near touch of the drawing another way once
+    /// the drawing is laid again, each place carried by `carried`.
+    ///
+    /// The walk welds within a distance that grows with how far out a place
+    /// stands (`off_by`, `crates/sketch/src/edges.rs`), so a miss is welded in
+    /// one laying and not in the other only when it lies between that distance
+    /// where it stands and that distance where it lands — give or take half of
+    /// it on the near side and twice it on the far one, for how differently
+    /// the walk and this reckoning may read a distance. A miss landing as far
+    /// out as it stood, as every place does a quarter turn away, meets the
+    /// same distance in both and is read alike.
+    pub fn may_read_otherwise(&self, carried: impl Fn(DVec2) -> DVec2) -> bool {
+        self.misses.iter().any(|(gap, at)| {
+            let (here, there) = (at.abs().max_element(), carried(*at).abs().max_element());
+            here != there
+                && *gap > ONE_PLACE / 4.0 * (1.0 + here.min(there))
+                && *gap < ONE_PLACE * (1.0 + here.max(there))
+        })
     }
 
     pub fn of(curves: &[Curve]) -> Self {
@@ -617,17 +633,17 @@ impl Enclosure {
             }
         }
 
-        let mut doubt = false;
+        let mut misses: Vec<(f64, DVec2)> = Vec::new();
         for first in 0..curves.len() {
             for second in first + 1..curves.len() {
-                doubt |=
+                misses.extend(
                     approaches(&curves[first], &curves[second])
                         .into_iter()
-                        .any(|(gap, at)| {
-                            doubtful(gap, at)
-                                && curves[first].along(at).is_some()
-                                && curves[second].along(at).is_some()
-                        });
+                        .filter(|(_, at)| {
+                            curves[first].along(*at).is_some()
+                                && curves[second].along(*at).is_some()
+                        }),
+                );
             }
         }
         for (index, curve) in curves.iter().enumerate() {
@@ -635,12 +651,16 @@ impl Enclosure {
                 continue;
             }
             for end in [curve.at(0.0), curve.at(1.0)] {
-                doubt |= curves
-                    .iter()
-                    .enumerate()
-                    .any(|(other, beside)| other != index && doubtful(beside.distance(end), end));
+                misses.extend(
+                    curves
+                        .iter()
+                        .enumerate()
+                        .filter(|(other, _)| *other != index)
+                        .map(|(_, beside)| (beside.distance(end), end)),
+                );
             }
         }
+        let doubt = misses.iter().any(|(gap, at)| doubtful(*gap, *at));
 
         let mut vertices: Vec<DVec2> = Vec::new();
         let mut vertex_at = |at: DVec2| match vertices
@@ -715,6 +735,7 @@ impl Enclosure {
             hanging,
             closing,
             doubtful: doubt,
+            misses,
         }
     }
 

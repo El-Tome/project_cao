@@ -57,10 +57,9 @@ pub fn keeps_its_areas(sketch: &Sketch) -> Result<(), Flaw> {
         .collect();
     nothing_missing(&areas, &places)?;
     nothing_extra(&areas, &places)?;
-    for how in relayings(sketch, &curves)
-        .into_iter()
-        .filter(|how| *how == Relaying::Reordered || !enclosure.is_doubtful())
-    {
+    for how in relayings(sketch, &curves).into_iter().filter(|how| {
+        *how == Relaying::Reordered || !enclosure.may_read_otherwise(|at| carried(*how, at))
+    }) {
         let again = areas_of(&relaid(sketch, how));
         laid_alike(how, &areas, &again, &looked_at, |at| carried(how, at))?;
     }

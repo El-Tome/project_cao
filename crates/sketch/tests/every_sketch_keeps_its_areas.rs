@@ -791,6 +791,66 @@ fn an_area_laid_again_off_by_what_a_weld_moves_keeps_the_order() {
 }
 
 #[test]
+fn an_area_laid_again_off_by_more_than_a_weld_moves_breaks_the_order() {
+    let first = [square([0.0, 0.0], [4.0, 5.0])];
+    let mut second = first.clone();
+    second[0].measure += 1e-3;
+    assert_eq!(
+        laid_alike(
+            Relaying::Moved(DVec2::X),
+            &first,
+            &second,
+            &[DVec2::ONE],
+            |at| at
+        ),
+        Err(Flaw::Relaid {
+            how: Relaying::Moved(DVec2::X),
+            areas: (1, 1),
+            at: None,
+        })
+    );
+}
+
+#[test]
+fn a_small_area_laid_again_a_fifth_larger_breaks_the_order_however_far_the_drawing_reaches() {
+    let first = [
+        square([0.0, 0.0], [0.1, 0.1]),
+        square([2000.0, 2000.0], [3000.0, 3000.0]),
+    ];
+    let second = [square([0.0, 0.0], [0.11, 0.11]), first[1].clone()];
+    assert_eq!(
+        laid_alike(
+            Relaying::Reordered,
+            &first,
+            &second,
+            &[DVec2::splat(2500.0)],
+            |at| at
+        ),
+        Err(Flaw::Relaid {
+            how: Relaying::Reordered,
+            areas: (2, 2),
+            at: None,
+        })
+    );
+}
+
+#[test]
+fn a_hair_the_walk_welds_only_once_the_drawing_is_moved_out_is_not_held_against_it() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [100.0, 100.0],
+            opposite: [110.0, 110.0],
+            construction: false,
+        },
+        Gesture::Chain {
+            through: vec![[1.0, 1.0], [3.0, 1.0], [2.0, 3.0], [1.5, 1.000002]],
+            closed: false,
+            construction: false,
+        },
+    ]);
+}
+
+#[test]
 fn another_count_of_areas_laid_again_breaks_the_order() {
     let first = [
         square([0.0, 0.0], [1.0, 1.0]),

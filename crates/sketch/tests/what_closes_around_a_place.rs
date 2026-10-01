@@ -20,6 +20,8 @@ mod random_sketches;
 
 use cao_sketch::{EllipseDraft, EllipseMode, Sketch, WorkPlane, ellipse_from, rise_of};
 use glam::DVec2;
+use random_sketches::Relaying;
+use random_sketches::checking::carried;
 use random_sketches::enclosing::{Curve, Enclosure, curves_of};
 
 fn straight(from: [f64; 2], to: [f64; 2]) -> Curve {
@@ -374,4 +376,47 @@ fn half_an_ellipse_closed_by_a_trait_encloses_what_lies_inside() {
     let curves = curves_of(&sketch);
     assert!(enclosed(&curves, [0.0, 0.5]));
     assert!(!enclosed(&curves, [0.0, -0.5]));
+}
+
+fn turned_by_thirty_degrees(at: DVec2) -> DVec2 {
+    DVec2::from_angle(30f64.to_radians()).rotate(at)
+}
+
+#[test]
+fn a_hair_the_walk_welds_only_once_moved_out_may_be_read_otherwise() {
+    let mut curves = chain(&[[1.0, 1.0], [3.0, 1.0], [2.0, 3.0], [1.5, 1.000002]]);
+    curves.push(circle([105.0, 105.0], 5.0));
+    let enclosure = Enclosure::of(&curves);
+    assert!(enclosure.may_read_otherwise(|at| at + DVec2::new(24.0, -16.0)));
+    assert!(!enclosure.may_read_otherwise(|at| at));
+}
+
+#[test]
+fn a_hair_near_the_origin_does_not_keep_a_far_drawing_from_being_turned() {
+    let mut curves = chain(&[[5.0, 5.0], [5.0, 0.00006]]);
+    curves.push(straight([0.0, 0.0], [10.0, 0.0]));
+    curves.push(circle([400.0, 400.0], 10.0));
+    assert!(!Enclosure::of(&curves).may_read_otherwise(turned_by_thirty_degrees));
+}
+
+#[test]
+fn a_touch_the_walk_welds_wherever_it_lands_is_read_alike() {
+    let curves = vec![
+        straight([0.0, 0.0], [200.0, 0.0]),
+        straight([150.0, 10.0], [150.0, 0.00000017]),
+    ];
+    let enclosure = Enclosure::of(&curves);
+    assert!(!enclosure.may_read_otherwise(turned_by_thirty_degrees));
+    assert!(!enclosure.may_read_otherwise(|at| at + DVec2::new(64.0, -32.0)));
+}
+
+#[test]
+fn a_quarter_turn_never_reads_a_miss_otherwise() {
+    let curves = vec![
+        straight([0.0, 0.0], [50.0, 0.0]),
+        straight([35.0, 10.0], [35.0, 0.00000508]),
+    ];
+    let enclosure = Enclosure::of(&curves);
+    assert!(enclosure.may_read_otherwise(|at| at + DVec2::new(64.0, -32.0)));
+    assert!(!enclosure.may_read_otherwise(|at| carried(Relaying::Turned(90.0), at)));
 }

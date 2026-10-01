@@ -82,6 +82,19 @@ drawing's own size, chosen so that the fresh sketch's origin lands clear of
 everything; or turned a quarter turn, which is exact, and by thirty degrees,
 which is not. Rules and values are left behind: no area reads them.
 
+The walk welds a place onto a curve within a distance that grows with how far
+out the place stands, so laying a drawing again moves what it welds. An area
+laid again may differ in size by that distance, read where its own corners
+land, times how far round it is, and by the rounding of the sums it is
+measured with — all of it read on that area alone, so that a small area
+cannot change by a fifth unseen beside a large one, however far the drawing
+reaches. And a drawing is not moved or turned a given way when one of its
+near misses lies between the distance the walk welds at where the miss
+stands and the distance it welds at where the miss lands: welded in one
+laying and not in the other, that miss changes the drawing itself, not the
+walk's answer to it. A quarter turn lands every place exactly as far out as it
+stood, and is never set aside.
+
 ## The drawings
 
 `random_sketches/drawing.rs` draws a list of gestures from a seed, with every
@@ -186,17 +199,41 @@ was laid again, the two counts of areas, and a place whose area changed size.
 - **The matter.** The rules hold the tint, `Region::triangles`. What an
   extrusion raises is `Region::face_triangles`, the outline with the holes cut
   out of it, and is not checked here.
+- **What only the mirror image shows.** Every way of laying a drawing again
+  keeps which way round it is, while the walk turns as tightly as it can and
+  so depends on it. A drawing whose mirror image breaks a rule passes, until a
+  campaign happens to draw the mirror image itself. Laying it again mirrored
+  takes every arc and every stretch of ellipse drawn back to front, and was
+  set aside for now.
 - **Dimensions, rules, dragging**, and whether a piece is entirely
   constrained: #501.
 - **The solid** and undo: #448.
 
 ## Where a finding goes
 
-Each distinct failure is **its own issue**, with the shrunk drawing in it.
-Fixing it is not the harness's job.
+Each distinct failure goes to **the issue that names its cause**, or to an
+issue of its own when none does, with the shrunk drawing in it. Fixing it is
+not the harness's job.
 
 A drawing whose issue is still open is kept as a named test under
 `#[ignore = "#n"]` in `crates/sketch/tests/what_random_sketches_found.rs`, so
 that it stays in the repository and runs with `--ignored`. The commit that
 fixes it takes the `ignore` off, and from then on the gate holds it. Whether
 campaigns run on a timer follows #495's answer for the solids.
+
+## What the first campaigns found
+
+Five campaigns of 300 s each, in `--release`, from seeds 1,000, 50,000,
+900,000, 2,000,000 and 3,000,000: some 130,000 drawings, as they were run.
+About a third of them break a rule, nearly all for one of four causes. No
+drawing panicked or went without an answer.
+
+| Cause | Issue |
+| --- | --- |
+| Two curves lying along each other between the same two places: a side along another, a trait or a circle drawn twice | #493 |
+| Corners standing in one place without being one point: a copy whose corners land on the original's or on an earlier copy's, a rectangle drawn from another's corner | #494 |
+| A touch read one way or the other depending on rounding: an ellipse or a circle touching a side or another curve, and a crescent tinted across the place it is pinched at | #419 |
+| A circle touching the one around it at their lowest point, read as inside it and around it at once | #503 |
+
+Each is kept, shrunk, in `what_random_sketches_found.rs`. Where two causes
+meet, the case sits under the one whose fix it waits on last.

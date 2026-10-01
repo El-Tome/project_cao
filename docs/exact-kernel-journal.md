@@ -123,12 +123,14 @@ origin, from 0 to 10.
 | 3 | after round 2 | 298 949 | 370 | 1.24 |
 | 4 | after round 3 | 279 739 | 169 | 0.60 |
 | 5a | after round 4 | 259 995 | 172 | 0.66 |
+| 6a | after round 5 | 282 219 | 90 | 0.32 |
 
 And on the profile draw, which adds rounded rectangles, slots and rings:
 
 | campaign | kernel | cases | broke a rule | per thousand |
 | --- | --- | --- | --- | --- |
 | 5b | after round 4 | 158 854 | 1 069 | 6.73 |
+| 6b | after round 5 | 174 256 | 310 | 1.78 |
 
 - Campaign 2's sample of 67 was sorted: fifteen distinct failures, seven of
   campaign 1's still open, eight new — and every new one a configuration a
@@ -235,3 +237,8 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   campaign could see.
 - Campaigns 6a and 6b started at 00:53 on the kernel after round 5, an hour
   each, the square draw from 6 000 000 and the profile draw from 6 500 000.
+- Campaigns 6a and 6b ended at 01:53. The square draw halves again, **0.32
+  per thousand**; the profile draw falls fourfold, **1.78 per thousand**,
+  decision 8 holding over an hour what five minutes had shown. Still no
+  Spans on either: in six campaigns and some 1.6 million cases, the exact
+  body has never been found wrong along a line.

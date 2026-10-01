@@ -204,3 +204,23 @@ fn a_region_whose_point_the_other_operand_touches_is_read_at_another_point_of_it
     let cut = post.cut_by(&bar);
     assert!(cut.is_ok(), "{cut:?}");
 }
+
+/// Seed 3130833 of the campaign: a bore touching a block's side from inside
+/// leaves a cusp of matter between the side and its wall, and a block cut
+/// from it has its side cross the cusp 1e-5 from the touch. The strip of the
+/// side and the strip of the wall there are twins, and the first operand
+/// covers both, turning its matter towards the other: a skin thinner than
+/// the tolerance, taken for none, so that the operation is decided by the
+/// block cut alone.
+#[test]
+fn twins_one_operand_covers_with_its_matter_between_them_are_a_skin_taken_for_none() {
+    let bored = block([1.5, 0.5, 0.0], [8.5, 7.5, 5.0])
+        .cut_by(&standing([4.99999, 4.0], 3.5, 0.0, 10.0))
+        .expect("the block is bored");
+    let cut = bored.cut_by(&block([3.0, 2.0, 1.0], [5.0, 9.0, 11.0]));
+    let cut = cut.expect("the cusp is cut through");
+    assert_eq!(
+        crate::soundness::listed(&cut.listing(), cut.scale().reach()),
+        Ok(())
+    );
+}

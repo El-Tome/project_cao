@@ -1823,3 +1823,61 @@ fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the
         ],
     ));
 }
+
+/// Failure 1-6 of campaign 3: a cut a hair off a post's side leaves a skin
+/// of it 3e-7 thick, which a large block then joined grows the tolerance
+/// past. The skin's two faces are twins, the post covers both, and the
+/// kernel declined that as a tie. Two faces of one operand turning their
+/// matter towards each other are now a skin taken for none, two turning it
+/// away a crack taken for matter on both sides, which way read off the
+/// pair's touch (decision 6).
+#[test]
+fn seed_3015242_a_post_sliced_a_hair_off_its_side_then_joined_to_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(30.0), Outline::circle([270.0, 60.0], 30.0), -75.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([240.0000003, 30.0], [300.0000003, 90.0]),
+                -150.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([15.0, -30.0], [255.0, 210.0]),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 3: a bore touching a block's side inside leaves
+/// a cusp of matter between the side and its wall, which a block cut from it
+/// crosses 1e-5 from the touch. The kernel declined, the block covering both
+/// strips of the cusp; it now takes the cusp for a skin and answers right.
+/// Its triangles still cross below the cut, where the cut's corner on the
+/// side, 1e-5 from the line of touch and within the band where side and wall
+/// stand within the tolerance, was given the wall by distance (failure 1-2):
+/// a strip of the wall lies on the side.
+#[test]
+#[ignore = "band"]
+fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([1.5, 0.5], [8.5, 7.5]),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([4.99999, 4.0], 3.5),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([3.0, 2.0], [5.0, 9.0]),
+                10.0,
+            )),
+        ],
+    ));
+}

@@ -24,7 +24,7 @@ use super::overlay::{Arc, Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
 use twins::{Twin, twins};
-use wrapped::{Wrapped, covering, wound};
+use wrapped::{Wrapped, collapsed, covering, wound};
 
 pub(super) fn selected(
     operands: &Operands,
@@ -117,29 +117,41 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
 }
 
 /// An operand covering two twins at once lies back to back with itself
-/// there, which is a tie.
+/// there: a skin or a crack an earlier operation left thinner than this
+/// one's tolerance, which wraps both sides alike once the sheet is gone
+/// ([`collapsed`]), and covers neither.
 fn wrapped_at(
     operands: &Operands,
     places: &[(SurfaceId, DVec3, bool)],
 ) -> Result<Option<[Wrapped; 2]>, Declined> {
     let mut covered = [None, None];
-    for (operand, covered) in covered.iter_mut().enumerate() {
+    let mut sheet = [None, None];
+    for operand in 0..2 {
+        let mut found = Vec::new();
         for &(surface, point, turned) in places {
             if let Some(wrapped) = covering(operands, operand, surface, point)? {
-                let wrapped = if turned { wrapped.turned() } else { wrapped };
-                if covered.replace(wrapped).is_some() {
-                    return Err(Declined::Tie);
-                }
+                found.push((surface, if turned { wrapped.turned() } else { wrapped }));
             }
+        }
+        match found.as_slice() {
+            [] => {}
+            [(_, wrapped)] => covered[operand] = Some(*wrapped),
+            [one, other] => sheet[operand] = Some(collapsed(operands, [*one, *other])?),
+            _ => return Err(Declined::Tie),
         }
     }
     if covered.iter().all(Option::is_none) {
         return Ok(None);
     }
     let point = places[0].1;
-    let [first, second] = [0, 1].map(|operand| match covered[operand] {
-        Some(wrapped) => Ok(wrapped),
-        None => wound(operands, operand, point),
+    let [first, second] = [0, 1].map(|operand| match (covered[operand], sheet[operand]) {
+        (Some(wrapped), _) => Ok(wrapped),
+        (None, Some(winding)) => Ok(Wrapped {
+            covered: false,
+            above: winding,
+            below: winding,
+        }),
+        (None, None) => wound(operands, operand, point),
     });
     Ok(Some([first?, second?]))
 }

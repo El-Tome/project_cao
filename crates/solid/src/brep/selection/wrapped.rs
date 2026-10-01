@@ -5,6 +5,8 @@ use glam::DVec3;
 use crate::brep::Declined;
 use crate::brep::combine::Operands;
 use crate::brep::domain::Location;
+use crate::brep::relation::{Relation, relation};
+use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 
 /// A ray from a region's inside point is cast with this share of the
@@ -69,6 +71,59 @@ pub(in crate::brep) fn covering(
         }
         (None, _) => Ok(None),
         (Some(_), Some(_)) => Err(Declined::Tie),
+    }
+}
+
+/// How an operand covering two twins wraps both sides of the one piece of
+/// surface they are, each covering read in the first twin's frame: its two
+/// faces turning their matter towards each other hold a skin thinner than
+/// the tolerance, nothing on either side once it is gone; turning it away
+/// from each other, a crack as thin, matter on both. Which way is towards
+/// is read off the pair's touch: a cylinder touching a plane stands on the
+/// side of it its axis is, a plane touching a cylinder outside it, a
+/// parallel cylinder outside one it touches outside, and inside one larger
+/// it touches inside. Twins of a pair not decided to touch are a tie.
+pub(in crate::brep) fn collapsed(
+    operands: &Operands,
+    [(first, one), (second, other)]: [(SurfaceId, Wrapped); 2],
+) -> Result<i32, Declined> {
+    let above = lies_above(operands, first, second).ok_or(Declined::Tie)?;
+    let (towards, away) = if above {
+        ((one.above, other.below), (one.below, other.above))
+    } else {
+        ((one.below, other.above), (one.above, other.below))
+    };
+    match (towards, away) {
+        ((1, 1), (0, 0)) => Ok(0),
+        ((0, 0), (1, 1)) => Ok(1),
+        _ => Err(Declined::Tie),
+    }
+}
+
+/// Whether `other` stands on the side of `one` its own normal points to,
+/// along the line the two were decided to touch along; none where they
+/// were not.
+fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId) -> Option<bool> {
+    let [first, second] = [one, other].map(|surface| &operands.surfaces.list[surface.0 as usize]);
+    if !matches!(
+        relation(first, second, operands.scale),
+        Relation::Tangent(_)
+    ) {
+        return None;
+    }
+    match (first, second) {
+        (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
+            Some(plane.distance(cylinder.origin) > 0.0)
+        }
+        (Surface::Cylinder(_), Surface::Plane(_)) => Some(true),
+        (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+            let between = second.origin - first.origin;
+            let across = (between - first.axis * first.axis.dot(between)).length();
+            let outside = (across - (first.radius + second.radius)).abs();
+            let inside = (across - (first.radius - second.radius).abs()).abs();
+            Some(outside <= inside || second.radius > first.radius)
+        }
+        (Surface::Plane(_), Surface::Plane(_)) => None,
     }
 }
 

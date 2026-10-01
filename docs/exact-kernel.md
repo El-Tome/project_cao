@@ -106,11 +106,15 @@ The decisions, in the order taken, once per operation:
    a plane before a cylinder, then the lower id. That is what keeps a skin
    thinner than the tolerance from being left between two faces back to
    back, and what gives an answer where a point of either strip stands too
-   close to the other for a ray to wind it. The kernel declines, as a tie,
-   where one operand covers both twins, which only a skin an earlier
-   operation kept could make; the point inside each is what tells twins from
-   the two caps two crossing cylinders bound with the one loop they meet
-   along.
+   close to the other for a ray to wind it. Where one operand covers both
+   twins it holds a skin or a crack an earlier operation kept, thinner than
+   this one's tolerance: its two faces turning their matter towards each
+   other, a skin, it wraps neither side once the sheet is gone; turning it
+   away, a crack, it wraps both. Which way is towards is read off the pair's
+   touch, not measured: a cylinder touching a plane stands on its axis's
+   side of it. Twins of a pair not decided to touch are still a tie. The
+   point inside each is what tells twins from the two caps two crossing
+   cylinders bound with the one loop they meet along.
 
 Everything else is derived. A vertex lies on a curve exactly when the curve's
 support is among the surfaces the vertex lies on — but for the line two

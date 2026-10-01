@@ -163,3 +163,12 @@ origin, from 0 to 10.
   thousand** — half campaign 3's. Uncrossed 80, Answers 77, Closed 7,
   Volume 3, Listed 2; still no Spans. Its sample of 72 is being sorted, and
   round 4 — the tangency band decided once, as decision 7 — is running.
+- Campaign 4's sample of 72 sorted: fifteen distinct failures, nine known,
+  six new. Seven tenths of the failures are the tangency band; the heaviest
+  new one, a seventh, is round 3's own: moving a cylinder onto one touch
+  breaks another it holds. New distinct failures per campaign: 19, 8, 6, 6.
+  The rate keeps halving; the count of new causes no longer falls. Each
+  decision added cures a family and opens a narrow one beside it.
+- Tom, asked whether 0.60 per thousand is low enough to go on: yes — and the
+  draw is to widen to what the application makes, rounded rectangles, slots
+  and tubes, a lane started on it.

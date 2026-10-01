@@ -1866,3 +1866,103 @@ fn seed_53006876_a_bar_a_hair_into_a_post_it_touches_at_a_point_stays_uncrossed(
         ))],
     ));
 }
+
+/// A cut and a boss of one radius, their axes 1.25 tolerances apart, cross
+/// along two lines; the boss fills the cut back but for a sliver over the
+/// heights both stand at, beside the line they cross along at the block's
+/// bottom. The steps beside that line are withheld from the circles
+/// bounding that stretch, and the cut's wall, going on alone through the
+/// block below it, is drawn from those circles' chords across two steps
+/// down to its rim on the block's side: its triangles sag three and a half
+/// times the tolerance, and the volume falls short. As for seed 3194537,
+/// withholding steps cannot draw a wall that faces another over part of
+/// its height only.
+#[test]
+#[ignore = "triangles"]
+fn seed_3033420_a_cut_and_a_boss_of_one_radius_a_hair_off_one_axis_keep_the_cut_s_wall_round_below_the_boss()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(90.0),
+            Outline::rectangle([135.0, 30.0], [405.0, 300.0]),
+            -150.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(120.0),
+                Outline::circle([269.9999994, 180.0], 135.0),
+                225.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(89.999994),
+                Outline::circle([270.0, 180.0], 135.0),
+                -300.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([120.0, 270.0], [255.0, 300.0]),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// A floor cut a hair above a disc's bottom, then the disc's twin a hair
+/// off its axis added from below: the two walls are taken for one, and the
+/// two floors for one plane, but the two rims stay two circles, one a hair
+/// higher, their centres a hair apart, with no vertex where they cross.
+/// The kernel leaves a ring of the floor between them, and two circles of
+/// one radius crossing each other bound no ring: its outline crosses
+/// itself at both crossings, and no sampling of the two can sweep it. Two
+/// circles of one wall on one plane want to be one circle, by support.
+#[test]
+#[ignore = "kernel"]
+fn seed_3243921_a_disc_floored_a_hair_up_and_joined_to_its_twin_a_hair_aside_leaves_the_floor_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 3.0], 4.5), -3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1e-8),
+                Outline::rectangle([-1.0, -4.0], [13.0, 10.0]),
+                -6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([5.99999999, 3.0], 4.5),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// A stock and a cut of one radius a hair apart leave a sliver a
+/// tolerance thick, crossing along two lines; a notch cut from it is
+/// decided to leave its side as a line where both walls meet, a hair from
+/// one of the crossing lines. Every circle of both walls is then sampled
+/// at that line's angle where the kernel put its vertex, so the two walls
+/// meet along it at every height, and between it and the crossing line
+/// they are drawn on the same two rulings: the floor's outline runs out to
+/// the crossing and back on itself, which no sweep follows, and drawn as
+/// a hair the two walls would lie on each other there. The sliver beyond
+/// the notch's side is thinner than what the rules tell apart.
+#[test]
+#[ignore = "triangles"]
+fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leaves_its_floor_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([7.0, 6.0], 2.5), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([7.00000002, 6.0], 2.5),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([2.0, 3.0], [6.5, 5.0]),
+                3.0,
+            )),
+        ],
+    ));
+}

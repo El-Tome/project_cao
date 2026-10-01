@@ -60,7 +60,18 @@ The decisions, in the order taken, once per operation:
    the operation that made it kept apart. A line a pair's line was taken for is that
    pair's alone: another within `EPS` of it, on a surface apart from the
    first's, does not lie on the pair's surfaces for that.
-4. **A line meeting a cylinder at a double root**, once per pair.
+4. **A line meeting a cylinder at a double root**, once per pair. A line
+   passing within `EPS` outside a wall touches it once, where it passes
+   closest. A line passing within `EPS` inside it crosses it twice, its
+   roots tolerances apart however thin the hair — unless a surface it lies
+   on was decided to touch the wall there (decision 2): along a line, a
+   plane or a parallel wall touching it, or at a point, the node or the
+   contact of two perpendicular cylinders, which the line passes within
+   `EPS` of. A corner between the two roots would stand tolerances off every
+   other curve through either; a ruling through a node only touches the
+   other cylinder, whatever rounding leaves of the touch. A circle against a
+   plane or a perpendicular wall is read the same way, through the lines
+   their planes share.
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
    their supports joined — unless the merge would put one point on two
    surfaces decided apart, or on two surfaces, one from each, crossing along

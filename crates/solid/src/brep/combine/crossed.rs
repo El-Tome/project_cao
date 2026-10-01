@@ -18,7 +18,7 @@ use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Registry, same};
 use crate::brep::curve::Curve;
-use crate::brep::relation::{Crossings, crossings, relation};
+use crate::brep::relation::{Crossings, Touches, crossings_given, relation};
 use crate::brep::topology::SurfaceId;
 
 /// A corner found where a registered curve passes through a surface.
@@ -49,7 +49,13 @@ pub(super) fn crossed(
                 continue;
             }
             let geometry = registry.list[curve].curve;
-            let list = match crossings(&geometry, &operands.surfaces.list[rank], operands.scale) {
+            let touches = touches(registry, curve, surface);
+            let list = match crossings_given(
+                &geometry,
+                &operands.surfaces.list[rank],
+                operands.scale,
+                &touches,
+            ) {
                 Crossings::Along => {
                     if along(operands, registry, curve, surface) {
                         registry.join(curve, surface);
@@ -108,4 +114,25 @@ fn along(operands: &Operands, registry: &Registry, curve: usize, surface: Surfac
             .iter()
             .any(|shared| same(shared, &known.curve, operands.scale) && !elsewhere(shared))
         })
+}
+
+/// What the surfaces a registered curve lies on were decided to make with
+/// `surface`, and with each other: the lines they touch along, and the
+/// points where two perpendicular cylinders touch — a node of the curve
+/// itself among them.
+fn touches(registry: &Registry, curve: usize, surface: SurfaceId) -> Touches {
+    let support = &registry.list[curve].support;
+    let mut at: Vec<DVec3> = Vec::new();
+    for (index, &own) in support.iter().enumerate() {
+        at.extend(registry.apart.points(own, surface));
+        for &other in &support[index + 1..] {
+            at.extend(registry.apart.points(own, other));
+        }
+    }
+    Touches {
+        along: support
+            .iter()
+            .any(|&own| registry.apart.touch(own, surface)),
+        at,
+    }
 }

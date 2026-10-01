@@ -14,9 +14,12 @@
 //! a place on both is not for that on the line they touch along — and the
 //! line, laid on one of them, may stand a hair off the other: a place within
 //! the tolerance of the line is on it only where it is within the tolerance
-//! of both surfaces too, which are kept here to be measured.
+//! of both surfaces too, which are kept here to be measured. And the points
+//! where two perpendicular cylinders touch — the node of the curve they meet
+//! along, or the one point they share — where a line on one passing through
+//! the point only touches the other.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 use glam::DVec3;
 
@@ -29,6 +32,7 @@ use crate::brep::topology::SurfaceId;
 pub(in crate::brep) struct Apart {
     pairs: BTreeSet<[SurfaceId; 2]>,
     touching: BTreeSet<[SurfaceId; 2]>,
+    points: BTreeMap<[SurfaceId; 2], Vec<DVec3>>,
     surfaces: Vec<Surface>,
 }
 
@@ -36,6 +40,7 @@ impl Apart {
     pub fn of(surfaces: &[Surface], scale: Scale) -> Apart {
         let mut pairs = BTreeSet::new();
         let mut touching = BTreeSet::new();
+        let mut points = BTreeMap::new();
         for (one, first) in surfaces.iter().enumerate() {
             for (other, second) in surfaces.iter().enumerate().skip(one + 1) {
                 let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
@@ -46,6 +51,17 @@ impl Apart {
                     Relation::Tangent(_) => {
                         touching.insert(pair);
                     }
+                    Relation::Meet(meeting) => {
+                        let at: Vec<DVec3> = meeting
+                            .nodes
+                            .iter()
+                            .map(|node| node.point)
+                            .chain(meeting.contact)
+                            .collect();
+                        if !at.is_empty() {
+                            points.insert(pair, at);
+                        }
+                    }
                     _ => {}
                 }
             }
@@ -53,6 +69,7 @@ impl Apart {
         Apart {
             pairs,
             touching,
+            points,
             surfaces: surfaces.to_vec(),
         }
     }
@@ -64,6 +81,13 @@ impl Apart {
     /// Whether two surfaces were decided to touch along a line.
     pub fn touch(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.touching.contains(&[one.min(other), one.max(other)])
+    }
+
+    /// The points where two perpendicular cylinders were decided to touch.
+    pub fn points(&self, one: SurfaceId, other: SurfaceId) -> &[DVec3] {
+        self.points
+            .get(&[one.min(other), one.max(other)])
+            .map_or(&[], Vec::as_slice)
     }
 
     /// Whether a place stands within `eps` of a surface.

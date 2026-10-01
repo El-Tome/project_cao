@@ -26,6 +26,21 @@ fn found(curve: &Curve, surface: &Surface, within: f64) -> Vec<Crossing> {
     found
 }
 
+/// The same, the curve lying on a surface decided to touch `surface`.
+fn found_touching(curve: &Curve, surface: &Surface, within: f64) -> Vec<Crossing> {
+    let along = Touches {
+        along: true,
+        at: Vec::new(),
+    };
+    let Crossings::At(found) = crossings_given(curve, surface, scale(), &along) else {
+        panic!("points expected");
+    };
+    for crossing in &found {
+        assert!(surface.distance(crossing.point).abs() <= within);
+    }
+    found
+}
+
 fn tangents(found: &[Crossing]) -> Vec<bool> {
     found.iter().map(|crossing| crossing.tangent).collect()
 }
@@ -68,8 +83,16 @@ fn a_line_crosses_a_cylinder_twice_touches_it_once_or_misses_it() {
         tangents(&found(&across(17.0), &hole, 1e-12 * REACH)),
         [false, false]
     );
-    for x in [20.0, 20.0 + eps / 2.0, 20.0 - eps / 2.0, 10.0 + eps / 2.0] {
+    for x in [20.0, 20.0 + eps / 2.0] {
         let touch = found(&across(x), &hole, eps);
+        assert_eq!(tangents(&touch), [true], "{x}");
+        assert!((touch[0].point.x - x).abs() <= eps);
+    }
+    for x in [20.0 - eps / 2.0, 10.0 + eps / 2.0] {
+        let twice = found(&across(x), &hole, 1e-12 * REACH);
+        assert_eq!(tangents(&twice), [false, false], "{x}");
+        assert!((twice[1].point - twice[0].point).length() > 100.0 * eps);
+        let touch = found_touching(&across(x), &hole, eps);
         assert_eq!(tangents(&touch), [true], "{x}");
         assert!((touch[0].point.x - x).abs() <= eps);
     }
@@ -110,6 +133,14 @@ fn a_circle_crosses_a_plane_twice_touches_it_once_or_lies_in_it() {
         assert_eq!(tangents(&found(&rim, &wall(x), eps)), [true], "{x}");
     }
     assert!(found(&rim, &wall(13.0 + 2.0 * eps), 0.0).is_empty());
+    assert_eq!(
+        tangents(&found(&rim, &wall(13.0 - eps / 2.0), 1e-12 * REACH)),
+        [false, false]
+    );
+    assert_eq!(
+        tangents(&found_touching(&rim, &wall(13.0 - eps / 2.0), eps)),
+        [true]
+    );
     assert_eq!(
         tangents(&found(&rim, &wall(13.0 - 2.0 * eps), 1e-12 * REACH)),
         [false, false]

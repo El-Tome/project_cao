@@ -1314,3 +1314,87 @@ fn seed_3082496_a_bored_block_cut_by_a_post_a_hair_inside_touching_the_bore() {
         ],
     ));
 }
+
+/// Failure 2-7 of campaign 3: a post along Z touching a bar along Y from
+/// inside, the bar's cap a tenth of a micron from the node of the curve the
+/// two meet along. The cap cuts the post along a ruling a femtometre inside
+/// the bar, which it crosses a tenth of a micron either side of the node;
+/// both crossings were taken for one double root between them, eight
+/// tolerances off the curve through either. A line a hair inside a wall
+/// crosses it twice unless a surface it lies on touches the wall there.
+#[test]
+fn seed_3059889_a_bar_s_cap_a_hair_from_the_node_of_a_post_it_touches_inside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(3.0), Outline::circle([1.0, 4.0], 2.5), 9.0),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(4.0000001),
+            Outline::circle([0.0, 8.0], 3.5),
+            8.0,
+        ))],
+    ));
+}
+
+/// Failure 2-7 of campaign 3, with no node: the line where a hole along Z
+/// meets the block's top passes 2e-8 inside a bar along X cut through the
+/// block, and was taken to touch it once.
+#[test]
+fn seed_3039560_a_bored_block_cut_by_a_bar_a_hair_over_the_bore_s_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([4.0, 1.0], [10.0, 8.0]),
+            9.5,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([5.0, 5.0], 1.0),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(5.0),
+                Outline::circle([2.00000002, 9.0], 2.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-7 of campaign 3: a post cut by a bar touching it inside, the
+/// bar's cap two tenths of a micron from the node.
+#[test]
+fn seed_3136522_a_post_cut_by_a_bar_whose_cap_stands_a_hair_from_the_node() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([8.0, 3.0], 4.0), 9.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(3.0000002),
+            Outline::circle([7.0, 9.0], 5.0),
+            9.0,
+        ))],
+    ));
+}
+
+/// Drawn by the campaign checking failure 2-7's fix: two posts along Y a
+/// hair off one axis joined, then cut by a post along Z decided to touch the
+/// larger inside. The top of the cut passes through the node, along a ruling
+/// of the larger post that rounding leaves a femtometre inside the cut: it
+/// only touches it, at the node, and is not taken to cross it twice a tenth
+/// of a micron either side.
+#[test]
+fn seed_50006145_a_ruling_through_the_node_of_two_posts_touching_inside_touches_once() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-2.0), Outline::circle([7.5, 5.0], 4.5), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(-1.0),
+                Outline::circle([7.50000001, 5.0], 6.5),
+                -10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle_from([6.5, 2.0], 5.5, 305.63834048705354),
+                -8.0,
+            )),
+        ],
+    ));
+}

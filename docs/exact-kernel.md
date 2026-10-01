@@ -70,6 +70,10 @@ The decisions, in the order taken, once per operation:
    line they touch along, and every corner on it, stands on both rather than
    on one and a hair off the other. A surface both operands carry is never
    moved. A surface is moved once, and never one another was moved against.
+   A surface moved is the boolean's: its pairs, though one operand alone
+   carries them, are decided at the boolean's tolerance, and it comes into
+   the result at it — moved, it no longer stands where its operand decided
+   them.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart, and never two curves of one operand, which
@@ -225,7 +229,10 @@ covered once from each side.
    of it; not covered gives the same winding on both, from an exact ray cast
    through that operand's faces, retried along another direction when it
    grazes or lands near an edge. Twin regions of two surfaces are wound
-   once, together (6).
+   once, together (6). A region is read at another point of its chord where
+   its own stands on a corner of its surface: a corner inside a region is
+   where another surface touches it at a point, and a ray from there is
+   taken on whichever side of that surface rounding leaves it.
 7. **Selection.** A region is kept when the operation — or, or and-not — says
    something different on its two sides; its outside is the side where the
    operation is false. One rule gives coincident faces once, drops a shared

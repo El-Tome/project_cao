@@ -2450,6 +2450,37 @@ fn a_bar_beside_a_block_then_a_block_apart_then_a_post_a_hair_from_the_bar() {
     ));
 }
 
+/// Found by the review of round 3, and failing before it: a bar joined
+/// beside a block, touching its side, then a post joined a hair into the
+/// bar, which decision 2 makes touch it at one point. That point is where
+/// the bar's wall is read, the middle of its one region: the post's wall
+/// passes through it, a ray from there is taken inside the post, and the
+/// bar's whole wall was dropped. A region's point standing on a corner of
+/// its surface, which a surface of the other operand touches there, is
+/// read again further along its chord.
+#[test]
+fn a_bar_beside_a_block_given_a_post_touching_it_where_its_wall_is_read() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([0.0, 0.0], [20.0, 20.0]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([22.0, 5.0], 2.0),
+                20.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([10.0, 24.99999999], 1.0),
+                15.0,
+            )),
+        ],
+    ));
+}
+
 /// The same with two pins, and a block cut through them.
 #[test]
 fn seed_3248399_two_pins_a_hair_apart_joined_then_cut_by_a_block_further_out() {

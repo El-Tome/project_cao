@@ -24,8 +24,9 @@
 //!   `a_circle_touching_two_sides_of_a_rectangle_keeps_its_areas_when_turned`,
 //!   `a_circle_tangent_inside_another_off_the_lattice_keeps_its_areas_in_either_order`,
 //!   `an_area_pinched_where_two_circles_touch_is_tinted_on_its_own_side_of_the_pinch`
-//! - and a new one is its own issue —
-//!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`
+//! - and two new ones, each its own issue —
+//!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`,
+//!   `an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -331,4 +332,20 @@ fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
             construction: false,
         },
     ]);
+}
+
+#[test]
+#[ignore = "#504"]
+fn an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses() {
+    random_sketches::holds(&[Gesture::Chain {
+        through: vec![
+            [2.0, 5.0],
+            [0.5303300858899107, 1.237436867076458],
+            [0.0, 1.0],
+            [0.8838834764831843, 0.8838834764831843],
+            [4.383883476483184, -2.6161165235168156],
+        ],
+        closed: true,
+        construction: false,
+    }]);
 }

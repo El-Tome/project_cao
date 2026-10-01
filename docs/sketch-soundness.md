@@ -223,10 +223,11 @@ campaigns run on a timer follows #495's answer for the solids.
 
 ## What the first campaigns found
 
-Five campaigns of 300 s each, in `--release`, from seeds 1,000, 50,000,
-900,000, 2,000,000 and 3,000,000: some 130,000 drawings, as they were run.
-About a third of them break a rule, nearly all for one of four causes. No
-drawing panicked or went without an answer.
+Seven campaigns of 300 s each, in `--release`, from seeds 1,000, 50,000,
+900,000, 2,000,000, 3,000,000, 4,000,000 and 5,000,000: some 190,000 drawings,
+as they were run, the last two with the order rule as it stands. About a third
+of them break a rule, nearly all for one of five causes. No drawing panicked or
+went without an answer.
 
 | Cause | Issue |
 | --- | --- |
@@ -234,6 +235,7 @@ drawing panicked or went without an answer.
 | Corners standing in one place without being one point: a copy whose corners land on the original's or on an earlier copy's, a rectangle drawn from another's corner | #494 |
 | A touch read one way or the other depending on rounding: an ellipse or a circle touching a side or another curve, and a crescent tinted across the place it is pinched at | #419 |
 | A circle touching the one around it at their lowest point, read as inside it and around it at once | #503 |
+| An outline with a corner lying on one of its own diagonals, the side it lies on read by rounding, and tinted with a triangle wound backwards | #504 |
 
 Each is kept, shrunk, in `what_random_sketches_found.rs`. Where two causes
 meet, the case sits under the one whose fix it waits on last.

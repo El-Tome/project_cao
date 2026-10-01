@@ -4,6 +4,7 @@
 //! with the reach of the operands and two surfaces of the first a hair apart,
 //! told apart when it was made, may both stand within it now.
 
+use crate::brep::meet::moved;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -51,6 +52,47 @@ impl Surfaces {
         Surfaces {
             list,
             mapped: [own, other],
+        }
+    }
+
+    /// Decision 2 moves one of two perpendicular cylinders a hair from
+    /// touching onto the touch it decides; the move is the surface's, made
+    /// once here before any curve or corner is found on either, so that the
+    /// curve they meet along and the corners on it stand on one cylinder.
+    /// Only pairs `across` says the operation decides are moved, a cylinder
+    /// once, and never one another was moved against.
+    pub fn snapped(&mut self, across: impl Fn(SurfaceId, SurfaceId) -> bool, scale: Scale) {
+        let mut settled = vec![false; self.list.len()];
+        for one in 0..self.list.len() {
+            for other in one + 1..self.list.len() {
+                let (Surface::Cylinder(first), Surface::Cylinder(second)) =
+                    (self.list[one], self.list[other])
+                else {
+                    continue;
+                };
+                if !across(SurfaceId(one as u32), SurfaceId(other as u32))
+                    || !matches!(
+                        relation(&self.list[one], &self.list[other], scale),
+                        Relation::Meet(_)
+                    )
+                {
+                    continue;
+                }
+                let Some((rank, cylinder)) = moved(&first, &second, scale) else {
+                    continue;
+                };
+                let [kept, shifted] = if rank == 0 {
+                    [other, one]
+                } else {
+                    [one, other]
+                };
+                if settled[shifted] {
+                    continue;
+                }
+                self.list[shifted] = Surface::Cylinder(cylinder);
+                settled[shifted] = true;
+                settled[kept] = true;
+            }
         }
     }
 }

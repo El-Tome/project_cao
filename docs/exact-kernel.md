@@ -47,7 +47,13 @@ The decisions, in the order taken, once per operation:
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
    only place a tangency is decided; once decided, it is built exactly — one
-   line from a formula, never a double root.
+   line from a formula, never a double root. Two perpendicular cylinders,
+   one of each operand, a hair from touching — inside, outside, or at a
+   node — are made to touch: the second of the pair is moved onto the touch,
+   by less than `EPS`, as a surface, before any curve or corner is found on
+   it, so that the curve they meet along and every corner found on that
+   cylinder stand on the one cylinder. A cylinder is moved once, and never
+   one another was moved against.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart, and never two curves of one operand, which

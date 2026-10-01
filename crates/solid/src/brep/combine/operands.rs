@@ -22,7 +22,7 @@ pub(in crate::brep) struct Operands<'a> {
 
 impl<'a> Operands<'a> {
     pub fn of(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
-        let surfaces = Surfaces::of(first, second, scale);
+        let mut surfaces = Surfaces::of(first, second, scale);
         let bodies = [first, second];
         let lying = [0, 1].map(|operand| {
             let mut lying = vec![Vec::new(); surfaces.list.len()];
@@ -33,6 +33,14 @@ impl<'a> Operands<'a> {
             }
             lying
         });
+        let carried =
+            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty();
+        surfaces.snapped(
+            |one, other| {
+                carried(0, one) && carried(1, other) || carried(1, one) && carried(0, other)
+            },
+            scale,
+        );
         let boxes = bodies.map(|body| {
             body.face_ids()
                 .map(|face| boxed(body, face, scale.eps()))

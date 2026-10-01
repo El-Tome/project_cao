@@ -30,17 +30,15 @@ fn seed_197_a_bar_touching_a_post_s_wall_from_inside_is_joined_to_it() {
 /// side touches but for a hair under the tolerance. The pair of cylinders
 /// decided the touch and moved the pin onto it in the curve they meet along,
 /// which the pin's own face could not see, the curve's cylinder being no
-/// longer bit for bit its own: the kernel declined. It now answers.
+/// longer bit for bit its own: the kernel declined.
 ///
-/// What is left: the corner where the top, through the pin's axis, meets
-/// the pin and the post is found on the pin as it stands, and the curve runs
-/// on the pin as it was moved. Where they cross at a slant the curve passes
-/// the corner a little more than the move away — 1.04 times the tolerance
-/// here — and the listing sees an edge's end off its vertex. Putting the
-/// corner on the moved curve would hold this case and move the fault to the
-/// pin's other edges; the snap itself is what would have to change.
+/// It then answered with the corner where the top, through the pin's axis,
+/// meets the pin and the post found on the pin as it stood, and the curve
+/// running on the pin as it was moved: 1.04 times the tolerance apart where
+/// they cross at a slant (failure 1-10). The move is now the surface's,
+/// made once before any curve or corner is found, and both stand on the
+/// moved pin.
 #[test]
-#[ignore = "snapped"]
 fn seed_290_a_pin_touching_a_post_by_a_hair_is_seen_on_the_pin() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1223,6 +1221,95 @@ fn seed_1032742_a_bar_bored_twice_a_hair_apart_touching_its_side() {
                 Plane::xy(-15.0),
                 Outline::circle([44.99999, 55.0], 15.0),
                 25.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-10 of campaign 3: a post along Y and a bar along X of radius
+/// 150 whose axis stands 3e-7 off touching the post from inside. Decision 2
+/// moved the bar onto the touch in the curve the two meet along, while the
+/// corners on the bar were found on the bar as drawn: an end of a curve up
+/// to 4.6 tolerances off its vertex where the two cross at a slant. The move
+/// is now the surface's, made before anything is found on either.
+#[test]
+fn seed_3154892_a_bar_a_hair_from_touching_a_post_inside_is_joined_on_one_bar() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(150.0),
+            Outline::circle([270.0, 120.0], 90.0),
+            255.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(60.0),
+            Outline::circle([180.0000003, 210.0], 150.0),
+            330.0,
+        ))],
+    ));
+}
+
+/// Failure 1-10 of campaign 3: a hole of radius 0.99999999 along Z through a
+/// post along X of radius 4, a hair short of touching its wall from inside.
+#[test]
+fn seed_3038433_a_hole_a_hair_short_of_touching_a_post_s_wall_inside_cuts_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(3.0), Outline::circle([7.0, 2.0], 4.0), 9.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(3.0),
+            Outline::circle([5.5, 4.0], 0.99999999),
+            3.0,
+        ))],
+    ));
+}
+
+/// Failure 1-10 of campaign 3: a block bored by a hole of radius
+/// 45.0000003, then cut by a cylinder across that touches the hole from
+/// inside but for the hair of its radius.
+#[test]
+fn seed_3117341_a_bored_block_cut_by_a_cylinder_a_hair_from_touching_the_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::rectangle([15.0, -105.0], [345.0, 225.0]),
+            120.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::circle([300.0, 60.0], 45.0000003),
+                240.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(210.0),
+                Outline::circle([210.0, 300.0], 135.0),
+                180.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-10 of campaign 3: a block bored along Y, then cut by a
+/// cylinder along Z whose wall a hair inside touches the bore. Without the
+/// move the corner lands 2.8e-4 off the curve; with it moved in the curve
+/// only, an end of the curve stands off its vertex.
+#[test]
+fn seed_3082496_a_bored_block_cut_by_a_post_a_hair_inside_touching_the_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(3.5),
+            Outline::rectangle([-2.0, -1.0], [8.0, 9.0]),
+            -8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(4.5),
+                Outline::circle([3.0, 4.0], 2.0),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([4.99999999, 4.5], 4.0),
+                8.0,
             )),
         ],
     ));

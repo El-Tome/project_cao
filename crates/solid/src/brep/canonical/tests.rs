@@ -545,3 +545,22 @@ fn a_bore_a_hair_past_touching_the_stock_inside_is_moved_onto_it_but_not_a_share
     let shared = snapped_pair(Surface::Cylinder(stock), Surface::Cylinder(bore), true);
     assert_eq!(shared, [Surface::Cylinder(stock), Surface::Cylinder(bore)]);
 }
+
+/// A hole touching one wall of a slot exactly and the other a hair off is
+/// left where it is: moved onto the second, it would leave the first.
+#[test]
+fn a_cylinder_touching_one_plane_exactly_is_not_moved_onto_another() {
+    let eps = scale().eps();
+    let floor = plane_at(0.0, DVec3::Y);
+    let ceiling = plane_at(6.0 + eps / 2.0, DVec3::Y);
+    let hole = Cylinder::about(DVec3::new(0.0, 3.0, 0.0), DVec3::Z, 3.0);
+    let mut surfaces = Surfaces {
+        list: vec![floor, ceiling, Surface::Cylinder(hole)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        scale(),
+    );
+    assert_eq!(surfaces.list, [floor, ceiling, Surface::Cylinder(hole)]);
+}

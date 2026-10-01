@@ -64,42 +64,53 @@ impl Surfaces {
     /// one their pair puts second; a line of touch moves the surface the
     /// second operand alone carries. Only pairs of a surface `carried` by
     /// each operand are moved, a surface once, and never one another was
-    /// moved against.
+    /// moved against, nor one that touches another exactly already.
     pub fn snapped(&mut self, carried: impl Fn(usize, SurfaceId) -> bool, scale: Scale) {
-        let mut settled = vec![false; self.list.len()];
         let own = |surface: usize| {
             let surface = SurfaceId(surface as u32);
             carried(1, surface) && !carried(0, surface)
         };
-        for one in 0..self.list.len() {
-            for other in one + 1..self.list.len() {
+        let pairs: Vec<[usize; 2]> = (0..self.list.len())
+            .flat_map(|one| (one + 1..self.list.len()).map(move |other| [one, other]))
+            .filter(|&[one, other]| {
                 let [first, second] = [one, other].map(|rank| SurfaceId(rank as u32));
-                if !(carried(0, first) && carried(1, second)
-                    || carried(1, first) && carried(0, second))
-                {
-                    continue;
-                }
-                let found = match relation(&self.list[one], &self.list[other], scale) {
-                    Relation::Meet(_) => perpendicular(&self.list[one], &self.list[other], scale)
-                        .map(|(rank, cylinder)| ([one, other][rank], cylinder)),
-                    Relation::Tangent(_) if own(other) => {
-                        touching(&self.list[one], &self.list[other]).map(|moved| (other, moved))
+                carried(0, first) && carried(1, second) || carried(1, first) && carried(0, second)
+            })
+            .collect();
+        let mut settled = vec![false; self.list.len()];
+        for &[one, other] in &pairs {
+            if matches!(
+                relation(&self.list[one], &self.list[other], scale),
+                Relation::Tangent(_)
+            ) {
+                for (moving, fixed) in [(other, one), (one, other)] {
+                    if own(moving) && touching(&self.list[fixed], &self.list[moving]).is_none() {
+                        settled[moving] = true;
                     }
-                    Relation::Tangent(_) if own(one) => {
-                        touching(&self.list[other], &self.list[one]).map(|moved| (one, moved))
-                    }
-                    _ => None,
-                };
-                let Some((shifted, surface)) = found else {
-                    continue;
-                };
-                if settled[shifted] {
-                    continue;
                 }
-                self.list[shifted] = surface;
-                settled[one] = true;
-                settled[other] = true;
             }
+        }
+        for [one, other] in pairs {
+            let found = match relation(&self.list[one], &self.list[other], scale) {
+                Relation::Meet(_) => perpendicular(&self.list[one], &self.list[other], scale)
+                    .map(|(rank, cylinder)| ([one, other][rank], cylinder)),
+                Relation::Tangent(_) if own(other) => {
+                    touching(&self.list[one], &self.list[other]).map(|moved| (other, moved))
+                }
+                Relation::Tangent(_) if own(one) => {
+                    touching(&self.list[other], &self.list[one]).map(|moved| (one, moved))
+                }
+                _ => None,
+            };
+            let Some((shifted, surface)) = found else {
+                continue;
+            };
+            if settled[shifted] {
+                continue;
+            }
+            self.list[shifted] = surface;
+            settled[one] = true;
+            settled[other] = true;
         }
     }
 }

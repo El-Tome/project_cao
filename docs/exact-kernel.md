@@ -88,8 +88,11 @@ The decisions, in the order taken, once per operation:
    other cylinder, whatever rounding leaves of the touch. A circle against a
    plane or a perpendicular wall is read the same way, through the lines
    their planes share.
-5. **Point identity.** Corners within `EPS` are merged, in a fixed order, and
-   their supports joined — unless the merge would put one point on two
+5. **Point identity.** Corners within `EPS` are merged, in a fixed order —
+   the operands' own corners, the relations' special points, the crossings
+   three planes fix, then the others, so that the crossings a curve makes
+   near a place three planes fix are merged into it rather than into each
+   other — and their supports joined — unless the merge would put one point on two
    surfaces decided apart, or on two surfaces, one from each, crossing along
    lines that all stand further than `EPS` from it, which is refused. No
    corner lies on a curve on a surface apart from one of its own.

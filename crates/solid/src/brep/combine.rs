@@ -79,7 +79,12 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
 }
 
 /// Every corner candidate in a fixed order — the first operand's vertices,
-/// the second's, the relations' special points, the crossings — merged.
+/// the second's, the relations' special points, the crossings three planes
+/// fix, the other crossings — merged. A place three planes fix is exact,
+/// and the crossings a curve makes nearby are merged into it rather than
+/// into each other: a post's rim crossing the two sides of a box whose
+/// corner line stands a hair inside the wall crosses them past the
+/// tolerance apart, each within it of the corner.
 fn pooled(
     operands: &Operands,
     registry: &Registry,
@@ -107,7 +112,15 @@ fn pooled(
             registry,
         );
     }
-    for crossing in found {
+    let fixed = |crossing: &&crossed::Found| {
+        let mut on = registry.list[crossing.curve].support.clone();
+        on.push(crossing.surface);
+        on.sort();
+        registry.planes.fix_a_place(&on, &on)
+    };
+    let (by_planes, others): (Vec<&crossed::Found>, Vec<&crossed::Found>) =
+        found.iter().partition(fixed);
+    for crossing in by_planes.into_iter().chain(others) {
         pool.add(
             crossing.point,
             [crossing.surface],

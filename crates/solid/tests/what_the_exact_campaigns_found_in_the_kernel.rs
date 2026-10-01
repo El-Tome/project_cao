@@ -2397,3 +2397,35 @@ fn seed_3113289_the_crescent_of_two_bores_a_hair_apart_cut_near_its_tip() {
         ],
     ));
 }
+
+/// Failure 2-2 of campaign 3: a block given a post, then a box cut whose
+/// corner line stands 2.4e-7 inside the post's wall, its side 3e-7 off the
+/// place the wall crosses the other side. The post's bottom rim crosses the
+/// box's two sides 5e-7 apart, past the tolerance, and each crossing lay
+/// within it of the other side: two corners on the same four surfaces, and
+/// a sliver of the wall between them crossed its next triangle. The place
+/// the box's corner line meets the post's bottom, fixed by three planes,
+/// is now pooled before the crossings found on a wall, and both crossings
+/// are merged into it.
+#[test]
+fn seed_3108592_a_box_cut_whose_corner_line_stands_a_hair_inside_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(180.0),
+            Outline::rectangle([165.0, 195.0], [375.0, 405.0]),
+            75.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::circle([270.0, 135.0], 75.0),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(179.9999997),
+                Outline::rectangle([90.0, 30.0], [135.0, 225.0]),
+                150.0,
+            )),
+        ],
+    ));
+}

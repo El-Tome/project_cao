@@ -163,7 +163,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
   ray so near the line the plane touches along that it would stand on the
-  plane: a strip of the wall a hair wide would lie on the plane's face. Two cylinders touching are both
+  plane: a strip of the wall a hair wide would lie on the plane's face. A
+  plane touches a wall only where the body holds the line, a vertex lying on
+  both: the plane of a face far off along it touches nothing, and the rays it
+  would take from the wall leave the rim of a disc a bore hollowed a hair
+  off its axis without a sample for two steps. Two cylinders touching are both
   sampled on the line they touch along, vertex or not, and a circle whose
   wall is gone is sampled as its own cylinder's. An arc ending on that line,
   though, is sampled there at its end alone: the kernel may lay the line
@@ -203,11 +207,8 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   place is one wall's alone and the step stays, or the chord across would sag
   past the tolerance. A wall holding no face, its circles printed on a cap,
   is taken to hold one everywhere: a circle printed round a hole it touches
-  inside is sampled in common with the hole. So too for each circle: it leaves out a step so withheld
-  only where the two face each other just above or just below its own height,
-  and the rim of a disc a bore hollowed a hair off its axis, standing over
-  what the bore left, keeps it. A place two rays put at one vertex is taken
-  once. A
+  inside is sampled in common with the hole. A place two rays put at one
+  vertex is taken once. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

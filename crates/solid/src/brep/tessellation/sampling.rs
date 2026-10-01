@@ -108,23 +108,18 @@ impl Samples {
             contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
         }
         let vertices = samples.points.clone();
+        let alone = Contact::default();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let wall = contact::wall_of(circle, &walls, eps);
-                    let mut contact = wall
+                    let contact = contact::wall_of(circle, &walls, eps)
                         .and_then(|(surface, _)| contacts.get(surface))
-                        .map_or_else(Contact::default, Contact::clone);
-                    if let Some((_, wall)) = wall {
-                        let steps = divisions(wall.radius, tolerance);
-                        let level = circle.center.dot(wall.axis);
-                        contact.withheld = zones.withheld_at(wall, &contact.withheld, steps, level);
-                    }
+                        .unwrap_or(&alone);
                     let ends = Ends::of(body, circle, edge);
                     let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
-                    on_circle(circle, edge, tolerance, eps, &contact, &ends, &planes)
+                    on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
@@ -372,19 +367,29 @@ fn on_a_plane(plane: &Plane, center: DVec3, axis: DVec3, point: DVec3, eps: f64)
 }
 
 /// The planes of the body touching a wall of `radius` about `center` and
-/// `axis` along a line.
+/// `axis` along a line the body holds: a vertex lies on both. A plane whose
+/// faces stand far from that line touches nothing of the wall.
 fn touching_planes(body: &Body, center: DVec3, axis: DVec3, radius: f64) -> Vec<Plane> {
     let eps = body.scale().eps();
-    body.surfaces
-        .iter()
-        .filter_map(|surface| match surface {
-            Surface::Plane(plane) => Some(*plane),
+    let on_wall = |point: DVec3| {
+        let from = point - center;
+        ((from - axis * axis.dot(from)).length() - radius).abs() <= eps
+    };
+    (0..body.surfaces.len() as u32)
+        .map(SurfaceId)
+        .filter_map(|id| match body.surface(id) {
+            Surface::Plane(plane) => Some((id, *plane)),
             Surface::Cylinder(_) => None,
         })
-        .filter(|plane| {
+        .filter(|(id, plane)| {
             plane.normal.dot(axis).abs() <= Scale::RELATIVE
                 && (plane.distance(center).abs() - radius).abs() <= eps
+                && body
+                    .vertex_ids()
+                    .map(|vertex| body.vertex(vertex))
+                    .any(|vertex| vertex.on.contains(id) && on_wall(vertex.point))
         })
+        .map(|(_, plane)| plane)
         .collect()
 }
 

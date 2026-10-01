@@ -9,7 +9,6 @@
 //! lengthen its chords past the tolerance.
 
 use std::cell::OnceCell;
-use std::f64::consts::TAU;
 
 use glam::{DVec2, DVec3};
 
@@ -105,20 +104,6 @@ impl<'a> Facing<'a> {
         heights.is_empty() || heights.iter().any(|height| self.both(point, *height))
     }
 
-    /// Whether both walls hold a face at the angle of `point` just above or
-    /// just below `level`, where a circle of either stands: its chords bound
-    /// those two bands of its wall and no other.
-    fn beside_level(&self, point: DVec3, level: f64) -> bool {
-        let (_, heights) = self.known();
-        let below = heights.iter().rev().find(|height| **height < level);
-        let above = heights.iter().find(|height| **height > level);
-        heights.is_empty()
-            || below
-                .into_iter()
-                .chain(above)
-                .any(|height| self.both(point, *height))
-    }
-
     fn both(&self, point: DVec3, height: f64) -> bool {
         let (faces, _) = self.known();
         let eps = self.body.scale().eps();
@@ -177,33 +162,5 @@ impl<'a> Zones<'a> {
             };
             partner.distance(point).abs() < facing.room() && facing.at(point)
         })
-    }
-
-    /// Of the steps of a wall's grid its contacts withhold, those its circle
-    /// at `level` leaves out: where it faces a partner at a height next to
-    /// that level. A step withheld where the two face each other at other
-    /// heights alone is the circle's to take, or its chord would span two
-    /// steps where nothing stands close to it — the rim of a disc above a
-    /// bore that crossed its wall a hair off its axis.
-    pub(in crate::brep::tessellation) fn withheld_at(
-        &self,
-        cylinder: &Cylinder,
-        withheld: &[usize],
-        steps: usize,
-        level: f64,
-    ) -> Vec<usize> {
-        let partnered = |facing: &&Facing| facing.walls.iter().any(|(_, wall)| wall == cylinder);
-        withheld
-            .iter()
-            .copied()
-            .filter(|step| {
-                let angle = TAU * *step as f64 / steps as f64;
-                let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-                self.pairs
-                    .iter()
-                    .filter(partnered)
-                    .any(|facing| facing.beside_level(point, level))
-            })
-            .collect()
     }
 }

@@ -1947,8 +1947,11 @@ fn seed_3033420_a_cut_and_a_boss_of_one_radius_a_hair_off_one_axis_keep_the_cut_
 /// one radius crossing each other bound no ring: its outline crosses
 /// itself at both crossings, and no sampling of the two can sweep it. Two
 /// circles of one wall on one plane want to be one circle, by support.
+///
+/// It holds since fix round 3's merge, and stayed ignored until round 5's
+/// review found it held: two walls of one radius a hair off one axis, it
+/// stands guard over decision 8, which takes such walls for one.
 #[test]
-#[ignore = "kernel"]
 fn seed_3243921_a_disc_floored_a_hair_up_and_joined_to_its_twin_a_hair_aside_leaves_the_floor_closed()
  {
     random_solids::holds_exactly(&Case::new(

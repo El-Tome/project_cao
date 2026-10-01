@@ -204,6 +204,7 @@ fn with_surfaces(surfaces: Vec<Surface>) -> Body {
         edges: Vec::new(),
         faces: Vec::new(),
         scale: Scale::of(1.0),
+        arrivals: Vec::new(),
     }
 }
 

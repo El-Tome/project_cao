@@ -100,6 +100,7 @@ pub(super) fn cut(
         edges,
         faces: Vec::new(),
         scale: operands.scale,
+        arrivals: operands.arrivals(),
     };
     Ok(Arena { body, supports })
 }

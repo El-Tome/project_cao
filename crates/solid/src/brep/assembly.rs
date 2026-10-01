@@ -81,6 +81,10 @@ pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined
             })
             .collect(),
         scale: body.scale,
+        arrivals: surfaces
+            .kept()
+            .map(|rank| body.arrived(SurfaceId(rank as u32)))
+            .collect(),
     };
     verified(&assembled)?;
     Ok(assembled)

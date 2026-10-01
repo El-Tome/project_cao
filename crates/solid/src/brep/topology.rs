@@ -70,6 +70,9 @@ pub struct Body {
     pub(crate) edges: Vec<Edge>,
     pub(crate) faces: Vec<Face>,
     pub(crate) scale: Scale,
+    /// For each surface, the scale of the operation that brought it into the
+    /// body: a raised profile's own for each of its surfaces.
+    pub(crate) arrivals: Vec<Scale>,
 }
 
 impl Body {
@@ -107,6 +110,17 @@ impl Body {
 
     pub fn scale(&self) -> Scale {
         self.scale
+    }
+
+    /// The scale of the operation that brought a surface into the body. A
+    /// pair of its surfaces was decided when the later of the two came, at
+    /// that operation's scale: a later leaf growing the reach does not decide
+    /// it again.
+    pub fn arrived(&self, surface: SurfaceId) -> Scale {
+        self.arrivals
+            .get(surface.0 as usize)
+            .copied()
+            .unwrap_or(self.scale)
     }
 
     /// The point of an edge at its parameter `t`.

@@ -534,6 +534,7 @@ fn band_cut_open(seam: f64) -> Body {
             ]],
         }],
         scale: Scale::of(10.0),
+        arrivals: Vec::new(),
     }
 }
 

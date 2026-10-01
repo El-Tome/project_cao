@@ -30,10 +30,16 @@ coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
 The result of an operation carries the larger reach of its operands. A pair
-of surfaces one operand alone carries is decided at that operand's own
-tolerance, as it stood when the operand was made: a later leaf growing the
-reach does not make one of two walls of a crescent a hair wide, crossing
-along two rulings the operand's own corners stand on.
+of surfaces one operand alone carries is decided at the tolerance it was
+decided at when the later of the two came into that operand: a body keeps,
+for each of its surfaces, the scale of the operation that brought it in —
+its own for the first operand's surfaces the second does not carry, the
+operation's for the others — and a pair is read at the larger of its two.
+A later leaf growing the reach, however many operations later, does not
+make one of two walls of a crescent a hair wide, crossing along two rulings
+the operand's own corners stand on. The second operand's own pairs are
+read at the operation's scale: it is a leaf, whose surfaces stand far
+apart.
 
 The decisions, in the order taken, once per operation:
 

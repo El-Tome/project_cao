@@ -73,17 +73,51 @@ impl<'a> Operands<'a> {
         !self.lying[operand][surface.0 as usize].is_empty()
     }
 
-    /// The scale a pair of shared surfaces is decided at: an operand's own
-    /// where it alone carries both, as it decided them when it was made, and
-    /// the boolean's otherwise.
+    /// The scale a pair of shared surfaces is decided at: where one operand
+    /// alone carries both, the scale it decided them at, when the later of
+    /// the two came into it, and the boolean's otherwise.
     pub fn scale_of(&self, pair: [SurfaceId; 2]) -> Scale {
         (0..2)
-            .find(|&operand| {
-                pair.iter().all(|&surface| {
-                    self.carries(operand, surface) && !self.carries(1 - operand, surface)
-                })
+            .find(|&operand| pair.iter().all(|&surface| self.alone(operand, surface)))
+            .map_or(self.scale, |operand| self.decided(operand, pair))
+    }
+
+    /// The scale an operand decided a pair of the shared surfaces at, as it
+    /// carried them: when the later of the two came into it.
+    pub fn decided(&self, operand: usize, pair: [SurfaceId; 2]) -> Scale {
+        let [one, other] = pair.map(|surface| self.arrived(operand, surface));
+        one.joined(other)
+    }
+
+    /// For each shared surface, the scale of the operation that brought it
+    /// into the result: the first operand's own where it alone carries it,
+    /// this one's otherwise — the boolean decides every pair it makes with
+    /// the first's surfaces. A pair of the second operand's own surfaces is
+    /// read at this scale too, a little coarser than it was decided at: a
+    /// second operand is a leaf, whose own surfaces stand far apart.
+    pub fn arrivals(&self) -> Vec<Scale> {
+        (0..self.surfaces.list.len() as u32)
+            .map(|rank| match SurfaceId(rank) {
+                surface if self.alone(0, surface) => self.arrived(0, surface),
+                _ => self.scale,
             })
-            .map_or(self.scale, |operand| self.bodies[operand].scale())
+            .collect()
+    }
+
+    fn alone(&self, operand: usize, surface: SurfaceId) -> bool {
+        self.carries(operand, surface) && !self.carries(1 - operand, surface)
+    }
+
+    /// The scale of the operation that brought a shared surface into an
+    /// operand, the latest of its own surfaces taken for it.
+    fn arrived(&self, operand: usize, surface: SurfaceId) -> Scale {
+        let body = self.bodies[operand];
+        self.surfaces.mapped[operand]
+            .iter()
+            .enumerate()
+            .filter(|(_, (shared, _))| *shared == surface)
+            .map(|(own, _)| body.arrived(SurfaceId(own as u32)))
+            .fold(Scale::of(1.0), Scale::joined)
     }
 
     /// Whether the boxes round two faces, one of each operand, meet.

@@ -1064,9 +1064,8 @@ fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_flo
 /// arcs are one segment four times over, which no sweep can lay out. An
 /// arc a face uses on both sides and nothing else uses has to go when the
 /// faces beside it are merged, which is the boolean's.
-/// It holds since the boolean merges the faces of one surface and one side
-/// across an arc nothing else uses, and joins two edges of one curve at a
-/// vertex only they reach (step 8).
+/// It held from the merge of the kernel's round 2, before step 8 was
+/// written, and stayed ignored until round 3 found it holding.
 #[test]
 fn seed_36003534_a_circle_printed_a_hair_off_a_boss_s_own_leaves_the_bottom_closed() {
     random_solids::holds_exactly(&Case::new(
@@ -1123,9 +1122,8 @@ fn seed_32000053_a_pocket_whose_floor_a_hole_touches_inside_leaves_the_floor_clo
 /// sliver of no area, which no sweep can lay out, and the face is left open.
 /// The corner and the crossing have to be one point or two decided apart,
 /// which is the boolean's.
-/// It holds since the boolean merges the faces of one surface and one side
-/// across an arc nothing else uses, and joins two edges of one curve at a
-/// vertex only they reach (step 8).
+/// It held from the merge of the kernel's round 2, before step 8 was
+/// written, and stayed ignored until round 3 found it holding.
 #[test]
 fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leaves_the_front_closed()
  {

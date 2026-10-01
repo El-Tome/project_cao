@@ -2310,6 +2310,63 @@ fn seed_3137406_two_bars_a_hair_apart_joined_then_given_a_block_further_out() {
     ));
 }
 
+/// Found by the review of round 3: the same body, which the kernel answered
+/// and verified, given a block apart that grows the reach again. The pair of
+/// bars was decided at the scale the body it came in had — the scale of the
+/// block, which had already grown past their gap — and the kernel declined
+/// its own answer. A body now keeps, for each surface, the scale of the
+/// operation that brought it in, and a pair of its surfaces is read at the
+/// later of the two, the operation that decided it.
+#[test]
+fn seed_3137406_the_same_bars_and_block_then_given_a_block_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(30.0), Outline::circle([32.5, 40.0], 15.0), 45.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::circle([32.4999999, 40.0], 15.0),
+                90.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([28.0, -10.0], [68.0, 30.0]),
+                180.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([290.0, 290.0], [300.0, 300.0]),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with the block apart coming before the block, and its reach
+/// grown past the bars' gap when the block is joined.
+#[test]
+fn seed_3137406_the_same_bars_given_a_block_apart_then_the_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(30.0), Outline::circle([32.5, 40.0], 15.0), 45.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::circle([32.4999999, 40.0], 15.0),
+                90.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([290.0, 290.0], [300.0, 300.0]),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([28.0, -10.0], [68.0, 30.0]),
+                180.0,
+            )),
+        ],
+    ));
+}
+
 /// The same with two pins, and a block cut through them.
 #[test]
 fn seed_3248399_two_pins_a_hair_apart_joined_then_cut_by_a_block_further_out() {

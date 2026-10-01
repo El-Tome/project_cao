@@ -178,7 +178,13 @@ fn a_point_neither_operand_covers_is_left_unasked_though_it_lies_on_a_face_of_on
         .expect("the slab's top is there");
     let wrapped = wrapped_at(
         &operands,
-        &[(SurfaceId(top as u32), DVec3::new(6.5, 5.0, 0.0), false)],
+        &[Place {
+            surface: SurfaceId(top as u32),
+            geometry: &operands.surfaces.list[top],
+            point: DVec3::new(6.5, 5.0, 0.0),
+            turned: false,
+            beside: &[],
+        }],
     );
     assert!(matches!(wrapped, Ok(None)), "{wrapped:?}");
 }
@@ -223,4 +229,21 @@ fn twins_one_operand_covers_with_its_matter_between_them_are_a_skin_taken_for_no
         crate::soundness::listed(&cut.listing(), cut.scale().reach()),
         Ok(())
     );
+}
+
+/// Seed 3089284 of the campaign, stood on Z: two pins of one radius 6e-8
+/// apart leave a crescent whose walls cross at a grazing angle along a line
+/// lying on the plane both touch, between their two lines of touch; a block
+/// whose side is that plane is cut from it. The strip of the first pin's wall
+/// between its line of touch and the crossing lies within the tolerance of
+/// the block's side all across: it is that side's twin, covered by the block
+/// as the side covers it, and no ray is cast from a point a femtometre off
+/// the side.
+#[test]
+fn a_strip_of_a_wall_within_the_tolerance_of_a_side_all_across_is_covered_as_the_side_covers_it() {
+    let crescent = standing([5.0, 4.0], 1.0, -3.5, 1.5)
+        .cut_by(&standing([5.00000006, 4.0], 1.0, -8.49999999, 1.50000001))
+        .expect("the crescent is cut");
+    let cut = crescent.cut_by(&block([4.0, 3.0, -7.5], [10.0, 11.0, 2.5]));
+    assert!(cut.is_ok(), "{cut:?}");
 }

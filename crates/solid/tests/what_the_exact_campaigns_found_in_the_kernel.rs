@@ -2703,14 +2703,14 @@ fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_c
 /// plane both touch, between their two lines of touch; a block's floor on
 /// that plane then cuts it.
 ///
-/// Understood and left: the strip of the floor between one line of touch
-/// and the crossing has no twin bounded by the same arcs — the crescent's
-/// walls end at its caps, the floor runs past them — and its point stands
-/// within a femtometre of both walls: no ray tells whether it lies inside
-/// the crescent. Three surfaces touching along one band call for the band
-/// decided once, as for seed 3156716.
+/// The strip of the first pin's wall between its line of touch and the
+/// crossing has no twin bounded by the same arcs — the floor runs past the
+/// crescent's caps — and its point stands a tenth of a femtometre off the
+/// floor: no ray told whether the block wraps it, and the kernel declined.
+/// The strip stands within the tolerance of the floor all across, so it is
+/// the floor's twin, covered by the block as the floor covers its point's
+/// foot (decision 7).
 #[test]
-#[ignore = "band"]
 fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(1.5), Outline::circle([5.0, 4.0], 1.0), 5.0),
@@ -2724,6 +2724,32 @@ fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch(
                 Plane::xz(2.5),
                 Outline::rectangle([4.0, 3.0], [10.0, 11.0]),
                 10.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 3, the same band joined: two pins of one radius
+/// 6e-8 apart, then a block whose floor both touch cut from above. The strip
+/// of the first pin's wall between its line of touch and the line the pins
+/// cross along stands within the tolerance of the floor all across, its
+/// point a tenth of a femtometre under it, and the kernel declined. It is
+/// the floor's twin (decision 7): covered by the block as the floor covers
+/// its point's foot.
+#[test]
+fn seed_3239627_two_pins_a_hair_apart_joined_then_cut_by_a_floor_both_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(3.0), Outline::circle([1.0, 1.0], 2.0), 8.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(3.9999999),
+                Outline::circle([1.00000006, 1.0], 2.0),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(8.0),
+                Outline::rectangle([-6.0, -2.0], [6.0, 9.0]),
+                -5.0,
             )),
         ],
     ));

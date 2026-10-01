@@ -3,7 +3,12 @@
 //! Two such walls cross along two rulings at an angle the offset over the
 //! radius, a crossing so ill conditioned that a band a thousand tolerances
 //! wide surrounds it; the crescent between them is at most `HAIR`
-//! tolerances thick, a tenth of what a line of measure resolves.
+//! tolerances thick, a twentieth of what a line of measure resolves.
+//!
+//! Fifty and not more: a line crossing a wall at a slant sees the wall moved
+//! by the move over the cosine, twice, and lines are held down to a cosine
+//! of a twentieth. At a hundred tolerances a campaign of profiles saw the
+//! move along such lines; at fifty, it fixed as much and saw nothing.
 //!
 //! The second operand's wall is taken for the first's as decision 1 takes
 //! one within the tolerance, and what the second operand built on it goes
@@ -28,7 +33,7 @@ use crate::brep::topology::{Body, EdgeId, SurfaceId};
 
 /// How far apart, in tolerances, the axes of two cylinders of one radius
 /// may stand and still be one surface.
-pub(in crate::brep) const HAIR: f64 = 100.0;
+pub(in crate::brep) const HAIR: f64 = 50.0;
 
 /// Under this share of the tolerance, a surface moved along itself stays.
 const ROUNDING: f64 = 1e-6;

@@ -29,7 +29,7 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-One pair alone is read wider, at a hundred times it: two parallel walls of
+One pair alone is read wider, at fifty times it: two parallel walls of
 one radius (decision 8). The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
@@ -213,8 +213,9 @@ The decisions, in the order taken, once per operation:
    rounding — and answers where no ray can.
 8. **Two walls of one radius a hair apart.** Two parallel cylinders, one
    of each operand, their radii within `EPS` and their axes within
-   `G = 100 · EPS` of each other — a ten-millionth of the reach — are one
-   surface, the second operand's taken for the first's as decision 1 takes
+   `G = 50 · EPS` of each other — five hundred-millionths of the reach —
+   are one surface, the second operand's taken for the first's as decision
+   1 takes
    one within `EPS`. This is the kernel's one tolerance wider than `EPS`,
    and it is kept to the one pair whose crossing is ill conditioned. Two
    parallel planes a hair apart never cross: the skin between them is well
@@ -222,9 +223,23 @@ The decisions, in the order taken, once per operation:
    cylinders of one radius `d` apart cross along two rulings at an angle
    `d / r`, and a band a thousand tolerances wide surrounds the crossing,
    where every corner a third surface makes is ill conditioned. The
-   crescent merged away is at most `G` thick, a tenth of what a line of
+   crescent merged away is at most `G` thick, a twentieth of what a line of
    measure resolves, and is almost always what was meant: a slot's cap, a
    rounded corner or a bore drawn on a hole of its radius, a hair off.
+
+   Fifty rather than the hundred first set, measured: a line crossing the
+   moved wall at a slant sees it moved by the offset over the cosine, at
+   each of its two crossings, and the harness holds lines down to a cosine
+   of a twentieth. On a campaign of profiles of five minutes from seed
+   80 500 000, against the 85 failures of the kernel before it, `G` of ten
+   tolerances fixed 47 and made none; twenty, 56 and none; fifty, 64 and
+   none; a hundred, 64 and one, a line at a slant seeing the move; a
+   thousand, 65 and 104, the merge seen along lines wherever it was made.
+   A second campaign from 81 000 000 gave a hundred three such failures
+   more than fifty, and the same failures otherwise; on the square draw,
+   fifty and a hundred did alike. At fifty, the crescents merged were at
+   most `5e-8` of the reach thick and `1.3e-7` of its cube in volume, half
+   of them under `1e-9`.
 
    What the second operand built on the wall goes with it, as it does
    after decision 1: the second operand is moved square to the axis, by

@@ -411,7 +411,7 @@ fn seed_5000221_a_bar_whose_cap_touches_a_post_at_one_point_cuts_nothing() {
 /// decision 7, which reads a region lying along the surface it stands
 /// within the tolerance of, does not reach them, and the listing comes out
 /// with edges used one way only.
-/// It holds since two parallel cylinders of one radius within a hundred
+/// It holds since two parallel cylinders of one radius within fifty
 /// tolerances are one surface (decision 8): there are no two circles left.
 #[test]
 fn seed_6000839_two_posts_a_hair_apart_both_touching_a_block_s_side() {
@@ -2877,7 +2877,7 @@ fn seed_3024043_two_pins_a_hair_apart_cut_by_a_pin_touching_both_at_their_tops()
 /// of fifty. Not one surface, the two were taken to touch inside and moved
 /// onto each other as two, and the floor's rims stood on both a rounding
 /// apart, a ring no point could be found inside. Two parallel cylinders of
-/// one radius within a hundred tolerances are one surface (decision 8).
+/// one radius within fifty tolerances are one surface (decision 8).
 #[test]
 fn seed_4178972_a_post_cut_by_a_post_of_its_radius_a_tolerance_aside() {
     random_solids::holds_exactly(&Case::new(
@@ -3004,6 +3004,28 @@ fn seed_80511593_a_ring_filled_by_a_disc_a_tolerance_off_its_bore() {
             Plane::xy(14.99999995),
             Outline::circle([5.0000000000000004e-8, 10.0], 17.5),
             35.0,
+        ))],
+    ));
+}
+
+/// A slot given a disc of its radius a hundred tolerances off its cap, 1e-5
+/// at a reach of a hundred, standing far above it. Taken for the cap with a
+/// hair of a hundred tolerances, the disc was moved by 1e-5, and a line of
+/// measure crossing its wall at a slant of a sixth saw it moved by 1.3e-4,
+/// more than the room along a line. Fifty tolerances is the hair: the two
+/// walls stay two and cross, as they did before decision 8.
+#[test]
+fn seed_80502201_a_disc_a_hundred_tolerances_off_a_slot_s_cap_stays_where_it_was_drawn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(25.0),
+            Outline::slot([30.0, 10.0], [30.0, 35.0], 15.0),
+            40.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(20.00000005),
+            Outline::circle([30.0, 34.99999], 15.0),
+            80.0,
         ))],
     ));
 }

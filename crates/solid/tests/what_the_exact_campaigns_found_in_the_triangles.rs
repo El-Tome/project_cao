@@ -1896,7 +1896,7 @@ fn seed_53006876_a_bar_a_hair_into_a_post_it_touches_at_a_point_stays_uncrossed(
 /// withholding steps cannot draw a wall that faces another over part of
 /// its height only.
 /// It holds since the kernel takes two parallel walls of one radius within
-/// a hundred tolerances for one (decision 8): no sliver is left to draw.
+/// fifty tolerances for one (decision 8): no sliver is left to draw.
 #[test]
 fn seed_3033420_a_cut_and_a_boss_of_one_radius_a_hair_off_one_axis_keep_the_cut_s_wall_round_below_the_boss()
  {

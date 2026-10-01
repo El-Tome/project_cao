@@ -672,3 +672,27 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     );
     assert_eq!(across.list[2], Surface::Cylinder(wall));
 }
+
+/// A cylinder touching two parallel planes on one side, a hair into the
+/// nearer and a hair off the further, is not moved between them: there is
+/// no between, and half their gap would be no radius. Moved onto either
+/// touch, it would leave the other, so it stays where it was drawn.
+#[test]
+fn a_cylinder_touching_two_parallel_planes_on_one_side_keeps_its_radius() {
+    let eps = scale().eps();
+    let low = plane_at(0.0, DVec3::Y);
+    let high = plane_at(1.6 * eps, DVec3::Y);
+    let post = Cylinder::about(DVec3::new(0.0, 3.0 + 0.8 * eps, 0.0), DVec3::Z, 3.0);
+    let mut surfaces = Surfaces {
+        list: vec![low, high, Surface::Cylinder(post)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    let moved = surfaces.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        |_, _| true,
+        |_| false,
+        scale(),
+    );
+    assert_eq!(moved, [false, false, false]);
+    assert_eq!(surfaces.list, [low, high, Surface::Cylinder(post)]);
+}

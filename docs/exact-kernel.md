@@ -181,8 +181,9 @@ The decisions, in the order taken, once per operation:
    takes them for one or keeps them apart — nor two surfaces crossing
    steeper than a band can turn, which a sliver stands within `EPS` of only
    for being a sliver.
-   Where the foot lands on the face's boundary, or the faces either side
-   disagree, a ray is cast as before.
+   Where the foot lands on the face's boundary, where the pairs do not
+   order two faces on one side, or where the faces either side, or the
+   twins of one region, disagree, a ray is cast as before.
 
    The region is wound beside the face, not covered by it. Taken for the
    face's twin and covered as the face covers it, as two regions bounded

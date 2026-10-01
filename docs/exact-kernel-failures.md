@@ -193,3 +193,20 @@ and the strips become twins. Behind a switch, five of the shrunk failures
 then hold, the slivers on caps among them, but seven named findings and a
 unit test break, and one Answers turns Uncrossed: it wants its cases gathered
 before its rule.
+
+Reviewed the same evening. Each guard of decision 7 was taken out in turn
+and the tests run. Without the band, without reading which way two crossing
+walls face, or without reading their order at the middle of the stretch
+between their lines, named findings fail. Without the
+boundary read, without the bound on the angle, letting two planes in,
+taking the first face or the last rather than the nearer, or skipping a
+face whose foot lands on its boundary, every test stayed green. The nearer
+face and the boundary now each have a test that fails without them. Logged
+against a ray beside the kernel, every region a guard turned away — in the
+tests, and in a 300-second campaign from seed 71 000 000 — would have read
+off the pairs what the ray says. The guards bound where decision 7 answers;
+none of them has yet been seen to change an answer. That campaign gave the
+kernel before round 4 and after it the same nine failures, five Uncrossed
+and four Answers, on some twenty thousand cases each, and decision 7
+answered for four regions in all of them: in random cases, the band is
+still rarely where a region stands.

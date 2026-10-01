@@ -184,7 +184,7 @@ pub(super) fn contacts(
     along_meets(body, meets, &mut own);
     let Through {
         anchors,
-        pinned,
+        mut pinned,
         beneath,
     } = through_vertices(body, walls, tolerance, &mut own);
     let mut close = Vec::new();
@@ -205,8 +205,10 @@ pub(super) fn contacts(
                 }
             }
             for [to_one, to_other] in lines {
-                contacts.entry(one.0).or_default().rays.push(to_one);
-                contacts.entry(other.0).or_default().rays.push(to_other);
+                for (wall, way) in [(one, to_one), (other, to_other)] {
+                    own.entry(wall.0).or_default().push(way);
+                    pinned.entry(wall.0).or_default().push(way);
+                }
             }
             let (outer, inner) = if one.1.radius >= other.1.radius {
                 (one, other)

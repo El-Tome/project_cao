@@ -246,9 +246,12 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   common rays from the smaller centre further out, so that their polylines
   stay ordered. So are two walls crossing each other by less than twice a
   chord's sag — cylinders of one radius a hair off one axis — and every ray
-  either takes on its own, through a vertex or a curve it meets a third wall
-  along, the other takes too, and so on down a chain of walls each touching
-  the next inside it. A ray along which the two stand closer than a
+  either takes on its own, through a vertex, a curve it meets a third wall
+  along or a line it touches or crosses a third parallel wall along, the
+  other takes too, and so on down a chain of walls each touching the next
+  inside it: a circle printed on a floor, its wall touching the stock inside,
+  takes the line its wall crosses a bore along, and the stock's rim, not
+  taking it, would chord inside the printed circle. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
   round the turn. Two walls decided to touch take no ray either where one

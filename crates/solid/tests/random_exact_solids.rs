@@ -70,12 +70,12 @@ fn spans_of(stretches: &[Stretch]) -> Spans {
     )
 }
 
+/// The prisms of the first cases of both draws that hold every outline: every
+/// kind, and the profiles.
 fn drawn_prisms(kept: impl Fn(&Outline) -> bool) -> Vec<Leaf> {
     (0..400)
-        .flat_map(|seed| {
-            let case = Case::drawn(seed);
-            case.leaves().cloned().collect::<Vec<Leaf>>()
-        })
+        .flat_map(|seed| [Case::drawn(seed), Case::drawn_profiles(seed)])
+        .flat_map(|case| case.leaves().cloned().collect::<Vec<Leaf>>())
         .filter(|leaf| {
             leaf.is_solid() && matches!(leaf, Leaf::Prism { outline, .. } if kept(outline))
         })
@@ -167,6 +167,158 @@ fn a_prism_of_circles_holds_along_every_line_what_its_flats_hold_but_for_their_s
     }
 }
 
+/// Whether a point lies on one of the two ends of a prism, rather than on its
+/// wall.
+fn on_an_end(leaf: &Leaf, point: DVec3, reach: f64) -> bool {
+    let Leaf::Prism { plane, height, .. } = leaf else {
+        unreachable!("only prisms have ends")
+    };
+    let level = (point - plane.frame().0).dot(plane.normal());
+    level.abs() <= 1e-9 * reach || (level - height).abs() <= 1e-9 * reach
+}
+
+fn corner_radius(leaf: &Leaf) -> f64 {
+    match leaf {
+        Leaf::Prism {
+            outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+            ..
+        } => *radius,
+        _ => unreachable!("only rounded rectangles and slots have a corner radius"),
+    }
+}
+
+#[test]
+fn a_rounded_rectangle_or_a_slot_holds_along_every_line_what_its_flats_hold_on_its_straight_runs_and_but_for_their_sagitta_on_its_arcs()
+ {
+    let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
+    let leaves =
+        drawn_prisms(|outline| matches!(outline, Outline::Rounded { .. } | Outline::Slot { .. }));
+    assert!(leaves.len() > 100, "{} leaves", leaves.len());
+    let mut straight = 0;
+    for leaf in &leaves {
+        let sagitta = corner_radius(leaf) * (1.0 - inscribed);
+        let (lines, measured, reach) = lines_over(leaf);
+        for (index, measure) in measured.iter().enumerate() {
+            let (origin, direction) = lines.line(index);
+            let promise = leaf.along(origin, direction).expect("a prism");
+            let most = spans_of(&promise);
+            let least = spans_of(
+                &leaf
+                    .along_grown(origin, direction, -sagitta)
+                    .expect("a prism"),
+            );
+            let short = least.without(measure).length();
+            let over = measure.without(&most).length();
+            assert!(
+                short <= 1e-9 * reach && over <= 1e-9 * reach,
+                "line {index} across {leaf}: {measure:?} between {least:?} and {most:?}"
+            );
+            let ends: Vec<f64> = measure
+                .stretches()
+                .iter()
+                .flat_map(|&(from, to)| [from, to])
+                .collect();
+            for end in promise
+                .iter()
+                .flat_map(|stretch| [stretch.from, stretch.to])
+                .filter(|end| {
+                    !end.curved
+                        && end.at.is_finite()
+                        && !on_an_end(leaf, origin + direction * end.at, reach)
+                })
+            {
+                straight += 1;
+                assert!(
+                    ends.iter().any(|at| (at - end.at).abs() <= 1e-9 * reach),
+                    "line {index} across {leaf}: {measure:?} has no end at {end:?}"
+                );
+            }
+        }
+    }
+    assert!(straight > 1000, "{straight} ends on straight runs");
+}
+
+#[test]
+fn a_line_through_a_rounded_rectangle_or_a_slot_is_told_whether_it_crosses_a_straight_run_or_an_arc()
+ {
+    let along = |leaf: &Leaf, origin: [f64; 3], direction: DVec3, by: f64| {
+        leaf.along_grown(DVec3::from(origin), direction, by)
+            .expect("a prism")
+    };
+    let ends = |stretches: Vec<Stretch>| {
+        stretches
+            .iter()
+            .map(|stretch| (stretch.from.at, stretch.to.at))
+            .collect::<Vec<_>>()
+    };
+    let root = 3.0_f64.sqrt();
+
+    let block = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        10.0,
+    );
+    let [low] = along(&block, [-1.0, 1.0, 1.0], DVec3::X, 0.0)[..] else {
+        panic!("one stretch across the lower corners");
+    };
+    assert!((low.from.at - (3.0 - root)).abs() < 1e-12, "{low:?}");
+    assert!((low.to.at - (9.0 + root)).abs() < 1e-12, "{low:?}");
+    for end in [low.from, low.to] {
+        assert!(
+            end.curved && (end.cosine - root / 2.0).abs() < 1e-12,
+            "{end:?}"
+        );
+    }
+    let [middle] = along(&block, [-1.0, 3.0, 1.0], DVec3::X, 0.0)[..] else {
+        panic!("one stretch across the middle");
+    };
+    assert_eq!((middle.from.at, middle.to.at), (1.0, 11.0));
+    for end in [middle.from, middle.to] {
+        assert!(!end.curved && end.cosine == 1.0, "{end:?}");
+    }
+    assert_eq!(
+        ends(along(&block, [1.0, 1.0, -1.0], DVec3::Z, 0.0)),
+        [(1.0, 11.0)]
+    );
+    assert_eq!(ends(along(&block, [0.3, 0.3, -1.0], DVec3::Z, 0.0)), []);
+    assert_eq!(
+        ends(along(&block, [0.3, 0.3, -1.0], DVec3::Z, 0.5)),
+        [(0.5, 11.5)]
+    );
+    assert_eq!(
+        ends(along(&block, [2.6, 2.6, -1.0], DVec3::Z, -2.5)),
+        [(3.5, 8.5)]
+    );
+
+    let slot = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.5),
+        3.0,
+    );
+    let [cap] = along(&slot, [9.0, 0.0, 1.0], DVec3::Y, 0.0)[..] else {
+        panic!("one stretch through a cap");
+    };
+    let half = 1.25_f64.sqrt();
+    assert!((cap.from.at - (5.0 - half)).abs() < 1e-12, "{cap:?}");
+    assert!((cap.to.at - (5.0 + half)).abs() < 1e-12, "{cap:?}");
+    for end in [cap.from, cap.to] {
+        assert!(
+            end.curved && (end.cosine - half / 1.5).abs() < 1e-12,
+            "{end:?}"
+        );
+    }
+    let [side] = along(&slot, [5.0, 0.0, 1.0], DVec3::Y, 0.0)[..] else {
+        panic!("one stretch across the straight runs");
+    };
+    assert_eq!((side.from.at, side.to.at), (3.5, 6.5));
+    assert!(!side.from.curved && !side.to.curved, "{side:?}");
+    assert_eq!(
+        ends(along(&slot, [0.0, 5.0, 1.0], DVec3::X, 0.0)),
+        [(0.5, 9.5)]
+    );
+    assert_eq!(ends(along(&slot, [5.0, 0.0, 1.0], DVec3::Y, -1.5)), []);
+}
+
 #[test]
 fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
     let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
@@ -191,6 +343,10 @@ fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
                 outline: Outline::Ring { outer, .. },
                 ..
             } => outer * (1.0 - inscribed),
+            Leaf::Prism {
+                outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+                ..
+            } => radius * (1.0 - inscribed),
             _ => 0.0,
         };
         let near = 1e-9 * reach;

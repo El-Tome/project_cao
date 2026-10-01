@@ -1,7 +1,8 @@
 //! The outlines made of straight runs and arcs — a rectangle with rounded
 //! corners and a slot — as the one contour both kernels are handed: the exact
 //! kernel raises it as it is, and the flats are sampled from it the way the
-//! application samples an arc.
+//! application samples an arc. And the same outlines as the rectangles and
+//! discs they are the union of, which is what a line is measured against.
 
 use std::f64::consts::{FRAC_PI_2, PI, TAU};
 
@@ -9,6 +10,13 @@ use cao_solid::profile::{Contour, Run};
 use glam::DVec2;
 
 use super::{CIRCLE_STEPS, Outline};
+
+/// Rectangles, each from its low corner to its high one, and discs, each a
+/// centre and a radius, whose union is an outline.
+pub struct Pieces {
+    pub rectangles: Vec<(DVec2, DVec2)>,
+    pub discs: Vec<(DVec2, f64)>,
+}
 
 impl Outline {
     /// The contour of a rounded rectangle or a slot, anticlockwise, every arc
@@ -18,6 +26,40 @@ impl Outline {
         match *self {
             Outline::Rounded { low, high, radius } => Some(rounded(low, high, radius)),
             Outline::Slot { from, to, radius } => Some(slot(from, to, radius)),
+            _ => None,
+        }
+    }
+
+    /// The pieces of a rounded rectangle or a slot grown by `by` all round,
+    /// or shrunk when `by` is negative: `None` for any other outline.
+    ///
+    /// Both are exact either way. A rounded rectangle grown keeps the centres
+    /// of its corners and takes `by` on their radius; shrunk past its radius
+    /// it is the rectangle with square corners inside it. A slot keeps its
+    /// two centres, and shrunk past its radius is nothing.
+    pub fn pieces(&self, by: f64) -> Option<Pieces> {
+        match *self {
+            Outline::Rounded { low, high, radius } => {
+                let (low, high, radius) = (low - by, high + by, (radius + by).max(0.0));
+                let (near, far) = (low + radius, high - radius);
+                Some(Pieces {
+                    rectangles: vec![
+                        (near.with_y(low.y), far.with_y(high.y)),
+                        (low.with_y(near.y), high.with_y(far.y)),
+                    ],
+                    discs: [near, far.with_y(near.y), far, near.with_y(far.y)]
+                        .map(|center| (center, radius))
+                        .to_vec(),
+                })
+            }
+            Outline::Slot { from, to, radius } => {
+                let radius = radius + by;
+                let across = if from.y == to.y { DVec2::Y } else { DVec2::X } * radius;
+                Some(Pieces {
+                    rectangles: vec![(from.min(to) - across, from.max(to) + across)],
+                    discs: vec![(from, radius), (to, radius)],
+                })
+            }
             _ => None,
         }
     }

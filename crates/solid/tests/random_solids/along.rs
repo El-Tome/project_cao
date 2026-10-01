@@ -86,7 +86,19 @@ impl Leaf {
                 inner,
             } => ring(&seen, *center, *outer + by, *inner - by),
             Outline::Star { corners, .. } if by == 0.0 => polygon(&seen, corners),
-            Outline::Star { .. } | Outline::Rounded { .. } | Outline::Slot { .. } => return None,
+            Outline::Star { .. } => return None,
+            Outline::Rounded { .. } | Outline::Slot { .. } => {
+                let pieces = outline.pieces(by).expect("an outline of runs and arcs");
+                let rectangles = pieces
+                    .rectangles
+                    .iter()
+                    .flat_map(|(low, high)| rectangle(&seen, *low, *high));
+                let discs = pieces
+                    .discs
+                    .iter()
+                    .flat_map(|(center, radius)| disc(&seen, *center, *radius));
+                union(rectangles.chain(discs).collect())
+            }
         };
         let Some(slab) = slab(&seen, height.min(0.0) - by, height.max(0.0) + by) else {
             return Some(Vec::new());
@@ -146,7 +158,13 @@ impl Leaf {
                 .iter()
                 .map(|corner| base + u * corner.x + v * corner.y)
                 .collect(),
-            Outline::Rounded { .. } | Outline::Slot { .. } => return None,
+            Outline::Rounded { .. } | Outline::Slot { .. } => outline
+                .pieces(0.0)
+                .expect("an outline of runs and arcs")
+                .discs
+                .iter()
+                .flat_map(|(center, radius)| round(*center, *radius))
+                .collect(),
         };
         corners
             .iter()
@@ -278,6 +296,41 @@ fn disc(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
         from: crossing(one.min(other)),
         to: crossing(one.max(other)),
     }]
+}
+
+/// The stretches of the line inside any of several areas, those that overlap
+/// or touch made one: where one ends inside another the line crosses no
+/// boundary. Of two crossings at one place, the one crossed less squarely is
+/// kept, and a curved one before a straight one.
+fn union(mut stretches: Vec<Stretch>) -> Vec<Stretch> {
+    stretches.sort_by(|one, other| one.from.at.total_cmp(&other.from.at));
+    let mut merged: Vec<Stretch> = Vec::new();
+    for stretch in stretches {
+        let Some(last) = merged
+            .last_mut()
+            .filter(|last| stretch.from.at <= last.to.at)
+        else {
+            merged.push(stretch);
+            continue;
+        };
+        if stretch.from.at == last.from.at {
+            last.from = shallower(last.from, stretch.from);
+        }
+        if stretch.to.at > last.to.at {
+            last.to = stretch.to;
+        } else if stretch.to.at == last.to.at {
+            last.to = shallower(last.to, stretch.to);
+        }
+    }
+    merged
+}
+
+fn shallower(one: Crossing, other: Crossing) -> Crossing {
+    if (other.cosine, !other.curved) < (one.cosine, !one.curved) {
+        other
+    } else {
+        one
+    }
 }
 
 /// The line against a disc with a smaller one taken out of its middle.

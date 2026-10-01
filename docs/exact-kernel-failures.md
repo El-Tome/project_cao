@@ -197,16 +197,28 @@ before its rule.
 Reviewed the same evening. Each guard of decision 7 was taken out in turn
 and the tests run. Without the band, without reading which way two crossing
 walls face, or without reading their order at the middle of the stretch
-between their lines, named findings fail. Without the
-boundary read, without the bound on the angle, letting two planes in,
-taking the first face or the last rather than the nearer, or skipping a
-face whose foot lands on its boundary, every test stayed green. The nearer
-face and the boundary now each have a test that fails without them. Logged
-against a ray beside the kernel, every region a guard turned away — in the
-tests, and in a 300-second campaign from seed 71 000 000 — would have read
-off the pairs what the ray says. The guards bound where decision 7 answers;
-none of them has yet been seen to change an answer. That campaign gave the
-kernel before round 4 and after it the same nine failures, five Uncrossed
-and four Answers, on some twenty thousand cases each, and decision 7
-answered for four regions in all of them: in random cases, the band is
-still rarely where a region stands.
+between their lines, named findings fail. Without the boundary read,
+without the bound on the angle, letting two planes in, taking the first
+face or the last rather than the nearer, or skipping a face whose foot
+lands on its boundary, every test stayed green.
+
+Logged against a ray beside the kernel, the regions a guard turned away
+read off the pairs what the ray says, in the tests and in a 300-second
+campaign from seed 71 000 000 — but for one, in a 120-second campaign from
+seed 70 000 000. Seed 70002066 shrinks to a block whose side passes
+through the axis of a post cut from it, the wall crossing the side square
+3e-7 from the block's corner: the sliver of the side between them has its
+point within the tolerance of the wall. Read beside the wall it is taken
+for outside the post, for the angle round a wall tells nothing of which
+side a point stands on where the other surface crosses it square, and the
+kernel declines. The bound on the angle turns it away, and so does the
+boundary read, the sliver being wider than the tolerance: either alone
+keeps the case, and the two overlap. The nearer face, the boundary read,
+and the two together now each have a test that fails without them.
+
+Both campaigns gave the kernel before round 4 and after it the same
+failures — five from seed 70 000 000, three Answers and two Uncrossed; nine
+from seed 71 000 000, four Answers and five Uncrossed, on some twenty
+thousand cases each — and decision 7 answered for a handful of regions in
+all of them: in random cases, the band is still rarely where a region
+stands.

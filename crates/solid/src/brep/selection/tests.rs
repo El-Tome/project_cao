@@ -271,6 +271,26 @@ fn a_region_whose_point_stands_on_a_surface_its_boundary_runs_away_from_is_not_b
     );
 }
 
+/// Seed 70002066 of a campaign, shrunk: a block whose side passes through
+/// the axis of a post cut from it, the post's wall crossing that side
+/// square 3e-7 from the block's corner, less than twice the tolerance. The
+/// sliver of the side between the two has its point within the tolerance of
+/// the wall, inside it. But the wall crosses it square: the angle round the
+/// wall is the same either side of the line they cross along, and tells
+/// nothing of which side the sliver is on. Read beside the wall, it was
+/// taken for outside the post, and the kernel declined; the angle the two
+/// cross at and the sliver's own width each keep it to a ray.
+#[test]
+fn a_sliver_a_wall_crosses_square_is_wound_by_a_ray_not_beside_the_wall() {
+    let cut = block([15.0, 35.0, 38.0], [27.5, 47.5, 73.0])
+        .cut_by(&standing([32.5, 47.5], 5.0000003, -10.0, 170.0))
+        .expect("the block is cut");
+    assert_eq!(
+        crate::soundness::listed(&cut.listing(), cut.scale().reach()),
+        Ok(())
+    );
+}
+
 /// Seed 3130833 of the campaign: a bore touching a block's side from inside
 /// leaves a cusp of matter between the side and its wall, and a block cut
 /// from it has its side cross the cusp 1e-5 from the touch. The strip of the

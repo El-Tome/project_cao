@@ -1125,10 +1125,10 @@ fn seed_1031984_a_post_of_a_block_s_width_bored_by_a_hole_touching_it_and_the_si
 ///
 /// Understood and left: the two posts cross along lines a rounding of their
 /// radii puts two and a half microns along the band they stand within a
-/// femtometre of each other and of the sides on, outside the two lines each
-/// touches a side along. The corners the crossing makes with the caps stand
-/// on the band, within the tolerance of every surface there, and the loops
-/// of the sides cannot be closed through them.
+/// tenth of a picometre of each other and of the sides on, outside the two
+/// lines each touches a side along. The corners the crossing makes with the
+/// caps stand on the band, within the tolerance of every surface there, and
+/// the loops of the sides cannot be closed through them.
 #[test]
 #[ignore = "band"]
 fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
@@ -1153,9 +1153,9 @@ fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
     ));
 }
 
-/// Failure 1-2 of campaign 1: a block bored a hundredth of a micron inside
-/// its side, a post of the bore's radius centred on the side, then a block
-/// apart from both.
+/// Failure 1-2 of campaign 1: a block bored ten microns inside its side, a
+/// post of the bore's radius centred on the side, then a block apart from
+/// both.
 ///
 /// Understood and left: the bore and the post cross at a grazing angle, and
 /// a place within the tolerance of both may stand microns from the line
@@ -1189,6 +1189,40 @@ fn seed_1013792_a_bored_block_given_a_post_on_its_side_then_a_block_apart() {
                 Plane::xy(2.0),
                 Outline::rectangle([2.0, 5.0], [6.0, 9.0]),
                 1.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 1: a bar bored by a hole touching its side at
+/// its end, then by a hole of that radius ten microns aside,
+/// touching the side too.
+///
+/// Understood and left: the side's strip between the two lines the holes
+/// touch it along is ten microns wide, and the holes' walls over
+/// it stand less than a picometre above it — a skin decision 6 is meant to
+/// leave out. But the walls over the strip are two, parted by the line the
+/// holes cross along, so the strip has no twin bounded by its own arcs, and
+/// the skin is kept: the triangles of the strip and of the walls cross.
+#[test]
+#[ignore = "band"]
+fn seed_1032742_a_bar_bored_twice_a_hair_apart_touching_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-10.0),
+            Outline::rectangle([40.0, 40.0], [45.0, 70.0]),
+            13.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-10.0),
+                Outline::circle([45.0, 55.0], 15.0),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-15.0),
+                Outline::circle([44.99999, 55.0], 15.0),
+                25.0,
             )),
         ],
     ));

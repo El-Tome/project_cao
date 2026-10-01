@@ -1040,3 +1040,156 @@ fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore(
         ],
     ));
 }
+
+/// Failure 1-9 of campaign 1: a block given two posts of one radius a tenth
+/// of a micron apart, both touching its top, both standing a tenth of a
+/// micron proud of its end.
+///
+/// Understood and left: three lines a chain. The line the two posts cross
+/// along stands between the two lines each touches the top along, within
+/// the tolerance of each, and those two a hair further than it apart. The
+/// crossing is taken for the first post's line of touch, so that line lies
+/// on both posts; the corner where the posts cross on their cap lies on both
+/// lines of touch, and their stretches above the block's end run into it
+/// side by side. Taking the crossing for neither line, or keeping a corner
+/// within the tolerance of every place merged into it, leaves the strip of
+/// the top between the two lines of touch to be wound against the second
+/// post, a femtometre from its wall: the strip is no twin of the walls
+/// beside it, since the crossing parts each wall in two. Three surfaces
+/// touching along one band call for the band decided once, not three pairs.
+#[test]
+#[ignore = "chained"]
+fn seed_1040082_a_block_given_two_posts_a_hair_apart_touching_its_top() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(0.0),
+            Outline::rectangle([-17.5, -2.5], [27.5, 42.5]),
+            23.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(1e-7),
+                Outline::circle([5.0, 40.0], 2.5),
+                45.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(1e-7),
+                Outline::circle([4.9999999, 40.0], 2.5),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 1: a block given a post of its own width, the
+/// post bored by a hole of three quarters its radius, touching the post
+/// inside and the block's side two hundredths of a micron from where the
+/// post does.
+///
+/// Understood and left: three lines of touch on one band. The side touches
+/// the post and the hole along two lines two hundredths of a micron apart,
+/// and the hole touches the post along a third, eight hundredths away, all
+/// further apart than the tolerance; across the band the three surfaces
+/// stand within a femtometre of each other. The strip of the side between
+/// its two lines of touch is the post's, and is wound against the hole from
+/// a point a femtometre off its wall: no ray tells. Its twin on the hole's
+/// wall is bounded by the third line, not by the strip's own two, so the
+/// two are not wound together.
+#[test]
+#[ignore = "band"]
+fn seed_1031984_a_post_of_a_block_s_width_bored_by_a_hole_touching_it_and_the_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([6.0, 8.0], [10.0, 12.0]),
+            19.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([8.0, 10.0], 2.0),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([7.99999998, 9.5], 1.5),
+                19.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 1: a block whose end a post of its width is
+/// centred on, then a second post of that radius nine tenths of a micron
+/// aside, both touching the block's two sides.
+///
+/// Understood and left: the two posts cross along lines a rounding of their
+/// radii puts two and a half microns along the band they stand within a
+/// femtometre of each other and of the sides on, outside the two lines each
+/// touches a side along. The corners the crossing makes with the caps stand
+/// on the band, within the tolerance of every surface there, and the loops
+/// of the sides cannot be closed through them.
+#[test]
+#[ignore = "band"]
+fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(150.0),
+            Outline::rectangle([0.0, 60.0], [195.0, 240.0]),
+            60.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(150.0),
+                Outline::circle([195.0, 150.0], 90.0),
+                120.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([195.0000009, 150.0], 90.0),
+                240.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 1: a block bored a hundredth of a micron inside
+/// its side, a post of the bore's radius centred on the side, then a block
+/// apart from both.
+///
+/// Understood and left: the bore and the post cross at a grazing angle, and
+/// a place within the tolerance of both may stand microns from the line
+/// they cross along. The corner where the bore met the side at the bore's
+/// top lies on both, and read again by the last operation it is taken to
+/// lie on that line, five microns away: the line's stretch up the post ends
+/// at it and at its own corner both. A corner of one operand lies on a curve
+/// of two of that operand's surfaces only as the operand's own edges say,
+/// which the support alone cannot tell.
+#[test]
+#[ignore = "grazing"]
+fn seed_1013792_a_bored_block_given_a_post_on_its_side_then_a_block_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([9.0, 10.0], [10.5, 16.0]),
+            10.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([10.49999, 13.0], 1.5),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([10.5, 13.0], 1.5),
+                20.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([2.0, 5.0], [6.0, 9.0]),
+                1.0,
+            )),
+        ],
+    ));
+}

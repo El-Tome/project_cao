@@ -3365,3 +3365,70 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
         ],
     ));
 }
+
+/// Found by the review of round 5 in a campaign of profiles, and made by
+/// decision 8: a slot given a disc of its cap's radius 1e-7 across, three
+/// tolerances at a reach of thirty-five, then a post touching the slot's
+/// side where the disc touches it. Taken for the cap, the disc is moved
+/// 1e-7 along the side, and the line it touched the side along is the
+/// cap's. The post, drawn on the disc's line, then touches the side and the
+/// cap along three lines within three tolerances of one another.
+///
+/// Understood and left: failure 2-1, the band. Before decision 8 the disc,
+/// the side and the post touched along one line, and the case held; a
+/// merge moves what the second operand touched, and a later leaf drawn on
+/// it stands a hair off.
+#[test]
+#[ignore = "band"]
+fn seed_82512408_a_slot_given_a_disc_a_hair_off_its_cap_then_a_post_on_the_disc_s_line() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::slot([20.0, 15.0], [20.0, 2.5], 15.0),
+            25.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([20.0, 2.5000001], 15.0),
+                25.0000001,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([2.5, 2.5000001], 2.5),
+                43.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a rounded block a unit wide, its end one wall: bored at
+/// the end by a hole of its radius 6e-8 across, six tolerances, then given
+/// a post touching the side where the hole does. Taken for the end's wall,
+/// the hole's line of touch with the side moves with it, and the post
+/// stands a hair from the end's: the kernel declines.
+///
+/// Understood and left, as for seed 82512408: failure 2-1, the band.
+#[test]
+#[ignore = "band"]
+fn seed_82508905_a_rounded_end_bored_a_hair_across_then_given_a_post_on_the_bore_s_line() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::rounded([2.0, 2.0], [3.0, 10.0], 0.5),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.5, 2.50000006], 0.5),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([1.5, 2.50000006], 0.5),
+                6.0,
+            )),
+        ],
+    ));
+}

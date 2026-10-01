@@ -122,11 +122,15 @@ The decisions, in the order taken, once per operation:
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
 
-Everything else is derived. A vertex lies on a curve exactly when the curve's
-support is among the surfaces the vertex lies on — but for the line two
-surfaces decided tangent touch along: they stand within `EPS` of each other
-over a band far wider than it, so a corner on both lies on that line only
-within `EPS`. A line or a circle lying on a surface that does not carry it,
+Everything else is derived. A vertex lies on a curve when the curve's
+support is among the surfaces the vertex lies on and it stands within `EPS`
+of the curve: two surfaces crossing at a grazing angle stand within `EPS` of
+each other microns from the curve they meet along, and so may a corner on
+both, or a corner merged from a chain of places each within `EPS` of the
+next; cut there, the curve would end microns from its vertex. Two surfaces
+decided tangent are the extreme case: they stand within `EPS` of each other
+over a band far wider than it, so a corner on both lies on the line they
+touch along only within `EPS` of it and of both. A line or a circle lying on a surface that does not carry it,
 only because an arc of it was taken for an arc of the surface (decision 6), is
 seen there as the segment between where its ends stand — a circle square to a
 cylinder's axis or leaning on a plane only where its stretch stands within

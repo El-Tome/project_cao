@@ -1059,8 +1059,10 @@ fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore(
 /// post, a femtometre from its wall: the strip is no twin of the walls
 /// beside it, since the crossing parts each wall in two. Three surfaces
 /// touching along one band call for the band decided once, not three pairs.
+/// It holds since a corner lies on a curve its support names only within
+/// the tolerance of it: the corner on the cap lies on the line of touch it
+/// stands on, not on the other a hair further.
 #[test]
-#[ignore = "chained"]
 fn seed_1040082_a_block_given_two_posts_a_hair_apart_touching_its_top() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1169,8 +1171,10 @@ fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
 /// at it and at its own corner both. A corner of one operand lies on a curve
 /// of two of that operand's surfaces only as the operand's own edges say,
 /// which the support alone cannot tell.
+/// It holds since a corner lies on a curve its support names only within
+/// the tolerance of it, which the corner five microns from the line does
+/// not.
 #[test]
-#[ignore = "grazing"]
 fn seed_1013792_a_bored_block_given_a_post_on_its_side_then_a_block_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1976,6 +1980,227 @@ fn seed_50001263_a_slot_cut_flush_with_two_walls_a_hair_off_lies_on_their_line()
                 Plane::yz(25.0000001),
                 Outline::rectangle([25.0, 27.5], [32.5, 55.0]),
                 90.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-8 of campaign 3: a block given a pin of radius 0.5 whose axis
+/// stands 6e-8 off the block's end, the pin cut by one of its radius on
+/// the end, then a block cut through both. The two walls cross at a grazing
+/// angle, and the cut's side, through their crossing, meets the cap at a
+/// corner within the tolerance of both walls: read off its support, it lay
+/// on the line they cross along, 3e-8 to 5e-6 away, which was cut there, and
+/// two rulings left one vertex. A corner lies on a curve its support names
+/// only where it stands within the tolerance of it.
+#[test]
+fn seed_3031475_a_block_cut_through_the_crossing_of_two_pins_a_hair_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([7.0, 9.0], [13.0, 16.0]),
+            5.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([13.00000006, 12.25], 0.5),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::circle([13.0, 12.25], 0.5),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([4.0, 10.0], [9.0, 14.0]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with two bars of one radius 1e-5 apart along a block's end,
+/// then a block across them both: the body's own grazing crossing, decided
+/// again, laid a corner of the third on the line the bars cross along.
+#[test]
+fn seed_3094005_two_bars_a_hair_apart_given_a_block_across_their_crossing() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(30.0),
+            Outline::rectangle([15.0, 40.0], [30.0, 80.0]),
+            25.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(30.00001),
+                Outline::circle([30.0, 60.0], 5.0),
+                50.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(34.9999999),
+                Outline::circle([30.00001, 60.0], 5.0),
+                48.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::rectangle([23.0, 53.0], [38.0, 68.0]),
+                50.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a bore 1e-5 inside a block's end, a post of its radius on
+/// the end, then a block cut through their crossing.
+#[test]
+fn seed_3230678_a_block_cut_through_the_crossing_of_a_bore_and_a_post_a_hair_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([10.0, 2.0], [17.0, 10.0]),
+            1.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([16.99999, 5.75], 2.5),
+                9.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([17.0, 5.75], 2.5),
+                1.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([15.0, 4.0], [20.0, 8.0]),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// The same without grazing: a bar touching a post's top along x = 30, its
+/// cap 3e-7 short of where that line meets the post. The corner of the line
+/// on the post and its corner on the cap, within the tolerance, were one,
+/// lying by its support on the post's ruling through x = 30 and on its
+/// ruling through the cap, 5e-7 apart where the cap meets the wall at a
+/// slant: both were cut there, and two rulings left one vertex.
+#[test]
+fn seed_3275966_a_bar_touching_a_post_s_top_its_cap_a_hair_short_of_the_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::circle([120.0, 180.0], 150.0),
+            135.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(60.0),
+                Outline::rectangle([30.0, 210.0], [210.0, 330.0]),
+                240.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(59.9999997),
+                Outline::circle([30.0, 180.0], 165.0),
+                480.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-2 of campaign 3: a bore's circle passing 1.3 tolerances from a
+/// block's edge, its cap crossing there. The circle's corner on the cap was
+/// taken onto the side's support without being merged with the block's
+/// corner, and the edge was cut at two vertices at one parameter. Read off
+/// the support alone, the edge lay on a corner standing past the tolerance
+/// from it.
+#[test]
+fn seed_3040872_a_bore_a_little_over_the_tolerance_from_a_block_s_edge() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(7.99999),
+            Outline::rectangle([0.5, 6.0], [2.5, 9.0]),
+            2.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(6.99999),
+            Outline::circle([2.50000001, 7.5], 2.5),
+            2.0,
+        ))],
+    ));
+}
+
+/// Failure 1-9 of campaign 3: two parallel cylinders of one radius 2e-7
+/// apart crossing at a grazing angle, a side x = 8.5 standing inside the
+/// band where they stand within the tolerance of each other. The side's
+/// corner on both was taken as the end of the line they cross along, 9.9e-6
+/// away, and the listing found the edge's end off its vertex.
+#[test]
+fn seed_3108519_a_side_inside_the_band_two_cylinders_a_hair_apart_cross_on() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([6.0, 7.0], [11.0, 12.0]),
+            1.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([2.5, 7.0], [8.5, 14.5]),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([8.50001, 10.75], 3.0),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-4.0),
+                Outline::circle([8.500009799999999, 10.75], 3.0),
+                17.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::rectangle([9.0, 9.0], [12.0, 12.0]),
+                17.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with two pins 1e-5 apart and a side x = 2.5 5e-6 off the line
+/// they cross along.
+#[test]
+fn seed_3173439_a_side_inside_the_band_two_pins_a_hair_apart_cross_on() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(5.5),
+            Outline::rectangle([1.5, 10.0], [2.5, 16.0]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(5.49999),
+                Outline::rectangle([0.0, 11.0], [4.0, 15.0]),
+                9.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(5.4999902),
+                Outline::circle([2.49999, 13.0], 0.5),
+                7.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.4999902),
+                Outline::circle([2.5, 13.0], 0.5),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([8.0, 10.0], [14.0, 15.0]),
+                6.0,
             )),
         ],
     ));

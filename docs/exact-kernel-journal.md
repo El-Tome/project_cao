@@ -122,6 +122,13 @@ origin, from 0 to 10.
 | 2 | after round 1 | 49 659 | 188 | 3.8 |
 | 3 | after round 2 | 298 949 | 370 | 1.24 |
 | 4 | after round 3 | 279 739 | 169 | 0.60 |
+| 5a | after round 4 | 259 995 | 172 | 0.66 |
+
+And on the profile draw, which adds rounded rectangles, slots and rings:
+
+| campaign | kernel | cases | broke a rule | per thousand |
+| --- | --- | --- | --- | --- |
+| 5b | after round 4 | 158 854 | 1 069 | 6.73 |
 
 - Campaign 2's sample of 67 was sorted: fifteen distinct failures, seven of
   campaign 1's still open, eight new — and every new one a configuration a
@@ -206,3 +213,8 @@ origin, from 0 to 10.
   two parallel planes a hair apart never cross and keep their skin — and the
   moves onto a touch round 3 made, which campaign 4 found breaking a second
   touch.
+- Campaigns 5a and 5b ended at 23:45. The square draw holds where campaign 4
+  left it, 0.66 per thousand: round 4 changed little, as it had measured
+  itself. The profile draw's first hour: 6.73 per thousand — Answers 622,
+  Uncrossed 389, Closed 41, Volume 11, Listed 6, and still no Spans: the
+  kernel is never wrong along a line, it declines or its triangles cross.

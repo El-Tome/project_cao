@@ -1017,16 +1017,15 @@ fn seed_37000855_a_bore_filled_but_for_a_crescent_by_a_boss_it_touches_inside_st
 /// (60, -15). The crescent's two walls cross at (59.999997, -15), 3e-6 from
 /// that point, and the boss's floor is bounded there by both: its own
 /// circle down to the point of contact, the stock's for 3e-6, then the
-/// cut's. The boss's circle withholds every ray where it stands within the
-/// tolerance of the stock's wall, the crossing's too, and its chord into
-/// the point of contact passes 1.2e-7 inside the crossing; the cut's chord
-/// from the crossing passes through it. A sample of the boss's circle on
-/// the crossing's ray would stand within rounding of the crossing itself,
-/// and one of the cut's on the contact's ray within rounding of the
-/// contact: the three walls want sampling in common across a tangency and
-/// a crossing, which they are not yet.
+/// cut's. The boss's circle used to withhold every ray where it stands
+/// within the tolerance of the stock's wall, the crossing's too, and its
+/// chord into the point of contact passed 1.2e-7 inside the crossing, the
+/// cut's chord from the crossing through it. It holds since a wall keeps
+/// the rays through its own vertices inside another's room and beside an
+/// arc's end, a place within rounding of a vertex is that vertex, and the
+/// sweep follows a hair running out of the region: without any one of
+/// them, the floor is left open again.
 #[test]
-#[ignore = "triangles"]
 fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_floor_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(30.0), Outline::circle([60.0, 0.0], 15.0), -270.0),
@@ -1738,7 +1737,7 @@ fn seed_3194537_a_bore_through_a_stock_it_touches_inside_a_hair_off_its_axis_asl
 /// tell apart rather than withheld where they stand closer.
 #[test]
 #[ignore = "triangles"]
-fn seed_3194537_a_bore_touching_its_stock_inside_a_hair_off_its_axis_leaves_the_crescent_at_its_foot_closed()
+fn seed_3194537_a_bore_touching_its_stock_inside_a_hair_off_its_axis_keeps_the_stock_s_wall_round_above_it()
  {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2049,6 +2048,107 @@ fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncr
                 Plane::xz(210.0),
                 Outline::circle([180.0, 210.0], 120.0),
                 90.0,
+            )),
+        ],
+    ));
+}
+
+/// A crescent 6e-7 thick, left by a cut of the stock's radius a hair off
+/// its axis, touches the side x = 45 of a box joined to it along y = 300,
+/// where both its walls touch that side. Campaign 3 read it as the
+/// kernel's, the tolerance the box grows taking the crescent's walls
+/// within it of each other: the side keeps the lines each wall touches it
+/// along, 6e-7 apart along one parameter line, and its outline runs back
+/// on itself there. The side was left open, the box's bottom edge along it
+/// with it. It holds since the sweep follows a hair running out of the
+/// region, and is left open again without that.
+#[test]
+fn seed_3159337_a_box_touching_both_walls_of_a_crescent_a_hair_thick_leaves_its_side_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::circle([60.0, 300.0], 15.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::circle([60.0000006, 300.0], 15.0),
+                255.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([15.0, 285.0], [45.0, 315.0]),
+                510.0,
+            )),
+        ],
+    ));
+}
+
+/// A boss and a cut of one radius, their axes ten tolerances apart, cross
+/// at a grazing angle along two lines five tolerances from the side
+/// x = 5.5 of the block they stand on. Campaign 3 read it as the kernel's:
+/// the two corners on the side stand 4.3 tolerances apart, one of them off
+/// the side, and a triangle of the side crossed one of a wall. It holds
+/// since a wall keeps the rays through its own vertices inside another's
+/// room, and an arc keeps a ray beside its end where no arc of the wall it
+/// nears ends at that vertex: without either, the two cross again.
+#[test]
+fn seed_3000782_a_boss_and_a_cut_of_one_radius_crossing_a_hair_from_a_block_s_side_stay_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([0.5, 7.0], [5.5, 14.5]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([5.4999998, 9.25], 3.0),
+                15.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([5.5, 9.25], 3.0),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// A cut lying along x touches the floor z = 120 along a line a hair,
+/// 3e-7, from the block's side y = 195, and crosses the post joined under
+/// the block, whose wall a cut box touches too. Campaign 3 read it as the
+/// kernel's, a plane tangent to a cylinder a hair from a line crossing
+/// that plane; the floor was left open along the post's rim beside the
+/// block's side. It holds since the curve two cylinders meet along takes
+/// no sample a hair from its end on the cap that end lies on, and is left
+/// open again without that.
+#[test]
+fn seed_3108326_a_lying_cut_touching_the_floor_a_hair_from_the_block_s_side_leaves_the_post_s_rim_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(0.0),
+            Outline::rectangle([30.0, 120.0], [195.0, 240.0]),
+            225.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([30.0, 150.0], 90.0),
+                105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rectangle([-240.0, 60.0], [-60.0, 240.0]),
+                210.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-29.9999982),
+                Outline::circle([194.9999997, 180.0], 60.0),
+                -135.0,
             )),
         ],
     ));

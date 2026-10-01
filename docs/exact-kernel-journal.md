@@ -158,3 +158,12 @@ origin, from 0 to 10.
   known configuration moved by a hair, or the harness catching up with a new
   decision. What stays open is one family, the tangency band.
 - Campaign 4 started at 20:05 from seed 4 000 000 on the kernel after round 3.
+- Round 4, beside campaign 4: the band decided once, decision 7. A region
+  standing within the tolerance of another surface all across is wound by
+  the faces lying over it as the arena decided the pairs, never by a ray.
+  Taken as the face's twin and covered by it, as first asked, it broke the
+  closure of 23 named findings; wound beside it, it breaks none. Of the
+  29 seeds of the band still failing after round 3, two hold as drawn and
+  two more as shrunk; the Uncrossed nineteen are a skin of a cusp the band
+  keeps as the exact geometry has it, in strips that are no regions, which
+  a rule on regions cannot drop.

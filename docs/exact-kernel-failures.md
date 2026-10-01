@@ -137,5 +137,59 @@ surfaces, and checks that a corner its support lays on a curve stands within
 the tolerance of it. What stays is one family: a plane and cylinders, or
 cylinders of one radius, all within a hair of one another along one band, each
 pair decided apart from the others. The analysts of campaign 3 agree on its
-cure — the band decided once, as one decision, rather than pair by pair — and
-it is not written yet.
+cure — the band decided once, as one decision, rather than pair by pair —
+which round 4 writes as decision 7.
+
+## Round 4: the band decided once
+
+The lane of 1 October evening, on the kernel after round 3. Decision 7 of
+[`exact-kernel.md`](exact-kernel.md): a region standing within the tolerance
+of another surface all across, the two lying along each other, is wound by
+the faces lying over it there as the arena decided the pairs, never by a ray
+from a point femtometres off them. Taken first, as written, for the face's
+twin and covered by it, the region broke the closure of 23 named findings:
+the face's own region, decided at its point beyond the band, is kept or
+dropped on its own, and only twins bounded by the same arcs can be decided
+together. A region one operand covers on both sides is left to its own face
+for the same reason. Two walls crossing are now ordered at the middle of the
+stretch between their lines, which way each faces read at the place.
+
+Of the twenty-nine seeds of 1-2, 1-9 and 2-1 campaign 3 named that still
+failed after round 3, **two hold as drawn** (3024043, 3089284), and the
+shrunk cases of two more hold (3192987, 3239627) while their drawn cases
+break on other shapes of the band. Seed 50002029, ignored since a
+120-second campaign as a crescent straddled by a block's side, holds too.
+The 122 seeds of campaign 2's and campaign 3's samples that held after
+their rounds hold still. A 120-second campaign from seed 70 000 000: 9 334
+cases and 5 failures before, 9 147 cases and the same 5 seeds after.
+
+What decision 7 does not reach, by the rule each breaks:
+
+- **Uncrossed, nineteen seeds.** A cusp a tangency leaves, cut inside the
+  band by a third surface's line — a block's side, the line two walls of one
+  radius cross along. Its strips between the line of touch and that line are
+  a skin thinner than what the rules tell apart, kept as the exact geometry
+  has it. They are no twins and mostly no regions: the third line ends inside
+  the band (3156716, 3130833, 3251776), so each strip is part of a region
+  decided beyond it, or it lies on the walls and not on the plane (3268226,
+  3123010, 1032742), so the plane's strip runs past the walls'. Dropping the
+  skin wants the regions parted along the band, which no rule on regions
+  does.
+- **Answers, across the band on a cap.** A line and two circles touching
+  within the tolerance on one plane leave slivers thinner than rounding: no
+  point of them can be located (3003014, 3172512), two arcs leave a corner
+  at one angle and one curvature (3239627 as drawn), or the overlay loses
+  one and the listing does not close (3218425, 3061408, 3192987 as drawn).
+- **Answers, a chain.** 3163577: the strip of a side between two lines of
+  touch holds the line two walls of one radius cross along, which parts
+  neither, and the crescent covers half of it.
+- **Listed.** 3140167, unchanged.
+
+Tried and set aside: laying the band's corners and lines on every surface of
+the band — a corner within the tolerance of a surface touching one of its
+own lies on it, and an arc whose two corners do, its middle within the
+tolerance, too — so that the plane's strip is parted where the walls' end
+and the strips become twins. Behind a switch, five of the shrunk failures
+then hold, the slivers on caps among them, but seven named findings and a
+unit test break, and one Answers turns Uncrossed: it wants its cases gathered
+before its rule.

@@ -164,7 +164,10 @@ pub(super) fn lies_above(
 /// cylinder between the two lines that `place` stands on: read at the
 /// stretch's middle, where the two stand furthest apart. Within the band
 /// about either line they stand within rounding of each other, and the side
-/// changes only across a line.
+/// changes only across a line. Of two walls, a point of the first inside
+/// the second has the second's wall beyond it where the two face one way at
+/// `place`, a bore crossing the wall of a bore it all but touches inside,
+/// and behind it where they face each other, a pin dipping into a stock.
 fn across_the_lobe(
     first: &Surface,
     second: &Surface,
@@ -185,7 +188,11 @@ fn across_the_lobe(
     };
     let middle = wall.point(DVec2::new(middle, at.y));
     match (first, second) {
-        (Surface::Cylinder(_), Surface::Cylinder(second)) => Some(second.distance(middle) < 0.0),
+        (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+            let facing = |cylinder: &Cylinder| cylinder.radial(cylinder.parameters(place).x);
+            let agree = facing(first).dot(facing(second)) > 0.0;
+            Some((second.distance(middle) < 0.0) == agree)
+        }
         (Surface::Plane(plane), Surface::Cylinder(_)) => Some(plane.distance(middle) > 0.0),
         (Surface::Cylinder(wall), Surface::Plane(plane)) => {
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)

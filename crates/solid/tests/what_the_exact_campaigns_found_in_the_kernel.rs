@@ -1841,6 +1841,34 @@ fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the
     ));
 }
 
+/// The same seed shrunk on the kernel of decision 7: a stock bored by a bore
+/// touching it inside at its top, then a pin whose bottom dips 2e-7 into
+/// both walls cut from above. The strips of the pin's wall between the
+/// lines it crosses the two walls along stand within the tolerance of both
+/// all across, and are wound beside them as the arena decided the pairs.
+/// The pin's wall crosses the stock's and the bore's facing them, and a
+/// point of it inside the stock had been read as standing under the
+/// stock's wall, as though the two faced one way: the strip was put outside
+/// the bored stock, and the listing did not close.
+#[test]
+fn seed_3150523_a_pin_dipping_into_a_stock_and_the_bore_touching_it_inside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 0.0], 2.5), -10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 0.5], 2.0),
+                -10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 3.0], 0.5000002),
+                -10.0,
+            )),
+        ],
+    ));
+}
+
 /// Failure 1-6 of campaign 3: a cut a hair off a post's side leaves a skin
 /// of it 3e-7 thick, which a large block then joined grows the tolerance
 /// past. The skin's two faces are twins, the post covers both, and the

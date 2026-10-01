@@ -170,10 +170,14 @@ The decisions, in the order taken, once per operation:
    the arena decided them, not measured: a cylinder touching a plane stands
    on its axis's side of it, the inner of two touching cylinders inside the
    outer, and two surfaces crossing stand one above the other all along
-   each stretch between the lines they cross along, read at its middle. All across is read on the region's point and along every arc
-   bounding it: both surfaces are smooth and the region thin, so a region
-   whose boundary stands within `EPS` of a surface stands within it inside
-   too. Two planes are never read this way — decision 1 takes them for one
+   each stretch between the lines they cross along, read at its middle —
+   of two walls, a point of one inside the other has the other's wall
+   beyond it where the two face one way there, a bore crossing a bore it
+   all but touches inside, and behind it where they face each other, a pin
+   dipping into a stock. All across is read on the region's point and
+   along every arc bounding it: both surfaces are smooth and the region
+   thin, so a region whose boundary stands within `EPS` of a surface stands
+   within it inside too. Two planes are never read this way — decision 1 takes them for one
    or keeps them apart — nor two surfaces crossing steeper than a band can
    turn, which a sliver stands within `EPS` of only for being a sliver.
    Where the foot lands on the face's boundary, or the faces either side
@@ -188,8 +192,11 @@ The decisions, in the order taken, once per operation:
    operand covers on both sides is left to its own face for the same
    reason: taken for a skin covered by neither, region by region, it left
    the skin's other regions, bounded by other arcs, without theirs. Read
-   off the decided pair, the winding agrees with every ray that can tell,
-   and answers where none can.
+   off the decided pairs, the winding agrees with a ray wherever the
+   region's point stands clear of the faces by more than rounding, follows
+   the pairs where rounding alone puts the point on one side — a bore
+   decided to touch inside another, its strip 4e-15 outside the other by
+   rounding — and answers where no ray can.
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`

@@ -302,3 +302,35 @@ fn a_strip_both_walls_of_a_cusp_lie_under_is_wound_as_the_nearer_wall_s_matter_l
     let selected = selected(&operands, &arena, Operation::Or);
     assert!(selected.is_ok(), "{:?}", selected.err());
 }
+
+/// Seed 3150523 of the campaign: a stock bored by a bore touching it inside
+/// at its top, then a pin a hair over half a unit across, whose bottom dips
+/// 2e-7 into both walls, cut from above. The pin's wall crosses the stock's
+/// 4.08e-4 either side of the touch and the bore's 4e-4: 4.04e-4 round from
+/// its bottom, between the two, the stock's wall lies inside the pin's and
+/// the bore's outside it. The walls face each other there, so a point of
+/// the pin's wall inside the stock has the stock's wall on its inner side.
+#[test]
+fn two_walls_facing_each_other_across_a_crossing_are_ordered_by_which_way_each_faces() {
+    let bored = standing([6.0, 0.0], 2.5, -9.0, 1.0)
+        .cut_by(&standing([6.0, 0.5], 2.0, -9.0, 1.0))
+        .expect("the stock is bored");
+    let pin = standing([6.0, 3.0], 0.5000002, -9.0, 1.0);
+    let operands = Operands::of(&bored, &pin, bored.scale().joined(pin.scale()));
+    let wall = |radius: f64| {
+        let rank = operands
+            .surfaces
+            .list
+            .iter()
+            .position(|surface| {
+                matches!(surface, Surface::Cylinder(cylinder) if (cylinder.radius - radius).abs() < 1e-9)
+            })
+            .expect("the wall is there");
+        SurfaceId(rank as u32)
+    };
+    let place = DVec3::new(5.999595875815821, 2.499999963316318, -4.0);
+    let above =
+        |pair: [SurfaceId; 2]| wrapped::lies_above(&operands, operands.scale_of(pair), pair, place);
+    assert_eq!(above([wall(0.5000002), wall(2.5)]), Some(false));
+    assert_eq!(above([wall(0.5000002), wall(2.0)]), Some(true));
+}

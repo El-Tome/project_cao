@@ -520,6 +520,7 @@ fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
             (0, 1) => both,
             _ => false,
         },
+        |_, _| true,
         scale(),
     );
     surfaces.list
@@ -577,10 +578,13 @@ fn a_bore_a_hair_past_touching_the_stock_inside_is_moved_onto_it_but_not_a_share
     assert_eq!(shared, [Surface::Cylinder(stock), Surface::Cylinder(bore)]);
 }
 
-/// A hole touching one wall of a slot exactly and the other a hair off is
-/// left where it is: moved onto the second, it would leave the first.
+/// A hole touching one wall of a slot exactly and the other a hair off was
+/// left where it was, since moved onto the second it would leave the first.
+/// Failure 4-1 changed that: a cylinder touching two parallel planes on
+/// opposite sides is moved midway between them, its radius half their gap,
+/// and touches both exactly.
 #[test]
-fn a_cylinder_touching_one_plane_exactly_is_not_moved_onto_another() {
+fn a_cylinder_touching_two_parallel_planes_on_opposite_sides_is_moved_midway_and_touches_both() {
     let eps = scale().eps();
     let floor = plane_at(0.0, DVec3::Y);
     let ceiling = plane_at(6.0 + eps / 2.0, DVec3::Y);
@@ -589,9 +593,77 @@ fn a_cylinder_touching_one_plane_exactly_is_not_moved_onto_another() {
         list: vec![floor, ceiling, Surface::Cylinder(hole)],
         mapped: [Vec::new(), Vec::new()],
     };
-    surfaces.snapped(
+    let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
+        |_, _| true,
         scale(),
     );
-    assert_eq!(surfaces.list, [floor, ceiling, Surface::Cylinder(hole)]);
+    assert_eq!(moved, [false, false, true]);
+    let [first, second, Surface::Cylinder(wall)] = surfaces.list[..] else {
+        panic!("the hole stays a cylinder");
+    };
+    assert_eq!([first, second], [floor, ceiling]);
+    assert_eq!(wall.radius, (3.0 + eps / 4.0));
+    assert!((wall.origin.y - (3.0 + eps / 4.0)).abs() < 1e-15);
+}
+
+/// A hole a hair from touching a plane whose faces stand far from its own
+/// is not moved: two surfaces touch only where faces of theirs meet.
+#[test]
+fn a_cylinder_a_hair_from_a_plane_whose_faces_stand_far_is_not_moved() {
+    let top = plane_at(10.0, DVec3::Z);
+    let hole = Cylinder::about(
+        DVec3::new(0.0, 5.0, 7.0),
+        DVec3::X,
+        3.0 + scale().eps() / 2.0,
+    );
+    let mut surfaces = Surfaces {
+        list: vec![top, Surface::Cylinder(hole)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| operand == surface.0 as usize,
+        |_, _| false,
+        scale(),
+    );
+    assert_eq!(surfaces.list, [top, Surface::Cylinder(hole)]);
+}
+
+/// A hole touching a plane exactly is moved onto a second touch only along
+/// the plane: a bar touching a floor and a ceiling exactly is moved along
+/// them onto a post it touches inside a hair off, and a cylinder touching a
+/// side exactly is not moved across it onto a parallel wall a hair off.
+#[test]
+fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_plane() {
+    let eps = scale().eps();
+    let floor = plane_at(0.0, DVec3::Z);
+    let bar = Cylinder::about(DVec3::new(0.0, 15.0 - eps / 2.0, 3.0), DVec3::X, 3.0);
+    let post = Cylinder::about(DVec3::ZERO, DVec3::Z, 18.0);
+    let mut along = Surfaces {
+        list: vec![floor, Surface::Cylinder(post), Surface::Cylinder(bar)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    along.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        |_, _| true,
+        scale(),
+    );
+    let Surface::Cylinder(moved) = along.list[2] else {
+        panic!("the bar stays a cylinder");
+    };
+    assert!((moved.origin.y - 15.0).abs() < 1e-14 && moved.origin.z == 3.0);
+
+    let side = plane_at(0.0, DVec3::X);
+    let wall = Cylinder::about(DVec3::new(3.0, 0.0, 0.0), DVec3::Z, 3.0);
+    let stock = Cylinder::about(DVec3::new(6.0 + eps / 2.0, 0.0, 0.0), DVec3::Z, 6.0);
+    let mut across = Surfaces {
+        list: vec![side, Surface::Cylinder(stock), Surface::Cylinder(wall)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    across.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        |_, _| true,
+        scale(),
+    );
+    assert_eq!(across.list[2], Surface::Cylinder(wall));
 }

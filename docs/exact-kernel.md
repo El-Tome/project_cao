@@ -60,17 +60,28 @@ The decisions, in the order taken, once per operation:
    only place a tangency is decided; once decided, it is built exactly — one
    line from a formula, never a double root. Two perpendicular cylinders,
    one of each operand, a hair from touching — inside, outside, or at a
-   node — are made to touch: the second of the pair is moved onto the touch,
-   by less than `EPS`, as a surface, before any curve or corner is found on
-   it, so that the curve they meet along and every corner found on that
-   cylinder stand on the one cylinder. A plane and a cylinder, or two
+   node — are made to touch: the one the second operand alone carries is
+   moved onto the touch, by less than `EPS`, as a surface, before any curve
+   or corner is found on it, so that the curve they meet along and every
+   corner found on that cylinder stand on the one cylinder. A cylinder
+   carrying the first operand's corners is never moved, or they would stay
+   on its old wall: where the pair would move it, its partner moves instead,
+   across it the other way, and takes its radius at a node of two of one
+   radius. A plane and a cylinder, or two
    parallel cylinders, one of each operand, decided to touch along a line a
    hair apart are made to touch the same way: the surface the second operand
    alone carries is moved onto the touch — a cylinder along the plane's
    normal or towards the other's axis, a plane along its own — so that the
    line they touch along, and every corner on it, stands on both rather than
    on one and a hair off the other. A surface both operands carry is never
-   moved. A surface is moved once, and never one another was moved against.
+   moved. Only pairs whose faces' boxes meet touch: a plane whose face is far
+   off touches nothing. Every touch a surface has is read before it moves,
+   and a move is made only where every other touch of the surface ends as
+   near exact as it was: moved onto one touch, a cylinder in two would break
+   the other, unless the move runs along it — a bar touching a floor and a
+   ceiling exactly moves along them onto a post it touches. A cylinder
+   touching two parallel planes on opposite sides is moved midway between
+   them, its radius half their gap, and touches both exactly.
    A surface moved is the boolean's: its pairs, though one operand alone
    carries them, are decided at the boolean's tolerance, and it comes into
    the result at it — moved, it no longer stands where its operand decided

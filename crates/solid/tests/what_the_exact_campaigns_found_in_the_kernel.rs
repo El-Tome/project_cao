@@ -3034,3 +3034,144 @@ fn seed_80509744_a_hole_a_hair_off_a_side_filled_by_a_post_touching_it() {
         ],
     ));
 }
+
+/// Failure 4-1 of campaign 4: a post of radius 0.50000001 between two
+/// parallel sides of the body a unit apart, a hair inside touching each.
+/// Moved onto one touch, it went twice as deep into the other, past the
+/// tolerance, and the kernel declined. A cylinder between two parallel
+/// planes it touches on opposite sides is moved midway between them, its
+/// radius half their gap: both touches are exact.
+#[test]
+fn seed_4105585_a_post_a_hair_wider_than_the_gap_between_two_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([7.0, 8.0], [14.5, 15.5]),
+            3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([13.5, 11.0], [15.5, 13.0]),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([15.0, 11.75], 0.50000001),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a cut, the second side a plane of the body whose face
+/// stands far from the post: a touch of faces that never meet moved the
+/// post and broke the touch beside it. Only the pairs whose faces' boxes
+/// meet are moved onto a touch.
+#[test]
+fn seed_4071426_a_hole_a_hair_wider_than_a_bar_beside_a_plane_whose_face_is_far() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(6.0),
+            Outline::rectangle([10.0, 8.0], [17.0, 16.0]),
+            4.5,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([3.5, -0.5], [4.5, 0.5]),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([4.0, 1.0], 0.50000001),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+/// A post notched by a block, then given a bar of radius 15 touching the
+/// notch's floor and ceiling exactly and the post's wall from inside 3e-7
+/// off. Settled by its exact touches, the bar was left off the post. It
+/// moves along the planes it touches, which keeps both touches, onto the
+/// post.
+#[test]
+fn seed_4146145_a_bar_touching_two_planes_exactly_is_moved_along_them_onto_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(120.0),
+            Outline::circle([120.0, 210.0], 165.0),
+            285.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::rectangle([300.0, 180.0], [360.0, 210.0]),
+                300.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::circle([359.9999997, 195.0], 15.0),
+                -45.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 4-2 of campaign 4: a bar of radius 105 cut by a post, then by a
+/// second post of radius 105.0000003 whose axis crosses the bar's. The
+/// node they meet at moved the bar, the first operand's, to the post's
+/// radius, and the bar's own corners and edges stayed on its old wall. A
+/// cylinder carrying the first operand's corners is never moved: the post
+/// is, to the bar's radius.
+#[test]
+fn seed_4048009_a_bar_cut_by_a_post_of_its_radius_but_for_a_hair_keeps_its_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(180.0),
+            Outline::circle([210.0, 30.0], 105.0),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([270.0, 210.0], 135.0),
+                300.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([240.0, 210.0], 105.0000003),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// A bore 5e-8 from touching a boss inside along X and 5e-8 from touching a
+/// block's side along Y. Moved once, onto the side, it left the touch with
+/// the boss open, and the line they touch along was laid a hair off both.
+/// A surface moves onto each of its touches in turn, so long as no move
+/// parts it from a touch it had.
+#[test]
+fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-5.0),
+            Outline::rectangle([15.0, 45.0], [27.5, 62.5]),
+            43.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::circle([10.0, 25.0], 5.0),
+                43.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::circle([12.5, 25.0], 2.49999995),
+                42.4999997,
+            )),
+        ],
+    ));
+}

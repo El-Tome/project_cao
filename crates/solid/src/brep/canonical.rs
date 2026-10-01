@@ -11,6 +11,7 @@ mod crescent;
 mod curves;
 mod planes;
 mod surfaces;
+mod touches;
 
 pub(super) use apart::Apart;
 pub(super) use arcs::parting;

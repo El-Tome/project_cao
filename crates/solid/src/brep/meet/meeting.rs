@@ -76,6 +76,32 @@ pub(in crate::brep) fn moved(
     (snapped != *second).then_some((rank, snapped))
 }
 
+/// The other cylinder of the pair moved onto the touch `moved` decides, by
+/// its rank in the pair as asked: across the axis of the one `moved` moves,
+/// by the same offset the other way, and given that one's radius where the
+/// two were taken for one radius. None where nothing moves.
+pub(in crate::brep) fn moved_instead(
+    one: &Cylinder,
+    other: &Cylinder,
+    scale: Scale,
+) -> Option<(usize, Cylinder)> {
+    let (first, second, rank) = match goes_first(one, other) {
+        Ordering::Greater => (other, one, 1),
+        Ordering::Less | Ordering::Equal => (one, other, 0),
+    };
+    let pair = Pair::of(first, second);
+    let (offset, radius) = touch(&pair, scale.eps())?;
+    let kept = if radius == pair.b { pair.a } else { pair.b };
+    Some((
+        rank,
+        Cylinder::about(
+            first.origin - pair.axes[1] * (offset - pair.d),
+            first.axis,
+            kept,
+        ),
+    ))
+}
+
 /// Where the curve of a pair crosses itself, each node with the parameter
 /// of every pass of a component through it.
 pub(super) fn nodes(pair: &Pair) -> Vec<Node> {
@@ -112,11 +138,26 @@ pub(super) fn nodes(pair: &Pair) -> Vec<Node> {
 /// vanish together at a node.
 fn snapped(first: &Cylinder, second: &Cylinder, eps: f64) -> Cylinder {
     let pair = Pair::of(first, second);
+    match touch(&pair, eps) {
+        Some((offset, radius)) => Cylinder::about(
+            second.origin + pair.axes[1] * (offset - pair.d),
+            second.axis,
+            radius,
+        ),
+        None => *second,
+    }
+}
+
+/// The offset of the second cylinder's axis across the first's, and its
+/// radius, that make an end of the span within `eps` of a touch one
+/// exactly; none where nothing is within `eps` of a touch, or where it is
+/// one already.
+fn touch(pair: &Pair, eps: f64) -> Option<(f64, f64)> {
     let (a, b, d) = (pair.a, pair.b, pair.d);
     let span = pair.high - pair.low;
     let at = |end: usize| pair.x_gaps[end].max(pair.z_gaps[end]) <= eps;
     let (offset, radius) = if span < -eps {
-        return *second;
+        return None;
     } else if span <= eps {
         (d.signum() * (a + b), b)
     } else {
@@ -124,17 +165,10 @@ fn snapped(first: &Cylinder, second: &Cylinder, eps: f64) -> Cylinder {
             [true, true] => (0.0, a),
             [true, false] => (b - a, b),
             [false, true] => (a - b, b),
-            [false, false] => return *second,
+            [false, false] => return None,
         }
     };
-    if offset == d && radius == b {
-        return *second;
-    }
-    Cylinder::about(
-        second.origin + pair.axes[1] * (offset - d),
-        second.axis,
-        radius,
-    )
+    (offset != d || radius != b).then_some((offset, radius))
 }
 
 pub(in crate::brep) fn goes_first(one: &Cylinder, other: &Cylinder) -> Ordering {

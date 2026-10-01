@@ -35,15 +35,27 @@ impl<'a> Operands<'a> {
             }
             lying
         });
-        let moved = surfaces.snapped(
-            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
-            scale,
-        );
-        let boxes = bodies.map(|body| {
+        let boxes: [Vec<[DVec3; 2]>; 2] = bodies.map(|body| {
             body.face_ids()
                 .map(|face| boxed(body, face, scale.eps()))
                 .collect()
         });
+        let near = |one: SurfaceId, other: SurfaceId| {
+            let (lying, boxes) = (&lying, &boxes);
+            let faces = |surface: SurfaceId| {
+                (0..2).flat_map(move |operand| {
+                    lying[operand][surface.0 as usize]
+                        .iter()
+                        .map(move |face| boxes[operand][face.0 as usize])
+                })
+            };
+            faces(one).any(|first| faces(other).any(|second| meet(first, second)))
+        };
+        let moved = surfaces.snapped(
+            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
+            near,
+            scale,
+        );
         Operands {
             bodies,
             scale,
@@ -130,11 +142,10 @@ impl<'a> Operands<'a> {
 
     /// Whether the boxes round two faces, one of each operand, meet.
     pub fn near(&self, first: FaceId, second: FaceId) -> bool {
-        let [one, other] = [
+        meet(
             self.boxes[0][first.0 as usize],
             self.boxes[1][second.0 as usize],
-        ];
-        one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
+        )
     }
 
     /// Where `point`, on a shared surface, stands against each face of an
@@ -169,6 +180,11 @@ impl<'a> Operands<'a> {
             .iter()
             .any(|(_, location)| *location != Location::Outside))
     }
+}
+
+/// Whether two boxes meet.
+fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
+    one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
 }
 
 /// The box round a face, from the extremes of its edges, grown by `eps`.

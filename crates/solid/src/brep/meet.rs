@@ -31,7 +31,7 @@ use glam::DVec3;
 
 use super::curve::Meet;
 pub use meeting::{Meeting, Node};
-pub(super) use meeting::{goes_first, moved};
+pub(super) use meeting::{goes_first, moved, moved_instead};
 pub use pair::Configuration;
 use pair::Pair;
 

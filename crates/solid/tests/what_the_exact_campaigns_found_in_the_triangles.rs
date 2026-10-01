@@ -1689,3 +1689,67 @@ fn seed_3160874_a_bore_a_hair_wider_than_the_line_two_walls_touch_along_leaves_t
         ],
     ));
 }
+
+#[test]
+fn seed_3194537_a_bore_through_a_stock_it_touches_inside_a_hair_off_its_axis_leaves_the_crescent_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 5.00000001),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.49999999, 0.5], 5.0),
+            4.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_3194537_a_bore_through_a_stock_it_touches_inside_a_hair_off_its_axis_aslant_leaves_the_crescent_uncrossed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 3.00000001),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.499999993, 0.500000007], 3.0),
+            4.0,
+        ))],
+    ));
+}
+
+/// A bore touching its stock inside, nearly concentric with it: their
+/// radii and their axes a hair apart, so that the two walls stand within a
+/// fifth of the kernel's tolerance of each other over three steps either
+/// side of the line they touch along. Those steps are withheld from the
+/// circles bounding the stretch the two face each other over — the stock's
+/// floor rim — and the stock's wall, going on alone above the bore's cap,
+/// is drawn from that rim's chord, four steps long and sagging fourteen
+/// times the tolerance, up to its top rim: the triangles leave out a sliver
+/// of the stock's matter over the height above the bore. Withholding steps
+/// cannot draw it: the stock's wall needs the steps at the height the bore
+/// ends, inside its face, or the two walls drawn apart by what the rules
+/// tell apart rather than withheld where they stand closer.
+#[test]
+#[ignore = "triangles"]
+fn seed_3194537_a_bore_touching_its_stock_inside_a_hair_off_its_axis_leaves_the_crescent_at_its_foot_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 2.00000001),
+            8.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.50000001, 0.5], 2.0),
+            4.0,
+        ))],
+    ));
+}

@@ -161,6 +161,16 @@ enum From {
 /// bound a sliver thinner than a chord sags on either side of it, as long as
 /// half the turn: sampled on common rays, both walls keep their order on
 /// each side of the lines they cross along.
+///
+/// A step of the outer's grid falling, seen from the inner's axis, within
+/// the kernel's tolerance along the circle of a step of the inner's — walls
+/// of one radius, or all but, a hair off one axis — is one place, and the
+/// inner's step is the ray both take there: the outer withholds its own
+/// over the heights the two face each other. A circle takes a ray that
+/// close to a step of its grid at the step, so each kept on its own grid
+/// the two would stand a hair round from each other, off one ray, and the
+/// outer's chord from the line they touch along, long where the steps
+/// beside it are withheld, would cross the inner's next.
 pub(super) fn sampled(
     (outer_wall, own_outer): (&Wall, &[DVec3]),
     (inner_wall, own_inner): (&Wall, &[DVec3]),
@@ -220,6 +230,12 @@ pub(super) fn sampled(
             .extend(over.into_iter().map(|stretch| (step, stretch))),
         From::Own(rank) => shared.dropped[wall].push(rank),
     };
+    let on_a_step = |way: DVec3| {
+        let angle = way.dot(inner.v).atan2(way.dot(inner.u));
+        let step = TAU / inner_steps as f64;
+        let off = angle - (angle / step).round() * step;
+        off.abs() <= eps / inner.radius
+    };
     let mut on_inner = Vec::new();
     for (point, from) in through_outer {
         let from_axis = point - offset;
@@ -228,10 +244,12 @@ pub(super) fn sampled(
         } else {
             Vec::new()
         };
-        if over.is_empty() {
-            on_inner.push(from_axis.normalize());
-        } else {
+        if !over.is_empty() {
             leave(0, from, over);
+        } else if matches!(from, From::Step(_)) && on_a_step(from_axis) {
+            leave(0, from, facing.over(outer.origin + point));
+        } else {
+            on_inner.push(from_axis.normalize());
         }
     }
     let mut on_outer = Vec::new();

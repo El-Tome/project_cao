@@ -254,7 +254,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   other takes too, and so on down a chain of walls each touching the next
   inside it: a circle printed on a floor, its wall touching the stock inside,
   takes the line its wall crosses a bore along, and the stock's rim, not
-  taking it, would chord inside the printed circle. A ray along which the two stand closer than a
+  taking it, would chord inside the printed circle. Where a step of the
+  larger's grid and one of the smaller's fall within `EPS` of each other
+  along the circle — walls of one radius, or all but, a hair off one axis —
+  they are one place, the smaller's step, and the larger withholds its own
+  over the heights the two face each other: kept each on its own grid, a
+  hair round, the two would stand off one ray, and the larger's chord from
+  the line they touch along, long where the steps beside it are withheld,
+  crosses the smaller's next. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
   round the turn. Two walls decided to touch take no ray either where one

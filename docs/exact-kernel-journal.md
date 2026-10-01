@@ -172,3 +172,20 @@ origin, from 0 to 10.
 - Tom, asked whether 0.60 per thousand is low enough to go on: yes — and the
   draw is to widen to what the application makes, rounded rectangles, slots
   and tubes, a lane started on it.
+- Round 4, beside campaign 4: the band decided once, decision 7. A region
+  standing within the tolerance of another surface all across is wound by
+  the faces lying over it as the arena decided the pairs, never by a ray.
+  Taken as the face's twin and covered by it, as first asked, it broke the
+  closure of 23 named findings; wound beside it, it breaks none. Of the
+  29 seeds of the band still failing after round 3, two hold as drawn and
+  two more as shrunk; the Uncrossed nineteen are a skin of a cusp the band
+  keeps as the exact geometry has it, in strips that are no regions, which
+  a rule on regions cannot drop.
+  Measured, decision 7 changes little: on campaigns of two and five minutes
+  it answered for a handful of regions and fixed no seed. What the band
+  leaves is no tie any more but a skin: where a cut crosses a tangency a
+  hair from the touch, the cusp of matter left is thinner than the rules'
+  NEAR, exact and right — the Spans rule holds — yet read by the triangles'
+  rules as two faces laid on each other. Dropping it means the kernel cutting
+  the matter at the band's edge, with edges there: a step of design, not a
+  rule more.

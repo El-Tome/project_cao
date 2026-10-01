@@ -137,8 +137,8 @@ surfaces, and checks that a corner its support lays on a curve stands within
 the tolerance of it. What stays is one family: a plane and cylinders, or
 cylinders of one radius, all within a hair of one another along one band, each
 pair decided apart from the others. The analysts of campaign 3 agree on its
-cure — the band decided once, as one decision, rather than pair by pair — and
-it is not written yet.
+cure — the band decided once, as one decision, rather than pair by pair —
+which round 4 writes as decision 7.
 
 ## Campaign 4
 
@@ -167,3 +167,86 @@ cylinder holds.
 | 4-4 | Two pieces of one floor joined through a slit and a connector shorter than the tolerance, listed as one face with two outer loops | kernel | Listed | 0.6 % | open |
 | 4-5 | Two perpendicular cylinders touching at a point that lies on a plane holding a face | kernel | Uncrossed | 0.6 % | open |
 | 4-6 | A ring whose parameter range starts on a grid step loses that step | triangles | Uncrossed | 0.6 % | open |
+
+## Round 4: the band decided once
+
+The lane of 1 October evening, on the kernel after round 3. Decision 7 of
+[`exact-kernel.md`](exact-kernel.md): a region standing within the tolerance
+of another surface all across, the two lying along each other, is wound by
+the faces lying over it there as the arena decided the pairs, never by a ray
+from a point femtometres off them. Taken first, as written, for the face's
+twin and covered by it, the region broke the closure of 23 named findings:
+the face's own region, decided at its point beyond the band, is kept or
+dropped on its own, and only twins bounded by the same arcs can be decided
+together. A region one operand covers on both sides is left to its own face
+for the same reason. Two walls crossing are now ordered at the middle of the
+stretch between their lines, which way each faces read at the place.
+
+Of the twenty-nine seeds of 1-2, 1-9 and 2-1 campaign 3 named that still
+failed after round 3, **two hold as drawn** (3024043, 3089284), and the
+shrunk cases of two more hold (3192987, 3239627) while their drawn cases
+break on other shapes of the band. Seed 50002029, ignored since a
+120-second campaign as a crescent straddled by a block's side, holds too.
+The 122 seeds of campaign 2's and campaign 3's samples that held after
+their rounds hold still. A 120-second campaign from seed 70 000 000: 9 334
+cases and 5 failures before, 9 147 cases and the same 5 seeds after.
+
+What decision 7 does not reach, by the rule each breaks:
+
+- **Uncrossed, nineteen seeds.** A cusp a tangency leaves, cut inside the
+  band by a third surface's line — a block's side, the line two walls of one
+  radius cross along. Its strips between the line of touch and that line are
+  a skin thinner than what the rules tell apart, kept as the exact geometry
+  has it. They are no twins and mostly no regions: the third line ends inside
+  the band (3156716, 3130833, 3251776), so each strip is part of a region
+  decided beyond it, or it lies on the walls and not on the plane (3268226,
+  3123010, 1032742), so the plane's strip runs past the walls'. Dropping the
+  skin wants the regions parted along the band, which no rule on regions
+  does.
+- **Answers, across the band on a cap.** A line and two circles touching
+  within the tolerance on one plane leave slivers thinner than rounding: no
+  point of them can be located (3003014, 3172512), two arcs leave a corner
+  at one angle and one curvature (3239627 as drawn), or the overlay loses
+  one and the listing does not close (3218425, 3061408, 3192987 as drawn).
+- **Answers, a chain.** 3163577: the strip of a side between two lines of
+  touch holds the line two walls of one radius cross along, which parts
+  neither, and the crescent covers half of it.
+- **Listed.** 3140167, unchanged.
+
+Tried and set aside: laying the band's corners and lines on every surface of
+the band — a corner within the tolerance of a surface touching one of its
+own lies on it, and an arc whose two corners do, its middle within the
+tolerance, too — so that the plane's strip is parted where the walls' end
+and the strips become twins. Behind a switch, five of the shrunk failures
+then hold, the slivers on caps among them, but seven named findings and a
+unit test break, and one Answers turns Uncrossed: it wants its cases gathered
+before its rule.
+
+Reviewed the same evening. Each guard of decision 7 was taken out in turn
+and the tests run. Without the band, without reading which way two crossing
+walls face, or without reading their order at the middle of the stretch
+between their lines, named findings fail. Without the boundary read,
+without the bound on the angle, letting two planes in, taking the first
+face or the last rather than the nearer, or skipping a face whose foot
+lands on its boundary, every test stayed green.
+
+Logged against a ray beside the kernel, the regions a guard turned away
+read off the pairs what the ray says, in the tests and in a 300-second
+campaign from seed 71 000 000 — but for one, in a 120-second campaign from
+seed 70 000 000. Seed 70002066 shrinks to a block whose side passes
+through the axis of a post cut from it, the wall crossing the side square
+3e-7 from the block's corner: the sliver of the side between them has its
+point within the tolerance of the wall. Read beside the wall it is taken
+for outside the post, for the angle round a wall tells nothing of which
+side a point stands on where the other surface crosses it square, and the
+kernel declines. The bound on the angle turns it away, and so does the
+boundary read, the sliver being wider than the tolerance: either alone
+keeps the case, and the two overlap. The nearer face, the boundary read,
+and the two together now each have a test that fails without them.
+
+Both campaigns gave the kernel before round 4 and after it the same
+failures — five from seed 70 000 000, three Answers and two Uncrossed; nine
+from seed 71 000 000, four Answers and five Uncrossed, on some twenty
+thousand cases each — and decision 7 answered for a handful of regions in
+all of them: in random cases, the band is still rarely where a region
+stands.

@@ -1190,7 +1190,10 @@ fn seed_1026142_a_block_touching_both_walls_of_a_sliver_the_tolerance_outgrew_is
 /// of the wall between that corner and the line is then a face lying on the
 /// top: the triangles of both lie on each other, however they are cut. The
 /// corner has to stay off one of them, or the strip go, which is the
-/// boolean's.
+/// boolean's. Decision 7 keeps both, as the exact geometry has them: the
+/// strip of the wall is part of the wall's region, whose point stands
+/// beyond the band, and the top's region runs on past the corner, so no
+/// strip of either is read on its own.
 #[test]
 #[ignore = "kernel"]
 fn seed_1016356_a_boss_a_hair_over_a_block_it_touches_beside_a_side_stays_uncrossed() {
@@ -1221,7 +1224,8 @@ fn seed_1016356_a_boss_a_hair_over_a_block_it_touches_beside_a_side_stays_uncros
 /// floor and the wall (failure 1-2). The strip of the wall between that
 /// corner and the line, and the strip of the floor over it, are two faces
 /// lying on each other, and their triangles are the same triangle twice.
-/// As for seed 1016356, the boolean has to keep the corner off one of them.
+/// As for seed 1016356, the boolean has to keep the corner off one of them;
+/// decision 7 keeps both, each strip part of a region read beyond the band.
 #[test]
 #[ignore = "kernel"]
 fn seed_1016543_a_block_resting_on_a_boss_beside_the_side_it_touches_stays_uncrossed() {
@@ -1984,8 +1988,13 @@ fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leav
 /// Its triangles were fixed in round 3 against the kernel round 3 started
 /// from; merged with round 3's kernel, the kernel declines it instead: a bore
 /// tangent inside another, crossed by a cut of one radius a hair off, is the
-/// band of 1-9 and 2-1 the kernel does not yet decide once. The kernel's,
-/// still open.
+/// band of 1-9 and 2-1. Decision 7 now winds the strips of the inner bore's
+/// wall the cut lies over, beside the band, as the arena decided the bores:
+/// the inner inside the cut it touches, though rounding leaves the strip's
+/// point 4e-15 outside the cut, where a ray says so. The listing then comes
+/// out with three edges used unevenly, two of them three times: the faces
+/// kept along the lines the three walls touch and cross along in the band
+/// do not close. Still the kernel's.
 #[test]
 #[ignore = "kernel"]
 fn seed_3108235_a_bore_touching_another_inside_where_a_cut_of_one_radius_crosses_it_leaves_the_side_closed()

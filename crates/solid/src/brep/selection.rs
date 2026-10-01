@@ -9,8 +9,11 @@
 //! a ray cast through the operand counts. One rule gives coincident faces
 //! once, drops a shared wall, cuts a flush hole, and leaves a non-manifold
 //! edge its four uses. Regions of two surfaces bounded by the same arcs are
-//! one piece of surface, decided once ([`twins`]).
+//! one piece of surface, decided once ([`twins`]); a region standing within
+//! the tolerance of another surface all across is wound by the faces lying
+//! there as the arena decided the two surfaces, not by a ray ([`band`]).
 
+mod band;
 mod twins;
 mod wrapped;
 
@@ -69,14 +72,33 @@ pub(super) fn selected(
                 Twin::Alone => &[],
                 Twin::First(others) => others,
             };
-            let members: Vec<Member> = std::iter::once((rank, index, false))
+            let ranks: Vec<(usize, usize, bool)> = std::iter::once((rank, index, false))
                 .chain(others.iter().copied())
-                .map(|(rank, index, turned)| Member {
-                    surface: carried[rank],
-                    geometry: seen[rank].0,
-                    region: &parted[rank].1.regions[index],
-                    turned,
-                    corners: &corners[rank],
+                .collect();
+            let members: Vec<Member> = ranks
+                .iter()
+                .map(|&(rank, index, turned)| {
+                    let region = &parted[rank].1.regions[index];
+                    let apart = carried.iter().copied().filter(|other| {
+                        ranks
+                            .iter()
+                            .all(|&(member, _, _)| carried[member] != *other)
+                    });
+                    Member {
+                        surface: carried[rank],
+                        geometry: seen[rank].0,
+                        region,
+                        turned,
+                        corners: &corners[rank],
+                        beside: band::beside(
+                            &arena.body,
+                            seen[rank].0,
+                            region,
+                            &parted[rank].0,
+                            apart,
+                            operands.eps(),
+                        ),
+                    }
                 })
                 .collect();
             let Some([first, second]) = wraps(operands, &members)? else {
@@ -101,6 +123,31 @@ struct Member<'a> {
     turned: bool,
     /// The corners lying on the member's surface.
     corners: &'a [DVec3],
+    /// The other surfaces the region stands within the tolerance of all
+    /// across ([`band`]).
+    beside: Vec<SurfaceId>,
+}
+
+/// A point of a region an operand is asked about, with the region's
+/// surface, whether its normal points the other way from the first's, and
+/// the surfaces the region stands within the tolerance of all across.
+struct Place<'a> {
+    surface: SurfaceId,
+    geometry: &'a Surface,
+    point: DVec3,
+    turned: bool,
+    beside: &'a [SurfaceId],
+}
+
+impl Place<'_> {
+    /// A covering read in the place's surface, seen from the first's.
+    fn seen(&self, wrapped: Wrapped) -> Wrapped {
+        if self.turned {
+            wrapped.turned()
+        } else {
+            wrapped
+        }
+    }
 }
 
 /// How each operand wraps a region and its twins, as the first's surface
@@ -125,7 +172,7 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
         if share.is_none() && on_a_corner {
             continue;
         }
-        let places: Vec<(SurfaceId, DVec3, bool)> = members
+        let places: Vec<Place> = members
             .iter()
             .map(|member| {
                 let region = member.region;
@@ -133,7 +180,13 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
                 let at = share.map_or(region.inside, |share| {
                     DVec2::new(region.inside.x, low + (high - low) * share)
                 });
-                (member.surface, member.geometry.point(at), member.turned)
+                Place {
+                    surface: member.surface,
+                    geometry: member.geometry,
+                    point: member.geometry.point(at),
+                    turned: member.turned,
+                    beside: &member.beside,
+                }
             })
             .collect();
         match wrapped_at(operands, &places) {
@@ -148,21 +201,14 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
 /// there: a skin or a crack an earlier operation left thinner than this
 /// one's tolerance, which wraps both sides alike once the sheet is gone
 /// ([`collapsed`]), and covers neither.
-fn wrapped_at(
-    operands: &Operands,
-    places: &[(SurfaceId, DVec3, bool)],
-) -> Result<Option<[Wrapped; 2]>, Declined> {
+fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 2]>, Declined> {
     let mut covered = [None, None];
     let mut sheet = [None, None];
     for operand in 0..2 {
         let mut found = Vec::new();
-        for &(surface, point, turned) in places {
-            if let Some(wrapped) = covering(operands, operand, surface, point)? {
-                found.push((
-                    surface,
-                    point,
-                    if turned { wrapped.turned() } else { wrapped },
-                ));
+        for place in places {
+            if let Some(wrapped) = covering(operands, operand, place.surface, place.point)? {
+                found.push((place.surface, place.point, place.seen(wrapped)));
             }
         }
         match found.as_slice() {
@@ -175,7 +221,7 @@ fn wrapped_at(
     if covered.iter().all(Option::is_none) {
         return Ok(None);
     }
-    let point = places[0].1;
+    let point = places[0].point;
     let [first, second] = [0, 1].map(|operand| match (covered[operand], sheet[operand]) {
         (Some(wrapped), _) => Ok(wrapped),
         (None, Some(winding)) => Ok(Wrapped {
@@ -183,7 +229,14 @@ fn wrapped_at(
             above: winding,
             below: winding,
         }),
-        (None, None) => wound(operands, operand, point),
+        (None, None) => match band::wound_beside(operands, operand, places) {
+            Some(winding) => Ok(Wrapped {
+                covered: false,
+                above: winding,
+                below: winding,
+            }),
+            None => wound(operands, operand, point),
+        },
     });
     Ok(Some([first?, second?]))
 }

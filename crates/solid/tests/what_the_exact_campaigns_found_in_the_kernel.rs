@@ -406,7 +406,11 @@ fn seed_5000221_a_bar_whose_cap_touches_a_post_at_one_point_cuts_nothing() {
 /// of a micron aside, more than the tolerance. The two circles and a side of
 /// the block run within a millionth of a micron of each other between two
 /// corners three tenths of a micron apart: the slivers between them are
-/// thinner than rounding, and no point can be found inside them.
+/// thinner than rounding, and no point can be found inside them. They lie
+/// on a cap, across the band of the side and the two walls, not along it:
+/// decision 7, which reads a region lying along the surface it stands
+/// within the tolerance of, does not reach them, and the listing comes out
+/// with edges used one way only.
 #[test]
 #[ignore = "sliver"]
 fn seed_6000839_two_posts_a_hair_apart_both_touching_a_block_s_side() {
@@ -1134,7 +1138,10 @@ fn seed_1031984_a_post_of_a_block_s_width_bored_by_a_hole_touching_it_and_the_si
 /// tenth of a picometre of each other and of the sides on, outside the two
 /// lines each touches a side along. The corners the crossing makes with the
 /// caps stand on the band, within the tolerance of every surface there, and
-/// the loops of the sides cannot be closed through them.
+/// the loops of the sides cannot be closed through them: the listing comes
+/// out with edges used one way only. Decision 7 does not reach it — what
+/// fails is the corners and the loops through them, before any region is
+/// read.
 #[test]
 #[ignore = "band"]
 fn seed_1044418_a_block_ended_by_a_post_given_a_second_post_a_hair_aside() {
@@ -1212,6 +1219,12 @@ fn seed_1013792_a_bored_block_given_a_post_on_its_side_then_a_block_apart() {
 /// leave out. But the walls over the strip are two, parted by the line the
 /// holes cross along, so the strip has no twin bounded by its own arcs, and
 /// the skin is kept: the triangles of the strip and of the walls cross.
+/// Decision 7 winds each strip beside the faces lying over it as the exact
+/// geometry has it, and keeps the skin too. The line the holes cross along
+/// stands within a picometre of the side; laid on the side as well, it
+/// would part the side's strip where the walls' end and make them twins —
+/// the band's lines shared by every surface of the band, which decisions 3
+/// and 5 do not make.
 #[test]
 #[ignore = "band"]
 fn seed_1032742_a_bar_bored_twice_a_hair_apart_touching_its_side() {
@@ -1828,6 +1841,34 @@ fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the
     ));
 }
 
+/// The same seed shrunk on the kernel of decision 7: a stock bored by a bore
+/// touching it inside at its top, then a pin whose bottom dips 2e-7 into
+/// both walls cut from above. The strips of the pin's wall between the
+/// lines it crosses the two walls along stand within the tolerance of both
+/// all across, and are wound beside them as the arena decided the pairs.
+/// The pin's wall crosses the stock's and the bore's facing them, and a
+/// point of it inside the stock had been read as standing under the
+/// stock's wall, as though the two faced one way: the strip was put outside
+/// the bored stock, and the listing did not close.
+#[test]
+fn seed_3150523_a_pin_dipping_into_a_stock_and_the_bore_touching_it_inside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 0.0], 2.5), -10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 0.5], 2.0),
+                -10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 3.0], 0.5000002),
+                -10.0,
+            )),
+        ],
+    ));
+}
+
 /// Failure 1-6 of campaign 3: a cut a hair off a post's side leaves a skin
 /// of it 3e-7 thick, which a large block then joined grows the tolerance
 /// past. The skin's two faces are twins, the post covers both, and the
@@ -1908,7 +1949,12 @@ fn seed_3015242_the_same_skin_cut_by_a_block_on_the_plane_that_sliced_it() {
 /// Its triangles still cross below the cut, where the cut's corner on the
 /// side, 1e-5 from the line of touch and within the band where side and wall
 /// stand within the tolerance, was given the wall by distance (failure 1-2):
-/// a strip of the wall lies on the side.
+/// a strip of the wall lies on the side. Under the cut's floor the cusp runs
+/// on past the cut's side, so the side's region and the wall's there are
+/// the cusp a tangency leaves, kept as the exact geometry has it, not
+/// strips decision 7 reads; what lies on the side is the wall's triangle
+/// from the line of touch to that corner, a vertex of both faces 1e-5 into
+/// the band.
 #[test]
 #[ignore = "band"]
 fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip() {
@@ -2262,19 +2308,18 @@ fn seed_3173439_a_side_inside_the_band_two_pins_a_hair_apart_cross_on() {
 /// rim. A pair of surfaces one operand alone carries is now decided at that
 /// operand's tolerance, as it stood when it was made.
 ///
-/// Understood and left: the cut's radius, read off a corner and a centre,
-/// is 22.499999999999996, and that rounding moves the line the walls cross
-/// along 1.6e-6 from halfway between their axes, along the band where they
-/// stand within the tolerance of each other. The block's side x = 15 passes
-/// halfway, and on both walls the strip between its line and the crescent's
-/// own is a twin the post covers on both sides, straddling where the walls
-/// truly cross: which one stands above cannot be read there, and the kernel
-/// declines. Crossing two walls of one radius but for rounding halfway
-/// makes it hold, and leaves the triangles of seed 7002841's crescent
-/// crossing: the triangles' sampling round a crossing line is tuned to
-/// where the rounding puts it.
+/// The cut's radius, read off a corner and a centre, is 22.499999999999996,
+/// and that rounding moves the line the walls cross along 1.6e-6 from
+/// halfway between their axes, along the band where they stand within the
+/// tolerance of each other. The block's side x = 15 passes halfway, and on
+/// both walls the strip between its line and the crescent's own is a twin
+/// the post covers on both sides, straddling where the walls truly cross:
+/// measured at the strip's point, which wall stands above could not be
+/// read, and the kernel declined. Two walls crossing stand one above the
+/// other all along each stretch between the lines they were decided to
+/// cross along, read at its middle, where they stand furthest apart: the
+/// twins are a skin, and the strip goes.
 #[test]
-#[ignore = "straddled"]
 fn seed_50002029_a_crescent_a_hair_wide_cut_at_its_tip_by_a_block_further_out() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(28.0), Outline::circle([15.0, 20.0], 22.5), 10.0),
@@ -2671,9 +2716,13 @@ fn seed_3151875_a_bore_touching_a_block_s_end_a_hair_from_where_another_crosses_
 /// triangles there lie on the side's. They are twins, but not bounded by
 /// the same arcs: the second block ends at z = 11 and the line with it,
 /// while the side's region runs on into the band above and the wall's all
-/// round. Decision 6 asks for regions bounded by the same arcs; this asks
-/// for the band two touching surfaces stand within the tolerance over
-/// decided once, the regions of either parted at its edge.
+/// round. Decision 6 asks for regions bounded by the same arcs; decision 7
+/// reads a region standing within the tolerance of the other surface all
+/// across, and neither strip is a region: each is the part of a region
+/// whose point stands beyond the band, decided there — kept, both, as the
+/// exact geometry has them, a cusp of matter 3e-15 thick that the second
+/// block ends. Dropping it wants both regions parted where the line ends,
+/// along an arc across the band the boolean has no curve for.
 #[test]
 #[ignore = "band"]
 fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_crosses_it() {
@@ -2703,14 +2752,14 @@ fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_c
 /// plane both touch, between their two lines of touch; a block's floor on
 /// that plane then cuts it.
 ///
-/// Understood and left: the strip of the floor between one line of touch
-/// and the crossing has no twin bounded by the same arcs — the crescent's
-/// walls end at its caps, the floor runs past them — and its point stands
-/// within a femtometre of both walls: no ray tells whether it lies inside
-/// the crescent. Three surfaces touching along one band call for the band
-/// decided once, as for seed 3156716.
+/// The strip of the first pin's wall between its line of touch and the
+/// crossing has no twin bounded by the same arcs — the floor runs past the
+/// crescent's caps — and its point stands a tenth of a femtometre off the
+/// floor: no ray told whether the block wraps it, and the kernel declined.
+/// The strip stands within the tolerance of the floor all across: the block
+/// wraps it as the floor's matter lies, the pin standing below the floor it
+/// touches (decision 7).
 #[test]
-#[ignore = "band"]
 fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(1.5), Outline::circle([5.0, 4.0], 1.0), 5.0),
@@ -2724,6 +2773,98 @@ fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch(
                 Plane::xz(2.5),
                 Outline::rectangle([4.0, 3.0], [10.0, 11.0]),
                 10.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-1 of campaign 3: a bar bored along its length by a bore whose
+/// wall touches the bar's top from inside, 1.8e-6 off the line where a
+/// wider bar joined to it touches the top too, and touches the bore inside
+/// along a third line 3.6e-6 off — three lines in one band, each pair
+/// decided apart. The strip of the top between the bore's line and the wide
+/// bar's stands within a hundredth of a femtometre of the wide bar's wall
+/// all across, and no ray told whether the wide bar wraps it: the kernel
+/// declined. The wide bar wraps it as its wall's matter lies, the top
+/// standing outside the wall it touches (decision 7), and the strip of the
+/// wide bar's wall between its two lines of touch lies between the bore and
+/// the top, inside the cusp they leave.
+#[test]
+fn seed_3192987_a_bar_bored_under_its_top_joined_to_a_wider_bar_touching_both() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-89.99999),
+            Outline::rectangle([255.0, 195.0], [435.0, 375.0]),
+            570.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-89.99999),
+                Outline::circle([344.9999982, 315.0], 60.0),
+                1140.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-60.0),
+                Outline::circle([345.0, 285.0], 90.0),
+                255.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 3, the same band joined: two pins of one radius
+/// 6e-8 apart, then a block whose floor both touch cut from above. The strip
+/// of the first pin's wall between its line of touch and the line the pins
+/// cross along stands within the tolerance of the floor all across, its
+/// point a tenth of a femtometre under it, and the kernel declined. The
+/// block wraps it as the floor's matter lies, the pin standing below the
+/// floor it touches (decision 7).
+#[test]
+fn seed_3239627_two_pins_a_hair_apart_joined_then_cut_by_a_floor_both_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(3.0), Outline::circle([1.0, 1.0], 2.0), 8.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(3.9999999),
+                Outline::circle([1.00000006, 1.0], 2.0),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(8.0),
+                Outline::rectangle([-6.0, -2.0], [6.0, 9.0]),
+                -5.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-1 of campaign 3, as drawn: two pins of one radius 6e-8 apart
+/// joined beside a block, then a pin cut from them whose wall touches both
+/// at their tops from outside. The strip of the second pin's wall between
+/// its line of touch with the cut and the line the two pins cross along
+/// stands within the tolerance of the cut's wall all across, its point a
+/// femtometre under it, and no ray told whether the cut wraps it: the
+/// kernel declined. The cut wraps it as its wall's matter lies, the pin
+/// standing outside the cut it touches (decision 7).
+#[test]
+fn seed_3024043_two_pins_a_hair_apart_cut_by_a_pin_touching_both_at_their_tops() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(7.0), Outline::circle([5.0, 0.0], 4.0), 5.5),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([0.0, 6.0], [3.5, 9.5]),
+                2.5,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([4.99999994, 0.0], 4.0),
+                5.5,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([4.99999994, 4.5], 0.5),
+                6.5,
             )),
         ],
     ));

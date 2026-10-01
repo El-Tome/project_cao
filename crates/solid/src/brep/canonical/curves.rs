@@ -116,7 +116,11 @@ impl Registry {
 
 /// Whether two curves are one within the tolerance over the whole box.
 pub(in crate::brep) fn same(one: &Curve, other: &Curve, scale: Scale) -> bool {
-    let eps = scale.eps();
+    within(one, other, scale, scale.eps())
+}
+
+/// Whether two curves are one within `eps` over the whole box.
+pub(in crate::brep) fn within(one: &Curve, other: &Curve, scale: Scale, eps: f64) -> bool {
     match (one, other) {
         (Curve::Line(one), Curve::Line(other)) => {
             parallel(one.direction, other.direction, scale)
@@ -129,8 +133,8 @@ pub(in crate::brep) fn same(one: &Curve, other: &Curve, scale: Scale) -> bool {
         }
         (Curve::Meet(one), Curve::Meet(other)) => {
             one.component == other.component
-                && alike(&one.first, &other.first, scale)
-                && alike(&one.second, &other.second, scale)
+                && alike(&one.first, &other.first, scale, eps)
+                && alike(&one.second, &other.second, scale, eps)
         }
         _ => false,
     }
@@ -161,10 +165,10 @@ fn meet_distance(meet: &Meet, point: DVec3) -> f64 {
     meet.point(meet.parameter(point)).distance(point)
 }
 
-fn alike(one: &Cylinder, other: &Cylinder, scale: Scale) -> bool {
+fn alike(one: &Cylinder, other: &Cylinder, scale: Scale, eps: f64) -> bool {
     parallel(one.axis, other.axis, scale)
-        && one.origin.distance(other.origin) <= scale.eps()
-        && (one.radius - other.radius).abs() <= scale.eps()
+        && one.origin.distance(other.origin) <= eps
+        && (one.radius - other.radius).abs() <= eps
 }
 
 /// Two directions part by less than the tolerance across the whole box.

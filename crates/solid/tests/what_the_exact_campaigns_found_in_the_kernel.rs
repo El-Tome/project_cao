@@ -1881,3 +1881,102 @@ fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip(
         ],
     ));
 }
+
+/// Found by the 120-second campaign from seed 50 000 000 once a touch decided
+/// a hair apart was made exact: a bore touching a block's side 1e-8 inside,
+/// its floor 1e-8 under the block's. The bore was moved onto the side, but
+/// its rims were left where its own operand drew them, a hair off the moved
+/// wall and a hair off the block's floor it was taken for: √2 hairs from the
+/// circle the floor and the moved wall share, past the tolerance. The rim
+/// and that circle stayed two, an arc of each a hair apart at one vertex,
+/// and the kernel declined. An edge whose surfaces were taken for others or
+/// moved is laid on the curve they share, each of the two having moved by
+/// up to the tolerance.
+#[test]
+fn seed_50000046_a_bore_moved_onto_the_side_it_touches_takes_its_rims_along() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(7.0),
+            Outline::rectangle([10.0, 2.0], [12.0, 3.0]),
+            5.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(6.99999999),
+            Outline::circle([11.50000001, 2.5], 1.5),
+            3.0,
+        ))],
+    ));
+}
+
+/// The same with a plane moved: a block whose side y = 0.5 a bore's wall
+/// pokes through by 1e-8 is moved onto the touch, its floor 1e-8 under the
+/// floor it is taken for. Its edge along both stayed where the block drew
+/// it, √2 hairs from the corner the three planes fix, and the listing found
+/// the edge's end off its vertex.
+#[test]
+fn seed_50008536_a_block_moved_onto_the_bore_it_touches_takes_its_edges_along() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([8.0, 5.0], 6.0), 5.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0000002),
+                Outline::circle([9.0, 5.0], 4.50000001),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(6.00000019),
+                Outline::rectangle([3.0, 0.5], [8.0, 3.5]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// A pin under a block, its cap on the block's floor, its wall a hair from
+/// touching the block's side from outside: decided to touch, the pin is
+/// moved onto the side. Its rim was then read as no longer carried by its
+/// own wall, the moved wall standing a rounding past the tolerance from it,
+/// and stayed where the pin drew it, a hair off the corner the side's edge
+/// touches the wall at: two corners and an edge's uses unbalanced. Which of
+/// an edge's surfaces carry its curve is read off its operand as built.
+#[test]
+fn seed_50000012_a_pin_moved_onto_the_side_it_touches_from_outside_keeps_its_rim_on_its_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([4.0, 2.0], [10.0, 8.0]),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(0.0),
+            Outline::circle([7.0, 9.0], 0.99999999),
+            1.0,
+        ))],
+    ));
+}
+
+/// Three blocks flush on two walls a hair off, each a tenth of the reach's
+/// tolerance under it: the cut's edge along both walls stood where the cut
+/// drew it, √2 hairs from the line the two walls it was taken for share.
+#[test]
+fn seed_50001263_a_slot_cut_flush_with_two_walls_a_hair_off_lies_on_their_line() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(25.0),
+            Outline::rectangle([15.0, 50.0], [38.0, 68.0]),
+            45.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(15.00001),
+                Outline::rectangle([-12.4999999, -2.5], [32.5000001, 42.5]),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(25.0000001),
+                Outline::rectangle([25.0, 27.5], [32.5, 55.0]),
+                90.0,
+            )),
+        ],
+    ));
+}

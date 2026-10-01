@@ -65,7 +65,13 @@ The decisions, in the order taken, once per operation:
    two surfaces decided apart, and never two curves of one operand, which
    the operation that made it kept apart. A line a pair's line was taken for is that
    pair's alone: another within `EPS` of it, on a surface apart from the
-   first's, does not lie on the pair's surfaces for that.
+   first's, does not lie on the pair's surfaces for that. An operand's edge
+   beside a face whose surface was taken for another or moved onto a touch
+   is laid on the curve its surfaces now share, the nearest within twice
+   `EPS`: each of the two may stand up to `EPS` from where the operand drew
+   it, and a bore's rim moved onto a side, its floor taken for one a hair
+   off, stands √2 hairs from the circle they share. Which of those surfaces
+   carry the edge all along is read off the operand as it was built.
 4. **A line meeting a cylinder at a double root**, once per pair. A line
    passing within `EPS` outside a wall touches it once, where it passes
    closest. A line passing within `EPS` inside it crosses it twice, its

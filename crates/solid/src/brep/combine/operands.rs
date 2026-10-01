@@ -9,7 +9,7 @@ use crate::brep::Declined;
 use crate::brep::canonical::Surfaces;
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
-use crate::brep::topology::{Body, EdgeId, FaceId, SurfaceId};
+use crate::brep::topology::{Body, FaceId, SurfaceId};
 
 pub(in crate::brep) struct Operands<'a> {
     pub bodies: [&'a Body; 2],
@@ -67,18 +67,6 @@ impl<'a> Operands<'a> {
         let lying = self.bodies[operand].face(face);
         let (_, agree) = self.surfaces.mapped[operand][lying.surface.0 as usize];
         lying.flipped != !agree
-    }
-
-    /// The shared surfaces of the faces of an operand using one of its edges.
-    pub fn around(&self, operand: usize, edge: EdgeId) -> Vec<SurfaceId> {
-        let mut around: Vec<SurfaceId> = self.bodies[operand]
-            .uses(edge)
-            .into_iter()
-            .map(|(face, _)| self.surface_of(operand, face))
-            .collect();
-        around.sort();
-        around.dedup();
-        around
     }
 
     pub fn carries(&self, operand: usize, surface: SurfaceId) -> bool {

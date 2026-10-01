@@ -14,7 +14,7 @@ mod surfaces;
 pub(super) use apart::Apart;
 pub(super) use arcs::parting;
 pub(super) use corners::{Pool, lies_on};
-pub(super) use curves::{Registered, Registry, same};
+pub(super) use curves::{Registered, Registry, distance, same, within};
 pub(super) use planes::Planes;
 pub(super) use surfaces::Surfaces;
 

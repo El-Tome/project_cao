@@ -132,13 +132,16 @@ The decisions, in the order taken, once per operation:
    twins it holds a skin or a crack an earlier operation kept, thinner than
    this one's tolerance: its two faces turning their matter towards each
    other, a skin, it wraps neither side once the sheet is gone; turning it
-   away, a crack, it wraps both. Which way is towards is read off the pair's
-   touch, not measured: a cylinder touching a plane stands on its axis's
-   side of it. Two parallel cylinders of one operand a hair apart, crossing
-   at a grazing angle, stand one above the other all along the stretch
-   between the lines they cross along, read at the twins' place where they
-   stand further apart than rounding. Other twins of a pair not decided to
-   touch are still a tie. The
+   away, a crack, it wraps both. Which way is towards is read off the pair
+   as that operand decided it, at the tolerance it decided it at — not at
+   this one's, which may take a slice for a touch. Decided to touch, it is
+   not measured: a cylinder touching a plane stands on its axis's side of
+   it. Decided to cross — a plane slicing a hair off a wall, two parallel
+   cylinders a hair apart crossing at a grazing angle — the two stand one
+   above the other all along the stretch between the lines they cross
+   along, the wall's slice beyond the plane from its axis, read at the
+   twins' place where they stand further apart than rounding. Other twins
+   are still a tie. The
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
 

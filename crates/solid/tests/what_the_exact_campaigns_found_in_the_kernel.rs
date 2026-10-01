@@ -1854,6 +1854,53 @@ fn seed_3015242_a_post_sliced_a_hair_off_its_side_then_joined_to_a_block() {
     ));
 }
 
+/// Found by the review of round 3: the same skin, given a block whose side
+/// lies on the plane that sliced the post. The skin's wall stands beyond
+/// that plane from the post's axis, between the two lines the plane cuts it
+/// along, yet the pair was read as touching at the tolerance the block
+/// grows, the wall on its axis's side: the skin was taken for a crack,
+/// matter on both sides, and the block's side was dropped over it. The
+/// kernel failed its own listing. Which way the skin turns is now read off
+/// the pair as the post decided it, crossing, at the twins' place.
+#[test]
+fn seed_3015242_the_same_skin_given_a_block_on_the_plane_that_sliced_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(30.0), Outline::circle([270.0, 60.0], 30.0), -75.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([240.0000003, 30.0], [300.0000003, 90.0]),
+                -150.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([240.0000003, 0.0], [260.0, 120.0]),
+                -350.0,
+            )),
+        ],
+    ));
+}
+
+/// The same skin cut by that block.
+#[test]
+fn seed_3015242_the_same_skin_cut_by_a_block_on_the_plane_that_sliced_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(30.0), Outline::circle([270.0, 60.0], 30.0), -75.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([240.0000003, 30.0], [300.0000003, 90.0]),
+                -150.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([240.0000003, 0.0], [260.0, 120.0]),
+                -350.0,
+            )),
+        ],
+    ));
+}
+
 /// Failure 1-2 of campaign 3: a bore touching a block's side inside leaves
 /// a cusp of matter between the side and its wall, which a block cut from it
 /// crosses 1e-5 from the touch. The kernel declined, the block covering both

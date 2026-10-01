@@ -140,7 +140,7 @@ fn wrapped_at(
         match found.as_slice() {
             [] => {}
             [(_, _, wrapped)] => covered[operand] = Some(*wrapped),
-            [one, other] => sheet[operand] = Some(collapsed(operands, [*one, *other])?),
+            [one, other] => sheet[operand] = Some(collapsed(operands, operand, [*one, *other])?),
             _ => return Err(Declined::Tie),
         }
     }

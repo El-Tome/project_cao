@@ -6,6 +6,7 @@ use crate::brep::Declined;
 use crate::brep::combine::Operands;
 use crate::brep::domain::Location;
 use crate::brep::relation::{Relation, relation};
+use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::SurfaceId;
 
@@ -79,20 +80,23 @@ pub(in crate::brep) fn covering(
 /// faces turning their matter towards each other hold a skin thinner than
 /// the tolerance, nothing on either side once it is gone; turning it away
 /// from each other, a crack as thin, matter on both. Which way is towards
-/// is read off the pair's touch: a cylinder touching a plane stands on the
-/// side of it its axis is, a plane touching a cylinder outside it, a
-/// parallel cylinder outside one it touches outside, and inside one larger
-/// it touches inside. Two parallel cylinders of one operand a hair apart,
-/// crossing at a grazing angle or one at this tolerance though the operand
-/// kept them two, stand one above the other all along the stretch between
-/// the lines they cross along: read at the first twin's place, where they
-/// stand further apart than rounding. Other twins of a pair not decided to
-/// touch are a tie.
+/// is read off the pair as the operand decided it, at the scale it decided
+/// it at. Decided to touch: a cylinder touching a plane stands on the side
+/// of it its axis is, a plane touching a cylinder outside it, a parallel
+/// cylinder outside one it touches outside, and inside one larger it
+/// touches inside. Decided to cross — a plane slicing a hair off a wall,
+/// two parallel walls a hair apart crossing at a grazing angle, or one at
+/// this tolerance though the operand kept them two — the two stand one
+/// above the other all along the stretch between the lines they cross
+/// along: read at the first twin's place, where they stand further apart
+/// than rounding. Other twins are a tie.
 pub(in crate::brep) fn collapsed(
     operands: &Operands,
+    operand: usize,
     [(first, place, one), (second, _, other)]: [(SurfaceId, DVec3, Wrapped); 2],
 ) -> Result<i32, Declined> {
-    let above = lies_above(operands, first, second, place).ok_or(Declined::Tie)?;
+    let scale = operands.decided(operand, [first, second]);
+    let above = lies_above(operands, scale, [first, second], place).ok_or(Declined::Tie)?;
     let (towards, away) = if above {
         ((one.above, other.below), (one.below, other.above))
     } else {
@@ -105,19 +109,27 @@ pub(in crate::brep) fn collapsed(
     }
 }
 
-/// Whether `other` stands on the side of `one` its own normal points to,
-/// along the line the two were decided to touch along, or at `place` where
-/// two parallel cylinders not decided to touch stand further apart than
-/// rounding; none otherwise.
-fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId, place: DVec3) -> Option<bool> {
-    let [first, second] = [one, other].map(|surface| &operands.surfaces.list[surface.0 as usize]);
-    if !matches!(
-        relation(first, second, operands.scale),
-        Relation::Tangent(_)
-    ) {
+/// Whether the second of a pair stands on the side of the first its own
+/// normal points to, along the line the two were decided at `scale` to
+/// touch along, or at `place` where two not decided to touch, a plane and a
+/// wall or two parallel walls, stand further apart than rounding; none
+/// otherwise.
+fn lies_above(
+    operands: &Operands,
+    scale: Scale,
+    pair: [SurfaceId; 2],
+    place: DVec3,
+) -> Option<bool> {
+    let [first, second] = pair.map(|surface| &operands.surfaces.list[surface.0 as usize]);
+    if !matches!(relation(first, second, scale), Relation::Tangent(_)) {
+        let rounding = operands.eps() * ROUNDING;
         return match (first, second) {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
-                above_at(first, second, place, operands.eps() * ROUNDING)
+                above_at(first, second, place, rounding)
+            }
+            (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
+                let gap = plane.distance(beside(cylinder, place));
+                (gap.abs() > rounding).then_some(gap > 0.0)
             }
             _ => None,
         };
@@ -136,6 +148,13 @@ fn lies_above(operands: &Operands, one: SurfaceId, other: SurfaceId, place: DVec
         }
         (Surface::Plane(_), Surface::Plane(_)) => None,
     }
+}
+
+/// The point of a wall nearest `place`, off its axis.
+fn beside(cylinder: &Cylinder, place: DVec3) -> DVec3 {
+    let from = place - cylinder.origin;
+    let foot = cylinder.origin + cylinder.axis * cylinder.axis.dot(from);
+    foot + (place - foot).normalize_or_zero() * cylinder.radius
 }
 
 /// Whether `second`, parallel to `first`, stands outside it at the angle of

@@ -145,9 +145,13 @@ touch along only within `EPS` of it and of both. A line or a circle lying on a s
 only because an arc of it was taken for an arc of the surface (decision 6), is
 seen there as the segment between where its ends stand — a circle square to a
 cylinder's axis or leaning on a plane only where its stretch stands within
-`EPS` of that chord. A corner whose support holds only planes, three of
-them spanning space, stands where they meet — each plane taken for another
-within `EPS`, the place they fix moves by more. A triple of surfaces is
+`EPS` of that chord. A corner whose support holds three planes spanning space, and no
+cylinder but one decided to touch one of its surfaces, stands where the
+planes meet — each plane taken for another within `EPS`, the place they fix
+moves by more, and the line a cylinder touches a plane along, taken for
+the line two of the planes share, is fixed by them: corners found along it,
+some on the planes and some on the touch, would lean its edge a hair
+across both. A triple of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then
 any line against the third surface, then a circle, then the perpendicular
 curve — which is crossed with a surface through the lines that surface makes

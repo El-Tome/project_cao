@@ -2429,3 +2429,59 @@ fn seed_3108592_a_box_cut_whose_corner_line_stands_a_hair_inside_a_post() {
         ],
     ));
 }
+
+/// Failure 1-2 of campaign 3, found by the triangles: a post touching a
+/// block's side from outside, and a second block whose side crosses that
+/// side 0.83 tolerances from the line of touch. The two lines are one, and
+/// its corners were left where each was found: the post's on the touch,
+/// the second block's on its planes, a hair across, so that the edge leaned
+/// between them and the side's triangles crossed the post's. A corner on
+/// three planes and on a cylinder touching one of them stands where the
+/// planes meet: they fix the line the touch was taken for.
+#[test]
+fn seed_3218403_a_post_touching_a_side_a_hair_from_where_a_block_crosses_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(3.0),
+            Outline::rectangle([-5.0, -4.0], [7.0, 8.0]),
+            9.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(5.99999999),
+                Outline::rectangle([2.0, 1.0], [7.0, 5.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([1.0, 6.0], 2.0),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// The same with a bore touching the end of a block 3e-7 inside, where a
+/// second block's end crosses the first's.
+#[test]
+fn seed_3151875_a_bore_touching_a_block_s_end_a_hair_from_where_another_crosses_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(195.0),
+            Outline::rectangle([255.0, 90.0], [480.0, 330.0]),
+            195.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(194.99999),
+                Outline::rectangle([285.0, 120.0], [540.0, 300.0]),
+                195.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(195.0000006),
+                Outline::circle([479.9999997, 210.0], 90.0),
+                390.0,
+            )),
+        ],
+    ));
+}

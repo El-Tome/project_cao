@@ -107,9 +107,18 @@ pub(super) fn cut(
 /// Where a corner stands: where three planes it lies on meet, when their
 /// normals span space and it was found off that place by more than
 /// rounding — each plane taken for another within the tolerance, the place
-/// they fix moved — and where it was found otherwise.
+/// they fix moved — and where it was found otherwise. A cylinder the corner
+/// lies on too holds the planes' place when it was decided to touch one of
+/// them: the line they touch along is fixed by the planes the corner's
+/// line lies on, and corners found along it, some on the planes, some on
+/// the touch, would lean an edge between them a hair across both.
 fn placed(point: DVec3, support: &[SurfaceId], registry: &Registry, eps: f64) -> DVec3 {
-    match registry.planes.place(support) {
+    let touching = |cylinder: SurfaceId| {
+        support
+            .iter()
+            .any(|&plane| registry.planes.is_plane(plane) && registry.apart.touch(cylinder, plane))
+    };
+    match registry.planes.place(support, touching) {
         Some(place) if place.distance(point) > eps * ROUNDING => place,
         _ => point,
     }

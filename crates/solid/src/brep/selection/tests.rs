@@ -211,6 +211,66 @@ fn a_region_whose_point_the_other_operand_touches_is_read_at_another_point_of_it
     assert!(cut.is_ok(), "{cut:?}");
 }
 
+/// The same post and bar, read for decision 7: the post's wall is one
+/// region, and its point stands on the ruling the bar's cap touches the wall
+/// along, within the tolerance of the cap's plane, the two lying along each
+/// other there. The wall runs on round the post, a whole diameter from the
+/// plane at its far side: it does not stand within the tolerance of the
+/// plane all across, and is not read beside it.
+#[test]
+fn a_region_whose_point_stands_on_a_surface_its_boundary_runs_away_from_is_not_beside_it() {
+    let post = standing([30.0, 5.0], 25.0, -5.0, 35.0);
+    let frame = Frame {
+        origin: DVec3::X * 5.0,
+        u: DVec3::Y,
+        v: DVec3::Z,
+    };
+    let center = DVec2::new(35.0, 15.0);
+    let circle = Contour {
+        corners: vec![center + DVec2::X * 30.0],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let bar = Body::raised(&circle, &[], frame, DVec3::NEG_X * 18.0).expect("a bar raises");
+    let operands = Operands::of(&post, &bar, post.scale().joined(bar.scale()));
+    let arena = laid(&operands).expect("the arena is laid");
+    let list = &arena.body.surfaces;
+    let wall = list
+        .iter()
+        .position(|surface| {
+            matches!(surface, Surface::Cylinder(cylinder) if (cylinder.radius - 25.0).abs() < 1e-9)
+        })
+        .expect("the post's wall is there");
+    let cap = list
+        .iter()
+        .position(|surface| {
+            matches!(surface, Surface::Plane(plane)
+                if plane.normal.abs().abs_diff_eq(DVec3::X, 1e-12)
+                    && (plane.offset().abs() - 5.0).abs() < 1e-9)
+        })
+        .expect("the bar's cap is there");
+    let (edges, overlay) = parted(&arena, SurfaceId(wall as u32)).expect("the wall is parted");
+    let geometry = &list[wall];
+    let region = overlay
+        .regions
+        .iter()
+        .find(|region| {
+            !region.unbounded
+                && list[cap].distance(geometry.point(region.inside)).abs() <= operands.eps()
+        })
+        .expect("the wall's point stands on the cap's plane");
+    assert_eq!(
+        band::beside(
+            &arena.body,
+            geometry,
+            region,
+            &edges,
+            std::iter::once(SurfaceId(cap as u32)),
+            operands.eps(),
+        ),
+        Vec::new()
+    );
+}
+
 /// Seed 3130833 of the campaign: a bore touching a block's side from inside
 /// leaves a cusp of matter between the side and its wall, and a block cut
 /// from it has its side cross the cusp 1e-5 from the touch. The strip of the

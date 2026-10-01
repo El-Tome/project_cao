@@ -317,7 +317,8 @@ fn on_circle(
             at = low;
         }
         while at < high {
-            if inside(at) && !by_an_end(at) && !beside_a_plane(at) {
+            let kept = contact.beneath.contains(way) || !by_an_end(at);
+            if inside(at) && kept && !beside_a_plane(at) {
                 places.push((at, false, angle));
             }
             at += TAU;

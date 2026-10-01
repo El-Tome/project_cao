@@ -75,6 +75,12 @@ pub(super) struct Contact {
     /// a place crowded, with its own: beside the lines they meet along, an
     /// arc ending there is sampled at its end alone.
     pub(super) beside: Vec<(Cylinder, Gap)>,
+    /// The rays through vertices standing just inside it, not on it: they
+    /// are taken beside an end too. A third wall crossing two touching walls
+    /// a hair from the line they touch along puts a vertex on the inner one
+    /// there, and the outer one's arc, ending where the third crosses it,
+    /// must pass outside that vertex rather than chord under it.
+    pub(super) beneath: Vec<DVec3>,
 }
 
 impl Contact {
@@ -83,6 +89,7 @@ impl Contact {
         self.withheld.extend(other.withheld);
         self.anchors.extend(other.anchors);
         self.beside.extend(other.beside);
+        self.beneath.extend(other.beneath);
     }
 }
 
@@ -175,7 +182,11 @@ pub(super) fn contacts(
     let eps = body.scale().eps();
     let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     along_meets(body, meets, &mut own);
-    let Through { anchors, pinned } = through_vertices(body, walls, tolerance, &mut own);
+    let Through {
+        anchors,
+        pinned,
+        beneath,
+    } = through_vertices(body, walls, tolerance, &mut own);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
@@ -223,6 +234,9 @@ pub(super) fn contacts(
     }
     for (wall, points) in anchors {
         contacts.entry(wall).or_default().anchors = points;
+    }
+    for (wall, rays) in beneath {
+        contacts.entry(wall).or_default().beneath = rays;
     }
     contacts
 }

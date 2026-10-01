@@ -12,12 +12,14 @@ use crate::brep::curve::Curve;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId};
 
-/// The vertices lying on each wall, and the rays through them: the rays it
-/// keeps whatever the room of a wall close to it.
+/// For each wall, the vertices lying on it; the rays through those and
+/// through the vertices standing just inside it, which it keeps whatever
+/// the room of a wall close to it; and the rays through the second alone.
 #[derive(Default)]
 pub(super) struct Through {
     pub(super) anchors: BTreeMap<SurfaceId, Vec<DVec3>>,
     pub(super) pinned: BTreeMap<SurfaceId, Vec<DVec3>>,
+    pub(super) beneath: BTreeMap<SurfaceId, Vec<DVec3>>,
 }
 
 /// What the circles of two perpendicular cylinders take for the curve they
@@ -98,10 +100,16 @@ pub(super) fn through_vertices(
             let flat = flat_from(cylinder, vertex.point);
             if flat.length() > 0.0 {
                 own.entry(*id).or_default().push(flat.normalize());
+                through
+                    .pinned
+                    .entry(*id)
+                    .or_default()
+                    .push(flat.normalize());
                 if on {
                     through.anchors.entry(*id).or_default().push(vertex.point);
+                } else {
                     through
-                        .pinned
+                        .beneath
                         .entry(*id)
                         .or_default()
                         .push(flat.normalize());

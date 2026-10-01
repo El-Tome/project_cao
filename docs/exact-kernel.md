@@ -214,7 +214,11 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   rules tell apart, and the vertices of the line they touch along are where
   both walls' samples meet. A vertex standing inside a wall closer than
   twice a chord's sag — a pocket's corner a hair inside it — gives the wall's
-  circles a sample at its angle too, so that no chord passes inside it. An
+  circles a sample at its angle too, so that no chord passes inside it: within
+  the room of another wall and beside an arc's end alike, where a third wall
+  crossing two that touch, a hair from the line they touch along, leaves a
+  vertex of the inner one just inside the outer, whose arc ends where the
+  third crosses it. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
   ray so near the line the plane touches along that it would stand on the

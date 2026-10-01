@@ -1455,3 +1455,60 @@ fn seed_3112136_a_slot_whose_corners_stand_in_a_skin_under_a_bore_s_cap_leaves_t
         ],
     ));
 }
+
+#[test]
+fn seed_3157560_a_boss_a_hair_across_a_bore_and_the_stock_it_touches_leaves_the_floor_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([2.0, 8.5], 4.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.0, 9.5], 3.0),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.0, 11.5], 1.00000002),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3186142_a_boss_a_hair_across_two_cylinders_touching_inside_leaves_their_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(0.0), Outline::circle([3.0, 8.0], 5.0), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(-1.0),
+                Outline::circle([4.0, 8.0], 4.0),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([6.5, 8.0], 1.50000002),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3149531_a_boss_touching_a_crescent_inside_a_hair_from_its_tip_leaves_the_floor_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([35.0, 5.0], 30.0), 48.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([34.99999, 5.0], 30.0),
+                18.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([34.99999, 25.0], 10.0000001),
+                35.0,
+            )),
+        ],
+    ));
+}

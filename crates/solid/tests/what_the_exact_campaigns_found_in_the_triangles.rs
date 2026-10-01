@@ -886,6 +886,66 @@ fn seed_32000053_a_circle_printed_round_a_hole_it_touches_inside_leaves_the_top_
     ));
 }
 
+/// The cylinder, swallowed by the block, leaves its circle on the block's
+/// side x = 7, and that circle touches the edge of the pad standing 2e-8
+/// off the same side, y = 7, at (7, 7, 1): the cylinder was tangent to the
+/// pad's top there. The kernel puts no vertex at that point — the gap of
+/// 2e-8 fell under the tolerance only once the block grew the reach
+/// (failure 1-6) — and the side's face touches itself there between two of
+/// its edges. A sample of the circle lies on the pad's edge, and no sweep
+/// can lay out a boundary touching itself away from a vertex. The point has
+/// to be a vertex of both edges, which is the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_34002812_a_swallowed_cylinder_tangent_to_a_pad_a_hair_off_the_side_leaves_the_side_closed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(7.0), Outline::circle([3.0, 1.0], 4.0), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(6.99999998),
+                Outline::rectangle([7.0, 0.0], [11.0, 2.0]),
+                -8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::rectangle([-1.0, -6.0], [11.0, 6.0]),
+                20.0,
+            )),
+        ],
+    ));
+}
+
+/// Two cylinders of one radius side by side touch along x = 7, y = 8.5, and
+/// a third, 2e-8 off the first's axis, touches the second along a line
+/// 1e-8 beside it. The kernel holds the first and third apart but makes
+/// their two lines of contact one by distance, and puts the vertex at the
+/// top of the third's on its own line, 1e-8 off the first's (failure 1-8):
+/// the third's face is bounded along the line by a kink 6e-9 deep. Its
+/// sliver over the kink lies on the plane the second wall is tangent to
+/// there, and within what the rules tell apart of the second wall's
+/// triangle along the line, folded onto it. The line has to be one line,
+/// which is the boolean's.
+#[test]
+#[ignore = "kernel"]
+fn seed_30000434_a_cylinder_a_hair_off_one_touching_its_neighbour_leaves_the_neighbour_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(4.0), Outline::circle([7.0, 5.0], 3.5), 5.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::circle([7.0, 12.0], 3.5),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.00001),
+                Outline::circle([6.99999998, 5.0], 3.5),
+                5.0,
+            )),
+        ],
+    ));
+}
+
 /// The cylinder, of radius 74.9999997 about (165, 60), passes 3e-7 inside the
 /// corner (210, 0) of the bar joined to it, under the kernel's tolerance,
 /// 3.6e-7. The kernel keeps the corner off the cylinder and puts a vertex

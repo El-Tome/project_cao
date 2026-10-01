@@ -339,3 +339,106 @@ and fifty tolerances apart, which fifty merged where a line could see it,
 left two, crossing at a grazing angle, and declined. Against the kernel
 before round 5, the profile draw falls from 104 failures to 30 over the
 seeds both reached from 82 500 000, and from 85 to 26 from 80 500 000.
+
+## Round 5: the triangles
+
+The triangles' lane of 1 October night, on the kernel after round 4 and
+the profile draw, beside the kernel's lane taking two walls of one radius
+a hair off one axis for one wall (decision 8). It took campaign 4's open
+failures of the triangles and the profile draw's failures of the rules on
+triangles.
+
+| # | failure | owner | rules | status |
+| --- | --- | --- | --- | --- |
+| 4-6 | A ring whose parameter range starts on a grid step, a rounding past it, loses that step at both ends | triangles | Volume | fixed in round 5 |
+| 2-6 | A curve passing just inside a wall between two of its samples, with no vertex there — a perpendicular cap's rim under a lying post — is left outside the wall's chords | triangles | Uncrossed | fixed in round 5 |
+| 1-3 | A wall facing another over part of its height only | triangles | Volume, Uncrossed | open: each seed of campaign 4 holds with the two walls on one axis, so decision 8 reaches them; two walls touching inside, nearly concentric, want a seam inside the face |
+| 1-17 | Two walls of one radius a hair apart given shared samples by a third surface | triangles | Closed, Uncrossed | open: each seed holds without the third surface, and decision 8 reaches them |
+| 5-1 | A corner of an operand whose plane was taken for another's stays a hair off that plane: a triangle of the plane's face no wider than rounding in its parameters stands up by the hair, on the wall beside it | kernel | Uncrossed | open |
+
+A ring now takes each step of its grid once, wherever its range starts.
+The samples of a curve not parallel to a wall — a circle about another
+axis, the curve two other cylinders meet along — standing inside the wall
+closer than twice a chord's sag, where the wall holds a face, now give
+the wall's circles rays as a vertex there does; the edges are sampled a
+second time, on those rays, when there are any. Both have a named test.
+Campaign 4's six other seeds of 1-3 and 1-17 are named and ignored, as
+the kernel's: each holds once its two walls stand on one axis or the third
+surface is gone.
+
+The profile campaign before this round, 300 s from seed 80 500 000:
+12 265 cases, 84 failures, 54 of them Answers. Its 30 failures of the
+rules on triangles, shrunk, are all the kernel's: 26 hold two walls of one
+radius a hair off one axis — a slot's or a rounded rectangle's arc a hair
+off a circle of its radius, a rounded rectangle whose corners make it a
+disc a hair beside its twin — mostly beside a plane one of them touches;
+three are the band without them (1-2, 2-1); one is 5-1. A square
+campaign of the same length from seed 80 000 000 — 20 849 cases, ten
+failures — gave seven of those rules, five the band and two the walls of
+one radius. Two campaigns of 600 s on the round's triangles, from seeds
+80 600 000 and 81 000 000, gave 64 and 14 failures of those rules: tagged
+by the shapes they hold and the ones without walls of one radius shrunk,
+the same families, 4-1, and one more of the kernel's: a wall bounded by a
+line a block's side leaves 0.6 tolerances off it, the strip of the side
+between that line and the one the wall crosses it along drawn on the
+wall's triangles (81 019 107). Every one of them fails on the triangles
+before the round too. Six of the profile campaign's are named and ignored,
+one per family, as the kernel's.
+
+After the round, the same two campaigns of 300 s: from seed 80 000 000,
+22 228 cases and the same ten failures, 0.45 per thousand against 0.48;
+from seed 80 500 000, 12 919 cases and 86 failures, 6.7 per thousand
+against 6.8 — the 84 of before and two past its last seed. Neither drew a
+ring or a cap's rim of the kind the round fixed, which campaign 4 met at
+two seeds in an hour: the rules on triangles are now broken in these
+draws by what the kernel leaves them, and decision 8 is where most of
+that goes.
+
+### Round 5's review
+
+A second lane read the round the same night: each guard of the sampling
+it added taken out or widened in turn, the tests run, and the campaign's
+cases replayed on the seeds where the guard decides anything — from seed
+83 000 000, fifteen thousand square cases, and from seed 83 500 000, eight
+thousand profiles.
+
+- **A ring's rays.** A ring now kept its steps wherever its range starts,
+  but its rays were still placed by adding whole turns to an angle `atan2`
+  gives within half a turn of nought: for a ring starting past half a
+  turn, a ray at the very angle it starts at came out a rounding short of
+  the range and was lost at both ends. Rays are placed on the turn as the
+  steps are; a unit test holds every half step round it.
+- **How far inside.** A sample of a curve gave the wall a ray only beyond
+  the kernel's tolerance inside it, where a vertex gives one however
+  little inside it stands. The kernel puts no vertex where a cap's rim
+  passes the line its plane leaves on the wall by its tolerance, and seen
+  from the wall's axis the rim stands inside by less, by the cosine of the
+  angle between cap and wall: a bore ending inside a post with its rim so
+  placed poked its cap through the post's chords. The two bands are one,
+  and a case built for it is named.
+- **Seed 3 243 921**, ignored as the kernel's, holds since fix round 3,
+  and is held by the gate.
+
+Left as they are, and what was measured of them. The curves two other
+cylinders meet along give rays on 19 of those seeds, the face test turns
+samples away on 408, samples within the kernel's tolerance stood inside a
+wall on 8, and on 54 the second pass leaves new samples inside a wall with
+no ray: dropping the meets, dropping the face test, or sampling again
+until nothing new stands inside changed no outcome on its seeds. With
+every cylinder on an axis of the origin, a meet of two cylinders square to
+a wall is the farthest of a hollow from it only where the boss bounding
+the hollow covers the wall beyond, which then holds no face there; with
+one of them parallel to the wall, the wall takes its rays from the two
+standing close. No case found needs the meets, and none the face test,
+which keeps the second pass rarer. Replayed seed by seed on the round's
+two 300-second windows, the code after the review breaks the rules on the
+same seeds as the round's own.
+
+Campaigns of 300 s before the review and after it, on the round's code
+and on the review's: from seed 83 000 000, 22 442 square cases and then
+22 669, the same ten failures, 0.45 per thousand and 0.44; from seed
+83 500 000, 13 075 profiles and then 13 229, the same 80 failures — 44
+Answers, 32 Uncrossed, 3 Closed, 1 Volume — 6.1 per thousand. Every one of
+those breaking a rule on triangles also breaks it on the code before the
+round. Neither window drew a ring starting on a ray nor a rim within the
+kernel's tolerance of a wall.

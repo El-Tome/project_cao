@@ -415,6 +415,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
   points where planes of the origin touch a cylinder are always samples. A
+  ring takes each step and each ray once, wherever the range a merge left
+  it starts: a range starting on a step or a ray, or a rounding past it,
+  would lose that place at both ends — a ray at the very angle it starts
+  at too, past half a turn, its angle given on the other half. A
   circle is also sampled at the angle of every vertex on its cylinder, so that
   a ruling from a vertex off the grid meets a sample on every rim of its wall:
   otherwise a strip a hair high — a skin left under a cap — is cut by a
@@ -431,7 +435,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   the room of another wall and beside an arc's end alike, where a third wall
   crossing two that touch, a hair from the line they touch along, leaves a
   vertex of the inner one just inside the outer, whose arc ends where the
-  third crosses it. An
+  third crosses it. So does a sample of a curve not parallel to the wall
+  standing there, where the wall holds a face: the rim of a bore's cap
+  ending inside a lying post a hair under its wall, with no vertex there —
+  however little inside, as for a vertex: the kernel puts no vertex where
+  the rim passes the line the cap's plane leaves on the wall by `EPS`, and
+  seen from the wall's axis the rim stands inside by less than that.
+  The edges are then sampled a second time, on those rays. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
   ray so near the line the plane touches along that it would stand on the

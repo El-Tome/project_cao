@@ -32,6 +32,15 @@ impl Gap {
         self.touch
     }
 
+    /// The wall of the two that is not `wall`.
+    pub(in crate::brep::tessellation) fn other(&self, wall: &Cylinder) -> Cylinder {
+        if self.walls[0] == *wall {
+            self.walls[1]
+        } else {
+            self.walls[0]
+        }
+    }
+
     /// Whether `point`, on `wall`, is crowded by the other: closer to it than
     /// a fifth of the kernel's tolerance, twice what the rules tell apart,
     /// either side for walls crossing or all but one; on the wrong side at

@@ -233,7 +233,10 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   leaning a hair, its two ends within `EPS` of both walls, and a ray through
   the other end, or through the exact line, would put a sample a hair from
   the vertex, as good as on the other wall's arc ending at the same vertex —
-  a cap holding both arcs would fold back on itself there.
+  a cap holding both arcs would fold back on itself there. Only there,
+  though: where no arc of the other wall ends at that vertex, a ray through
+  a vertex a third wall puts where it crosses the other is taken, or the
+  arc chords past the third wall's sample on the same ray.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,
   at every place a curve turns back, and on a cylinder at every grid angle.
   Inside a strip the arcs are graphs that do not cross, so each piece of face
@@ -301,7 +304,9 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   there lays a strip of the wall on the side. Nor does an arc take a ray a step or less from
   its end where it all but lies on a surface that end lies on and it does
   not: a wall grazing the plane of the arc there stands on the plane's face
-  over a band far wider than the rules tell apart. Nor does the curve two
+  over a band far wider than the rules tell apart — a plane, or a wall
+  square to the arc's own, or a wall parallel to it whose own arc ends at
+  that vertex. Nor does the curve two
   perpendicular cylinders meet along, a step of the finer grid or less from
   its end: a ray a cylinder takes from a wall a hair off its own would put a
   sample of the curve on the cap's arc ending at the same vertex. Nor a place of its grid

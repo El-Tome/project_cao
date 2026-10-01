@@ -1645,3 +1645,47 @@ fn seed_3092335_a_bore_crossing_two_lying_cylinders_a_hair_apart_keeps_its_curve
         ],
     ));
 }
+
+#[test]
+fn seed_3160874_a_stock_touched_inside_by_a_bore_and_a_cut_a_hair_through_it_keeps_its_top_closed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-60.0), Outline::circle([90.0, 240.0], 60.0), 90.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0000003),
+                Outline::circle([75.0, 240.0], 45.0000003),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-90.0),
+                Outline::circle([45.0, 240.0], 15.0),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(150.0),
+                Outline::rectangle([150.0, 210.0], [345.0, 300.0]),
+                285.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3160874_a_bore_a_hair_wider_than_the_line_two_walls_touch_along_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-60.0), Outline::circle([90.0, 240.0], 60.0), 90.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::circle([75.0, 240.0], 45.0),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-90.0),
+                Outline::circle([45.0, 240.0], 15.000000300000004),
+                180.0,
+            )),
+        ],
+    ));
+}

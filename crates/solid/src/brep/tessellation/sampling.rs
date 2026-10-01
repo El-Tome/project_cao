@@ -280,27 +280,33 @@ fn on_circle(
             .iter()
             .any(|plane| on_a_plane(plane, circle.center, circle.axis, point, eps))
     };
-    let grazed = |at: f64, room: f64| {
-        ends.iter().zip(&ends_of.through).any(|(end, surfaces)| {
+    let grazed = |at: f64, room: f64, closing: bool| {
+        ends.iter().enumerate().any(|(side, end)| {
             (end - at).abs() <= step
-                && surfaces
-                    .iter()
-                    .any(|surface| surface.distance(circle.point(at)).abs() < room)
+                && ends_of.through[side].iter().any(|surface| {
+                    surface.distance(circle.point(at)).abs() < room
+                        && (!closing || ends_of.grazes(side, surface, circle.axis, eps))
+                })
         })
     };
     let by_an_end = |at: f64| {
-        grazed(at, eps * contact::APART)
+        grazed(at, eps * contact::APART, true)
             || contact.beside.iter().any(|other| {
+                let partner = other.1.other(&other.0);
                 beside(at, other)
-                    && ends
-                        .iter()
-                        .any(|end| (end - at).abs() <= step && beside(*end, other))
+                    && ends.iter().enumerate().any(|(side, end)| {
+                        (end - at).abs() <= step
+                            && beside(*end, other)
+                            && ends_of.closes(side, &partner, eps)
+                    })
             })
     };
 
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
         ..=(high / step).ceil() as i64)
-        .filter(|rank| inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD))
+        .filter(|rank| {
+            inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD, false)
+        })
         .filter(|rank| {
             let step = rank.rem_euclid(steps as i64) as usize;
             !contact.withheld.iter().any(|(withheld, [low, high])| {

@@ -75,8 +75,10 @@ pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
 /// not come back to it. No point between stands within the kernel's
-/// tolerance of either vertex: a place of the grid a rounding past the end,
-/// moved to where a vertex at its angle stands, would be that end twice.
+/// tolerance of a vertex: it would be that vertex twice — a place of the
+/// grid a rounding past an end, moved to where the vertex at its angle
+/// stands, or a place on the ray through a corner the kernel left a hair
+/// off the curve, at the corner's own height.
 ///
 /// Points are numbered: the vertices first, by rank, then the rest.
 pub(super) struct Samples {
@@ -105,6 +107,7 @@ impl Samples {
             meets = on_meets(body, &walls, &zones, &contacts, tolerance);
             contacts = contact::contacts(body, &walls, &zones, &meets, tolerance);
         }
+        let vertices = samples.points.clone();
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
@@ -125,15 +128,11 @@ impl Samples {
                 }
                 Curve::Meet(_) => meets[id.0 as usize].clone(),
             };
-            let ends: Vec<DVec3> = edge
-                .ends
-                .into_iter()
-                .flatten()
-                .map(|end| body.vertex(end).point)
-                .collect();
-            let between = between
-                .into_iter()
-                .filter(|point| ends.iter().all(|end| (*point - *end).length() > eps));
+            let between = between.into_iter().filter(|point| {
+                vertices
+                    .iter()
+                    .all(|vertex| (*point - *vertex).length() > eps)
+            });
             let first = samples.points.len();
             samples.points.extend(between);
             let inner = first..samples.points.len();

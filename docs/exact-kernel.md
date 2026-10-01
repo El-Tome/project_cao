@@ -29,7 +29,8 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-The result of an operation carries the larger reach of its operands. A pair
+One pair alone is read wider, at a hundred times it: two parallel walls of
+one radius (decision 8). The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -199,6 +200,38 @@ The decisions, in the order taken, once per operation:
    the pairs where rounding alone puts the point on one side — a bore
    decided to touch inside another, its strip 4e-15 outside the other by
    rounding — and answers where no ray can.
+8. **Two walls of one radius a hair apart.** Two parallel cylinders, one
+   of each operand, their radii within `EPS` and their axes within
+   `G = 100 · EPS` of each other — a ten-millionth of the reach — are one
+   surface, the second operand's taken for the first's as decision 1 takes
+   one within `EPS`. This is the kernel's one tolerance wider than `EPS`,
+   and it is kept to the one pair whose crossing is ill conditioned. Two
+   parallel planes a hair apart never cross: the skin between them is well
+   defined and kept, and case 8 keeps its floor of a ten-millionth. Two
+   cylinders of one radius `d` apart cross along two rulings at an angle
+   `d / r`, and a band a thousand tolerances wide surrounds the crossing,
+   where every corner a third surface makes is ill conditioned. The
+   crescent merged away is at most `G` thick, a tenth of what a line of
+   measure resolves, and is almost always what was meant: a slot's cap, a
+   rounded corner or a bore drawn on a hole of its radius, a hair off.
+
+   What the second operand built on the wall goes with it, as it does
+   after decision 1: the second operand is moved square to the axis, by
+   the offset, over every surface a corner or an edge of a moving surface
+   lies on — a slot's sides with its cap, its other cap with its sides —
+   and over the corners and the curves on them, so that its own decisions
+   hold exactly as it took them and nothing of it is left a hair off the
+   merged wall. A surface the move slides along itself, a cap square to the
+   axis or a side along the offset, stays. The move is made on the second
+   operand before decision 1 reads it, so that identity, the moves onto a
+   touch, the lines and the corners are all decided on the moved operand.
+   It is not made where it would part a surface it carries from one of the
+   first operand's it was one with or touched — a slot's side flush with
+   the body's, the body's wall a hair across from its cap — nor where it
+   would move the curve two perpendicular cylinders meet along: the two
+   walls are then left two, as before. The wall itself parts from what it
+   touched freely: it is the first's now, and stands with every surface as
+   the first operand decided.
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
@@ -262,7 +295,8 @@ Flush, touching and coincident faces are then the ordinary path rather than a
 special one: a coincident face is a region covered twice, a shared wall a region
 covered once from each side.
 
-1. **Identity** of surfaces (decision 1).
+1. **Identity** of surfaces (decision 1), once the second operand is moved
+   onto a wall of its radius a hair off (decision 8).
 2. **Relations** of pairs whose faces' boxes overlap (2, 3).
 3. **Corners.** Every edge curve of one operand against every surface of the
    other, and the special points of the relations (4, 5). A curve can only

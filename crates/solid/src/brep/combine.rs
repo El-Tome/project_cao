@@ -13,7 +13,7 @@ mod related;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Planes, Pool, Registry};
+use super::canonical::{Apart, Planes, Pool, Registry, closed};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -58,7 +58,9 @@ impl Body {
 }
 
 pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Result<Body, Declined> {
-    let operands = Operands::of(first, second, first.scale().joined(second.scale()));
+    let scale = first.scale().joined(second.scale());
+    let moved = closed(first, second, scale);
+    let operands = Operands::of(first, moved.as_ref().unwrap_or(second), scale);
     let arena = laid(&operands)?;
     let faces = selected(&operands, &arena, operation)?;
     assembled(arena, faces)

@@ -24,6 +24,20 @@ pub(in crate::brep) struct Operands<'a> {
 
 impl<'a> Operands<'a> {
     pub fn of(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
+        Operands::laid(first, second, scale, true)
+    }
+
+    /// The two operands with every move onto a touch made, a slide of a
+    /// wall the second operand drew corners on along an exact touch too:
+    /// what decision 2 would move were the corners carried along.
+    pub fn sliding(first: &'a Body, second: &'a Body, scale: Scale) -> Operands<'a> {
+        Operands::laid(first, second, scale, false)
+    }
+
+    /// The two operands laid on their shared surfaces; a wall the second
+    /// operand drew corners on is `pinned` against a slide along an exact
+    /// touch.
+    fn laid(first: &'a Body, second: &'a Body, scale: Scale, pinned: bool) -> Operands<'a> {
         let mut surfaces = Surfaces::of(first, second, scale);
         let bodies = [first, second];
         let lying = [0, 1].map(|operand| {
@@ -52,7 +66,7 @@ impl<'a> Operands<'a> {
             faces(one).any(|first| faces(other).any(|second| meet(first, second)))
         };
         let mut cornered = vec![false; surfaces.list.len()];
-        for vertex in &second.vertices {
+        for vertex in second.vertices.iter().filter(|_| pinned) {
             for own in &vertex.on {
                 cornered[surfaces.mapped[1][own.0 as usize].0.0 as usize] = true;
             }

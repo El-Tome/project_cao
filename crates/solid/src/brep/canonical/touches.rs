@@ -12,9 +12,10 @@
 //! was: settled onto one touch, a cylinder in two would otherwise break the
 //! other. A move may run along an exact touch, but not on a wall its
 //! operand drew corners on, which would leave them behind the line of
-//! touch it takes along. A cylinder touching two parallel planes on
-//! opposite sides is moved midway between them, its radius half their gap,
-//! which makes both exact.
+//! touch it takes along: such a slide is made before, on the operand, with
+//! its corners (`combine/slid.rs`). A cylinder touching two parallel planes
+//! on opposite sides is moved midway between them, its radius half their
+//! gap, which makes both exact.
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
 

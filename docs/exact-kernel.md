@@ -79,10 +79,15 @@ The decisions, in the order taken, once per operation:
    and a move is made only where every other touch of the surface ends as
    near exact as it was: moved onto one touch, a cylinder in two would break
    the other, unless the move runs along it — a bar touching a floor and a
-   ceiling exactly moves along them onto a post it touches. Not a wall its
-   operand drew corners on: slid along an exact touch, it would take the
+   ceiling exactly moves along them onto a post it touches. A wall its
+   operand drew corners on, slid along an exact touch alone, would take the
    line of touch along and leave the corners drawn on that line behind, a
-   rounded corner's where its straight run starts. A cylinder
+   rounded corner's where its straight run starts; left where it is, it
+   stays a hair off the other touch. It is slid with its operand: the
+   second operand is moved by the slide as decision 8 moves it, its
+   corners, its curves and the surfaces they stand on along, before
+   decision 1 reads it. Where that move is not made, the wall is not slid.
+   A cylinder
    touching two parallel planes on opposite sides is moved midway between
    them, its radius half their gap, and touches both exactly.
    A surface moved is the boolean's: its pairs, though one operand alone

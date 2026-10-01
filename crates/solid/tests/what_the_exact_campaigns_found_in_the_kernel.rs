@@ -3019,8 +3019,9 @@ fn seed_80511593_a_ring_filled_by_a_disc_a_tolerance_off_its_bore() {
 /// exactly and its end side a hair off: moved along the bottom side onto
 /// the end, it took its line of touch with the bottom side along, and left
 /// the pocket's own corner on that line where it was drawn, a hair off the
-/// line the bore then cut. A wall carrying corners of its operand is never
-/// slid along a touch that holds exactly: it is left a hair off the other.
+/// line the bore then cut. A wall carrying corners of its operand, slid
+/// along a touch that holds exactly, takes them along: the pocket moves
+/// with it, its end side and its other corner too.
 #[test]
 fn seed_80501596_a_rounded_pocket_a_hair_aside_bored_at_its_corner() {
     random_solids::holds_exactly(&Case::new(
@@ -3153,6 +3154,39 @@ fn a_block_bored_twice_forty_eight_tolerances_apart_is_bored_where_both_were_dra
                 Plane::xy(0.0),
                 Outline::circle([22.125, 24.9999976], 10.0),
                 40.0,
+            )),
+        ],
+    ));
+}
+
+/// Found by the review of round 5, from seed 82504133 of a campaign of
+/// profiles: a rounded block notched at a corner, the notch's floor 1e-5
+/// above the block's bottom, then cut by a rounded rectangle whose bottom
+/// is the notch's floor and whose side stands 3e-7 off the block's, six
+/// tenths of a tolerance. The corner's wall touches its own bottom exactly
+/// and the block's side a hair off. Not slid along its bottom onto the
+/// side, since it carries its operand's corners, it was left a hair off,
+/// and the kernel declined, where round 3 slid it and held. Slid, the wall
+/// takes its operand's corners along, as decision 8 takes them, and the
+/// side, the other corner and the lines between with it.
+#[test]
+fn seed_82504133_a_notched_rounded_block_cut_by_a_rounded_rectangle_a_hair_off_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-60.0),
+            Outline::rounded([270.0, 180.0], [315.0, 390.0], 15.0),
+            60.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-60.000006),
+                Outline::rectangle([270.0, 180.00001], [300.0, 210.00001]),
+                120.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-60.0),
+                Outline::rounded([270.0000003, 180.00001], [495.0000003, 390.00001], 15.0),
+                240.0,
             )),
         ],
     ));

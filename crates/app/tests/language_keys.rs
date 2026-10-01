@@ -13,6 +13,13 @@
 //! What it does not catch: a key assembled at run time, `format!("history.{x}")`
 //! rather than written out. None exist today, and the day one does it is
 //! invisible here — which is an argument for writing keys out.
+//!
+//! Closes #398.
+//! - `fr.json` defines each key once — `every_key_in_the_french_file_is_defined_once`
+//! - a second definition of a key fails the gate, and the complaint names the
+//!   key — `a_key_defined_twice_is_named_whatever_it_says_each_time`,
+//!   `a_quote_or_a_backslash_inside_a_sentence_does_not_shift_keys_and_values`,
+//!   `every_key_in_the_french_file_is_defined_once`
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
@@ -66,6 +73,83 @@ fn every_entry_in_the_french_file_is_named_by_a_rust_file() {
          translator should never be handed a sentence the interface cannot show.",
         forgotten.join("\n  "),
     );
+}
+
+#[test]
+fn every_key_in_the_french_file_is_defined_once() {
+    let path = workspace_root().join(FRENCH_FILE);
+    let text = fs::read_to_string(&path).unwrap_or_else(|_| panic!("{FRENCH_FILE} is readable"));
+    let twice = keys_defined_twice(&text);
+
+    assert!(
+        twice.is_empty(),
+        "Keys defined more than once in {FRENCH_FILE}:\n  {}\n\
+         Only the last definition is ever said; the others are sentences nobody\n\
+         sees. Keep the one that says what the interface does.",
+        twice.join("\n  "),
+    );
+}
+
+#[test]
+fn a_key_defined_twice_is_named_whatever_it_says_each_time() {
+    let text = r#"{
+  "trim.click": "Cliquez un trait",
+  "trim.alone": "Seul",
+  "trim.click": "Cliquez un trait ou une courbe"
+}"#;
+
+    assert_eq!(keys_defined_twice(text), ["trim.click"]);
+    assert!(keys_defined_twice(r#"{"trim.click": "Cliquez"}"#).is_empty());
+}
+
+#[test]
+fn a_quote_or_a_backslash_inside_a_sentence_does_not_shift_keys_and_values() {
+    let text = r#"{
+  "trim.quote": "Un \"trait\", puis \\",
+  "trim.click": "trim.quote",
+  "trim.click": "Cliquez encore"
+}"#;
+
+    assert_eq!(keys_defined_twice(text), ["trim.click"]);
+}
+
+/// The keys a JSON object of strings defines more than once, in order.
+///
+/// Read off the text rather than off a parsed map: a map keeps one of the two
+/// definitions and drops the other without a word, which is the very thing to
+/// catch. In an object of strings, its strings are key, value, key, value.
+fn keys_defined_twice(text: &str) -> Vec<String> {
+    let mut strings = Vec::new();
+    let mut characters = text.char_indices();
+    while let Some((start, character)) = characters.next() {
+        if character != '"' {
+            continue;
+        }
+        let mut escaped = false;
+        for (end, character) in characters.by_ref() {
+            match (escaped, character) {
+                (true, _) => escaped = false,
+                (false, '\\') => escaped = true,
+                (false, '"') => {
+                    strings.push(
+                        serde_json::from_str::<String>(&text[start..=end])
+                            .expect("a JSON string between its quotes"),
+                    );
+                    break;
+                }
+                _ => {}
+            }
+        }
+    }
+
+    let mut seen = BTreeSet::new();
+    let mut twice = Vec::new();
+    for key in strings.into_iter().step_by(2) {
+        if !seen.insert(key.clone()) && !twice.contains(&key) {
+            twice.push(key);
+        }
+    }
+    twice
 }
 
 fn french_entries() -> BTreeMap<String, String> {

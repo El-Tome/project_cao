@@ -245,8 +245,10 @@ fn seed_5001310_a_block_whose_corner_stands_a_hair_short_of_touching_a_post() {
 /// apart, and their triangles cross. Faces merged across the seams an
 /// operation leaves — step 8 of the boolean, not written yet — would leave
 /// no strip to keep.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "seam"]
 fn seed_5000136_a_sliver_far_from_the_origin_is_not_read_backwards() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -852,8 +854,10 @@ fn seed_1026137_a_corner_a_bore_left_on_a_side_stays_off_a_boss_touching_it_by_t
 /// tolerance of every surface of the joined support — or refusing the join
 /// where none does — is decision 3's refusal still to write; three surfaces
 /// touching along one line by two hairs are where it shows.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "chained"]
 fn seed_1026137_a_seam_a_bore_left_on_a_post_is_kept_off_a_boss_touching_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(15.0), Outline::circle([25.0, 25.0], 17.5), 50.0),
@@ -1093,8 +1097,10 @@ fn seed_1040082_a_block_given_two_posts_a_hair_apart_touching_its_top() {
 /// a point a femtometre off its wall: no ray tells. Its twin on the hole's
 /// wall is bounded by the third line, not by the strip's own two, so the
 /// two are not wound together.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "band"]
 fn seed_1031984_a_post_of_a_block_s_width_bored_by_a_hole_touching_it_and_the_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1394,6 +1400,274 @@ fn seed_50006145_a_ruling_through_the_node_of_two_posts_touching_inside_touches_
                 Plane::xy(5.0),
                 Outline::circle_from([6.5, 2.0], 5.5, 305.63834048705354),
                 -8.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3: two blocks with their sides in one plane,
+/// one a hair shorter, joined, each leaving its edges inside the faces they
+/// share; a block apart then grows the tolerance past the hair. The seams'
+/// corners were merged across it with the longer block's, and two parallel
+/// lines left one vertex the star could not order. Faces of one surface and
+/// one side are now merged across an arc nothing else uses, and edges of one
+/// curve at a vertex only they reach joined (step 8): no seam is left.
+#[test]
+fn seed_3052206_two_blocks_a_hair_unequal_joined_then_a_block_apart_grows_the_tolerance() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(0.0),
+            Outline::rectangle([4.0, 3.0], [5.0, 8.5]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::rectangle([4.0, 3.0], [7.0, 8.5]),
+                9.99999999,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([5.0, 10.0], [9.5, 13.0]),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3, the seams left between two blocks joined a
+/// hair apart in height: three faces on one side after the join, and the
+/// tolerance a tall block apart grows merged their corners across the hair.
+#[test]
+fn seed_3082034_two_blocks_a_hair_apart_in_height_joined_then_a_tall_block_apart() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([2.0, 1.0], [4.0, 3.5]),
+            5.5,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.00000001),
+                Outline::rectangle([2.0, 1.0], [6.0, 3.5]),
+                5.5,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::rectangle([4.0, 7.0], [5.0, 8.0]),
+                11.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-8 of campaign 3: four blocks with their bottoms at heights a
+/// hair apart, the first swallowed by the second, its bottom edges left as
+/// seams on the sides; the last block's bottom stood within the tolerance of
+/// the seam and of the cut's bottom, which are not of each other. Without the
+/// seams nothing chains.
+#[test]
+fn seed_3177811_planes_a_hair_apart_chained_through_the_seams_of_a_swallowed_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([6.0, 2.5], [8.5, 10.5]),
+            4.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(3.99999998),
+                Outline::rectangle([6.0, 2.5], [10.5, 10.5]),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.00000002),
+                Outline::rectangle([6.0, 1.0], [14.0, 4.0]),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.00000001),
+                Outline::rectangle([7.0, 2.0], [16.0, 3.0]),
+                14.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-1 of campaign 3: a block swallowing a post its side touches
+/// kept the line of touch as a seam on the side, and a bore touching the side
+/// and the swallowed post within the band of the touch left a strip between
+/// the seam and its own line that no ray could wind.
+#[test]
+fn seed_3024043_a_post_swallowed_by_a_block_leaves_no_touch_line_for_a_bore_beside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(7.0), Outline::circle([5.0, 0.0], 4.0), 6.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::rectangle([1.0, -4.0], [9.0, 4.0]),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([4.99999994, 4.5], 0.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 3: a cut touching a bar along its foot left the
+/// line of touch inside the wall's own face; a bore of the bar's radius a
+/// hair off its axis then crossed the wall at a grazing angle beside it.
+#[test]
+fn seed_3258890_a_bar_touched_along_its_foot_then_bored_by_its_own_radius_a_hair_aside() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(-1.0), Outline::circle([8.0, 10.0], 1.0), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-1.0),
+                Outline::rectangle([6.0, 8.0], [10.0, 9.0]),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-1.0),
+                Outline::circle([8.00000006, 10.0], 1.0),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 3: a post touches the side of an L of two
+/// blocks 2.5 tolerances from the line where the upper block ends; the strip
+/// of the side between that line and the line of touch had no twin on the
+/// post's wall.
+#[test]
+fn seed_3172512_a_post_touching_the_side_of_two_blocks_a_hair_from_the_step_between_them() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([0.0, 7.0], [3.5, 8.0]),
+            4.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-0.0),
+                Outline::rectangle([0.0, 7.0], [6.0, 8.0]),
+                2.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([3.49999998, 7.5], 0.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-2 of campaign 3, drawn: a cut touching the bar's side left a
+/// seam on it, and a bore touching both sides a hair inside the bar's end
+/// left a strip of each side and of the wall that the seam kept from being
+/// twins: a strip of the wall lay on the side.
+#[test]
+fn seed_3114074_a_bore_touching_both_sides_of_a_bar_a_hair_inside_its_end() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::rectangle([255.0, 0.0], [360.0, 30.0]),
+            135.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(60.0),
+                Outline::rectangle([30.0, 180.0], [225.0, 330.0]),
+                540.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([359.99999, 15.0], 15.0),
+                270.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3, drawn: a bore of a post's radius a hair off
+/// its axis leaves a sliver, and a block reaching further grows the tolerance
+/// past it; the block's side was left with two slits along one line.
+#[test]
+fn seed_3159337_a_sliver_a_bore_leaves_of_a_post_then_a_block_beside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::circle([60.0, 300.0], 15.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::circle([60.0000006, 300.0], 15.0),
+                255.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([15.0, 285.0], [45.0, 315.0]),
+                510.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-11 of campaign 3: a third block flush with the second on two
+/// walls, each a hair off; the line the second's two walls bound was kept
+/// where that block computed it, a hair and a half off the corner derived
+/// on the walls kept.
+#[test]
+fn seed_3127395_three_blocks_flush_on_two_walls_a_hair_off() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(8.0),
+            Outline::rectangle([0.0, 35.0], [17.5, 45.0]),
+            18.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([15.0, 0.0], [53.0, 8.0]),
+                35.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-5.0000000000000004e-8),
+                Outline::rectangle([17.49999995, 2.5], [62.5, 5.0]),
+                35.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-6 of campaign 3: a hole's floor 1e-7 above the block's
+/// bottom, a skin the block held apart, and a taller boss a hair under it
+/// growing the tolerance: the skin's corner was merged onto the boss's circle
+/// and stood off it.
+#[test]
+fn seed_3023305_a_bored_block_given_a_boss_a_hair_under_its_floor() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(15.0),
+            Outline::rectangle([7.5, 15.0], [37.5, 45.0]),
+            45.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(15.0000001),
+                Outline::circle([40.0, 30.0], 2.5),
+                33.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(14.9999997),
+                Outline::circle([25.0, 30.0], 12.49999995),
+                90.0,
             )),
         ],
     ));

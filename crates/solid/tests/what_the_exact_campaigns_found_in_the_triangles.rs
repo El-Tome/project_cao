@@ -907,8 +907,10 @@ fn seed_32000053_a_circle_printed_round_a_hole_it_touches_inside_leaves_the_top_
 /// its edges. A sample of the circle lies on the pad's edge, and no sweep
 /// can lay out a boundary touching itself away from a vertex. The point has
 /// to be a vertex of both edges, which is the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_34002812_a_swallowed_cylinder_tangent_to_a_pad_a_hair_off_the_side_leaves_the_side_closed()
 {
     random_solids::holds_exactly(&Case::new(
@@ -1054,8 +1056,10 @@ fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_flo
 /// arcs are one segment four times over, which no sweep can lay out. An
 /// arc a face uses on both sides and nothing else uses has to go when the
 /// faces beside it are merged, which is the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_36003534_a_circle_printed_a_hair_off_a_boss_s_own_leaves_the_bottom_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1111,8 +1115,10 @@ fn seed_32000053_a_pocket_whose_floor_a_hole_touches_inside_leaves_the_floor_clo
 /// sliver of no area, which no sweep can lay out, and the face is left open.
 /// The corner and the crossing have to be one point or two decided apart,
 /// which is the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leaves_the_front_closed()
  {
     random_solids::holds_exactly(&Case::new(
@@ -1149,8 +1155,10 @@ fn seed_25002495_a_bar_whose_corner_stands_a_hair_off_the_cylinder_it_joins_leav
 /// which lie along the same line of its parameters: no sweep can lay that
 /// out, and the side is left open. The two lines have to be one, which is
 /// the boolean's.
+/// It holds since the boolean merges the faces of one surface and one side
+/// across an arc nothing else uses, and joins two edges of one curve at a
+/// vertex only they reach (step 8).
 #[test]
-#[ignore = "kernel"]
 fn seed_1026142_a_block_touching_both_walls_of_a_sliver_the_tolerance_outgrew_is_drawn_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(32.5), Outline::circle([40.0, 35.0], 5.0), 23.0),

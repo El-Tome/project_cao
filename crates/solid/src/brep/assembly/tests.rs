@@ -2,7 +2,8 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::{Curve, Line};
-use crate::profile::{Contour, Frame};
+use crate::profile::{Contour, Frame, Run};
+use crate::soundness::listed;
 
 fn block() -> Body {
     let outline = Contour::rectangle(DVec2::new(-20.0, -20.0), DVec2::new(20.0, 20.0));
@@ -77,4 +78,81 @@ fn an_edge_no_face_uses_is_left_out_with_what_only_it_stands_on() {
     };
     let assembled = assembled(arena, faces).expect("a block assembles");
     assert_eq!(assembled, body);
+}
+
+fn raised(outline: &Contour, from: f64, to: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Z * from,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::raised(outline, &[], frame, DVec3::Z * (to - from)).expect("a prism raises")
+}
+
+fn post(from: f64, to: f64) -> Body {
+    let center = DVec2::new(3.0, 4.0);
+    let outline = Contour {
+        corners: vec![center + DVec2::X * 2.0],
+        runs: vec![Run::Round {
+            center,
+            turn: std::f64::consts::TAU,
+        }],
+    };
+    raised(&outline, from, to)
+}
+
+fn counted(body: &Body) -> [usize; 3] {
+    [body.faces.len(), body.edges.len(), body.vertices.len()]
+}
+
+/// Step 8: the sides two blocks share a plane of are one face each, not two
+/// with a seam between, and the lines cut where the seam ended are one edge.
+#[test]
+fn two_blocks_side_by_side_join_into_one_block_of_six_faces() {
+    let left = raised(
+        &Contour::rectangle(DVec2::new(0.0, 0.0), DVec2::new(1.0, 1.0)),
+        0.0,
+        1.0,
+    );
+    let right = raised(
+        &Contour::rectangle(DVec2::new(1.0, 0.0), DVec2::new(2.0, 1.0)),
+        0.0,
+        1.0,
+    );
+    let joined = left.joined(&right).expect("two blocks side by side join");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    assert_eq!(counted(&joined), [6, 12, 8]);
+}
+
+/// Step 8 on a cylinder: two posts of one radius stacked are one post, its
+/// wall one face bounded by two whole circles, the circle where they met gone.
+#[test]
+fn two_posts_stacked_join_into_one_post_whose_wall_is_one_face() {
+    let joined = post(0.0, 1.0)
+        .joined(&post(1.0, 3.0))
+        .expect("two posts stacked join");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    assert_eq!(counted(&joined), [3, 2, 0]);
+    assert!((joined.volume() - 12.0 * std::f64::consts::PI).abs() < 1e-9);
+}
+
+/// Step 8 where seams close a region inside a face: a block joined to a
+/// smaller one in its corner, sharing three of its sides, leaves the smaller
+/// one's outline on each of them; every line of it is a seam, taken out, and
+/// the block is the block alone.
+#[test]
+fn a_block_swallowing_a_smaller_one_in_its_corner_keeps_six_faces() {
+    let tall = raised(
+        &Contour::rectangle(DVec2::new(0.0, 0.0), DVec2::new(2.0, 1.0)),
+        0.0,
+        2.0,
+    );
+    let low = raised(
+        &Contour::rectangle(DVec2::new(0.0, 0.0), DVec2::new(1.0, 1.0)),
+        0.0,
+        1.0,
+    );
+    let joined = tall.joined(&low).expect("a block inside another joins");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+    assert_eq!(counted(&joined), [6, 12, 8]);
 }

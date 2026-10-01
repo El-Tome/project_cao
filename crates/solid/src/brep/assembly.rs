@@ -1,18 +1,19 @@
 //! Steps 8 and 9 of `docs/exact-kernel.md`: the kept regions made the faces of
 //! a body, keeping only the edges they use and what those edges stand on,
 //! renumbered in the arena's order; and the body checked before it is handed
-//! back — what the kernel cannot verify it does not answer.
-//!
-//! Faces on one surface with one side are not yet merged across an arc
-//! nothing else uses, nor edges at a vertex only they reach: a result may
-//! hold more faces and edges than it needs, each sound.
+//! back — what the kernel cannot verify it does not answer. Faces on one
+//! surface with one side are merged across an arc nothing else uses first,
+//! and edges at a vertex only they reach, in `merged.rs`.
+
+mod merged;
 
 use super::Declined;
 use super::combine::Arena;
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
-    let body = arena.body;
+    let mut body = arena.body;
+    let faces = merged::merged(&mut body.edges, &body.curves, &body.vertices, faces);
     let mut edges = Renumbering::of(body.edges.len());
     for coedge in faces.iter().flat_map(|face| face.loops.iter().flatten()) {
         edges.mark(coedge.edge.0);

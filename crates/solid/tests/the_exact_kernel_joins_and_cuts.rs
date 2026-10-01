@@ -130,10 +130,12 @@ const WHOLE: f64 = PI * RADIUS * RADIUS * HEIGHT;
 const BORED: f64 = PI * HOLE * HOLE * HEIGHT;
 const BOSS: f64 = PI * HOLE * HOLE * 5.0;
 
+/// Their sides in one plane are one face each, with no seam where the wall
+/// was (step 8).
 #[test]
-fn two_blocks_sharing_a_wall_flush_lose_the_wall_and_keep_each_its_own_faces() {
+fn two_blocks_sharing_a_wall_flush_lose_the_wall_and_are_one_block() {
     let other = boxed([20.0, -20.0, 0.0], [60.0, 20.0, HEIGHT]);
-    holds(block().joined(&other), counts(10, 20, 12), 2.0 * SLAB);
+    holds(block().joined(&other), counts(6, 12, 8), 2.0 * SLAB);
 }
 
 #[test]
@@ -156,10 +158,12 @@ fn a_block_boss_overhanging_the_top_s_edge_stands_on_it_and_shows_its_underside_
     );
 }
 
+/// The top and the bottom are one face each, the outline of the two
+/// together (step 8).
 #[test]
 fn two_blocks_sharing_part_of_a_wall_keep_what_each_does_not_share() {
     let other = boxed([20.0, -10.0, 0.0], [60.0, 30.0, HEIGHT]);
-    holds(block().joined(&other), counts(12, 26, 16), 2.0 * SLAB);
+    holds(block().joined(&other), counts(10, 24, 16), 2.0 * SLAB);
 }
 
 #[test]

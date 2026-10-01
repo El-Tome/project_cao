@@ -186,7 +186,12 @@ covered once from each side.
 8. **Assembly.** Kept regions become faces and their arcs edges. Faces on one
    surface with one side are merged across an arc nothing else uses; two edges
    on one curve meeting at a vertex nothing else uses become one; a circle that
-   loses its last vertex becomes a ring.
+   loses its last vertex becomes a ring. A vertex lying on the surface of
+   another face is used by it: there the curve touches that face's wall, a
+   pocket's rim a lying wall it reaches at one point, and the wall's
+   triangles take a sample. No seam is left for a later operation to read
+   again: an operand's edge inside a face of the other, a hair off whatever
+   a later, larger tolerance takes the face's surface for.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
 

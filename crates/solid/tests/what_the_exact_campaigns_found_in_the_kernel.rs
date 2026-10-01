@@ -2485,3 +2485,75 @@ fn seed_3151875_a_bore_touching_a_block_s_end_a_hair_from_where_another_crosses_
         ],
     ));
 }
+
+/// Failure 1-2 of campaign 3, found by the triangles, its largest group: a
+/// block given a second block beside it, then a bore touching the first's
+/// side y = 12 1e-7 from where the second's side x = 11.5 crosses it, inside
+/// the band where the side and the bore's wall stand within the tolerance
+/// of each other.
+///
+/// Understood and left: the line x = 11.5 on the side and the bore's ruling
+/// on x = 11.5, 3e-15 apart, are one line, on the side, the second block's
+/// side and the wall, and its corners stand on the side. The strip of the
+/// wall between that line and the line of touch, and the strip of the side
+/// between the same two lines, hold a skin 3e-15 thick, and the wall's
+/// triangles there lie on the side's. They are twins, but not bounded by
+/// the same arcs: the second block ends at z = 11 and the line with it,
+/// while the side's region runs on into the band above and the wall's all
+/// round. Decision 6 asks for regions bounded by the same arcs; this asks
+/// for the band two touching surfaces stand within the tolerance over
+/// decided once, the regions of either parted at its edge.
+#[test]
+#[ignore = "band"]
+fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_crosses_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([9.0, 6.0], [15.0, 12.0]),
+            6.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([7.0, 7.5], [11.5, 12.5]),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([11.5000001, 10.5], 1.5),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 1-9 of campaign 3: two pins of one radius 6e-8 apart leave a
+/// crescent whose walls cross at a grazing angle along a line lying on the
+/// plane both touch, between their two lines of touch; a block's floor on
+/// that plane then cuts it.
+///
+/// Understood and left: the strip of the floor between one line of touch
+/// and the crossing has no twin bounded by the same arcs — the crescent's
+/// walls end at its caps, the floor runs past them — and its point stands
+/// within a femtometre of both walls: no ray tells whether it lies inside
+/// the crescent. Three surfaces touching along one band call for the band
+/// decided once, as for seed 3156716.
+#[test]
+#[ignore = "band"]
+fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(1.5), Outline::circle([5.0, 4.0], 1.0), 5.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(1.50000001),
+                Outline::circle([5.00000006, 4.0], 1.0),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(2.5),
+                Outline::rectangle([4.0, 3.0], [10.0, 11.0]),
+                10.0,
+            )),
+        ],
+    ));
+}

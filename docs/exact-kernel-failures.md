@@ -56,3 +56,41 @@ it builds (1-6, 1-8, 1-11) is decision 5's refusal, written in the design and
 nowhere in the code. And the triangles' contact rule withholds steps from
 whole cylinders rather than near the contact (1-1, 1-3), which is two fifths
 of the campaign by itself.
+
+## Campaign 2
+
+One hour from seed 2 000 000, on the kernel after round 1: 49 659 cases, 188
+failures — five times fewer than campaign 1. A sample of 67 was shrunk, 40 of
+the 161 Answers and every failure of the other rules, and sorted the same way:
+**fifteen distinct failures, seven of them campaign 1's still open, eight
+new**. Every new one is a configuration a fix of round 1 made hold, moved by a
+hair: a node a hair from a wall, a cap a hair inside tangency, three touch
+lines a hair apart. Status is after round 2, the 67 seeds run again on its
+kernel: 39 hold.
+
+| # | failure | owner | rules | share | status |
+| --- | --- | --- | --- | --- | --- |
+| 1-2 | A plane tangent to a cylinder a hair from a line crossing that plane — still the largest | kernel | Answers, Uncrossed, Listed | 65 % | 32 of 40 seeds fixed in round 2 |
+| 1-9 | Two cylinders of one radius a hair apart crossing at a grazing angle near a third surface | kernel | Answers, Uncrossed | 9 % | 1 of 5 fixed in round 2 |
+| 2-1 | A plane and two cylinders touching one another along three lines a hair apart, each pair decided apart | kernel | Answers | 6 % | 2 of 3 fixed in round 2 |
+| 1-6 | A gap an operand holds apart falls under a later, larger tolerance | kernel | Answers | 4 % | 1 of 2 fixed in round 2 |
+| 2-2 | A cylinder crossing two planes a hair from their common corner line, merged into the corner on one side only | kernel | Answers | 4 % | fixed in round 2 |
+| 2-5 | A touch decided within the tolerance whose vertices stay where each was computed, up to a tolerance off another of their surfaces | kernel | Uncrossed | 3 % | open |
+| 2-3 | Two perpendicular cylinders tangent inside, the node of their curve a hair from a wall cutting one of them | kernel | Answers | 2 % | open |
+| 2-4 | A perpendicular cylinder's cap a hair inside tangency with the other: the cap decided tangent, the curve solved exactly | kernel | Answers | 2 % | open |
+| 2-6 | A perpendicular cap's rim a hair inside a wall's chord, with no vertex there to keep the chord out | triangles | Uncrossed | 0.5 % | open |
+| 2-7 | A cap's rim a hair from tangent to a perpendicular wall at the node: two crossings decided as one double root | kernel | Listed | 0.5 % | open |
+| 1-8 | A vertex on a curve by its support, within the tolerance of each surface but not of the curve | kernel | Listed | 0.5 % | open |
+| 1-10 | The snap moves a cylinder in the perpendicular curve while corners are found on the cylinder as drawn | kernel | Listed | 0.5 % | open |
+| 1-17 | Two cylinders of one radius a hair apart given a shared sample by a third surface: a lune on a cap cannot be swept | triangles | Closed | 0.5 % | open |
+| 1-18 | Two circles of one radius a hair apart left on a face no merge joins: the lune between them cannot be swept | triangles | Closed | 0.5 % | open |
+| 2-8 | A wall holding a node and another curve's turning point on one grid ruling, which the sweep cannot cut at the campaign's tolerance | triangles | Closed | 0.5 % | fixed in round 2 |
+
+Round 2 is the two lanes of 1 October, the kernel's taking a sixth decision —
+two arcs of one surface between the same corners and within the tolerance of
+each other are one arc — and the refusals of decisions 3 and 5 widened; the
+triangles' taking common sampling to the cases round 1 left. Two cases the
+triangles lane had made hold went back to the kernel declining when the two
+lanes were merged: a grazing pair of cylinders whose tolerance a later leaf
+grows (1-9 with 1-6). The kernel declines rather than answers wrong there; the
+two cases are kept, ignored, with that diagnosis.

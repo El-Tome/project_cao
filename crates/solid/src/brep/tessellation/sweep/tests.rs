@@ -46,8 +46,10 @@ impl Region {
 
     /// Cut, and held to what a cut must be: every triangle turning
     /// counterclockwise, their areas adding up to the region's, every side of
-    /// the boundary a side of a triangle along its own way, and every other
-    /// side of a triangle the side of another the other way.
+    /// the boundary a side of a triangle along its own way — but the two
+    /// sides of a hair, running both ways out of the region, which bound
+    /// nothing — and every other side of a triangle the side of another the
+    /// other way.
     fn cut(&self) -> Vec<[usize; 3]> {
         let cut = triangles(&self.points, &self.segments).expect("the region is cut");
         let mut sides: BTreeMap<(usize, usize), i64> = BTreeMap::new();
@@ -64,9 +66,12 @@ impl Region {
         for [from, to] in &self.segments {
             *sides.entry((*from, *to)).or_default() -= 1;
         }
+        let both_ways = |from: usize, to: usize| {
+            self.segments.contains(&[from, to]) && self.segments.contains(&[to, from])
+        };
         for (&(from, to), &count) in &sides {
             assert!(
-                count >= 0,
+                count >= 0 || (count == -1 && both_ways(from, to)),
                 "the side {from} to {to} of the boundary is missing"
             );
             assert_eq!(
@@ -159,6 +164,18 @@ fn a_slit_running_in_from_the_boundary_is_cut_round() {
         DVec2::new(20.0, 0.0),
         DVec2::new(20.0, 20.0),
         DVec2::new(-20.0, 20.0),
+    ];
+    Region::new().with_loop(&corners).cut();
+}
+
+#[test]
+fn a_hair_running_out_of_the_region_from_where_its_two_sides_meet_bounds_nothing() {
+    let corners = [
+        DVec2::new(0.0, -5.0),
+        DVec2::new(10.0, 0.0),
+        DVec2::new(20.0, 1.0),
+        DVec2::new(10.0, 0.0),
+        DVec2::new(0.0, 5.0),
     ];
     Region::new().with_loop(&corners).cut();
 }

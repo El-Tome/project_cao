@@ -10,7 +10,8 @@
 //! [`band`]. A band starts where two boundaries leave one point, ends where two
 //! meet, is parted by a hole's first point and joined past its last. A point
 //! where several boundaries meet — a loop visiting a corner twice, two holes
-//! touching, a slit — is each of those at once, band by band.
+//! touching, a slit into the region or a hair running out of it — is each of
+//! those at once, band by band.
 //!
 //! Every choice is a sign of [`turn`], exact, so the region is cut the same way
 //! whatever the rounding of its points, as long as its boundaries do not cross.
@@ -120,9 +121,12 @@ impl Sweep<'_> {
         }
     }
 
-    /// The segments leaving `point`, from the bottom up. Two along one line are
-    /// a slit: the falling one bounds the band below, so it goes first.
-    fn leaving(&self, point: usize) -> Vec<usize> {
+    /// The segments leaving `point`, from the bottom up, the first of them
+    /// at `low` in the status. Two along one line are a slit: inside a band,
+    /// the falling one bounds the band below, so it goes first; outside any,
+    /// the slit is a hair running out of the region, and the rising one goes
+    /// first, the two bounding a band of nothing between them.
+    fn leaving(&self, point: usize, low: usize) -> Vec<usize> {
         let mut leaving = self.starting[point].clone();
         let from = self.at(point);
         leaving.sort_by(|&one, &other| {
@@ -131,6 +135,16 @@ impl Sweep<'_> {
                 .then(self.rises(one).cmp(&self.rises(other)))
                 .then(one.cmp(&other))
         });
+        for at in 1..leaving.len() {
+            let (one, other) = (leaving[at - 1], leaving[at]);
+            let along = turn(from, self.at(self.high(one)), self.at(self.high(other)));
+            if along == Ordering::Equal
+                && self.rises(one) != self.rises(other)
+                && self.rises(one) != (low + at - 1).is_multiple_of(2)
+            {
+                leaving.swap(at - 1, at);
+            }
+        }
         leaving
     }
 
@@ -154,7 +168,7 @@ impl Sweep<'_> {
                 (below, 0)
             }
         };
-        let leaving = self.leaving(point);
+        let leaving = self.leaving(point, low);
         let alternating = leaving
             .iter()
             .enumerate()

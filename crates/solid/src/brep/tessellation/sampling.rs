@@ -76,12 +76,13 @@ pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
 /// not come back to it. No point between stands within the kernel's
-/// tolerance of an end, nor within rounding of any vertex: it would be that
-/// vertex twice — a place of the grid a rounding past an end, moved to where
-/// the vertex at its angle stands, or a place on the ray through a corner
-/// the kernel left a hair off the curve, at the corner's own height. A place
-/// a hair from a vertex off the edge stays: on the ray through the end of a
-/// curve beside it, it keeps the two in order.
+/// tolerance of an end, which it would be twice. A place within rounding of
+/// another vertex — a corner the kernel left on the curve, not at its end —
+/// is that vertex's own point: with none, the edge's chord would pass a hair
+/// beside the corner, on the wrong side of the curve ending there; a face
+/// beside the edge pinches there, or runs out to it and back as a hair. A
+/// place a hair from a vertex off the edge stays: on the ray through the end
+/// of a curve beside it, it keeps the two in order.
 ///
 /// Points are numbered: the vertices first, by rank, then the rest.
 pub(super) struct Samples {
@@ -132,21 +133,37 @@ impl Samples {
                 .flatten()
                 .map(|end| body.vertex(end).point)
                 .collect();
-            let between = between.into_iter().filter(|point| {
-                ends.iter().all(|end| (*point - *end).length() > eps)
-                    && vertices
-                        .iter()
-                        .all(|vertex| (*point - *vertex).length() > eps * TOLD)
-            });
-            let first = samples.points.len();
-            samples.points.extend(between);
-            let inner = first..samples.points.len();
+            let mut inner = Vec::new();
+            for point in between {
+                if ends.iter().any(|end| (point - *end).length() <= eps) {
+                    continue;
+                }
+                match vertices
+                    .iter()
+                    .position(|vertex| (point - *vertex).length() <= eps * TOLD)
+                {
+                    Some(vertex) => {
+                        if inner.last() != Some(&vertex) {
+                            inner.push(vertex);
+                        }
+                    }
+                    None => {
+                        inner.push(samples.points.len());
+                        samples.points.push(point);
+                    }
+                }
+            }
             samples.edges.push(match edge.ends {
                 Some([start, end]) => std::iter::once(start.0 as usize)
                     .chain(inner)
                     .chain(std::iter::once(end.0 as usize))
                     .collect(),
-                None => inner.collect(),
+                None => {
+                    if inner.len() > 1 && inner.first() == inner.last() {
+                        inner.pop();
+                    }
+                    inner
+                }
             });
         }
         samples

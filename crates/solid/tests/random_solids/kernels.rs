@@ -58,8 +58,11 @@ impl Kernel for Exact {
     type Body = Body;
 
     /// A rectangle as the profile's own rectangle, a circle as one whole turn
-    /// from the angle its flats start at, the plane as the frame it is drawn
-    /// in, and the prism's height along the plane's normal.
+    /// from the angle its flats start at, a ring as two whole turns from
+    /// nought, the outer one with the inner one as its hole, a rounded
+    /// rectangle and a slot as their contour of straight runs and arcs; the
+    /// plane as the frame it is drawn in, and the prism's height along the
+    /// plane's normal.
     fn raised(&self, leaf: &Leaf) -> Option<Body> {
         let Leaf::Prism {
             plane,
@@ -69,19 +72,28 @@ impl Kernel for Exact {
         else {
             return None;
         };
-        let contour = match outline {
-            Outline::Rectangle { low, high } => Contour::rectangle(*low, *high),
+        let (contour, holes) = match outline {
+            Outline::Rectangle { low, high } => (Contour::rectangle(*low, *high), Vec::new()),
             Outline::Circle {
                 center,
                 radius,
                 from,
-            } => whole_circle(*center, *radius, *from),
-            Outline::Star { .. } | Outline::Ring { .. } => return None,
+            } => (whole_circle(*center, *radius, *from), Vec::new()),
+            Outline::Ring {
+                center,
+                outer,
+                inner,
+            } => (
+                whole_circle(*center, *outer, 0.0),
+                vec![whole_circle(*center, *inner, 0.0)],
+            ),
+            Outline::Rounded { .. } | Outline::Slot { .. } => (outline.contour()?, Vec::new()),
+            Outline::Star { .. } => return None,
         };
         let (origin, u, v) = plane.frame();
         Body::raised(
             &contour,
-            &[],
+            &holes,
             Frame { origin, u, v },
             plane.normal() * *height,
         )
@@ -149,6 +161,10 @@ impl Flats {
                     outline: Outline::Ring { outer, .. },
                     ..
                 } => Some(*outer),
+                Leaf::Prism {
+                    outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+                    ..
+                } => Some(*radius),
                 _ => None,
             })
             .map(|radius| radius * (1.0 - (std::f64::consts::PI / CIRCLE_STEPS as f64).cos()))

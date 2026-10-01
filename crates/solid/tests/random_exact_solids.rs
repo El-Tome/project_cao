@@ -3,7 +3,12 @@
 //!
 //! The cases are #448's, drawn among what the kernel raises: prisms of
 //! rectangles and circles on the three planes of the origin
-//! (`Case::drawn_square`), still weighted towards coincidences and hairs.
+//! (`Case::drawn_square`), still weighted towards coincidences and hairs —
+//! or, in a campaign of its own, among the profiles the application makes all
+//! the time (`Case::drawn_profiles`): rectangles with rounded corners, slots
+//! and rings beside rectangles and circles, each handed to the kernel as its
+//! straight runs and arcs. Both draws stay what they were for a seed, so a
+//! campaign on either is comparable with the ones before it.
 //! Every leaf is raised by `cao_solid::brep::Body::raised` and every step
 //! joined or cut; a leaf or a step declined is no answer. At every step the
 //! body's listing is held to its geometry, its triangles are closed and
@@ -19,16 +24,22 @@
 //! thousand square cases, when it was written — and breaks every one they
 //! break.
 //!
-//! The campaign is run by hand:
+//! A campaign is run by hand, the square one or the one of profiles:
 //!
 //! ```text
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
-//!     --test random_exact_solids -- --ignored --nocapture
+//!     --test random_exact_solids -- --ignored --nocapture \
+//!     a_campaign_of_random_square_solids
+//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
+//!     --test random_exact_solids -- --ignored --nocapture \
+//!     a_campaign_of_random_profiles
 //! ```
 //!
 //! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock, and
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
-//! as no answer.
+//! as no answer. The seeds it names are shrunk one by one by
+//! `the_seeds_a_campaign_named_are_shrunk_one_by_one`, given in
+//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles.
 
 // The drawing, the promise and the checks are shared with the flats'
 // campaign; each file uses its own part of them.
@@ -70,12 +81,12 @@ fn spans_of(stretches: &[Stretch]) -> Spans {
     )
 }
 
+/// The prisms of the first cases of both draws that hold every outline: every
+/// kind, and the profiles.
 fn drawn_prisms(kept: impl Fn(&Outline) -> bool) -> Vec<Leaf> {
     (0..400)
-        .flat_map(|seed| {
-            let case = Case::drawn(seed);
-            case.leaves().cloned().collect::<Vec<Leaf>>()
-        })
+        .flat_map(|seed| [Case::drawn(seed), Case::drawn_profiles(seed)])
+        .flat_map(|case| case.leaves().cloned().collect::<Vec<Leaf>>())
         .filter(|leaf| {
             leaf.is_solid() && matches!(leaf, Leaf::Prism { outline, .. } if kept(outline))
         })
@@ -167,6 +178,462 @@ fn a_prism_of_circles_holds_along_every_line_what_its_flats_hold_but_for_their_s
     }
 }
 
+/// Whether a point lies on one of the two ends of a prism, rather than on its
+/// wall.
+fn on_an_end(leaf: &Leaf, point: DVec3, reach: f64) -> bool {
+    let Leaf::Prism { plane, height, .. } = leaf else {
+        unreachable!("only prisms have ends")
+    };
+    let level = (point - plane.frame().0).dot(plane.normal());
+    level.abs() <= 1e-9 * reach || (level - height).abs() <= 1e-9 * reach
+}
+
+fn corner_radius(leaf: &Leaf) -> f64 {
+    match leaf {
+        Leaf::Prism {
+            outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+            ..
+        } => *radius,
+        _ => unreachable!("only rounded rectangles and slots have a corner radius"),
+    }
+}
+
+#[test]
+fn a_rounded_rectangle_or_a_slot_holds_along_every_line_what_its_flats_hold_on_its_straight_runs_and_but_for_their_sagitta_on_its_arcs()
+ {
+    let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
+    let leaves =
+        drawn_prisms(|outline| matches!(outline, Outline::Rounded { .. } | Outline::Slot { .. }));
+    assert!(leaves.len() > 100, "{} leaves", leaves.len());
+    let mut straight = 0;
+    for leaf in &leaves {
+        let sagitta = corner_radius(leaf) * (1.0 - inscribed);
+        let (lines, measured, reach) = lines_over(leaf);
+        for (index, measure) in measured.iter().enumerate() {
+            let (origin, direction) = lines.line(index);
+            let promise = leaf.along(origin, direction).expect("a prism");
+            let most = spans_of(&promise);
+            let least = spans_of(
+                &leaf
+                    .along_grown(origin, direction, -sagitta)
+                    .expect("a prism"),
+            );
+            let short = least.without(measure).length();
+            let over = measure.without(&most).length();
+            assert!(
+                short <= 1e-9 * reach && over <= 1e-9 * reach,
+                "line {index} across {leaf}: {measure:?} between {least:?} and {most:?}"
+            );
+            let ends: Vec<f64> = measure
+                .stretches()
+                .iter()
+                .flat_map(|&(from, to)| [from, to])
+                .collect();
+            for end in promise
+                .iter()
+                .flat_map(|stretch| [stretch.from, stretch.to])
+                .filter(|end| {
+                    !end.curved
+                        && end.at.is_finite()
+                        && !on_an_end(leaf, origin + direction * end.at, reach)
+                })
+            {
+                straight += 1;
+                assert!(
+                    ends.iter().any(|at| (at - end.at).abs() <= 1e-9 * reach),
+                    "line {index} across {leaf}: {measure:?} has no end at {end:?}"
+                );
+            }
+        }
+    }
+    assert!(straight > 1000, "{straight} ends on straight runs");
+}
+
+#[test]
+fn a_line_through_a_rounded_rectangle_or_a_slot_is_told_whether_it_crosses_a_straight_run_or_an_arc()
+ {
+    let along = |leaf: &Leaf, origin: [f64; 3], direction: DVec3, by: f64| {
+        leaf.along_grown(DVec3::from(origin), direction, by)
+            .expect("a prism")
+    };
+    let ends = |stretches: Vec<Stretch>| {
+        stretches
+            .iter()
+            .map(|stretch| (stretch.from.at, stretch.to.at))
+            .collect::<Vec<_>>()
+    };
+    let root = 3.0_f64.sqrt();
+
+    let block = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        10.0,
+    );
+    let [low] = along(&block, [-1.0, 1.0, 1.0], DVec3::X, 0.0)[..] else {
+        panic!("one stretch across the lower corners");
+    };
+    assert!((low.from.at - (3.0 - root)).abs() < 1e-12, "{low:?}");
+    assert!((low.to.at - (9.0 + root)).abs() < 1e-12, "{low:?}");
+    for end in [low.from, low.to] {
+        assert!(
+            end.curved && (end.cosine - root / 2.0).abs() < 1e-12,
+            "{end:?}"
+        );
+    }
+    let [middle] = along(&block, [-1.0, 3.0, 1.0], DVec3::X, 0.0)[..] else {
+        panic!("one stretch across the middle");
+    };
+    assert_eq!((middle.from.at, middle.to.at), (1.0, 11.0));
+    for end in [middle.from, middle.to] {
+        assert!(!end.curved && end.cosine == 1.0, "{end:?}");
+    }
+    assert_eq!(
+        ends(along(&block, [1.0, 1.0, -1.0], DVec3::Z, 0.0)),
+        [(1.0, 11.0)]
+    );
+    assert_eq!(ends(along(&block, [0.3, 0.3, -1.0], DVec3::Z, 0.0)), []);
+    assert_eq!(
+        ends(along(&block, [0.3, 0.3, -1.0], DVec3::Z, 0.5)),
+        [(0.5, 11.5)]
+    );
+    assert_eq!(
+        ends(along(&block, [2.6, 2.6, -1.0], DVec3::Z, -2.5)),
+        [(3.5, 8.5)]
+    );
+
+    let slot = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.5),
+        3.0,
+    );
+    let [cap] = along(&slot, [9.0, 0.0, 1.0], DVec3::Y, 0.0)[..] else {
+        panic!("one stretch through a cap");
+    };
+    let half = 1.25_f64.sqrt();
+    assert!((cap.from.at - (5.0 - half)).abs() < 1e-12, "{cap:?}");
+    assert!((cap.to.at - (5.0 + half)).abs() < 1e-12, "{cap:?}");
+    for end in [cap.from, cap.to] {
+        assert!(
+            end.curved && (end.cosine - half / 1.5).abs() < 1e-12,
+            "{end:?}"
+        );
+    }
+    let [side] = along(&slot, [5.0, 0.0, 1.0], DVec3::Y, 0.0)[..] else {
+        panic!("one stretch across the straight runs");
+    };
+    assert_eq!((side.from.at, side.to.at), (3.5, 6.5));
+    assert!(!side.from.curved && !side.to.curved, "{side:?}");
+    assert_eq!(
+        ends(along(&slot, [0.0, 5.0, 1.0], DVec3::X, 0.0)),
+        [(0.5, 9.5)]
+    );
+    assert_eq!(ends(along(&slot, [5.0, 0.0, 1.0], DVec3::Y, -1.5)), []);
+}
+
+#[test]
+fn a_line_through_the_place_a_straight_run_meets_an_arc_is_told_the_slant_of_the_wall_there() {
+    let slant = |stretch: Stretch| [stretch.from, stretch.to].map(|end| (end.at, end.cosine));
+
+    let slot = Leaf::prism(
+        Plane::xy(4.0),
+        Outline::slot([4.5, -1.0], [6.5, -1.0], 0.5),
+        -5.0,
+    );
+    let square = 1.0 / 1.01_f64.sqrt();
+    let [entering] = slot
+        .along(DVec3::new(4.5, -1.5, 3.0), DVec3::new(0.1, 1.0, 0.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch into the slot");
+    };
+    let [(at, cosine), _] = slant(entering);
+    assert!(at == 0.0 && (cosine - square).abs() < 1e-12, "{entering:?}");
+    let [leaving] = slot
+        .along(DVec3::new(6.5, -0.5, 3.0), DVec3::new(0.1, 1.0, 0.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch out of the slot");
+    };
+    let [_, (at, cosine)] = slant(leaving);
+    assert!(at == 0.0 && (cosine - square).abs() < 1e-12, "{leaving:?}");
+
+    let block = Leaf::prism(
+        Plane::xz(1.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        -3.0,
+    );
+    let [entering] = block
+        .along(DVec3::new(2.0, 2.5, 0.0), DVec3::new(0.1, -0.3, 1.0))
+        .expect("a prism")[..]
+    else {
+        panic!("one stretch into the block");
+    };
+    let [(at, cosine), _] = slant(entering);
+    assert!(
+        at == 0.0 && (cosine - 1.0 / 1.1_f64.sqrt()).abs() < 1e-12,
+        "{entering:?}"
+    );
+}
+
+/// A profile's wall nearest a place: how far the place stands outside the
+/// profile, or inside it when negative; the wall's outward normal, unless
+/// the place is at a square corner; and whether the wall curves there, unless
+/// the place is where a straight run meets an arc — where which of the two a
+/// line is told it crosses is left to a rounding.
+struct Wall {
+    outside: f64,
+    normal: Option<DVec2>,
+    curved: Option<bool>,
+}
+
+/// The wall of a profile grown by `by` nearest a place, worked out from what
+/// the profile is rounded from — the box of a rounded rectangle's arc
+/// centres, the segment between a slot's — rather than from its pieces.
+/// `near` is how close to a change of wall a place is taken to be on it.
+fn wall_of(outline: &Outline, place: DVec2, by: f64, near: f64) -> Wall {
+    let rounded_about = |out: DVec2, beyond: bool, between: bool, radius: f64| Wall {
+        outside: out.length() - radius,
+        normal: Some(out.normalize_or_zero()),
+        curved: if beyond {
+            Some(true)
+        } else if between {
+            Some(false)
+        } else {
+            None
+        },
+    };
+    match *outline {
+        Outline::Rounded { low, high, radius } if radius + by > 0.0 => {
+            let (first, last) = (low + radius, high - radius);
+            let out = place - place.clamp(first, last);
+            let beyond = (0..2)
+                .all(|axis| place[axis] < first[axis] - near || place[axis] > last[axis] + near);
+            let between = (0..2)
+                .any(|axis| first[axis] + near < place[axis] && place[axis] < last[axis] - near);
+            rounded_about(out, beyond, between, radius + by)
+        }
+        Outline::Rounded { low, high, .. } => {
+            let (low, high) = (low - by, high + by);
+            let mut walls = [
+                (low.x - place.x, DVec2::NEG_X),
+                (place.x - high.x, DVec2::X),
+                (low.y - place.y, DVec2::NEG_Y),
+                (place.y - high.y, DVec2::Y),
+            ];
+            walls.sort_by(|one, other| other.0.total_cmp(&one.0));
+            let beyond = (place - place.clamp(low, high)).length();
+            Wall {
+                outside: if beyond > 0.0 { beyond } else { walls[0].0 },
+                normal: (walls[0].0 - walls[1].0 > near).then_some(walls[0].1),
+                curved: Some(false),
+            }
+        }
+        Outline::Slot { from, to, radius } => {
+            let way = to - from;
+            let along = (place - from).dot(way) / way.length();
+            let out = place - (from + way * (along / way.length()).clamp(0.0, 1.0));
+            rounded_about(
+                out,
+                along < -near || along > way.length() + near,
+                near < along && along < way.length() - near,
+                radius + by,
+            )
+        }
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => {
+            let out = place - center;
+            let (rim, bore) = (out.length() - outer - by, inner - by - out.length());
+            let (outside, normal) = if inner - by <= 0.0 || rim >= bore {
+                (rim, out.normalize_or_zero())
+            } else {
+                (bore, -out.normalize_or_zero())
+            };
+            Wall {
+                outside,
+                normal: Some(normal),
+                curved: Some(true),
+            }
+        }
+        _ => unreachable!("only rounded rectangles, slots and rings are measured"),
+    }
+}
+
+/// Lines through the places a profile's walls change — the arcs' centres and
+/// ends, the middle of a slot or a bore — along the plane, square to it and
+/// slanted, some a hair off square or off the plane.
+fn lines_through_a_profile(leaf: &Leaf) -> Vec<(DVec3, DVec3)> {
+    let Leaf::Prism {
+        plane,
+        outline,
+        height,
+    } = leaf
+    else {
+        unreachable!("only prisms are measured")
+    };
+    let (base, u, v) = plane.frame();
+    let normal = u.cross(v);
+    let places: Vec<DVec2> = match *outline {
+        Outline::Rounded { low, high, radius } => {
+            let (near, far) = (low + radius, high - radius);
+            vec![
+                near,
+                far,
+                DVec2::new(near.x, low.y),
+                DVec2::new(far.x, high.y),
+                DVec2::new(low.x, near.y),
+                DVec2::new(high.x, far.y),
+                low,
+                (low + high) / 2.0,
+            ]
+        }
+        Outline::Slot { from, to, radius } => {
+            let side = (to - from).normalize().perp() * radius;
+            vec![from, to, from - side, to + side, (from + to) / 2.0]
+        }
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => vec![center, center + DVec2::X * inner, center + DVec2::Y * outer],
+        _ => unreachable!("only rounded rectangles, slots and rings are measured"),
+    };
+    let ways = [
+        u,
+        v,
+        u + v,
+        u - v * 0.3,
+        normal,
+        u * 0.1 + v - normal * 0.3,
+        u + v * 1e-9,
+        v - u * 1e-7,
+        normal + u * 1e-9,
+        DVec3::new(std::f64::consts::FRAC_1_PI, 5f64.sqrt() - 2.0, 1.0),
+    ];
+    places
+        .iter()
+        .flat_map(|place| {
+            [0.0, height / 2.0, *height]
+                .map(|level| base + u * place.x + v * place.y + normal * level)
+        })
+        .flat_map(|origin| ways.map(|way| (origin, way)))
+        .collect()
+}
+
+#[test]
+fn a_rounded_rectangle_a_slot_or_a_ring_grown_or_shrunk_holds_along_any_line_the_places_within_it_and_ends_at_the_slant_of_its_wall()
+ {
+    let mut leaves: Vec<Leaf> = (0..100)
+        .flat_map(|seed| {
+            Case::drawn_profiles(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| {
+            matches!(
+                leaf,
+                Leaf::Prism {
+                    outline: Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. },
+                    ..
+                }
+            )
+        })
+        .collect();
+    for plane in [Plane::xy(1.5), Plane::xz(-2.0), Plane::yz(3.0)] {
+        for height in [4.0, -2.5] {
+            for outline in [
+                Outline::rounded([0.0, -1.0], [4.0, 1.0], 1.0),
+                Outline::rounded([0.5, 0.5], [3.5, 6.0], 0.5),
+                Outline::slot([1.0, 2.0], [1.0, -1.5], 1.5),
+                Outline::slot([-2.0, 0.0], [3.0, 0.0], 0.5),
+                Outline::ring([1.0, 1.0], 3.0, 1.0),
+            ] {
+                leaves.push(Leaf::prism(plane, outline, height));
+            }
+        }
+    }
+    assert!(leaves.len() > 100, "{} leaves", leaves.len());
+
+    let mut ends = 0;
+    for leaf in &leaves {
+        let Leaf::Prism {
+            plane,
+            outline,
+            height,
+        } = leaf
+        else {
+            unreachable!("only prisms were kept")
+        };
+        let (base, u, v) = plane.frame();
+        let normal = u.cross(v);
+        let (low, high) = leaf.bounds().expect("a prism");
+        let reach = low.abs().max(high.abs()).max_element().max(1.0);
+        let size = (high - low).max_element();
+        let near = 1e-9 * reach;
+        let measured = |point: DVec3, by: f64| {
+            let offset = point - base;
+            let level = offset.dot(normal);
+            let slab = (height.min(0.0) - by - level).max(level - height.max(0.0) - by);
+            let place = DVec2::new(offset.dot(u), offset.dot(v));
+            (slab, wall_of(outline, place, by, 1e3 * near))
+        };
+        for (origin, way) in lines_through_a_profile(leaf) {
+            for by in [0.0, 0.1, -0.1, 0.6, -0.6].map(|share| share * size) {
+                let stretches = leaf.along_grown(origin, way, by).expect("a prism");
+                let held = |at: f64| {
+                    stretches
+                        .iter()
+                        .any(|stretch| stretch.from.at <= at && at <= stretch.to.at)
+                };
+                let span = 4.0 * (reach + size) / way.length();
+                for step in 0..=600 {
+                    let at = span * (step as f64 / 300.0 - 1.0) + 1e-3;
+                    let (slab, wall) = measured(origin + way * at, by);
+                    let depth = slab.max(wall.outside);
+                    if depth.abs() > near {
+                        assert_eq!(
+                            held(at),
+                            depth < 0.0,
+                            "{leaf} grown by {by}, at {at} along {way} from {origin}: {stretches:?}"
+                        );
+                    }
+                }
+                let step = DVec2::new(way.dot(u), way.dot(v));
+                for end in stretches
+                    .iter()
+                    .flat_map(|stretch| [stretch.from, stretch.to])
+                    .filter(|end| end.at.is_finite())
+                {
+                    let (slab, wall) = measured(origin + way * end.at, by);
+                    let on_wall = wall.outside.abs() < 1e3 * near;
+                    let (cosine, curved) = if slab.abs() < 1e3 * near && !on_wall {
+                        (way.dot(normal).abs() / way.length(), false)
+                    } else if let (Some(wall_normal), Some(curved)) = (wall.normal, wall.curved)
+                        && on_wall
+                        && slab < -1e3 * near
+                    {
+                        (wall_normal.dot(step).abs() / way.length(), curved)
+                    } else {
+                        continue;
+                    };
+                    if cosine < 1e-6 {
+                        continue;
+                    }
+                    ends += 1;
+                    assert!(
+                        (end.cosine - cosine).abs() < 1e-6 && end.curved == curved,
+                        "{leaf} grown by {by}, along {way} from {origin}: {end:?} crosses at {cosine}, curved {curved}"
+                    );
+                }
+            }
+        }
+    }
+    assert!(ends > 10_000, "{ends} ends");
+}
+
 #[test]
 fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
     let inscribed = (std::f64::consts::PI / random_solids::CIRCLE_STEPS as f64).cos();
@@ -191,6 +658,10 @@ fn the_box_a_prism_spans_is_the_box_its_flats_span_on_any_plane() {
                 outline: Outline::Ring { outer, .. },
                 ..
             } => outer * (1.0 - inscribed),
+            Leaf::Prism {
+                outline: Outline::Rounded { radius, .. } | Outline::Slot { radius, .. },
+                ..
+            } => radius * (1.0 - inscribed),
             _ => 0.0,
         };
         let near = 1e-9 * reach;
@@ -362,6 +833,305 @@ fn the_square_generator_draws_every_kind_it_keeps() {
     );
 }
 
+fn outline_of(leaf: &Leaf) -> Option<&Outline> {
+    match leaf {
+        Leaf::Prism { outline, .. } => Some(outline),
+        Leaf::Revolution { .. } => None,
+    }
+}
+
+#[test]
+fn the_same_seed_draws_the_same_profile_case_and_not_the_square_one() {
+    for seed in 0..200 {
+        assert_eq!(
+            Case::drawn_profiles(seed),
+            Case::drawn_profiles(seed),
+            "seed {seed}"
+        );
+    }
+    let distinct: std::collections::BTreeSet<String> = (0..200)
+        .map(|seed| Case::drawn_profiles(seed).to_string())
+        .collect();
+    assert!(distinct.len() > 190, "{} distinct cases", distinct.len());
+    let same = (0..200)
+        .filter(|seed| Case::drawn_profiles(*seed) == Case::drawn_square(*seed))
+        .count();
+    assert!(same < 100, "{same} profile cases are the square ones");
+}
+
+#[test]
+fn a_profile_case_holds_solid_prisms_on_the_planes_of_the_origin_alone_and_no_star() {
+    for seed in 0..3000 {
+        let case = Case::drawn_profiles(seed);
+        for leaf in case.leaves() {
+            let kept = match leaf {
+                Leaf::Prism { plane, outline, .. } => {
+                    !matches!(plane, Plane::Tilted { .. })
+                        && !matches!(outline, Outline::Star { .. })
+                }
+                Leaf::Revolution { .. } => false,
+            };
+            assert!(kept, "seed {seed}: {case}");
+            assert!(leaf.is_solid(), "seed {seed}: {case}");
+        }
+    }
+}
+
+#[test]
+fn the_profile_generator_draws_every_kind_it_keeps_and_rectangles_and_circles_for_about_half() {
+    let cases: Vec<Case> = (0..1000).map(Case::drawn_profiles).collect();
+    let leaves = || cases.iter().flat_map(Case::leaves);
+    let outlines = || leaves().filter_map(outline_of);
+    let seen = |what: &str, found: bool| assert!(found, "no profile case drew {what}");
+
+    seen(
+        "a rounded rectangle with a straight run on every side",
+        outlines().any(|outline| {
+            matches!(outline, Outline::Rounded { low, high, radius }
+                if 2.0 * radius < (*high - *low).min_element())
+        }),
+    );
+    seen(
+        "a rounded rectangle whose radius is half its shorter side",
+        outlines().any(|outline| {
+            matches!(outline, Outline::Rounded { low, high, radius }
+                if 2.0 * radius == (*high - *low).min_element())
+        }),
+    );
+    seen(
+        "a slot along the plane's first axis",
+        outlines()
+            .any(|outline| matches!(outline, Outline::Slot { from, to, .. } if from.y == to.y)),
+    );
+    seen(
+        "a slot along the plane's second axis",
+        outlines()
+            .any(|outline| matches!(outline, Outline::Slot { from, to, .. } if from.x == to.x)),
+    );
+    seen(
+        "a ring",
+        outlines().any(|outline| matches!(outline, Outline::Ring { .. })),
+    );
+    seen(
+        "a prism pushed backwards",
+        leaves().any(|leaf| matches!(leaf, Leaf::Prism { height, .. } if *height < 0.0)),
+    );
+    for (name, kind) in [
+        ("XY", Plane::xy(0.0)),
+        ("XZ", Plane::xz(0.0)),
+        ("YZ", Plane::yz(0.0)),
+    ] {
+        seen(
+            name,
+            leaves()
+                .any(|leaf| std::mem::discriminant(leaf.plane()) == std::mem::discriminant(&kind)),
+        );
+    }
+    seen(
+        "a case drawn thirty times larger",
+        leaves().any(|leaf| matches!(leaf, Leaf::Prism { height, .. } if height.abs() > 60.0)),
+    );
+
+    let earlier_and_later = |related: &dyn Fn(&Outline, &Outline) -> bool| {
+        cases.iter().any(|case| {
+            let outlines: Vec<&Outline> = case.leaves().filter_map(outline_of).collect();
+            (1..outlines.len()).any(|later| {
+                outlines[..later]
+                    .iter()
+                    .any(|earlier| related(earlier, outlines[later]))
+            })
+        })
+    };
+    seen(
+        "a corner radius equal to a circle's drawn before, on its centre",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (
+                Outline::Circle { center, radius, .. },
+                Outline::Rounded {
+                    low,
+                    radius: corner,
+                    ..
+                },
+            ) => corner == radius && *low + *corner == *center,
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's end on a circle's centre",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Circle { center, .. }, Outline::Slot { from, .. }) => from == center,
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's end missed by a hair",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Circle { center, .. }, Outline::Slot { from, .. }) => {
+                from != center && from.distance(*center) < 1e-4
+            }
+            _ => false,
+        }),
+    );
+    seen(
+        "a slot's straight run on a rectangle's side",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (Outline::Rectangle { high, .. }, Outline::Slot { from, to, radius }) => {
+                from.y == to.y && (from.y - radius == high.y || from.y + radius == high.y)
+            }
+            _ => false,
+        }),
+    );
+    seen(
+        "a ring's bore equal to a circle drawn before",
+        earlier_and_later(&|earlier, later| match (earlier, later) {
+            (
+                Outline::Circle { center, radius, .. },
+                Outline::Ring {
+                    center: hub, inner, ..
+                },
+            ) => center == hub && radius == inner,
+            _ => false,
+        }),
+    );
+
+    let count = leaves().count();
+    let plain = outlines()
+        .filter(|outline| matches!(outline, Outline::Rectangle { .. } | Outline::Circle { .. }))
+        .count();
+    let share = plain as f64 / count as f64;
+    assert!(
+        (0.4..0.6).contains(&share),
+        "rectangles and circles are {plain} leaves of {count}"
+    );
+}
+
+#[test]
+fn a_profile_case_prints_as_the_rust_that_builds_it_again() {
+    let pasted = Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rounded([0.0, 0.0], [10.0, 6.0], 1.5),
+            4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(-1.0),
+                Outline::slot([2.0, 1.0], [2.0, 3.5], 0.75),
+                -8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::ring([5.0, 3.0], 2.5, 1.0),
+                2.0,
+            )),
+        ],
+    );
+    assert_eq!(
+        pasted.to_string(),
+        "Case::new(
+    Leaf::prism(Plane::xy(0.0), Outline::rounded([0.0, 0.0], [10.0, 6.0], 1.5), 4.0),
+    vec![
+        Step::cut(Leaf::prism(Plane::xz(-1.0), Outline::slot([2.0, 1.0], [2.0, 3.5], 0.75), -8.0)),
+        Step::add(Leaf::prism(Plane::xy(4.0), Outline::ring([5.0, 3.0], 2.5, 1.0), 2.0)),
+    ],
+)"
+    );
+    for seed in 0..200 {
+        let printed = Case::drawn_profiles(seed).to_string();
+        assert!(
+            !printed.contains("NaN") && !printed.contains("inf"),
+            "seed {seed} prints a number Rust cannot read back: {printed}"
+        );
+    }
+}
+
+/// The outlines a lone prism of `outline` could shrink into.
+fn shrunk_outlines(outline: Outline) -> Vec<Outline> {
+    Case::new(Leaf::prism(Plane::xy(0.0), outline, 1.0), vec![])
+        .smaller()
+        .into_iter()
+        .filter_map(|case| outline_of(&case.start).cloned())
+        .collect()
+}
+
+#[test]
+fn a_rounded_rectangle_shrinks_into_a_rectangle_and_a_slot_or_a_ring_into_a_circle_and_all_into_round_numbers()
+ {
+    let rounded = shrunk_outlines(Outline::rounded([0.3, 0.7], [10.2, 6.4], 1.7));
+    for expected in [
+        Outline::rectangle([0.3, 0.7], [10.2, 6.4]),
+        Outline::rounded([0.0, 1.0], [10.0, 6.0], 2.0),
+        Outline::rounded([0.5, 0.5], [10.0, 6.5], 1.5),
+    ] {
+        assert!(rounded.contains(&expected), "{expected} among {rounded:?}");
+    }
+    let tight = shrunk_outlines(Outline::rounded([0.0, 0.0], [10.0, 2.6], 1.3));
+    assert!(
+        tight.contains(&Outline::rounded([0.0, 0.0], [10.0, 3.0], 1.0)),
+        "{tight:?}"
+    );
+
+    let slot = shrunk_outlines(Outline::slot([2.2, 5.0], [8.1, 5.0], 1.3));
+    for expected in [
+        Outline::circle([2.2, 5.0], 1.3),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.0),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.5),
+    ] {
+        assert!(slot.contains(&expected), "{expected} among {slot:?}");
+    }
+    assert!(
+        slot.iter()
+            .any(|outline| matches!(outline, Outline::Rectangle { low, high }
+            if low.distance(DVec2::new(0.9, 3.7)) < 1e-12
+                && high.distance(DVec2::new(9.4, 6.3)) < 1e-12)),
+        "no box among {slot:?}"
+    );
+    let short = shrunk_outlines(Outline::slot([2.2, 5.0], [2.2, 5.4], 1.0));
+    assert!(
+        short
+            .iter()
+            .all(|outline| !matches!(outline, Outline::Slot { from, to, .. } if from == to)),
+        "{short:?}"
+    );
+
+    let ring = shrunk_outlines(Outline::ring([5.2, 3.0], 2.6, 1.1));
+    for expected in [
+        Outline::circle([5.2, 3.0], 2.6),
+        Outline::ring([5.0, 3.0], 3.0, 1.0),
+        Outline::ring([5.0, 3.0], 2.5, 1.0),
+    ] {
+        assert!(ring.contains(&expected), "{expected} among {ring:?}");
+    }
+    let thin = shrunk_outlines(Outline::ring([5.0, 3.0], 2.6, 2.4));
+    assert!(
+        thin.iter().all(
+            |outline| !matches!(outline, Outline::Ring { outer, inner, .. } if inner >= outer)
+        ),
+        "{thin:?}"
+    );
+}
+
+#[test]
+fn shrinking_any_drawn_profile_case_comes_to_an_end() {
+    for seed in 0..200 {
+        let mut rounds = 0;
+        let shrunk = shrink(
+            Case::drawn_profiles(seed),
+            Case::smaller,
+            |_| true,
+            || {
+                rounds += 1;
+                rounds < 100_000
+            },
+        );
+        assert!(rounds < 100_000, "seed {seed} was still shrinking");
+        assert!(
+            shrunk.smaller().is_empty(),
+            "seed {seed} stopped short: {shrunk}"
+        );
+    }
+}
+
 fn bored_and_bossed() -> Case {
     Case::new(
         Leaf::prism(
@@ -441,6 +1211,33 @@ fn square_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_
         assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
     }
     assert!(held > 60, "{held} cases held");
+}
+
+#[test]
+fn profile_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+    let mut held = 0;
+    let mut profiles = 0;
+    for seed in 0..120 {
+        let case = Case::drawn_profiles(seed);
+        if random_solids::check(&case).is_err() {
+            continue;
+        }
+        held += 1;
+        profiles += case
+            .leaves()
+            .filter_map(outline_of)
+            .filter(|outline| {
+                matches!(
+                    outline,
+                    Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. }
+                )
+            })
+            .count();
+        let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+        assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
+    }
+    assert!(held > 60, "{held} cases held");
+    assert!(profiles > 60, "{profiles} profiles held");
 }
 
 #[test]
@@ -652,6 +1449,93 @@ fn a_line_square_to_a_star_holds_the_whole_prism_inside_the_star_and_nothing_bet
     assert_eq!(square(center + DVec2::X * 5.0), []);
 }
 
+/// The area a profile encloses, by the formula for its shape.
+fn area(outline: &Outline) -> f64 {
+    use std::f64::consts::PI;
+    match outline {
+        Outline::Rectangle { low, high } => (*high - *low).x * (*high - *low).y,
+        Outline::Circle { radius, .. } => PI * radius * radius,
+        Outline::Ring { outer, inner, .. } => PI * (outer * outer - inner * inner),
+        Outline::Rounded { low, high, radius } => {
+            (*high - *low).x * (*high - *low).y - (4.0 - PI) * radius * radius
+        }
+        Outline::Slot { from, to, radius } => {
+            2.0 * radius * from.distance(*to) + PI * radius * radius
+        }
+        Outline::Star { .. } => unreachable!("a star is not raised by the exact kernel"),
+    }
+}
+
+#[test]
+fn every_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_its_area_times_its_height()
+ {
+    let leaves: Vec<Leaf> = (0..200)
+        .flat_map(|seed| {
+            Case::drawn_profiles(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| {
+            matches!(
+                leaf,
+                Leaf::Prism {
+                    outline: Outline::Rounded { .. } | Outline::Slot { .. } | Outline::Ring { .. },
+                    ..
+                }
+            )
+        })
+        .collect();
+    assert!(leaves.len() > 60, "{} leaves", leaves.len());
+    for leaf in &leaves {
+        let alone = Case::new(leaf.clone(), vec![]);
+        let held = random_solids::held_to_arithmetic(&alone, &Exact);
+        assert!(held.is_ok(), "{leaf}: {held:?}");
+        let Leaf::Prism {
+            outline, height, ..
+        } = leaf
+        else {
+            unreachable!("only prisms were kept")
+        };
+        let promised = area(outline) * height.abs();
+        let volume = Exact.raised(leaf).expect("a raised profile").volume();
+        assert!(
+            (volume - promised).abs() <= 1e-9 * promised,
+            "{leaf}: {volume} against {promised}"
+        );
+    }
+}
+
+#[test]
+fn a_rounded_rectangle_is_handed_over_with_a_straight_run_only_on_a_side_longer_than_its_two_corners()
+ {
+    let straight = |outline: Outline| {
+        let contour = outline.contour().expect("an outline of runs and arcs");
+        assert_eq!(contour.corners.len(), contour.runs.len());
+        contour
+            .runs
+            .iter()
+            .filter(|run| matches!(run, Run::Straight))
+            .count()
+    };
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0)), 4);
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [10.0, 6.0], 3.0)), 2);
+    assert_eq!(straight(Outline::rounded([0.0, 0.0], [6.0, 6.0], 3.0)), 0);
+    assert_eq!(straight(Outline::slot([0.0, 0.0], [0.0, 4.0], 1.0)), 2);
+}
+
+#[test]
+fn a_rounded_rectangle_is_its_rectangle_less_four_corners_a_circle_never_filled() {
+    let block = Leaf::prism(
+        Plane::xz(1.0),
+        Outline::rounded([0.0, 0.0], [10.0, 6.0], 2.0),
+        -3.0,
+    );
+    let volume = Exact.raised(&block).expect("a rounded block").volume();
+    let promised = 3.0 * (60.0 - (4.0 - std::f64::consts::PI) * 4.0);
+    assert!((volume - promised).abs() < 1e-9, "{volume}");
+}
+
 #[test]
 fn a_circle_is_handed_to_the_exact_kernel_as_one_whole_turn_from_where_its_flats_start() {
     let circle = random_solids::whole_circle(DVec2::new(3.0, -1.0), 2.0, 90.0);
@@ -699,6 +1583,12 @@ fn drawn(seed: u64) -> Case {
     Case::drawn_square(seed)
 }
 
+/// The same, among the profiles.
+fn drawn_profile(seed: u64) -> Case {
+    eprint!("\rseed {seed} ");
+    Case::drawn_profiles(seed)
+}
+
 fn from_the_environment(name: &str) -> Option<u64> {
     std::env::var(name).ok()?.parse().ok()
 }
@@ -706,6 +1596,18 @@ fn from_the_environment(name: &str) -> Option<u64> {
 #[test]
 #[ignore = "a campaign, run by hand: see the head of this file"]
 fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
+    campaign_over("square solids", drawn);
+}
+
+#[test]
+#[ignore = "a campaign, run by hand: see the head of this file"]
+fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
+    campaign_over("profiles", drawn_profile);
+}
+
+/// A campaign on the exact kernel over the cases `draw` gives, for as long as
+/// the environment says, and its report.
+fn campaign_over(what: &str, draw: fn(u64) -> Case) {
     let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
     let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
         let now = SystemTime::now()
@@ -715,12 +1617,12 @@ fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
     });
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let deadline = Instant::now() + Duration::from_secs(seconds);
-    println!("campaign on the exact kernel from seed {first}, for {seconds} s");
+    println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
 
     let check: Check<Case> = Arc::new(exactly);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(first.., drawn, check, Case::smaller, patience, || {
+    let report = campaign(first.., draw, check, Case::smaller, patience, || {
         Instant::now() < deadline
     });
     std::panic::set_hook(quiet);
@@ -736,7 +1638,8 @@ fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
 
 /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
 /// shrunk while it still breaks the same rule, and printed as a test: what a
-/// campaign's failures are sorted into distinct ones from.
+/// campaign's failures are sorted into distinct ones from. The seeds name
+/// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`.
 #[test]
 #[ignore = "run by hand on the seeds a campaign named"]
 fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
@@ -745,12 +1648,16 @@ fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
         .split(',')
         .filter_map(|seed| seed.trim().parse().ok())
         .collect();
+    let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
+        Ok("profiles") => Case::drawn_profiles,
+        _ => Case::drawn_square,
+    };
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let check: Check<Case> = Arc::new(exactly);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
     for seed in seeds {
-        let drawn = Case::drawn_square(seed);
+        let drawn = draw(seed);
         let Err(flaw) = answer(drawn.clone(), &check, patience) else {
             println!("\n── holds, seed {seed} ──");
             continue;

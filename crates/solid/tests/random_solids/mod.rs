@@ -12,6 +12,7 @@ mod building;
 mod checking;
 mod drawing;
 mod kernels;
+mod outlines;
 mod printing;
 mod smaller;
 
@@ -200,6 +201,21 @@ pub enum Outline {
         outer: f64,
         inner: f64,
     },
+    /// A rectangle whose four corners are turned into quarter circles of
+    /// `radius`, no larger than half its shorter side: at half, the two
+    /// quarters at either end of that side meet and leave it no straight run.
+    Rounded {
+        low: DVec2,
+        high: DVec2,
+        radius: f64,
+    },
+    /// Two half circles of `radius` about `from` and `to`, joined by two
+    /// straight runs: an oblong along the plane's first axis or its second.
+    Slot {
+        from: DVec2,
+        to: DVec2,
+        radius: f64,
+    },
 }
 
 impl Outline {
@@ -234,6 +250,22 @@ impl Outline {
             center: DVec2::from(center),
             outer,
             inner,
+        }
+    }
+
+    pub fn rounded(low: [f64; 2], high: [f64; 2], radius: f64) -> Self {
+        Self::Rounded {
+            low: DVec2::from(low),
+            high: DVec2::from(high),
+            radius,
+        }
+    }
+
+    pub fn slot(from: [f64; 2], to: [f64; 2], radius: f64) -> Self {
+        Self::Slot {
+            from: DVec2::from(from),
+            to: DVec2::from(to),
+            radius,
         }
     }
 }

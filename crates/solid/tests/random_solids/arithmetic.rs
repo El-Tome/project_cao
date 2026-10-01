@@ -125,16 +125,13 @@ pub fn holds_exactly(case: &Case) {
     }
 }
 
-/// Whether the arithmetic here covers a leaf: a solid prism of a rectangle,
-/// a circle or a ring, which it can grow and shrink.
+/// Whether the arithmetic here covers a leaf: a solid prism of any outline
+/// but a star, which it can grow and shrink.
 fn covered(leaf: &Leaf) -> bool {
     leaf.is_solid()
         && matches!(
             leaf,
-            Leaf::Prism {
-                outline: Outline::Rectangle { .. } | Outline::Circle { .. } | Outline::Ring { .. },
-                ..
-            }
+            Leaf::Prism { outline, .. } if !matches!(outline, Outline::Star { .. })
         )
 }
 

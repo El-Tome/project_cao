@@ -1809,3 +1809,60 @@ fn seed_3047709_a_boss_crossing_a_cut_of_one_radius_a_hair_off_a_far_plane_keeps
         ],
     ));
 }
+
+#[test]
+fn seed_3138713_three_walls_touching_along_one_line_and_a_circle_printed_round_one_of_them_leave_the_top_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([9.0, 4.0], 4.0), 8.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([7.5, 4.0], 2.5),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([8.0, 2.0], 5.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([8.0, 4.0], 3.0),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_53006876_a_bar_touching_a_post_at_a_point_keeps_both_walls_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([300.0, 300.0], 30.0),
+            285.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(240.0),
+            Outline::circle([180.0, 150.0], 90.0),
+            -135.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_53006876_a_bar_a_hair_into_a_post_it_touches_at_a_point_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([300.0, 300.0], 30.0),
+            285.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(240.0),
+            Outline::circle([180.00000005, 150.0], 90.0),
+            -135.0,
+        ))],
+    ));
+}

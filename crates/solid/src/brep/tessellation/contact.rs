@@ -216,7 +216,8 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            if together::sampled((outer, &[]), (inner, &[]), facing, tolerance, eps).is_some() {
+            if together::sampled((outer, &[]), (inner, &[]), facing, None, tolerance, eps).is_some()
+            {
                 close.push((outer, inner, facing));
                 continue;
             }
@@ -241,8 +242,8 @@ pub(super) fn contacts(
     for (wall, rays) in beneath {
         contacts.entry(wall).or_default().beneath = rays;
     }
-    for (wall, step) in point::withheld(body, walls, tolerance) {
-        contacts.entry(wall).or_default().withheld.push(step);
+    for (wall, point) in point::anchors(body, walls) {
+        contacts.entry(wall).or_default().anchors.push(point);
     }
     contacts
 }

@@ -730,17 +730,17 @@ fn a_wall_takes_no_ray_passed_on_by_one_partner_where_it_all_but_lies_on_another
     }
 }
 
+/// The three walls are close one through the next, and every ray is drawn
+/// from the smallest one's axis: the outer and the middle ones stand on the
+/// same rays from it.
 #[test]
 fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_inside_it() {
     let mut build = fixtures::Build::new();
     let outer = build.cylinder(DVec3::ZERO, DVec3::Z, fixtures::STOCK_RADIUS);
     let middle = DVec3::X * fixtures::STOCK_RADIUS / 2.0;
     let between = build.cylinder(middle, DVec3::Z, fixtures::STOCK_RADIUS / 2.0);
-    let inner = build.cylinder(
-        middle + DVec3::Y * fixtures::HOLE_RADIUS,
-        DVec3::Z,
-        fixtures::HOLE_RADIUS,
-    );
+    let hub = middle + DVec3::Y * fixtures::HOLE_RADIUS;
+    let inner = build.cylinder(hub, DVec3::Z, fixtures::HOLE_RADIUS);
     let rings = [outer, between, inner].map(|wall| build.circle(wall, 0.0, None));
     let use_of = |edge, forward| crate::brep::topology::Coedge { edge, forward };
     for (wall, ring) in [outer, between, inner].into_iter().zip(rings) {
@@ -749,7 +749,7 @@ fn a_wall_touching_one_inside_it_takes_the_rays_that_one_takes_from_a_third_insi
     let body = build.finish(fixtures::STOCK_RADIUS);
     for tolerance in [0.02, 0.5] {
         let samples = Samples::of(&body, tolerance);
-        let [one, other] = [rings[0], rings[1]].map(|ring| angles_round(&samples, ring, middle));
+        let [one, other] = [rings[0], rings[1]].map(|ring| angles_round(&samples, ring, hub));
         assert_eq!(
             one.len(),
             other.len(),

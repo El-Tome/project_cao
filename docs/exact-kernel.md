@@ -258,7 +258,12 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   other takes too, and so on down a chain of walls each touching the next
   inside it: a circle printed on a floor, its wall touching the stock inside,
   takes the line its wall crosses a bore along, and the stock's rim, not
-  taking it, would chord inside the printed circle. Where a step of the
+  taking it, would chord inside the printed circle. Walls close one through
+  the next all draw their rays from one centre, the smallest's, where it
+  stands inside every one of them: three walls touching along one line are
+  three pairs, and a ray passed round them from each pair's own smaller
+  centre comes back a hair round from where it left, so that every round of
+  passing adds rays and the last round's never reach the other walls. Where a step of the
   larger's grid and one of the smaller's fall within `EPS` of each other
   along the circle — walls of one radius, or all but, a hair off one axis —
   they are one place, the smaller's step, and the larger withholds its own
@@ -307,9 +312,13 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   perpendicular walls decided to touch at a point, side by side, leave no
   curve and no vertex, and may overlap there by up to `EPS`; the point
   stands on a step of both grids, and each wall's ruling through it would
-  pass through the other's triangles. Where both hold a face there, that
-  step is withheld from the circles round it on both walls, and the chords
-  across sag apart. A
+  pass through the other's triangles. Where both hold a face there, the
+  point halfway between the two walls along their common perpendicular is
+  taken as a vertex of both: their samples at its angle stand square to
+  their axes from it, so that both rulings lie in one plane and meet there,
+  as two walls touching exactly do. Withholding the step instead would
+  leave a coarse wall's chord across two steps the whole length of the
+  ruling. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of

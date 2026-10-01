@@ -9,6 +9,7 @@ use glam::DVec3;
 use super::super::sampling::divisions;
 use super::facing::Facing;
 use super::{Contact, Wall};
+use crate::brep::surface::Cylinder;
 use crate::brep::topology::SurfaceId;
 
 /// How many times rays are passed on between walls close to each other: a
@@ -48,15 +49,17 @@ pub(super) fn shared(
             }
         })
     };
+    let hubs = hubs(close);
     for _ in 0..ROUNDS {
         let mut received: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
         let mut dropped: BTreeMap<SurfaceId, Vec<usize>> = BTreeMap::new();
-        for &(outer, inner, facing) in close {
+        for (&(outer, inner, facing), hub) in close.iter().zip(&hubs) {
             let held = |wall: &Wall| taken.get(&wall.0).map_or(&[][..], Vec::as_slice);
             let Some(together) = sampled(
                 (outer, held(outer)),
                 (inner, held(inner)),
                 facing,
+                *hub,
                 tolerance,
                 eps,
             ) else {
@@ -113,6 +116,71 @@ pub(super) fn shared(
         contacts.entry(wall).or_default().withheld = steps;
     }
     contacts
+}
+
+/// For each pair of `close` walls, the axis their common rays are drawn
+/// from: the smallest wall's of all those close to one another, one through
+/// the next, where it stands inside every one of them; otherwise the inner
+/// wall's of the pair.
+///
+/// Three walls touching along one line are three pairs, and each drawing
+/// its rays from its own inner axis, a ray passed round them comes back to
+/// the first a hair round from where it left: every round of passing adds
+/// rays, and the last round's never reach a wall's other partners — a
+/// circle printed round one of the three, touching it inside, is left
+/// without the rays its partner took last, and their chords cross. Drawn
+/// from one axis, a ray is the same ray on every wall, and the passing
+/// ends.
+fn hubs(close: &[(&Wall, &Wall, &Facing)]) -> Vec<Option<DVec3>> {
+    let mut cluster: BTreeMap<SurfaceId, usize> = BTreeMap::new();
+    for (rank, (outer, inner, _)) in close.iter().enumerate() {
+        for wall in [outer, inner] {
+            cluster.entry(wall.0).or_insert(rank);
+        }
+    }
+    loop {
+        let mut joined = false;
+        for (outer, inner, _) in close {
+            let least = cluster[&outer.0].min(cluster[&inner.0]);
+            for wall in [outer, inner] {
+                let label = cluster.get_mut(&wall.0).expect("every wall is labelled");
+                if *label != least {
+                    let old = *label;
+                    for other in cluster.values_mut() {
+                        if *other == old {
+                            *other = least;
+                        }
+                    }
+                    joined = true;
+                }
+            }
+        }
+        if !joined {
+            break;
+        }
+    }
+    let cluster = &cluster;
+    let members = |label: usize| {
+        close
+            .iter()
+            .flat_map(|(outer, inner, _)| [*outer, *inner])
+            .filter(move |wall| cluster[&wall.0] == label)
+    };
+    close
+        .iter()
+        .map(|(outer, _, _)| {
+            let label = cluster[&outer.0];
+            let smallest =
+                members(label).min_by(|one, other| one.1.radius.total_cmp(&other.1.radius))?;
+            let hub = smallest.1.origin;
+            members(label)
+                .all(|(_, wall)| {
+                    let from = hub - wall.origin;
+                    (from - wall.axis * wall.axis.dot(from)).length() < wall.radius
+                })
+                .then_some(hub)
+        })
+        .collect()
 }
 
 /// Whether a wall stands along `way` from its axis closer to another than
@@ -175,6 +243,7 @@ pub(super) fn sampled(
     (outer_wall, own_outer): (&Wall, &[DVec3]),
     (inner_wall, own_inner): (&Wall, &[DVec3]),
     facing: &Facing,
+    hub: Option<DVec3>,
     tolerance: f64,
     eps: f64,
 ) -> Option<Together> {
@@ -236,9 +305,24 @@ pub(super) fn sampled(
         let off = angle - (angle / step).round() * step;
         off.abs() <= eps / inner.radius
     };
+    let hub = hub.filter(|hub| *hub != inner.origin);
+    let meeting = |wall: &Cylinder, point: DVec3| -> DVec3 {
+        let Some(hub) = hub else {
+            return point;
+        };
+        let way = flat(point - hub).normalize();
+        let from = flat(hub - wall.origin);
+        let along = from.dot(way);
+        let reach =
+            -along + (along * along - from.length_squared() + wall.radius * wall.radius).sqrt();
+        from + way * reach
+    };
     let mut on_inner = Vec::new();
     for (point, from) in through_outer {
-        let from_axis = point - offset;
+        let from_axis = match hub {
+            Some(_) => meeting(&inner, outer.origin + point),
+            None => point - offset,
+        };
         let over = if facing.crowds(&outer, outer.origin + point) {
             facing.withheld(outer_wall.0, outer.origin + point)
         } else {
@@ -256,13 +340,17 @@ pub(super) fn sampled(
     for (way, from) in from_inner {
         let along = offset.dot(way);
         let reach = -along + (along * along - outside).sqrt();
+        let toward = match hub {
+            Some(_) => meeting(&outer, inner.origin + way * inner.radius).normalize(),
+            None => (offset + way * reach).normalize(),
+        };
         let over = if facing.crowds(&inner, outer.origin + offset + way * inner.radius) {
             facing.withheld(inner_wall.0, outer.origin + offset + way * inner.radius)
         } else {
             Vec::new()
         };
         if over.is_empty() {
-            on_outer.push((offset + way * reach).normalize());
+            on_outer.push(toward);
         } else {
             leave(1, from, over);
         }

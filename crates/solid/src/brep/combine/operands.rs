@@ -51,9 +51,16 @@ impl<'a> Operands<'a> {
             };
             faces(one).any(|first| faces(other).any(|second| meet(first, second)))
         };
+        let mut cornered = vec![false; surfaces.list.len()];
+        for vertex in &second.vertices {
+            for own in &vertex.on {
+                cornered[surfaces.mapped[1][own.0 as usize].0.0 as usize] = true;
+            }
+        }
         let moved = surfaces.snapped(
             |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
             near,
+            |surface: SurfaceId| cornered[surface.0 as usize],
             scale,
         );
         Operands {

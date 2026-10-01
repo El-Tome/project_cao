@@ -10,8 +10,11 @@
 //! Every touch a surface has is read before it moves, and a move is made
 //! only where no other touch of the surface ends further from exact than it
 //! was: settled onto one touch, a cylinder in two would otherwise break the
-//! other. A cylinder touching two parallel planes on opposite sides is moved
-//! midway between them, its radius half their gap, which makes both exact.
+//! other. A move may run along an exact touch, but not on a wall its
+//! operand drew corners on, which would leave them behind the line of
+//! touch it takes along. A cylinder touching two parallel planes on
+//! opposite sides is moved midway between them, its radius half their gap,
+//! which makes both exact.
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
 
@@ -29,25 +32,28 @@ const ROUNDING: f64 = 1e-3;
 
 impl Surfaces {
     /// The moves onto a touch, of pairs of a surface `carried` by each
-    /// operand whose faces stand `near` each other. Whether each surface was
+    /// operand whose faces stand `near` each other; a surface the second
+    /// operand's corners lie on is `cornered`. Whether each surface was
     /// moved.
     pub fn snapped(
         &mut self,
         carried: impl Fn(usize, SurfaceId) -> bool,
         near: impl Fn(SurfaceId, SurfaceId) -> bool,
+        cornered: impl Fn(SurfaceId) -> bool,
         scale: Scale,
     ) -> Vec<bool> {
         let count = self.list.len();
         let id = |rank: usize| SurfaceId(rank as u32);
         let own = |rank: usize| carried(1, id(rank)) && !carried(0, id(rank));
         let close = |one: usize, other: usize| near(id(one), id(other));
+        let pinned = |rank: usize| cornered(id(rank));
         let mut moved = vec![false; count];
         for rank in (0..count).filter(|&rank| own(rank)) {
             let Some((planes, cylinder)) = self.between(rank, close, scale) else {
                 continue;
             };
             let surface = Surface::Cylinder(cylinder);
-            if self.keeps(rank, &surface, &planes, close, scale) {
+            if self.keeps(rank, &surface, &planes, (close, pinned(rank)), scale) {
                 self.list[rank] = surface;
                 moved[rank] = true;
             }
@@ -64,7 +70,7 @@ impl Surfaces {
             let Some((shifted, surface)) = self.onto(pair, own, scale) else {
                 continue;
             };
-            if self.keeps(shifted, &surface, &pair, close, scale) {
+            if self.keeps(shifted, &surface, &pair, (close, pinned(shifted)), scale) {
                 self.list[shifted] = surface;
                 moved[shifted] = true;
             }
@@ -152,25 +158,34 @@ impl Surfaces {
     }
 
     /// Whether `surface`, put for the one of rank `rank`, leaves every touch
-    /// it has with a surface near it but `besides` as near exact as it was.
+    /// it has with a surface near it but `besides` as near exact as it was;
+    /// and, where corners of its operand lie on it, every exact touch where
+    /// it was: slid along it, the line of touch would leave behind the
+    /// corners drawn on it.
     fn keeps(
         &self,
         rank: usize,
         surface: &Surface,
         besides: &[usize],
-        near: impl Fn(usize, usize) -> bool,
+        (near, pinned): (impl Fn(usize, usize) -> bool, bool),
         scale: Scale,
     ) -> bool {
         let room = ROUNDING * scale.eps();
+        let before = &self.list[rank];
         (0..self.list.len())
             .filter(|&other| other != rank && !besides.contains(&other) && near(rank, other))
-            .all(
-                |other| match off(&self.list[rank], &self.list[other], scale) {
-                    Some(before) => off(surface, &self.list[other], scale)
-                        .is_some_and(|after| after <= before + room),
+            .all(|other| {
+                let other = &self.list[other];
+                match off(before, other, scale) {
+                    Some(gap) => {
+                        off(surface, other, scale).is_some_and(|after| after <= gap + room)
+                            && !(pinned
+                                && gap <= room
+                                && moved_along(before, surface, other, scale) > room)
+                    }
                     None => true,
-                },
-            )
+                }
+            })
     }
 }
 
@@ -203,6 +218,24 @@ fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
         }
         _ => None,
     }
+}
+
+/// How far the place two surfaces touch at moves when the first is put
+/// for `before`: the line they touch along, or the points two
+/// perpendicular cylinders touch at.
+fn moved_along(before: &Surface, after: &Surface, other: &Surface, scale: Scale) -> f64 {
+    let places = |surface: &Surface| match relation(surface, other, scale) {
+        Relation::Tangent(line) => vec![line.origin],
+        found => found.points(),
+    };
+    let (from, to) = (places(before), places(after));
+    if from.len() != to.len() {
+        return f64::INFINITY;
+    }
+    from.iter()
+        .zip(&to)
+        .map(|(one, other)| one.distance(*other))
+        .fold(0.0, f64::max)
 }
 
 /// `moving` moved onto the line it was decided to touch `fixed` along: a

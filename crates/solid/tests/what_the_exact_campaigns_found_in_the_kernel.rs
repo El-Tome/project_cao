@@ -3008,6 +3008,36 @@ fn seed_80511593_a_ring_filled_by_a_disc_a_tolerance_off_its_bore() {
     ));
 }
 
+/// A block pocketed by a rounded rectangle 1e-8 aside, then bored at the
+/// pocket's corner. The corner's wall touches the block's bottom side
+/// exactly and its end side a hair off: moved along the bottom side onto
+/// the end, it took its line of touch with the bottom side along, and left
+/// the pocket's own corner on that line where it was drawn, a hair off the
+/// line the bore then cut. A wall carrying corners of its operand is never
+/// slid along a touch that holds exactly: it is left a hair off the other.
+#[test]
+fn seed_80501596_a_rounded_pocket_a_hair_aside_bored_at_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(8.0),
+            Outline::rectangle([4.0, 4.0], [10.0, 12.0]),
+            -4.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::rounded([4.00000001, 4.0], [10.00000001, 12.0], 2.5),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::circle([6.5, 6.5], 2.5),
+                -7.0,
+            )),
+        ],
+    ));
+}
+
 /// A slot given a disc of its radius a hundred tolerances off its cap, 1e-5
 /// at a reach of a hundred, standing far above it. Taken for the cap with a
 /// hair of a hundred tolerances, the disc was moved by 1e-5, and a line of

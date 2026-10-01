@@ -521,6 +521,7 @@ fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
             _ => false,
         },
         |_, _| true,
+        |_| false,
         scale(),
     );
     surfaces.list
@@ -596,6 +597,7 @@ fn a_cylinder_touching_two_parallel_planes_on_opposite_sides_is_moved_midway_and
     let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
         |_, _| true,
+        |_| false,
         scale(),
     );
     assert_eq!(moved, [false, false, true]);
@@ -624,6 +626,7 @@ fn a_cylinder_a_hair_from_a_plane_whose_faces_stand_far_is_not_moved() {
     surfaces.snapped(
         |operand, surface| operand == surface.0 as usize,
         |_, _| false,
+        |_| false,
         scale(),
     );
     assert_eq!(surfaces.list, [top, Surface::Cylinder(hole)]);
@@ -646,6 +649,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     along.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
         |_, _| true,
+        |_| false,
         scale(),
     );
     let Surface::Cylinder(moved) = along.list[2] else {
@@ -663,6 +667,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     across.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
         |_, _| true,
+        |_| false,
         scale(),
     );
     assert_eq!(across.list[2], Surface::Cylinder(wall));

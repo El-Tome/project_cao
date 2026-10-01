@@ -94,3 +94,48 @@ triangles lane had made hold went back to the kernel declining when the two
 lanes were merged: a grazing pair of cylinders whose tolerance a later leaf
 grows (1-9 with 1-6). The kernel declines rather than answers wrong there; the
 two cases are kept, ignored, with that diagnosis.
+
+## Campaign 3
+
+One hour from seed 3 000 000, on the kernel after round 2: 298 949 cases, 370
+failures, 1.24 per thousand. A sample of 125 was shrunk — 30 per rule, every
+Closed and Volume — and sorted: **twenty-one distinct failures, fifteen of
+them known, six new**. Two of the new ones are the harness's: the listing's
+check, written before decision 6, read some loops wrong once arcs could be
+identified. 1-1 came back, reopened by round 2's room for walls decided to
+touch. Status is after round 3, the 125 seeds run again on its kernel: 84
+hold.
+
+| # | failure | owner | rules | share | status |
+| --- | --- | --- | --- | --- | --- |
+| 1-2 | A plane tangent to a cylinder a hair from a line crossing that plane | kernel | Answers, Uncrossed, Closed | 22 % | 5 of 21 seeds fixed in round 3 |
+| 1-6 | A gap an operand holds apart falls under a later, larger tolerance — mostly the seams a join leaves inside a face | kernel | Answers, Listed, Closed | 18 % | 13 of 14 fixed in round 3 |
+| 1-9 | Two cylinders of one radius a few tolerances apart crossing at a grazing angle where a plane touches both | kernel | Answers, Listed, Uncrossed | 14 % | 4 of 11 fixed in round 3 |
+| 1-8 | A corner within the tolerance of three surfaces laid by its support on a line further than the tolerance from it | kernel | Answers, Listed | 9 % | fixed in round 3 |
+| 2-1 | A plane and two cylinders touching one another along three lines in one band | kernel | Answers, Uncrossed, Closed | 7 % | open |
+| 2-5 | A touch decided within the tolerance whose vertices stay where each was computed | kernel | Answers, Uncrossed | 5 % | fixed in round 3 |
+| 1-10 | The snap moves a cylinder in the perpendicular curve while corners are found on the cylinder as drawn | kernel | Listed | 4 % | 10 of 11 fixed in round 3 |
+| 2-2 | A cylinder crossing two planes a hair from their common corner line | kernel | Answers, Uncrossed | 3 % | fixed in round 3 |
+| 2-7 | A line a hair inside tangency with a cylinder decided a double root, though its crossings stand apart | kernel | Listed | 2.5 % | 6 of 7 fixed in round 3 |
+| 1-3 | Two walls of one radius 1 to 1.4 tolerances off one axis: the window withheld round each crossing is wider than a grid step | triangles | Volume | 2.4 % | 8 of 9 fixed in round 3 |
+| 3-1 | Three walls about one line: two touch inside, the third crosses both a hair from it, and the cusp between them | triangles | Closed | 2.2 % | fixed in round 3 |
+| 3-2 | A plane tangent to one of two perpendicular cylinders along a ruling that crosses the other | kernel | Answers | 1.7 % | open |
+| 1-17 | Two cylinders of one radius a hair apart given a shared sample by a third surface | triangles | Closed | 1.6 % | 3 of 6 fixed in round 3 |
+| 3-3 | The listing's check sweeps every circle on a cylinder's face as a cross-section, which identified arcs no longer are | harness | Listed | 1.4 % | fixed in round 3 |
+| 1-4 | A vertex partway up a wall whose ray the touching window drops | triangles | Uncrossed | 0.9 % | fixed in round 3 |
+| 3-4 | Two perpendicular cylinders decided to touch at one point, left up to a tolerance into each other: their grid rulings cross | triangles | Uncrossed | 0.9 % | fixed in round 3 |
+| 1-1 | Walls decided to touch take the whole tolerance as room: steps withheld over a wide arc — reopened by round 2 | triangles | Volume | 0.8 % | 2 of 3 fixed in round 3 |
+| 1-11 | Two operands flush on two walls, each a hair off: one wall's line kept from each | kernel | Listed | 0.7 % | fixed in round 3 |
+| 1-18 | Two circles of one radius a hair apart left on a face no merge joins | triangles | Closed | 0.5 % | fixed in round 3 |
+| 3-5 | The listing's sweep of an arc a few billionths of a radian long reads its angle to one rounding | harness | Listed | 0.4 % | open |
+| 3-6 | The sampling where a plane touches a wall strips a sample beside the contact, and the chord spans two steps | triangles | Volume | 0.3 % | fixed in round 3 |
+
+Round 3, the lanes of 1 October afternoon: the kernel now merges faces of one
+surface and one side across an arc nothing else uses — the seams behind most
+of 1-6 — moves two surfaces decided to touch onto the touch once, as
+surfaces, and checks that a corner its support lays on a curve stands within
+the tolerance of it. What stays is one family: a plane and cylinders, or
+cylinders of one radius, all within a hair of one another along one band, each
+pair decided apart from the others. The analysts of campaign 3 agree on its
+cure — the band decided once, as one decision, rather than pair by pair — and
+it is not written yet.

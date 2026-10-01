@@ -145,3 +145,16 @@ origin, from 0 to 10.
   draft, loft and corner fillets as what this road reaches late and
   OpenCascade on day one, he chose to stay on this road: some tools missing at
   first is not dramatic. The answer on #497 will say so.
+- Round 3, from 11:30 to 20:00: campaign 3's sample of 125 sorted into
+  twenty-one distinct failures, fifteen known and six new; then a kernel lane
+  and a triangles lane, each reviewed. The agents were cut and relaunched
+  several times by the spending limit, which is most of why it took
+  eight hours; each relaunch picked up its own worktree. The kernel now merges
+  faces across seams — the listing loses the edges a join left inside a face
+  — and moves surfaces decided to touch onto the touch once. Run again, 84 of
+  campaign 3's 125 shrunk seeds hold. One case the triangles lane fixed went
+  back to the kernel declining at the merge, as in round 2.
+- New distinct failures per campaign: 19, then 8, then 6. Each new one is a
+  known configuration moved by a hair, or the harness catching up with a new
+  decision. What stays open is one family, the tangency band.
+- Campaign 4 started at 20:05 from seed 4 000 000 on the kernel after round 3.

@@ -730,6 +730,93 @@ fn a_profile_case_prints_as_the_rust_that_builds_it_again() {
     }
 }
 
+/// The outlines a lone prism of `outline` could shrink into.
+fn shrunk_outlines(outline: Outline) -> Vec<Outline> {
+    Case::new(Leaf::prism(Plane::xy(0.0), outline, 1.0), vec![])
+        .smaller()
+        .into_iter()
+        .filter_map(|case| outline_of(&case.start).cloned())
+        .collect()
+}
+
+#[test]
+fn a_rounded_rectangle_shrinks_into_a_rectangle_and_a_slot_or_a_ring_into_a_circle_and_all_into_round_numbers()
+ {
+    let rounded = shrunk_outlines(Outline::rounded([0.3, 0.7], [10.2, 6.4], 1.7));
+    for expected in [
+        Outline::rectangle([0.3, 0.7], [10.2, 6.4]),
+        Outline::rounded([0.0, 1.0], [10.0, 6.0], 2.0),
+        Outline::rounded([0.5, 0.5], [10.0, 6.5], 1.5),
+    ] {
+        assert!(rounded.contains(&expected), "{expected} among {rounded:?}");
+    }
+    let tight = shrunk_outlines(Outline::rounded([0.0, 0.0], [10.0, 2.6], 1.3));
+    assert!(
+        tight.contains(&Outline::rounded([0.0, 0.0], [10.0, 3.0], 1.0)),
+        "{tight:?}"
+    );
+
+    let slot = shrunk_outlines(Outline::slot([2.2, 5.0], [8.1, 5.0], 1.3));
+    for expected in [
+        Outline::circle([2.2, 5.0], 1.3),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.0),
+        Outline::slot([2.0, 5.0], [8.0, 5.0], 1.5),
+    ] {
+        assert!(slot.contains(&expected), "{expected} among {slot:?}");
+    }
+    assert!(
+        slot.iter()
+            .any(|outline| matches!(outline, Outline::Rectangle { low, high }
+            if low.distance(DVec2::new(0.9, 3.7)) < 1e-12
+                && high.distance(DVec2::new(9.4, 6.3)) < 1e-12)),
+        "no box among {slot:?}"
+    );
+    let short = shrunk_outlines(Outline::slot([2.2, 5.0], [2.2, 5.4], 1.0));
+    assert!(
+        short
+            .iter()
+            .all(|outline| !matches!(outline, Outline::Slot { from, to, .. } if from == to)),
+        "{short:?}"
+    );
+
+    let ring = shrunk_outlines(Outline::ring([5.2, 3.0], 2.6, 1.1));
+    for expected in [
+        Outline::circle([5.2, 3.0], 2.6),
+        Outline::ring([5.0, 3.0], 3.0, 1.0),
+        Outline::ring([5.0, 3.0], 2.5, 1.0),
+    ] {
+        assert!(ring.contains(&expected), "{expected} among {ring:?}");
+    }
+    let thin = shrunk_outlines(Outline::ring([5.0, 3.0], 2.6, 2.4));
+    assert!(
+        thin.iter().all(
+            |outline| !matches!(outline, Outline::Ring { outer, inner, .. } if inner >= outer)
+        ),
+        "{thin:?}"
+    );
+}
+
+#[test]
+fn shrinking_any_drawn_profile_case_comes_to_an_end() {
+    for seed in 0..200 {
+        let mut rounds = 0;
+        let shrunk = shrink(
+            Case::drawn_profiles(seed),
+            Case::smaller,
+            |_| true,
+            || {
+                rounds += 1;
+                rounds < 100_000
+            },
+        );
+        assert!(rounds < 100_000, "seed {seed} was still shrinking");
+        assert!(
+            shrunk.smaller().is_empty(),
+            "seed {seed} stopped short: {shrunk}"
+        );
+    }
+}
+
 fn bored_and_bossed() -> Case {
     Case::new(
         Leaf::prism(

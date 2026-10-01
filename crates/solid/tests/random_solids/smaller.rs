@@ -190,15 +190,53 @@ impl Outline {
                     }
                 }
             }
-            Outline::Ring { center, outer, .. } => {
+            Outline::Ring {
+                center,
+                outer,
+                inner,
+            } => {
                 simpler.push(Outline::Circle {
                     center: *center,
                     radius: *outer,
                     from: 0.0,
                 });
                 simpler.push(Outline::Rectangle { low, high });
+                for step in [1.0, 0.5] {
+                    let (outer, inner) = (rounded(*outer, step), rounded(*inner, step));
+                    if 0.0 < inner && inner < outer {
+                        simpler.push(Outline::Ring {
+                            center: rounded_point(*center, step),
+                            outer,
+                            inner,
+                        });
+                    }
+                }
             }
-            Outline::Rounded { .. } | Outline::Slot { .. } => {}
+            Outline::Rounded { radius, .. } => {
+                simpler.push(Outline::Rectangle { low, high });
+                for step in [1.0, 0.5] {
+                    let (low, high) = (rounded_point(low, step), rounded_point(high, step));
+                    let radius = rounded(*radius, step).min((high - low).min_element() / 2.0);
+                    if low.x < high.x && low.y < high.y && radius > 0.0 {
+                        simpler.push(Outline::Rounded { low, high, radius });
+                    }
+                }
+            }
+            Outline::Slot { from, to, radius } => {
+                simpler.push(Outline::Circle {
+                    center: *from,
+                    radius: *radius,
+                    from: 0.0,
+                });
+                simpler.push(Outline::Rectangle { low, high });
+                for step in [1.0, 0.5] {
+                    let (from, to) = (rounded_point(*from, step), rounded_point(*to, step));
+                    let radius = rounded(*radius, step);
+                    if from != to && radius > 0.0 {
+                        simpler.push(Outline::Slot { from, to, radius });
+                    }
+                }
+            }
             Outline::Star { center, corners } => {
                 simpler.push(Outline::Rectangle { low, high });
                 if corners.len() > 3 {

@@ -236,14 +236,50 @@ fn twins_one_operand_covers_with_its_matter_between_them_are_a_skin_taken_for_no
 /// lying on the plane both touch, between their two lines of touch; a block
 /// whose side is that plane is cut from it. The strip of the first pin's wall
 /// between its line of touch and the crossing lies within the tolerance of
-/// the block's side all across: it is that side's twin, covered by the block
-/// as the side covers it, and no ray is cast from a point a femtometre off
-/// the side.
+/// the block's side all across: the block wraps it as the side's matter
+/// lies, the pin standing outside the side it touches, and no ray is cast
+/// from a point a femtometre off the side.
 #[test]
-fn a_strip_of_a_wall_within_the_tolerance_of_a_side_all_across_is_covered_as_the_side_covers_it() {
+fn a_strip_of_a_wall_within_the_tolerance_of_a_side_all_across_is_wound_as_the_side_s_matter_lies()
+{
     let crescent = standing([5.0, 4.0], 1.0, -3.5, 1.5)
         .cut_by(&standing([5.00000006, 4.0], 1.0, -8.49999999, 1.50000001))
         .expect("the crescent is cut");
     let cut = crescent.cut_by(&block([4.0, 3.0, -7.5], [10.0, 11.0, 2.5]));
     assert!(cut.is_ok(), "{cut:?}");
+}
+
+/// Seed 3049074 of the campaign: a bore of radius a hair over a half pokes
+/// 6e-8 past the wall of a bore of radius 1.5 it all but touches inside, the
+/// two crossing at a grazing angle along two lines 3e-4 either side of the
+/// touch. 2.9e-4 round, inside the stretch between those lines, the small
+/// wall stands 5e-9 outside the large one; the gap read to the first order
+/// there said the large stood 1e-7 outside the small. Two walls crossing
+/// stand one above the other all along each stretch between the lines they
+/// cross along, read at its middle, where they stand furthest apart.
+#[test]
+fn two_walls_crossing_at_a_grazing_angle_are_ordered_at_the_middle_of_the_stretch_between_their_lines()
+ {
+    let bored = standing([8.0, 9.0], 2.5, -2.0, 0.0)
+        .cut_by(&standing([9.0, 9.0], 1.5, -3.0, 1.0))
+        .expect("the stock is bored");
+    let bore = standing([10.0, 9.0], 0.50000006, -2.0, 0.0);
+    let operands = Operands::of(&bored, &bore, bored.scale().joined(bore.scale()));
+    let wall = |radius: f64| {
+        let rank = operands
+            .surfaces
+            .list
+            .iter()
+            .position(|surface| {
+                matches!(surface, Surface::Cylinder(cylinder) if (cylinder.radius - radius).abs() < 1e-6)
+            })
+            .expect("the wall is there");
+        SurfaceId(rank as u32)
+    };
+    let pair = [wall(0.5), wall(1.5)];
+    let place = DVec3::new(10.499999977670807, 8.999713069353858, -1.0);
+    assert_eq!(
+        wrapped::lies_above(&operands, operands.scale_of(pair), pair, place),
+        Some(false)
+    );
 }

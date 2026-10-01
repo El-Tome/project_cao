@@ -1,9 +1,12 @@
 //! How many times an operand wraps each side of a region of a surface.
 
-use glam::DVec3;
+use std::f64::consts::TAU;
+
+use glam::{DVec2, DVec3};
 
 use crate::brep::Declined;
 use crate::brep::combine::Operands;
+use crate::brep::curve::Line;
 use crate::brep::domain::Location;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -85,11 +88,12 @@ pub(in crate::brep) fn covering(
 /// of it its axis is, a plane touching a cylinder outside it, a parallel
 /// cylinder outside one it touches outside, and inside one larger it
 /// touches inside. Decided to cross — a plane slicing a hair off a wall,
-/// two parallel walls a hair apart crossing at a grazing angle, or one at
-/// this tolerance though the operand kept them two — the two stand one
-/// above the other all along the stretch between the lines they cross
-/// along: read at the first twin's place, where they stand further apart
-/// than rounding. Other twins are a tie.
+/// two parallel walls a hair apart crossing at a grazing angle — the two
+/// stand one above the other all along the stretch between the lines they
+/// cross along: read at its middle, where they stand furthest apart. Kept
+/// two by the operand though one at this tolerance, they are read at the
+/// first twin's place, where they stand further apart than rounding. Other
+/// twins are a tie.
 pub(in crate::brep) fn collapsed(
     operands: &Operands,
     operand: usize,
@@ -111,17 +115,22 @@ pub(in crate::brep) fn collapsed(
 
 /// Whether the second of a pair stands on the side of the first its own
 /// normal points to, along the line the two were decided at `scale` to
-/// touch along, or at `place` where two not decided to touch, a plane and a
-/// wall or two parallel walls, stand further apart than rounding; none
-/// otherwise.
-fn lies_above(
+/// touch along, all along the stretch between the two lines they were
+/// decided to cross along that `place` stands on, or at `place` where two
+/// neither touching nor crossing, a plane and a wall or two parallel walls,
+/// stand further apart than rounding; none otherwise.
+pub(super) fn lies_above(
     operands: &Operands,
     scale: Scale,
     pair: [SurfaceId; 2],
     place: DVec3,
 ) -> Option<bool> {
     let [first, second] = pair.map(|surface| &operands.surfaces.list[surface.0 as usize]);
-    if !matches!(relation(first, second, scale), Relation::Tangent(_)) {
+    let decided = relation(first, second, scale);
+    if let Relation::Lines(lines) = &decided {
+        return across_the_lobe(first, second, lines, place);
+    }
+    if !matches!(decided, Relation::Tangent(_)) {
         let rounding = operands.eps() * ROUNDING;
         return match (first, second) {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
@@ -145,6 +154,41 @@ fn lies_above(
             let outside = (across - (first.radius + second.radius)).abs();
             let inside = (across - (first.radius - second.radius).abs()).abs();
             Some(outside <= inside || second.radius > first.radius)
+        }
+        (Surface::Plane(_), Surface::Plane(_)) => None,
+    }
+}
+
+/// Whether the second of two surfaces crossing along two lines parallel to a
+/// cylinder's axis stands above the first all along the stretch of that
+/// cylinder between the two lines that `place` stands on: read at the
+/// stretch's middle, where the two stand furthest apart. Within the band
+/// about either line they stand within rounding of each other, and the side
+/// changes only across a line.
+fn across_the_lobe(
+    first: &Surface,
+    second: &Surface,
+    lines: &[Line; 2],
+    place: DVec3,
+) -> Option<bool> {
+    let wall = match (first, second) {
+        (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
+        _ => return None,
+    };
+    let at = wall.parameters(place);
+    let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
+    let span = (other - one).rem_euclid(TAU);
+    let middle = if (at.x - one).rem_euclid(TAU) < span {
+        one + span / 2.0
+    } else {
+        other + (TAU - span) / 2.0
+    };
+    let middle = wall.point(DVec2::new(middle, at.y));
+    match (first, second) {
+        (Surface::Cylinder(_), Surface::Cylinder(second)) => Some(second.distance(middle) < 0.0),
+        (Surface::Plane(plane), Surface::Cylinder(_)) => Some(plane.distance(middle) > 0.0),
+        (Surface::Cylinder(wall), Surface::Plane(plane)) => {
+            Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
         (Surface::Plane(_), Surface::Plane(_)) => None,
     }

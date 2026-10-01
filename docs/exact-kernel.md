@@ -144,7 +144,7 @@ The decisions, in the order taken, once per operation:
    cylinders a hair apart crossing at a grazing angle — the two stand one
    above the other all along the stretch between the lines they cross
    along, the wall's slice beyond the plane from its axis, read at the
-   twins' place where they stand further apart than rounding. Other twins
+   middle of that stretch, where they stand furthest apart. Other twins
    are still a tie. The
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
@@ -155,25 +155,40 @@ The decisions, in the order taken, once per operation:
    third surface or line within that band leaves two or three lines a hair
    apart, and strips of face between them thinner than `EPS`, bounded by no
    arcs a strip of the other surface shares: decision 6 takes none of them,
-   and a strip's point stands femtometres off the other surface. The band
-   is decided once, topologically — never by moving a surface across it,
-   which would move it by a volume the rules see. A region of a surface
-   standing within `EPS` of another surface all across, the two lying
-   along each other, is that surface's twin: where an operand none of
-   whose faces covers the region has a face there, and a ray from the
-   region's point cannot tell which side of it the point stands on, the
-   face covers the region as it covers the foot of the region's point on
-   it, read by locating that foot in the face, its sides turned where the
-   two surfaces' normals point apart. All across is read on the region's
-   point and along every arc bounding it: both surfaces are smooth and the
-   region thin, so a region whose boundary stands within `EPS` of a surface
-   stands within it inside too. Two planes are never twins this way —
-   decision 1 takes them for one or keeps them apart — nor two surfaces
-   crossing steeper than a band can turn, which a sliver stands within
-   `EPS` of only for being a sliver. Two faces of one operand the region
-   stands within `EPS` of are read as decision 6 reads twins one operand
-   covers, a skin or a crack. Where the foot lands on the face's boundary,
-   the region is still a tie.
+   and a strip's point stands femtometres off the other surface, where no
+   ray tells which side it is on. The band is decided once, topologically —
+   never by moving a surface across it, which would move it by a volume
+   the rules see. A region of a surface standing within `EPS` of another
+   surface all across, the two lying along each other, is decided with
+   that surface: an operand none of whose faces on the region's surface
+   covers it, but one of whose faces on the other lies over the region's
+   point — its foot on that surface located in the face — wraps the region
+   once where it stands on that face's matter side, and not at all on the
+   other. Which side of the face the region stands on is read off the pair
+   as the arena decided it, not measured: a cylinder touching a plane
+   stands on its axis's side of it, the inner of two touching cylinders
+   inside the outer, and two surfaces crossing stand one above the other
+   all along each stretch between the lines they cross along, read at its
+   middle. All across is read on the region's point and along every arc
+   bounding it: both surfaces are smooth and the region thin, so a region
+   whose boundary stands within `EPS` of a surface stands within it inside
+   too. Two planes are never read this way — decision 1 takes them for one
+   or keeps them apart — nor two surfaces crossing steeper than a band can
+   turn, which a sliver stands within `EPS` of only for being a sliver.
+   Where the foot lands on the face's boundary, or two faces disagree, a
+   ray is cast as before.
+
+   The region is wound beside the face, not covered by it. Taken for the
+   face's twin and covered as the face covers it, as two regions bounded
+   by the same arcs are, it was kept where the face's own region, decided
+   at its own point beyond the band, is kept too — a skin of two faces —
+   or dropped where the exact geometry keeps it, and the regions around
+   it, decided exactly, lost the partner along their arcs. A region one
+   operand covers on both sides is left to its own face for the same
+   reason: taken for a skin covered by neither, region by region, it left
+   the skin's other regions, bounded by other arcs, without theirs. Read
+   off the decided pair, the winding agrees with every ray that can tell,
+   and answers where none can.
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
@@ -255,9 +270,9 @@ covered once from each side.
    of it; not covered gives the same winding on both, from an exact ray cast
    through that operand's faces, retried along another direction when it
    grazes or lands near an edge. Twin regions of two surfaces are wound
-   once, together (6). A region whose ray cannot tell, standing within
-   `EPS` of a face of that operand all across, is covered as that face
-   covers it (7). A region is read at another point of its chord where
+   once, together (6). A region standing within `EPS` of a face of that
+   operand all across is wound as the pair was decided, not by a ray (7).
+   A region is read at another point of its chord where
    its own stands on a corner of its surface: a corner inside a region is
    where another surface touches it at a point, and a ray from there is
    taken on whichever side of that surface rounding leaves it.

@@ -2707,9 +2707,9 @@ fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_c
 /// crossing has no twin bounded by the same arcs — the floor runs past the
 /// crescent's caps — and its point stands a tenth of a femtometre off the
 /// floor: no ray told whether the block wraps it, and the kernel declined.
-/// The strip stands within the tolerance of the floor all across, so it is
-/// the floor's twin, covered by the block as the floor covers its point's
-/// foot (decision 7).
+/// The strip stands within the tolerance of the floor all across: the block
+/// wraps it as the floor's matter lies, the pin standing below the floor it
+/// touches (decision 7).
 #[test]
 fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch() {
     random_solids::holds_exactly(&Case::new(
@@ -2729,13 +2729,47 @@ fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch(
     ));
 }
 
+/// Failure 2-1 of campaign 3: a bar bored along its length by a bore whose
+/// wall touches the bar's top from inside, 1.8e-6 off the line where a
+/// wider bar joined to it touches the top too, and touches the bore inside
+/// along a third line 3.6e-6 off — three lines in one band, each pair
+/// decided apart. The strip of the top between the bore's line and the wide
+/// bar's stands within a hundredth of a femtometre of the wide bar's wall
+/// all across, and no ray told whether the wide bar wraps it: the kernel
+/// declined. The wide bar wraps it as its wall's matter lies, the top
+/// standing outside the wall it touches (decision 7), and the strip of the
+/// wide bar's wall between its two lines of touch lies between the bore and
+/// the top, inside the cusp they leave.
+#[test]
+fn seed_3192987_a_bar_bored_under_its_top_joined_to_a_wider_bar_touching_both() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-89.99999),
+            Outline::rectangle([255.0, 195.0], [435.0, 375.0]),
+            570.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-89.99999),
+                Outline::circle([344.9999982, 315.0], 60.0),
+                1140.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-60.0),
+                Outline::circle([345.0, 285.0], 90.0),
+                255.0,
+            )),
+        ],
+    ));
+}
+
 /// Failure 1-9 of campaign 3, the same band joined: two pins of one radius
 /// 6e-8 apart, then a block whose floor both touch cut from above. The strip
 /// of the first pin's wall between its line of touch and the line the pins
 /// cross along stands within the tolerance of the floor all across, its
-/// point a tenth of a femtometre under it, and the kernel declined. It is
-/// the floor's twin (decision 7): covered by the block as the floor covers
-/// its point's foot.
+/// point a tenth of a femtometre under it, and the kernel declined. The
+/// block wraps it as the floor's matter lies, the pin standing below the
+/// floor it touches (decision 7).
 #[test]
 fn seed_3239627_two_pins_a_hair_apart_joined_then_cut_by_a_floor_both_touch() {
     random_solids::holds_exactly(&Case::new(

@@ -10,8 +10,8 @@
 //! once, drops a shared wall, cuts a flush hole, and leaves a non-manifold
 //! edge its four uses. Regions of two surfaces bounded by the same arcs are
 //! one piece of surface, decided once ([`twins`]); a region standing within
-//! the tolerance of another surface all across is read off the faces lying
-//! there where a ray cannot tell ([`band`]).
+//! the tolerance of another surface all across is wound by the faces lying
+//! there as the arena decided the two surfaces, not by a ray ([`band`]).
 
 mod band;
 mod twins;
@@ -229,45 +229,16 @@ fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 
             above: winding,
             below: winding,
         }),
-        (None, None) => match wound(operands, operand, point) {
-            Err(Declined::Tie) => beside(operands, operand, places),
-            answer => answer,
-        },
-    });
-    Ok(Some([first?, second?]))
-}
-
-/// How an operand none of whose faces covers a region wraps it where a ray
-/// from the region's point cannot tell, the point standing within rounding
-/// of one of its faces: as the faces of the operand the region stands within
-/// the tolerance of all across cover it ([`band`]) — one face as it covers
-/// it, two back to back as the skin or the crack they hold.
-fn beside(operands: &Operands, operand: usize, places: &[Place]) -> Result<Wrapped, Declined> {
-    let mut found = Vec::new();
-    for place in places {
-        for &other in place.beside {
-            if found.iter().any(|(surface, _, _)| *surface == other) {
-                continue;
-            }
-            let wrapped =
-                band::covering_beside(operands, operand, place.geometry, place.point, other)?;
-            if let Some(wrapped) = wrapped {
-                found.push((other, place.point, place.seen(wrapped)));
-            }
-        }
-    }
-    match found.as_slice() {
-        [(_, _, wrapped)] => Ok(*wrapped),
-        [one, other] => {
-            let winding = collapsed(operands, operand, [*one, *other])?;
-            Ok(Wrapped {
+        (None, None) => match band::wound_beside(operands, operand, places) {
+            Some(winding) => Ok(Wrapped {
                 covered: false,
                 above: winding,
                 below: winding,
-            })
-        }
-        _ => Err(Declined::Tie),
-    }
+            }),
+            None => wound(operands, operand, point),
+        },
+    });
+    Ok(Some([first?, second?]))
 }
 
 /// The arcs lying on a surface, by the edge each is, and the regions they

@@ -34,7 +34,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::contact::{self, Contact, Zones};
+use super::contact::{self, Contact, Gap, Zones};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cylinder, Plane};
 use crate::brep::topology::{Body, Edge, EdgeId, SurfaceId};
@@ -76,12 +76,13 @@ pub(super) fn divisions(radius: f64, tolerance: f64) -> usize {
 /// Every edge's points, in the way the edge runs: its first vertex, the points
 /// between, its last vertex. A ring's points go round from its start and do
 /// not come back to it. No point between stands within the kernel's
-/// tolerance of an end, nor within rounding of any vertex: it would be that
-/// vertex twice — a place of the grid a rounding past an end, moved to where
-/// the vertex at its angle stands, or a place on the ray through a corner
-/// the kernel left a hair off the curve, at the corner's own height. A place
-/// a hair from a vertex off the edge stays: on the ray through the end of a
-/// curve beside it, it keeps the two in order.
+/// tolerance of an end, which it would be twice. A place within rounding of
+/// another vertex — a corner the kernel left on the curve, not at its end —
+/// is that vertex's own point: with none, the edge's chord would pass a hair
+/// beside the corner, on the wrong side of the curve ending there; a face
+/// beside the edge pinches there, or runs out to it and back as a hair. A
+/// place a hair from a vertex off the edge stays: on the ray through the end
+/// of a curve beside it, it keeps the two in order.
 ///
 /// Points are numbered: the vertices first, by rank, then the rest.
 pub(super) struct Samples {
@@ -132,21 +133,37 @@ impl Samples {
                 .flatten()
                 .map(|end| body.vertex(end).point)
                 .collect();
-            let between = between.into_iter().filter(|point| {
-                ends.iter().all(|end| (*point - *end).length() > eps)
-                    && vertices
-                        .iter()
-                        .all(|vertex| (*point - *vertex).length() > eps * TOLD)
-            });
-            let first = samples.points.len();
-            samples.points.extend(between);
-            let inner = first..samples.points.len();
+            let mut inner = Vec::new();
+            for point in between {
+                if ends.iter().any(|end| (point - *end).length() <= eps) {
+                    continue;
+                }
+                match vertices
+                    .iter()
+                    .position(|vertex| (point - *vertex).length() <= eps * TOLD)
+                {
+                    Some(vertex) => {
+                        if inner.last() != Some(&vertex) {
+                            inner.push(vertex);
+                        }
+                    }
+                    None => {
+                        inner.push(samples.points.len());
+                        samples.points.push(point);
+                    }
+                }
+            }
             samples.edges.push(match edge.ends {
                 Some([start, end]) => std::iter::once(start.0 as usize)
                     .chain(inner)
                     .chain(std::iter::once(end.0 as usize))
                     .collect(),
-                None => inner.collect(),
+                None => {
+                    if inner.len() > 1 && inner.first() == inner.last() {
+                        inner.pop();
+                    }
+                    inner
+                }
             });
         }
         samples
@@ -201,13 +218,15 @@ fn on_meets(
                     let walls = [meet.first, meet.second];
                     let planes = walls
                         .map(|wall| touching_planes(body, wall.origin, wall.axis, wall.radius));
+                    let grazed = meet::grazing_ends(body, edge, &walls, tolerance);
                     let clear = |point: DVec3| {
-                        walls.iter().zip(&planes).all(|(wall, planes)| {
-                            !zones.crowded(wall, point)
-                                && !planes.iter().any(|plane| {
-                                    on_a_plane(plane, wall.origin, wall.axis, point, eps)
-                                })
-                        })
+                        !grazed(point, eps * contact::APART)
+                            && walls.iter().zip(&planes).all(|(wall, planes)| {
+                                !zones.crowded(wall, point)
+                                    && !planes.iter().any(|plane| {
+                                        on_a_plane(plane, wall.origin, wall.axis, point, eps)
+                                    })
+                            })
                     };
                     meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
                 }
@@ -246,6 +265,7 @@ fn on_circle(
     let steps = divisions(circle.radius, tolerance);
     let step = TAU / steps as f64;
     let gap = eps / circle.radius;
+    let level = circle.center.dot(circle.axis);
     let beside_end = gap.max((2.0 * eps * contact::APART / circle.radius).sqrt());
     let [at_from, at_to] = ends_of
         .touched
@@ -270,39 +290,45 @@ fn on_circle(
     } else {
         vec![edge.from, edge.to]
     };
-    let beside =
-        |at: f64, (other, room): &(Cylinder, f64)| other.distance(circle.point(at)).abs() < *room;
+    let beside = |at: f64, (own, gap): &(Cylinder, Gap)| gap.crowds(own, circle.point(at));
     let beside_a_plane = |at: f64| {
         let point = circle.point(at);
         planes
             .iter()
             .any(|plane| on_a_plane(plane, circle.center, circle.axis, point, eps))
     };
-    let grazed = |at: f64, room: f64| {
-        ends.iter().zip(&ends_of.through).any(|(end, surfaces)| {
+    let grazed = |at: f64, room: f64, closing: bool| {
+        ends.iter().enumerate().any(|(side, end)| {
             (end - at).abs() <= step
-                && surfaces
-                    .iter()
-                    .any(|surface| surface.distance(circle.point(at)).abs() < room)
+                && ends_of.through[side].iter().any(|surface| {
+                    surface.distance(circle.point(at)).abs() < room
+                        && (!closing || ends_of.grazes(side, surface, circle.axis, eps))
+                })
         })
     };
     let by_an_end = |at: f64| {
-        grazed(at, eps * contact::APART)
+        grazed(at, eps * contact::APART, true)
             || contact.beside.iter().any(|other| {
+                let partner = other.1.other(&other.0);
                 beside(at, other)
-                    && ends
-                        .iter()
-                        .any(|end| (end - at).abs() <= step && beside(*end, other))
+                    && ends.iter().enumerate().any(|(side, end)| {
+                        (end - at).abs() <= step
+                            && beside(*end, other)
+                            && ends_of.closes(side, &partner, eps)
+                    })
             })
     };
 
     let mut places: Vec<(f64, bool, f64)> = ((low / step).floor() as i64
         ..=(high / step).ceil() as i64)
-        .filter(|rank| inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD))
         .filter(|rank| {
-            !contact
-                .withheld
-                .contains(&(rank.rem_euclid(steps as i64) as usize))
+            inside(*rank as f64 * step) && !grazed(*rank as f64 * step, eps * TOLD, false)
+        })
+        .filter(|rank| {
+            let step = rank.rem_euclid(steps as i64) as usize;
+            !contact.withheld.iter().any(|(withheld, [low, high])| {
+                *withheld == step && *low - eps <= level && level <= *high + eps
+            })
         })
         .map(|rank| {
             let angle = TAU * rank.rem_euclid(steps as i64) as f64 / steps as f64;
@@ -316,7 +342,8 @@ fn on_circle(
             at = low;
         }
         while at < high {
-            if inside(at) && !by_an_end(at) && !beside_a_plane(at) {
+            let kept = contact.beneath.contains(way) || !by_an_end(at);
+            if inside(at) && kept && !beside_a_plane(at) {
                 places.push((at, false, angle));
             }
             at += TAU;

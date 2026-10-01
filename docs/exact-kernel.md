@@ -269,9 +269,14 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
 
 - **Watertight by construction.** Every edge is sampled once, and every face
   using it takes those samples, bit for bit, with the vertices' own points at
-  the ends. No sample between stands within `EPS` of an end, nor within
-  rounding of any vertex: it would be that vertex a second time — a corner
-  the kernel left a hair off the curve, which a ray through it lands on. A
+  the ends. No sample between stands within `EPS` of an end. A sample
+  within rounding of another vertex — a corner the kernel left on the curve
+  within rounding, not at its end, which a ray through it lands on — is that
+  vertex's own point: a second point there would be the vertex twice, and
+  with none the edge's chord passes a hair beside the corner, on the wrong
+  side of the curve ending there, crossing it. A face beside the edge
+  pinches there, or runs out to the vertex and back along the edge as a
+  hair bounding nothing, which the sweep follows. A
   sample a hair from a vertex off the edge stays: on the ray through the end
   of a curve beside it, it keeps the two in order.
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
@@ -282,28 +287,41 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   a ruling from a vertex off the grid meets a sample on every rim of its wall:
   otherwise a strip a hair high — a skin left under a cap — is cut by a
   triangle reaching from the vertex to the next step of the other rim, lying
-  flat over the face beside it. That sample stands where the vertex nearest
+  flat over the face beside it. It keeps that ray even where it stands
+  within the room of another wall that `Contact` speaks of below, where the
+  rays passed between walls are dropped. That sample stands where the vertex nearest
   it in height stands, moved along the axis: a tangency decided within `EPS`
   leaves the exact surfaces overlapping by up to `EPS`, ten times what the
   rules tell apart, and the vertices of the line they touch along are where
   both walls' samples meet. A vertex standing inside a wall closer than
   twice a chord's sag — a pocket's corner a hair inside it — gives the wall's
-  circles a sample at its angle too, so that no chord passes inside it. An
+  circles a sample at its angle too, so that no chord passes inside it: within
+  the room of another wall and beside an arc's end alike, where a third wall
+  crossing two that touch, a hair from the line they touch along, leaves a
+  vertex of the inner one just inside the outer, whose arc ends where the
+  third crosses it. An
   arc ending where a plane touches its wall takes no sample so near that end
   that it would stand on the plane's edge, and no circle of the wall takes a
   ray so near the line the plane touches along that it would stand on the
   plane: a strip of the wall a hair wide would lie on the plane's face. A
   plane touches a wall only where the body holds the line, a vertex lying on
-  both: the plane of a face far off along it touches nothing, and the rays it
-  would take from the wall leave the rim of a disc a bore hollowed a hair
-  off its axis without a sample for two steps. Two cylinders touching are both
+  both and on a face of the plane: the plane of a face far off along it
+  touches nothing, and the rays it would take from the wall leave the rim of
+  a disc a bore hollowed a hair off its axis without a sample for two steps —
+  nor does a block's top far off across the wall, though a side crossing the
+  wall a hair from where that top would touch it leaves a vertex taken to
+  lie on it: the line two walls of one radius cross along there, a ray of
+  both, would be dropped beside the steps they withhold. Two cylinders touching are both
   sampled on the line they touch along, vertex or not, and a circle whose
   wall is gone is sampled as its own cylinder's. An arc ending on that line,
   though, is sampled there at its end alone: the kernel may lay the line
   leaning a hair, its two ends within `EPS` of both walls, and a ray through
   the other end, or through the exact line, would put a sample a hair from
   the vertex, as good as on the other wall's arc ending at the same vertex —
-  a cap holding both arcs would fold back on itself there.
+  a cap holding both arcs would fold back on itself there. Only there,
+  though: where no arc of the other wall ends at that vertex, a ray through
+  a vertex a third wall puts where it crosses the other is taken, or the
+  arc chords past the third wall's sample on the same ray.
 - **Faces** are cut into vertical strips in their parameters, at every vertex,
   at every place a curve turns back, and on a cylinder at every grid angle.
   Inside a strip the arcs are graphs that do not cross, so each piece of face
@@ -316,15 +334,35 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   common rays from the smaller centre further out, so that their polylines
   stay ordered. So are two walls crossing each other by less than twice a
   chord's sag — cylinders of one radius a hair off one axis — and every ray
-  either takes on its own, through a vertex or a curve it meets a third wall
-  along, the other takes too, and so on down a chain of walls each touching
-  the next inside it. A ray along which the two stand closer than a
+  either takes on its own, through a vertex, a curve it meets a third wall
+  along or a line it touches or crosses a third parallel wall along, the
+  other takes too, and so on down a chain of walls each touching the next
+  inside it: a circle printed on a floor, its wall touching the stock inside,
+  takes the line its wall crosses a bore along, and the stock's rim, not
+  taking it, would chord inside the printed circle. Walls close one through
+  the next all draw their rays from one centre, the smallest's, where it
+  stands inside every one of them: three walls touching along one line are
+  three pairs, and a ray passed round them from each pair's own smaller
+  centre comes back a hair round from where it left, so that every round of
+  passing adds rays and the last round's never reach the other walls. Where a step of the
+  larger's grid and one of the smaller's fall within `EPS` of each other
+  along the circle — walls of one radius, or all but, a hair off one axis —
+  they are one place, the smaller's step, and the larger withholds its own
+  over the heights the two face each other: kept each on its own grid, a
+  hair round, the two would stand off one ray, and the larger's chord from
+  the line they touch along, long where the steps beside it are withheld,
+  crosses the smaller's next. A ray along which the two stand closer than a
   fifth of `EPS` — twice what the rules tell apart — neither takes: the whole
   of `EPS` would leave walls barely more than it apart with hardly a sample
-  round the turn. Two walls decided to touch take the whole of it, though:
-  the kernel may leave them overlapping by that much, one poking through the
-  other round the line they touch along, and a ray passed on there puts a
-  sample of a cap's arc on the wrong side of the other. A circle belongs to
+  round the turn. Two walls decided to touch take no ray either where one
+  stands on the wrong side of the other, however deep: the kernel may leave
+  them overlapping by up to `EPS`, one poking through the other round the
+  line they touch along, and a ray passed on there puts a sample of a cap's
+  arc on the wrong side of the other. On the side they were decided to
+  stand on, a fifth of `EPS` is room enough, and the whole of it would
+  withhold a wide arc of two walls nearly concentric. The gap is measured
+  along the common ray from the smaller wall's axis, the same sum on
+  either wall, so that a ray is crowded for both or for neither. A circle belongs to
   the nearest wall it lies on: two walls decided apart may both hold it once
   a later leaf grows the tolerance, and an end lies on a surface other than
   its circle's own only as far as rounding allows. Nor does a wall take such a
@@ -334,14 +372,34 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   at a height they share: a union keeps each wall where the other is gone,
   and two cylinders stacked keep each wall at its own heights, so there the
   place is one wall's alone and the step stays, or the chord across would sag
-  past the tolerance. A wall holding no face, its circles printed on a cap,
-  is taken to hold one everywhere: a circle printed round a hole it touches
-  inside is sampled in common with the hole. Two walls of radii apart
+  past the tolerance. And it is withheld only from the circles bounding a
+  stretch of height both walls hold a face over there: the rim of a disc
+  left whole above a crescent two walls bound below it faces nothing, and
+  keeps its whole grid. Its triangles reach down the wall to the circles
+  that do withhold the step, and sag less than the other wall's chords
+  beside the line the two meet along: that keeps them clear of it where it
+  stands on the rim's hollow side further than the rules tell apart, and
+  would have them pass through it anywhere else — a bore's rim above a
+  boss it touches inside — so there every circle of the wall withholds the
+  step. A wall holding no face, its circles printed on a cap, faces the
+  other at the heights of its circles alone: a circle printed round a hole
+  it touches inside is sampled in common with the hole's rim on that cap,
+  and the hole's other rims are not. Two walls of radii apart
   decided to touch face each other too where a circle of each stands at one
   height at that angle, though the walls stand at heights apart: a pocket's
   floor round a hole touching the pocket's wall inside is bounded by both.
   Not two walls crossing or all but one: a union keeps both circles on its
-  caps all round. A place two rays put at one vertex is taken once. A
+  caps all round. A place two rays put at one vertex is taken once. Two
+  perpendicular walls decided to touch at a point, side by side, leave no
+  curve and no vertex, and may overlap there by up to `EPS`; the point
+  stands on a step of both grids, and each wall's ruling through it would
+  pass through the other's triangles. Where both hold a face there, the
+  point halfway between the two walls along their common perpendicular is
+  taken as a vertex of both: their samples at its angle stand square to
+  their axes from it, so that both rulings lie in one plane and meet there,
+  as two walls touching exactly do. Withholding the step instead would
+  leave a coarse wall's chord across two steps the whole length of the
+  ruling. A
   curve two perpendicular cylinders meet along is sampled on every ray the
   circles of either take: a wall a hair inside one of them takes the rays of
   that one's other curves, and its chords, shallower between two samples of
@@ -353,7 +411,12 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   there lays a strip of the wall on the side. Nor does an arc take a ray a step or less from
   its end where it all but lies on a surface that end lies on and it does
   not: a wall grazing the plane of the arc there stands on the plane's face
-  over a band far wider than the rules tell apart. Nor a place of its grid
+  over a band far wider than the rules tell apart — a plane, or a wall
+  square to the arc's own, or a wall parallel to it whose own arc ends at
+  that vertex. Nor does the curve two
+  perpendicular cylinders meet along, a step of the finer grid or less from
+  its end: a ray a cylinder takes from a wall a hair off its own would put a
+  sample of the curve on the cap's arc ending at the same vertex. Nor a place of its grid
   where it stands within a thousandth of `EPS` of such a surface: two circles
   of one radius crossing a hair apart stand within the rounding of each other
   a long way round from their vertex, and a place of each there, on no ray

@@ -1027,16 +1027,15 @@ fn seed_37000855_a_bore_filled_but_for_a_crescent_by_a_boss_it_touches_inside_st
 /// (60, -15). The crescent's two walls cross at (59.999997, -15), 3e-6 from
 /// that point, and the boss's floor is bounded there by both: its own
 /// circle down to the point of contact, the stock's for 3e-6, then the
-/// cut's. The boss's circle withholds every ray where it stands within the
-/// tolerance of the stock's wall, the crossing's too, and its chord into
-/// the point of contact passes 1.2e-7 inside the crossing; the cut's chord
-/// from the crossing passes through it. A sample of the boss's circle on
-/// the crossing's ray would stand within rounding of the crossing itself,
-/// and one of the cut's on the contact's ray within rounding of the
-/// contact: the three walls want sampling in common across a tangency and
-/// a crossing, which they are not yet.
+/// cut's. The boss's circle used to withhold every ray where it stands
+/// within the tolerance of the stock's wall, the crossing's too, and its
+/// chord into the point of contact passed 1.2e-7 inside the crossing, the
+/// cut's chord from the crossing through it. It holds since a wall keeps
+/// the rays through its own vertices inside another's room and beside an
+/// arc's end, a place within rounding of a vertex is that vertex, and the
+/// sweep follows a hair running out of the region: without any one of
+/// them, the floor is left open again.
 #[test]
-#[ignore = "triangles"]
 fn seed_35000999_a_boss_touching_a_crescent_inside_beside_its_tip_leaves_its_floor_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(30.0), Outline::circle([60.0, 0.0], 15.0), -270.0),
@@ -1242,6 +1241,928 @@ fn seed_1016543_a_block_resting_on_a_boss_beside_the_side_it_touches_stays_uncro
                 Plane::xz(10.0),
                 Outline::rectangle([35.0, 30.0], [53.0, 50.0]),
                 45.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3224477_a_cut_of_one_radius_a_hair_and_a_half_off_the_axis_leaves_the_cap_above_it_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([8.0, 1.0], 6.0), 9.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([8.00000002, 1.0], 6.0),
+            8.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_3044779_a_crescent_a_hair_wide_under_a_notch_leaves_the_disc_above_it_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([3.0, 6.0], 2.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.99999999, 6.0], 2.0),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([1.0, 5.0], [9.0, 9.0]),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3282114_a_boss_a_hair_off_the_hole_it_fills_keeps_its_rim_round_above_the_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([9.0, 0.0], [15.0, 5.0]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.0, 0.0], 6.0),
+                2.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.00000002, 0.0], 6.0),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3217438_a_circle_a_hair_off_the_rim_printed_on_a_disc_s_cap_leaves_its_other_rim_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(2.0), Outline::circle([1.0, 4.0], 2.0), -1.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(1.9999998),
+                Outline::rectangle([1.0, 4.0], [2.0, 5.0]),
+                2.5,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(3.0),
+                Outline::circle([1.00000001, 4.0], 2.0),
+                -6.5,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3174852_a_bore_touching_a_boss_inside_keeps_its_rim_above_the_block_off_the_boss() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rectangle([-1.0, 3.0], [11.0, 15.0]),
+            2.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0, 9.0], 3.0),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0000001, 9.5], 2.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3174852_two_bores_one_a_hair_inside_the_other_touching_it_leave_the_block_whole_round_them()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rectangle([2.0, 6.0], [8.0, 12.0]),
+            2.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([5.0, 9.5], 2.4999999),
+                3.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.00001),
+                Outline::circle([5.0000001, 9.5], 2.5),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3115386_a_bore_a_hair_narrower_than_its_stock_on_one_axis_leaves_the_stock_round_once_the_tolerance_grows()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 9.0], 0.50000001), 6.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-0.0),
+                Outline::circle([6.0, 9.0], 0.5),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([7.0, 4.0], [11.0, 7.0]),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3175702_a_bore_touching_two_others_a_hair_from_their_line_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([8.0, 10.0], 4.5), 4.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([12.0, 10.0], 0.50000002),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([11.0, 10.0], 1.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3049074_three_bores_touching_inside_along_one_line_under_a_notch_leave_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([8.0, 9.0], 2.5), 2.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::circle([9.0, 9.0], 1.5),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([10.0, 9.0], 0.50000006),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-3.0),
+                Outline::rectangle([5.0, 9.0], [10.0, 16.0]),
+                2.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3291902_a_cylinder_a_hair_below_and_aside_one_it_joins_keeps_its_rim_round_over_the_skirt()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([45.0, 0.0], 27.5), 28.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([38.0, -8.0], [53.0, 8.0]),
+                55.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.9999999),
+                Outline::circle([44.9999999, 0.0], 27.5),
+                48.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3112136_a_slot_whose_corners_stand_in_a_skin_under_a_bore_s_cap_leaves_the_skin_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([5.0, 0.0], 3.0), 5.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-1.00000002),
+                Outline::circle([4.5, 0.0], 2.50000001),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([0.0, 10.0], [6.0, 16.0]),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3157560_a_boss_a_hair_across_a_bore_and_the_stock_it_touches_leaves_the_floor_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([2.0, 8.5], 4.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.0, 9.5], 3.0),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([2.0, 11.5], 1.00000002),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3186142_a_boss_a_hair_across_two_cylinders_touching_inside_leaves_their_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(0.0), Outline::circle([3.0, 8.0], 5.0), 10.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(-1.0),
+                Outline::circle([4.0, 8.0], 4.0),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([6.5, 8.0], 1.50000002),
+                10.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3149531_a_boss_touching_a_crescent_inside_a_hair_from_its_tip_leaves_the_floor_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([35.0, 5.0], 30.0), 48.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([34.99999, 5.0], 30.0),
+                18.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([34.99999, 25.0], 10.0000001),
+                35.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3102925_a_bore_a_hair_across_a_boss_touching_the_stock_inside_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(-1.0), Outline::circle([9.0, 7.0], 4.0), 7.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(-0.99999994),
+                Outline::circle([9.0, 10.0], 1.0),
+                13.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-1.0000001),
+                Outline::circle([9.0, 10.5], 0.50000002),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3180403_a_boss_touching_the_stock_inside_printed_on_the_floor_keeps_inside_the_stock_s_rim()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 3.0], 2.5), 7.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([8.0, 3.0], 0.5),
+                1.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.00000002),
+                Outline::circle([7.0, 3.0], 1.49999998),
+                13.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3225040_a_bore_a_hair_inside_a_lying_cut_it_nearly_touches_under_a_bar_leaves_the_walls_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([1.0, 2.0], [10.0, 11.0]),
+            7.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(1.0),
+                Outline::circle([6.0, 0.0], 5.0),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(0.9999999),
+                Outline::circle([6.0, 1.5], 3.4999999),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([0.0, 3.0], [6.0, 5.0]),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(0.0),
+                Outline::circle([6.0, 3.0], 2.0),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3008607_a_cut_a_hair_off_the_stock_s_axis_beside_a_boss_touching_it_inside_leaves_the_crescent_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(15.0), Outline::circle([50.0, 15.0], 25.0), 30.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(15.000001),
+                Outline::circle([62.5, 15.0], 12.5),
+                60.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(15.0),
+                Outline::circle([49.9999997, 15.0], 25.0),
+                20.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3011236_a_bore_a_hair_narrower_than_the_boss_it_runs_through_touching_the_stock_leaves_the_rings_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(210.0), Outline::circle([30.0, 90.0], 90.0), 45.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::circle([-30.0, 135.0], 15.000005999999999),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::circle([-30.0, 135.0], 15.0),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3092335_a_bore_crossing_two_lying_cylinders_a_hair_apart_keeps_its_curve_off_the_step_between_them()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(240.0), Outline::circle([150.0, 0.0], 75.0), 210.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(240.00001),
+                Outline::circle([149.9999997, 0.0], 75.0),
+                75.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([90.000006, 90.0], 75.00001),
+                240.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3160874_a_stock_touched_inside_by_a_bore_and_a_cut_a_hair_through_it_keeps_its_top_closed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-60.0), Outline::circle([90.0, 240.0], 60.0), 90.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0000003),
+                Outline::circle([75.0, 240.0], 45.0000003),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-90.0),
+                Outline::circle([45.0, 240.0], 15.0),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(150.0),
+                Outline::rectangle([150.0, 210.0], [345.0, 300.0]),
+                285.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3160874_a_bore_a_hair_wider_than_the_line_two_walls_touch_along_leaves_the_caps_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-60.0), Outline::circle([90.0, 240.0], 60.0), 90.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::circle([75.0, 240.0], 45.0),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-90.0),
+                Outline::circle([45.0, 240.0], 15.000000300000004),
+                180.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3194537_a_bore_through_a_stock_it_touches_inside_a_hair_off_its_axis_leaves_the_crescent_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 5.00000001),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.49999999, 0.5], 5.0),
+            4.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_3194537_a_bore_through_a_stock_it_touches_inside_a_hair_off_its_axis_aslant_leaves_the_crescent_uncrossed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 3.00000001),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.499999993, 0.500000007], 3.0),
+            4.0,
+        ))],
+    ));
+}
+
+/// A bore touching its stock inside, nearly concentric with it: their
+/// radii and their axes a hair apart, so that the two walls stand within a
+/// fifth of the kernel's tolerance of each other over three steps either
+/// side of the line they touch along. Those steps are withheld from the
+/// circles bounding the stretch the two face each other over — the stock's
+/// floor rim — and the stock's wall, going on alone above the bore's cap,
+/// is drawn from that rim's chord, four steps long and sagging fourteen
+/// times the tolerance, up to its top rim: the triangles leave out a sliver
+/// of the stock's matter over the height above the bore. Withholding steps
+/// cannot draw it: the stock's wall needs the steps at the height the bore
+/// ends, inside its face, or the two walls drawn apart by what the rules
+/// tell apart rather than withheld where they stand closer.
+#[test]
+#[ignore = "triangles"]
+fn seed_3194537_a_bore_touching_its_stock_inside_a_hair_off_its_axis_keeps_the_stock_s_wall_round_above_it()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.5, 0.5], 2.00000001),
+            8.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::circle([-1.50000001, 0.5], 2.0),
+            4.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_3079219_a_bore_touching_a_cross_cut_at_a_point_a_hair_into_it_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(35.0),
+            Outline::rectangle([45.0, 10.0], [63.0, 43.0]),
+            35.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(35.0),
+                Outline::circle([62.49999995, 26.25], 2.5),
+                35.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([43.0, 45.0], 15.0),
+                25.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3047709_a_boss_crossing_a_cut_of_one_radius_a_hair_off_a_far_plane_keeps_its_wall_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(7.0),
+            Outline::rectangle([1.0, 8.0], [4.5, 15.0]),
+            10.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(8.0000002),
+                Outline::circle([4.500009899999999, 11.5], 3.0),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(6.99999),
+                Outline::circle([4.5, 11.5], 3.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([10.0, 6.0], [13.0, 11.0]),
+                6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::rectangle([7.0, 8.0], [11.0, 12.0]),
+                9.5,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3138713_three_walls_touching_along_one_line_and_a_circle_printed_round_one_of_them_leave_the_top_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([9.0, 4.0], 4.0), 8.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([7.5, 4.0], 2.5),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([8.0, 2.0], 5.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([8.0, 4.0], 3.0),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_53006876_a_bar_touching_a_post_at_a_point_keeps_both_walls_round() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([300.0, 300.0], 30.0),
+            285.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(240.0),
+            Outline::circle([180.0, 150.0], 90.0),
+            -135.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_53006876_a_bar_a_hair_into_a_post_it_touches_at_a_point_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::circle([300.0, 300.0], 30.0),
+            285.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(240.0),
+            Outline::circle([180.00000005, 150.0], 90.0),
+            -135.0,
+        ))],
+    ));
+}
+
+/// A cut and a boss of one radius, their axes 1.25 tolerances apart, cross
+/// along two lines; the boss fills the cut back but for a sliver over the
+/// heights both stand at, beside the line they cross along at the block's
+/// bottom. The steps beside that line are withheld from the circles
+/// bounding that stretch, and the cut's wall, going on alone through the
+/// block below it, is drawn from those circles' chords across two steps
+/// down to its rim on the block's side: its triangles sag three and a half
+/// times the tolerance, and the volume falls short. As for seed 3194537,
+/// withholding steps cannot draw a wall that faces another over part of
+/// its height only.
+#[test]
+#[ignore = "triangles"]
+fn seed_3033420_a_cut_and_a_boss_of_one_radius_a_hair_off_one_axis_keep_the_cut_s_wall_round_below_the_boss()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(90.0),
+            Outline::rectangle([135.0, 30.0], [405.0, 300.0]),
+            -150.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(120.0),
+                Outline::circle([269.9999994, 180.0], 135.0),
+                225.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(89.999994),
+                Outline::circle([270.0, 180.0], 135.0),
+                -300.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([120.0, 270.0], [255.0, 300.0]),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// A floor cut a hair above a disc's bottom, then the disc's twin a hair
+/// off its axis added from below: the two walls are taken for one, and the
+/// two floors for one plane, but the two rims stay two circles, one a hair
+/// higher, their centres a hair apart, with no vertex where they cross.
+/// The kernel leaves a ring of the floor between them, and two circles of
+/// one radius crossing each other bound no ring: its outline crosses
+/// itself at both crossings, and no sampling of the two can sweep it. Two
+/// circles of one wall on one plane want to be one circle, by support.
+#[test]
+#[ignore = "kernel"]
+fn seed_3243921_a_disc_floored_a_hair_up_and_joined_to_its_twin_a_hair_aside_leaves_the_floor_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 3.0], 4.5), -3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1e-8),
+                Outline::rectangle([-1.0, -4.0], [13.0, 10.0]),
+                -6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([5.99999999, 3.0], 4.5),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// A stock and a cut of one radius a hair apart leave a sliver a
+/// tolerance thick, crossing along two lines; a notch cut from it is
+/// decided to leave its side as a line where both walls meet, a hair from
+/// one of the crossing lines. Every circle of both walls is then sampled
+/// at that line's angle where the kernel put its vertex, so the two walls
+/// meet along it at every height, and between it and the crossing line
+/// they are drawn on the same two rulings: the floor's outline runs out to
+/// the crossing and back on itself as a hair, and the two walls lie on each
+/// other there. The sliver beyond the notch's side is thinner than what the
+/// rules tell apart; drawing it wants the two walls apart by that much
+/// rather than pinched along the notch's side at every height.
+#[test]
+#[ignore = "triangles"]
+fn seed_3155418_a_notch_cut_from_a_sliver_a_hair_from_where_its_walls_cross_leaves_its_floor_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([7.0, 6.0], 2.5), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([7.00000002, 6.0], 2.5),
+                19.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([2.0, 3.0], [6.5, 5.0]),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3108235_a_bore_touching_another_inside_where_a_cut_of_one_radius_crosses_it_leaves_the_side_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(2.0),
+            Outline::rectangle([1.0, 2.0], [7.0, 10.0]),
+            -6.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(1.99999),
+                Outline::circle([7.0, 6.0], 3.0),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(0.9999899),
+                Outline::circle([7.0, 6.5], 2.5),
+                6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(2.00001),
+                Outline::circle([7.00000006, 6.0], 3.0),
+                -12.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3061547_a_twin_a_hair_aside_joined_over_a_bore_touching_the_stock_inside_leaves_the_end_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(3.0), Outline::circle([0.0, 4.0], 4.0), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(2.9999997),
+                Outline::circle([0.0, 3.0], 3.0),
+                8.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(3.0),
+                Outline::circle([2e-8, 4.0], 4.0),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// A post and a bore of one radius, their axes 30 tolerances apart, leave
+/// a sliver beside the post's wall up to the bore's ceiling, and a lying
+/// cut takes the post's top off above it. The post's wall faces the bore
+/// over the sliver's height only, and goes on alone above the ceiling: its
+/// strip beside the line the two cross along is one triangle from the
+/// sliver's floor, through the vertex where that line meets the ceiling,
+/// up to the curve the lying cut meets the post along. That triangle's
+/// section at the ceiling's height chords inside the post and passes
+/// through the ceiling's triangle reaching the same vertex: the post's
+/// wall has no sample at the ceiling's height at that angle, its edge
+/// there being the bore's rim, a hair inside. As for seed 3194537, a wall
+/// facing another over part of its height only wants samples inside its
+/// face where the facing ends.
+#[test]
+#[ignore = "triangles"]
+fn seed_3202168_a_post_hollowed_a_hair_off_its_axis_below_a_lying_cut_stays_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::circle([270.0, 180.0], 15.0),
+            195.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([270.00001, 180.0], 15.0),
+                60.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(210.0),
+                Outline::circle([180.0, 210.0], 120.0),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+/// A crescent 6e-7 thick, left by a cut of the stock's radius a hair off
+/// its axis, touches the side x = 45 of a box joined to it along y = 300,
+/// where both its walls touch that side. Campaign 3 read it as the
+/// kernel's, the tolerance the box grows taking the crescent's walls
+/// within it of each other: the side keeps the lines each wall touches it
+/// along, 6e-7 apart along one parameter line, and its outline runs back
+/// on itself there. The side was left open, the box's bottom edge along it
+/// with it. It holds since the sweep follows a hair running out of the
+/// region, and is left open again without that.
+#[test]
+fn seed_3159337_a_box_touching_both_walls_of_a_crescent_a_hair_thick_leaves_its_side_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::circle([60.0, 300.0], 15.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::circle([60.0000006, 300.0], 15.0),
+                255.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(180.0),
+                Outline::rectangle([15.0, 285.0], [45.0, 315.0]),
+                510.0,
+            )),
+        ],
+    ));
+}
+
+/// A boss and a cut of one radius, their axes ten tolerances apart, cross
+/// at a grazing angle along two lines five tolerances from the side
+/// x = 5.5 of the block they stand on. Campaign 3 read it as the kernel's:
+/// the two corners on the side stand 4.3 tolerances apart, one of them off
+/// the side, and a triangle of the side crossed one of a wall. It holds
+/// since a wall keeps the rays through its own vertices inside another's
+/// room, and an arc keeps a ray beside its end where no arc of the wall it
+/// nears ends at that vertex: without either, the two cross again.
+#[test]
+fn seed_3000782_a_boss_and_a_cut_of_one_radius_crossing_a_hair_from_a_block_s_side_stay_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([0.5, 7.0], [5.5, 14.5]),
+            9.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([5.4999998, 9.25], 3.0),
+                15.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([5.5, 9.25], 3.0),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// A cut lying along x touches the floor z = 120 along a line a hair,
+/// 3e-7, from the block's side y = 195, and crosses the post joined under
+/// the block, whose wall a cut box touches too. Campaign 3 read it as the
+/// kernel's, a plane tangent to a cylinder a hair from a line crossing
+/// that plane; the floor was left open along the post's rim beside the
+/// block's side. It holds since the curve two cylinders meet along takes
+/// no sample a hair from its end on the cap that end lies on, and is left
+/// open again without that.
+#[test]
+fn seed_3108326_a_lying_cut_touching_the_floor_a_hair_from_the_block_s_side_leaves_the_post_s_rim_closed()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(0.0),
+            Outline::rectangle([30.0, 120.0], [195.0, 240.0]),
+            225.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::circle([30.0, 150.0], 90.0),
+                105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rectangle([-240.0, 60.0], [-60.0, 240.0]),
+                210.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-29.9999982),
+                Outline::circle([194.9999997, 180.0], 60.0),
+                -135.0,
             )),
         ],
     ));

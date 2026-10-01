@@ -28,10 +28,13 @@
 //! samples, so that both walls are cut in strips between them.
 
 mod facing;
+mod gap;
+mod own;
+mod point;
 mod together;
 
 use std::collections::BTreeMap;
-use std::f64::consts::{PI, TAU};
+use std::f64::consts::TAU;
 
 use glam::DVec3;
 
@@ -42,6 +45,8 @@ use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::{Body, SurfaceId, Vertex};
 use facing::Facing;
 pub(super) use facing::Zones;
+pub(super) use gap::Gap;
+use own::{Through, along_meets, through_vertices};
 
 /// How close to another wall, as a share of the kernel's tolerance, no sample
 /// of a wall stands but on the lines they meet along: twice what the rules
@@ -58,17 +63,25 @@ pub(super) struct Contact {
     /// Directions square to its axis, from its axis, its circles are also
     /// sampled along.
     pub(super) rays: Vec<DVec3>,
-    /// Steps of its grid its circles are not sampled at.
-    pub(super) withheld: Vec<usize>,
+    /// Steps of its grid its circles are not sampled at, each with the
+    /// stretch of height its partner faces it over there: only a circle
+    /// standing at the end of such a stretch, or within it, withholds it.
+    pub(super) withheld: Vec<(usize, [f64; 2])>,
     /// The vertices lying on it: a sample of its circles at a vertex's angle
     /// is put square to the axis from the nearest of them, where the kernel
     /// decided it, rather than on the exact circle a hair away — the line two
     /// surfaces were decided to touch along then holds the samples of both.
     pub(super) anchors: Vec<DVec3>,
-    /// The cylinders parallel to it it touches or crosses, each with how near
-    /// it the two all but meet: beside the lines they meet along, an arc
-    /// ending there is sampled at its end alone.
-    pub(super) beside: Vec<(Cylinder, f64)>,
+    /// The cylinders parallel to it it touches or crosses, as the pair tells
+    /// a place crowded, with its own: beside the lines they meet along, an
+    /// arc ending there is sampled at its end alone.
+    pub(super) beside: Vec<(Cylinder, Gap)>,
+    /// The rays through vertices standing just inside it, not on it: they
+    /// are taken beside an end too. A third wall crossing two touching walls
+    /// a hair from the line they touch along puts a vertex on the inner one
+    /// there, and the outer one's arc, ending where the third crosses it,
+    /// must pass outside that vertex rather than chord under it.
+    pub(super) beneath: Vec<DVec3>,
 }
 
 impl Contact {
@@ -77,6 +90,7 @@ impl Contact {
         self.withheld.extend(other.withheld);
         self.anchors.extend(other.anchors);
         self.beside.extend(other.beside);
+        self.beneath.extend(other.beneath);
     }
 }
 
@@ -169,8 +183,11 @@ pub(super) fn contacts(
     let eps = body.scale().eps();
     let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     along_meets(body, meets, &mut own);
-    let mut anchors: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
-    through_vertices(body, walls, tolerance, &mut own, &mut anchors);
+    let Through {
+        anchors,
+        mut pinned,
+        beneath,
+    } = through_vertices(body, walls, tolerance, &mut own);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
@@ -183,26 +200,29 @@ pub(super) fn contacts(
             };
             let lines = meeting_lines(&one.1, &other.1, eps);
             if !lines.is_empty() {
-                for (wall, partner) in [(one, other), (other, one)] {
-                    let near = (partner.1, facing.room());
+                for wall in [one, other] {
+                    let near = (wall.1, facing.gap());
                     contacts.entry(wall.0).or_default().beside.push(near);
                 }
             }
             for [to_one, to_other] in lines {
-                contacts.entry(one.0).or_default().rays.push(to_one);
-                contacts.entry(other.0).or_default().rays.push(to_other);
+                for (wall, way) in [(one, to_one), (other, to_other)] {
+                    own.entry(wall.0).or_default().push(way);
+                    pinned.entry(wall.0).or_default().push(way);
+                }
             }
             let (outer, inner) = if one.1.radius >= other.1.radius {
                 (one, other)
             } else {
                 (other, one)
             };
-            if together::sampled((outer, &[]), (inner, &[]), facing, tolerance, eps).is_some() {
+            if together::sampled((outer, &[]), (inner, &[]), facing, None, tolerance, eps).is_some()
+            {
                 close.push((outer, inner, facing));
                 continue;
             }
             for (near, far) in [(one, other), (other, one)] {
-                let withheld = touching(&near.1, &far.1, facing, tolerance, eps);
+                let withheld = touching(near, &far.1, facing, tolerance, eps);
                 if !withheld.is_empty() {
                     contacts
                         .entry(near.0)
@@ -213,96 +233,19 @@ pub(super) fn contacts(
             }
         }
     }
-    for (wall, contact) in together::shared(&close, own, tolerance, eps) {
+    for (wall, contact) in together::shared(&close, own, &pinned, tolerance, eps) {
         contacts.entry(wall).or_default().join(contact);
     }
     for (wall, points) in anchors {
         contacts.entry(wall).or_default().anchors = points;
     }
+    for (wall, rays) in beneath {
+        contacts.entry(wall).or_default().beneath = rays;
+    }
+    for (wall, point) in point::anchors(body, walls) {
+        contacts.entry(wall).or_default().anchors.push(point);
+    }
     contacts
-}
-
-/// What the circles of two perpendicular cylinders take for the curve they
-/// meet along: the rays through every sample of it and through its ends.
-///
-/// Where one wall is cut from the other, each lies over the other along the
-/// curve, and they part slowly: as the square of the distance from a node
-/// where they touch, or from a waist where they all but touch, and along
-/// the curve wherever it runs down a wall's ruling, at the tip of a window.
-/// A triangle of the large wall fanned from a sample of its circle a grid
-/// step away sags there below the small wall, and at a fine tolerance the
-/// curve's own samples are much closer than a step of the grid. Sampled along
-/// these rays, each wall is cut into strips between two samples of the curve,
-/// the large one's square to them and the small one's, between its two mirror
-/// lobes, across them: within a strip each sags as the square of its width,
-/// and the two stay ordered.
-fn along_meets(body: &Body, meets: &[Vec<DVec3>], own: &mut BTreeMap<SurfaceId, Vec<DVec3>>) {
-    for id in body.edge_ids() {
-        let edge = body.edge(id);
-        let Curve::Meet(meet) = body.curve(edge.curve) else {
-            continue;
-        };
-        let ends = edge
-            .ends
-            .into_iter()
-            .flatten()
-            .map(|end| body.vertex(end).point);
-        let through: Vec<DVec3> = meets[id.0 as usize].iter().copied().chain(ends).collect();
-        for cylinder in [meet.first, meet.second] {
-            let flat = |point: DVec3| {
-                let from = point - cylinder.origin;
-                from - cylinder.axis * cylinder.axis.dot(from)
-            };
-            let rays: Vec<DVec3> = through
-                .iter()
-                .map(|point| flat(*point).normalize())
-                .collect();
-            for surface in (0..body.surfaces.len() as u32).map(SurfaceId) {
-                if *body.surface(surface) == Surface::Cylinder(cylinder) {
-                    own.entry(surface).or_default().extend(rays.iter().copied());
-                }
-            }
-        }
-    }
-}
-
-/// What the circles of every cylinder take for the vertices lying on it: the
-/// rays through them. A ruling or a seam leaves its wall at a vertex off the
-/// grid, and a strip of the wall beside it must meet a sample on every rim at
-/// that angle, or its triangle reaches from the vertex to the other rim's next
-/// step — lying flat where the wall is a hair high, over the face beside it.
-///
-/// So too for a vertex standing inside the wall closer than twice a chord's
-/// sag — the corner of a pocket a hair inside it: the wall's chords sag
-/// towards the axis, and a chord across that angle would pass inside the
-/// corner. Sampled there, the wall stands on its own surface at the corner.
-fn through_vertices(
-    body: &Body,
-    walls: &[Wall],
-    tolerance: f64,
-    own: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
-    anchors: &mut BTreeMap<SurfaceId, Vec<DVec3>>,
-) {
-    for wall in walls {
-        let (id, cylinder) = wall;
-        let sag =
-            cylinder.radius * (1.0 - (PI / divisions(cylinder.radius, tolerance) as f64).cos());
-        for vertex in body.vertex_ids().map(|id| body.vertex(id)) {
-            let on = bears(body, vertex, wall);
-            let inside = cylinder.distance(vertex.point);
-            if !on && !(-2.0 * sag..0.0).contains(&inside) {
-                continue;
-            }
-            let from = vertex.point - cylinder.origin;
-            let flat = from - cylinder.axis * cylinder.axis.dot(from);
-            if flat.length() > 0.0 {
-                own.entry(*id).or_default().push(flat.normalize());
-                if on {
-                    anchors.entry(*id).or_default().push(vertex.point);
-                }
-            }
-        }
-    }
 }
 
 /// The directions from the axes of two parallel cylinders to each line their
@@ -351,15 +294,16 @@ fn meeting_lines(one: &Cylinder, other: &Cylinder, eps: f64) -> Vec<[DVec3; 2]> 
 }
 
 /// The steps of a cylinder's grid standing within the pair's room of another
-/// cylinder parallel to it, where the two face each other: none unless their
-/// circles come that close somewhere.
+/// cylinder parallel to it, where the two face each other, each with the
+/// stretches of height they face each other over: none unless their circles
+/// come that close somewhere.
 fn touching(
-    cylinder: &Cylinder,
+    (id, cylinder): &Wall,
     other: &Cylinder,
     facing: &Facing,
     tolerance: f64,
     eps: f64,
-) -> Vec<usize> {
+) -> Vec<(usize, [f64; 2])> {
     let between = cylinder.origin - other.origin;
     let apart = (between - other.axis * other.axis.dot(between)).length();
     let (low, high) = (
@@ -371,10 +315,15 @@ fn touching(
     }
     let steps = divisions(cylinder.radius, tolerance);
     (0..steps)
-        .filter(|step| {
-            let angle = TAU * *step as f64 / steps as f64;
+        .flat_map(|step| {
+            let angle = TAU * step as f64 / steps as f64;
             let point = cylinder.origin + cylinder.radial(angle) * cylinder.radius;
-            other.distance(point).abs() < facing.room() && facing.at(point)
+            let over = if facing.crowds(cylinder, point) {
+                facing.withheld(*id, point)
+            } else {
+                Vec::new()
+            };
+            over.into_iter().map(move |stretch| (step, stretch))
         })
         .collect()
 }

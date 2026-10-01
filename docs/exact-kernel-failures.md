@@ -304,3 +304,52 @@ ring or a cap's rim of the kind the round fixed, which campaign 4 met at
 two seeds in an hour: the rules on triangles are now broken in these
 draws by what the kernel leaves them, and decision 8 is where most of
 that goes.
+
+### Round 5's review
+
+A second lane read the round the same night: each guard of the sampling
+it added taken out or widened in turn, the tests run, and the campaign's
+cases replayed on the seeds where the guard decides anything — from seed
+83 000 000, fifteen thousand square cases, and from seed 83 500 000, eight
+thousand profiles.
+
+- **A ring's rays.** A ring now kept its steps wherever its range starts,
+  but its rays were still placed by adding whole turns to an angle `atan2`
+  gives within half a turn of nought: for a ring starting past half a
+  turn, a ray at the very angle it starts at came out a rounding short of
+  the range and was lost at both ends. Rays are placed on the turn as the
+  steps are; a unit test holds every half step round it.
+- **How far inside.** A sample of a curve gave the wall a ray only beyond
+  the kernel's tolerance inside it, where a vertex gives one however
+  little inside it stands. The kernel puts no vertex where a cap's rim
+  passes the line its plane leaves on the wall by its tolerance, and seen
+  from the wall's axis the rim stands inside by less, by the cosine of the
+  angle between cap and wall: a bore ending inside a post with its rim so
+  placed poked its cap through the post's chords. The two bands are one,
+  and a case built for it is named.
+- **Seed 3 243 921**, ignored as the kernel's, holds since fix round 3,
+  and is held by the gate.
+
+Left as they are, and what was measured of them. The curves two other
+cylinders meet along give rays on 19 of those seeds, the face test turns
+samples away on 408, samples within the kernel's tolerance stood inside a
+wall on 8, and on 54 the second pass leaves new samples inside a wall with
+no ray: dropping the meets, dropping the face test, or sampling again
+until nothing new stands inside changed no outcome on its seeds. With
+every cylinder on an axis of the origin, a meet of two cylinders square to
+a wall is the farthest of a hollow from it only where the boss bounding
+the hollow covers the wall beyond, which then holds no face there; with
+one of them parallel to the wall, the wall takes its rays from the two
+standing close. No case found needs the meets, and none the face test,
+which keeps the second pass rarer. Replayed seed by seed on the round's
+two 300-second windows, the code after the review breaks the rules on the
+same seeds as the round's own.
+
+Campaigns of 300 s before the review and after it, on the round's code
+and on the review's: from seed 83 000 000, 22 442 square cases and then
+22 669, the same ten failures, 0.45 per thousand and 0.44; from seed
+83 500 000, 13 075 profiles and then 13 229, the same 80 failures — 44
+Answers, 32 Uncrossed, 3 Closed, 1 Volume — 6.1 per thousand. Every one of
+those breaking a rule on triangles also breaks it on the code before the
+round. Neither window drew a ring starting on a ray nor a rim within the
+kernel's tolerance of a wall.

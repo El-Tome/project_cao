@@ -177,9 +177,10 @@ The decisions, in the order taken, once per operation:
    dipping into a stock. All across is read on the region's point and
    along every arc bounding it: both surfaces are smooth and the region
    thin, so a region whose boundary stands within `EPS` of a surface stands
-   within it inside too. Two planes are never read this way — decision 1 takes them for one
-   or keeps them apart — nor two surfaces crossing steeper than a band can
-   turn, which a sliver stands within `EPS` of only for being a sliver.
+   within it inside too. Two planes are never read this way — decision 1
+   takes them for one or keeps them apart — nor two surfaces crossing
+   steeper than a band can turn, which a sliver stands within `EPS` of only
+   for being a sliver.
    Where the foot lands on the face's boundary, or the faces either side
    disagree, a ray is cast as before.
 

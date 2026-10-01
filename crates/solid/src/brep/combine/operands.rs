@@ -33,12 +33,8 @@ impl<'a> Operands<'a> {
             }
             lying
         });
-        let carried =
-            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty();
         surfaces.snapped(
-            |one, other| {
-                carried(0, one) && carried(1, other) || carried(1, one) && carried(0, other)
-            },
+            |operand: usize, surface: SurfaceId| !lying[operand][surface.0 as usize].is_empty(),
             scale,
         );
         let boxes = bodies.map(|body| {

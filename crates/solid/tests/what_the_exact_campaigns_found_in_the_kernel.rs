@@ -1672,3 +1672,154 @@ fn seed_3023305_a_bored_block_given_a_boss_a_hair_under_its_floor() {
         ],
     ));
 }
+
+/// Failure 1-8 of campaign 3: a hole whose wall pokes 1e-8 through the
+/// block's top, within the tolerance, is decided to touch it. The line they
+/// touch along was laid on the top and left a hair off the wall, and a
+/// corner on it stood just past the tolerance from the circle where the wall
+/// meets the block's side. A touch decided a hair apart is now made exact on
+/// the surfaces: the second operand's is moved onto it (decision 2).
+#[test]
+fn seed_3071596_a_hole_a_hair_past_touching_a_block_s_top_is_moved_onto_the_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(6.0),
+            Outline::rectangle([-1.0, 2.0], [7.0, 10.0]),
+            2.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(5.0),
+            Outline::circle([3.0, 7.0], 3.00000001),
+            2.0,
+        ))],
+    ));
+}
+
+/// Failure 1-8 of campaign 3: a bar along X 6e-7 past touching the wall a
+/// cut left in a post, within the tolerance; the corner on the line they
+/// touch along stood on the wall and off the bar, and further still off the
+/// curve where the bar meets the post.
+#[test]
+fn seed_3053678_a_bar_a_hair_past_touching_the_wall_a_cut_left_in_a_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(150.0),
+            Outline::circle([300.0, 30.0], 75.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::rectangle([-30.0, 195.0], [90.0, 315.0]),
+                195.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rectangle([240.0, 90.0], [360.0, 210.0]),
+                510.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(150.0),
+                Outline::circle([15.0, 255.0], 45.0000006),
+                390.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-5 of campaign 3: a bore touching the stock inside but for
+/// three tenths of a micron, decided to touch; the corner at the foot of the
+/// line of touch stood where it was computed, most of the tolerance off the
+/// stock, and a triangle fanned from it passed through the stock's.
+#[test]
+fn seed_3097513_a_bore_a_hair_inside_touching_the_stock_then_cut_in_half() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::circle([300.0, 90.0], 29.9999997),
+            60.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-59.9999994),
+                Outline::circle([285.0, 90.0], 15.0),
+                60.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::rectangle([195.0, 30.0], [375.0, 90.0]),
+                -120.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-5 of campaign 3: a boss lying along X 1e-8 into the top of
+/// the block it is joined to, decided to touch it; its corners on the line of
+/// touch stood a hair off the top, and the boss's wall passed through it.
+#[test]
+fn seed_3175976_a_boss_a_hair_into_the_top_of_the_block_it_lies_on() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-1.5),
+            Outline::rectangle([4.0, -0.5], [15.0, 10.5]),
+            10.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(-1.49999994),
+            Outline::circle([9.5, 11.0], 0.50000001),
+            -4.0,
+        ))],
+    ));
+}
+
+/// Failure 2-5 of campaign 3: a boss standing in a hole, touching its wall
+/// inside but for 1e-8 through it; the corner at the top of the line of
+/// touch stood off the hole's wall.
+#[test]
+fn seed_3244679_a_boss_a_hair_through_the_wall_of_the_hole_it_stands_in() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([3.0, -2.0], [14.0, 10.0]),
+            3.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(2.00001),
+                Outline::circle([6.0, 2.5], 3.0),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0000102),
+                Outline::circle([6.0, 4.5], 1.00000001),
+                -8.0,
+            )),
+        ],
+    ));
+}
+
+/// Failure 2-5 of campaign 3: a bore of radius 2.00000001 pokes 1e-8
+/// through the stock it touches inside, and a third circle crosses both
+/// within the band where the two stand within the tolerance of each other.
+/// Its two crossings, one with each, were computed pair by pair and stood a
+/// sliver apart, which no region of the bottom could enclose. Moved onto the
+/// touch, the bore crosses the third circle where the stock does.
+#[test]
+fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the_touch() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 0.0], 2.5), 10.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 0.5], 2.00000001),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([6.0, 3.0], 0.5000002),
+                10.0,
+            )),
+        ],
+    ));
+}

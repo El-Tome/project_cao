@@ -52,8 +52,14 @@ The decisions, in the order taken, once per operation:
    node — are made to touch: the second of the pair is moved onto the touch,
    by less than `EPS`, as a surface, before any curve or corner is found on
    it, so that the curve they meet along and every corner found on that
-   cylinder stand on the one cylinder. A cylinder is moved once, and never
-   one another was moved against.
+   cylinder stand on the one cylinder. A plane and a cylinder, or two
+   parallel cylinders, one of each operand, decided to touch along a line a
+   hair apart are made to touch the same way: the surface the second operand
+   alone carries is moved onto the touch — a cylinder along the plane's
+   normal or towards the other's axis, a plane along its own — so that the
+   line they touch along, and every corner on it, stands on both rather than
+   on one and a hair off the other. A surface both operands carry is never
+   moved. A surface is moved once, and never one another was moved against.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart, and never two curves of one operand, which

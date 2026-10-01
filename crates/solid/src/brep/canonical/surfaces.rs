@@ -7,7 +7,7 @@
 use crate::brep::meet::moved;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::Surface;
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, SurfaceId};
 
 /// The surfaces both operands stand on, the first's first under their own
@@ -55,46 +55,112 @@ impl Surfaces {
         }
     }
 
-    /// Decision 2 moves one of two perpendicular cylinders a hair from
-    /// touching onto the touch it decides; the move is the surface's, made
-    /// once here before any curve or corner is found on either, so that the
-    /// curve they meet along and the corners on it stand on one cylinder.
-    /// Only pairs `across` says the operation decides are moved, a cylinder
-    /// once, and never one another was moved against.
-    pub fn snapped(&mut self, across: impl Fn(SurfaceId, SurfaceId) -> bool, scale: Scale) {
+    /// Decision 2 makes two surfaces of the two operands a hair from touching
+    /// touch: two perpendicular cylinders, inside, outside or at a node; a
+    /// plane and a cylinder, or two parallel cylinders, decided to touch
+    /// along a line. The move is the surface's, made once here before any
+    /// curve or corner is found on either, so that the curve they share and
+    /// the corners on it stand on both. Two perpendicular cylinders move the
+    /// one their pair puts second; a line of touch moves the surface the
+    /// second operand alone carries. Only pairs of a surface `carried` by
+    /// each operand are moved, a surface once, and never one another was
+    /// moved against.
+    pub fn snapped(&mut self, carried: impl Fn(usize, SurfaceId) -> bool, scale: Scale) {
         let mut settled = vec![false; self.list.len()];
+        let own = |surface: usize| {
+            let surface = SurfaceId(surface as u32);
+            carried(1, surface) && !carried(0, surface)
+        };
         for one in 0..self.list.len() {
             for other in one + 1..self.list.len() {
-                let (Surface::Cylinder(first), Surface::Cylinder(second)) =
-                    (self.list[one], self.list[other])
-                else {
-                    continue;
-                };
-                if !across(SurfaceId(one as u32), SurfaceId(other as u32))
-                    || !matches!(
-                        relation(&self.list[one], &self.list[other], scale),
-                        Relation::Meet(_)
-                    )
+                let [first, second] = [one, other].map(|rank| SurfaceId(rank as u32));
+                if !(carried(0, first) && carried(1, second)
+                    || carried(1, first) && carried(0, second))
                 {
                     continue;
                 }
-                let Some((rank, cylinder)) = moved(&first, &second, scale) else {
-                    continue;
+                let found = match relation(&self.list[one], &self.list[other], scale) {
+                    Relation::Meet(_) => perpendicular(&self.list[one], &self.list[other], scale)
+                        .map(|(rank, cylinder)| ([one, other][rank], cylinder)),
+                    Relation::Tangent(_) if own(other) => {
+                        touching(&self.list[one], &self.list[other]).map(|moved| (other, moved))
+                    }
+                    Relation::Tangent(_) if own(one) => {
+                        touching(&self.list[other], &self.list[one]).map(|moved| (one, moved))
+                    }
+                    _ => None,
                 };
-                let [kept, shifted] = if rank == 0 {
-                    [other, one]
-                } else {
-                    [one, other]
+                let Some((shifted, surface)) = found else {
+                    continue;
                 };
                 if settled[shifted] {
                     continue;
                 }
-                self.list[shifted] = Surface::Cylinder(cylinder);
-                settled[shifted] = true;
-                settled[kept] = true;
+                self.list[shifted] = surface;
+                settled[one] = true;
+                settled[other] = true;
             }
         }
     }
+}
+
+/// Which of two perpendicular cylinders their pair moves onto the touch, by
+/// its rank in the pair, and where to.
+fn perpendicular(one: &Surface, other: &Surface, scale: Scale) -> Option<(usize, Surface)> {
+    let (Surface::Cylinder(first), Surface::Cylinder(second)) = (one, other) else {
+        return None;
+    };
+    let (rank, cylinder) = moved(first, second, scale)?;
+    Some((rank, Surface::Cylinder(cylinder)))
+}
+
+/// `moving` moved onto the line it was decided to touch `fixed` along: a
+/// cylinder along a plane's normal, a plane along its own, a cylinder
+/// towards or away from a parallel one, by the gap the relation found within
+/// the tolerance. None where the touch is exact already.
+fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
+    let moved = match (fixed, moving) {
+        (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
+            let away = plane.distance(cylinder.origin);
+            let gap = away.abs() - cylinder.radius;
+            Surface::Cylinder(Cylinder::about(
+                cylinder.origin - plane.normal * away.signum() * gap,
+                cylinder.axis,
+                cylinder.radius,
+            ))
+        }
+        (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
+            let away = plane.distance(cylinder.origin);
+            let gap = away.abs() - cylinder.radius;
+            let (plane, _) = Plane::through(
+                plane.origin + plane.normal * away.signum() * gap,
+                plane.normal,
+            );
+            Surface::Plane(plane)
+        }
+        (Surface::Cylinder(kept), Surface::Cylinder(cylinder)) => {
+            let between = cylinder.origin - kept.origin;
+            let across = between - kept.axis * kept.axis.dot(between);
+            let distance = across.length();
+            if distance == 0.0 {
+                return None;
+            }
+            let outside = distance - (kept.radius + cylinder.radius);
+            let inside = (kept.radius - cylinder.radius).abs() - distance;
+            let by = if outside.abs() <= inside.abs() {
+                -outside
+            } else {
+                inside
+            };
+            Surface::Cylinder(Cylinder::about(
+                cylinder.origin + across / distance * by,
+                cylinder.axis,
+                cylinder.radius,
+            ))
+        }
+        (Surface::Plane(_), Surface::Plane(_)) => return None,
+    };
+    (moved != *moving).then_some(moved)
 }
 
 /// Whether a plane stands strictly between two planes of the first operand it

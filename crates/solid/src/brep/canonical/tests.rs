@@ -475,3 +475,73 @@ fn two_circles_of_one_radius_a_hair_apart_part_by_the_offset_where_they_run_acro
     let far = parting(&one, whole, &other, whole);
     assert!((far - offset).abs() < 1e-12, "{far}");
 }
+
+/// The surfaces of a pair, the first carried by the first operand, the
+/// second by the second, and by the first too when `both` says so.
+fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
+    let mut surfaces = Surfaces {
+        list: vec![first, second],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| match (operand, surface.0) {
+            (0, 0) | (1, 1) => true,
+            (0, 1) => both,
+            _ => false,
+        },
+        scale(),
+    );
+    surfaces.list
+}
+
+/// Decision 2: a hole a hair past touching a block's top, within the
+/// tolerance, is moved onto the touch, as a surface, so that the line they
+/// touch along lies on both; the block's plane stays where it was made.
+#[test]
+fn a_cylinder_of_the_second_operand_a_hair_past_touching_a_plane_is_moved_onto_it() {
+    let top = plane_at(10.0, DVec3::Z);
+    let hole = Cylinder::about(
+        DVec3::new(0.0, 5.0, 7.0),
+        DVec3::X,
+        3.0 + scale().eps() / 2.0,
+    );
+    let [plane, moved] = snapped_pair(top, Surface::Cylinder(hole), false)[..] else {
+        panic!("two surfaces");
+    };
+    assert_eq!(plane, top);
+    let Surface::Cylinder(moved) = moved else {
+        panic!("a cylinder");
+    };
+    assert_eq!(moved.radius, hole.radius);
+    assert!((10.0 - moved.origin.z - moved.radius).abs() < 1e-14);
+}
+
+/// The same with the plane the second operand's: the plane moves.
+#[test]
+fn a_plane_of_the_second_operand_a_hair_from_touching_a_cylinder_is_moved_onto_it() {
+    let post = Cylinder::about(DVec3::new(0.0, 5.0, 7.0), DVec3::X, 3.0);
+    let lid = plane_at(10.0 - scale().eps() / 2.0, DVec3::Z);
+    let [kept, moved] = snapped_pair(Surface::Cylinder(post), lid, false)[..] else {
+        panic!("two surfaces");
+    };
+    assert_eq!(kept, Surface::Cylinder(post));
+    assert_eq!(moved, plane_at(10.0, DVec3::Z));
+}
+
+/// Two parallel cylinders a hair inside touching move the second operand's
+/// onto the touch; a surface both operands carry is never moved.
+#[test]
+fn a_bore_a_hair_past_touching_the_stock_inside_is_moved_onto_it_but_not_a_shared_surface() {
+    let stock = Cylinder::about(DVec3::ZERO, DVec3::Z, 10.0);
+    let bore = Cylinder::about(DVec3::X * 4.0, DVec3::Z, 6.0 + scale().eps() / 2.0);
+    let [_, moved] = snapped_pair(Surface::Cylinder(stock), Surface::Cylinder(bore), false)[..]
+    else {
+        panic!("two surfaces");
+    };
+    let Surface::Cylinder(moved) = moved else {
+        panic!("a cylinder");
+    };
+    assert!((moved.origin.x + moved.radius - 10.0).abs() < 1e-14);
+    let shared = snapped_pair(Surface::Cylinder(stock), Surface::Cylinder(bore), true);
+    assert_eq!(shared, [Surface::Cylinder(stock), Surface::Cylinder(bore)]);
+}

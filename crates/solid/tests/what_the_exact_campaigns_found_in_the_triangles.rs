@@ -360,8 +360,9 @@ fn seed_9002788_a_boss_touching_a_bore_touching_the_stock_inside_leaves_its_caps
 /// vertex, and the wall's first triangle passes 1e-8 through the side
 /// beside it. The triangles take the vertices where the kernel put them; a
 /// vertex decided on a plane has to be put on it, which is the boolean's.
+/// It holds since a touch decided a hair apart is made exact on the
+/// surfaces, the second operand's moved onto it (decision 2).
 #[test]
-#[ignore = "kernel"]
 fn seed_6000059_a_pocket_a_hair_deep_touching_the_side_of_a_block_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -408,8 +409,9 @@ fn seed_6002157_a_bore_a_hair_across_the_side_of_a_notch_stays_uncrossed() {
 /// beside it stands at (8, 4, 4). The boss's wall, fanned from that vertex,
 /// passes through the block's floor between the two. As for seed 6000059,
 /// the vertex has to be put on the plane it was decided on.
+/// It holds since a touch decided a hair apart is made exact on the
+/// surfaces, the second operand's moved onto it (decision 2).
 #[test]
-#[ignore = "kernel"]
 fn seed_8001749_a_boss_a_hair_across_the_side_it_stands_on_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

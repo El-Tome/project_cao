@@ -197,14 +197,19 @@ impl<'a> Facing<'a> {
         }
     }
 
+    /// Whether both walls hold a face at the angle of `point` and `height`,
+    /// which stands between two levels further apart than the kernel's
+    /// tolerance: a face ending at either level is told from one going on
+    /// past it to what the rules tell apart, not to that tolerance — a skirt
+    /// a hair high, below the floor of the other wall, faces nothing of it.
     fn both(&self, point: DVec3, height: f64) -> bool {
         let faces = &self.known().faces;
-        let eps = self.body.scale().eps();
+        let near = self.body.scale().eps() * APART / 2.0;
         let holds = |side: usize| {
             let angle = self.walls[side].1.parameters(point).x;
             faces[side].iter().any(|face| {
                 !matches!(
-                    self.body.locate(*face, DVec2::new(angle, height), eps),
+                    self.body.locate(*face, DVec2::new(angle, height), near),
                     Ok(Location::Outside)
                 )
             })

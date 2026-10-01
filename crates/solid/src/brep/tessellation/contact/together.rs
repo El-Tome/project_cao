@@ -23,13 +23,18 @@ const ROUNDS: usize = 4;
 /// along its circle, is not taken twice; nor one that falls where it stands
 /// closer to any of its partners than their room, as a ray of its own
 /// there is left out — else a partner it passed its grid on to would pass a
-/// step it withholds back to it.
+/// step it withholds back to it. But a ray `pinned` to a wall, through a
+/// vertex lying on it, it keeps wherever it falls: a ruling leaves the wall
+/// there, and the strip beside it, a skin a hair high under a cap, needs a
+/// sample on every rim at that angle or its triangle lies flat on the cap.
 pub(super) fn shared(
     close: &[(&Wall, &Wall, &Facing)],
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
+    pinned: &BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
     eps: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
+    let pins = |wall: &Wall| pinned.get(&wall.0).map_or(&[][..], Vec::as_slice);
     let mut withheld: BTreeMap<SurfaceId, Vec<(usize, [f64; 2])>> = BTreeMap::new();
     let partners = |(id, _): &Wall| {
         let id = *id;
@@ -84,10 +89,13 @@ pub(super) fn shared(
             let mut rays: Vec<DVec3> = old
                 .into_iter()
                 .enumerate()
-                .filter(|(rank, _)| !off.contains(rank))
+                .filter(|(rank, way)| !off.contains(rank) || pins(wall).contains(way))
                 .map(|(_, way)| way)
                 .chain(fresh)
-                .filter(|way| partners(wall).all(|(_, facing)| !beside(wall, facing, *way)))
+                .filter(|way| {
+                    pins(wall).contains(way)
+                        || partners(wall).all(|(_, facing)| !beside(wall, facing, *way))
+                })
                 .collect();
             once_each(&mut rays, wall, eps);
             grown |= rays.len() != before;

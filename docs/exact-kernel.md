@@ -206,7 +206,9 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   a ruling from a vertex off the grid meets a sample on every rim of its wall:
   otherwise a strip a hair high — a skin left under a cap — is cut by a
   triangle reaching from the vertex to the next step of the other rim, lying
-  flat over the face beside it. That sample stands where the vertex nearest
+  flat over the face beside it. It keeps that ray even where it stands
+  within the room of another wall that `Contact` speaks of below, where the
+  rays passed between walls are dropped. That sample stands where the vertex nearest
   it in height stands, moved along the axis: a tangency decided within `EPS`
   leaves the exact surfaces overlapping by up to `EPS`, ten times what the
   rules tell apart, and the vertices of the line they touch along are where

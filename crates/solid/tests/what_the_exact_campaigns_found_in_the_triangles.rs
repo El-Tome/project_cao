@@ -1415,3 +1415,43 @@ fn seed_3049074_three_bores_touching_inside_along_one_line_under_a_notch_leave_t
         ],
     ));
 }
+
+#[test]
+fn seed_3291902_a_cylinder_a_hair_below_and_aside_one_it_joins_keeps_its_rim_round_over_the_skirt()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([45.0, 0.0], 27.5), 28.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([38.0, -8.0], [53.0, 8.0]),
+                55.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.9999999),
+                Outline::circle([44.9999999, 0.0], 27.5),
+                48.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+fn seed_3112136_a_slot_whose_corners_stand_in_a_skin_under_a_bore_s_cap_leaves_the_skin_uncrossed()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([5.0, 0.0], 3.0), 5.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-1.00000002),
+                Outline::circle([4.5, 0.0], 2.50000001),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([0.0, 10.0], [6.0, 16.0]),
+                9.0,
+            )),
+        ],
+    ));
+}

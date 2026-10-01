@@ -121,6 +121,7 @@ origin, from 0 to 10.
 | 1 | 30 Sept., as first written | 51 298 | 980 | 19.1 |
 | 2 | after round 1 | 49 659 | 188 | 3.8 |
 | 3 | after round 2 | 298 949 | 370 | 1.24 |
+| 4 | after round 3 | 279 739 | 169 | 0.60 |
 
 - Campaign 2's sample of 67 was sorted: fifteen distinct failures, seven of
   campaign 1's still open, eight new — and every new one a configuration a
@@ -158,3 +159,7 @@ origin, from 0 to 10.
   known configuration moved by a hair, or the harness catching up with a new
   decision. What stays open is one family, the tangency band.
 - Campaign 4 started at 20:05 from seed 4 000 000 on the kernel after round 3.
+- Campaign 4 ended at 21:05: 279 739 cases, **169 failures, 0.60 per
+  thousand** — half campaign 3's. Uncrossed 80, Answers 77, Closed 7,
+  Volume 3, Listed 2; still no Spans. Its sample of 72 is being sorted, and
+  round 4 — the tangency band decided once, as decision 7 — is running.

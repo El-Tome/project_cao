@@ -3953,3 +3953,92 @@ fn two_slots_whose_ends_touch_fifteen_thousand_tolerances_apart_joined() {
         15000.0, true,
     ));
 }
+
+/// A bar along Y resting on a block's top z = 3 along x = 5, then a hole
+/// bored square through both whose circle on the top grazes that line,
+/// `hair` tolerances clear of it, or across it where negative: a ruling of
+/// touch crossing a square wall where it grazes it (3-2), found by the
+/// review of round 6. Failing on the kernel before round 6 too.
+fn a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(hair: f64) -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([0.0, 0.0], [10.0, 10.0]),
+            3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(10.0),
+                Outline::circle([5.0, 4.5], 1.5),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([6.0 + hair * TOLERANCE, 5.0], 1.0),
+                7.0,
+            )),
+        ],
+    )
+}
+
+#[test]
+fn a_bar_resting_on_a_top_bored_by_a_hole_half_a_tolerance_clear_of_its_line() {
+    random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
+        0.5,
+    ));
+}
+
+#[test]
+#[ignore = "band: a ruling of touch crossing a square wall where it grazes it, no surface square to part the band (3-2)"]
+fn a_bar_resting_on_a_top_bored_by_a_hole_thirty_tolerances_clear_of_its_line() {
+    random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
+        30.0,
+    ));
+}
+
+#[test]
+#[ignore = "band: a ruling of touch crossing a square wall where it grazes it, no surface square to part the band (3-2)"]
+fn a_bar_resting_on_a_top_bored_by_a_hole_thirty_tolerances_across_its_line() {
+    random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
+        -30.0,
+    ));
+}
+
+#[test]
+fn a_bar_resting_on_a_top_bored_by_a_hole_forty_thousand_tolerances_clear_of_its_line() {
+    random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
+        40000.0,
+    ));
+}
+
+/// A slot along Y, from (4, 5) to (4, 7) of radius one, cut by a bar along
+/// Y whose wall touches the slot's run x = 3 along z = 2 and whose cap
+/// stands `past` beyond the run's end y = 7, where the slot's end turns off
+/// the run's plane: the bar and the end, square to each other, both touch
+/// that plane at one point, found by the review of round 6. Joined, it
+/// holds (90509248); cut, it fails on the kernel before round 6 too.
+fn a_slot_cut_by_a_bar_touching_its_run_past_its_end(past: f64) -> Case {
+    Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::slot([4.0, 7.0], [4.0, 5.0], 1.0),
+            -4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xz(5.0),
+            Outline::circle([6.0, 2.0], 3.0),
+            -(2.0 + past),
+        ))],
+    )
+}
+
+#[test]
+fn a_slot_cut_by_a_bar_touching_its_run_a_micron_short_of_its_end() {
+    random_solids::holds_exactly(&a_slot_cut_by_a_bar_touching_its_run_past_its_end(-1e-6));
+}
+
+#[test]
+#[ignore = "band: two walls square to each other touching a plane at one point, a cap a hair past it (3-2)"]
+fn a_slot_cut_by_a_bar_touching_its_run_a_micron_past_its_end() {
+    random_solids::holds_exactly(&a_slot_cut_by_a_bar_touching_its_run_past_its_end(1e-6));
+}

@@ -2,6 +2,8 @@
 //! kernel of #498 — its boolean, not its triangles — each failure shrunk and
 //! kept as the test it was fixed against, or, when it is understood and not
 //! fixed, ignored with its diagnosis.
+//!
+//! The tangency band's findings are gathered in `the_tangency_band.rs`.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -1012,42 +1014,6 @@ fn seed_1004747_a_block_bored_beside_a_step_a_hair_high_then_given_a_block_apart
     ));
 }
 
-/// Seed 1014146 shrunk once the wall and the notch hold: the block bored
-/// through across its end but for a wall three tenths of a micron thick,
-/// the bore's bottom at the height of the post's cap, which it touches along
-/// the line through the corner the post's wall passes.
-///
-/// Understood and left: failure 1-12's configuration. The curve the post
-/// and the bore meet along touches the post's rim at that corner to the
-/// second order, and runs within a femtometre of it back to where the rim
-/// crosses the block's end — a corner four tenths of a micron off the line
-/// the cap and the bore touch along, so not on the bore by its support. The
-/// two arcs share one corner and overlap, set off from it at one angle, and
-/// are both too short for their bends to part them: the star ties.
-#[test]
-#[ignore = "tangent"]
-fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::yz(60.0),
-            Outline::rectangle([225.0, 60.0], [255.0, 270.0]),
-            -30.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::yz(59.9999997),
-                Outline::circle([255.0, 165.0], 45.0),
-                -30.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xy(120.0),
-                Outline::circle([3.0000000000000004e-7, 300.0], 75.0),
-                255.0,
-            )),
-        ],
-    ));
-}
-
 /// Failure 1-9 of campaign 1: a block given two posts of one radius a tenth
 /// of a micron apart, both touching its top, both standing a tenth of a
 /// micron proud of its end.
@@ -1206,46 +1172,6 @@ fn seed_1013792_a_bored_block_given_a_post_on_its_side_then_a_block_apart() {
                 Plane::xy(2.0),
                 Outline::rectangle([2.0, 5.0], [6.0, 9.0]),
                 1.0,
-            )),
-        ],
-    ));
-}
-
-/// Failure 1-2 of campaign 1: a bar bored by a hole touching its side at
-/// its end, then by a hole of that radius ten microns aside,
-/// touching the side too.
-///
-/// Understood and left: the side's strip between the two lines the holes
-/// touch it along is ten microns wide, and the holes' walls over
-/// it stand less than a picometre above it — a skin decision 6 is meant to
-/// leave out. But the walls over the strip are two, parted by the line the
-/// holes cross along, so the strip has no twin bounded by its own arcs, and
-/// the skin is kept: the triangles of the strip and of the walls cross.
-/// Decision 7 winds each strip beside the faces lying over it as the exact
-/// geometry has it, and keeps the skin too. The line the holes cross along
-/// stands within a picometre of the side; laid on the side as well, it
-/// would part the side's strip where the walls' end and make them twins —
-/// the band's lines shared by every surface of the band, which decisions 3
-/// and 5 do not make.
-#[test]
-#[ignore = "band"]
-fn seed_1032742_a_bar_bored_twice_a_hair_apart_touching_its_side() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(-10.0),
-            Outline::rectangle([40.0, 40.0], [45.0, 70.0]),
-            13.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xy(-10.0),
-                Outline::circle([45.0, 55.0], 15.0),
-                25.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::xy(-15.0),
-                Outline::circle([44.99999, 55.0], 15.0),
-                25.0,
             )),
         ],
     ));
@@ -1818,31 +1744,6 @@ fn seed_3244679_a_boss_a_hair_through_the_wall_of_the_hole_it_stands_in() {
     ));
 }
 
-/// Failure 2-5 of campaign 3: a bore of radius 2.00000001 pokes 1e-8
-/// through the stock it touches inside, and a third circle crosses both
-/// within the band where the two stand within the tolerance of each other.
-/// Its two crossings, one with each, were computed pair by pair and stood a
-/// sliver apart, which no region of the bottom could enclose. Moved onto the
-/// touch, the bore crosses the third circle where the stock does.
-#[test]
-fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the_touch() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(Plane::xy(1.0), Outline::circle([6.0, 0.0], 2.5), 10.0),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xy(1.0),
-                Outline::circle([6.0, 0.5], 2.00000001),
-                9.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::xy(1.0),
-                Outline::circle([6.0, 3.0], 0.5000002),
-                10.0,
-            )),
-        ],
-    ));
-}
-
 /// The same seed shrunk on the kernel of decision 7: a stock bored by a bore
 /// touching it inside at its top, then a pin whose bottom dips 2e-7 into
 /// both walls cut from above. The strips of the pin's wall between the
@@ -1939,43 +1840,6 @@ fn seed_3015242_the_same_skin_cut_by_a_block_on_the_plane_that_sliced_it() {
                 Plane::xy(30.0),
                 Outline::rectangle([240.0000003, 0.0], [260.0, 120.0]),
                 -350.0,
-            )),
-        ],
-    ));
-}
-
-/// Failure 1-2 of campaign 3: a bore touching a block's side inside leaves
-/// a cusp of matter between the side and its wall, which a block cut from it
-/// crosses 1e-5 from the touch. The kernel declined, the block covering both
-/// strips of the cusp; it now takes the cusp for a skin and answers right.
-/// Its triangles still cross below the cut, where the cut's corner on the
-/// side, 1e-5 from the line of touch and within the band where side and wall
-/// stand within the tolerance, was given the wall by distance (failure 1-2):
-/// a strip of the wall lies on the side. Under the cut's floor the cusp runs
-/// on past the cut's side, so the side's region and the wall's there are
-/// the cusp a tangency leaves, kept as the exact geometry has it, not
-/// strips decision 7 reads; what lies on the side is the wall's triangle
-/// from the line of touch to that corner, a vertex of both faces 1e-5 into
-/// the band.
-#[test]
-#[ignore = "band"]
-fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(0.0),
-            Outline::rectangle([1.5, 0.5], [8.5, 7.5]),
-            5.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xy(0.0),
-                Outline::circle([4.99999, 4.0], 3.5),
-                10.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::xy(1.0),
-                Outline::rectangle([3.0, 2.0], [5.0, 9.0]),
-                10.0,
             )),
         ],
     ));
@@ -2704,51 +2568,6 @@ fn seed_3151875_a_bore_touching_a_block_s_end_a_hair_from_where_another_crosses_
     ));
 }
 
-/// Failure 1-2 of campaign 3, found by the triangles, its largest group: a
-/// block given a second block beside it, then a bore touching the first's
-/// side y = 12 1e-7 from where the second's side x = 11.5 crosses it, inside
-/// the band where the side and the bore's wall stand within the tolerance
-/// of each other.
-///
-/// Understood and left: the line x = 11.5 on the side and the bore's ruling
-/// on x = 11.5, 3e-15 apart, are one line, on the side, the second block's
-/// side and the wall, and its corners stand on the side. The strip of the
-/// wall between that line and the line of touch, and the strip of the side
-/// between the same two lines, hold a skin 3e-15 thick, and the wall's
-/// triangles there lie on the side's. They are twins, but not bounded by
-/// the same arcs: the second block ends at z = 11 and the line with it,
-/// while the side's region runs on into the band above and the wall's all
-/// round. Decision 6 asks for regions bounded by the same arcs; decision 7
-/// reads a region standing within the tolerance of the other surface all
-/// across, and neither strip is a region: each is the part of a region
-/// whose point stands beyond the band, decided there — kept, both, as the
-/// exact geometry has them, a cusp of matter 3e-15 thick that the second
-/// block ends. Dropping it wants both regions parted where the line ends,
-/// along an arc across the band the boolean has no curve for.
-#[test]
-#[ignore = "band"]
-fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_crosses_it() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(6.0),
-            Outline::rectangle([9.0, 6.0], [15.0, 12.0]),
-            6.0,
-        ),
-        vec![
-            Step::add(Leaf::prism(
-                Plane::xy(6.0),
-                Outline::rectangle([7.0, 7.5], [11.5, 12.5]),
-                5.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::xy(6.0),
-                Outline::circle([11.5000001, 10.5], 1.5),
-                6.0,
-            )),
-        ],
-    ));
-}
-
 /// Failure 1-9 of campaign 3: two pins of one radius 6e-8 apart leave a
 /// crescent whose walls cross at a grazing angle along a line lying on the
 /// plane both touch, between their two lines of touch; a block's floor on
@@ -2775,40 +2594,6 @@ fn seed_3089284_the_crescent_of_two_pins_a_hair_apart_cut_by_a_floor_both_touch(
                 Plane::xz(2.5),
                 Outline::rectangle([4.0, 3.0], [10.0, 11.0]),
                 10.0,
-            )),
-        ],
-    ));
-}
-
-/// Failure 2-1 of campaign 3: a bar bored along its length by a bore whose
-/// wall touches the bar's top from inside, 1.8e-6 off the line where a
-/// wider bar joined to it touches the top too, and touches the bore inside
-/// along a third line 3.6e-6 off — three lines in one band, each pair
-/// decided apart. The strip of the top between the bore's line and the wide
-/// bar's stands within a hundredth of a femtometre of the wide bar's wall
-/// all across, and no ray told whether the wide bar wraps it: the kernel
-/// declined. The wide bar wraps it as its wall's matter lies, the top
-/// standing outside the wall it touches (decision 7), and the strip of the
-/// wide bar's wall between its two lines of touch lies between the bore and
-/// the top, inside the cusp they leave.
-#[test]
-fn seed_3192987_a_bar_bored_under_its_top_joined_to_a_wider_bar_touching_both() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::yz(-89.99999),
-            Outline::rectangle([255.0, 195.0], [435.0, 375.0]),
-            570.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::yz(-89.99999),
-                Outline::circle([344.9999982, 315.0], 60.0),
-                1140.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::yz(-60.0),
-                Outline::circle([345.0, 285.0], 90.0),
-                255.0,
             )),
         ],
     ));
@@ -2935,39 +2720,6 @@ fn seed_80504197_a_slot_bored_at_its_end_a_hair_across_then_cut_by_a_block() {
     ));
 }
 
-/// A rounded block bored at a corner by a hole of the corner's radius 1e-5
-/// across, thirty-three tolerances at a reach of three hundred, then given a
-/// cylinder lying across it: the kernel declined.
-///
-/// Understood and left: with a hair of fifty tolerances, decision 8 took the
-/// hole for the corner's wall and it held. The hair is twenty, which no
-/// line of measure crossing the moved wall at a slant can see: the two walls
-/// stay two, crossing at a grazing angle within a hair of the sides the
-/// corner touches, and the kernel declines — failure 1-9, the band.
-#[test]
-#[ignore = "band"]
-fn seed_80506598_a_rounded_block_bored_a_hair_off_its_corner_then_given_a_cylinder_across() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(60.0),
-            Outline::rounded([120.0, 120.0], [195.0, 315.0], 15.0),
-            180.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xy(30.0),
-                Outline::circle([135.0, 134.99999], 15.0),
-                225.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::yz(120.0),
-                Outline::circle([150.0, 30.0], 120.0),
-                105.0,
-            )),
-        ],
-    ));
-}
-
 /// A block whose rounded pocket is filled again by a rounded block 6e-8
 /// aside, its corners each a hair off the pocket's: the kernel declined.
 /// The whole outline is moved onto the pocket's, its sides with its
@@ -3040,67 +2792,6 @@ fn seed_80501596_a_rounded_pocket_a_hair_aside_bored_at_its_corner() {
                 Plane::xy(7.0),
                 Outline::circle([6.5, 6.5], 2.5),
                 -7.0,
-            )),
-        ],
-    ));
-}
-
-/// A block bored by a hole touching its side and 1e-5 off its floor, then
-/// cut by a bore of its radius touching both, 1e-5 aside: seven hundred
-/// tolerances at a reach of fourteen.
-///
-/// Understood and left: beyond decision 8's hair, which a line of measure
-/// crossing the moved wall at a slant would see, the two walls stay two.
-/// They cross along two rulings at an angle of four millionths, within a
-/// hair of the side both touch, and the kernel declines: failure 1-9, the
-/// band of two walls of one radius a few hundred tolerances apart.
-#[test]
-#[ignore = "band"]
-fn seed_80505830_a_hole_bored_again_seven_hundred_tolerances_aside_where_both_touch_a_side() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::yz(5.0),
-            Outline::rectangle([7.0, 2.0], [13.0, 9.0]),
-            5.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::yz(5.0),
-                Outline::circle([9.75, 4.75001], 2.75),
-                5.0,
-            )),
-            Step::cut(Leaf::prism(
-                Plane::yz(4.99999994),
-                Outline::circle([9.75, 4.75], 2.75),
-                9.0,
-            )),
-        ],
-    ));
-}
-
-/// The same with a profile: a slot given a disc of its radius 1e-5 across
-/// its cap, five hundred tolerances at a reach of fifteen, then a block
-/// over the cap. Understood and left, as for seed 80505830: the disc and
-/// the cap stay two walls crossing at a grazing angle.
-#[test]
-#[ignore = "band"]
-fn seed_80509593_a_slot_given_a_disc_five_hundred_tolerances_across_its_cap() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xz(1.0),
-            Outline::slot([7.0, 3.0], [13.0, 3.0], 2.0),
-            10.0,
-        ),
-        vec![
-            Step::add(Leaf::prism(
-                Plane::xz(1.0),
-                Outline::circle([13.0, 2.99999], 2.0),
-                10.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xy(1.0),
-                Outline::rectangle([11.0, 1.0], [15.0, 7.0]),
-                10.0,
             )),
         ],
     ));
@@ -3187,39 +2878,6 @@ fn seed_82504133_a_notched_rounded_block_cut_by_a_rounded_rectangle_a_hair_off_i
                 Plane::yz(-60.0),
                 Outline::rounded([270.0000003, 180.00001], [495.0000003, 390.00001], 15.0),
                 240.0,
-            )),
-        ],
-    ));
-}
-
-/// A block bored by a hole touching two of its sides but for 1e-5 off one,
-/// then the hole filled by a post touching both: thirty-seven tolerances at
-/// a reach of two hundred and seventy.
-///
-/// Understood and left: with a hair of fifty tolerances, decision 8 took the
-/// post for the hole, and it filled it. The hair is twenty, which no line of
-/// measure can see the merge through: the post and the hole stay two walls
-/// of one radius crossing at a grazing angle where both touch a side, and
-/// the kernel declines — failure 1-9, the band.
-#[test]
-#[ignore = "band"]
-fn seed_80509744_a_hole_a_hair_off_a_side_filled_by_a_post_touching_it() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xz(60.0),
-            Outline::rectangle([90.0, 90.0], [270.0, 255.0]),
-            60.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xz(60.0),
-                Outline::circle([105.0, 105.00001], 15.0),
-                120.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xz(60.0),
-                Outline::circle([105.0, 105.0], 15.0),
-                120.0,
             )),
         ],
     ));
@@ -3361,73 +3019,6 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
                 Plane::xy(35.0),
                 Outline::circle([12.5, 25.0], 2.49999995),
                 42.4999997,
-            )),
-        ],
-    ));
-}
-
-/// Found by the review of round 5 in a campaign of profiles, and made by
-/// decision 8: a slot given a disc of its cap's radius 1e-7 across, three
-/// tolerances at a reach of thirty-five, then a post touching the slot's
-/// side where the disc touches it. Taken for the cap, the disc is moved
-/// 1e-7 along the side, and the line it touched the side along is the
-/// cap's. The post, drawn on the disc's line, then touches the side and the
-/// cap along three lines within three tolerances of one another.
-///
-/// Understood and left: failure 2-1, the band. Before decision 8 the disc,
-/// the side and the post touched along one line, and the case held; a
-/// merge moves what the second operand touched, and a later leaf drawn on
-/// it stands a hair off.
-#[test]
-#[ignore = "band"]
-fn seed_82512408_a_slot_given_a_disc_a_hair_off_its_cap_then_a_post_on_the_disc_s_line() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(5.0),
-            Outline::slot([20.0, 15.0], [20.0, 2.5], 15.0),
-            25.0,
-        ),
-        vec![
-            Step::add(Leaf::prism(
-                Plane::xy(5.0),
-                Outline::circle([20.0, 2.5000001], 15.0),
-                25.0000001,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xy(5.0),
-                Outline::circle([2.5, 2.5000001], 2.5),
-                43.0,
-            )),
-        ],
-    ));
-}
-
-/// The same with a rounded block a unit wide, its end one wall: bored at
-/// the end by a hole of its radius 6e-8 across, six tolerances, then given
-/// a post touching the side where the hole does. Taken for the end's wall,
-/// the hole's line of touch with the side moves with it, and the post
-/// stands a hair from the end's: the kernel declines.
-///
-/// Understood and left, as for seed 82512408: failure 2-1, the band.
-#[test]
-#[ignore = "band"]
-fn seed_82508905_a_rounded_end_bored_a_hair_across_then_given_a_post_on_the_bore_s_line() {
-    random_solids::holds_exactly(&Case::new(
-        Leaf::prism(
-            Plane::xy(-1.0),
-            Outline::rounded([2.0, 2.0], [3.0, 10.0], 0.5),
-            8.0,
-        ),
-        vec![
-            Step::cut(Leaf::prism(
-                Plane::xy(-2.0),
-                Outline::circle([2.5, 2.50000006], 0.5),
-                3.0,
-            )),
-            Step::add(Leaf::prism(
-                Plane::xy(-2.0),
-                Outline::circle([1.5, 2.50000006], 0.5),
-                6.0,
             )),
         ],
     ));

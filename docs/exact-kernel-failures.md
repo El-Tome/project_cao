@@ -557,3 +557,18 @@ What the rule leaves of the corpus, each case ignored with its reason:
   where a wall faces another over part of its height.
 - **Shrunk from seeds the first rule broke** (90501389, 90504257): the
   seeds hold now; shrunk, they fail on the kernel before round 6 too.
+
+Each guard of decision 9 was taken out in turn and the tests run. Four
+fail named cases without them: the band laid only on faces of both its
+surfaces (90509248), only where faces of both operands meet
+(90504120), not where a third surface grazes it (90016363), and arcs kept
+between faces of one operand on two surfaces decided to touch (eleven
+cases, 3192987 and 3130833 among them). Four others changed nothing on the
+corpus, on a scan of a bar ending a hair either side of a slot's run, or on
+300-second campaigns of both draws run without each: a surface parting the
+band across only where it stands square enough to the line of touch,
+found with 90509248 before the faces' guard reached it too; an arc laid
+on a surface only where it stands within the tolerance all along, and only
+where the surface can trace it; and a corner or an arc laid only along the
+stretch of a band laid out. They say what laying a band means, and are
+kept untested.

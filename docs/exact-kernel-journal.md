@@ -249,3 +249,16 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   the band's lines and corners laid on every surface of it, the change
   round 4 tried behind a switch and set aside for breaking seven findings
   it had not gathered.
+- Round 6, the band. Its cases gathered first, as a test file of their own:
+  157, of which 36 held. Then the rule, decision 9: the band of two surfaces
+  decided to touch laid out once, the same on both — its corners on both,
+  a line through each along the line of touch, a corner wherever a surface
+  square to the band crosses one of its lines. Round 4's switch, run again,
+  broke five findings; the lines through the band's corners are what it
+  lacked. Three guards came out of the first campaigns on the rule, each
+  with the case that found it. At the end, 113 of the corpus's 163 hold, and
+  five-minute campaigns run side by side against the kernel before the round
+  halve the profile draw's failures (31 to 15) and leave the square draw one
+  (4 to 1), none made. What stays is mostly bands of pairs not decided to
+  touch: a plane a hair inside a wall, two walls of one radius crossing at
+  a grazing angle.

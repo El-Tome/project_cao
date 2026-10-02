@@ -3392,6 +3392,121 @@ fn seed_94531594_a_block_given_a_slot_then_a_post_ten_microns_off_its_end() {
     ));
 }
 
+// What the review's own third fix — a node of the band taken for the band's
+// corner it falls on, where that corner lies on a wall crossing one of the
+// band's as two parallel walls do — broke that held before it, from the
+// same three campaigns run again on it: it held three of the cases above
+// and broke these four, and was taken back.
+
+/// The review of round 6, the profile draw, on the node taken for the
+/// band's corner: Answers.
+#[test]
+#[ignore = "band: made by the review's node rule, to be taken back"]
+fn seed_92505005_a_lying_slot_given_a_bar_ten_microns_off_its_end_then_cut_by_a_block_on_its_run() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(195.0),
+            Outline::slot([180.0, 0.0], [180.0, 15.0], 60.0),
+            -255.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(195.0000003),
+                Outline::circle([180.0, 15.00001], 60.0),
+                -255.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(195.0),
+                Outline::rectangle([120.0, 0.0], [240.0, 15.0]),
+                510.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw, on the node taken for the
+/// band's corner: Answers.
+#[test]
+#[ignore = "band: made by the review's node rule, to be taken back"]
+fn seed_92509891_a_block_hollowed_by_a_rounded_copy_a_hair_aside_cut_then_given_its_rounded_twin() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::rectangle([120.0, 240.0], [225.0, 285.0]),
+            225.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(30.0000003),
+                Outline::rounded([119.9999994, 240.0], [224.9999994, 285.0], 15.0),
+                225.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::rectangle([-120.0, 30.0], [240.0, 390.0]),
+                195.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rounded([120.0, 240.0], [225.0, 285.0], 15.0),
+                150.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw, on the node taken for the
+/// band's corner: Answers.
+#[test]
+#[ignore = "band: made by the review's node rule, to be taken back"]
+fn seed_93525450_a_lying_slot_cut_by_a_bar_ten_microns_off_its_end_then_by_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(6.0),
+            Outline::slot([4.0, 7.0], [4.0, 6.5], 1.5),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(5.99999999),
+                Outline::circle([4.0, 6.50001], 1.5),
+                7.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([5.5, 3.0], [10.5, 10.0]),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw, on the node taken for the
+/// band's corner: Answers.
+#[test]
+#[ignore = "band: made by the review's node rule, to be taken back"]
+fn seed_94516055_a_bar_given_a_rounded_copy_a_hair_lower_then_a_post_ten_microns_off_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(8.0),
+            Outline::rectangle([7.0, 0.0], [8.0, 6.0]),
+            7.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(7.99999998),
+                Outline::rounded([7.0, 0.0], [8.0, 6.0], 0.5),
+                7.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(8.0),
+                Outline::circle([7.5, 0.50001], 0.5),
+                13.0,
+            )),
+        ],
+    ));
+}
+
 // Each shape of the band, built.
 
 /// The kernel's tolerance on every case built here: each reaches ten.

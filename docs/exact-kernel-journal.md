@@ -262,3 +262,13 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   (4 to 1), none made. What stays is mostly bands of pairs not decided to
   touch: a plane a hair inside a wall, two walls of one radius crossing at
   a grazing angle.
+- Round 6's review. The rule held every shape built for it, its own and
+  ten more, at thirty-four hairs and three orientations, and broke none;
+  but three campaigns of the profile draw, longer than the round's, found
+  it making failures where it fixed many more: two walls of one radius a
+  hair beyond decision 8, a plane touching both. Two fixes hold most of
+  what it made that a plane's gap or a skin read in the wrong frame
+  explains; a third was taken back for breaking four cases that held. On
+  some 113 000 profiles the failures go from 187 before round 6 to 112 at
+  its head and 107 after the review, none made by the review; the
+  crescent's tip under a plane is what is left of what round 6 made.

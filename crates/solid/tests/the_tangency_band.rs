@@ -3065,7 +3065,6 @@ fn seed_92503994_a_block_cut_by_a_rounded_rectangle_then_given_a_post_ten_micron
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92510427_a_disc_cut_by_its_twin_a_fifth_of_a_micron_aside_then_given_a_block_touching_both()
 {
     random_solids::holds_exactly(&Case::new(

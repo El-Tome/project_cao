@@ -338,6 +338,15 @@ The decisions, in the order taken, once per operation:
    on it stands within `EPS` of both over strips of its own, its matter
    above them, which twins of the two leave out (90016363).
 
+   A band laid on a plane touching both walls of a crescent's tip makes
+   twins of three: the plane's strip first, then the tip's two walls, one
+   operand's skin. Decision 6 reads which way that skin turns its matter
+   off the pair as the operand decided it, by the normal of the first of
+   the two, so their coverings are read in that wall's frame, not in the
+   plane's, which is turned from both: read in the plane's, the skin was
+   taken for a crack, the strip dropped, and the plane's face left open
+   along it (92510427).
+
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
 of the curve: two surfaces crossing at a grazing angle stand within `EPS` of

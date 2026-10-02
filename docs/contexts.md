@@ -28,7 +28,9 @@ is the one that carries a part, not an exclusive one.
   no GPU. Rich, precise language of its own.
 - **`cao_solid` — the matter.** Polygons, meshes, prisms, revolutions, boolean
   union and difference over a BSP tree. Also pure mathematics, and it knows
-  nothing of `cao_sketch`.
+  nothing of `cao_sketch`. What leaves it is a `Body`: the mesh and its
+  polygons stay inside, so that whatever computes the matter next can be
+  swapped in behind it (#499).
 - **`cao_render` — the picture.** Camera, orientation cube, vertex buffers,
   wgpu. Knows no interface framework.
 - **`cao_part` — the part.** `Operation`, `History`, `PartState`,

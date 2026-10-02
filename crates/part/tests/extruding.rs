@@ -486,7 +486,7 @@ fn a_step_of_matter_names_the_faces_it_made() {
         block
             .iter()
             .chain(&post)
-            .all(|face| document.body().pieces_of(*face).next().is_some()),
+            .all(|face| document.body().triangles_of(*face).next().is_some()),
         "every face named stands in the part"
     );
     assert!(

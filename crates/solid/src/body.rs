@@ -123,8 +123,9 @@ impl Body {
     }
 
     /// The triangles one face is drawn with, which is what lighting it whole
-    /// under the cursor needs. None when the body has no such face.
-    pub fn pieces_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {
+    /// under the cursor needs: at least one for every face the body holds, and
+    /// none when it has no such face.
+    pub fn triangles_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {
         self.mesh.pieces_of(face).flat_map(Polygon::triangles)
     }
 

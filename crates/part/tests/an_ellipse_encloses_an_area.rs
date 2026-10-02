@@ -69,7 +69,7 @@ fn an_ellipse_extrudes_with_one_face_for_its_wall() {
     let state = a_raised_ellipse(5.0);
 
     let mut faces: Vec<usize> = (0..state.body.faces_end())
-        .filter(|face| state.body.pieces_of(*face).next().is_some())
+        .filter(|face| state.body.triangles_of(*face).next().is_some())
         .collect();
     faces.sort_unstable();
     faces.dedup();

@@ -26,7 +26,7 @@ impl PartState {
     pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
         self.made.get(rank).map_or_else(Vec::new, |made| {
             made.clone()
-                .filter(|face| self.body.pieces_of(*face).next().is_some())
+                .filter(|face| self.body.triangles_of(*face).next().is_some())
                 .collect()
         })
     }

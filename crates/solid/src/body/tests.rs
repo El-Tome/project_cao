@@ -51,14 +51,14 @@ fn a_ray_names_the_face_it_meets_and_which_way_it_faces() {
 fn a_face_is_drawn_with_the_triangles_it_was_raised_from() {
     let body = block(10.0, 6.0, 4.0);
 
-    let pieces: Vec<[DVec3; 3]> = body.pieces_of(TOP).collect();
+    let triangles: Vec<[DVec3; 3]> = body.triangles_of(TOP).collect();
 
-    assert_eq!(pieces.len(), 2, "{pieces:?}");
+    assert_eq!(triangles.len(), 2, "{triangles:?}");
     assert!(
-        pieces.iter().flatten().all(|corner| corner.z == 4.0),
-        "every piece of the top lies on it: {pieces:?}",
+        triangles.iter().flatten().all(|corner| corner.z == 4.0),
+        "every triangle of the top lies on it: {triangles:?}",
     );
-    assert_eq!(body.pieces_of(body.faces_end()).count(), 0);
+    assert_eq!(body.triangles_of(body.faces_end()).count(), 0);
 }
 
 #[test]

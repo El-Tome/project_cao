@@ -136,7 +136,7 @@ What it does: [`sketch.md`](sketch.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `pieces_of`, `is_flat`, `plane_of` → `FacePlane`, `bounds`, `volume` |
+| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `bounds`, `volume` |
 | What a body is made of inside the crate: faces as flat pieces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
 | Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::prism` |
 | Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |

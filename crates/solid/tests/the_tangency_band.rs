@@ -35,7 +35,6 @@ use random_solids::{Case, Leaf, Outline, Plane, Step};
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6012407_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -60,7 +59,6 @@ fn seed_6012407_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6186849_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -85,7 +83,6 @@ fn seed_6186849_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6221694_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -110,7 +107,6 @@ fn seed_6221694_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6017796_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -135,7 +131,6 @@ fn seed_6017796_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6144662_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -160,7 +155,6 @@ fn seed_6144662_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6199137_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -185,7 +179,6 @@ fn seed_6199137_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6240282_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -210,7 +203,6 @@ fn seed_6240282_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6023355_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -235,7 +227,6 @@ fn seed_6023355_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6205484_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -260,7 +251,6 @@ fn seed_6205484_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6244958_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -285,7 +275,6 @@ fn seed_6244958_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6270911_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -335,7 +324,6 @@ fn seed_6168409_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6113041_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -360,7 +348,6 @@ fn seed_6113041_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6500074_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -403,7 +390,6 @@ fn seed_6504965_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6567311_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -428,7 +414,6 @@ fn seed_6567311_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6604551_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -453,7 +438,6 @@ fn seed_6604551_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6523873_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -478,7 +462,6 @@ fn seed_6523873_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6556814_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -503,7 +486,6 @@ fn seed_6556814_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6650709_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -592,7 +574,6 @@ fn seed_6638088_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6005021_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -617,7 +598,6 @@ fn seed_6005021_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6056818_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(-1.0), Outline::circle([6.5, 7.0], 2.0), 8.0),
@@ -663,7 +643,6 @@ fn seed_6086149_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6185036_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -688,7 +667,6 @@ fn seed_6185036_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6024153_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -713,7 +691,6 @@ fn seed_6024153_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6142447_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -738,7 +715,6 @@ fn seed_6142447_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6038027_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(30.0), Outline::circle([300.0, 90.0], 45.0), 210.0),
@@ -759,7 +735,6 @@ fn seed_6038027_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6155665_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(37.5), Outline::circle([40.0, 5.0], 20.0), 47.5),
@@ -780,7 +755,6 @@ fn seed_6155665_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6562479_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -805,7 +779,6 @@ fn seed_6562479_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6571302_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -823,7 +796,6 @@ fn seed_6571302_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6603192_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -848,7 +820,6 @@ fn seed_6603192_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6516406_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -866,7 +837,6 @@ fn seed_6516406_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6554504_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -891,7 +861,6 @@ fn seed_6554504_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6593513_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -916,7 +885,6 @@ fn seed_6593513_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6624468_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -934,7 +902,6 @@ fn seed_6624468_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6533999_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1119,7 +1086,6 @@ fn seed_6143816_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wal
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6512044_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wall() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1243,7 +1209,6 @@ fn seed_6123681_a_square_wall_s_rim_grazing_the_ruling_a_plane_touches_a_wall_al
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6048098_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(10.0), Outline::circle([25.0, 25.0], 15.0), -13.0),
@@ -1264,7 +1229,6 @@ fn seed_6048098_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6218170_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1339,7 +1303,6 @@ fn seed_6563127_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6594068_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1364,7 +1327,6 @@ fn seed_6594068_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6625237_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1414,7 +1376,6 @@ fn seed_6598801_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6631754_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1464,7 +1425,6 @@ fn seed_6637572_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6533713_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1489,7 +1449,6 @@ fn seed_6533713_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6645220_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(-1.0), Outline::ring([9.0, 2.0], 3.0, 1.0), 6.0),
@@ -1510,7 +1469,6 @@ fn seed_6645220_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6547043_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1528,7 +1486,6 @@ fn seed_6547043_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band"]
 fn seed_6579931_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1553,7 +1510,6 @@ fn seed_6579931_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band"]
 fn seed_6582528_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1956,7 +1912,6 @@ fn seed_6128869_a_square_ruling_crossing_the_line_two_walls_touch_along() {
 
 /// Campaign 6b, the profile draw: Volume.
 #[test]
-#[ignore = "band"]
 fn seed_6518903_a_wall_touching_another_a_hair_from_a_run_s_end_keeps_its_step() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1974,7 +1929,6 @@ fn seed_6518903_a_wall_touching_another_a_hair_from_a_run_s_end_keeps_its_step()
 
 /// Campaign 6b, the profile draw: Volume.
 #[test]
-#[ignore = "band"]
 fn seed_6628386_a_wall_touching_another_a_hair_from_a_run_s_end_keeps_its_step() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1994,7 +1948,6 @@ fn seed_6628386_a_wall_touching_another_a_hair_from_a_run_s_end_keeps_its_step()
 
 /// Campaign 6b, the profile draw: Volume.
 #[test]
-#[ignore = "band"]
 fn seed_6513598_a_wall_facing_a_bore_a_hair_off_its_axis_over_part_of_its_height() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2037,7 +1990,6 @@ fn seed_6513598_a_wall_facing_a_bore_a_hair_off_its_axis_over_part_of_its_height
 /// two arcs share one corner and overlap, set off from it at one angle, and
 /// are both too short for their bends to part them: the star ties.
 #[test]
-#[ignore = "band"]
 fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2077,7 +2029,6 @@ fn seed_1014146_a_wall_a_hair_thick_bored_where_the_post_s_cap_touches_the_bore(
 /// the band's lines shared by every surface of the band, which decisions 3
 /// and 5 do not make.
 #[test]
-#[ignore = "band"]
 fn seed_1032742_a_bar_bored_twice_a_hair_apart_touching_its_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2139,7 +2090,6 @@ fn seed_3150523_a_bore_a_hair_through_the_stock_crossed_by_a_third_circle_at_the
 /// from the line of touch to that corner, a vertex of both faces 1e-5 into
 /// the band.
 #[test]
-#[ignore = "band"]
 fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2184,7 +2134,6 @@ fn seed_3130833_a_cusp_a_bore_touching_a_side_leaves_is_cut_a_hair_from_its_tip(
 /// block ends. Dropping it wants both regions parted where the line ends,
 /// along an arc across the band the boolean has no curve for.
 #[test]
-#[ignore = "band"]
 fn seed_3156716_a_bore_touching_a_side_a_hair_from_where_a_second_block_s_side_crosses_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2251,7 +2200,6 @@ fn seed_3192987_a_bar_bored_under_its_top_joined_to_a_wider_bar_touching_both() 
 /// stay two, crossing at a grazing angle within a hair of the sides the
 /// corner touches, and the kernel declines — failure 1-9, the band.
 #[test]
-#[ignore = "band"]
 fn seed_80506598_a_rounded_block_bored_a_hair_off_its_corner_then_given_a_cylinder_across() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2284,7 +2232,6 @@ fn seed_80506598_a_rounded_block_bored_a_hair_off_its_corner_then_given_a_cylind
 /// hair of the side both touch, and the kernel declines: failure 1-9, the
 /// band of two walls of one radius a few hundred tolerances apart.
 #[test]
-#[ignore = "band"]
 fn seed_80505830_a_hole_bored_again_seven_hundred_tolerances_aside_where_both_touch_a_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2312,7 +2259,6 @@ fn seed_80505830_a_hole_bored_again_seven_hundred_tolerances_aside_where_both_to
 /// over the cap. Understood and left, as for seed 80505830: the disc and
 /// the cap stay two walls crossing at a grazing angle.
 #[test]
-#[ignore = "band"]
 fn seed_80509593_a_slot_given_a_disc_five_hundred_tolerances_across_its_cap() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2345,7 +2291,6 @@ fn seed_80509593_a_slot_given_a_disc_five_hundred_tolerances_across_its_cap() {
 /// of one radius crossing at a grazing angle where both touch a side, and
 /// the kernel declines — failure 1-9, the band.
 #[test]
-#[ignore = "band"]
 fn seed_80509744_a_hole_a_hair_off_a_side_filled_by_a_post_touching_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2381,7 +2326,6 @@ fn seed_80509744_a_hole_a_hair_off_a_side_filled_by_a_post_touching_it() {
 /// merge moves what the second operand touched, and a later leaf drawn on
 /// it stands a hair off.
 #[test]
-#[ignore = "band"]
 fn seed_82512408_a_slot_given_a_disc_a_hair_off_its_cap_then_a_post_on_the_disc_s_line() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2412,7 +2356,6 @@ fn seed_82512408_a_slot_given_a_disc_a_hair_off_its_cap_then_a_post_on_the_disc_
 ///
 /// Understood and left, as for seed 82512408: failure 2-1, the band.
 #[test]
-#[ignore = "band"]
 fn seed_82508905_a_rounded_end_bored_a_hair_across_then_given_a_post_on_the_bore_s_line() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2467,7 +2410,6 @@ fn seed_28000951_a_bar_a_hair_proud_of_the_side_a_cylinder_touches_leaves_that_s
 /// beyond the band, and the top's region runs on past the corner, so no
 /// strip of either is read on its own.
 #[test]
-#[ignore = "band"]
 fn seed_1016356_a_boss_a_hair_over_a_block_it_touches_beside_a_side_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2499,7 +2441,6 @@ fn seed_1016356_a_boss_a_hair_over_a_block_it_touches_beside_a_side_stays_uncros
 /// As for seed 1016356, the boolean has to keep the corner off one of them;
 /// decision 7 keeps both, each strip part of a region read beyond the band.
 #[test]
-#[ignore = "band"]
 fn seed_1016543_a_block_resting_on_a_boss_beside_the_side_it_touches_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2628,7 +2569,6 @@ fn seed_80503332_a_disc_cut_by_a_slot_of_its_radius_a_hair_off_its_axis_stays_un
 /// along and the first's: two walls of one radius a hair apart, which the
 /// kernel is to take for one (decision 8).
 #[test]
-#[ignore = "band"]
 fn seed_80510549_a_disc_and_its_twin_a_hair_aside_crossed_by_a_bore_leave_its_cap_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(-1.0), Outline::circle([4.0, 7.0], 2.5), 6.0),
@@ -2966,13 +2906,11 @@ fn a_bore_touching_a_block_s_top_notched_half_a_tolerance_beside_the_touch() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_block_s_top_notched_two_tolerances_beside_the_touch() {
     random_solids::holds_exactly(&a_bore_touching_a_block_s_top_notched_beside_the_touch(2.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_block_s_top_notched_twenty_tolerances_beside_the_touch() {
     random_solids::holds_exactly(&a_bore_touching_a_block_s_top_notched_beside_the_touch(
         20.0,
@@ -2980,7 +2918,6 @@ fn a_bore_touching_a_block_s_top_notched_twenty_tolerances_beside_the_touch() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_block_s_top_notched_two_hundred_tolerances_beside_the_touch() {
     random_solids::holds_exactly(&a_bore_touching_a_block_s_top_notched_beside_the_touch(
         200.0,
@@ -2988,7 +2925,6 @@ fn a_bore_touching_a_block_s_top_notched_two_hundred_tolerances_beside_the_touch
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_block_s_top_notched_two_thousand_tolerances_beside_the_touch() {
     random_solids::holds_exactly(&a_bore_touching_a_block_s_top_notched_beside_the_touch(
         2000.0,
@@ -3038,13 +2974,11 @@ fn a_block_bored_twice_twenty_tolerances_apart_where_both_touch_its_side() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_bored_twice_two_hundred_tolerances_apart_where_both_touch_its_side() {
     random_solids::holds_exactly(&a_block_bored_twice_apart_where_both_touch_its_side(200.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_bored_twice_two_thousand_tolerances_apart_where_both_touch_its_side() {
     random_solids::holds_exactly(&a_block_bored_twice_apart_where_both_touch_its_side(2000.0));
 }
@@ -3084,7 +3018,6 @@ fn a_post_touching_a_bore_and_the_side_it_touches_half_a_tolerance_beside_its_li
 }
 
 #[test]
-#[ignore = "band"]
 fn a_post_touching_a_bore_and_the_side_it_touches_two_tolerances_beside_its_line() {
     random_solids::holds_exactly(
         &a_post_touching_a_bore_and_the_side_it_touches_beside_its_line(2.0),
@@ -3092,7 +3025,6 @@ fn a_post_touching_a_bore_and_the_side_it_touches_two_tolerances_beside_its_line
 }
 
 #[test]
-#[ignore = "band"]
 fn a_post_touching_a_bore_and_the_side_it_touches_twenty_tolerances_beside_its_line() {
     random_solids::holds_exactly(
         &a_post_touching_a_bore_and_the_side_it_touches_beside_its_line(20.0),
@@ -3100,7 +3032,6 @@ fn a_post_touching_a_bore_and_the_side_it_touches_twenty_tolerances_beside_its_l
 }
 
 #[test]
-#[ignore = "band"]
 fn a_post_touching_a_bore_and_the_side_it_touches_two_hundred_tolerances_beside_its_line() {
     random_solids::holds_exactly(
         &a_post_touching_a_bore_and_the_side_it_touches_beside_its_line(200.0),
@@ -3108,7 +3039,6 @@ fn a_post_touching_a_bore_and_the_side_it_touches_two_hundred_tolerances_beside_
 }
 
 #[test]
-#[ignore = "band"]
 fn a_post_touching_a_bore_and_the_side_it_touches_two_thousand_tolerances_beside_its_line() {
     random_solids::holds_exactly(
         &a_post_touching_a_bore_and_the_side_it_touches_beside_its_line(2000.0),
@@ -3253,25 +3183,21 @@ fn a_bore_touching_a_side_half_a_tolerance_beside_a_joined_block_s_side() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_side_two_tolerances_beside_a_joined_block_s_side() {
     random_solids::holds_exactly(&a_bore_touching_a_side_beside_a_joined_block_s_side(2.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_side_twenty_tolerances_beside_a_joined_block_s_side() {
     random_solids::holds_exactly(&a_bore_touching_a_side_beside_a_joined_block_s_side(20.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_side_two_hundred_tolerances_beside_a_joined_block_s_side() {
     random_solids::holds_exactly(&a_bore_touching_a_side_beside_a_joined_block_s_side(200.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_bore_touching_a_side_two_thousand_tolerances_beside_a_joined_block_s_side() {
     random_solids::holds_exactly(&a_bore_touching_a_side_beside_a_joined_block_s_side(2000.0));
 }
@@ -3309,13 +3235,11 @@ fn a_block_resting_on_a_bar_half_a_tolerance_beside_another_block_s_corner() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_resting_on_a_bar_two_tolerances_beside_another_block_s_corner() {
     random_solids::holds_exactly(&a_block_resting_on_a_bar_beside_another_block_s_corner(2.0));
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_resting_on_a_bar_twenty_tolerances_beside_another_block_s_corner() {
     random_solids::holds_exactly(&a_block_resting_on_a_bar_beside_another_block_s_corner(
         20.0,
@@ -3323,7 +3247,6 @@ fn a_block_resting_on_a_bar_twenty_tolerances_beside_another_block_s_corner() {
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_resting_on_a_bar_two_hundred_tolerances_beside_another_block_s_corner() {
     random_solids::holds_exactly(&a_block_resting_on_a_bar_beside_another_block_s_corner(
         200.0,
@@ -3331,7 +3254,6 @@ fn a_block_resting_on_a_bar_two_hundred_tolerances_beside_another_block_s_corner
 }
 
 #[test]
-#[ignore = "band"]
 fn a_block_resting_on_a_bar_two_thousand_tolerances_beside_another_block_s_corner() {
     random_solids::holds_exactly(&a_block_resting_on_a_bar_beside_another_block_s_corner(
         2000.0,

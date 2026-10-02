@@ -1,18 +1,21 @@
 //! Every registered curve cut at the corners lying on it, as their supports
 //! say, into arcs; an arc is kept when an operand's edge covers it, or when it
-//! lies in a face of each operand on two of its surfaces. An arc lies on the
-//! surfaces of its curve, and on those an edge covering it lies on over its
-//! stretch alone.
+//! lies in a face of each operand on two of its surfaces — or in faces on two
+//! surfaces decided to touch, of either operand. An arc lies on the surfaces
+//! of its curve, on those an edge covering it lies on over its stretch alone,
+//! and on those its band lays it on (decision 9).
 
 use glam::DVec3;
 
 use super::Arena;
+use super::band;
 use super::held::Held;
 use super::identified::identified;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Pool, Registered, Registry, lies_on};
 use crate::brep::curve::Curve;
+use crate::brep::domain::traced;
 use crate::brep::topology::{Body, CurveId, Edge, SurfaceId, Vertex, VertexId};
 
 pub(super) fn cut(
@@ -29,6 +32,11 @@ pub(super) fn cut(
         .zip(&corners)
         .map(|(corner, support)| placed(corner.point, support, registry, eps))
         .collect();
+    let corners = corners
+        .iter()
+        .zip(&points)
+        .map(|(support, point)| banded(operands, registry, support, *point))
+        .collect::<Result<Vec<_>, _>>()?;
     let mut edges = Vec::new();
     let mut lying = Vec::new();
     for (rank, registered) in registry.list.iter().enumerate() {
@@ -77,9 +85,14 @@ pub(super) fn cut(
                 })
                 .collect(),
         };
-        for edge in pieces {
-            if edge.from < edge.to && kept(operands, rank, registered, held, &edge)? {
-                lying.push(lies(rank, registered, held, &edge));
+        for edge in pieces.into_iter().filter(|edge| edge.from < edge.to) {
+            let mut support = lies(rank, registered, held, &edge);
+            support.extend(beside(
+                operands, registry, registered, &edge, &corners, &support,
+            )?);
+            support.sort();
+            if kept(operands, registry, rank, registered, &support, held, &edge)? {
+                lying.push(support);
                 edges.push(edge);
             }
         }
@@ -161,11 +174,16 @@ fn passes(curve: &Curve, point: DVec3, eps: f64) -> Vec<f64> {
 
 /// Whether an arc is part of an operand's edge, or lies inside or on the
 /// boundary of a face of one operand on one of its surfaces and of a face of
-/// the other on another.
+/// the other on another — or of faces of either on two surfaces decided to
+/// touch, which bound the strips of their band: where one operand alone
+/// carries both, it holds a skin or a crack there that this operation's
+/// band parts.
 fn kept(
     operands: &Operands,
+    registry: &Registry,
     rank: usize,
     registered: &Registered,
+    support: &[SurfaceId],
     held: &[Held],
     edge: &Edge,
 ) -> Result<bool, Declined> {
@@ -178,10 +196,14 @@ fn kept(
         return Ok(true);
     }
     let point = registered.curve.point(middle);
-    let support: &[SurfaceId] = &registered.support;
     for (index, &one) in support.iter().enumerate() {
         for &other in &support[index + 1..] {
-            for (first, second) in [(0, 1), (1, 0)] {
+            let pairs: &[(usize, usize)] = if registry.apart.touch(one, other) {
+                &[(0, 1), (1, 0), (0, 0), (1, 1)]
+            } else {
+                &[(0, 1), (1, 0)]
+            };
+            for &(first, second) in pairs {
                 if operands.carries(first, one)
                     && operands.carries(second, other)
                     && operands.touched(first, one, point)?
@@ -194,3 +216,74 @@ fn kept(
     }
     Ok(false)
 }
+
+/// A corner's support grown by the surfaces its band lays it on: each a
+/// surface of its own touches, within the tolerance of the corner.
+fn banded(
+    operands: &Operands,
+    registry: &Registry,
+    support: &[SurfaceId],
+    point: DVec3,
+) -> Result<Vec<SurfaceId>, Declined> {
+    let mut grown = support.to_vec();
+    for rank in 0..operands.surfaces.list.len() {
+        let other = SurfaceId(rank as u32);
+        if grown.contains(&other) || registry.apart.across(support, &[other]) {
+            continue;
+        }
+        for &own in support {
+            if band::beside(operands, registry, own, other, point)? {
+                grown.push(other);
+                break;
+            }
+        }
+    }
+    grown.sort();
+    Ok(grown)
+}
+
+/// The surfaces an arc's band lays it on besides its own: each one of its
+/// own touches, both its corners lie on, standing within the tolerance of
+/// it all along and seeing it as a curve it can carry.
+fn beside(
+    operands: &Operands,
+    registry: &Registry,
+    registered: &Registered,
+    edge: &Edge,
+    corners: &[Vec<SurfaceId>],
+    support: &[SurfaceId],
+) -> Result<Vec<SurfaceId>, Declined> {
+    let Some([from, to]) = edge.ends else {
+        return Ok(Vec::new());
+    };
+    let eps = operands.eps();
+    let curve = &registered.curve;
+    let middle = curve.point((edge.from + edge.to) / 2.0);
+    let mut found = Vec::new();
+    for &other in &corners[from.0 as usize] {
+        if support.contains(&other)
+            || !corners[to.0 as usize].contains(&other)
+            || registry.apart.across(support, &[other])
+        {
+            continue;
+        }
+        let surface = &operands.surfaces.list[other.0 as usize];
+        let along = (0..=STRETCHES).all(|step| {
+            let at = edge.from + (edge.to - edge.from) * step as f64 / STRETCHES as f64;
+            surface.distance(curve.point(at)).abs() <= eps
+        });
+        if !along || traced(curve, surface, edge.from, edge.to, eps).is_err() {
+            continue;
+        }
+        for &own in support {
+            if band::beside(operands, registry, own, other, middle)? {
+                found.push(other);
+                break;
+            }
+        }
+    }
+    Ok(found)
+}
+
+/// How many stretches an arc is measured over against a surface of its band.
+const STRETCHES: usize = 16;

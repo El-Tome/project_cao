@@ -4,6 +4,7 @@
 //! surface's arcs part it into regions, and a region is kept as a face where
 //! the operation says something different on its two sides.
 
+mod band;
 mod crossed;
 mod cut;
 mod held;
@@ -80,7 +81,8 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
-    let pool = pooled(operands, &registry, &ending, &special, &found);
+    let mut pool = pooled(operands, &registry, &ending, &special, &found);
+    band::laid_out(operands, &mut registry, &mut pool)?;
     cut::cut(operands, &registry, &pool, &held)
 }
 

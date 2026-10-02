@@ -169,12 +169,16 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// a `Body`, so that whatever computes the matter next — this kernel, another
 /// one, the same flats with their true surfaces — can change what a body is
 /// made of without the rest of the workspace noticing (#499).
+///
+/// The tests of the crates above it are read with their code: a test that
+/// builds a `Mesh` by hand holds the kernel to the shape it has today, and is
+/// the first thing a new kernel would have to break.
 const INSIDES_OF_THE_MATTER: [&str; 2] = ["Mesh", "Polygon"];
 
 /// The files outside `cao_solid` that still name one of
 /// [`INSIDES_OF_THE_MATTER`]. An equality, as [`FILES_ALLOWED_TO_REACH_OUTSIDE`]
-/// is: an entry leaves in the commit that hands the file a `Body`, and none is
-/// ever added.
+/// is. Empty since #499 handed every one of them a `Body`, and the first file
+/// to name one again fails the test.
 const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 0] = [];
 
 /// Past this, a file is holding more than one responsibility. The figure is
@@ -425,9 +429,6 @@ fn only_the_named_files_reach_for_the_disk_the_clock_or_the_environment() {
     );
 }
 
-/// The tests are read with the code: a test that builds a `Mesh` by hand holds
-/// the kernel to the shape it has today, and is the first thing a new kernel
-/// would have to break.
 #[test]
 fn the_insides_of_the_matter_stay_in_cao_solid() {
     let naming: BTreeSet<String> = CRATE_DIRECTORIES

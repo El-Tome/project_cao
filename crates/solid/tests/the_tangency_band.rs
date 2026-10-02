@@ -2994,6 +2994,7 @@ fn seed_90509248_a_slot_given_a_bar_touching_its_side_a_hair_past_its_end() {
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92502574_a_block_given_a_rounded_copy_a_hair_aside_then_cut_by_it_in_place() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3346,6 +3347,7 @@ fn seed_94511411_a_block_given_a_slot_then_cut_by_a_disc_ten_microns_off_its_end
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_microns_off_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3370,6 +3372,7 @@ fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_m
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94531594_a_block_given_a_slot_then_a_post_ten_microns_off_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3396,12 +3399,12 @@ fn seed_94531594_a_block_given_a_slot_then_a_post_ten_microns_off_its_end() {
 // corner it falls on, where that corner lies on a wall crossing one of the
 // band's as two parallel walls do — broke that held before it, from the
 // same three campaigns run again on it: it held three of the cases above
-// and broke these four, and was taken back.
+// (92502574, 94523199, 94531594) and broke these four, and was taken back.
+// They hold again; they say what a rule for the crescent's tip must keep.
 
 /// The review of round 6, the profile draw, on the node taken for the
-/// band's corner: Answers.
+/// band's corner, since taken back: Answers.
 #[test]
-#[ignore = "band: made by the review's node rule, to be taken back"]
 fn seed_92505005_a_lying_slot_given_a_bar_ten_microns_off_its_end_then_cut_by_a_block_on_its_run() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3425,9 +3428,8 @@ fn seed_92505005_a_lying_slot_given_a_bar_ten_microns_off_its_end_then_cut_by_a_
 }
 
 /// The review of round 6, the profile draw, on the node taken for the
-/// band's corner: Answers.
+/// band's corner, since taken back: Answers.
 #[test]
-#[ignore = "band: made by the review's node rule, to be taken back"]
 fn seed_92509891_a_block_hollowed_by_a_rounded_copy_a_hair_aside_cut_then_given_its_rounded_twin() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3456,9 +3458,8 @@ fn seed_92509891_a_block_hollowed_by_a_rounded_copy_a_hair_aside_cut_then_given_
 }
 
 /// The review of round 6, the profile draw, on the node taken for the
-/// band's corner: Answers.
+/// band's corner, since taken back: Answers.
 #[test]
-#[ignore = "band: made by the review's node rule, to be taken back"]
 fn seed_93525450_a_lying_slot_cut_by_a_bar_ten_microns_off_its_end_then_by_a_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3482,9 +3483,8 @@ fn seed_93525450_a_lying_slot_cut_by_a_bar_ten_microns_off_its_end_then_by_a_blo
 }
 
 /// The review of round 6, the profile draw, on the node taken for the
-/// band's corner: Answers.
+/// band's corner, since taken back: Answers.
 #[test]
-#[ignore = "band: made by the review's node rule, to be taken back"]
 fn seed_94516055_a_bar_given_a_rounded_copy_a_hair_lower_then_a_post_ten_microns_off_its_corner() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

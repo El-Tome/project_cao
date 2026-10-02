@@ -98,58 +98,12 @@ pub(super) fn laid_out(
                 };
                 let place = node.dot(direction);
                 if place >= low && place <= high && within(operands, registry, &touch, node)? {
-                    let on = [one, other, surface];
-                    match fallen_on(operands, pool, &corners, node, [one, other]) {
-                        Some(corner) => {
-                            pool.corners[corner].surfaces.extend(on);
-                            pool.corners[corner].curves.insert(*rank);
-                        }
-                        None => {
-                            pool.add(node, on, [*rank], registry);
-                        }
-                    }
+                    pool.add(node, [one, other, surface], [*rank], registry);
                 }
             }
         }
     }
     Ok(bands)
-}
-
-/// The corner of the band a node falls on, where that corner lies on a
-/// wall crossing one of the band's two as two parallel walls do: of one
-/// radius further apart than decision 8's hair, they stand within the
-/// tolerance of each other microns from where they cross, and decision 5
-/// keeps a place found there on the one apart from a corner of the other.
-/// But the band laid that corner on both its surfaces and drew through it
-/// the line the node is on: put apart, the two stood as two vertices at
-/// one place, and the edges leaving them tied (94531594).
-fn fallen_on(
-    operands: &Operands,
-    pool: &Pool,
-    corners: &[usize],
-    node: DVec3,
-    pair: [SurfaceId; 2],
-) -> Option<usize> {
-    let list = &operands.surfaces.list;
-    let crossing = |wall: SurfaceId, side: SurfaceId| {
-        let ends = [wall.min(side), wall.max(side)];
-        let [first, second] = ends.map(|surface| &list[surface.0 as usize]);
-        matches!(
-            (first, second),
-            (Surface::Cylinder(_), Surface::Cylinder(_))
-        ) && matches!(
-            relation(first, second, operands.scale_of(ends)),
-            Relation::Lines(_)
-        )
-    };
-    corners.iter().copied().find(|&corner| {
-        let known = &pool.corners[corner];
-        known.point.distance(node) <= operands.eps()
-            && known.surfaces.iter().any(|&wall| {
-                pair.iter()
-                    .any(|&side| wall != side && crossing(wall, side))
-            })
-    })
 }
 
 /// Every pair decided to touch whose line of touch was registered, its

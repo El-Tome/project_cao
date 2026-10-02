@@ -272,3 +272,20 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   some 113 000 profiles the failures go from 187 before round 6 to 112 at
   its head and 107 after the review, none made by the review; the
   crescent's tip under a plane is what is left of what round 6 made.
+- Round 6 merged at 05:40, after the cases were gathered first: 197 cases of
+  the band in `crates/solid/tests/the_tangency_band.rs` — every campaign-6
+  seed of it, every band finding left ignored, five findings round 4's
+  switch had broken, and nine shapes built at hairs from half a tolerance to
+  two thousand — committed with the failing ones ignored before a line of the
+  rule. Then decision 9: the band of two surfaces decided to touch is laid
+  out once, the same on both — its corners, a line through each along the
+  touch, the corners where a surface crosses those lines — so every strip of
+  it is bounded by arcs both surfaces carry and decision 6 takes the twins as
+  one. What round 4's switch lacked was the line through each corner. 132 of
+  the 197 hold. On campaigns of a quarter of an hour on the same seeds, the
+  square draw went from 18 failures to 9, none made; the profile draw from
+  187 to 107 (1.65 to 0.95 per thousand), 93 fixed and 13 made. The review
+  tried one more rule, a node of the band taken for the corner it falls on,
+  saw it break more than it held, and took it back with the cases that say
+  so.
+- Campaigns 7a and 7b started at 05:45 on the kernel after round 6.

@@ -267,7 +267,10 @@ fn nearest(line: Line, surface: &Surface, place: DVec3, operands: &Operands) -> 
 
 /// Whether a place on `own` lies on `other` too, as a band laid out lays
 /// it: the two its surfaces, the place along its stretch, within the
-/// tolerance of `other` and on a face of it.
+/// tolerance of `other`, and on a face of each, as a corner of the band
+/// is: across the gap between two operands' faces on a plane, a piece of
+/// its line laid on the walls touching it either side would pass the
+/// corner where the walls meet without being cut there (92530408).
 pub(super) fn beside(
     operands: &Operands,
     registry: &Registry,
@@ -285,7 +288,7 @@ pub(super) fn beside(
     if !laid || !registry.apart.near(other, point, operands.eps()) {
         return Ok(false);
     }
-    faced(operands, other, point)
+    Ok(faced(operands, other, point)? && faced(operands, own, point)?)
 }
 
 /// Whether faces of both operands meet at a place, on surfaces of its

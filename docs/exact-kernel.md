@@ -299,10 +299,14 @@ The decisions, in the order taken, once per operation:
      where it stands — puts a corner on both surfaces and on itself
      wherever it crosses one of the band's lines, between the band's
      farthest corners along it;
-   - along that stretch, a corner within `EPS` of the other surface and on
-     a face of it lies on it too, and so does an arc whose two corners do,
-     standing within `EPS` of it all along and seen by it as a curve it
-     can carry;
+   - along that stretch, a corner within `EPS` of the other surface, where
+     faces of both surfaces stand, lies on it too, and so does an arc whose
+     two corners do, standing within `EPS` of it all along, seen by it as
+     a curve it can carry, and where faces of both stand at its middle —
+     a slot cut by a second starting a hair past its end leaves the plane
+     of their runs with no face between them, and the run's line laid
+     across that gap onto the two ends' walls passed the corner where
+     those walls cross without being cut there (92530408);
    - an arc on two surfaces decided to touch is kept between faces of
      either operand: where one operand alone carries both, it holds a skin
      or a crack there — the cusp a bore leaves under a top it touches

@@ -3087,7 +3087,6 @@ fn seed_92510427_a_disc_cut_by_its_twin_a_fifth_of_a_micron_aside_then_given_a_b
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92513136_a_rounded_block_given_a_slot_whose_end_stands_ten_microns_off_its_corner() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3156,7 +3155,6 @@ fn seed_92524625_a_rounded_block_cut_by_a_disc_ten_microns_off_its_corner_then_g
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92530408_a_slot_cut_by_a_slot_starting_ten_microns_past_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3736,7 +3734,6 @@ fn two_slots_whose_ends_touch_on_the_plane_of_their_runs(hair: f64, add: bool) -
 }
 
 #[test]
-#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
 fn two_slots_whose_ends_touch_three_tolerances_apart_joined() {
     random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
         3.0, true,
@@ -3744,7 +3741,6 @@ fn two_slots_whose_ends_touch_three_tolerances_apart_joined() {
 }
 
 #[test]
-#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
 fn two_slots_whose_ends_touch_thirty_tolerances_apart_joined() {
     random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
         30.0, true,
@@ -3752,7 +3748,6 @@ fn two_slots_whose_ends_touch_thirty_tolerances_apart_joined() {
 }
 
 #[test]
-#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
 fn two_slots_whose_ends_touch_three_hundred_tolerances_apart_joined() {
     random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
         300.0, true,
@@ -3760,7 +3755,6 @@ fn two_slots_whose_ends_touch_three_hundred_tolerances_apart_joined() {
 }
 
 #[test]
-#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
 fn two_slots_whose_ends_touch_three_thousand_tolerances_apart_joined() {
     random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
         3000.0, true,
@@ -3768,7 +3762,6 @@ fn two_slots_whose_ends_touch_three_thousand_tolerances_apart_joined() {
 }
 
 #[test]
-#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
 fn two_slots_whose_ends_touch_thirty_tolerances_apart_cut() {
     random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
         30.0, false,

@@ -2843,7 +2843,10 @@ fn seed_4159169_a_circle_printed_on_a_crescent_where_its_walls_cross_stays_uncro
 /// over a stretch by the stock's rim, taken for its own; the listing's
 /// check read that circle as a cross-section of the wall, though it turns
 /// about the stock's axis, the other way round, and found the face
-/// backwards.
+/// backwards. Since a band a third surface grazes is left as it was
+/// (90016363), no band is laid there and the face no longer comes; how the
+/// listing reads such a rim is held by `soundness::listed`'s test of a wall
+/// bounded over a hair by the rim of a wall touching it outside.
 #[test]
 fn seed_90005701_a_wall_dipping_into_a_stock_and_the_bore_touching_it_is_listed_its_own_way() {
     random_solids::holds_exactly(&Case::new(

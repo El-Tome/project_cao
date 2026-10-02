@@ -5,14 +5,8 @@ use glam::DVec2;
 use super::*;
 use crate::sweep::{Loop, prism};
 
-/// The volume a closed surface encloses, from the signed volumes of the
-/// tetrahedra its triangles make with the origin. Negative means the
-/// surface is inside out, which is a bug worth catching.
 pub(crate) fn volume(mesh: &Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+    mesh.volume()
 }
 
 pub(crate) fn square(size: f64) -> Vec<DVec2> {

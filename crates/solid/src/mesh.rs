@@ -124,15 +124,15 @@ impl Mesh {
     /// This is what lets a sketch be started on the part itself rather than
     /// only on the three planes of the origin: the face under the cursor is
     /// found the same way the cursor finds anything else in the view.
-    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
-        let mut nearest: Option<FaceHit> = None;
+    pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<PieceHit> {
+        let mut nearest: Option<PieceHit> = None;
         for polygon in &self.polygons {
             for triangle in polygon.triangles() {
                 let Some(distance) = ray_triangle(origin, direction, triangle) else {
                     continue;
                 };
                 if nearest.as_ref().is_none_or(|best| distance < best.distance) {
-                    nearest = Some(FaceHit {
+                    nearest = Some(PieceHit {
                         distance,
                         polygon: polygon.clone(),
                     });
@@ -235,6 +235,16 @@ impl Mesh {
         pieces.all(|normal| normal.dot(first) > 0.9999)
     }
 
+    /// The volume the surface encloses, from the signed volumes of the
+    /// tetrahedra its triangles make with the origin. Negative means the
+    /// surface is inside out, which is a bug worth catching.
+    pub fn volume(&self) -> f64 {
+        self.triangles()
+            .iter()
+            .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
+            .sum()
+    }
+
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         let first = *self.polygons.first()?.corners.first()?;
         Some(
@@ -269,9 +279,9 @@ fn share_an_edge(left: &Polygon, right: &Polygon) -> bool {
     touching >= 2
 }
 
-/// A face of the part, and how far along the ray it was met.
+/// The piece of a face a ray met, and how far along the ray.
 #[derive(Clone, Debug)]
-pub struct FaceHit {
+pub struct PieceHit {
     pub distance: f64,
     pub polygon: Polygon,
 }

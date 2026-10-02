@@ -136,6 +136,7 @@ What it does: [`sketch.md`](sketch.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
+| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `triangles`, `ray_hit` → `FaceHit`, `pieces_of`, `plane_of` → `FacePlane`, `volume` |
 | Mesh, faces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
 | Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)` |
 | Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)` |

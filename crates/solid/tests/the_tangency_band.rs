@@ -2986,6 +2986,242 @@ fn seed_90509248_a_slot_given_a_bar_touching_its_side_a_hair_past_its_end() {
     ));
 }
 
+// What the review of round 6 found the rule breaking that held before it:
+// a 900-second campaign of the profile draw from seed 92 500 000, run side
+// by side with the kernel before round 6, shrunk. Every one is two walls of
+// one radius further apart than decision 8's hair, a plane touching both:
+// a rounded corner, a slot's end or a disc and its twin a hair aside.
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92502574_a_block_given_a_rounded_copy_a_hair_aside_then_cut_by_it_in_place() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(210.0),
+            Outline::rectangle([60.0, 30.0], [105.0, 150.0]),
+            105.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::rounded([59.99999, 30.0], [104.99999, 150.0], 15.0),
+                105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::rounded([60.0, 30.0], [105.0, 150.0], 15.0),
+                210.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92502982_a_disc_cut_by_its_twin_ten_microns_aside_then_given_a_block_touching_both() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([7.0, 10.0], 5.5), 9.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([6.99999, 10.0], 5.5),
+                17.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::rectangle([-3.0, 4.5], [12.5, 15.5]),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Uncrossed.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92503994_a_block_cut_by_a_rounded_rectangle_then_given_a_post_ten_microns_off_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(180.0),
+            Outline::rectangle([285.0, 0.0], [405.0, 135.0]),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(180.0),
+                Outline::rounded([307.5, 22.5], [382.5, 112.5], 22.5),
+                180.0000003,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(180.0),
+                Outline::circle([330.0, 44.99999], 22.5),
+                300.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92510427_a_disc_cut_by_its_twin_a_fifth_of_a_micron_aside_then_given_a_block_touching_both()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(1.0), Outline::circle([3.0, 4.0], 1.0), 3.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(2.0),
+                Outline::circle([3.0000002, 4.0], 1.0),
+                3.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(1.0),
+                Outline::rectangle([2.0, 3.0], [9.0, 9.0]),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92513136_a_rounded_block_given_a_slot_whose_end_stands_ten_microns_off_its_corner() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(25.0),
+            Outline::rounded([35.0, 0.0], [67.0, 13.0], 5.0),
+            75.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(30.0),
+            Outline::slot([39.99999, 5.0], [14.999989999999997, 5.0], 5.0),
+            75.0,
+        ))],
+    ));
+}
+
+/// The review of round 6, the profile draw: Uncrossed.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92519519_a_rounded_block_given_a_post_on_its_corner_then_cut_by_its_twin_ten_microns_aside()
+{
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-5.0),
+            Outline::rounded([10.0, 40.0], [25.0, 70.0], 5.0),
+            40.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::circle([15.0, 45.0], 5.0),
+                40.000001,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-5.0),
+                Outline::rounded([9.99999, 40.00000005], [19.99999, 70.00000005], 5.0),
+                40.000001999999995,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92524625_a_rounded_block_cut_by_a_disc_ten_microns_off_its_corner_then_given_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(4.0),
+            Outline::rounded([7.0, 2.5], [13.0, 6.0], 1.75),
+            10.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(4.0),
+                Outline::circle([8.75, 4.24999], 1.75),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([7.0, 3.0], [8.0, 5.0]),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92530408_a_slot_cut_by_a_slot_starting_ten_microns_past_its_end() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::slot([10.0, 2.0], [14.5, 2.0], 1.0),
+            10.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(6.0),
+            Outline::slot([14.50001, 2.0], [17.50001, 2.0], 1.0),
+            19.0,
+        ))],
+    ));
+}
+
+/// The review of round 6, the profile draw: Uncrossed.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92533762_a_slot_cut_by_a_disc_ten_microns_off_its_end_then_given_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::slot([3.0, 4.0], [4.5, 4.0], 2.0),
+            6.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([4.5, 3.99999], 2.0),
+                11.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::rectangle([3.5, 2.5], [6.5, 5.5]),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// The review of round 6, the profile draw: Answers.
+#[test]
+#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+fn seed_92537758_a_rounded_block_cut_by_a_disc_ten_microns_off_its_corner_then_by_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::rounded([4.0, 5.0], [9.5, 10.5], 2.75),
+            6.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([6.75, 7.74999], 2.75),
+                12.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(7.0),
+                Outline::rectangle([4.0, 6.0], [11.0, 10.0]),
+                -3.0,
+            )),
+        ],
+    ));
+}
+
 // Each shape of the band, built.
 
 /// The kernel's tolerance on every case built here: each reaches ten.
@@ -3470,4 +3706,85 @@ fn a_pin_touching_a_disc_s_cap_along_a_ruling_two_thousand_tolerances_inside_its
     random_solids::holds_exactly(
         &a_pin_touching_a_disc_s_cap_along_a_ruling_grazing_its_wall(2000.0),
     );
+}
+
+/// A slot along X from (2, 2) to (6, 2), and a second a unit higher from
+/// (6 + `hair` tolerances, 4) to (9, 4), both of radius one: the first's
+/// top run and the second's bottom run lie on one plane y = 3, which the
+/// first's end touches along x = 6 and the second's a hair further, and the
+/// two ends touch each other between them, either side of the plane: a
+/// plane and two walls touching one another along three lines a hair
+/// apart (2-1), found by the review of round 6.
+fn two_slots_whose_ends_touch_on_the_plane_of_their_runs(hair: f64, add: bool) -> Case {
+    let second = Leaf::prism(
+        Plane::xy(1.0),
+        Outline::slot([6.0 + hair * TOLERANCE, 4.0], [9.0, 4.0], 1.0),
+        3.0,
+    );
+    Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::slot([2.0, 2.0], [6.0, 2.0], 1.0),
+            3.0,
+        ),
+        vec![if add {
+            Step::add(second)
+        } else {
+            Step::cut(second)
+        }],
+    )
+}
+
+#[test]
+#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
+fn two_slots_whose_ends_touch_three_tolerances_apart_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        3.0, true,
+    ));
+}
+
+#[test]
+#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
+fn two_slots_whose_ends_touch_thirty_tolerances_apart_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        30.0, true,
+    ));
+}
+
+#[test]
+#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
+fn two_slots_whose_ends_touch_three_hundred_tolerances_apart_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        300.0, true,
+    ));
+}
+
+#[test]
+#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
+fn two_slots_whose_ends_touch_three_thousand_tolerances_apart_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        3000.0, true,
+    ));
+}
+
+#[test]
+#[ignore = "band: made by decision 9, a plane and two walls touching along three lines a hair apart (2-1)"]
+fn two_slots_whose_ends_touch_thirty_tolerances_apart_cut() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        30.0, false,
+    ));
+}
+
+#[test]
+fn two_slots_whose_ends_touch_thirty_tolerances_overlapping_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        -30.0, true,
+    ));
+}
+
+#[test]
+fn two_slots_whose_ends_touch_fifteen_thousand_tolerances_apart_joined() {
+    random_solids::holds_exactly(&two_slots_whose_ends_touch_on_the_plane_of_their_runs(
+        15000.0, true,
+    ));
 }

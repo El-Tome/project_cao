@@ -442,3 +442,27 @@ Answers, 32 Uncrossed, 3 Closed, 1 Volume — 6.1 per thousand. Every one of
 those breaking a rule on triangles also breaks it on the code before the
 round. Neither window drew a ring starting on a ray nor a rim within the
 kernel's tolerance of a wall.
+
+## Campaign 6
+
+An hour on each draw, on the kernel after round 5: the square draw from seed
+6 000 000, 282 219 cases and 90 failures (0.32 per thousand); the profile
+draw from 6 500 000, 174 256 cases and 310 failures (1.78 per thousand). A
+sample of 44 and one of 58 were shrunk and sorted. **Nine failures in ten
+are now the tangency band**, on both draws: a plane and one or two
+cylinders, or two cylinders of one radius further apart than decision 8's
+hair, standing within the tolerance of one another along one band, each pair
+decided apart. What is new is small: the parallel form of 4-5 (two walls
+decided to touch, their line of touch on a plane crossing both square), a
+touch held to a rounding, a ruling crossing exactly a line of inside touch,
+decision 8's move seen by the rule that bounds the box, and the listing's
+check reading an arc merged exactly at the tolerance.
+
+| family | square draw | profile draw | owner |
+| --- | --- | --- | --- |
+| 1-2 a plane tangent to a cylinder a hair from a line crossing it | 43 % | 23 % | kernel |
+| 1-9 two walls of one radius beyond decision 8's hair, with a third surface | 10 % | 32 % | kernel |
+| 2-1 a plane and two cylinders touching along three lines a hair apart | 13 % | 23 % | kernel |
+| 3-2 a plane tangent to one of two perpendicular cylinders along a ruling crossing the other | 10 % | 7 % | kernel |
+| other band forms (4-1 and 4-5 one-sided, 1-6 in a crescent, 1-12 on a touch line) | 14 % | 8 % | kernel |
+| outside the band (1-8, 5-1, the harness's three, the triangles' few) | 9 % | 8 % | kernel, harness, triangles |

@@ -242,3 +242,10 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   decision 8 holding over an hour what five minutes had shown. Still no
   Spans on either: in six campaigns and some 1.6 million cases, the exact
   body has never been found wrong along a line.
+- Campaign 6's samples sorted: nine failures in ten on both draws are the
+  tangency band. Round 6 takes it as the heuristic this repository learned
+  the hard way asks: every case of the band gathered as a test first, from
+  every campaign and every finding left ignored, and only then the rule —
+  the band's lines and corners laid on every surface of it, the change
+  round 4 tried behind a switch and set aside for breaking seven findings
+  it had not gathered.

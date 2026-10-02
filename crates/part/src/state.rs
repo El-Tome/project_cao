@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::ops::Range;
 
 use cao_sketch::{LengthOutcome, Sketch, Support};
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
@@ -61,7 +61,7 @@ pub struct PartState {
     /// The matter of the part, as one surface. Extrusions add to it or take
     /// from it; there is a single body rather than a pile of separate lumps,
     /// so that a pocket cut in a block really is a hole in the block.
-    pub body: Mesh,
+    pub body: Body,
     /// The numbers of the faces each step of matter made, in the order the
     /// steps replay. Kept with the body it numbers, in the cache as well.
     #[serde(default)]

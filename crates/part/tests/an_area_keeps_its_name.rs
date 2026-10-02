@@ -38,14 +38,11 @@ use cao_part::{History, PartState};
 use cao_sketch::{
     Chamfer, Corner, DimensionTarget, Element, PointId, SegmentId, SketchAxis, WorkPlane,
 };
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::DVec2;
 
-fn volume(mesh: &Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+fn volume(body: &Body) -> f64 {
+    body.volume()
 }
 
 /// A drawing holding one rectangle, ten across and twenty up from the origin.

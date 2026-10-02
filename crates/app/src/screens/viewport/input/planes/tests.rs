@@ -37,7 +37,7 @@ fn facing(normal: DVec3) -> DVec3 {
 
 /// A disc pushed along its own normal: flat ends, and a wall of many flats
 /// that is one curved face.
-fn cylinder(radius: f64, height: f64) -> Mesh {
+fn cylinder(radius: f64, height: f64) -> Body {
     let points: Vec<DVec2> = (0..48)
         .map(|step| {
             let angle = std::f64::consts::TAU * step as f64 / 48.0;
@@ -48,7 +48,7 @@ fn cylinder(radius: f64, height: f64) -> Mesh {
     let triangles: Vec<[DVec2; 3]> = (1..points.len() - 1)
         .map(|index| [points[0], points[index], points[index + 1]])
         .collect();
-    cao_solid::prism(
+    Body::prism(
         cao_solid::Loop {
             points: &points,
             curves: &curves,
@@ -61,7 +61,7 @@ fn cylinder(radius: f64, height: f64) -> Mesh {
 }
 
 /// A block, whose top is one flat face stored as two triangles.
-fn block(width: f64, depth: f64, height: f64) -> Mesh {
+fn block(width: f64, depth: f64, height: f64) -> Body {
     let points = vec![
         DVec2::ZERO,
         DVec2::new(width, 0.0),
@@ -72,7 +72,7 @@ fn block(width: f64, depth: f64, height: f64) -> Mesh {
         [points[0], points[1], points[2]],
         [points[0], points[2], points[3]],
     ];
-    cao_solid::prism(
+    Body::prism(
         cao_solid::Loop::straight(&points),
         &[],
         &triangles,
@@ -126,10 +126,7 @@ fn a_drawing_is_read_from_a_corner_of_the_whole_face() {
         panic!("a flat end offers its plane, not {offered:?}");
     };
 
-    let corners: Vec<DVec3> = body
-        .pieces_of(face)
-        .flat_map(|piece| piece.corners.iter().copied())
-        .collect();
+    let corners: Vec<DVec3> = body.plane_of(face).expect("the top is a face").corners;
     assert!(
         corners
             .iter()

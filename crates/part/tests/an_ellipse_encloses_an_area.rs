@@ -12,14 +12,11 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartState};
 use cao_sketch::{Area, WorkPlane};
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::DVec2;
 
-fn volume(mesh: &Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+fn volume(body: &Body) -> f64 {
+    body.volume()
 }
 
 /// A sketch holding one ellipse about (50, 20), sixty wide and forty high,
@@ -71,7 +68,9 @@ fn an_ellipse_raised_holds_the_volume_the_curve_encloses() {
 fn an_ellipse_extrudes_with_one_face_for_its_wall() {
     let state = a_raised_ellipse(5.0);
 
-    let mut faces: Vec<usize> = state.body.polygons.iter().map(|it| it.face).collect();
+    let mut faces: Vec<usize> = (0..state.body.faces_end())
+        .filter(|face| state.body.pieces_of(*face).next().is_some())
+        .collect();
     faces.sort_unstable();
     faces.dedup();
     assert_eq!(

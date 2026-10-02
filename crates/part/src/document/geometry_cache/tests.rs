@@ -280,8 +280,8 @@ fn a_cache_written_before_the_body_opens_on_its_matter_and_is_written_back_uncha
 }
 
 /// Every corner of the matter, in the order the faces give them.
-fn corners(mesh: &cao_solid::Mesh) -> Vec<glam::DVec3> {
-    mesh.triangles().iter().flatten().copied().collect()
+fn corners(body: &cao_solid::Body) -> Vec<glam::DVec3> {
+    body.triangles().iter().flatten().copied().collect()
 }
 
 fn a_part_of_every_kind_of_drawing() -> PartDocument {

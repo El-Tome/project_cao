@@ -55,11 +55,8 @@ fn a_history_with_nothing_undone_compacts_to_itself_in_shape() {
     );
 }
 
-fn volume(mesh: &cao_solid::Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+fn volume(body: &cao_solid::Body) -> f64 {
+    body.volume()
 }
 
 fn dragged_dimensioned_and_extruded() -> History {

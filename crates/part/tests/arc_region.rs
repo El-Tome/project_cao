@@ -13,11 +13,8 @@ fn clicked(history: &History, sketch: usize, place: DVec2) -> Vec<Area> {
     PartState::rebuild(history).areas_at(sketch, &[place])
 }
 
-fn volume(mesh: &cao_solid::Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+fn volume(body: &cao_solid::Body) -> f64 {
+    body.volume()
 }
 
 #[test]

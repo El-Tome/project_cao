@@ -150,19 +150,14 @@ fn operation(document: &PartDocument, gesture: &Move) -> Option<Operation> {
                 .filter(|face| body.is_flat(*face))
                 .collect();
             let face = *flat.get(rank % flat.len().max(1))?;
-            let pieces: Vec<_> = body.pieces_of(face).collect();
-            let normal = pieces[0].normal();
-            let up = if normal.z.abs() > 0.9 {
+            let plane = body.plane_of(face)?;
+            let up = if plane.normal.z.abs() > 0.9 {
                 DVec3::Y
             } else {
                 DVec3::Z
             };
-            let corners: Vec<DVec3> = pieces
-                .iter()
-                .flat_map(|piece| piece.corners.clone())
-                .collect();
             Some(Operation::CreateSketch {
-                plane: WorkPlane::from_face(&corners, normal, up),
+                plane: WorkPlane::from_face(&plane.corners, plane.normal, up),
                 on: Some(FaceAnchor { face, up }),
             })
         }

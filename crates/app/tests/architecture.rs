@@ -175,23 +175,7 @@ const INSIDES_OF_THE_MATTER: [&str; 2] = ["Mesh", "Polygon"];
 /// [`INSIDES_OF_THE_MATTER`]. An equality, as [`FILES_ALLOWED_TO_REACH_OUTSIDE`]
 /// is: an entry leaves in the commit that hands the file a `Body`, and none is
 /// ever added.
-const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 15] = [
-    "crates/app/src/screens/viewport/input/planes.rs",
-    "crates/app/src/screens/viewport/input/planes/tests.rs",
-    "crates/app/src/screens/viewport/matter.rs",
-    "crates/app/src/screens/viewport/matter/tests.rs",
-    "crates/part/src/compaction/tests.rs",
-    "crates/part/src/document.rs",
-    "crates/part/src/document/geometry_cache/tests.rs",
-    "crates/part/src/extrusion.rs",
-    "crates/part/src/state.rs",
-    "crates/part/tests/a_size_follows_its_variable.rs",
-    "crates/part/tests/a_step_is_replayed_whole.rs",
-    "crates/part/tests/an_area_keeps_its_name.rs",
-    "crates/part/tests/an_ellipse_encloses_an_area.rs",
-    "crates/part/tests/arc_region.rs",
-    "crates/part/tests/extruding.rs",
-];
+const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 0] = [];
 
 /// Past this, a file is holding more than one responsibility. The figure is
 /// arbitrary; what is not is that every file above it can be named.

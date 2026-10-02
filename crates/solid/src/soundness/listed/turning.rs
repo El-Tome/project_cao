@@ -21,7 +21,7 @@ use glam::DVec3;
 
 use super::Mislisted;
 use super::lying::point;
-use crate::brep::{Curve, Cylinder, ListedEdge, Listing, Surface};
+use crate::brep::{Circle, Curve, Cylinder, ListedEdge, Listing, Surface};
 
 /// How many chords a curve with no short formula is swept along.
 const CHORDS: usize = 64;
@@ -57,7 +57,8 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
                 let (area, turns) = uses
                     .iter()
                     .map(|&(edge, forward)| {
-                        let (area, angle) = sweep(&listed.surface, &listing.edges[edge], about);
+                        let (area, angle) =
+                            sweep(&listed.surface, &listing.edges[edge], about, room);
                         if forward {
                             (area, angle)
                         } else {
@@ -174,7 +175,7 @@ fn is_slit(uses: &[(usize, bool)]) -> bool {
 /// circle. On a cylinder it is what the edge sweeps under it, down to the
 /// height of `about`, as the angle turns: nothing for a ruling, which turns
 /// no angle.
-fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3) -> (f64, f64) {
+fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64, f64) {
     match (surface, edge.curve) {
         (Surface::Plane(plane), Curve::Line(_)) => {
             let [from, to] = [edge.from, edge.to].map(|at| point(&edge.curve, at) - about);
@@ -194,7 +195,9 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3) -> (f64, f64) {
             (from.dot(plane.u), from.dot(plane.v))
         }),
         (Surface::Cylinder(_), Curve::Line(_)) => (0.0, 0.0),
-        (Surface::Cylinder(cylinder), Curve::Circle(circle)) => {
+        (Surface::Cylinder(cylinder), Curve::Circle(circle))
+            if section(cylinder, &circle, room) =>
+        {
             let axis = cylinder.axis.normalize();
             let height = (circle.center - about).dot(axis);
             let angle = (edge.to - edge.from) * axis.dot(circle.u.cross(circle.v)).signum();
@@ -203,6 +206,21 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3) -> (f64, f64) {
         (Surface::Cylinder(cylinder), _) => around(cylinder, edge, about),
     }
 }
+
+/// Whether a circle is a cross-section of a cylinder, its angle the
+/// cylinder's own: square to the axis, about a place of it within `room`.
+/// A circle about another axis lies on the cylinder only over a stretch a
+/// hair long, an arc of the cylinder's taken for it — the rim of a wall all
+/// but touching this one, whose angle may run the other way round.
+fn section(cylinder: &Cylinder, circle: &Circle, room: f64) -> bool {
+    let axis = cylinder.axis.normalize();
+    let from = circle.center - cylinder.origin;
+    axis.cross(circle.axis).length() <= SQUARE && (from - axis * from.dot(axis)).length() <= room
+}
+
+/// How far from square to the axis, in the sine of the angle between the
+/// two axes, a circle may stand and still be a cross-section.
+const SQUARE: f64 = 1e-9;
 
 /// What a curve sweeps on a plane, along chords in the plane's parameters.
 fn chords(edge: &ListedEdge, flat: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {

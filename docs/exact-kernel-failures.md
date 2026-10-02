@@ -47,7 +47,8 @@ Round 1 is how the lanes fixing the kernel and its triangles stood when
 merged, at 23:57 on 30 September: the 138 shrunk seeds were run again, and
 107 held. What each fix was is in the named tests of
 `crates/solid/tests/what_the_exact_campaigns_found_in_the_kernel.rs` and
-`..._in_the_triangles.rs`.
+`..._in_the_triangles.rs`; since round 6, every case of the tangency band is
+in `crates/solid/tests/the_tangency_band.rs` instead.
 
 Three families stand out. Near-tangent pairs with a third surface near them
 (1-2, 1-9) are one pattern: a tangency decided once as a line, then measured
@@ -466,3 +467,201 @@ check reading an arc merged exactly at the tolerance.
 | 3-2 a plane tangent to one of two perpendicular cylinders along a ruling crossing the other | 10 % | 7 % | kernel |
 | other band forms (4-1 and 4-5 one-sided, 1-6 in a crescent, 1-12 on a touch line) | 14 % | 8 % | kernel |
 | outside the band (1-8, 5-1, the harness's three, the triangles' few) | 9 % | 8 % | kernel, harness, triangles |
+
+## Round 6: the band laid out
+
+The lane of 2 October, on the kernel after round 5, in two steps: the cases
+first, then the rule.
+
+**The corpus.** `the_tangency_band.rs` gathers every case of the band
+known: the 83 band seeds of campaign 6's two samples, shrunk, by family;
+the band's findings the two findings files kept ignored, moved there; the
+five findings that hold near the band and that round 4's switch — the
+band's lines and corners laid on every surface of it — broke when run on
+the kernel after round 5 (3150523, 3192987, 28000951, 3157560, 3175702);
+seven findings of two walls of one radius a hair off one axis, still
+ignored though decision 8 had made them hold; and nine shapes of the band
+built at hairs of half a tolerance, two, twenty, two hundred and two
+thousand. Of its 157 cases, 36 held before the rule.
+
+**The rule** is decision 9 of [`exact-kernel.md`](exact-kernel.md): the
+band of two surfaces decided to touch laid out once, the same on both —
+its corners on both surfaces, a line through each along the line of touch,
+and a corner wherever a surface square to the band crosses one of its
+lines — so that every strip is parted where the others are and decision 6
+decides the twins. Round 4's switch did half of it, laying corners and arcs
+found within the tolerance; on the kernel after round 5 it made 33 of the
+corpus hold and broke the five findings. What was missing was the line
+through a corner of the band: a corner laid on both surfaces with no line
+to close the strip beside it gave both faces the same triangle, which is
+what broke 3175702. With the lines, the five hold. Three things were
+learned on the way, each a guard with its case: the band is laid only where
+faces of both surfaces stand (90509248), only where faces of both operands
+meet it off the line of touch (90504120), and not where a third surface
+lying along the band touches neither of its surfaces (90016363). The
+listing's check was found reading a circle about another axis as a
+cross-section of the wall it bounds a face of (90005701), which the
+harness now sweeps along chords.
+
+| | the corpus | square draw, 300 s from 90 000 000 | profile draw, 300 s from 90 500 000 |
+| --- | --- | --- | --- |
+| before | 36 of 157 hold | 22 381 cases, 4 failures: Answers 2, Uncrossed 2 | 13 894 cases, 31 failures: Answers 16, Uncrossed 12, Volume 2, Closed 1 |
+| after | 113 of 163 hold | 22 292 cases, 1 failure: Uncrossed 1 | 13 522 cases, 15 failures: Answers 8, Uncrossed 4, Volume 2, Closed 1 |
+
+The campaigns ran side by side on the same machine. Over the seeds both
+reached, the square draw falls from 3 failures to 1 and the profile draw
+from 30 to 15, none made: 0.18 per thousand to 0.04, and 2.2 to 1.1. The
+six cases the corpus grew by are what the first campaigns on the rule found
+it breaking; four hold since the guards, and the other two, shrunk from
+seeds that hold now, fail before round 6 too.
+
+What the rule leaves of the corpus, each case ignored with its reason:
+
+- **3-2, a plane a hair inside a wall** (6136557, 6199123, 6072532,
+  6143816, 6550239). The plane cuts the wall along two lines a hair apart;
+  the pair is not decided to touch, and decision 9 lays out only bands of
+  pairs that are.
+- **3-2, a ruling of touch crossing a square wall where it grazes it**
+  (6153255, 6611564, the pin at half a tolerance). The band is laid, but the
+  only surface crossing it there is the square wall, nearly along the line
+  of touch where it grazes it, and a line of the band crosses it a hair
+  either side: no surface parts the band across, and its strips stay open.
+- **3-2, a circle kept for an arc of the meet** (6185693, 6123681, the pin
+  at twenty, two hundred and two thousand tolerances). Decision 6 keeps the
+  rim's circle for an arc the curve two perpendicular walls meet along runs
+  within the tolerance of; the other wall sees that circle only as a
+  chord, and the chord stands further off than the tolerance. Not the
+  band's: the circle is to be traced on that wall with the meet's own trace.
+- **1-9, two walls of one radius crossing at a grazing angle** (6517915,
+  6546656, 6587058, 6598801, 6650833, 6657327, 6074790, 6563127, 6621877,
+  6637572, 6500611, 4165661, 80510549). Further apart than decision 8's
+  hair, the walls cross along two rulings and are not decided to touch: no
+  band of theirs is laid out. Where a plane touches both, its two bands
+  carry the crossing line, and ten of the family hold so.
+- **2-1, three lines of touch in one band** (6086149, 6576153, 6529277),
+  not traced since the rule; and 6155665, whose bore dips a hair into both
+  the wall and the plane resting on it, a band the guard of 90016363 leaves
+  as it was.
+- **1-2, a plane touching a wall a hair from a line crossing it** (6168409,
+  6504965, 6509947, 6643772, 6638088, 80507291), not traced since the rule:
+  eighteen of campaign 6's 23 seeds of the family hold, and every shape of
+  it built.
+- **4-5, two walls touching on a plane through both axes** (6063426,
+  6122353): the plane's lines with the two walls and the line of touch are
+  one line, computed apart.
+- **1-6** (6091545), **4-1** (6080810, 6074582, 6528115, 6521564) and
+  **1-12** (6128869): a crescent under a later leaf's tolerance, a wall
+  touching two parallel planes from one side, two curves touching to the
+  fourth order — campaign 6's diagnoses stand; none is a band's layout.
+- **The triangles'** (6513598, 6518903, 6628386, 3202168): a step withheld
+  where a wall faces another over part of its height.
+- **Shrunk from seeds the first rule broke** (90501389, 90504257): the
+  seeds hold now; shrunk, they fail on the kernel before round 6 too.
+
+Each guard of decision 9 was taken out in turn and the tests run. Four
+fail named cases without them: the band laid only on faces of both its
+surfaces (90509248), only where faces of both operands meet
+(90504120), not where a third surface grazes it (90016363), and arcs kept
+between faces of one operand on two surfaces decided to touch (eleven
+cases, 3192987 and 3130833 among them). Four others changed nothing on the
+corpus, on a scan of a bar ending a hair either side of a slot's run, or on
+300-second campaigns of both draws run without each: a surface parting the
+band across only where it stands square enough to the line of touch,
+found with 90509248 before the faces' guard reached it too; an arc laid
+on a surface only where it stands within the tolerance all along, and only
+where the surface can trace it; and a corner or an arc laid only along the
+stretch of a band laid out. They say what laying a band means, and are
+kept untested.
+
+### Round 6's review
+
+A second lane read the round the same morning, looking for a case of the
+band the corpus lacked, a strip taken for a twin thicker than the
+tolerance, a line laid on a surface further than it, a decision taken
+twice, a named finding broken, and a test that does not fail without its
+fix.
+
+What held. The findings moved into `the_tangency_band.rs` are the same
+tests word for word, and none that held was ignored on the way. Each of
+the four guards of decision 9 that a case holds fails that case taken
+out; the four kept untested changed nothing on the review's sweeps either.
+Geometry bounds the strips: a line of the band runs along the line of
+touch through a corner within the tolerance of both surfaces, and so
+stays as near them all along; the gap between a plane and a wall, or two
+walls, grows away from the line of touch, so a strip whose boundary
+stands within the tolerance stands within it inside.
+
+**Sweeps of built shapes.** The round's nine shapes at thirty-four hairs,
+from a tenth of a tolerance to fifty thousand, either way, in the three
+orientations the axes can be turned to: none made by the rule, nine in
+ten of the failing ones fixed, and what fails is the pin of 3-2. Some
+thirty shapes of the review's own, plane and wall or two walls with a
+cap, a side or a second band a hair from the line of touch, in the same
+hairs and orientations: none made. Twenty shapes of profiles, joined and
+cut: two slots whose ends
+touch on the plane of their runs (2-1) were declined by the rule at every
+hair from three tolerances to seven thousand, and held before it. Two
+families not in the corpus fail before the rule and after it alike, and
+are gathered: a bar resting on a top, bored by a hole whose circle grazes
+the line of touch (3-2); a slot cut by a bar touching its run, the bar's
+cap a hair past the run's end, where the bar and the slot's end, square to
+each other, touch the run's plane at one point.
+
+**The harness.** The listing's turning check, changed by the round for
+90005701, no longer met that seed on the finished rule: the grazing guard
+leaves the band of the stock and the bore as it was, and the seed holds
+with the check as it was. A wall's face bounded over a hair by the rim of
+a wall touching it outside, built by hand, now holds the change.
+
+**Campaigns.** 900 seconds each, side by side, on the kernel before round
+6, on the round's head, and on the review's: the square draw from 92 000
+000 and the profile draw from 92 500 000, 93 500 000 and 94 500 000. Round
+6's 300-second windows had seen nothing made; these found the profile draw
+made by the rule on seventeen seeds while fixing ninety-two, every one two
+walls of one radius further apart than decision 8's hair with a plane
+touching both — a rounded corner, a slot's end, a disc and its twin a
+hair aside. Gathered, shrunk, and checked to hold before round 6, they
+gave two fixes:
+
+- **A band lays a place on its other surface only where faces of both
+  stand**, as it does a corner of the band. A slot cut by a second
+  starting ten microns past its end (92530408) leaves the plane of their
+  runs with no face between the two ends; the run's line across that gap
+  was laid on both ends' walls, while the corner where those walls cross,
+  in that gap, was not laid on the plane — and the piece of line and each
+  wall's circle left the run's corner together and tied. The two slots
+  whose ends touch hold with it.
+- **A skin held on two of three twins is read in the frame of its own
+  first wall.** A band on a plane touching both walls of a crescent's tip
+  makes three twins, the plane's strip first; the crescent's two walls
+  were handed to decision 6's reading of a skin seen from the plane,
+  turned from both, and the skin was taken for a crack (92510427). The
+  frames were one while twins were two.
+
+A third fix, a node of the band taken for the band's corner it falls on
+where decision 5 keeps the two apart, held three of the shrunk cases and
+broke four that held on every kernel before it; it was taken back, and the
+four are kept.
+
+| | square draw from 92 000 000 | profile draw, three windows |
+| --- | --- | --- |
+| seeds all three runs reached | 61 124 | 113 182 |
+| before round 6 | 18 failures | 187 failures, 1.65 per thousand |
+| round 6's head | 9, none made | 112, 0.99 per thousand: 17 made, 92 fixed |
+| the review's head | 9, none made | 107, 0.95 per thousand: 13 made, 93 fixed |
+
+Nothing the review's head fails held at round 6's head. What it leaves:
+
+- **The crescent's tip a plane touches both walls of** (92502574,
+  92502982, 92503994, 92519519, 92524625, 92533762, 92537758, 93530253,
+  94501738, 94511411, 94523199, 94531594, and as drawn 92530408 and
+  93535310, whose shrunk forms fail before round 6 too). The band lays a
+  corner of one wall near the walls' crossing onto the other, within the
+  tolerance of it; the crescent's two real faces then share vertices
+  there and are
+  drawn with the same triangles, or decision 5 keeps a node the band puts
+  on the other wall apart from that corner and two vertices stand at one
+  place. Refusing such a corner as decision 5 does holds seven of them and
+  undoes four of the 1-9 cases the rule fixed (6533713, 6547043, 6579931,
+  6582528). The family wants its own rule, from the cases gathered.
+- The two new families of the sweeps, failing before round 6 too.

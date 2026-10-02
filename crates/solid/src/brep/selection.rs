@@ -200,7 +200,10 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
 /// An operand covering two twins at once lies back to back with itself
 /// there: a skin or a crack an earlier operation left thinner than this
 /// one's tolerance, which wraps both sides alike once the sheet is gone
-/// ([`collapsed`]), and covers neither.
+/// ([`collapsed`]), and covers neither. Its two coverings are read in the
+/// frame of the first of them, whose normal `collapsed` reads the pair by:
+/// three twins may hold the sheet on the second and third, a plane both
+/// its walls touch first, turned from them both (92510427).
 fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 2]>, Declined> {
     let mut covered = [None, None];
     let mut sheet = [None, None];
@@ -208,13 +211,21 @@ fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 
         let mut found = Vec::new();
         for place in places {
             if let Some(wrapped) = covering(operands, operand, place.surface, place.point)? {
-                found.push((place.surface, place.point, place.seen(wrapped)));
+                found.push((place, wrapped));
             }
         }
         match found.as_slice() {
             [] => {}
-            [(_, _, wrapped)] => covered[operand] = Some(*wrapped),
-            [one, other] => sheet[operand] = Some(collapsed(operands, operand, [*one, *other])?),
+            [(place, wrapped)] => covered[operand] = Some(place.seen(*wrapped)),
+            [one, other] => {
+                let in_first = |(place, wrapped): &(&Place, Wrapped)| {
+                    let seen = place.seen(*wrapped);
+                    let wrapped = if one.0.turned { seen.turned() } else { seen };
+                    (place.surface, place.point, wrapped)
+                };
+                let pair = [in_first(one), in_first(other)];
+                sheet[operand] = Some(collapsed(operands, operand, pair)?);
+            }
             _ => return Err(Declined::Tie),
         }
     }

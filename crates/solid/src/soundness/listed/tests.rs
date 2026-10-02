@@ -732,3 +732,68 @@ fn half_a_round_stock_with_every_loop_turned_round_keeps_its_faces_on_its_right(
         "{found:?}"
     );
 }
+
+/// A face of a wall bounded on top, over a hair either side of where they
+/// touch, by the rim of a second wall of its radius touching it from
+/// outside — the circle an arc identity keeps for an arc of the wall's own
+/// (seed 90005701 of round 6's first campaigns). The rim stands within the
+/// room of the wall all along that stretch, but it turns about its own
+/// axis, on the far side of the line they touch along: run forward, it
+/// goes round the wall the other way. Read as a cross-section of the wall,
+/// the face's loop, turned the right way, came out backwards.
+#[test]
+fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its_own_way() {
+    let (height, hair) = (3.0, 5e-5);
+    let wall = Cylinder::about(DVec3::ZERO, DVec3::Z, 1.0);
+    let beside = Cylinder::about(wall.u * 2.0, DVec3::Z, 1.0);
+    let rim = Circle::on(&beside, height);
+    let below = Circle::on(&wall, 0.0);
+    let vertices = vec![
+        below.point(-hair),
+        below.point(hair),
+        rim.point(PI - hair),
+        rim.point(PI + hair),
+    ];
+    let ruling = |from: usize, to: usize| {
+        let line = Line::through(vertices[from], DVec3::Z);
+        ListedEdge {
+            curve: Curve::Line(line),
+            from: line.parameter(vertices[from]),
+            to: line.parameter(vertices[to]),
+            ends: Some([from, to]),
+            sides: Vec::new(),
+        }
+    };
+    let edges = vec![
+        ListedEdge {
+            curve: Curve::Circle(below),
+            from: -hair,
+            to: hair,
+            ends: Some([0, 1]),
+            sides: Vec::new(),
+        },
+        ruling(1, 2),
+        ListedEdge {
+            curve: Curve::Circle(rim),
+            from: PI - hair,
+            to: PI + hair,
+            ends: Some([2, 3]),
+            sides: Vec::new(),
+        },
+        ruling(3, 0),
+    ];
+    let listing = with_sides(Listing {
+        faces: vec![ListedFace {
+            surface: Surface::Cylinder(wall),
+            outward: true,
+            loops: vec![vec![(0, true), (1, true), (2, true), (3, true)]],
+        }],
+        edges,
+        vertices,
+    });
+    assert_eq!(turning::turning(&listing, ON * REACH), Ok(()));
+    assert_eq!(
+        turning::turning(&turned_round(listing), ON * REACH),
+        Err(Mislisted::Backwards { face: 0, lap: 0 })
+    );
+}

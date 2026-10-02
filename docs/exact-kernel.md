@@ -277,6 +277,75 @@ The decisions, in the order taken, once per operation:
    walls are then left two, as before. The wall itself parts from what it
    touched freely: it is the first's now, and stands with every surface as
    the first operand decided.
+9. **The band laid out.** Decision 7 winds a region of the band lying
+   along the other surface all across; but a third surface's line or
+   corner inside the band parts one of the two surfaces into strips and
+   not the other, or ends inside the band, and then no region is a strip:
+   decision 6 takes none for twins, and two faces back to back are drawn
+   with the very same triangles. So the band of two surfaces decided to
+   touch — a plane and a cylinder, or two parallel cylinders — is laid out
+   once, the same on both, wherever the operation brings something into
+   it:
+
+   - a corner standing within `EPS` of both surfaces, on a face of each,
+     and off the line of touch where faces of both operands meet it, is a
+     corner of the band;
+   - the line through each corner of the band along the line of touch is
+     drawn on both surfaces;
+   - a surface through a corner of the band, or through a corner on the
+     line of touch, standing square enough to the line of touch to part
+     the band across — a cap, a side, not a wall turning off a plane it
+     continues, which crosses a line of the band a hair either side of
+     where it stands — puts a corner on both surfaces and on itself
+     wherever it crosses one of the band's lines, between the band's
+     farthest corners along it;
+   - along that stretch, a corner within `EPS` of the other surface, where
+     faces of both surfaces stand, lies on it too, and so does an arc whose
+     two corners do, standing within `EPS` of it all along, seen by it as
+     a curve it can carry, and where faces of both stand at its middle —
+     a slot cut by a second starting a hair past its end leaves the plane
+     of their runs with no face between them, and the run's line laid
+     across that gap onto the two ends' walls passed the corner where
+     those walls cross without being cut there (92530408);
+   - an arc on two surfaces decided to touch is kept between faces of
+     either operand: where one operand alone carries both, it holds a skin
+     or a crack there — the cusp a bore leaves under a top it touches
+     inside — which this operation's band parts, and whose parts decision
+     6 decides with the rest.
+
+   Every strip of the band is then parted on both surfaces where the
+   others are, by arcs both carry, and the strips of the two are twins,
+   decided once. The skin between a plane and a wall resting on it is
+   closed up to the band's line farthest from the line of touch, rather
+   than left a hair thick between two faces drawn alike; a cusp a third
+   surface's line ends inside is closed across at its end.
+
+   A band is laid out only where it is the operation's. A face of each
+   surface stands at its corners: laid wherever a face reached within the
+   band's width, a band put a slot's run plane on a bar's line past the
+   run's end, where the plane holds no face, and crossed the end's line
+   there with no corner (90509248). Faces of both operands meet at its
+   corners off the line of touch: an operand alone holds its own bands as
+   it decided them, and a rounded rectangle joined a hair beside a block
+   tied when a block cut far off, sharing the block's side, made its bands
+   the boolean's (90504120). But once laid, a band is laid along its whole
+   stretch, an operand's own skin included: laid only along the other
+   operand's corners, the corner where the other's line ends stood alone on
+   both surfaces beyond, and the bar and the bore touching its top inside
+   were drawn with the same triangle there (3192987). And no band is laid
+   at a corner on a third surface lying along the band, touching neither
+   of its surfaces: a pin dipping a hair into a post and the block resting
+   on it stands within `EPS` of both over strips of its own, its matter
+   above them, which twins of the two leave out (90016363).
+
+   A band laid on a plane touching both walls of a crescent's tip makes
+   twins of three: the plane's strip first, then the tip's two walls, one
+   operand's skin. Decision 6 reads which way that skin turns its matter
+   off the pair as the operand decided it, by the normal of the first of
+   the two, so their coverings are read in that wall's frame, not in the
+   plane's, which is turned from both: read in the plane's, the skin was
+   taken for a crack, the strip dropped, and the plane's face left open
+   along it (92510427).
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
@@ -346,10 +415,12 @@ covered once from each side.
 3. **Corners.** Every edge curve of one operand against every surface of the
    other, and the special points of the relations (4, 5). A curve can only
    leave a face through the other operand's edge, and two crossings can only
-   meet where the other operand's faces do, so these are all the corners.
+   meet where the other operand's faces do, so these are all the corners —
+   but for those each band laid out adds, with its lines (9).
 4. **Arcs.** Every curve is cut at the corners lying on it, by support. An arc
    is kept if it is part of an input edge, or lies inside a face of each
-   operand on two of its surfaces; kept arcs that are one are one (6).
+   operand on two of its surfaces, or inside faces of either on two surfaces
+   decided to touch (9); kept arcs that are one are one (6).
 5. **Overlay** per surface. At each vertex the arcs are ordered by tangent
    angle, ties broken by signed curvature — a second tie declines. Cycles are
    traced, then grouped into regions by a ray up the second parameter from

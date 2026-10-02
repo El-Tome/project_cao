@@ -1,40 +1,31 @@
 //! What app · screens/viewport/matter.rs is held to.
 
 use cao_sketch::WorkPlane;
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::screens::sketch::SketchPhase;
 
-/// A box straddling the XY plane, from one unit under it to one unit over.
+/// A box straddling the XY plane, from one unit under it to one unit over,
+/// raised as the part raises a block rather than laid out face by face.
 fn a_body_through_the_plane() -> Body {
-    let faces = [
-        vec![
-            DVec3::new(-1.0, -1.0, -1.0),
-            DVec3::new(1.0, -1.0, -1.0),
-            DVec3::new(1.0, 1.0, -1.0),
-            DVec3::new(-1.0, 1.0, -1.0),
-        ],
-        vec![
-            DVec3::new(-1.0, -1.0, 1.0),
-            DVec3::new(-1.0, 1.0, 1.0),
-            DVec3::new(1.0, 1.0, 1.0),
-            DVec3::new(1.0, -1.0, 1.0),
-        ],
-        vec![
-            DVec3::new(-1.0, -1.0, -1.0),
-            DVec3::new(-1.0, -1.0, 1.0),
-            DVec3::new(1.0, -1.0, 1.0),
-            DVec3::new(1.0, -1.0, -1.0),
-        ],
-        vec![
-            DVec3::new(-1.0, 1.0, -1.0),
-            DVec3::new(1.0, 1.0, -1.0),
-            DVec3::new(1.0, 1.0, 1.0),
-            DVec3::new(-1.0, 1.0, 1.0),
-        ],
+    let corners = [
+        DVec2::new(-1.0, -1.0),
+        DVec2::new(1.0, -1.0),
+        DVec2::new(1.0, 1.0),
+        DVec2::new(-1.0, 1.0),
     ];
-    Body::of_faces(faces.into())
+    let triangles = [
+        [corners[0], corners[1], corners[2]],
+        [corners[0], corners[2], corners[3]],
+    ];
+    Body::prism(
+        cao_solid::Loop::straight(&corners),
+        &[],
+        &triangles,
+        |point| DVec3::new(point.x, point.y, -1.0),
+        DVec3::Z * 2.0,
+    )
 }
 
 fn reaches_above(body: &Body) -> bool {

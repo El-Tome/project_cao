@@ -156,12 +156,48 @@ fn sorted(
         }
         let off = distance(&line, point) > operands.eps();
         let around: Vec<SurfaceId> = support.iter().chain(&touch.pair).copied().collect();
-        if !off || met(operands, &around, point)? {
+        if !off
+            || met(operands, &around, point)? && !grazed(operands, registry, touch, support, point)
+        {
             found[usize::from(off)].push(rank);
         }
     }
     Ok(found)
 }
+
+/// Whether a corner of a band lies on a third surface lying along the band
+/// there, touching neither of its two: a wall dipping a hair into both
+/// crosses them at a grazing angle and stands within the tolerance of both
+/// over strips of its own, which the band's twins, made of its two
+/// surfaces, would leave out. Such a band is three surfaces' together, and
+/// is left as it was.
+fn grazed(
+    operands: &Operands,
+    registry: &Registry,
+    touch: &Touch,
+    support: &[SurfaceId],
+    point: DVec3,
+) -> bool {
+    let list = &operands.surfaces.list;
+    let [one, other] = touch.pair;
+    let normal = list[one.0 as usize].normal(list[one.0 as usize].parameters(point));
+    support.iter().any(|&third| {
+        let surface = &list[third.0 as usize];
+        !touch.pair.contains(&third)
+            && !registry.apart.touch(third, one)
+            && !registry.apart.touch(third, other)
+            && surface
+                .normal(surface.parameters(point))
+                .cross(normal)
+                .length()
+                <= ALONG
+    })
+}
+
+/// The sine of the widest angle a third surface lying along a band makes
+/// with it at a corner: the band's own surfaces part by less than that
+/// across it.
+const ALONG: f64 = 1e-2;
 
 /// Whether a place stands within the tolerance of both surfaces of a band,
 /// on a face of each.

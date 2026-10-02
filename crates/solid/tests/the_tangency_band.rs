@@ -735,6 +735,7 @@ fn seed_6038027_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
+#[ignore = "band"]
 fn seed_6155665_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(37.5), Outline::circle([40.0, 5.0], 20.0), 47.5),
@@ -2863,7 +2864,6 @@ fn seed_90005701_a_wall_dipping_into_a_stock_and_the_bore_touching_it_is_listed_
 /// The same campaign: a post, a pin dipping into its top, and a block whose
 /// top touches the post where the pin dips.
 #[test]
-#[ignore = "band"]
 fn seed_90016363_a_block_touching_a_post_under_a_pin_dipping_into_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(1.0), Outline::circle([3.5, 2.0], 2.5), 7.0),

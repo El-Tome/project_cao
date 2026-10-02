@@ -2994,7 +2994,6 @@ fn seed_90509248_a_slot_given_a_bar_touching_its_side_a_hair_past_its_end() {
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92502574_a_block_given_a_rounded_copy_a_hair_aside_then_cut_by_it_in_place() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3347,7 +3346,6 @@ fn seed_94511411_a_block_given_a_slot_then_cut_by_a_disc_ten_microns_off_its_end
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_microns_off_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3372,7 +3370,6 @@ fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_m
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94531594_a_block_given_a_slot_then_a_post_ten_microns_off_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

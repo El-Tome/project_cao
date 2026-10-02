@@ -298,7 +298,12 @@ The decisions, in the order taken, once per operation:
      continues, which crosses a line of the band a hair either side of
      where it stands — puts a corner on both surfaces and on itself
      wherever it crosses one of the band's lines, between the band's
-     farthest corners along it;
+     farthest corners along it; where that corner falls within `EPS` of a
+     corner of the band lying on a wall that crosses one of the band's
+     surfaces as two parallel walls do, it is that corner — decision 5
+     would keep a place on one of two walls of one radius beyond decision
+     8's hair apart from a corner of the other, microns from where they
+     cross, and the two vertices left at one place tied (94531594);
    - along that stretch, a corner within `EPS` of the other surface, where
      faces of both surfaces stand, lies on it too, and so does an arc whose
      two corners do, standing within `EPS` of it all along, seen by it as

@@ -7,13 +7,13 @@
 //! strips no arcs bound in common, and two faces back to back whose
 //! triangles lie on each other.
 //!
-//! So a corner standing within the tolerance of both surfaces, on a face of
-//! each, lies on both; the line through it along
-//! the line of touch is drawn on both; and wherever a surface crossing the
-//! line of touch at a corner of the band crosses one of these lines, a
-//! corner is put. Every strip of the band is then parted where the others
-//! are, on both surfaces, by arcs both carry, and the strips of the two are
-//! twins, decided once (decision 6).
+//! So where faces of both operands meet in it, a corner standing within the
+//! tolerance of both surfaces, on a face of each, lies on both; the line
+//! through it along the line of touch is drawn on both; and wherever a
+//! surface crossing the line of touch at a corner of the band crosses one of
+//! these lines, a corner is put. Every strip of the band is then parted
+//! where the others are, on both surfaces, by arcs both carry, and the
+//! strips of the two are twins, decided once (decision 6).
 
 use glam::DVec3;
 

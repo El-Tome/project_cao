@@ -78,14 +78,3 @@ fn a_flat_face_offers_its_plane_with_every_corner_of_every_piece() {
     );
     assert_eq!(body.plane_of(body.faces_end()), None);
 }
-
-#[test]
-fn a_body_built_from_faces_keeps_the_ones_that_have_an_area() {
-    let body = Body::of_faces(vec![
-        vec![DVec3::ZERO, DVec3::X, DVec3::Y],
-        vec![DVec3::ZERO, DVec3::X, DVec3::X * 2.0],
-    ]);
-
-    assert_eq!(body.triangles(), vec![[DVec3::ZERO, DVec3::X, DVec3::Y]]);
-    assert_eq!(body.faces_end(), 1, "every face it is given is face nought");
-}

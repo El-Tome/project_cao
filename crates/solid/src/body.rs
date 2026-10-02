@@ -157,19 +157,5 @@ impl Body {
     }
 }
 
-#[cfg(any(test, feature = "test-support"))]
-impl Body {
-    /// A body made of the flat faces given, all of them face nought, for a test
-    /// that needs a shape no operation makes — an open box, a lone wall. A face
-    /// with no area is left out, as the kernel leaves it out.
-    pub fn of_faces(faces: Vec<Vec<DVec3>>) -> Body {
-        Body {
-            mesh: Mesh {
-                polygons: faces.into_iter().filter_map(Polygon::new).collect(),
-            },
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests;

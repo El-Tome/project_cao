@@ -7,8 +7,8 @@
 //! strips no arcs bound in common, and two faces back to back whose
 //! triangles lie on each other.
 //!
-//! So a corner standing within the tolerance of both surfaces, where a face
-//! of each reaches within the band, lies on both; the line through it along
+//! So a corner standing within the tolerance of both surfaces, on a face of
+//! each, lies on both; the line through it along
 //! the line of touch is drawn on both; and wherever a surface crossing the
 //! line of touch at a corner of the band crosses one of these lines, a
 //! corner is put. Every strip of the band is then parted where the others
@@ -21,10 +21,15 @@ use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Pool, Registry, distance, same};
 use crate::brep::curve::{Curve, Line};
-use crate::brep::domain::Location;
 use crate::brep::relation::{Crossings, Relation, Touches, crossings_given, relation};
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
+
+/// How square to the line of touch a surface must stand, in the cosine of
+/// its normal's angle with it, to part the band across: a surface nearly
+/// along the band — a wall turning off a plane it continues — crosses a line
+/// of the band at a grazing angle, a hair either side of where it stands.
+const ACROSS: f64 = 1e-3;
 
 /// Two surfaces decided to touch along a registered line.
 struct Touch {
@@ -115,8 +120,7 @@ fn touches(operands: &Operands, registry: &Registry) -> Vec<Touch> {
 }
 
 /// The corners of a band, those on its line of touch and the others: on
-/// either surface, within the tolerance of both, faces of both reaching
-/// them within the band.
+/// either surface, within the tolerance of both, on a face of each.
 fn sorted(
     operands: &Operands,
     registry: &Registry,
@@ -141,7 +145,7 @@ fn sorted(
 }
 
 /// Whether a place stands within the tolerance of both surfaces of a band,
-/// a face of each reaching it within the band.
+/// on a face of each.
 fn within(
     operands: &Operands,
     registry: &Registry,
@@ -150,11 +154,10 @@ fn within(
 ) -> Result<bool, Declined> {
     let eps = operands.eps();
     let [one, other] = touch.pair;
-    let room = width(operands, touch.pair);
     Ok(registry.apart.near(one, point, eps)
         && registry.apart.near(other, point, eps)
-        && reaching(operands, one, point, room)?
-        && reaching(operands, other, point, room)?)
+        && faced(operands, one, point)?
+        && faced(operands, other, point)?)
 }
 
 /// The surfaces a line along the line of touch crosses at a corner of the
@@ -180,8 +183,10 @@ fn crossing(
                 continue;
             }
             let geometry = &operands.surfaces.list[surface.0 as usize];
-            if nearest(through, geometry, point, operands)
-                .is_some_and(|found| found.distance(point) <= eps)
+            let normal = geometry.normal(geometry.parameters(point));
+            if normal.dot(touch.line.direction).abs() >= ACROSS
+                && nearest(through, geometry, point, operands)
+                    .is_some_and(|found| found.distance(point) <= eps)
             {
                 across.push((surface, point));
             }
@@ -206,8 +211,8 @@ fn nearest(line: Line, surface: &Surface, place: DVec3, operands: &Operands) -> 
 }
 
 /// Whether a place on `own` lies on `other` too, as its band lays it: the
-/// two decided to touch, the place within the tolerance of `other`, and a
-/// face of `other` reaching it within the band.
+/// two decided to touch, the place within the tolerance of `other` and on
+/// a face of it.
 pub(super) fn beside(
     operands: &Operands,
     registry: &Registry,
@@ -218,49 +223,17 @@ pub(super) fn beside(
     if !registry.apart.touch(own, other) || !registry.apart.near(other, point, operands.eps()) {
         return Ok(false);
     }
-    reaching(operands, other, point, width(operands, [own, other]))
+    faced(operands, other, point)
 }
 
-/// Whether a face of either operand on a surface reaches within `room` of a
-/// place.
-fn reaching(
-    operands: &Operands,
-    surface: SurfaceId,
-    point: DVec3,
-    room: f64,
-) -> Result<bool, Declined> {
+/// Whether a place lies inside or on the boundary of a face of either
+/// operand on a surface: a plane whose face is far off, or ends short of
+/// the place, makes no band there.
+fn faced(operands: &Operands, surface: SurfaceId, point: DVec3) -> Result<bool, Declined> {
     for operand in 0..2 {
-        if operands.carries(operand, surface)
-            && operands
-                .located(operand, surface, point, room)?
-                .iter()
-                .any(|(_, location)| *location != Location::Outside)
-        {
+        if operands.carries(operand, surface) && operands.touched(operand, surface, point)? {
             return Ok(true);
         }
     }
     Ok(false)
-}
-
-/// How far from the line two surfaces touch along they stand within the
-/// tolerance of each other: the root of twice the tolerance over how fast
-/// they part, the sum or the difference of their curvatures.
-fn width(operands: &Operands, [one, other]: [SurfaceId; 2]) -> f64 {
-    let list = &operands.surfaces.list;
-    let eps = operands.eps();
-    let parting = match (&list[one.0 as usize], &list[other.0 as usize]) {
-        (Surface::Plane(_), Surface::Cylinder(cylinder))
-        | (Surface::Cylinder(cylinder), Surface::Plane(_)) => 1.0 / cylinder.radius,
-        (Surface::Cylinder(one), Surface::Cylinder(other)) => {
-            let from = other.origin - one.origin;
-            let apart = (from - one.axis * from.dot(one.axis)).length();
-            if apart > one.radius.max(other.radius) {
-                1.0 / one.radius + 1.0 / other.radius
-            } else {
-                (1.0 / one.radius - 1.0 / other.radius).abs()
-            }
-        }
-        (Surface::Plane(_), Surface::Plane(_)) => return eps,
-    };
-    (2.0 * eps / parting).sqrt()
 }

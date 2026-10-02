@@ -124,6 +124,7 @@ origin, from 0 to 10.
 | 4 | after round 3 | 279 739 | 169 | 0.60 |
 | 5a | after round 4 | 259 995 | 172 | 0.66 |
 | 6a | after round 5 | 282 219 | 90 | 0.32 |
+| 7a | after round 6 | 275 705 | 69 | 0.25 |
 
 And on the profile draw, which adds rounded rectangles, slots and rings:
 
@@ -131,6 +132,7 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
 | --- | --- | --- | --- | --- |
 | 5b | after round 4 | 158 854 | 1 069 | 6.73 |
 | 6b | after round 5 | 174 256 | 310 | 1.78 |
+| 7b | after round 6 | 170 352 | 191 | 1.12 |
 
 - Campaign 2's sample of 67 was sorted: fifteen distinct failures, seven of
   campaign 1's still open, eight new — and every new one a configuration a
@@ -289,3 +291,6 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   saw it break more than it held, and took it back with the cases that say
   so.
 - Campaigns 7a and 7b started at 05:45 on the kernel after round 6.
+- Campaigns 7a and 7b ended at 06:45: **0.25 per thousand on the square
+  draw, 1.12 on profiles**. Over the seven campaigns, some two million random
+  parts; the exact body was never found wrong along a line.

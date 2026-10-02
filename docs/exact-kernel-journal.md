@@ -294,3 +294,13 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
 - Campaigns 7a and 7b ended at 06:45: **0.25 per thousand on the square
   draw, 1.12 on profiles**. Over the seven campaigns, some two million random
   parts; the exact body was never found wrong along a line.
+- Tom's word, on the morning of day 3: every criterion of #498 is met, the
+  maquette stops here, and #499 comes next. The answer was written on #497
+  (https://github.com/El-Tome/project_cao/issues/497#issuecomment-5948313733):
+  a kernel written here holds, on planes and cylinders; the hardest part is
+  near-coincidence, the tangency band; the rest reads as weeks for the next
+  tools and months for shell, loft and corner fillets. Tom also said what
+  matters most: he cannot check a kernel by reading numbers. The answer
+  says how anyone can run them again, and the check that counts will be the
+  application's, once #499 puts this kernel behind `Body`.
+- Three days of the fourteen were used.

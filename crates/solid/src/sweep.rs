@@ -74,7 +74,7 @@ impl Faces {
 /// `outline` and `holes` are in the plane's own 2D coordinates; `to_world`
 /// places them in space. A hole gets walls too — that is what makes the inside
 /// of a tube a surface rather than an opening.
-pub fn prism(
+pub(crate) fn prism(
     outline: Loop<'_>,
     holes: &[Loop<'_>],
     triangles: &[[DVec2; 3]],
@@ -159,7 +159,7 @@ pub fn prism(
 /// Returns `None` when the face straddles the axis: sweeping it would turn the
 /// solid inside out through itself, and no amount of care afterwards recovers a
 /// shape from that.
-pub fn revolution(
+pub(crate) fn revolution(
     outline: Loop<'_>,
     holes: &[Loop<'_>],
     triangles: &[[DVec2; 3]],

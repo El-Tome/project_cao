@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 /// Splitting it back into triangles at every step would multiply the count for
 /// nothing — that is left to the very end, for the renderer.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
-pub struct Polygon {
+pub(crate) struct Polygon {
     pub corners: Vec<DVec3>,
     /// Which stretch of surface this piece is part of. Pieces sharing it are
     /// one face, however many pieces the curve they came from was sampled
@@ -103,7 +103,7 @@ impl Polygon {
 
 /// A closed volume, as the faces of its surface.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct Mesh {
+pub(crate) struct Mesh {
     pub polygons: Vec<Polygon>,
 }
 
@@ -281,7 +281,7 @@ fn share_an_edge(left: &Polygon, right: &Polygon) -> bool {
 
 /// The piece of a face a ray met, and how far along the ray.
 #[derive(Clone, Debug)]
-pub struct PieceHit {
+pub(crate) struct PieceHit {
     pub distance: f64,
     pub polygon: Polygon,
 }

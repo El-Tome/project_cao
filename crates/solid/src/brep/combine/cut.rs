@@ -8,7 +8,7 @@
 use glam::DVec3;
 
 use super::Arena;
-use super::band;
+use super::band::{self, Band};
 use super::held::Held;
 use super::identified::identified;
 use super::operands::Operands;
@@ -23,6 +23,7 @@ pub(super) fn cut(
     registry: &Registry,
     pool: &Pool,
     held: &[Held],
+    bands: &[Band],
 ) -> Result<Arena, Declined> {
     let eps = operands.eps();
     let corners = pool.supports(registry);
@@ -35,7 +36,7 @@ pub(super) fn cut(
     let corners = corners
         .iter()
         .zip(&points)
-        .map(|(support, point)| banded(operands, registry, support, *point))
+        .map(|(support, point)| banded(operands, registry, bands, support, *point))
         .collect::<Result<Vec<_>, _>>()?;
     let mut edges = Vec::new();
     let mut lying = Vec::new();
@@ -88,7 +89,7 @@ pub(super) fn cut(
         for edge in pieces.into_iter().filter(|edge| edge.from < edge.to) {
             let mut support = lies(rank, registered, held, &edge);
             support.extend(beside(
-                operands, registry, registered, &edge, &corners, &support,
+                operands, registry, bands, registered, &edge, &corners, &support,
             )?);
             support.sort();
             if kept(operands, registry, rank, registered, &support, held, &edge)? {
@@ -222,6 +223,7 @@ fn kept(
 fn banded(
     operands: &Operands,
     registry: &Registry,
+    bands: &[Band],
     support: &[SurfaceId],
     point: DVec3,
 ) -> Result<Vec<SurfaceId>, Declined> {
@@ -232,7 +234,7 @@ fn banded(
             continue;
         }
         for &own in support {
-            if band::beside(operands, registry, own, other, point)? {
+            if band::beside(operands, registry, bands, [own, other], point)? {
                 grown.push(other);
                 break;
             }
@@ -248,6 +250,7 @@ fn banded(
 fn beside(
     operands: &Operands,
     registry: &Registry,
+    bands: &[Band],
     registered: &Registered,
     edge: &Edge,
     corners: &[Vec<SurfaceId>],
@@ -276,7 +279,7 @@ fn beside(
             continue;
         }
         for &own in support {
-            if band::beside(operands, registry, own, other, middle)? {
+            if band::beside(operands, registry, bands, [own, other], middle)? {
                 found.push(other);
                 break;
             }

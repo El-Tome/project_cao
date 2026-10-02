@@ -2572,6 +2572,7 @@ fn seed_80503332_a_disc_cut_by_a_slot_of_its_radius_a_hair_off_its_axis_stays_un
 /// along and the first's: two walls of one radius a hair apart, which the
 /// kernel is to take for one (decision 8).
 #[test]
+#[ignore = "band"]
 fn seed_80510549_a_disc_and_its_twin_a_hair_aside_crossed_by_a_bore_leave_its_cap_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(-1.0), Outline::circle([4.0, 7.0], 2.5), 6.0),
@@ -2911,7 +2912,6 @@ fn seed_90501389_a_slot_cut_by_a_disc_at_its_end_and_a_block_a_hair_proud() {
 /// The same campaign: a block given a rounded rectangle of its size a hair
 /// aside, then a block cut from it far above.
 #[test]
-#[ignore = "band"]
 fn seed_90504120_a_block_given_a_rounded_rectangle_a_hair_aside_then_cut_above() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

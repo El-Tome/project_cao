@@ -37,12 +37,22 @@ struct Touch {
     line: Line,
 }
 
-/// The corners and lines of every band laid on the pool and the registry.
+/// A band laid out: its two surfaces, and the stretch along the line of
+/// touch between its farthest corners.
+pub(super) struct Band {
+    pair: [SurfaceId; 2],
+    direction: DVec3,
+    stretch: [f64; 2],
+}
+
+/// The corners and lines of every band laid on the pool and the registry,
+/// and the bands laid.
 pub(super) fn laid_out(
     operands: &Operands,
     registry: &mut Registry,
     pool: &mut Pool,
-) -> Result<(), Declined> {
+) -> Result<Vec<Band>, Declined> {
+    let mut bands = Vec::new();
     let mut supports = pool.supports(registry);
     let mut grown = false;
     for touch in touches(operands, registry) {
@@ -74,6 +84,11 @@ pub(super) fn laid_out(
         let eps = operands.eps();
         let low = along.iter().copied().fold(f64::INFINITY, f64::min) - eps;
         let high = along.iter().copied().fold(f64::NEG_INFINITY, f64::max) + eps;
+        bands.push(Band {
+            pair: touch.pair,
+            direction,
+            stretch: [low, high],
+        });
         let [one, other] = touch.pair;
         for (line, rank) in &lengthwise {
             for &(surface, at) in &across {
@@ -88,7 +103,7 @@ pub(super) fn laid_out(
             }
         }
     }
-    Ok(())
+    Ok(bands)
 }
 
 /// Every pair decided to touch whose line of touch was registered, its
@@ -120,7 +135,8 @@ fn touches(operands: &Operands, registry: &Registry) -> Vec<Touch> {
 }
 
 /// The corners of a band, those on its line of touch and the others: on
-/// either surface, within the tolerance of both, on a face of each.
+/// either surface, within the tolerance of both, on a face of each, and
+/// off the line where faces of both operands meet.
 fn sorted(
     operands: &Operands,
     registry: &Registry,
@@ -139,7 +155,10 @@ fn sorted(
             continue;
         }
         let off = distance(&line, point) > operands.eps();
-        found[usize::from(off)].push(rank);
+        let around: Vec<SurfaceId> = support.iter().chain(&touch.pair).copied().collect();
+        if !off || met(operands, &around, point)? {
+            found[usize::from(off)].push(rank);
+        }
     }
     Ok(found)
 }
@@ -210,20 +229,46 @@ fn nearest(line: Line, surface: &Surface, place: DVec3, operands: &Operands) -> 
     }
 }
 
-/// Whether a place on `own` lies on `other` too, as its band lays it: the
-/// two decided to touch, the place within the tolerance of `other` and on
-/// a face of it.
+/// Whether a place on `own` lies on `other` too, as a band laid out lays
+/// it: the two its surfaces, the place along its stretch, within the
+/// tolerance of `other` and on a face of it.
 pub(super) fn beside(
     operands: &Operands,
     registry: &Registry,
-    own: SurfaceId,
-    other: SurfaceId,
+    bands: &[Band],
+    [own, other]: [SurfaceId; 2],
     point: DVec3,
 ) -> Result<bool, Declined> {
-    if !registry.apart.touch(own, other) || !registry.apart.near(other, point, operands.eps()) {
+    let laid = bands.iter().any(|band| {
+        let along = point.dot(band.direction);
+        band.pair.contains(&own)
+            && band.pair.contains(&other)
+            && along >= band.stretch[0]
+            && along <= band.stretch[1]
+    });
+    if !laid || !registry.apart.near(other, point, operands.eps()) {
         return Ok(false);
     }
     faced(operands, other, point)
+}
+
+/// Whether faces of both operands meet at a place, on surfaces of its
+/// support: where one operand alone stands, it decided its own band when it
+/// was made, and this operation has nothing to lay there.
+fn met(operands: &Operands, support: &[SurfaceId], point: DVec3) -> Result<bool, Declined> {
+    for operand in 0..2 {
+        let mut found = false;
+        for &surface in support {
+            if operands.carries(operand, surface) && operands.touched(operand, surface, point)? {
+                found = true;
+                break;
+            }
+        }
+        if !found {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 /// Whether a place lies inside or on the boundary of a face of either

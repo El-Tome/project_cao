@@ -82,8 +82,8 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
     let mut pool = pooled(operands, &registry, &ending, &special, &found);
-    band::laid_out(operands, &mut registry, &mut pool)?;
-    cut::cut(operands, &registry, &pool, &held)
+    let bands = band::laid_out(operands, &mut registry, &mut pool)?;
+    cut::cut(operands, &registry, &pool, &held, &bands)
 }
 
 /// Every corner candidate in a fixed order — the first operand's vertices,

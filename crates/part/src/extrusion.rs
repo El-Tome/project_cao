@@ -2,7 +2,7 @@
 //! the plane's normal, or a sweep around an axis lying in the plane.
 
 use cao_sketch::{Area, Region, Sketch};
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::DVec2;
 
 use crate::broken::Broken;
@@ -26,7 +26,7 @@ impl PartState {
     pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
         self.made.get(rank).map_or_else(Vec::new, |made| {
             made.clone()
-                .filter(|face| self.body.pieces_of(*face).next().is_some())
+                .filter(|face| self.body.triangles_of(*face).next().is_some())
                 .collect()
         })
     }
@@ -56,7 +56,7 @@ impl PartState {
         let turn = degrees.to_radians();
         let regions = sketch.regions();
 
-        let mut tool = Mesh::default();
+        let mut tool = Body::default();
         let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
@@ -64,7 +64,7 @@ impl PartState {
                 continue;
             };
             let (outline, holes) = loops(region);
-            let Some(piece) = cao_solid::revolution(
+            let Some(piece) = Body::revolution(
                 outline,
                 &holes,
                 &region.face_triangles(),
@@ -87,7 +87,7 @@ impl PartState {
     }
 
     /// Joins a tool to the part, or takes it out.
-    pub(crate) fn combine(&mut self, tool: Mesh, mode: ExtrusionMode) {
+    pub(crate) fn combine(&mut self, tool: Body, mode: ExtrusionMode) {
         if tool.is_empty() {
             return;
         }
@@ -123,7 +123,7 @@ impl PartState {
         let travel = plane.normal() * (distance / scale);
         let regions = sketch.regions();
 
-        let mut tool = Mesh::default();
+        let mut tool = Body::default();
         let mut lost = false;
         for area in areas {
             let Some(region) = self.standing_on(index, area, &regions) else {
@@ -131,7 +131,7 @@ impl PartState {
                 continue;
             };
             let (outline, holes) = loops(region);
-            let piece = cao_solid::prism(
+            let piece = Body::prism(
                 outline,
                 &holes,
                 &region.face_triangles(),

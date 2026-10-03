@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::Vec3;
 
 use crate::screens::sketch::SketchEditor;
@@ -16,7 +16,7 @@ use crate::screens::sketch::SketchEditor;
 ///
 /// The editor keeps its plane after the sketch is closed, so the view can still
 /// be aligned with it; what says the cut is on is that a sketch is being edited.
-pub(crate) fn shown_body<'a>(editor: &SketchEditor, body: &'a Mesh, eye: Vec3) -> Cow<'a, Mesh> {
+pub(crate) fn shown_body<'a>(editor: &SketchEditor, body: &'a Body, eye: Vec3) -> Cow<'a, Body> {
     let cutting = editor.active_sketch().and(editor.plane);
     let Some(plane) = cutting else {
         return Cow::Borrowed(body);

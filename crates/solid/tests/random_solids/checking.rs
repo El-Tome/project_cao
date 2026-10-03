@@ -1,6 +1,6 @@
 //! A case run through the kernel, and held to every rule at every step.
 
-use cao_solid::Mesh;
+use cao_solid::Body;
 use cao_solid::soundness::{
     Flaw, Lines, NEAR, Silence, Spans, Triangle, closed, enclosed, reach, repeatable, uncrossed,
 };
@@ -70,18 +70,18 @@ pub fn holds(case: &Case) {
     }
 }
 
-fn raised(case: &Case) -> Option<Vec<Mesh>> {
+fn raised(case: &Case) -> Option<Vec<Body>> {
     case.leaves().map(Leaf::solid).collect()
 }
 
-fn combined(body: &Mesh, tool: &Mesh, mode: Mode) -> Mesh {
+fn combined(body: &Body, tool: &Body, mode: Mode) -> Body {
     match mode {
         Mode::Add => body.union(tool),
         Mode::Cut => body.difference(tool),
     }
 }
 
-fn replayed(case: &Case, leaves: &[Mesh]) -> Mesh {
+fn replayed(case: &Case, leaves: &[Body]) -> Body {
     case.steps
         .iter()
         .zip(&leaves[1..])
@@ -134,10 +134,10 @@ pub fn within_reach(
     Ok(())
 }
 
-fn span(leaves: &[Mesh]) -> (DVec3, DVec3) {
+fn span(leaves: &[Body]) -> (DVec3, DVec3) {
     leaves
         .iter()
-        .filter_map(Mesh::bounds)
+        .filter_map(Body::bounds)
         .reduce(|(low, high), (other_low, other_high)| (low.min(other_low), high.max(other_high)))
         .unwrap_or((DVec3::ZERO, DVec3::ONE))
 }

@@ -50,6 +50,23 @@
 //!   `a_tests_file_nobody_declared_under_cfg_test_is_not_taken_for_tests`, which
 //!   holds what a test file is, and the sweeps that skip one name it themselves
 //!
+//! Closes #499.
+//! - no signature in `cao_part` or `cao_app` names `Mesh` or `Polygon` —
+//!   `the_insides_of_the_matter_stay_in_cao_solid`, which reads their sources
+//!   and their tests alike
+//! - a rule refuses them outside `cao_solid` —
+//!   `the_insides_of_the_matter_stay_in_cao_solid`, and what counts as naming
+//!   one — `naming_the_insides_of_the_matter_is_told_from_mentioning_them`
+//! - the tests' copies of a `volume` helper go through `Body` — no test: a copy
+//!   that did not would have to name `Mesh`, which the rule above refuses, and
+//!   what `Body::volume` comes to is held beside it in `cao_solid`
+//! - every existing test passes with no assertion changed — no test: the gate
+//!   runs them all, and whether an assertion moved is read in the diff
+//! - the geometry cache reads what it wrote before — no test: the assertion is
+//!   `a_cache_written_before_the_body_opens_on_its_matter_and_is_written_back_unchanged`,
+//!   in `crates/part/src/document/geometry_cache/tests.rs`, written before the
+//!   move and a bullet may only name a test of its own file
+//!
 //! The rules themselves live in `.claude/skills/architecture-rust`. Prose holds
 //! until someone moves something; this is the part that keeps holding after.
 //!
@@ -147,6 +164,22 @@ const REACHES_OUTSIDE: [&str; 6] = [
 /// the commit that gives the file its port, and no entry is added ahead of the
 /// code that needs it.
 const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
+
+/// What the matter is made of inside `cao_solid`. Everything above it talks to
+/// a `Body`, so that whatever computes the matter next — this kernel, another
+/// one, the same flats with their true surfaces — can change what a body is
+/// made of without the rest of the workspace noticing (#499).
+///
+/// The tests of the crates above it are read with their code: a test that
+/// builds a `Mesh` by hand holds the kernel to the shape it has today, and is
+/// the first thing a new kernel would have to break.
+const INSIDES_OF_THE_MATTER: [&str; 2] = ["Mesh", "Polygon"];
+
+/// The files outside `cao_solid` that still name one of
+/// [`INSIDES_OF_THE_MATTER`]. An equality, as [`FILES_ALLOWED_TO_REACH_OUTSIDE`]
+/// is. Empty since #499 handed every one of them a `Body`, and the first file
+/// to name one again fails the test.
+const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 0] = [];
 
 /// Past this, a file is holding more than one responsibility. The figure is
 /// arbitrary; what is not is that every file above it can be named.
@@ -394,6 +427,70 @@ fn only_the_named_files_reach_for_the_disk_the_clock_or_the_environment() {
         still_reaching, allowed,
         "a file no longer reaches outside: drop it from FILES_ALLOWED_TO_REACH_OUTSIDE",
     );
+}
+
+#[test]
+fn the_insides_of_the_matter_stay_in_cao_solid() {
+    let naming: BTreeSet<String> = CRATE_DIRECTORIES
+        .iter()
+        .filter(|name| **name != "solid")
+        .flat_map(|directory| everything_written_in(directory))
+        .filter(|(_, source)| {
+            INSIDES_OF_THE_MATTER
+                .iter()
+                .any(|name| names_in_code(source, name))
+        })
+        .map(|(path, _)| path)
+        .collect();
+    let known: BTreeSet<String> = FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER
+        .iter()
+        .map(|path| path.to_string())
+        .collect();
+
+    let newly: Vec<&String> = naming.difference(&known).collect();
+    assert!(
+        newly.is_empty(),
+        "{newly:?} name what the matter is made of inside cao_solid. \
+         Talk to a Body: it is the one thing the matter shows the rest of the workspace.",
+    );
+    let handed_a_body: Vec<&String> = known.difference(&naming).collect();
+    assert!(
+        handed_a_body.is_empty(),
+        "{handed_a_body:?} no longer name the insides of the matter: drop them from \
+         FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER",
+    );
+}
+
+#[test]
+fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
+    for named in [
+        "use cao_solid::Mesh;",
+        "fn volume(mesh: &cao_solid::Mesh) -> f64 {",
+        "    polygons: faces.into_iter().filter_map(Polygon::new).collect(),",
+        "let solid: Option<Mesh> = None;",
+    ] {
+        assert!(
+            INSIDES_OF_THE_MATTER
+                .iter()
+                .any(|name| names_in_code(named, name)),
+            "{named} names one and the rule let it through",
+        );
+    }
+    for mentioned in [
+        "// a Mesh is what the matter used to be called up here",
+        "/// The `Polygon` a ray met, once.",
+        "let meshes = polygons.len();",
+        "const NAMES: [&str; 2] = [\"Mesh\", \"Polygon\"];",
+        "struct MeshLike;",
+        "fn polygonal(sides: usize) -> SubPolygon {",
+    ] {
+        assert!(
+            !INSIDES_OF_THE_MATTER
+                .iter()
+                .any(|name| names_in_code(mentioned, name)),
+            "{mentioned} names none of them and the rule took it for one",
+        );
+    }
 }
 
 #[test]
@@ -977,6 +1074,67 @@ fn sources_of(directory: &str) -> Vec<(String, String)> {
         sources.push((path, source));
     }
     sources
+}
+
+/// Every Rust file of a crate: its sources, its integration tests, its
+/// examples and its benchmarks.
+fn everything_written_in(directory: &str) -> Vec<(String, String)> {
+    let root = workspace_root();
+    ["src", "tests", "examples", "benches"]
+        .iter()
+        .flat_map(|folder| rust_files(&root.join("crates").join(directory).join(folder)))
+        .map(|file| {
+            let path = file
+                .strip_prefix(&root)
+                .unwrap_or(&file)
+                .display()
+                .to_string()
+                .replace('\\', "/");
+            let source = fs::read_to_string(&file).expect("a readable source file");
+            (path, source)
+        })
+        .collect()
+}
+
+/// Whether the code of a source names a type: the name as a word of its own,
+/// not a piece of a longer one, and neither in a comment nor in a string, which
+/// mention it without reaching for it.
+fn names_in_code(source: &str, name: &str) -> bool {
+    let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+    source.lines().any(|line| {
+        let code = code_of(line);
+        code.match_indices(name).any(|(at, _)| {
+            let before = code[..at].chars().next_back();
+            let after = code[at + name.len()..].chars().next();
+            !before.is_some_and(is_identifier) && !after.is_some_and(is_identifier)
+        })
+    })
+}
+
+/// A line with its strings blanked out and its comment cut off.
+fn code_of(line: &str) -> String {
+    let mut code = String::new();
+    let (mut in_a_string, mut escaped) = (false, false);
+    let mut characters = line.chars().peekable();
+    while let Some(character) = characters.next() {
+        if in_a_string {
+            match (escaped, character) {
+                (false, '\\') => escaped = true,
+                (false, '"') => {
+                    in_a_string = false;
+                    code.push(' ');
+                }
+                _ => escaped = false,
+            }
+            continue;
+        }
+        match character {
+            '"' => in_a_string = true,
+            '/' if characters.peek() == Some(&'/') => break,
+            _ => code.push(character),
+        }
+    }
+    code
 }
 
 fn imports(source: &str) -> Vec<&str> {

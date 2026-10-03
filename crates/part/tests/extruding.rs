@@ -7,7 +7,7 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{Area, DimensionTarget, WorkPlane};
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::{DVec2, DVec3};
 
 /// The areas these places fall in, as the drawing stands — what the
@@ -17,11 +17,8 @@ fn clicked(history: &History, sketch: usize, place: DVec2) -> Vec<Area> {
     PartState::rebuild(history).areas_at(sketch, &[place])
 }
 
-fn volume(mesh: &Mesh) -> f64 {
-    mesh.triangles()
-        .iter()
-        .map(|[a, b, c]| a.dot(b.cross(*c)) / 6.0)
-        .sum()
+fn volume(body: &Body) -> f64 {
+    body.volume()
 }
 
 fn rectangle(history: &mut History, min: DVec2, max: DVec2) {
@@ -489,7 +486,7 @@ fn a_step_of_matter_names_the_faces_it_made() {
         block
             .iter()
             .chain(&post)
-            .all(|face| document.body().pieces_of(*face).next().is_some()),
+            .all(|face| document.body().triangles_of(*face).next().is_some()),
         "every face named stands in the part"
     );
     assert!(

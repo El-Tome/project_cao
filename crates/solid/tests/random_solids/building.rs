@@ -1,6 +1,6 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
-use cao_solid::{Loop, Mesh};
+use cao_solid::{Body, Loop};
 use glam::DVec2;
 
 use super::{CIRCLE_STEPS, Leaf, Outline};
@@ -147,7 +147,7 @@ impl Leaf {
 
     /// The solid the kernel raises for this leaf, or `None` when the leaf is
     /// no solid at all or the kernel declined to raise one.
-    pub fn solid(&self) -> Option<Mesh> {
+    pub fn solid(&self) -> Option<Body> {
         if !self.is_solid() {
             return None;
         }
@@ -163,7 +163,7 @@ impl Leaf {
                     .iter()
                     .map(|(points, curves)| Loop { points, curves })
                     .collect();
-                Some(cao_solid::prism(
+                Some(Body::prism(
                     Loop {
                         points: &area.outline,
                         curves: &area.outline_curves,
@@ -184,7 +184,7 @@ impl Leaf {
                     low: *low,
                     high: *high,
                 });
-                cao_solid::revolution(
+                Body::revolution(
                     Loop::straight(&area.outline),
                     &[],
                     &area.triangles,

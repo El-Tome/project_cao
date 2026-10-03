@@ -6,7 +6,6 @@
 //! then stands.
 
 use cao_sketch::WorkPlane;
-use glam::DVec3;
 
 use crate::history::FaceAnchor;
 use crate::state::PartState;
@@ -33,12 +32,7 @@ impl PartState {
 
     /// The plane the anchored face offers as the part stands now.
     fn face_now(&self, anchor: &FaceAnchor) -> Option<WorkPlane> {
-        let normal = self.body.pieces_of(anchor.face).next()?.normal();
-        let corners: Vec<DVec3> = self
-            .body
-            .pieces_of(anchor.face)
-            .flat_map(|piece| piece.corners.iter().copied())
-            .collect();
-        Some(WorkPlane::from_face(&corners, normal, anchor.up))
+        let face = self.body.plane_of(anchor.face)?;
+        Some(WorkPlane::from_face(&face.corners, face.normal, anchor.up))
     }
 }

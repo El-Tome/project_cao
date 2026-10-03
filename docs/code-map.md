@@ -20,7 +20,7 @@ cao_app  ──►  cao_part  ──►  cao_sketch
 | Crate | Role | Depends on |
 | --- | --- | --- |
 | `cao_sketch` | sketch model, constraints, solver | `glam`, `serde` |
-| `cao_solid` | mesh, extrusion, booleans | `glam`, `serde` |
+| `cao_solid` | the matter as a `Body`: extrusion, booleans, and the mesh it is made of | `glam`, `serde` |
 | `cao_render` | GPU rendering of the viewport | `wgpu`, `glam`, `bytemuck` |
 | `cao_part` | document, history, persistence of a part | both domains |
 | `cao_prefs` | theme, shortcuts, toolbar, profiles, recents | `serde`, `chrono` |
@@ -136,9 +136,10 @@ What it does: [`sketch.md`](sketch.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| Mesh, faces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)` |
-| Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)` |
+| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `bounds`, `volume` |
+| What a body is made of inside the crate: faces as flat pieces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
+| Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::prism` |
+| Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign` |

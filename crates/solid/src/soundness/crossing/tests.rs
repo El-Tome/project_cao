@@ -28,7 +28,7 @@ use super::*;
 use crate::mesh::Mesh;
 use crate::mesh::tests::{self as kernel, box_of};
 use crate::soundness::tests::{cube, unit_cube};
-use crate::{Loop, prism, revolution};
+use crate::sweep::{Loop, prism, revolution};
 
 fn at(x: f64, y: f64, z: f64) -> DVec3 {
     DVec3::new(x, y, z)

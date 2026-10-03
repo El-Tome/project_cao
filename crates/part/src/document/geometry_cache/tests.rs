@@ -225,9 +225,63 @@ fn a_part_written_before_the_cache_existed_opens_by_replaying_its_design() {
     assert_eq!(reopened.sketches().len(), 1, "the design is replayed");
 }
 
+/// A part's geometry as its cache carried it before #499 gave the matter a
+/// type of its own: no drawing, and a tetrahedron of four faces numbered from
+/// nought, raised by one step.
+const CACHED_BEFORE_THE_BODY: &str = concat!(
+    r#"{"millimeters_per_unit":null,"sketches":[],"adrift":[],"body":{"polygons":["#,
+    r#"{"corners":[[0.0,0.0,0.0],[0.0,1.0,0.0],[1.0,0.0,0.0]],"face":0},"#,
+    r#"{"corners":[[0.0,0.0,0.0],[1.0,0.0,0.0],[0.0,0.0,1.0]],"face":1},"#,
+    r#"{"corners":[[0.0,0.0,0.0],[0.0,0.0,1.0],[0.0,1.0,0.0]],"face":2},"#,
+    r#"{"corners":[[1.0,0.0,0.0],[0.0,1.0,0.0],[0.0,0.0,1.0]],"face":3}"#,
+    r#"]},"made":[{"start":0,"end":4}]}"#,
+);
+
+#[test]
+fn a_cache_written_before_the_body_opens_on_its_matter_and_is_written_back_unchanged() {
+    use glam::DVec3;
+
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let cached = format!(
+        r#"{{"rebuilt_by":{REBUILT_BY},"design":{},"state":{CACHED_BEFORE_THE_BODY}}}"#,
+        fingerprint(&borrowed(&design)),
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(cached.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        reopened.sketches().is_empty(),
+        "the part opens on its cache, where a replay would draw a sketch",
+    );
+    assert_eq!(
+        reopened.body().triangles(),
+        vec![
+            [DVec3::ZERO, DVec3::Y, DVec3::X],
+            [DVec3::ZERO, DVec3::X, DVec3::Z],
+            [DVec3::ZERO, DVec3::Z, DVec3::Y],
+            [DVec3::X, DVec3::Y, DVec3::Z],
+        ],
+        "the matter is the tetrahedron the cache holds",
+    );
+    assert_eq!(
+        reopened.faces_made_by(3),
+        vec![0, 1, 2, 3],
+        "and its faces keep the numbers they were cached with",
+    );
+    assert_eq!(
+        String::from_utf8(encoded(&reopened.state, &borrowed(&design)).expect("a cache")),
+        Ok(cached),
+        "a part put away again writes the cache it was opened on",
+    );
+}
+
 /// Every corner of the matter, in the order the faces give them.
-fn corners(mesh: &cao_solid::Mesh) -> Vec<glam::DVec3> {
-    mesh.triangles().iter().flatten().copied().collect()
+fn corners(body: &cao_solid::Body) -> Vec<glam::DVec3> {
+    body.triangles().iter().flatten().copied().collect()
 }
 
 fn a_part_of_every_kind_of_drawing() -> PartDocument {

@@ -82,9 +82,9 @@ wording. Where a term carries a rule, the rule is on the line under it.
 
 | Code | Interface | What it names |
 | --- | --- | --- |
-| `Mesh` | maillage | Triangles. What is drawn, never what is saved. |
-| `body` | matière | The whole part as a single surface, not a pile of separate lumps — so a pocket cut in a block really is a hole in the block. |
-| `Polygon` | — | One planar face, its points in order. |
+| `Body` | matière | The whole part as a single surface, not a pile of separate lumps — so a pocket cut in a block really is a hole in the block. The only shape of the matter that leaves `cao_solid`. |
+| `Mesh` | maillage | What a body is made of inside `cao_solid`: flat pieces, each carrying the number of the face it belongs to. Never named above that crate. |
+| `Polygon` | — | One flat piece of a face, its corners in order. Never named above `cao_solid`. |
 | `prism`, `revolution` | prisme, révolution | Raising a region into matter, straight or turned about an axis. |
 | `ExtrusionMode::Add` / `Cut` | ajout / enlèvement de matière | Whether the prism joins the body or is taken out of it. |
 

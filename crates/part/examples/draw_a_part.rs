@@ -100,10 +100,10 @@ fn main() {
     let size = Disk.read(&path).map_or(0, |bytes| bytes.len());
     println!("{}", path.display());
     println!(
-        "  {} steps, {} sketches, {} polygons, {} KB",
+        "  {} steps, {} sketches, {} triangles, {} KB",
         document.history.applied(),
         document.sketches().len(),
-        replayed.body.polygons.len(),
+        replayed.body.triangles().len(),
         size / 1024,
     );
     println!("  drawn in {drawing:?}, written in {writing:?}");

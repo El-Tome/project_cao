@@ -14,13 +14,13 @@
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{Formula, PartDocument, VariableChange, VariableId};
 use cao_sketch::{DimensionTarget, SegmentId, WorkPlane};
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::DVec2;
 
 const TOLERANCE: f64 = 1e-6;
 
-fn thickness(mesh: &Mesh) -> f64 {
-    let (min, max) = mesh.bounds().expect("some matter");
+fn thickness(body: &Body) -> f64 {
+    let (min, max) = body.bounds().expect("some matter");
     max.z - min.z
 }
 

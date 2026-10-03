@@ -3,7 +3,7 @@
 use cao_part::history::{FaceAnchor, Operation};
 use cao_render::camera::view_angles_towards;
 use cao_sketch::WorkPlane;
-use cao_solid::Mesh;
+use cao_solid::Body;
 use glam::{DVec2, DVec3};
 
 use crate::screens::SketchContext;
@@ -107,24 +107,21 @@ fn plane_under(
 /// `screen_up` says which way is up on screen once the view has swung round to
 /// face a normal, which is what decides how the face will read.
 fn what_the_part_offers(
-    body: &Mesh,
+    body: &Body,
     origin: DVec3,
     direction: DVec3,
     screen_up: impl Fn(DVec3) -> DVec3,
 ) -> Option<PlaneChoice> {
     let hit = body.ray_hit(origin, direction)?;
-    let face = hit.polygon.face;
+    let face = hit.face;
     if !body.is_flat(face) {
         return Some(PlaneChoice::Curved(face));
     }
     // The corners of the whole face, not of the piece the ray met: a flat face
-    // is stored as several polygons, and the corner a drawing is read from has
+    // is stored as several pieces, and the corner a drawing is read from has
     // to be one of the face's own.
-    let corners: Vec<DVec3> = body
-        .pieces_of(face)
-        .flat_map(|piece| piece.corners.iter().copied())
-        .collect();
-    let normal = hit.polygon.normal();
+    let corners = body.plane_of(face)?.corners;
+    let normal = hit.normal;
     let plane = WorkPlane::from_face(&corners, normal, screen_up(normal));
     Some(PlaneChoice::Face { plane, face })
 }

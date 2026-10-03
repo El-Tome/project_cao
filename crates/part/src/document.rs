@@ -113,7 +113,7 @@ impl PartDocument {
     }
 
     /// The matter of the part, as one surface.
-    pub fn body(&self) -> &cao_solid::Mesh {
+    pub fn body(&self) -> &cao_solid::Body {
         &self.state.body
     }
 

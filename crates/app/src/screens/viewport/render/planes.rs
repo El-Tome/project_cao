@@ -77,11 +77,9 @@ pub(crate) fn push_hovered_face(
     context: &SketchContext<'_>,
     face: usize,
 ) {
-    for polygon in context.document.body().pieces_of(face) {
-        for [a, b, c] in polygon.triangles() {
-            for corner in [a, b, c] {
-                surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
-            }
+    for [a, b, c] in context.document.body().triangles_of(face) {
+        for corner in [a, b, c] {
+            surfaces.push(cao_render::Vertex::solid(corner.as_vec3(), fill));
         }
     }
 }

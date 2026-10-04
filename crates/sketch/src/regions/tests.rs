@@ -21,6 +21,23 @@
 //!   own, and is held by the suites already there, this file and
 //!   `arc_regions/tests.rs` among them, and the tests of #351, #266, #413 and
 //!   #345
+//!
+//! Closes #503.
+//! - a circle touching the one around it at their lowest point is one level
+//!   deeper and a hole of it —
+//!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`
+//! - wherever the touch falls, the drawing turned or not, the same —
+//!   `a_circle_touching_the_one_around_it_is_a_hole_of_it_wherever_the_touch_falls`
+//! - the same once the area around it was cut by the walk, its outline sampled
+//!   otherwise than the circle's at the touch —
+//!   `a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it`
+//! - a shape touching its outline at a corner, pinched by the walk, leaves two
+//!   areas at depth 0 —
+//!   `a_triangle_touching_its_square_at_a_corner_leaves_two_areas_side_by_side`
+//! - nothing else under *What must not break* breaks — no test: held by
+//!   `a_shape_inside_another_is_one_level_deeper`,
+//!   `a_shape_inside_a_hole_is_not_a_hole_of_the_outer_one` and
+//!   `two_circles_make_a_tube`, already here
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -430,4 +447,98 @@ fn two_round_ellipses_laid_on_a_circle_with_their_axes_apart_enclose_one_disc() 
         .map(|(x, y)| sketch.add_point(DVec2::new(x, y) * std::f64::consts::SQRT_2));
     sketch.add_ellipse(centre, [ends[0], ends[1]], [ends[2], ends[3]]);
     assert_one_curved_area(&sketch, std::f64::consts::PI * 4.0);
+}
+
+/// The small circle touches the big one from inside, at `touch` turns of a
+/// full turn round the big one's centre: `0.75` is its lowest point.
+fn a_circle_touching_the_one_around_it(touch: f64) -> Vec<Region> {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let (around, radius, small) = (DVec2::new(5.0, 7.0), 5.0, 1.0);
+    let towards = DVec2::from_angle(touch * std::f64::consts::TAU);
+    let outer = sketch.add_point(around);
+    let inner = sketch.add_point(around + towards * (radius - small));
+    sketch.add_circle(outer, radius);
+    sketch.add_circle(inner, small);
+    sketch.regions()
+}
+
+fn assert_a_hole_of_the_one_around_it(regions: &[Region], touch: f64) {
+    let depths: Vec<(usize, usize)> = regions
+        .iter()
+        .map(|region| (region.depth, region.holes.len()))
+        .collect();
+    assert_eq!(
+        depths,
+        vec![(0, 1), (1, 0)],
+        "touching at {touch} of a turn, (depth, holes) of each area"
+    );
+}
+
+#[test]
+fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
+    let regions = a_circle_touching_the_one_around_it(0.75);
+    assert_a_hole_of_the_one_around_it(&regions, 0.75);
+    let ring = area(&regions[0].face_triangles());
+    let expected = std::f64::consts::PI * (25.0 - 1.0);
+    assert!(
+        (ring - expected).abs() / expected < 0.02,
+        "a tube and not a rod: ring {ring}, expected ~{expected}"
+    );
+}
+
+#[test]
+fn a_circle_touching_the_one_around_it_is_a_hole_of_it_wherever_the_touch_falls() {
+    for touch in [0.0, 0.125, 0.25, 0.5, 0.625, 0.7, 0.75, 0.8, 0.875] {
+        let regions = a_circle_touching_the_one_around_it(touch);
+        assert_a_hole_of_the_one_around_it(&regions, touch);
+    }
+}
+
+#[test]
+fn a_triangle_touching_its_square_at_a_corner_leaves_two_areas_side_by_side() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let square = [(0.0, 0.0), (10.0, 0.0), (10.0, 10.0), (0.0, 10.0)]
+        .map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+    for index in 0..4 {
+        sketch.add_segment(square[index], square[(index + 1) % 4]);
+    }
+    let tip = square[0];
+    let others = [
+        sketch.add_point(DVec2::new(4.0, 2.0)),
+        sketch.add_point(DVec2::new(2.0, 4.0)),
+    ];
+    sketch.add_segment(tip, others[0]);
+    sketch.add_segment(others[0], others[1]);
+    sketch.add_segment(others[1], tip);
+    assert_tinted(&sketch, &[6.0, 94.0]);
+    let depths: Vec<usize> = sketch.regions().iter().map(|region| region.depth).collect();
+    assert_eq!(depths, vec![0, 0]);
+}
+
+#[test]
+fn a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let corners =
+        [(0.0, 0.0), (7.0, 3.0), (10.5, 3.0)].map(|(x, y)| sketch.add_point(DVec2::new(x, y)));
+    for index in 0..3 {
+        sketch.add_segment(corners[index], corners[(index + 1) % 3]);
+    }
+    let small = sketch.add_point(DVec2::new(5.0, 4.0));
+    sketch.add_circle(small, 1.5);
+    let big = sketch.add_point(DVec2::new(6.5, 4.0));
+    sketch.add_circle(big, 3.0);
+
+    let regions = sketch.regions();
+    let disc: Vec<&Region> = regions
+        .iter()
+        .filter(|region| region.contains(DVec2::new(5.0, 4.0)))
+        .collect();
+    assert_eq!(disc.len(), 1, "the small disc lies in one area");
+    assert_eq!(disc[0].depth, 1);
+    let around: Vec<&Region> = regions
+        .iter()
+        .filter(|region| region.holes.len() == 1)
+        .collect();
+    assert_eq!(around.len(), 1, "one area has the small disc as its hole");
+    assert!(around[0].contains(DVec2::new(8.0, 5.0)));
 }

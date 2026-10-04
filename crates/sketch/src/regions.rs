@@ -106,77 +106,87 @@ impl Sketch {
             })
             .collect();
 
-        let insides: Vec<DVec2> = regions.iter().map(inside).collect();
-        for (index, point) in insides.iter().enumerate() {
-            regions[index].depth = regions
-                .iter()
-                .enumerate()
-                .filter(|(other, region)| {
-                    *other != index && encloses(&region.outline.points, *point)
-                })
-                .count();
-        }
-        regions.sort_by_key(|region| region.depth);
-
-        // Only the outlines directly inside count as holes: what sits inside a
-        // hole is matter again, and belongs to its own area.
-        let outlines: Vec<(usize, Outline)> = regions
-            .iter()
-            .map(|region| (region.depth, region.outline.clone()))
-            .collect();
-        let insides: Vec<DVec2> = regions.iter().map(inside).collect();
-        let holes: Vec<Vec<Outline>> = regions
+        // `within[inner][outer]`, read once: depth and holes both ask it.
+        let within: Vec<Vec<bool>> = regions
             .iter()
             .enumerate()
-            .map(|(index, region)| {
-                outlines
+            .map(|(inner, region)| {
+                regions
                     .iter()
                     .enumerate()
-                    .filter(|(other, (depth, _))| {
-                        *other != index
-                            && *depth == region.depth + 1
-                            && encloses(&region.outline.points, insides[*other])
+                    .map(|(outer, other)| {
+                        inner != outer && lies_within(&region.outline.points, &other.outline.points)
                     })
-                    .map(|(_, (_, outline))| outline.clone())
                     .collect()
             })
             .collect();
-        for (region, holes) in regions.iter_mut().zip(holes) {
+        let depths: Vec<usize> = within
+            .iter()
+            .map(|outers| outers.iter().filter(|inside| **inside).count())
+            .collect();
+
+        // Only the outlines directly inside count as holes: what sits inside a
+        // hole is matter again, and belongs to its own area.
+        let holes: Vec<Vec<Outline>> = (0..regions.len())
+            .map(|outer| {
+                (0..regions.len())
+                    .filter(|inner| within[*inner][outer] && depths[*inner] == depths[outer] + 1)
+                    .map(|inner| regions[inner].outline.clone())
+                    .collect()
+            })
+            .collect();
+        for ((region, holes), depth) in regions.iter_mut().zip(holes).zip(depths) {
             region.holes = holes;
+            region.depth = depth;
         }
+        regions.sort_by_key(|region| region.depth);
         regions
     }
 }
 
-/// A point inside the area and right up against its edge.
+/// Whether one outline lies inside another, read off the corner of it that
+/// stands furthest from the other.
 ///
-/// It has to hug the outline: a point taken well inside the shape would sit
-/// inside whatever is drawn within it too, and every area would then count
-/// itself as nested. The lowest corner is always a convex one, so stepping
-/// just inside along its bisector lands in the area itself.
-fn inside(region: &Region) -> DVec2 {
-    let outline = &region.outline.points;
-    let count = outline.len();
-    // `total_cmp` rather than `partial_cmp`: a stray NaN would make the
-    // comparison return None, and unwrapping it would take the whole
-    // application down over one bad coordinate.
-    let corner = (0..count)
-        .min_by(|a, b| {
-            outline[*a]
-                .y
-                .total_cmp(&outline[*b].y)
-                .then(outline[*a].x.total_cmp(&outline[*b].x))
+/// Any point of the outline would do were the two apart, but they may touch:
+/// two circles one inside the other meeting at a point are two whole loops, and
+/// a place picked near the touch can fall on either side of the other's
+/// sampled outline. The corner furthest away is the one rounding cannot move
+/// across. An outline lying wholly along the other — a shape pinched where it
+/// touches its own outline — has no such corner, and is not inside it.
+fn lies_within(inner: &[DVec2], outer: &[DVec2]) -> bool {
+    let (Some((inner_low, inner_high)), Some((outer_low, outer_high))) =
+        (bounds(inner), bounds(outer))
+    else {
+        return false;
+    };
+    // Overlapping boxes, not one box inside the other: where the two touch,
+    // each is sampled its own way, and the inner one may stand a little out.
+    if inner_low.cmpgt(outer_high).any() || inner_high.cmplt(outer_low).any() {
+        return false;
+    }
+    let tolerance = (outer_high - outer_low).length() * 1e-9;
+    inner
+        .iter()
+        .map(|corner| (*corner, distance_to_outline(outer, *corner)))
+        .max_by(|a, b| a.1.total_cmp(&b.1))
+        .is_some_and(|(corner, clear)| clear > tolerance && encloses(outer, corner))
+}
+
+fn bounds(outline: &[DVec2]) -> Option<(DVec2, DVec2)> {
+    let first = *outline.first()?;
+    Some(outline.iter().fold((first, first), |(low, high), point| {
+        (low.min(*point), high.max(*point))
+    }))
+}
+
+fn distance_to_outline(outline: &[DVec2], point: DVec2) -> f64 {
+    (0..outline.len())
+        .map(|index| {
+            let (a, b) = (outline[index], outline[(index + 1) % outline.len()]);
+            let along = (point - a).dot(b - a) / (b - a).length_squared().max(f64::MIN_POSITIVE);
+            point.distance(a + (b - a) * along.clamp(0.0, 1.0))
         })
-        .unwrap_or(0);
-    let (previous, here, following) = (
-        outline[(corner + count - 1) % count],
-        outline[corner],
-        outline[(corner + 1) % count],
-    );
-    let bisector = ((previous - here).normalize_or_zero() + (following - here).normalize_or_zero())
-        .normalize_or_zero();
-    let reach = here.distance(previous).min(here.distance(following)) * 1e-3;
-    here + bisector * reach
+        .fold(f64::INFINITY, f64::min)
 }
 
 pub(crate) fn signed_area(outline: &[DVec2]) -> f64 {

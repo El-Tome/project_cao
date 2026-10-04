@@ -109,6 +109,7 @@ in one of the two domains, never there.
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
 | How much surface an area holds and how far it is round, the curve honoured rather than the steps it was sampled into | `sketch/src/regions/measure.rs` | `Region::area`, `Region::perimeter`, `Outline::area`, `Outline::perimeter` |
+| Which side of a line a corner lies on, read exactly, for cutting an area into triangles | `sketch/src/regions/side.rs` | `side`, `Side` |
 | Naming an area by the curves that bound it, and finding it again | `sketch/src/naming.rs` | `CurveId`, `Area`, `Standing`, `Became`, `area_under` |
 | Random drawings held to the rules every area keeps, a campaign over them, and what it found ([`sketch-soundness.md`](sketch-soundness.md)) | `sketch/tests/random_sketches/`, `sketch/tests/every_sketch_keeps_its_areas.rs`, `sketch/tests/what_random_sketches_found.rs` | `holds`, `drawn`, `a_campaign_of_random_drawings_keeps_every_rule` |
 | Where two curves of the drawing cross | `sketch/src/crossing.rs` | `where_segments_cross`, `where_segment_crosses_arc`, `where_arcs_cross`, `where_segment_crosses_circle`, `where_arc_crosses_circle`, `where_circles_cross` |

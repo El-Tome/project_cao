@@ -51,6 +51,12 @@
 //! Closes #503.
 //! - the drawing filed under it holds every rule, its `ignore` taken off —
 //!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`
+//!
+//! Closes #504.
+//! - the drawing filed under it is tinted as it encloses, its `ignore` taken
+//!   off — `an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses`
+//! - the side a corner lies on is read exactly — no test: the reading is
+//!   private to the crate, and held beside it in regions/side/tests.rs
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -386,7 +392,6 @@ fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
 }
 
 #[test]
-#[ignore = "#504"]
 fn an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses() {
     random_sketches::holds(&[Gesture::Chain {
         through: vec![

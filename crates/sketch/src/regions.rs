@@ -70,7 +70,7 @@ impl Region {
     }
 
     /// Whether a curve of the drawing runs along some border of the area.
-    pub fn runs_along(&self, curve: CurveId) -> bool {
+    pub(crate) fn runs_along(&self, curve: CurveId) -> bool {
         self.outline
             .bounds
             .iter()

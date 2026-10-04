@@ -5,6 +5,11 @@
 //! border (#493). These are the drawings that rule has to hold for whatever
 //! the arithmetic does to them: turned by an odd angle, a stretch that lay
 //! exactly along another one lies along it only to the last digit or two.
+//!
+//! A third curve grazing such a stretch is where that shows first. Whether a
+//! graze is seen is a matter of rounding, and turned it is often seen on one
+//! of the two curves and not on the other; cut on one only, they end on
+//! different vertices there and are two borders again.
 
 // The drawing and the rules are the campaign's; this file only lays drawings
 // and holds them.
@@ -31,10 +36,6 @@ fn chain(through: &[[f64; 2]]) -> Gesture {
     }
 }
 
-/// The arc grazes the rectangle's top where a trait lies along it. Whether a
-/// graze is seen is a matter of rounding, and turned it is seen on one of the
-/// two and not on the other: the two then end on different vertices there,
-/// and lie along each other as two borders.
 #[test]
 fn an_arc_grazing_a_stretch_two_traits_lie_along_cuts_both_alike() {
     random_sketches::holds(&[

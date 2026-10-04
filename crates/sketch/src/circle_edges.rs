@@ -116,9 +116,11 @@ impl Sketch {
             }));
         }
         // An ellipse whose axes reach alike laid on the circle is the circle
-        // drawn again, and its bare handles break it no more than they break
-        // that ellipse: cut at them, the circle would come out in pieces the
-        // ellipse lying along it never meets, and the two would be two areas.
+        // drawn again, and is broken at every point on it but its own bare
+        // handles. The circle is broken where that ellipse is, no more and no
+        // less: cut where the ellipse is not, it would come out in pieces the
+        // ellipse never meets, and the two would be two areas. With several
+        // such ellipses, a handle bare for one is a cut in the others.
         let again: Vec<EllipseId> = self
             .live_ellipses()
             .filter(|(id, it)| {
@@ -130,9 +132,10 @@ impl Sketch {
             .map(|(id, _)| id)
             .collect();
         for (point, place) in self.live_points() {
-            let bare = again
-                .iter()
-                .any(|ellipse| self.is_a_bare_handle_of(*ellipse, point));
+            let bare = !again.is_empty()
+                && again
+                    .iter()
+                    .all(|ellipse| self.is_a_bare_handle_of(*ellipse, point));
             if round.holds(place) && !bare {
                 turns.push(turn_at(round.centre, place));
             }

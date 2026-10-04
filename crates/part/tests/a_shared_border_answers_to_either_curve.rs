@@ -23,6 +23,8 @@
 //!   `erasing_a_side_that_lies_wholly_along_the_neighbour_keeps_the_matter`
 //! - a border really lost still loses the area —
 //!   `erasing_a_side_of_its_own_still_leaves_no_matter`
+//! - compacting the history keeps both curves in the name —
+//!   `a_compacted_history_still_answers_to_either_curve_of_a_shared_border`
 
 use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use cao_part::{History, PartState};
@@ -33,7 +35,8 @@ const DEPTH: f64 = 4.0;
 
 /// A drawing holding two rectangles, each given by two opposite corners. The
 /// first one's sides are traits 0 to 3, bottom, right, top, left; the second
-/// one's are 4 to 7 in the same order.
+/// one's are 4 to 7 in the same order. Its points are the origin, then the
+/// first one's corners, 1 to 4, then the second one's, 5 to 8.
 fn two_rectangles(first: [DVec2; 2], second: [DVec2; 2]) -> History {
     let mut history = History::default();
     history.push(Operation::CreateSketch {
@@ -225,7 +228,6 @@ fn pulling_the_second_rectangle_off_the_first_keeps_its_matter() {
     raise(&mut history, DVec2::new(1.5, 2.0));
     assert!((raised(&history) - 2.0 * DEPTH).abs() < 1e-6);
 
-    // The second rectangle's four corners, after the origin and the first's.
     history.push(Operation::MoveMany {
         sketch: 0,
         points: (5..9).map(PointId).collect(),
@@ -265,4 +267,30 @@ fn erasing_a_side_of_its_own_still_leaves_no_matter() {
         "the second rectangle has lost its top: the step stands on nothing, \
          rather than on some other area — {after}",
     );
+}
+
+#[test]
+fn a_compacted_history_still_answers_to_either_curve_of_a_shared_border() {
+    let mut history = two_rectangles(
+        [DVec2::ZERO, DVec2::new(1.0, 3.0)],
+        [DVec2::new(1.0, 1.0), DVec2::new(2.0, 2.0)],
+    );
+    raise(&mut history, DVec2::new(1.5, 1.5));
+    let compacted = cao_part::compact(&history);
+    assert!(
+        (raised(&compacted) - DEPTH).abs() < 1e-6,
+        "compaction leaves the step where it was: {}",
+        raised(&compacted),
+    );
+
+    for erased in [vec![0, 1, 2, 3], vec![7]] {
+        let mut after = compacted.clone();
+        erase(&mut after, erased.iter().copied());
+        assert!(
+            (raised(&after) - DEPTH).abs() < 1e-6,
+            "with traits {erased:?} erased after the compaction, the other side \
+             still closes the short rectangle: {}",
+            raised(&after),
+        );
+    }
 }

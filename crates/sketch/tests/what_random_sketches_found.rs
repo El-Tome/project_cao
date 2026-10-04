@@ -197,12 +197,6 @@ fn a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas() {
     ]);
 }
 
-/// Found once #493 made a stretch two curves lie along one border. The last
-/// rectangle takes its far corner on the middle one's, and lies along it on
-/// three sides: along the bottom the two share both ends and are one border,
-/// but up the side and along the top they end on two corners standing in one
-/// place without being one point, and stay two. Before #493 all three stayed
-/// two, and the drawing happened to hold.
 #[test]
 #[ignore = "#494"]
 fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
@@ -225,13 +219,6 @@ fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
     ]);
 }
 
-/// Found once #493 made a stretch two curves lie along one border. The first
-/// rectangle is dragged flat, and its two generated corners stand on its two
-/// clicked ones without being them; the second lies along it. Of the three
-/// traits now lying along that stretch, only the two that end on the same
-/// pair of points are one border, and the third leaves a sliver the walk
-/// cannot read. Before #493 all three stayed, and the drawing happened to
-/// hold.
 #[test]
 #[ignore = "#494"]
 fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {

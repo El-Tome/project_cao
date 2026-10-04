@@ -111,15 +111,16 @@ fn the_place_that_was_clicked_travels_with_the_name() {
 #[test]
 fn a_border_two_curves_lie_along_is_lost_only_with_both() {
     let named = shared(&[&[0], &[1, 5], &[2]]);
-    let mut descent = Descent::default();
-    descent.record(segment(1), Vec::new());
+    for (first, other) in [(1, 5), (5, 1)] {
+        let mut descent = Descent::default();
+        descent.record(segment(first), Vec::new());
+        assert_eq!(
+            descent.follow(&named),
+            Some(standing(&[&[0], &[other], &[2]])),
+            "trait {other} still runs along that border",
+        );
 
-    assert_eq!(
-        descent.follow(&named),
-        Some(standing(&[&[0], &[5], &[2]])),
-        "trait 5 still runs along that border",
-    );
-
-    descent.record(segment(5), Vec::new());
-    assert_eq!(descent.follow(&named), None);
+        descent.record(segment(other), Vec::new());
+        assert_eq!(descent.follow(&named), None);
+    }
 }

@@ -22,7 +22,7 @@ mod border;
 mod curve;
 pub(crate) mod half_edge;
 
-use border::{Borders, Loops, also_named, edge_named_too};
+use border::{Borders, Loops, also_named};
 use curve::{Curve, between, pieces};
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
 
@@ -49,9 +49,10 @@ pub(crate) struct Crossed {
     pub(crate) ends: Vec<(usize, usize)>,
     pub(crate) split: usize,
     pub(crate) curves: Vec<CurvedHalfEdge>,
-    /// Which curves of the drawing each half-edge was cut out of, twins
-    /// alike: one, or every curve lying along that stretch, in order.
-    /// It is what lets a face walk say which curves bound it.
+    /// Which curves of the drawing each edge was cut out of, read for either
+    /// of its halves at half the half-edge's number: one, or every curve lying
+    /// along that stretch, in order. It is what lets a face walk say which
+    /// curves bound it.
     pub(crate) from: Vec<Vec<CurveId>>,
     /// The circles and ellipses nothing cut, each sampled as the closed loop
     /// it still is, and the same curve drawn twice only once, named by both.
@@ -195,22 +196,28 @@ fn held(fraction: f64) -> bool {
 
 /// Cuts every curve each of these vertices stands on, wherever it is not
 /// already an end of that curve or a cut in it.
+///
+/// Every vertex is held against every curve, so a curve whose box the vertex
+/// stands clear of is passed over before anything costlier is asked of it.
 fn cut_through(
     vertices: impl Iterator<Item = usize>,
     curves: &[Curve],
     places: &[DVec2],
     cuts: &mut [Vec<(f64, usize)>],
 ) {
+    let reaches: Vec<(DVec2, DVec2)> = curves.iter().map(|curve| curve.reach(places)).collect();
     for vertex in vertices {
-        for (curve, cut) in curves.iter().zip(cuts.iter_mut()) {
+        let (place, off) = (places[vertex], off_by(places[vertex]));
+        for ((curve, cut), (low, high)) in curves.iter().zip(cuts.iter_mut()).zip(&reaches) {
             let (from, to) = curve.ends();
-            if vertex == from || vertex == to || cut.iter().any(|(_, at)| *at == vertex) {
+            let clear = place.cmplt(*low - off).any() || place.cmpgt(*high + off).any();
+            if clear || vertex == from || vertex == to {
                 continue;
             }
-            if let Some(fraction) = curve
-                .fraction_at(places, places[vertex])
-                .filter(|at| held(*at))
-            {
+            let Some(fraction) = curve.fraction_at(places, place).filter(|at| held(*at)) else {
+                continue;
+            };
+            if cut.iter().all(|(_, at)| *at != vertex) {
                 cut.push((fraction, vertex));
             }
         }
@@ -252,16 +259,14 @@ impl Sketch {
             names.push(CurveId::Arc(id));
         }
 
-        let mut whole: Vec<(Vec<CurveId>, Vec<DVec2>)> = Vec::new();
         let mut loops = Loops::default();
         for round in self.rounds() {
             let pieces = broken(&round, &mut places);
             let id = CurveId::Circle(round.id);
             match pieces.is_empty() {
-                true => match loops.along(Bend::Round(round.centre), round.place_at(0.0)) {
-                    Some(known) => also_named(&mut whole[known].0, id),
-                    None => whole.push((vec![id], round.sampled())),
-                },
+                true => loops.lay((Bend::Round(round.centre), round.place_at(0.0)), id, || {
+                    round.sampled()
+                }),
                 false => {
                     names.extend(std::iter::repeat_n(id, pieces.len()));
                     curves.extend(pieces);
@@ -272,10 +277,9 @@ impl Sketch {
             let pieces = broken_oval(&oval, &mut places);
             let id = CurveId::Ellipse(oval.id);
             match pieces.is_empty() {
-                true => match loops.along(Bend::Oval(oval.drawn), oval.place_at(0.0)) {
-                    Some(known) => also_named(&mut whole[known].0, id),
-                    None => whole.push((vec![id], oval.sampled())),
-                },
+                true => loops.lay((Bend::Oval(oval.drawn), oval.place_at(0.0)), id, || {
+                    oval.sampled()
+                }),
                 false => {
                     names.extend(std::iter::repeat_n(id, pieces.len()));
                     curves.extend(pieces);
@@ -318,7 +322,7 @@ impl Sketch {
             drawn: names,
             places,
             cuts,
-            whole,
+            whole: loops.into_whole(),
         }
     }
 
@@ -337,13 +341,13 @@ impl Sketch {
         let named = || drawn.iter().zip(&curves).zip(&cuts);
         for ((id, curve), cut) in named().filter(|((_, it), _)| it.is_straight()) {
             for (start, end) in pieces(curve, cut) {
-                if let Some(edge) = borders.along_straight(start, end, ends.len()) {
-                    edge_named_too(&mut from, edge, *id);
+                if let Some(edge) = borders.along_straight(start, end, from.len()) {
+                    also_named(&mut from[edge], *id);
                     continue;
                 }
                 ends.push((start, end));
                 ends.push((end, start));
-                from.extend([vec![*id], vec![*id]]);
+                from.push(vec![*id]);
             }
         }
 
@@ -356,13 +360,13 @@ impl Sketch {
         });
         for (id, bend, curve, cut) in curved {
             for (start, end) in pieces(curve, cut) {
-                if let Some(edge) = borders.along_curved(bend, (start, end), &places, ends.len()) {
-                    edge_named_too(&mut from, edge, id);
+                if let Some(edge) = borders.along_curved(bend, (start, end), &places, from.len()) {
+                    also_named(&mut from[edge], id);
                     continue;
                 }
                 ends.push((start, end));
                 ends.push((end, start));
-                from.extend([vec![id], vec![id]]);
+                from.push(vec![id]);
                 for forward in [true, false] {
                     bent.push(CurvedHalfEdge { bend, forward });
                 }

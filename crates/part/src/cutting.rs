@@ -33,8 +33,9 @@ impl PartState {
     /// The name as the drawing holds it now, once every cut made since it was
     /// written has been followed.
     ///
-    /// Nothing when one of the curves it names was cut away altogether: the
-    /// area has lost a border, and whatever stood on it stands on nothing.
+    /// Nothing when every curve along one of its borders was cut away
+    /// altogether: the area has lost that border, and whatever stood on it
+    /// stands on nothing.
     pub(crate) fn standing(&self, sketch: usize, area: &Area) -> Option<Standing> {
         match self.descent.get(&sketch) {
             Some(descent) => descent.follow(area),

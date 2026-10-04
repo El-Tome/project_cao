@@ -251,9 +251,6 @@ fn borders(of: &[Vec<CurveId>]) -> Vec<Vec<CurveId>> {
     borders
 }
 
-/// Where two sides lie along each other the stretch is one border, and both
-/// sides name it: each shape is bounded there by its own side and by its
-/// neighbour's alike.
 #[test]
 fn a_stretch_two_sides_lie_along_is_one_border_named_by_both() {
     let mut sketch = Sketch::new(WorkPlane::XY);
@@ -293,8 +290,9 @@ fn a_stretch_two_sides_lie_along_is_one_border_named_by_both() {
     );
 }
 
-#[test]
-fn a_stretch_two_sides_lie_along_answers_to_either_side() {
+/// A short rectangle against a long one, its left side lying wholly along the
+/// long one's right side, and its name as it is clicked.
+fn a_short_side_along_a_long_one() -> (Sketch, Vec<SegmentId>, Vec<SegmentId>, Area) {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let long = rectangle(&mut sketch, DVec2::ZERO, DVec2::new(1.0, 3.0));
     let short = rectangle(&mut sketch, DVec2::new(1.0, 1.0), DVec2::new(2.0, 2.0));
@@ -304,6 +302,12 @@ fn a_stretch_two_sides_lie_along_answers_to_either_side() {
         &regions[area_under(&regions, clicked).expect("the short rectangle")],
         clicked,
     );
+    (sketch, long, short, area)
+}
+
+#[test]
+fn a_stretch_two_sides_lie_along_answers_to_either_side() {
+    let (mut sketch, long, short, area) = a_short_side_along_a_long_one();
     assert!(
         area.bounds
             .contains(&vec![CurveId::Segment(long[1]), CurveId::Segment(short[3])]),
@@ -311,21 +315,27 @@ fn a_stretch_two_sides_lie_along_answers_to_either_side() {
          stretch of its own: {:?}",
         area.bounds,
     );
-
     for side in &long {
         sketch.erase(Element::Segment(*side));
     }
     let left = sketch.regions();
-
     assert_eq!(left.len(), 1, "the short rectangle is all that is left");
     assert_eq!(
         area.found_in(&left),
         Some(0),
         "its own side bounds it now where the long one did",
     );
+
+    let (mut sketch, _, short, area) = a_short_side_along_a_long_one();
+    sketch.erase(Element::Segment(short[3]));
+    let left = sketch.regions();
+    let rank = area.found_in(&left).expect("the long side still closes it");
+    assert!(
+        left[rank].contains(DVec2::new(1.5, 1.5)) && !left[rank].contains(DVec2::new(0.5, 1.5)),
+        "the short rectangle, closed by the long one's side, and not the long one",
+    );
 }
 
-/// Nothing cuts either circle: the two are one loop, named by both.
 #[test]
 fn a_circle_drawn_twice_is_one_border_named_by_both() {
     let mut sketch = Sketch::new(WorkPlane::XY);

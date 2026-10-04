@@ -124,8 +124,8 @@ impl Sketch {
             }
 
             let mut outline = Outline::default();
-            for half in without_spurs(&walked) {
-                outline.bounds.push(cut_from[half].clone());
+            let bounding = without_spurs(&walked);
+            for half in bounding.iter().copied() {
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => {
@@ -157,6 +157,10 @@ impl Sketch {
             // that point twice, quite correctly, so nothing here may ask for
             // the corners to be distinct.
             if signed_area(&outline.points) > 1e-9 {
+                outline.bounds = bounding
+                    .iter()
+                    .map(|half| cut_from[half / 2].clone())
+                    .collect();
                 outline.bounds.sort_unstable();
                 outline.bounds.dedup();
                 outlines.push(outline);

@@ -81,28 +81,55 @@ impl Borders {
     }
 }
 
-/// The circles and ellipses nothing cut, each as what it bends along and a
-/// place it runs through.
+/// The circles and ellipses nothing cut, each sampled as the closed loop it
+/// still is and named by every curve drawn along it.
 ///
 /// A whole loop has no vertex, so a second one drawn on the first never meets
 /// a piece to be held against: the same curve drawn twice is caught here
 /// instead.
 #[derive(Default)]
-pub(super) struct Loops(Vec<(Bend, DVec2)>);
+pub(super) struct Loops(Vec<Loop>);
+
+struct Loop {
+    bend: Bend,
+    /// A place the loop runs through, which is what gives a circle its
+    /// radius.
+    through: DVec2,
+    names: Vec<CurveId>,
+    places: Vec<DVec2>,
+}
 
 impl Loops {
-    /// Which loop already noted a whole loop is the same curve as, or nothing
-    /// when it is a curve of its own, noted then after the others.
-    pub(super) fn along(&mut self, bend: Bend, through: DVec2) -> Option<usize> {
-        if let Some(known) = self
+    /// Lays a whole loop, or names the one already laid when it is the same
+    /// curve.
+    pub(super) fn lay(
+        &mut self,
+        (bend, through): (Bend, DVec2),
+        name: CurveId,
+        sampled: impl FnOnce() -> Vec<DVec2>,
+    ) {
+        match self
             .0
-            .iter()
-            .position(|known| is_the_curve(*known, (bend, through)))
+            .iter_mut()
+            .find(|known| is_the_curve((known.bend, known.through), (bend, through)))
         {
-            return Some(known);
+            Some(known) => also_named(&mut known.names, name),
+            None => self.0.push(Loop {
+                bend,
+                through,
+                names: vec![name],
+                places: sampled(),
+            }),
         }
-        self.0.push((bend, through));
-        None
+    }
+
+    /// Every loop laid, as the curves naming it and the places it is sampled
+    /// into.
+    pub(super) fn into_whole(self) -> Vec<(Vec<CurveId>, Vec<DVec2>)> {
+        self.0
+            .into_iter()
+            .map(|laid| (laid.names, laid.places))
+            .collect()
     }
 }
 
@@ -111,14 +138,6 @@ impl Loops {
 pub(super) fn also_named(names: &mut Vec<CurveId>, curve: CurveId) {
     if let Err(at) = names.binary_search(&curve) {
         names.insert(at, curve);
-    }
-}
-
-/// The same for an edge of the graph, on both its halves: `edge` is the
-/// first of the two, its twin next to it.
-pub(super) fn edge_named_too(from: &mut [Vec<CurveId>], edge: usize, curve: CurveId) {
-    for half in [edge, edge + 1] {
-        also_named(&mut from[half], curve);
     }
 }
 
@@ -148,6 +167,3 @@ fn ellipse_of((bend, through): (Bend, DVec2)) -> EllipseDraft {
         Bend::Round(centre) => EllipseDraft::round(centre, through.distance(centre)),
     }
 }
-
-#[cfg(test)]
-mod tests;

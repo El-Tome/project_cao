@@ -312,8 +312,6 @@ fn an_arc_drawn_along_part_of_its_circle_leaves_the_disc_its_area() {
     assert_one_curved_area(&sketch, std::f64::consts::PI * 4.0);
 }
 
-/// Nothing cuts either circle, so neither has a vertex: the two never meet as
-/// pieces, and are held against each other as whole loops.
 #[test]
 fn a_circle_drawn_twice_on_one_centre_encloses_one_disc() {
     let mut sketch = Sketch::new(WorkPlane::XY);
@@ -324,8 +322,6 @@ fn a_circle_drawn_twice_on_one_centre_encloses_one_disc() {
     assert_one_curved_area(&sketch, std::f64::consts::PI * 4.0);
 }
 
-/// The same ellipse drawn from its other axis, that axis laid the other way:
-/// the numbers describing the two differ, the curve does not.
 #[test]
 fn an_ellipse_drawn_again_from_its_other_axis_encloses_one_area() {
     let mut sketch = Sketch::new(WorkPlane::XY);
@@ -413,8 +409,6 @@ fn a_trait_across_a_round_ellipse_laid_on_a_circle_leaves_two_halves() {
     );
 }
 
-/// The arc runs past two of the ellipse's own handles, and is cut at them
-/// where the ellipse, broken by the arc's ends, is cut too.
 #[test]
 fn an_arc_drawn_along_a_round_ellipse_leaves_it_its_area() {
     let mut sketch = Sketch::new(WorkPlane::XY);
@@ -424,5 +418,16 @@ fn an_arc_drawn_along_a_round_ellipse_leaves_it_its_area() {
     let end = sketch.add_point(DVec2::new(-2.0, 0.0).rotate(DVec2::from_angle(0.5)));
     sketch.add_arc(centre, start, end);
     assert_eq!(sketch.crossings(), Vec::<DVec2>::new());
+    assert_one_curved_area(&sketch, std::f64::consts::PI * 4.0);
+}
+
+#[test]
+fn two_round_ellipses_laid_on_a_circle_with_their_axes_apart_enclose_one_disc() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    a_circle_and_a_round_ellipse_on_it(&mut sketch);
+    let centre = sketch.add_point(DVec2::ZERO);
+    let ends = [(-1.0, -1.0), (1.0, 1.0), (1.0, -1.0), (-1.0, 1.0)]
+        .map(|(x, y)| sketch.add_point(DVec2::new(x, y) * std::f64::consts::SQRT_2));
+    sketch.add_ellipse(centre, [ends[0], ends[1]], [ends[2], ends[3]]);
     assert_one_curved_area(&sketch, std::f64::consts::PI * 4.0);
 }

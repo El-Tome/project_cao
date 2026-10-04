@@ -47,6 +47,10 @@
 //!   `a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas`,
 //!   `a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses`,
 //!   `a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area`
+//!
+//! Closes #503.
+//! - the drawing filed under it holds every rule, its `ignore` taken off —
+//!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -366,7 +370,6 @@ fn an_area_pinched_where_two_circles_touch_is_tinted_on_its_own_side_of_the_pinc
 }
 
 #[test]
-#[ignore = "#503"]
 fn a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it() {
     random_sketches::holds(&[
         Gesture::Circle {

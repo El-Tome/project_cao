@@ -38,13 +38,16 @@ pub type Became = Vec<(CurveId, Vec<CurveId>)>;
 
 /// Which closed area of a drawing something stands on.
 ///
-/// `bounds` is the name: every curve that bordered the area when it was
-/// pointed at, once each and in order. `inside` is the place pointed at, and
-/// is read to tell apart areas the same curves bound — the two halves of a
-/// circle a chord cuts are both bounded by that circle and that chord.
+/// `bounds` is the name: every border the area had when it was pointed at,
+/// once each and in order, each as the curves running along it. A stretch two
+/// curves lie along is one border both name, and either one answers for it:
+/// the area keeps its name when the neighbour whose side it shares is erased,
+/// or the first of two copies of a trait. `inside` is the place pointed at,
+/// and is read to tell apart areas the same curves bound — the two halves of
+/// a circle a chord cuts are both bounded by that circle and that chord.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Area {
-    pub bounds: Vec<CurveId>,
+    pub bounds: Vec<Vec<CurveId>>,
     pub inside: DVec2,
 }
 
@@ -58,10 +61,11 @@ impl Area {
     }
 
     /// The name read against a drawing nothing has been cut out of since it
-    /// was written, where every border is still the one curve it was.
+    /// was written, where every border is still run along by the curves it
+    /// was.
     pub fn uncut(&self) -> Standing {
         Standing {
-            borders: self.bounds.iter().map(|curve| vec![*curve]).collect(),
+            borders: self.bounds.clone(),
             inside: self.inside,
         }
     }
@@ -73,14 +77,15 @@ impl Area {
     }
 }
 
-/// A name read against the drawing as it stands now: for every curve that
-/// bordered the area, the curves standing in that border's place.
+/// A name read against the drawing as it stands now: for every border of the
+/// area, the curves standing in that border's place.
 ///
-/// One border, one entry — even where a cut left several curves along it. An
-/// area answers to the name when it is bounded by **at least one** curve out
-/// of every entry: dividing a trait two areas share puts one piece on each
-/// side of the boundary, and each area keeps the piece that is still its own
-/// border. Demanding all of them would lose both.
+/// One border, one entry — even where a cut left several curves along it, or
+/// two curves were laid along it. An area answers to the name when it is
+/// bounded by **at least one** curve out of every entry: dividing a trait two
+/// areas share puts one piece on each side of the boundary, and each area
+/// keeps the piece that is still its own border. Demanding all of them would
+/// lose both.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Standing {
     borders: Vec<Vec<CurveId>>,
@@ -118,7 +123,7 @@ impl Standing {
             .filter(|(_, region)| {
                 self.borders
                     .iter()
-                    .all(|border| border.iter().any(|curve| region.bounds().contains(curve)))
+                    .all(|border| border.iter().any(|curve| region.runs_along(*curve)))
             })
             .map(|(rank, _)| rank)
             .collect();

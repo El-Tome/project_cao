@@ -18,9 +18,11 @@ use crate::ellipse_edges::Oval;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
 
+mod border;
 mod curve;
 pub(crate) mod half_edge;
 
+use border::{Borders, Loops, also_named};
 use curve::{Curve, between, pieces};
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
 
@@ -32,7 +34,7 @@ struct Cut {
     drawn: Vec<CurveId>,
     places: Vec<DVec2>,
     cuts: Vec<Vec<(f64, usize)>>,
-    whole: Vec<(CurveId, Vec<DVec2>)>,
+    whole: Vec<(Vec<CurveId>, Vec<DVec2>)>,
 }
 
 /// The drawing as a graph with every crossing standing on a vertex of its own.
@@ -40,20 +42,23 @@ struct Cut {
 /// `places` is the drawing's own points, then one more for each crossing.
 /// `ends` pairs every half-edge with its twin next to it, the straight ones
 /// first; `split` is where the curved ones start, and `curves` holds one entry
-/// for each of those.
+/// for each of those. A stretch two curves lie along is in it once, laid by
+/// the curve first in this order and named by both.
 pub(crate) struct Crossed {
     pub(crate) places: Vec<DVec2>,
     pub(crate) ends: Vec<(usize, usize)>,
     pub(crate) split: usize,
     pub(crate) curves: Vec<CurvedHalfEdge>,
-    /// Which curve of the drawing each half-edge was cut out of, twins alike.
-    /// It is what lets a face walk say which curves bound it.
-    pub(crate) from: Vec<CurveId>,
+    /// Which curves of the drawing each edge was cut out of, read for either
+    /// of its halves at half the half-edge's number: one, or every curve lying
+    /// along that stretch, in order. It is what lets a face walk say which
+    /// curves bound it.
+    pub(crate) from: Vec<Vec<CurveId>>,
     /// The circles and ellipses nothing cut, each sampled as the closed loop
-    /// it still is.
+    /// it still is, and the same curve drawn twice only once, named by both.
     /// They never enter the graph: a curve with no end has no vertex, and the
     /// walk turns at vertices.
-    pub(crate) whole: Vec<(CurveId, Vec<DVec2>)>,
+    pub(crate) whole: Vec<(Vec<CurveId>, Vec<DVec2>)>,
 }
 
 /// Nearer than this to an end, a crossing is that end: the sliver it would
@@ -183,6 +188,42 @@ fn broken(round: &Round, places: &mut Vec<DVec2>) -> Vec<Curve> {
         .collect()
 }
 
+/// Whether a place that far along a curve falls inside it, rather than on one
+/// of its ends.
+fn held(fraction: f64) -> bool {
+    fraction > CLOSE_TO_AN_END && fraction < 1.0 - CLOSE_TO_AN_END
+}
+
+/// Cuts every curve each of these vertices stands on, wherever it is not
+/// already an end of that curve or a cut in it.
+///
+/// Every vertex is held against every curve, so a curve whose box the vertex
+/// stands clear of is passed over before anything costlier is asked of it.
+fn cut_through(
+    vertices: impl Iterator<Item = usize>,
+    curves: &[Curve],
+    places: &[DVec2],
+    cuts: &mut [Vec<(f64, usize)>],
+) {
+    let reaches: Vec<(DVec2, DVec2)> = curves.iter().map(|curve| curve.reach(places)).collect();
+    for vertex in vertices {
+        let (place, off) = (places[vertex], off_by(places[vertex]));
+        for ((curve, cut), (low, high)) in curves.iter().zip(cuts.iter_mut()).zip(&reaches) {
+            let (from, to) = curve.ends();
+            let clear = place.cmplt(*low - off).any() || place.cmpgt(*high + off).any();
+            if clear || vertex == from || vertex == to {
+                continue;
+            }
+            let Some(fraction) = curve.fraction_at(places, place).filter(|at| held(*at)) else {
+                continue;
+            };
+            if cut.iter().all(|(_, at)| *at != vertex) {
+                cut.push((fraction, vertex));
+            }
+        }
+    }
+}
+
 impl Sketch {
     /// Every place two curves of the drawing run through without a point of
     /// the drawing's own standing there.
@@ -218,49 +259,42 @@ impl Sketch {
             names.push(CurveId::Arc(id));
         }
 
-        let mut whole = Vec::new();
+        let mut loops = Loops::default();
         for round in self.rounds() {
             let pieces = broken(&round, &mut places);
+            let id = CurveId::Circle(round.id);
             match pieces.is_empty() {
-                true => whole.push((CurveId::Circle(round.id), round.sampled())),
+                true => loops.lay((Bend::Round(round.centre), round.place_at(0.0)), id, || {
+                    round.sampled()
+                }),
                 false => {
-                    names.extend(std::iter::repeat_n(CurveId::Circle(round.id), pieces.len()));
+                    names.extend(std::iter::repeat_n(id, pieces.len()));
                     curves.extend(pieces);
                 }
             }
         }
         for oval in self.ovals() {
             let pieces = broken_oval(&oval, &mut places);
+            let id = CurveId::Ellipse(oval.id);
             match pieces.is_empty() {
-                true => whole.push((CurveId::Ellipse(oval.id), oval.sampled())),
+                true => loops.lay((Bend::Oval(oval.drawn), oval.place_at(0.0)), id, || {
+                    oval.sampled()
+                }),
                 false => {
-                    names.extend(std::iter::repeat_n(CurveId::Ellipse(oval.id), pieces.len()));
+                    names.extend(std::iter::repeat_n(id, pieces.len()));
                     curves.extend(pieces);
                 }
             }
         }
 
-        let held = |fraction: f64| fraction > CLOSE_TO_AN_END && fraction < 1.0 - CLOSE_TO_AN_END;
         let mut cuts: Vec<Vec<(f64, usize)>> = vec![Vec::new(); curves.len()];
-
-        let cutting: Vec<usize> = self
+        let cutting = self
             .live_points()
             .map(|(point, _)| point.0)
-            .chain(drawn..places.len())
-            .collect();
-        for point in cutting {
-            let place = places[point];
-            for (index, curve) in curves.iter().enumerate() {
-                let (from, to) = curve.ends();
-                if point == from || point == to {
-                    continue;
-                }
-                if let Some(fraction) = curve.fraction_at(&places, place).filter(|at| held(*at)) {
-                    cuts[index].push((fraction, point));
-                }
-            }
-        }
+            .chain(drawn..places.len());
+        cut_through(cutting, &curves, &places, &mut cuts);
 
+        let crossed_from = places.len();
         for first in 0..curves.len() {
             for second in (first + 1)..curves.len() {
                 for (along_first, along_second) in between(&curves[first], &curves[second], &places)
@@ -275,13 +309,20 @@ impl Sketch {
                 }
             }
         }
+        // A crossing found between two curves is a place every curve running
+        // through it is cut at, not those two alone. Where two curves lie
+        // along each other and a third grazes them, whether the graze is seen
+        // is a matter of rounding, and it is often seen on one of the two
+        // only: cut there and not on the other, they would end on different
+        // vertices and stay two borders along one stretch.
+        cut_through(crossed_from..places.len(), &curves, &places, &mut cuts);
 
         Cut {
             curves,
             drawn: names,
             places,
             cuts,
-            whole,
+            whole: loops.into_whole(),
         }
     }
 
@@ -296,12 +337,17 @@ impl Sketch {
 
         let mut ends = Vec::new();
         let mut from = Vec::new();
+        let mut borders = Borders::default();
         let named = || drawn.iter().zip(&curves).zip(&cuts);
         for ((id, curve), cut) in named().filter(|((_, it), _)| it.is_straight()) {
             for (start, end) in pieces(curve, cut) {
+                if let Some(edge) = borders.along_straight(start, end, from.len()) {
+                    also_named(&mut from[edge], *id);
+                    continue;
+                }
                 ends.push((start, end));
                 ends.push((end, start));
-                from.extend([*id, *id]);
+                from.push(vec![*id]);
             }
         }
 
@@ -314,9 +360,13 @@ impl Sketch {
         });
         for (id, bend, curve, cut) in curved {
             for (start, end) in pieces(curve, cut) {
+                if let Some(edge) = borders.along_curved(bend, (start, end), &places, from.len()) {
+                    also_named(&mut from[edge], id);
+                    continue;
+                }
                 ends.push((start, end));
                 ends.push((end, start));
-                from.extend([id, id]);
+                from.push(vec![id]);
                 for forward in [true, false] {
                     bent.push(CurvedHalfEdge { bend, forward });
                 }

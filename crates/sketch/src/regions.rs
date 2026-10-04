@@ -17,11 +17,12 @@ use crate::sketch::Sketch;
 pub struct Outline {
     pub points: Vec<DVec2>,
     pub curves: Vec<Option<usize>>,
-    /// The curves of the drawing this loop is bounded by, once each and in
-    /// order — which is what names the area it encloses. `curves` above tells
-    /// one *run* from the next within the loop; this says which curve of the
+    /// The borders of this loop, once each and in order, each as the curves
+    /// of the drawing running along it — one, or every curve laid along that
+    /// stretch. That is what names the area it encloses. `curves` above tells
+    /// one *run* from the next within the loop; this says which curves of the
     /// drawing each run was cut out of, and outlives being cut again.
-    pub bounds: Vec<CurveId>,
+    pub bounds: Vec<Vec<CurveId>>,
     /// What each run actually curves along, indexed by the run number in
     /// `curves`.
     ///
@@ -59,12 +60,21 @@ impl Region {
         triangulate(&bridge_holes(&self.outline.points, &self.holes))
     }
 
-    /// The curves of the drawing that bound the area, which is its name.
+    /// The borders of the area, each as the curves of the drawing running
+    /// along it, which is its name.
     ///
     /// What it is cut out of and not what it leaves hollow: a hole is an area
     /// of its own, and bounds itself.
-    pub fn bounds(&self) -> &[CurveId] {
+    pub fn bounds(&self) -> &[Vec<CurveId>] {
         &self.outline.bounds
+    }
+
+    /// Whether a curve of the drawing runs along some border of the area.
+    pub(crate) fn runs_along(&self, curve: CurveId) -> bool {
+        self.outline
+            .bounds
+            .iter()
+            .any(|border| border.contains(&curve))
     }
 
     /// Whether the point is in the area itself, holes excluded.

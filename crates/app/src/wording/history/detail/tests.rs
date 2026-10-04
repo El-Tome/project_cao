@@ -12,7 +12,7 @@ fn swept(axis: RevolutionAxis) -> Operation {
     Operation::Revolve {
         sketch: 0,
         areas: vec![Area {
-            bounds: vec![CurveId::Segment(SegmentId(0))],
+            bounds: vec![vec![CurveId::Segment(SegmentId(0))]],
             inside: DVec2::ZERO,
         }],
         axis,

@@ -8,7 +8,7 @@
 
 use glam::DVec2;
 
-use crate::arcing::{ArcDraft, sweep_of};
+use crate::arcing::{ArcDraft, bounds_of, sweep_of};
 use crate::crossing::ellipse::{
     where_arc_crosses_ellipse, where_ellipses_cross_along, where_segment_crosses_ellipse,
 };
@@ -79,6 +79,21 @@ impl Curve {
                 start: places[*from],
                 end: places[*to],
             }),
+        }
+    }
+
+    /// The box the curve fits in, as its two opposite corners: a whole
+    /// ellipse's for a run of one, which holds the run all the same.
+    pub(super) fn reach(&self, places: &[DVec2]) -> (DVec2, DVec2) {
+        if let Some((drawn, ..)) = self.run() {
+            return drawn.bounds();
+        }
+        match self.draft(places) {
+            Some(drawn) => bounds_of(drawn),
+            None => {
+                let (from, to) = self.ends();
+                (places[from].min(places[to]), places[from].max(places[to]))
+            }
         }
     }
 

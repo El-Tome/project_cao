@@ -32,15 +32,24 @@ pub(super) fn remap_area(area: &Area, map: &SketchIdMap) -> Option<Area> {
         bounds: area
             .bounds
             .iter()
-            .map(|curve| match curve {
-                CurveId::Segment(id) => map.segments.get(id).copied().map(CurveId::Segment),
-                CurveId::Arc(id) => map.arcs.get(id).copied().map(CurveId::Arc),
-                CurveId::Circle(id) => map.circles.get(id).copied().map(CurveId::Circle),
-                CurveId::Ellipse(id) => map.ellipses.get(id).copied().map(CurveId::Ellipse),
+            .map(|border| {
+                border
+                    .iter()
+                    .map(|curve| remap_curve(*curve, map))
+                    .collect()
             })
-            .collect::<Option<Vec<CurveId>>>()?,
+            .collect::<Option<Vec<Vec<CurveId>>>>()?,
         inside: area.inside,
     })
+}
+
+fn remap_curve(curve: CurveId, map: &SketchIdMap) -> Option<CurveId> {
+    match curve {
+        CurveId::Segment(id) => map.segments.get(&id).copied().map(CurveId::Segment),
+        CurveId::Arc(id) => map.arcs.get(&id).copied().map(CurveId::Arc),
+        CurveId::Circle(id) => map.circles.get(&id).copied().map(CurveId::Circle),
+        CurveId::Ellipse(id) => map.ellipses.get(&id).copied().map(CurveId::Ellipse),
+    }
 }
 
 pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> DimensionTarget {

@@ -46,6 +46,15 @@ impl EllipseDraft {
         })
     }
 
+    /// A circle, read as the ellipse whose two axes reach alike.
+    pub(crate) fn round(centre: DVec2, radius: f64) -> Self {
+        Self {
+            centre,
+            first: DVec2::new(radius, 0.0),
+            second: radius,
+        }
+    }
+
     /// A place in the ellipse's own measure, where the curve itself is the
     /// circle of radius one about the origin.
     pub(crate) fn squashed(&self, place: DVec2) -> DVec2 {

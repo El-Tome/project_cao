@@ -39,7 +39,7 @@ fn scrubbed(
 /// not matter here: the wording only counts them.
 fn one_area() -> Vec<Area> {
     vec![Area {
-        bounds: vec![CurveId::Segment(SegmentId(0))],
+        bounds: vec![vec![CurveId::Segment(SegmentId(0))]],
         inside: DVec2::ZERO,
     }]
 }

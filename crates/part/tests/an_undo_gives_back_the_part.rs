@@ -17,6 +17,11 @@
 //!   `two_rectangles_whose_sides_lie_along_each_other_are_raised_one_at_a_time`,
 //!   `a_block_raised_beside_a_turned_circle_answers_within_the_patience`
 //!
+//! Closes #493.
+//! - the part harness's case is raised one rectangle at a time, its `ignore`
+//!   taken off —
+//!   `two_rectangles_whose_sides_lie_along_each_other_are_raised_one_at_a_time`
+//!
 //! The campaign is run by hand, like the one over solids:
 //!
 //! ```text
@@ -488,7 +493,6 @@ fn a_quarter_turn_backwards_undoes_every_gesture() {
 }
 
 #[test]
-#[ignore = "#493"]
 fn two_rectangles_whose_sides_lie_along_each_other_are_raised_one_at_a_time() {
     assert_eq!(
         undoes(&[

@@ -38,6 +38,15 @@
 //! - what it brought out where it meets #494 is written down there, ignored
 //!   under #494 — `a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses`,
 //!   `a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area`
+//!
+//! Closes #494.
+//! - the six cases filed under it hold, their `ignore` taken off —
+//!   `a_pattern_whose_copies_land_on_each_other_tints_each_place_once`,
+//!   `a_rectangle_mirrored_across_its_own_side_closes_the_copy`,
+//!   `a_rectangle_copied_onto_its_own_top_closes_the_copy`,
+//!   `a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas`,
+//!   `a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses`,
+//!   `a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -128,7 +137,6 @@ fn a_circle_drawn_twice_on_one_centre_is_one_area() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_pattern_whose_copies_land_on_each_other_tints_each_place_once() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -147,7 +155,6 @@ fn a_pattern_whose_copies_land_on_each_other_tints_each_place_once() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_rectangle_mirrored_across_its_own_side_closes_the_copy() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -163,7 +170,6 @@ fn a_rectangle_mirrored_across_its_own_side_closes_the_copy() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_rectangle_copied_onto_its_own_top_closes_the_copy() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -181,7 +187,6 @@ fn a_rectangle_copied_onto_its_own_top_closes_the_copy() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -198,7 +203,6 @@ fn a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -220,7 +224,6 @@ fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
 }
 
 #[test]
-#[ignore = "#494"]
 fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {
     random_sketches::holds(&[
         Gesture::Rectangle {

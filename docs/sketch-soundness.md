@@ -195,7 +195,7 @@ was laid again, the two counts of areas, and a place whose area changed size.
 
 - **One area where two are drawn**, when the one is tinted and measured right:
   every place still lies in exactly one area. A diagonal drawn before the
-  square on its ends (#494, on its own) is that.
+  square on its ends was that until #494 welded points standing in one place.
 - **The matter.** The rules hold the tint, `Region::triangles`. What an
   extrusion raises is `Region::face_triangles`, the outline with the holes cut
   out of it, and is not checked here.

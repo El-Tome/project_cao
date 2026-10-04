@@ -1280,8 +1280,9 @@ Both curves name that border, and either one answers for it: a shape raised
 against its neighbour keeps its matter when the neighbour is erased. A circle
 drawn twice on one centre is one loop the same way, and so is an ellipse whose
 two axes reach alike laid on a circle. Two corners standing in one place
-without being one point do not join the same two points, and their traits stay
-two borders for now (#494).
+without being one point are one vertex of the walk (#494): a rectangle's two
+generated corners are always new points, and one landing on a point already
+drawn joins it there. The drawing keeps both points; only the walk welds them.
 
 ### A copy lands the other side of an axis
 

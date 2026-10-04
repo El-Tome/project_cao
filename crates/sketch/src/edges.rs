@@ -1,6 +1,7 @@
 //! Every segment and arc still drawn, as the half-edges a face walk can turn
 //! at — cut apart wherever two of them cross, and wherever a drawn point sits
-//! on one without being an end of it.
+//! on one without being an end of it. Points drawn in one place stand on one
+//! vertex.
 //!
 //! The walk reads nothing but the vertices and the angular order of the edges
 //! leaving each one, so two edges meeting in space with no vertex of their own
@@ -21,10 +22,12 @@ use crate::sketch::Sketch;
 mod border;
 mod curve;
 pub(crate) mod half_edge;
+mod weld;
 
 use border::{Borders, Loops, also_named};
 use curve::{Curve, between, pieces};
 pub(crate) use half_edge::{Bend, CurvedHalfEdge};
+use weld::welded;
 
 /// The drawing cut apart, before the half-edges are read off it.
 struct Cut {
@@ -241,20 +244,21 @@ impl Sketch {
     fn cut(&self) -> Cut {
         let drawn = self.points().len();
         let mut places = self.points().to_vec();
+        let vertex = welded(&places);
         let mut curves: Vec<Curve> = Vec::new();
         let mut names: Vec<CurveId> = Vec::new();
         for (id, segment) in self.live_segments().filter(|(_, it)| !it.construction) {
             curves.push(Curve::Straight {
-                from: segment.start.0,
-                to: segment.end.0,
+                from: vertex[segment.start.0],
+                to: vertex[segment.end.0],
             });
             names.push(CurveId::Segment(id));
         }
         for (id, arc) in self.live_arcs().filter(|(_, it)| !it.construction) {
             curves.push(Curve::Bent {
                 centre: self.point(arc.center),
-                from: arc.start.0,
-                to: arc.end.0,
+                from: vertex[arc.start.0],
+                to: vertex[arc.end.0],
             });
             names.push(CurveId::Arc(id));
         }
@@ -290,7 +294,7 @@ impl Sketch {
         let mut cuts: Vec<Vec<(f64, usize)>> = vec![Vec::new(); curves.len()];
         let cutting = self
             .live_points()
-            .map(|(point, _)| point.0)
+            .map(|(point, _)| vertex[point.0])
             .chain(drawn..places.len());
         cut_through(cutting, &curves, &places, &mut cuts);
 

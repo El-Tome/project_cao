@@ -53,11 +53,18 @@ pub(crate) fn where_segment_crosses_ellipse(
 
 /// Where a whole circle crosses an ellipse: how far round the circle, and how
 /// far round the ellipse.
+///
+/// Nowhere at all for an ellipse whose axes reach alike laid on the circle:
+/// that is the circle drawn again, and hunted against itself it reads the
+/// rounding as a crossing at nearly every step.
 pub(crate) fn where_circle_crosses_ellipse(
     centre: DVec2,
     radius: f64,
     oval: EllipseDraft,
 ) -> Vec<(f64, f64)> {
+    if oval.is_the_curve(&EllipseDraft::round(centre, radius)) {
+        return Vec::new();
+    }
     hunted(oval, |place| place.distance(centre) - radius)
         .into_iter()
         .map(|place| (turn_at(centre, place), fraction_of(oval, place)))
@@ -66,9 +73,12 @@ pub(crate) fn where_circle_crosses_ellipse(
 
 /// Where an arc crosses an ellipse: how far round the arc's own sweep, and how
 /// far round the ellipse. A crossing that falls on the rest of the arc's
-/// circle is not one.
+/// circle is not one, and nowhere at all where the ellipse is that circle.
 pub(crate) fn where_arc_crosses_ellipse(arc: ArcDraft, oval: EllipseDraft) -> Vec<(f64, f64)> {
     let radius = arc.centre.distance(arc.start);
+    if oval.is_the_curve(&EllipseDraft::round(arc.centre, radius)) {
+        return Vec::new();
+    }
     hunted(oval, |place| place.distance(arc.centre) - radius)
         .into_iter()
         .filter_map(|place| Some((round_arc(arc, place)?, fraction_of(oval, place))))

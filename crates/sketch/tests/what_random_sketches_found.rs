@@ -27,6 +27,17 @@
 //! - and two new ones, each its own issue —
 //!   `a_circle_touching_the_one_around_it_at_their_lowest_point_is_a_hole_of_it`,
 //!   `an_outline_with_a_corner_on_one_of_its_diagonals_is_tinted_as_it_encloses`
+//!
+//! Closes #493.
+//! - the five cases the campaigns filed under it hold, their `ignore` taken
+//!   off — `a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses`,
+//!   `a_trait_laid_along_a_side_leaves_the_shape_its_area`,
+//!   `an_arc_drawn_along_its_circle_leaves_the_disc_its_area`,
+//!   `a_trait_drawn_twice_between_two_points_is_tinted_once`,
+//!   `a_circle_drawn_twice_on_one_centre_is_one_area`
+//! - what it brought out where it meets #494 is written down there, ignored
+//!   under #494 — `a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses`,
+//!   `a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area`
 
 // The drawing, the rules and the shrinking are the campaign's; this file only
 // lays drawings and holds them.
@@ -36,7 +47,6 @@ mod random_sketches;
 use random_sketches::{Axis, Gesture};
 
 #[test]
-#[ignore = "#493"]
 fn a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -53,7 +63,6 @@ fn a_rectangle_on_part_of_another_s_side_is_tinted_as_it_encloses() {
 }
 
 #[test]
-#[ignore = "#493"]
 fn a_trait_laid_along_a_side_leaves_the_shape_its_area() {
     random_sketches::holds(&[
         Gesture::Rectangle {
@@ -70,7 +79,6 @@ fn a_trait_laid_along_a_side_leaves_the_shape_its_area() {
 }
 
 #[test]
-#[ignore = "#493"]
 fn an_arc_drawn_along_its_circle_leaves_the_disc_its_area() {
     random_sketches::holds(&[
         Gesture::Circle {
@@ -88,7 +96,6 @@ fn an_arc_drawn_along_its_circle_leaves_the_disc_its_area() {
 }
 
 #[test]
-#[ignore = "#493"]
 fn a_trait_drawn_twice_between_two_points_is_tinted_once() {
     random_sketches::holds(&[
         Gesture::Chain {
@@ -105,7 +112,6 @@ fn a_trait_drawn_twice_between_two_points_is_tinted_once() {
 }
 
 #[test]
-#[ignore = "#493"]
 fn a_circle_drawn_twice_on_one_centre_is_one_area() {
     random_sketches::holds(&[
         Gesture::Circle {
@@ -186,6 +192,58 @@ fn a_second_rectangle_drawn_from_the_first_one_s_corner_keeps_both_areas() {
         Gesture::Rectangle {
             corner: [7.0, 1.0],
             opposite: [7.5, -3.5],
+            construction: false,
+        },
+    ]);
+}
+
+/// Found once #493 made a stretch two curves lie along one border. The last
+/// rectangle takes its far corner on the middle one's, and lies along it on
+/// three sides: along the bottom the two share both ends and are one border,
+/// but up the side and along the top they end on two corners standing in one
+/// place without being one point, and stay two. Before #493 all three stayed
+/// two, and the drawing happened to hold.
+#[test]
+#[ignore = "#494"]
+fn a_rectangle_drawn_into_another_s_corner_is_tinted_as_it_encloses() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [6.0, 2.0],
+            opposite: [13.0, 9.0],
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [5.0, 5.0],
+            opposite: [9.5, 2.5],
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [8.5, 5.0],
+            opposite: [9.5, 2.5],
+            construction: false,
+        },
+    ]);
+}
+
+/// Found once #493 made a stretch two curves lie along one border. The first
+/// rectangle is dragged flat, and its two generated corners stand on its two
+/// clicked ones without being them; the second lies along it. Of the three
+/// traits now lying along that stretch, only the two that end on the same
+/// pair of points are one border, and the third leaves a sliver the walk
+/// cannot read. Before #493 all three stayed, and the drawing happened to
+/// hold.
+#[test]
+#[ignore = "#494"]
+fn a_rectangle_with_no_width_along_another_s_side_leaves_it_its_area() {
+    random_sketches::holds(&[
+        Gesture::Rectangle {
+            corner: [8.0, 10.0],
+            opposite: [8.0, 9.0],
+            construction: false,
+        },
+        Gesture::Rectangle {
+            corner: [8.0, 8.0],
+            opposite: [13.0, 10.0],
             construction: false,
         },
     ]);

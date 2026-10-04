@@ -15,6 +15,13 @@
 //!   pointed — `an_area_holding_the_place_clicked_wins_over_a_closer_fit`
 //! - a border divided is one border still, held by either piece —
 //!   `a_border_divided_is_held_by_either_of_its_pieces`
+//!
+//! Closes #493.
+//! - an area whose border runs along another curve keeps its name when either
+//!   of the two is erased — `a_stretch_two_sides_lie_along_answers_to_either_side`;
+//!   the stretch is one border both curves name —
+//!   `a_stretch_two_sides_lie_along_is_one_border_named_by_both`,
+//!   `a_circle_drawn_twice_is_one_border_named_by_both`
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -39,7 +46,10 @@ fn an_area_is_named_by_every_trait_that_borders_it() {
 
     let regions = sketch.regions();
 
-    let mut named: Vec<CurveId> = drawn.into_iter().map(CurveId::Segment).collect();
+    let mut named: Vec<Vec<CurveId>> = drawn
+        .into_iter()
+        .map(|id| vec![CurveId::Segment(id)])
+        .collect();
     named.sort_unstable();
     assert_eq!(regions[0].bounds(), named);
 }
@@ -52,7 +62,7 @@ fn a_circle_nothing_cuts_is_named_by_itself() {
 
     let regions = sketch.regions();
 
-    assert_eq!(regions[0].bounds(), [CurveId::Circle(circle)]);
+    assert_eq!(regions[0].bounds(), [vec![CurveId::Circle(circle)]]);
 }
 
 #[test]
@@ -114,12 +124,12 @@ fn an_area_is_found_though_rounding_a_corner_gave_it_a_curve() {
     carried.extend([CurveId::Segment(drawn[2]), CurveId::Segment(drawn[3])]);
     carried.sort_unstable();
     let area = Area {
-        bounds: carried,
+        bounds: carried.into_iter().map(|curve| vec![curve]).collect(),
         inside,
     };
 
     assert!(
-        regions[0].bounds().contains(&CurveId::Arc(rounded.arc)),
+        regions[0].runs_along(CurveId::Arc(rounded.arc)),
         "the rounding really did put a curve in the boundary",
     );
     assert_eq!(area.found_in(&regions), Some(0));
@@ -222,4 +232,112 @@ fn a_border_divided_is_held_by_either_of_its_pieces() {
         "demanding both pieces would lose an area that kept one of them, \
          which is what dividing a trait two areas share does",
     );
+}
+
+fn sides(ids: &[SegmentId]) -> Vec<CurveId> {
+    ids.iter().copied().map(CurveId::Segment).collect()
+}
+
+fn borders(of: &[Vec<CurveId>]) -> Vec<Vec<CurveId>> {
+    let mut borders: Vec<Vec<CurveId>> = of
+        .iter()
+        .map(|border| {
+            let mut curves = border.clone();
+            curves.sort_unstable();
+            curves
+        })
+        .collect();
+    borders.sort_unstable();
+    borders
+}
+
+/// Where two sides lie along each other the stretch is one border, and both
+/// sides name it: each shape is bounded there by its own side and by its
+/// neighbour's alike.
+#[test]
+fn a_stretch_two_sides_lie_along_is_one_border_named_by_both() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let first = sides(&rectangle(&mut sketch, DVec2::ZERO, DVec2::new(1.0, 2.0)));
+    let second = sides(&rectangle(
+        &mut sketch,
+        DVec2::new(1.0, 1.0),
+        DVec2::new(2.0, 3.0),
+    ));
+
+    let regions = sketch.regions();
+    let named = |place: DVec2| {
+        let rank = area_under(&regions, place).expect("an area under the place");
+        regions[rank].bounds().to_vec()
+    };
+    let shared = vec![first[1], second[3]];
+
+    assert_eq!(
+        named(DVec2::new(0.5, 1.0)),
+        borders(&[
+            vec![first[0]],
+            vec![first[1]],
+            vec![first[2]],
+            vec![first[3]],
+            shared.clone(),
+        ]),
+    );
+    assert_eq!(
+        named(DVec2::new(1.5, 2.0)),
+        borders(&[
+            vec![second[0]],
+            vec![second[1]],
+            vec![second[2]],
+            vec![second[3]],
+            shared,
+        ]),
+    );
+}
+
+#[test]
+fn a_stretch_two_sides_lie_along_answers_to_either_side() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let long = rectangle(&mut sketch, DVec2::ZERO, DVec2::new(1.0, 3.0));
+    let short = rectangle(&mut sketch, DVec2::new(1.0, 1.0), DVec2::new(2.0, 2.0));
+    let clicked = DVec2::new(1.5, 1.5);
+    let regions = sketch.regions();
+    let area = Area::of(
+        &regions[area_under(&regions, clicked).expect("the short rectangle")],
+        clicked,
+    );
+    assert!(
+        area.bounds
+            .contains(&vec![CurveId::Segment(long[1]), CurveId::Segment(short[3])]),
+        "the short side lies wholly along the long one, and runs along no \
+         stretch of its own: {:?}",
+        area.bounds,
+    );
+
+    for side in &long {
+        sketch.erase(Element::Segment(*side));
+    }
+    let left = sketch.regions();
+
+    assert_eq!(left.len(), 1, "the short rectangle is all that is left");
+    assert_eq!(
+        area.found_in(&left),
+        Some(0),
+        "its own side bounds it now where the long one did",
+    );
+}
+
+/// Nothing cuts either circle: the two are one loop, named by both.
+#[test]
+fn a_circle_drawn_twice_is_one_border_named_by_both() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let circles: Vec<CurveId> = (0..2)
+        .map(|_| {
+            let centre = sketch.add_point(DVec2::new(8.0, 4.0));
+            CurveId::Circle(sketch.add_circle(centre, 2.0))
+        })
+        .collect();
+
+    let regions = sketch.regions();
+
+    assert_eq!(regions.len(), 1);
+    assert_eq!(regions[0].bounds(), [circles]);
 }

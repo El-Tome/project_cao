@@ -57,23 +57,27 @@ impl Descent {
             .unwrap_or_else(|| vec![curve])
     }
 
-    /// The name as the drawing holds it now, and nothing when one of the
-    /// curves it is bounded by was cut away altogether.
+    /// The name as the drawing holds it now, and nothing when every curve
+    /// along one of its borders was cut away altogether.
     ///
     /// A curve replaced by pieces of itself is the same border under other
     /// numbers, and stays **one** border: the area has to be bounded by one
     /// of those pieces, not by all of them, since dividing a trait two areas
-    /// share puts one piece on each side. One replaced by nothing is a border
+    /// share puts one piece on each side. One replaced by nothing leaves the
+    /// border to whichever curve lay along it too; with none, it is a border
     /// the drawing has lost, and dropping it from the name would quietly hand
     /// the area over to whatever larger area swallowed it.
     pub(crate) fn follow(&self, area: &Area) -> Option<Standing> {
         let mut borders: Vec<Vec<CurveId>> = Vec::with_capacity(area.bounds.len());
-        for curve in &area.bounds {
-            match self.became.get(curve) {
-                None => borders.push(vec![*curve]),
-                Some(now) if now.is_empty() => return None,
-                Some(now) => borders.push(now.clone()),
+        for border in &area.bounds {
+            let now: Vec<CurveId> = border
+                .iter()
+                .flat_map(|curve| self.descendants(*curve))
+                .collect();
+            if now.is_empty() {
+                return None;
             }
+            borders.push(now);
         }
         Some(Standing::new(borders, area.inside))
     }

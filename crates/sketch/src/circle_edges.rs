@@ -15,6 +15,8 @@ use crate::crossing::ellipse::where_circle_crosses_ellipse;
 use crate::crossing::{
     turn_at, where_arc_crosses_circle, where_circles_cross, where_segment_crosses_circle,
 };
+use crate::ellipse::EllipseId;
+use crate::ellipsing::EllipseDraft;
 use crate::sketch::{CircleId, Sketch};
 
 /// A circle of the drawing, and where the rest of the drawing runs through it
@@ -113,8 +115,25 @@ impl Sketch {
                 self.ellipse_holds_the_turn(id, there).then_some(turn)
             }));
         }
-        for (_, place) in self.live_points() {
-            if round.holds(place) {
+        // An ellipse whose axes reach alike laid on the circle is the circle
+        // drawn again, and its bare handles break it no more than they break
+        // that ellipse: cut at them, the circle would come out in pieces the
+        // ellipse lying along it never meets, and the two would be two areas.
+        let again: Vec<EllipseId> = self
+            .live_ellipses()
+            .filter(|(id, it)| {
+                !it.construction
+                    && self
+                        .ellipse_draft(*id)
+                        .is_the_curve(&EllipseDraft::round(round.centre, round.radius))
+            })
+            .map(|(id, _)| id)
+            .collect();
+        for (point, place) in self.live_points() {
+            let bare = again
+                .iter()
+                .any(|ellipse| self.is_a_bare_handle_of(*ellipse, point));
+            if round.holds(place) && !bare {
                 turns.push(turn_at(round.centre, place));
             }
         }

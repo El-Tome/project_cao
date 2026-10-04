@@ -1270,6 +1270,19 @@ its crossing actually bounds, a square dragged into a bowtie becoming two
 triangles rather than nothing at all. A trait crossing a curve, and two curves
 crossing each other, are cut apart the same way.
 
+Two curves laid along each other are **one border**, as on a map: a rectangle
+drawn against part of another's side, a side drawn a second time corner to
+corner, an arc drawn over part of its circle. Each is cut where the other ends,
+and where two pieces join the same two points along the same curve only one of
+them enters the walk. Kept both, they would be a sliver of no width, and the
+walk would step across it into the shape next door and tint the two as one.
+Both curves name that border, and either one answers for it: a shape raised
+against its neighbour keeps its matter when the neighbour is erased. A circle
+drawn twice on one centre is one loop the same way, and so is an ellipse whose
+two axes reach alike laid on a circle. Two corners standing in one place
+without being one point do not join the same two points, and their traits stay
+two borders for now (#494).
+
 ### A copy lands the other side of an axis
 
 The mirror tool lays a second copy of what is held across an axis. It **carries

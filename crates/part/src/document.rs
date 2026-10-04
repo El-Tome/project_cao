@@ -27,7 +27,7 @@ pub use variables::{Refused, Use};
 /// Older versions are refused rather than converted: while the tool is still
 /// taking shape, a conversion would be more likely to rebuild a part wrongly
 /// than to save anything worth keeping.
-pub const SCHEMA_VERSION: u32 = 5;
+pub const SCHEMA_VERSION: u32 = 6;
 
 const METADATA_ENTRY: &str = "part.json";
 /// How big the picture is. Kept apart from its bytes so that neither entry has

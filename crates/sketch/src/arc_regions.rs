@@ -29,8 +29,11 @@ impl Sketch {
         } = self.crossed();
         let mut outlines: Vec<Outline> = whole
             .into_iter()
-            .filter_map(|(curve, points)| {
-                Some(all_of_one_curve(curve, self.bend_of(curve)?, points))
+            .filter_map(|(curves, points)| {
+                // Every curve naming a whole loop is that same loop drawn
+                // again, so the first one bends as all of them do.
+                let bend = self.bend_of(*curves.first()?)?;
+                Some(all_of_one_curve(curves, bend, points))
             })
             .collect();
         if ends.is_empty() {
@@ -122,7 +125,7 @@ impl Sketch {
 
             let mut outline = Outline::default();
             for half in without_spurs(&walked) {
-                outline.bounds.push(cut_from[half]);
+                outline.bounds.push(cut_from[half].clone());
                 let (from, to) = (places[ends[half].0], places[ends[half].1]);
                 match half.checked_sub(split) {
                     None => {
@@ -181,11 +184,11 @@ impl Sketch {
 }
 
 /// A circle or an ellipse nothing cut: every one of its segments came from the
-/// one curve.
-fn all_of_one_curve(curve: CurveId, bend: Bend, points: Vec<DVec2>) -> Outline {
+/// one curve, drawn once or several times over.
+fn all_of_one_curve(curves: Vec<CurveId>, bend: Bend, points: Vec<DVec2>) -> Outline {
     Outline {
         curves: vec![Some(0); points.len()],
-        bounds: vec![curve],
+        bounds: vec![curves],
         bends: vec![bend],
         points,
     }

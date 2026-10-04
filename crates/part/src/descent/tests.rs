@@ -7,6 +7,11 @@
 //!   `a_piece_cut_again_is_followed_past_the_piece`
 //! - an area one of whose bounding traits is trimmed away raises nothing —
 //!   `a_border_cut_away_altogether_loses_the_name`
+//!
+//! Closes #493.
+//! - an area whose border runs along another curve keeps its name when either
+//!   of the two is cut away, and loses it only with both —
+//!   `a_border_two_curves_lie_along_is_lost_only_with_both`
 
 use cao_sketch::SegmentId;
 use glam::DVec2;
@@ -21,7 +26,17 @@ fn segment(id: usize) -> CurveId {
 
 fn area(bounds: &[usize]) -> Area {
     Area {
-        bounds: bounds.iter().copied().map(segment).collect(),
+        bounds: bounds.iter().map(|id| vec![segment(*id)]).collect(),
+        inside: INSIDE,
+    }
+}
+
+fn shared(borders: &[&[usize]]) -> Area {
+    Area {
+        bounds: borders
+            .iter()
+            .map(|border| border.iter().copied().map(segment).collect())
+            .collect(),
         inside: INSIDE,
     }
 }
@@ -91,4 +106,20 @@ fn the_place_that_was_clicked_travels_with_the_name() {
     descent.record(segment(1), vec![segment(7)]);
 
     assert_eq!(descent.follow(&area(&[1])), Some(standing(&[&[7]])));
+}
+
+#[test]
+fn a_border_two_curves_lie_along_is_lost_only_with_both() {
+    let named = shared(&[&[0], &[1, 5], &[2]]);
+    let mut descent = Descent::default();
+    descent.record(segment(1), Vec::new());
+
+    assert_eq!(
+        descent.follow(&named),
+        Some(standing(&[&[0], &[5], &[2]])),
+        "trait 5 still runs along that border",
+    );
+
+    descent.record(segment(5), Vec::new());
+    assert_eq!(descent.follow(&named), None);
 }

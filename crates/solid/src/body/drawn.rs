@@ -2,8 +2,6 @@
 //! from: what the view draws, lights and picks in, and what the body becomes
 //! when it has to be joined to flats.
 
-use std::collections::BTreeSet;
-
 use glam::DVec3;
 
 use super::FaceHit;
@@ -26,19 +24,24 @@ pub(super) const DRAWN: f64 = 2e-4;
 pub(super) struct Drawn {
     pub triangles: Vec<[DVec3; 3]>,
     faces: Vec<FaceId>,
+    whole: bool,
 }
 
 impl Drawn {
     /// The triangles of a body, each beside the face it was cut from.
     pub fn of(body: &brep::Body) -> Drawn {
-        let (triangles, faces) = body.triangles_by_face(DRAWN * body.scale().reach());
-        Drawn { triangles, faces }
+        let cut = body.triangles_by_face(DRAWN * body.scale().reach());
+        Drawn {
+            triangles: cut.triangles,
+            faces: cut.faces,
+            whole: cut.uncut.is_empty(),
+        }
     }
 
-    /// Whether every face of the body has a triangle to be drawn with.
-    pub fn covers(&self, body: &brep::Body) -> bool {
-        let drawn: BTreeSet<FaceId> = self.faces.iter().copied().collect();
-        body.face_ids().all(|id| drawn.contains(&id))
+    /// Whether every face of the body could be cut into triangles, which
+    /// leaves the drawing closed.
+    pub fn is_whole(&self) -> bool {
+        self.whole
     }
 
     /// The nearest triangle a ray crosses names the face; the face's own

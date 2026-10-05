@@ -560,6 +560,39 @@ fn an_exact_body_is_drawn_closed_uncrossed_and_round_enough() {
 }
 
 #[test]
+fn a_bore_a_hair_inside_a_wall_is_built_though_the_sliver_between_draws_to_nothing() {
+    let raise = |part: &Body, contour: Contour, low: f64, height: f64| {
+        let at = Frame {
+            origin: DVec3::Z * low,
+            ..FLAT
+        };
+        part.tool_raised(&exact(contour, vec![]), at, DVec3::Z * height)
+            .expect("the kernel raises it")
+    };
+    let empty = Body::default();
+    let block = empty
+        .union(&raise(
+            &empty,
+            Contour::rectangle(DVec2::new(2.0, -3.0), DVec2::new(10.0, 5.0)),
+            7.0,
+            4.0,
+        ))
+        .expect("the kernel raises it");
+    let bored = block
+        .difference(&raise(
+            &block,
+            disc(DVec2::new(6.00000006, 1.0), 3.0),
+            6.0,
+            8.0,
+        ))
+        .expect("the kernel bores it");
+
+    let joined = bored.union(&raise(&bored, disc(DVec2::new(9.0, 5.0), 2.0), -2.0, 10.0));
+
+    assert!(joined.is_ok(), "{joined:?}");
+}
+
+#[test]
 fn a_hole_touching_its_outline_at_one_point_is_declined_rather_than_drawn_open() {
     let touching = exact(
         Contour::rectangle(DVec2::ZERO, DVec2::new(20.0, 10.0)),

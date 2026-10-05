@@ -25,22 +25,25 @@ impl Body {
     /// facing out of the matter. A face that cannot be laid out or cut is
     /// left open rather than drawn wrong: the rules on the triangles see it.
     pub fn triangles(&self, tolerance: f64) -> Vec<[DVec3; 3]> {
-        self.triangles_by_face(tolerance).0
+        self.triangles_by_face(tolerance).triangles
     }
 
     /// The same triangles, and beside them the face each one belongs to. A
     /// face is never drawn alone: its edges are sampled with every face
     /// along them, so that the triangles of two faces close against each
     /// other.
-    pub fn triangles_by_face(&self, tolerance: f64) -> (Vec<[DVec3; 3]>, Vec<FaceId>) {
+    pub fn triangles_by_face(&self, tolerance: f64) -> Cut {
         let samples = Samples::of(self, tolerance);
         let mut triangles = Vec::new();
         let mut faces = Vec::new();
+        let mut uncut = Vec::new();
         for id in self.face_ids() {
             let Some(outline) = Outline::of(self, &samples, id, tolerance) else {
+                uncut.push(id);
                 continue;
             };
             let Some(cut) = sweep::triangles(&outline.points, &outline.segments) else {
+                uncut.push(id);
                 continue;
             };
             for corners in cut {
@@ -57,8 +60,25 @@ impl Body {
                 faces.push(id);
             }
         }
-        (triangles, faces)
+        Cut {
+            triangles,
+            faces,
+            uncut,
+        }
     }
+}
+
+/// The triangles of a body, the face each belongs to, and the faces that
+/// could not be laid out or cut, left open.
+///
+/// A face cut into nothing is not among them: one thinner than the
+/// tolerance — a sliver a hair wide between a bore and a wall — has its
+/// triangles collapse onto its edges, and the faces either side of it close
+/// against each other across it.
+pub struct Cut {
+    pub triangles: Vec<[DVec3; 3]>,
+    pub faces: Vec<FaceId>,
+    pub uncut: Vec<FaceId>,
 }
 
 #[cfg(test)]

@@ -77,9 +77,9 @@ impl Exact {
 
     /// The operation on the two bodies, the second's numbers moved above the
     /// first's count, every face a cut left in pieces apart told apart, and
-    /// the result drawn: a body the kernel cannot draw, or not every face of,
-    /// is declined, rather than shown with a hole where its matter is and
-    /// handed on with that hole to the flats.
+    /// the result drawn: a body the kernel cannot draw, or a face of which it
+    /// cannot cut into triangles, is declined, rather than shown with a hole
+    /// where its matter is and handed on with that hole to the flats.
     fn combined(
         &self,
         other: &Exact,
@@ -95,7 +95,7 @@ impl Exact {
             let mut next = self.next + other.next;
             let brep = parted(brep, &mut next);
             let drawn = Drawn::of(&brep);
-            if !drawn.covers(&brep) {
+            if !drawn.is_whole() {
                 return Err(Declined::Undrawn);
             }
             let exact = Exact::of(brep, next);

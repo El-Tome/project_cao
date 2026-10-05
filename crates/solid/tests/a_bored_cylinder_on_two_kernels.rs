@@ -1,5 +1,5 @@
-//! #498's table: the sixteen cases of `docs/exact-kernel-journal.md` computed
-//! by the flats written here and by the exact kernel of #498, each held to
+//! #498's table: the sixteen cases of `docs/exact-kernel-journal.md`, eighteen
+//! rows with 11 and 12 in both their variants, computed by the flats written here and by the exact kernel of #498, each held to
 //! #448's rules and to the arithmetic, beside what OpenCascade answered when
 //! #447 measured it.
 //!
@@ -734,6 +734,7 @@ fn a_bored_cylinder_on_two_kernels() {
     );
     println!("| --- | --- | --- | --- | --- | --- | --- | --- | --- |");
     let mut differ = Vec::new();
+    assert_eq!(cases().len(), SEEN.len(), "a verdict seen for every row");
     for (case, expected) in cases().iter().zip(SEEN) {
         assert_eq!(case.name, expected.case);
         for (kernel, verdict, expected) in [

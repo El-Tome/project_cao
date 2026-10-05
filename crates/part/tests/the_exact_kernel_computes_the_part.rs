@@ -3,15 +3,19 @@
 //!   the exact kernel, and a Ø40 raised has the arithmetic's volume —
 //!   `a_circle_forty_across_raised_holds_the_arithmetics_volume`,
 //!   `a_slot_cut_through_a_raised_rounded_rectangle_leaves_the_arithmetics_volume`,
-//!   `a_hole_flush_but_for_a_hair_comes_out_closed`
+//!   `a_hole_flush_but_for_a_hair_comes_out_closed`,
+//!   `a_disc_joined_across_a_block_s_side_holds_the_arithmetics_volume`,
+//!   `a_hole_drilled_right_through_a_hexagonal_bar_is_cut`
 //! - once a revolution is in the history, the part is computed by the flats
 //!   from that step on —
 //!   `a_part_turned_once_is_computed_by_the_flats_from_that_step_on`,
-//!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`
+//!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
+//!   likewise — `a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on`
 //! - an operation the exact kernel declines is a broken step —
 //!   `a_raise_meeting_a_wall_at_a_slant_is_a_broken_step`,
 //!   `a_step_declined_live_is_named_by_its_own_number`,
-//!   `a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood`; a part
+//!   `a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood`,
+//!   `a_size_that_would_have_the_kernel_decline_a_step_is_refused_naming_the_step`; a part
 //!   opened on its cache still names it, held beside the cache by
 //!   `a_declined_step_is_still_named_once_the_part_opens_on_its_cache`
 //! - drawing, lighting under the cursor and picking read the exact kernel's
@@ -19,7 +23,9 @@
 //! - a drawing laid on a face keeps its face when a size of the part changes —
 //!   `a_drawing_on_the_top_of_a_disc_rides_it_when_it_grows`,
 //!   `a_drawing_on_a_floor_a_cut_left_keeps_it_when_the_cut_deepens`,
-//!   `a_drawing_on_a_top_two_blocks_share_keeps_it_when_one_grows`
+//!   `a_drawing_on_a_top_two_blocks_share_keeps_it_when_one_grows`,
+//!   `a_hole_drawn_on_a_boss_stays_on_it_when_the_boss_grows`,
+//!   `a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_change`
 //! - the section view works on an exact body —
 //!   `the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane`
 //! - #498's eighteen cases and the harness's fast tests run in the gate, the
@@ -34,8 +40,9 @@
 //!   `crates/app/tests/architecture.rs`
 //! - the geometry cache reads an exact body back, and `REBUILT_BY` moves — no
 //!   test: held beside the cache, in `document/geometry_cache/tests.rs`, by
-//!   `an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it` and
-//!   `a_cache_rebuilt_before_the_exact_kernel_replays_its_design`, since only
+//!   `an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it`,
+//!   `a_cache_rebuilt_before_the_exact_kernel_replays_its_design` and
+//!   `a_cache_stamped_by_the_flats_rebuild_is_replayed_though_written_as_today`, since only
 //!   there can a test tell a part opened on its cache from one replayed
 //! - `docs/exact-kernel.md` lists what the kernel can do and what is left — no
 //!   test: it is prose, held by `language.rs` and by nothing that asserts
@@ -49,7 +56,9 @@
 use std::f64::consts::PI;
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
-use cao_part::{History, PartDocument, PartState};
+use cao_part::{
+    Broken, Formula, History, PartDocument, PartState, Refused, VariableChange, VariableId,
+};
 use cao_sketch::{Area, Corner, PointId, SegmentId, SketchAxis, WorkPlane};
 use cao_solid::soundness;
 use glam::{DVec2, DVec3};
@@ -754,4 +763,150 @@ fn a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_c
             "rounded by {round} rather than 5, the hole went from {before} to {after}",
         );
     }
+}
+
+/// A block 10 on a side, then a circle on a plane tilted 30° over it, raised
+/// down its normal by the variable `reach`, first 1: short of the block.
+fn a_slanted_raise_reaching(reach: f64) -> PartDocument {
+    let mut part = applied_live(&{
+        let mut history = History::default();
+        sketch_on(&mut history, WorkPlane::XY);
+        rectangle(&mut history, 0, DVec2::ZERO, DVec2::splat(10.0));
+        raise(&mut history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
+        history
+    });
+    part.change_variable(VariableChange::Added {
+        name: "reach".to_string(),
+        formula: Formula::Number(reach),
+    })
+    .expect("a first variable");
+    let (sin, cos) = (PI / 6.0).sin_cos();
+    part.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: OVER_THE_BLOCK,
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    part.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    let areas = part.areas_at(1, &[DVec2::ZERO]);
+    let reach = part
+        .variables()
+        .read("-reach")
+        .expect("a formula that reads");
+    part.apply(Operation::Extrude {
+        sketch: 1,
+        areas,
+        distance: reach,
+        mode: ExtrusionMode::Add,
+    });
+    part
+}
+
+#[test]
+fn a_size_that_would_have_the_kernel_decline_a_step_is_refused_naming_the_step() {
+    let mut part = a_slanted_raise_reaching(1.0);
+    let slanted = part.history.steps().last().expect("a step").operations()[0];
+    assert!(
+        !part.is_declined(slanted),
+        "short of the block, it is built"
+    );
+    let before = part.body().volume();
+
+    let refused = part.change_variable(VariableChange::Edited {
+        variable: VariableId(0),
+        name: "reach".to_string(),
+        formula: Formula::Number(10.0),
+    });
+
+    assert_eq!(
+        refused,
+        Err(Refused::Breaks(vec![Broken::Operation(slanted)])),
+        "as any operation that cannot be done",
+    );
+    assert_eq!(part.body().volume(), before, "nothing moved");
+}
+
+#[test]
+fn a_disc_joined_across_a_block_s_side_holds_the_arithmetics_volume() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 0, DVec2::ZERO, DVec2::splat(20.0));
+    raise(
+        &mut history,
+        0,
+        DVec2::splat(10.0),
+        10.0,
+        ExtrusionMode::Add,
+    );
+    sketch_on(&mut history, WorkPlane::XY);
+    circle(&mut history, 1, DVec2::new(20.0, 10.0), 8.0);
+    raise(
+        &mut history,
+        1,
+        DVec2::new(25.0, 10.0),
+        15.0,
+        ExtrusionMode::Add,
+    );
+
+    let state = PartState::rebuild(&history);
+
+    let half_disc = PI * 64.0 / 2.0;
+    assert_near(
+        state.body.volume(),
+        400.0 * 10.0 + half_disc * 5.0 + half_disc * 15.0,
+        "the block, and the disc standing half in it and above it",
+    );
+    assert_drawn_closed(&state);
+}
+
+#[test]
+fn a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    history.push(Operation::AddEllipse {
+        sketch: 0,
+        center: PointRef::New(DVec2::new(50.0, 20.0)),
+        first: [
+            PointRef::New(DVec2::new(20.0, 20.0)),
+            PointRef::New(DVec2::new(80.0, 20.0)),
+        ],
+        second: [
+            PointRef::New(DVec2::new(50.0, 0.0)),
+            PointRef::New(DVec2::new(50.0, 40.0)),
+        ],
+        construction: false,
+        drawn: None,
+    });
+    raise(
+        &mut history,
+        0,
+        DVec2::new(50.0, 20.0),
+        5.0,
+        ExtrusionMode::Add,
+    );
+    let oval = PartState::rebuild(&history).body.volume();
+    sketch_on(&mut history, WorkPlane::XY);
+    circle(&mut history, 1, DVec2::new(0.0, 100.0), 20.0);
+    raise(
+        &mut history,
+        1,
+        DVec2::new(0.0, 100.0),
+        10.0,
+        ExtrusionMode::Add,
+    );
+    let after_the_oval = PartState::rebuild(&history).body.volume();
+
+    assert_near(
+        after_the_oval - oval,
+        inscribed(20.0) * 10.0,
+        "the Ø40 raised after the ellipse, by the flats",
+    );
 }

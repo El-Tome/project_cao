@@ -258,6 +258,35 @@ fn a_cache_rebuilt_before_the_exact_kernel_replays_its_design() {
     );
 }
 
+#[test]
+fn a_cache_stamped_by_the_flats_rebuild_is_replayed_though_written_as_today() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":3"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "the exact kernel rebuilds past the flats' 3"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}
+
 /// Every corner of the matter, in the order the faces give them.
 fn corners(body: &cao_solid::Body) -> Vec<glam::DVec3> {
     body.triangles().iter().flatten().copied().collect()
@@ -565,13 +594,24 @@ fn bored_again(document: &mut PartDocument) {
 fn an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
-    a_bored_block()
+    let bored = a_bored_block();
+    bored
         .put_away(&files, path, at("2026-10-05T10:00:00Z"))
         .expect("the part is put away");
+    let mut marked = bored.state.clone();
+    marked.declined.insert(99);
+    let design = design_of(&files, path);
+    let cache = encoded(&marked, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cache));
 
     let mut cached = PartDocument::load(&files, path).expect("reads");
     let mut replayed = cached.clone();
     replayed.rewind_to(replayed.history.applied());
+
+    assert!(
+        cached.is_declined(99) && !replayed.is_declined(99),
+        "the part opened on its cache, which alone knows the mark",
+    );
 
     let bore = std::f64::consts::PI * 2.7 * 2.7 * 10.0;
     assert!(

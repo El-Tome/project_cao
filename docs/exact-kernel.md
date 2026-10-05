@@ -36,7 +36,11 @@ It can:
   the screen says so and the tree marks it, and the step still moves the face
   counter by what its profile would have numbered, so later drawings keep
   their faces. A panic inside the kernel is caught at `Body` and is a decline
-  too (`Declined::Panicked`), not a lost part.
+  too (`Declined::Panicked`), not a lost part, and is kept from the
+  application's crash log, since it is no crash. A body is drawn as it is
+  built: one with a face the triangles cannot cover is declined too
+  (`Declined::Undrawn`). The face counter only goes up, on the flats as well
+  once a part has gone to them, so a number is never given twice.
 - **tell faces at a slant that never touch from faces that cross**: a plane
   against a cylinder patch, two skew cylinders, are decided apart on the faces
   themselves before the kernel declines (`combine/clear.rs`).

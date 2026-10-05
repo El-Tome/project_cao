@@ -25,7 +25,8 @@
 //!   `a_drawing_on_a_floor_a_cut_left_keeps_it_when_the_cut_deepens`,
 //!   `a_drawing_on_a_top_two_blocks_share_keeps_it_when_one_grows`,
 //!   `a_hole_drawn_on_a_boss_stays_on_it_when_the_boss_grows`,
-//!   `a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_change`
+//!   `a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_change`,
+//!   `a_drawing_on_a_top_a_trench_parts_stays_on_its_piece_when_the_trench_moves`
 //! - the section view works on an exact body —
 //!   `the_section_of_an_exact_part_keeps_only_what_lies_behind_the_plane`
 //! - #498's eighteen cases and the harness's fast tests run in the gate, the
@@ -909,4 +910,55 @@ fn a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on() {
         inscribed(20.0) * 10.0,
         "the Ø40 raised after the ellipse, by the flats",
     );
+}
+
+/// A block 30 by 10 by 10, a trench `width` wide from `from` cut `depth`
+/// right across its top, and a sketch laid on what is left of the top:
+/// where its plane stands once the part is replayed, and whether it lost its
+/// face.
+fn laid_on_a_top_a_trench_parts(from: f64, width: f64, depth: f64) -> (DVec3, bool) {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 0, DVec2::ZERO, DVec2::new(30.0, 10.0));
+    raise(&mut history, 0, DVec2::ONE, 10.0, ExtrusionMode::Add);
+    sketch_on(&mut history, level(10.0));
+    rectangle(
+        &mut history,
+        1,
+        DVec2::new(from, -1.0),
+        DVec2::new(from + width, 11.0),
+    );
+    raise(
+        &mut history,
+        1,
+        DVec2::new(from + width / 2.0, 5.0),
+        -depth,
+        ExtrusionMode::Cut,
+    );
+    history.push(Operation::CreateSketch {
+        plane: level(10.0),
+        on: Some(FaceAnchor {
+            face: TOP,
+            up: DVec3::Y,
+        }),
+    });
+    let state = PartState::rebuild(&history);
+    (state.sketches[2].plane.origin, state.adrift.contains(&2))
+}
+
+#[test]
+fn a_drawing_on_a_top_a_trench_parts_stays_on_its_piece_when_the_trench_moves() {
+    for (from, width, depth) in [
+        (10.0, 10.0, 5.0),
+        (12.0, 10.0, 5.0),
+        (2.0, 3.0, 5.0),
+        (20.0, 5.0, 3.0),
+    ] {
+        assert_eq!(
+            laid_on_a_top_a_trench_parts(from, width, depth),
+            (DVec3::Z * 10.0, false),
+            "a trench {width} wide from {from}: the drawing stays on the piece \
+             the top's number stayed with",
+        );
+    }
 }

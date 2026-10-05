@@ -353,3 +353,28 @@ fn a_bore_square_to_one_side_poking_through_the_next_is_still_declined() {
         );
     }
 }
+
+/// The numbers every face of `body` answers to, sorted.
+fn names(body: &Body) -> Vec<Vec<u32>> {
+    let mut names: Vec<Vec<u32>> = body
+        .face_ids()
+        .map(|face| body.numbers(face).to_vec())
+        .collect();
+    names.sort();
+    names
+}
+
+#[test]
+fn a_bore_cut_square_into_a_side_beside_a_slant_leaves_every_face_its_number_and_brings_its_own() {
+    let sides: Vec<Vec<u32>> = (0..8).map(|number| vec![number]).collect();
+    for pose in Pose::all() {
+        let tool = bore(&pose, 0, 3.0, 5.0, 6.0).renumbered(8);
+        let cut = hexagon(&pose).cut_by(&tool).expect("the bore is cut");
+        let bottom_and_wall = vec![vec![9], vec![10]];
+        assert_eq!(
+            names(&cut),
+            [sides.clone(), bottom_and_wall].concat(),
+            "{pose:?}"
+        );
+    }
+}

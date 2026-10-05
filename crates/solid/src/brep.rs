@@ -50,7 +50,10 @@ pub enum Declined {
     /// for the tolerance to hold its points, a number that is not one.
     Profile,
     /// The travel does not stand square to the profile's plane, or is shorter
-    /// than the tolerance.
+    /// than the tolerance; or a turn moves a corner of its profile, or leaves
+    /// the slit of a partial turn, narrower than the tolerance. A turn that
+    /// short or that nearly whole is read before the kernel as nothing or as
+    /// whole: this is the kernel's own net.
     Travel,
     /// Two surfaces meet in a way the kernel does not build: a plane oblique
     /// to a cylinder's axis, two cylinders at a skew angle.

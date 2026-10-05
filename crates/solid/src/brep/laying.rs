@@ -1,5 +1,5 @@
 //! A body laid by hand, one surface, corner and edge at a time: what a raise
-//! lays its walls with.
+//! lays its walls with, and a turn its faces.
 
 use std::f64::consts::TAU;
 
@@ -134,6 +134,22 @@ impl Laying {
         self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
     }
 
+    /// A straight edge from `start` to `end` on the line `beside` runs
+    /// along, used that way: the two radial lines of a half turn are one
+    /// line, and their two edges can be joined into one only on one curve.
+    pub fn line_on(&mut self, beside: Coedge, start: VertexId, end: VertexId) -> Coedge {
+        let curve = self.body.edge(beside.edge).curve;
+        let Curve::Line(line) = *self.body.curve(curve) else {
+            return self.line(start, end);
+        };
+        let [from, to] = [start, end].map(|id| line.parameter(self.body.vertex(id).point));
+        if from < to {
+            self.edge_on(curve, Some([start, end]), from, to, true)
+        } else {
+            self.edge_on(curve, Some([end, start]), to, from, false)
+        }
+    }
+
     fn edge(
         &mut self,
         curve: Curve,
@@ -144,6 +160,17 @@ impl Laying {
     ) -> Coedge {
         self.body.curves.push(curve);
         let curve = CurveId(self.body.curves.len() as u32 - 1);
+        self.edge_on(curve, ends, from, to, forward)
+    }
+
+    fn edge_on(
+        &mut self,
+        curve: CurveId,
+        ends: Option<[VertexId; 2]>,
+        from: f64,
+        to: f64,
+        forward: bool,
+    ) -> Coedge {
         self.body.edges.push(Edge {
             curve,
             ends,

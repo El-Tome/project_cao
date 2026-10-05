@@ -32,7 +32,10 @@
 //! - #498's eighteen cases and the harness's fast tests run in the gate, the
 //!   long campaigns stay under `--ignored` — no test: held in `cao_solid`, by
 //!   `a_bored_cylinder_on_two_kernels` and the fast tests of
-//!   `random_exact_solids`, which the gate runs, and by the `#[ignore]` on every
+//!   `random_exact_solids`, which the gate runs — the cases the exact kernel
+//!   keeps held again through the application's body by
+//!   `square_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body`
+//!   and `profile_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body` — and by the `#[ignore]` on every
 //!   campaign; the campaigns are compiled only with `--features campaigns`,
 //!   held by `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`
 //!   in `crates/app/tests/architecture.rs`

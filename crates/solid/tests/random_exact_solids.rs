@@ -32,8 +32,12 @@
 //!     a_campaign_of_random_square_solids
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
 //!     --test random_exact_solids -- --ignored --nocapture \
-//!     a_campaign_of_random_profiles
+//!     a_campaign_of_random_profiles_on
 //! ```
+//!
+//! `a_campaign_of_random_profiles_through_the_application_s_body` runs the
+//! profiles through `cao_solid::Body`, as the application computes them: the
+//! face numbers, the drawing as each body is built, the declines it adds.
 //!
 //! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock, and
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
@@ -52,7 +56,9 @@ use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
 use cao_solid::profile::Run;
 use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
 use glam::{DVec2, DVec3};
-use random_solids::{Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Plane, Step, Stretch};
+use random_solids::{
+    Application, Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Plane, Step, Stretch,
+};
 
 /// A bundle of lines laid over the box a leaf's flats span, and how far that
 /// box reaches.
@@ -1204,6 +1210,39 @@ fn what_every_core_makes_of_the_seeds_comes_back_in_the_order_of_the_seeds() {
     );
 }
 
+/// Every case of `draw` among the seeds that the exact kernel answers
+/// keeping every rule, held again through the application's body: what it
+/// adds — the face numbers, the drawing as it builds, the declines it adds —
+/// must not lose a case the kernel keeps.
+fn kept_through_the_application(draw: fn(u64) -> Case) {
+    let seeds: Vec<u64> = (0..60).collect();
+    let weighed = random_solids::on_every_core(&seeds, |seed| {
+        let case = draw(*seed);
+        random_solids::held_to_arithmetic(&case, &Exact).ok()?;
+        Some((random_solids::held_to_arithmetic(&case, &Application), case))
+    });
+    let mut held = 0;
+    for (seed, (measured, case)) in seeds
+        .iter()
+        .zip(weighed)
+        .filter_map(|(seed, one)| Some((seed, one?)))
+    {
+        held += 1;
+        assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
+    }
+    assert!(held > 30, "{held} cases held");
+}
+
+#[test]
+fn square_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body() {
+    kept_through_the_application(Case::drawn_square);
+}
+
+#[test]
+fn profile_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body() {
+    kept_through_the_application(Case::drawn_profiles);
+}
+
 #[test]
 fn square_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
     let seeds: Vec<u64> = (0..120).collect();
@@ -1632,18 +1671,31 @@ mod campaign {
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("square solids", drawn);
+        campaign_over("square solids", drawn, exactly);
     }
 
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("profiles", drawn_profile);
+        campaign_over("profiles", drawn_profile, exactly);
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_profiles_through_the_application_s_body_keeps_every_rule() {
+        campaign_over("profiles", drawn_profile, through_the_application);
+    }
+
+    fn through_the_application(case: &Case) -> Result<(), Flaw> {
+        let measured = random_solids::held_to_arithmetic(case, &Application)?;
+        HELD.fetch_add(measured.held, Ordering::Relaxed);
+        GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        Ok(())
     }
 
     /// A campaign on the exact kernel over the cases `draw` gives, for as long as
     /// the environment says, and its report.
-    fn campaign_over(what: &str, draw: fn(u64) -> Case) {
+    fn campaign_over(what: &str, draw: fn(u64) -> Case, check: fn(&Case) -> Result<(), Flaw>) {
         let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
         let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
             let now = SystemTime::now()
@@ -1655,7 +1707,7 @@ mod campaign {
         let deadline = Instant::now() + Duration::from_secs(seconds);
         println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
 
-        let check: Check<Case> = Arc::new(exactly);
+        let check: Check<Case> = Arc::new(check);
         let quiet = std::panic::take_hook();
         std::panic::set_hook(Box::new(|_| {}));
         let report = campaign(first.., draw, check, Case::smaller, patience, || {

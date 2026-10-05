@@ -1,11 +1,13 @@
 //! The kernels a case can be run through and held to the arithmetic: the
-//! exact kernel of #498, and the flats written before it, on which the
-//! harness itself is held to the arithmetic.
+//! exact kernel of #498, the body the application computes with, which puts
+//! that kernel behind numbers, a drawing and its declines (#526), and the
+//! flats written before it, on which the harness itself is held to the
+//! arithmetic.
 
 use std::f64::consts::TAU;
 
 use cao_solid::brep::{Body, Listing};
-use cao_solid::profile::{Contour, Frame, Run};
+use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::Triangle;
 use glam::{DVec2, DVec3};
 
@@ -56,47 +58,9 @@ const TESSELLATION: f64 = 1e-3;
 impl Kernel for Exact {
     type Body = Body;
 
-    /// A rectangle as the profile's own rectangle, a circle as one whole turn
-    /// from the angle its flats start at, a ring as two whole turns from
-    /// nought, the outer one with the inner one as its hole, a rounded
-    /// rectangle and a slot as their contour of straight runs and arcs; the
-    /// plane as the frame it is drawn in, and the prism's height along the
-    /// plane's normal.
     fn raised(&self, leaf: &Leaf) -> Option<Body> {
-        let Leaf::Prism {
-            plane,
-            outline,
-            height,
-        } = leaf
-        else {
-            return None;
-        };
-        let (contour, holes) = match outline {
-            Outline::Rectangle { low, high } => (Contour::rectangle(*low, *high), Vec::new()),
-            Outline::Circle {
-                center,
-                radius,
-                from,
-            } => (whole_circle(*center, *radius, *from), Vec::new()),
-            Outline::Ring {
-                center,
-                outer,
-                inner,
-            } => (
-                whole_circle(*center, *outer, 0.0),
-                vec![whole_circle(*center, *inner, 0.0)],
-            ),
-            Outline::Rounded { .. } | Outline::Slot { .. } => (outline.contour()?, Vec::new()),
-            Outline::Star { .. } => return None,
-        };
-        let (origin, u, v) = plane.frame();
-        Body::raised(
-            &contour,
-            &holes,
-            Frame { origin, u, v },
-            plane.normal() * *height,
-        )
-        .ok()
+        let (contour, holes, frame, travel) = exact_prism(leaf)?;
+        Body::raised(&contour, &holes, frame, travel).ok()
     }
 
     fn combined(&self, body: &Body, tool: &Body, mode: Mode) -> Option<Body> {
@@ -120,6 +84,95 @@ impl Kernel for Exact {
         body.crossings_along(origin, direction, body.scale().eps())
             .ok()
     }
+}
+
+/// The exact kernel as the application reaches it: behind `cao_solid::Body`,
+/// which numbers the faces, draws the body as it builds it and declines what
+/// it cannot draw, catching what stops on a bug.
+pub struct Application;
+
+impl Kernel for Application {
+    type Body = cao_solid::Body;
+
+    fn raised(&self, leaf: &Leaf) -> Option<cao_solid::Body> {
+        let (contour, holes, frame, travel) = exact_prism(leaf)?;
+        let profile = Profile {
+            exact: Some((contour, holes)),
+            sampled: cao_solid::Loop::straight(&[]),
+            sampled_holes: Vec::new(),
+            triangles: &[],
+        };
+        let tool = cao_solid::Body::default()
+            .tool_raised(&profile, frame, travel)
+            .ok()?;
+        cao_solid::Body::default().union(&tool).ok()
+    }
+
+    fn combined(
+        &self,
+        body: &cao_solid::Body,
+        tool: &cao_solid::Body,
+        mode: Mode,
+    ) -> Option<cao_solid::Body> {
+        match mode {
+            Mode::Add => body.union(tool),
+            Mode::Cut => body.difference(tool),
+        }
+        .ok()
+    }
+
+    /// The triangles the application draws, held to the room the exact
+    /// kernel's own are: the application draws finer.
+    fn triangles(&self, body: &cao_solid::Body) -> (Vec<Triangle>, f64) {
+        let reach = body
+            .bounds()
+            .map_or(1.0, |(low, high)| low.abs().max(high.abs()).max_element());
+        (body.triangles(), TESSELLATION * reach)
+    }
+}
+
+/// A leaf as the exact kernel raises it: its outline and holes as runs, the
+/// frame it is drawn in and its travel; nothing for a leaf it does not raise.
+///
+/// A rectangle as the profile's own rectangle, a circle as one whole turn
+/// from the angle its flats start at, a ring as two whole turns from nought,
+/// the outer one with the inner one as its hole, a rounded rectangle and a
+/// slot as their contour of straight runs and arcs; the plane as the frame it
+/// is drawn in, and the prism's height along the plane's normal.
+fn exact_prism(leaf: &Leaf) -> Option<(Contour, Vec<Contour>, Frame, DVec3)> {
+    let Leaf::Prism {
+        plane,
+        outline,
+        height,
+    } = leaf
+    else {
+        return None;
+    };
+    let (contour, holes) = match outline {
+        Outline::Rectangle { low, high } => (Contour::rectangle(*low, *high), Vec::new()),
+        Outline::Circle {
+            center,
+            radius,
+            from,
+        } => (whole_circle(*center, *radius, *from), Vec::new()),
+        Outline::Ring {
+            center,
+            outer,
+            inner,
+        } => (
+            whole_circle(*center, *outer, 0.0),
+            vec![whole_circle(*center, *inner, 0.0)],
+        ),
+        Outline::Rounded { .. } | Outline::Slot { .. } => (outline.contour()?, Vec::new()),
+        Outline::Star { .. } => return None,
+    };
+    let (origin, u, v) = plane.frame();
+    Some((
+        contour,
+        holes,
+        Frame { origin, u, v },
+        plane.normal() * *height,
+    ))
 }
 
 /// A whole circle as one run round from a single corner, at `from` degrees.

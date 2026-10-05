@@ -23,7 +23,7 @@ pub use along::{Crossing, Stretch};
 pub use arithmetic::{Measured, held_to_arithmetic, holds_exactly};
 pub use checking::{check, holds, kept_its_promise, within_reach};
 pub use cores::on_every_core;
-pub use kernels::{Exact, Flats, Kernel, whole_circle};
+pub use kernels::{Application, Exact, Flats, Kernel, whole_circle};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Case {

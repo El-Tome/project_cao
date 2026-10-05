@@ -48,6 +48,39 @@ impl Meet {
         }
     }
 
+    /// The point at `t` in the parameters of `beside`, a cylinder parallel to
+    /// the first or to the second whose arc the curve was taken for (decision
+    /// 6), a hair off it: the angle read on the curve's own cylinder, turned
+    /// by the angle the two axes part by as seen from the point — small, so
+    /// that the angle keeps the own one's unwrapping — and the height along
+    /// `beside`'s axis. With its first and second derivatives.
+    pub(in crate::brep) fn seen_beside(
+        &self,
+        on_first: bool,
+        beside: &Cylinder,
+        t: f64,
+    ) -> [DVec2; 3] {
+        let [own, own_speed, own_bend] = self.seen_on(on_first, t);
+        let pair = self.pair();
+        let [point, speed, bend] = pair.local(pair.signs(self.component), t);
+        let point = pair.world(point);
+        let [speed, bend] = [speed, bend].map(|local| pair.direction(local));
+        let cylinder = if on_first { &self.first } else { &self.second };
+        let across = |origin: DVec3| {
+            [point - origin, speed, bend].map(|v| DVec2::new(v.dot(beside.u), v.dot(beside.v)))
+        };
+        let [mine, theirs] = [across(beside.origin), across(cylinder.origin)];
+        let parted = theirs[0].perp_dot(mine[0]).atan2(theirs[0].dot(mine[0]));
+        let [mine_turn, mine_sway] = rates(mine);
+        let [their_turn, their_sway] = rates(theirs);
+        let axis = beside.axis;
+        [
+            DVec2::new(own.x + parted, axis.dot(point - beside.origin)),
+            DVec2::new(own_speed.x + mine_turn - their_turn, axis.dot(speed)),
+            DVec2::new(own_bend.x + mine_sway - their_sway, axis.dot(bend)),
+        ]
+    }
+
     /// Every parameter in the first period where the component stands at the
     /// angle `theta` of the first cylinder or of the second, sorted.
     ///
@@ -169,6 +202,15 @@ fn start(cylinder: &Cylinder, direction: DVec3) -> f64 {
     direction.dot(cylinder.v).atan2(direction.dot(cylinder.u))
 }
 
+/// How fast the angle of a point going round the origin of its plane turns,
+/// and how fast that changes, from the point's own derivatives.
+fn rates([point, speed, bend]: [DVec2; 3]) -> [f64; 2] {
+    let square = point.length_squared();
+    let turn = point.perp_dot(speed) / square;
+    let sway = point.perp_dot(bend) / square - 2.0 * turn * point.dot(speed) / square;
+    [turn, sway]
+}
+
 /// The angle of a point going round the origin of its plane, with its first
 /// and second derivatives, from the point's own.
 fn angles(across: [DVec2; 3], around: Around, start: f64) -> [f64; 3] {
@@ -182,8 +224,6 @@ fn angles(across: [DVec2; 3], around: Around, start: f64) -> [f64; 3] {
             raw + TAU * ((reference - raw) / TAU).round()
         }
     };
-    let square = point.length_squared();
-    let turn = point.perp_dot(speed) / square;
-    let sway = point.perp_dot(bend) / square - 2.0 * turn * point.dot(speed) / square;
+    let [turn, sway] = rates([point, speed, bend]);
     [start + angle, turn, sway]
 }

@@ -3,7 +3,8 @@
 //! same two such planes are one curve, and two corners found on the same
 //! three one corner, however far apart they were found — each plane taken
 //! for another within the tolerance by decision 1, their crossing moves by
-//! more than the tolerance. Such a corner stands where the three meet.
+//! more than the tolerance. Such a corner stands where the three meet, and
+//! one on two across each other only on the line they share.
 
 use glam::DVec3;
 
@@ -75,6 +76,31 @@ impl Planes {
                 + one.0.cross(other.0) * third.1)
                 / volume,
         )
+    }
+
+    /// The line two planes of `support` across each other share, as a point
+    /// of it and its direction, of all such pairs the one across the most;
+    /// none where no two are across, or where three span space and fix a
+    /// place instead.
+    pub fn line(&self, support: &[SurfaceId]) -> Option<(DVec3, DVec3)> {
+        let planes = self.shared(support, support);
+        if self.spanning(&planes).is_some() {
+            return None;
+        }
+        let mut best: Option<(f64, [(DVec3, f64); 2])> = None;
+        for first in 0..planes.len() {
+            for second in first + 1..planes.len() {
+                let across = planes[first].0.cross(planes[second].0).length();
+                if across >= ACROSS && best.is_none_or(|(most, _)| across > most) {
+                    best = Some((across, [planes[first], planes[second]]));
+                }
+            }
+        }
+        let (_, [(one, at_one), (other, at_other)]) = best?;
+        let direction = one.cross(other);
+        let point = (other.cross(direction) * at_one + direction.cross(one) * at_other)
+            / direction.length_squared();
+        Some((point, direction.normalize()))
     }
 
     /// The triple of planes whose normals span the most, when some span.

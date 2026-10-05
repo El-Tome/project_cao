@@ -21,6 +21,14 @@ It can:
   true surface's normal. The section view is read off those triangles. An
   exact body is written to the geometry cache whole and read back as the
   replay leaves it.
+- **raise a profile whose loops touch at one point**: a whole circle touching
+  another loop of its profile — a hole touching its outline, a ring inside
+  the circle around it, two holes side by side — within the raise's
+  tolerance. The touch is decided once, on the pieces (`prism/touch.rs`),
+  and laid as the boolean lays it when it cuts the same hole out: a corner
+  both loops share on each cap, the line the two walls touch along between
+  them, and each wall parted there. A touch at a corner of the other loop is
+  not laid this way.
 - surfaces: planes, and circular cylinders parallel or square to each other;
   curves: lines, circles, and the curve two perpendicular cylinders meet
   along.
@@ -62,12 +70,9 @@ Known and still open:
 
 - the tangency band, where a third surface crosses two that touch a hair from
   the touch: a few failures in ten thousand random parts, all of them declines
-  or triangles drawing a right body badly;
-- a profile whose hole touches its outline at a single point is raised with
-  the right volume, but the tessellation does not yet walk two loops that
-  share a corner, and leaves both caps without a triangle. `Body` declines
-  such a body (`Declined::Undrawn`) rather than draw it with a hole where its
-  matter is; the tessellation should learn it;
+  or triangles drawing a right body badly. The crescent's tip, two walls of
+  one radius crossing a hair apart under a plane, has its band since #528;
+  what it leaves is listed in `exact-kernel-failures.md`;
 - a face bounded by the curve two perpendicular cylinders meet is never
   decided clear of a face at a slant, so such a pair still declines.
 
@@ -101,8 +106,10 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-One pair alone is read wider, at twenty times it: two parallel walls of
-one radius (decision 8). The result of an operation carries the larger reach of its operands. A pair
+Three configurations alone are read wider, at twenty times it, each as ill
+conditioned as the others: two parallel walls of one radius (decision 8), a
+wall touching one of two parallel planes (decision 10), and a wall touching
+one of two planes it stands between (decision 2). The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -124,8 +131,13 @@ The decisions, in the order taken, once per operation:
    within `EPS` — and a plane standing strictly between two planes of the
    first within `EPS` of each is taken for neither: taken for one, it would
    stand, as its own operand was made, across the strip of wall between the
-   two, where the boolean asks that operand which side a point is on. From
-   here on, coplanar, coaxial and flush are comparisons of ids.
+   two, where the boolean asks that operand which side a point is on — unless
+   it stands on one of them, within rounding: that one it is. Taken for
+   neither, a floor drawn on the middle one of three floors a hair apart
+   stood as a fourth plane on it, its corners within the tolerance of
+   corners no merge may join, and a region between them found no column to
+   be read in (8537287, 8087943). From here on, coplanar, coaxial and flush
+   are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
@@ -161,11 +173,38 @@ The decisions, in the order taken, once per operation:
    decision 1 reads it. Where that move is not made, the wall is not slid.
    A cylinder
    touching two parallel planes on opposite sides is moved midway between
-   them, its radius half their gap, and touches both exactly.
+   them, its radius half their gap, and touches both exactly. So is one
+   touching one of the two and standing within decision 8's hair `G` of the
+   other: a bore whose centre stood a hair off the middle of a block's
+   height touched its floor within `EPS` and missed its top by a hair past
+   it, and the sliver of side between the top and the wall's crown stood
+   within `EPS` of both, where no ray tells which side a point is on
+   (8554448). Its radius moves by half that hair at most, under what
+   decision 8 moves a wall by.
    A surface moved is the boolean's: its pairs, though one operand alone
    carries them, are decided at the boolean's tolerance, and it comes into
    the result at it — moved, it no longer stands where its operand decided
    them.
+   Two parallel walls of one radius decided to cross along two lines at an
+   angle whose sine is a hundredth or less — their axes a hair apart,
+   further than decision 8 merges — are decided to **graze**, once: like
+   two surfaces touching, they stand within `EPS` of each other far from
+   the lines, `EPS` over the angle on either side of each, and decisions 5,
+   6 and 9 read the pair as they read a touch.
+   A wall standing within `EPS` of two parallel planes an operand decided
+   apart, a hair apart on one side of it — at a finer tolerance, before a
+   later leaf grew the reach — is
+   decided against each at the tolerance that operand told them apart at.
+   At the boolean's, it touched both along two lines a hair apart, on two
+   planes no corner may lie on together, and no move settled both: a disc
+   touching a block's side and a second side a tenth of a micron off it
+   declined (8581852), and so did a slot whose cap touched both faces of a
+   skin a cut had left (8588829). Decided finer, it touches the plane it
+   touches and crosses or misses the other, as it does. Two planes either
+   side of the wall, a diameter apart, are not read so: a slot's cap taken
+   for a bore's wall, its sides a hair off the faces the bore all but
+   touches, missed one side and crossed the other, and the slot's lines of
+   touch stood on surfaces decided apart (8575631).
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart, and never two curves of one operand, which
@@ -177,7 +216,13 @@ The decisions, in the order taken, once per operation:
    `EPS`: each of the two may stand up to `EPS` from where the operand drew
    it, and a bore's rim moved onto a side, its floor taken for one a hair
    off, stands √2 hairs from the circle they share. Which of those surfaces
-   carry the edge all along is read off the operand as it was built.
+   carry the edge all along is read off the operand as it was built. The
+   corner such an edge ends at goes with it: it is laid where a line of the
+   edges ending there now crosses a plane it lies on, square enough to it
+   to fix the place. Left where its operand drew it, a slot's corner on a
+   top taken for the block's a hair above stood that hair under the top,
+   and the next operation found the lines it ends crossing the top that far
+   from it (8511092, 8505208).
 4. **A line meeting a cylinder at a double root**, once per pair. A line
    passing within `EPS` outside a wall touches it once, where it passes
    closest. A line passing within `EPS` inside it crosses it twice, its
@@ -196,8 +241,16 @@ The decisions, in the order taken, once per operation:
    near a place three planes fix are merged into it rather than into each
    other — and their supports joined — unless the merge would put one point on two
    surfaces decided apart, or on two surfaces, one from each, crossing along
-   lines that all stand further than `EPS` from it, which is refused. No
-   corner lies on a curve on a surface apart from one of its own.
+   lines that all stand further than `EPS` from it, which is refused —
+   unless the two touch or graze (decision 2): within `EPS` of both far
+   from their lines, a corner one of two grazing walls carries near their
+   crossing and the node a band puts on the other there are one corner.
+   No corner lies on a curve on a surface apart from one of its own. Each
+   corner is measured where it stands (below, where planes fix it): one
+   whose three planes fix a place stands there, though an operand put it
+   up to three hairs off, each plane taken for another, and a curve
+   crossing a fourth surface at that place finds that corner rather than a
+   second one beside it (8520500).
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly
@@ -212,7 +265,10 @@ The decisions, in the order taken, once per operation:
    arc lies on its curve's surfaces and on those of the arcs taken for it,
    and an edge a later operation reads lies on its curve's surfaces all
    along and on the others over its stretch. Two arcs whose surfaces
-   include two decided apart stay two.
+   include two decided apart stay two. The curve two perpendicular walls
+   meet along is carried all along by its own two walls only, not by a wall
+   of one radius a hair beside one of them: there it lies over its stretch
+   alone, and is seen there as below, under "Everything else is derived".
 
    A plane decided tangent to a cylinder thus keeps its tangent line, and a
    circle that runs within `EPS` of a side between two corners becomes that
@@ -297,9 +353,10 @@ The decisions, in the order taken, once per operation:
    are one surface, the second operand's taken for the first's as decision
    1 takes
    one within `EPS`. This is the kernel's one tolerance wider than `EPS`,
-   and it is kept to the one pair whose crossing is ill conditioned. Two
-   parallel planes a hair apart never cross: the skin between them is well
-   defined and kept, and case 8 keeps its floor of a ten-millionth. Two
+   and it is kept to the configurations whose crossing is ill conditioned.
+   Two parallel planes a hair apart never cross: the skin between them is
+   well defined and kept, and case 8 keeps its floor of a ten-millionth —
+   unless a wall touches one of them (decision 10). Two
    cylinders of one radius `d` apart cross along two rulings at an angle
    `d / r`, and a band a thousand tolerances wide surrounds the crossing,
    where every corner a third surface makes is ill conditioned. The
@@ -345,7 +402,11 @@ The decisions, in the order taken, once per operation:
    It is not made where it would part a surface it carries from one of the
    first operand's it was one with or touched — a slot's side flush with
    the body's, the body's wall a hair across from its cap — nor where it
-   would move the curve two perpendicular cylinders meet along: the two
+   would move the curve two perpendicular cylinders meet along, nor where
+   it would lay a surface it carries on one of the second operand's own it
+   leaves behind, which that operand built apart — a rounded rectangle a
+   hair taller than its two corners, its top laid on a face by decision 10,
+   took its upper corners' walls onto its lower ones (8528992): the two
    walls are then left two, as before. The wall itself parts from what it
    touched freely: it is the first's now, and stands with every surface as
    the first operand decided.
@@ -357,7 +418,9 @@ The decisions, in the order taken, once per operation:
    with the very same triangles. So the band of two surfaces decided to
    touch — a plane and a cylinder, or two parallel cylinders — is laid out
    once, the same on both, wherever the operation brings something into
-   it:
+   it — and so is the band of two walls decided to graze, about each of
+   the two lines they cross along as about a line of touch, a corner nearer
+   the other line standing in that line's band: the crescent's tip:
 
    - a corner standing within `EPS` of both surfaces, on a face of each,
      and off the line of touch where faces of both operands meet it, is a
@@ -379,11 +442,12 @@ The decisions, in the order taken, once per operation:
      of their runs with no face between them, and the run's line laid
      across that gap onto the two ends' walls passed the corner where
      those walls cross without being cut there (92530408);
-   - an arc on two surfaces decided to touch is kept between faces of
-     either operand: where one operand alone carries both, it holds a skin
-     or a crack there — the cusp a bore leaves under a top it touches
-     inside — which this operation's band parts, and whose parts decision
-     6 decides with the rest.
+   - an arc on two surfaces decided to touch, or to graze, is kept between
+     faces of either operand: where one operand alone carries both, it
+     holds a skin or a crack there — the cusp a bore leaves under a top it
+     touches inside, the crescent a disc cut by its twin a hair aside leaves
+     — which this operation's band parts, and whose parts decision 6
+     decides with the rest.
 
    Every strip of the band is then parted on both surfaces where the
    others are, by arcs both carry, and the strips of the two are twins,
@@ -419,6 +483,20 @@ The decisions, in the order taken, once per operation:
    taken for a crack, the strip dropped, and the plane's face left open
    along it (92510427).
 
+10. **A wall touching one of two planes a hair apart.** Two parallel
+    planes, one of each operand, further apart than `EPS` and within `G`,
+    are one surface where a wall of either operand runs along them touching
+    one within `EPS`: the second operand's taken for the first's, the
+    second operand moved along the normal by the hair with what it built
+    on it, as decision 8 moves it, before decision 1 reads it. A wall
+    touching a plane crosses a parallel one a hair across at a grazing
+    angle, along two rulings a band apart, or misses it by the hair it was
+    meant to touch: a rounded rectangle drawn a hair and a half beside a
+    block touched its own sides with its corners' walls and crossed the
+    block's, and declined (8540801, 8510444). Without the wall the skin is
+    well defined, and the planes are left two. Where the move is not made,
+    as decision 8's, they are left two too.
+
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
 of the curve: two surfaces crossing at a grazing angle stand within `EPS` of
@@ -431,13 +509,33 @@ touch along only within `EPS` of it and of both. A line or a circle lying on a s
 only because an arc of it was taken for an arc of the surface (decision 6), is
 seen there as the segment between where its ends stand — a circle square to a
 cylinder's axis or leaning on a plane only where its stretch stands within
-`EPS` of that chord. A corner whose support holds three planes spanning space, and no
+`EPS` of that chord. A circle square to a cylinder's axis that bulges off
+its chord there, a rim passing a hair from a ruling it crosses twice, is
+seen instead as the curve its own wall meets that cylinder along, between
+where its ends stand on it, where its middle stands within `EPS` of it: it
+was taken for an arc of that curve, and the cylinder carries the curve.
+So is the curve two perpendicular cylinders meet along, on a wall parallel
+to one of them and further than `EPS` from it — two walls of one radius a
+hair apart, a crescent: it is seen as the curve that wall meets the other
+cylinder along, where its middle stands within `EPS` of it, and in that
+wall's own angles otherwise — never in its own wall's, which part from them
+by the angle the two axes part by. Which wall is beside is read once, off
+the curve's own two cylinders (`Meet::own`). A corner whose support holds three planes spanning space, and no
 cylinder but one decided to touch one of its surfaces, stands where the
 planes meet — each plane taken for another within `EPS`, the place they fix
 moves by more, and the line a cylinder touches a plane along, taken for
 the line two of the planes share, is fixed by them: corners found along it,
 some on the planes and some on the touch, would lean its edge a hair
-across both. A triple of surfaces is
+across both. A corner on two planes across each other, and on no third
+spanning space with them, stands on the line they share, nearest where it
+was found, whatever cylinders it lies on: a wall touching one plane a hair
+from the other's line puts its corners on that line where it touches, and
+the strip of the wall beside an edge leaning between them was drawn
+through the plane (8010303); an operand's corner on its own plane, taken
+for the body's a hair off by decision 1, stayed a hair off the plane it
+lies on, and three samples of that plane's face in a row but for rounding
+made a triangle standing upright on the hair (8531226, 80511824). A triple
+of surfaces is
 solved from the most degenerate of its three pairs: a tangent line first, then
 any line against the third surface, then a circle, then the perpendicular
 curve — which is crossed with a surface through the lines that surface makes
@@ -698,7 +796,15 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   not: a wall grazing the plane of the arc there stands on the plane's face
   over a band far wider than the rules tell apart — a plane, or a wall
   square to the arc's own, or a wall parallel to it whose own arc ends at
-  that vertex. Nor does the curve two
+  that vertex. All but lying on it is read along the stretch from the end,
+  at the ray and halfway back: a circle crossing the surface again a step
+  from where it crossed it at the end — a disc dipping a hair under a plane
+  its wall crosses twice — stands on the line of that second crossing there,
+  off the plane's face, and keeps the ray, which a wall a hair inside it,
+  sampled on common rays, takes too: left to the partner alone, the
+  partner's sample stood above the circle's chord across the step, and the
+  cap of the sliver between them crossed itself (8538738, 8585618). Nor does
+  the curve two
   perpendicular cylinders meet along, a step of the finer grid or less from
   its end: a ray a cylinder takes from a wall a hair off its own would put a
   sample of the curve on the cap's arc ending at the same vertex. Nor a place of its grid
@@ -730,7 +836,9 @@ different chords.
   - the body's exact spans along the same line, at `ALONG_A_LINE`;
   - the triangles' spans, with a slack of the tolerance over the cosine at each
     crossing, a line grazing a cylinder left out and counted;
-  - the rules on the triangles, `within_reach`, and the listing.
+  - the rules on the triangles, `within_reach` — the result inside the
+    leaves' box grown by `G` (`Scale::HAIR` tolerances), the furthest
+    decision 8 moves an operand — and the listing.
 - **The listing** is checked by `soundness::listed`, written apart from the
   kernel with its own formulas: every edge on the surfaces of the faces beside
   it, every end on its vertex, every vertex on the surfaces around it, loops
@@ -761,4 +869,9 @@ The tests that hold it:
 - `what_the_exact_campaigns_found_in_the_kernel.rs`,
   `what_the_exact_campaigns_found_in_the_triangles.rs` and
   `the_tangency_band.rs`, what the campaigns found, still failing ones under
-  `#[ignore]` with their reason.
+  `#[ignore]` with their reason;
+- `a_crescent_s_tip_under_a_plane.rs`, `a_plane_a_hair_from_a_face.rs`,
+  `a_surface_a_hair_from_a_line_of_touch.rs` and
+  `a_rim_grazing_a_ruling_of_touch.rs`, the seeds the campaigns of 5 October
+  2026 failed, shrunk and gathered by what breaks them, ignored with their
+  reason; those the triangles draw badly are with the triangles' findings.

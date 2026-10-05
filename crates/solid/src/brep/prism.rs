@@ -1,6 +1,7 @@
 //! A profile raised along its plane's normal into a body.
 
 mod piece;
+mod touch;
 mod walls;
 
 use std::f64::consts::TAU;
@@ -97,7 +98,8 @@ impl Body {
         if lift.length() <= eps {
             return Err(Declined::Travel);
         }
-        Ok(walls::raise(lifted, lift, &contours, eps))
+        let (parted, touches) = touch::parted(contours, eps);
+        Ok(walls::raise(lifted, lift, &parted, touches, eps))
     }
 }
 

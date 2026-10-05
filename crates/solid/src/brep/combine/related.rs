@@ -44,7 +44,7 @@ pub(super) fn related(
                 continue;
             }
             done.insert(pair);
-            let found = relation(&list[one], &list[other], operands.scale);
+            let found = relation(&list[one], &list[other], operands.scale_of(pair));
             if found == Relation::Unsupported {
                 if clear(operands, pair) {
                     continue;
@@ -115,7 +115,7 @@ pub(super) fn completed(
             let found = relation(
                 &list[one.0 as usize],
                 &list[other.0 as usize],
-                operands.scale,
+                operands.scale_of([one, other]),
             );
             for curve in found.curves() {
                 registry.register(curve, &[one, other]);

@@ -1,11 +1,13 @@
 //! The faces, edges and vertices of a raised profile: a cap at each end, and a
-//! wall on each piece, with a vertical edge wherever two walls meet.
+//! wall on each piece, with a vertical edge wherever two walls meet — and
+//! where two loops touch, one both loops share.
 
 use std::f64::consts::TAU;
 
 use glam::DVec3;
 
 use super::piece::{Named, Piece};
+use super::touch::Parted;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
@@ -17,7 +19,14 @@ use crate::profile::Frame;
 /// The body the pieces make when their frame is lifted by `lift`, which
 /// stands along the frame's normal: every outline anticlockwise about it,
 /// every hole clockwise, so that the matter is on the left of each piece.
-pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Named>], eps: f64) -> Body {
+/// Each of the `touches` is one corner at each end, and one line between.
+pub(super) fn raise(
+    frame: Frame,
+    lift: DVec3,
+    contours: &[Parted],
+    touches: usize,
+    eps: f64,
+) -> Body {
     let mut walls = Walls {
         body: Body {
             surfaces: Vec::new(),
@@ -32,6 +41,7 @@ pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Named>], eps: f64
         lift,
         up: lift.normalize(),
         eps,
+        touches: vec![None; touches],
     };
     let (bottom, bottom_flipped) = walls.plane(frame.origin, -walls.up);
     let (top, top_flipped) = walls.plane(frame.origin + lift, walls.up);
@@ -68,6 +78,8 @@ struct Walls {
     lift: DVec3,
     up: DVec3,
     eps: f64,
+    /// The corners at each end of a touch and the line between, once laid.
+    touches: Vec<Option<(VertexId, VertexId, Coedge)>>,
 }
 
 /// The wall a piece stands on, and whether its matter lies on the side its
@@ -90,15 +102,17 @@ impl Walls {
     /// bottom and its top, in the contour's own order.
     fn contour(
         &mut self,
-        named: &[Named],
+        parted: &Parted,
         caps: [SurfaceId; 2],
         faces: &mut Vec<Face>,
     ) -> (Vec<Coedge>, Vec<Coedge>) {
+        let named: &[Named] = &parted.pieces;
         let contour: Vec<Piece> = named.iter().map(|named| named.piece).collect();
         let contour = contour.as_slice();
         let sides: Vec<Side> = contour.iter().map(|piece| self.side(piece)).collect();
         if let ([piece @ Piece::Arc { center, sweep, .. }], [side]) = (contour, sides.as_slice())
             && piece.is_ring()
+            && parted.touches[0].is_none()
             && let Some(cylinder) = side.cylinder
         {
             let center = self.frame.at(*center);
@@ -117,9 +131,15 @@ impl Walls {
         for (index, piece) in contour.iter().enumerate() {
             let before = sides[(index + count - 1) % count].surface;
             let point = self.frame.at(piece.from());
-            let bottom = self.vertex(point, [caps[0], before, sides[index].surface]);
-            let top = self.vertex(point + self.lift, [caps[1], before, sides[index].surface]);
-            corners.push((bottom, top, self.line(bottom, top)));
+            let [below, above] = caps.map(|cap| [cap, before, sides[index].surface]);
+            corners.push(match parted.touches[index] {
+                Some(touch) => self.touched(touch, point, [below, above]),
+                None => {
+                    let bottom = self.vertex(point, below);
+                    let top = self.vertex(point + self.lift, above);
+                    (bottom, top, self.line(bottom, top))
+                }
+            });
         }
         let (mut below, mut above) = (Vec::new(), Vec::new());
         for (index, piece) in contour.iter().enumerate() {
@@ -212,6 +232,30 @@ impl Walls {
             self.body.surfaces.len() - 1
         });
         SurfaceId(index as u32)
+    }
+
+    /// The corners at either end of a touch, on the surfaces each loop
+    /// through it adds, and the line between them, laid by the first loop.
+    fn touched(
+        &mut self,
+        touch: usize,
+        point: DVec3,
+        on: [[SurfaceId; 3]; 2],
+    ) -> (VertexId, VertexId, Coedge) {
+        let Some((bottom, top, line)) = self.touches[touch] else {
+            let bottom = self.vertex(point, on[0]);
+            let top = self.vertex(point + self.lift, on[1]);
+            let laid = (bottom, top, self.line(bottom, top));
+            self.touches[touch] = Some(laid);
+            return laid;
+        };
+        for (corner, surfaces) in [bottom, top].into_iter().zip(on) {
+            let held = &mut self.body.vertices[corner.0 as usize].on;
+            held.extend(surfaces);
+            held.sort();
+            held.dedup();
+        }
+        (bottom, top, line)
     }
 
     fn vertex(&mut self, point: DVec3, on: [SurfaceId; 3]) -> VertexId {

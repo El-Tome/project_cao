@@ -7,7 +7,7 @@ use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, SurfaceId};
-use crate::profile::{Contour, Frame};
+use crate::profile::{Contour, Frame, Run};
 
 fn ground(height: f64) -> Frame {
     Frame {
@@ -264,6 +264,24 @@ fn a_surface_of_the_tool_between_two_of_the_body_s_within_the_tolerance_of_each_
     );
 }
 
+/// Seed 8537287 of the profile draw: a plane of the tool standing where one
+/// of the body's three floors a hair apart stands is that floor, though it
+/// stands between the two others within the tolerance of each.
+#[test]
+fn a_surface_of_the_tool_on_one_of_the_body_s_between_two_others_is_that_one() {
+    let scale = Scale::of(465.0);
+    let one = with_surfaces(vec![
+        plane_at(150.0, DVec3::Y),
+        plane_at(150.000_000_6, DVec3::Y),
+        plane_at(150.000_000_3, DVec3::Y),
+    ]);
+    let on = with_surfaces(vec![plane_at(150.000_000_3, DVec3::Y)]);
+    assert_eq!(
+        Surfaces::of(&one, &on, scale).mapped[1],
+        vec![(SurfaceId(2), true)]
+    );
+}
+
 /// Seed 243 of the campaign: a slit a tenth of a micron wide, left by a cut
 /// at a reach of 95, and a later cut reaching 198, whose tolerance is twice
 /// the slit.
@@ -293,6 +311,33 @@ fn two_surfaces_a_body_kept_two_are_apart_whatever_tolerance_a_later_operation_b
     assert!(!apart.pair(one, side) && !apart.pair(one, floor));
     assert!(apart.pair(tube, bore) && apart.pair(one, tube));
     assert!(!apart.pair(tube, beside) && !apart.pair(floor, tube));
+}
+
+/// Two walls of one radius whose axes stand a hair apart, beyond decision
+/// 8's, cross along two rulings at an angle of the hair over the radius:
+/// they stand within the tolerance of each other microns from either, as
+/// two walls touching do, and the pair is decided so once. Two walls of one
+/// radius crossing steeply, or of two radii crossing a hair from touching,
+/// are not.
+#[test]
+fn two_walls_of_one_radius_a_hair_apart_cross_at_a_grazing_angle_and_no_other_pair_does() {
+    let scale = Scale::of(55.0);
+    let surfaces = [
+        Cylinder::about(DVec3::new(0.0, 30.0, 0.0), DVec3::Z, 7.5),
+        Cylinder::about(DVec3::new(1e-5, 30.0, 0.0), DVec3::Z, 7.5),
+        Cylinder::about(DVec3::new(7.5, 30.0, 0.0), DVec3::Z, 7.5),
+        Cylinder::about(DVec3::new(0.0, 39.5 - 1e-5, 0.0), DVec3::Z, 2.0),
+    ]
+    .map(Surface::Cylinder);
+    let apart = Apart::of(&surfaces, |_| scale);
+    let [own, hair, steep, near] = [0, 1, 2, 3].map(SurfaceId);
+    assert!(apart.graze(own, hair) && apart.graze(hair, own));
+    assert!(!apart.touch(own, hair) && !apart.pair(own, hair));
+    assert!(!apart.graze(own, steep), "crossing at sixty degrees");
+    assert!(
+        !apart.graze(own, near),
+        "of two radii, a hair from touching"
+    );
 }
 
 #[test]
@@ -382,9 +427,19 @@ fn two_corners_on_three_planes_whose_normals_span_space_are_one_however_far_apar
     let apart = DVec3::new(104.999_999_7, 240.0, -119.999_999_7);
     let first = pool.add(corner, [bottom, side, front], [], &registry);
     let second = pool.add(apart, [front, side, bottom], [], &registry);
-    let third = pool.add(apart, [front, side], [], &registry);
+    let along = DVec3::new(104.999_999_7, 240.0, -119.999_999);
+    let third = pool.add(along, [front, side], [], &registry);
     assert_eq!((first, second, third), (0, 0, 1));
     assert_eq!(pool.corners[0].point, corner);
+}
+
+#[test]
+fn a_corner_on_two_planes_across_each_other_stands_on_the_line_they_share_nearest_where_it_was_found()
+ {
+    let (registry, [bottom, side, _]) = nearly_one_corner();
+    let found = DVec3::new(104.999_999_7, 17.0, -119.999_999_7);
+    let placed = standing(found, &[bottom, side], &registry, Scale::of(420.0).eps());
+    assert!(placed.distance(DVec3::new(105.0, 17.0, -120.0)) < 1e-12);
 }
 
 /// Seed 1034172 of the campaign: a block's bottom touches a bore along a
@@ -627,6 +682,48 @@ fn a_cylinder_touching_two_parallel_planes_on_opposite_sides_is_moved_midway_and
     assert!((wall.origin.y - (3.0 + eps / 4.0)).abs() < 1e-15);
 }
 
+/// A hole, a slot's floor and a ceiling `ceiling` past the hole's top, the
+/// hole the second operand's, as decision 2 leaves them.
+fn hole_under(ceiling: f64) -> Surface {
+    let floor = plane_at(0.0, DVec3::Y);
+    let ceiling = plane_at(6.0 + ceiling, DVec3::Y);
+    let hole = Cylinder::about(DVec3::new(0.0, 3.0, 0.0), DVec3::Z, 3.0);
+    let mut surfaces = Surfaces {
+        list: vec![floor, ceiling, Surface::Cylinder(hole)],
+        mapped: [Vec::new(), Vec::new()],
+    };
+    surfaces.snapped(
+        |operand, surface| (operand == 1) == (surface.0 == 2),
+        |_, _| true,
+        |_| false,
+        scale(),
+    );
+    surfaces.list[2]
+}
+
+/// Seed 8554448 of the profile draw: a hole touching a slot's floor within
+/// the tolerance and its ceiling a few tolerances off, past it. Left
+/// touching the floor alone, it stood a hair under the ceiling, a skin no
+/// ray tells the side of: it is moved midway as it would be within the
+/// tolerance of both.
+#[test]
+fn a_cylinder_touching_one_of_two_parallel_planes_a_hair_from_the_other_is_moved_midway() {
+    let eps = scale().eps();
+    let Surface::Cylinder(wall) = hole_under(3.0 * eps) else {
+        unreachable!("the hole stays a cylinder");
+    };
+    assert!((wall.radius - (3.0 + 1.5 * eps)).abs() < 1e-14);
+    assert!((wall.origin.y - (3.0 + 1.5 * eps)).abs() < 1e-14);
+}
+
+/// Further than decision 8's hair from the ceiling, it is left touching the
+/// floor.
+#[test]
+fn a_cylinder_touching_one_of_two_parallel_planes_far_from_the_other_keeps_its_radius() {
+    let hole = Cylinder::about(DVec3::new(0.0, 3.0, 0.0), DVec3::Z, 3.0);
+    assert_eq!(hole_under(30.0 * scale().eps()), Surface::Cylinder(hole));
+}
+
 /// A hole a hair from touching a plane whose faces stand far from its own
 /// is not moved: two surfaces touch only where faces of theirs meet.
 #[test]
@@ -713,4 +810,93 @@ fn a_cylinder_touching_two_parallel_planes_on_one_side_keeps_its_radius() {
     );
     assert_eq!(moved, [false, false, false]);
     assert_eq!(surfaces.list, [low, high, Surface::Cylinder(post)]);
+}
+
+/// A rectangle from `low` to `high` with its corners rounded to `radius`,
+/// raised from the ground by `height`.
+fn rounded(low: [f64; 2], high: [f64; 2], radius: f64, height: f64) -> Body {
+    let [low, high] = [DVec2::from(low), DVec2::from(high)];
+    let corner = |x: f64, y: f64| DVec2::new(x, y);
+    let round = |x: f64, y: f64| Run::Round {
+        center: corner(x, y),
+        turn: PI / 2.0,
+    };
+    let outline = Contour {
+        corners: vec![
+            corner(low.x + radius, low.y),
+            corner(high.x - radius, low.y),
+            corner(high.x, low.y + radius),
+            corner(high.x, high.y - radius),
+            corner(high.x - radius, high.y),
+            corner(low.x + radius, high.y),
+            corner(low.x, high.y - radius),
+            corner(low.x, low.y + radius),
+        ],
+        runs: vec![
+            Run::Straight,
+            round(high.x - radius, low.y + radius),
+            Run::Straight,
+            round(high.x - radius, high.y - radius),
+            Run::Straight,
+            round(low.x + radius, high.y - radius),
+            Run::Straight,
+            round(low.x + radius, low.y + radius),
+        ],
+    };
+    Body::raised(&outline, &[], ground(0.0), DVec3::Z * height).expect("a profile raises")
+}
+
+/// The offsets of the planes of `body` square to X.
+fn sides(body: &Body) -> Vec<f64> {
+    body.surfaces
+        .iter()
+        .filter_map(|surface| match surface {
+            Surface::Plane(plane) if plane.normal.x.abs() > 0.5 => Some(plane.offset()),
+            _ => None,
+        })
+        .collect()
+}
+
+/// Seed 8540801 of the profile draw: a rounded rectangle drawn a hair and a
+/// half beside a block, its sides beyond the tolerance of the block's, its
+/// corners' walls touching its own sides and crossing the block's at a
+/// grazing angle. Decision 10 takes its sides for the block's, and moves
+/// what it built on them along.
+#[test]
+fn a_rounded_rectangle_a_hair_beside_a_block_is_moved_flush_with_it() {
+    let block = block([1.0, 3.0, 0.0], [8.0, 9.0, 5.0]);
+    let scale = Scale::of(9.0);
+    let hair = 1.5 * scale.eps();
+    let beside = rounded([1.0 - hair, 3.0], [8.0 - hair, 8.5], 1.0, 5.0);
+    let moved = flush(&block, &beside, scale).expect("the rectangle is moved");
+    for offset in sides(&moved) {
+        assert!(
+            (offset - 1.0).abs() < 1e-12 || (offset - 8.0).abs() < 1e-12,
+            "a side at {offset}"
+        );
+    }
+    for surface in &moved.surfaces {
+        if let Surface::Cylinder(wall) = surface {
+            let off = (wall.origin.x - 2.0).abs().min((wall.origin.x - 7.0).abs());
+            assert!(off < 1e-12, "a wall about {:?}", wall.origin);
+        }
+    }
+}
+
+/// Two blocks whose sides stand a hair apart, no wall touching either, are
+/// left two: the skin between them is well defined, and case 8 keeps its
+/// floor of a ten-millionth.
+#[test]
+fn a_block_a_hair_beside_another_with_no_wall_touching_its_side_is_left_where_it_is() {
+    let block = block([1.0, 3.0, 0.0], [8.0, 9.0, 5.0]);
+    let scale = Scale::of(9.0);
+    let hair = 1.5 * scale.eps();
+    let other = Body::raised(
+        &Contour::rectangle(DVec2::new(1.0 - hair, 3.0), DVec2::new(8.0 - hair, 8.5)),
+        &[],
+        ground(0.0),
+        DVec3::Z * 5.0,
+    )
+    .expect("a block raises");
+    assert!(flush(&block, &other, scale).is_none());
 }

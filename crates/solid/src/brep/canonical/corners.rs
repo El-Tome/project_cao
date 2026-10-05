@@ -44,7 +44,11 @@ impl Pool {
     /// The rank of the corner at `point`: the first already there within the
     /// tolerance — or found on three planes whose normals span space that
     /// `point` was found on too — and on no surface apart from those `point`
-    /// was found on, or a new one.
+    /// was found on, or a new one. Each is measured where it stands
+    /// ([`standing`]): an operand's corner on three planes, each taken for
+    /// another a hair off, stands where they meet, as much as √3 hairs from
+    /// where the operand put it, and a curve crossing a fourth surface there
+    /// crosses it at that place, not at the operand's.
     pub fn add(
         &mut self,
         point: DVec3,
@@ -55,10 +59,12 @@ impl Pool {
         let surfaces: BTreeSet<SurfaceId> = surfaces.into_iter().collect();
         let curves: BTreeSet<usize> = curves.into_iter().collect();
         let found_on = on(&surfaces, &curves, registry);
+        let here = standing(point, &found_on, registry, self.eps);
         let found = self.corners.iter().position(|corner| {
             let known = on(&corner.surfaces, &corner.curves, registry);
-            (corner.point.distance(point) <= self.eps
-                && !parted(corner.point, &known, &found_on, registry, self.eps)
+            let there = standing(corner.point, &known, registry, self.eps);
+            (there.distance(here) <= self.eps
+                && !parted(there, &known, &found_on, registry, self.eps)
                 || registry.planes.fix_a_place(&known, &found_on))
                 && !registry.apart.across(&known, &found_on)
         });
@@ -121,14 +127,55 @@ impl Pool {
     }
 }
 
-/// The surfaces a place was found on and those of the curves it was found
-/// along, sorted.
+/// Where a corner stands: where three planes it lies on meet, when their
+/// normals span space and it was found off that place by more than
+/// rounding — each plane taken for another within the tolerance, the place
+/// they fix moved — and where it was found otherwise. A cylinder the corner
+/// lies on too holds the planes' place when it was decided to touch one of
+/// them: the line they touch along is fixed by the planes the corner's
+/// line lies on, and corners found along it, some on the planes, some on
+/// the touch, would lean an edge between them a hair across both.
+///
+/// A corner on two planes across each other and no third stands on the
+/// line they share, at its foot there: a wall touching one of the planes a
+/// hair from the other's line puts corners along that line where it
+/// touches, and the planes' own corners stand on it, so an edge between
+/// them would lean a hair across both planes, and the wall's strip beside
+/// it be drawn through one (8010303).
+pub(in crate::brep) fn standing(
+    point: DVec3,
+    support: &[SurfaceId],
+    registry: &Registry,
+    eps: f64,
+) -> DVec3 {
+    let touching = |cylinder: SurfaceId| {
+        support
+            .iter()
+            .any(|&plane| registry.planes.is_plane(plane) && registry.apart.touch(cylinder, plane))
+    };
+    let foot =
+        |(origin, direction): (DVec3, DVec3)| origin + direction * direction.dot(point - origin);
+    let fixed = registry
+        .planes
+        .place(support, touching)
+        .or_else(|| registry.planes.line(support).map(foot));
+    match fixed {
+        Some(place) if place.distance(point) > eps * ROUNDING => place,
+        _ => point,
+    }
+}
+
+/// Under this share of the tolerance, a corner is where its planes meet.
+const ROUNDING: f64 = 1e-3;
+
 /// Whether a surface of `one` the other lacks and a surface of `other` the
 /// first lacks cross along lines, none of them within `eps` of `point`. Two
 /// surfaces touching stand within `eps` of each other far from the line they
 /// touch along, and a place on both is not for that on it; nor is a place
 /// within `eps` of two cylinders meeting at a grazing angle near the curve
-/// they meet along.
+/// they meet along. Two walls decided to cross at a grazing angle are read
+/// as two touching are: a corner one of them carries near their crossing,
+/// and the node a band puts on the other there, are one corner on both.
 fn parted(
     point: DVec3,
     one: &[SurfaceId],
@@ -145,7 +192,7 @@ fn parted(
     let [first, second] = [only(one, other), only(other, one)];
     first.iter().any(|&a| {
         second.iter().any(|&b| {
-            if registry.apart.touch(a, b) {
+            if registry.apart.touch(a, b) || registry.apart.graze(a, b) {
                 return false;
             }
             let mut shared = registry.list.iter().filter(|known| {
@@ -163,6 +210,8 @@ fn parted(
     })
 }
 
+/// The surfaces a place was found on and those of the curves it was found
+/// along, sorted.
 fn on(
     surfaces: &BTreeSet<SurfaceId>,
     curves: &BTreeSet<usize>,

@@ -2114,10 +2114,10 @@ fn seed_4058038_a_bore_s_cap_a_hair_inside_a_lying_post_stays_under_its_chords()
 /// floor. The floor's triangle from two of them to the sample of the outer
 /// arc standing on the same line x = 0.75 is no wider than rounding across
 /// the floor, and stands 1e-8 high in the plane of the cut's side, lying on
-/// that side's triangle. A corner decided on a plane has to stand on it,
-/// which is the kernel's.
+/// that side's triangle. A corner decided on a plane has to stand on it:
+/// it holds since a corner on two planes across each other, and on walls
+/// touching them, stands on the line the two share.
 #[test]
-#[ignore = "kernel"]
 fn seed_80511824_a_slot_cut_a_hair_deeper_through_a_wider_slot_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2157,4 +2157,528 @@ fn a_bore_s_cap_passing_the_kernel_s_tolerance_inside_a_post_with_no_vertex_stay
             ))],
         ));
     }
+}
+
+// What the campaigns of 5 October 2026 (8a, 8b and 8c in
+// `docs/exact-kernel-journal.md`) found in the triangles, each seed shrunk.
+//
+// A right body drawn crossing at some finenesses and not others: the exact
+// body holds along every line, and the triangles cross or not as the
+// drawing is made finer, most only at the fineness the application draws at.
+//
+// Three of them were an operand's corner left a hair off a plane: the
+// operand's own plane, a hair from the body's, was taken for it (decision
+// 1), and its corner stayed where the operand had put it. Three samples of
+// the plane's face in a row but for rounding — a vertex there, the rim's
+// sample at a step of its grid — gave the sweep a triangle of no width,
+// standing upright on the corner's hair and lying on the side through it.
+// They hold since a corner on two planes across each other, and on walls
+// touching them, stands on the line the two share. The others are left with
+// what each was found to be: the crescent tip's, the band's and the line of
+// touch's, and one the triangles' own. The line of touch's two, 8517827 and
+// 8534264, hold since #528's lanes came together.
+
+/// Campaign 8a, the square draw: Uncrossed. A disc cut by one of its
+/// radius 1e-7 off its axis leaves a crescent, and a block whose side
+/// touches both walls at the tip stops 1e-5 under the disc's top. Each
+/// wall draws the strip above the block from the step before the tip to
+/// the tip in one triangle, as flat as the strip is low, and the two lie
+/// on each other at half a thousandth of the reach and coarser: the crescent
+/// tip's, two walls of one radius a hair apart and a plane at the tip. It
+/// holds since the two walls graze and the tip has its band.
+#[test]
+fn seed_8018367_a_right_body_drawn_crossing_at_some_finenesses_only() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([0.5, 0.0], 3.5), 2.5),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::circle([0.4999999, 0.0], 3.5),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([-3.0, 3.5], [4.0, 10.5]),
+                2.49999,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Uncrossed.
+/// Shrunk through the application's body. A disc cut by one of its radius
+/// 1e-5 off its axis leaves a crescent, and a ring bored across it leaves
+/// a pin of the crescent 1e-5 thick. The pin meets both walls along two
+/// curves 1e-5 apart, each sampled on rays a hair from the other's, and
+/// the pin's strip between them pokes through the wall's chord at the
+/// application's fineness and finer: two walls a hair apart crossed by a
+/// third surface.
+#[test]
+#[ignore = "band: a pin across a crescent 1e-5 thick, its two meets sampled on rays a hair apart, at 2e-4 and finer"]
+fn seed_8515799_a_right_body_drawn_crossing_at_some_finenesses_only() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(6.5000001),
+            Outline::circle([2.0, 10.0], 5.0),
+            14.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(7.5000001),
+                Outline::rounded([-3.00001, 5.0], [6.99999, 15.0], 5.0),
+                28.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(4.5),
+                Outline::ring([0.0, 6.0], 1.5, 0.5),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Uncrossed.
+/// Shrunk through the application's body. A slot's cap 5e-8 off a rounded
+/// corner is taken for it, and the slot's corners where its side leaves
+/// the cap stay 5e-8 off the line the side touches the wall along, inside
+/// the band: the side's sliver and the wall's strip beside it lie on each
+/// other at 5e-4 and finer. A surface a hair from a line of touch.
+#[test]
+fn seed_8517827_a_right_body_drawn_crossing_at_some_finenesses_only() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(25.0),
+            Outline::rectangle([15.0, 3.0], [25.0, 13.0]),
+            38.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(20.0),
+                Outline::rounded([15.0, 2.5], [50.0, 30.0], 5.0),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(25.0),
+                Outline::slot([19.99999995, 7.5], [7.499999949999999, 7.5], 5.0),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Uncrossed.
+/// Shrunk through the application's body.
+#[test]
+fn seed_8531226_a_corner_a_hair_off_a_plane_its_own_was_taken_for_stands_on_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([0.0, 2.0], 0.5), 5.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(5.99999999),
+            Outline::slot([0.0, 2.0], [0.0, 4.5], 0.25),
+            5.0,
+        ))],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Uncrossed.
+/// Shrunk through the application's body. 8517827's shape: a slot's cap
+/// 3e-7 off a wall of its radius, its corner left that far off the line
+/// its side touches the wall along.
+#[test]
+fn seed_8534264_a_right_body_drawn_crossing_at_some_finenesses_only() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(-60.0),
+            Outline::slot([30.0, 30.0], [15.0, 30.0], 45.0),
+            255.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(240.0),
+                Outline::rectangle([240.0, 60.0], [360.0, 165.0]),
+                105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::slot([14.9999997, 30.0], [-30.0000003, 30.0], 45.0),
+                60.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Uncrossed.
+/// Shrunk through the application's body.
+#[test]
+fn seed_8538687_a_corner_a_hair_off_a_plane_its_own_was_taken_for_stands_on_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rounded([1.0, 7.0], [8.0, 9.0], 0.5),
+            1.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(-2.0),
+                Outline::rectangle([4.0, 3.0], [9.0, 10.0]),
+                10.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::circle([1.0, 6.0], 2.0),
+                6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.00000001),
+                Outline::rounded([1.25, 7.25], [7.75, 8.75], 0.25),
+                3.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8b, the profile draw: Uncrossed. A bore and a disc added
+/// later, perpendicular, touch at a point of the disc's rim. Next to the
+/// node the bore's strip runs from it to the far rim in one triangle,
+/// and the disc's triangle from its rim up to the curve they meet along
+/// pokes through it, at a thousandth of the reach and coarser; from half
+/// that on, the two hold.
+#[test]
+#[ignore = "triangles: two perpendicular walls touching at a node, the bore's strip from the node crossed by the disc's, at 1e-3 and coarser"]
+fn seed_8550600_a_right_body_drawn_crossing_at_some_finenesses_only() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(0.0),
+            Outline::rectangle([45.0, 15.0], [315.0, 285.0]),
+            -270.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(60.0),
+                Outline::circle([165.0, 315.0], 90.0),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(0.0),
+                Outline::circle([180.0, 150.0], 15.0),
+                -270.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(150.0),
+                Outline::circle([60.0, 150.0], 135.0),
+                150.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::circle([165.0, 315.0], 165.0),
+                105.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaigns 8b and 8c, the profile draw, on the kernel and through the
+/// application's body: Uncrossed.
+#[test]
+fn seed_8551134_a_corner_a_hair_off_a_plane_its_own_was_taken_for_stands_on_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(1.0), Outline::circle([7.0, 0.0], 6.0), -1.0),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(0.99999999),
+            Outline::slot([3.0, 2.0], [3.0, -3.0], 1.0),
+            8.0,
+        ))],
+    ));
+}
+
+// A second operand taken onto the first's wall a hair off (decision 8): a
+// rounded corner or a slot's cap drawn a hair beside a wall of its radius.
+// The whole operand moves with its wall, and a side the move does not slide
+// along itself stands up to that hair past the box its leaf drew. The
+// harness held the result inside the leaves' box grown by the kernel's
+// tolerance only, and read the move as matter promised nowhere; it holds
+// since that box is grown by the hair decision 8 moves an operand by.
+
+/// Campaigns 8b and 8c, the profile draw, on the kernel and through the
+/// application's body: Volume. A rounded rectangle whose corner stands
+/// 6e-8 aside a slot's cap is moved onto it, its top 2e-8 past its leaf.
+#[test]
+fn seed_8502908_an_operand_moved_onto_a_wall_a_hair_off_stays_within_its_leaves_box() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(3.0),
+            Outline::slot([6.0, 6.0], [6.0, 8.0], 2.5),
+            3.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rounded([3.49999994, 5.49999998], [10.99999994, 11.49999998], 2.5),
+            2.0,
+        ))],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Volume. Shrunk
+/// through the application's body.
+#[test]
+fn seed_8559908_an_operand_moved_onto_a_wall_a_hair_off_stays_within_its_leaves_box() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-5.0),
+            Outline::rectangle([5.0, 35.0], [13.0, 63.0]),
+            10.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-5.0),
+                Outline::rounded([10.0, 50.0], [15.0, 73.0], 2.5),
+                10.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-9.99999995),
+                Outline::rounded([10.000001, 49.9999999], [42.500001, 74.9999999], 2.5),
+                20.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Volume. Shrunk
+/// through the application's body.
+#[test]
+fn seed_8560104_an_operand_moved_onto_a_wall_a_hair_off_stays_within_its_leaves_box() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::slot([45.0, 5.0], [45.0, 30.0], 5.0),
+            45.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(25.0),
+            Outline::rounded([39.9999999, 25.000001], [52.4999999, 57.500001], 5.0),
+            35.0,
+        ))],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Volume. Shrunk
+/// through the application's body.
+#[test]
+fn seed_8560328_an_operand_moved_onto_a_wall_a_hair_off_stays_within_its_leaves_box() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(4.0),
+            Outline::rectangle([7.0, 3.0], [11.0, 7.0]),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::rounded([3.5, 2.0], [6.5, 8.5], 1.5),
+                5.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(7.0),
+                Outline::rounded(
+                    [3.4999998, 1.99999994],
+                    [7.999999799999999, 4.99999994],
+                    1.5,
+                ),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+// A crescent's cap a hair wide the sweep cannot cut: left open on the kernel,
+// declined undrawn through the body.
+
+/// Campaigns 8b and 8c, the profile draw, on the kernel and through the
+/// application's body: Closed. A disc a hair off a slot's cap dips 1e-5
+/// under the plane of the slot's side, and the crescent between the two
+/// walls ends on that plane. The disc's rim crosses the plane twice, 0.011
+/// apart round the turn: at the cap's corner, and again at the ray a vertex
+/// of the rectangle below gives the disc. The rim left that ray out, as a
+/// sample a step from an end lying on a surface the end lies on, while the
+/// slot's cap, sampled with it on common rays, took it 1e-5 above, over the
+/// rim's chord. It holds since the rim keeps a ray where it crosses the
+/// plane again rather than grazes it.
+#[test]
+fn seed_8538738_a_crescent_s_cap_a_hair_wide_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(0.0),
+            Outline::rectangle([8.0, 5.5], [13.5, 8.5]),
+            2.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(-1e-7),
+                Outline::circle([12.0, 6.99999], 1.5),
+                4.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(1.0000002),
+                Outline::slot([12.0, 7.0], [12.5, 7.0], 1.5),
+                19.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Answers.
+/// Shrunk through the application's body. The same crescent as 8538738's,
+/// a disc a hair off a rounded corner dipping under the rectangle's side.
+#[test]
+fn seed_8585618_a_crescent_s_cap_a_hair_wide_is_drawn_closed() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rounded([9.5, 9.0], [11.0, 17.0], 0.5),
+            9.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::rectangle([9.0, 9.0], [17.0, 13.0]),
+                7.5,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([10.0, 9.49999], 0.5),
+                6.0,
+            )),
+        ],
+    ));
+}
+
+/// Campaign 8c, the profile draw through the application's body: Answers.
+/// Shrunk through the application's body. A cut a hair under a slot's cap
+/// leaves a crescent of the cut's wall, its tips 4e-6 round from the
+/// ruling where the slot's side touches it; a rounded rectangle cut across
+/// it touches that side too, and the curve its corner meets the cut's wall
+/// along reaches the ruling itself, past the tip, where it stands within
+/// the tolerance of the slot's cap. The face's loop crosses its own tip in
+/// the wall's parameters, which no sweep can cut: the kernel's.
+#[test]
+#[ignore = "kernel: the curve a corner meets a crescent's wall along passes the crescent's tip"]
+fn seed_8587521_a_crescent_s_cap_a_hair_wide_is_drawn_closed() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::yz(5.0),
+            Outline::slot([5.5, 10.0], [5.5, 6.5], 2.5),
+            8.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(4.0),
+                Outline::circle([5.5, 6.49999], 2.5),
+                8.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rounded([8.0, 3.0], [12.0, 8.0], 2.0),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+// A disc a hair inside a slot's end, found by campaign 8c: its rim on the
+// slot's caps stands a ten-millionth inside the slot's outline, a little
+// more than the kernel's tolerance, so no corner is laid between them, a
+// hair past the corner where the slot's side runs into its arc. The arc
+// takes no ray of the rim there, which would lay a strip of its wall on the
+// side touching it; the rim took it all the same, and its place stood past
+// the arc's first chord, long, from that corner. Both caps were left uncut
+// and the body declined undrawn.
+
+/// Campaign 8c, the profile draw through the application's body: Answers.
+/// Shrunk through the application's body.
+#[test]
+fn seed_8562492_a_disc_a_hair_inside_a_slot_s_end_is_drawn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(25.0),
+            Outline::slot([15.0, 45.0], [15.0, 70.0], 10.0),
+            13.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xz(30.0),
+            Outline::circle([20.0, 70.00001], 4.9999999),
+            48.0,
+        ))],
+    ));
+}
+
+// The same seed as drawn, a disc of the slot's radius first joined a hair
+// past its end: the rim of the small disc now lies on that disc's floor, a
+// ten-millionth inside its rim, and the slot's cap a hair aside passes the
+// rays through its corners on to the small disc, which the larger rim
+// refuses beside the slot's side touching it. Shrunk on the bare kernel, it
+// keeps all three leaves: Closed.
+
+/// Campaign 8c, the profile draw through the application's body: Answers.
+/// As drawn.
+#[test]
+#[ignore = "touching-ring: a rim a hair inside another takes rays a third wall passes on that the other refuses beside a touching plane"]
+fn seed_8562492_as_drawn_a_disc_a_hair_inside_the_slot_s_twin_is_drawn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(25.0),
+            Outline::slot([15.0, 45.0], [15.0, 70.0], 10.0),
+            13.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::circle([15.0, 70.00001], 10.0),
+                25.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(30.0),
+                Outline::circle([20.0, 70.00001], 4.9999999),
+                48.0,
+            )),
+        ],
+    ));
+}
+
+// Two found while the rim of 8562492 was being kept in order: a disc of the
+// slot's or the corner's radius, a hair off its end, keeps the ray its
+// partner refuses beside the side touching it on every circle but those on
+// a cap the two share — left out of all of them, its chords span two steps.
+
+/// Campaign 8b, replayed on the lane of #528: Volume.
+#[test]
+fn seed_8501966_a_disc_a_hair_off_a_slot_s_end_keeps_its_steps_away_from_the_slot() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(90.0),
+            Outline::slot([210.0, 105.0], [210.0, -60.0], 45.0),
+            90.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(60.0),
+            Outline::circle([210.0, -60.000006], 45.0),
+            120.0,
+        ))],
+    ));
+}
+
+/// Campaign 8b, replayed on the lane of #528: Volume.
+#[test]
+fn seed_8503138_a_post_a_hair_off_a_rounded_corner_keeps_its_steps_away_from_the_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rounded([8.0, 2.0], [10.0, 6.0], 0.5),
+            5.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(4.0),
+            Outline::circle([8.5, 2.49999], 0.5),
+            9.0,
+        ))],
+    ));
 }

@@ -114,24 +114,69 @@ fn a_meet_whose_second_cylinder_was_moved_onto_a_touch_is_seen_on_the_cylinder_i
         second: moved,
         component: 0,
     };
+    let tolerance = 2e-8;
     for (surface, on_first) in [(standing, false), (first, true)] {
         let trace = traced(
             &Curve::Meet(meet),
             &Surface::Cylinder(surface),
             0.5,
             2.0,
-            EPS,
+            tolerance,
         );
         assert_eq!(
             trace,
             Ok(Trace::Graph {
                 meet,
                 on_first,
+                beside: None,
                 from: 0.5,
                 to: 2.0,
             })
         );
     }
+}
+
+/// The arc two crossing walls meet along, taken for the arc of a wall of
+/// one radius a hair off one of them (decision 6), is seen in that wall's
+/// own angles: read in the angles of the wall it runs round, it stood the
+/// angle the two axes part by off its corners there, and a loop it closed
+/// with the wall's own arcs could not be placed (seed 8501866).
+#[test]
+fn a_meet_taken_for_an_arc_of_a_wall_a_hair_off_its_own_is_seen_in_that_wall_s_angles() {
+    let own = Cylinder::about(DVec3::new(0.0, 1.0, 3.0), DVec3::X, 3.0);
+    let beside = Cylinder::about(DVec3::new(0.0, 1.000_01, 3.0), DVec3::X, 3.0);
+    let across = Cylinder::about(DVec3::new(7.5, 2.5, 0.0), DVec3::Z, 1.5);
+    let meet = Meet {
+        first: across,
+        second: own,
+        component: 0,
+    };
+    let [from, to] = [3.0, 3.1];
+    let trace = traced(
+        &Curve::Meet(meet),
+        &Surface::Cylinder(beside),
+        from,
+        to,
+        EPS,
+    )
+    .expect("a trace");
+    for share in [0.0, 0.5, 1.0] {
+        let seen = trace.at(share)[0];
+        let point = meet.point(from + (to - from) * share);
+        let wanted = beside.parameters(point);
+        assert!(
+            (seen.x - wanted.x).abs() <= CLOSE && (seen.y - wanted.y).abs() <= CLOSE,
+            "at {share}: seen at {seen:?}, standing at {wanted:?}"
+        );
+    }
+    let [at, speed, _] = trace.at(0.5);
+    let step = 1e-6;
+    let ahead = trace.at(0.5 + step)[0];
+    assert!(
+        ((ahead - at) / step - speed).length() <= 1e-4 * speed.length(),
+        "the speed {speed:?} against the step {:?}",
+        (ahead - at) / step
+    );
 }
 
 #[test]
@@ -273,6 +318,91 @@ fn a_short_stretch_of_a_circle_square_to_a_cylinder_is_seen_along_its_chord() {
             EPS * 400.0
         ),
         Err(Declined::Unsupported)
+    );
+}
+
+/// Seed 8550915 of the campaign: a ring's inner rim, on the plane touching a
+/// disc's wall along a ruling, passes that ruling a hundred-thousandth
+/// inside and crosses it twice. Taken for the arc of the
+/// curve the ring's wall meets the disc's along between those two crossings,
+/// the rim lies on the disc's wall, where it bulges off its chord by the
+/// whole hair: the wall sees it as that curve, between where its ends stand.
+#[test]
+fn a_rim_bulging_off_its_chord_on_a_square_wall_is_seen_as_the_curve_its_own_wall_meets_that_one_along()
+ {
+    let ring = Cylinder::about(DVec3::new(10.0, 0.0, 3.0), DVec3::Y, 4.0);
+    let rim = Circle::on(&ring, 6.0);
+    let disc = Cylinder::about(DVec3::new(6.000_01, 3.0, 0.0), DVec3::Z, 3.0);
+    let crossings = (DVec3::new(6.000_01, 6.0, 3.0) - rim.center).normalize();
+    let across = (3.999_99_f64 / 4.0).acos();
+    let towards = rim.parameter(rim.center + crossings);
+    let [from, to] = [towards - across, towards + across];
+    let trace = traced(&Curve::Circle(rim), &Surface::Cylinder(disc), from, to, EPS)
+        .expect("the rim is seen on the disc's wall");
+    assert!(matches!(
+        trace,
+        Trace::Graph {
+            on_first: false,
+            ..
+        }
+    ));
+    for (at, end) in [(0.0, from), (1.0, to)] {
+        let seen = disc.point(trace.at(at)[0]);
+        assert!(seen.distance(rim.point(end)) <= EPS, "an end stands off");
+    }
+    let middle = disc.point(trace.at(0.5)[0]);
+    let on_the_rim = rim.point(rim.parameter(middle));
+    assert!(
+        middle.distance(on_the_rim) <= EPS,
+        "the middle stands {} off the rim",
+        middle.distance(on_the_rim)
+    );
+    assert!(
+        middle.x < 6.000_005,
+        "the middle stands on the ruling, at {middle}"
+    );
+}
+
+/// Seed 8552226 of the campaign: two discs of one radius a
+/// hundred-thousandth apart, and a hole square to them whose rim grazes the
+/// ruling their caps' plane touches them along. The curve the hole meets the
+/// first disc along is taken for the one it meets the second along, and lies
+/// on the second's wall: the wall sees it as its own curve with the hole,
+/// not in the first's angles, which stand a hair round from its own.
+#[test]
+fn a_meet_lying_on_a_parallel_wall_a_hair_off_its_own_is_seen_as_the_curve_that_wall_meets_the_other_along()
+ {
+    let first = Cylinder::about(DVec3::new(2.0, 0.0, 4.5), DVec3::Y, 3.0);
+    let hole = Cylinder::about(DVec3::new(0.0, 9.0, 0.0), DVec3::Z, 2.0);
+    let second = Cylinder::about(DVec3::new(1.999_99, 0.0, 4.5), DVec3::Y, 3.0);
+    let meet = Meet {
+        first,
+        second: hole,
+        component: 0,
+    };
+    let [from, to] = [3.139_010_664, 3.144_174_643];
+    let trace = traced(
+        &Curve::Meet(meet),
+        &Surface::Cylinder(second),
+        from,
+        to,
+        EPS,
+    )
+    .expect("the curve is seen on the second wall");
+    for (at, end) in [(0.0, from), (1.0, to)] {
+        let seen = second.point(trace.at(at)[0]);
+        assert!(
+            seen.distance(meet.point(end)) <= EPS,
+            "an end stands {} off",
+            seen.distance(meet.point(end))
+        );
+    }
+    let middle = second.point(trace.at(0.5)[0]);
+    let on_the_curve = meet.point(meet.parameter(middle));
+    assert!(
+        middle.distance(on_the_curve) <= EPS,
+        "the middle stands {} off the curve",
+        middle.distance(on_the_curve)
     );
 }
 

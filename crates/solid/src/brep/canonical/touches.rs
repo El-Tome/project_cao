@@ -15,7 +15,10 @@
 //! touch it takes along: such a slide is made before, on the operand, with
 //! its corners (`combine/slid.rs`). A cylinder touching two parallel planes
 //! on opposite sides is moved midway between them, its radius half their
-//! gap, which makes both exact.
+//! gap, which makes both exact; so is one touching one of them and standing
+//! within decision 8's hair of the other, which left touching the one
+//! stands a hair or two off the other, across a skin no ray tells the side
+//! of.
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
 
@@ -110,8 +113,9 @@ impl Surfaces {
         }
     }
 
-    /// A cylinder touching two parallel planes on opposite sides, those two,
-    /// and the cylinder moved midway between them, its radius half their gap.
+    /// A cylinder touching two parallel planes on opposite sides, or one of
+    /// them and within decision 8's hair of the other, those two, and the
+    /// cylinder moved midway between them, its radius half their gap.
     fn between(
         &self,
         rank: usize,
@@ -121,24 +125,30 @@ impl Surfaces {
         let Surface::Cylinder(cylinder) = self.list[rank] else {
             return None;
         };
-        let planes: Vec<(usize, Plane)> = (0..self.list.len())
+        let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
             .filter_map(|other| match self.list[other] {
                 Surface::Plane(plane)
-                    if matches!(
+                    if plane.normal.dot(cylinder.axis).abs() * 2.0 * scale.reach()
+                        <= scale.eps()
+                        && (plane.distance(cylinder.origin).abs() - cylinder.radius).abs()
+                            <= Scale::HAIR * scale.eps() =>
+                {
+                    let touches = matches!(
                         relation(&self.list[other], &self.list[rank], scale),
                         Relation::Tangent(_)
-                    ) =>
-                {
-                    Some((other, plane))
+                    );
+                    Some((other, plane, touches))
                 }
                 _ => None,
             })
             .collect();
-        for (index, &(one, plane)) in planes.iter().enumerate() {
-            for &(other, facing) in &planes[index + 1..] {
+        for (index, &(one, plane, touches)) in planes.iter().enumerate() {
+            for &(other, facing, touched) in &planes[index + 1..] {
                 let normal = plane.normal;
-                if normal.cross(facing.normal).length() * 2.0 * scale.reach() > scale.eps() {
+                if normal.cross(facing.normal).length() * 2.0 * scale.reach() > scale.eps()
+                    || !touches && !touched
+                {
                     continue;
                 }
                 let far = facing.offset() * normal.dot(facing.normal).signum();

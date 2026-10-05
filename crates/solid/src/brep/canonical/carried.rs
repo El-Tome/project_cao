@@ -10,8 +10,9 @@
 //! drew corners on along a touch this way.
 //!
 //! A move that would part a surface of the second operand from one of the
-//! first's it was one with or touched, or move a curve the kernel does not
-//! translate, is not made.
+//! first's it was one with or touched, lay one of its surfaces on another of
+//! its own it leaves behind, or move a curve the kernel does not translate,
+//! is not made.
 
 use std::collections::BTreeSet;
 
@@ -190,7 +191,11 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
 /// Whether every surface the move carries along with the surface of rank
 /// `taken` stands with each of the first operand's as it stood before: one
 /// with it, or touching it, still. The surface itself goes where its move
-/// was decided: one with the first's wall, or onto a touch.
+/// was decided: one with the first's wall, or onto a touch. And whether every
+/// surface carried stays apart from those of its own operand left behind,
+/// which that operand built apart: a rounded rectangle a hair taller than its
+/// two corners, its top moved down onto a face, would take its upper corners'
+/// walls onto its lower ones (8528992).
 fn kept(
     first: &Body,
     before: &Body,
@@ -199,15 +204,27 @@ fn kept(
     taken: usize,
     scale: Scale,
 ) -> bool {
-    carried.iter().filter(|&&rank| rank != taken).all(|&rank| {
-        first.surfaces.iter().all(|known| {
-            let held = |surface: &Surface| {
-                matches!(
-                    relation(known, surface, scale),
-                    Relation::Same { .. } | Relation::Tangent(_)
-                )
-            };
-            !held(&before.surfaces[rank]) || held(&after.surfaces[rank])
+    let same = |one: &Surface, other: &Surface| {
+        matches!(relation(one, other, scale), Relation::Same { .. })
+    };
+    let parted = carried.iter().all(|&rank| {
+        (0..before.surfaces.len())
+            .filter(|left| !carried.contains(left))
+            .all(|left| {
+                same(&before.surfaces[rank], &before.surfaces[left])
+                    || !same(&after.surfaces[rank], &after.surfaces[left])
+            })
+    });
+    parted
+        && carried.iter().filter(|&&rank| rank != taken).all(|&rank| {
+            first.surfaces.iter().all(|known| {
+                let held = |surface: &Surface| {
+                    matches!(
+                        relation(known, surface, scale),
+                        Relation::Same { .. } | Relation::Tangent(_)
+                    )
+                };
+                !held(&before.surfaces[rank]) || held(&after.surfaces[rank])
+            })
         })
-    })
 }

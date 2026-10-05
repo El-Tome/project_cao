@@ -13,7 +13,7 @@ use crate::brep::topology::{Body, SurfaceId};
 /// Whether `point`, on a wall about `center` and `axis` that `plane` touches
 /// along a line, stands within a fifth of `eps` of the plane but not on
 /// that line: a sample there would lay a strip of the wall on the plane.
-pub(super) fn on_a_plane(
+pub(in crate::brep::tessellation) fn on_a_plane(
     plane: &Plane,
     center: DVec3,
     axis: DVec3,
@@ -31,7 +31,12 @@ pub(super) fn on_a_plane(
 /// nothing of the wall, though a vertex a hair from it — where a side
 /// crosses the wall a hair from where the plane would touch it — was taken
 /// to lie on it: no face of the plane is there for the wall to lie on.
-pub(super) fn touching_planes(body: &Body, center: DVec3, axis: DVec3, radius: f64) -> Vec<Plane> {
+pub(in crate::brep::tessellation) fn touching_planes(
+    body: &Body,
+    center: DVec3,
+    axis: DVec3,
+    radius: f64,
+) -> Vec<Plane> {
     let eps = body.scale().eps();
     let on_wall = |point: DVec3| {
         let from = point - center;

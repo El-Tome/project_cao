@@ -30,6 +30,8 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 
 use super::curve::Meet;
+use super::scale::Scale;
+use super::surface::Cylinder;
 pub use meeting::{Meeting, Node};
 pub(super) use meeting::{goes_first, moved, moved_instead};
 pub use pair::Configuration;
@@ -111,6 +113,25 @@ impl Meet {
             .filter(|(component, _)| *component == self.component)
             .map(|(_, t)| t)
             .collect()
+    }
+
+    /// Whether `cylinder` is one of the two the curve runs round, within
+    /// `eps`: the first, or the second. None for any other, a wall parallel
+    /// to one of them a hair off it among them.
+    pub(in crate::brep) fn own(&self, cylinder: &Cylinder, eps: f64) -> Option<bool> {
+        let alike = |own: &Cylinder| {
+            let from = own.origin - cylinder.origin;
+            own.axis.cross(cylinder.axis).length() <= Scale::RELATIVE
+                && (from - cylinder.axis * from.dot(cylinder.axis)).length() <= eps
+                && (own.radius - cylinder.radius).abs() <= eps
+        };
+        if alike(&self.first) {
+            Some(true)
+        } else if alike(&self.second) {
+            Some(false)
+        } else {
+            None
+        }
     }
 
     /// How far `t` runs round the component, or nothing when the pair has no

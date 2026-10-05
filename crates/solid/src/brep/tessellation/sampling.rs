@@ -42,7 +42,7 @@ use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use circle::on_circle;
 use ends::Ends;
-use planes::{on_a_plane, touching_planes};
+pub(super) use planes::{on_a_plane, touching_planes};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
 /// place of the grid a step or less from an end lying on that surface must

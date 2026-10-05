@@ -18,6 +18,13 @@ pub struct Scale {
 impl Scale {
     pub const RELATIVE: f64 = 1e-9;
 
+    /// How far apart, in tolerances, the axes of two parallel cylinders of
+    /// one radius may stand and still be one surface (decision 8): the
+    /// kernel's one tolerance wider than [`Scale::eps`], and the furthest it
+    /// moves an operand, the second taken onto the first's wall with
+    /// everything it built on it.
+    pub const HAIR: f64 = 20.0;
+
     pub fn of(reach: f64) -> Scale {
         Scale {
             reach: reach.abs().max(1.0),

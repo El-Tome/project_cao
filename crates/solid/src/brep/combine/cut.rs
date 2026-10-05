@@ -13,7 +13,7 @@ use super::held::Held;
 use super::identified::identified;
 use super::operands::Operands;
 use crate::brep::Declined;
-use crate::brep::canonical::{Pool, Registered, Registry, lies_on};
+use crate::brep::canonical::{Pool, Registered, Registry, lies_on, standing};
 use crate::brep::curve::Curve;
 use crate::brep::domain::traced;
 use crate::brep::topology::{Body, CurveId, Edge, SurfaceId, Vertex, VertexId};
@@ -31,7 +31,7 @@ pub(super) fn cut(
         .corners
         .iter()
         .zip(&corners)
-        .map(|(corner, support)| placed(corner.point, support, registry, eps))
+        .map(|(corner, support)| standing(corner.point, support, registry, eps))
         .collect();
     let corners = corners
         .iter()
@@ -119,29 +119,6 @@ pub(super) fn cut(
     Ok(Arena { body, supports })
 }
 
-/// Where a corner stands: where three planes it lies on meet, when their
-/// normals span space and it was found off that place by more than
-/// rounding — each plane taken for another within the tolerance, the place
-/// they fix moved — and where it was found otherwise. A cylinder the corner
-/// lies on too holds the planes' place when it was decided to touch one of
-/// them: the line they touch along is fixed by the planes the corner's
-/// line lies on, and corners found along it, some on the planes, some on
-/// the touch, would lean an edge between them a hair across both.
-fn placed(point: DVec3, support: &[SurfaceId], registry: &Registry, eps: f64) -> DVec3 {
-    let touching = |cylinder: SurfaceId| {
-        support
-            .iter()
-            .any(|&plane| registry.planes.is_plane(plane) && registry.apart.touch(cylinder, plane))
-    };
-    match registry.planes.place(support, touching) {
-        Some(place) if place.distance(point) > eps * ROUNDING => place,
-        _ => point,
-    }
-}
-
-/// Under this share of the tolerance, a corner is where its planes meet.
-const ROUNDING: f64 = 1e-3;
-
 /// The surfaces an arc lies on: its curve's, and those an operand's edge
 /// covering it lies on over its stretch alone.
 fn lies(rank: usize, registered: &Registered, held: &[Held], edge: &Edge) -> Vec<SurfaceId> {
@@ -176,9 +153,17 @@ fn passes(curve: &Curve, point: DVec3, eps: f64) -> Vec<f64> {
 /// Whether an arc is part of an operand's edge, or lies inside or on the
 /// boundary of a face of one operand on one of its surfaces and of a face of
 /// the other on another — or of faces of either on two surfaces decided to
-/// touch, which bound the strips of their band: where one operand alone
-/// carries both, it holds a skin or a crack there that this operation's
-/// band parts.
+/// touch, or two walls to cross at a grazing angle, which bound the strips
+/// of their band: where one operand alone carries both, it holds a skin or
+/// a crack there — the crescent between two walls of one radius a hair
+/// apart — that this operation's band parts.
+///
+/// An arc is read at its middle. A closed curve no corner cuts crosses no
+/// boundary of a face, so it lies in the faces all round or nowhere but
+/// where it grazes one's boundary, which its middle may be: the curve two
+/// walls meet along, turning at the very place a plane touching the one
+/// wall bounds a face of the other (8554524). It is read at three places a
+/// third of a turn apart, and kept where all three lie in the faces.
 fn kept(
     operands: &Operands,
     registry: &Registry,
@@ -196,14 +181,39 @@ fn kept(
     {
         return Ok(true);
     }
-    let point = registered.curve.point(middle);
+    let shares: &[f64] = if edge.ends.is_none() {
+        &[0.5, 0.5 + 1.0 / 3.0, 0.5 - 1.0 / 3.0]
+    } else {
+        &[0.5]
+    };
+    for share in shares {
+        let point = registered
+            .curve
+            .point(edge.from + (edge.to - edge.from) * share);
+        if !in_faces(operands, registry, support, point)? {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
+/// Whether a place lies inside or on the boundary of a face of one operand
+/// on one of `support`'s surfaces and of a face of the other on another, or
+/// of faces of either on two surfaces decided to touch or to graze.
+fn in_faces(
+    operands: &Operands,
+    registry: &Registry,
+    support: &[SurfaceId],
+    point: DVec3,
+) -> Result<bool, Declined> {
     for (index, &one) in support.iter().enumerate() {
         for &other in &support[index + 1..] {
-            let pairs: &[(usize, usize)] = if registry.apart.touch(one, other) {
-                &[(0, 1), (1, 0), (0, 0), (1, 1)]
-            } else {
-                &[(0, 1), (1, 0)]
-            };
+            let pairs: &[(usize, usize)] =
+                if registry.apart.touch(one, other) || registry.apart.graze(one, other) {
+                    &[(0, 1), (1, 0), (0, 0), (1, 1)]
+                } else {
+                    &[(0, 1), (1, 0)]
+                };
             for &(first, second) in pairs {
                 if operands.carries(first, one)
                     && operands.carries(second, other)

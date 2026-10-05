@@ -14,7 +14,11 @@
 //! a place on both is not for that on the line they touch along — and the
 //! line, laid on one of them, may stand a hair off the other: a place within
 //! the tolerance of the line is on it only where it is within the tolerance
-//! of both surfaces too, which are kept here to be measured. And the points
+//! of both surfaces too, which are kept here to be measured. So do two walls
+//! of one radius whose axes stand a hair apart, beyond decision 8's: they
+//! cross along two lines at an angle the hair over the radius, and stand
+//! within the tolerance of each other far from either, and the pair is
+//! decided to graze once, here. And the points
 //! where two perpendicular cylinders touch — the node of the curve they meet
 //! along, or the one point they share — where a line on one passing through
 //! the point only touches the other.
@@ -32,6 +36,7 @@ use crate::brep::topology::SurfaceId;
 pub(in crate::brep) struct Apart {
     pairs: BTreeSet<[SurfaceId; 2]>,
     touching: BTreeSet<[SurfaceId; 2]>,
+    grazing: BTreeSet<[SurfaceId; 2]>,
     points: BTreeMap<[SurfaceId; 2], Vec<DVec3>>,
     surfaces: Vec<Surface>,
 }
@@ -44,16 +49,23 @@ impl Apart {
     pub fn of(surfaces: &[Surface], scale_of: impl Fn([SurfaceId; 2]) -> Scale) -> Apart {
         let mut pairs = BTreeSet::new();
         let mut touching = BTreeSet::new();
+        let mut grazing = BTreeSet::new();
         let mut points = BTreeMap::new();
         for (one, first) in surfaces.iter().enumerate() {
             for (other, second) in surfaces.iter().enumerate().skip(one + 1) {
                 let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
-                match relation(first, second, scale_of(pair)) {
+                let scale = scale_of(pair);
+                match relation(first, second, scale) {
                     Relation::Same { .. } | Relation::Apart => {
                         pairs.insert(pair);
                     }
                     Relation::Tangent(_) => {
                         touching.insert(pair);
+                    }
+                    Relation::Lines([line, _])
+                        if grazes(first, second, line.origin, scale.eps()) =>
+                    {
+                        grazing.insert(pair);
                     }
                     Relation::Meet(meeting) => {
                         let at: Vec<DVec3> = meeting
@@ -73,6 +85,7 @@ impl Apart {
         Apart {
             pairs,
             touching,
+            grazing,
             points,
             surfaces: surfaces.to_vec(),
         }
@@ -85,6 +98,12 @@ impl Apart {
     /// Whether two surfaces were decided to touch along a line.
     pub fn touch(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.touching.contains(&[one.min(other), one.max(other)])
+    }
+
+    /// Whether two walls were decided to cross along lines at a grazing
+    /// angle, standing within the tolerance of each other far from them.
+    pub fn graze(&self, one: SurfaceId, other: SurfaceId) -> bool {
+        self.grazing.contains(&[one.min(other), one.max(other)])
     }
 
     /// The points where two perpendicular cylinders were decided to touch.
@@ -106,4 +125,23 @@ impl Apart {
         one.iter()
             .any(|&first| other.iter().any(|&second| self.pair(first, second)))
     }
+}
+
+/// The sine of the widest angle two walls crossing along lines meet at for
+/// the crossing to be grazing: within the tolerance of each other a hundred
+/// tolerances from the lines, and more.
+const GRAZING: f64 = 1e-2;
+
+/// Whether two parallel walls of one radius crossing along a line through
+/// `on` meet there at a grazing angle: their axes a hair apart, the crescent
+/// between them a cusp at each line.
+fn grazes(one: &Surface, other: &Surface, on: DVec3, eps: f64) -> bool {
+    let (Surface::Cylinder(one), Surface::Cylinder(other)) = (one, other) else {
+        return false;
+    };
+    if (one.radius - other.radius).abs() > eps {
+        return false;
+    }
+    let [first, second] = [one, other].map(|cylinder| cylinder.radial(cylinder.parameters(on).x));
+    first.cross(second).length() <= GRAZING
 }

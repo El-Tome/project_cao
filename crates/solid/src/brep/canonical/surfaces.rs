@@ -2,7 +2,9 @@
 //! first's, never a body's surface with its own, and one within the
 //! tolerance is the first's — the nearest of them, since the tolerance grows
 //! with the reach of the operands and two surfaces of the first a hair apart,
-//! told apart when it was made, may both stand within it now.
+//! told apart when it was made, may both stand within it now. A plane
+//! standing between two of them is taken for neither, unless it stands on
+//! one: then it is that one.
 
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -41,7 +43,9 @@ impl Surfaces {
                 .iter()
                 .copied()
                 .min_by(|one, other| one.0.total_cmp(&other.0).then(one.1.cmp(&other.1)))
-                .filter(|_| !between(&list, &alike, surface, scale))
+                .filter(|&(gap, _, _)| {
+                    gap <= ROUNDING * scale.eps() || !between(&list, &alike, surface, scale)
+                })
                 .map(|(_, rank, agree)| (rank, agree));
             other.push(same.unwrap_or_else(|| {
                 list.push(*surface);

@@ -459,3 +459,214 @@ fn a_bar_a_hair_into_a_plane_whose_faces_stand_far_from_its_own_is_not_moved_ont
     ));
     assert_eq!(wall, own);
 }
+
+/// A slot from `from` to `to` in `(x, y)`, of radius `radius`, standing on
+/// `z = offset` and raised by `height`.
+fn slot(offset: f64, [from, to]: [[f64; 2]; 2], radius: f64, height: f64) -> Body {
+    let [from, to] = [DVec2::from(from), DVec2::from(to)];
+    let across = (to - from).normalize().perp() * radius;
+    let outline = Contour {
+        corners: vec![from - across, to - across, to + across, from + across],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: to,
+                turn: TAU / 2.0,
+            },
+            Run::Straight,
+            Run::Round {
+                center: from,
+                turn: TAU / 2.0,
+            },
+        ],
+    };
+    standing_on(offset, outline, height)
+}
+
+/// Every corner of `body` stands on every surface it lies on, and every edge
+/// ends on its corners, within rounding.
+fn on_its_surfaces(body: &Body) {
+    let rounding = 1e-12 * body.reach();
+    for vertex in &body.vertices {
+        for on in &vertex.on {
+            let off = body.surface(*on).distance(vertex.point).abs();
+            assert!(off < rounding, "{vertex:?} stands {off:e} off {on:?}");
+        }
+    }
+    for edge in body.edge_ids() {
+        let stretch = body.edge(edge);
+        let ends = stretch.ends.into_iter().flatten();
+        for (end, at) in ends.zip([stretch.from, stretch.to]) {
+            let off = body.point_on(edge, at).distance(body.vertex(end).point);
+            assert!(off < rounding, "{edge:?} ends {off:e} off {end:?}");
+        }
+    }
+}
+
+/// Seed 8511092 of the profile draw: a slot whose top stands a hair under
+/// the block's, taken for it. The corners where its runs meet its caps'
+/// arcs stand on the block's top, where the lines its runs touch its caps
+/// along cross it, and not a hair under it where the slot was drawn.
+#[test]
+fn a_slot_s_corners_on_a_top_taken_for_the_block_s_stand_on_that_top() {
+    let block = block([-45.0, 165.0, -225.0], [105.0, 315.0, 0.0]);
+    let hair = 3e-7;
+    let slot = slot(-450.0 - hair, [[30.0, 240.0], [-30.0, 240.0]], 37.5, 450.0);
+    let cut = block.cut_by(&slot).expect("the slot is cut");
+    on_its_surfaces(&cut);
+}
+
+/// Seed 8581852 of the profile draw: a block given a second whose side
+/// stands a tenth of a micron off its own, told apart at their reach, then a
+/// disc touching the first side, raised far enough to bring both within the
+/// tolerance of its wall. The wall touches the side it touches and crosses
+/// the other, as the two blocks told them apart.
+#[test]
+fn a_disc_touching_one_of_two_sides_a_block_told_apart_a_hair_off_is_joined() {
+    let blocks = along_x(12.5, rectangle([20.0, 30.0], [43.0, 43.0]), 45.0)
+        .joined(&along_x(
+            12.5,
+            rectangle([20.000_000_1, 30.0], [42.500_000_1, 42.5]),
+            -90.0,
+        ))
+        .expect("the blocks join");
+    let disc = along_x(12.500_000_1, circle([25.0, 35.0], 5.0), 180.0);
+    let joined = blocks.joined(&disc).expect("the disc joins");
+    on_its_surfaces(&joined);
+}
+
+/// Seed 8 582 887 of the campaign through the application's body: a disc
+/// whose circle starts at a slant, joined to a block whose side its wall
+/// touches. Moved onto the touch, the wall's rim starts a rounding past
+/// nought on the curve it is laid on, and the one corner the touch puts on
+/// it cuts it into an arc running from that corner round to it again,
+/// whose middle stands a rounding past the stretch the rim was measured
+/// over. The rim is whole all the same: the disc's floor is kept with it.
+#[test]
+fn a_rim_held_whole_is_kept_whole_wherever_rounding_starts_it() {
+    let block = block([-6.0, 2.0, -2.0], [1.0, 10.0, 6.0]);
+    let center = DVec2::new(6.0, 5.0);
+    let rim = Contour {
+        corners: vec![center + DVec2::from_angle(328.151_913_568_525_23_f64.to_radians()) * 5.0],
+        runs: vec![Run::Round { center, turn: TAU }],
+    };
+    let disc = standing_on(0.0, rim, 7.0);
+    let joined = block.joined(&disc).expect("the disc is joined");
+    assert_eq!(joined.faces.len(), 9, "{:?}", joined.faces);
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+}
+
+/// Seed 8 520 500 of the campaign: a slot whose cap's centre stands a hair
+/// inside a block's side, drawn on a plane a hair off the block's back. Its
+/// corner where a side meets the cap stands on three planes, each taken for
+/// one of the block's: it stands where those meet, √2 hairs from where the
+/// slot put it, and so does the corner where the cap's rim crosses the
+/// block's side. Measured where the slot put it, the two were two corners
+/// at one place.
+#[test]
+fn a_corner_found_where_an_operand_s_corner_stands_once_its_planes_are_taken_is_that_corner() {
+    let block = across(180.0, rectangle([300.0, 90.0], [375.0, 195.0]), 150.0);
+    let (from, to, radius) = (
+        DVec2::new(359.999_999_7, 142.5),
+        DVec2::new(299.999_999_7, 142.5),
+        15.0,
+    );
+    let side = (to - from).normalize().perp() * radius;
+    let slot = Contour {
+        corners: vec![from - side, to - side, to + side, from + side],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: to,
+                turn: std::f64::consts::PI,
+            },
+            Run::Straight,
+            Run::Round {
+                center: from,
+                turn: std::f64::consts::PI,
+            },
+        ],
+    };
+    let joined = block
+        .joined(&across(179.999_999_7, slot, 300.0))
+        .expect("the slot is joined");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+}
+
+/// Seed 8 554 524 of the campaign through the application's body: a disc
+/// joined to a rounded bar whose end grazes the line the bar's far side
+/// touches the disc's wall along, a hair off it. The curve the bar's end
+/// and the disc's wall meet along is a loop below that side, cut by no
+/// corner, turning at the very place the side touches the wall: read there
+/// alone, it lay on the bar's end, and the disc's wall was parted by a loop
+/// bounding nothing of the bar.
+#[test]
+fn a_loop_no_corner_cuts_grazing_a_face_at_its_middle_is_not_kept() {
+    let disc = standing_on(6.0, circle([5.999_999_98, 0.0], 5.0), 8.0);
+    let quarter = std::f64::consts::FRAC_PI_2;
+    let [right, left] = [DVec2::new(10.75, 6.25), DVec2::new(8.25, 6.25)];
+    let bar = Contour {
+        corners: vec![
+            DVec2::new(8.25, 4.0),
+            DVec2::new(10.75, 4.0),
+            DVec2::new(13.0, 6.25),
+            DVec2::new(10.75, 8.5),
+            DVec2::new(8.25, 8.5),
+            DVec2::new(6.0, 6.25),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: right,
+                turn: quarter,
+            },
+            Run::Round {
+                center: right,
+                turn: quarter,
+            },
+            Run::Straight,
+            Run::Round {
+                center: left,
+                turn: quarter,
+            },
+            Run::Round {
+                center: left,
+                turn: quarter,
+            },
+        ],
+    };
+    let joined = disc
+        .joined(&across(7.0, bar, 2.0))
+        .expect("the bar is joined");
+    assert_eq!(listed(&joined.listing(), joined.scale().reach()), Ok(()));
+}
+
+/// Seed 8 010 303 of the campaign: a bore whose wall touches a block's
+/// side, its axis a hair past the plane of the block's end. The corners
+/// along the line that side and that end share, some found on the planes
+/// and some on the bore where it touches the side, each stood where it was
+/// found, a hair apart across the line: its edges leant across both
+/// planes, and the bore's strip beside them was drawn through the side.
+/// Every corner on the two planes stands on the line they share.
+#[test]
+fn a_corner_on_two_planes_across_each_other_stands_on_the_line_they_share() {
+    let disc = across(5.0, circle([8.0, 8.0], 5.0), 3.0);
+    let block = standing_on(7.0, rectangle([2.0, 1.0], [7.0, 5.0]), 5.0);
+    let bore = standing_on(7.0, circle([7.000_000_01, 3.0], 2.0), 9.0);
+    let cut = disc
+        .cut_by(&block)
+        .expect("the block is cut out of the disc");
+    let laid = arena(&cut, &bore);
+    let end = plane_at(&laid.body, DVec3::X, 7.0);
+    let side = plane_at(&laid.body, DVec3::Y, 5.0);
+    let on_both: Vec<&Vertex> = laid
+        .body
+        .vertices
+        .iter()
+        .filter(|vertex| vertex.on.contains(&end) && vertex.on.contains(&side))
+        .collect();
+    assert!(on_both.len() > 2, "{on_both:?}");
+    for vertex in on_both {
+        assert_eq!([vertex.point.x, vertex.point.y], [7.0, 5.0], "{vertex:?}");
+    }
+}

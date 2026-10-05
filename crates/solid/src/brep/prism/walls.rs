@@ -2,18 +2,14 @@
 //! wall on each piece, with a vertical edge wherever two walls meet — and
 //! where two loops touch, one both loops share.
 
-use std::f64::consts::TAU;
-
 use glam::DVec3;
 
 use super::piece::{Named, Piece};
 use super::touch::Parted;
-use crate::brep::curve::{Circle, Curve, Line};
+use crate::brep::laying::{Laying, reversed};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
-use crate::brep::topology::{
-    Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId,
-};
+use crate::brep::topology::{Body, Coedge, Face, SurfaceId, VertexId};
 use crate::profile::Frame;
 
 /// The body the pieces make when their frame is lifted by `lift`, which
@@ -28,23 +24,14 @@ pub(super) fn raise(
     eps: f64,
 ) -> Body {
     let mut walls = Walls {
-        body: Body {
-            surfaces: Vec::new(),
-            curves: Vec::new(),
-            vertices: Vec::new(),
-            edges: Vec::new(),
-            faces: Vec::new(),
-            scale: Scale::of(1.0),
-            arrivals: Vec::new(),
-        },
+        laying: Laying::new(eps),
         frame,
         lift,
         up: lift.normalize(),
-        eps,
         touches: vec![None; touches],
     };
-    let (bottom, bottom_flipped) = walls.plane(frame.origin, -walls.up);
-    let (top, top_flipped) = walls.plane(frame.origin + lift, walls.up);
+    let (bottom, bottom_flipped) = walls.laying.plane(frame.origin, -walls.up);
+    let (top, top_flipped) = walls.laying.plane(frame.origin + lift, walls.up);
     let mut sides = Vec::new();
     let (mut bottom_loops, mut top_loops) = (Vec::new(), Vec::new());
     for contour in contours {
@@ -66,18 +53,17 @@ pub(super) fn raise(
             numbers: vec![1],
         },
     ];
-    walls.body.faces = caps.into_iter().chain(sides).collect();
-    walls.body.scale = Scale::of(walls.body.reach());
-    walls.body.arrivals = vec![walls.body.scale; walls.body.surfaces.len()];
-    walls.body
+    walls.laying.body.faces = caps.into_iter().chain(sides).collect();
+    walls.laying.body.scale = Scale::of(walls.laying.body.reach());
+    walls.laying.body.arrivals = vec![walls.laying.body.scale; walls.laying.body.surfaces.len()];
+    walls.laying.body
 }
 
 struct Walls {
-    body: Body,
+    laying: Laying,
     frame: Frame,
     lift: DVec3,
     up: DVec3,
-    eps: f64,
     /// The corners at each end of a touch and the line between, once laid.
     touches: Vec<Option<(VertexId, VertexId, Coedge)>>,
 }
@@ -88,13 +74,6 @@ struct Side {
     surface: SurfaceId,
     flipped: bool,
     cylinder: Option<Cylinder>,
-}
-
-fn reversed(coedge: Coedge) -> Coedge {
-    Coedge {
-        edge: coedge.edge,
-        forward: !coedge.forward,
-    }
 }
 
 impl Walls {
@@ -116,8 +95,10 @@ impl Walls {
             && let Some(cylinder) = side.cylinder
         {
             let center = self.frame.at(*center);
-            let below = self.ring(&cylinder, center, *sweep);
-            let above = self.ring(&cylinder, center + self.lift, *sweep);
+            let below = self.laying.ring(&cylinder, center, *sweep, self.up);
+            let above = self
+                .laying
+                .ring(&cylinder, center + self.lift, *sweep, self.up);
             faces.push(Face {
                 surface: side.surface,
                 flipped: side.flipped,
@@ -135,9 +116,9 @@ impl Walls {
             corners.push(match parted.touches[index] {
                 Some(touch) => self.touched(touch, point, [below, above]),
                 None => {
-                    let bottom = self.vertex(point, below);
-                    let top = self.vertex(point + self.lift, above);
-                    (bottom, top, self.line(bottom, top))
+                    let bottom = self.laying.vertex(point, &below);
+                    let top = self.laying.vertex(point + self.lift, &above);
+                    (bottom, top, self.laying.line(bottom, top))
                 }
             });
         }
@@ -148,11 +129,21 @@ impl Walls {
                 (Piece::Arc { center, sweep, .. }, Some(cylinder)) => {
                     let center = self.frame.at(center);
                     (
-                        self.arc(&cylinder, center, [start.0, end.0], sweep),
-                        self.arc(&cylinder, center + self.lift, [start.1, end.1], sweep),
+                        self.laying
+                            .arc(&cylinder, center, [start.0, end.0], sweep, self.up),
+                        self.laying.arc(
+                            &cylinder,
+                            center + self.lift,
+                            [start.1, end.1],
+                            sweep,
+                            self.up,
+                        ),
                     )
                 }
-                _ => (self.line(start.0, end.0), self.line(start.1, end.1)),
+                _ => (
+                    self.laying.line(start.0, end.0),
+                    self.laying.line(start.1, end.1),
+                ),
             };
             faces.push(Face {
                 surface: sides[index].surface,
@@ -172,7 +163,7 @@ impl Walls {
         match *piece {
             Piece::Straight { .. } => {
                 let (plane, flipped) = Plane::through(from, (to - from).cross(self.up));
-                let surface = self.surface(Surface::Plane(plane), &corners);
+                let surface = self.laying.surface(Surface::Plane(plane), &corners);
                 Side {
                     surface,
                     flipped,
@@ -187,51 +178,12 @@ impl Walls {
             } => {
                 let cylinder = Cylinder::about(self.frame.at(center), self.up, radius);
                 Side {
-                    surface: self.surface(Surface::Cylinder(cylinder), &corners),
+                    surface: self.laying.surface(Surface::Cylinder(cylinder), &corners),
                     flipped: sweep < 0.0,
                     cylinder: Some(cylinder),
                 }
             }
         }
-    }
-
-    /// The plane through `point` whose matter lies against `outward`.
-    fn plane(&mut self, point: DVec3, outward: DVec3) -> (SurfaceId, bool) {
-        let (plane, turned) = Plane::through(point, outward);
-        (self.surface(Surface::Plane(plane), &[point]), turned)
-    }
-
-    /// The surface's id, shared with a surface already there when the piece
-    /// standing on it would stand on that one within `eps` too: each of its
-    /// `corners`, and on a cylinder each point of its circles. Two runs of a
-    /// contour on one line stand on one plane; two a hair apart do not.
-    fn surface(&mut self, surface: Surface, corners: &[DVec3]) -> SurfaceId {
-        let eps = self.eps;
-        let same = |known: &Surface| {
-            let alike = match (known, &surface) {
-                (Surface::Plane(known), Surface::Plane(plane)) => {
-                    known.normal.dot(plane.normal) > 0.0
-                }
-                (Surface::Cylinder(known), Surface::Cylinder(cylinder)) => {
-                    known.axis.dot(cylinder.axis) > 0.0
-                        && known.axis.cross(cylinder.axis).length() <= Scale::RELATIVE
-                        && known.origin.distance(cylinder.origin)
-                            + (known.radius - cylinder.radius).abs()
-                            <= eps
-                }
-                _ => false,
-            };
-            alike
-                && corners
-                    .iter()
-                    .all(|corner| known.distance(*corner).abs() <= eps)
-        };
-        let found = self.body.surfaces.iter().position(same);
-        let index = found.unwrap_or_else(|| {
-            self.body.surfaces.push(surface);
-            self.body.surfaces.len() - 1
-        });
-        SurfaceId(index as u32)
     }
 
     /// The corners at either end of a touch, on the surfaces each loop
@@ -243,95 +195,18 @@ impl Walls {
         on: [[SurfaceId; 3]; 2],
     ) -> (VertexId, VertexId, Coedge) {
         let Some((bottom, top, line)) = self.touches[touch] else {
-            let bottom = self.vertex(point, on[0]);
-            let top = self.vertex(point + self.lift, on[1]);
-            let laid = (bottom, top, self.line(bottom, top));
+            let bottom = self.laying.vertex(point, &on[0]);
+            let top = self.laying.vertex(point + self.lift, &on[1]);
+            let laid = (bottom, top, self.laying.line(bottom, top));
             self.touches[touch] = Some(laid);
             return laid;
         };
         for (corner, surfaces) in [bottom, top].into_iter().zip(on) {
-            let held = &mut self.body.vertices[corner.0 as usize].on;
+            let held = &mut self.laying.body.vertices[corner.0 as usize].on;
             held.extend(surfaces);
             held.sort();
             held.dedup();
         }
         (bottom, top, line)
-    }
-
-    fn vertex(&mut self, point: DVec3, on: [SurfaceId; 3]) -> VertexId {
-        let mut on = on.to_vec();
-        on.sort();
-        on.dedup();
-        self.body.vertices.push(Vertex { point, on });
-        VertexId(self.body.vertices.len() as u32 - 1)
-    }
-
-    /// A straight edge from `start` to `end`, used that way.
-    fn line(&mut self, start: VertexId, end: VertexId) -> Coedge {
-        let [from, to] = [start, end].map(|id| self.body.vertex(id).point);
-        let line = Line::through(from, to - from);
-        let [from, to] = [from, to].map(|point| line.parameter(point));
-        if from < to {
-            self.edge(Curve::Line(line), Some([start, end]), from, to, true)
-        } else {
-            self.edge(Curve::Line(line), Some([end, start]), to, from, false)
-        }
-    }
-
-    /// An arc of the cylinder's circle about `center`, from `ends[0]` turning
-    /// by `sweep` about `up` to `ends[1]`, used that way.
-    fn arc(
-        &mut self,
-        cylinder: &Cylinder,
-        center: DVec3,
-        ends: [VertexId; 2],
-        sweep: f64,
-    ) -> Coedge {
-        let circle = Circle::on(cylinder, (center - cylinder.origin).dot(cylinder.axis));
-        let turning = sweep * cylinder.axis.dot(self.up).signum();
-        let [start, end] = if turning > 0.0 {
-            ends
-        } else {
-            [ends[1], ends[0]]
-        };
-        let from = circle.parameter(self.body.vertex(start).point);
-        let span = turning.abs();
-        self.edge(
-            Curve::Circle(circle),
-            Some([start, end]),
-            from,
-            from + span,
-            turning > 0.0,
-        )
-    }
-
-    /// A whole circle of the cylinder about `center`, used the way `sweep`
-    /// turns about `up`.
-    fn ring(&mut self, cylinder: &Cylinder, center: DVec3, sweep: f64) -> Coedge {
-        let circle = Circle::on(cylinder, (center - cylinder.origin).dot(cylinder.axis));
-        let forward = sweep * cylinder.axis.dot(self.up) > 0.0;
-        self.edge(Curve::Circle(circle), None, 0.0, TAU, forward)
-    }
-
-    fn edge(
-        &mut self,
-        curve: Curve,
-        ends: Option<[VertexId; 2]>,
-        from: f64,
-        to: f64,
-        forward: bool,
-    ) -> Coedge {
-        self.body.curves.push(curve);
-        let curve = CurveId(self.body.curves.len() as u32 - 1);
-        self.body.edges.push(Edge {
-            curve,
-            ends,
-            from,
-            to,
-        });
-        Coedge {
-            edge: EdgeId(self.body.edges.len() as u32 - 1),
-            forward,
-        }
     }
 }

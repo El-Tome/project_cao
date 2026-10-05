@@ -9,6 +9,7 @@ mod canonical;
 mod combine;
 mod curve;
 mod domain;
+mod laying;
 mod listing;
 mod meet;
 mod overlay;

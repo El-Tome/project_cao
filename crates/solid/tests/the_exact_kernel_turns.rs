@@ -547,7 +547,6 @@ fn part() -> Part {
 }
 
 #[test]
-#[ignore = "#533: waits on the reading of a drawn profile, lane R's Straight::of"]
 fn a_straight_profile_is_turned_by_the_exact_kernel_through_the_body() {
     let (corners, triangles) = square_on_y();
     let profile = drawn(&corners, &triangles);

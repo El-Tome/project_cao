@@ -52,6 +52,7 @@ mod pulling;
 mod reading;
 mod regions;
 mod resizing;
+mod resolution;
 mod rigid;
 mod rule_intent;
 mod rule_marks;

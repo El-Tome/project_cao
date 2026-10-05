@@ -25,6 +25,7 @@ pub mod library;
 mod outcome;
 mod picture;
 pub mod ports;
+mod profile;
 mod pulled;
 mod replay;
 mod resizing;

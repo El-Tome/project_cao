@@ -21,6 +21,16 @@ fn volume(body: &Body) -> f64 {
     body.volume()
 }
 
+/// A volume the exact kernel computed, held to the arithmetic: what is left
+/// between the two is rounding. The revolutions below are the flats', and are
+/// held to the percent their pieces cost.
+fn assert_arithmetic(made: f64, expected: f64) {
+    assert!(
+        (made - expected).abs() <= 1e-9 * expected,
+        "{made} where the arithmetic gives {expected}",
+    );
+}
+
 fn rectangle(history: &mut History, min: DVec2, max: DVec2) {
     history.push(Operation::AddRectangle {
         sketch: 0,
@@ -51,7 +61,7 @@ fn an_extrusion_turns_an_area_into_matter() {
     });
 
     let state = PartState::rebuild(&history);
-    assert!((volume(&state.body) - 800.0).abs() < 1.0);
+    assert_arithmetic(volume(&state.body), 800.0);
     let (min, max) = state.body.bounds().expect("a volume");
     assert!((max.z - min.z - 4.0).abs() < 1e-3, "the height");
 }
@@ -71,7 +81,7 @@ fn an_extrusion_still_names_the_same_area_after_another_shape_is_drawn() {
     });
 
     let state = PartState::rebuild(&history);
-    assert!((volume(&state.body) - 400.0).abs() < 1.0, "the second area");
+    assert_arithmetic(volume(&state.body), 400.0);
     let (min, _) = state.body.bounds().expect("a volume");
     assert!(min.x > 39.0, "in the right place: {min}");
 }
@@ -104,11 +114,7 @@ fn two_circles_extrude_to_a_tube() {
 
     let state = PartState::rebuild(&history);
     let expected = std::f64::consts::PI * (100.0 - 36.0) * 5.0;
-    let made = volume(&state.body);
-    assert!(
-        (made - expected).abs() / expected < 0.03,
-        "{made} / {expected}"
-    );
+    assert_arithmetic(volume(&state.body), expected);
 }
 
 /// A pocket: the second sketch digs into the block of the first.
@@ -141,8 +147,7 @@ fn a_cut_takes_matter_away() {
     });
 
     let state = PartState::rebuild(&history);
-    let made = volume(&state.body);
-    assert!((made - (1000.0 - 16.0)).abs() < 2.0, "{made}");
+    assert_arithmetic(volume(&state.body), 1000.0 - 16.0);
 }
 
 /// A shape inside another leaves the middle empty from the very first
@@ -159,8 +164,7 @@ fn a_shape_inside_another_is_already_hollow() {
         mode: ExtrusionMode::Add,
     });
 
-    let made = volume(&PartState::rebuild(&history).body);
-    assert!((made - (1000.0 - 40.0)).abs() < 2.0, "{made}");
+    assert_arithmetic(volume(&PartState::rebuild(&history).body), 1000.0 - 40.0);
 }
 
 /// A full revolution around an axis of the sketch.
@@ -388,7 +392,7 @@ fn a_deletion_replays_like_any_other_step() {
     history.undo();
     let back = PartState::rebuild(&history);
     assert_eq!(back.sketches[0].regions().len(), 1);
-    assert!((volume(&back.body) - before).abs() < 1.0);
+    assert_arithmetic(volume(&back.body), before);
 }
 
 /// A sketch that is not entirely constrained extrudes all the same.

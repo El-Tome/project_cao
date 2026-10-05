@@ -496,3 +496,119 @@ fn a_part_opened_on_its_cached_geometry_still_knows_its_variables() {
         "the cache holds none of the table, which comes back from the design",
     );
 }
+
+/// A block 30 by 20 by 10 with a bore through it off every round number, so
+/// that no coordinate of the matter is one a short decimal writes exactly.
+fn a_bored_block() -> PartDocument {
+    let mut document = PartDocument::new("Bored", at("2026-10-05T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(30.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 1.0)]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let center = DVec2::new(10.0 / 3.0 + 7.0, 7.1);
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(center),
+        radius: 2.7,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[center]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    document
+}
+
+/// Another bore, cut into whatever the part holds.
+fn bored_again(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let sketch = document.sketches().len() - 1;
+    let center = DVec2::new(22.2, 12.9);
+    document.apply(Operation::AddCircle {
+        sketch,
+        center: PointRef::New(center),
+        radius: 3.1,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[center]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+}
+
+#[test]
+fn an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    a_bored_block()
+        .put_away(&files, path, at("2026-10-05T10:00:00Z"))
+        .expect("the part is put away");
+
+    let mut cached = PartDocument::load(&files, path).expect("reads");
+    let mut replayed = cached.clone();
+    replayed.rewind_to(replayed.history.applied());
+
+    let bore = std::f64::consts::PI * 2.7 * 2.7 * 10.0;
+    assert!(
+        (cached.body().volume() - (6000.0 - bore)).abs() < 1e-9 * 6000.0,
+        "the exact kernel's matter comes back: {}",
+        cached.body().volume(),
+    );
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "the very body the replay makes"
+    );
+    bored_again(&mut cached);
+    bored_again(&mut replayed);
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "a step cut into the body read back gives what a replay gives",
+    );
+}
+
+#[test]
+fn a_declined_step_is_still_named_once_the_part_opens_on_its_cache() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut declined = a_part_with_matter().state;
+    declined.declined.insert(3);
+    let cached = encoded(&declined, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        reopened.is_declined(3),
+        "the decline is only known by computing the matter, which a part \
+         opened on its cache does not do",
+    );
+}

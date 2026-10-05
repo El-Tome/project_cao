@@ -156,8 +156,9 @@ fn rounding_a_corner_of_an_extruded_shape_keeps_the_matter() {
 
     let state = PartState::rebuild(&history);
     let raised = volume(&state.body);
+    let sliver = 2.0 * 2.0 * (1.0 - std::f64::consts::FRAC_PI_4) * 4.0;
     assert!(
-        (raised - 796.54).abs() < 0.1,
+        (raised - (800.0 - sliver)).abs() < 1e-9 * 800.0,
         "the rounded corner takes its sliver off and nothing more: {raised}",
     );
 }

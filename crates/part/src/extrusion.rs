@@ -2,13 +2,14 @@
 //! the plane's normal, or a sweep around an axis lying in the plane.
 
 use cao_sketch::{Area, Region, Sketch};
-use cao_solid::Body;
 use cao_solid::profile::{Frame, Profile};
+use cao_solid::{Body, Declined};
 use glam::DVec2;
 
 use crate::broken::Broken;
 use crate::formula::Formula;
 use crate::history::{ExtrusionMode, RevolutionAxis};
+use crate::profile::{loops, profile};
 use crate::state::PartState;
 
 impl PartState {
@@ -77,7 +78,7 @@ impl PartState {
                 continue;
             };
             let Ok(joined) = tool.union(&piece) else {
-                self.broke(Broken::Operation(self.replaying));
+                self.declined_with(&[]);
                 return;
             };
             tool = joined;
@@ -88,23 +89,22 @@ impl PartState {
         if lost {
             self.broke(Broken::Operation(self.replaying));
         }
-        self.combine(tool, mode);
+        if self.combine(tool, mode).is_err() {
+            self.declined_with(&[]);
+        }
     }
 
     /// Joins a tool to the part, or takes it out. A step the kernel declines
-    /// leaves the part as it was, and is broken.
-    pub(crate) fn combine(&mut self, tool: Body, mode: ExtrusionMode) {
+    /// leaves the part as it was.
+    pub(crate) fn combine(&mut self, tool: Body, mode: ExtrusionMode) -> Result<(), Declined> {
         if tool.is_empty() {
-            return;
+            return Ok(());
         }
-        let combined = match mode {
+        self.body = match mode {
             ExtrusionMode::Add => self.body.union(&tool),
             ExtrusionMode::Cut => self.body.difference(&tool),
-        };
-        match combined {
-            Ok(body) => self.body = body,
-            Err(_) => self.broke(Broken::Operation(self.replaying)),
-        }
+        }?;
+        Ok(())
     }
 
     /// Turns the chosen areas of a sketch into a prism and joins it to the
@@ -133,29 +133,35 @@ impl PartState {
         let travel = plane.normal() * (distance / scale);
         let regions = sketch.regions();
 
-        let mut tool = Body::default();
         let mut lost = false;
-        for area in areas {
-            let Some(region) = self.standing_on(index, area, &regions) else {
-                lost = true;
-                continue;
-            };
-            let (sampled, sampled_holes) = loops(region);
-            let triangles = region.face_triangles();
-            let profile = Profile {
-                exact: None,
-                sampled,
-                sampled_holes,
-                triangles: &triangles,
-            };
-            let frame = Frame {
-                origin: plane.origin,
-                u: plane.u,
-                v: plane.v,
-            };
-            let raised = self.body.tool_raised(&profile, frame, travel);
+        let standing: Vec<&Region> = areas
+            .iter()
+            .filter_map(|area| {
+                let region = self.standing_on(index, area, &regions);
+                lost |= region.is_none();
+                region
+            })
+            .collect();
+        let triangles: Vec<_> = standing
+            .iter()
+            .map(|region| region.face_triangles())
+            .collect();
+        let profiles: Vec<Profile> = standing
+            .iter()
+            .zip(&triangles)
+            .map(|(region, triangles)| profile(region, triangles))
+            .collect();
+        let frame = Frame {
+            origin: plane.origin,
+            u: plane.u,
+            v: plane.v,
+        };
+
+        let mut tool = Body::default();
+        for profile in &profiles {
+            let raised = self.body.tool_raised(profile, frame, travel);
             let Ok(joined) = raised.and_then(|piece| tool.union(&piece)) else {
-                self.broke(Broken::Operation(self.replaying));
+                self.declined_with(&profiles);
                 return;
             };
             tool = joined;
@@ -166,7 +172,20 @@ impl PartState {
         if lost {
             self.broke(Broken::Operation(self.replaying));
         }
-        self.combine(tool, mode);
+        if self.combine(tool, mode).is_err() {
+            self.declined_with(&profiles);
+        }
+    }
+
+    /// A step the kernel declined: broken, named among the declined ones, and
+    /// counted past the numbers its profiles would have given their faces, so
+    /// that the steps after it number theirs as if it had stood.
+    fn declined_with(&mut self, profiles: &[Profile]) {
+        self.broke(Broken::Operation(self.replaying));
+        self.declined.insert(self.replaying);
+        for profile in profiles {
+            self.body.count_past(profile);
+        }
     }
 
     /// The areas of a drawing these places fall in, each named by the curves
@@ -218,20 +237,4 @@ fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(DVec2, DVec2
             ((end - start).length() > 1e-6).then_some((start, end - start))
         }
     }
-}
-
-/// The loops a region hands the solid: its outline and what it leaves hollow,
-/// each carrying the curve every segment was sampled from so that a wall
-/// raised from one curve comes out as one face.
-fn loops(region: &cao_sketch::Region) -> (cao_solid::Loop<'_>, Vec<cao_solid::Loop<'_>>) {
-    fn borrow(outline: &cao_sketch::Outline) -> cao_solid::Loop<'_> {
-        cao_solid::Loop {
-            points: &outline.points,
-            curves: &outline.curves,
-        }
-    }
-    (
-        borrow(&region.outline),
-        region.holes.iter().map(borrow).collect(),
-    )
 }

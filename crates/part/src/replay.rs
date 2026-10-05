@@ -19,6 +19,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::formula::Formula;
 use crate::history::{History, Operation};
+use crate::outcome::Outcome;
 use crate::state::PartState;
 use crate::variables::Variables;
 
@@ -135,6 +136,17 @@ impl PartState {
         state.replaying = 0;
         state.note_broken_variables();
         state
+    }
+
+    /// Applies an operation as it is made, under the number the history is
+    /// about to give it: what it breaks or the kernel declines is then named
+    /// as a replay would name it, and not by nought.
+    pub(crate) fn applied_live(&mut self, number: u32, operation: &Operation) -> Option<Outcome> {
+        self.replaying = number;
+        self.replay.setting = 0;
+        let outcome = self.apply(operation);
+        self.replaying = 0;
+        outcome
     }
 
     /// Which value the replay sets next, and what the variables come to for

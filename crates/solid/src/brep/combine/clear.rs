@@ -46,12 +46,22 @@ pub(super) fn clear(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
 
 /// Whether two faces stand more than `room` apart along a direction their
 /// surfaces offer — a plane's normal, a cylinder's axis, the direction square
-/// to both — or, for two walls, whether the stretches of their axes the walls
-/// span stand further apart than their radii.
+/// to both, the directions square to a wall's axis and to a straight edge of
+/// the other face — or, for two walls, whether the stretches of their axes
+/// the walls span stand further apart than their radii.
+///
+/// A bore drilled through a hexagonal bar, past its far side, is told apart
+/// from that side's slanted neighbours only across its own axis, in the plane
+/// of the hexagon: square to the bore and to the neighbours' long edges.
 fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
     let [first, second] = [one, other].map(|(body, face)| *body.surface(body.face(face).surface));
     let mut directions = vec![offered(&first), offered(&second)];
     directions.push(directions[0].cross(directions[1]));
+    for (wall, edged) in [(&first, other), (&second, one)] {
+        if let Surface::Cylinder(cylinder) = wall {
+            directions.extend(straight_edges(edged).map(|along| cylinder.axis.cross(along)));
+        }
+    }
     let separated =
         directions
             .into_iter()
@@ -97,6 +107,17 @@ fn walls_apart(
         }
         _ => false,
     }
+}
+
+/// Which way each straight edge of a face runs.
+fn straight_edges((body, face): (&Body, FaceId)) -> impl Iterator<Item = DVec3> + '_ {
+    body.face(face).loops.iter().flatten().filter_map(|coedge| {
+        let edge = body.edge(coedge.edge);
+        match body.curve(edge.curve) {
+            Curve::Line(line) => Some(line.direction),
+            _ => None,
+        }
+    })
 }
 
 /// The least and the largest of `direction · p` over a face, read off its

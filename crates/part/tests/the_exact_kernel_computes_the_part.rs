@@ -50,7 +50,7 @@ use std::f64::consts::PI;
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 use cao_part::{History, PartDocument, PartState};
-use cao_sketch::{Area, Corner, SegmentId, SketchAxis, WorkPlane};
+use cao_sketch::{Area, Corner, PointId, SegmentId, SketchAxis, WorkPlane};
 use cao_solid::soundness;
 use glam::{DVec2, DVec3};
 
@@ -565,4 +565,81 @@ fn a_drawing_on_a_top_two_blocks_share_keeps_it_when_one_grows() {
     assert_eq!(laid_on(blocks(10.0, 10.0), second_top, 10.0), (10.0, false));
     assert_eq!(laid_on(blocks(10.0, 15.0), second_top, 10.0), (15.0, false));
     assert_eq!(laid_on(blocks(15.0, 10.0), second_top, 10.0), (10.0, false));
+}
+
+/// A closed outline through `corners`, each segment starting where the last
+/// one ended.
+fn polygon(history: &mut History, sketch: usize, corners: &[DVec2]) {
+    let points = |history: &History| PartState::rebuild(history).sketches[sketch].points().len();
+    let first = points(history);
+    let mut from = PointRef::New(corners[0]);
+    for &corner in &corners[1..] {
+        history.push(Operation::AddSegment {
+            sketch,
+            start: from,
+            end: PointRef::New(corner),
+            construction: false,
+        });
+        from = PointRef::Existing(PointId(points(history) - 1));
+    }
+    history.push(Operation::AddSegment {
+        sketch,
+        start: from,
+        end: PointRef::Existing(PointId(first)),
+        construction: false,
+    });
+}
+
+/// A hexagonal bar, corners 20 from its axis, raised 10, and a hole Ø4 drilled
+/// `depth` deep square into the side between its corners at 0° and 60°,
+/// half way up.
+fn a_hexagonal_bar_drilled(depth: f64) -> History {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    let corners: Vec<DVec2> = (0..6)
+        .map(|k| DVec2::from_angle(k as f64 * PI / 3.0) * 20.0)
+        .collect();
+    polygon(&mut history, 0, &corners);
+    raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
+    let middle = DVec2::from_angle(PI / 6.0) * 20.0 * (PI / 6.0).cos();
+    let along = DVec2::from_angle(PI / 6.0).perp();
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: middle.extend(0.0),
+            u: along.extend(0.0),
+            v: DVec3::Z,
+        },
+    );
+    circle(&mut history, 1, DVec2::new(0.0, 5.0), 2.0);
+    raise(
+        &mut history,
+        1,
+        DVec2::new(0.0, 5.0),
+        -depth,
+        ExtrusionMode::Cut,
+    );
+    history
+}
+
+#[test]
+fn a_hole_drilled_right_through_a_hexagonal_bar_is_cut() {
+    let across_the_flats = 2.0 * 20.0 * (PI / 6.0).cos();
+    let hexagon = 3.0 * 3f64.sqrt() / 2.0 * 400.0 * 10.0;
+    for depth in [30.0, 45.0, 50.0, 60.0] {
+        let history = a_hexagonal_bar_drilled(depth);
+
+        let part = applied_live(&history);
+
+        assert!(
+            !part.is_declined(last_step(&history)),
+            "a hole {depth} deep touches no slanted side, and is cut",
+        );
+        let bored = depth.min(across_the_flats);
+        assert_near(
+            part.body().volume(),
+            hexagon - PI * 4.0 * bored,
+            &format!("the bar drilled {depth} deep"),
+        );
+    }
 }

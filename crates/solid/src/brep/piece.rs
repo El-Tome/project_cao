@@ -133,19 +133,30 @@ impl Piece {
 /// The pieces of a contour, runs on one line or one circle merged; the run
 /// of rank `k` numbered `first + k`.
 pub(super) fn pieces(contour: &Contour, first: u32, eps: f64) -> Result<Vec<Named>, Declined> {
+    let numbers: Vec<u32> = (first..).take(contour.runs.len()).collect();
+    pieces_numbered(contour, &numbers, eps)
+}
+
+/// The pieces of a contour, runs on one line or one circle merged; the run
+/// of rank `k` numbered `numbers[k]`.
+pub(super) fn pieces_numbered(
+    contour: &Contour,
+    numbers: &[u32],
+    eps: f64,
+) -> Result<Vec<Named>, Declined> {
     let count = contour.corners.len();
-    if count == 0 || contour.runs.len() != count {
+    if count == 0 || contour.runs.len() != count || numbers.len() != count {
         return Err(Declined::Profile);
     }
     let mut merged: Vec<Taken> = Vec::new();
-    for index in 0..count {
+    for (index, &number) in numbers.iter().enumerate() {
         let piece = read(
             contour.corners[index],
             contour.corners[(index + 1) % count],
             contour.runs[index],
             eps,
         )?;
-        let piece = (piece, Vec::new(), vec![first + index as u32]);
+        let piece = (piece, Vec::new(), vec![number]);
         let whole = match merged.last() {
             Some(last) => fused(last, &piece, eps)?,
             None => None,

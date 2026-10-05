@@ -215,16 +215,17 @@ fn ring_turned_about_y() -> Body {
         [outline[0], outline[1], outline[2]],
         [outline[0], outline[2], outline[3]],
     ];
-    Body::revolution(
-        Loop::straight(&outline),
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, 0.0),
-        DVec2::ZERO,
-        DVec2::Y,
-        TAU,
-    )
-    .expect("a ring on one side of its axis")
+    let profile = Profile {
+        exact: None,
+        sampled: Loop::straight(&outline),
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let ring = Body::default()
+        .tool_turned(&profile, FLAT, &about_v(&profile, TAU))
+        .expect("the flats never decline");
+    assert!(!ring.is_empty(), "a ring on one side of its axis");
+    ring
 }
 
 #[test]
@@ -676,19 +677,35 @@ fn about_v(area: &Profile, angle: f64) -> Turn {
 }
 
 #[test]
-fn a_profile_turned_through_the_body_is_the_flats_revolution_until_the_kernel_turns() {
+fn a_profile_the_exact_kernel_does_not_turn_is_the_flats_revolution() {
     let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
-    let triangles = fan(&ring);
-    let profile = straight(&ring, &triangles);
+    let ring_triangles = fan(&ring);
+    let slanted = [
+        DVec2::new(30.0, 0.0),
+        DVec2::new(34.0, 0.0),
+        DVec2::new(33.0, 4.0),
+        DVec2::new(30.0, 4.0),
+    ];
+    let slanted_triangles = fan(&slanted);
+    let straight_on_flats = (ring_turned_about_y(), straight(&ring, &ring_triangles));
+    let sampled_only = Profile {
+        exact: None,
+        ..straight(&ring, &ring_triangles)
+    };
+    let mut cases = vec![straight_on_flats];
     for part in [
         Body::default(),
         block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
     ] {
+        cases.push((part.clone(), straight(&slanted, &slanted_triangles)));
+        cases.push((part, sampled_only.clone()));
+    }
+    for (part, profile) in cases {
         for angle in [TAU, -TAU, PI / 2.0, -PI] {
             let turned = part
                 .tool_turned(&profile, FLAT, &about_v(&profile, angle))
                 .expect("the flats never decline");
-            let flats = Body::revolution(
+            let flats = sweep::revolution(
                 profile.sampled,
                 &[],
                 profile.triangles,
@@ -697,8 +714,32 @@ fn a_profile_turned_through_the_body_is_the_flats_revolution_until_the_kernel_tu
                 DVec2::Y,
                 angle,
             )
-            .expect("a ring on one side of its axis");
-            assert_eq!(turned, flats, "turned {angle} rad");
+            .expect("a profile on one side of its axis");
+            assert_eq!(
+                turned,
+                Body::raised_flats(flats),
+                "{:?} turned {angle} rad",
+                profile.sampled.points,
+            );
+        }
+    }
+}
+
+#[test]
+fn a_straight_profile_turned_on_an_exact_part_never_comes_back_as_flats() {
+    let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
+    let triangles = fan(&ring);
+    let profile = straight(&ring, &triangles);
+    for part in [
+        Body::default(),
+        block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
+    ] {
+        for angle in [TAU, -TAU, PI / 2.0, -PI] {
+            let turned = part.tool_turned(&profile, FLAT, &about_v(&profile, angle));
+            assert!(
+                turned.as_ref().map_or(true, Body::is_exact),
+                "turned {angle} rad: {turned:?}",
+            );
         }
     }
 }

@@ -1,6 +1,7 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
 use cao_solid::profile::{Frame, Profile};
+use cao_solid::turning::{Axis, Turn};
 use cao_solid::{Body, Loop};
 use glam::DVec2;
 
@@ -212,15 +213,22 @@ impl Leaf {
                     low: *low,
                     high: *high,
                 });
-                Body::revolution(
-                    Loop::straight(&area.outline),
-                    &[],
-                    &area.triangles,
-                    |point| plane.to_world(point),
-                    DVec2::ZERO,
-                    DVec2::Y,
-                    degrees.to_radians(),
-                )
+                let profile = Profile {
+                    exact: None,
+                    sampled: Loop::straight(&area.outline),
+                    sampled_holes: Vec::new(),
+                    triangles: &area.triangles,
+                };
+                let axis = Axis {
+                    origin: DVec2::ZERO,
+                    direction: DVec2::Y,
+                };
+                let turn = Turn::of(axis, degrees.to_radians(), 0.0, &profile);
+                let (origin, u, v) = plane.frame();
+                Body::default()
+                    .tool_turned(&profile, Frame { origin, u, v }, &turn)
+                    .ok()
+                    .filter(|body| !body.is_empty())
             }
         }
     }

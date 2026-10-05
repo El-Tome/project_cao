@@ -3,6 +3,7 @@ use glam::DVec2;
 use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
+use side::{Side, side};
 
 /// One closed loop of an area, and what drew each of its segments.
 ///
@@ -321,7 +322,7 @@ fn triangulate(outline: &[DVec2]) -> Vec<[DVec2; 3]> {
                 remaining[index],
                 remaining[(index + 1) % count],
             );
-            if (b - a).perp_dot(c - b) <= 0.0 {
+            if side(c, a, b) != Side::Left {
                 continue;
             }
             let clear = remaining
@@ -362,11 +363,13 @@ fn triangulate(outline: &[DVec2]) -> Vec<[DVec2; 3]> {
 const EPSILON: f64 = 1e-12;
 
 fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
-    let side = |from: DVec2, to: DVec2| (to - from).perp_dot(point - from);
-    side(a, b) >= 0.0 && side(b, c) >= 0.0 && side(c, a) >= 0.0
+    [(a, b), (b, c), (c, a)]
+        .into_iter()
+        .all(|(from, to)| side(point, from, to) != Side::Right)
 }
 
 mod measure;
+mod side;
 
 #[cfg(test)]
 mod tests;

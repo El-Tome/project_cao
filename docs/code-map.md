@@ -109,6 +109,7 @@ in one of the two domains, never there.
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
 | How much surface an area holds and how far it is round, the curve honoured rather than the steps it was sampled into | `sketch/src/regions/measure.rs` | `Region::area`, `Region::perimeter`, `Outline::area`, `Outline::perimeter` |
+| An area's outline and holes as runs — straight, round about a centre with how far it turns, or along an ellipse — which is how the exact kernel is handed an area | `sketch/src/regions/runs.rs` | `Outline::runs`, `Leg` |
 | Which side of a line a corner lies on, read exactly, for cutting an area into triangles | `sketch/src/regions/side.rs` | `side`, `Side` |
 | Naming an area by the curves that bound it, and finding it again | `sketch/src/naming.rs` | `CurveId`, `Area`, `Standing`, `Became`, `area_under` |
 | Random drawings held to the rules every area keeps, a campaign over them, and what it found ([`sketch-soundness.md`](sketch-soundness.md)) | `sketch/tests/random_sketches/`, `sketch/tests/every_sketch_keeps_its_areas.rs`, `sketch/tests/what_random_sketches_found.rs` | `holds`, `drawn`, `a_campaign_of_random_drawings_keeps_every_rule` |
@@ -139,14 +140,17 @@ What it does: [`sketch.md`](sketch.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `bounds`, `volume` |
+| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid`. It holds the exact kernel's body or the flats, and which one is decided here alone: exact with exact stays exact, anything with the flats goes to the flats | `solid/src/body.rs` | `Body`, `Body::tool_raised`, `revolution`, `union`, `difference` → `Result<_, Declined>`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `has_face`, `count_past`, `bounds`, `volume` |
+| An exact body behind `Body`: the brep, the face counter, a panic in the kernel caught as a decline, a face left in pieces given fresh numbers | `solid/src/body/exact.rs` | `Exact`, `Declined::Panicked` |
+| The triangles an exact body is drawn with, made once and kept, each knowing its face; a ray against them answering with the true surface's normal | `solid/src/body/drawn.rs` | `Drawn`, `DRAWN`, `ray_hit` |
 | What a body is made of inside the crate: faces as flat pieces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::prism` |
+| Extruding an area into a prism on the flats | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::tool_raised` when the part is on the flats or the area holds an ellipse |
 | Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
-| The exact kernel of #498: a body of planes and cylinders, raised from a profile of straight runs and arcs, joined and cut exactly — beside the flats, not yet behind `Body`, and refused above `cao_solid` by `the_exact_kernel_stays_behind_the_body` ([`exact-kernel.md`](exact-kernel.md)) | `solid/src/brep.rs` and `brep/` | `brep::Body::raised`, `joined`, `cut_by` → `Result<_, Declined>`, `triangles`, `volume`, `listing` → `Listing`, `crossings_along`, `winding` |
-| The profile a kernel is handed: loops of straight runs and arcs, and the frame they stand in | `solid/src/profile.rs` | `Contour`, `Run`, `Frame` |
+| The exact kernel of #498: a body of planes and cylinders, raised from a profile of straight runs and arcs, joined and cut exactly — behind `Body` since #526, and refused above `cao_solid` by `the_exact_kernel_stays_behind_the_body` and `the_insides_of_the_matter_stay_in_cao_solid` ([`exact-kernel.md`](exact-kernel.md)) | `solid/src/brep.rs` and `brep/` | `brep::Body::raised`, `joined`, `cut_by` → `Result<_, Declined>`, `triangles`, `volume`, `listing` → `Listing`, `crossings_along`, `winding` |
+| The profile a kernel is handed: loops of straight runs and arcs, and the frame they stand in, beside the steps the flats raise | `solid/src/profile.rs` | `Profile`, `Contour`, `Run`, `Frame` |
+| The numbers a face of the exact kernel answers to, carried through a raise, a boolean and a merge | `solid/src/brep/topology/numbers.rs`, `brep/selection/numbers.rs`, `brep/prism/walls.rs` | `Body::numbers`, `renumbered`, `pieces_of`, `rename` |
 | How two surfaces of the exact kernel meet, decided once | `solid/src/brep/relation.rs`, `brep/meet.rs`, `brep/canonical/` | `relation`, `crossings`, `Meeting` |
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
 | Two faces at a slant — a plane oblique to a wall, two walls at a skew angle — decided clear of each other on the faces themselves before the kernel declines | `solid/src/brep/combine/clear.rs` | `clear`, reached from `combine/related.rs` |
@@ -159,6 +163,7 @@ What it does: [`sketch.md`](sketch.md).
 | #498's eighteen rows, the flats beside the exact kernel and OpenCascade as #447 quoted it | `solid/tests/a_bored_cylinder_on_two_kernels.rs` | `a_bored_cylinder_on_two_kernels` |
 | The sixteen cases on the exact kernel, each counted by hand | `solid/tests/the_exact_kernel_joins_and_cuts.rs` | |
 | Bores and slanted faces that do not meet, cut in parts laid at a slant; those that do, still declined | `solid/tests/a_slant_far_from_a_bore.rs` | `keeps_every_rule` |
+| Every face of the exact kernel keeps its number through raises, joins and cuts, and when a size changes | `solid/tests/faces_keep_their_numbers.rs` | |
 | Random solids on the exact kernel, held to the arithmetic along every line | `solid/tests/random_exact_solids.rs`, `solid/tests/random_solids/{along,arithmetic,kernels,outlines}.rs` | `Kernel`, `Exact`, `Flats`, `held_to_arithmetic`; the campaigns under `--ignored` |
 | What the exact campaigns found, in the kernel and in its triangles, and the band where a third surface crosses two that touch | `solid/tests/what_the_exact_campaigns_found_in_the_kernel.rs`, `what_the_exact_campaigns_found_in_the_triangles.rs`, `the_tangency_band.rs` | `#[ignore = "…"]` for what still fails |
 
@@ -173,6 +178,7 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | What one is after | File | Way in |
 | --- | --- | --- |
 | List of operations, undo, redo | `part/src/history.rs` | `History`, `Operation` |
+| The number each operation is given, the next one to be given, and the one at a place in the list | `part/src/history/numbering.rs` | `History::next_number`, `number_at` |
 | The major steps a design is grouped into | `part/src/history/step.rs` | `Step`, `StepKind` |
 | Which sketch an operation edits, and so which step it is filed under | `part/src/history/operation/edits.rs` | `Operation::edits` |
 | Where a step begins and ends in the list | `part/src/feature.rs` | `Feature::all` |
@@ -192,6 +198,9 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
 | Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
+| An area handed to the kernel as runs and as steps; an ellipse sends it to the flats | `part/src/profile.rs` | `profile`, `loops` |
+| A step of matter the exact kernel declined: broken under its own number, its faces counted all the same, carried by the cache | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `declined_with`, `PartState::declined`, `PartDocument::is_declined` |
+| A part raised, joined and cut by the exact kernel, held to the arithmetic, and to the flats from a revolution on | `part/tests/the_exact_kernel_computes_the_part.rs`, `part/tests/an_exact_body_comes_back_from_json.rs` | |
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 6` |
@@ -297,7 +306,8 @@ What it does: [`render.md`](render.md), [`viewport.md`](viewport.md).
 | The fields a shape is drawn to, and what the first length typed in them says a unit is worth on a part with no scale yet | `app/src/screens/sketch/live_input.rs` | `LiveInput::take`, `LiveInput::scale` |
 | A value typed into a dimension already on the drawing, and into the first one placed | `app/src/screens/sketch/typed_dimension.rs` | `apply_dimension_value`, `take_back_the_first_placing` |
 | Turning a dimension's shape into vertices, with a colour | `app/src/screens/annotations.rs` | `push(...)`, `Style` |
-| Extrusion and revolution, UI side | `app/src/screens/extrusion.rs` | `ExtrusionState` |
+| Extrusion and revolution, UI side, and what it says when nothing was made or the kernel declined | `app/src/screens/extrusion.rs` | `ExtrusionState`, `apply_extrusion` |
+| The tree of a part: its bodies and sketches, a step marked when an area is lost or the kernel declined it, a sketch when its face is gone | `app/src/screens/part_tree/` | `state.rs` `PartTree::of`, `view.rs` `panel` |
 | The panels beside a part, and what is asked in them | `app/src/panels.rs` | `beside_the_part` |
 | Variables panel: the rows, what is typed into them, what was refused | `app/src/screens/variables/` | `state.rs` `VariablesPanel`, `Named`, `view.rs` `panel`, `mod.rs` `run` |
 | What a refusal names blinks, and for how long | `app/src/screens/blinking.rs` | `lit`; `ViewportState::blink`, `VariablesPanel::blink` |

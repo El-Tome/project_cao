@@ -39,9 +39,12 @@ The dependencies go one way only, and each crate is one context since #26 and
   constraints, the solver) and the rules a gesture is judged against — hit
   test, magnetism, aiming, what a click means. No rendering, no interface. See
   [sketch.md](sketch.md).
-- `cao_solid`: the volumes — a polygon mesh, the extrusion of an area into a
-  prism, boolean operations (adding and taking away matter). No rendering, no
-  interface. See [extrusion.md](extrusion.md).
+- `cao_solid`: the volumes — the extrusion of an area into a prism, boolean
+  operations (adding and taking away matter), behind one `Body`. Two kernels sit
+  behind it: the exact kernel on planes and cylinders, which computes a part
+  wherever it can, and a polygon mesh (the flats), which takes over from a
+  revolution or an ellipse on. No rendering, no interface. See
+  [extrusion.md](extrusion.md) and [exact-kernel.md](exact-kernel.md).
 - `cao_render`: GPU rendering of the viewport (`wgpu`), with no interface
   dependency. See [render.md](render.md).
 - `cao_app`: the desktop application shell (`eframe`). Holds the state of the

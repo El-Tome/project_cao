@@ -26,11 +26,13 @@ is the one that carries a part, not an exclusive one.
 - **`cao_sketch` — the drawing.** Points, segments, circles, dimensions,
   constraints, the solver, closed regions. Pure mathematics: no disk, no clock,
   no GPU. Rich, precise language of its own.
-- **`cao_solid` — the matter.** Polygons, meshes, prisms, revolutions, boolean
-  union and difference over a BSP tree. Also pure mathematics, and it knows
-  nothing of `cao_sketch`. What leaves it is a `Body`: the mesh and its
-  polygons stay inside, so that whatever computes the matter next can be
-  swapped in behind it (#499).
+- **`cao_solid` — the matter.** Prisms, revolutions, union and difference,
+  computed by the exact kernel on planes and cylinders (`brep`), or by the
+  flats — polygons and a BSP tree — from the first revolution or ellipse on.
+  Also pure mathematics, and it knows nothing of `cao_sketch`. What leaves it
+  is a `Body`: the brep, the mesh and its polygons stay inside, which is what
+  let #526 put the exact kernel behind it without the rest of the workspace
+  noticing (#499).
 - **`cao_render` — the picture.** Camera, orientation cube, vertex buffers,
   wgpu. Knows no interface framework.
 - **`cao_part` — the part.** `Operation`, `History`, `PartState`,

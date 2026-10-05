@@ -1,11 +1,70 @@
 # An exact kernel on planes and cylinders: the design #498 builds
 
-#498's maquette, brought to `main` by #526 beside the flats: it computes
-nothing the application shows yet, since `Body` still holds the flats, and
-nothing above `cao_solid` may name it. Four designs were written
+#498's maquette, put behind `Body` by #526: it computes the part the
+application shows wherever it can, and nothing above `cao_solid` may name it.
+Four designs were written
 independently on day 1 and judged against the sixteen cases, the harness and
 the product; this is what was kept from them. [`exact-kernel-journal.md`](exact-kernel-journal.md)
 says what was reached on which day.
+
+## What the kernel can do, and what is left
+
+Kept current, so that whoever takes the next step knows where to start.
+
+It can:
+
+- **compute the part.** `Body` holds an exact body or the flats. A profile of
+  straight runs and arcs, holes included, is raised square to its plane, then
+  joined or cut, by the exact kernel; the arcs reach it as arcs, centre and
+  turn, through `Outline::runs`. What is drawn, lit under the cursor and
+  picked are its own triangles, each knowing its face, and a click reads the
+  true surface's normal. The section view is read off those triangles. An
+  exact body is written to the geometry cache whole and read back as the
+  replay leaves it.
+- surfaces: planes, and circular cylinders parallel or square to each other;
+  curves: lines, circles, and the curve two perpendicular cylinders meet
+  along.
+- **number its faces as the flats do**, so a drawing laid on a face keeps it
+  when a size changes: 0 for the floor of a raise, 1 for its top, one per run
+  for the walls — two runs on one line, or two arcs of one circle, make one
+  wall answering to both. A face kept from a boolean answers to the numbers
+  of every operand face it lies on; a face merged across a seam to all of its
+  members'. A face a cut leaves in pieces that no longer touch keeps its
+  number on the first piece, and the others get fresh numbers.
+- **decline**, with a reason (`Declined`), and never hand back a solid it could
+  not verify. A declined step is a broken step: the part stands as before it,
+  the screen says so and the tree marks it, and the step still moves the face
+  counter by what its profile would have numbered, so later drawings keep
+  their faces. A panic inside the kernel is caught at `Body` and is a decline
+  too (`Declined::Panicked`), not a lost part.
+- **tell faces at a slant that never touch from faces that cross**: a plane
+  against a cylinder patch, two skew cylinders, are decided apart on the faces
+  themselves before the kernel declines (`combine/clear.rs`).
+- hand a revolution, or an area bounded by an ellipse, **to the flats**, from
+  that step on: it has no surface for either.
+
+Left, in the order #497 set:
+
+- revolutions: of a rectangle about an axis along its sides (planes and
+  cylinders only), then of arcs and slanted runs (cones, spheres, tori);
+- ellipses: a plane crossing a cylinder at a slant, and an ellipse drawn in a
+  profile;
+- an exact STEP;
+- chamfers and fillets on a straight edge, then on a circular one, then where
+  fillets meet at a corner;
+- draft, shell, loft.
+
+Known and still open:
+
+- the tangency band, where a third surface crosses two that touch a hair from
+  the touch: a few failures in ten thousand random parts, all of them declines
+  or triangles drawing a right body badly;
+- a profile whose hole touches its outline at a single point is raised with
+  the right volume, but its two caps are drawn with no triangles: the
+  tessellation does not yet walk two loops that share a corner. The kernel
+  should either learn it or decline such a profile;
+- a face bounded by the curve two perpendicular cylinders meet is never
+  decided clear of a face at a slant, so such a pair still declines.
 
 ## Scope
 
@@ -678,9 +737,11 @@ vocabulary it reads — `Contour`, `Run`, `Frame` — is `profile.rs`.
 It is public inside `cao_solid` so that the crate's own tests can reach it,
 and refused above: `the_exact_kernel_stays_behind_the_body`, in
 `crates/app/tests/architecture.rs`, fails on any production file of
-`cao_part` or `cao_app` that names `cao_solid::brep`. What the rest of the
-workspace computes with is still `Body`, which holds the flats until #526
-puts the exact kernel behind it.
+`cao_part` or `cao_app` that names `cao_solid::brep`, and
+`the_insides_of_the_matter_stay_in_cao_solid` on any of their tests. What the
+rest of the workspace computes with is `Body` (`body.rs`, `body/exact.rs`,
+`body/drawn.rs`), which holds the exact body or the flats and decides alone
+which one an operation goes to.
 
 The tests that hold it:
 

@@ -494,6 +494,55 @@ fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
 }
 
 #[test]
+fn the_exact_kernel_stays_behind_the_body() {
+    let reaching: Vec<String> = ["part", "app"]
+        .iter()
+        .flat_map(|directory| sources_of(directory))
+        .filter(|(path, source)| !is_nothing_but_tests(path) && reaches_the_exact_kernel(source))
+        .map(|(path, _)| path)
+        .collect();
+
+    assert!(
+        reaching.is_empty(),
+        "{reaching:?} reach for cao_solid::brep. The exact kernel computes the matter \
+         behind a Body; talk to the Body, as for the flats.",
+    );
+}
+
+#[test]
+fn reaching_for_the_exact_kernel_is_told_from_mentioning_it() {
+    for reaching in [
+        "use cao_solid::brep;",
+        "use cao_solid::brep::{Body, Declined};",
+        "let body = cao_solid::brep::Body::raised(&outline, &[], frame, travel);",
+        "use cao_solid::{Body, brep};",
+        "use cao_solid::{\n    FaceHit,\n    brep::Declined,\n};",
+        "use cao_solid::{FaceHit, brep as exact};",
+        "use cao_solid::{profile::Frame, brep::{self, Listing}};",
+    ] {
+        assert!(
+            reaches_the_exact_kernel(reaching),
+            "{reaching} reaches for the exact kernel and the rule let it through",
+        );
+    }
+    for mentioning in [
+        "// cao_solid::brep is what computes the matter behind the body",
+        "/// Raised by `cao_solid::brep` once the body holds it.",
+        "let brep = faces.len();",
+        "use cao_solid::{Body, FaceHit};",
+        "let path = \"cao_solid::brep\";",
+        "use cao_solid::profile::{Contour, Frame};",
+        "use cao_solid::{Body, breps};",
+        "pub fn raised() {}\n\n#[cfg(test)]\nmod tests;\nuse cao_solid::brep;",
+    ] {
+        assert!(
+            !reaches_the_exact_kernel(mentioning),
+            "{mentioning} reaches for nothing and the rule took it for the exact kernel",
+        );
+    }
+}
+
+#[test]
 fn text_meant_for_a_reader_never_sinks_below_the_interface() {
     let mut said_too_low: Vec<String> = Vec::new();
 
@@ -1109,6 +1158,49 @@ fn names_in_code(source: &str, name: &str) -> bool {
             !before.is_some_and(is_identifier) && !after.is_some_and(is_identifier)
         })
     })
+}
+
+/// Whether the production code of a source names `cao_solid::brep`, alone, in
+/// a longer path, or inside a group of `cao_solid::{…}`.
+fn reaches_the_exact_kernel(source: &str) -> bool {
+    let code: Vec<String> = production(source).lines().map(code_of).collect();
+    let code = code.join(" ");
+    let is_identifier = |character: char| character.is_alphanumeric() || character == '_';
+    code.match_indices("cao_solid::").any(|(at, prefix)| {
+        !code[..at].chars().next_back().is_some_and(is_identifier)
+            && path_leads_to_the_exact_kernel(&code[at + prefix.len()..])
+    })
+}
+
+/// Whether what follows `cao_solid::` starts with `brep`, or opens a group
+/// one of whose items does.
+fn path_leads_to_the_exact_kernel(path: &str) -> bool {
+    let path = path.trim_start();
+    if let Some(after) = path.strip_prefix("brep") {
+        return !after
+            .chars()
+            .next()
+            .is_some_and(|character| character.is_alphanumeric() || character == '_');
+    }
+    let Some(group) = path.strip_prefix('{') else {
+        return false;
+    };
+    let (mut depth, mut item_start) = (0, 0);
+    for (at, character) in group.char_indices() {
+        match character {
+            '{' => depth += 1,
+            '}' if depth == 0 => return path_leads_to_the_exact_kernel(&group[item_start..at]),
+            '}' => depth -= 1,
+            ',' if depth == 0 => {
+                if path_leads_to_the_exact_kernel(&group[item_start..at]) {
+                    return true;
+                }
+                item_start = at + 1;
+            }
+            _ => {}
+        }
+    }
+    false
 }
 
 /// A line with its strings blanked out and its comment cut off.

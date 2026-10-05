@@ -11,7 +11,7 @@ use crate::brep::domain::Location;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
-use crate::brep::topology::SurfaceId;
+use crate::brep::topology::{FaceId, SurfaceId};
 
 /// A ray from a region's inside point is cast with this share of the
 /// tolerance, where rounding alone could put a point on the wrong side of a
@@ -21,10 +21,10 @@ use crate::brep::topology::SurfaceId;
 const ROUNDING: f64 = 1e-6;
 
 /// An operand's winding just on the side a surface's own normal points to,
-/// and just on the other; `covered` when a face of the operand lies there.
+/// and just on the other; `face`, the face of the operand lying there.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(in crate::brep) struct Wrapped {
-    pub covered: bool,
+    pub face: Option<FaceId>,
     pub above: i32,
     pub below: i32,
 }
@@ -68,7 +68,7 @@ pub(in crate::brep) fn covering(
         (Some(&(face, _)), None) => {
             let flipped = operands.flipped(operand, face);
             Ok(Some(Wrapped {
-                covered: true,
+                face: Some(face),
                 above: i32::from(flipped),
                 below: i32::from(!flipped),
             }))
@@ -232,7 +232,7 @@ pub(in crate::brep) fn wound(
 ) -> Result<Wrapped, Declined> {
     let winding = operands.bodies[operand].winding(point, operands.eps() * ROUNDING)?;
     Ok(Wrapped {
-        covered: false,
+        face: None,
         above: winding,
         below: winding,
     })

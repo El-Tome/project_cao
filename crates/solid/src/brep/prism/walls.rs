@@ -5,7 +5,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec3;
 
-use super::piece::Piece;
+use super::piece::{Named, Piece};
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
@@ -17,7 +17,7 @@ use crate::profile::Frame;
 /// The body the pieces make when their frame is lifted by `lift`, which
 /// stands along the frame's normal: every outline anticlockwise about it,
 /// every hole clockwise, so that the matter is on the left of each piece.
-pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Piece>], eps: f64) -> Body {
+pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Named>], eps: f64) -> Body {
     let mut walls = Walls {
         body: Body {
             surfaces: Vec::new(),
@@ -47,11 +47,13 @@ pub(super) fn raise(frame: Frame, lift: DVec3, contours: &[Vec<Piece>], eps: f64
             surface: bottom,
             flipped: bottom_flipped,
             loops: bottom_loops,
+            numbers: vec![0],
         },
         Face {
             surface: top,
             flipped: top_flipped,
             loops: top_loops,
+            numbers: vec![1],
         },
     ];
     walls.body.faces = caps.into_iter().chain(sides).collect();
@@ -88,10 +90,12 @@ impl Walls {
     /// bottom and its top, in the contour's own order.
     fn contour(
         &mut self,
-        contour: &[Piece],
+        named: &[Named],
         caps: [SurfaceId; 2],
         faces: &mut Vec<Face>,
     ) -> (Vec<Coedge>, Vec<Coedge>) {
+        let contour: Vec<Piece> = named.iter().map(|named| named.piece).collect();
+        let contour = contour.as_slice();
         let sides: Vec<Side> = contour.iter().map(|piece| self.side(piece)).collect();
         if let ([piece @ Piece::Arc { center, sweep, .. }], [side]) = (contour, sides.as_slice())
             && piece.is_ring()
@@ -104,6 +108,7 @@ impl Walls {
                 surface: side.surface,
                 flipped: side.flipped,
                 loops: vec![vec![below], vec![reversed(above)]],
+                numbers: named[0].numbers.clone(),
             });
             return (vec![below], vec![above]);
         }
@@ -133,6 +138,7 @@ impl Walls {
                 surface: sides[index].surface,
                 flipped: sides[index].flipped,
                 loops: vec![vec![bottom, end.2, reversed(top), reversed(start.2)]],
+                numbers: named[index].numbers.clone(),
             });
             below.push(bottom);
             above.push(top);

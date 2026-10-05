@@ -32,6 +32,24 @@ fn plane_at(offset: f64, normal: DVec3) -> Surface {
 }
 
 #[test]
+fn a_body_carried_along_a_move_keeps_its_faces_their_ranks_and_their_numbers() {
+    let far = block([100.0, 100.0, 100.0], [110.0, 110.0, 110.0]);
+    let moving = block([0.0, 0.0, 0.0], [10.0, 10.0, 10.0]).renumbered(4);
+    let wall = moving
+        .surfaces
+        .iter()
+        .position(|surface| *surface == plane_at(10.0, DVec3::X))
+        .expect("the block has a wall on x = 10");
+    let hair = DVec3::X * 1e-9;
+    let moved = carried_along(&far, &moving, scale(), |_, rank| {
+        (rank == wall).then_some(hair)
+    })
+    .expect("the wall moves");
+    assert_ne!(moved.surfaces, moving.surfaces);
+    assert_eq!(moved.faces, moving.faces);
+}
+
+#[test]
 fn two_blocks_sharing_a_wall_share_every_plane_but_the_far_wall() {
     let one = block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
     let other = block([20.0, -20.0, 0.0], [60.0, 20.0, 10.0]);

@@ -78,6 +78,7 @@ pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined
                             .collect()
                     })
                     .collect(),
+                numbers: face.numbers.clone(),
             })
             .collect(),
         scale: body.scale,

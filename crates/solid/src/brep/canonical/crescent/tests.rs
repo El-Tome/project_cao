@@ -89,6 +89,16 @@ fn a_slot_whose_cap_stands_a_hair_across_from_a_post_of_its_radius_is_moved_whol
 }
 
 #[test]
+fn a_slot_moved_onto_a_post_keeps_its_faces_their_ranks_and_their_numbers() {
+    let hair = 15.0 * scale().eps();
+    let one = post(DVec2::ZERO, 2.0);
+    let other = slot(DVec2::new(0.0, hair), DVec2::new(-6.0, hair), 2.0).renumbered(9);
+    let moved = closed(&one, &other, scale()).expect("the slot moves");
+    assert_ne!(moved.surfaces, other.surfaces);
+    assert_eq!(moved.faces, other.faces);
+}
+
+#[test]
 fn a_slot_whose_cap_stands_a_hair_along_from_a_post_moves_its_near_cap_alone() {
     let hair = 15.0 * scale().eps();
     let one = post(DVec2::ZERO, 2.0);

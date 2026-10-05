@@ -14,6 +14,7 @@
 //! there as the arena decided the two surfaces, not by a ray ([`band`]).
 
 mod band;
+mod numbers;
 mod twins;
 mod wrapped;
 
@@ -26,6 +27,7 @@ use super::combine::{Arena, Operands, Operation};
 use super::overlay::{Arc, Overlay, Region};
 use super::surface::Surface;
 use super::topology::{Coedge, EdgeId, Face, SurfaceId, VertexId};
+use numbers::numbers;
 use twins::{Twin, twins};
 use wrapped::{Wrapped, collapsed, covering, wound};
 
@@ -107,7 +109,8 @@ pub(super) fn selected(
             let above = operation.holds(first.above >= 1, second.above >= 1);
             let below = operation.holds(first.below >= 1, second.below >= 1);
             if above != below {
-                faces.push(face(surface, above, region, edges));
+                let numbers = numbers(operands, [first, second]);
+                faces.push(face(surface, above, region, edges, numbers));
             }
         }
     }
@@ -236,13 +239,13 @@ fn wrapped_at(operands: &Operands, places: &[Place]) -> Result<Option<[Wrapped; 
     let [first, second] = [0, 1].map(|operand| match (covered[operand], sheet[operand]) {
         (Some(wrapped), _) => Ok(wrapped),
         (None, Some(winding)) => Ok(Wrapped {
-            covered: false,
+            face: None,
             above: winding,
             below: winding,
         }),
         (None, None) => match band::wound_beside(operands, operand, places) {
             Some(winding) => Ok(Wrapped {
-                covered: false,
+                face: None,
                 above: winding,
                 below: winding,
             }),
@@ -296,7 +299,13 @@ pub(super) fn parted(
 /// points to when `flipped`: its cycles keep it on their left in the
 /// surface's parameters, which is seen from outside the matter only when it
 /// is not flipped.
-fn face(surface: SurfaceId, flipped: bool, region: &Region, edges: &[EdgeId]) -> Face {
+fn face(
+    surface: SurfaceId,
+    flipped: bool,
+    region: &Region,
+    edges: &[EdgeId],
+    numbers: Vec<u32>,
+) -> Face {
     let loops = region
         .cycles
         .iter()
@@ -322,6 +331,7 @@ fn face(surface: SurfaceId, flipped: bool, region: &Region, edges: &[EdgeId]) ->
         surface,
         flipped,
         loops,
+        numbers,
     }
 }
 

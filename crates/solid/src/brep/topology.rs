@@ -9,6 +9,10 @@ use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
+mod numbers;
+
+pub(super) use numbers::ascending;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SurfaceId(pub u32);
 
@@ -53,11 +57,17 @@ pub struct Coedge {
 /// A piece of a surface, bounded by loops that keep it on their left seen from
 /// outside the matter. `flipped` when the matter lies on the side the
 /// surface's own normal points to — a hole's wall, the bottom of a block.
+///
+/// `numbers` are the names the faces it came from were given, ascending: a
+/// raise names its floor nought, its top one and each wall two more than
+/// the run of the profile it stands on, and a boolean keeps the names of
+/// every face of its operands a face lies on.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Face {
     pub surface: SurfaceId,
     pub flipped: bool,
     pub loops: Vec<Vec<Coedge>>,
+    pub numbers: Vec<u32>,
 }
 
 /// A solid, as the surfaces and curves it stands on and the faces, edges and

@@ -1,7 +1,7 @@
 //! What a body is made of: arenas of vertices, edges and faces, each naming
 //! the others by rank.
 
-use std::f64::consts::PI;
+use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
@@ -184,9 +184,17 @@ impl Body {
             .fold(0.0, f64::max)
     }
 
-    /// The corners of a face and the points of its edges where a coordinate
-    /// turns back, in the order its loops run: read off the exact curves, so
-    /// they do not move with how finely the face is drawn.
+    /// The corners of a face, the points of its edges where a coordinate
+    /// turns back, and points all along its circles, in the order its loops
+    /// run: read off the exact curves, so they do not move with how finely
+    /// the face is drawn.
+    ///
+    /// A drawing laid on the face takes the corner nearest the bottom-left of
+    /// its span. The ends and turning points of a circle stand two at a time
+    /// at the same reach from there — the left and the bottom of a disc, both
+    /// ends of a rounded corner — and the drawing would jump from one to the
+    /// other as a size changed; the points along it hold one nearest, which
+    /// moves with the circle, as the flats' 48 steps did.
     pub fn corners_of(&self, face: FaceId) -> Vec<DVec3> {
         let mut corners = Vec::new();
         for coedge in self.face(face).loops.iter().flatten() {
@@ -195,6 +203,9 @@ impl Body {
             if let Some([from, to]) = edge.ends {
                 points[0] = self.vertex(from).point;
                 points[1] = self.vertex(to).point;
+            }
+            if let Curve::Circle(circle) = self.curve(edge.curve) {
+                points.extend(along(circle, edge.from, edge.to));
             }
             corners.extend(points);
         }
@@ -255,6 +266,18 @@ pub(super) fn turning_points(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> 
         found.extend((first..=last).map(|turn| circle.point(phase + turn as f64 * PI)));
     }
     found
+}
+
+/// The points of a circle, between two of its parameters, every 48th of a
+/// turn from where its angle is read.
+fn along(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
+    const STEPS: f64 = 48.0;
+    let step = TAU / STEPS;
+    let first = (from / step).ceil() as i64;
+    let last = (to / step).floor() as i64;
+    (first..=last)
+        .map(|index| circle.point(index as f64 * step))
+        .collect()
 }
 
 #[cfg(test)]

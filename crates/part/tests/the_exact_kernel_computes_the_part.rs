@@ -643,3 +643,115 @@ fn a_hole_drilled_right_through_a_hexagonal_bar_is_cut() {
         );
     }
 }
+
+/// A sketch laid on face `face`, whose plane stands at `height`, with a circle
+/// of radius 1 drawn at `place` of it — or, when `place` is `None`, at the
+/// point of it above `over` — cut 3 deep. Gives back where the circle was
+/// drawn in the sketch and where its centre stands once the part is replayed.
+fn a_hole_drawn_on(
+    mut history: History,
+    face: usize,
+    height: f64,
+    over: DVec2,
+    place: Option<DVec2>,
+) -> (History, DVec2, DVec2) {
+    let sketch = PartState::rebuild(&history).sketches.len();
+    history.push(Operation::CreateSketch {
+        plane: level(height),
+        on: Some(FaceAnchor { face, up: DVec3::Y }),
+    });
+    let laid = PartState::rebuild(&history).sketches[sketch].plane;
+    let place = place.unwrap_or_else(|| laid.to_local(over.extend(height)));
+    circle(&mut history, sketch, place, 1.0);
+    raise(&mut history, sketch, place, -3.0, ExtrusionMode::Cut);
+    let at = PartState::rebuild(&history).sketches[sketch]
+        .plane
+        .to_world(place)
+        .truncate();
+    (history, place, at)
+}
+
+/// A block 40 by 30 by 10, and on its top a boss of radius `radius` about
+/// `BOSS`, raised 5.
+fn a_block_with_a_boss(radius: f64) -> History {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 0, DVec2::ZERO, DVec2::new(40.0, 30.0));
+    raise(&mut history, 0, DVec2::ONE, 10.0, ExtrusionMode::Add);
+    sketch_on(&mut history, level(10.0));
+    circle(&mut history, 1, BOSS, radius);
+    raise(&mut history, 1, BOSS, 5.0, ExtrusionMode::Add);
+    history
+}
+
+const BOSS: DVec2 = DVec2::new(20.3, 13.7);
+
+#[test]
+fn a_hole_drawn_on_a_boss_stays_on_it_when_the_boss_grows() {
+    let boss_top = 6 + TOP;
+    let (_, drawn, _) = a_hole_drawn_on(a_block_with_a_boss(5.0), boss_top, 15.0, BOSS, None);
+
+    for radius in [5.0, 6.0, 7.0, 8.0, 9.7] {
+        let (history, _, at) = a_hole_drawn_on(
+            a_block_with_a_boss(radius),
+            boss_top,
+            15.0,
+            BOSS,
+            Some(drawn),
+        );
+        let state = PartState::rebuild(&history);
+
+        assert!(
+            at.distance(BOSS) < radius - 1.0,
+            "the hole stays on a boss of radius {radius}: drawn at {at}",
+        );
+        assert_near(
+            state.body.volume(),
+            40.0 * 30.0 * 10.0 + PI * radius * radius * 5.0 - PI * 3.0,
+            &format!("the block, a boss of radius {radius} and its hole"),
+        );
+    }
+}
+
+/// A plate 60 by 30, its four corners rounded by `round`, raised 8.
+fn a_rounded_plate(round: f64) -> History {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(
+        &mut history,
+        0,
+        DVec2::new(3.3, 1.7),
+        DVec2::new(63.3, 31.7),
+    );
+    history.push(Operation::Fillet {
+        sketch: 0,
+        corners: (0..4)
+            .map(|side| Corner::Between(SegmentId(side), SegmentId((side + 1) % 4)))
+            .collect(),
+        radius: round.into(),
+    });
+    raise(
+        &mut history,
+        0,
+        DVec2::new(30.0, 15.0),
+        8.0,
+        ExtrusionMode::Add,
+    );
+    history
+}
+
+#[test]
+fn a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_change() {
+    let near_a_corner = DVec2::new(13.3, 11.7);
+    let (_, drawn, before) = a_hole_drawn_on(a_rounded_plate(5.0), TOP, 8.0, near_a_corner, None);
+
+    for round in [4.4, 4.0, 6.0] {
+        let (_, _, after) =
+            a_hole_drawn_on(a_rounded_plate(round), TOP, 8.0, near_a_corner, Some(drawn));
+
+        assert!(
+            after.distance(before) <= (round - 5.0f64).abs(),
+            "rounded by {round} rather than 5, the hole went from {before} to {after}",
+        );
+    }
+}

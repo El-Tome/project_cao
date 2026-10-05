@@ -304,3 +304,61 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   says how anyone can run them again, and the check that counts will be the
   application's, once #499 puts this kernel behind `Body`.
 - Three days of the fourteen were used.
+
+## After the maquette: #526 puts the kernel behind the application
+
+### 2026-10-05
+
+- Campaigns 8a and 8b, the hour each draw has always had, run on the branch
+  of #526 and, beside them on the same seeds, on `c778b20` — the kernel as
+  #498 left it, ported to `main` before #526 changed anything — each tree
+  built in its own target directory: the square draw from seed 8 000 000,
+  the profile draw from 8 500 000. A third hour, 8c, ran the profile draw
+  through the application's body (`cao_solid::Body`: face numbers, the
+  drawing as it builds, its declines), from 8 500 000 too. Six campaigns
+  shared the machine, so each tried about a third of what an hour tried
+  alone on day 3.
+
+| campaign | kernel | cases | broke a rule | per thousand |
+| --- | --- | --- | --- | --- |
+| 8a | `c778b20`, square draw | 88 775 | 14 | 0.16 |
+| 8a | #526, square draw | 88 833 | 14 | 0.16 |
+| 8b | `c778b20`, profile draw | 54 256 | 55 | 1.01 |
+| 8b | #526, profile draw | 54 104 | 55 | 1.02 |
+| 8c | #526, profile draw through the body | 89 821 | 111 | 1.24 |
+
+- **#526 made no failure and fixed none on the kernel.** On the seeds both
+  trees reached, the same seeds fail, each breaking the same rule, and each
+  shrinks to the same case, to the last digit. Square draw: Uncrossed 9,
+  Answers 5. Profile draw: Answers 30, Uncrossed 22, Volume, Listed and
+  Closed one each. Still no Spans.
+- Every one of the 69 shrunk cases is the tangency band: two surfaces a hair
+  of 1e-8 to 1e-5 from touching or from being one. Sorted by hand, about a
+  third of the square draw's and half the profile draw's are two walls of
+  one radius whose axes stand a hair apart, beyond decision 8's; the rest a
+  plane a hair from a face, a wall or a line of touch. None outside the
+  band.
+- Through the body, the profile draw fails 1.24 per thousand rather than
+  1.02, though it is held to fewer rules: neither to the listing nor to
+  Spans, which read the kernel underneath. On the seeds 8b reached, 5 fail
+  only through the body, all Uncrossed, and 2 only on the kernel — a Listed
+  the body is not held to, and an Uncrossed its finer triangles draw
+  right. The 5 are no regression of #526:
+  the body draws at a fifth of a thousandth of the reach where the
+  campaign's kernel draws at a thousandth, and the kernel of `c778b20`
+  drawn that fine crosses its triangles on the same 5, as it fails every
+  one of the 111 seeds 8c named. Finer triangles show more of the band; the
+  body adds nothing to it. Two seeds the kernel drew open or crossed are
+  declined by the body instead, as #526 asks of a body it cannot draw
+  whole.
+- The part campaign of #448 (`an_undo_gives_back_the_part.rs`), half an
+  hour on each tree from seed 8 000 000, started again past every part that
+  did not answer within ten seconds: 3 248 parts on #526, 293 broke a rule
+  (90 per thousand) — 175 Closed, 118 late — against 296 on the same seeds
+  before it. Every Closed of the 175 shrinks to a part with a turn in it,
+  the flats' own (#486 to #492). #526 closed five of them, and two parts
+  answered late on #526 that answered in time before: both join exact
+  matter and then a turn, and take two to three times as long, 13 to 15
+  seconds rather than 5 to 8, because the exact body handed to the flats is
+  drawn finer than the flats draw themselves. Both keep every rule given
+  the time.

@@ -598,3 +598,138 @@ fn a_round_bar_of_five_thousand_sides_pushed_slantwise_is_judged_ahead_of_a_quad
         started.elapsed()
     );
 }
+
+/// A round bar of `sides` sides and a unit radius, as long as `way` from
+/// `from`.
+fn long_bar(sides: usize, from: DVec3, way: DVec3) -> Vec<Triangle> {
+    let outline: Vec<DVec2> = (0..sides)
+        .map(|index| DVec2::from_angle(TAU * index as f64 / sides as f64))
+        .collect();
+    let across = way.normalize().any_orthonormal_vector();
+    let up = way.normalize().cross(across);
+    prism(
+        Loop::straight(&outline),
+        &[],
+        &kernel::fan(&outline),
+        |point| from + across * point.x + up * point.y,
+        way,
+    )
+    .triangles()
+}
+
+/// The wall of [`long_bar`] alone, two triangles a side, each as long as the
+/// bar: the walls a bore lying through a stock leaves.
+fn tube(sides: usize, from: DVec3, way: DVec3) -> Vec<Triangle> {
+    let across = way.normalize().any_orthonormal_vector();
+    let up = way.normalize().cross(across);
+    let round = |index: usize| {
+        let turned = DVec2::from_angle(TAU * index as f64 / sides as f64);
+        from + across * turned.x + up * turned.y
+    };
+    (0..sides)
+        .flat_map(|index| {
+            let [here, next] = [round(index), round(index + 1)];
+            [[here, next, next + way], [here, next + way, here + way]]
+        })
+        .collect()
+}
+
+/// Three bars a hundred long, one along each axis, clear of each other.
+fn three_bars(bar: impl Fn(DVec3, DVec3) -> Vec<Triangle>) -> Vec<Triangle> {
+    soup(&[
+        bar(at(-50.0, 0.0, 0.0), DVec3::X * 100.0),
+        bar(at(0.0, -50.0, 5.0), DVec3::Y * 100.0),
+        bar(at(5.0, 5.0, -50.0), DVec3::Z * 100.0),
+    ])
+}
+
+#[test]
+fn three_long_tubes_lying_along_the_three_axes_are_judged_ahead_of_a_sweep_along_any_one() {
+    let tubes = three_bars(|from, way| tube(10_000, from, way));
+    assert_eq!(tubes.len(), 60_000);
+
+    let started = Instant::now();
+    assert_eq!(uncrossed(&tubes), Ok(()));
+    assert!(
+        started.elapsed() < Duration::from_secs(1),
+        "{:?}",
+        started.elapsed()
+    );
+}
+
+/// Every two faces whose boxes come within `room`, save two of one fan, swept
+/// one by one along `way` as #502 first did: what the pairs handed over must
+/// be, in this order.
+fn swept_one_by_one(faces: &[Face], room: f64, way: DVec3) -> Vec<Pair> {
+    let hot = |(at, face): (usize, &Face)| (face.span(way), face.bounds, face.fans, at);
+    let mut swept: Vec<_> = faces.iter().enumerate().map(hot).collect();
+    swept.sort_by(|one, other| one.0[0].total_cmp(&other.0[0]));
+    let mut pairs = Vec::new();
+    for (at, ([_, end], [low, high], fans, one)) in swept.iter().enumerate() {
+        for ([start, _], [other_low, other_high], others, other) in &swept[at + 1..] {
+            if *start > end + room {
+                break;
+            }
+            let near = other_low.cmple(*high + room) & low.cmple(*other_high + room);
+            if near.all() && !fans.iter().any(|fan| *fan > 0 && others.contains(fan)) {
+                pairs.push((faces[*one].index, faces[*other].index));
+            }
+        }
+    }
+    pairs
+}
+
+/// Small triangles strewn through a box, some laid a hair from another.
+fn strewn(count: usize) -> Vec<Triangle> {
+    let mut state = 0x2545_f491_4f6c_dd1du64;
+    let mut next = move || {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        (state >> 11) as f64 / (1u64 << 53) as f64
+    };
+    let mut triangles: Vec<Triangle> = Vec::with_capacity(count);
+    while triangles.len() < count {
+        let base = at(next(), next(), next()) * 10.0;
+        let corners = [
+            base,
+            base + at(next(), next(), 0.0),
+            base + at(0.0, next(), next()),
+        ];
+        triangles.push(corners);
+        if next() < 0.2 {
+            triangles.push(corners.map(|corner| corner + DVec3::Z * 1e-11));
+        }
+    }
+    triangles
+}
+
+#[test]
+fn the_faces_weighed_against_each_other_are_those_a_sweep_one_by_one_weighs_in_its_order() {
+    let surfaces = [
+        unit_cube_with_a_cut_top(),
+        ring(12, TAU)
+            .difference(&box_of(4.0, 4.0, at(2.0, -2.0, -2.0)))
+            .triangles(),
+        prism_on(300, 10.0, DVec3::Z * 5.0),
+        prism_on(300, 1.0, DVec3::splat(100.0)),
+        three_bars(|from, way| long_bar(200, from, way)),
+        three_bars(|from, way| tube(200, from, way)),
+        strewn(600),
+    ];
+    for triangles in surfaces {
+        let room = NEAR * reach(&triangles);
+        let mut faces: Vec<Face> = triangles
+            .iter()
+            .enumerate()
+            .map(|(index, corners)| Face::of(index, corners))
+            .collect();
+        pairs::fans(&mut faces, room);
+        let mut handed = Vec::new();
+        let way = pairs::for_each_pair_near(&faces, room, |one, other| {
+            handed.push((one.index, other.index));
+        });
+        assert!(!handed.is_empty());
+        assert_eq!(handed, swept_one_by_one(&faces, room, way));
+    }
+}

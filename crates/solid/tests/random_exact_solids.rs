@@ -556,8 +556,8 @@ fn a_rounded_rectangle_a_slot_or_a_ring_grown_or_shrunk_holds_along_any_line_the
     }
     assert!(leaves.len() > 100, "{} leaves", leaves.len());
 
-    let mut ends = 0;
-    for leaf in &leaves {
+    let ends: usize = random_solids::on_every_core(&leaves, |leaf| {
+        let mut ends = 0;
         let Leaf::Prism {
             plane,
             outline,
@@ -629,7 +629,10 @@ fn a_rounded_rectangle_a_slot_or_a_ring_grown_or_shrunk_holds_along_any_line_the
                 }
             }
         }
-    }
+        ends
+    })
+    .into_iter()
+    .sum();
     assert!(ends > 10_000, "{ends} ends");
 }
 
@@ -1198,15 +1201,31 @@ fn a_block_bored_across_and_given_a_boss_on_its_side_by_the_flats_keeps_every_ru
 }
 
 #[test]
+fn what_every_core_makes_of_the_seeds_comes_back_in_the_order_of_the_seeds() {
+    let seeds: Vec<u64> = (0..1000).collect();
+    let squared = random_solids::on_every_core(&seeds, |seed| seed * seed);
+    assert_eq!(
+        squared,
+        seeds.iter().map(|seed| seed * seed).collect::<Vec<_>>()
+    );
+}
+
+#[test]
 fn square_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
-    let mut held = 0;
-    for seed in 0..120 {
-        let case = Case::drawn_square(seed);
-        if random_solids::check(&case).is_err() {
-            continue;
-        }
-        held += 1;
+    let seeds: Vec<u64> = (0..120).collect();
+    let weighed = random_solids::on_every_core(&seeds, |seed| {
+        let case = Case::drawn_square(*seed);
+        random_solids::check(&case).ok()?;
         let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+        Some((measured, case))
+    });
+    let mut held = 0;
+    for (seed, (measured, case)) in seeds
+        .iter()
+        .zip(weighed)
+        .filter_map(|(seed, one)| Some((seed, one?)))
+    {
+        held += 1;
         assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
     }
     assert!(held > 60, "{held} cases held");
@@ -1214,13 +1233,20 @@ fn square_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_
 
 #[test]
 fn profile_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+    let seeds: Vec<u64> = (0..120).collect();
+    let weighed = random_solids::on_every_core(&seeds, |seed| {
+        let case = Case::drawn_profiles(*seed);
+        random_solids::check(&case).ok()?;
+        let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
+        Some((measured, case))
+    });
     let mut held = 0;
     let mut profiles = 0;
-    for seed in 0..120 {
-        let case = Case::drawn_profiles(seed);
-        if random_solids::check(&case).is_err() {
-            continue;
-        }
+    for (seed, (measured, case)) in seeds
+        .iter()
+        .zip(weighed)
+        .filter_map(|(seed, one)| Some((seed, one?)))
+    {
         held += 1;
         profiles += case
             .leaves()
@@ -1232,7 +1258,6 @@ fn profile_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the
                 )
             })
             .count();
-        let measured = random_solids::held_to_arithmetic(&case, &Flats::for_case(&case));
         assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
     }
     assert!(held > 60, "{held} cases held");
@@ -1491,9 +1516,12 @@ fn every_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_
         })
         .collect();
     assert!(leaves.len() > 60, "{} leaves", leaves.len());
-    for leaf in &leaves {
+    let weighed = random_solids::on_every_core(&leaves, |leaf| {
         let alone = Case::new(leaf.clone(), vec![]);
         let held = random_solids::held_to_arithmetic(&alone, &Exact);
+        (held, Exact.raised(leaf).map(|body| body.volume()))
+    });
+    for (leaf, (held, volume)) in leaves.iter().zip(weighed) {
         assert!(held.is_ok(), "{leaf}: {held:?}");
         let Leaf::Prism {
             outline, height, ..
@@ -1502,7 +1530,7 @@ fn every_profile_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_
             unreachable!("only prisms were kept")
         };
         let promised = area(outline) * height.abs();
-        let volume = Exact.raised(leaf).expect("a raised profile").volume();
+        let volume = volume.expect("a raised profile");
         assert!(
             (volume - promised).abs() <= 1e-9 * promised,
             "{leaf}: {volume} against {promised}"

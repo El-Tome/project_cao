@@ -8,7 +8,7 @@ use std::fmt::{self, Display, Formatter};
 
 use glam::{DVec2, DVec3};
 
-use super::{Case, Leaf, Mode, Outline, Plane, Step};
+use super::{Along, Axis, Case, Leaf, Mode, Outline, Plane, Section, Step};
 
 struct Pair(DVec2);
 
@@ -72,6 +72,12 @@ impl Display for Leaf {
                 Pair(*low),
                 Pair(*high)
             ),
+            Leaf::Turned {
+                plane,
+                axis,
+                section,
+                degrees,
+            } => write!(out, "Leaf::turned({plane}, {axis}, {section}, {degrees:?})"),
         }
     }
 }
@@ -140,5 +146,42 @@ impl Display for Outline {
                 Pair(*to)
             ),
         }
+    }
+}
+
+impl Display for Axis {
+    fn fmt(&self, out: &mut Formatter<'_>) -> fmt::Result {
+        let along = match self.along {
+            Along::First => "first",
+            Along::Second => "second",
+        };
+        write!(out, "Axis::{along}({:?})", self.across)?;
+        if self.backwards {
+            write!(out, ".backwards()")?;
+        }
+        if self.lean != 0.0 {
+            write!(out, ".leaning({:?})", self.lean)?;
+        }
+        Ok(())
+    }
+}
+
+impl Display for Section {
+    fn fmt(&self, out: &mut Formatter<'_>) -> fmt::Result {
+        write!(out, "Section::bands({:?}, &[", self.from)?;
+        for (index, [length, low, high]) in self.bands.iter().enumerate() {
+            let separator = if index == 0 { "" } else { ", " };
+            write!(out, "{separator}[{length:?}, {low:?}, {high:?}]")?;
+        }
+        write!(out, "])")?;
+        if !self.holes.is_empty() {
+            write!(out, ".with_holes(&[")?;
+            for (index, [low, high]) in self.holes.iter().enumerate() {
+                let separator = if index == 0 { "" } else { ", " };
+                write!(out, "{separator}({}, {})", Pair(*low), Pair(*high))?;
+            }
+            write!(out, "])")?;
+        }
+        Ok(())
     }
 }

@@ -1,10 +1,11 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
-use cao_solid::profile::{Frame, Profile};
-use cao_solid::{Body, Loop};
+use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::turning::Turn;
+use cao_solid::{Body, Declined, Loop};
 use glam::DVec2;
 
-use super::{CIRCLE_STEPS, Leaf, Outline};
+use super::{Axis, CIRCLE_STEPS, Leaf, Outline, Section, Turned};
 
 /// The loops a prism is raised from, and the triangles its two ends are
 /// filled with.
@@ -167,6 +168,9 @@ impl Leaf {
                     && *degrees != 0.0
                     && (low.x >= -hair || high.x <= hair)
             }
+            Leaf::Turned {
+                section, degrees, ..
+            } => section.is_solid() && 0.0 < degrees.abs() && degrees.abs() <= 360.0,
         }
     }
 
@@ -222,6 +226,7 @@ impl Leaf {
                     degrees.to_radians(),
                 )
             }
+            Leaf::Turned { .. } => self.as_turned()?.tool(false).ok(),
         }
     }
 
@@ -256,6 +261,10 @@ impl Leaf {
                     * (high.y - low.y).abs();
                 (pappus, pappus * FACETING)
             }
+            Leaf::Turned { .. } => {
+                let volume = self.as_turned().map_or(0.0, |turned| turned.volume());
+                (volume, volume * FACETING)
+            }
         }
     }
 }
@@ -265,3 +274,111 @@ impl Leaf {
 /// percent covers that, and a kernel meshing a true curve to a hundredth of a
 /// unit, and nothing like a face gone missing.
 pub const FACETING: f64 = 2e-3;
+
+/// One side of a turned leaf as the kernels are handed it, in the plane's
+/// own coordinates: its outline and its holes, and the triangles its ends are
+/// filled with, two to every rectangle of the section.
+pub struct Drawn {
+    pub outline: Vec<DVec2>,
+    pub holes: Vec<Vec<DVec2>>,
+    pub triangles: Vec<[DVec2; 3]>,
+}
+
+impl Drawn {
+    fn of(axis: &Axis, section: &Section) -> Drawn {
+        let (outline, holes) = section.corners();
+        let triangles = section
+            .rectangles()
+            .iter()
+            .flat_map(|&[from, to, low, high]| {
+                let corners = [
+                    DVec2::new(from, low),
+                    DVec2::new(to, low),
+                    DVec2::new(to, high),
+                    DVec2::new(from, high),
+                ]
+                .map(|corner| axis.at(corner));
+                [
+                    [corners[0], corners[1], corners[2]],
+                    [corners[0], corners[2], corners[3]],
+                ]
+            })
+            .collect();
+        Drawn {
+            outline: outline.iter().map(|corner| axis.at(*corner)).collect(),
+            holes: holes
+                .iter()
+                .map(|hole| hole.iter().map(|corner| axis.at(*corner)).collect())
+                .collect(),
+            triangles,
+        }
+    }
+
+    /// The outline and the holes as runs, every one of them straight.
+    pub fn contours(&self) -> (Contour, Vec<Contour>) {
+        (
+            Contour::straight(self.outline.clone()),
+            self.holes
+                .iter()
+                .map(|hole| Contour::straight(hole.clone()))
+                .collect(),
+        )
+    }
+
+    /// The side as the application hands an area over: both ways, or, when
+    /// not `exact`, sampled alone, which keeps it on the flats.
+    pub fn profile(&self, exact: bool) -> Profile<'_> {
+        Profile {
+            exact: exact.then(|| self.contours()),
+            sampled: Loop::straight(&self.outline),
+            sampled_holes: self.holes.iter().map(|hole| Loop::straight(hole)).collect(),
+            triangles: &self.triangles,
+        }
+    }
+}
+
+impl Turned {
+    pub fn frame(&self) -> Frame {
+        let (origin, u, v) = self.plane.frame();
+        Frame { origin, u, v }
+    }
+
+    /// Each side of the section as the kernels are handed it: the section
+    /// itself when it lies on one side of its axis, its two sides otherwise.
+    pub fn drawn(&self) -> Vec<Drawn> {
+        self.section
+            .sides()
+            .iter()
+            .map(|side| Drawn::of(&self.axis, side))
+            .collect()
+    }
+
+    /// The turn the kernels are handed, at the drawing's `resolution`, how
+    /// close to the axis counts as on it read off the whole section.
+    pub fn turn(&self, resolution: f64) -> Turn {
+        let whole = Drawn::of(&self.axis, &self.section);
+        Turn::of(
+            self.axis.line(),
+            self.degrees.to_radians(),
+            resolution,
+            &whole.profile(true),
+        )
+    }
+
+    /// The leaf turned through the application's body, each side apart and
+    /// the two joined: by the exact kernel, or by the flats when not `exact`.
+    pub fn tool(&self, exact: bool) -> Result<Body, Declined> {
+        let (frame, turn) = (self.frame(), self.turn(0.0));
+        self.drawn()
+            .iter()
+            .map(|side| Body::default().tool_turned(&side.profile(exact), frame, &turn))
+            .try_fold(None, |joined: Option<Body>, side| {
+                let side = side?;
+                Ok(Some(match joined {
+                    Some(joined) => joined.union(&side)?,
+                    None => side,
+                }))
+            })
+            .map(Option::unwrap_or_default)
+    }
+}

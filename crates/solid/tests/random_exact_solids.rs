@@ -56,6 +56,7 @@ mod random_solids;
 
 use std::cell::Cell;
 
+use cao_solid::Declined;
 use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
 use cao_solid::profile::Run;
 use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
@@ -744,7 +745,7 @@ fn a_square_case_holds_prisms_of_rectangles_and_circles_on_the_planes_of_the_ori
                     !matches!(plane, Plane::Tilted { .. })
                         && matches!(outline, Outline::Rectangle { .. } | Outline::Circle { .. })
                 }
-                Leaf::Revolution { .. } => false,
+                Leaf::Revolution { .. } | Leaf::Turned { .. } => false,
             };
             assert!(kept, "seed {seed}: {case}");
             assert!(leaf.is_solid(), "seed {seed}: {case}");
@@ -759,7 +760,7 @@ fn the_square_generator_draws_every_kind_it_keeps() {
     let seen = |what: &str, found: bool| assert!(found, "no square case drew {what}");
     let outline = |leaf: &Leaf| match leaf {
         Leaf::Prism { outline, .. } => Some(outline.clone()),
-        Leaf::Revolution { .. } => None,
+        Leaf::Revolution { .. } | Leaf::Turned { .. } => None,
     };
 
     seen(
@@ -842,7 +843,7 @@ fn the_square_generator_draws_every_kind_it_keeps() {
 fn outline_of(leaf: &Leaf) -> Option<&Outline> {
     match leaf {
         Leaf::Prism { outline, .. } => Some(outline),
-        Leaf::Revolution { .. } => None,
+        Leaf::Revolution { .. } | Leaf::Turned { .. } => None,
     }
 }
 
@@ -875,7 +876,7 @@ fn a_profile_case_holds_solid_prisms_on_the_planes_of_the_origin_alone_and_no_st
                     !matches!(plane, Plane::Tilted { .. })
                         && !matches!(outline, Outline::Star { .. })
                 }
-                Leaf::Revolution { .. } => false,
+                Leaf::Revolution { .. } | Leaf::Turned { .. } => false,
             };
             assert!(kept, "seed {seed}: {case}");
             assert!(leaf.is_solid(), "seed {seed}: {case}");
@@ -1344,10 +1345,11 @@ impl Broken {
 impl Kernel for Broken {
     type Body = cao_solid::Body;
 
-    fn raised(&self, leaf: &Leaf) -> Option<cao_solid::Body> {
-        (self.breaking != Breaking::DeclinesLeaves)
-            .then(|| self.flats.raised(leaf))
-            .flatten()
+    fn raised(&self, leaf: &Leaf) -> Result<cao_solid::Body, Declined> {
+        if self.breaking == Breaking::DeclinesLeaves {
+            return Err(Declined::Unfinished);
+        }
+        self.flats.raised(leaf)
     }
 
     fn combined(
@@ -1355,10 +1357,10 @@ impl Kernel for Broken {
         body: &cao_solid::Body,
         tool: &cao_solid::Body,
         mode: Mode,
-    ) -> Option<cao_solid::Body> {
+    ) -> Result<cao_solid::Body, Declined> {
         match (self.breaking, mode) {
-            (Breaking::ForgetsItsCuts, Mode::Cut) => Some(body.clone()),
-            (Breaking::DeclinesSteps, _) => None,
+            (Breaking::ForgetsItsCuts, Mode::Cut) => Ok(body.clone()),
+            (Breaking::DeclinesSteps, _) => Err(Declined::Unfinished),
             _ => self.flats.combined(body, tool, mode),
         }
     }
@@ -1639,14 +1641,20 @@ mod campaign {
     use std::sync::atomic::Ordering;
 
     use cao_solid::soundness::Check;
-    use random_solids::campaigning::{GRAZING, HELD, campaign_over, shrunk_one_by_one};
+    use random_solids::campaigning::{
+        Answering, DECLINED, GRAZING, HELD, campaign_over, shrunk_one_by_one,
+    };
 
     use super::*;
 
-    fn exactly(case: &Case) -> Result<(), Flaw> {
-        let measured = random_solids::held_to_arithmetic(case, &Exact)?;
+    fn tallied(measured: random_solids::Measured) {
         HELD.fetch_add(measured.held, Ordering::Relaxed);
         GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
+    }
+
+    fn exactly(case: &Case) -> Result<(), Flaw> {
+        tallied(random_solids::held_to_arithmetic(case, &Exact)?);
         Ok(())
     }
 
@@ -1666,25 +1674,28 @@ mod campaign {
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("square solids", drawn, exactly);
+        campaign_over("square solids", Answering::Exactly, drawn, exactly);
     }
 
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("profiles", drawn_profile, exactly);
+        campaign_over("profiles", Answering::Exactly, drawn_profile, exactly);
     }
 
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_profiles_through_the_application_s_body_keeps_every_rule() {
-        campaign_over("profiles", drawn_profile, through_the_application);
+        campaign_over(
+            "profiles",
+            Answering::ThroughTheApplication,
+            drawn_profile,
+            through_the_application,
+        );
     }
 
     fn through_the_application(case: &Case) -> Result<(), Flaw> {
-        let measured = random_solids::held_to_arithmetic(case, &Application)?;
-        HELD.fetch_add(measured.held, Ordering::Relaxed);
-        GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        tallied(random_solids::held_to_arithmetic(case, &Application)?);
         Ok(())
     }
 

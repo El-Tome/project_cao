@@ -34,19 +34,18 @@ pub struct Stretch {
 /// The line as it runs in the plane of a profile: its place and its step
 /// across the plane, and its height and rise along the plane's normal, per
 /// unit of distance along the line.
-struct Seen {
-    start: DVec2,
-    step: DVec2,
-    level: f64,
-    rise: f64,
-    speed: f64,
+pub(super) struct Seen {
+    pub(super) start: DVec2,
+    pub(super) step: DVec2,
+    pub(super) level: f64,
+    pub(super) rise: f64,
+    pub(super) speed: f64,
 }
 
 impl Leaf {
     /// The stretches of the line through `origin` along `direction` that lie
     /// inside this leaf, in order, `t` along the line being the point
-    /// `origin + direction * t`. `None` for a revolution, which no kernel
-    /// held this way raises.
+    /// `origin + direction * t`.
     pub fn along(&self, origin: DVec3, direction: DVec3) -> Option<Vec<Stretch>> {
         self.along_grown(origin, direction, 0.0)
     }
@@ -55,10 +54,13 @@ impl Leaf {
     /// by `by` and each of its ends moved out by `by` — or shrunk when `by` is
     /// negative. A prism rather than the rounded solid a ball rolled round the
     /// leaf would sweep: a little larger grown and a little smaller shrunk,
-    /// which is the side a room for a tolerance may err on. `None` for a
-    /// revolution, and for a star grown at all, whose offset no formula here
-    /// draws.
+    /// which is the side a room for a tolerance may err on. A turn is held
+    /// to the slabs of annuli it sweeps (`around.rs`). `None` for a star
+    /// grown at all, whose offset no formula here draws.
     pub fn along_grown(&self, origin: DVec3, direction: DVec3, by: f64) -> Option<Vec<Stretch>> {
+        if let Some(turned) = self.as_turned() {
+            return Some(turned.along_grown(origin, direction, by));
+        }
         let Leaf::Prism {
             plane,
             outline,
@@ -125,9 +127,12 @@ impl Leaf {
 }
 
 impl Leaf {
-    /// The box a prism spans, from its outline and its two ends: its true
-    /// circles rather than their flats. `None` for a revolution.
+    /// The box a leaf spans, from its outline and its two ends or from the
+    /// turn it sweeps: its true circles rather than their flats.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
+        if let Some(turned) = self.as_turned() {
+            return turned.bounds();
+        }
         let Leaf::Prism {
             plane,
             outline,
@@ -176,7 +181,7 @@ impl Leaf {
 
 /// Where the line lies between the two ends of the prism, at the heights
 /// `low` and `high` along the plane's normal.
-fn slab(seen: &Seen, low: f64, high: f64) -> Option<Stretch> {
+pub(super) fn slab(seen: &Seen, low: f64, high: f64) -> Option<Stretch> {
     if low >= high {
         return None;
     }
@@ -205,7 +210,7 @@ fn slab(seen: &Seen, low: f64, high: f64) -> Option<Stretch> {
     })
 }
 
-fn far(at: f64) -> Crossing {
+pub(super) fn far(at: f64) -> Crossing {
     Crossing {
         at,
         cosine: 0.0,
@@ -311,7 +316,7 @@ fn disc(seen: &Seen, center: DVec2, radius: f64) -> Vec<Stretch> {
 /// or touch made one: where one ends inside another the line crosses no
 /// boundary. Of two crossings at one place, the one crossed less squarely is
 /// kept, and a curved one before a straight one.
-fn union(mut stretches: Vec<Stretch>) -> Vec<Stretch> {
+pub(super) fn union(mut stretches: Vec<Stretch>) -> Vec<Stretch> {
     stretches.sort_by(|one, other| one.from.at.total_cmp(&other.from.at));
     let mut merged: Vec<Stretch> = Vec::new();
     for stretch in stretches {
@@ -343,7 +348,7 @@ fn shallower(one: Crossing, other: Crossing) -> Crossing {
 }
 
 /// The line against a disc with a smaller one taken out of its middle.
-fn ring(seen: &Seen, center: DVec2, outer: f64, inner: f64) -> Vec<Stretch> {
+pub(super) fn ring(seen: &Seen, center: DVec2, outer: f64, inner: f64) -> Vec<Stretch> {
     let Some(&rim) = disc(seen, center, outer).first() else {
         return Vec::new();
     };

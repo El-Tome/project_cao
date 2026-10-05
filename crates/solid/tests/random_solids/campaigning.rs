@@ -13,18 +13,56 @@ use cao_solid::soundness::{Check, Flaw, Random, Report, answer, campaign, shrink
 
 use super::Case;
 
-/// How many lines the campaign held its cases along, and how many it left
-/// out for grazing a curved wall.
+/// How many lines the campaign held its cases along, how many it left out
+/// for grazing a curved wall, and how many cases asking for an ellipse the
+/// kernel declined as unsupported.
 pub static HELD: AtomicUsize = AtomicUsize::new(0);
 pub static GRAZING: AtomicUsize = AtomicUsize::new(0);
+pub static DECLINED: AtomicUsize = AtomicUsize::new(0);
+
+/// The kernel a campaign holds its cases on, as its report names it and as
+/// the tests it prints call it.
+#[derive(Clone, Copy)]
+pub enum Answering {
+    Exactly,
+    ThroughTheApplication,
+}
+
+impl Answering {
+    fn on(self) -> &'static str {
+        match self {
+            Answering::Exactly => "on the exact kernel",
+            Answering::ThroughTheApplication => "through the application's body",
+        }
+    }
+
+    fn holds(self) -> &'static str {
+        match self {
+            Answering::Exactly => "holds_exactly",
+            Answering::ThroughTheApplication => "holds_through_the_application",
+        }
+    }
+
+    fn test(self) -> &'static str {
+        match self {
+            Answering::Exactly => "on_the_exact_kernel",
+            Answering::ThroughTheApplication => "through_the_application_s_body",
+        }
+    }
+}
 
 pub fn from_the_environment(name: &str) -> Option<u64> {
     std::env::var(name).ok()?.parse().ok()
 }
 
-/// A campaign on the exact kernel over the cases `draw` gives, for as long as
-/// the environment says, and its report.
-pub fn campaign_over(what: &str, draw: fn(u64) -> Case, check: fn(&Case) -> Result<(), Flaw>) {
+/// A campaign over the cases `draw` gives, held by `check` on the kernel
+/// `answering` names, for as long as the environment says, and its report.
+pub fn campaign_over(
+    what: &str,
+    answering: Answering,
+    draw: fn(u64) -> Case,
+    check: fn(&Case) -> Result<(), Flaw>,
+) {
     let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
     let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
         let now = SystemTime::now()
@@ -35,7 +73,10 @@ pub fn campaign_over(what: &str, draw: fn(u64) -> Case, check: fn(&Case) -> Resu
     let cases = from_the_environment("CAO_FUZZ_CASES").unwrap_or(u64::MAX);
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
     let deadline = Instant::now() + Duration::from_secs(seconds);
-    println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
+    println!(
+        "campaign of {what} {} from seed {first}, for {seconds} s",
+        answering.on()
+    );
 
     let check: Check<Case> = Arc::new(check);
     let quiet = std::panic::take_hook();
@@ -50,7 +91,7 @@ pub fn campaign_over(what: &str, draw: fn(u64) -> Case, check: fn(&Case) -> Resu
     );
     std::panic::set_hook(quiet);
 
-    print_report(&report);
+    print_report(&report, answering);
     assert!(
         report.findings.is_empty(),
         "{} cases of {} broke a rule",
@@ -94,12 +135,16 @@ pub fn shrunk_one_by_one(seeds: Vec<u64>, draw: fn(u64) -> Case, check: Check<Ca
     std::panic::set_hook(quiet);
 }
 
-fn print_report(report: &Report<Case>) {
+fn print_report(report: &Report<Case>, answering: Answering) {
     println!("{} cases tried", report.tried);
     println!(
         "{} lines held, {} left out for grazing a curved wall",
         HELD.load(Ordering::Relaxed),
         GRAZING.load(Ordering::Relaxed)
+    );
+    println!(
+        "{} cases asking for an ellipse declined as unsupported",
+        DECLINED.load(Ordering::Relaxed)
     );
     for (rule, count) in &report.broken {
         println!("  {rule:?}: broken by {count}");
@@ -109,12 +154,14 @@ fn print_report(report: &Report<Case>) {
     }
     for finding in &report.findings {
         println!(
-            "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_on_the_exact_kernel() {{\n    random_solids::holds_exactly(&{});\n}}",
+            "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_{}() {{\n    random_solids::{}(&{});\n}}",
             finding.flaw.rule(),
             finding.seed,
             finding.flaw,
             finding.shrunk_flaw,
             finding.seed,
+            answering.test(),
+            answering.holds(),
             finding.shrunk.to_string().replace('\n', "\n    "),
         );
     }

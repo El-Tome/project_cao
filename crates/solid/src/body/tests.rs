@@ -416,6 +416,55 @@ fn a_step_the_kernel_declined_still_moves_the_count_past_its_numbers() {
     assert!(joined.has_face(9 + TOP));
 }
 
+#[test]
+fn a_revolution_after_a_declined_step_numbers_its_faces_past_every_number_the_exact_body_gave() {
+    let mut part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+    part.count_past(&exact(
+        Contour::rectangle(DVec2::splat(2.0), DVec2::splat(5.0)),
+        vec![],
+    ));
+    let ring = ring_turned_about_y();
+
+    let turned = part.union(&ring).expect("the flats never decline");
+
+    assert_eq!(turned.faces_end(), 12 + ring.faces_end());
+    assert!(
+        (6..12).all(|face| !turned.has_face(face)),
+        "the declined step's numbers stay its own",
+    );
+    assert!((12..turned.faces_end()).all(|face| turned.has_face(face)));
+    let raised = turned
+        .union(&flats_block(1.0, 1.0, 20.0))
+        .expect("the flats never decline");
+    assert!(raised.has_face(turned.faces_end() + TOP));
+}
+
+#[test]
+fn a_revolution_after_a_cut_numbers_its_faces_past_the_tool_s_faces_the_cut_threw_away() {
+    let part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+    let notch = part
+        .tool_raised(
+            &exact(
+                Contour::rectangle(DVec2::splat(-1.0), DVec2::new(5.0, 11.0)),
+                vec![],
+            ),
+            Frame {
+                origin: DVec3::Z * -1.0,
+                ..FLAT
+            },
+            DVec3::Z * 12.0,
+        )
+        .expect("a notch stands on its own");
+    let notched = part.difference(&notch).expect("the kernel cuts it");
+    let ring = ring_turned_about_y();
+
+    let turned = notched.union(&ring).expect("the flats never decline");
+
+    assert_eq!(notched.faces_end(), 12);
+    assert_eq!(turned.faces_end(), 12 + ring.faces_end());
+    assert!((12..turned.faces_end()).all(|face| turned.has_face(face)));
+}
+
 /// A block the flats raise, its top one flat face stored as two triangles.
 fn flats_block(width: f64, depth: f64, height: f64) -> Body {
     let corners = [

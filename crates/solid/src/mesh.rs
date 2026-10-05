@@ -187,8 +187,11 @@ impl Mesh {
     /// a trench between them. They came from one face and carry its number,
     /// but they are two stretches of surface, and a sketch started on one has
     /// no business being measured from the other.
-    pub(crate) fn separate_faces_that_no_longer_touch(&mut self) {
-        let mut next = self.faces_end();
+    ///
+    /// The fresh numbers start at `next`, or past the largest number the
+    /// solid holds when that is further, and `next` is left past the last.
+    pub(crate) fn separate_faces_that_no_longer_touch(&mut self, next: &mut usize) {
+        *next = (*next).max(self.faces_end());
         let faces: Vec<usize> = {
             let mut seen: Vec<usize> = self.polygons.iter().map(|p| p.face).collect();
             seen.sort_unstable();
@@ -222,9 +225,9 @@ impl Mesh {
                 let moved = match renamed.iter().find(|(from, _)| *from == group[index]) {
                     Some((_, to)) => *to,
                     None => {
-                        next += 1;
-                        renamed.push((group[index], next - 1));
-                        next - 1
+                        *next += 1;
+                        renamed.push((group[index], *next - 1));
+                        *next - 1
                     }
                 };
                 self.polygons[*piece].face = moved;

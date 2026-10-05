@@ -14,15 +14,29 @@ use crate::mesh::{Mesh, Polygon};
 /// a pocket cut into a block is exactly the case that breaks them.
 impl Mesh {
     /// Everything that is in either solid.
-    pub fn union(&self, other: &Mesh) -> Mesh {
-        if self.is_empty() {
-            return other.clone();
-        }
+    #[cfg(test)]
+    pub(crate) fn union(&self, other: &Mesh) -> Mesh {
+        self.union_counted(other, self.faces_end(), &mut 0)
+    }
+
+    /// Everything that is in this solid and not in the other.
+    #[cfg(test)]
+    pub(crate) fn difference(&self, other: &Mesh) -> Mesh {
+        self.difference_counted(other, self.faces_end(), &mut 0)
+    }
+
+    /// The union, the other solid's faces numbered from `floor` on, and each
+    /// piece of a face left apart given a number from `next` on — or past the
+    /// largest number left, when that is further.
+    pub(crate) fn union_counted(&self, other: &Mesh, floor: usize, next: &mut usize) -> Mesh {
         if other.is_empty() {
             return self.clone();
         }
+        let other = other.faces_above(floor);
+        if self.is_empty() {
+            return other;
+        }
 
-        let other = other.faces_above(self.faces_end());
         let mut a = Tree::of(&self.polygons);
         let mut b = Tree::of(&other.polygons);
         a.clip_to(&b);
@@ -37,17 +51,17 @@ impl Mesh {
         let mut polygons = a.polygons();
         polygons.extend(b.polygons());
         let mut result = Mesh { polygons };
-        result.separate_faces_that_no_longer_touch();
+        result.separate_faces_that_no_longer_touch(next);
         result
     }
 
-    /// Everything that is in this solid and not in the other.
-    pub fn difference(&self, other: &Mesh) -> Mesh {
+    /// The difference, numbered as [`Mesh::union_counted`] numbers a union.
+    pub(crate) fn difference_counted(&self, other: &Mesh, floor: usize, next: &mut usize) -> Mesh {
         if self.is_empty() || other.is_empty() {
             return self.clone();
         }
 
-        let other = other.faces_above(self.faces_end());
+        let other = other.faces_above(floor);
         let mut a = Tree::of(&self.polygons);
         let mut b = Tree::of(&other.polygons);
         // Taking matter away is adding the *inside* of the tool: turn this
@@ -65,7 +79,7 @@ impl Mesh {
         for polygon in &mut result.polygons {
             *polygon = polygon.flipped();
         }
-        result.separate_faces_that_no_longer_touch();
+        result.separate_faces_that_no_longer_touch(next);
         result
     }
 }

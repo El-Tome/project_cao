@@ -31,7 +31,16 @@ pub struct Body {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
     Exact(Exact),
-    Flats(Mesh),
+    Flats(Flats),
+}
+
+/// Flat pieces, and the number the next face made is given: every number a
+/// step named stands below it, kept or not, as in an exact body, so that a
+/// part going to the flats never gives a number twice.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+struct Flats {
+    mesh: Mesh,
+    next: usize,
 }
 
 impl Default for Body {
@@ -82,7 +91,7 @@ impl Body {
             |point| frame.at(point),
             travel,
         );
-        Ok(Body::of_flats(mesh))
+        Ok(Body::raised_flats(mesh))
     }
 
     /// A flat area turned about an axis lying in its own plane, or `None` when
@@ -106,7 +115,7 @@ impl Body {
             axis_direction,
             turn,
         )?;
-        Some(Body::of_flats(mesh))
+        Some(Body::raised_flats(mesh))
     }
 
     /// Everything that is in either body.
@@ -115,7 +124,7 @@ impl Body {
             (Matter::Exact(first), Matter::Exact(second)) => {
                 Ok(Body::of_exact(first.joined(second)?))
             }
-            _ => Ok(Body::of_flats(self.as_flats().union(&other.as_flats()))),
+            _ => Ok(self.on_flats(other, Mesh::union_counted)),
         }
     }
 
@@ -125,22 +134,20 @@ impl Body {
             (Matter::Exact(first), Matter::Exact(second)) => {
                 Ok(Body::of_exact(first.cut_by(second)?))
             }
-            _ => Ok(Body::of_flats(
-                self.as_flats().difference(&other.as_flats()),
-            )),
+            _ => Ok(self.on_flats(other, Mesh::difference_counted)),
         }
     }
 
     /// What is left of the body behind a plane, left open where the plane
     /// went through: a way of looking inside rather than of taking matter away.
     pub fn behind(&self, normal: DVec3, offset: f64) -> Body {
-        Body::of_flats(self.as_flats().behind(normal, offset))
+        Body::of_flats(self.as_flats().behind(normal, offset), self.faces_end())
     }
 
     pub fn is_empty(&self) -> bool {
         match &self.matter {
             Matter::Exact(exact) => exact.is_empty(),
-            Matter::Flats(mesh) => mesh.is_empty(),
+            Matter::Flats(flats) => flats.mesh.is_empty(),
         }
     }
 
@@ -148,7 +155,7 @@ impl Body {
     pub fn triangles(&self) -> Vec<[DVec3; 3]> {
         match &self.matter {
             Matter::Exact(exact) => exact.drawn().triangles.clone(),
-            Matter::Flats(mesh) => mesh.triangles(),
+            Matter::Flats(flats) => flats.mesh.triangles(),
         }
     }
 
@@ -156,8 +163,8 @@ impl Body {
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
         match &self.matter {
             Matter::Exact(exact) => exact.ray_hit(origin, direction),
-            Matter::Flats(mesh) => {
-                let hit = mesh.ray_hit(origin, direction)?;
+            Matter::Flats(flats) => {
+                let hit = flats.mesh.ray_hit(origin, direction)?;
                 Some(FaceHit {
                     distance: hit.distance,
                     face: hit.polygon.face,
@@ -172,7 +179,7 @@ impl Body {
     pub fn faces_end(&self) -> usize {
         match &self.matter {
             Matter::Exact(exact) => exact.faces_end(),
-            Matter::Flats(mesh) => mesh.faces_end(),
+            Matter::Flats(flats) => flats.next,
         }
     }
 
@@ -191,7 +198,7 @@ impl Body {
     pub fn has_face(&self, face: usize) -> bool {
         match &self.matter {
             Matter::Exact(exact) => exact.has_face(face),
-            Matter::Flats(mesh) => mesh.pieces_of(face).next().is_some(),
+            Matter::Flats(flats) => flats.mesh.pieces_of(face).next().is_some(),
         }
     }
 
@@ -201,7 +208,9 @@ impl Body {
     pub fn triangles_of(&self, face: usize) -> Box<dyn Iterator<Item = [DVec3; 3]> + '_> {
         match &self.matter {
             Matter::Exact(exact) => Box::new(exact.triangles_of(face)),
-            Matter::Flats(mesh) => Box::new(mesh.pieces_of(face).flat_map(Polygon::triangles)),
+            Matter::Flats(flats) => {
+                Box::new(flats.mesh.pieces_of(face).flat_map(Polygon::triangles))
+            }
         }
     }
 
@@ -209,7 +218,7 @@ impl Body {
     pub fn is_flat(&self, face: usize) -> bool {
         match &self.matter {
             Matter::Exact(exact) => exact.is_flat(face),
-            Matter::Flats(mesh) => mesh.is_flat(face),
+            Matter::Flats(flats) => flats.mesh.is_flat(face),
         }
     }
 
@@ -220,7 +229,7 @@ impl Body {
     pub fn plane_of(&self, face: usize) -> Option<FacePlane> {
         match &self.matter {
             Matter::Exact(exact) => exact.plane_of(face),
-            Matter::Flats(mesh) => {
+            Matter::Flats(Flats { mesh, .. }) => {
                 let normal = mesh.pieces_of(face).next()?.normal();
                 let corners = mesh
                     .pieces_of(face)
@@ -235,7 +244,7 @@ impl Body {
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
         match &self.matter {
             Matter::Exact(exact) => exact.bounds(),
-            Matter::Flats(mesh) => mesh.bounds(),
+            Matter::Flats(flats) => flats.mesh.bounds(),
         }
     }
 
@@ -243,7 +252,7 @@ impl Body {
     pub fn volume(&self) -> f64 {
         match &self.matter {
             Matter::Exact(exact) => exact.volume(),
-            Matter::Flats(mesh) => mesh.volume(),
+            Matter::Flats(flats) => flats.mesh.volume(),
         }
     }
 
@@ -253,10 +262,30 @@ impl Body {
         }
     }
 
-    fn of_flats(mesh: Mesh) -> Body {
+    fn of_flats(mesh: Mesh, next: usize) -> Body {
         Body {
-            matter: Matter::Flats(mesh),
+            matter: Matter::Flats(Flats { mesh, next }),
         }
+    }
+
+    /// A tool the flats raised, its faces counted by the numbers they hold.
+    fn raised_flats(mesh: Mesh) -> Body {
+        let next = mesh.faces_end();
+        Body::of_flats(mesh, next)
+    }
+
+    /// The two bodies combined as flats, the other's faces numbered past
+    /// every number this one gave, and the count past every number either
+    /// gave.
+    fn on_flats(
+        &self,
+        other: &Body,
+        operation: fn(&Mesh, &Mesh, usize, &mut usize) -> Mesh,
+    ) -> Body {
+        let floor = self.faces_end();
+        let mut next = floor + other.faces_end();
+        let mesh = operation(&self.as_flats(), &other.as_flats(), floor, &mut next);
+        Body::of_flats(mesh, next)
     }
 
     /// The body as flat pieces: its own when it is made of them, the
@@ -264,7 +293,7 @@ impl Body {
     fn as_flats(&self) -> Cow<'_, Mesh> {
         match &self.matter {
             Matter::Exact(exact) => Cow::Owned(exact.flats()),
-            Matter::Flats(mesh) => Cow::Borrowed(mesh),
+            Matter::Flats(flats) => Cow::Borrowed(&flats.mesh),
         }
     }
 }

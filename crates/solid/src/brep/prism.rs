@@ -12,11 +12,15 @@ use super::curve::Circle;
 use super::scale::Scale;
 use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame, Run};
-use piece::Piece;
+use piece::Named;
 
 /// How far off its plane's normal a travel may lean, relative to its length,
 /// and still be taken as square to the plane.
 const SQUARE: f64 = 1e-12;
+
+/// The number of the wall of a profile's first run: nought names the floor,
+/// on the profile's plane, and one the top.
+const WALLS: u32 = 2;
 
 impl Body {
     /// A profile pushed along `travel`, which must stand square to its plane.
@@ -24,6 +28,11 @@ impl Body {
     /// The outline is turned anticlockwise and the holes clockwise about the
     /// travel whatever way they were drawn, so that a profile raised backwards
     /// is the same solid as the one raised forwards from the far end.
+    ///
+    /// The floor, on the profile's plane, is numbered nought and the top one,
+    /// whichever way the travel goes; each wall is numbered two more than the
+    /// rank of its run, the outline's runs first and then each hole's, and a
+    /// wall several runs make answers to each of their numbers.
     pub fn raised(
         outline: &Contour,
         holes: &[Contour],
@@ -54,19 +63,23 @@ impl Body {
         let lift = lifted.normal() * height.abs() / normal.length_squared();
         let scale = Scale::of(reach(outline, holes, frame, lift));
         let eps = scale.eps();
-        let read = |contour: &Contour, anticlockwise: bool| -> Result<Vec<Piece>, Declined> {
-            let mut pieces = piece::pieces(contour, eps)?;
+        let read = |contour: &Contour, first: u32, anticlockwise: bool| {
+            let mut pieces = piece::pieces(contour, first, eps)?;
             if backwards {
-                pieces = pieces.iter().map(Piece::mirrored).collect();
+                pieces = pieces.iter().map(Named::mirrored).collect();
             }
             if piece::signed_area(&pieces).abs() <= eps * scale.reach() {
                 return Err(Declined::Profile);
             }
             Ok(piece::turned(pieces, anticlockwise))
         };
-        let mut contours = vec![read(outline, true)?];
-        for hole in holes {
-            contours.push(read(hole, false)?);
+        let mut first = WALLS;
+        let mut contours = Vec::with_capacity(1 + holes.len());
+        for (contour, anticlockwise) in
+            std::iter::once((outline, true)).chain(holes.iter().map(|hole| (hole, false)))
+        {
+            contours.push(read(contour, first, anticlockwise)?);
+            first += contour.runs.len() as u32;
         }
         if !piece::apart(&contours, eps) {
             return Err(Declined::Profile);

@@ -233,6 +233,7 @@ impl Build {
             surface,
             flipped,
             loops,
+            numbers: Vec::new(),
         });
         FaceId(self.body.faces.len() as u32 - 1)
     }

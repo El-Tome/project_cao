@@ -1,12 +1,14 @@
 //! A contour read into the pieces its walls stand on: one per line and one per
 //! circle, so that two runs on one line make one wall and a whole circle made
-//! of two halves makes a ring.
+//! of two halves makes a ring. Each piece carries the numbers of the runs it
+//! was read from, which name its wall.
 
 use std::f64::consts::TAU;
 
 use glam::DVec2;
 
 use crate::brep::Declined;
+use crate::brep::topology::ascending;
 use crate::profile::{Contour, Run};
 
 /// How many roundings of its radius a point of a circle carries once it is
@@ -29,6 +31,30 @@ pub(super) enum Piece {
         radius: f64,
         sweep: f64,
     },
+}
+
+/// A piece, and the numbers of the walls of the runs merged into it,
+/// ascending.
+#[derive(Clone, Debug, PartialEq)]
+pub(super) struct Named {
+    pub piece: Piece,
+    pub numbers: Vec<u32>,
+}
+
+impl Named {
+    pub(super) fn mirrored(&self) -> Named {
+        Named {
+            piece: self.piece.mirrored(),
+            numbers: self.numbers.clone(),
+        }
+    }
+
+    fn reversed(&self) -> Named {
+        Named {
+            piece: self.piece.reversed(),
+            numbers: self.numbers.clone(),
+        }
+    }
 }
 
 impl Piece {
@@ -104,8 +130,9 @@ impl Piece {
     }
 }
 
-/// The pieces of a contour, runs on one line or one circle merged.
-pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined> {
+/// The pieces of a contour, runs on one line or one circle merged; the run
+/// of rank `k` numbered `first + k`.
+pub(super) fn pieces(contour: &Contour, first: u32, eps: f64) -> Result<Vec<Named>, Declined> {
     let count = contour.corners.len();
     if count == 0 || contour.runs.len() != count {
         return Err(Declined::Profile);
@@ -118,7 +145,7 @@ pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined
             contour.runs[index],
             eps,
         )?;
-        let piece = (piece, Vec::new());
+        let piece = (piece, Vec::new(), vec![first + index as u32]);
         let whole = match merged.last() {
             Some(last) => fused(last, &piece, eps)?,
             None => None,
@@ -135,12 +162,16 @@ pub(super) fn pieces(contour: &Contour, eps: f64) -> Result<Vec<Piece>, Declined
         merged[0] = whole;
         merged.pop();
     }
-    closed(merged.into_iter().map(|(piece, _)| piece).collect(), eps)
+    let named = merged.into_iter().map(|(piece, _, numbers)| Named {
+        piece,
+        numbers: ascending(numbers),
+    });
+    closed(named.collect(), eps)
 }
 
-/// A piece, and the corners of its contour that merging took away from
-/// inside it.
-type Taken = (Piece, Vec<DVec2>);
+/// A piece, the corners of its contour that merging took away from inside
+/// it, and the numbers of the runs merged into it.
+type Taken = (Piece, Vec<DVec2>, Vec<u32>);
 
 /// Two consecutive pieces as one, when `joined` makes them one and every
 /// corner the merge takes away still lies on it: checked against the whole
@@ -158,7 +189,8 @@ fn fused(first: &Taken, second: &Taken, eps: f64) -> Result<Option<Taken>, Decli
         .chain(second.1.iter().copied())
         .collect();
     let holds = inner.iter().all(|corner| whole.holds(*corner, eps));
-    Ok(holds.then_some((whole, inner)))
+    let numbers = first.2.iter().chain(&second.2).copied().collect();
+    Ok(holds.then_some((whole, inner, numbers)))
 }
 
 /// Every check below is written as what must hold, so that a number which
@@ -253,8 +285,14 @@ fn joined(first: &Piece, second: &Piece, eps: f64) -> Result<Option<Piece>, Decl
 }
 
 /// The merged pieces, a lone circle made a ring of exactly one turn.
-fn closed(mut pieces: Vec<Piece>, eps: f64) -> Result<Vec<Piece>, Declined> {
-    if let [Piece::Arc { radius, sweep, .. }] = pieces.as_mut_slice() {
+fn closed(mut pieces: Vec<Named>, eps: f64) -> Result<Vec<Named>, Declined> {
+    if let [
+        Named {
+            piece: Piece::Arc { radius, sweep, .. },
+            ..
+        },
+    ] = pieces.as_mut_slice()
+    {
         if *radius * (sweep.abs() - TAU).abs() > eps {
             return Err(Declined::Profile);
         }
@@ -270,12 +308,12 @@ fn closed(mut pieces: Vec<Piece>, eps: f64) -> Result<Vec<Piece>, Declined> {
 /// Whether every corner of a profile stands apart from every other: a loop
 /// passing twice through one corner, or a hole touching the outline there,
 /// would make two vertices of one point. A ring has no corner.
-pub(super) fn apart(contours: &[Vec<Piece>], eps: f64) -> bool {
+pub(super) fn apart(contours: &[Vec<Named>], eps: f64) -> bool {
     let mut corners: Vec<DVec2> = contours
         .iter()
-        .filter(|pieces| !matches!(pieces.as_slice(), [ring] if ring.is_ring()))
+        .filter(|pieces| !matches!(pieces.as_slice(), [ring] if ring.piece.is_ring()))
         .flatten()
-        .map(Piece::from)
+        .map(|named| named.piece.from())
         .collect();
     corners.sort_by(|one, other| one.x.total_cmp(&other.x));
     corners.iter().enumerate().all(|(rank, corner)| {
@@ -288,10 +326,10 @@ pub(super) fn apart(contours: &[Vec<Piece>], eps: f64) -> bool {
 
 /// The area a loop of pieces encloses, positive when it turns anticlockwise:
 /// the shoelace over the chords, and the segment each arc adds to its chord.
-pub(super) fn signed_area(pieces: &[Piece]) -> f64 {
+pub(super) fn signed_area(pieces: &[Named]) -> f64 {
     pieces
         .iter()
-        .map(|piece| {
+        .map(|Named { piece, .. }| {
             let chord = piece.from().perp_dot(piece.to()) / 2.0;
             match *piece {
                 Piece::Straight { .. } => chord,
@@ -304,10 +342,10 @@ pub(super) fn signed_area(pieces: &[Piece]) -> f64 {
 }
 
 /// The pieces turned the way `anticlockwise` asks.
-pub(super) fn turned(pieces: Vec<Piece>, anticlockwise: bool) -> Vec<Piece> {
+pub(super) fn turned(pieces: Vec<Named>, anticlockwise: bool) -> Vec<Named> {
     if (signed_area(&pieces) > 0.0) == anticlockwise {
         pieces
     } else {
-        pieces.iter().rev().map(Piece::reversed).collect()
+        pieces.iter().rev().map(Named::reversed).collect()
     }
 }

@@ -17,7 +17,7 @@
 use std::collections::BTreeMap;
 
 use crate::brep::curve::Curve;
-use crate::brep::topology::{Coedge, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
+use crate::brep::topology::{Coedge, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId, ascending};
 
 /// A use of an edge: the face, the loop, the rank in the loop.
 type Use = (usize, usize, usize);
@@ -154,10 +154,16 @@ fn traced(faces: &[Face], members: &[usize], twin: &BTreeMap<Use, Use>) -> Optio
         }
         loops.push(lap);
     }
+    let numbers = ascending(
+        members
+            .iter()
+            .flat_map(|&face| faces[face].numbers.iter().copied()),
+    );
     Some(Face {
         surface: first.surface,
         flipped: first.flipped,
         loops,
+        numbers,
     })
 }
 

@@ -20,6 +20,7 @@ use glam::DVec3;
 mod campaign;
 mod closed;
 mod crossing;
+mod listed;
 mod measure;
 mod random;
 mod shrinking;
@@ -27,6 +28,7 @@ mod shrinking;
 pub use campaign::{Check, Finding, Report, answer, campaign};
 pub use closed::closed;
 pub use crossing::uncrossed;
+pub use listed::{Mislisted, listed};
 pub use measure::{Along, Lines, Spans, enclosed};
 pub use random::Random;
 pub use shrinking::shrink;
@@ -56,6 +58,11 @@ pub enum Rule {
     Undone,
     /// The kernel came back at all, rather than ending the program.
     Answers,
+    /// What a body lists itself as made of stands on its geometry.
+    Listed,
+    /// The exact body, before any triangle, encloses along every line what
+    /// arithmetic promised.
+    Spans,
 }
 
 /// A rule a solid broke, and where — enough for somebody to go and look.
@@ -90,6 +97,11 @@ pub enum Flaw {
     NotUndone { at: usize },
     /// The kernel gave no answer at all.
     NoAnswer(Silence),
+    /// A body's listing of its faces, edges and vertices does not hold.
+    Mislisted(Mislisted),
+    /// The exact body encloses along a line other than what arithmetic
+    /// promised: the kernel's own answer is wrong, whatever its triangles.
+    Spans(Along),
 }
 
 /// How a kernel failed to answer.
@@ -125,7 +137,15 @@ impl Flaw {
             Flaw::Unrepeatable { .. } => Rule::Repeatable,
             Flaw::NotUndone { .. } => Rule::Undone,
             Flaw::NoAnswer(_) => Rule::Answers,
+            Flaw::Mislisted(_) => Rule::Listed,
+            Flaw::Spans(_) => Rule::Spans,
         }
+    }
+}
+
+impl From<Mislisted> for Flaw {
+    fn from(mislisted: Mislisted) -> Flaw {
+        Flaw::Mislisted(mislisted)
     }
 }
 

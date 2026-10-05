@@ -145,14 +145,26 @@ What it does: [`sketch.md`](sketch.md).
 | Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
-| The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign` |
+| The exact kernel of #498: a body of planes and cylinders, raised from a profile of straight runs and arcs, joined and cut exactly — beside the flats, not yet behind `Body`, and refused above `cao_solid` by `the_exact_kernel_stays_behind_the_body` ([`exact-kernel.md`](exact-kernel.md)) | `solid/src/brep.rs` and `brep/` | `brep::Body::raised`, `joined`, `cut_by` → `Result<_, Declined>`, `triangles`, `volume`, `listing` → `Listing`, `crossings_along`, `winding` |
+| The profile a kernel is handed: loops of straight runs and arcs, and the frame they stand in | `solid/src/profile.rs` | `Contour`, `Run`, `Frame` |
+| How two surfaces of the exact kernel meet, decided once | `solid/src/brep/relation.rs`, `brep/meet.rs`, `brep/canonical/` | `relation`, `crossings`, `Meeting` |
+| Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
+| The exact kernel's triangles, every edge sampled once | `solid/src/brep/tessellation.rs` and `tessellation/` | `Body::triangles(tolerance)` |
+| The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
 | A campaign over random solids | `solid/tests/every_solid_keeps_its_rules.rs` | `a_campaign_of_random_solids_keeps_every_rule` |
 | A campaign over random parts, every gesture undone | `part/tests/an_undo_gives_back_the_part.rs` | `undoes` |
 | What the campaigns found, waiting on their issues | `solid/tests/what_random_solids_found.rs` | `#[ignore = "#n"]` |
+| #498's eighteen rows, the flats beside the exact kernel and OpenCascade as #447 quoted it | `solid/tests/a_bored_cylinder_on_two_kernels.rs` | `a_bored_cylinder_on_two_kernels` |
+| The sixteen cases on the exact kernel, each counted by hand | `solid/tests/the_exact_kernel_joins_and_cuts.rs` | |
+| Random solids on the exact kernel, held to the arithmetic along every line | `solid/tests/random_exact_solids.rs`, `solid/tests/random_solids/{along,arithmetic,kernels,outlines}.rs` | `Kernel`, `Exact`, `Flats`, `held_to_arithmetic`; the campaigns under `--ignored` |
+| What the exact campaigns found, in the kernel and in its triangles, and the band where a third surface crosses two that touch | `solid/tests/what_the_exact_campaigns_found_in_the_kernel.rs`, `what_the_exact_campaigns_found_in_the_triangles.rs`, `the_tangency_band.rs` | `#[ignore = "…"]` for what still fails |
 
-What it does: [`extrusion.md`](extrusion.md), and for the rules and the
-campaigns [`soundness.md`](soundness.md).
+What it does: [`extrusion.md`](extrusion.md), for the rules and the
+campaigns [`soundness.md`](soundness.md), and for the exact kernel
+[`exact-kernel.md`](exact-kernel.md), with its journal
+[`exact-kernel-journal.md`](exact-kernel-journal.md) and what its campaigns
+found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 
 ## History and persistence — `cao_part`
 

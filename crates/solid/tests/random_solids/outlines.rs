@@ -1,0 +1,208 @@
+//! The outlines made of straight runs and arcs — a rectangle with rounded
+//! corners and a slot — as the one contour both kernels are handed: the exact
+//! kernel raises it as it is, and the flats are sampled from it the way the
+//! application samples an arc. And the same outlines as the rectangles and
+//! discs they are the union of, which is what a line is measured against.
+
+use std::f64::consts::{FRAC_PI_2, PI, TAU};
+
+use cao_solid::profile::{Contour, Run};
+use glam::DVec2;
+
+use super::{CIRCLE_STEPS, Outline};
+
+/// How much longer than its two corners a side of a rounded rectangle must
+/// be, as a fraction of its length, to keep a straight run: a few thousand
+/// roundings, and a thousand times under the finest hair a case is drawn
+/// with.
+const ROUNDING: f64 = 1e-12;
+
+/// Rectangles and discs whose union is an outline.
+pub struct Pieces {
+    pub rectangles: Vec<Band>,
+    /// Each a centre and a radius.
+    pub discs: Vec<(DVec2, f64)>,
+}
+
+/// A rectangle from its low corner to its high one whose sides square to the
+/// axis `walled` lie on the outline. The other pair runs inside it, from one
+/// arc's centre to another's, unless the arcs have shrunk to nothing.
+#[derive(Clone, Copy)]
+pub struct Band {
+    pub low: DVec2,
+    pub high: DVec2,
+    pub walled: usize,
+}
+
+impl Outline {
+    /// The contour of a rounded rectangle or a slot, anticlockwise, every arc
+    /// tangent to the straight runs either side of it: `None` for any other
+    /// outline.
+    pub fn contour(&self) -> Option<Contour> {
+        match *self {
+            Outline::Rounded { low, high, radius } => Some(rounded(low, high, radius)),
+            Outline::Slot { from, to, radius } => Some(slot(from, to, radius)),
+            _ => None,
+        }
+    }
+
+    /// The pieces of a rounded rectangle or a slot grown by `by` all round,
+    /// or shrunk when `by` is negative: `None` for any other outline.
+    ///
+    /// Both are exact either way. A rounded rectangle grown keeps the centres
+    /// of its corners and takes `by` on their radius; shrunk past its radius
+    /// it is the rectangle with square corners inside it. A slot keeps its
+    /// two centres, and shrunk past its radius is nothing.
+    pub fn pieces(&self, by: f64) -> Option<Pieces> {
+        match *self {
+            Outline::Rounded { low, high, radius } => {
+                let (low, high, radius) = (low - by, high + by, (radius + by).max(0.0));
+                let (near, far) = (low + radius, high - radius);
+                Some(Pieces {
+                    rectangles: vec![
+                        Band {
+                            low: near.with_y(low.y),
+                            high: far.with_y(high.y),
+                            walled: 1,
+                        },
+                        Band {
+                            low: low.with_y(near.y),
+                            high: high.with_y(far.y),
+                            walled: 0,
+                        },
+                    ],
+                    discs: [near, far.with_y(near.y), far, near.with_y(far.y)]
+                        .map(|center| (center, radius))
+                        .to_vec(),
+                })
+            }
+            Outline::Slot { from, to, radius } => {
+                let radius = radius + by;
+                let walled = if from.y == to.y { 1 } else { 0 };
+                let across = DVec2::AXES[walled] * radius;
+                Some(Pieces {
+                    rectangles: vec![Band {
+                        low: from.min(to) - across,
+                        high: from.max(to) + across,
+                        walled,
+                    }],
+                    discs: vec![(from, radius), (to, radius)],
+                })
+            }
+            _ => None,
+        }
+    }
+}
+
+/// The four sides from the bottom one round, each a straight run and the
+/// quarter circle that turns into the next. A side no longer than the two
+/// quarters at its ends take up has no straight run left — nor one longer by
+/// a rounding of its corners, which a radius drawn as half a side can leave
+/// once the side has been moved by a hair.
+fn rounded(low: DVec2, high: DVec2, radius: f64) -> Contour {
+    let (near, far) = (low + radius, high - radius);
+    let size = high - low;
+    let sides = [
+        (
+            DVec2::new(near.x, low.y),
+            DVec2::new(far.x, low.y),
+            far.with_y(near.y),
+            size.x,
+        ),
+        (
+            DVec2::new(high.x, near.y),
+            DVec2::new(high.x, far.y),
+            far,
+            size.y,
+        ),
+        (
+            DVec2::new(far.x, high.y),
+            DVec2::new(near.x, high.y),
+            near.with_y(far.y),
+            size.x,
+        ),
+        (
+            DVec2::new(low.x, far.y),
+            DVec2::new(low.x, near.y),
+            near,
+            size.y,
+        ),
+    ];
+    let mut contour = Contour {
+        corners: Vec::new(),
+        runs: Vec::new(),
+    };
+    for (start, end, center, length) in sides {
+        if length - 2.0 * radius > ROUNDING * length {
+            contour.corners.push(start);
+            contour.runs.push(Run::Straight);
+        }
+        contour.corners.push(end);
+        contour.runs.push(Run::Round {
+            center,
+            turn: FRAC_PI_2,
+        });
+    }
+    contour
+}
+
+/// Along the side to the right of the way from `from` to `to`, round the
+/// half circle about `to`, back along the other side and round the half
+/// circle about `from`.
+fn slot(from: DVec2, to: DVec2, radius: f64) -> Contour {
+    let side = (to - from).normalize().perp() * radius;
+    Contour {
+        corners: vec![from - side, to - side, to + side, from + side],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: to,
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Round {
+                center: from,
+                turn: PI,
+            },
+        ],
+    }
+}
+
+/// The corners of the flats a contour is sampled into, and the curve each
+/// flat from a corner to the next was sampled from: an arc takes its share
+/// of the steps a whole circle is cut into, as the application cuts it, and
+/// arcs of one circle are one curve.
+pub fn sampled(contour: &Contour) -> (Vec<DVec2>, Vec<Option<usize>>) {
+    let mut corners = Vec::new();
+    let mut curves = Vec::new();
+    let mut circles: Vec<(DVec2, f64)> = Vec::new();
+    for (&corner, &run) in contour.corners.iter().zip(&contour.runs) {
+        match run {
+            Run::Straight => {
+                corners.push(corner);
+                curves.push(None);
+            }
+            Run::Round { center, turn } => {
+                let radius = corner.distance(center);
+                let curve = circles
+                    .iter()
+                    .position(|&circle| circle == (center, radius))
+                    .unwrap_or_else(|| {
+                        circles.push((center, radius));
+                        circles.len() - 1
+                    });
+                let steps = ((turn.abs() / TAU * CIRCLE_STEPS as f64).ceil() as usize).max(2);
+                for step in 0..steps {
+                    let turned = DVec2::from_angle(turn * step as f64 / steps as f64);
+                    corners.push(if step == 0 {
+                        corner
+                    } else {
+                        center + turned.rotate(corner - center)
+                    });
+                    curves.push(Some(curve));
+                }
+            }
+        }
+    }
+    (corners, curves)
+}

@@ -8,8 +8,10 @@
 
 mod body;
 mod boolean;
+pub mod brep;
 mod clipping;
 mod mesh;
+pub mod profile;
 #[cfg(any(test, feature = "test-support"))]
 pub mod soundness;
 mod sweep;

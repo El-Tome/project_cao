@@ -6,23 +6,30 @@
 
 use std::f64::consts::TAU;
 
+use cao_solid::Declined;
 use cao_solid::brep::{Body, Listing};
 use cao_solid::profile::{Contour, Frame, Profile, Run};
 use cao_solid::soundness::Triangle;
+use cao_solid::turning::Straight;
 use glam::{DVec2, DVec3};
 
-use super::{CIRCLE_STEPS, Case, Leaf, Mode, Outline};
+use super::{CIRCLE_STEPS, Case, Leaf, Mode, Outline, Turned};
 
 /// What the check held to the arithmetic asks of a kernel.
 pub trait Kernel {
     type Body: Clone;
 
-    /// The body a leaf is raised into, or `None` when the kernel declines.
-    fn raised(&self, leaf: &Leaf) -> Option<Self::Body>;
+    /// The body a leaf is raised into, or why the kernel declines.
+    fn raised(&self, leaf: &Leaf) -> Result<Self::Body, Declined>;
 
-    /// A body with a tool added to it or taken out of it, or `None` when the
-    /// kernel declines.
-    fn combined(&self, body: &Self::Body, tool: &Self::Body, mode: Mode) -> Option<Self::Body>;
+    /// A body with a tool added to it or taken out of it, or why the kernel
+    /// declines.
+    fn combined(
+        &self,
+        body: &Self::Body,
+        tool: &Self::Body,
+        mode: Mode,
+    ) -> Result<Self::Body, Declined>;
 
     /// The triangles a body is drawn with, and how far they may stand from
     /// the true surfaces it is made of.
@@ -58,17 +65,19 @@ const TESSELLATION: f64 = 1e-3;
 impl Kernel for Exact {
     type Body = Body;
 
-    fn raised(&self, leaf: &Leaf) -> Option<Body> {
-        let (contour, holes, frame, travel) = exact_prism(leaf)?;
-        Body::raised(&contour, &holes, frame, travel).ok()
+    fn raised(&self, leaf: &Leaf) -> Result<Body, Declined> {
+        if let Some(turned) = leaf.as_turned() {
+            return turned_exactly(&turned);
+        }
+        let (contour, holes, frame, travel) = exact_prism(leaf).ok_or(Declined::Profile)?;
+        Body::raised(&contour, &holes, frame, travel)
     }
 
-    fn combined(&self, body: &Body, tool: &Body, mode: Mode) -> Option<Body> {
+    fn combined(&self, body: &Body, tool: &Body, mode: Mode) -> Result<Body, Declined> {
         match mode {
             Mode::Add => body.joined(tool),
             Mode::Cut => body.cut_by(tool),
         }
-        .ok()
     }
 
     fn triangles(&self, body: &Body) -> (Vec<Triangle>, f64) {
@@ -94,18 +103,24 @@ pub struct Application;
 impl Kernel for Application {
     type Body = cao_solid::Body;
 
-    fn raised(&self, leaf: &Leaf) -> Option<cao_solid::Body> {
-        let (contour, holes, frame, travel) = exact_prism(leaf)?;
-        let profile = Profile {
-            exact: Some((contour, holes)),
-            sampled: cao_solid::Loop::straight(&[]),
-            sampled_holes: Vec::new(),
-            triangles: &[],
+    /// A turned leaf is handed over as the application hands an area, both
+    /// ways, each side of a section across its axis turned apart and the two
+    /// joined.
+    fn raised(&self, leaf: &Leaf) -> Result<cao_solid::Body, Declined> {
+        let tool = match leaf.as_turned() {
+            Some(turned) => turned.tool(true)?,
+            None => {
+                let (contour, holes, frame, travel) = exact_prism(leaf).ok_or(Declined::Profile)?;
+                let profile = Profile {
+                    exact: Some((contour, holes)),
+                    sampled: cao_solid::Loop::straight(&[]),
+                    sampled_holes: Vec::new(),
+                    triangles: &[],
+                };
+                cao_solid::Body::default().tool_raised(&profile, frame, travel)?
+            }
         };
-        let tool = cao_solid::Body::default()
-            .tool_raised(&profile, frame, travel)
-            .ok()?;
-        cao_solid::Body::default().union(&tool).ok()
+        cao_solid::Body::default().union(&tool)
     }
 
     fn combined(
@@ -113,12 +128,11 @@ impl Kernel for Application {
         body: &cao_solid::Body,
         tool: &cao_solid::Body,
         mode: Mode,
-    ) -> Option<cao_solid::Body> {
+    ) -> Result<cao_solid::Body, Declined> {
         match mode {
             Mode::Add => body.union(tool),
             Mode::Cut => body.difference(tool),
         }
-        .ok()
     }
 
     /// The triangles the application draws, held to the room the exact
@@ -175,6 +189,21 @@ fn exact_prism(leaf: &Leaf) -> Option<(Contour, Vec<Contour>, Frame, DVec3)> {
     ))
 }
 
+/// A turned leaf as the exact kernel turns it: each side of the section laid
+/// square to its axis at no drawing's resolution, turned, and the two sides
+/// joined.
+fn turned_exactly(turned: &Turned) -> Result<Body, Declined> {
+    let (frame, turn) = (turned.frame(), turned.turn(0.0));
+    let mut sides = turned.drawn().into_iter().map(|side| {
+        let (outline, holes) = side.contours();
+        let straight =
+            Straight::of(&outline, &holes, frame, &turn, 0.0).ok_or(Declined::Profile)?;
+        Body::turned(&straight, frame, &turn)
+    });
+    let first = sides.next().ok_or(Declined::Profile)??;
+    sides.try_fold(first, |joined, side| joined.joined(&side?))
+}
+
 /// A whole circle as one run round from a single corner, at `from` degrees.
 pub fn whole_circle(center: DVec2, radius: f64, from: f64) -> Contour {
     Contour {
@@ -194,6 +223,10 @@ pub struct Flats {
 /// curves, as a fraction of the reach: the room the harness's own lines of
 /// measure leave them.
 const ALONG_A_LINE: f64 = 1e-6;
+
+/// How many flats the flats lay round a whole turn, at most: a partial turn
+/// takes its share of them, never fewer than three.
+const TURN_STEPS: f64 = 64.0;
 
 impl Flats {
     pub fn for_case(case: &Case) -> Flats {
@@ -221,6 +254,13 @@ impl Flats {
             })
             .map(|radius| radius * (1.0 - (std::f64::consts::PI / CIRCLE_STEPS as f64).cos()))
             .fold(0.0, f64::max);
+        let turned = case
+            .leaves()
+            .filter_map(Leaf::as_turned)
+            .flat_map(|turned| turned.section.pieces())
+            .map(|piece| piece.away[1] * (1.0 - (std::f64::consts::PI / TURN_STEPS).cos()))
+            .fold(0.0, f64::max);
+        let sagitta = sagitta.max(turned);
         Flats {
             tolerance: sagitta.max(ALONG_A_LINE * reach),
         }
@@ -230,8 +270,8 @@ impl Flats {
 impl Kernel for Flats {
     type Body = cao_solid::Body;
 
-    fn raised(&self, leaf: &Leaf) -> Option<cao_solid::Body> {
-        leaf.solid()
+    fn raised(&self, leaf: &Leaf) -> Result<cao_solid::Body, Declined> {
+        leaf.solid().ok_or(Declined::Profile)
     }
 
     fn combined(
@@ -239,12 +279,11 @@ impl Kernel for Flats {
         body: &cao_solid::Body,
         tool: &cao_solid::Body,
         mode: Mode,
-    ) -> Option<cao_solid::Body> {
+    ) -> Result<cao_solid::Body, Declined> {
         match mode {
             Mode::Add => body.union(tool),
             Mode::Cut => body.difference(tool),
         }
-        .ok()
     }
 
     fn triangles(&self, body: &cao_solid::Body) -> (Vec<Triangle>, f64) {

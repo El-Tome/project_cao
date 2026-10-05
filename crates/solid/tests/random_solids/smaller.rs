@@ -7,7 +7,7 @@
 
 use glam::{DVec2, DVec3};
 
-use super::{Case, Leaf, Mode, Outline, Plane, Step};
+use super::{Axis, Case, Leaf, Mode, Outline, Plane, Section, Step};
 
 impl Case {
     pub fn smaller(&self) -> Vec<Case> {
@@ -96,6 +96,32 @@ impl Leaf {
                         rounded_point(*high, step),
                         *degrees,
                     ));
+                }
+            }
+            Leaf::Turned {
+                plane,
+                axis,
+                section,
+                degrees,
+            } => {
+                let turned = Leaf::turned;
+                for plane in plane.simpler() {
+                    simpler.push(turned(plane, *axis, section.clone(), *degrees));
+                }
+                for axis in axis.simpler() {
+                    simpler.push(turned(*plane, axis, section.clone(), *degrees));
+                }
+                let quarters = (degrees / 90.0).round();
+                let quarter = if quarters == 0.0 {
+                    90.0f64.copysign(*degrees)
+                } else {
+                    quarters * 90.0
+                };
+                for degrees in [360.0, quarter, degrees.abs()] {
+                    simpler.push(turned(*plane, *axis, section.clone(), degrees));
+                }
+                for section in section.simpler() {
+                    simpler.push(turned(*plane, *axis, section, *degrees));
                 }
             }
         }
@@ -251,6 +277,96 @@ impl Outline {
                 }
             }
         }
+        simpler
+    }
+}
+
+impl Axis {
+    /// The sketch's own axis, run forwards and leaning off nothing, and the
+    /// line moved onto round numbers.
+    fn simpler(&self) -> Vec<Axis> {
+        let mut simpler = vec![
+            Axis {
+                across: 0.0,
+                ..*self
+            },
+            Axis {
+                backwards: false,
+                ..*self
+            },
+            Axis { lean: 0.0, ..*self },
+        ];
+        for step in [1.0, 0.5] {
+            simpler.push(Axis {
+                across: rounded(self.across, step),
+                ..*self
+            });
+        }
+        simpler.retain(|candidate| candidate != self);
+        simpler
+    }
+}
+
+impl Section {
+    /// The section with a band or a hole fewer, its edges nearest the axis
+    /// laid on it, gathered into the one band that bounds it, and on round
+    /// numbers.
+    fn simpler(&self) -> Vec<Section> {
+        let mut simpler = Vec::new();
+        if self.bands.len() > 1 {
+            for index in 0..self.bands.len() {
+                let mut fewer = self.clone();
+                fewer.bands.remove(index);
+                simpler.push(fewer);
+            }
+        }
+        for index in 0..self.holes.len() {
+            let mut fewer = self.clone();
+            fewer.holes.remove(index);
+            simpler.push(fewer);
+        }
+        let mut on_the_axis = self.clone();
+        let nearest = match self.side() {
+            Some(side) if side > 0.0 => Some(1),
+            Some(_) => Some(2),
+            None => None,
+        };
+        if let Some(nearest) = nearest {
+            for band in &mut on_the_axis.bands {
+                band[nearest] = 0.0;
+            }
+            simpler.push(on_the_axis);
+        }
+        if self.bands.len() > 1 || !self.holes.is_empty() {
+            let length = self.bands.iter().map(|band| band[0]).sum();
+            let low = self
+                .bands
+                .iter()
+                .map(|band| band[1])
+                .fold(f64::MAX, f64::min);
+            let high = self
+                .bands
+                .iter()
+                .map(|band| band[2])
+                .fold(f64::MIN, f64::max);
+            simpler.push(Section::bands(self.from, &[[length, low, high]]));
+        }
+        for step in [1.0, 0.5] {
+            simpler.push(Section {
+                from: rounded(self.from, step),
+                bands: self
+                    .bands
+                    .iter()
+                    .map(|band| band.map(|value| rounded(value, step)))
+                    .collect(),
+                holes: self
+                    .holes
+                    .iter()
+                    .map(|hole| hole.map(|corner| rounded_point(corner, step)))
+                    .collect(),
+            });
+        }
+        simpler.retain(|candidate| candidate != self);
         simpler
     }
 }

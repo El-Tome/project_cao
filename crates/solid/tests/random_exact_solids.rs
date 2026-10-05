@@ -56,6 +56,7 @@ mod random_solids;
 
 use std::cell::Cell;
 
+use cao_solid::Declined;
 use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
 use cao_solid::profile::Run;
 use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
@@ -744,7 +745,7 @@ fn a_square_case_holds_prisms_of_rectangles_and_circles_on_the_planes_of_the_ori
                     !matches!(plane, Plane::Tilted { .. })
                         && matches!(outline, Outline::Rectangle { .. } | Outline::Circle { .. })
                 }
-                Leaf::Revolution { .. } => false,
+                Leaf::Revolution { .. } | Leaf::Turned { .. } => false,
             };
             assert!(kept, "seed {seed}: {case}");
             assert!(leaf.is_solid(), "seed {seed}: {case}");
@@ -759,7 +760,7 @@ fn the_square_generator_draws_every_kind_it_keeps() {
     let seen = |what: &str, found: bool| assert!(found, "no square case drew {what}");
     let outline = |leaf: &Leaf| match leaf {
         Leaf::Prism { outline, .. } => Some(outline.clone()),
-        Leaf::Revolution { .. } => None,
+        Leaf::Revolution { .. } | Leaf::Turned { .. } => None,
     };
 
     seen(
@@ -842,7 +843,7 @@ fn the_square_generator_draws_every_kind_it_keeps() {
 fn outline_of(leaf: &Leaf) -> Option<&Outline> {
     match leaf {
         Leaf::Prism { outline, .. } => Some(outline),
-        Leaf::Revolution { .. } => None,
+        Leaf::Revolution { .. } | Leaf::Turned { .. } => None,
     }
 }
 
@@ -875,7 +876,7 @@ fn a_profile_case_holds_solid_prisms_on_the_planes_of_the_origin_alone_and_no_st
                     !matches!(plane, Plane::Tilted { .. })
                         && !matches!(outline, Outline::Star { .. })
                 }
-                Leaf::Revolution { .. } => false,
+                Leaf::Revolution { .. } | Leaf::Turned { .. } => false,
             };
             assert!(kept, "seed {seed}: {case}");
             assert!(leaf.is_solid(), "seed {seed}: {case}");
@@ -1344,10 +1345,11 @@ impl Broken {
 impl Kernel for Broken {
     type Body = cao_solid::Body;
 
-    fn raised(&self, leaf: &Leaf) -> Option<cao_solid::Body> {
-        (self.breaking != Breaking::DeclinesLeaves)
-            .then(|| self.flats.raised(leaf))
-            .flatten()
+    fn raised(&self, leaf: &Leaf) -> Result<cao_solid::Body, Declined> {
+        if self.breaking == Breaking::DeclinesLeaves {
+            return Err(Declined::Unfinished);
+        }
+        self.flats.raised(leaf)
     }
 
     fn combined(
@@ -1355,10 +1357,10 @@ impl Kernel for Broken {
         body: &cao_solid::Body,
         tool: &cao_solid::Body,
         mode: Mode,
-    ) -> Option<cao_solid::Body> {
+    ) -> Result<cao_solid::Body, Declined> {
         match (self.breaking, mode) {
-            (Breaking::ForgetsItsCuts, Mode::Cut) => Some(body.clone()),
-            (Breaking::DeclinesSteps, _) => None,
+            (Breaking::ForgetsItsCuts, Mode::Cut) => Ok(body.clone()),
+            (Breaking::DeclinesSteps, _) => Err(Declined::Unfinished),
             _ => self.flats.combined(body, tool, mode),
         }
     }
@@ -1636,22 +1638,23 @@ fn a_block_bored_across_and_given_a_boss_on_its_side_by_the_exact_kernel_keeps_e
 #[cfg(feature = "campaigns")]
 mod campaign {
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::time::{Duration, Instant, SystemTime};
+    use std::sync::atomic::Ordering;
 
-    use cao_solid::soundness::{Check, Random, Report, answer, campaign};
+    use cao_solid::soundness::Check;
+    use random_solids::campaigning::{
+        Answering, DECLINED, GRAZING, HELD, campaign_over, shrunk_one_by_one,
+    };
 
     use super::*;
 
-    /// How many lines the campaign held its cases along, and how many it left
-    /// out for grazing a curved wall.
-    static HELD: AtomicUsize = AtomicUsize::new(0);
-    static GRAZING: AtomicUsize = AtomicUsize::new(0);
-
-    fn exactly(case: &Case) -> Result<(), Flaw> {
-        let measured = random_solids::held_to_arithmetic(case, &Exact)?;
+    fn tallied(measured: random_solids::Measured) {
         HELD.fetch_add(measured.held, Ordering::Relaxed);
         GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
+    }
+
+    fn exactly(case: &Case) -> Result<(), Flaw> {
+        tallied(random_solids::held_to_arithmetic(case, &Exact)?);
         Ok(())
     }
 
@@ -1668,70 +1671,32 @@ mod campaign {
         Case::drawn_profiles(seed)
     }
 
-    fn from_the_environment(name: &str) -> Option<u64> {
-        std::env::var(name).ok()?.parse().ok()
-    }
-
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("square solids", drawn, exactly);
+        campaign_over("square solids", Answering::Exactly, drawn, exactly);
     }
 
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
-        campaign_over("profiles", drawn_profile, exactly);
+        campaign_over("profiles", Answering::Exactly, drawn_profile, exactly);
     }
 
     #[test]
     #[ignore = "a campaign, run by hand: see the head of this file"]
     fn a_campaign_of_random_profiles_through_the_application_s_body_keeps_every_rule() {
-        campaign_over("profiles", drawn_profile, through_the_application);
+        campaign_over(
+            "profiles",
+            Answering::ThroughTheApplication,
+            drawn_profile,
+            through_the_application,
+        );
     }
 
     fn through_the_application(case: &Case) -> Result<(), Flaw> {
-        let measured = random_solids::held_to_arithmetic(case, &Application)?;
-        HELD.fetch_add(measured.held, Ordering::Relaxed);
-        GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        tallied(random_solids::held_to_arithmetic(case, &Application)?);
         Ok(())
-    }
-
-    /// A campaign on the exact kernel over the cases `draw` gives, for as long as
-    /// the environment says, and its report.
-    fn campaign_over(what: &str, draw: fn(u64) -> Case, check: fn(&Case) -> Result<(), Flaw>) {
-        let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
-        let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
-            let now = SystemTime::now()
-                .duration_since(SystemTime::UNIX_EPOCH)
-                .map_or(1, |since| since.as_nanos() as u64);
-            Random::seeded(now).number() >> 16
-        });
-        let cases = from_the_environment("CAO_FUZZ_CASES").unwrap_or(u64::MAX);
-        let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-        let deadline = Instant::now() + Duration::from_secs(seconds);
-        println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
-
-        let check: Check<Case> = Arc::new(check);
-        let quiet = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        let report = campaign(
-            first..first.saturating_add(cases),
-            draw,
-            check,
-            Case::smaller,
-            patience,
-            || Instant::now() < deadline,
-        );
-        std::panic::set_hook(quiet);
-
-        print_report(&report);
-        assert!(
-            report.findings.is_empty(),
-            "{} cases of {} broke a rule",
-            report.broken.iter().map(|(_, count)| count).sum::<usize>(),
-            report.tried
-        );
     }
 
     /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
@@ -1752,64 +1717,10 @@ mod campaign {
             Ok("profiles") => Case::drawn_profiles,
             _ => Case::drawn_square,
         };
-        let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
         let check: Check<Case> = match std::env::var("CAO_TRIAGE_KERNEL").as_deref() {
             Ok("application") => Arc::new(through_the_application),
             _ => Arc::new(exactly),
         };
-        let quiet = std::panic::take_hook();
-        std::panic::set_hook(Box::new(|_| {}));
-        for seed in seeds {
-            let drawn = draw(seed);
-            let Err(flaw) = answer(drawn.clone(), &check, patience) else {
-                println!("\n── holds, seed {seed} ──");
-                continue;
-            };
-            let mut last = flaw.clone();
-            let shrunk = shrink(
-                drawn.clone(),
-                Case::smaller,
-                |candidate| match answer(candidate.clone(), &check, patience) {
-                    Err(broken) if broken.is_like(&flaw) => {
-                        last = broken;
-                        true
-                    }
-                    _ => false,
-                },
-                || true,
-            );
-            println!(
-                "\n── {:?}, seed {seed} ──\nas drawn: {flaw:?}\nshrunk:   {last:?}\n{}",
-                flaw.rule(),
-                shrunk.to_string().replace('\n', "\n    "),
-            );
-        }
-        std::panic::set_hook(quiet);
-    }
-
-    fn print_report(report: &Report<Case>) {
-        println!("{} cases tried", report.tried);
-        println!(
-            "{} lines held, {} left out for grazing a curved wall",
-            HELD.load(Ordering::Relaxed),
-            GRAZING.load(Ordering::Relaxed)
-        );
-        for (rule, count) in &report.broken {
-            println!("  {rule:?}: broken by {count}");
-        }
-        for (seed, rule) in &report.failed {
-            println!("failed {seed} {rule:?}");
-        }
-        for finding in &report.findings {
-            println!(
-                "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_on_the_exact_kernel() {{\n    random_solids::holds_exactly(&{});\n}}",
-                finding.flaw.rule(),
-                finding.seed,
-                finding.flaw,
-                finding.shrunk_flaw,
-                finding.seed,
-                finding.shrunk.to_string().replace('\n', "\n    "),
-            );
-        }
+        shrunk_one_by_one(seeds, draw, check);
     }
 }

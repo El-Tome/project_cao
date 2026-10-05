@@ -20,11 +20,12 @@
 //! leaves' own. Each leaf grown by the tolerance, less the same leaf shrunk
 //! by it, holds all of that.
 
+use cao_solid::Declined;
 use cao_solid::brep::Scale;
 use cao_solid::soundness::{
     Along, Flaw, Lines, Silence, Spans, Triangle, closed, enclosed, listed, repeatable, uncrossed,
 };
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::{Case, Crossing, Kernel, Leaf, Mode, Outline, within_reach};
 
@@ -42,11 +43,14 @@ const GRAZING: f64 = 0.05;
 const EXACTLY: f64 = 1e-6;
 
 /// How many lines a case was held along, and how many were left out for
-/// grazing a curved wall, summed over every body the case was checked at.
+/// grazing a curved wall, summed over every body the case was checked at;
+/// and how many cases the kernel declined as asking for a curve it does not
+/// build, which is no answer it owed (#533).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Measured {
     pub held: usize,
     pub grazing: usize,
+    pub declined: usize,
 }
 
 /// What a case promises along every line, one entry per leaf: where each
@@ -62,9 +66,10 @@ struct Promise {
 /// what the leaves promised, and nothing beyond the box the leaves span; and
 /// the whole case run twice, bit for bit.
 ///
-/// A leaf or a step the kernel declines is no answer. A case with a leaf that
-/// is no solid, or none this arithmetic covers — a star, a revolution —
-/// holds nothing.
+/// A leaf or a step the kernel declines is no answer, but for a case asking
+/// for an ellipse declined as unsupported, which is counted. A case with a
+/// leaf that is no solid, or none this arithmetic covers — a star — holds
+/// nothing.
 pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured, Flaw> {
     let mut measured = Measured::default();
     if !case.leaves().all(covered) {
@@ -77,7 +82,10 @@ pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured
     let lines = Lines::across(region.0, region.1, LINES);
     let promise = promise(case, &lines);
 
-    let bodies = raised(case, kernel)?;
+    let bodies = match raised(case, kernel) {
+        Ok(bodies) => bodies,
+        Err(declined) => return declined_on(case, declined, measured),
+    };
     for (leaf, body) in bodies.iter().enumerate() {
         let held = Held {
             lines: &lines,
@@ -91,9 +99,10 @@ pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured
     let mut body = bodies[0].clone();
     let mut promised = promise.spans[0].clone();
     for (index, (step, tool)) in case.steps.iter().zip(&bodies[1..]).enumerate() {
-        body = kernel
-            .combined(&body, tool, step.mode)
-            .ok_or(Flaw::NoAnswer(Silence::Refused))?;
+        body = match kernel.combined(&body, tool, step.mode) {
+            Ok(body) => body,
+            Err(declined) => return declined_on(case, declined, measured),
+        };
         promised = promised
             .iter()
             .zip(&promise.spans[index + 1])
@@ -134,14 +143,26 @@ pub fn holds_through_the_application(case: &Case) {
     }
 }
 
+/// A kernel's decline, judged: counted when the case asks for an ellipse and
+/// the kernel says it does not build one, no answer otherwise.
+fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
+    if declined == Declined::Unsupported && case.asks_for_an_ellipse() {
+        measured.declined += 1;
+        return Ok(measured);
+    }
+    Err(Flaw::NoAnswer(Silence::Refused))
+}
+
 /// Whether the arithmetic here covers a leaf: a solid prism of any outline
-/// but a star, which it can grow and shrink.
+/// but a star, which it can grow and shrink, or a solid turn.
 fn covered(leaf: &Leaf) -> bool {
     leaf.is_solid()
-        && matches!(
-            leaf,
-            Leaf::Prism { outline, .. } if !matches!(outline, Outline::Star { .. })
-        )
+        && match leaf {
+            Leaf::Prism { outline, .. } => !matches!(outline, Outline::Star { .. }),
+            Leaf::Revolution { .. } | Leaf::Turned { .. } => leaf
+                .as_turned()
+                .is_some_and(|turned| turned.section.is_solid()),
+        }
 }
 
 /// The box the leaves span, or `None` when one of them is no solid or no
@@ -181,22 +202,18 @@ fn promise(case: &Case, lines: &Lines) -> Promise {
     Promise { spans, crossings }
 }
 
-fn raised<K: Kernel>(case: &Case, kernel: &K) -> Result<Vec<K::Body>, Flaw> {
-    case.leaves()
-        .map(|leaf| kernel.raised(leaf))
-        .collect::<Option<Vec<_>>>()
-        .ok_or(Flaw::NoAnswer(Silence::Refused))
+fn raised<K: Kernel>(case: &Case, kernel: &K) -> Result<Vec<K::Body>, Declined> {
+    case.leaves().map(|leaf| kernel.raised(leaf)).collect()
 }
 
 fn replayed<K: Kernel>(case: &Case, kernel: &K) -> Result<K::Body, Flaw> {
-    let leaves = raised(case, kernel)?;
+    let refused = |_| Flaw::NoAnswer(Silence::Refused);
+    let leaves = raised(case, kernel).map_err(refused)?;
     case.steps
         .iter()
         .zip(&leaves[1..])
         .try_fold(leaves[0].clone(), |body, (step, tool)| {
-            kernel
-                .combined(&body, tool, step.mode)
-                .ok_or(Flaw::NoAnswer(Silence::Refused))
+            kernel.combined(&body, tool, step.mode).map_err(refused)
         })
 }
 
@@ -351,4 +368,67 @@ impl Held<'_> {
                 curved: false,
             })
     }
+}
+
+impl Case {
+    /// Whether the case may ask the exact kernel for a curve it does not
+    /// build (#533): a plane meeting a cylinder neither square to its axis
+    /// nor along it, an ellipse, or two cylinders whose axes are neither
+    /// parallel nor square, a skew meeting. Turned leaves bring them, with
+    /// an end that stops off the quarter turns, or an axis slanted in its
+    /// plane. The kernel may decline such a case as unsupported; it may
+    /// also hold it, the leaves never meeting there.
+    pub fn asks_for_an_ellipse(&self) -> bool {
+        let (planes, cylinders): (Vec<DVec3>, Vec<DVec3>) = self.leaves().map(walls).fold(
+            (Vec::new(), Vec::new()),
+            |(mut planes, mut cylinders), (more, round)| {
+                planes.extend(more);
+                cylinders.extend(round);
+                (planes, cylinders)
+            },
+        );
+        cylinders.iter().any(|axis| {
+            planes.iter().any(|normal| oblique(*normal, *axis))
+                || cylinders.iter().any(|other| oblique(*other, *axis))
+        })
+    }
+}
+
+/// The normals of the planes a leaf is bounded by, and the axes of its
+/// cylinders.
+fn walls(leaf: &Leaf) -> (Vec<DVec3>, Vec<DVec3>) {
+    if let Some(turned) = leaf.as_turned() {
+        let swept = turned.swept(1.0);
+        let mut planes = vec![swept.along];
+        if !turned.is_whole() {
+            let end = DVec2::from_angle(turned.angle());
+            planes.push(swept.onward);
+            planes.push(swept.onward * end.x - swept.out * end.y);
+        }
+        return (planes, vec![swept.along]);
+    }
+    let Leaf::Prism { plane, outline, .. } = leaf else {
+        return (Vec::new(), Vec::new());
+    };
+    let (_, u, v) = plane.frame();
+    let normal = u.cross(v);
+    match outline {
+        Outline::Rectangle { .. } => (vec![normal, u, v], Vec::new()),
+        Outline::Circle { .. } | Outline::Ring { .. } => (vec![normal], vec![normal]),
+        Outline::Rounded { .. } | Outline::Slot { .. } => (vec![normal, u, v], vec![normal]),
+        Outline::Star { corners, .. } => {
+            let sides = (0..corners.len()).map(|index| {
+                let side = corners[(index + 1) % corners.len()] - corners[index];
+                u * side.y - v * side.x
+            });
+            (std::iter::once(normal).chain(sides).collect(), Vec::new())
+        }
+    }
+}
+
+/// Whether two directions are neither parallel nor square to each other,
+/// by more than the rounding of a direction of unit length.
+fn oblique(one: DVec3, other: DVec3) -> bool {
+    let (one, other) = (one.normalize(), other.normalize());
+    one.dot(other).abs() > 1e-12 && one.cross(other).length() > 1e-12
 }

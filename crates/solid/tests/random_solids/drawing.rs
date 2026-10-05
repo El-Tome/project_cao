@@ -13,6 +13,8 @@ use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
+mod turns;
+
 impl Case {
     /// The case a seed stands for. The same seed always draws the same case,
     /// which is what lets a failure be named by its seed alone.
@@ -37,6 +39,32 @@ impl Case {
     /// two comparable with the ones run before this draw existed.
     pub fn drawn_profiles(seed: u64) -> Case {
         Case::drawn_among(seed, Among::Profiles)
+    }
+
+    /// The case a seed stands for among turns (#533): sections of straight
+    /// runs turned about lines of the planes of the origin, for about half
+    /// the leaves, among prisms of the profiles for the rest, half the tools
+    /// drawn from a leaf before them. None of the cases the other draws give
+    /// the same seed.
+    pub fn drawn_turned(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: false,
+            },
+        )
+    }
+
+    /// The case a seed stands for in a campaign over turns: the same draw,
+    /// and now and then an angle a hair from where a turn changes kind, or
+    /// an axis slanted in its plane or leaning off its own by a hair.
+    pub fn drawn_turned_off_the_lattice(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: true,
+            },
+        )
     }
 
     /// The case a seed stands for among some kinds of solid, by drawing among
@@ -85,6 +113,9 @@ enum Among {
     /// Prisms on the planes of the origin of rectangles, circles, rectangles
     /// with rounded corners, slots and rings.
     Profiles,
+    /// Turned sections and the prisms of the profiles, on the planes of the
+    /// origin; past the gate's lattice in a campaign.
+    Turned { off_the_lattice: bool },
 }
 
 struct Drawing {
@@ -176,7 +207,7 @@ impl Drawing {
         let kinds = match self.among {
             Among::Every => 20,
             Among::Square => 15,
-            Among::Profiles => 30,
+            Among::Profiles | Among::Turned { .. } => 30,
         };
         match (self.random.below(kinds), self.among) {
             (0..=8, _) => {
@@ -295,6 +326,9 @@ impl Drawing {
 
     /// A leaf, drawn fresh or from one drawn before it.
     fn leaf(&mut self, before: Option<&Leaf>) -> Leaf {
+        if let Among::Turned { .. } = self.among {
+            return self.turned_leaf(before);
+        }
         if let Some(before) = before {
             return self.related(before);
         }
@@ -329,7 +363,7 @@ impl Drawing {
             _ => self.height(),
         };
         let outline = match self.among {
-            Among::Profiles => self.related_profile(earlier),
+            Among::Profiles | Among::Turned { .. } => self.related_profile(earlier),
             Among::Every | Among::Square => self.related_outline(earlier),
         };
         Leaf::Prism {

@@ -5,6 +5,7 @@
 //! the operation says something different on its two sides.
 
 mod band;
+mod clear;
 mod crossed;
 mod cut;
 mod held;

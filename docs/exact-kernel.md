@@ -12,10 +12,14 @@ says what was reached on which day.
 - **Surfaces:** planes and circular cylinders, nothing else.
 - **Curves:** lines, circles, and the curve where two perpendicular cylinders
   meet. Two cylinders at any other angle than parallel or square, and a plane
-  oblique to a cylinder's axis — an ellipse — are declined: the operation gives
-  no answer, which the harness counts as such rather than as a wrong solid.
-  Every leaf of the sixteen cases and of the campaign stands on a plane of the
-  origin, so neither is needed to hold them.
+  oblique to a cylinder's axis — an ellipse — are declined where their faces
+  cross: the operation gives no answer, which the harness counts as such
+  rather than as a wrong solid. Where the faces stand clear of each other — a
+  bore square into one side of a hexagonal prism, beside the next side — the
+  pair is passed over, decided on the faces themselves rather than on the
+  boxes round them (`combine/clear.rs`). Every leaf of the sixteen cases and
+  of the campaign stands on a plane of the origin, so neither is needed to
+  hold them.
 - **Operations:** raise a profile of straight runs and arcs along its plane's
   normal, join, cut. Revolutions, cones, spheres and tori are out.
 

@@ -43,7 +43,9 @@
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
 //! as no answer. The seeds it names are shrunk one by one by
 //! `the_seeds_a_campaign_named_are_shrunk_one_by_one`, given in
-//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles.
+//! `CAO_TRIAGE_SEEDS` with `CAO_TRIAGE_DRAW=profiles` for the profiles, and
+//! `CAO_TRIAGE_KERNEL=application` for the seeds the campaign through the
+//! application's body named.
 
 // The drawing, the promise and the checks are shared with the flats'
 // campaign; each file uses its own part of them.
@@ -1727,7 +1729,9 @@ mod campaign {
     /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
     /// shrunk while it still breaks the same rule, and printed as a test: what a
     /// campaign's failures are sorted into distinct ones from. The seeds name
-    /// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`.
+    /// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`; they are
+    /// run on the exact kernel, or through the application's body when
+    /// `CAO_TRIAGE_KERNEL` is `application`.
     #[test]
     #[ignore = "run by hand on the seeds a campaign named"]
     fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
@@ -1741,7 +1745,10 @@ mod campaign {
             _ => Case::drawn_square,
         };
         let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-        let check: Check<Case> = Arc::new(exactly);
+        let check: Check<Case> = match std::env::var("CAO_TRIAGE_KERNEL").as_deref() {
+            Ok("application") => Arc::new(through_the_application),
+            _ => Arc::new(exactly),
+        };
         let quiet = std::panic::take_hook();
         std::panic::set_hook(Box::new(|_| {}));
         for seed in seeds {

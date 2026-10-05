@@ -81,14 +81,35 @@ It is the same principle as for the points of a trait
 The part is **one single volume**, not a pile of pieces: a pocket dug in a
 block must really be a hole in that block.
 
-Both operations go through a **binary space partition** (BSP): each volume
-becomes a tree of planes taken from its own faces, and the faces of the other
-volume are pushed into it. Each comes back labelled inside or outside, and cut
-in two where the plane crosses it. Union and difference are then a matter of
-keeping the right halves and turning a volume inside out.
+A part is computed by the **exact kernel** wherever it can be: a profile of
+straight runs and arcs, holes included, is raised on its true planes and
+cylinders, then joined or cut exactly. A circle raised is a cylinder, not
+forty-eight flats inscribed in it, and its volume is the arithmetic's. How it
+decides, and what it cannot do yet, is [exact-kernel.md](exact-kernel.md).
 
-This method works on any shape, convex or not — a pocket in a block is
-precisely the case that breaks the simpler methods.
+From the first **revolution**, or the first area bounded by an **ellipse**,
+the part is computed by **the flats** instead, and stays so: the exact kernel
+has no surface for either yet. Undoing that step gives the part back to the
+exact kernel.
+
+The flats go through a **binary space partition** (BSP): each volume becomes a
+tree of planes taken from its own faces, and the faces of the other volume are
+pushed into it. Each comes back labelled inside or outside, and cut in two
+where the plane crosses it. Union and difference are then a matter of keeping
+the right halves and turning a volume inside out. This method works on any
+shape, convex or not — a pocket in a block is precisely the case that breaks
+the simpler methods.
+
+### A step the exact kernel declines
+
+Some steps the exact kernel does not build yet — a cylinder meeting a face at a
+slant, two cylinders at a skew angle where they actually cross. It then
+declines rather than hand back a solid it cannot vouch for, and the step is
+**broken**: the part stands as it was before it, the notice says the kernel
+cannot build that operation yet, and the part tree marks the step. There is
+no silent fall back to the flats, which would hide exactly what the kernel
+still cannot do. Faces that stand at a slant without touching are not a
+decline: a hole bored square into one side of a hexagonal prism is cut.
 
 When several areas are extruded together, they are first joined into one single
 tool, then applied at once: two areas extruded together must behave as one
@@ -131,9 +152,10 @@ The face on top wins over the three planes rather than "the nearest to the
 camera": the origin planes are infinite sheets crossing the part, and the
 nearest would almost always be one of them.
 
-Every face sharing the same plane lights up together: a curved surface and a
-cut surface are both stored in several flat pieces, and lighting only one of
-them would read as choosing a fragment.
+A whole face lights up together: it is drawn as many triangles, a curved wall
+more than any, and lighting only the one under the cursor would read as
+choosing a fragment. A curved face offers no plane, and a click on it starts
+nothing.
 
 The origin of the sketch falls where the origin of the world projects onto the
 face, and the view settles on the spot clicked. A sketch laid on a face is
@@ -177,6 +199,8 @@ The exact case, with its real measurements, is a test.
 - An extrusion cannot be edited afterwards: one has to go back in the history
   and do it again.
 - The mesh is not exported (no STL/STEP).
-- Two exactly coplanar faces can still leave shards of surface. Moving the core
-  to `f64` brought the coplanarity tolerance from a millionth to a billionth,
-  so there are a thousand times fewer, but the case is not handled for itself.
+- On the flats, two exactly coplanar faces can still leave shards of surface.
+  Moving the core to `f64` brought the coplanarity tolerance from a millionth
+  to a billionth, so there are a thousand times fewer, but the case is not
+  handled for itself. The exact kernel decides coplanar faces once and does
+  not leave them.

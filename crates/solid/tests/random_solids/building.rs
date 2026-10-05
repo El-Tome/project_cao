@@ -1,5 +1,6 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
+use cao_solid::profile::{Frame, Profile};
 use cao_solid::{Body, Loop};
 use glam::DVec2;
 
@@ -92,6 +93,21 @@ fn area_of(outline: &Outline) -> Area {
                 holes: vec![(bore.clone(), curved(&bore))],
             }
         }
+        Outline::Rounded { low, high, .. } => convex(outline, (*low + *high) / 2.0),
+        Outline::Slot { from, to, .. } => convex(outline, (*from + *to) / 2.0),
+    }
+}
+
+/// An outline of straight runs and arcs, which is convex: its flats sampled
+/// from its contour, and a fan from a point inside to fill it.
+fn convex(outline: &Outline, inside: DVec2) -> Area {
+    let contour = outline.contour().expect("an outline of runs and arcs");
+    let (corners, curves) = super::outlines::sampled(&contour);
+    Area {
+        triangles: fan_from(inside, &corners),
+        outline_curves: curves,
+        outline: corners,
+        holes: Vec::new(),
     }
 }
 
@@ -131,6 +147,15 @@ impl Leaf {
                         Outline::Circle { radius, .. } => *radius > 0.0,
                         Outline::Star { center, corners } => seen_whole_from(*center, corners),
                         Outline::Ring { outer, inner, .. } => 0.0 < *inner && inner < outer,
+                        Outline::Rounded { low, high, radius } => {
+                            low.x < high.x
+                                && low.y < high.y
+                                && 0.0 < *radius
+                                && 2.0 * radius <= (*high - *low).min_element()
+                        }
+                        Outline::Slot { from, to, radius } => {
+                            0.0 < *radius && from != to && (from.x == to.x || from.y == to.y)
+                        }
                     }
             }
             Leaf::Revolution {
@@ -163,16 +188,19 @@ impl Leaf {
                     .iter()
                     .map(|(points, curves)| Loop { points, curves })
                     .collect();
-                Some(Body::prism(
-                    Loop {
+                let (origin, u, v) = plane.frame();
+                let profile = Profile {
+                    exact: None,
+                    sampled: Loop {
                         points: &area.outline,
                         curves: &area.outline_curves,
                     },
-                    &holes,
-                    &area.triangles,
-                    |point| plane.to_world(point),
-                    plane.normal() * *height,
-                ))
+                    sampled_holes: holes,
+                    triangles: &area.triangles,
+                };
+                Body::default()
+                    .tool_raised(&profile, Frame { origin, u, v }, plane.normal() * *height)
+                    .ok()
             }
             Leaf::Revolution {
                 plane,

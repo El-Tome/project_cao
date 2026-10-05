@@ -71,9 +71,10 @@ fn show(ui: &mut egui::Ui, document: &PartDocument, lang: &Catalogue) -> TreeAct
 }
 
 fn made_of_matter(ui: &mut egui::Ui, body: &Body, lang: &Catalogue) {
-    let heading = match body.lost {
-        true => lang.t_with("part_tree.lost", &[("name", &body.name)]),
-        false => body.name.clone(),
+    let heading = match (body.declined, body.lost) {
+        (true, _) => lang.t_with("part_tree.declined", &[("name", &body.name)]),
+        (false, true) => lang.t_with("part_tree.lost", &[("name", &body.name)]),
+        (false, false) => body.name.clone(),
     };
     egui::CollapsingHeader::new(heading)
         .id_salt(("body", body.step))

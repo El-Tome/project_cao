@@ -12,6 +12,9 @@ serde.workspace = true
 # The rules every solid must keep, for the tests of the crates above this one.
 # The application never checks its own solids at run time.
 test-support = []
+# The long campaigns of random solids, run by hand: left out of every build
+# that does not ask for them, the gate's among them.
+campaigns = []
 
 # The crate itself, with the rules switched on, for its integration tests.
 [dev-dependencies]

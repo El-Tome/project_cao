@@ -88,6 +88,22 @@ fn a_campaign_shrinks_what_it_finds_and_counts_the_rest() {
 }
 
 #[test]
+fn a_campaign_names_every_seed_that_broke_a_rule_and_the_rule_it_broke() {
+    let report = campaign(
+        0..40,
+        draw,
+        sevens(),
+        |case: &Vec<u64>| shorter(case),
+        PATIENCE,
+        || true,
+    );
+    let breaking: Vec<u64> = (0..40).filter(|seed| draw(*seed).contains(&7)).collect();
+    let named: Vec<u64> = report.failed.iter().map(|(seed, _)| *seed).collect();
+    assert_eq!(named, breaking);
+    assert!(report.failed.iter().all(|(_, rule)| *rule == Rule::Volume));
+}
+
+#[test]
 fn the_same_failure_found_twice_is_kept_once() {
     let report = campaign(
         0..40,

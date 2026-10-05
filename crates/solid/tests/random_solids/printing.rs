@@ -127,6 +127,18 @@ impl Display for Outline {
                 "Outline::ring({}, {outer:?}, {inner:?})",
                 Pair(*center)
             ),
+            Outline::Rounded { low, high, radius } => write!(
+                out,
+                "Outline::rounded({}, {}, {radius:?})",
+                Pair(*low),
+                Pair(*high)
+            ),
+            Outline::Slot { from, to, radius } => write!(
+                out,
+                "Outline::slot({}, {}, {radius:?})",
+                Pair(*from),
+                Pair(*to)
+            ),
         }
     }
 }

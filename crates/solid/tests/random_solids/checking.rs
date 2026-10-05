@@ -79,6 +79,7 @@ fn combined(body: &Body, tool: &Body, mode: Mode) -> Body {
         Mode::Add => body.union(tool),
         Mode::Cut => body.difference(tool),
     }
+    .expect("the flats never decline")
 }
 
 fn replayed(case: &Case, leaves: &[Body]) -> Body {

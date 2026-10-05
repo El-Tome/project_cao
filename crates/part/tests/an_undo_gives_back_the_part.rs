@@ -592,6 +592,9 @@ fn print_report(report: &Report<Vec<Move>>) {
     for (rule, count) in &report.broken {
         println!("  {rule:?}: broken by {count}");
     }
+    for (seed, rule) in &report.failed {
+        println!("failed {seed} {rule:?}");
+    }
     for finding in &report.findings {
         println!(
             "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_undoes_every_gesture() {{\n    assert_eq!(undoes({}), Ok(()));\n}}",

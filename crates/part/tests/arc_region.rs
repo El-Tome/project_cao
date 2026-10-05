@@ -60,8 +60,9 @@ fn an_extrusion_of_a_d_shape_gives_a_round_edge_to_the_solid() {
     let expected = std::f64::consts::PI * radius * radius * 0.5 * 3.0;
     let found = volume(&state.body);
     assert!(
-        (found - expected).abs() / expected < 0.02,
-        "volume {found}, expected ~{expected}"
+        (found - expected).abs() <= 1e-9 * expected,
+        "volume {found}, where the arithmetic gives {expected}: the round side \
+         is the exact kernel's cylinder, not the flats' steps",
     );
     let (_, max) = state.body.bounds().expect("a volume");
     assert!(

@@ -3,6 +3,7 @@ use glam::DVec2;
 use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
+pub use runs::Leg;
 use side::{Side, side};
 
 /// One closed loop of an area, and what drew each of its segments.
@@ -369,6 +370,7 @@ fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
 }
 
 mod measure;
+mod runs;
 mod side;
 
 #[cfg(test)]

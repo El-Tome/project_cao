@@ -54,6 +54,10 @@ pub struct PartState {
     pub(crate) broken: Vec<Broken>,
     #[serde(skip)]
     pub(crate) replaying: u32,
+    /// The steps of matter the kernel declined, by number. Unlike a size, a
+    /// decline is only known by computing the matter, so the cache carries it.
+    #[serde(default)]
+    pub(crate) declined: BTreeSet<u32>,
     /// What the replay noted on the way: what a change to the variables is
     /// held to, and the values it froze.
     #[serde(skip)]

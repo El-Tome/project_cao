@@ -30,4 +30,10 @@ impl PartDocument {
             .position(|number| *number == step)
             .map_or_else(Vec::new, |rank| self.state.faces_made(rank))
     }
+
+    /// Whether the kernel declined the step of matter of that number: the
+    /// part stands as it did before it, and the step is broken.
+    pub fn is_declined(&self, step: u32) -> bool {
+        self.state.declined.contains(&step)
+    }
 }

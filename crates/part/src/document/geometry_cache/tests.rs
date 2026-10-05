@@ -225,10 +225,10 @@ fn a_part_written_before_the_cache_existed_opens_by_replaying_its_design() {
     assert_eq!(reopened.sketches().len(), 1, "the design is replayed");
 }
 
-/// A part's geometry as its cache carried it before #499 gave the matter a
-/// type of its own: no drawing, and a tetrahedron of four faces numbered from
-/// nought, raised by one step.
-const CACHED_BEFORE_THE_BODY: &str = concat!(
+/// A part's geometry as its cache carried it before #526 said which kernel
+/// computed the matter: no drawing, and a tetrahedron of four faces numbered
+/// from nought, raised by one step.
+const CACHED_BEFORE_THE_EXACT_KERNEL: &str = concat!(
     r#"{"millimeters_per_unit":null,"sketches":[],"adrift":[],"body":{"polygons":["#,
     r#"{"corners":[[0.0,0.0,0.0],[0.0,1.0,0.0],[1.0,0.0,0.0]],"face":0},"#,
     r#"{"corners":[[0.0,0.0,0.0],[1.0,0.0,0.0],[0.0,0.0,1.0]],"face":1},"#,
@@ -238,44 +238,52 @@ const CACHED_BEFORE_THE_BODY: &str = concat!(
 );
 
 #[test]
-fn a_cache_written_before_the_body_opens_on_its_matter_and_is_written_back_unchanged() {
-    use glam::DVec3;
-
+fn a_cache_rebuilt_before_the_exact_kernel_replays_its_design() {
     let files = InMemoryFiles::default();
     let path = Path::new("/parts/piece.caopart");
     put_away(&files, path);
     let design = design_of(&files, path);
     let cached = format!(
-        r#"{{"rebuilt_by":{REBUILT_BY},"design":{},"state":{CACHED_BEFORE_THE_BODY}}}"#,
+        r#"{{"rebuilt_by":3,"design":{},"state":{CACHED_BEFORE_THE_EXACT_KERNEL}}}"#,
         fingerprint(&borrowed(&design)),
     );
     replacing(&files, path, GEOMETRY_ENTRY, Some(cached.as_bytes()));
 
     let reopened = PartDocument::load(&files, path).expect("reads");
 
+    assert_eq!(
+        reopened.sketches().len(),
+        1,
+        "the design is replayed rather than the old cache read",
+    );
+}
+
+#[test]
+fn a_cache_stamped_by_the_flats_rebuild_is_replayed_though_written_as_today() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":3"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "the exact kernel rebuilds past the flats' 3"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
     assert!(
-        reopened.sketches().is_empty(),
-        "the part opens on its cache, where a replay would draw a sketch",
-    );
-    assert_eq!(
-        reopened.body().triangles(),
-        vec![
-            [DVec3::ZERO, DVec3::Y, DVec3::X],
-            [DVec3::ZERO, DVec3::X, DVec3::Z],
-            [DVec3::ZERO, DVec3::Z, DVec3::Y],
-            [DVec3::X, DVec3::Y, DVec3::Z],
-        ],
-        "the matter is the tetrahedron the cache holds",
-    );
-    assert_eq!(
-        reopened.faces_made_by(3),
-        vec![0, 1, 2, 3],
-        "and its faces keep the numbers they were cached with",
-    );
-    assert_eq!(
-        String::from_utf8(encoded(&reopened.state, &borrowed(&design)).expect("a cache")),
-        Ok(cached),
-        "a part put away again writes the cache it was opened on",
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
     );
 }
 
@@ -515,5 +523,132 @@ fn a_part_opened_on_its_cached_geometry_still_knows_its_variables() {
         reopened.variables().named("width"),
         Some(crate::variables::VariableId(0)),
         "the cache holds none of the table, which comes back from the design",
+    );
+}
+
+/// A block 30 by 20 by 10 with a bore through it off every round number, so
+/// that no coordinate of the matter is one a short decimal writes exactly.
+fn a_bored_block() -> PartDocument {
+    let mut document = PartDocument::new("Bored", at("2026-10-05T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(30.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(1.0, 1.0)]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let center = DVec2::new(10.0 / 3.0 + 7.0, 7.1);
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(center),
+        radius: 2.7,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[center]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    document
+}
+
+/// Another bore, cut into whatever the part holds.
+fn bored_again(document: &mut PartDocument) {
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let sketch = document.sketches().len() - 1;
+    let center = DVec2::new(22.2, 12.9);
+    document.apply(Operation::AddCircle {
+        sketch,
+        center: PointRef::New(center),
+        radius: 3.1,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch,
+        areas: document.areas_at(sketch, &[center]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Cut,
+    });
+}
+
+#[test]
+fn an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    let bored = a_bored_block();
+    bored
+        .put_away(&files, path, at("2026-10-05T10:00:00Z"))
+        .expect("the part is put away");
+    let mut marked = bored.state.clone();
+    marked.declined.insert(99);
+    let design = design_of(&files, path);
+    let cache = encoded(&marked, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cache));
+
+    let mut cached = PartDocument::load(&files, path).expect("reads");
+    let mut replayed = cached.clone();
+    replayed.rewind_to(replayed.history.applied());
+
+    assert!(
+        cached.is_declined(99) && !replayed.is_declined(99),
+        "the part opened on its cache, which alone knows the mark",
+    );
+
+    let bore = std::f64::consts::PI * 2.7 * 2.7 * 10.0;
+    assert!(
+        (cached.body().volume() - (6000.0 - bore)).abs() < 1e-9 * 6000.0,
+        "the exact kernel's matter comes back: {}",
+        cached.body().volume(),
+    );
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "the very body the replay makes"
+    );
+    bored_again(&mut cached);
+    bored_again(&mut replayed);
+    assert_eq!(
+        cached.body(),
+        replayed.body(),
+        "a step cut into the body read back gives what a replay gives",
+    );
+}
+
+#[test]
+fn a_declined_step_is_still_named_once_the_part_opens_on_its_cache() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut declined = a_part_with_matter().state;
+    declined.declined.insert(3);
+    let cached = encoded(&declined, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        reopened.is_declined(3),
+        "the decline is only known by computing the matter, which a part \
+         opened on its cache does not do",
     );
 }

@@ -20,11 +20,17 @@
 //!   no test: held in `cao_solid`, where the faces are made and carried, by
 //!   `a_curve_raises_one_wall_however_finely_it_was_sampled` and
 //!   `a_cut_across_a_face_leaves_it_one_face`
+//!
+//! Closes #526.
+//! - picking reads the exact kernel's body: a click anywhere on a cylinder's
+//!   wall lands on its one curved face, with the true cylinder's normal —
+//!   `a_click_on_an_exact_cylinders_wall_lands_on_its_one_curved_face`
 
 use glam::{DVec2, DVec3};
 
 use super::*;
 use cao_render::OrbitCamera;
+use cao_solid::profile::Contour;
 
 /// Which way is up on screen once the view has swung onto a face — the same
 /// answer `once_facing` gives, without a viewport to ask.
@@ -35,8 +41,8 @@ fn facing(normal: DVec3) -> DVec3 {
     camera.up().as_dvec3()
 }
 
-/// A disc pushed along its own normal: flat ends, and a wall of many flats
-/// that is one curved face.
+/// A disc pushed along its own normal by the exact kernel: flat ends, and
+/// one curved wall drawn as many triangles.
 fn cylinder(radius: f64, height: f64) -> Body {
     let points: Vec<DVec2> = (0..48)
         .map(|step| {
@@ -48,19 +54,27 @@ fn cylinder(radius: f64, height: f64) -> Body {
     let triangles: Vec<[DVec2; 3]> = (1..points.len() - 1)
         .map(|index| [points[0], points[index], points[index + 1]])
         .collect();
-    Body::prism(
-        cao_solid::Loop {
+    let profile = cao_solid::profile::Profile {
+        exact: Some((Contour::circle(DVec2::ZERO, radius), Vec::new())),
+        sampled: cao_solid::Loop {
             points: &points,
             curves: &curves,
         },
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, 0.0),
-        DVec3::Z * height,
-    )
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::Z * 0.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the exact kernel raises a lone profile")
 }
 
-/// A block, whose top is one flat face stored as two triangles.
+/// A block raised by the exact kernel, whose top is one flat face drawn as
+/// two triangles.
 fn block(width: f64, depth: f64, height: f64) -> Body {
     let points = vec![
         DVec2::ZERO,
@@ -72,13 +86,23 @@ fn block(width: f64, depth: f64, height: f64) -> Body {
         [points[0], points[1], points[2]],
         [points[0], points[2], points[3]],
     ];
-    Body::prism(
-        cao_solid::Loop::straight(&points),
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, 0.0),
-        DVec3::Z * height,
-    )
+    let profile = cao_solid::profile::Profile {
+        exact: Some((
+            Contour::rectangle(DVec2::ZERO, DVec2::new(width, depth)),
+            Vec::new(),
+        )),
+        sampled: cao_solid::Loop::straight(&points),
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::Z * 0.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the exact kernel raises a lone profile")
 }
 
 #[test]
@@ -141,4 +165,34 @@ fn a_drawing_is_read_from_a_corner_of_the_whole_face() {
             "{corner:?} sits at {local:?}, behind the corner the face is read from",
         );
     }
+}
+
+#[test]
+fn a_click_on_an_exact_cylinders_wall_lands_on_its_one_curved_face() {
+    let body = cylinder(10.0, 20.0);
+    let mut walls = Vec::new();
+
+    for step in 0..12 {
+        let angle = (30.0 * step as f64 + 7.0).to_radians();
+        let outwards = DVec3::new(angle.cos(), angle.sin(), 0.0);
+        let origin = outwards * 40.0 + DVec3::Z * 10.0;
+
+        let offered = what_the_part_offers(&body, origin, -outwards, facing)
+            .expect("the wall is there to be hit");
+        let PlaneChoice::Curved(face) = offered else {
+            panic!("the wall at {step} offered {offered:?}");
+        };
+        walls.push(face);
+        let hit = body.ray_hit(origin, -outwards).expect("the wall is hit");
+        assert!(
+            hit.normal.distance(outwards) < 1e-9,
+            "the wall at {step} faces {:?}, not straight out of the axis",
+            hit.normal,
+        );
+    }
+
+    assert!(
+        walls.iter().all(|face| *face == walls[0]),
+        "the wall answered to several faces: {walls:?}",
+    );
 }

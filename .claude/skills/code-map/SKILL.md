@@ -60,6 +60,7 @@ there. See the `architecture-rust` skill.
 | Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::prism` |
 | Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
+| The exact kernel of #498, planes and cylinders, beside the flats and not yet behind `Body` | `solid/src/brep.rs` and `brep/`, `solid/src/profile.rs` | `brep::Body::raised`, `joined`, `cut_by`, `triangles`, `volume`, `listing`, `Declined` |
 
 ### History and persistence — `cao_part`
 

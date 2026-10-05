@@ -30,8 +30,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// Bumped when replaying the same design stops giving the same geometry — a
 /// fix in the solver, in an extrusion, in a boolean. What was cached before
 /// then holds the shape as it was computed, which is no longer the shape the
-/// design describes.
-const REBUILT_BY: u32 = 3;
+/// design describes. Also bumped when the matter is written another way: 4
+/// is the body that says which kernel computed it (#526).
+const REBUILT_BY: u32 = 4;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

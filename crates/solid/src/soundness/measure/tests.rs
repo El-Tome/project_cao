@@ -541,3 +541,66 @@ fn a_face_is_tried_against_every_line_it_covers_however_it_lies_on_the_grid() {
         }
     }
 }
+
+/// Where the line through `origin` along `direction` enters and leaves the
+/// box between two corners, by the slabs of its three axes.
+fn through_box(origin: DVec3, direction: DVec3, low: DVec3, high: DVec3) -> Option<(f64, f64)> {
+    let (mut enter, mut leave) = (f64::NEG_INFINITY, f64::INFINITY);
+    for axis in 0..3 {
+        let [one, other] =
+            [low[axis], high[axis]].map(|side| (side - origin[axis]) / direction[axis]);
+        enter = enter.max(one.min(other));
+        leave = leave.min(one.max(other));
+    }
+    (enter < leave).then_some((enter, leave))
+}
+
+#[test]
+fn a_line_of_measure_found_by_its_rank_crosses_a_box_where_its_spans_say() {
+    let (low, high) = (DVec3::new(-1.0, 0.5, 2.0), DVec3::new(3.0, 2.0, 4.5));
+    let lines = Lines::across(low - 0.5, high + 0.5, 24);
+    let spans = lines.inside(&cube(low, high));
+    assert_eq!(lines.count(), spans.len());
+    let mut crossing = 0;
+    for (index, measured) in spans.iter().enumerate() {
+        let (origin, direction) = lines.line(index);
+        assert!((direction.length() - 1.0).abs() < 1e-12);
+        match through_box(origin, direction, low, high) {
+            Some((enter, leave)) => {
+                crossing += 1;
+                let [(from, to)] = measured.stretches() else {
+                    panic!("line {index} crosses the box once: {measured:?}");
+                };
+                assert!(
+                    (from - enter).abs() < 1e-12,
+                    "line {index}: {from} against {enter}"
+                );
+                assert!(
+                    (to - leave).abs() < 1e-12,
+                    "line {index}: {to} against {leave}"
+                );
+            }
+            None => assert!(measured.stretches().is_empty(), "line {index}"),
+        }
+    }
+    assert!(crossing > 100, "{crossing} lines cross the box");
+}
+
+#[test]
+fn spans_gathered_from_stretches_in_any_order_come_sorted_and_joined() {
+    let gathered = Spans::gathered(vec![(3.0, 4.0), (0.0, 1.0), (0.5, 2.0), (5.0, 5.0)]);
+    assert_eq!(gathered.stretches(), [(0.0, 2.0), (3.0, 4.0)]);
+    assert_eq!(gathered.surplus(), 0.0);
+}
+
+#[test]
+fn a_shell_left_inside_another_shows_as_surplus_along_the_lines_through_it() {
+    let both: Vec<Triangle> = [
+        box_of(10.0, 10.0, DVec3::ZERO).triangles(),
+        box_of(2.0, 2.0, DVec3::splat(4.0)).triangles(),
+    ]
+    .concat();
+    let lines = Lines::across(DVec3::splat(-1.0), DVec3::splat(11.0), 64);
+    let surplus: f64 = lines.inside(&both).iter().map(Spans::surplus).sum();
+    assert!(surplus > 0.0, "{surplus}");
+}

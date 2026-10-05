@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 
 use serde::{Deserialize, Serialize};
 
+mod numbering;
 mod operation;
 mod step;
 mod table;
@@ -295,17 +296,6 @@ impl History {
         };
         let number = self.number(operation);
         self.steps[owner].record(number);
-    }
-
-    /// Puts an operation at the end of the list under the next number, and
-    /// says which.
-    fn number(&mut self, operation: Operation) -> u32 {
-        self.last_operation_number += 1;
-        let number = self.last_operation_number;
-        self.operations.push(operation);
-        self.numbers.push(number);
-        self.applied = self.operations.len();
-        number
     }
 
     /// Where the list stands, to fold what comes next into one gesture.

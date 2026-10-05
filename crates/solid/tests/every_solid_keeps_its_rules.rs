@@ -35,7 +35,7 @@
 //! The campaign is run by hand:
 //!
 //! ```text
-//! CAO_FUZZ_SECONDS=300 cargo test --release -p cao_solid \
+//! CAO_FUZZ_SECONDS=300 cargo test --release -p cao_solid --features campaigns \
 //!     --test every_solid_keeps_its_rules -- --ignored --nocapture
 //! ```
 //!
@@ -43,12 +43,12 @@
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
 //! as no answer.
 
+// The promise worked out by arithmetic and the square drawing are the exact
+// kernel's campaign's; this file draws every kind and measures the flats.
+#[allow(dead_code, unused_imports)]
 mod random_solids;
 
-use std::sync::Arc;
-use std::time::{Duration, Instant, SystemTime};
-
-use cao_solid::soundness::{Check, Flaw, Random, Report, campaign, shrink};
+use cao_solid::soundness::{Flaw, shrink};
 use glam::DVec2;
 use random_solids::{Case, Leaf, Mode, Outline, Plane, Step};
 
@@ -496,66 +496,78 @@ fn shrinking_any_drawn_case_comes_to_an_end() {
     }
 }
 
-/// The case a seed stands for, with the seed written where a campaign that
-/// ends the program — a stack blown by a kernel — still leaves it to be read.
-fn drawn(seed: u64) -> Case {
-    eprint!("\rseed {seed} ");
-    Case::drawn(seed)
-}
+/// The campaign itself, compiled only when asked for — `--features
+/// campaigns` — so that work on any other issue never pays for it.
+#[cfg(feature = "campaigns")]
+mod campaign {
+    use std::sync::Arc;
+    use std::time::{Duration, Instant, SystemTime};
 
-fn from_the_environment(name: &str) -> Option<u64> {
-    std::env::var(name).ok()?.parse().ok()
-}
+    use cao_solid::soundness::{Check, Random, Report, campaign};
 
-#[test]
-#[ignore = "a campaign, run by hand: see the head of this file"]
-fn a_campaign_of_random_solids_keeps_every_rule() {
-    let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
-    let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_or(1, |since| since.as_nanos() as u64);
-        Random::seeded(now).number() >> 16
-    });
-    let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-    let deadline = Instant::now() + Duration::from_secs(seconds);
-    println!("campaign from seed {first}, for {seconds} s");
+    use super::*;
 
-    let check: Check<Case> = Arc::new(random_solids::check);
-    let quiet = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(first.., drawn, check, Case::smaller, patience, || {
-        Instant::now() < deadline
-    });
-    std::panic::set_hook(quiet);
-
-    print_report(&report);
-    assert!(
-        report.findings.is_empty(),
-        "{} cases of {} broke a rule",
-        report.broken.iter().map(|(_, count)| count).sum::<usize>(),
-        report.tried
-    );
-}
-
-fn print_report(report: &Report<Case>) {
-    println!("{} cases tried", report.tried);
-    for (rule, count) in &report.broken {
-        println!("  {rule:?}: broken by {count}");
+    /// The case a seed stands for, with the seed written where a campaign that
+    /// ends the program — a stack blown by a kernel — still leaves it to be read.
+    fn drawn(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn(seed)
     }
-    for finding in &report.findings {
-        println!(
-            "\n── {:?}, seed {} ──\nas drawn: {}\nshrunk:   {}\n\n#[test]\nfn seed_{}_keeps_every_rule() {{\n    random_solids::holds(&{});\n}}",
-            finding.flaw.rule(),
-            finding.seed,
-            describe(&finding.flaw),
-            describe(&finding.shrunk_flaw),
-            finding.seed,
-            finding.shrunk.to_string().replace('\n', "\n    "),
+
+    fn from_the_environment(name: &str) -> Option<u64> {
+        std::env::var(name).ok()?.parse().ok()
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_solids_keeps_every_rule() {
+        let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
+        let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map_or(1, |since| since.as_nanos() as u64);
+            Random::seeded(now).number() >> 16
+        });
+        let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+        let deadline = Instant::now() + Duration::from_secs(seconds);
+        println!("campaign from seed {first}, for {seconds} s");
+
+        let check: Check<Case> = Arc::new(random_solids::check);
+        let quiet = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let report = campaign(first.., drawn, check, Case::smaller, patience, || {
+            Instant::now() < deadline
+        });
+        std::panic::set_hook(quiet);
+
+        print_report(&report);
+        assert!(
+            report.findings.is_empty(),
+            "{} cases of {} broke a rule",
+            report.broken.iter().map(|(_, count)| count).sum::<usize>(),
+            report.tried
         );
     }
-}
 
-fn describe(flaw: &Flaw) -> String {
-    format!("{flaw:?}")
+    fn print_report(report: &Report<Case>) {
+        println!("{} cases tried", report.tried);
+        for (rule, count) in &report.broken {
+            println!("  {rule:?}: broken by {count}");
+        }
+        for finding in &report.findings {
+            println!(
+                "\n── {:?}, seed {} ──\nas drawn: {}\nshrunk:   {}\n\n#[test]\nfn seed_{}_keeps_every_rule() {{\n    random_solids::holds(&{});\n}}",
+                finding.flaw.rule(),
+                finding.seed,
+                describe(&finding.flaw),
+                describe(&finding.shrunk_flaw),
+                finding.seed,
+                finding.shrunk.to_string().replace('\n', "\n    "),
+            );
+        }
+    }
+
+    fn describe(flaw: &Flaw) -> String {
+        format!("{flaw:?}")
+    }
 }

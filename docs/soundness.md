@@ -83,10 +83,12 @@ tolerance taken in absolute units stops holding.
 ## Running a campaign
 
 A campaign is not a unit test. It is ignored by the gate and run by hand,
-bounded by a deadline rather than a count:
+bounded by a deadline rather than a count. The campaigns over solids are not
+even compiled unless asked for, with `--features campaigns`: work on any other
+issue never pays for them (#526).
 
 ```sh
-CAO_FUZZ_SECONDS=300 cargo test --release -p cao_solid \
+CAO_FUZZ_SECONDS=300 cargo test --release -p cao_solid --features campaigns \
     --test every_solid_keeps_its_rules -- --ignored --nocapture
 
 CAO_FUZZ_SECONDS=300 cargo test --release -p cao_part \

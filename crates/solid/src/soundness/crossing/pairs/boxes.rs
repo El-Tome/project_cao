@@ -9,6 +9,10 @@ use glam::DVec3;
 /// Boxes at most this many to a leaf.
 const LEAF: usize = 8;
 
+/// More nodes than a search ever leaves pending: one beside each node on the
+/// way down, and each halving at least halves the run.
+const DEEPEST: usize = 2 * usize::BITS as usize;
+
 /// A box around a run of `order`, around a leaf's boxes or around its two
 /// halves; and the least and greatest of the indices under it.
 struct Node {
@@ -78,31 +82,44 @@ impl<'a> Boxes<'a> {
 
     /// Adds to `found` every index within `among` whose box may come within
     /// `room` of the box from `low` to `high`, and some that do not: the
-    /// caller weighs each one itself.
+    /// caller weighs each one itself. Gives up, and says so, once more than
+    /// `enough` are found: past that, passing every index in `among` costs
+    /// less than gathering and ordering them.
     pub(super) fn near(
         &self,
         low: DVec3,
         high: DVec3,
         room: f64,
         among: Range<usize>,
+        enough: usize,
         found: &mut Vec<usize>,
-    ) {
-        let mut pending = Vec::from_iter((!self.nodes.is_empty()).then_some(0));
-        while let Some(node) = pending.pop() {
-            let node = &self.nodes[node];
+    ) -> bool {
+        let (mut pending, mut count) = ([0; DEEPEST], usize::from(!self.nodes.is_empty()));
+        while count > 0 {
+            count -= 1;
+            let node = &self.nodes[pending[count]];
             let [least, most] = node.indices;
             let reached = node.low.cmple(high + room) & low.cmple(node.high + room);
-            if !reached.all() || most < among.start || least >= among.end {
+            if most < among.start || least >= among.end || !reached.all() {
                 continue;
             }
             match node.halves {
-                Some(halves) => pending.extend(halves),
-                None => found.extend(
-                    self.order[node.run.clone()]
-                        .iter()
-                        .filter(|at| among.contains(at)),
-                ),
+                Some(halves) => {
+                    pending[count..count + 2].copy_from_slice(&halves);
+                    count += 2;
+                }
+                None => {
+                    found.extend(
+                        self.order[node.run.clone()]
+                            .iter()
+                            .filter(|at| among.contains(at)),
+                    );
+                    if found.len() > enough {
+                        return false;
+                    }
+                }
             }
         }
+        true
     }
 }

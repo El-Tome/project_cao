@@ -45,19 +45,27 @@ pub(super) fn for_each_pair_near(
     let mut ahead = Vec::new();
     for (at, ([_, end], [low, high], fans, one)) in swept.iter().enumerate() {
         let past = at + 1 + starts[at + 1..].partition_point(|start| *start <= end + room);
-        ahead.clear();
-        boxes.near(*low, *high, room, at + 1..past, &mut ahead);
-        ahead.sort_unstable();
-        for &next in &ahead {
+        let weigh = |next: usize| {
             let (_, [other_low, other_high], others, other) = &swept[next];
             let near = other_low.cmple(*high + room) & low.cmple(*other_high + room);
             if near.all() && !fans.iter().any(|fan| *fan > 0 && others.contains(fan)) {
                 visit(&faces[*one], &faces[*other]);
             }
+        };
+        ahead.clear();
+        let passed = past - at - 1;
+        if passed > SCANNED && boxes.near(*low, *high, room, at + 1..past, passed / 8, &mut ahead) {
+            ahead.sort_unstable();
+            ahead.iter().copied().for_each(weigh);
+        } else {
+            (at + 1..past).for_each(weigh);
         }
     }
     way.1
 }
+
+/// How many faces a sweep passes before asking the boxes is worth it.
+const SCANNED: usize = 64;
 
 /// Marks the faces facing one way round a corner they all have, flat and each
 /// clear of the others: a fan, as the kernel cuts its faces into. No two cross,

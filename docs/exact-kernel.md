@@ -29,6 +29,12 @@ It can:
   both loops share on each cap, the line the two walls touch along between
   them, and each wall parted there. A touch at a corner of the other loop is
   not laid this way.
+- **turn a profile of straight runs** about an axis lying in its plane, when
+  every run is parallel or square to the axis: by any angle up to a whole
+  turn, either way, adding or taking away matter. A run parallel to the axis
+  turns into a cylinder, a run square to it into a disc or a ring, and a
+  partial turn ends on two planes holding the axis (`brep/turned.rs`). The
+  section [Turning](#turning) says how.
 - surfaces: planes, and circular cylinders parallel or square to each other;
   curves: lines, circles, and the curve two perpendicular cylinders meet
   along.
@@ -52,13 +58,14 @@ It can:
 - **tell faces at a slant that never touch from faces that cross**: a plane
   against a cylinder patch, two skew cylinders, are decided apart on the faces
   themselves before the kernel declines (`combine/clear.rs`).
-- hand a revolution, or an area bounded by an ellipse, **to the flats**, from
-  that step on: it has no surface for either.
+- hand a revolution of a profile with a slanted run or an arc, or an area
+  bounded by an ellipse, **to the flats**, from that step on: it has no cone,
+  sphere, torus or ellipse.
 
 Left, in the order #497 set:
 
-- revolutions: of a rectangle about an axis along its sides (planes and
-  cylinders only), then of arcs and slanted runs (cones, spheres, tori);
+- revolutions of slanted runs and arcs: cones, spheres, tori. Those of
+  straight runs parallel or square to the axis are done (#533);
 - ellipses: a plane crossing a cylinder at a slant, and an ellipse drawn in a
   profile;
 - an exact STEP;
@@ -92,7 +99,11 @@ Known and still open:
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
 - **Operations:** raise a profile of straight runs and arcs along its plane's
-  normal, join, cut. Revolutions, cones, spheres and tori are out.
+  normal; turn a profile whose runs are each parallel or square to the axis;
+  join, cut. Cones, spheres and tori, what a slanted run or an arc turns
+  into, are out. A turn about a line that is no axis of the planes the rest
+  of the part stands on brings cylinders at a skew angle to those, and
+  declines where their faces cross: a broken step, as #533 decided.
 
 ## Deciding once
 
@@ -570,6 +581,67 @@ same input gives the same bits.
 - **Non-manifold edges** have four uses, or six: two blocks touching along an
   edge, a hole tangent to a wall.
 
+## Turning
+
+#533 brought the kernel its first turn, of the profiles whose surfaces it
+already had: every run parallel or square to the axis. The body is laid
+directly, as a raise lays its walls, rather than raised in slabs and joined
+or swept through the raise's code: one surface per piece of the profile, one
+circle per corner, which is the construction cones, spheres and tori will
+grow from.
+
+- **The reading** is decided once, before either kernel, in `turning.rs`:
+  whether a turn is whole (within a thousandth of a radian, the flats' own
+  rule), which side of its axis the area lies on, and how close to the axis
+  counts as on it — a thousandth of the area's furthest point from the axis,
+  on either side, the band the flats always used (#487, #488). An area
+  across its axis is cut along it before the body is asked, and each side
+  turned apart. `Straight` is the profile laid square to its axis: every run
+  exactly parallel or square to it, its corners read `(h, r)`, along the axis
+  and away from it; one that cannot be laid so goes to the flats.
+- **The placement** (`brep/turned.rs`). A corner `(h, r)` turned by `φ` is
+  `O + A h + r (R cos φ + S sin φ)`, `S = A × R`: the turn the flats make
+  with `DQuat::from_axis_angle`. A turn backwards is the turn forwards about
+  the axis turned round, its corners read along it the other way, so the
+  sketch's plane is always the end the turn opens on. A turn within
+  `Scale::HAIR` tolerances of a quarter, a half or three quarters of a turn,
+  at the profile's furthest corner, is taken as that turn exactly, its
+  cosine and sine from a table: the ends then stand on the planes a raise from
+  the planes of the origin stands on, and a half turn ends on one plane.
+- **The construction** (`brep/turned/faces.rs`, on the raise's own
+  `brep/laying.rs` and `brep/piece.rs`). Runs on one line are one piece. A
+  piece parallel to the axis lies on `Cylinder::about(O, A, r)`, the very
+  cylinder a circle raised along that axis lies on, so a coaxial bore is
+  decision 1's identity and needs no tolerance; a piece square to it on the
+  plane through `O + A h` square to `A`; a piece on the axis on nothing. A
+  partial turn has a corner where each corner off the axis starts and ends,
+  and the arc between them; one corner where a corner on the axis stays; a
+  straight edge where each piece starts and ends; and the two ends, holding
+  the profile's holes as holes. A whole turn is its limit, the two ends
+  closing on each other: a whole circle for each corner off the axis, no
+  corner at all — a square turned about its side is two discs and a
+  cylinder between two circles. A hole of the profile, or a notch on the
+  axis, turned whole leaves a closed hollow inside.
+- **Tidied and checked** as a boolean's result is (`assembly::tidied`):
+  faces on one surface with one side merged across what nothing else uses,
+  and the body verified. On a turn this only changes a half turn of a profile
+  touching its axis: the two ends are one face answering to both numbers,
+  and each pair of radial lines, laid on one curve, one diameter, the corner
+  on the axis gone.
+- **Declined:** a corner turned, or the slit a partial turn leaves, narrower
+  than the tolerance (`Declined::Travel`) — past the reading's own rules,
+  which make such a turn nothing or whole first; a profile whose pieces are
+  neither parallel nor square nor on the axis, or whose corners stand on
+  each other (`Declined::Profile`).
+- **The numbers** are the flats': run `k`, the outline's first and then each
+  hole's, names the face it turns into; a run on the axis, or one laid to no
+  length, names none; a partial turn's opening end is `runs` and its closing
+  end `runs + 1`. The count a turn moves the part's counter by
+  (`Straight::numbers`) copies the flats' `faces_end`, quirk included: a
+  whole turn counts up to its last run off the axis, so the steps after a
+  shaft drawn the usual way, its last side on the axis, keep the numbers a
+  part saved before turns were exact gave them.
+
 ## The boolean
 
 A classic boolean splits faces against faces. This one splits **surfaces**: all
@@ -863,6 +935,10 @@ The tests that hold it:
 - `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`, the table: the
   flats and the exact kernel on #498's cases, OpenCascade quoted from #447;
 - `the_exact_kernel_joins_and_cuts.rs`, the same cases counted by hand;
+- `the_exact_kernel_turns.rs`, turns held to Pappus's volume and to the same
+  profile cut into annular slabs, each raised and joined, along a grid of
+  lines; its smoke campaign of turned leaves and prisms under `--ignored`,
+  compiled only with `--features campaigns`;
 - `random_exact_solids.rs`, the harness on the exact kernel, and on it again
   through `Body` as the application computes with it (`Application`), its
   campaigns under `--ignored` and compiled only with `--features campaigns`;

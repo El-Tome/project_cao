@@ -12,7 +12,13 @@ use super::combine::Arena;
 use super::topology::{Body, Coedge, CurveId, Edge, EdgeId, Face, SurfaceId, Vertex, VertexId};
 
 pub(super) fn assembled(arena: Arena, faces: Vec<Face>) -> Result<Body, Declined> {
-    let mut body = arena.body;
+    tidied(arena.body, faces)
+}
+
+/// The body `faces` make of what `body` holds: faces on one surface with one
+/// side merged, what no face uses left out, the rest renumbered, and the
+/// whole verified.
+pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined> {
     let faces = merged::merged(&mut body.edges, &body.curves, &body.vertices, faces);
     let mut edges = Renumbering::of(body.edges.len());
     for coedge in faces.iter().flat_map(|face| face.loops.iter().flatten()) {

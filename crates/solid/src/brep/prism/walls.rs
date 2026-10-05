@@ -4,9 +4,9 @@
 
 use glam::DVec3;
 
-use super::piece::{Named, Piece};
 use super::touch::Parted;
 use crate::brep::laying::{Laying, reversed};
+use crate::brep::piece::{Named, Piece};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, Coedge, Face, SurfaceId, VertexId};

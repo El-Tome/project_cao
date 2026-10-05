@@ -13,6 +13,7 @@ mod laying;
 mod listing;
 mod meet;
 mod overlay;
+mod piece;
 mod prism;
 mod ray;
 mod relation;

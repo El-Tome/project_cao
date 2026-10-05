@@ -27,10 +27,10 @@
 //! A campaign is run by hand, the square one or the one of profiles:
 //!
 //! ```text
-//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
+//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
 //!     --test random_exact_solids -- --ignored --nocapture \
 //!     a_campaign_of_random_square_solids
-//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid \
+//! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
 //!     --test random_exact_solids -- --ignored --nocapture \
 //!     a_campaign_of_random_profiles
 //! ```
@@ -47,16 +47,10 @@
 mod random_solids;
 
 use std::cell::Cell;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::{Duration, Instant, SystemTime};
 
 use cao_solid::brep::{Curve, Line, ListedEdge, Listing};
 use cao_solid::profile::Run;
-use cao_solid::soundness::{
-    Check, Flaw, Lines, Mislisted, Random, Report, Silence, Spans, Triangle, answer, campaign,
-    shrink,
-};
+use cao_solid::soundness::{Flaw, Lines, Mislisted, Silence, Spans, Triangle, shrink};
 use glam::{DVec2, DVec3};
 use random_solids::{Case, Exact, Flats, Kernel, Leaf, Mode, Outline, Plane, Step, Stretch};
 
@@ -1594,148 +1588,161 @@ fn a_block_bored_across_and_given_a_boss_on_its_side_by_the_exact_kernel_keeps_e
     random_solids::holds_exactly(&bored_across());
 }
 
-/// How many lines the campaign held its cases along, and how many it left
-/// out for grazing a curved wall.
-static HELD: AtomicUsize = AtomicUsize::new(0);
-static GRAZING: AtomicUsize = AtomicUsize::new(0);
+/// The campaign itself, compiled only when asked for — `--features
+/// campaigns` — so that work on any other issue never pays for it.
+#[cfg(feature = "campaigns")]
+mod campaign {
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::time::{Duration, Instant, SystemTime};
 
-fn exactly(case: &Case) -> Result<(), Flaw> {
-    let measured = random_solids::held_to_arithmetic(case, &Exact)?;
-    HELD.fetch_add(measured.held, Ordering::Relaxed);
-    GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
-    Ok(())
-}
+    use cao_solid::soundness::{Check, Random, Report, answer, campaign};
 
-/// The case a seed stands for, with the seed written where a campaign that
-/// ends the program — a stack blown by a kernel — still leaves it to be read.
-fn drawn(seed: u64) -> Case {
-    eprint!("\rseed {seed} ");
-    Case::drawn_square(seed)
-}
+    use super::*;
 
-/// The same, among the profiles.
-fn drawn_profile(seed: u64) -> Case {
-    eprint!("\rseed {seed} ");
-    Case::drawn_profiles(seed)
-}
+    /// How many lines the campaign held its cases along, and how many it left
+    /// out for grazing a curved wall.
+    static HELD: AtomicUsize = AtomicUsize::new(0);
+    static GRAZING: AtomicUsize = AtomicUsize::new(0);
 
-fn from_the_environment(name: &str) -> Option<u64> {
-    std::env::var(name).ok()?.parse().ok()
-}
+    fn exactly(case: &Case) -> Result<(), Flaw> {
+        let measured = random_solids::held_to_arithmetic(case, &Exact)?;
+        HELD.fetch_add(measured.held, Ordering::Relaxed);
+        GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
+        Ok(())
+    }
 
-#[test]
-#[ignore = "a campaign, run by hand: see the head of this file"]
-fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
-    campaign_over("square solids", drawn);
-}
+    /// The case a seed stands for, with the seed written where a campaign that
+    /// ends the program — a stack blown by a kernel — still leaves it to be read.
+    fn drawn(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_square(seed)
+    }
 
-#[test]
-#[ignore = "a campaign, run by hand: see the head of this file"]
-fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
-    campaign_over("profiles", drawn_profile);
-}
+    /// The same, among the profiles.
+    fn drawn_profile(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_profiles(seed)
+    }
 
-/// A campaign on the exact kernel over the cases `draw` gives, for as long as
-/// the environment says, and its report.
-fn campaign_over(what: &str, draw: fn(u64) -> Case) {
-    let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
-    let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
-        let now = SystemTime::now()
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_or(1, |since| since.as_nanos() as u64);
-        Random::seeded(now).number() >> 16
-    });
-    let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-    let deadline = Instant::now() + Duration::from_secs(seconds);
-    println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
+    fn from_the_environment(name: &str) -> Option<u64> {
+        std::env::var(name).ok()?.parse().ok()
+    }
 
-    let check: Check<Case> = Arc::new(exactly);
-    let quiet = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(first.., draw, check, Case::smaller, patience, || {
-        Instant::now() < deadline
-    });
-    std::panic::set_hook(quiet);
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_square_solids_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over("square solids", drawn);
+    }
 
-    print_report(&report);
-    assert!(
-        report.findings.is_empty(),
-        "{} cases of {} broke a rule",
-        report.broken.iter().map(|(_, count)| count).sum::<usize>(),
-        report.tried
-    );
-}
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_random_profiles_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over("profiles", drawn_profile);
+    }
 
-/// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
-/// shrunk while it still breaks the same rule, and printed as a test: what a
-/// campaign's failures are sorted into distinct ones from. The seeds name
-/// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`.
-#[test]
-#[ignore = "run by hand on the seeds a campaign named"]
-fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
-    let seeds: Vec<u64> = std::env::var("CAO_TRIAGE_SEEDS")
-        .unwrap_or_default()
-        .split(',')
-        .filter_map(|seed| seed.trim().parse().ok())
-        .collect();
-    let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
-        Ok("profiles") => Case::drawn_profiles,
-        _ => Case::drawn_square,
-    };
-    let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
-    let check: Check<Case> = Arc::new(exactly);
-    let quiet = std::panic::take_hook();
-    std::panic::set_hook(Box::new(|_| {}));
-    for seed in seeds {
-        let drawn = draw(seed);
-        let Err(flaw) = answer(drawn.clone(), &check, patience) else {
-            println!("\n── holds, seed {seed} ──");
-            continue;
+    /// A campaign on the exact kernel over the cases `draw` gives, for as long as
+    /// the environment says, and its report.
+    fn campaign_over(what: &str, draw: fn(u64) -> Case) {
+        let seconds = from_the_environment("CAO_FUZZ_SECONDS").unwrap_or(60);
+        let first = from_the_environment("CAO_FUZZ_SEED").unwrap_or_else(|| {
+            let now = SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .map_or(1, |since| since.as_nanos() as u64);
+            Random::seeded(now).number() >> 16
+        });
+        let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+        let deadline = Instant::now() + Duration::from_secs(seconds);
+        println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
+
+        let check: Check<Case> = Arc::new(exactly);
+        let quiet = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        let report = campaign(first.., draw, check, Case::smaller, patience, || {
+            Instant::now() < deadline
+        });
+        std::panic::set_hook(quiet);
+
+        print_report(&report);
+        assert!(
+            report.findings.is_empty(),
+            "{} cases of {} broke a rule",
+            report.broken.iter().map(|(_, count)| count).sum::<usize>(),
+            report.tried
+        );
+    }
+
+    /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, run again,
+    /// shrunk while it still breaks the same rule, and printed as a test: what a
+    /// campaign's failures are sorted into distinct ones from. The seeds name
+    /// square cases, or profiles when `CAO_TRIAGE_DRAW` is `profiles`.
+    #[test]
+    #[ignore = "run by hand on the seeds a campaign named"]
+    fn the_seeds_a_campaign_named_are_shrunk_one_by_one() {
+        let seeds: Vec<u64> = std::env::var("CAO_TRIAGE_SEEDS")
+            .unwrap_or_default()
+            .split(',')
+            .filter_map(|seed| seed.trim().parse().ok())
+            .collect();
+        let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
+            Ok("profiles") => Case::drawn_profiles,
+            _ => Case::drawn_square,
         };
-        let mut last = flaw.clone();
-        let shrunk = shrink(
-            drawn.clone(),
-            Case::smaller,
-            |candidate| match answer(candidate.clone(), &check, patience) {
-                Err(broken) if broken.is_like(&flaw) => {
-                    last = broken;
-                    true
-                }
-                _ => false,
-            },
-            || true,
-        );
-        println!(
-            "\n── {:?}, seed {seed} ──\nas drawn: {flaw:?}\nshrunk:   {last:?}\n{}",
-            flaw.rule(),
-            shrunk.to_string().replace('\n', "\n    "),
-        );
+        let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+        let check: Check<Case> = Arc::new(exactly);
+        let quiet = std::panic::take_hook();
+        std::panic::set_hook(Box::new(|_| {}));
+        for seed in seeds {
+            let drawn = draw(seed);
+            let Err(flaw) = answer(drawn.clone(), &check, patience) else {
+                println!("\n── holds, seed {seed} ──");
+                continue;
+            };
+            let mut last = flaw.clone();
+            let shrunk = shrink(
+                drawn.clone(),
+                Case::smaller,
+                |candidate| match answer(candidate.clone(), &check, patience) {
+                    Err(broken) if broken.is_like(&flaw) => {
+                        last = broken;
+                        true
+                    }
+                    _ => false,
+                },
+                || true,
+            );
+            println!(
+                "\n── {:?}, seed {seed} ──\nas drawn: {flaw:?}\nshrunk:   {last:?}\n{}",
+                flaw.rule(),
+                shrunk.to_string().replace('\n', "\n    "),
+            );
+        }
+        std::panic::set_hook(quiet);
     }
-    std::panic::set_hook(quiet);
-}
 
-fn print_report(report: &Report<Case>) {
-    println!("{} cases tried", report.tried);
-    println!(
-        "{} lines held, {} left out for grazing a curved wall",
-        HELD.load(Ordering::Relaxed),
-        GRAZING.load(Ordering::Relaxed)
-    );
-    for (rule, count) in &report.broken {
-        println!("  {rule:?}: broken by {count}");
-    }
-    for (seed, rule) in &report.failed {
-        println!("failed {seed} {rule:?}");
-    }
-    for finding in &report.findings {
+    fn print_report(report: &Report<Case>) {
+        println!("{} cases tried", report.tried);
         println!(
-            "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_on_the_exact_kernel() {{\n    random_solids::holds_exactly(&{});\n}}",
-            finding.flaw.rule(),
-            finding.seed,
-            finding.flaw,
-            finding.shrunk_flaw,
-            finding.seed,
-            finding.shrunk.to_string().replace('\n', "\n    "),
+            "{} lines held, {} left out for grazing a curved wall",
+            HELD.load(Ordering::Relaxed),
+            GRAZING.load(Ordering::Relaxed)
         );
+        for (rule, count) in &report.broken {
+            println!("  {rule:?}: broken by {count}");
+        }
+        for (seed, rule) in &report.failed {
+            println!("failed {seed} {rule:?}");
+        }
+        for finding in &report.findings {
+            println!(
+                "\n── {:?}, seed {} ──\nas drawn: {:?}\nshrunk:   {:?}\n\n#[test]\nfn seed_{}_keeps_every_rule_on_the_exact_kernel() {{\n    random_solids::holds_exactly(&{});\n}}",
+                finding.flaw.rule(),
+                finding.seed,
+                finding.flaw,
+                finding.shrunk_flaw,
+                finding.seed,
+                finding.shrunk.to_string().replace('\n', "\n    "),
+            );
+        }
     }
 }

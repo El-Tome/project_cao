@@ -518,6 +518,33 @@ fn the_exact_kernel_stays_behind_the_body() {
     );
 }
 
+/// #526: the long campaigns over solids stay out of every build that does not
+/// ask for them, so that work on any other issue never compiles them.
+#[test]
+fn the_long_campaigns_over_solids_are_compiled_only_when_asked_for() {
+    const ASKED_FOR: &str = "#[cfg(feature = \"campaigns\")]";
+    let compiled_anyway: Vec<String> = everything_written_in("solid")
+        .into_iter()
+        .filter(|(path, _)| path.starts_with("crates/solid/tests/"))
+        .filter(|(_, source)| {
+            let gated = source.find(ASKED_FOR).unwrap_or(source.len());
+            source
+                .match_indices("#[ignore = \"a campaign")
+                .any(|(at, _)| at < gated)
+        })
+        .map(|(path, _)| path)
+        .collect();
+
+    assert!(
+        compiled_anyway.is_empty(),
+        "{compiled_anyway:?} hold a campaign the gate compiles: put it below {ASKED_FOR}",
+    );
+    assert!(
+        manifest("solid").contains("campaigns = []"),
+        "cao_solid declares the feature its campaigns are compiled under",
+    );
+}
+
 #[test]
 fn reaching_for_the_exact_kernel_is_told_from_mentioning_it() {
     for reaching in [

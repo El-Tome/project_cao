@@ -26,9 +26,9 @@
 //!   long campaigns stay under `--ignored` — no test: held in `cao_solid`, by
 //!   `a_bored_cylinder_on_two_kernels` and the fast tests of
 //!   `random_exact_solids`, which the gate runs, and by the `#[ignore]` on every
-//!   campaign. The campaigns are still compiled with the binaries they sit in:
-//!   that was measured at under a second of compiling and nothing on the wall,
-//!   and a feature to keep them out was set aside
+//!   campaign; the campaigns are compiled only with `--features campaigns`,
+//!   held by `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`
+//!   in `crates/app/tests/architecture.rs`
 //! - `cao_solid` takes `glam` and `serde` only, no truck — no test: held by
 //!   `the_two_geometry_crates_stay_alone_with_their_maths` in
 //!   `crates/app/tests/architecture.rs`

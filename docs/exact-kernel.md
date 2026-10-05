@@ -749,7 +749,7 @@ The tests that hold it:
   flats and the exact kernel on #498's cases, OpenCascade quoted from #447;
 - `the_exact_kernel_joins_and_cuts.rs`, the same cases counted by hand;
 - `random_exact_solids.rs`, the harness on the exact kernel, its campaigns
-  under `--ignored`;
+  under `--ignored` and compiled only with `--features campaigns`;
 - `what_the_exact_campaigns_found_in_the_kernel.rs`,
   `what_the_exact_campaigns_found_in_the_triangles.rs` and
   `the_tangency_band.rs`, what the campaigns found, still failing ones under

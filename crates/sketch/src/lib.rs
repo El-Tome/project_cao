@@ -99,7 +99,7 @@ pub use plane::{PlaneKind, WorkPlane};
 pub use preview::{Laid, Preview};
 pub use pulling::{CurveDrag, Pulled, SideDrag};
 pub use reading::Reading;
-pub use regions::{Outline, Region};
+pub use regions::{Leg, Outline, Region};
 pub use resizing::Curved;
 pub use rule_intent::{Rule, RuleIntent, RulePick, rule_intent};
 pub use shape_dimensions::{

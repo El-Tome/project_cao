@@ -1,12 +1,19 @@
 //! Decision 2, once per pair of surfaces whose faces, one of each operand,
 //! stand in boxes that meet: the curves the pair shares, registered as lying
 //! on both, and the points where such a curve crosses itself or where two
-//! cylinders only touch.
+//! cylinders only touch. A pair at a slant, whose curve the kernel does not
+//! build, declines the operation unless its faces stand clear of each other.
+//!
+//! The boxes only spare the pairs that cannot meet; they decide nothing
+//! else. A box round a face at a slant is loose, which costs a pair related
+//! for nothing where the relation is built, and is decided on the faces
+//! themselves where it is not.
 
 use std::collections::BTreeSet;
 
 use glam::DVec3;
 
+use super::clear::clear;
 use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::Registry;
@@ -39,6 +46,9 @@ pub(super) fn related(
             done.insert(pair);
             let found = relation(&list[one], &list[other], operands.scale);
             if found == Relation::Unsupported {
+                if clear(operands, pair) {
+                    continue;
+                }
                 return Err(Declined::Unsupported);
             }
             let ranks: Vec<usize> = found

@@ -149,6 +149,7 @@ What it does: [`sketch.md`](sketch.md).
 | The profile a kernel is handed: loops of straight runs and arcs, and the frame they stand in | `solid/src/profile.rs` | `Contour`, `Run`, `Frame` |
 | How two surfaces of the exact kernel meet, decided once | `solid/src/brep/relation.rs`, `brep/meet.rs`, `brep/canonical/` | `relation`, `crossings`, `Meeting` |
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |
+| Two faces at a slant — a plane oblique to a wall, two walls at a skew angle — decided clear of each other on the faces themselves before the kernel declines | `solid/src/brep/combine/clear.rs` | `clear`, reached from `combine/related.rs` |
 | The exact kernel's triangles, every edge sampled once | `solid/src/brep/tessellation.rs` and `tessellation/` | `Body::triangles(tolerance)` |
 | The rules every solid must keep, for the tests | `solid/src/soundness.rs` and `soundness/` | `closed`, `uncrossed`, `Lines`, `repeatable`, `campaign`, `listed` (an exact body's listing held to its geometry) |
 | Solids drawn at random, shrunk and printed as Rust | `solid/tests/random_solids/` | `Case::drawn`, `Case::smaller`, `check` |
@@ -157,6 +158,7 @@ What it does: [`sketch.md`](sketch.md).
 | What the campaigns found, waiting on their issues | `solid/tests/what_random_solids_found.rs` | `#[ignore = "#n"]` |
 | #498's eighteen rows, the flats beside the exact kernel and OpenCascade as #447 quoted it | `solid/tests/a_bored_cylinder_on_two_kernels.rs` | `a_bored_cylinder_on_two_kernels` |
 | The sixteen cases on the exact kernel, each counted by hand | `solid/tests/the_exact_kernel_joins_and_cuts.rs` | |
+| Bores and slanted faces that do not meet, cut in parts laid at a slant; those that do, still declined | `solid/tests/a_slant_far_from_a_bore.rs` | `keeps_every_rule` |
 | Random solids on the exact kernel, held to the arithmetic along every line | `solid/tests/random_exact_solids.rs`, `solid/tests/random_solids/{along,arithmetic,kernels,outlines}.rs` | `Kernel`, `Exact`, `Flats`, `held_to_arithmetic`; the campaigns under `--ignored` |
 | What the exact campaigns found, in the kernel and in its triangles, and the band where a third surface crosses two that touch | `solid/tests/what_the_exact_campaigns_found_in_the_kernel.rs`, `what_the_exact_campaigns_found_in_the_triangles.rs`, `the_tangency_band.rs` | `#[ignore = "…"]` for what still fails |
 

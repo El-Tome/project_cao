@@ -41,7 +41,8 @@ impl Drawing {
     }
 
     /// A leaf of a case of turns: a prism or a turned leaf, fresh or drawn
-    /// from one before it.
+    /// from one before it; fresh after a turn slanted, or with no radius
+    /// `radii_of` keeps to draw from.
     pub(super) fn turned_leaf(&mut self, before: Option<&Leaf>) -> Leaf {
         match before {
             None if self.random.chance(0.5) => self.fresh_turned(),
@@ -59,7 +60,7 @@ impl Drawing {
                 axis,
                 section,
                 degrees,
-            }) if axis.lean == 0.0 => {
+            }) if axis.lean == 0.0 && !radii_of(section, self.scale).is_empty() => {
                 let line = Line::of(*plane, *axis);
                 if self.random.chance(0.5) {
                     self.turned_along(line, *axis, section, *degrees)

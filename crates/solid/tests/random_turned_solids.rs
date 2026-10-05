@@ -164,6 +164,17 @@ fn the_same_seed_draws_the_same_turned_case_and_not_one_of_the_other_draws() {
 }
 
 #[test]
+fn every_seed_draws_a_turned_case_though_a_turn_before_has_no_radius_to_draw_from() {
+    for seed in 0..20_000 {
+        let drawn = std::panic::catch_unwind(|| {
+            Case::drawn_turned(seed);
+            Case::drawn_turned_off_the_lattice(seed);
+        });
+        assert!(drawn.is_ok(), "seed {seed} draws no case");
+    }
+}
+
+#[test]
 fn a_turned_case_holds_straight_profiles_turned_about_lines_of_the_planes_of_the_origin_and_prisms()
 {
     for seed in 0..3000 {

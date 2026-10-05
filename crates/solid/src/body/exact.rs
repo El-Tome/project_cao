@@ -13,6 +13,7 @@ use super::{FaceHit, FacePlane};
 use crate::brep::{self, Declined, FaceId, Surface};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
+use crate::turning::{Straight, Turn};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub(super) struct Exact {
@@ -55,6 +56,11 @@ impl Exact {
     ) -> Result<Exact, Declined> {
         let brep = caught(|| brep::Body::raised(outline, holes, frame, travel))?;
         Ok(Exact::of(brep, brep::Body::numbers_raised(outline, holes)))
+    }
+
+    pub fn turned(straight: &Straight, frame: Frame, turn: &Turn) -> Result<Exact, Declined> {
+        let brep = caught(|| brep::Body::turned(straight, frame, turn))?;
+        Ok(Exact::of(brep, straight.numbers(turn.is_whole())))
     }
 
     pub fn joined(&self, other: &Exact) -> Result<Exact, Declined> {
@@ -106,6 +112,16 @@ impl Exact {
 
     pub fn count_past(&mut self, outline: &Contour, holes: &[Contour]) {
         self.next += brep::Body::numbers_raised(outline, holes);
+    }
+
+    pub fn count_past_turned(&mut self, numbers: u32) {
+        self.next += numbers;
+    }
+
+    /// How far the body reaches from the origin, never less than one: what
+    /// a profile turned against it is read at.
+    pub fn reach(&self) -> f64 {
+        self.brep.scale().reach()
     }
 
     pub fn is_empty(&self) -> bool {

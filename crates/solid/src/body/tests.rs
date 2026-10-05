@@ -6,7 +6,9 @@ use std::f64::consts::{PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::mesh::tests::fan;
 use crate::profile::{Contour, Frame, Run};
+use crate::turning::{Axis, Turn};
 
 const FLAT: Frame = Frame {
     origin: DVec3::ZERO,
@@ -654,4 +656,105 @@ fn a_hole_touching_its_outline_at_one_point_is_raised_and_drawn_closed_and_uncro
             part.volume(),
         );
     }
+}
+
+fn straight<'a>(points: &'a [DVec2], triangles: &'a [[DVec2; 3]]) -> Profile<'a> {
+    Profile {
+        exact: Some((Contour::straight(points.to_vec()), vec![])),
+        sampled: Loop::straight(points),
+        sampled_holes: Vec::new(),
+        triangles,
+    }
+}
+
+fn about_v(area: &Profile, angle: f64) -> Turn {
+    let v = Axis {
+        origin: DVec2::ZERO,
+        direction: DVec2::Y,
+    };
+    Turn::of(v, angle, 0.0, area)
+}
+
+#[test]
+fn a_profile_turned_through_the_body_is_the_flats_revolution_until_the_kernel_turns() {
+    let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
+    let triangles = fan(&ring);
+    let profile = straight(&ring, &triangles);
+    for part in [
+        Body::default(),
+        block(DVec2::ZERO, DVec2::splat(10.0), 10.0),
+    ] {
+        for angle in [TAU, -TAU, PI / 2.0, -PI] {
+            let turned = part
+                .tool_turned(&profile, FLAT, &about_v(&profile, angle))
+                .expect("the flats never decline");
+            let flats = Body::revolution(
+                profile.sampled,
+                &[],
+                profile.triangles,
+                |point| FLAT.at(point),
+                DVec2::ZERO,
+                DVec2::Y,
+                angle,
+            )
+            .expect("a ring on one side of its axis");
+            assert_eq!(turned, flats, "turned {angle} rad");
+        }
+    }
+}
+
+#[test]
+fn an_area_across_its_axis_is_declined_and_a_turn_too_short_makes_nothing() {
+    let across = Contour::rectangle(DVec2::new(-1.0, 0.0), DVec2::new(4.0, 4.0)).corners;
+    let triangles = fan(&across);
+    let profile = straight(&across, &triangles);
+    assert_eq!(
+        Body::default().tool_turned(&profile, FLAT, &about_v(&profile, TAU)),
+        Err(Declined::Profile),
+    );
+
+    let ring = Contour::rectangle(DVec2::new(30.0, 0.0), DVec2::new(34.0, 4.0)).corners;
+    let triangles = fan(&ring);
+    let profile = straight(&ring, &triangles);
+    let nothing = Body::default()
+        .tool_turned(&profile, FLAT, &about_v(&profile, 1e-5))
+        .expect("nothing is no decline");
+    assert!(nothing.is_empty());
+}
+
+#[test]
+fn a_turn_declined_on_an_exact_body_counts_past_the_numbers_the_flats_give_it() {
+    let on_the_axis = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(5.0, 0.0),
+        DVec2::new(5.0, 2.0),
+        DVec2::new(0.0, 2.0),
+    ];
+    let triangles = fan(&on_the_axis);
+    let profile = straight(&on_the_axis, &triangles);
+    for (angle, numbers) in [(TAU, 3), (PI / 2.0, 6), (1e-5, 0)] {
+        let mut part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+        part.count_past_turned(&profile, FLAT, &about_v(&profile, angle));
+        assert_eq!(part.faces_end(), 6 + numbers, "turned {angle} rad");
+    }
+
+    let mut flats = ring_turned_about_y();
+    let end = flats.faces_end();
+    flats.count_past_turned(&profile, FLAT, &about_v(&profile, TAU));
+    assert_eq!(flats.faces_end(), end, "the flats never decline");
+}
+
+#[test]
+fn a_body_tells_whether_the_exact_kernel_computed_it() {
+    let part = block(DVec2::ZERO, DVec2::splat(10.0), 10.0);
+    assert!(part.is_exact());
+    assert!(Body::default().is_exact());
+    let ring = ring_turned_about_y();
+    assert!(!ring.is_exact());
+    assert!(
+        !part
+            .union(&ring)
+            .expect("the flats never decline")
+            .is_exact()
+    );
 }

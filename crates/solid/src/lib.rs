@@ -17,6 +17,7 @@ pub mod profile;
 #[cfg(any(test, feature = "test-support"))]
 pub mod soundness;
 mod sweep;
+pub mod turning;
 
 pub use body::{Body, FaceHit, FacePlane};
 pub use brep::Declined;

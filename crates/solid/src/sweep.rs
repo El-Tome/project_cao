@@ -4,6 +4,7 @@
 use glam::{DVec2, DVec3};
 
 use crate::mesh::{Mesh, Polygon};
+use crate::turning::{self, ON_THE_AXIS, SHORTEST, THINNEST};
 
 /// One closed loop a solid is raised from, and which of its segments came from
 /// the same curve.
@@ -169,7 +170,7 @@ pub(crate) fn revolution(
     turn: f64,
 ) -> Option<Mesh> {
     let along = axis_direction.normalize_or_zero();
-    if along == DVec2::ZERO || turn.abs() < 1e-4 {
+    if along == DVec2::ZERO || turn.abs() < SHORTEST {
         return None;
     }
 
@@ -183,23 +184,23 @@ pub(crate) fn revolution(
         .map(|point| side(*point))
         .collect();
     let furthest = sides.iter().fold(0.0f64, |far, each| far.max(each.abs()));
-    if furthest < 1e-6 {
+    if furthest < THINNEST {
         return None;
     }
     let sign = sides
         .iter()
-        .find(|distance| distance.abs() > furthest * 1e-3)
+        .find(|distance| distance.abs() > furthest * ON_THE_AXIS)
         .map(|distance| distance.signum())?;
     if sides
         .iter()
-        .any(|distance| distance * sign < -furthest * 1e-3)
+        .any(|distance| distance * sign < -furthest * ON_THE_AXIS)
     {
         return None;
     }
 
     let origin = to_world(axis_origin);
     let axis = (to_world(axis_origin + along) - origin).normalize_or(DVec3::Z);
-    let full = (turn.abs() - std::f64::consts::TAU).abs() < 1e-3;
+    let full = turning::is_whole(turn);
 
     // Enough steps that the flats read as a curve, scaled to how far it turns.
     let steps = ((turn.abs() / std::f64::consts::TAU) * 64.0)

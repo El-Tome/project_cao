@@ -1,5 +1,6 @@
 //! The matter, as the rest of the workspace is allowed to see it.
 
+mod caught;
 mod drawn;
 mod exact;
 

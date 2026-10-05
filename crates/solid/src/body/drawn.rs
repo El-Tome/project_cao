@@ -2,8 +2,6 @@
 //! from: what the view draws, lights and picks in, and what the body becomes
 //! when it has to be joined to flats.
 
-use std::panic::{AssertUnwindSafe, catch_unwind};
-
 use glam::DVec3;
 
 use super::FaceHit;
@@ -29,13 +27,10 @@ pub(super) struct Drawn {
 }
 
 impl Drawn {
-    /// The triangles of a body, or none when cutting them stopped on a bug:
-    /// a body drawn empty rather than a program ended.
+    /// The triangles of a body, each beside the face it was cut from.
     pub fn of(body: &brep::Body) -> Drawn {
-        let tolerance = DRAWN * body.scale().reach();
-        catch_unwind(AssertUnwindSafe(|| body.triangles_by_face(tolerance)))
-            .map(|(triangles, faces)| Drawn { triangles, faces })
-            .unwrap_or_default()
+        let (triangles, faces) = body.triangles_by_face(DRAWN * body.scale().reach());
+        Drawn { triangles, faces }
     }
 
     /// The nearest triangle a ray crosses names the face; the face's own

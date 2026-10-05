@@ -2,12 +2,12 @@
 //! the triangles it is drawn with, made once and only when asked for.
 
 use std::collections::BTreeSet;
-use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::OnceLock;
 
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::caught::{caught, quietly};
 use super::drawn::Drawn;
 use super::{FaceHit, FacePlane};
 use crate::brep::{self, Declined, FaceId, Surface};
@@ -76,20 +76,28 @@ impl Exact {
     }
 
     /// The operation on the two bodies, the second's numbers moved above the
-    /// first's count, and every face a cut left in pieces apart told apart.
+    /// first's count, every face a cut left in pieces apart told apart, and
+    /// the result drawn: a body the kernel cannot draw is declined, rather
+    /// than shown as nothing and handed on as nothing to the flats.
     fn combined(
         &self,
         other: &Exact,
         operation: impl FnOnce(&brep::Body, &brep::Body) -> Result<brep::Body, Declined>,
     ) -> Result<Exact, Declined> {
-        let second = other.brep.clone().renumbered(self.next);
-        let brep = if second.face_ids().next().is_none() {
-            self.brep.clone()
-        } else {
-            caught(|| operation(&self.brep, &second))?
-        };
-        let mut next = self.next + other.next;
-        Ok(Exact::of(parted(brep, &mut next), next))
+        caught(|| {
+            let second = other.brep.clone().renumbered(self.next);
+            let brep = if second.face_ids().next().is_none() {
+                self.brep.clone()
+            } else {
+                operation(&self.brep, &second)?
+            };
+            let mut next = self.next + other.next;
+            let brep = parted(brep, &mut next);
+            let drawn = Drawn::of(&brep);
+            let exact = Exact::of(brep, next);
+            let _ = exact.drawn.set(drawn);
+            Ok(exact)
+        })
     }
 
     pub fn count_past(&mut self, outline: &Contour, holes: &[Contour]) {
@@ -104,12 +112,14 @@ impl Exact {
         self.next as usize
     }
 
+    /// The exact volume, or the volume the body is drawn with should
+    /// reading it stop on a bug.
     pub fn volume(&self) -> f64 {
-        self.brep.volume()
+        quietly(|| self.brep.volume()).unwrap_or_else(|| self.flats().volume())
     }
 
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
-        self.brep.bounds()
+        quietly(|| self.brep.bounds()).flatten()
     }
 
     pub fn has_face(&self, face: usize) -> bool {
@@ -133,6 +143,10 @@ impl Exact {
     /// triangles: how finely those are cut follows the body's reach, and a
     /// drawing on a face would move when an unrelated part of the body grew.
     pub fn plane_of(&self, face: usize) -> Option<FacePlane> {
+        quietly(|| self.exact_plane_of(face)).flatten()
+    }
+
+    fn exact_plane_of(&self, face: usize) -> Option<FacePlane> {
         let first = self.brep.face(self.named(face).next()?);
         let Surface::Plane(plane) = self.brep.surface(first.surface) else {
             return None;
@@ -149,12 +163,16 @@ impl Exact {
         Some(FacePlane { normal, corners })
     }
 
+    /// The triangles, drawn when first asked for. A body built by joining
+    /// or cutting was drawn as it was built; a tool raised alone, or a body
+    /// read back, is drawn here, and drawn empty should that stop on a bug.
     pub fn drawn(&self) -> &Drawn {
-        self.drawn.get_or_init(|| Drawn::of(&self.brep))
+        self.drawn
+            .get_or_init(|| quietly(|| Drawn::of(&self.brep)).unwrap_or_default())
     }
 
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
-        self.drawn().ray_hit(&self.brep, origin, direction)
+        quietly(|| self.drawn().ray_hit(&self.brep, origin, direction)).flatten()
     }
 
     pub fn triangles_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {
@@ -188,10 +206,4 @@ fn parted(mut body: brep::Body, next: &mut u32) -> brep::Body {
         }
     }
     body
-}
-
-/// What the kernel answers, a stop on a bug of its own taken as a decline:
-/// a shape no campaign tried must not lose the user's work.
-pub(super) fn caught<T>(work: impl FnOnce() -> Result<T, Declined>) -> Result<T, Declined> {
-    catch_unwind(AssertUnwindSafe(work)).unwrap_or(Err(Declined::Panicked))
 }

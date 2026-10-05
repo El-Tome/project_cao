@@ -346,9 +346,32 @@ fn a_slant_across_a_bore_is_handed_back_as_a_decline() {
 
 #[test]
 fn a_kernel_that_stops_on_a_bug_hands_back_a_decline() {
-    let stopped: Result<(), Declined> = exact::caught(|| panic!("a shape nobody tried"));
+    let stopped: Result<(), Declined> = caught::caught(|| panic!("a shape nobody tried"));
 
     assert_eq!(stopped, Err(Declined::Panicked));
+}
+
+thread_local! {
+    static HEARD: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+#[test]
+fn a_stop_the_kernel_catches_never_reaches_the_hook_that_writes_crashes_down() {
+    let previous = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        HEARD.set(HEARD.get() + 1);
+        previous(info);
+    }));
+    caught::silence_caught_panics();
+
+    let stopped: Result<(), Declined> = caught::caught(|| panic!("a shape nobody tried"));
+    let heard_from_the_kernel = HEARD.get();
+    let crashed = std::panic::catch_unwind(|| panic!("a bug of the application's own"));
+
+    assert_eq!(stopped, Err(Declined::Panicked));
+    assert_eq!(heard_from_the_kernel, 0, "a decline is no crash");
+    assert!(crashed.is_err());
+    assert_eq!(HEARD.get(), 1, "a crash outside the kernel is still heard");
 }
 
 #[test]

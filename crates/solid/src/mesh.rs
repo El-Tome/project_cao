@@ -108,6 +108,22 @@ pub(crate) struct Mesh {
 }
 
 impl Mesh {
+    /// Flat pieces of triangles, each on its face.
+    ///
+    /// A triangle too thin to have a plane of its own is left out, as
+    /// [`Polygon::new`] leaves it: the partition sorts a piece against its
+    /// own plane, and one whose plane rounding cannot fix straddles it and is
+    /// cut without end. What it leaves open is thinner than a millionth of
+    /// its own length.
+    pub fn of_triangles(triangles: impl IntoIterator<Item = ([DVec3; 3], usize)>) -> Mesh {
+        Mesh {
+            polygons: triangles
+                .into_iter()
+                .filter_map(|(corners, face)| Some(Polygon::new(corners.to_vec())?.on_face(face)))
+                .collect(),
+        }
+    }
+
     pub fn is_empty(&self) -> bool {
         self.polygons.is_empty()
     }
@@ -291,7 +307,7 @@ pub(crate) struct PieceHit {
 /// Möller–Trumbore: it solves for the barycentric coordinates directly, so the
 /// test that the crossing lies inside the triangle falls out of the same
 /// arithmetic instead of needing a second step.
-fn ray_triangle(origin: DVec3, direction: DVec3, [a, b, c]: [DVec3; 3]) -> Option<f64> {
+pub(crate) fn ray_triangle(origin: DVec3, direction: DVec3, [a, b, c]: [DVec3; 3]) -> Option<f64> {
     let (edge_1, edge_2) = (b - a, c - a);
     let across = direction.cross(edge_2);
     let determinant = edge_1.dot(across);

@@ -48,16 +48,23 @@ fn cylinder(radius: f64, height: f64) -> Body {
     let triangles: Vec<[DVec2; 3]> = (1..points.len() - 1)
         .map(|index| [points[0], points[index], points[index + 1]])
         .collect();
-    Body::prism(
-        cao_solid::Loop {
+    let profile = cao_solid::profile::Profile {
+        exact: None,
+        sampled: cao_solid::Loop {
             points: &points,
             curves: &curves,
         },
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, 0.0),
-        DVec3::Z * height,
-    )
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::Z * 0.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the flats never decline")
 }
 
 /// A block, whose top is one flat face stored as two triangles.
@@ -72,13 +79,20 @@ fn block(width: f64, depth: f64, height: f64) -> Body {
         [points[0], points[1], points[2]],
         [points[0], points[2], points[3]],
     ];
-    Body::prism(
-        cao_solid::Loop::straight(&points),
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, 0.0),
-        DVec3::Z * height,
-    )
+    let profile = cao_solid::profile::Profile {
+        exact: None,
+        sampled: cao_solid::Loop::straight(&points),
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::Z * 0.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * height)
+        .expect("the flats never decline")
 }
 
 #[test]

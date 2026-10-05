@@ -1,7 +1,7 @@
 //! The exact kernel of #498: a boundary representation exact on planes and
 //! cylinders, behind the vocabulary `cao_solid` speaks — raise a profile,
-//! join, cut, and hand back the triangles to draw. Beside the flats, and not
-//! yet behind [`crate::Body`]: nothing above `cao_solid` reaches it (#526).
+//! join, cut, and hand back the triangles to draw. Behind [`crate::Body`],
+//! beside the flats: nothing above `cao_solid` reaches it (#526).
 //! The design is `docs/exact-kernel.md`.
 
 mod assembly;
@@ -23,6 +23,8 @@ mod topology;
 mod trace;
 mod volume;
 
+use serde::{Deserialize, Serialize};
+
 pub use curve::{Circle, Curve, Line, Meet};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};
@@ -38,7 +40,7 @@ pub use trace::Trace;
 
 /// Why the kernel gave no answer. It never hands back a solid it could not
 /// build or could not verify.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Declined {
     /// The profile describes no solid: corners on each other within a loop
     /// or across loops, an arc whose ends are not on its circle or too large
@@ -56,4 +58,8 @@ pub enum Declined {
     Unverified,
     /// Not written yet.
     Unfinished,
+    /// The kernel stopped on a bug of its own. Never said by the kernel
+    /// itself: [`crate::Body`] catches the stop, so that a shape nobody tried
+    /// costs the step, not the user's work.
+    Panicked,
 }

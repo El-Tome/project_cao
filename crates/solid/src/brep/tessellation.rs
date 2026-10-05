@@ -16,7 +16,7 @@ mod sweep;
 
 use glam::DVec3;
 
-use super::topology::Body;
+use super::topology::{Body, FaceId};
 use outline::Outline;
 use sampling::Samples;
 
@@ -25,8 +25,17 @@ impl Body {
     /// facing out of the matter. A face that cannot be laid out or cut is
     /// left open rather than drawn wrong: the rules on the triangles see it.
     pub fn triangles(&self, tolerance: f64) -> Vec<[DVec3; 3]> {
+        self.triangles_by_face(tolerance).0
+    }
+
+    /// The same triangles, and beside them the face each one belongs to. A
+    /// face is never drawn alone: its edges are sampled with every face
+    /// along them, so that the triangles of two faces close against each
+    /// other.
+    pub fn triangles_by_face(&self, tolerance: f64) -> (Vec<[DVec3; 3]>, Vec<FaceId>) {
         let samples = Samples::of(self, tolerance);
         let mut triangles = Vec::new();
+        let mut faces = Vec::new();
         for id in self.face_ids() {
             let Some(outline) = Outline::of(self, &samples, id, tolerance) else {
                 continue;
@@ -45,9 +54,10 @@ impl Body {
                 } else {
                     [a, b, c]
                 });
+                faces.push(id);
             }
         }
-        triangles
+        (triangles, faces)
     }
 }
 

@@ -3,10 +3,11 @@
 //! cylinders start their angles from the same direction.
 
 use glam::{DVec2, DVec3};
+use serde::{Deserialize, Serialize};
 
 /// The plane of points `x` with `normal · x = offset`, read in `(s, t)` along
 /// `u` and `v` from `origin`, its point nearest the world's origin.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Plane {
     pub origin: DVec3,
     pub normal: DVec3,
@@ -17,7 +18,7 @@ pub struct Plane {
 /// The points at `radius` from the line through `origin` along `axis`, read in
 /// `(θ, h)`: the angle from `u` towards `v`, and the height along the axis.
 /// `origin` is the point of the axis nearest the world's origin.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Cylinder {
     pub origin: DVec3,
     pub axis: DVec3,
@@ -26,7 +27,7 @@ pub struct Cylinder {
     pub v: DVec3,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Surface {
     Plane(Plane),
     Cylinder(Cylinder),

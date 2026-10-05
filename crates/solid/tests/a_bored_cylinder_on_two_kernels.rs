@@ -373,16 +373,18 @@ fn raised_as_flats(solid: Solid) -> Body {
             (outline, vec![None; 4], triangles)
         }
     };
-    Body::prism(
-        Loop {
+    let profile = cao_solid::profile::Profile {
+        exact: None,
+        sampled: Loop {
             points: &outline,
             curves: &curves,
         },
-        &[],
-        &triangles,
-        |point| frame.at(point),
-        travel,
-    )
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, travel)
+        .expect("the flats never decline")
 }
 
 /// A whole circle as the exact kernel is handed one: a single run all the
@@ -448,8 +450,8 @@ fn by_flats(case: &Case) -> Verdict {
         tools
             .iter()
             .fold(start.clone(), |body, (mode, tool)| match mode {
-                Mode::Add => body.union(tool),
-                Mode::Cut => body.difference(tool),
+                Mode::Add => body.union(tool).expect("the flats never decline"),
+                Mode::Cut => body.difference(tool).expect("the flats never decline"),
             })
     }));
     let seconds = started.elapsed().as_secs_f64();

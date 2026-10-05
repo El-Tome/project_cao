@@ -3,13 +3,14 @@
 //! cylinders meet along, the parameter `meet.rs` gives it.
 
 use glam::DVec3;
+use serde::{Deserialize, Serialize};
 
 use super::surface::{Cylinder, canonical_direction};
 
 /// The line through `origin`, its point nearest the world's origin, along
 /// `direction`, of unit length and with its sign fixed. Its parameter is the
 /// signed length from `origin`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Line {
     pub origin: DVec3,
     pub direction: DVec3,
@@ -17,7 +18,7 @@ pub struct Line {
 
 /// The circle about `center` in the plane square to `axis`, its angle read
 /// from `u` towards `v` as on the cylinder it lies on.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Circle {
     pub center: DVec3,
     pub axis: DVec3,
@@ -28,14 +29,14 @@ pub struct Circle {
 
 /// One closed component of the curve where two perpendicular cylinders meet.
 /// Its evaluation lives in `meet.rs`.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Meet {
     pub first: Cylinder,
     pub second: Cylinder,
     pub component: u8,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub enum Curve {
     Line(Line),
     Circle(Circle),

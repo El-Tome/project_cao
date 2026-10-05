@@ -23,6 +23,16 @@ const SQUARE: f64 = 1e-12;
 const WALLS: u32 = 2;
 
 impl Body {
+    /// How many numbers a raise of the profile names: the floor, the top,
+    /// and a wall for each run, whether or not runs share a wall.
+    pub fn numbers_raised(outline: &Contour, holes: &[Contour]) -> u32 {
+        let runs: usize = std::iter::once(outline)
+            .chain(holes)
+            .map(|contour| contour.runs.len())
+            .sum();
+        WALLS + runs as u32
+    }
+
     /// A profile pushed along `travel`, which must stand square to its plane.
     ///
     /// The outline is turned anticlockwise and the holes clockwise about the

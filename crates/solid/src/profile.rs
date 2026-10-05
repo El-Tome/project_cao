@@ -1,8 +1,24 @@
 //! A profile as the drawing hands it to a kernel: closed loops of straight runs
 //! and arcs, and the frame they stand in. The exact kernel (`brep`, #498)
-//! raises one.
+//! raises one; the flats raise the steps the drawing sampled it into.
 
 use glam::{DVec2, DVec3};
+
+use crate::sweep::Loop;
+
+/// An area of a drawing, handed both ways: as its runs, for the exact kernel,
+/// and as the steps and triangles it was sampled into, for the flats. Which
+/// one raises it is the body's business ([`crate::Body::tool_raised`]).
+#[derive(Clone, Debug)]
+pub struct Profile<'a> {
+    /// The outline and the holes as runs, or `None` when a run follows a
+    /// curve the exact kernel has no surface for, an ellipse: the area is then
+    /// raised by the flats.
+    pub exact: Option<(Contour, Vec<Contour>)>,
+    pub sampled: Loop<'a>,
+    pub sampled_holes: Vec<Loop<'a>>,
+    pub triangles: &'a [[DVec2; 3]],
+}
 
 /// How a stretch of a profile runs to the next corner.
 #[derive(Clone, Copy, Debug, PartialEq)]

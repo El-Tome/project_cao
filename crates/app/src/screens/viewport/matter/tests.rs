@@ -19,13 +19,20 @@ fn a_body_through_the_plane() -> Body {
         [corners[0], corners[1], corners[2]],
         [corners[0], corners[2], corners[3]],
     ];
-    Body::prism(
-        cao_solid::Loop::straight(&corners),
-        &[],
-        &triangles,
-        |point| DVec3::new(point.x, point.y, -1.0),
-        DVec3::Z * 2.0,
-    )
+    let profile = cao_solid::profile::Profile {
+        exact: None,
+        sampled: cao_solid::Loop::straight(&corners),
+        sampled_holes: Vec::new(),
+        triangles: &triangles,
+    };
+    let frame = cao_solid::profile::Frame {
+        origin: DVec3::Z * -1.0,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    Body::default()
+        .tool_raised(&profile, frame, DVec3::Z * 2.0)
+        .expect("the flats never decline")
 }
 
 fn reaches_above(body: &Body) -> bool {

@@ -3,6 +3,7 @@
 
 use cao_sketch::{Area, Region, Sketch};
 use cao_solid::Body;
+use cao_solid::profile::{Frame, Profile};
 use glam::DVec2;
 
 use crate::broken::Broken;
@@ -26,7 +27,7 @@ impl PartState {
     pub(crate) fn faces_made(&self, rank: usize) -> Vec<usize> {
         self.made.get(rank).map_or_else(Vec::new, |made| {
             made.clone()
-                .filter(|face| self.body.triangles_of(*face).next().is_some())
+                .filter(|face| self.body.has_face(*face))
                 .collect()
         })
     }
@@ -75,7 +76,11 @@ impl PartState {
             ) else {
                 continue;
             };
-            tool = tool.union(&piece);
+            let Ok(joined) = tool.union(&piece) else {
+                self.broke(Broken::Operation(self.replaying));
+                return;
+            };
+            tool = joined;
         }
 
         // An area the drawing no longer encloses raises nothing, which is a
@@ -86,15 +91,20 @@ impl PartState {
         self.combine(tool, mode);
     }
 
-    /// Joins a tool to the part, or takes it out.
+    /// Joins a tool to the part, or takes it out. A step the kernel declines
+    /// leaves the part as it was, and is broken.
     pub(crate) fn combine(&mut self, tool: Body, mode: ExtrusionMode) {
         if tool.is_empty() {
             return;
         }
-        self.body = match mode {
+        let combined = match mode {
             ExtrusionMode::Add => self.body.union(&tool),
             ExtrusionMode::Cut => self.body.difference(&tool),
         };
+        match combined {
+            Ok(body) => self.body = body,
+            Err(_) => self.broke(Broken::Operation(self.replaying)),
+        }
     }
 
     /// Turns the chosen areas of a sketch into a prism and joins it to the
@@ -130,15 +140,25 @@ impl PartState {
                 lost = true;
                 continue;
             };
-            let (outline, holes) = loops(region);
-            let piece = Body::prism(
-                outline,
-                &holes,
-                &region.face_triangles(),
-                |point| plane.to_world(point),
-                travel,
-            );
-            tool = tool.union(&piece);
+            let (sampled, sampled_holes) = loops(region);
+            let triangles = region.face_triangles();
+            let profile = Profile {
+                exact: None,
+                sampled,
+                sampled_holes,
+                triangles: &triangles,
+            };
+            let frame = Frame {
+                origin: plane.origin,
+                u: plane.u,
+                v: plane.v,
+            };
+            let raised = self.body.tool_raised(&profile, frame, travel);
+            let Ok(joined) = raised.and_then(|piece| tool.union(&piece)) else {
+                self.broke(Broken::Operation(self.replaying));
+                return;
+            };
+            tool = joined;
         }
 
         // An area the drawing no longer encloses raises nothing, which is a

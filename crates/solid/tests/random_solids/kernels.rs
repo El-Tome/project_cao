@@ -187,10 +187,11 @@ impl Kernel for Flats {
         tool: &cao_solid::Body,
         mode: Mode,
     ) -> Option<cao_solid::Body> {
-        Some(match mode {
+        match mode {
             Mode::Add => body.union(tool),
             Mode::Cut => body.difference(tool),
-        })
+        }
+        .ok()
     }
 
     fn triangles(&self, body: &cao_solid::Body) -> (Vec<Triangle>, f64) {

@@ -1,5 +1,6 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
+use cao_solid::profile::{Frame, Profile};
 use cao_solid::{Body, Loop};
 use glam::DVec2;
 
@@ -187,16 +188,19 @@ impl Leaf {
                     .iter()
                     .map(|(points, curves)| Loop { points, curves })
                     .collect();
-                Some(Body::prism(
-                    Loop {
+                let (origin, u, v) = plane.frame();
+                let profile = Profile {
+                    exact: None,
+                    sampled: Loop {
                         points: &area.outline,
                         curves: &area.outline_curves,
                     },
-                    &holes,
-                    &area.triangles,
-                    |point| plane.to_world(point),
-                    plane.normal() * *height,
-                ))
+                    sampled_holes: holes,
+                    triangles: &area.triangles,
+                };
+                Body::default()
+                    .tool_raised(&profile, Frame { origin, u, v }, plane.normal() * *height)
+                    .ok()
             }
             Leaf::Revolution {
                 plane,

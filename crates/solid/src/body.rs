@@ -1,28 +1,49 @@
 //! The matter, as the rest of the workspace is allowed to see it.
 
+mod drawn;
+mod exact;
+
+use std::borrow::Cow;
+
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
 
+use crate::brep::Declined;
 use crate::mesh::{Mesh, Polygon};
+use crate::profile::{Frame, Profile};
 use crate::sweep::{self, Loop};
+use exact::Exact;
 
 /// A solid: one closed surface, its faces numbered.
 ///
-/// What it is made of is this crate's own business — flat pieces today,
-/// whatever computes the matter better tomorrow. Everything above raises it,
-/// joins it, cuts it, draws it and points at its faces through what is here,
-/// and nothing above can reach inside it (#499).
-///
-/// Written exactly as the pieces it holds, so that a geometry cache written
-/// before there was a body reads as one.
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
-#[serde(transparent)]
+/// What it is made of is this crate's own business. Everything above raises
+/// it, joins it, cuts it, draws it and points at its faces through what is
+/// here, and nothing above can reach inside it (#499).
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Body {
-    mesh: Mesh,
+    matter: Matter,
+}
+
+/// Which kernel computed the matter. Exact on planes and cylinders as long as
+/// every step was one the exact kernel builds; flat pieces from the first step
+/// it does not — a revolution, an ellipse — on, since an exact body joined to
+/// flats can only be flats.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+enum Matter {
+    Exact(Exact),
+    Flats(Mesh),
+}
+
+impl Default for Body {
+    fn default() -> Self {
+        Body {
+            matter: Matter::Exact(Exact::default()),
+        }
+    }
 }
 
 /// A face of the body a ray met: how far along the ray, which face, and which
-/// way the piece of it the ray met is facing.
+/// way the face is facing where the ray met it.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FaceHit {
     pub distance: f64,
@@ -30,8 +51,8 @@ pub struct FaceHit {
     pub normal: DVec3,
 }
 
-/// What a face offers a drawing laid on it: which way its first piece faces,
-/// and every corner of every piece of it, in the order the pieces hold them.
+/// What a face offers a drawing laid on it: which way it faces, and every
+/// corner of every piece of it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FacePlane {
     pub normal: DVec3,
@@ -39,21 +60,34 @@ pub struct FacePlane {
 }
 
 impl Body {
-    /// A flat area raised into a prism along `direction`.
-    pub fn prism(
-        outline: Loop<'_>,
-        holes: &[Loop<'_>],
-        triangles: &[[DVec2; 3]],
-        to_world: impl Fn(DVec2) -> DVec3,
-        direction: DVec3,
-    ) -> Body {
-        Body {
-            mesh: sweep::prism(outline, holes, triangles, to_world, direction),
+    /// A profile raised into a prism along `travel`, square to its frame, in
+    /// the kernel this body is computed by: exact when the body is and the
+    /// profile has no run the exact kernel cannot raise, flats otherwise.
+    /// Declined only by the exact kernel.
+    pub fn tool_raised(
+        &self,
+        profile: &Profile,
+        frame: Frame,
+        travel: DVec3,
+    ) -> Result<Body, Declined> {
+        if let (Matter::Exact(_), Some((outline, holes))) = (&self.matter, &profile.exact) {
+            return Ok(Body::of_exact(Exact::raised(
+                outline, holes, frame, travel,
+            )?));
         }
+        let mesh = sweep::prism(
+            profile.sampled,
+            &profile.sampled_holes,
+            profile.triangles,
+            |point| frame.at(point),
+            travel,
+        );
+        Ok(Body::of_flats(mesh))
     }
 
     /// A flat area turned about an axis lying in its own plane, or `None` when
-    /// the area straddles the axis and would sweep through itself.
+    /// the area straddles the axis and would sweep through itself. Always
+    /// flats: the exact kernel has no surface of revolution.
     pub fn revolution(
         outline: Loop<'_>,
         holes: &[Loop<'_>],
@@ -72,89 +106,166 @@ impl Body {
             axis_direction,
             turn,
         )?;
-        Some(Body { mesh })
+        Some(Body::of_flats(mesh))
     }
 
     /// Everything that is in either body.
-    pub fn union(&self, other: &Body) -> Body {
-        Body {
-            mesh: self.mesh.union(&other.mesh),
+    pub fn union(&self, other: &Body) -> Result<Body, Declined> {
+        match (&self.matter, &other.matter) {
+            (Matter::Exact(first), Matter::Exact(second)) => {
+                Ok(Body::of_exact(first.joined(second)?))
+            }
+            _ => Ok(Body::of_flats(self.as_flats().union(&other.as_flats()))),
         }
     }
 
     /// Everything that is in this body and not in the other.
-    pub fn difference(&self, other: &Body) -> Body {
-        Body {
-            mesh: self.mesh.difference(&other.mesh),
+    pub fn difference(&self, other: &Body) -> Result<Body, Declined> {
+        match (&self.matter, &other.matter) {
+            (Matter::Exact(first), Matter::Exact(second)) => {
+                Ok(Body::of_exact(first.cut_by(second)?))
+            }
+            _ => Ok(Body::of_flats(
+                self.as_flats().difference(&other.as_flats()),
+            )),
         }
     }
 
     /// What is left of the body behind a plane, left open where the plane
     /// went through: a way of looking inside rather than of taking matter away.
     pub fn behind(&self, normal: DVec3, offset: f64) -> Body {
-        Body {
-            mesh: self.mesh.behind(normal, offset),
-        }
+        Body::of_flats(self.as_flats().behind(normal, offset))
     }
 
     pub fn is_empty(&self) -> bool {
-        self.mesh.is_empty()
+        match &self.matter {
+            Matter::Exact(exact) => exact.is_empty(),
+            Matter::Flats(mesh) => mesh.is_empty(),
+        }
     }
 
     /// The triangles the body is drawn with.
     pub fn triangles(&self) -> Vec<[DVec3; 3]> {
-        self.mesh.triangles()
+        match &self.matter {
+            Matter::Exact(exact) => exact.drawn().triangles.clone(),
+            Matter::Flats(mesh) => mesh.triangles(),
+        }
     }
 
     /// The face a ray meets first, if any.
     pub fn ray_hit(&self, origin: DVec3, direction: DVec3) -> Option<FaceHit> {
-        let hit = self.mesh.ray_hit(origin, direction)?;
-        Some(FaceHit {
-            distance: hit.distance,
-            face: hit.polygon.face,
-            normal: hit.polygon.normal(),
-        })
+        match &self.matter {
+            Matter::Exact(exact) => exact.ray_hit(origin, direction),
+            Matter::Flats(mesh) => {
+                let hit = mesh.ray_hit(origin, direction)?;
+                Some(FaceHit {
+                    distance: hit.distance,
+                    face: hit.polygon.face,
+                    normal: hit.polygon.normal(),
+                })
+            }
+        }
     }
 
     /// The number no face of this body answers to: a face numbered from it on
     /// is one made since it was read.
     pub fn faces_end(&self) -> usize {
-        self.mesh.faces_end()
+        match &self.matter {
+            Matter::Exact(exact) => exact.faces_end(),
+            Matter::Flats(mesh) => mesh.faces_end(),
+        }
+    }
+
+    /// Moves the faces' count past the numbers a raise of `profile` would
+    /// have named, for a step the kernel declined: the steps after it then
+    /// number their faces as if it had not been, and a drawing laid on one of
+    /// them keeps its face once the step is mended. The flats never decline,
+    /// and count their faces by the numbers they hold.
+    pub fn count_past(&mut self, profile: &Profile) {
+        if let (Matter::Exact(exact), Some((outline, holes))) = (&mut self.matter, &profile.exact) {
+            exact.count_past(outline, holes);
+        }
+    }
+
+    /// Whether some face of the body answers to `face`.
+    pub fn has_face(&self, face: usize) -> bool {
+        match &self.matter {
+            Matter::Exact(exact) => exact.has_face(face),
+            Matter::Flats(mesh) => mesh.pieces_of(face).next().is_some(),
+        }
     }
 
     /// The triangles one face is drawn with, which is what lighting it whole
     /// under the cursor needs: at least one for every face the body holds, and
     /// none when it has no such face.
-    pub fn triangles_of(&self, face: usize) -> impl Iterator<Item = [DVec3; 3]> + '_ {
-        self.mesh.pieces_of(face).flat_map(Polygon::triangles)
+    pub fn triangles_of(&self, face: usize) -> Box<dyn Iterator<Item = [DVec3; 3]> + '_> {
+        match &self.matter {
+            Matter::Exact(exact) => Box::new(exact.triangles_of(face)),
+            Matter::Flats(mesh) => Box::new(mesh.pieces_of(face).flat_map(Polygon::triangles)),
+        }
     }
 
     /// Whether a face is flat, which is whether a drawing can be laid on it.
     pub fn is_flat(&self, face: usize) -> bool {
-        self.mesh.is_flat(face)
+        match &self.matter {
+            Matter::Exact(exact) => exact.is_flat(face),
+            Matter::Flats(mesh) => mesh.is_flat(face),
+        }
     }
 
     /// The plane a face offers a drawing, or `None` when the body has no such
-    /// face. Read off the face whether it is flat or not: which faces may carry
-    /// a drawing is for the caller to ask [`Body::is_flat`].
+    /// face. The flats read it off the face whether it is flat or not, and
+    /// which faces may carry a drawing is for the caller to ask
+    /// [`Body::is_flat`]; the exact kernel offers none on a curved face.
     pub fn plane_of(&self, face: usize) -> Option<FacePlane> {
-        let normal = self.mesh.pieces_of(face).next()?.normal();
-        let corners = self
-            .mesh
-            .pieces_of(face)
-            .flat_map(|piece| piece.corners.iter().copied())
-            .collect();
-        Some(FacePlane { normal, corners })
+        match &self.matter {
+            Matter::Exact(exact) => exact.plane_of(face),
+            Matter::Flats(mesh) => {
+                let normal = mesh.pieces_of(face).next()?.normal();
+                let corners = mesh
+                    .pieces_of(face)
+                    .flat_map(|piece| piece.corners.iter().copied())
+                    .collect();
+                Some(FacePlane { normal, corners })
+            }
+        }
     }
 
     /// The lowest and the highest corner of the box the body fits in.
     pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
-        self.mesh.bounds()
+        match &self.matter {
+            Matter::Exact(exact) => exact.bounds(),
+            Matter::Flats(mesh) => mesh.bounds(),
+        }
     }
 
     /// The matter the body encloses.
     pub fn volume(&self) -> f64 {
-        self.mesh.volume()
+        match &self.matter {
+            Matter::Exact(exact) => exact.volume(),
+            Matter::Flats(mesh) => mesh.volume(),
+        }
+    }
+
+    fn of_exact(exact: Exact) -> Body {
+        Body {
+            matter: Matter::Exact(exact),
+        }
+    }
+
+    fn of_flats(mesh: Mesh) -> Body {
+        Body {
+            matter: Matter::Flats(mesh),
+        }
+    }
+
+    /// The body as flat pieces: its own when it is made of them, the
+    /// triangles it is drawn with otherwise.
+    fn as_flats(&self) -> Cow<'_, Mesh> {
+        match &self.matter {
+            Matter::Exact(exact) => Cow::Owned(exact.flats()),
+            Matter::Flats(mesh) => Cow::Borrowed(mesh),
+        }
     }
 }
 

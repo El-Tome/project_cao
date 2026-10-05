@@ -4,6 +4,7 @@
 use std::f64::consts::PI;
 
 use glam::DVec3;
+use serde::{Deserialize, Serialize};
 
 use super::curve::{Circle, Curve};
 use super::scale::Scale;
@@ -13,24 +14,29 @@ mod numbers;
 
 pub(super) use numbers::ascending;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct SurfaceId(pub u32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct CurveId(pub u32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct VertexId(pub u32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct EdgeId(pub u32);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[serde(transparent)]
 pub struct FaceId(pub u32);
 
 /// A corner, and the surfaces it was decided to lie on, sorted: what a later
 /// step reads instead of measuring the distance again.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Vertex {
     pub point: DVec3,
     pub on: Vec<SurfaceId>,
@@ -39,7 +45,7 @@ pub struct Vertex {
 /// A stretch of a curve, from parameter `from` up to parameter `to`, which is
 /// the way the edge runs. A whole closed curve has no vertex, and runs over
 /// one period.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Edge {
     pub curve: CurveId,
     pub ends: Option<[VertexId; 2]>,
@@ -48,7 +54,7 @@ pub struct Edge {
 }
 
 /// A face's use of an edge: along the edge's own way, or against it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Coedge {
     pub edge: EdgeId,
     pub forward: bool,
@@ -62,7 +68,7 @@ pub struct Coedge {
 /// raise names its floor nought, its top one and each wall two more than
 /// the run of the profile it stands on, and a boolean keeps the names of
 /// every face of its operands a face lies on.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Face {
     pub surface: SurfaceId,
     pub flipped: bool,
@@ -72,7 +78,7 @@ pub struct Face {
 
 /// A solid, as the surfaces and curves it stands on and the faces, edges and
 /// vertices that bound it.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Body {
     pub(crate) surfaces: Vec<Surface>,
     pub(crate) curves: Vec<Curve>,
@@ -86,6 +92,19 @@ pub struct Body {
 }
 
 impl Body {
+    /// A body holding no matter: what a cut that takes everything leaves.
+    pub fn empty() -> Body {
+        Body {
+            surfaces: Vec::new(),
+            curves: Vec::new(),
+            vertices: Vec::new(),
+            edges: Vec::new(),
+            faces: Vec::new(),
+            scale: Scale::of(0.0),
+            arrivals: Vec::new(),
+        }
+    }
+
     pub fn surface(&self, id: SurfaceId) -> &Surface {
         &self.surfaces[id.0 as usize]
     }
@@ -163,6 +182,34 @@ impl Body {
             .chain(arcs)
             .map(|point| point.abs().max_element())
             .fold(0.0, f64::max)
+    }
+
+    /// The corners of a face and the points of its edges where a coordinate
+    /// turns back, in the order its loops run: read off the exact curves, so
+    /// they do not move with how finely the face is drawn.
+    pub fn corners_of(&self, face: FaceId) -> Vec<DVec3> {
+        let mut corners = Vec::new();
+        for coedge in self.face(face).loops.iter().flatten() {
+            let edge = self.edge(coedge.edge);
+            let mut points = self.extremes(edge);
+            if let Some([from, to]) = edge.ends {
+                points[0] = self.vertex(from).point;
+                points[1] = self.vertex(to).point;
+            }
+            corners.extend(points);
+        }
+        corners
+    }
+
+    /// The lowest and the highest corner of the box the body fits in, read
+    /// off its corners and the points where its curves turn back.
+    pub fn bounds(&self) -> Option<(DVec3, DVec3)> {
+        let corners = self.vertices.iter().map(|vertex| vertex.point);
+        let arcs = self.edges.iter().flat_map(|edge| self.extremes(edge));
+        corners.chain(arcs).fold(None, |reached, point| {
+            let (low, high) = reached.unwrap_or((point, point));
+            Some((low.min(point), high.max(point)))
+        })
     }
 
     /// The points of an edge where a coordinate is largest or smallest.

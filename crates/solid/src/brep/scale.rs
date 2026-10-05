@@ -1,5 +1,7 @@
 //! The one tolerance of the kernel, and what it is taken against.
 
+use serde::{Deserialize, Serialize};
+
 /// How far a body reaches from the origin, never less than one, and the
 /// distance under which two places are one.
 ///
@@ -8,7 +10,7 @@
 /// of a line of measure, so a merge never shows as matter gained or lost. The
 /// result of an operation carries the larger reach of its operands, so a
 /// later operation never decides with a finer tolerance than an earlier one.
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Scale {
     reach: f64,
 }

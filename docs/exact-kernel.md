@@ -60,9 +60,10 @@ Known and still open:
   the touch: a few failures in ten thousand random parts, all of them declines
   or triangles drawing a right body badly;
 - a profile whose hole touches its outline at a single point is raised with
-  the right volume, but its two caps are drawn with no triangles: the
-  tessellation does not yet walk two loops that share a corner. The kernel
-  should either learn it or decline such a profile;
+  the right volume, but the tessellation does not yet walk two loops that
+  share a corner, and leaves both caps without a triangle. `Body` declines
+  such a body (`Declined::Undrawn`) rather than draw it with a hole where its
+  matter is; the tessellation should learn it;
 - a face bounded by the curve two perpendicular cylinders meet is never
   decided clear of a face at a slant, so such a pair still declines.
 
@@ -74,9 +75,11 @@ Known and still open:
   oblique to a cylinder's axis — an ellipse — are declined where their faces
   cross: the operation gives no answer, which the harness counts as such
   rather than as a wrong solid. Where the faces stand clear of each other — a
-  bore square into one side of a hexagonal prism, beside the next side — the
-  pair is passed over, decided on the faces themselves rather than on the
-  boxes round them (`combine/clear.rs`). Every leaf of the sixteen cases and
+  bore square into one side of a hexagonal prism, beside the next side, or
+  drilled right through it past the far side's slanted neighbours — the pair
+  is passed over, decided on the faces themselves rather than on the boxes
+  round them (`combine/clear.rs`), along the directions the two surfaces and
+  their straight edges offer. Every leaf of the sixteen cases and
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
 - **Operations:** raise a profile of straight runs and arcs along its plane's

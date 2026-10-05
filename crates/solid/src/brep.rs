@@ -58,6 +58,11 @@ pub enum Declined {
     Unverified,
     /// Not written yet.
     Unfinished,
+    /// The body was built, but a face of it could not be cut into triangles:
+    /// drawn, it would show a hole where there is matter. Never said by the
+    /// kernel itself: [`crate::Body`] draws what it builds, and declines what
+    /// it cannot draw whole.
+    Undrawn,
     /// The kernel stopped on a bug of its own. Never said by the kernel
     /// itself: [`crate::Body`] catches the stop, so that a shape nobody tried
     /// costs the step, not the user's work.

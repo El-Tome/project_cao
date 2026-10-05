@@ -558,3 +558,16 @@ fn an_exact_body_is_drawn_closed_uncrossed_and_round_enough() {
         body.volume(),
     );
 }
+
+#[test]
+fn a_hole_touching_its_outline_at_one_point_is_declined_rather_than_drawn_open() {
+    let touching = exact(
+        Contour::rectangle(DVec2::ZERO, DVec2::new(20.0, 10.0)),
+        vec![disc(DVec2::new(10.0, 4.0), 4.0)],
+    );
+    let plate = Body::default()
+        .tool_raised(&touching, FLAT, DVec3::Z * 5.0)
+        .expect("the kernel raises it");
+
+    assert_eq!(Body::default().union(&plate), Err(Declined::Undrawn));
+}

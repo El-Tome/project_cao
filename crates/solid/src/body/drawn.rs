@@ -2,6 +2,8 @@
 //! from: what the view draws, lights and picks in, and what the body becomes
 //! when it has to be joined to flats.
 
+use std::collections::BTreeSet;
+
 use glam::DVec3;
 
 use super::FaceHit;
@@ -31,6 +33,12 @@ impl Drawn {
     pub fn of(body: &brep::Body) -> Drawn {
         let (triangles, faces) = body.triangles_by_face(DRAWN * body.scale().reach());
         Drawn { triangles, faces }
+    }
+
+    /// Whether every face of the body has a triangle to be drawn with.
+    pub fn covers(&self, body: &brep::Body) -> bool {
+        let drawn: BTreeSet<FaceId> = self.faces.iter().copied().collect();
+        body.face_ids().all(|id| drawn.contains(&id))
     }
 
     /// The nearest triangle a ray crosses names the face; the face's own

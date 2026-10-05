@@ -44,13 +44,15 @@ const EXACTLY: f64 = 1e-6;
 
 /// How many lines a case was held along, and how many were left out for
 /// grazing a curved wall, summed over every body the case was checked at;
-/// and how many cases the kernel declined as asking for a curve it does not
-/// build, which is no answer it owed (#533).
+/// how many cases the kernel declined as asking for a curve it does not
+/// build, and how many it declined to raise for a turned wall a hair thin,
+/// which are no answers it owed (#533).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Measured {
     pub held: usize,
     pub grazing: usize,
     pub declined: usize,
+    pub thin: usize,
 }
 
 /// What a case promises along every line, one entry per leaf: where each
@@ -67,7 +69,8 @@ struct Promise {
 /// the whole case run twice, bit for bit.
 ///
 /// A leaf or a step the kernel declines is no answer, but for a case asking
-/// for an ellipse declined as unsupported, which is counted. A case with a
+/// for an ellipse declined as unsupported, and a turned leaf with a wall a
+/// hair thin declined as no profile, which are counted. A case with a
 /// leaf that is no solid, or none this arithmetic covers — a star — holds
 /// nothing.
 pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured, Flaw> {
@@ -84,6 +87,10 @@ pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured
 
     let bodies = match raised(case, kernel) {
         Ok(bodies) => bodies,
+        Err(Declined::Profile) if case.has_a_wall_a_hair_thin() => {
+            measured.thin += 1;
+            return Ok(measured);
+        }
         Err(declined) => return declined_on(case, declined, measured),
     };
     for (leaf, body) in bodies.iter().enumerate() {
@@ -371,6 +378,15 @@ impl Held<'_> {
 }
 
 impl Case {
+    /// Whether a turned leaf of the case has a wall a hair thin, which the
+    /// exact kernel may decline to raise and the application turns on the
+    /// flats.
+    pub fn has_a_wall_a_hair_thin(&self) -> bool {
+        self.leaves()
+            .filter_map(Leaf::as_turned)
+            .any(|turned| turned.has_a_wall_a_hair_thin())
+    }
+
     /// Whether the case may ask the exact kernel for a curve it does not
     /// build (#533): a plane meeting a cylinder neither square to its axis
     /// nor along it, an ellipse, or two cylinders whose axes are neither

@@ -60,7 +60,7 @@ pub struct Exact;
 
 /// How far the exact kernel's triangles are asked to stand from its
 /// surfaces, as a fraction of how far the body reaches.
-const TESSELLATION: f64 = 1e-3;
+pub const TESSELLATION: f64 = 1e-3;
 
 impl Kernel for Exact {
     type Body = Body;

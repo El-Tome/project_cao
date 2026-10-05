@@ -23,9 +23,11 @@
 //! `campaigns`: the flats answered 161 of the first 300 turned cases by
 //! their own rules when it was written, and the arithmetic held every one.
 //!
-//! The tests that need the exact kernel to turn are written already and wait
-//! for it, ignored. A campaign is run by hand, on the exact kernel or through
-//! the application's body:
+//! The exact kernel lays a section square to its axis before turning it; a
+//! hole a hair from its band's edge would be laid onto the outline, so it
+//! may decline the section, which the application turns on the flats then,
+//! and that decline is counted apart. A campaign is run by hand, on the
+//! exact kernel or through the application's body:
 //!
 //! ```text
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
@@ -50,13 +52,15 @@ mod random_solids;
 
 use std::f64::consts::PI;
 
+use cao_solid::Declined;
+use cao_solid::brep::Scale;
 use cao_solid::soundness::{Lines, Spans, shrink};
 use cao_solid::turning::Lie;
 use cao_solid::turning::Straight;
 use glam::{DQuat, DVec2, DVec3};
 use random_solids::{
     Application, Axis, Case, Drawn, Exact, Flats, Kernel, Leaf, Outline, Piece, Plane, Section,
-    Step, Stretch, Turned,
+    Step, Stretch, TESSELLATION, Turned,
 };
 
 fn spans_of(stretches: &[Stretch]) -> Spans {
@@ -1073,7 +1077,6 @@ fn shrinking_any_drawn_turned_case_comes_to_an_end() {
 }
 
 #[test]
-#[ignore = "#533: the exact kernel does not turn yet"]
 fn every_turned_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume()
  {
     let leaves = drawn_turns(200);
@@ -1085,13 +1088,74 @@ fn every_turned_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_enclo
     });
     for (leaf, (held, volume)) in leaves.iter().zip(weighed) {
         assert!(held.is_ok(), "{leaf}: {held:?}");
-        let promised = turned(leaf).expect("a turn").volume();
-        let volume = volume.expect("a turned body");
+        let turn = turned(leaf).expect("a turn");
+        let volume = match volume {
+            Err(Declined::Profile) if turn.has_a_wall_a_hair_thin() => continue,
+            volume => volume.expect("a turned body"),
+        };
+        let promised = turn.volume();
         assert!(
-            (volume - promised).abs() <= 1e-9 * promised,
+            (volume - promised).abs() <= 1e-9 * promised + laying_room(&turn),
             "{leaf}: {volume} against {promised}"
         );
+        if let [side] = turn.drawn().as_slice() {
+            let (outline, holes) = side.contours();
+            let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 0.0)
+                .expect("a section of straight runs");
+            let laid = turn.angle() * moment_laid(&straight);
+            assert!(
+                (volume - laid).abs() <= 1e-9 * laid,
+                "{leaf}: {volume} against {laid} as laid"
+            );
+        }
     }
+}
+
+/// What a section laid square to its axis sweeps per radian: the moment of
+/// its area about the axis, its holes taken out.
+fn moment_laid(straight: &Straight) -> f64 {
+    straight
+        .contours
+        .iter()
+        .map(|contour| {
+            let corners: Vec<DVec2> = contour.iter().map(|corner| corner.at).collect();
+            corners
+                .iter()
+                .zip(corners.iter().cycle().skip(1))
+                .map(|(from, to)| from.perp_dot(*to) * (from.y + to.y))
+                .sum::<f64>()
+                / 6.0
+        })
+        .sum::<f64>()
+        .abs()
+}
+
+/// How far laying a section square to its axis may move the volume of its
+/// turn: no corner moves by more than twice the tolerance the exact kernel
+/// reads it at, which sweeps at most a strip that wide along every edge, at
+/// the furthest radius.
+fn laying_room(turn: &Turned) -> f64 {
+    let frame = turn.frame();
+    let furthest = turn
+        .section
+        .bands
+        .iter()
+        .flat_map(|band| [band[1].abs(), band[2].abs()])
+        .fold(0.0, f64::max);
+    let placed = turn
+        .drawn()
+        .iter()
+        .flat_map(|side| side.outline.clone())
+        .map(|corner| frame.at(corner).abs().max_element())
+        .fold(0.0, f64::max);
+    let tolerance = Scale::HAIR * Scale::of(placed + furthest).eps();
+    let edges: f64 = turn
+        .section
+        .rectangles()
+        .iter()
+        .map(|[from, to, low, high]| 2.0 * ((to - from) + (high - low)))
+        .sum();
+    turn.angle() * furthest * 2.0 * tolerance * edges
 }
 
 /// A run of a lone turn as the kernel lays it: its number, its two laid
@@ -1107,19 +1171,24 @@ struct Laid {
 /// The numbers of the runs of a one-sided turn the kernel lays to some
 /// length, and those of them off the axis as it lays them: read off the
 /// reading it is handed, at the tolerances the application's body reads an
-/// empty part's tools at.
-fn laid_runs(turn: &Turned) -> (Vec<u32>, Vec<Laid>) {
+/// empty part's tools at; nothing when the reading lays no section. The way
+/// out across a run is told by the way the outline turns, its holes turning
+/// the other way, since a point probed beside a run may land past a wall a
+/// hair thin.
+fn laid_runs(turn: &Turned) -> Option<(Vec<u32>, Vec<Laid>)> {
     let [side] = <[Drawn; 1]>::try_from(turn.drawn()).ok().expect("one side");
     let (outline, holes) = side.contours();
-    let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 1.0)
-        .expect("a section of straight runs");
-    let pieces = turn.section.pieces();
-    let inside = |place: DVec2| {
-        pieces.iter().any(|piece| {
-            (piece.along[0]..=piece.along[1]).contains(&place.x)
-                && (piece.away[0]..=piece.away[1]).contains(&place.y)
-        })
-    };
+    let straight = Straight::of(&outline, &holes, turn.frame(), &turn.turn(0.0), 1.0)?;
+    let outline: Vec<DVec2> = straight.contours[0]
+        .iter()
+        .map(|corner| corner.at)
+        .collect();
+    let turning = outline
+        .iter()
+        .zip(outline.iter().cycle().skip(1))
+        .map(|(from, to)| from.perp_dot(*to))
+        .sum::<f64>()
+        .signum();
     let mut runs = Vec::new();
     let mut numbers = Vec::new();
     for contour in &straight.contours {
@@ -1130,9 +1199,7 @@ fn laid_runs(turn: &Turned) -> (Vec<u32>, Vec<Laid>) {
                 continue;
             }
             let along = (to - from).normalize();
-            let right = DVec2::new(along.y, -along.x);
-            let probe = (from + to) / 2.0 + right * 1e-6 * (to - from).length();
-            let out = if inside(probe) { -right } else { right };
+            let out = DVec2::new(along.y, -along.x) * turning;
             runs.push(Laid {
                 run: corner.run,
                 from,
@@ -1141,11 +1208,10 @@ fn laid_runs(turn: &Turned) -> (Vec<u32>, Vec<Laid>) {
             });
         }
     }
-    (numbers, runs)
+    Some((numbers, runs))
 }
 
 #[test]
-#[ignore = "#533: the exact kernel does not turn yet"]
 fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
     let leaves: Vec<Leaf> = drawn_turns(300)
         .into_iter()
@@ -1159,7 +1225,13 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
             .raised(leaf)
             .expect("a turn the flats make");
         assert_eq!(exact.faces_end(), flats.faces_end(), "{leaf}");
-        let (numbers, runs) = laid_runs(&turn);
+        let Some((numbers, runs)) = laid_runs(&turn) else {
+            assert!(
+                turn.has_a_wall_a_hair_thin(),
+                "{leaf}: a section of straight runs not laid"
+            );
+            continue;
+        };
         let laid = |face: usize| numbers.contains(&(face as u32)) || face as u32 >= runs_of(&turn);
         for face in (0..flats.faces_end()).filter(|face| laid(*face)) {
             assert_eq!(
@@ -1170,14 +1242,18 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
         }
         let (_, reach) = lines_over(leaf);
         let swept = turn.swept(turn.section.side().expect("one side"));
-        let (cosine, sine) = (turn.angle() / 2.0).sin_cos();
-        let radial = swept.out * sine + swept.onward * cosine;
+        let (sine, cosine) = (turn.angle() / 2.0).sin_cos();
+        let radial = swept.out * cosine + swept.onward * sine;
         let at = |place: DVec2| swept.origin + swept.along * place.x + radial * place.y;
-        for run in &runs {
+        let drawn_to = TESSELLATION * reach;
+        for run in runs
+            .iter()
+            .filter(|run| run.from.distance(run.to) > drawn_to)
+        {
             let middle = (run.from + run.to) / 2.0;
             let way = (at(middle + run.out) - at(middle)).normalize();
             let hit = exact
-                .ray_hit(at(middle) + way * 1e-3 * reach, -way)
+                .ray_hit(at(middle) + way * drawn_to, -way)
                 .unwrap_or_else(|| panic!("{leaf}: no face where run {} turns", run.run));
             let on_its_line = runs.iter().any(|other| {
                 other.run as usize == hit.face
@@ -1205,7 +1281,6 @@ fn runs_of(turn: &Turned) -> u32 {
 }
 
 #[test]
-#[ignore = "#533: the exact kernel does not turn yet"]
 fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
     let seeds: Vec<u64> = (0..60).collect();
     let weighed = random_solids::on_every_core(&seeds, |seed| {
@@ -1247,7 +1322,6 @@ fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_a
 }
 
 #[test]
-#[ignore = "#533: the exact kernel does not turn yet"]
 fn a_case_asking_for_an_ellipse_is_declined_as_unsupported_or_held() {
     let asking: Vec<Case> = (0..2000)
         .map(Case::drawn_turned_off_the_lattice)
@@ -1267,7 +1341,29 @@ fn a_case_asking_for_an_ellipse_is_declined_as_unsupported_or_held() {
 }
 
 #[test]
-#[ignore = "#533: the exact kernel does not turn yet"]
+fn a_hole_a_hair_from_its_band_s_edge_is_declined_by_the_exact_kernel_and_turned_on_the_flats() {
+    let holed = |top: f64| {
+        Leaf::turned(
+            Plane::yz(1.0),
+            Axis::second(0.0),
+            Section::bands(5.0, &[[6.0, -10.0, -4.0]]).with_holes(&[([6.0, top], [10.5, -7.0])]),
+            360.0,
+        )
+    };
+    let (thin, thick) = (holed(-9.99999998), holed(-9.5));
+    assert!(turned(&thin).expect("a turn").has_a_wall_a_hair_thin());
+    assert!(!turned(&thick).expect("a turn").has_a_wall_a_hair_thin());
+    let alone = Case::new(thin.clone(), vec![]);
+    let measured = random_solids::held_to_arithmetic(&alone, &Exact).expect("declined");
+    assert_eq!(measured.thin, 1);
+    let flats = Application.raised(&thin).expect("a turned body");
+    assert!(!flats.is_exact());
+    random_solids::holds_through_the_application(&alone);
+    let measured = random_solids::held_to_arithmetic(&Case::new(thick, vec![]), &Exact);
+    assert_eq!(measured.map(|measured| measured.thin), Ok(0));
+}
+
+#[test]
 fn random_turned_cases_keep_every_rule_on_the_exact_kernel() {
     let seeds: Vec<u64> = (0..40).collect();
     let weighed = random_solids::on_every_core(&seeds, |seed| {
@@ -1288,7 +1384,7 @@ mod campaign {
 
     use cao_solid::soundness::{Check, Flaw};
     use random_solids::campaigning::{
-        Answering, DECLINED, GRAZING, HELD, campaign_over, shrunk_one_by_one,
+        Answering, DECLINED, GRAZING, HELD, THIN, campaign_over, shrunk_one_by_one,
     };
 
     use super::*;
@@ -1297,6 +1393,7 @@ mod campaign {
         HELD.fetch_add(measured.held, Ordering::Relaxed);
         GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
         DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
+        THIN.fetch_add(measured.thin, Ordering::Relaxed);
     }
 
     fn exactly(case: &Case) -> Result<(), Flaw> {

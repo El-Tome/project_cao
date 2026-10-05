@@ -388,4 +388,39 @@ impl Turned {
             })
             .map(Option::unwrap_or_default)
     }
+
+    /// Whether a hole of the section stands a hair from an edge of its band
+    /// or from the axis: a wall the exact kernel cannot lay square without
+    /// bringing the hole onto the outline, so it may decline the section as
+    /// no profile it reads, and the application turns it on the flats.
+    pub fn has_a_wall_a_hair_thin(&self) -> bool {
+        let Some((low, high)) = self.bounds() else {
+            return false;
+        };
+        let hair = A_HAIR_THIN * low.abs().max(high.abs()).max_element();
+        let ends = self.section.ends();
+        self.section.holes.iter().any(|[hole_low, hole_high]| {
+            let band = (0..self.section.bands.len())
+                .find(|&index| ends[index] < hole_low.x && hole_high.x < ends[index + 1]);
+            band.is_some_and(|index| {
+                let [_, low, high] = self.section.bands[index];
+                [
+                    hole_low.x - ends[index],
+                    ends[index + 1] - hole_high.x,
+                    hole_low.y - low,
+                    high - hole_high.y,
+                    hole_low.y.abs(),
+                    hole_high.y.abs(),
+                ]
+                .iter()
+                .any(|gap| *gap <= hair)
+            })
+        })
+    }
 }
+
+/// How thin a wall the draw draws a hair thin is, as a share of how far the
+/// leaf reaches: its hairs stand below it and its lattice far above, and the
+/// tolerance the exact kernel lays a turned leaf at is under a twentieth of
+/// it.
+const A_HAIR_THIN: f64 = 1e-6;

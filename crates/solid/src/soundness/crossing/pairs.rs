@@ -10,10 +10,20 @@ use glam::DVec3;
 
 use super::{Face, Pair};
 
+mod boxes;
+
+use boxes::Boxes;
+
 /// Hands over every two faces whose boxes come within `room` of each other,
-/// save two of one fan, swept along the axis or diagonal they spread along
-/// most: a bar pushed slantwise has every wall as long as it along each axis.
-pub(super) fn for_each_pair_near(faces: &[Face], room: f64, mut visit: impl FnMut(&Face, &Face)) {
+/// save two of one fan, in the order of a sweep along the axis or diagonal
+/// they spread along most — a bar pushed slantwise has every wall as long as
+/// it along each axis — and hands back that way. Which faces are near is asked
+/// of their boxes nested by halves rather than of every face the sweep passes.
+pub(super) fn for_each_pair_near(
+    faces: &[Face],
+    room: f64,
+    mut visit: impl FnMut(&Face, &Face),
+) -> DVec3 {
     let mut way = (f64::INFINITY, DVec3::X);
     for n in 14..27 {
         let axis = DVec3::new((n % 3) as f64, (n / 3 % 3) as f64, (n / 9) as f64) - 1.0;
@@ -29,17 +39,24 @@ pub(super) fn for_each_pair_near(faces: &[Face], room: f64, mut visit: impl FnMu
     let hot = |(at, face): (usize, &Face)| (face.span(way.1), face.bounds, face.fans, at);
     let mut swept: Vec<_> = faces.iter().enumerate().map(hot).collect();
     swept.sort_by(|one, other| one.0[0].total_cmp(&other.0[0]));
+    let starts: Vec<f64> = swept.iter().map(|each| each.0[0]).collect();
+    let bounds: Vec<[DVec3; 2]> = swept.iter().map(|each| each.1).collect();
+    let boxes = Boxes::of(&bounds);
+    let mut ahead = Vec::new();
     for (at, ([_, end], [low, high], fans, one)) in swept.iter().enumerate() {
-        for ([start, _], [other_low, other_high], others, other) in &swept[at + 1..] {
-            if *start > end + room {
-                break;
-            }
+        let past = at + 1 + starts[at + 1..].partition_point(|start| *start <= end + room);
+        ahead.clear();
+        boxes.near(*low, *high, room, at + 1..past, &mut ahead);
+        ahead.sort_unstable();
+        for &next in &ahead {
+            let (_, [other_low, other_high], others, other) = &swept[next];
             let near = other_low.cmple(*high + room) & low.cmple(*other_high + room);
             if near.all() && !fans.iter().any(|fan| *fan > 0 && others.contains(fan)) {
                 visit(&faces[*one], &faces[*other]);
             }
         }
     }
+    way.1
 }
 
 /// Marks the faces facing one way round a corner they all have, flat and each

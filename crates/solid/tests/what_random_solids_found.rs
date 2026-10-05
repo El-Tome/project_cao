@@ -37,7 +37,6 @@ fn a_quarter_turn_backwards_keeps_every_rule() {
 }
 
 #[test]
-#[ignore = "#487"]
 fn a_profile_a_hair_across_its_axis_keeps_every_rule() {
     random_solids::holds(&Case::new(
         Leaf::revolution(Plane::xy(0.0), [-0.0001, 0.0], [1.0, 1.0], 360.0),
@@ -46,7 +45,6 @@ fn a_profile_a_hair_across_its_axis_keeps_every_rule() {
 }
 
 #[test]
-#[ignore = "#488"]
 fn a_turn_a_hair_off_its_axis_keeps_every_rule() {
     random_solids::holds(&Case::new(
         Leaf::revolution(Plane::xy(0.0), [1e-6, 0.0], [1.0, 1.0], 360.0),

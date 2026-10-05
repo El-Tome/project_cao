@@ -222,3 +222,29 @@ fn a_straight_profile_counts_the_numbers_the_flats_turn_it_into() {
         }
     }
 }
+
+#[test]
+fn a_point_within_the_band_is_laid_on_the_axis_and_one_beyond_it_is_left_where_it_is() {
+    let ring = corners(DVec2::new(1.0, 0.0), DVec2::new(5.0, 2.0));
+    let turn = Turn::of(V, TAU, 0.0, &sampled(&ring));
+    assert_eq!(turn.on_axis(DVec2::new(-4e-3, 7.0)), DVec2::new(0.0, 7.0));
+    assert_eq!(turn.on_axis(DVec2::new(4e-3, -2.0)), DVec2::new(0.0, -2.0));
+    assert_eq!(turn.on_axis(DVec2::new(6e-3, 7.0)), DVec2::new(6e-3, 7.0));
+    assert_eq!(turn.on_axis(DVec2::new(-6e-3, 7.0)), DVec2::new(-6e-3, 7.0));
+
+    let slanted = Turn {
+        axis: Axis {
+            origin: DVec2::new(1.0, 1.0),
+            direction: DVec2::new(3.0, 4.0),
+        },
+        ..turn
+    };
+    let near = DVec2::new(1.0, 1.0) + DVec2::new(3.0, 4.0) * 2.0 + DVec2::new(-4.0, 3.0) * 1e-4;
+    let laid = slanted.on_axis(near);
+    assert!(
+        slanted.axis.side(laid).abs() < 1e-12,
+        "{laid} stands {} off the axis",
+        slanted.axis.side(laid),
+    );
+    assert!((laid - DVec2::new(7.0, 9.0)).length() < 1e-12, "{laid}");
+}

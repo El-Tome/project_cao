@@ -112,6 +112,16 @@ impl Turn {
             Lie::Across
         }
     }
+
+    /// The point laid on the axis when it stands within the band, where the
+    /// drawing can only have meant it; left where it is beyond.
+    pub fn on_axis(&self, point: DVec2) -> DVec2 {
+        if self.axis.side(point).abs() > self.on_the_axis {
+            return point;
+        }
+        let along = self.axis.direction.normalize_or_zero();
+        self.axis.origin + along * along.dot(point - self.axis.origin)
+    }
 }
 
 fn furthest(axis: Axis, area: &Profile) -> f64 {

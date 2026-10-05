@@ -9,6 +9,8 @@
 mod along;
 mod arithmetic;
 mod building;
+#[cfg(feature = "campaigns")]
+pub mod campaigning;
 mod checking;
 mod cores;
 mod drawing;

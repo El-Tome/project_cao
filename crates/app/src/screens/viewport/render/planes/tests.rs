@@ -1,8 +1,14 @@
 //! What app · screens/viewport/render/planes.rs is held to.
+//!
+//! Closes #526.
+//! - the face under the cursor is lit with the triangles the exact kernel
+//!   draws the part with —
+//!   `the_face_under_the_cursor_is_lit_with_triangles_the_part_is_drawn_with`
 
 use cao_part::PartDocument;
+use cao_part::history::{ExtrusionMode, Operation, PointRef};
 use chrono::Utc;
-use glam::Vec3;
+use glam::{DVec2, DVec3, Vec3};
 
 use super::*;
 use crate::lang::Catalogue;
@@ -111,5 +117,89 @@ fn a_part_with_no_face_at_all_is_lit_up_on_none() {
     assert!(
         surfaces.is_empty(),
         "a part with no face at all was lit up on one",
+    );
+}
+
+/// A circle 40 across raised 10, which the exact kernel computes.
+fn a_raised_disc() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 20.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+/// What lighting `face` paints, three corners to a triangle.
+fn lit(document: &mut PartDocument, face: usize) -> Vec<[Vec3; 3]> {
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let context = SketchContext {
+        document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let mut surfaces = Vec::new();
+    push_hovered_face(&mut surfaces, [1.0; 4], &context, face);
+    surfaces
+        .chunks(3)
+        .map(|corners| corners.iter().map(|at| Vec3::from(at.position)))
+        .map(|mut corners| std::array::from_fn(|_| corners.next().expect("three corners")))
+        .collect()
+}
+
+#[test]
+fn the_face_under_the_cursor_is_lit_with_triangles_the_part_is_drawn_with() {
+    let mut document = a_raised_disc();
+    let drawn: Vec<[Vec3; 3]> = document
+        .body()
+        .triangles()
+        .iter()
+        .map(|triangle| triangle.map(|corner| corner.as_vec3()))
+        .collect();
+    let wall = document
+        .body()
+        .ray_hit(DVec3::new(60.0, 0.0, 5.0), DVec3::NEG_X)
+        .expect("the wall is there to be hit")
+        .face;
+
+    let on_the_wall = lit(&mut document, wall);
+    assert!(!on_the_wall.is_empty(), "the wall under the cursor is lit");
+    for triangle in &on_the_wall {
+        assert!(
+            drawn.contains(triangle),
+            "{triangle:?} is lit, and the part is not drawn with it",
+        );
+        for corner in triangle {
+            let off = corner.truncate().length() - 20.0;
+            assert!(
+                off.abs() < 1e-4,
+                "{corner:?} is lit {off} off the wall of the disc",
+            );
+        }
+    }
+    let every_face: usize = (0..document.body().faces_end())
+        .map(|face| lit(&mut document, face).len())
+        .sum();
+    assert_eq!(
+        every_face,
+        drawn.len(),
+        "lit face by face, the part is not lit with every triangle it is drawn \
+         with, once each",
     );
 }

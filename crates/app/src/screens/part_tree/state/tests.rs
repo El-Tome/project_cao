@@ -6,6 +6,10 @@
 //!   `a_step_whose_area_is_gone_says_so_rather_than_reading_as_one_raised_from_nothing`
 //! - a step that still has every area it stands on is not marked —
 //!   `a_step_whose_areas_are_all_there_is_not_marked`
+//!
+//! Closes #526.
+//! - a step the exact kernel declines is marked in the tree, and a step it
+//!   built is not — `a_step_the_kernel_declines_is_marked_in_the_tree`
 
 use cao_part::history::{FaceAnchor, PointRef};
 use cao_sketch::{DimensionTarget, Element, SegmentId, WorkPlane};
@@ -176,4 +180,62 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
         tree.sketches[0].adrift,
         "a drawing whose face the part no longer has must say so",
     );
+}
+
+/// A block 10 by 20 raised 4, with no size set so that the drawing is in
+/// millimetres, then a circle drawn on a plane tilted 30° about X and
+/// standing over the block's top, raised down its normal.
+fn a_block_under_a_slanted_circle_raised() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 0,
+        corner: PointRef::New(DVec2::ZERO),
+        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::new(5.0, 10.0)]),
+        distance: 4.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(5.0, 10.0, 6.0),
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::ZERO]),
+        distance: (-10.0).into(),
+        mode: ExtrusionMode::Add,
+    });
+    document
+}
+
+#[test]
+fn a_step_the_kernel_declines_is_marked_in_the_tree() {
+    let tree = PartTree::of(&a_block_under_a_slanted_circle_raised(), &french());
+
+    assert!(
+        tree.bodies[1].declined,
+        "a circle raised across the block's top at a slant meets it along an \
+         ellipse, which the exact kernel declines",
+    );
+    assert!(!tree.bodies[0].declined, "the block itself was built");
 }

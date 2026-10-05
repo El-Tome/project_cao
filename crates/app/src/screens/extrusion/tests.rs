@@ -5,10 +5,18 @@
 //!   `a_revolution_swept_by_a_formula_keeps_it_turned_the_way_asked`
 //! - one that does not read says why where it is typed —
 //!   `a_distance_that_does_not_read_says_why_and_is_not_ready`
+//!
+//! Closes #526.
+//! - an extrusion the exact kernel declines says so, rather than that it made
+//!   nothing — `an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing`
+//! - an exact cut that misses the matter still says it removed nothing, though
+//!   the kernel handed back a body built anew —
+//!   `a_cut_that_misses_the_exact_matter_says_it_removed_nothing`
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::WorkPlane;
 use chrono::Utc;
+use glam::DVec3;
 
 use super::*;
 
@@ -116,4 +124,85 @@ fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
         )),
     );
     assert!(!extrusion.is_ready(&variables));
+}
+
+/// The square raised 10 into a block, then a circle on a plane tilted 30°
+/// about X standing over the block's top: raised down its normal, the
+/// cylinder meets that top along an ellipse the exact kernel does not draw.
+fn a_block_under_a_slanted_circle() -> PartDocument {
+    let mut document = a_part_with_a_square();
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let (sin, cos) = (std::f64::consts::PI / 6.0).sin_cos();
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane {
+            origin: DVec3::new(0.0, 0.0, 12.0),
+            u: DVec3::X,
+            v: DVec3::new(0.0, cos, sin),
+        },
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 1,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 2.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document
+}
+
+#[test]
+fn an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing() {
+    let lang = Catalogue::french();
+    let mut document = a_block_under_a_slanted_circle();
+    let mut extrusion = ExtrusionState::default();
+    extrusion.offer(1);
+    extrusion.picks = vec![DVec2::ZERO];
+    extrusion.reversed = true;
+    extrusion.arm(ExtrusionMode::Add);
+    let mut notice = None;
+
+    assert!(apply_extrusion(
+        &mut document,
+        &mut extrusion,
+        &mut notice,
+        &lang
+    ));
+    assert_eq!(notice, Some(lang.t("extrusion.declined")));
+}
+
+#[test]
+fn a_cut_that_misses_the_exact_matter_says_it_removed_nothing() {
+    let lang = Catalogue::french();
+    let mut document = a_part_with_a_square();
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 10.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(10.0, -5.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 5.0)),
+        construction: false,
+    });
+    let mut extrusion = ExtrusionState::default();
+    extrusion.offer(1);
+    extrusion.picks = vec![DVec2::new(15.0, 0.0)];
+    extrusion.arm(ExtrusionMode::Cut);
+    let mut notice = None;
+
+    apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
+
+    assert_eq!(notice, Some(lang.t("extrusion.nothing_removed")));
 }

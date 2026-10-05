@@ -173,7 +173,12 @@ const FILES_ALLOWED_TO_REACH_OUTSIDE: [&str; 0] = [];
 /// The tests of the crates above it are read with their code: a test that
 /// builds a `Mesh` by hand holds the kernel to the shape it has today, and is
 /// the first thing a new kernel would have to break.
-const INSIDES_OF_THE_MATTER: [&str; 2] = ["Mesh", "Polygon"];
+///
+/// The exact kernel is named by its module, `brep`, rather than by its types:
+/// they are called `Body`, `Face`, `Circle`, `Region`, as half the workspace's
+/// are. `the_exact_kernel_stays_behind_the_body` holds the production code to
+/// it already; this holds the tests too (#526).
+const INSIDES_OF_THE_MATTER: [&str; 3] = ["Mesh", "Polygon", "brep"];
 
 /// The files outside `cao_solid` that still name one of
 /// [`INSIDES_OF_THE_MATTER`]. An equality, as [`FILES_ALLOWED_TO_REACH_OUTSIDE`]
@@ -468,6 +473,8 @@ fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
         "fn volume(mesh: &cao_solid::Mesh) -> f64 {",
         "    polygons: faces.into_iter().filter_map(Polygon::new).collect(),",
         "let solid: Option<Mesh> = None;",
+        "use cao_solid::brep::{Body, Listing};",
+        "let raised = brep::Body::raised(&outline, &[], frame, travel);",
     ] {
         assert!(
             INSIDES_OF_THE_MATTER
@@ -483,6 +490,8 @@ fn naming_the_insides_of_the_matter_is_told_from_mentioning_them() {
         "const NAMES: [&str; 2] = [\"Mesh\", \"Polygon\"];",
         "struct MeshLike;",
         "fn polygonal(sides: usize) -> SubPolygon {",
+        "/// What `brep` hands back, once a Body holds it.",
+        "let breps = bodies.len();",
     ] {
         assert!(
             !INSIDES_OF_THE_MATTER

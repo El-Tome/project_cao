@@ -159,7 +159,8 @@ pub fn apply_extrusion(
         return false;
     }
 
-    let before = doc.body().clone();
+    let step = doc.history.next_number();
+    let before = doc.body().volume();
     // The areas are named here and never worked out again: what the click
     // meant is what the drawing said at the moment of the click.
     let areas = doc.areas_at(sketch, &std::mem::take(&mut extrusion.picks));
@@ -186,16 +187,32 @@ pub fn apply_extrusion(
     doc.apply(operation);
 
     // An extrusion that changes nothing is worth saying out loud: a cut that
-    // misses the matter looks exactly like a tool that did not work.
-    *notice = (doc.body() == &before).then(|| {
-        lang.t(match (mode, extrusion.is_revolving()) {
-            (_, true) => "extrusion.nothing_from_revolution",
-            (ExtrusionMode::Add, false) => "extrusion.nothing_added",
-            (ExtrusionMode::Cut, false) => "extrusion.nothing_removed",
-        })
-    });
+    // misses the matter looks exactly like a tool that did not work. One the
+    // kernel declined changed nothing either, and saying so would send the
+    // user looking for a mistake that is not theirs.
+    *notice = match doc.is_declined(step) {
+        true => Some(lang.t("extrusion.declined")),
+        false => unchanged(before, doc.body().volume()).then(|| {
+            lang.t(match (mode, extrusion.is_revolving()) {
+                (_, true) => "extrusion.nothing_from_revolution",
+                (ExtrusionMode::Add, false) => "extrusion.nothing_added",
+                (ExtrusionMode::Cut, false) => "extrusion.nothing_removed",
+            })
+        }),
+    };
     extrusion.mode = None;
     true
+}
+
+/// How near two volumes stand, relative to the larger, to be the same
+/// matter.
+const SAME_MATTER: f64 = 1e-9;
+
+/// Whether the matter is what it was, read off its volume rather than off the
+/// body: the exact kernel hands back a body built anew even from a cut that
+/// missed.
+fn unchanged(before: f64, after: f64) -> bool {
+    (after - before).abs() <= SAME_MATTER * before.abs().max(after.abs())
 }
 
 #[cfg(test)]

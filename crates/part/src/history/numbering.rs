@@ -6,8 +6,13 @@ use super::{History, Operation};
 impl History {
     /// The number the next operation recorded will be given, which is what
     /// names it while it is applied, before it is recorded.
-    pub(crate) fn next_number(&self) -> u32 {
+    pub fn next_number(&self) -> u32 {
         self.last_operation_number + 1
+    }
+
+    /// The number the operation at that place in the list was given.
+    pub fn number_at(&self, position: usize) -> Option<u32> {
+        self.numbers.get(position).copied()
     }
 
     /// Puts an operation at the end of the list under the next number, and

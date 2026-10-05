@@ -48,6 +48,9 @@ pub struct Body {
     /// It leaves no line under the step, so without this the step would look
     /// as though it had been raised from fewer areas than it was.
     pub lost: bool,
+    /// Whether the kernel declined to build it: the part stands as it did
+    /// before it.
+    pub declined: bool,
 }
 
 /// One sketch, and what is drawn on it, by kind.
@@ -100,6 +103,10 @@ impl PartTree {
         let mut sketches = 0;
 
         for (step, operation) in document.history.applied_operations().iter().enumerate() {
+            let declined = document
+                .history
+                .number_at(step)
+                .is_some_and(|number| document.is_declined(number));
             match operation {
                 Operation::CreateSketch { .. } => {
                     let sketch = sketches;
@@ -134,6 +141,7 @@ impl PartTree {
                             ],
                         ),
                         lost: standing.len() < areas.len(),
+                        declined,
                         areas: standing,
                     });
                 }
@@ -161,6 +169,7 @@ impl PartTree {
                             ],
                         ),
                         lost: standing.len() < areas.len(),
+                        declined,
                         areas: standing,
                     });
                 }

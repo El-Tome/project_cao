@@ -1,7 +1,10 @@
 //! Decision 9 of `docs/exact-kernel.md`: the band of two surfaces decided to
 //! touch, laid out once, the same on both. A plane touching a cylinder, or
 //! two cylinders touching, stand within the tolerance of each other over a
-//! band about the root of twice the radius times the tolerance wide; a third
+//! band about the root of twice the radius times the tolerance wide; two
+//! walls of one radius decided to cross at a grazing angle, over a band
+//! about each of the two lines they cross along, the tolerance over the
+//! angle wide, and each line is laid out as a line of touch is; a third
 //! surface's line or corner inside it parts one surface into strips thinner
 //! than the tolerance and not the other, or ends inside the band, leaving
 //! strips no arcs bound in common, and two faces back to back whose
@@ -35,6 +38,9 @@ const ACROSS: f64 = 1e-3;
 struct Touch {
     pair: [SurfaceId; 2],
     line: Line,
+    /// The other line two walls crossing at a grazing angle cross along:
+    /// a corner nearer it stands in that line's band, not in this one's.
+    beyond: Option<Line>,
 }
 
 /// A band laid out: its two surfaces, and the stretch along the line of
@@ -114,20 +120,25 @@ fn touches(operands: &Operands, registry: &Registry) -> Vec<Touch> {
     for one in 0..list.len() {
         for other in one + 1..list.len() {
             let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
-            if !registry.apart.touch(pair[0], pair[1]) {
+            let grazing = registry.apart.graze(pair[0], pair[1]);
+            if !registry.apart.touch(pair[0], pair[1]) && !grazing {
                 continue;
             }
-            let Relation::Tangent(line) =
-                relation(&list[one], &list[other], operands.scale_of(pair))
-            else {
-                continue;
+            let lines = match relation(&list[one], &list[other], operands.scale_of(pair)) {
+                Relation::Tangent(line) => vec![(line, None)],
+                Relation::Lines([line, other]) if grazing => {
+                    vec![(line, Some(other)), (other, Some(line))]
+                }
+                _ => continue,
             };
-            let registered = registry.list.iter().any(|known| {
-                same(&known.curve, &Curve::Line(line), operands.scale)
-                    && pair.iter().all(|surface| known.support.contains(surface))
-            });
-            if registered {
-                found.push(Touch { pair, line });
+            for (line, beyond) in lines {
+                let registered = registry.list.iter().any(|known| {
+                    same(&known.curve, &Curve::Line(line), operands.scale)
+                        && pair.iter().all(|surface| known.support.contains(surface))
+                });
+                if registered {
+                    found.push(Touch { pair, line, beyond });
+                }
             }
         }
     }
@@ -150,6 +161,9 @@ fn sorted(
         let point = corner.point;
         if !touch.pair.iter().any(|surface| support.contains(surface))
             || registry.apart.across(support, &touch.pair)
+            || touch
+                .beyond
+                .is_some_and(|other| distance(&Curve::Line(other), point) < distance(&line, point))
             || !within(operands, registry, touch, point)?
         {
             continue;

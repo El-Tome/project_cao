@@ -3,6 +3,8 @@
 //! point of a surface stands against an operand's faces lying on it — asked of
 //! the operand as it was built, never of anything the boolean made.
 
+use std::collections::BTreeMap;
+
 use glam::DVec3;
 
 use crate::brep::Declined;
@@ -20,6 +22,9 @@ pub(in crate::brep) struct Operands<'a> {
     boxes: [Vec<[DVec3; 2]>; 2],
     /// Whether decision 2 moved each shared surface onto a touch.
     moved: Vec<bool>,
+    /// The pairs of a wall and a plane decided at the finer tolerance an
+    /// operand told the plane from another the wall stands as near.
+    parted: BTreeMap<[SurfaceId; 2], Scale>,
 }
 
 impl<'a> Operands<'a> {
@@ -77,14 +82,17 @@ impl<'a> Operands<'a> {
             |surface: SurfaceId| cornered[surface.0 as usize],
             scale,
         );
-        Operands {
+        let mut operands = Operands {
             bodies,
             scale,
             surfaces,
             lying,
             boxes,
             moved,
-        }
+            parted: BTreeMap::new(),
+        };
+        operands.parted = operands.parted();
+        operands
     }
 
     pub fn eps(&self) -> f64 {
@@ -111,8 +119,16 @@ impl<'a> Operands<'a> {
 
     /// The scale a pair of shared surfaces is decided at: where one operand
     /// alone carries both, the scale it decided them at, when the later of
-    /// the two came into it, and the boolean's otherwise.
+    /// the two came into it; for a wall and one of two planes an operand
+    /// told apart, the wall within the tolerance of both, the scale it told
+    /// them apart at; and the boolean's otherwise.
     pub fn scale_of(&self, pair: [SurfaceId; 2]) -> Scale {
+        if let Some(scale) = self
+            .parted
+            .get(&[pair[0].min(pair[1]), pair[0].max(pair[1])])
+        {
+            return *scale;
+        }
         (0..2)
             .find(|&operand| pair.iter().all(|&surface| self.alone(operand, surface)))
             .map_or(self.scale, |operand| self.decided(operand, pair))

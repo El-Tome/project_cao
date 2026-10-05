@@ -108,7 +108,7 @@ fn along(operands: &Operands, registry: &Registry, curve: usize, surface: Surfac
             relation(
                 &list[own.0 as usize],
                 &list[surface.0 as usize],
-                operands.scale,
+                operands.scale_of([*own, surface]),
             )
             .curves()
             .iter()

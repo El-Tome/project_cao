@@ -39,7 +39,9 @@
 //! profiles through `cao_solid::Body`, as the application computes them: the
 //! face numbers, the drawing as each body is built, the declines it adds.
 //!
-//! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock, and
+//! `CAO_FUZZ_SEED` starts it from a given seed rather than from the clock,
+//! `CAO_FUZZ_CASES` stops it after that many seeds, so that two campaigns on
+//! the same machine under different loads try the same cases, and
 //! `CAO_FUZZ_PATIENCE` is how many seconds one case may take before it counts
 //! as no answer. The seeds it names are shrunk one by one by
 //! `the_seeds_a_campaign_named_are_shrunk_one_by_one`, given in
@@ -1705,6 +1707,7 @@ mod campaign {
                 .map_or(1, |since| since.as_nanos() as u64);
             Random::seeded(now).number() >> 16
         });
+        let cases = from_the_environment("CAO_FUZZ_CASES").unwrap_or(u64::MAX);
         let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
         let deadline = Instant::now() + Duration::from_secs(seconds);
         println!("campaign of {what} on the exact kernel from seed {first}, for {seconds} s");
@@ -1712,9 +1715,14 @@ mod campaign {
         let check: Check<Case> = Arc::new(check);
         let quiet = std::panic::take_hook();
         std::panic::set_hook(Box::new(|_| {}));
-        let report = campaign(first.., draw, check, Case::smaller, patience, || {
-            Instant::now() < deadline
-        });
+        let report = campaign(
+            first..first.saturating_add(cases),
+            draw,
+            check,
+            Case::smaller,
+            patience,
+            || Instant::now() < deadline,
+        );
         std::panic::set_hook(quiet);
 
         print_report(&report);

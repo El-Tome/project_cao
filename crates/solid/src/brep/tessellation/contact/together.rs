@@ -6,10 +6,10 @@ use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
-use super::super::sampling::divisions;
+use super::super::sampling::{divisions, on_a_plane};
 use super::facing::Facing;
 use super::{Contact, Wall};
-use crate::brep::surface::Cylinder;
+use crate::brep::surface::{Cylinder, Plane};
 use crate::brep::topology::SurfaceId;
 
 /// How many times rays are passed on between walls close to each other: a
@@ -28,14 +28,17 @@ const ROUNDS: usize = 4;
 /// vertex lying on it, it keeps wherever it falls: a ruling leaves the wall
 /// there, and the strip beside it, a skin a hair high under a cap, needs a
 /// sample on every rim at that angle or its triangle lies flat on the cap.
+/// `planes` holds, for each wall, the planes touching it along a line.
 pub(super) fn shared(
     close: &[(&Wall, &Wall, &Facing)],
     mut taken: BTreeMap<SurfaceId, Vec<DVec3>>,
     pinned: &BTreeMap<SurfaceId, Vec<DVec3>>,
+    planes: &BTreeMap<SurfaceId, Vec<Plane>>,
     tolerance: f64,
     eps: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let pins = |wall: &Wall| pinned.get(&wall.0).map_or(&[][..], Vec::as_slice);
+    let touching = |wall: &Wall| planes.get(&wall.0).map_or(&[][..], Vec::as_slice);
     let mut withheld: BTreeMap<SurfaceId, Vec<(usize, [f64; 2])>> = BTreeMap::new();
     let partners = |(id, _): &Wall| {
         let id = *id;
@@ -60,6 +63,7 @@ pub(super) fn shared(
                 (inner, held(inner)),
                 facing,
                 *hub,
+                [touching(outer), touching(inner)],
                 tolerance,
                 eps,
             ) else {
@@ -239,11 +243,25 @@ enum From {
 /// the two would stand a hair round from each other, off one ray, and the
 /// outer's chord from the line they touch along, long where the steps
 /// beside it are withheld, would cross the inner's next.
+///
+/// Nor does either keep a step of its grid at the heights of the other's
+/// circles, nor take a ray of its own at all, along which the other stands
+/// beside one of its `planes` — a plane
+/// touching it along a line — and off that line: the other takes no ray
+/// there, lest a strip of its wall lie on the plane's face, and a circle
+/// with a place on a ray a circle on the same cap has none on no longer
+/// keeps its order with it. A disc a hair inside a slot's end, a hair past
+/// where its side runs into its arc, has its rim on the slot's cap a hair
+/// from the side's corner, and the arc's first chord from that corner, long,
+/// leans in past the rim's place there (8562492). At other heights the ray
+/// is kept: left out of a circle with nothing beside it, its chords span two
+/// steps and the wall sags past the tolerance (8501966).
 pub(super) fn sampled(
     (outer_wall, own_outer): (&Wall, &[DVec3]),
     (inner_wall, own_inner): (&Wall, &[DVec3]),
     facing: &Facing,
     hub: Option<DVec3>,
+    planes: [&[Plane]; 2],
     tolerance: f64,
     eps: f64,
 ) -> Option<Together> {
@@ -305,6 +323,12 @@ pub(super) fn sampled(
         let off = angle - (angle / step).round() * step;
         off.abs() <= eps / inner.radius
     };
+    let refuses = |side: usize, place: DVec3| {
+        let wall = [outer, inner][side];
+        planes[side]
+            .iter()
+            .any(|plane| on_a_plane(plane, wall.origin, wall.axis, place, eps))
+    };
     let hub = hub.filter(|hub| *hub != inner.origin);
     let meeting = |wall: &Cylinder, point: DVec3| -> DVec3 {
         let Some(hub) = hub else {
@@ -332,6 +356,8 @@ pub(super) fn sampled(
             leave(0, from, over);
         } else if matches!(from, From::Step(_)) && on_a_step(from_axis) {
             leave(0, from, facing.over(outer.origin + point));
+        } else if refuses(1, inner.origin + from_axis.normalize() * inner.radius) {
+            leave(0, from, facing.rims(inner_wall.0));
         } else {
             on_inner.push(from_axis.normalize());
         }
@@ -349,10 +375,12 @@ pub(super) fn sampled(
         } else {
             Vec::new()
         };
-        if over.is_empty() {
-            on_outer.push(toward);
-        } else {
+        if !over.is_empty() {
             leave(1, from, over);
+        } else if refuses(0, outer.origin + toward * outer.radius) {
+            leave(1, from, facing.rims(outer_wall.0));
+        } else {
+            on_outer.push(toward);
         }
     }
     shared.contacts[0].rays = on_outer;

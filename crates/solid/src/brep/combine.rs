@@ -11,12 +11,13 @@ mod cut;
 mod held;
 mod identified;
 mod operands;
+mod parted;
 mod related;
 mod slid;
 
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Planes, Pool, Registry, closed};
+use super::canonical::{Apart, Planes, Pool, Registry, closed, flush};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -65,6 +66,8 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
     let scale = first.scale().joined(second.scale());
     let closed = closed(first, second, scale);
     let second = closed.as_ref().unwrap_or(second);
+    let flush = flush(first, second, scale);
+    let second = flush.as_ref().unwrap_or(second);
     let slid = slid(first, second, scale);
     let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
     let arena = laid(&operands)?;
@@ -110,7 +113,8 @@ fn pooled(
                 .iter()
                 .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0);
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
-            pool.add(vertex.point, surfaces, curves, registry);
+            let point = held::laid(operands, registry, operand, id, &curves);
+            pool.add(point, surfaces, curves, registry);
         }
     }
     for point in special {

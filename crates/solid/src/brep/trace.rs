@@ -5,7 +5,11 @@
 use glam::DVec2;
 
 use super::curve::Meet;
+use super::surface::Cylinder;
 
+// A trace is handed round the overlay by value; boxing the curve two
+// cylinders meet along would cost it `Copy`.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Trace {
     /// Straight from `from` to `to`: a line on a plane, a ruling or a circle of
@@ -20,10 +24,13 @@ pub enum Trace {
         sweep: f64,
     },
     /// The curve two perpendicular cylinders meet along, seen on the first of
-    /// them or on the second, between two of its parameters.
+    /// them or on the second, between two of its parameters — or on a
+    /// cylinder `beside` one of them, a hair off it, whose arc it was taken
+    /// for.
     Graph {
         meet: Meet,
         on_first: bool,
+        beside: Option<Cylinder>,
         from: f64,
         to: f64,
     },
@@ -52,11 +59,16 @@ impl Trace {
             Trace::Graph {
                 meet,
                 on_first,
+                beside,
                 from,
                 to,
             } => {
                 let span = to - from;
-                let [point, first, second] = meet.seen_on(on_first, from + span * u);
+                let at = from + span * u;
+                let [point, first, second] = match beside {
+                    Some(cylinder) => meet.seen_beside(on_first, &cylinder, at),
+                    None => meet.seen_on(on_first, at),
+                };
                 [point, first * span, second * span * span]
             }
         }
@@ -88,11 +100,13 @@ impl Trace {
             Trace::Graph {
                 meet,
                 on_first,
+                beside,
                 from,
                 to,
             } => Trace::Graph {
                 meet,
                 on_first,
+                beside,
                 from: to,
                 to: from,
             },

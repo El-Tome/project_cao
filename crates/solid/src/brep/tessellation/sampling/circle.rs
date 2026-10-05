@@ -9,7 +9,7 @@ use super::ends::Ends;
 use super::planes::on_a_plane;
 use super::{TOLD, divisions};
 use crate::brep::curve::Circle;
-use crate::brep::surface::{Cylinder, Plane};
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::Edge;
 
 /// The points of a circle's edge between its ends, in the way the edge runs:
@@ -28,7 +28,11 @@ use crate::brep::topology::Edge;
 /// laid leaning a hair — would stand as good as on the other wall's circle,
 /// which ends at the same vertex. So too beside any surface an end lies on
 /// and the circle does not, where the circle all but lies on it a step or
-/// less from that end: a wall grazing the plane of the circle there.
+/// less from that end: a wall grazing the plane of the circle there. All
+/// but lying on it is read at the place and halfway back to the end: a
+/// circle crossing the surface again a step from the end stands on the line
+/// of that second crossing, off the surface's face, and keeps the ray its
+/// partner in contact takes too.
 pub(super) fn on_circle(
     circle: &Circle,
     edge: &Edge,
@@ -75,9 +79,12 @@ pub(super) fn on_circle(
     };
     let grazed = |at: f64, room: f64, closing: bool| {
         ends.iter().enumerate().any(|(side, end)| {
+            let lies =
+                |surface: &Surface, place: f64| surface.distance(circle.point(place)).abs() < room;
             (end - at).abs() <= step
                 && ends_of.through[side].iter().any(|surface| {
-                    surface.distance(circle.point(at)).abs() < room
+                    lies(surface, at)
+                        && lies(surface, (end + at) / 2.0)
                         && (!closing || ends_of.grazes(side, surface, circle.axis, eps))
                 })
         })

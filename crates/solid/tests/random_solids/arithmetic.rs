@@ -125,6 +125,15 @@ pub fn holds_exactly(case: &Case) {
     }
 }
 
+/// Checks a case through the application's body, which draws finer than the
+/// exact kernel's own triangles and declines what it cannot draw, and ends
+/// the test on the first rule it breaks.
+pub fn holds_through_the_application(case: &Case) {
+    if let Err(flaw) = held_to_arithmetic(case, &super::Application) {
+        panic!("{:?} broke the rule: {flaw:?}\n{case}", flaw.rule());
+    }
+}
+
 /// Whether the arithmetic here covers a leaf: a solid prism of any outline
 /// but a star, which it can grow and shrink.
 fn covered(leaf: &Leaf) -> bool {
@@ -218,7 +227,11 @@ impl Held<'_> {
         self.along_every_line(&triangles, tolerance, measured)?;
         let (low, high) = self.region;
         let reach = low.abs().max(high.abs()).max_element();
-        let merged = Scale::of(reach).eps();
+        // Decision 8 takes a wall of the second operand for the first's a
+        // hair off and moves the whole operand with it: a side the move does
+        // not slide along itself ends up to that hair past where its leaf
+        // drew it.
+        let merged = Scale::HAIR * Scale::of(reach).eps();
         within_reach(
             (low - merged, high + merged),
             self.lines,

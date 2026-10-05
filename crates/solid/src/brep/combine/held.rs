@@ -32,12 +32,16 @@ use crate::brep::topology::{CurveId, EdgeId, SurfaceId, VertexId};
 
 /// An edge of an operand, on a registered curve, over a stretch of that
 /// curve's parameter, and the surfaces it lies on over that stretch alone.
+/// `whole` when the edge is a closed curve with no vertex, a ring: it
+/// covers its curve all round, whatever rounding left of where its stretch
+/// starts.
 #[derive(Clone, Debug, PartialEq)]
 pub(in crate::brep) struct Held {
     pub operand: usize,
     pub edge: EdgeId,
     pub curve: usize,
     pub stretch: [f64; 2],
+    pub whole: bool,
     pub partly: Vec<SurfaceId>,
 }
 
@@ -78,6 +82,7 @@ pub(super) fn held(operands: &Operands, registry: &mut Registry) -> (Vec<Held>, 
                 edge,
                 curve,
                 stretch: registry.stretch(curve, own, stretch.from, stretch.to),
+                whole: stretch.ends.is_none(),
                 partly,
             });
         }
@@ -150,7 +155,7 @@ fn shared(
             relation(
                 &list[one.0 as usize],
                 &list[other.0 as usize],
-                operands.scale,
+                operands.scale_of([one, other]),
             )
             .curves()
         })
@@ -167,7 +172,9 @@ const MOVED: f64 = 2.0;
 /// Whether a surface carries a curve all along it, within the tolerance: a
 /// line on a cylinder runs along its axis, a circle on a plane or a cylinder
 /// stands square to it and about its axis, the curve two cylinders meet along
-/// runs round one of its own two.
+/// runs round one of its own two — not round a wall of one radius a hair
+/// beside one of them, which carries it only over the stretch an arc of it
+/// was taken for (decision 6).
 fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
@@ -184,18 +191,77 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
                 && (from - cylinder.axis * from.dot(cylinder.axis)).length() <= eps
                 && (circle.radius - cylinder.radius).abs() <= eps
         }
-        (Surface::Cylinder(cylinder), Curve::Meet(meet)) => {
-            parallel(meet.first.axis, cylinder.axis) || parallel(meet.second.axis, cylinder.axis)
-        }
+        (Surface::Cylinder(cylinder), Curve::Meet(meet)) => meet.own(cylinder, eps).is_some(),
         (Surface::Plane(_), Curve::Meet(_)) => false,
     }
 }
 
+/// Where an operand's corner stands in the arena: where the operand built
+/// it, or, where a surface it lies on was taken for another or moved onto a
+/// touch, where a line of the edges ending there now crosses a plane it lies
+/// on, square enough to it to fix the place. Its edges are laid on the
+/// curves the surfaces now share; left where it was built, the corner would
+/// stand a hair off them, and off the place the next operation finds them
+/// crossing at.
+pub(super) fn laid(
+    operands: &Operands,
+    registry: &Registry,
+    operand: usize,
+    vertex: VertexId,
+    curves: &[usize],
+) -> DVec3 {
+    let body = operands.bodies[operand];
+    let own = body.vertex(vertex);
+    let list = &operands.surfaces.list;
+    let shared: Vec<SurfaceId> = own
+        .on
+        .iter()
+        .map(|surface| operands.surfaces.mapped[operand][surface.0 as usize].0)
+        .collect();
+    let moved = own
+        .on
+        .iter()
+        .zip(&shared)
+        .any(|(surface, taken)| list[taken.0 as usize] != *body.surface(*surface));
+    if !moved {
+        return own.point;
+    }
+    let mut crossings = curves.iter().flat_map(|&curve| {
+        let registered = &registry.list[curve];
+        let Curve::Line(line) = registered.curve else {
+            return Vec::new();
+        };
+        shared
+            .iter()
+            .filter(|surface| registered.support.binary_search(surface).is_err())
+            .filter_map(|surface| match list[surface.0 as usize] {
+                Surface::Plane(plane) if plane.normal.dot(line.direction).abs() >= SQUARE => {
+                    let at = -plane.distance(line.origin) / plane.normal.dot(line.direction);
+                    Some(line.point(at))
+                }
+                _ => None,
+            })
+            .collect()
+    });
+    crossings
+        .find(|place| place.distance(own.point) <= MOVED * operands.eps())
+        .unwrap_or(own.point)
+}
+
+/// How square to a plane a line must stand, in the cosine of their angle,
+/// for the place it crosses the plane at to be fixed by the two.
+const SQUARE: f64 = 0.1;
+
 impl Held {
     /// Whether the edge covers the parameter `at` of its curve, `slack`
     /// beyond either end included; on a closed curve, `at` taken modulo its
-    /// period.
+    /// period. A ring covers every parameter: measured against its stretch,
+    /// the middle of an arc running from a corner round to it again, a
+    /// rounding past the stretch's end, would fall off it.
     pub fn covers(&self, at: f64, period: Option<f64>, slack: f64) -> bool {
+        if self.whole {
+            return true;
+        }
         let [from, to] = self.stretch;
         let at = match period {
             Some(period) => at - period * ((at - (from - slack)) / period).floor(),

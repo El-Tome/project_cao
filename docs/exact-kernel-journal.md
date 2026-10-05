@@ -362,3 +362,55 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   seconds rather than 5 to 8, because the exact body handed to the flats is
   drawn finer than the flats draw themselves. Both keep every rule given
   the time.
+
+- #528's lane of the crescent's tip: two walls of one radius a hair apart
+  beyond decision 8's, decided once to graze and their band laid out as a
+  line of touch's (`exact-kernel.md`, decisions 2, 5, 6 and 9). 46 of the
+  family's 59 shrunk seeds hold, and 15 of `the_tangency_band.rs`'s
+  ignored cases and one of the triangles'. Ten minutes of each draw beside
+  the branch's head, on the seeds both reached: the square draw 3 failures
+  in 14 221 on both; the profile draw 9 in 9 996 before, 5 after; through
+  the body 11 in 15 062 before, 7 after. None made. What is left, and the
+  merge taken back, in `exact-kernel-failures.md`.
+
+- #528's six lanes merged, measured like for like against the night's
+  campaigns: the same three draws from the same first seeds, each stopped
+  after the number of cases it tried that night (`CAO_FUZZ_CASES`), so
+  that a machine shared three ways rather than six tries the same cases.
+
+| campaign | kernel | cases | broke a rule | per thousand | fixed | made |
+| --- | --- | --- | --- | --- | --- | --- |
+| 8a | #526, square draw | 88 833 | 14 | 0.16 | | |
+| 8a | #528, square draw | 88 833 | 4 | 0.05 | 10 | 0 |
+| 8b | #526, profile draw | 54 104 | 55 | 1.02 | | |
+| 8b | #528, profile draw | 54 104 | 13 | 0.24 | 44 | 2 |
+| 8c | #526, profile draw through the body | 89 821 | 111 | 1.24 | | |
+| 8c | #528, profile draw through the body | 89 821 | 26 | 0.29 | 87 | 2 |
+
+- The first measure of the merge made three failures: 8528992, 8515425
+  and 8542629, held the night before, failed on both profile draws. The
+  lanes' own ten-minute campaigns had not reached them. 8528992 was
+  decision 10's move carrying a rounded rectangle's upper corners' walls
+  onto its lower ones, a hair below, and is fixed: a move is not made
+  where it would lay a surface of the operand on another of its own. The
+  other two are the line-of-touch lane's corner on two planes, laid on
+  the line they share a hair off a wall: a disc's wall crossing a bore's
+  band (8515425), and a disc's rim touching a block's side, whose corner
+  had every rim of the wall sampled on the side (8542629). Kept where they
+  were found, or laid where the wall crosses the line, those corners
+  fixed one or both and broke up to eight seeds the lanes hold; one rule
+  held all eight and fixed 8550377 besides, but only for the order the
+  walls happen to be listed in. None was kept: the two stay failing,
+  their shrunk cases ignored with the reason, and the lane keeps its
+  gains (8010303, 8010399, 8055558 and three of the band's).
+- What is left, 4 seeds on the square draw, 13 on the profiles and 26
+  through the body, is the tangency band still: a third surface a hair
+  from a line of touch, the larger part on every draw; a plane a hair from
+  a face; two walls of one radius a hair apart under a third surface; and
+  a few the triangles draw crossing. Six seeds fail as drawn though their
+  shrunk cases hold, and want shrinking again.
+- The gate's tests, built, take 23 to 24 seconds where they took 19.6 to
+  20 at `b9d4fea`, the base the lanes started from: the crescent's tip's
+  cases, ignored there and held now, cost
+  about two and a half seconds of it, and the band's newly held cases half
+  a second. No test binary that held the same cases got slower.

@@ -38,7 +38,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec3;
 
-use super::sampling::divisions;
+use super::sampling::{divisions, touching_planes};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
@@ -219,8 +219,17 @@ pub(super) fn contacts(
             } else {
                 (other, one)
             };
-            if together::sampled((outer, &[]), (inner, &[]), facing, None, tolerance, eps).is_some()
-            {
+            let alone = [&[][..]; 2];
+            let sampled = together::sampled(
+                (outer, &[]),
+                (inner, &[]),
+                facing,
+                None,
+                alone,
+                tolerance,
+                eps,
+            );
+            if sampled.is_some() {
                 close.push((outer, inner, facing));
                 continue;
             }
@@ -236,7 +245,17 @@ pub(super) fn contacts(
             }
         }
     }
-    for (wall, contact) in together::shared(&close, own, &pinned, tolerance, eps) {
+    let planes = close
+        .iter()
+        .flat_map(|(outer, inner, _)| [*outer, *inner])
+        .map(|(id, wall)| {
+            (
+                *id,
+                touching_planes(body, wall.origin, wall.axis, wall.radius),
+            )
+        })
+        .collect();
+    for (wall, contact) in together::shared(&close, own, &pinned, &planes, tolerance, eps) {
         contacts.entry(wall).or_default().join(contact);
     }
     for (wall, points) in anchors {

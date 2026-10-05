@@ -101,6 +101,15 @@ impl<'a> Facing<'a> {
         })
     }
 
+    /// The heights the circles of `wall` stand at, each a stretch of none.
+    pub(super) fn rims(&self, wall: SurfaceId) -> Vec<[f64; 2]> {
+        let side = usize::from(self.walls[0].0 != wall);
+        self.known().arcs[side]
+            .iter()
+            .map(|[level, _, _]| [*level, *level])
+            .collect()
+    }
+
     /// Whether both walls hold a face at the angle of `point`, seen from
     /// each one's axis, at a height they share.
     pub(super) fn at(&self, point: DVec3) -> bool {

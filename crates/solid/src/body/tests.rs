@@ -593,14 +593,65 @@ fn a_bore_a_hair_inside_a_wall_is_built_though_the_sliver_between_draws_to_nothi
 }
 
 #[test]
-fn a_hole_touching_its_outline_at_one_point_is_declined_rather_than_drawn_open() {
-    let touching = exact(
-        Contour::rectangle(DVec2::ZERO, DVec2::new(20.0, 10.0)),
-        vec![disc(DVec2::new(10.0, 4.0), 4.0)],
-    );
-    let plate = Body::default()
-        .tool_raised(&touching, FLAT, DVec3::Z * 5.0)
-        .expect("the kernel raises it");
+fn a_hole_touching_its_outline_at_one_point_is_raised_and_drawn_closed_and_uncrossed() {
+    let touching = [
+        (
+            Contour::rectangle(DVec2::ZERO, DVec2::new(20.0, 10.0)),
+            20.0 * 10.0,
+            DVec2::new(10.0, 4.0),
+            4.0,
+        ),
+        (
+            disc(DVec2::new(5.0, 7.0), 5.0),
+            PI * 5.0 * 5.0,
+            DVec2::new(1.0, 7.0),
+            1.0,
+        ),
+        (
+            Contour {
+                corners: vec![
+                    DVec2::new(-10.0, -5.0),
+                    DVec2::new(10.0, -5.0),
+                    DVec2::new(10.0, 5.0),
+                    DVec2::new(-10.0, 5.0),
+                ],
+                runs: vec![
+                    Run::Straight,
+                    Run::Round {
+                        center: DVec2::new(10.0, 0.0),
+                        turn: PI,
+                    },
+                    Run::Straight,
+                    Run::Round {
+                        center: DVec2::new(-10.0, 0.0),
+                        turn: PI,
+                    },
+                ],
+            },
+            20.0 * 10.0 + PI * 5.0 * 5.0,
+            DVec2::new(12.0, 0.0),
+            3.0,
+        ),
+    ];
+    for (outline, area, center, radius) in touching {
+        let plate = Body::default()
+            .tool_raised(
+                &exact(outline, vec![disc(center, radius)]),
+                FLAT,
+                DVec3::Z * 5.0,
+            )
+            .expect("the kernel raises it");
 
-    assert_eq!(Body::default().union(&plate), Err(Declined::Undrawn));
+        let part = Body::default().union(&plate).expect("the plate is drawn");
+
+        let triangles = part.triangles();
+        assert_eq!(crate::soundness::closed(&triangles), Ok(()));
+        assert_eq!(crate::soundness::uncrossed(&triangles), Ok(()));
+        let arithmetic = (area - PI * radius * radius) * 5.0;
+        assert!(
+            (part.volume() - arithmetic).abs() < 1e-9 * arithmetic,
+            "{} against {arithmetic}",
+            part.volume(),
+        );
+    }
 }

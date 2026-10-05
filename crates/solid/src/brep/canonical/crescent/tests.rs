@@ -124,7 +124,7 @@ fn a_wall_within_the_tolerance_of_another_radius_or_further_than_a_hair_is_not_m
     for other in [
         post(DVec2::X * eps / 2.0, 2.0),
         post(DVec2::X * 10.0 * eps, 2.0 + 2.0 * eps),
-        post(DVec2::X * (HAIR + 1.0) * eps, 2.0),
+        post(DVec2::X * (Scale::HAIR + 1.0) * eps, 2.0),
     ] {
         assert!(closed(&one, &other, scale()).is_none());
     }

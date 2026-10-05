@@ -1,8 +1,8 @@
 //! Decision 8: two parallel cylinders of one radius, one of each operand,
-//! whose axes stand within `HAIR` tolerances of each other are one surface.
+//! whose axes stand within `Scale::HAIR` tolerances of each other are one surface.
 //! Two such walls cross along two rulings at an angle the offset over the
 //! radius, a crossing so ill conditioned that a band a thousand tolerances
-//! wide surrounds it; the crescent between them is at most `HAIR`
+//! wide surrounds it; the crescent between them is at most `Scale::HAIR`
 //! tolerances thick.
 //!
 //! Twenty and not more: a line crossing a wall at a slant sees the wall
@@ -25,11 +25,7 @@ use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::Body;
 
-/// How far apart, in tolerances, the axes of two cylinders of one radius
-/// may stand and still be one surface.
-pub(in crate::brep) const HAIR: f64 = 20.0;
-
-/// The second operand with each of its cylinders standing within `HAIR`
+/// The second operand with each of its cylinders standing within `Scale::HAIR`
 /// tolerances of one of the first's, of one radius, moved onto it; none
 /// when nothing moves.
 pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
@@ -42,7 +38,7 @@ pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Opti
 }
 
 /// The move square to the axes that lays `cylinder` on the nearest of the
-/// first operand's cylinders of its radius whose axis stands within `HAIR`
+/// first operand's cylinders of its radius whose axis stands within `Scale::HAIR`
 /// tolerances of its own; none where decision 1 takes it for one already.
 fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
     let eps = scale.eps();
@@ -65,7 +61,7 @@ fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
         let between = known.origin - cylinder.origin;
         let across = between - known.axis * known.axis.dot(between);
         let distance = across.length();
-        if distance <= HAIR * eps && nearest.is_none_or(|(least, _)| distance < least) {
+        if distance <= Scale::HAIR * eps && nearest.is_none_or(|(least, _)| distance < least) {
             nearest = Some((distance, across));
         }
     }

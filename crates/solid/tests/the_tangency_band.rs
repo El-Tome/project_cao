@@ -367,7 +367,6 @@ fn seed_6500074_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_6504965_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -512,7 +511,6 @@ fn seed_6650709_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_6509947_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -530,7 +528,6 @@ fn seed_6509947_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_6643772_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -548,7 +545,6 @@ fn seed_6643772_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_6638088_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1064,7 +1060,6 @@ fn seed_6072532_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wal
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band: a plane crossing a wall a hair inside, no touch to lay out (3-2)"]
 fn seed_6143816_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wall() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1155,12 +1150,11 @@ fn seed_6611564_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wal
 }
 
 // The same, the other cylinder's rim on the plane grazing the ruling:
-// decision 6 takes the meet's arc for the rim's, and the circle is left on a
-// wall that does not carry it.
+// decision 6 takes the meet's arc for the rim's, and the wall that does not
+// carry the circle sees it as the curve the rim's own wall meets it along.
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band: a circle kept for an arc of the meet, seen on the other wall as a chord (3-2)"]
 fn seed_6185693_a_square_wall_s_rim_grazing_the_ruling_a_plane_touches_a_wall_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1178,7 +1172,6 @@ fn seed_6185693_a_square_wall_s_rim_grazing_the_ruling_a_plane_touches_a_wall_al
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band: a circle kept for an arc of the meet, seen on the other wall as a chord (3-2)"]
 fn seed_6123681_a_square_wall_s_rim_grazing_the_ruling_a_plane_touches_a_wall_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1256,7 +1249,7 @@ fn seed_6218170_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
+#[ignore = "band: two walls of one radius crossing at a grazing angle, their band laid out since #528 and still drawn crossing (1-9)"]
 fn seed_6074790_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1281,7 +1274,6 @@ fn seed_6074790_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6563127_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1353,8 +1345,9 @@ fn seed_6625237_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6b, the profile draw: Answers.
+/// It holds since a circle crossing a plane again a step from its end keeps
+/// the ray there, which the wall a hair inside it takes too.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6598801_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1403,7 +1396,6 @@ fn seed_6631754_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6637572_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1537,7 +1529,6 @@ fn seed_6582528_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6621877_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(25.0), Outline::ring([5.0, 15.0], 15.0, 7.5), 23.0),
@@ -1557,8 +1548,9 @@ fn seed_6621877_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6b, the profile draw: Answers.
+/// It holds since a circle crossing a plane again a step from its end keeps
+/// the ray there, which the wall a hair inside it takes too.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6650833_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1582,8 +1574,9 @@ fn seed_6650833_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6b, the profile draw: Closed.
+/// It holds since a circle crossing a plane again a step from its end keeps
+/// the ray there, which the wall a hair inside it takes too.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6546656_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(0.0), Outline::circle([5.0, 3.0], 2.0), 7.0),
@@ -1603,8 +1596,9 @@ fn seed_6546656_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6b, the profile draw: Closed.
+/// It holds since a circle crossing a plane again a step from its end keeps
+/// the ray there, which the wall a hair inside it takes too.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6517915_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1653,8 +1647,9 @@ fn seed_6587058_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6b, the profile draw: Closed.
+/// It holds since a circle crossing a plane again a step from its end keeps
+/// the ray there, which the wall a hair inside it takes too.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6657327_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1683,7 +1678,6 @@ fn seed_6657327_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, no touch to lay out (1-9)"]
 fn seed_6500611_a_rounded_rectangle_a_hair_taller_than_its_corners_beside_a_circle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1708,7 +1702,6 @@ fn seed_6500611_a_rounded_rectangle_a_hair_taller_than_its_corners_beside_a_circ
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band: lines of a plane through two walls touching, computed apart from the line of touch (4-5)"]
 fn seed_6063426_two_walls_touching_on_a_plane_through_both_axes() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1733,7 +1726,6 @@ fn seed_6063426_two_walls_touching_on_a_plane_through_both_axes() {
 
 /// Campaign 6a, the square draw: Uncrossed.
 #[test]
-#[ignore = "band: lines of a plane through two walls touching, computed apart from the line of touch (4-5)"]
 fn seed_6122353_two_walls_touching_on_a_plane_through_both_axes() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(4.0), Outline::circle([2.0, 10.0], 0.5), 3.0),
@@ -1781,7 +1773,7 @@ fn seed_6091545_a_crescent_falling_under_a_later_leaf_s_tolerance() {
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band: a wall touching two parallel planes from one side, no move settling both (4-1)"]
+#[ignore = "band: a wall standing midway between both faces of a skin, within the tolerance of each even at the tolerance the body told them apart at, no move settling both (4-1)"]
 fn seed_6080810_a_wall_touching_both_faces_of_a_skin_from_one_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1806,7 +1798,6 @@ fn seed_6080810_a_wall_touching_both_faces_of_a_skin_from_one_side() {
 
 /// Campaign 6a, the square draw: Answers.
 #[test]
-#[ignore = "band: a wall touching two parallel planes from one side, no move settling both (4-1)"]
 fn seed_6074582_a_wall_touching_both_faces_of_a_skin_from_one_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1838,7 +1829,6 @@ fn seed_6074582_a_wall_touching_both_faces_of_a_skin_from_one_side() {
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: a wall touching two parallel planes from one side, no move settling both (4-1)"]
 fn seed_6528115_a_wall_touching_two_planes_a_hair_apart_from_one_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1863,7 +1853,6 @@ fn seed_6528115_a_wall_touching_two_planes_a_hair_apart_from_one_side() {
 
 /// Campaign 6b, the profile draw: Answers.
 #[test]
-#[ignore = "band: a wall touching two parallel planes from one side, no move settling both (4-1)"]
 fn seed_6521564_a_wall_touching_two_planes_a_hair_apart_from_one_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2639,7 +2628,6 @@ fn seed_80504138_a_rounded_corner_bored_a_hair_below_its_axis_leaves_the_floor_c
 /// pass through each other along it. A plane tangent to a cylinder a hair
 /// from a line crossing it (1-2): the band, the kernel's.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_80507291_a_block_cut_by_a_rounded_rectangle_a_hair_aside_stays_uncrossed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2891,7 +2879,6 @@ fn seed_90016363_a_block_touching_a_post_under_a_pin_dipping_into_it() {
 /// as first written: a slot, a disc of its radius at its end ten microns
 /// off, and a block a hair proud of both.
 #[test]
-#[ignore = "band: shrunk from a seed the rule as first written broke, failing before round 6 too"]
 fn seed_90501389_a_slot_cut_by_a_disc_at_its_end_and_a_block_a_hair_proud() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2942,7 +2929,6 @@ fn seed_90504120_a_block_given_a_rounded_rectangle_a_hair_aside_then_cut_above()
 /// The same campaign: a block given a post touching its side, then bored by
 /// a hole of the post's radius ten microns aside.
 #[test]
-#[ignore = "band: shrunk from a seed the rule as first written broke, failing before round 6 too"]
 fn seed_90504257_a_block_given_a_post_then_bored_ten_microns_aside() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -2994,7 +2980,6 @@ fn seed_90509248_a_slot_given_a_bar_touching_its_side_a_hair_past_its_end() {
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92502574_a_block_given_a_rounded_copy_a_hair_aside_then_cut_by_it_in_place() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3019,7 +3004,6 @@ fn seed_92502574_a_block_given_a_rounded_copy_a_hair_aside_then_cut_by_it_in_pla
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92502982_a_disc_cut_by_its_twin_ten_microns_aside_then_given_a_block_touching_both() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([7.0, 10.0], 5.5), 9.0),
@@ -3038,9 +3022,10 @@ fn seed_92502982_a_disc_cut_by_its_twin_ten_microns_aside_then_given_a_block_tou
     ));
 }
 
-/// The review of round 6, the profile draw: Uncrossed.
+/// The review of round 6, the profile draw: Uncrossed. It holds since a
+/// corner on two planes across each other and on walls touching them stands
+/// on the line the two planes share.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92503994_a_block_cut_by_a_rounded_rectangle_then_given_a_post_ten_microns_off_its_corner() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3103,7 +3088,6 @@ fn seed_92513136_a_rounded_block_given_a_slot_whose_end_stands_ten_microns_off_i
 
 /// The review of round 6, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92519519_a_rounded_block_given_a_post_on_its_corner_then_cut_by_its_twin_ten_microns_aside()
 {
     random_solids::holds_exactly(&Case::new(
@@ -3129,7 +3113,6 @@ fn seed_92519519_a_rounded_block_given_a_post_on_its_corner_then_cut_by_its_twin
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92524625_a_rounded_block_cut_by_a_disc_ten_microns_off_its_corner_then_given_a_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3171,7 +3154,6 @@ fn seed_92530408_a_slot_cut_by_a_slot_starting_ten_microns_past_its_end() {
 
 /// The review of round 6, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92533762_a_slot_cut_by_a_disc_ten_microns_off_its_end_then_given_a_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3196,7 +3178,6 @@ fn seed_92533762_a_slot_cut_by_a_disc_ten_microns_off_its_end_then_given_a_block
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_92537758_a_rounded_block_cut_by_a_disc_ten_microns_off_its_corner_then_by_a_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3267,7 +3248,7 @@ fn seed_93505897_a_ring_filled_by_a_pin_ten_microns_aside_then_given_a_block_tou
 
 /// The review of round 6, the profile draw: Uncrossed.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
+#[ignore = "band: two walls of one radius beyond the hair and a plane touching both, their band laid out since #528 and still drawn crossing (1-9)"]
 fn seed_93530253_a_slot_given_a_disc_ten_microns_off_its_end_then_cut_by_its_end_s_twin() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3292,7 +3273,6 @@ fn seed_93530253_a_slot_given_a_disc_ten_microns_off_its_end_then_cut_by_its_end
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94501738_a_block_cut_by_a_slot_then_given_a_bar_ten_microns_off_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3322,7 +3302,6 @@ fn seed_94501738_a_block_cut_by_a_slot_then_given_a_bar_ten_microns_off_its_end(
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94511411_a_block_given_a_slot_then_cut_by_a_disc_ten_microns_off_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3347,7 +3326,6 @@ fn seed_94511411_a_block_given_a_slot_then_cut_by_a_disc_ten_microns_off_its_end
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_microns_off_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3372,7 +3350,6 @@ fn seed_94523199_a_block_given_a_post_then_cut_by_a_ring_whose_hole_stands_ten_m
 
 /// The review of round 6, the profile draw: Answers.
 #[test]
-#[ignore = "band: made by decision 9, two walls of one radius beyond the hair and a plane touching both (1-9)"]
 fn seed_94531594_a_block_given_a_slot_then_a_post_ten_microns_off_its_end() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3970,7 +3947,6 @@ fn a_pin_touching_a_disc_s_cap_along_a_ruling_two_tolerances_inside_its_wall() {
 }
 
 #[test]
-#[ignore = "band: a circle kept for an arc of the meet, seen on the other wall as a chord (3-2)"]
 fn a_pin_touching_a_disc_s_cap_along_a_ruling_twenty_tolerances_inside_its_wall() {
     random_solids::holds_exactly(
         &a_pin_touching_a_disc_s_cap_along_a_ruling_grazing_its_wall(20.0),
@@ -3978,7 +3954,6 @@ fn a_pin_touching_a_disc_s_cap_along_a_ruling_twenty_tolerances_inside_its_wall(
 }
 
 #[test]
-#[ignore = "band: a circle kept for an arc of the meet, seen on the other wall as a chord (3-2)"]
 fn a_pin_touching_a_disc_s_cap_along_a_ruling_two_hundred_tolerances_inside_its_wall() {
     random_solids::holds_exactly(
         &a_pin_touching_a_disc_s_cap_along_a_ruling_grazing_its_wall(200.0),
@@ -3986,7 +3961,6 @@ fn a_pin_touching_a_disc_s_cap_along_a_ruling_two_hundred_tolerances_inside_its_
 }
 
 #[test]
-#[ignore = "band: a circle kept for an arc of the meet, seen on the other wall as a chord (3-2)"]
 fn a_pin_touching_a_disc_s_cap_along_a_ruling_two_thousand_tolerances_inside_its_wall() {
     random_solids::holds_exactly(
         &a_pin_touching_a_disc_s_cap_along_a_ruling_grazing_its_wall(2000.0),
@@ -4112,7 +4086,6 @@ fn a_bar_resting_on_a_top_bored_by_a_hole_thirty_tolerances_clear_of_its_line() 
 }
 
 #[test]
-#[ignore = "band: a ruling of touch crossing a square wall where it grazes it, no surface square to part the band (3-2)"]
 fn a_bar_resting_on_a_top_bored_by_a_hole_thirty_tolerances_across_its_line() {
     random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
         -30.0,

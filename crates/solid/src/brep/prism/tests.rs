@@ -58,14 +58,15 @@ fn a_whole_circle_given_as_one_corner_turning_once_raises_as_the_two_halves_do()
 }
 
 /// Every edge on the surfaces of the faces using it, its ends on its vertices,
-/// used once along its way and once against it, and every loop closed.
+/// used as often along its way as against it — once each, or twice along a
+/// line two walls touch along — and every loop closed.
 fn assert_sound(body: &Body) {
     let eps = body.scale().eps();
     for edge in body.edge_ids() {
         let uses = body.uses(edge);
-        let ways: Vec<bool> = uses.iter().map(|(_, forward)| *forward).collect();
+        let along = uses.iter().filter(|(_, forward)| *forward).count();
         assert!(
-            ways.len() == 2 && ways[0] != ways[1],
+            (uses.len() == 2 || uses.len() == 4) && 2 * along == uses.len(),
             "edge {edge:?} is used {uses:?}"
         );
         let stretch = body.edge(edge);
@@ -634,5 +635,79 @@ fn an_arc_too_large_for_its_points_to_be_held_within_the_tolerance_is_declined()
             Err(Declined::Profile),
             "{radius}"
         );
+    }
+}
+
+/// The vertices a loop of a face runs through.
+fn corners_of_loop(body: &Body, lap: &[Coedge]) -> Vec<crate::brep::topology::VertexId> {
+    let mut corners: Vec<_> = lap
+        .iter()
+        .flat_map(|coedge| body.edge(coedge.edge).ends.into_iter().flatten())
+        .collect();
+    corners.sort();
+    corners.dedup();
+    corners
+}
+
+/// A hole touching its outline at one point, raised with its outline, and
+/// the same hole cut out of the outline raised alone.
+fn raised_and_cut(outline: &Contour, hole: &Contour) -> (Body, Body) {
+    let raised = Body::raised(
+        outline,
+        std::slice::from_ref(hole),
+        ground(),
+        DVec3::Z * 5.0,
+    )
+    .expect("the profile raises");
+    let block = Body::raised(outline, &[], ground(), DVec3::Z * 5.0).expect("the outline raises");
+    let below = Frame {
+        origin: DVec3::Z * -1.0,
+        ..ground()
+    };
+    let tool = Body::raised(hole, &[], below, DVec3::Z * 7.0).expect("the hole raises");
+    let cut = block.cut_by(&tool).expect("the kernel cuts the hole");
+    (raised, cut)
+}
+
+#[test]
+fn a_hole_touching_its_outline_at_one_point_is_raised_as_the_kernel_cuts_it() {
+    let touching = [
+        (
+            Contour::rectangle(DVec2::ZERO, DVec2::new(20.0, 10.0)),
+            Contour::circle(DVec2::new(10.0, 4.0), 4.0),
+            DVec2::new(10.0, 0.0),
+        ),
+        (
+            Contour::circle(DVec2::new(5.0, 7.0), 5.0),
+            Contour::circle(DVec2::new(1.0, 7.0), 1.0),
+            DVec2::new(0.0, 7.0),
+        ),
+        (
+            slot(),
+            Contour::circle(DVec2::new(12.0, 0.0), 3.0),
+            DVec2::new(15.0, 0.0),
+        ),
+    ];
+    for (outline, hole, touch) in touching {
+        let (raised, cut) = raised_and_cut(&outline, &hole);
+
+        assert_sound(&raised);
+        assert_eq!(counts(&raised), counts(&cut), "{touch}");
+        assert!(
+            (raised.volume() - cut.volume()).abs() <= 1e-9 * cut.volume(),
+            "{} against {}",
+            raised.volume(),
+            cut.volume(),
+        );
+        for (cap, height) in raised.faces[..2].iter().zip([0.0, 5.0]) {
+            let [outer, inner] = [0, 1].map(|at| corners_of_loop(&raised, &cap.loops[at]));
+            let shared: Vec<_> = outer.iter().filter(|one| inner.contains(one)).collect();
+            assert_eq!(shared.len(), 1, "{touch}: {outer:?} against {inner:?}");
+            let corner = raised.vertex(*shared[0]).point;
+            assert!(
+                corner.distance(touch.extend(height)) <= raised.scale().eps(),
+                "{corner} against {touch}",
+            );
+        }
     }
 }

@@ -532,6 +532,13 @@ What the rule leaves of the corpus, each case ignored with its reason:
   within the tolerance of; the other wall sees that circle only as a
   chord, and the chord stands further off than the tolerance. Not the
   band's: the circle is to be traced on that wall with the meet's own trace.
+  Fixed by #528: the wall sees the circle as the curve the rim's own wall
+  meets it along, and the five hold, with the bar thirty tolerances across
+  its line and the ten seeds of `a_rim_grazing_a_ruling_of_touch.rs`. The
+  same reading holds the curve a wall meets a square one along where it
+  lies on a second wall parallel to the first, a hair off it, which saw it
+  in the first's angles: a crescent's tip (94501738, and 8541588, 8544067
+  and 8568600 of `a_crescent_s_tip_under_a_plane.rs`).
 - **1-9, two walls of one radius crossing at a grazing angle** (6517915,
   6546656, 6587058, 6598801, 6650833, 6657327, 6074790, 6563127, 6621877,
   6637572, 6500611, 4165661, 80510549). Further apart than decision 8's
@@ -665,3 +672,193 @@ Nothing the review's head fails held at round 6's head. What it leaves:
   undoes four of the 1-9 cases the rule fixed (6533713, 6547043, 6579931,
   6582528). The family wants its own rule, from the cases gathered.
 - The two new families of the sweeps, failing before round 6 too.
+
+## #528: the crescent's tip
+
+The lane of 5 October, on #526's branch, over the 59 seeds tonight's
+campaigns sorted into the family (`a_crescent_s_tip_under_a_plane.rs`) and
+the cases of `the_tangency_band.rs` round 6's review left it: two walls of
+one radius whose axes stand a hair apart, beyond decision 8's, crossing
+along two rulings at a grazing angle under a plane that touches both or
+passes through the crescent's tip.
+
+**The rule.** Decision 2 decides such a pair to *graze*, once: two parallel
+walls of one radius crossing at an angle whose sine is a hundredth or less
+stand within the tolerance of each other the tolerance over the angle from
+either line, as two walls touching do. Three readings of that symbol:
+
+- decision 5 merges a corner one wall carries near the crossing with the
+  node a band puts on the other there, as it does for two walls touching:
+  a refusal measured on their crossing lines kept two vertices at one place
+  (the ties ordering arcs round a corner);
+- decision 9 lays the band of each crossing line out as it lays a line of
+  touch, a corner nearer the other line standing in that line's band, and
+  keeps an arc between faces of one operand on the two walls — the
+  crescent an operand holds, which the band parts and decision 6 decides:
+  the strip of the crescent's tip, left on both walls on one side of a
+  third surface and taken away on the other, gave both walls the same
+  triangle there;
+- the curve a square wall meets one of the two along, taken for an arc of
+  the other over the stretch the band holds, lies on the other over that
+  stretch alone — it was taken for a curve the other carries all along —
+  and is seen there in that wall's own angles: read in its own wall's, it
+  stood the angle the two axes part by off its corners, and a loop it
+  closed could not be placed.
+
+| | before | after |
+| --- | --- | --- |
+| `a_crescent_s_tip_under_a_plane.rs` | 0 of 59 | 46 of 59, and two seeds the first band made, which hold |
+| `the_tangency_band.rs` | 132 of 197 | 147 of 197 |
+| `what_the_exact_campaigns_found_in_the_triangles.rs` | 95 of 113 | 96 of 113 (8018367) |
+| `what_the_exact_campaigns_found_in_the_kernel.rs`, the 18 cases | all | all |
+
+Ten-minute campaigns of each draw, base and lane side by side on the
+machine, from tonight's first seeds, over the seeds both reached: the square
+draw from 8 000 000, 14 221 seeds, 3 failures on each and the same three;
+the profile draw from 8 500 000, 9 996 seeds, 9 failures before and 5 after,
+0.90 per thousand to 0.50, none made; the profile draw through the body from
+8 500 000, 15 062 seeds, 11 before and 7 after, 0.73 to 0.46, none made.
+
+What the first band made, and the guard each gave:
+
+- **8002613**, a crescent's tip dipped into by a wall a hair off both:
+  the band of the lower line took the corners of the upper tip, within the
+  tolerance of both walls too. A corner nearer the other line is that
+  line's.
+- **8501866**, two walls a hair apart crossed by a wall square to both:
+  the curve the square wall meets one along, laid on the other over its
+  stretch, was registered as a curve the other carries all along
+  (`held.rs` read any parallel wall as carrying it), and bounded a sliver
+  with the other's own curve. A wall carries it all along only when it is
+  one of its own two.
+
+A merge tried on the way and taken back: two corners within twice the
+tolerance on a plane and on two surfaces touching along a line it crosses,
+taken for one at the place the three fix. It held six of the family's
+cases, five of `a_plane_a_hair_from_a_face.rs`, four of
+`a_surface_a_hair_from_a_line_of_touch.rs` and seven of the triangles', and
+broke eight that held, 1034172 among them, whose corner a bore touching a
+block leaves stands 1.9 tolerances off the line of touch and must stay off
+it. The √2 hairs between two such corners are decision 1's, and the lane of
+a plane a hair from a face has them.
+
+What the rule leaves of the family, each case ignored with its reason:
+
+- **Not the tip's** (8532939, 8565492, 8569734, 8572596, 8555088): decision
+  1 took a slot's cap and floor for a disc's wall and floor, and two
+  corners stand √2 hairs apart on one plane and one line of touch, which
+  decision 5 keeps two. 8567503 and 8500450, a plane a hair from a face;
+  8579668, two faces of a block's top drawn over each other beside a disc
+  and a slot a hair off its side.
+- **The triangles'** (8585454, 8587307): walls just past decision 8's hair
+  stand within a fifth of a tolerance of each other over a tenth of a turn
+  about their crossing, where the triangles withhold every step, and a
+  wall's triangle spanning it crosses a cap's.
+- **The tip's, still** (8555390): the crescent's tip, ended on a cap a
+  hair from the line a box's side touches it along, stands past the end of
+  that side's face, where no band is laid; 8586384, a ring's wall square to
+  the two crossing each tens of tolerances from the other inside their
+  band; 8575631, declined as unverified, not diagnosed. In
+  `the_tangency_band.rs`, 6074790 and 93530253 are still drawn crossing and
+  6500611 declined, the band laid out; 6091545 is 1-6.
+
+## #528: the six lanes together
+
+The lanes of 5 October — the crescent's tip, a plane a hair from a face,
+the line of touch, the triangles, a rim grazing a ruling of touch, a hole
+touching its outline — merged one at a time onto #526's branch, each held
+after its merge to every case that held at base or on any lane alone.
+
+| | before | after |
+| --- | --- | --- |
+| `a_crescent_s_tip_under_a_plane.rs` | 0 of 59 | 57 of 61 |
+| `a_plane_a_hair_from_a_face.rs` | 0 of 19 | 16 of 19 |
+| `a_surface_a_hair_from_a_line_of_touch.rs` | 0 of 23 | 8 of 23 |
+| `a_rim_grazing_a_ruling_of_touch.rs` | 0 of 10 | 10 of 10 |
+| `the_tangency_band.rs` | 132 of 197 | 170 of 197 |
+| `what_the_exact_campaigns_found_in_the_triangles.rs` | 95 of 113 | 111 of 116 |
+| `what_the_exact_campaigns_found_in_the_kernel.rs`, the 18 cases | all | all |
+
+What two lanes did to each other:
+
+- **8575631** held on the line of touch's lane alone and declined once a
+  plane a hair from a face's joined it: a slot's cap taken for a bore's
+  wall, its sides a hair off the two faces the bore all but touches.
+  Decision 2's finer reading took those faces, a diameter apart either
+  side of the wall, for two planes a hair apart, and decided the wall
+  against each at the stock's tolerance: it missed one and crossed the
+  other, and the slot's lines of touch stood on surfaces decided apart.
+  The finer reading is for two planes on one side of the wall alone.
+- **The corner on two planes across each other** was decided by two lanes,
+  the line of touch's in `standing` and the triangles' in `Planes::place`:
+  one rule is kept, the line of touch's, which the pool and the cut both
+  read, and the triangles' three seeds hold under it.
+- **A meet on a wall a hair beside its own** was seen by two lanes two
+  ways: as that wall's own meet with the other cylinder (the rim's), and in
+  that wall's angles (the crescent's). One rule: the wall's own meet where
+  the curve's middle stands within the tolerance of it, its angles
+  otherwise, the wall beside read once off the meet's own two cylinders.
+
+Thirteen seeds that no lane held alone, or that one held but left ignored
+in another lane's file, hold together and are no longer ignored: 8500450,
+8532939, 8555088, 8565492, 8567503, 8569734, 8572596, 8579668 of the
+crescent's file; 8530908 of the line of touch's; 6143816 and 6638088 of
+the band's; 8517827 and 8534264 of the triangles'.
+
+## #528: measured like for like
+
+The merged lanes against the night's campaigns, on the same seeds and the
+same number of cases per draw (`exact-kernel-journal.md`, 5 October): the
+square draw 14 failures in 88 833 cases before, 4 after; the profile draw
+55 in 54 104 before, 13 after; through the body 111 in 89 821 before, 26
+after.
+
+| | before | after |
+| --- | --- | --- |
+| `a_plane_a_hair_from_a_face.rs` | 16 of 19 | 17 of 20 (8528992) |
+| `a_surface_a_hair_from_a_line_of_touch.rs` | 8 of 23 | 8 of 25 |
+| `the_tangency_band.rs` | 170 of 197 | 171 of 197 (6500611) |
+| `what_the_exact_campaigns_found_in_the_kernel.rs`, the 18 cases | all | all |
+
+What the merge made, three seeds held the night before:
+
+- **8528992**, a rounded rectangle a hair taller than its two corners, its
+  top a hair off a block's face. Decision 10 laid the top on the face and
+  carried the operand along, the upper corners' walls onto the lower
+  ones: two walls the operand built apart became one, and the cut
+  declined. Fixed: a carried move is not made where a surface it carries
+  would become one with a surface of its own operand left behind. The
+  same fix holds 6500611, the band's rounded rectangle a hair taller than
+  its corners.
+- **8515425** and **8542629**, the line-of-touch lane's corner on two
+  planes across each other, laid on the line they share at its foot, a
+  hair off a wall it lies on. In 8515425 the wall is a disc's, crossing
+  the band of a bore touching a plane, and two faces are drawn crossing;
+  in 8542629 the wall touches a block's side along a ruling across that
+  line, every rim of the wall is sampled square to the corner, on the
+  side, and the block's top, whose rim it is too, has its rim sample on
+  its own edge along the side and is left uncut. Not fixed. A corner kept
+  where it was found, or laid where a wall crossing the line crosses it,
+  fixed one or both and broke up to eight seeds the merged lanes hold
+  (8504113, 8511276, 8540216, 8544675, 8562569, 8573267, 8586557, 8586895);
+  the one rule that broke none of them, and fixed 8550377, chose its wall
+  by the order the support lists them in. Both cases are in
+  `a_surface_a_hair_from_a_line_of_touch.rs`, ignored with the reason.
+  Undoing the lane's rule fixes both and fails 8010303, 8010399, 8055558,
+  8586895 and three cases of the band.
+
+What the campaigns leave, by the family each seed's shrunk case was filed
+in:
+
+| family | square | profiles | through the body |
+| --- | --- | --- | --- |
+| a third surface a hair from a line of touch | 4 | 6 | 9 |
+| a plane a hair from a face | | 3 | 3 |
+| the crescent's tip | | | 4 |
+| drawn wrong by the triangles, or filed with their findings | | 2 | 4 |
+| shrunk case holds, the seed as drawn does not | | 2 | 6 |
+
+The last row is 8544067 and 8552226 on both profile draws, and 8512856,
+8540477, 8581445 and 8588829 through the body: shrunk on the night's
+kernel, each case holds now, and the seed wants shrinking again on this
+one.

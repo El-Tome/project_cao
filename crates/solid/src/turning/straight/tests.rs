@@ -232,8 +232,53 @@ fn a_chain_of_hairs_wider_than_twice_the_tolerance_is_not_straight() {
     assert_eq!(laid(&stairs(7), &[], RESOLUTION), None);
 }
 
+/// Each corner of the laid profile with the number of the run leaving it,
+/// whichever corner each contour starts at.
+fn corners(straight: &Straight) -> Vec<Vec<([f64; 2], u32)>> {
+    straight
+        .contours
+        .iter()
+        .map(|contour| {
+            let mut corners: Vec<([f64; 2], u32)> = contour
+                .iter()
+                .map(|corner| (corner.at.to_array(), corner.run))
+                .collect();
+            corners.sort_by(|one, other| one.partial_cmp(other).expect("no NaN"));
+            corners
+        })
+        .collect()
+}
+
 #[test]
-fn a_gap_narrower_than_the_resolution_is_not_closed_by_laying() {
+fn a_hole_a_hair_inside_its_outline_opens_onto_it_where_laying_makes_them_one() {
+    let gap = 0.5 * RESOLUTION;
+    let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
+    let hole = polygon(&[[2.0, 0.5], [2.0, 1.5], [5.0 - gap, 1.5], [5.0 - gap, 0.5]]);
+    let straight = laid(&square, &[hole], RESOLUTION).expect("a notch where the wall was");
+    let far = straight.contours[0]
+        .iter()
+        .map(|corner| corner.at.y)
+        .fold(0.0, f64::max);
+    assert!(near(far, 5.0 - gap / 2.0), "{straight:?}");
+    assert_eq!(
+        corners(&straight),
+        [vec![
+            ([0.0, 1.0], 3),
+            ([0.0, far], 0),
+            ([0.5, 2.0], 7),
+            ([0.5, far], 1),
+            ([1.5, 2.0], 4),
+            ([1.5, far], 5),
+            ([2.0, 1.0], 2),
+            ([2.0, far], 1),
+        ]],
+        "the wall and the hole's run along it name nothing",
+    );
+    assert_eq!(straight.runs, 8);
+}
+
+#[test]
+fn a_slot_narrower_than_the_resolution_is_closed_by_laying() {
     let gap = 0.5 * RESOLUTION;
     let slotted = polygon(&[
         [1.0, 0.0],
@@ -245,13 +290,20 @@ fn a_gap_narrower_than_the_resolution_is_not_closed_by_laying() {
         [3.0, 4.0],
         [1.0, 4.0],
     ]);
-    assert_eq!(laid(&slotted, &[], RESOLUTION), None);
+    let straight = laid(&slotted, &[], RESOLUTION).expect("the slot closed");
+    let corners = corners(&straight);
+    let at: Vec<[f64; 2]> = corners[0].iter().map(|(at, _)| *at).collect();
+    let numbers: Vec<u32> = corners[0].iter().map(|(_, run)| *run).collect();
+    assert_eq!(corners.len(), 1);
+    assert_eq!(at[0], [0.0, 1.0]);
+    assert_eq!(numbers, [7, 0, 6, 2, 1]);
+    assert_eq!(at[3][0], 4.0);
+    assert!(near(at[3][1], 3.0 + gap / 2.0), "{at:?}");
+}
 
-    let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
-    let hole = |right: f64| polygon(&[[2.0, 0.5], [2.0, 1.5], [right, 1.5], [right, 0.5]]);
-    assert_eq!(laid(&square, &[hole(5.0 - gap)], RESOLUTION), None);
-    assert!(laid(&square, &[hole(4.0)], RESOLUTION).is_some());
-
+#[test]
+fn a_hole_laid_onto_its_outline_at_a_corner_alone_is_not_straight() {
+    let gap = 0.5 * RESOLUTION;
     let bent = polygon(&[
         [1.0, 0.0],
         [5.0, 0.0],

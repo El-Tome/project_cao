@@ -461,3 +461,47 @@ same seeds, all side by side in release.
 - The gate's tests, built, take about 30 s on the branch where they take
   about 23 s on `main`: the turned harness's kernel tests and the part's
   slanted turn on the flats are most of the difference.
+
+## 6 October: round 1 of #533, under one failure in a thousand
+
+Five lanes, each started from the night's families and merged one by one
+onto `1492eed`:
+
+- flats-join: a turned profile that touches itself once its levels are
+  laid is read as the matter its laid outline bounds, so a hole a hair
+  inside its outline becomes a notch, a slot a hair wide closes, and the
+  exact kernel turns the section instead of handing it to the flats. This
+  was most of the night's failures through the application's body.
+- kernel-drawing: sampling decides once where two edges touch without
+  crossing, so a face's outline no longer meets itself mid-segment and a
+  body drawn through it closes.
+- flats-ends: a turn on the flats is closed by its ends whichever way it
+  turns, and a turn a hair short of whole is swept whole.
+- kernel-declines: three facts the boolean decided twice — a wall taken
+  for another a hair off now brings its operand onto it, a node grown
+  slides along the shaft it rests on, and two planes a hair apart are read
+  where they stand.
+- rounded-a-hair: a straight run whose ends are one corner within the
+  tolerance is left out of a raise, so a rounded rectangle a hair wider
+  than its corners is raised.
+
+Measured on fresh seeds at `4e326a9`, in release, the four draws side by
+side, and the first 15 000 seeds of each run again on `1492eed` beside
+them:
+
+| Draw | First seed | Cases | Failures | Per thousand | `1492eed`, first 15 000 |
+| --- | --- | --- | --- | --- | --- |
+| turned, exact kernel | 534500000 | 30 000 | 12 | 0.40 | 0.47 |
+| turned, application's body | 534600000 | 30 000 | 21 | 0.70 | 6.33 |
+| square | 534700000 | 30 000 | 3 | 0.10 | 0.07 |
+| profiles | 534800000 | 20 000 | 6 | 0.30 | 0.33 |
+
+- Every draw is now under one failure in a thousand. No seed that holds
+  on `1492eed` fails at `4e326a9`; through the body, 83 of the base's 95
+  failures over the shared seeds hold.
+- What is left, not yet shrunk into families: results drawn crossing
+  (`Uncrossed`), most of the failures on every draw, and cases refused or
+  too slow (`Answers`), ten of the 21 through the body, run with up to
+  eight campaigns sharing the machine.
+- The gate's tests, built, take about 30 s; the turned harness about
+  2.9 s of it, still above its 2.5 s budget.

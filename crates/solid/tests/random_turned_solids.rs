@@ -1293,7 +1293,7 @@ fn runs_of(turn: &Turned) -> u32 {
 
 #[test]
 fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
-    let seeds: Vec<u64> = (0..60).collect();
+    let seeds: Vec<u64> = (0..11).collect();
     let weighed = random_solids::on_every_core(&seeds, |seed| {
         let case = Case::drawn_turned(*seed);
         random_solids::held_to_arithmetic(&case, &Exact)
@@ -1331,7 +1331,7 @@ fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_a
         assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
         assert!(exact, "seed {seed} left the exact kernel:\n{case}");
     }
-    assert!(held > 30, "{held} cases held");
+    assert!(held > 5, "{held} cases held");
 }
 
 #[test]

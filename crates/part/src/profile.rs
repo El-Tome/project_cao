@@ -21,7 +21,7 @@ pub(crate) fn profile<'a>(region: &'a Region, triangles: &'a [[DVec2; 3]]) -> Pr
 /// The loops a region hands the flats: its outline and what it leaves hollow,
 /// each carrying the curve every segment was sampled from so that a wall
 /// raised from one curve comes out as one face.
-pub(crate) fn loops(region: &Region) -> (Loop<'_>, Vec<Loop<'_>>) {
+fn loops(region: &Region) -> (Loop<'_>, Vec<Loop<'_>>) {
     fn borrow(outline: &Outline) -> Loop<'_> {
         Loop {
             points: &outline.points,

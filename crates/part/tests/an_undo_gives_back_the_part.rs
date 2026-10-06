@@ -472,7 +472,6 @@ fn the_same_seed_draws_the_same_part() {
 }
 
 #[test]
-#[ignore = "#486"]
 fn a_quarter_turn_backwards_undoes_every_gesture() {
     assert_eq!(
         undoes(&[

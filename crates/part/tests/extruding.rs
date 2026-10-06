@@ -22,8 +22,8 @@ fn volume(body: &Body) -> f64 {
 }
 
 /// A volume the exact kernel computed, held to the arithmetic: what is left
-/// between the two is rounding. The revolutions below are the flats', and are
-/// held to the percent their pieces cost.
+/// between the two is rounding. The revolutions below are of straight runs
+/// parallel or square to their axis, which the exact kernel turns too (#533).
 fn assert_arithmetic(made: f64, expected: f64) {
     assert!(
         (made - expected).abs() <= 1e-9 * expected,
@@ -180,15 +180,13 @@ fn a_revolution_sweeps_an_area_around_an_axis() {
         mode: ExtrusionMode::Add,
     });
 
-    let made = volume(&PartState::rebuild(&history).body);
-    let expected = std::f64::consts::TAU * 4.0 * 4.0;
-    assert!(
-        (made - expected).abs() / expected < 0.02,
-        "{made} / {expected}"
+    assert_arithmetic(
+        volume(&PartState::rebuild(&history).body),
+        std::f64::consts::TAU * 4.0 * 4.0,
     );
 }
 
-/// L'axe peut être un trait qu'on a tracé soi-même.
+/// The axis can be a trait the user drew.
 #[test]
 fn a_revolution_can_turn_around_a_drawn_line() {
     let mut history = sketch_history();
@@ -207,18 +205,16 @@ fn a_revolution_can_turn_around_a_drawn_line() {
         mode: ExtrusionMode::Add,
     });
 
-    let made = volume(&PartState::rebuild(&history).body);
-    let expected = std::f64::consts::TAU * 4.0 * 4.0;
-    assert!(
-        (made - expected).abs() / expected < 0.02,
-        "{made} / {expected}"
+    assert_arithmetic(
+        volume(&PartState::rebuild(&history).body),
+        std::f64::consts::TAU * 4.0 * 4.0,
     );
 }
 
-/// A profile astride the axis would pass through itself: nothing is
-/// produced, rather than a volume turned inside out.
+/// A profile astride the axis would pass through itself: each side is turned
+/// on its own and the two joined, as if the axis had been drawn across it.
 #[test]
-fn a_revolution_across_its_axis_makes_nothing() {
+fn a_revolution_across_its_axis_is_turned_on_both_sides_and_joined() {
     let mut history = sketch_history();
     rectangle(&mut history, DVec2::new(-4.0, 0.0), DVec2::new(5.0, 2.0));
     history.push(Operation::Revolve {
@@ -229,7 +225,10 @@ fn a_revolution_across_its_axis_makes_nothing() {
         mode: ExtrusionMode::Add,
     });
 
-    assert!(PartState::rebuild(&history).body.is_empty());
+    assert_arithmetic(
+        volume(&PartState::rebuild(&history).body),
+        std::f64::consts::PI * 25.0 * 2.0,
+    );
 }
 
 /// The hang met in use, with its real measurements: a cylinder of

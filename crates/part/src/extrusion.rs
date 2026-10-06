@@ -1,15 +1,18 @@
 //! Turning a sketch's areas into matter, or taking matter away: a prism along
 //! the plane's normal, or a sweep around an axis lying in the plane.
 
+use std::borrow::Cow;
+
 use cao_sketch::{Area, Region, Sketch};
 use cao_solid::profile::{Frame, Profile};
+use cao_solid::turning::{Axis, Lie, Turn};
 use cao_solid::{Body, Declined};
 use glam::DVec2;
 
 use crate::broken::Broken;
 use crate::formula::Formula;
 use crate::history::{ExtrusionMode, RevolutionAxis};
-use crate::profile::{loops, profile};
+use crate::profile::profile;
 use crate::state::PartState;
 
 impl PartState {
@@ -35,6 +38,12 @@ impl PartState {
 
     /// Sweeps the chosen areas around an axis of the sketch and joins the
     /// result to the part, or takes it out.
+    ///
+    /// An area across the axis would sweep through itself: it is cut along
+    /// the axis first, and each side is turned on its own, as if the axis had
+    /// been drawn across it. A turn of straight runs parallel or square to
+    /// the axis is the exact kernel's; anything else sends the part to the
+    /// flats.
     pub(crate) fn revolve(
         &mut self,
         index: usize,
@@ -50,36 +59,30 @@ impl PartState {
         let Some(sketch) = self.sketches.get(index) else {
             return;
         };
-        let Some((axis_origin, axis_direction)) = axis_in_sketch(sketch, axis) else {
+        let Some(axis) = axis_in_sketch(sketch, axis) else {
             return;
         };
 
-        let plane = sketch.plane;
-        let turn = degrees.to_radians();
+        let frame = frame_of(sketch);
         let regions = sketch.regions();
+        let (standing, lost) = self.all_standing_on(index, areas, &regions);
+        let sides = sides_of(sketch, &standing, axis, degrees.to_radians());
+        let profiles: Vec<(Profile, Turn)> = sides
+            .iter()
+            .map(|(region, triangles, turn)| (profile(region, triangles), *turn))
+            .collect();
+        let past_turns = |body: &mut Body| {
+            for (profile, turn) in &profiles {
+                body.count_past_turned(profile, frame, turn);
+            }
+        };
 
         let mut tool = Body::default();
-        let mut lost = false;
-        for area in areas {
-            let Some(region) = self.standing_on(index, area, &regions) else {
-                lost = true;
-                continue;
-            };
-            let (outline, holes) = loops(region);
-            let Some(piece) = Body::revolution(
-                outline,
-                &holes,
-                &region.face_triangles(),
-                |point| plane.to_world(point),
-                axis_origin,
-                axis_direction,
-                turn,
-            ) else {
-                continue;
-            };
-            match tool.union(&piece) {
+        for (profile, turn) in &profiles {
+            let turned = self.body.tool_turned(profile, frame, turn);
+            match turned.and_then(|piece| tool.union(&piece)) {
                 Ok(joined) => tool = joined,
-                Err(reason) => return self.declined_with(reason, |_| {}),
+                Err(reason) => return self.declined_with(reason, past_turns),
             }
         }
 
@@ -89,7 +92,7 @@ impl PartState {
             self.broke(Broken::Operation(self.replaying));
         }
         if let Err(reason) = self.combine(tool, mode) {
-            self.declined_with(reason, |_| {});
+            self.declined_with(reason, past_turns);
         }
     }
 
@@ -153,7 +156,7 @@ impl PartState {
             let raised = self.body.tool_raised(profile, frame, travel);
             match raised.and_then(|piece| tool.union(&piece)) {
                 Ok(joined) => tool = joined,
-                Err(reason) => return self.declined_with(reason, past(&profiles)),
+                Err(reason) => return self.declined_with(reason, past_raises(&profiles)),
             }
         }
 
@@ -163,7 +166,7 @@ impl PartState {
             self.broke(Broken::Operation(self.replaying));
         }
         if let Err(reason) = self.combine(tool, mode) {
-            self.declined_with(reason, past(&profiles));
+            self.declined_with(reason, past_raises(&profiles));
         }
     }
 
@@ -234,20 +237,64 @@ impl PartState {
 }
 
 /// Counts a body past the numbers a raise of each profile would have named.
-fn past<'a>(profiles: &'a [Profile<'a>]) -> impl FnOnce(&mut Body) + 'a {
+fn past_raises<'a>(profiles: &'a [Profile<'a>]) -> impl FnOnce(&mut Body) + 'a {
     move |body| profiles.iter().for_each(|profile| body.count_past(profile))
 }
 
 /// Where a revolution's axis lies, in the sketch's own coordinates.
-fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<(DVec2, DVec2)> {
+fn axis_in_sketch(sketch: &Sketch, axis: RevolutionAxis) -> Option<Axis> {
     match axis {
-        RevolutionAxis::Sketch(axis) => Some((DVec2::ZERO, axis.direction())),
+        RevolutionAxis::Sketch(axis) => Some(Axis {
+            origin: DVec2::ZERO,
+            direction: axis.direction(),
+        }),
         RevolutionAxis::Segment(segment) => {
             if segment.0 >= sketch.segments().len() {
                 return None;
             }
             let (start, end) = sketch.endpoints(segment);
-            ((end - start).length() > 1e-6).then_some((start, end - start))
+            ((end - start).length() > 1e-6).then_some(Axis {
+                origin: start,
+                direction: end - start,
+            })
         }
     }
+}
+
+/// The frame a sketch's areas stand in, for the kernels.
+fn frame_of(sketch: &Sketch) -> Frame {
+    Frame {
+        origin: sketch.plane.origin,
+        u: sketch.plane.u,
+        v: sketch.plane.v,
+    }
+}
+
+/// Each area as a turn takes it, with its triangles: whole when it lies on
+/// one side of the axis, and cut along the axis into its sides when it lies
+/// across it. Every side keeps the band its whole area was read at, so that
+/// a corner the drawing left a hair off the axis lands on it whichever side
+/// it ended up in.
+fn sides_of<'a>(
+    sketch: &Sketch,
+    standing: &[&'a Region],
+    axis: Axis,
+    angle: f64,
+) -> Vec<(Cow<'a, Region>, Vec<[DVec2; 3]>, Turn)> {
+    let resolution = sketch.resolution();
+    let mut sides = Vec::new();
+    for &region in standing {
+        let triangles = region.face_triangles();
+        let whole = profile(region, &triangles);
+        let turn = Turn::of(axis, angle, resolution, &whole);
+        if turn.lie(&whole) != Lie::Across {
+            sides.push((Cow::Borrowed(region), triangles, turn));
+            continue;
+        }
+        for side in sketch.pieces_across(region, axis.origin, axis.direction) {
+            let triangles = side.face_triangles();
+            sides.push((Cow::Owned(side), triangles, turn));
+        }
+    }
+    sides
 }

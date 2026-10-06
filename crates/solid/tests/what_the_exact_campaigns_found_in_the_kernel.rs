@@ -3482,7 +3482,7 @@ fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
 }
 
 #[test]
-#[ignore = "kernel-declines: a slot whose face stands 1e-7 from the plane through the axis of a cylinder turned and cut from it; the exact boolean declines its result as unverified (brep/assembly.rs): 32 of the 1 071 failures through the application's body, declined as unverified or as a tie"]
+#[ignore = "kernel-declines: a slot whose floor stands 1e-7 from the point where its lower cap touches a turned cylinder inside, the cap a perpendicular wall: the slot's corner there is taken onto the cylinder, the curve the cap and the cylinder meet along passes 5e-8 from it, is not cut there, and runs on to the point of touch under the floor, a hair the cap's face cannot close (brep/combine/cut.rs, decision 4 at a contact); declined as unverified (brep/assembly.rs). 32 of the 1 071 failures through the application's body were declined as unverified or as a tie; 4 now hold"]
 fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_declined_as_unverified() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3499,8 +3499,13 @@ fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_declined_a
     ));
 }
 
+/// The post crosses the shaft at a node but for 5e-9 of radius: the curve
+/// the two meet along was laid on the post given the shaft's radius, while
+/// the post itself was left where it stood, since growing it would lift it
+/// off the shaft's end it rests on; the corners found on the post stood
+/// three tolerances off that curve. The post grown is slid along the
+/// shaft's axis by what it grew, and rests on the end still.
 #[test]
-#[ignore = "kernel-declines: a shaft turned from two bands 1e-8 apart in radius, joined to a post across it; declined as unverified (brep/assembly.rs)"]
 fn seed_533609727_a_shaft_whose_two_bands_differ_by_a_hair_joined_to_a_post() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3517,8 +3522,12 @@ fn seed_533609727_a_shaft_whose_two_bands_differ_by_a_hair_joined_to_a_post() {
     ));
 }
 
+/// The block's top crosses the slit the turn leaves, 6e-8 from its axis,
+/// where the slit's two ends stand a ten-thousandth of the tolerance apart:
+/// one piece of surface, two planes crossing along the axis, which the
+/// turn holds as a crack and which was a tie. Two planes are read one above
+/// the other at the place, where they stand further apart than rounding.
 #[test]
-#[ignore = "kernel-declines: a cylinder turned 359.9 degrees, joined to a block whose face stands 6e-8 from its axis; declined as a tie (brep/selection.rs, brep/ray.rs)"]
 fn seed_533708173_a_turn_short_of_whole_joined_to_a_block_a_hair_off_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3536,7 +3545,7 @@ fn seed_533708173_a_turn_short_of_whole_joined_to_a_block_a_hair_off_its_axis() 
 }
 
 #[test]
-#[ignore = "kernel-declines: a cylinder turned about an axis 2e-8 off a rounded block's side, cut from it; declined as a tie (brep/selection.rs, brep/ray.rs)"]
+#[ignore = "kernel-declines: a cylinder turned about an axis 2e-8 off a rounded block's side, its ends on the block's ends, which touch the corners' walls: the curve each corner's wall meets the cylinder along passes 4e-16 from the cylinder's end circle, inside the band of the end and the corner, with no corner, and the cylinder's overlay finds a region with no point inside it (brep/overlay/partition.rs); declined as a tie. So is 533620725"]
 fn seed_533648596_a_turned_cylinder_a_hair_from_a_rounded_block_s_side_is_declined_as_a_tie() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3553,8 +3562,12 @@ fn seed_533648596_a_turned_cylinder_a_hair_from_a_rounded_block_s_side_is_declin
     ));
 }
 
+/// The slot's cap stands 4.99999997e-8 from the disc's wall, just under
+/// the tolerance, and was taken for it; its side, which the slot made touch
+/// the cap, stands 5.00000006e-8 from the wall, just over it, and crossed
+/// the wall it should have touched. A wall taken for the first's a hair off
+/// now moves its operand onto it, as decision 8 does further off.
 #[test]
-#[ignore = "kernel-declines: a disc cut by a slot of its own radius whose centre stands 5e-8 off; shrunk to prisms alone, declined as unverified: the kernel's own, not turning's"]
 fn seed_533613392_a_disc_cut_by_a_slot_a_hair_off_its_centre_with_no_turn() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::yz(5.0), Outline::circle([5.0, 25.0], 25.0), -45.0),

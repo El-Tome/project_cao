@@ -1010,3 +1010,46 @@ case run again on both paths:
   533328889's tie, the ends of a partial turn meeting a coaxial cylinder;
   named in `what_the_exact_campaigns_found_in_the_kernel.rs` and left, as
   that one is, for the cones' issue.
+
+### Round 1: the kernel's declines
+
+The night's failures through the application's body were sorted by the
+place at fault (`1492eed`); 32 seeds were the exact boolean declining a
+step, as unverified or as a tie, a plane or a wall a hair from another.
+Every shrunk case was traced to the first fact decided twice:
+
+- **Fixed: a wall taken for another a hair off moves its operand.**
+  Decision 1 took a slot's cap for a disc's wall at just under the
+  tolerance and left the slot's side, which touched the cap, just over it
+  from the wall: the side crossed the wall it should have touched. The
+  operand now moves onto the wall it is taken for, as decision 8 moves it
+  further off (533613392, 533704316, and 8515425 from the line of touch).
+- **Fixed: a cylinder grown onto a node slides along its partner's axis.**
+  The curve a post and a shaft meet along at a node but for a hair of
+  radius was laid on the post given the shaft's radius, while the post,
+  resting on the shaft's end, was left as it stood; its corners stood
+  three tolerances off the curve. Grown, it is slid along the shaft's axis
+  by what it grew, and rests on the end still (533609727's shrunk case).
+- **Fixed: two planes as twins are read at the place.** The two ends of a
+  turn a tenth of a degree short of whole stand closer than the tolerance
+  near its axis, and a block's face crossing them there made twins of the
+  two, a tie. They are read one above the other where they stand further
+  apart than rounding (533708173's shrunk case).
+- **Open, the band again:** the curve a corner's wall meets a turned
+  cylinder along passing 4e-16 from the cylinder's end circle, inside the
+  band of the end plane and the wall, with no corner (533648596,
+  533620725); a slot's corner taken onto a cylinder its cap touches inside
+  1e-7 under it, off the curve the two meet along (533631663); a meet laid
+  on a moved cylinder neither operand may move (533602391's shrunk case,
+  533775454); walls a hair apart beyond decision 8's reach under a
+  perpendicular one (533603710); a third surface crossing a line of touch a
+  hair inside (533614588). Each is the tangency band's or decision 2's,
+  reached by turned surfaces as by raised ones.
+
+Measured on the 32 seeds as drawn, through the body: 3 now hold
+(533602391, 533613392, 533704316). 533609727 as drawn holds a third band
+that still declines; 533708173 as drawn now answers, and its turn's own
+crack near the axis is drawn crossing under the block, as it was on
+`1492eed` with the block above: the triangles' family. A 15-minute
+campaign from 533600000 on both trees, 3 448 seeds in common: the same
+failures, less 533602391; no seed that held fails.

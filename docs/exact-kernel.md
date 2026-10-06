@@ -147,8 +147,13 @@ The decisions, in the order taken, once per operation:
    neither, a floor drawn on the middle one of three floors a hair apart
    stood as a fourth plane on it, its corners within the tolerance of
    corners no merge may join, and a region between them found no column to
-   be read in (8537287, 8087943). From here on, coplanar, coaxial and flush
-   are comparisons of ids.
+   be read in (8537287, 8087943). A wall taken for the first's a hair off,
+   further than rounding, moves its operand onto that wall with what it
+   built on it, as decision 8 moves it further off: left where it is, a
+   slot's cap taken at just under the tolerance kept the side its operand
+   made touch it just over the tolerance from the wall, and the side crossed
+   the wall it should have touched (533613392). From here on, coplanar,
+   coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
@@ -162,7 +167,12 @@ The decisions, in the order taken, once per operation:
    carrying the first operand's corners is never moved, or they would stay
    on its old wall: where the pair would move it, its partner moves instead,
    across it the other way, and takes its radius at a node of two of one
-   radius. A plane and a cylinder, or two
+   radius. A cylinder grown onto such a node that would lift off a plane
+   square to its partner's axis, which it touched, is slid along that axis
+   by what it grew: the node stands wherever along the axis the two meet,
+   and a post resting on a shaft's end, crossing the shaft at a node but
+   for a hair of radius, rests on it still (533609727). A plane and a
+   cylinder, or two
    parallel cylinders, one of each operand, decided to touch along a line a
    hair apart are made to touch the same way: the surface the second operand
    alone carries is moved onto the touch — a cylinder along the plane's
@@ -303,8 +313,10 @@ The decisions, in the order taken, once per operation:
    cylinders a hair apart crossing at a grazing angle — the two stand one
    above the other all along the stretch between the lines they cross
    along, the wall's slice beyond the plane from its axis, read at the
-   middle of that stretch, where they stand furthest apart. Other twins
-   are still a tie. The
+   middle of that stretch, where they stand furthest apart. Two planes
+   are read at the region's point, where they stand further apart than
+   rounding: the two ends of a turn a tenth of a degree short of whole,
+   near its axis, a crack (533708173). Other twins are still a tie. The
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
 7. **The band.** A plane and a cylinder decided to touch, or two cylinders

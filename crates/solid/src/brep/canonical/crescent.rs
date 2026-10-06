@@ -16,11 +16,17 @@
 //! along: the second operand is moved square to the axis, by the offset,
 //! as `carried.rs` moves it. Where that move is not made, the two walls are
 //! left two.
+//!
+//! So is a wall decision 1 takes for the first's a hair off, within the
+//! tolerance: left where it is, what its operand built on it stays a hair
+//! behind, and is measured again against the first's wall. A slot's cap
+//! taken for a disc's wall at just under the tolerance left the slot's side,
+//! which its operand made touch the cap, just over it from the disc, and the
+//! side crossed the wall it should have touched (533613392).
 
 use glam::DVec3;
 
 use super::carried::carried_along;
-use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Surface};
 use crate::brep::topology::Body;
@@ -39,17 +45,12 @@ pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Opti
 
 /// The move square to the axes that lays `cylinder` on the nearest of the
 /// first operand's cylinders of its radius whose axis stands within `Scale::HAIR`
-/// tolerances of its own; none where decision 1 takes it for one already.
+/// tolerances of its own; none where it stands on one already, but for
+/// rounding.
 fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
     let eps = scale.eps();
     let mut nearest: Option<(f64, DVec3)> = None;
     for known in &first.surfaces {
-        if matches!(
-            relation(known, &Surface::Cylinder(*cylinder), scale),
-            Relation::Same { .. }
-        ) {
-            return None;
-        }
         let Surface::Cylinder(known) = known else {
             continue;
         };
@@ -65,8 +66,13 @@ fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
             nearest = Some((distance, across));
         }
     }
-    nearest.map(|(_, across)| across)
+    nearest
+        .filter(|&(distance, _)| distance > ROUNDING * eps)
+        .map(|(_, across)| across)
 }
+
+/// Under this share of the tolerance, a wall already stands on the first's.
+const ROUNDING: f64 = 1e-6;
 
 #[cfg(test)]
 mod tests;

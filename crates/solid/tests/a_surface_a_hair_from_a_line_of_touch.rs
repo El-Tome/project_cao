@@ -573,9 +573,11 @@ fn seed_8587802_a_wall_a_hair_from_the_line_two_walls_touch_along() {
 // among those that still held before.
 
 /// The profile draw, on the kernel and through the application's body:
-/// Uncrossed.
+/// Uncrossed. The rounded rectangle's corner, a hundredth of a micron off
+/// the bore's wall, was taken for it and left the rectangle's sides where
+/// they stood, a hair from the wall they touched; the rectangle now moves
+/// onto the bore's wall with its corner (decision 8, #533).
 #[test]
-#[ignore = "line-of-touch: the corner a disc's wall makes on the line a bore touches a plane along, laid on the line the plane shares with the disc's top, beside a disc's wall crossing the bore's band: two faces drawn crossing, whether laid at its foot or where the wall crosses the line"]
 fn seed_8515425_a_rounded_rectangle_a_hair_from_the_line_a_bore_touches_a_disc_s_top_along() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([5.5, 2.0], 2.5), 1.0),

@@ -36,8 +36,9 @@ use crate::brep::topology::Body;
 /// when nothing moves.
 pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     carried_along(first, second, scale, |current, rank| {
-        let Surface::Cylinder(cylinder) = current.surfaces[rank] else {
-            return None;
+        let cylinder = match current.surfaces[rank] {
+            Surface::Cylinder(cylinder) => cylinder,
+            Surface::Plane(_) => return None,
         };
         offset(first, &cylinder, scale)
     })
@@ -51,8 +52,9 @@ fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
     let eps = scale.eps();
     let mut nearest: Option<(f64, DVec3)> = None;
     for known in &first.surfaces {
-        let Surface::Cylinder(known) = known else {
-            continue;
+        let known = match known {
+            Surface::Cylinder(known) => known,
+            Surface::Plane(_) => continue,
         };
         if known.axis.cross(cylinder.axis).length() * 2.0 * scale.reach() > eps
             || (known.radius - cylinder.radius).abs() > eps

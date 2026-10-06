@@ -128,28 +128,38 @@ pub(super) fn lies_above(
     place: DVec3,
 ) -> Option<bool> {
     let [first, second] = pair.map(|surface| &operands.surfaces.list[surface.0 as usize]);
-    let decided = relation(first, second, scale);
-    if let Relation::Lines(lines) = &decided {
-        return across_the_lobe(first, second, lines, place);
+    match relation(first, second, scale) {
+        Relation::Lines(lines) => across_the_lobe(first, second, &lines, place),
+        Relation::Tangent(_) => touching_above(first, second),
+        Relation::Apart
+        | Relation::Same { .. }
+        | Relation::Line(_)
+        | Relation::Circle(_)
+        | Relation::Meet(_)
+        | Relation::Unsupported => {
+            let rounding = operands.eps() * ROUNDING;
+            match (first, second) {
+                (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+                    above_at(first, second, place, rounding)
+                }
+                (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
+                    let gap = plane.distance(beside(cylinder, place));
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
+                (Surface::Plane(first), Surface::Plane(second)) => {
+                    let facing = first.normal.dot(second.normal);
+                    let gap = -second.distance(place) / facing;
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
+                (Surface::Cylinder(_), Surface::Plane(_)) => None,
+            }
+        }
     }
-    if !matches!(decided, Relation::Tangent(_)) {
-        let rounding = operands.eps() * ROUNDING;
-        return match (first, second) {
-            (Surface::Cylinder(first), Surface::Cylinder(second)) => {
-                above_at(first, second, place, rounding)
-            }
-            (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
-                let gap = plane.distance(beside(cylinder, place));
-                (gap.abs() > rounding).then_some(gap > 0.0)
-            }
-            (Surface::Plane(first), Surface::Plane(second)) => {
-                let facing = first.normal.dot(second.normal);
-                let gap = -second.distance(place) / facing;
-                (gap.abs() > rounding).then_some(gap > 0.0)
-            }
-            _ => None,
-        };
-    }
+}
+
+/// Whether the second of two surfaces decided to touch along a line stands
+/// on the side of the first its own normal points to.
+fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
     match (first, second) {
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
             Some(plane.distance(cylinder.origin) > 0.0)
@@ -183,7 +193,7 @@ fn across_the_lobe(
 ) -> Option<bool> {
     let wall = match (first, second) {
         (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
-        _ => return None,
+        (Surface::Plane(_), Surface::Plane(_)) => return None,
     };
     let at = wall.parameters(place);
     let [one, other] = lines.map(|line| wall.parameters(line.origin).x);

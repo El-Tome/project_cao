@@ -63,7 +63,8 @@ impl Laying {
                             + (known.radius - cylinder.radius).abs()
                             <= eps
                 }
-                _ => false,
+                (Surface::Plane(_), Surface::Cylinder(_))
+                | (Surface::Cylinder(_), Surface::Plane(_)) => false,
             };
             alike
                 && corners

@@ -101,8 +101,9 @@ impl Surfaces {
         let [first, second] = [&self.list[one], &self.list[other]];
         match relation(first, second, scale) {
             Relation::Meet(_) => {
-                let (Surface::Cylinder(first), Surface::Cylinder(second)) = (first, second) else {
-                    return None;
+                let (first, second) = match (first, second) {
+                    (Surface::Cylinder(first), Surface::Cylinder(second)) => (first, second),
+                    (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return None,
                 };
                 let (rank, cylinder) = moved(first, second, scale)?;
                 let (rank, cylinder) = if own([one, other][rank]) {
@@ -117,7 +118,13 @@ impl Surfaces {
                 touching(first, second).map(|moved| (other, moved))
             }
             Relation::Tangent(_) if own(one) => touching(second, first).map(|moved| (one, moved)),
-            _ => None,
+            Relation::Apart
+            | Relation::Same { .. }
+            | Relation::Line(_)
+            | Relation::Lines(_)
+            | Relation::Tangent(_)
+            | Relation::Circle(_)
+            | Relation::Unsupported => None,
         }
     }
 
@@ -130,8 +137,9 @@ impl Surfaces {
         near: impl Fn(usize, usize) -> bool,
         scale: Scale,
     ) -> Option<([usize; 2], Cylinder)> {
-        let Surface::Cylinder(cylinder) = self.list[rank] else {
-            return None;
+        let cylinder = match self.list[rank] {
+            Surface::Cylinder(cylinder) => cylinder,
+            Surface::Plane(_) => return None,
         };
         let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
@@ -148,7 +156,7 @@ impl Surfaces {
                     );
                     Some((other, plane, touches))
                 }
-                _ => None,
+                Surface::Plane(_) | Surface::Cylinder(_) => None,
             })
             .collect();
         for (index, &(one, plane, touches)) in planes.iter().enumerate() {
@@ -215,10 +223,13 @@ impl Surfaces {
 /// post resting on a shaft's end, whose wall crosses the shaft at a node
 /// but for a hair of radius (533609727). None for any other move.
 fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Vec<Surface> {
-    let (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) =
-        (before, after, partner)
-    else {
-        return Vec::new();
+    let (before, after, partner) = match (before, after, partner) {
+        (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) => {
+            (before, after, partner)
+        }
+        (Surface::Plane(_), _, _) | (_, Surface::Plane(_), _) | (_, _, Surface::Plane(_)) => {
+            return Vec::new();
+        }
     };
     let grown = after.radius - before.radius;
     if grown == 0.0 {
@@ -254,15 +265,22 @@ fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
             (Surface::Plane(_), Surface::Plane(_)) => 0.0,
         }),
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (Surface::Cylinder(one), Surface::Cylinder(other)) = (one, other) else {
-                return None;
+            let (one, other) = match (one, other) {
+                (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
+                (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return None,
             };
             Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
                 let from = [one, other][rank];
                 from.origin.distance(to.origin) + (from.radius - to.radius).abs()
             }))
         }
-        _ => None,
+        Relation::Apart
+        | Relation::Same { .. }
+        | Relation::Line(_)
+        | Relation::Lines(_)
+        | Relation::Circle(_)
+        | Relation::Meet(_)
+        | Relation::Unsupported => None,
     }
 }
 

@@ -78,7 +78,10 @@ impl Apart {
                             points.insert(pair, at);
                         }
                     }
-                    _ => {}
+                    Relation::Line(_)
+                    | Relation::Lines(_)
+                    | Relation::Circle(_)
+                    | Relation::Unsupported => {}
                 }
             }
         }
@@ -136,8 +139,9 @@ const GRAZING: f64 = 1e-2;
 /// `on` meet there at a grazing angle: their axes a hair apart, the crescent
 /// between them a cusp at each line.
 fn grazes(one: &Surface, other: &Surface, on: DVec3, eps: f64) -> bool {
-    let (Surface::Cylinder(one), Surface::Cylinder(other)) = (one, other) else {
-        return false;
+    let (one, other) = match (one, other) {
+        (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
+        (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return false,
     };
     if (one.radius - other.radius).abs() > eps {
         return false;

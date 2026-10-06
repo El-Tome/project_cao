@@ -58,8 +58,11 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
     let mut directions = vec![offered(&first), offered(&second)];
     directions.push(directions[0].cross(directions[1]));
     for (wall, edged) in [(&first, other), (&second, one)] {
-        if let Surface::Cylinder(cylinder) = wall {
-            directions.extend(straight_edges(edged).map(|along| cylinder.axis.cross(along)));
+        match wall {
+            Surface::Cylinder(cylinder) => {
+                directions.extend(straight_edges(edged).map(|along| cylinder.axis.cross(along)));
+            }
+            Surface::Plane(_) => {}
         }
     }
     let separated =
@@ -77,7 +80,7 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
                 walls_apart((&first, one), (&second, other), room)
             }
-            _ => false,
+            (Surface::Plane(_), _) | (_, Surface::Plane(_)) => false,
         }
 }
 

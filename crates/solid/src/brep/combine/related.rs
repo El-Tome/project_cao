@@ -56,25 +56,34 @@ pub(super) fn related(
                 .into_iter()
                 .map(|curve| registry.register(curve, &pair))
                 .collect();
-            if let Relation::Meet(meeting) = &found {
-                for node in &meeting.nodes {
-                    special.push(Special {
-                        point: node.point,
-                        surfaces: pair,
-                        curves: node
-                            .on
-                            .iter()
-                            .map(|(component, _)| ranks[*component as usize])
-                            .collect(),
-                    });
+            match &found {
+                Relation::Meet(meeting) => {
+                    for node in &meeting.nodes {
+                        special.push(Special {
+                            point: node.point,
+                            surfaces: pair,
+                            curves: node
+                                .on
+                                .iter()
+                                .map(|(component, _)| ranks[*component as usize])
+                                .collect(),
+                        });
+                    }
+                    if let Some(point) = meeting.contact {
+                        special.push(Special {
+                            point,
+                            surfaces: pair,
+                            curves: Vec::new(),
+                        });
+                    }
                 }
-                if let Some(point) = meeting.contact {
-                    special.push(Special {
-                        point,
-                        surfaces: pair,
-                        curves: Vec::new(),
-                    });
-                }
+                Relation::Apart
+                | Relation::Same { .. }
+                | Relation::Line(_)
+                | Relation::Lines(_)
+                | Relation::Tangent(_)
+                | Relation::Circle(_)
+                | Relation::Unsupported => {}
             }
         }
     }

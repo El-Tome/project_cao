@@ -96,7 +96,7 @@ impl Ends {
             Surface::Cylinder(wall) if wall.axis.cross(axis).length() <= Scale::RELATIVE => {
                 self.closes(side, wall, eps)
             }
-            _ => true,
+            Surface::Plane(_) | Surface::Cylinder(_) => true,
         }
     }
 }

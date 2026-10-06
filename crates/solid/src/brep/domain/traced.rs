@@ -111,7 +111,7 @@ pub(in crate::brep) fn traced(
             chord(curve, surface, from, to, eps)
                 .or_else(|declined| met(curve, own, cylinder, [from, to], eps).ok_or(declined))
         }
-        _ => chord(curve, surface, from, to, eps),
+        (Surface::Plane(_) | Surface::Cylinder(_), _) => chord(curve, surface, from, to, eps),
     }
 }
 

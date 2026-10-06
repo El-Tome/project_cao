@@ -26,11 +26,13 @@ const HALVINGS: usize = 64;
 
 pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> Solved {
     let eps = scale.eps();
-    if let Surface::Cylinder(cylinder) = surface
-        && [meet.first, meet.second]
+    let along = match surface {
+        Surface::Cylinder(cylinder) => [meet.first, meet.second]
             .iter()
-            .any(|own| matches!(cylinders(own, cylinder, scale), Relation::Same { .. }))
-    {
+            .any(|own| matches!(cylinders(own, cylinder, scale), Relation::Same { .. })),
+        Surface::Plane(_) => false,
+    };
+    if along {
         return Solved::Along;
     }
     let Some(period) = meet.period() else {

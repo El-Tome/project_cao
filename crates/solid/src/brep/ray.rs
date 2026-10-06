@@ -138,7 +138,7 @@ impl Body {
     ) -> Result<[Option<Met>; 2], Declined> {
         let lying = self.face(face);
         let surface = self.surface(lying.surface);
-        let found = match hits(surface, origin, direction, eps) {
+        let found = match hits(surface, origin, direction, eps, self.scale) {
             Hits::Along => return Ok([Some(Met::Doubtful), None]),
             Hits::At(found) => found,
         };

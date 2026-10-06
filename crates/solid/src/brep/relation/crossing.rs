@@ -10,7 +10,9 @@
 //! curve through either. The curve two perpendicular cylinders
 //! meet along is solved through the lines the surface makes with one of its
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
+//! A line or a circle against a cone is solved in `cone.rs`.
 
+mod cone;
 mod scan;
 
 use glam::DVec3;
@@ -37,7 +39,9 @@ pub enum Crossings {
     At(Vec<Crossing>),
     /// The curve lies on the surface, within the tolerance.
     Along,
-    /// A circle against a cylinder at a skew angle.
+    /// A circle against a cylinder at a skew angle, or against a cone
+    /// unless about an axis parallel to the cone's or in a plane holding
+    /// it; the curve two cylinders meet along against a cone.
     Unsupported,
 }
 
@@ -82,7 +86,13 @@ pub fn crossings_given(
     touching: &Touches,
 ) -> Crossings {
     let solved = match (curve, surface) {
-        (_, Surface::Cone(_)) => Solved::Unsupported,
+        (Curve::Line(line), Surface::Cone(cone)) => {
+            cone::line_and_cone(line, cone, scale, touching)
+        }
+        (Curve::Circle(circle), Surface::Cone(cone)) => {
+            cone::circle_and_cone(circle, cone, scale, touching)
+        }
+        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching)

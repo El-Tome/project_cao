@@ -232,6 +232,11 @@ fn the_crossings_along_a_line_are_those_every_face_gives_on_the_sixteen_cases_an
 /// A point of radius 5 on the plane `y = 0`, its apex at `(0, 10, 0)`,
 /// turned whole about Y: a face no edge reaches the tip of.
 fn whole_point() -> Body {
+    point(std::f64::consts::TAU)
+}
+
+/// The same point turned by `angle` radians.
+fn point(angle: f64) -> Body {
     use crate::turning::{Axis, Corner, Straight, Turn};
     let corners = [[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]];
     let straight = Straight {
@@ -252,7 +257,7 @@ fn whole_point() -> Body {
             origin: DVec2::ZERO,
             direction: DVec2::Y,
         },
-        angle: std::f64::consts::TAU,
+        angle,
         resolution: 0.0,
         on_the_axis: 0.0,
     };
@@ -271,4 +276,78 @@ fn a_whole_point_s_face_box_holds_its_apex() {
         assert!(!boxes.misses(cone, place), "{place}");
     }
     assert!(boxes.misses(cone, DVec3::new(0.0, 10.5, 0.0)));
+}
+
+#[test]
+fn a_ray_through_a_cone_crosses_it_twice_at_most() {
+    let whole = whole_point();
+    assert_windings(
+        &whole,
+        &[
+            ([1.0, 3.0, 1.0], 1),
+            ([3.4, 3.0, 0.0], 1),
+            ([0.0, 9.9, 0.0], 1),
+            ([3.6, 3.0, 0.0], 0),
+            ([0.0, 10.5, 0.0], 0),
+            ([0.0, -1.0, 0.0], 0),
+            ([0.0, 1.0, 6.0], 0),
+        ],
+    );
+    let crossed = whole
+        .crossings_along(DVec3::new(-10.0, 3.0, 0.5), DVec3::X, EPS)
+        .expect("a line square to the axis crosses the point");
+    let half = (3.5f64 * 3.5 - 0.25).sqrt();
+    assert_eq!(crossed.len(), 2, "{crossed:?}");
+    assert_eq!([crossed[0].1, crossed[1].1], [1, -1]);
+    for ((at, _), expected) in crossed.iter().zip([10.0 - half, 10.0 + half]) {
+        assert!(
+            (at - expected).abs() < 1e-12 * 40.0,
+            "{at} against {expected}"
+        );
+    }
+}
+
+#[test]
+fn a_point_turned_a_quarter_wraps_one_quarter_only() {
+    let quarter = point(std::f64::consts::FRAC_PI_2);
+    let windings = [[1.0, 1.0], [-1.0, 1.0], [-1.0, -1.0], [1.0, -1.0]].map(|[x, z]| {
+        quarter
+            .winding(DVec3::new(x, 3.0, z), EPS)
+            .expect("a point off the quarter's ends is wound")
+    });
+    assert_eq!(
+        windings.iter().filter(|&&winding| winding == 1).count(),
+        1,
+        "{windings:?}"
+    );
+    assert!(windings.iter().all(|&winding| winding == 0 || winding == 1));
+}
+
+#[test]
+fn a_ray_through_the_apex_is_doubtful() {
+    let direction = DVec3::new(0.3, -1.0, 0.2).normalize();
+    let apex = DVec3::new(0.0, 10.0, 0.0);
+    for eps in [EPS, EPS * 1e-6] {
+        assert_eq!(
+            whole_point().crossings_along(apex - direction * 20.0, direction, eps),
+            Err(Declined::Tie),
+            "{eps}"
+        );
+    }
+}
+
+#[test]
+fn a_ray_along_a_ruling_is_doubtful() {
+    let direction = DVec3::new(-5.0, 10.0, 0.0).normalize();
+    for eps in [EPS, EPS * 1e-6] {
+        assert_eq!(
+            whole_point().crossings_along(
+                DVec3::new(5.0, 0.0, 0.0) - direction * 3.0,
+                direction,
+                eps
+            ),
+            Err(Declined::Tie),
+            "{eps}"
+        );
+    }
 }

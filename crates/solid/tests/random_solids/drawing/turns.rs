@@ -25,19 +25,29 @@ const ON_THE_EDGE: [f64; 7] = [
 /// A line of the world: a point it runs through, and which world axis it
 /// runs along.
 #[derive(Clone, Copy)]
-struct Line {
-    point: DVec3,
-    axis: usize,
+pub(super) struct Line {
+    pub(super) point: DVec3,
+    pub(super) axis: usize,
 }
 
 impl Drawing {
     /// Whether the draw goes past the lattice of the gate's: angles a hair
     /// from where a turn changes kind, and axes slanted or leaning a hair.
-    fn off_the_lattice(&self) -> bool {
-        self.among
-            == Among::Turned {
+    pub(super) fn off_the_lattice(&self) -> bool {
+        matches!(
+            self.among,
+            Among::Turned {
                 off_the_lattice: true,
+                ..
             }
+        )
+    }
+
+    /// Whether the runs of a turned section may slant (#536). Every number
+    /// the slants take is drawn only then, which keeps every case the draws
+    /// before them gave.
+    pub(super) fn slanted(&self) -> bool {
+        matches!(self.among, Among::Turned { slanted: true, .. })
     }
 
     /// A leaf of a case of turns: a prism or a turned leaf, fresh or drawn
@@ -72,10 +82,15 @@ impl Drawing {
         }
     }
 
-    fn fresh_turned(&mut self) -> Leaf {
+    pub(super) fn fresh_turned(&mut self) -> Leaf {
         let plane = self.plane();
         let axis = self.axis();
         let section = self.section();
+        let section = if self.slanted() {
+            self.slanted_section(section)
+        } else {
+            section
+        };
         let section = self.aside(section);
         Leaf::Turned {
             plane,
@@ -121,7 +136,7 @@ impl Drawing {
     /// turn's multiple or a step of fifteen degrees, backwards three times
     /// in ten; and in a campaign, now and then, a hair from where a turn
     /// changes kind.
-    fn degrees(&mut self) -> f64 {
+    pub(super) fn degrees(&mut self) -> f64 {
         let degrees = if self.off_the_lattice() && self.random.chance(0.05) {
             *self.random.pick(&ON_THE_EDGE)
         } else if self.random.chance(0.5) {
@@ -269,7 +284,7 @@ impl Drawing {
 
     /// The section as drawn, or on the other side of its axis a quarter of
     /// the time.
-    fn aside(&mut self, section: Section) -> Section {
+    pub(super) fn aside(&mut self, section: Section) -> Section {
         if !self.random.chance(0.25) {
             return section;
         }
@@ -279,6 +294,11 @@ impl Drawing {
                 .bands
                 .iter()
                 .map(|&[length, low, high]| [length, -high, -low])
+                .collect(),
+            sloping_to: section
+                .sloping_to
+                .iter()
+                .map(|&[low, high]| [-high, -low])
                 .collect(),
             holes: section
                 .holes
@@ -290,7 +310,7 @@ impl Drawing {
 
     /// A plane of the origin holding a world line, and the line as an axis
     /// of it, run either way.
-    fn holding(&mut self, line: Line) -> (Plane, Axis) {
+    pub(super) fn holding(&mut self, line: Line) -> (Plane, Axis) {
         let point = line.point;
         let choices = match line.axis {
             0 => [
@@ -319,8 +339,12 @@ impl Drawing {
     /// circle, an arc or a ring of it, a wall flush with the prism's or
     /// inside it, a shoulder flush with one of its ends; or about a line
     /// square to it, on an edge of a block, tangent to one of its faces, or
-    /// tangent to its wall.
+    /// tangent to its wall; and, among slanted turns, now and then a slant
+    /// drawn on it (`slanted_from_prism`).
     fn turned_from_prism(&mut self, before: &Leaf) -> Leaf {
+        if self.slanted() && self.random.chance(0.3) {
+            return self.slanted_from_prism(before);
+        }
         let Leaf::Prism {
             plane,
             outline,
@@ -453,8 +477,12 @@ impl Drawing {
     /// it: a wall of one of its radii, a sleeve on its outer wall, a groove
     /// across its outer wall, or ends on its shoulders; turned as far, the
     /// other way, or as the draw goes, from its side of the axis or the
-    /// other.
+    /// other; and, among slanted turns, after a slant, now and then a slant
+    /// drawn from it (`along_a_slant`).
     fn turned_along(&mut self, line: Line, before: Axis, section: &Section, degrees: f64) -> Leaf {
+        if self.slanted() && section.slopes() && self.random.chance(0.3) {
+            return self.along_a_slant(line, before, section, degrees);
+        }
         let (plane, axis) = self.holding(line);
         let ends: Vec<f64> = section
             .ends()
@@ -500,24 +528,34 @@ impl Drawing {
             }
         };
         let section = self.aside(section);
-        let degrees = match self.random.below(3) {
-            0 => degrees,
-            1 => -degrees,
-            _ => self.degrees(),
-        };
         Leaf::Turned {
             plane,
             axis,
             section,
-            degrees,
+            degrees: self.turned_again(degrees),
+        }
+    }
+
+    /// How far a turn about the line of one before it turns: as far, the
+    /// other way, or as the draw goes.
+    pub(super) fn turned_again(&mut self, degrees: f64) -> f64 {
+        match self.random.below(3) {
+            0 => degrees,
+            1 => -degrees,
+            _ => self.degrees(),
         }
     }
 
     /// A prism drawn from a turn before it: on the plane square to its axis
     /// at one of its shoulders, a circle or a ring of one of its radii, or a
     /// block whose side is tangent to its outer wall; or a hole across it, a
-    /// circle square to its axis with its centre on it.
+    /// circle square to its axis with its centre on it; and, among slanted
+    /// turns, after a slant, now and then a circle on one of its rims
+    /// (`prism_at_a_rim`).
     fn prism_from_turned(&mut self, line: Line, before: Axis, section: &Section) -> Leaf {
+        if self.slanted() && section.slopes() && self.random.chance(0.3) {
+            return self.prism_at_a_rim(line, before, section);
+        }
         let radii = radii_of(section, self.scale);
         let radius = *self.random.pick(&radii);
         let outer = radii.iter().copied().fold(0.0, f64::max);
@@ -584,14 +622,14 @@ impl Line {
     }
 
     /// The point `along` along the line read as `axis` reads it.
-    fn at(&self, axis: Axis, along: f64) -> DVec3 {
+    pub(super) fn at(&self, axis: Axis, along: f64) -> DVec3 {
         let mut point = self.point;
         point[self.axis] = if axis.backwards { -along } else { along };
         point
     }
 
     /// How far along the line, read as `axis` reads it, `point` stands.
-    fn along(&self, axis: Axis, point: DVec3) -> f64 {
+    pub(super) fn along(&self, axis: Axis, point: DVec3) -> f64 {
         if axis.backwards {
             -point[self.axis]
         } else {
@@ -600,25 +638,32 @@ impl Line {
     }
 }
 
-/// The radii a section's edges stand at, but for the hairs a section a hair
-/// off its axis has: a tool drawn to one would be a sliver.
-fn radii_of(section: &Section, unit: f64) -> Vec<f64> {
+/// The radii a section's edges stand at, at both ends of every band of a
+/// section that slopes, but for the hairs a section a hair off its axis has:
+/// a tool drawn to one would be a sliver.
+pub(super) fn radii_of(section: &Section, unit: f64) -> Vec<f64> {
     section
         .bands
         .iter()
         .flat_map(|band| [band[1].abs(), band[2].abs()])
+        .chain(
+            section
+                .sloping_to
+                .iter()
+                .flat_map(|[low, high]| [low.abs(), high.abs()]),
+        )
         .filter(|radius| *radius > unit / 4.0)
         .collect()
 }
 
 /// Which world axis a direction runs along.
-fn world_axis(direction: DVec3) -> usize {
+pub(super) fn world_axis(direction: DVec3) -> usize {
     direction.abs().max_position()
 }
 
 /// The plane of the origin square to a line through `point`, and where the
 /// line pierces it in the plane's own coordinates.
-fn square_to(line: Line, point: DVec3) -> (Plane, DVec2) {
+pub(super) fn square_to(line: Line, point: DVec3) -> (Plane, DVec2) {
     match line.axis {
         0 => (Plane::Yz(point.x), DVec2::new(point.y, point.z)),
         1 => (Plane::Xz(point.y), DVec2::new(point.x, point.z)),

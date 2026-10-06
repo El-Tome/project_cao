@@ -42,15 +42,17 @@ const GRAZING: f64 = 0.05;
 /// a thousand times the kernel's tolerance.
 const EXACTLY: f64 = 1e-6;
 
-/// How many lines a case was held along, and how many were left out for
-/// grazing a curved wall, summed over every body the case was checked at;
-/// how many cases the kernel declined as asking for a curve it does not
-/// build, and how many it declined to raise for a turned wall a hair thin,
-/// which are no answers it owed (#533).
+/// How many lines a case was held along, how many were left out for grazing
+/// a curved wall, and how many for running through a cone's tip, where it
+/// has no normal (#536), summed over every body the case was checked at; how
+/// many cases the kernel declined as asking for a curve it does not build,
+/// and how many it declined to raise for a turned wall a hair thin, which
+/// are no answers it owed (#533).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Measured {
     pub held: usize,
     pub grazing: usize,
+    pub through_a_tip: usize,
     pub declined: usize,
     pub thin: usize,
 }
@@ -69,7 +71,7 @@ struct Promise {
 /// the whole case run twice, bit for bit.
 ///
 /// A leaf or a step the kernel declines is no answer, but for a case asking
-/// for an ellipse declined as unsupported, and a turned leaf with a wall a
+/// for a conic declined as unsupported, and a turned leaf with a wall a
 /// hair thin declined as no profile, which are counted. A case with a
 /// leaf that is no solid, or none this arithmetic covers — a star — holds
 /// nothing.
@@ -150,10 +152,10 @@ pub fn holds_through_the_application(case: &Case) {
     }
 }
 
-/// A kernel's decline, judged: counted when the case asks for an ellipse and
+/// A kernel's decline, judged: counted when the case asks for a conic and
 /// the kernel says it does not build one, no answer otherwise.
 fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
-    if declined == Declined::Unsupported && case.asks_for_an_ellipse() {
+    if declined == Declined::Unsupported && case.asks_for_a_conic() {
         measured.declined += 1;
         return Ok(measured);
     }
@@ -305,6 +307,17 @@ impl Held<'_> {
             .any(|end| end.curved && end.cosine < GRAZING)
     }
 
+    /// Whether a line ends a promised stretch at a cone's tip, which it
+    /// crosses at a cosine of nought.
+    fn through_a_tip(&self, index: usize, promise: &Spans) -> bool {
+        promise
+            .stretches()
+            .iter()
+            .flat_map(|&(from, to)| [from, to])
+            .map(|at| self.crossed_at(index, at))
+            .any(|end| end.curved && end.cosine == 0.0)
+    }
+
     /// Whether the triangles hold along every line what was promised there,
     /// but for the room their tolerance takes along it.
     fn along_every_line(
@@ -317,6 +330,10 @@ impl Held<'_> {
         let (low, high) = self.region;
         let rounding = Scale::of(low.abs().max(high.abs()).max_element()).eps();
         for (index, (promise, measure)) in self.promised.iter().zip(&found).enumerate() {
+            if self.through_a_tip(index, promise) {
+                measured.through_a_tip += 1;
+                continue;
+            }
             if self.grazes(index, promise) {
                 measured.grazing += 1;
                 continue;
@@ -388,63 +405,250 @@ impl Case {
     }
 
     /// Whether the case may ask the exact kernel for a curve it does not
-    /// build (#533): a plane meeting a cylinder neither square to its axis
-    /// nor along it, an ellipse, or two cylinders whose axes are neither
-    /// parallel nor square, a skew meeting. Turned leaves bring them, with
-    /// an end that stops off the quarter turns, or an axis slanted in its
-    /// plane. The kernel may decline such a case as unsupported; it may
-    /// also hold it, the leaves never meeting there.
-    pub fn asks_for_an_ellipse(&self) -> bool {
-        let (planes, cylinders): (Vec<DVec3>, Vec<DVec3>) = self.leaves().map(walls).fold(
-            (Vec::new(), Vec::new()),
-            |(mut planes, mut cylinders), (more, round)| {
-                planes.extend(more);
-                cylinders.extend(round);
-                (planes, cylinders)
-            },
-        );
-        cylinders.iter().any(|axis| {
+    /// build. A plane meeting a cylinder neither square to its axis nor
+    /// along it, an ellipse, or two cylinders whose axes are neither
+    /// parallel nor square, a skew meeting (#533): turned leaves bring them,
+    /// with an end that stops off the quarter turns, or an axis slanted in
+    /// its plane. And a cone (#536) meeting anything but a plane square to
+    /// its axis, a plane holding its axis or parallel to it past where its
+    /// leaf reaches, or a cylinder or a cone about the very same axis, where
+    /// its leaf's box meets the other's: a cone a hair off coaxial asks too,
+    /// and so does a plane tangent to its widest rim. The kernel may decline
+    /// such a case as unsupported; it may also hold it, the leaves never
+    /// meeting there.
+    pub fn asks_for_a_conic(&self) -> bool {
+        let walled: Vec<(Vec<Wall>, Spanned)> = self
+            .leaves()
+            .map(|leaf| {
+                (
+                    walls(leaf),
+                    leaf.is_solid().then(|| leaf.bounds()).flatten(),
+                )
+            })
+            .collect();
+        let all = || walled.iter().flat_map(|(walls, _)| walls);
+        let planes: Vec<DVec3> = all()
+            .filter_map(|wall| match wall {
+                Wall::Plane { normal, .. } => Some(*normal),
+                _ => None,
+            })
+            .collect();
+        let cylinders: Vec<DVec3> = all()
+            .filter_map(|wall| match wall {
+                Wall::Cylinder { axis, .. } => Some(*axis),
+                _ => None,
+            })
+            .collect();
+        let an_ellipse = cylinders.iter().any(|axis| {
             planes.iter().any(|normal| oblique(*normal, *axis))
                 || cylinders.iter().any(|other| oblique(*other, *axis))
-        })
+        });
+        let reach = walled
+            .iter()
+            .filter_map(|(_, bounds)| *bounds)
+            .map(|(low, high)| low.abs().max(high.abs()).max_element())
+            .fold(1.0, f64::max);
+        let near = |one: Spanned, other: Spanned| {
+            let margin = 1e-6 * reach;
+            match (one, other) {
+                (Some((low, high)), Some((other_low, other_high))) => {
+                    (low - margin).cmple(other_high).all() && (other_low - margin).cmple(high).all()
+                }
+                _ => false,
+            }
+        };
+        let a_cone = walled.iter().any(|(walls, bounds)| {
+            walls.iter().any(|wall| {
+                let Wall::Cone {
+                    axis,
+                    point,
+                    radius,
+                } = *wall
+                else {
+                    return false;
+                };
+                walled
+                    .iter()
+                    .filter(|(_, others)| near(*bounds, *others))
+                    .flat_map(|(others, _)| others)
+                    .any(|other| other.asks_of_a_cone(axis, point, radius, reach))
+            })
+        });
+        an_ellipse || a_cone
     }
 }
 
-/// The normals of the planes a leaf is bounded by, and the axes of its
-/// cylinders.
-fn walls(leaf: &Leaf) -> (Vec<DVec3>, Vec<DVec3>) {
+/// The box a leaf spans, or nothing for a leaf that is no solid.
+type Spanned = Option<(DVec3, DVec3)>;
+
+/// A surface a leaf is bounded by, as the scope rule reads it: a plane by its
+/// normal and a point of it, a cylinder or a cone by its axis and a point of
+/// the axis, a cone besides by the furthest its leaf reaches from the axis.
+enum Wall {
+    Plane {
+        normal: DVec3,
+        point: DVec3,
+    },
+    Cylinder {
+        axis: DVec3,
+        point: DVec3,
+    },
+    Cone {
+        axis: DVec3,
+        point: DVec3,
+        radius: f64,
+    },
+}
+
+/// How close to parallel, square or on one line two walls are taken as so:
+/// the rounding of a direction of unit length, and that share of the reach.
+const ALIGNED: f64 = 1e-12;
+
+impl Wall {
+    /// Whether this wall meets a cone of `axis` through `point`, whose leaf
+    /// reaches `radius` from the axis, in a curve the kernel does not build:
+    /// anything but a plane square to the axis, holding it or parallel to it
+    /// further off than the leaf reaches, or a cylinder or a cone about the
+    /// same line.
+    fn asks_of_a_cone(&self, axis: DVec3, point: DVec3, radius: f64, reach: f64) -> bool {
+        let axis = axis.normalize();
+        match *self {
+            Wall::Plane { normal, point: on } => {
+                let normal = normal.normalize();
+                let square = normal.cross(axis).length() <= ALIGNED;
+                let off = normal.dot(point - on).abs();
+                let parallel = normal.dot(axis).abs() <= ALIGNED;
+                let clear = parallel && (off <= ALIGNED * reach || off > radius + ALIGNED * reach);
+                !square && !clear
+            }
+            Wall::Cylinder {
+                axis: other,
+                point: on,
+            }
+            | Wall::Cone {
+                axis: other,
+                point: on,
+                ..
+            } => {
+                let parallel = other.normalize().cross(axis).length() <= ALIGNED;
+                let off = (on - point) - axis * (on - point).dot(axis);
+                !parallel || off.length() > ALIGNED * reach
+            }
+        }
+    }
+}
+
+/// The planes a leaf is bounded by, the cylinders and the cones: a turn's
+/// planes square to its axis at each end of its section and, short of a
+/// whole turn, the two it starts and ends on; its cylinder, and its cone
+/// when an edge of its section slopes; a prism's two ends, its sides and
+/// the cylinders of its arcs.
+fn walls(leaf: &Leaf) -> Vec<Wall> {
     if let Some(turned) = leaf.as_turned() {
         let swept = turned.swept(1.0);
-        let mut planes = vec![swept.along];
+        let (axis, point) = (swept.along, swept.origin);
+        let mut walls: Vec<Wall> = turned
+            .section
+            .ends()
+            .iter()
+            .map(|end| Wall::Plane {
+                normal: axis,
+                point: point + axis * *end,
+            })
+            .collect();
         if !turned.is_whole() {
             let end = DVec2::from_angle(turned.angle());
-            planes.push(swept.onward);
-            planes.push(swept.onward * end.x - swept.out * end.y);
-        }
-        return (planes, vec![swept.along]);
-    }
-    let Leaf::Prism { plane, outline, .. } = leaf else {
-        return (Vec::new(), Vec::new());
-    };
-    let (_, u, v) = plane.frame();
-    let normal = u.cross(v);
-    match outline {
-        Outline::Rectangle { .. } => (vec![normal, u, v], Vec::new()),
-        Outline::Circle { .. } | Outline::Ring { .. } => (vec![normal], vec![normal]),
-        Outline::Rounded { .. } | Outline::Slot { .. } => (vec![normal, u, v], vec![normal]),
-        Outline::Star { corners, .. } => {
-            let sides = (0..corners.len()).map(|index| {
-                let side = corners[(index + 1) % corners.len()] - corners[index];
-                u * side.y - v * side.x
+            walls.push(Wall::Plane {
+                normal: swept.onward,
+                point,
             });
-            (std::iter::once(normal).chain(sides).collect(), Vec::new())
+            walls.push(Wall::Plane {
+                normal: swept.onward * end.x - swept.out * end.y,
+                point,
+            });
+        }
+        walls.push(Wall::Cylinder { axis, point });
+        if turned.section.slopes() {
+            let radius = turned
+                .section
+                .pieces()
+                .iter()
+                .map(|piece| piece.away[1].max(piece.ending[1]))
+                .fold(0.0, f64::max);
+            walls.push(Wall::Cone {
+                axis,
+                point,
+                radius,
+            });
+        }
+        return walls;
+    }
+    let Leaf::Prism {
+        plane,
+        outline,
+        height,
+    } = leaf
+    else {
+        return Vec::new();
+    };
+    let (base, u, v) = plane.frame();
+    let normal = u.cross(v);
+    let at = |place: DVec2| base + u * place.x + v * place.y;
+    let mut walls = vec![
+        Wall::Plane {
+            normal,
+            point: base,
+        },
+        Wall::Plane {
+            normal,
+            point: base + normal * *height,
+        },
+    ];
+    let sides = |low: DVec2, high: DVec2| {
+        [(u, low), (u, high), (v, low), (v, high)].map(|(normal, place)| Wall::Plane {
+            normal,
+            point: at(place),
+        })
+    };
+    let round = |center: DVec2| Wall::Cylinder {
+        axis: normal,
+        point: at(center),
+    };
+    match outline {
+        Outline::Rectangle { low, high } => walls.extend(sides(*low, *high)),
+        Outline::Circle { center, .. } | Outline::Ring { center, .. } => walls.push(round(*center)),
+        Outline::Rounded { low, high, radius } => {
+            walls.extend(sides(*low, *high));
+            walls.extend(
+                [
+                    *low + *radius,
+                    *high - *radius,
+                    DVec2::new(low.x + radius, high.y - radius),
+                    DVec2::new(high.x - radius, low.y + radius),
+                ]
+                .map(round),
+            );
+        }
+        Outline::Slot { from, to, radius } => {
+            walls.extend(sides(from.min(*to) - *radius, from.max(*to) + *radius));
+            walls.extend([*from, *to].map(round));
+        }
+        Outline::Star { corners, .. } => {
+            walls.extend((0..corners.len()).map(|index| {
+                let side = corners[(index + 1) % corners.len()] - corners[index];
+                Wall::Plane {
+                    normal: u * side.y - v * side.x,
+                    point: at(corners[index]),
+                }
+            }));
         }
     }
+    walls
 }
 
 /// Whether two directions are neither parallel nor square to each other,
 /// by more than the rounding of a direction of unit length.
 fn oblique(one: DVec3, other: DVec3) -> bool {
     let (one, other) = (one.normalize(), other.normalize());
-    one.dot(other).abs() > 1e-12 && one.cross(other).length() > 1e-12
+    one.dot(other).abs() > ALIGNED && one.cross(other).length() > ALIGNED
 }

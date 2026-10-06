@@ -13,6 +13,7 @@ use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
+mod slants;
 mod turns;
 
 impl Case {
@@ -51,6 +52,7 @@ impl Case {
             seed,
             Among::Turned {
                 off_the_lattice: false,
+                slanted: false,
             },
         )
     }
@@ -63,15 +65,52 @@ impl Case {
             seed,
             Among::Turned {
                 off_the_lattice: true,
+                slanted: false,
+            },
+        )
+    }
+
+    /// The case a seed stands for among turns whose runs may slant (#536):
+    /// the turns `drawn_turned` draws, three in four of the fresh ones
+    /// chamfered, pointed, countersunk, tapered or ridged, and tools drawn
+    /// from what came before them — a countersunk hole in a block, a
+    /// chamfer cut round a raised circle, the same cone again, a cylinder
+    /// at its rim, a cone crossing it, a slant a hair off it. None of the
+    /// cases `drawn_turned` gives the same seed.
+    pub fn drawn_slanted(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: false,
+                slanted: true,
+            },
+        )
+    }
+
+    /// The case a seed stands for in a campaign over slanted turns: the same
+    /// draw, past the gate's lattice as `drawn_turned_off_the_lattice` goes,
+    /// and with slopes at thirty and sixty degrees, and coaxial tools moved
+    /// a hair off their axis.
+    pub fn drawn_slanted_off_the_lattice(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: true,
+                slanted: true,
             },
         )
     }
 
     /// The case a seed stands for among some kinds of solid, by drawing among
     /// fewer kinds rather than drawing again: the cases `drawn` and
-    /// `drawn_square` give are the ones a seed has always named.
+    /// `drawn_square` give are the ones a seed has always named. A slanted
+    /// draw throws one number away first, so that a case of it with no
+    /// slant in it is still none of `drawn_turned`'s.
     fn drawn_among(seed: u64, among: Among) -> Case {
         let mut random = Random::seeded(seed);
+        if let Among::Turned { slanted: true, .. } = among {
+            random.number();
+        }
         let scale = *random.pick(&[1.0, 1.0, 1.0, 5.0, 30.0]);
         let mut drawing = Drawing {
             random,
@@ -114,8 +153,12 @@ enum Among {
     /// with rounded corners, slots and rings.
     Profiles,
     /// Turned sections and the prisms of the profiles, on the planes of the
-    /// origin; past the gate's lattice in a campaign.
-    Turned { off_the_lattice: bool },
+    /// origin; past the gate's lattice in a campaign; their runs slanting,
+    /// and tools drawn from the slants, when `slanted`.
+    Turned {
+        off_the_lattice: bool,
+        slanted: bool,
+    },
 }
 
 struct Drawing {

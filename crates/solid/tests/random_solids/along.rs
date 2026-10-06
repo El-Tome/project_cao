@@ -347,6 +347,216 @@ fn shallower(one: Crossing, other: Crossing) -> Crossing {
     }
 }
 
+/// The line against a cone about the axis the line is seen across: where it
+/// stands no further from the axis than an edge `radius` away from it at
+/// `at` along it, growing by `slope` per unit along it, and that edge on the
+/// near side of the cone's tip. One quadratic, its roots worked out as
+/// `disc` works them, held to the half of the line where the edge stands
+/// off the axis. The line crosses the cone as squarely as its direction
+/// meets the cone's normal; through the tip, where the cone has none, at a
+/// cosine of nought, as a line grazing a wall is.
+///
+/// The quadratic is worked out from where the line crosses the level `at`,
+/// unless it runs nearly square to the axis: a cone a hair from square
+/// grows by millions of units per unit along its axis, and its radius read
+/// where the line starts, far from that level, would lose every digit that
+/// matters.
+pub(super) fn cone(seen: &Seen, at: f64, radius: f64, slope: f64) -> Vec<Stretch> {
+    if seen.rise.abs() < 1e-3 * seen.speed {
+        return cone_from_where_it_starts(seen, at, radius, slope);
+    }
+    let shift = (at - seen.level) / seen.rise;
+    let moved = Seen {
+        start: seen.start + seen.step * shift,
+        step: seen.step,
+        level: at,
+        rise: seen.rise,
+        speed: seen.speed,
+    };
+    let back = |crossing: Crossing| Crossing {
+        at: crossing.at + shift,
+        ..crossing
+    };
+    cone_from_where_it_starts(&moved, at, radius, slope)
+        .into_iter()
+        .map(|stretch| Stretch {
+            from: back(stretch.from),
+            to: back(stretch.to),
+        })
+        .collect()
+}
+
+fn cone_from_where_it_starts(seen: &Seen, at: f64, radius: f64, slope: f64) -> Vec<Stretch> {
+    let base = radius + slope * (seen.level - at);
+    let climb = slope * seen.rise;
+    let crossing = |at: f64| Crossing {
+        at,
+        cosine: across_a_cone(seen, slope, at),
+        curved: true,
+    };
+    let everywhere = || Stretch {
+        from: far(f64::NEG_INFINITY),
+        to: far(f64::INFINITY),
+    };
+    let inside = if seen.step == DVec2::ZERO {
+        beyond_an_edge(seen.start.length(), base, climb, crossing(0.0))
+    } else {
+        let (a, b, c) = (
+            seen.step.length_squared() - climb * climb,
+            2.0 * (seen.start.dot(seen.step) - base * climb),
+            seen.start.length_squared() - base * base,
+        );
+        if a == 0.0 {
+            if b == 0.0 {
+                if c <= 0.0 {
+                    vec![everywhere()]
+                } else {
+                    Vec::new()
+                }
+            } else if b > 0.0 {
+                vec![Stretch {
+                    from: far(f64::NEG_INFINITY),
+                    to: crossing(-c / b),
+                }]
+            } else {
+                vec![Stretch {
+                    from: crossing(-c / b),
+                    to: far(f64::INFINITY),
+                }]
+            }
+        } else {
+            let discriminant = b * b - 4.0 * a * c;
+            if discriminant <= 0.0 {
+                if a > 0.0 {
+                    Vec::new()
+                } else {
+                    vec![everywhere()]
+                }
+            } else {
+                let root = discriminant.sqrt();
+                let q = -(b + b.signum() * root) / 2.0;
+                let (one, other) = if q == 0.0 {
+                    (-root / (2.0 * a), root / (2.0 * a))
+                } else {
+                    (q / a, c / q)
+                };
+                let (near, far_root) = (one.min(other), one.max(other));
+                if a > 0.0 {
+                    vec![Stretch {
+                        from: crossing(near),
+                        to: crossing(far_root),
+                    }]
+                } else {
+                    vec![
+                        Stretch {
+                            from: far(f64::NEG_INFINITY),
+                            to: crossing(near),
+                        },
+                        Stretch {
+                            from: crossing(far_root),
+                            to: far(f64::INFINITY),
+                        },
+                    ]
+                }
+            }
+        }
+    };
+    let tip = Crossing {
+        at: 0.0,
+        cosine: 0.0,
+        curved: true,
+    };
+    meet(&inside, &beyond_an_edge(0.0, base, climb, tip))
+}
+
+/// Where an edge `base + climb·t` away from the axis stands further from it
+/// than `away`, which is where it is crossed when it is crossed at all.
+fn beyond_an_edge(away: f64, base: f64, climb: f64, crossed: Crossing) -> Vec<Stretch> {
+    if climb == 0.0 {
+        return if base >= away {
+            vec![Stretch {
+                from: far(f64::NEG_INFINITY),
+                to: far(f64::INFINITY),
+            }]
+        } else {
+            Vec::new()
+        };
+    }
+    let crossing = Crossing {
+        at: (away - base) / climb,
+        ..crossed
+    };
+    vec![if climb > 0.0 {
+        Stretch {
+            from: crossing,
+            to: far(f64::INFINITY),
+        }
+    } else {
+        Stretch {
+            from: far(f64::NEG_INFINITY),
+            to: crossing,
+        }
+    }]
+}
+
+/// The cosine between the line and the normal of a cone of `slope` where
+/// the line stands `at` along it: nought on the axis, where the cone has no
+/// normal, or within the rounding of the place's own coordinates of it.
+fn across_a_cone(seen: &Seen, slope: f64, at: f64) -> f64 {
+    let place = seen.start + seen.step * at;
+    let away = place.length();
+    if away <= 1e-9 * (seen.start.length() + (seen.step * at).length()) {
+        return 0.0;
+    }
+    (seen.step.dot(place) / away - slope * seen.rise).abs()
+        / ((1.0 + slope * slope).sqrt() * seen.speed)
+}
+
+/// Where the line lies inside both of two sets of stretches.
+pub(super) fn meet(one: &[Stretch], other: &[Stretch]) -> Vec<Stretch> {
+    let mut met = Vec::new();
+    for first in one {
+        for second in other {
+            let from = if second.from.at > first.from.at {
+                second.from
+            } else {
+                first.from
+            };
+            let to = if second.to.at < first.to.at {
+                second.to
+            } else {
+                first.to
+            };
+            if from.at < to.at {
+                met.push(Stretch { from, to });
+            }
+        }
+    }
+    met
+}
+
+/// Where the line lies outside every one of some stretches that overlap
+/// nowhere.
+pub(super) fn outside(stretches: &[Stretch]) -> Vec<Stretch> {
+    let mut sorted = stretches.to_vec();
+    sorted.sort_by(|one, other| one.from.at.total_cmp(&other.from.at));
+    let mut from = far(f64::NEG_INFINITY);
+    let mut gaps = Vec::new();
+    for stretch in sorted {
+        gaps.push(Stretch {
+            from,
+            to: stretch.from,
+        });
+        from = stretch.to;
+    }
+    gaps.push(Stretch {
+        from,
+        to: far(f64::INFINITY),
+    });
+    gaps.retain(|gap| gap.from.at < gap.to.at);
+    gaps
+}
+
 /// The line against a disc with a smaller one taken out of its middle.
 pub(super) fn ring(seen: &Seen, center: DVec2, outer: f64, inner: f64) -> Vec<Stretch> {
     let Some(&rim) = disc(seen, center, outer).first() else {

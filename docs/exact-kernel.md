@@ -598,7 +598,17 @@ grow from.
   across its axis is cut along it before the body is asked, and each side
   turned apart. `Straight` is the profile laid square to its axis: every run
   exactly parallel or square to it, its corners read `(h, r)`, along the axis
-  and away from it; one that cannot be laid so goes to the flats.
+  and away from it; one that cannot be laid so goes to the flats. Levels
+  closer than the tolerance are one across the whole profile, its holes'
+  included, and laying holds to that: a wall or a gap between two of them is
+  not there. A hole a hair inside its outline opens onto it as a notch, a
+  slot a hair wide closes, and the outline's run along the wall that went is
+  left in pieces, each answering to its number. Where laying makes the
+  profile touch itself, it is read again as the matter it bounds, cell by
+  cell between its levels (`turning/straight/bounded.rs`); it is declined
+  only where that matter is not one piece, or touches itself at a corner.
+  The flats, handed such a wall, kept it a hair thick, and their boolean
+  left it open (533626745).
 - **The placement** (`brep/turned.rs`). A corner `(h, r)` turned by `φ` is
   `O + A h + r (R cos φ + S sin φ)`, `S = A × R`: the turn the flats make
   with `DQuat::from_axis_angle`. A turn backwards is the turn forwards about
@@ -644,7 +654,10 @@ grow from.
   saved before turns were exact gave them — and so do the steps after a
   shaft whose side was drawn within the band, laid on the axis since but
   counted then. `Straight::numbers` counts the profile as laid, for the
-  pieces of an area across its axis, which `main` never turned.
+  pieces of an area across its axis, which `main` never turned. A face a
+  wall a hair thin left in pieces is told apart by the first boolean, as a
+  cut's pieces are: the second piece takes the next fresh number, one past
+  the count the flats gave the profile with its wall.
 
 ## The boolean
 

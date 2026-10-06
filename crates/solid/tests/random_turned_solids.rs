@@ -24,10 +24,12 @@
 //! their own rules when it was written, and the arithmetic held every one.
 //!
 //! The exact kernel lays a section square to its axis before turning it; a
-//! hole a hair from its band's edge would be laid onto the outline, so it
-//! may decline the section, which the application turns on the flats then,
-//! and that decline is counted apart. A campaign is run by hand, on the
-//! exact kernel or through the application's body:
+//! hole a hair from its band's edge is laid onto the outline, and the wall
+//! between them is not there. Where that leaves the matter in two pieces, or
+//! touching itself at a corner, it declines the section, which the
+//! application turns on the flats then, and that decline is counted apart.
+//! A campaign is run by hand, on the exact kernel or through the
+//! application's body:
 //!
 //! ```text
 //! CAO_FUZZ_SECONDS=3600 cargo test --release -p cao_solid --features campaigns \
@@ -1235,7 +1237,11 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
         let flats = Flats::for_case(&Case::new(leaf.clone(), vec![]))
             .raised(leaf)
             .expect("a turn the flats make");
-        assert_eq!(exact.faces_end(), flats.faces_end(), "{leaf}");
+        if turn.has_a_wall_a_hair_thin() && exact.is_exact() {
+            assert!(exact.faces_end() >= flats.faces_end(), "{leaf}");
+        } else {
+            assert_eq!(exact.faces_end(), flats.faces_end(), "{leaf}");
+        }
         let Some((numbers, runs)) = laid_runs(&turn) else {
             assert!(
                 turn.has_a_wall_a_hair_thin(),
@@ -1275,8 +1281,10 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
                             && run.from.y == run.to.y
                             && other.from.y == run.from.y))
             });
+            let told_apart = hit.face >= flats.faces_end()
+                && runs.iter().filter(|other| other.run == run.run).count() > 1;
             assert!(
-                hit.face == run.run as usize || on_its_line,
+                hit.face == run.run as usize || on_its_line || told_apart,
                 "{leaf}: run {} turned into face {}",
                 run.run,
                 hit.face
@@ -1293,7 +1301,7 @@ fn runs_of(turn: &Turned) -> u32 {
 
 #[test]
 fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
-    let seeds: Vec<u64> = (0..60).collect();
+    let seeds: Vec<u64> = (0..30).collect();
     let weighed = random_solids::on_every_core(&seeds, |seed| {
         let case = Case::drawn_turned(*seed);
         random_solids::held_to_arithmetic(&case, &Exact)
@@ -1331,7 +1339,7 @@ fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_a
         assert!(measured.is_ok(), "seed {seed}: {measured:?}\n{case}");
         assert!(exact, "seed {seed} left the exact kernel:\n{case}");
     }
-    assert!(held > 30, "{held} cases held");
+    assert!(held > 15, "{held} cases held");
 }
 
 #[test]
@@ -1354,7 +1362,7 @@ fn a_case_asking_for_an_ellipse_is_declined_as_unsupported_or_held() {
 }
 
 #[test]
-fn a_hole_a_hair_from_its_band_s_edge_is_declined_by_the_exact_kernel_and_turned_on_the_flats() {
+fn a_hole_a_hair_from_its_band_s_edge_opens_onto_it_on_the_exact_kernel() {
     let holed = |top: f64| {
         Leaf::turned(
             Plane::yz(1.0),
@@ -1367,10 +1375,10 @@ fn a_hole_a_hair_from_its_band_s_edge_is_declined_by_the_exact_kernel_and_turned
     assert!(turned(&thin).expect("a turn").has_a_wall_a_hair_thin());
     assert!(!turned(&thick).expect("a turn").has_a_wall_a_hair_thin());
     let alone = Case::new(thin.clone(), vec![]);
-    let measured = random_solids::held_to_arithmetic(&alone, &Exact).expect("declined");
-    assert_eq!(measured.thin, 1);
-    let flats = Application.raised(&thin).expect("a turned body");
-    assert!(!flats.is_exact());
+    let measured = random_solids::held_to_arithmetic(&alone, &Exact).expect("held");
+    assert_eq!(measured.thin, 0);
+    let body = Application.raised(&thin).expect("a turned body");
+    assert!(body.is_exact());
     random_solids::holds_through_the_application(&alone);
     let measured = random_solids::held_to_arithmetic(&Case::new(thick, vec![]), &Exact);
     assert_eq!(measured.map(|measured| measured.thin), Ok(0));

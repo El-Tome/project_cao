@@ -1,6 +1,7 @@
 //! A profile of straight runs laid square to its axis: every run parallel to
 //! the axis or square to it, exactly, ready for the exact kernel to turn.
 
+mod bounded;
 mod contacts;
 mod levels;
 
@@ -48,8 +49,11 @@ impl Straight {
     /// are one. The tolerance is the drawing's resolution, never finer than
     /// the kernel can tell apart over the profile turned and `part_reach`.
     /// A profile is not straight when laying it would move a corner by more
-    /// than twice the tolerance, or make it touch itself where it does not.
-    /// A run laid to no length keeps its number and names no face.
+    /// than twice the tolerance. Where laying makes it touch itself where it
+    /// does not, a wall or a gap thinner than the tolerance is not there: the
+    /// profile is the matter it bounds as laid, declined when that is not one
+    /// piece or touches itself at a corner. A run laid to no length keeps its
+    /// number and names no face.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -93,19 +97,8 @@ impl Straight {
                     .collect()
             })
             .collect();
-        if !contacts::are_drawn(&laid, &read, &laid_runs, scale.eps()) {
-            return None;
-        }
-
-        let last_off_the_axis = runs
-            .iter()
-            .filter(|&&(from, to)| laid[from].y != 0.0 || laid[to].y != 0.0)
-            .map(|&(from, _)| from as u32)
-            .max();
-        Some(Straight {
-            side,
-            contours: kept
-                .iter()
+        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps()) {
+            kept.iter()
                 .map(|corners| {
                     corners
                         .iter()
@@ -115,7 +108,19 @@ impl Straight {
                         })
                         .collect()
                 })
-                .collect(),
+                .collect()
+        } else {
+            bounded::contours(&laid, &laid_runs)?
+        };
+
+        let last_off_the_axis = runs
+            .iter()
+            .filter(|&&(from, to)| laid[from].y != 0.0 || laid[to].y != 0.0)
+            .map(|&(from, _)| from as u32)
+            .max();
+        Some(Straight {
+            side,
+            contours,
             runs: read.len() as u32,
             last_off_the_axis,
         })

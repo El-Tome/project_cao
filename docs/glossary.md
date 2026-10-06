@@ -90,7 +90,7 @@ wording. Where a term carries a rule, the rule is on the line under it.
 | `Polygon` | — | One flat piece of a face, its corners in order. Never named above `cao_solid`. |
 | `prism`, `revolution` | prisme, révolution | Raising a region into matter, straight or turned about an axis. |
 | on the axis, `ON_THE_AXIS` | — | A point of a profile within a thousandth of the area's furthest point from the axis it turns about, on either side. It is laid on the axis before either kernel turns it: a corner the solver left a hair off is what the drawing meant (#487, #488). An area with points past that band on both sides lies across its axis, and is cut along it and turned side by side. |
-| laid straight, `Straight` | — | A profile read square to its axis: every run parallel or square to it within the drawing's resolution, laid exactly so, levels a hair apart made one. What the exact kernel turns; a profile that cannot be laid straight goes to the flats. |
+| laid straight, `Straight` | — | A profile read square to its axis: every run parallel or square to it within the drawing's resolution, laid exactly so, levels a hair apart made one, and a wall or a gap between them gone. What the exact kernel turns; a profile that cannot be laid straight goes to the flats. |
 | `ExtrusionMode::Add` / `Cut` | ajout / enlèvement de matière | Whether the prism joins the body or is taken out of it. |
 
 ## The part

@@ -10,8 +10,10 @@
 //! each, the rest of each family listed in the journal. The night's campaign
 //! through the application's body is then sorted by the place in the code at
 //! fault, several seeds to each family, its key at the head of the reason:
-//! `flats-ends`, `flats-join`, `kernel-drawing`, `kernel-declines` and
-//! `rounded-a-hair`.
+//! `kernel-drawing`, `kernel-declines` and `rounded-a-hair`. The two
+//! families of a wall a hair thin turned on the flats, `flats-ends` and
+//! `flats-join`, hold since laying makes such a wall nothing, and the exact
+//! kernel turns the section.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -3032,8 +3034,13 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
     ));
 }
 
+/// A hole a hair inside its outline's far side, a wall 1e-8 thick, turned
+/// 270 degrees. The exact kernel declined the section, the levels of the
+/// wall's two sides being one, and the flats turned it with the wall and
+/// left an end facing the wrong way along it. Laying now holds to its own
+/// levels: the wall is not there, the hole opens onto the outline as a
+/// notch, and the exact kernel turns it.
 #[test]
-#[ignore = "flats: a hole a hair inside its outline's far side, a wall 1e-8 thick turned 270 degrees; the exact kernel declines the section as no profile and the application turns it on the flats, main's very sweep, which leaves an end facing the wrong way along that wall: 64 of the 73 failures through the application's body"]
 fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3239,8 +3246,10 @@ fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
     ));
 }
 
+/// A band on its axis, its hole 2e-7 under its outer radius, turned a
+/// quarter: the flats lost the strip a hair thin at their ends. Laid, the
+/// hole is a notch in the outline, turned by the exact kernel.
 #[test]
-#[ignore = "flats-ends: a band on its axis, its hole 2e-7 under its outer radius, turned 90 degrees; the exact kernel declines the section as no profile and the flats' ends lose the strip a hair thin, refused as a sliver by Polygon::new, and face the wrong way where a triangle's first corner lies on the axis (sweep::revolution): 753 of the 1 071 failures through the application's body"]
 fn seed_533617180_a_wall_a_hair_thin_on_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3253,8 +3262,10 @@ fn seed_533617180_a_wall_a_hair_thin_on_the_axis_turned_a_quarter_on_the_flats()
     ));
 }
 
+/// A band below its axis, its hole 1e-7 inside its far edge, turned a
+/// quarter: the flats refused the strip from both ends as a sliver. Laid,
+/// the hole is a notch, turned by the exact kernel.
 #[test]
-#[ignore = "flats-ends: a band below its axis, its hole 1e-7 inside its far edge, turned 90 degrees on the flats; the strip a hair thin is refused from both ends as a sliver (sweep::revolution, Polygon::new)"]
 fn seed_533612358_a_wall_a_hair_thin_below_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3268,8 +3279,11 @@ fn seed_533612358_a_wall_a_hair_thin_below_the_axis_turned_a_quarter_on_the_flat
     ));
 }
 
+/// A band across its axis, its hole 2e-8 inside the far edge below it,
+/// turned a quarter: the side below went to the flats and lost the strip
+/// at its ends. Laid, that side's hole is a notch, turned by the exact
+/// kernel.
 #[test]
-#[ignore = "flats-ends: a band across its axis, its hole 2e-8 inside the far edge below it, turned 90 degrees; the side below goes to the flats, whose ends lose the strip a hair thin, refused as a sliver (sweep::revolution, Polygon::new)"]
 fn seed_533622662_a_wall_a_hair_thin_below_an_axis_the_band_crosses_turned_a_quarter_on_the_flats()
 {
     random_solids::holds_through_the_application(&Case::new(
@@ -3284,8 +3298,11 @@ fn seed_533622662_a_wall_a_hair_thin_below_an_axis_the_band_crosses_turned_a_qua
     ));
 }
 
+/// A band across its axis, its hole 1e-7 under the edge on one side,
+/// turned a quarter: that side's ends were open on the flats before the two
+/// sides were joined. Laid, the hole is a notch, turned by the exact
+/// kernel.
 #[test]
-#[ignore = "flats-ends: a band across its axis, its hole 1e-7 under the edge on one side, turned 90 degrees; that side goes to the flats and its own ends are open before the two sides are joined (sweep::revolution)"]
 fn seed_533653685_a_wall_a_hair_thin_across_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3298,8 +3315,10 @@ fn seed_533653685_a_wall_a_hair_thin_across_the_axis_turned_a_quarter_on_the_fla
     ));
 }
 
+/// A band on its axis, its hole 2e-7 under its outer radius, turned a tenth
+/// of a degree short of whole: the flats laid ends and lost the strip a
+/// hair thin there. Laid, the hole is a notch, turned by the exact kernel.
 #[test]
-#[ignore = "flats-ends: a band on its axis, its hole 2e-7 under its outer radius, turned 359.9 degrees: not whole, so the flats lay ends, and lose the strip a hair thin there (sweep::revolution)"]
 fn seed_533669075_a_wall_a_hair_thin_turned_a_tenth_of_a_degree_short_of_whole_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3312,8 +3331,14 @@ fn seed_533669075_a_wall_a_hair_thin_turned_a_tenth_of_a_degree_short_of_whole_o
     ));
 }
 
+/// A band across its axis, its hole 1e-8 under the edge on one side, turned
+/// whole. Each side alone was closed on the flats; their join left the
+/// hair-thin wall open, the flats' boolean splitting faces a hair apart
+/// into slivers it refuses. The exact kernel declined the side, the
+/// levels of the wall's two faces being one, and laying now holds to that:
+/// the wall is not there, the hole opens onto the outline as a notch, and
+/// both sides are turned and joined exactly.
 #[test]
-#[ignore = "flats-join: a band across its axis, its hole 1e-8 under the edge on one side, turned whole; each side alone is closed, the flats' join of the two leaves the hair-thin wall open: the flats' boolean splits faces a hair apart into slivers Polygon::new refuses (boolean.rs, Plane::split): 212 of the 1 071 failures through the application's body, four of them answering too late"]
 fn seed_533626745_a_wall_a_hair_thin_across_the_axis_turned_whole_joined_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3327,8 +3352,10 @@ fn seed_533626745_a_wall_a_hair_thin_across_the_axis_turned_whole_joined_on_the_
     ));
 }
 
+/// A band on its axis, its hole 6e-8 under its outer radius, turned whole,
+/// then cut by a block: the flats' cut left the wall a hair thin open.
+/// Laid, the hole is a notch, and turn and cut are exact.
 #[test]
-#[ignore = "flats-join: a band on its axis, its hole 6e-8 under its outer radius, turned whole on the flats and closed; a block cut from it on the flats leaves it open (boolean.rs, Plane::split)"]
 fn seed_533638603_a_wall_a_hair_thin_turned_whole_then_cut_by_a_block_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3345,8 +3372,10 @@ fn seed_533638603_a_wall_a_hair_thin_turned_whole_then_cut_by_a_block_on_the_fla
     ));
 }
 
+/// A band on its axis, its hole 1e-8 under its outer radius, turned whole,
+/// then cut by a post: the flats' cut left it open. Laid, the hole is a
+/// notch, and turn and cut are exact.
 #[test]
-#[ignore = "flats-join: a band on its axis, its hole 1e-8 under its outer radius, turned whole on the flats; a post cut from it on the flats leaves it open (boolean.rs, Plane::split)"]
 fn seed_533654767_a_wall_a_hair_thin_turned_whole_then_cut_by_a_post_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3363,8 +3392,10 @@ fn seed_533654767_a_wall_a_hair_thin_turned_whole_then_cut_by_a_post_on_the_flat
     ));
 }
 
+/// A band below its axis, its hole 6e-8 inside its far edge, turned whole,
+/// then cut by a block: the flats' cut left it open. Laid, the hole is a
+/// notch, and turn and cut are exact.
 #[test]
-#[ignore = "flats-join: a band below its axis, its hole 6e-8 inside its far edge, turned whole on the flats; a block cut from it on the flats leaves it open (boolean.rs, Plane::split)"]
 fn seed_533698627_a_wall_a_hair_thin_below_the_axis_turned_whole_then_cut_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

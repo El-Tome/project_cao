@@ -3032,8 +3032,12 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
     ));
 }
 
+/// A hole a hair inside its outline's far side, a wall 1e-8 thick turned
+/// 270 degrees. The exact kernel declines the section as no profile, laying
+/// the hole onto the outline, and the application turns it on the flats,
+/// whose ends refused the strip between the two as a splinter while its
+/// walls were kept. An end is now the drawing's own pieces, however thin.
 #[test]
-#[ignore = "flats: a hole a hair inside its outline's far side, a wall 1e-8 thick turned 270 degrees; the exact kernel declines the section as no profile and the application turns it on the flats, main's very sweep, which leaves an end facing the wrong way along that wall: 64 of the 73 failures through the application's body"]
 fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3239,8 +3243,14 @@ fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
     ));
 }
 
+/// `flats-ends`, 753 of the 1 071 failures through the application's body:
+/// a band on its axis, its hole 2e-7 under its outer radius, turned 90
+/// degrees. The exact kernel declines the section as no profile, and the
+/// flats' ends lost the strip a hair thin, refused as a splinter, and faced
+/// the way read at each piece's first corner, nowhere on the axis and blind
+/// to the sign of the turn. An end now keeps every piece the drawing gave,
+/// and faces the way the area travels (`sweep::revolution`).
 #[test]
-#[ignore = "flats-ends: a band on its axis, its hole 2e-7 under its outer radius, turned 90 degrees; the exact kernel declines the section as no profile and the flats' ends lose the strip a hair thin, refused as a sliver by Polygon::new, and face the wrong way where a triangle's first corner lies on the axis (sweep::revolution): 753 of the 1 071 failures through the application's body"]
 fn seed_533617180_a_wall_a_hair_thin_on_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3253,8 +3263,10 @@ fn seed_533617180_a_wall_a_hair_thin_on_the_axis_turned_a_quarter_on_the_flats()
     ));
 }
 
+/// `flats-ends`: a band below its axis, its hole 1e-7 inside its far edge,
+/// turned 90 degrees on the flats; the strip a hair thin was refused from
+/// both ends as a splinter.
 #[test]
-#[ignore = "flats-ends: a band below its axis, its hole 1e-7 inside its far edge, turned 90 degrees on the flats; the strip a hair thin is refused from both ends as a sliver (sweep::revolution, Polygon::new)"]
 fn seed_533612358_a_wall_a_hair_thin_below_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3268,8 +3280,10 @@ fn seed_533612358_a_wall_a_hair_thin_below_the_axis_turned_a_quarter_on_the_flat
     ));
 }
 
+/// `flats-ends`: a band across its axis, its hole 2e-8 inside the far edge
+/// below it, turned 90 degrees; the side below goes to the flats, whose ends
+/// lost the strip a hair thin.
 #[test]
-#[ignore = "flats-ends: a band across its axis, its hole 2e-8 inside the far edge below it, turned 90 degrees; the side below goes to the flats, whose ends lose the strip a hair thin, refused as a sliver (sweep::revolution, Polygon::new)"]
 fn seed_533622662_a_wall_a_hair_thin_below_an_axis_the_band_crosses_turned_a_quarter_on_the_flats()
 {
     random_solids::holds_through_the_application(&Case::new(
@@ -3285,7 +3299,7 @@ fn seed_533622662_a_wall_a_hair_thin_below_an_axis_the_band_crosses_turned_a_qua
 }
 
 #[test]
-#[ignore = "flats-ends: a band across its axis, its hole 1e-7 under the edge on one side, turned 90 degrees; that side goes to the flats and its own ends are open before the two sides are joined (sweep::revolution)"]
+#[ignore = "flats-join: a band across its axis, its hole 1e-7 under the edge on one side, turned 90 degrees; that side goes to the flats and is closed alone since its ends keep the strip a hair thin, the flats' join of the two sides leaves the strip's end open (boolean.rs, Plane::split refuses the halves of a thin end as splinters)"]
 fn seed_533653685_a_wall_a_hair_thin_across_the_axis_turned_a_quarter_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3298,8 +3312,10 @@ fn seed_533653685_a_wall_a_hair_thin_across_the_axis_turned_a_quarter_on_the_fla
     ));
 }
 
+/// `flats-ends`: a band on its axis, its hole 2e-7 under its outer radius,
+/// turned 359.9 degrees: not whole, so the flats lay ends, and lost the
+/// strip a hair thin there.
 #[test]
-#[ignore = "flats-ends: a band on its axis, its hole 2e-7 under its outer radius, turned 359.9 degrees: not whole, so the flats lay ends, and lose the strip a hair thin there (sweep::revolution)"]
 fn seed_533669075_a_wall_a_hair_thin_turned_a_tenth_of_a_degree_short_of_whole_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

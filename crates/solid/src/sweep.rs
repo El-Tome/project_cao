@@ -93,7 +93,9 @@ pub(crate) fn prism(
         let top: Vec<DVec3> = bottom.iter().map(|corner| *corner + direction).collect();
 
         // The two caps face opposite ways, so one of them is wound backwards.
-        if let Some(polygon) = Polygon::new(bottom.clone()) {
+        // They are the drawing's own pieces, kept however thin, as the walls
+        // a thin strip of the area raises are.
+        if let Some(polygon) = Polygon::drawn(bottom.clone()) {
             let outward = if polygon.normal().dot(direction) > 0.0 {
                 polygon.flipped()
             } else {
@@ -101,7 +103,7 @@ pub(crate) fn prism(
             };
             polygons.push(outward.on_face(below));
         }
-        if let Some(polygon) = Polygon::new(top) {
+        if let Some(polygon) = Polygon::drawn(top) {
             let outward = if polygon.normal().dot(direction) < 0.0 {
                 polygon.flipped()
             } else {
@@ -200,7 +202,15 @@ pub(crate) fn revolution(
 
     let origin = to_world(axis_origin);
     let axis = (to_world(axis_origin + along) - origin).normalize_or(DVec3::Z);
+    // A turn the reading takes as whole is swept whole: a hair short of it,
+    // the last step would stand that hair from the first, with no end
+    // across the slit.
     let full = turning::is_whole(turn);
+    let turn = if full {
+        std::f64::consts::TAU.copysign(turn)
+    } else {
+        turn
+    };
 
     // Enough steps that the flats read as a curve, scaled to how far it turns.
     let steps = ((turn.abs() / std::f64::consts::TAU) * 64.0)
@@ -256,21 +266,24 @@ pub(crate) fn revolution(
         );
     }
 
-    // A full turn closes on itself and needs no ends.
+    // A full turn closes on itself and needs no ends. A partial one opens
+    // facing back along the way the area travels, and closes facing ahead
+    // along it: one way for the whole end, read where a point a unit off the
+    // axis travels, since a piece may have every corner but one on the axis.
     if !full {
         let (opening, closing) = (faces.fresh(), faces.fresh());
+        let off_the_axis = axis_origin + along.perp() * sign;
+        let ahead = |step: usize| axis.cross(at(off_the_axis, step) - origin) * turn.signum();
+        let ends = [(0, opening, -ahead(0)), (steps, closing, ahead(steps))];
         for triangle in triangles {
-            let start: Vec<DVec3> = triangle.iter().map(|point| at(*point, 0)).collect();
-            let end: Vec<DVec3> = triangle.iter().map(|point| at(*point, steps)).collect();
-            for (corners, at_the_end) in [(start, false), (end, true)] {
-                let Some(polygon) = Polygon::new(corners) else {
+            for (step, end, outward) in ends {
+                // The ends are the drawing's own pieces, kept however thin:
+                // the walls a thin strip of the area sweeps are kept too.
+                let corners = triangle.iter().map(|point| at(*point, step)).collect();
+                let Some(polygon) = Polygon::drawn(corners) else {
                     continue;
                 };
-                let outward = polygon
-                    .normal()
-                    .dot(axis.cross(polygon.corners[0] - origin));
-                let facing = (outward > 0.0) == at_the_end;
-                let end = if at_the_end { closing } else { opening };
+                let facing = polygon.normal().dot(outward) > 0.0;
                 polygons.push(if facing { polygon } else { polygon.flipped() }.on_face(end));
             }
         }

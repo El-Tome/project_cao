@@ -968,11 +968,12 @@ flats, and their join took 43 s in release for a circle turned whole alone,
   `a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone`
   and `a_circle_across_its_axis_turned_whole_undoes_every_gesture_within_the_patience`.
 - **Open: a circle across its axis turned part way.** Both sides are still
-  turned on the flats and joined: at -45 degrees, two solids touching along
-  the axis, the join leaves the seam open (533900197, 533900883); at 180
-  degrees, back to back, it takes longer than the patience (533900361,
-  533900651, 533900890). The flats' join, #418; each named in
-  `an_undo_gives_back_the_part.rs`, ignored with its reason.
+  turned on the flats and joined: at 180 degrees, back to back, it takes
+  longer than the patience (533900361, 533900651, 533900890). The flats'
+  join, #418; each named in `an_undo_gives_back_the_part.rs`, ignored with
+  its reason. At -45 degrees the seam came out open (533900197, 533900883):
+  not the join but the ends, which faced the way a forwards turn would;
+  fixed with the flats' ends below, and held in the gate.
 - **Open: a part on the flats after a round turn.** A circle across its
   axis turned whole now makes matter, and the part goes to the flats from
   that step on, where every later join is as slow as `main` makes it for a
@@ -1010,3 +1011,46 @@ case run again on both paths:
   533328889's tie, the ends of a partial turn meeting a coaxial cylinder;
   named in `what_the_exact_campaigns_found_in_the_kernel.rs` and left, as
   that one is, for the cones' issue.
+
+### The flats' ends
+
+`flats-ends`, the 753 seeds of the night's turns through the application's
+body whose turned leaf came out open alone: a wall a hair thin, which the
+exact kernel declines as no profile, turned part way on the flats. Three
+faults in `sweep::revolution`, each a fact the sweep decided apart from
+the rest:
+
+- **A thin end refused.** The ends were the drawing's own triangles passed
+  through `Polygon::new`, which refuses a splinter a cut leaves, while the
+  strip's two walls were kept: they are now `Polygon::drawn`, kept however
+  thin while they are thicker than the rules' `NEAR`. The caps of a prism
+  are the same pieces and are kept the same way.
+- **An end facing the way read at its first corner.** Every piece fanned
+  from a corner on the axis read no way at all; and the way ignored the
+  sign of the turn, so every partial turn backwards on the flats was open
+  (#486). An end now faces the way a point off the axis travels, back
+  where the turn opens and ahead where it closes.
+- **A whole turn a hair short.** A turn the reading takes as whole, within
+  a thousandth of a radian, was swept by its own angle, its last step that
+  hair from its first and no end across the slit; it is swept whole.
+
+Each seed run again alone, on `1492eed` and on the fix: 238 of the 753
+hold. The 515 left break where the flats join two solids, the family
+`flats-join` names: 438 at a later step whose tool holds alone, 32 a leaf
+across its axis whose two sides are joined, 31 a later tool across its
+axis, and 14 answer past the patience, every one a join on the flats. A
+fifteen-minute campaign from 533600000 on both trees, side by side: 5 569
+seeds reached by both, 24 failures before and 18 after, none failing after
+alone; six of the fifteen `flats-ends` seeds in that range hold. Held by
+`a_part_turn_is_closed_either_way_on_its_axis_and_off_it`,
+`a_wall_a_hair_thin_keeps_its_two_ends` and
+`a_turn_a_hair_short_of_whole_closes_on_itself`, five named seeds in
+`what_the_exact_campaigns_found_in_the_kernel.rs`, #486's
+`a_quarter_turn_backwards_keeps_every_rule`, and the parts 533900197 and
+533900883, a circle across its axis turned -45 degrees.
+
+Laying the hair-thin wall in `Straight::of` instead of declining it, the
+hole opened onto the outline at the tolerance its levels are already one
+at, would send these sections to the exact kernel and clear both families;
+it reverses `a_gap_narrower_than_the_resolution_is_not_closed_by_laying`,
+a decision of the plan, and is left to be decided.

@@ -12,6 +12,11 @@
 //! - an exact cut that misses the matter still says it removed nothing, though
 //!   the kernel handed back a body built anew —
 //!   `a_cut_that_misses_the_exact_matter_says_it_removed_nothing`
+//!
+//! Since #533 an area across its axis is turned on both sides, so a revolution
+//! that changes nothing no longer blames the axis —
+//! `a_revolution_across_its_axis_makes_matter_and_has_nothing_to_say`,
+//! `a_revolution_that_changes_nothing_says_so_without_blaming_the_axis`.
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::WorkPlane;
@@ -205,4 +210,43 @@ fn a_cut_that_misses_the_exact_matter_says_it_removed_nothing() {
     apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
 
     assert_eq!(notice, Some(lang.t("extrusion.nothing_removed")));
+}
+
+fn armed_to_turn(picks: Vec<DVec2>, mode: ExtrusionMode) -> ExtrusionState {
+    let mut extrusion = ExtrusionState::default();
+    extrusion.offer(0);
+    extrusion.shape = Shape::Revolution;
+    extrusion.picks = picks;
+    extrusion.arm(mode);
+    extrusion
+}
+
+#[test]
+fn a_revolution_across_its_axis_makes_matter_and_has_nothing_to_say() {
+    let lang = Catalogue::french();
+    let mut document = a_part_with_a_square();
+    let mut extrusion = armed_to_turn(vec![DVec2::ZERO], ExtrusionMode::Add);
+    let mut notice = None;
+
+    apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
+
+    assert_eq!(notice, None);
+    assert!(document.body().volume() > 0.0, "the square turned about V");
+}
+
+#[test]
+fn a_revolution_that_changes_nothing_says_so_without_blaming_the_axis() {
+    let lang = Catalogue::french();
+    let mut document = a_part_with_a_square();
+    let mut extrusion = armed_to_turn(vec![DVec2::ZERO], ExtrusionMode::Cut);
+    let mut notice = None;
+
+    apply_extrusion(&mut document, &mut extrusion, &mut notice, &lang);
+
+    let said = notice.expect("a cut out of nothing says so");
+    assert_eq!(said, lang.t("extrusion.nothing_from_revolution"));
+    assert!(
+        !said.contains("axe"),
+        "an area across its axis is turned, so the axis is no reason: {said}",
+    );
 }

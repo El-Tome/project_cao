@@ -77,11 +77,10 @@ impl PartState {
             ) else {
                 continue;
             };
-            let Ok(joined) = tool.union(&piece) else {
-                self.declined_with(&[]);
-                return;
-            };
-            tool = joined;
+            match tool.union(&piece) {
+                Ok(joined) => tool = joined,
+                Err(reason) => return self.declined_with(reason, |_| {}),
+            }
         }
 
         // An area the drawing no longer encloses raises nothing, which is a
@@ -89,8 +88,8 @@ impl PartState {
         if lost {
             self.broke(Broken::Operation(self.replaying));
         }
-        if self.combine(tool, mode).is_err() {
-            self.declined_with(&[]);
+        if let Err(reason) = self.combine(tool, mode) {
+            self.declined_with(reason, |_| {});
         }
     }
 
@@ -160,11 +159,10 @@ impl PartState {
         let mut tool = Body::default();
         for profile in &profiles {
             let raised = self.body.tool_raised(profile, frame, travel);
-            let Ok(joined) = raised.and_then(|piece| tool.union(&piece)) else {
-                self.declined_with(&profiles);
-                return;
-            };
-            tool = joined;
+            match raised.and_then(|piece| tool.union(&piece)) {
+                Ok(joined) => tool = joined,
+                Err(reason) => return self.declined_with(reason, past(&profiles)),
+            }
         }
 
         // An area the drawing no longer encloses raises nothing, which is a
@@ -172,20 +170,18 @@ impl PartState {
         if lost {
             self.broke(Broken::Operation(self.replaying));
         }
-        if self.combine(tool, mode).is_err() {
-            self.declined_with(&profiles);
+        if let Err(reason) = self.combine(tool, mode) {
+            self.declined_with(reason, past(&profiles));
         }
     }
 
-    /// A step the kernel declined: broken, named among the declined ones, and
-    /// counted past the numbers its profiles would have given their faces, so
-    /// that the steps after it number theirs as if it had stood.
-    fn declined_with(&mut self, profiles: &[Profile]) {
+    /// A step the kernel declined: broken, named among the declined ones with
+    /// the reason it gave, and counted past the numbers it would have given its
+    /// faces, so that the steps after it number theirs as if it had stood.
+    fn declined_with(&mut self, reason: Declined, count_past: impl FnOnce(&mut Body)) {
         self.broke(Broken::Operation(self.replaying));
-        self.declined.insert(self.replaying);
-        for profile in profiles {
-            self.body.count_past(profile);
-        }
+        self.declined.insert(self.replaying, reason);
+        count_past(&mut self.body);
     }
 
     /// The areas of a drawing these places fall in, each named by the curves
@@ -223,6 +219,11 @@ impl PartState {
     ) -> Option<&'a Region> {
         regions.get(self.area_rank(sketch, area, regions)?)
     }
+}
+
+/// Counts a body past the numbers a raise of each profile would have named.
+fn past<'a>(profiles: &'a [Profile<'a>]) -> impl FnOnce(&mut Body) + 'a {
+    move |body| profiles.iter().for_each(|profile| body.count_past(profile))
 }
 
 /// Where a revolution's axis lies, in the sketch's own coordinates.

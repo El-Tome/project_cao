@@ -1,6 +1,8 @@
 //! The matter of a part as its steps made it: which faces each one raised or
 //! cut, for what names a step to show it where it stands.
 
+use cao_solid::Declined;
+
 use super::PartDocument;
 use crate::history::Operation;
 
@@ -34,6 +36,12 @@ impl PartDocument {
     /// Whether the kernel declined the step of matter of that number: the
     /// part stands as it did before it, and the step is broken.
     pub fn is_declined(&self, step: u32) -> bool {
-        self.state.declined.contains(&step)
+        self.state.declined.contains_key(&step)
+    }
+
+    /// Why the kernel declined the step of matter of that number, for a
+    /// developer to read: nothing on screen says it.
+    pub fn declined_because(&self, step: u32) -> Option<Declined> {
+        self.state.declined.get(&step).copied()
     }
 }

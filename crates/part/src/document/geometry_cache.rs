@@ -31,8 +31,9 @@ pub(super) const GEOMETRY_ENTRY: &str = "geometry.json";
 /// fix in the solver, in an extrusion, in a boolean. What was cached before
 /// then holds the shape as it was computed, which is no longer the shape the
 /// design describes. Also bumped when the matter is written another way: 4
-/// is the body that says which kernel computed it (#526).
-const REBUILT_BY: u32 = 4;
+/// is the body that says which kernel computed it (#526). 5: a revolution of
+/// straight runs is exact, and a declined step keeps its reason (#533).
+const REBUILT_BY: u32 = 5;
 
 #[derive(Serialize, Deserialize)]
 struct Cached<S> {

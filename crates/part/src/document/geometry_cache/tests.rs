@@ -265,7 +265,7 @@ fn a_cache_stamped_by_the_flats_rebuild_is_replayed_though_written_as_today() {
     put_away(&files, path);
     let design = design_of(&files, path);
     let mut marked = a_part_with_matter().state;
-    marked.declined.insert(3);
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
     let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
         .expect("a cache is text");
     let stamped = today.replacen(
@@ -599,7 +599,7 @@ fn an_exact_body_comes_back_from_the_cache_as_the_replay_leaves_it() {
         .put_away(&files, path, at("2026-10-05T10:00:00Z"))
         .expect("the part is put away");
     let mut marked = bored.state.clone();
-    marked.declined.insert(99);
+    marked.declined.insert(99, cao_solid::Declined::Unsupported);
     let design = design_of(&files, path);
     let cache = encoded(&marked, &borrowed(&design)).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cache));
@@ -640,7 +640,9 @@ fn a_declined_step_is_still_named_once_the_part_opens_on_its_cache() {
     put_away(&files, path);
     let design = design_of(&files, path);
     let mut declined = a_part_with_matter().state;
-    declined.declined.insert(3);
+    declined
+        .declined
+        .insert(3, cao_solid::Declined::Unsupported);
     let cached = encoded(&declined, &borrowed(&design)).expect("a cache");
     replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
 
@@ -650,5 +652,58 @@ fn a_declined_step_is_still_named_once_the_part_opens_on_its_cache() {
         reopened.is_declined(3),
         "the decline is only known by computing the matter, which a part \
          opened on its cache does not do",
+    );
+}
+
+#[test]
+fn a_declined_step_keeps_its_reason_once_the_part_opens_on_its_cache() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut declined = a_part_with_matter().state;
+    declined
+        .declined
+        .insert(3, cao_solid::Declined::Unsupported);
+    let cached = encoded(&declined, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert_eq!(
+        reopened.declined_because(3),
+        Some(cao_solid::Declined::Unsupported),
+        "the reason is known only by computing the matter, which a part \
+         opened on its cache does not do",
+    );
+    assert_eq!(reopened.declined_because(0), None, "and only for that step");
+}
+
+#[test]
+fn a_cache_written_before_turns_were_exact_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":4"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "turning straight profiles exactly rebuilds past the 4 of #526"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
     );
 }

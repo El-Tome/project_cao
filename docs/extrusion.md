@@ -37,9 +37,17 @@ trait is a far smaller target than an area, so it is offered first.
 A full turn closes on itself and has no ends; a partial turn is closed at both
 ends by the profile itself.
 
-The profile has to sit **entirely on one side of the axis**. Astride it, it
-would pass through itself while turning, and no precaution afterwards recovers
-a shape obtained that way: nothing is produced, and the application says so.
+An area **astride the axis** would pass through itself while turning. It is
+cut along the axis first, each side is turned on its own, and the two are
+joined: the matter one side turns into the other simply merges with it. That
+is what already happens when the axis is a drawn trait, which splits the area
+into two areas the user picks; a construction trait, the axes of the sketch
+and the line a trait runs along past its ends split nothing, so the turn cuts
+the area itself (#533).
+
+A corner within a thousandth of the area's reach from the axis, on either
+side, is taken as on it: the solver leaves such hairs when "Colinéaire" lays a
+side on the axis, and turned where they stand they would leave a slit.
 
 ## What an area is, and why the tube works
 

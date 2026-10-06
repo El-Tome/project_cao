@@ -110,6 +110,8 @@ in one of the two domains, never there.
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
 | How much surface an area holds and how far it is round, the curve honoured rather than the steps it was sampled into | `sketch/src/regions/measure.rs` | `Region::area`, `Region::perimeter`, `Outline::area`, `Outline::perimeter` |
 | An area's outline and holes as runs — straight, round about a centre with how far it turns, or along an ellipse — which is how the exact kernel is handed an area | `sketch/src/regions/runs.rs` | `Outline::runs`, `Leg` |
+| An area cut along a line into its sides, arcs cut as arcs, for a turn about an axis running through it | `sketch/src/regions/across.rs` | `Sketch::pieces_across` |
+| How finely the drawing holds its rules: the distance below which it cannot tell two places apart | `sketch/src/resolution.rs` | `Sketch::resolution` |
 | Which side of a line a corner lies on, read exactly, for cutting an area into triangles | `sketch/src/regions/side.rs` | `side`, `Side` |
 | Naming an area by the curves that bound it, and finding it again | `sketch/src/naming.rs` | `CurveId`, `Area`, `Standing`, `Became`, `area_under` |
 | Random drawings held to the rules every area keeps, a campaign over them, and what it found ([`sketch-soundness.md`](sketch-soundness.md)) | `sketch/tests/random_sketches/`, `sketch/tests/every_sketch_keeps_its_areas.rs`, `sketch/tests/what_random_sketches_found.rs` | `holds`, `drawn`, `a_campaign_of_random_drawings_keeps_every_rule` |
@@ -140,12 +142,15 @@ What it does: [`sketch.md`](sketch.md).
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid`. It holds the exact kernel's body or the flats, and which one is decided here alone: exact with exact stays exact, anything with the flats goes to the flats | `solid/src/body.rs` | `Body`, `Body::tool_raised`, `revolution`, `union`, `difference` → `Result<_, Declined>`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `has_face`, `count_past`, `bounds`, `volume` |
+| The matter as every crate above sees it: raised, turned, joined, cut, drawn, pointed at — the one thing that leaves `cao_solid`. It holds the exact kernel's body or the flats, and which one is decided here alone: exact with exact stays exact, anything with the flats goes to the flats | `solid/src/body.rs` | `Body`, `Body::tool_raised`, `tool_turned`, `union`, `difference` → `Result<_, Declined>`, `behind`, `triangles`, `ray_hit` → `FaceHit`, `triangles_of`, `is_flat`, `plane_of` → `FacePlane`, `has_face`, `count_past`, `count_past_turned`, `bounds`, `volume` |
 | An exact body behind `Body`: the brep, the face counter, a panic in the kernel caught as a decline, a face left in pieces given fresh numbers | `solid/src/body/exact.rs` | `Exact`, `Declined::Panicked` |
 | The triangles an exact body is drawn with, made once and kept, each knowing its face; a ray against them answering with the true surface's normal | `solid/src/body/drawn.rs` | `Drawn`, `DRAWN`, `ray_hit` |
 | What a body is made of inside the crate: faces as flat pieces, ray casting | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
 | Extruding an area into a prism on the flats | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::tool_raised` when the part is on the flats or the area holds an ellipse |
-| Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
+| Turning an area around an axis on the flats | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::tool_turned` when the part is on the flats or the profile holds a slanted run, an arc or an ellipse |
+| How a profile is read before it is turned, once for both kernels: whether the turn is whole, which side of the axis the area lies on, how close counts as on the axis, and the profile laid straight | `solid/src/turning.rs`, `turning/straight.rs` | `Turn::of`, `Turn::lie` → `Lie`, `Turn::on_axis`, `is_whole`, `ON_THE_AXIS`, `Straight::of`, `Straight::numbers` |
+| A profile turned by the flats, its points within the band laid on the axis first | `solid/src/body/turned.rs` | `turned_flats`, `Snapped` |
+| A profile of straight runs turned by the exact kernel: cylinders, discs, rings and the two ends of a partial turn ([`exact-kernel.md`](exact-kernel.md#turning)) | `solid/src/brep/turned.rs`, `brep/turned/faces.rs`, `brep/laying.rs`, `brep/piece.rs` | `brep::Body::turned`, `Laying`, `pieces_numbered` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
 | The exact kernel of #498: a body of planes and cylinders, raised from a profile of straight runs and arcs, joined and cut exactly — behind `Body` since #526, and refused above `cao_solid` by `the_exact_kernel_stays_behind_the_body` and `the_insides_of_the_matter_stay_in_cao_solid` ([`exact-kernel.md`](exact-kernel.md)) | `solid/src/brep.rs` and `brep/` | `brep::Body::raised`, `joined`, `cut_by` → `Result<_, Declined>`, `triangles`, `volume`, `listing` → `Listing`, `crossings_along`, `winding` |
@@ -198,9 +203,11 @@ found [`exact-kernel-failures.md`](exact-kernel-failures.md).
 | The sizes a chamfer or a pattern was asked for, as written | `part/src/history/operation/sizes.rs` | `ChamferAsked`, `RepeatsAsked`, `Operation::sizes` |
 | A size that does not hold once the part is rebuilt | `part/src/broken.rs` | `Broken`, `PartState::size`, `broken_since` |
 | Which faces of the part a step of matter made | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `PartState::raising`, `PartDocument::faces_made_by` |
-| An area handed to the kernel as runs and as steps; an ellipse sends it to the flats | `part/src/profile.rs` | `profile`, `loops` |
-| A step of matter the exact kernel declined: broken under its own number, its faces counted all the same, carried by the cache | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `declined_with`, `PartState::declined`, `PartDocument::is_declined` |
-| A part raised, joined and cut by the exact kernel, held to the arithmetic, and to the flats from a revolution on | `part/tests/the_exact_kernel_computes_the_part.rs`, `part/tests/an_exact_body_comes_back_from_json.rs` | |
+| An area handed to the kernel as runs and as steps; an ellipse sends it to the flats | `part/src/profile.rs` | `profile` |
+| A step of matter the exact kernel declined: broken under its own number, its faces counted all the same, its reason kept, carried by the cache | `part/src/extrusion.rs`, `part/src/document/matter.rs` | `declined_with`, `PartState::declined`, `PartDocument::is_declined`, `declined_because` |
+| A revolution: the axis in the sketch, an area across it cut into its sides, each turned and joined | `part/src/extrusion.rs` | `PartState::revolve`, `axis_in_sketch`, `sides_of` |
+| A part raised, joined and cut by the exact kernel, held to the arithmetic, and to the flats from a revolution of a slanted run or an arc on | `part/tests/the_exact_kernel_computes_the_part.rs`, `part/tests/an_exact_body_comes_back_from_json.rs` | |
+| A part turned from straight runs by the exact kernel, held to the arithmetic; an area across its axis, hairs off it, a turn declined | `part/tests/the_exact_kernel_turns_the_part.rs` | |
 | Changing the variables, and what is refused | `part/src/document/variables.rs` | `PartDocument::change_variable`, `Refused`, `Use`, `uses_of`, `formula_of` |
 | The variables through a compaction | `part/src/compaction/variables.rs` | `compact_variables`, `Renumbered` |
 | The `.caopart` file (zip) | `part/src/document.rs` | `PartDocument`, `SCHEMA_VERSION = 6` |

@@ -107,9 +107,24 @@ impl Outline {
                     .collect()
             })
             .collect();
+        self.round_laid(&raws, laps, steps, |id| !samples.is_vertex(id))
+    }
+
+    /// Lays out loops already read in the parameters of a surface whose
+    /// first parameter is an angle, `raws` beside the samples `laps` they
+    /// stand for: each angle is unwrapped, and a face going round is cut
+    /// open at one of the grid's `steps` angles that every loop passes at a
+    /// sample `cuttable` lets it be cut at. None when there is no such angle.
+    pub(super) fn round_laid(
+        &mut self,
+        raws: &[Vec<DVec2>],
+        laps: &[Vec<usize>],
+        steps: usize,
+        cuttable: impl Fn(usize) -> bool,
+    ) -> Option<()> {
         let laid: Vec<Lap> = laps
             .iter()
-            .zip(&raws)
+            .zip(raws)
             .map(|(ids, raw)| Lap::from(raw, ids, 0, raw[0].x))
             .collect();
         if laid.iter().all(|lap| lap.turns == 0) {
@@ -117,7 +132,7 @@ impl Outline {
                 .iter()
                 .max_by(|one, other| one.area().total_cmp(&other.area()))?;
             let low = outer.lowest();
-            for ((ids, raw), lap) in laps.iter().zip(&raws).zip(&laid) {
+            for ((ids, raw), lap) in laps.iter().zip(raws).zip(&laid) {
                 let turns = ((low - lap.lowest()) / TAU).ceil();
                 let placed = Lap::from(raw, ids, 0, lap.placed[0].0.x + TAU * turns).placed;
                 self.chain(&placed);
@@ -127,7 +142,7 @@ impl Outline {
 
         let opened = (0..steps)
             .map(|step| TAU * step as f64 / steps as f64)
-            .find_map(|cut| Opened::at(cut, laps, &raws, samples))?;
+            .find_map(|cut| Opened::at(cut, laps, raws, &cuttable))?;
         for piece in &opened.pieces {
             self.chain(piece);
         }
@@ -161,14 +176,19 @@ type End = (f64, bool, (DVec2, usize));
 
 impl Opened {
     /// The face cut open at `cut`. None when a loop passes that angle at a
-    /// vertex or between two of its samples, or the ends of the pieces along
+    /// sample not `cuttable` or between two of its samples, or the ends of the pieces along
     /// an edge of the turn do not alternate into stretches of the region.
-    fn at(cut: f64, laps: &[Vec<usize>], raws: &[Vec<DVec2>], samples: &Samples) -> Option<Opened> {
+    fn at(
+        cut: f64,
+        laps: &[Vec<usize>],
+        raws: &[Vec<DVec2>],
+        cuttable: impl Fn(usize) -> bool,
+    ) -> Option<Opened> {
         let on_cut = |angle: f64| apart(angle, cut).abs() <= CLEAR;
         let mut pieces = Vec::new();
         for (ids, raw) in laps.iter().zip(raws) {
             let passing: Vec<usize> = (0..ids.len()).filter(|at| on_cut(raw[*at].x)).collect();
-            if passing.iter().any(|at| samples.is_vertex(ids[*at])) {
+            if passing.iter().any(|at| !cuttable(ids[*at])) {
                 return None;
             }
             let (first, near) = match passing.first() {

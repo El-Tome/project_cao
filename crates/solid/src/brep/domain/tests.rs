@@ -756,15 +756,12 @@ fn a_raised_face_lies_on_the_left_of_each_of_its_loops_seen_from_outside() {
 
 /// How far a point of a face stands from its nearest edge, on the surface.
 fn clearance(body: &Body, face: FaceId, at: DVec2) -> f64 {
-    let radius = match body.surface(body.face(face).surface) {
-        Surface::Cylinder(cylinder) => Some(cylinder.radius),
-        Surface::Plane(_) | Surface::Cone(_) => None,
-    };
+    let unrolling = body.unrolled_at(face);
     body.traces(face)
         .expect("a raised face is traced")
         .iter()
         .flatten()
-        .map(|trace| distance::distance(trace, at, radius))
+        .map(|trace| distance::distance(trace, at, unrolling))
         .fold(f64::INFINITY, f64::min)
 }
 
@@ -826,7 +823,7 @@ fn the_sampled_cuts_heights_and_distances_agree_with_those_of_a_round() {
         DVec2::new(14.0, -2.0),
         DVec2::new(0.0, 0.0),
     ] {
-        let exact = distance::distance(&round, at, None);
+        let exact = distance::distance(&round, at, Unrolling::Flat);
         let sampled = distance::sampled(&round, at, None);
         assert!((exact - sampled).abs() <= 1e-9, "{exact} against {sampled}");
     }
@@ -964,3 +961,5 @@ fn a_wall_turning_three_quarters_round_keeps_its_matter_on_the_left_and_its_volu
         }
     }
 }
+
+mod cone;

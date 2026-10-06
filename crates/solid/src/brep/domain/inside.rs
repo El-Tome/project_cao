@@ -8,12 +8,11 @@ use std::f64::consts::TAU;
 use glam::DVec2;
 
 use super::crossing::{heights, stretches};
-use super::distance::distance;
+use super::distance::{Unrolling, distance};
 use crate::brep::trace::Trace;
 
-/// `radius` is the cylinder's the parameters are read on, none on a plane.
-pub(super) fn point_inside(loops: &[Vec<Trace>], radius: Option<f64>) -> Option<DVec2> {
-    let periodic = radius.is_some();
+pub(super) fn point_inside(loops: &[Vec<Trace>], unrolling: Unrolling) -> Option<DVec2> {
+    let periodic = unrolling.periodic();
     let mut abscissae: Vec<f64> = loops
         .iter()
         .flatten()
@@ -37,7 +36,7 @@ pub(super) fn point_inside(loops: &[Vec<Trace>], radius: Option<f64>) -> Option<
             let clearance = loops
                 .iter()
                 .flatten()
-                .map(|trace| distance(trace, candidate, radius))
+                .map(|trace| distance(trace, candidate, unrolling))
                 .fold(f64::INFINITY, f64::min);
             if best.is_none_or(|(most, _)| clearance > most) {
                 best = Some((clearance, candidate));

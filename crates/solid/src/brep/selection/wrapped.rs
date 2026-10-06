@@ -117,9 +117,10 @@ pub(in crate::brep) fn collapsed(
 /// Whether the second of a pair stands on the side of the first its own
 /// normal points to, along the line the two were decided at `scale` to
 /// touch along, all along the stretch between the two lines they were
-/// decided to cross along that `place` stands on, or at `place` where two
-/// neither touching nor crossing along two lines — a plane and a wall, two
-/// parallel walls, two planes — stand further apart than rounding; none
+/// decided to cross along that `place` stands on, all round a cone a plane
+/// holding its axis cuts, or at `place` where two neither touching nor
+/// crossing along two lines — a plane and a wall, two parallel walls, two
+/// planes, a cone and anything — stand further apart than rounding; none
 /// otherwise.
 pub(super) fn lies_above(
     operands: &Operands,
@@ -131,7 +132,7 @@ pub(super) fn lies_above(
     match relation(first, second, scale) {
         Relation::Lines(lines) => across_the_lobe(first, second, &lines, place),
         Relation::Tangent(_) => touching_above(first, second),
-        Relation::Rulings { .. } => None,
+        Relation::Rulings { .. } => across_the_rulings(first, second),
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
@@ -153,9 +154,11 @@ pub(super) fn lies_above(
                     let gap = -second.distance(place) / facing;
                     (gap.abs() > rounding).then_some(gap > 0.0)
                 }
-                (Surface::Cylinder(_), Surface::Plane(_))
-                | (Surface::Cone(_), _)
-                | (_, Surface::Cone(_)) => None,
+                (Surface::Cylinder(_), Surface::Plane(_)) => None,
+                (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+                    let gap = first.distance(nearest(second, place));
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
             }
         }
     }
@@ -225,6 +228,28 @@ fn across_the_lobe(
         (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
             None
         }
+    }
+}
+
+/// Whether a plane holding a cone's axis stands on the side of the cone its
+/// own normal points to: on the axis side all round, the same on either
+/// lobe the two rulings part the cone into, where the cone's normal points
+/// when it opens against its axis. A place of the plane stands at the very
+/// angle of a ruling, on neither lobe, and the cone stands on both sides of
+/// the plane there: none.
+fn across_the_rulings(first: &Surface, second: &Surface) -> Option<bool> {
+    match (first, second) {
+        (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x < 0.0),
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => None,
+    }
+}
+
+/// The point of a surface nearest `place`.
+fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
+    match surface {
+        Surface::Plane(plane) => place - plane.normal * plane.distance(place),
+        Surface::Cylinder(cylinder) => beside(cylinder, place),
+        Surface::Cone(cone) => cone.nearest(place),
     }
 }
 

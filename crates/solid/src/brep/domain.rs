@@ -3,6 +3,7 @@
 
 mod crossing;
 mod distance;
+pub(super) mod floor;
 mod inside;
 mod traced;
 
@@ -12,6 +13,7 @@ use super::Declined;
 use super::surface::Surface;
 use super::topology::{Body, EdgeId, FaceId, SurfaceId};
 use super::trace::Trace;
+use distance::Unrolling;
 pub(super) use traced::traced;
 
 /// Where a point of a surface stands against a face lying on it.
@@ -60,21 +62,38 @@ impl Body {
             .collect()
     }
 
+    /// A face's loops as [`Body::traces`] gives them, closed along the floor
+    /// of its cone where they reach its apex or go round it ([`floor`]): a
+    /// domain to count parity in, never to measure a boundary on.
+    pub(in crate::brep) fn closed_traces(&self, face: FaceId) -> Result<Vec<Vec<Trace>>, Declined> {
+        Ok(self.closed(face, self.traces(face)?))
+    }
+
+    fn closed(&self, face: FaceId, loops: Vec<Vec<Trace>>) -> Vec<Vec<Trace>> {
+        match self.surface(self.face(face).surface) {
+            Surface::Cone(cone) => floor::closed(cone, loops, self.scale.eps()),
+            Surface::Plane(_) | Surface::Cylinder(_) => loops,
+        }
+    }
+
     /// Where `at`, in the parameters of the face's surface, stands against
-    /// the face: on its boundary within `eps` of it, and otherwise inside or
+    /// the face: on its boundary within `eps` of it — of its edges, or of the
+    /// apex it holds within it, a vertex of it — and otherwise inside or
     /// outside as the number of loops a ray up the second parameter crosses
-    /// is odd or even.
+    /// is odd or even, its domain closed along the floor.
     pub fn locate(&self, face: FaceId, at: DVec2, eps: f64) -> Result<Location, Declined> {
         let loops = self.traces(face)?;
-        let radius = self.unrolled_at(face);
+        let unrolling = self.unrolled_at(face);
         let place = self.surface(self.face(face).surface).point(at);
         let near = loops.iter().flatten().any(|trace| {
-            !self.far_from(trace, place, eps) && distance::distance(trace, at, radius) <= eps
-        });
+            !self.far_from(trace, place, eps) && distance::distance(trace, at, unrolling) <= eps
+        }) || self
+            .apex_held(face)
+            .is_some_and(|apex| apex.distance(place) <= eps);
         if near {
             return Ok(Location::Boundary);
         }
-        let above = crossing::heights(&loops, at.x, radius.is_some())
+        let above = crossing::heights(&self.closed(face, loops), at.x, unrolling.periodic())
             .into_iter()
             .filter(|height| *height > at.y)
             .count();
@@ -86,10 +105,11 @@ impl Body {
     }
 
     /// A point of the face's surface, in its parameters, strictly inside the
-    /// face and well away from its boundary; none for a face with no inside.
+    /// face and well away from its boundary, its apex included; none for a
+    /// face with no inside.
     pub fn point_inside(&self, face: FaceId) -> Result<Option<DVec2>, Declined> {
         Ok(inside::point_inside(
-            &self.traces(face)?,
+            &self.closed_traces(face)?,
             self.unrolled_at(face),
         ))
     }
@@ -108,14 +128,12 @@ impl Body {
         place.cmplt(low - room).any() || place.cmpgt(high + room).any()
     }
 
-    /// The radius a face's parameters unroll at: its cylinder's, and none on
-    /// a plane, whose parameters are lengths already. A cone's is not
-    /// written yet (#536): no number, which no distance passes for.
-    fn unrolled_at(&self, face: FaceId) -> Option<f64> {
+    /// How a face's parameters unroll into lengths.
+    fn unrolled_at(&self, face: FaceId) -> Unrolling {
         match self.surface(self.face(face).surface) {
-            Surface::Cylinder(cylinder) => Some(cylinder.radius),
-            Surface::Cone(_) => Some(f64::NAN),
-            Surface::Plane(_) => None,
+            Surface::Cylinder(cylinder) => Unrolling::Round(cylinder.radius),
+            Surface::Cone(cone) => Unrolling::Cone(*cone),
+            Surface::Plane(_) => Unrolling::Flat,
         }
     }
 }

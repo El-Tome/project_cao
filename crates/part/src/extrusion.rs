@@ -132,15 +132,7 @@ impl PartState {
         let travel = plane.normal() * (distance / scale);
         let regions = sketch.regions();
 
-        let mut lost = false;
-        let standing: Vec<&Region> = areas
-            .iter()
-            .filter_map(|area| {
-                let region = self.standing_on(index, area, &regions);
-                lost |= region.is_none();
-                region
-            })
-            .collect();
+        let (standing, lost) = self.all_standing_on(index, areas, &regions);
         let triangles: Vec<_> = standing
             .iter()
             .map(|region| region.face_triangles())
@@ -203,6 +195,26 @@ impl PartState {
                 Some(Area::of(&regions[rank], *place))
             })
             .collect()
+    }
+
+    /// The areas a step of matter stands on, as the drawing holds them now,
+    /// and whether one of them is lost.
+    fn all_standing_on<'a>(
+        &self,
+        sketch: usize,
+        areas: &[Area],
+        regions: &'a [Region],
+    ) -> (Vec<&'a Region>, bool) {
+        let mut lost = false;
+        let standing = areas
+            .iter()
+            .filter_map(|area| {
+                let region = self.standing_on(sketch, area, regions);
+                lost |= region.is_none();
+                region
+            })
+            .collect();
+        (standing, lost)
     }
 
     /// The area a step of matter stands on, as the drawing holds it now.

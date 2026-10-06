@@ -3153,8 +3153,12 @@ fn seed_533335255_a_shaft_turned_about_an_axis_leaning_a_hair() {
     ));
 }
 
+/// line-of-touch: a cylinder turned about a line lying on the tangent plane
+/// of a ring's outer wall, then a post through that line of touch; the
+/// kernel's triangles left the body open, alike with the cylinder raised as
+/// a prism, until a line took every sample standing on it within rounding
+/// (`tessellation/sampling/touches.rs`).
 #[test]
-#[ignore = "line-of-touch: a cylinder turned about a line lying on the tangent plane of a ring's outer wall, then a post through that line of touch; the kernel's triangles leave the body open, which the application declines as undrawn, and alike with the cylinder raised as a prism"]
 fn seed_533330824_a_turned_cylinder_whose_axis_touches_a_ring_s_wall() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3178,8 +3182,12 @@ fn seed_533330824_a_turned_cylinder_whose_axis_touches_a_ring_s_wall() {
     ));
 }
 
+/// line-of-touch: a cylinder turned square to a post, touching it at a
+/// point, then a block across both; declined as undrawn through the
+/// application's body, alike with the cylinder raised as a prism, until a
+/// line took every sample standing on it within rounding
+/// (`tessellation/sampling/touches.rs`).
 #[test]
-#[ignore = "line-of-touch: a cylinder turned square to a post, touching it at a point, then a block across both; declined as undrawn through the application's body, and alike with the cylinder raised as a prism"]
 fn seed_533413234_a_turned_cylinder_touching_a_post_at_a_point() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([7.0, 2.0], 1.5), 2.0),
@@ -3449,9 +3457,16 @@ fn seed_533719875_a_turned_tube_whose_axis_leans_a_thousandth_of_a_degree_joined
     ));
 }
 
+/// kernel-drawing: a cylinder turned whole touching a post's wall at a
+/// point, then a second post of the cylinder's radius through it, its axis
+/// meeting the cylinder's. The second post's wall touches the first's along
+/// a line, which the node of the two equal walls stands on: the node is a
+/// vertex, the line an edge running past it. The line was sampled at its
+/// ends alone, the wall's two loops met in the middle of a segment, and the
+/// application declined the body as undrawn. A line now takes every sample
+/// standing on it within rounding (`tessellation/sampling/touches.rs`).
 #[test]
-#[ignore = "kernel-drawing: a cylinder turned whole lying along a post's wall, then a second post through it; the exact kernel's triangles leave the body open, which the application declines as undrawn (body/exact.rs)"]
-fn seed_533647113_a_turned_cylinder_lying_along_a_post_s_wall_is_drawn_open() {
+fn seed_533647113_a_turned_cylinder_lying_along_a_post_s_wall_is_drawn_closed() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::xy(1.0), Outline::circle([3.0, 10.0], 2.5), 3.0),
         vec![

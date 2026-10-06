@@ -2708,3 +2708,92 @@ fn seed_533666445_a_turned_cylinder_cut_by_a_ring_and_a_post_is_drawn_uncrossed_
         ],
     ));
 }
+
+/// kernel-drawing, through the application's body: Answers, the body
+/// declined as undrawn. A post touching a turned cylinder at a point, on the
+/// cylinder's level; a block whose floor passes through the cylinder's axis
+/// cuts the cylinder along a line through that point. The post's rim on the
+/// floor touches the line there, at the rim's own vertex, and the line,
+/// sampled at its ends alone, ran past it: the floor's loops met in the
+/// middle of a segment. The line takes the vertex.
+#[test]
+fn seed_533643649_a_post_touching_a_turned_cylinder_on_a_floor_through_its_axis_is_drawn_closed() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(40.0), Outline::circle([25.0, 25.0], 12.5), -30.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(25.0),
+                Axis::first(45.0).backwards(),
+                Section::bands(-45.0, &[[40.0, 0.0, 7.5]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(25.0),
+                Outline::rectangle([-25.0, 10.0], [35.0, 70.0]),
+                28.0,
+            )),
+        ],
+    ));
+}
+
+/// kernel-drawing, through the application's body: Answers, the body
+/// declined as undrawn. A post a hair inside a block's end, and a bore
+/// turned across the block whose wall touches the block's floor along its
+/// top ruling. The curve the post and the bore meet along touches the
+/// post's rim on the floor at a step of the post's grid where neither has a
+/// vertex: each took a sample there, a rounding apart, and the post's wall
+/// crossed itself between them. Samples of two edges within rounding of
+/// each other are one.
+#[test]
+fn seed_533786336_a_post_and_a_turned_bore_touching_a_block_s_floor_at_one_point_are_drawn_closed()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([7.0, 4.0], [12.0, 6.0]),
+            -6.5,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(6.0),
+                Outline::circle([10.49999998, 4.75], 1.5),
+                -13.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(-2.0),
+                Axis::second(12.0),
+                Section::bands(3.5, &[[2.5, 0.0, 1.5]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// kernel-drawing, through the application's body: Answers, the body
+/// declined as undrawn. Prisms alone: a slot cut into a block's end, its
+/// round end a hair inside the block's side and moved onto it, then a
+/// rectangle cut across. The slot's rim on the end touches the side's edge
+/// at a step of its grid, no vertex there, and the edge ran past that
+/// sample. The edge takes it.
+#[test]
+fn seed_533600448_a_slot_whose_round_end_touches_a_block_s_side_is_drawn_closed() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::yz(3.5),
+            Outline::rectangle([6.0, 2.0], [9.0, 3.0]),
+            -7.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(2.5),
+                Outline::rounded([5.99999999, 2.0], [8.99999999, 3.0], 0.5),
+                7.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(2.5),
+                Outline::rectangle([6.0, 1.0], [9.0, 4.0]),
+                -14.0,
+            )),
+        ],
+    ));
+}

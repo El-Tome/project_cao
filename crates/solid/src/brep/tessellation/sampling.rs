@@ -23,13 +23,15 @@
 //! sampled twice, the second time on the rays the first gave. Nowhere is it
 //! sampled where either cylinder all but lies on a wall facing it, as a
 //! circle is not at the steps it withholds, nor on a plane touching either
-//! off the line they touch along.
+//! off the line they touch along. Two edges touching between their vertices
+//! share the place they touch at ([`touches`]).
 
 mod beneath;
 mod circle;
 mod ends;
 mod meet;
 mod planes;
+mod touches;
 
 use std::collections::BTreeMap;
 use std::f64::consts::PI;
@@ -43,6 +45,7 @@ use crate::brep::topology::{Body, EdgeId, SurfaceId};
 use circle::on_circle;
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
+use touches::{Places, on_the_line};
 
 /// How far from another surface, as a share of the kernel's tolerance, a
 /// place of the grid a step or less from an end lying on that surface must
@@ -135,6 +138,7 @@ impl Samples {
         }
         let vertices = samples.points.clone();
         let alone = Contact::default();
+        let mut places = Places::new(eps * TOLD);
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
@@ -169,10 +173,18 @@ impl Samples {
                             inner.push(vertex);
                         }
                     }
-                    None => {
-                        inner.push(samples.points.len());
-                        samples.points.push(point);
-                    }
+                    None => match places.found(&samples.points, point, id.0 as usize) {
+                        Some(shared) => {
+                            if inner.last() != Some(&shared) {
+                                inner.push(shared);
+                            }
+                        }
+                        None => {
+                            places.place(point, samples.points.len(), id.0 as usize);
+                            inner.push(samples.points.len());
+                            samples.points.push(point);
+                        }
+                    },
                 }
             }
             samples.edges.push(match edge.ends {
@@ -187,6 +199,14 @@ impl Samples {
                     inner
                 }
             });
+        }
+        for id in body.edge_ids() {
+            let edge = body.edge(id);
+            if let (Curve::Line(_), Some(_)) = (body.curve(edge.curve), edge.ends) {
+                let run = &samples.edges[id.0 as usize];
+                let on = on_the_line(&samples.points, [run[0], run[1]], eps * TOLD, eps);
+                samples.edges[id.0 as usize].splice(1..1, on);
+            }
         }
         samples
     }

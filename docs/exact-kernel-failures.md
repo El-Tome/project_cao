@@ -546,7 +546,8 @@ What the rule leaves of the corpus, each case ignored with its reason:
   band of theirs is laid out. Where a plane touches both, its two bands
   carry the crossing line, and ten of the family hold so.
 - **2-1, three lines of touch in one band** (6086149, 6576153, 6529277),
-  not traced since the rule; and 6155665, whose bore dips a hair into both
+  not traced since the rule — 6529277 is drawn closed since a line takes
+  the samples standing on it (#533, below); and 6155665, whose bore dips a hair into both
   the wall and the plane resting on it, a band the guard of 90016363 leaves
   as it was.
 - **1-2, a plane touching a wall a hair from a line crossing it** (6168409,
@@ -837,7 +838,8 @@ What the merge made, three seeds held the night before:
   in 8542629 the wall touches a block's side along a ruling across that
   line, every rim of the wall is sampled square to the corner, on the
   side, and the block's top, whose rim it is too, has its rim sample on
-  its own edge along the side and is left uncut. Not fixed. A corner kept
+  its own edge along the side and is left uncut — drawn closed since the
+  edge takes the samples standing on it (#533, below). Not fixed then. A corner kept
   where it was found, or laid where a wall crossing the line crosses it,
   fixed one or both and broke up to eight seeds the merged lanes hold
   (8504113, 8511276, 8540216, 8544675, 8562569, 8573267, 8586557, 8586895);
@@ -1010,3 +1012,17 @@ case run again on both paths:
   533328889's tie, the ends of a partial turn meeting a coaxial cylinder;
   named in `what_the_exact_campaigns_found_in_the_kernel.rs` and left, as
   that one is, for the cones' issue.
+- **Fixed: two edges touching between their vertices**, 15 of the 17
+  bodies of the kernel-drawing family the application declined as
+  undrawn. A rim touching the line a floor through a wall's axis cuts on
+  it, at the rim's vertex or at a step of its grid, or two curves grazing
+  at a step of both: the kernel puts no vertex there, the line was sampled
+  at its ends alone, or each curve took a sample a rounding apart, and the
+  face holding both met its own loop in the middle of a segment, which the
+  sweep refuses. A line now takes every sample standing on it within
+  rounding, and samples of two edges within rounding of each other are one
+  (`tessellation/sampling/touches.rs`). Held by 533647113, 533643649,
+  533786336 and 533600448; the same rule holds 533330824 and 533413234 of
+  the touches above, 8542629 and the band's 6529277. The two left,
+  533729464 and 533693925, are two circles a hair apart on one cap, their
+  chords crossing.

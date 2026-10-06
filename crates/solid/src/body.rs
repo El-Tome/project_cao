@@ -16,7 +16,7 @@ use crate::profile::{Frame, Profile};
 use crate::sweep;
 use crate::turning::{Lie, Straight, Turn};
 use exact::Exact;
-use turned::turned_flats;
+use turned::{numbers_turned_whole, turned_flats};
 
 /// A solid: one closed surface, its faces numbered.
 ///
@@ -115,10 +115,19 @@ impl Body {
             Lie::Across => return Err(Declined::Profile),
             Lie::Side(_) => {}
         }
+        let whole = numbers_turned_whole(profile, frame, turn);
         if let Some(straight) = self.straight(profile, frame, turn) {
-            return Ok(Body::of_exact(Exact::turned(&straight, frame, turn)?));
+            let numbers = whole.unwrap_or_else(|| straight.numbers(turn.is_whole()));
+            return Ok(Body::of_exact(Exact::turned(
+                &straight, frame, turn, numbers,
+            )?));
         }
-        Ok(turned_flats(profile, frame, turn).map_or_else(Body::default, Body::raised_flats))
+        Ok(
+            turned_flats(profile, frame, turn).map_or_else(Body::default, |mesh| {
+                let next = mesh.faces_end().max(whole.unwrap_or(0) as usize);
+                Body::of_flats(mesh, next)
+            }),
+        )
     }
 
     /// Everything that is in either body.
@@ -204,10 +213,14 @@ impl Body {
         if !matches!(self.matter, Matter::Exact(_)) || !matches!(turn.lie(profile), Lie::Side(_)) {
             return;
         }
-        let numbers = match self.straight(profile, frame, turn) {
-            Some(straight) => straight.numbers(turn.is_whole()),
-            None => turned_flats(profile, frame, turn).map_or(0, |mesh| mesh.faces_end() as u32),
-        };
+        let numbers = numbers_turned_whole(profile, frame, turn).unwrap_or_else(|| {
+            match self.straight(profile, frame, turn) {
+                Some(straight) => straight.numbers(turn.is_whole()),
+                None => {
+                    turned_flats(profile, frame, turn).map_or(0, |mesh| mesh.faces_end() as u32)
+                }
+            }
+        });
         if let Matter::Exact(exact) = &mut self.matter {
             exact.count_past_turned(numbers);
         }

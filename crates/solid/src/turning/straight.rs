@@ -121,11 +121,11 @@ impl Straight {
         })
     }
 
-    /// How many numbers a turn of the profile names: one per run, and the
-    /// two ends of a partial turn. A whole turn counts up to its last run off
-    /// the axis, as the flats always have, so that the faces of the steps
-    /// after it keep the numbers a part saved before turns were exact gave
-    /// them.
+    /// How many numbers a turn of the profile as laid names: one per run,
+    /// and the two ends of a partial turn. A whole turn counts up to its last
+    /// run off the axis, as the flats always have. The body counts a whole
+    /// turn on the profile as drawn rather than as laid when it can, since a
+    /// run within the band was counted before turns were exact.
     pub fn numbers(&self, whole: bool) -> u32 {
         if whole {
             self.last_off_the_axis.map_or(0, |run| run + 1)

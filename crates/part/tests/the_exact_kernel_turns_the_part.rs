@@ -479,11 +479,12 @@ fn applied_live(history: &History) -> PartDocument {
     part
 }
 
-/// A square drawn from the origin, its last run down the axis, turned whole;
-/// then a block raised beside it, and a drawing laid on face `face`.
-fn a_block_after_a_whole_turn(face: usize) -> (WorkPlane, bool) {
+/// A square drawn from `(left, 0)`, its last run down the axis or beside it,
+/// turned whole; then a block raised beside it, and a drawing laid on face
+/// `face`.
+fn a_block_after_a_whole_turn(left: f64, face: usize) -> (WorkPlane, bool) {
     let mut history = turned_on_xy(
-        |history| rectangle(history, 0, DVec2::ZERO, DVec2::splat(10.0)),
+        |history| rectangle(history, 0, DVec2::new(left, 0.0), DVec2::splat(10.0)),
         DVec2::splat(5.0),
         360.0,
     );
@@ -516,7 +517,22 @@ fn faces_after_a_full_turn_are_numbered_as_on_main() {
     // block's top answered to this number.
     let blocks_top_on_main = 4;
 
-    let (plane, adrift) = a_block_after_a_whole_turn(blocks_top_on_main);
+    let (plane, adrift) = a_block_after_a_whole_turn(0.0, blocks_top_on_main);
+
+    assert!(!adrift, "the block's top is there");
+    assert!(
+        (plane.origin.z - 25.0).abs() < 1e-9,
+        "the drawing laid by number stands on the block's top as it did on \
+         `main`, not on {plane:?}",
+    );
+}
+
+#[test]
+fn faces_after_a_full_turn_whose_side_lies_within_the_band_are_numbered_as_on_main() {
+    // Measured on `main` at dc5bfe5, the side 0.005 from the axis.
+    let blocks_top_on_main = 5;
+
+    let (plane, adrift) = a_block_after_a_whole_turn(0.005, blocks_top_on_main);
 
     assert!(!adrift, "the block's top is there");
     assert!(

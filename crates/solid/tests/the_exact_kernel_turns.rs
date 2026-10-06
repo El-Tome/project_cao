@@ -612,6 +612,49 @@ fn a_declined_turn_counts_past_the_numbers_it_would_have_named() {
     }
 }
 
+/// A rectangle from `(left, 0)` to `(50, 20)`, its last side the one at
+/// `left`, cut into its two triangles.
+fn rectangle_from(left: f64) -> ([DVec2; 4], [[DVec2; 3]; 2]) {
+    let corners = [
+        DVec2::new(left, 0.0),
+        DVec2::new(50.0, 0.0),
+        DVec2::new(50.0, 20.0),
+        DVec2::new(left, 20.0),
+    ];
+    let triangles = [
+        [corners[0], corners[1], corners[2]],
+        [corners[0], corners[2], corners[3]],
+    ];
+    (corners, triangles)
+}
+
+#[test]
+fn a_whole_turn_whose_last_side_lies_near_the_axis_names_the_numbers_main_named() {
+    for (left, named) in [(0.0, 3), (1e-5, 3), (5e-3, 4), (0.03, 4), (0.06, 4)] {
+        let (corners, triangles) = rectangle_from(left);
+        let exact = drawn(&corners, &triangles);
+        let flats = Profile {
+            exact: None,
+            ..drawn(&corners, &triangles)
+        };
+        for profile in [&exact, &flats] {
+            let turn = about_the_sketch_s_y(TAU, profile);
+            let tool = part()
+                .tool_turned(profile, ground(), &turn)
+                .expect("the rectangle turns");
+            assert_eq!(
+                (tool.is_exact(), tool.faces_end()),
+                (profile.exact.is_some(), named),
+                "a side at {left} from the axis"
+            );
+            let mut declined = part();
+            let before = declined.faces_end();
+            declined.count_past_turned(profile, ground(), &turn);
+            assert_eq!(declined.faces_end(), before + named, "a side at {left}");
+        }
+    }
+}
+
 #[test]
 fn a_turn_a_hair_short_of_a_whole_turn_is_whole() {
     let angle = 359.95_f64.to_radians();

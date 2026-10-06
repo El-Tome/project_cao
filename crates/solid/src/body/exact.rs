@@ -58,9 +58,15 @@ impl Exact {
         Ok(Exact::of(brep, brep::Body::numbers_raised(outline, holes)))
     }
 
-    pub fn turned(straight: &Straight, frame: Frame, turn: &Turn) -> Result<Exact, Declined> {
+    /// The profile turned, its count past the `numbers` the turn names.
+    pub fn turned(
+        straight: &Straight,
+        frame: Frame,
+        turn: &Turn,
+        numbers: u32,
+    ) -> Result<Exact, Declined> {
         let brep = caught(|| brep::Body::turned(straight, frame, turn))?;
-        Ok(Exact::of(brep, straight.numbers(turn.is_whole())))
+        Ok(Exact::of(brep, numbers))
     }
 
     pub fn joined(&self, other: &Exact) -> Result<Exact, Declined> {

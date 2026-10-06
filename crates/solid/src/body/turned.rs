@@ -36,6 +36,28 @@ pub(super) fn turned_flats(profile: &Profile, frame: Frame, turn: &Turn) -> Opti
     )
 }
 
+/// How many numbers a whole turn of the profile names, counted as `main`
+/// counted them: up to the last run whose flats, swept as drawn, were thick
+/// enough to keep, though a run within the band of the axis is laid on it
+/// since. The steps after the turn keep the faces a part saved there gave
+/// them. `None` for a partial turn, or a profile whose points as drawn stand
+/// across the axis, which `main` never turned.
+pub(super) fn numbers_turned_whole(profile: &Profile, frame: Frame, turn: &Turn) -> Option<u32> {
+    if !turn.is_whole() {
+        return None;
+    }
+    let mesh = sweep::revolution(
+        profile.sampled,
+        &profile.sampled_holes,
+        &[],
+        |point| frame.at(point),
+        turn.axis.origin,
+        turn.axis.direction,
+        turn.angle,
+    )?;
+    Some(mesh.faces_end() as u32)
+}
+
 /// The points a profile was sampled into, each laid on the axis when it
 /// stands within the turn's band of it.
 struct Snapped {

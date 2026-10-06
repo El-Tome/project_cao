@@ -118,6 +118,19 @@ fn circle_and_surface(
         Surface::Cylinder(cylinder) => (plane_and_cylinder(&own_plane, cylinder, scale), true),
         Surface::Cone(_) => return Solved::Unsupported,
     };
+    circle_through(circle, relation, across, scale, touching)
+}
+
+/// What the circle's own plane, `across`, or its own cylinder makes with a
+/// surface, against the circle: a line in its plane crosses it where it
+/// passes through it, a line along its cylinder at its height.
+fn circle_through(
+    circle: &Circle,
+    relation: Relation,
+    across: bool,
+    scale: Scale,
+    touching: &Touches,
+) -> Solved {
     let lines: Vec<(Line, bool)> = match relation {
         Relation::Same { .. } => return Solved::Along,
         Relation::Apart => Vec::new(),

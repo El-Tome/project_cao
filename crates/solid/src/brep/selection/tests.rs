@@ -248,7 +248,8 @@ fn a_region_whose_point_stands_on_a_surface_its_boundary_runs_away_from_is_not_b
                     && (plane.offset().abs() - 5.0).abs() < 1e-9)
         })
         .expect("the bar's cap is there");
-    let (edges, overlay) = parted(&arena, SurfaceId(wall as u32)).expect("the wall is parted");
+    let (edges, overlay) =
+        parted(&arena, SurfaceId(wall as u32), false).expect("the wall is parted");
     let geometry = &list[wall];
     let region = overlay
         .regions
@@ -462,3 +463,5 @@ fn two_walls_facing_each_other_across_a_crossing_are_ordered_by_which_way_each_f
     assert_eq!(above([wall(0.5000002), wall(2.5)]), Some(false));
     assert_eq!(above([wall(0.5000002), wall(2.0)]), Some(true));
 }
+
+mod cone;

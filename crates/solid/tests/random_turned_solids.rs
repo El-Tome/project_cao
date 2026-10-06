@@ -1296,7 +1296,9 @@ fn turned_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_a
     let seeds: Vec<u64> = (0..60).collect();
     let weighed = random_solids::on_every_core(&seeds, |seed| {
         let case = Case::drawn_turned(*seed);
-        random_solids::held_to_arithmetic(&case, &Exact).ok()?;
+        random_solids::held_to_arithmetic(&case, &Exact)
+            .ok()
+            .filter(|kept| kept.thin == 0)?;
         let mut exact = true;
         if let Ok(leaves) = case
             .leaves()

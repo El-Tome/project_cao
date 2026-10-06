@@ -11,6 +11,7 @@ use crate::brep::Declined;
 use crate::brep::canonical::Surfaces;
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId, SurfaceId};
 
 pub(in crate::brep) struct Operands<'a> {
@@ -186,7 +187,10 @@ impl<'a> Operands<'a> {
     }
 
     /// Where `point`, on a shared surface, stands against each face of an
-    /// operand lying on it, on its boundary within `eps` of it.
+    /// operand lying on it, on its boundary within `eps` of it. On a cone, a
+    /// point of the other nappe reads in the parameters as one of this, and
+    /// is outside every face: it stands off the cone the operand was built
+    /// on by more than the shared surface may stand from it.
     pub fn located(
         &self,
         operand: usize,
@@ -199,6 +203,11 @@ impl<'a> Operands<'a> {
             .iter()
             .map(|&face| {
                 let own = body.surface(body.face(face).surface);
+                if let Surface::Cone(cone) = own
+                    && cone.distance(point).abs() > NAPPE * self.eps()
+                {
+                    return Ok((face, Location::Outside));
+                }
                 Ok((face, body.locate(face, own.parameters(point), eps)?))
             })
             .collect()
@@ -218,6 +227,11 @@ impl<'a> Operands<'a> {
             .any(|(_, location)| *location != Location::Outside))
     }
 }
+
+/// How many tolerances off an operand's cone a point of the shared surface
+/// may stand: the shared cone stands within one of the operand's, and the
+/// point within rounding of the shared one.
+const NAPPE: f64 = 2.0;
 
 /// Whether two boxes meet.
 fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {

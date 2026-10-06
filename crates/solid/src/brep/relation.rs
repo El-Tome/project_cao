@@ -6,6 +6,7 @@ mod conical;
 mod crossing;
 mod cylinders;
 mod planar;
+mod revolved;
 
 use glam::DVec3;
 
@@ -14,6 +15,7 @@ use super::meet::Meeting;
 use super::scale::Scale;
 use super::surface::Surface;
 pub use crossing::{Crossing, Crossings, Touches, crossings, crossings_given};
+pub(in crate::brep) use revolved::apart_by;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Relation {
@@ -31,7 +33,8 @@ pub enum Relation {
     /// A plane touching a cylinder, or two parallel cylinders touching from
     /// outside or from inside.
     Tangent(Line),
-    /// A plane square to a cylinder's axis.
+    /// A plane square to a cylinder's axis, or a cone and a surface of its
+    /// axis crossing off it.
     Circle(Circle),
     /// Two perpendicular cylinders.
     Meet(Meeting),
@@ -43,7 +46,9 @@ pub enum Relation {
     },
     /// Two surfaces touching at a cone's apex alone.
     Apex(DVec3),
-    /// A plane oblique to a cylinder's axis, two cylinders at a skew angle.
+    /// A plane oblique to a cylinder's axis, two cylinders at a skew angle,
+    /// a cone and a plane neither square to its axis nor holding it, a cone
+    /// and a cylinder or a cone not of its axis.
     Unsupported,
 }
 

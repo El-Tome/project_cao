@@ -1,8 +1,9 @@
 //! Whether two faces whose surfaces stand at a slant — a plane neither along
-//! nor square to a cylinder's axis, two cylinders at a skew angle — stand
-//! clear of each other, decided on the faces themselves rather than on the
-//! boxes round them: the kernel builds no curve such a pair shares, so the
-//! pair declines the operation unless no place lies on both faces.
+//! nor square to a cylinder's axis, two cylinders at a skew angle, a cone and
+//! anything not of its axis — stand clear of each other, decided on the
+//! faces themselves rather than on the boxes round them: the kernel builds
+//! no curve such a pair shares, so the pair declines the operation unless
+//! no place lies on both faces.
 //!
 //! A face reaches along any direction exactly as far as its boundary does: a
 //! plane face is flat, and a point inside a wall lies on a ruling whose two
@@ -18,7 +19,8 @@ use glam::DVec3;
 
 use super::operands::Operands;
 use crate::brep::curve::{Circle, Curve};
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::scale::Scale;
+use crate::brep::surface::{Cone, Surface};
 use crate::brep::topology::{Body, FaceId, SurfaceId};
 
 /// How many tolerances two faces must stand apart to be clear: each surface
@@ -50,7 +52,9 @@ pub(super) fn clear(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
 /// surfaces offer — a plane's normal, a cylinder's axis, the direction square
 /// to both, the directions square to a wall's axis and to a straight edge of
 /// the other face — or, for two walls, whether the stretches of their axes
-/// the walls span stand further apart than their radii.
+/// the walls span stand further apart than the walls stand from them; and,
+/// a cone among the two, whether one stands inside the hollow the other
+/// leaves about its axis.
 ///
 /// A bore drilled through a hexagonal bar, past its far side, is told apart
 /// from that side's slanted neighbours only across its own axis, in the plane
@@ -77,13 +81,16 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
                     _ => false,
                 },
             );
+    let conical = [first, second]
+        .iter()
+        .any(|surface| matches!(surface, Surface::Cone(_)));
     separated
-        || match (first, second) {
-            (Surface::Cylinder(first), Surface::Cylinder(second)) => {
-                walls_apart((&first, one), (&second, other), room)
+        || match (Wall::of(&first, one), Wall::of(&second, other)) {
+            (Some(first), Some(second)) => {
+                first.beside(&second, room)
+                    || conical && (first.within(&second, room) || second.within(&first, room))
             }
-            (Surface::Plane(_) | Surface::Cone(_), _)
-            | (_, Surface::Plane(_) | Surface::Cone(_)) => false,
+            _ => false,
         }
 }
 
@@ -97,23 +104,99 @@ fn offered(surface: &Surface) -> DVec3 {
     }
 }
 
-/// Whether two walls stand apart: the stretches of axis they span, each
-/// grown by its radius, do not meet.
-fn walls_apart(
-    (first, one): (&Cylinder, (&Body, FaceId)),
-    (second, other): (&Cylinder, (&Body, FaceId)),
-    room: f64,
-) -> bool {
-    let stretch = |cylinder: &Cylinder, face| {
-        reach(face, cylinder.axis)
-            .map(|[low, high]| [low, high].map(|height| cylinder.origin + cylinder.axis * height))
-    };
-    match (stretch(first, one), stretch(second, other)) {
-        (Some(one), Some(other)) => {
-            between_stretches(one, other) > first.radius + second.radius + room
-        }
-        _ => false,
+/// A face on a cylinder or a cone, seen about its axis: the stretch of the
+/// axis it spans, and how near and how far from the axis it stands.
+struct Wall {
+    ends: [DVec3; 2],
+    axis: DVec3,
+    inner: f64,
+    outer: f64,
+}
+
+impl Wall {
+    fn of(surface: &Surface, face: (&Body, FaceId)) -> Option<Wall> {
+        let (origin, axis, [inner, outer]) = match surface {
+            Surface::Cylinder(cylinder) => (cylinder.origin, cylinder.axis, [cylinder.radius; 2]),
+            Surface::Cone(cone) => (cone.origin, cone.axis, radii(cone, face)?),
+            Surface::Plane(_) => return None,
+        };
+        let [low, high] = reach(face, axis)?;
+        Some(Wall {
+            ends: [low, high].map(|height| origin + axis * height),
+            axis,
+            inner,
+            outer,
+        })
     }
+
+    /// Whether two walls stand apart side by side: the stretches of axis
+    /// they span, each grown by how far its wall stands from it, do not
+    /// meet.
+    fn beside(&self, other: &Wall, room: f64) -> bool {
+        between_stretches(self.ends, other.ends) > self.outer + other.outer + room
+    }
+
+    /// Whether this wall stands inside the hollow the other leaves about
+    /// its axis: a bore within a countersink's narrow end.
+    fn within(&self, other: &Wall, room: f64) -> bool {
+        let off = |point: DVec3| from_the_axis(point, other.ends[0], other.axis);
+        off(self.ends[0]).max(off(self.ends[1])) + self.outer < other.inner - room
+    }
+}
+
+/// How near and how far from its axis a face on a cone stands: as its
+/// boundary does, since the distance grows along each ruling, nought where
+/// the face holds its apex; none where an edge runs along the curve two
+/// cylinders meet along.
+fn radii(cone: &Cone, (body, face): (&Body, FaceId)) -> Option<[f64; 2]> {
+    let off = |point: DVec3| from_the_axis(point, cone.origin, cone.axis);
+    let mut inner = if body.apex_held(face).is_some() {
+        0.0
+    } else {
+        f64::INFINITY
+    };
+    let mut outer: f64 = 0.0;
+    for coedge in body.face(face).loops.iter().flatten() {
+        let edge = body.edge(coedge.edge);
+        let (near, far) = match body.curve(edge.curve) {
+            Curve::Line(line) => {
+                let start = line.point(edge.from);
+                let speed = line.direction - cone.axis * cone.axis.dot(line.direction);
+                let radial = start - cone.origin;
+                let radial = radial - cone.axis * cone.axis.dot(radial);
+                let nearest = if speed.length_squared() > 0.0 {
+                    (edge.from - radial.dot(speed) / speed.length_squared())
+                        .clamp(edge.from, edge.to)
+                } else {
+                    edge.from
+                };
+                (
+                    off(line.point(nearest)),
+                    off(start).max(off(line.point(edge.to))),
+                )
+            }
+            Curve::Circle(circle) => {
+                let centre = off(circle.center);
+                let square = circle.axis.cross(cone.axis).length() <= Scale::RELATIVE;
+                let near = if square {
+                    (circle.radius - centre).abs()
+                } else {
+                    0.0
+                };
+                (near, centre + circle.radius)
+            }
+            Curve::Meet(_) => return None,
+        };
+        inner = inner.min(near);
+        outer = outer.max(far);
+    }
+    inner.is_finite().then_some([inner, outer])
+}
+
+/// How far a point stands from the line through `origin` along `axis`.
+fn from_the_axis(point: DVec3, origin: DVec3, axis: DVec3) -> f64 {
+    let from = point - origin;
+    (from - axis * axis.dot(from)).length()
 }
 
 /// Which way each straight edge of a face runs.

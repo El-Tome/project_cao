@@ -5,7 +5,7 @@ use glam::{DVec2, DVec3};
 use super::*;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, SurfaceId};
 use crate::profile::{Contour, Frame, Run};
 
@@ -47,6 +47,107 @@ fn a_body_carried_along_a_move_keeps_its_faces_their_ranks_and_their_numbers() {
     .expect("the wall moves");
     assert_ne!(moved.surfaces, moving.surfaces);
     assert_eq!(moved.faces, moving.faces);
+}
+
+/// A shaft of radius 10 along Y, 30 long, its far end chamfered by 2.
+fn chamfered_shaft() -> Body {
+    use crate::turning::{Axis, Corner, Straight, Turn};
+    let corners = [
+        [0.0, 0.0],
+        [30.0, 0.0],
+        [30.0, 8.0],
+        [28.0, 10.0],
+        [0.0, 10.0],
+    ];
+    let straight = Straight {
+        side: -1.0,
+        contours: vec![
+            (0..corners.len())
+                .map(|run| Corner {
+                    at: DVec2::from(corners[run]),
+                    run: run as u32,
+                })
+                .collect(),
+        ],
+        runs: corners.len() as u32,
+        last_off_the_axis: Some(4),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::Y,
+        },
+        angle: TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, ground(0.0), &turn).expect("the shaft turns")
+}
+
+#[test]
+fn a_chamfered_shaft_slid_onto_a_bore_keeps_its_cone_on_its_rim() {
+    let far = block([100.0, 100.0, 100.0], [110.0, 110.0, 110.0]);
+    let shaft = chamfered_shaft();
+    let rank_of = |wanted: fn(&Surface) -> bool| {
+        shaft
+            .surfaces
+            .iter()
+            .position(wanted)
+            .expect("the shaft has the surface")
+    };
+    let wall = rank_of(|surface| matches!(surface, Surface::Cylinder(_)));
+    let chamfer = rank_of(|surface| matches!(surface, Surface::Cone(_)));
+    let hair = DVec3::new(0.5e-8, 0.0, 0.3e-8);
+    let moved = carried_along(&far, &shaft, scale(), |_, rank| {
+        (rank == wall).then_some(hair)
+    })
+    .expect("the wall moves");
+    let [Surface::Cone(before), Surface::Cone(after)] =
+        [&shaft, &moved].map(|body| body.surfaces[chamfer])
+    else {
+        unreachable!()
+    };
+    for at in [
+        DVec2::new(0.0, 0.5),
+        DVec2::new(2.0, 1.5),
+        DVec2::new(-3.0, 2.5),
+    ] {
+        let point = before.point(at) + hair;
+        assert!(after.distance(point).abs() < 1e-12, "{point} off {after:?}");
+    }
+    for face in moved.face_ids() {
+        let Surface::Cone(cone) = moved.surface(moved.face(face).surface) else {
+            continue;
+        };
+        for coedge in moved.face(face).loops.iter().flatten() {
+            let Curve::Circle(rim) = moved.curve(moved.edge(coedge.edge).curve) else {
+                panic!("a chamfer bounded by its rims alone");
+            };
+            assert!(cone.holds(rim, 1e-12), "{rim:?} off {cone:?}");
+        }
+    }
+}
+
+#[test]
+fn a_ruling_through_the_apex_only_touches_the_other_surface() {
+    let tip = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+    ));
+    let holding = Surface::Plane(Plane::through(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0)).0);
+    let square = plane_at(10.0, DVec3::Z);
+    let below = plane_at(4.0, DVec3::Z);
+    let apart = Apart::of(&[tip, holding, square, below], |_| scale());
+    let apex = DVec3::new(0.0, 0.0, 10.0);
+    let [cone, holding, square, below] = [0, 1, 2, 3].map(SurfaceId);
+    for other in [holding, square] {
+        let points = apart.points(cone, other);
+        assert_eq!(points.len(), 1, "{points:?}");
+        assert!(points[0].distance(apex) < 1e-12, "{points:?}");
+        assert!(!apart.pair(cone, other));
+    }
+    assert!(apart.points(cone, below).is_empty());
 }
 
 #[test]
@@ -236,6 +337,23 @@ fn a_surface_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest()
         plane_at(7.0 - hair / 2.0, DVec3::Z),
     ]);
     let other = with_surfaces(vec![plane_at(7.0 + hair, DVec3::Z)]);
+    let surfaces = Surfaces::of(&one, &other, scale);
+    assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
+}
+
+#[test]
+fn a_cone_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest() {
+    let scale = Scale::of(25.0);
+    let along = 0.8 * scale.eps() * 5.0_f64.sqrt();
+    let tip = |height: f64| {
+        Surface::Cone(Cone::through(
+            DVec3::Z * height,
+            DVec3::Z,
+            [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+        ))
+    };
+    let one = with_surfaces(vec![tip(0.0), tip(along), tip(-along / 2.0)]);
+    let other = with_surfaces(vec![tip(along)]);
     let surfaces = Surfaces::of(&one, &other, scale);
     assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
 }

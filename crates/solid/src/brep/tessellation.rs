@@ -6,7 +6,9 @@
 //! by construction. No point is added inside a face: on a plane none is
 //! needed, and on a cylinder every curve has a sample at every angle of the
 //! grid, so that no triangle spans more than one step of it — but beside a
-//! line where two walls touch, whose nearest steps [`contact`] withholds.
+//! line where two walls touch, whose nearest steps [`contact`] withholds. So
+//! too on a cone, whose rims share its grid, and whose apex stands for every
+//! angle: a face reaching it is a fan from it.
 
 mod contact;
 mod orientation;

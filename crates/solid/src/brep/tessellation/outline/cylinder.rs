@@ -84,7 +84,7 @@ impl Lap {
 }
 
 /// The angle from `to` to `angle`, within half a turn either way.
-fn apart(angle: f64, to: f64) -> f64 {
+pub(super) fn apart(angle: f64, to: f64) -> f64 {
     (angle - to + PI).rem_euclid(TAU) - PI
 }
 
@@ -160,7 +160,7 @@ impl Outline {
 
 /// How close to a grid angle a sample must be to stand on it, and how far a
 /// vertex must stand from the angle a face is cut at.
-const CLEAR: f64 = 1e-9;
+pub(super) const CLEAR: f64 = 1e-9;
 
 /// A face going round, cut open at an angle: its loops in pieces, each within
 /// the turn from that angle, and the walls along both edges of the turn that

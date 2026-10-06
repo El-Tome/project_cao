@@ -1,6 +1,7 @@
 //! A face's loops laid out in its surface's parameters, the region on the
 //! left of every segment: what the sweep cuts.
 
+mod cone;
 mod cylinder;
 
 use std::collections::BTreeMap;
@@ -23,7 +24,7 @@ pub(super) struct Outline {
 impl Outline {
     /// The outline of a face, turned when the face is flipped so that its
     /// region is on the left in the surface's own parameters. None when the
-    /// face cannot be laid out, as a cone's cannot yet (#536).
+    /// face cannot be laid out.
     pub(super) fn of(
         body: &Body,
         samples: &Samples,
@@ -76,7 +77,12 @@ impl Outline {
                 let steps = divisions(cylinder.radius, tolerance);
                 outline.round(cylinder, samples, &laps, steps)?;
             }
-            Surface::Cone(_) => return None,
+            Surface::Cone(cone) => {
+                let steps = samples.steps(face.surface)?;
+                let apex = face.apex.map(|vertex| vertex.0 as usize);
+                let eps = body.scale().eps();
+                outline.conical(cone, samples, &laps, steps, apex, eps)?;
+            }
         }
         Some(outline)
     }

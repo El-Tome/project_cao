@@ -823,6 +823,18 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   Inside a strip the arcs are graphs that do not cross, so each piece of face
   is a band between two of them, zipped into triangles. No triangle spans more
   than one grid step, so none leaves the cylinder by more than the tolerance.
+- **Cones.** A cone has one grid, cut for the furthest from its axis any
+  circle or vertex on it stands, and every circle lying on it is sampled on
+  that grid as well as on its own: the narrow rim and the wide one then
+  stand at the same angles, and the strip between two of them is a flat
+  trapezoid whose sag is the wide rim's chord's. A circle on no cone is
+  sampled as before, bit for bit. A face is laid out in `(θ, l)`, `l` along
+  the ruling; at the apex every angle is one point, so a loop passing
+  through it — a point turned part way — is laid along the line of the apex
+  from the angle it comes in at to the one it leaves at, and a face holding
+  its apex within it — a point turned whole — takes that line as a loop of
+  its own, once round the other way. A triangle with two corners on that
+  line is the apex twice and is dropped: what is left is a fan from the tip.
 - **Contact.** Chords sag towards their own cylinder's axis, so against a plane
   or a convex neighbour they retreat. Where two curved faces face each other on
   their hollow side closer than a chord's sag — an internal tangency, a near

@@ -39,7 +39,7 @@ impl Ends {
                     && plane.distance(circle.center).abs() <= own
             }
             Surface::Cylinder(cylinder) => contact::lies_on(circle, cylinder, own),
-            Surface::Cone(_) => false,
+            Surface::Cone(cone) => cone.holds(circle, own),
         };
         let surfaces = |vertex: VertexId| {
             body.vertex(vertex)

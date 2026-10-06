@@ -224,10 +224,14 @@ fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
     one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
 }
 
-/// The box round a face, from the extremes of its edges, grown by `eps`.
+/// The box round a face, from the extremes of its edges and the apex it
+/// holds within it, grown by `eps`.
 fn boxed(body: &Body, face: FaceId, eps: f64) -> [DVec3; 2] {
     let mut low = DVec3::INFINITY;
     let mut high = DVec3::NEG_INFINITY;
+    if let Some(apex) = body.apex_held(face) {
+        (low, high) = (apex, apex);
+    }
     for coedge in body.face(face).loops.iter().flatten() {
         for point in body.extremes(body.edge(coedge.edge)) {
             low = low.min(point);

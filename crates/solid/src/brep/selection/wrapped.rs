@@ -131,11 +131,13 @@ pub(super) fn lies_above(
     match relation(first, second, scale) {
         Relation::Lines(lines) => across_the_lobe(first, second, &lines, place),
         Relation::Tangent(_) => touching_above(first, second),
+        Relation::Rulings { .. } => None,
         Relation::Apart
         | Relation::Same { .. }
         | Relation::Line(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
+        | Relation::Apex(_)
         | Relation::Unsupported => {
             let rounding = operands.eps() * ROUNDING;
             match (first, second) {
@@ -151,7 +153,9 @@ pub(super) fn lies_above(
                     let gap = -second.distance(place) / facing;
                     (gap.abs() > rounding).then_some(gap > 0.0)
                 }
-                (Surface::Cylinder(_), Surface::Plane(_)) => None,
+                (Surface::Cylinder(_), Surface::Plane(_))
+                | (Surface::Cone(_), _)
+                | (_, Surface::Cone(_)) => None,
             }
         }
     }
@@ -172,7 +176,9 @@ fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
             let inside = (across - (first.radius - second.radius).abs()).abs();
             Some(outside <= inside || second.radius > first.radius)
         }
-        (Surface::Plane(_), Surface::Plane(_)) => None,
+        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            None
+        }
     }
 }
 
@@ -193,7 +199,9 @@ fn across_the_lobe(
 ) -> Option<bool> {
     let wall = match (first, second) {
         (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
-        (Surface::Plane(_), Surface::Plane(_)) => return None,
+        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
+            return None;
+        }
     };
     let at = wall.parameters(place);
     let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
@@ -214,7 +222,9 @@ fn across_the_lobe(
         (Surface::Cylinder(wall), Surface::Plane(plane)) => {
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
-        (Surface::Plane(_), Surface::Plane(_)) => None,
+        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            None
+        }
     }
 }
 

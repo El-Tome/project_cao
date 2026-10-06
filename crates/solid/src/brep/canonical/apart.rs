@@ -20,8 +20,9 @@
 //! within the tolerance of each other far from either, and the pair is
 //! decided to graze once, here. And the points
 //! where two perpendicular cylinders touch — the node of the curve they meet
-//! along, or the one point they share — where a line on one passing through
-//! the point only touches the other.
+//! along, or the one point they share — and a cone's apex where a plane
+//! holding its axis or a surface touching it there meets it, where a line on
+//! one passing through the point only touches the other.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -78,9 +79,16 @@ impl Apart {
                             points.insert(pair, at);
                         }
                     }
+                    Relation::Rulings {
+                        apex: Some(apex), ..
+                    }
+                    | Relation::Apex(apex) => {
+                        points.insert(pair, vec![apex]);
+                    }
                     Relation::Line(_)
                     | Relation::Lines(_)
                     | Relation::Circle(_)
+                    | Relation::Rulings { apex: None, .. }
                     | Relation::Unsupported => {}
                 }
             }
@@ -109,7 +117,8 @@ impl Apart {
         self.grazing.contains(&[one.min(other), one.max(other)])
     }
 
-    /// The points where two perpendicular cylinders were decided to touch.
+    /// The points where two perpendicular cylinders, or a cone at its apex
+    /// and another surface, were decided to touch.
     pub fn points(&self, one: SurfaceId, other: SurfaceId) -> &[DVec3] {
         self.points
             .get(&[one.min(other), one.max(other)])
@@ -141,7 +150,9 @@ const GRAZING: f64 = 1e-2;
 fn grazes(one: &Surface, other: &Surface, on: DVec3, eps: f64) -> bool {
     let (one, other) = match (one, other) {
         (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-        (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return false,
+        (Surface::Plane(_) | Surface::Cone(_), _) | (_, Surface::Plane(_) | Surface::Cone(_)) => {
+            return false;
+        }
     };
     if (one.radius - other.radius).abs() > eps {
         return false;

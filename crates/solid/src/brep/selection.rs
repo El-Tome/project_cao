@@ -332,6 +332,7 @@ fn face(
         flipped,
         loops,
         numbers,
+        apex: None,
     }
 }
 

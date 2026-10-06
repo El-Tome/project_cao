@@ -19,6 +19,7 @@ pub(super) fn hits(surface: &Surface, origin: DVec3, direction: DVec3, eps: f64)
     match surface {
         Surface::Plane(plane) => on_plane(plane, origin, direction, eps),
         Surface::Cylinder(cylinder) => on_cylinder(cylinder, origin, direction, eps),
+        Surface::Cone(_) => Hits::Along,
     }
 }
 

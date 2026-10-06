@@ -71,7 +71,7 @@ fn between(
 ) -> bool {
     let plane = match surface {
         Surface::Plane(plane) => plane,
-        Surface::Cylinder(_) => return false,
+        Surface::Cylinder(_) | Surface::Cone(_) => return false,
     };
     let rounding = scale.eps() * ROUNDING;
     let sides: Vec<f64> = alike
@@ -81,7 +81,7 @@ fn between(
                 let facing = known.normal.dot(plane.normal).signum();
                 Some(facing * known.offset() - plane.offset())
             }
-            Surface::Cylinder(_) => None,
+            Surface::Cylinder(_) | Surface::Cone(_) => None,
         })
         .collect();
     sides.iter().any(|side| *side > rounding) && sides.iter().any(|side| *side < -rounding)
@@ -103,8 +103,8 @@ fn gap(one: &Surface, other: &Surface) -> f64 {
             let across = between - one.axis * one.axis.dot(between);
             across.length() + (one.radius - other.radius).abs()
         }
-        (Surface::Plane(_), Surface::Cylinder(_)) | (Surface::Cylinder(_), Surface::Plane(_)) => {
-            f64::INFINITY
-        }
+        (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_))
+        | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_))
+        | (Surface::Cone(_), _) => f64::INFINITY,
     }
 }

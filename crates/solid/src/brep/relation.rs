@@ -2,6 +2,7 @@
 //! and the only place a tangency is decided. What is decided is built exactly
 //! from a formula — a tangent line is never a double root.
 
+mod conical;
 mod crossing;
 mod cylinders;
 mod planar;
@@ -34,6 +35,14 @@ pub enum Relation {
     Circle(Circle),
     /// Two perpendicular cylinders.
     Meet(Meeting),
+    /// A plane holding a cone's axis: the two rulings it cuts, and the apex
+    /// they cross at where it stands within the box.
+    Rulings {
+        lines: [Line; 2],
+        apex: Option<DVec3>,
+    },
+    /// Two surfaces touching at a cone's apex alone.
+    Apex(DVec3),
     /// A plane oblique to a cylinder's axis, two cylinders at a skew angle.
     Unsupported,
 }
@@ -47,6 +56,9 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Cylinder(one), Surface::Cylinder(other)) => {
             cylinders::cylinders(one, other, scale)
+        }
+        (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
+            conical::relation(cone, other, scale)
         }
     }
 }
@@ -67,7 +79,9 @@ impl Relation {
     pub fn curves(&self) -> Vec<Curve> {
         match self {
             Relation::Line(line) | Relation::Tangent(line) => vec![Curve::Line(*line)],
-            Relation::Lines(lines) => lines.map(Curve::Line).to_vec(),
+            Relation::Lines(lines) | Relation::Rulings { lines, .. } => {
+                lines.map(Curve::Line).to_vec()
+            }
             Relation::Circle(circle) => vec![Curve::Circle(*circle)],
             Relation::Meet(meeting) => meeting
                 .components
@@ -75,12 +89,15 @@ impl Relation {
                 .copied()
                 .map(Curve::Meet)
                 .collect(),
-            Relation::Apart | Relation::Same { .. } | Relation::Unsupported => Vec::new(),
+            Relation::Apart | Relation::Same { .. } | Relation::Apex(_) | Relation::Unsupported => {
+                Vec::new()
+            }
         }
     }
 
     /// The points that must be vertices: where a curve crosses itself, where
-    /// two cylinders touch at a point.
+    /// two cylinders touch at a point, a cone's apex where the pair meets
+    /// there.
     pub fn points(&self) -> Vec<DVec3> {
         match self {
             Relation::Meet(meeting) => meeting
@@ -89,7 +106,15 @@ impl Relation {
                 .map(|node| node.point)
                 .chain(meeting.contact)
                 .collect(),
-            _ => Vec::new(),
+            Relation::Rulings { apex, .. } => apex.iter().copied().collect(),
+            Relation::Apex(apex) => vec![*apex],
+            Relation::Apart
+            | Relation::Same { .. }
+            | Relation::Line(_)
+            | Relation::Lines(_)
+            | Relation::Tangent(_)
+            | Relation::Circle(_)
+            | Relation::Unsupported => Vec::new(),
         }
     }
 }

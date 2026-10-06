@@ -1,6 +1,7 @@
 //! A profile laid square to its axis, turned about it into a body (#533): a
 //! cylinder for each run parallel to the axis, a plane for each run square to
-//! it, and the two planes holding the axis a partial turn ends on.
+//! it, a cone for each run slanted to it (#536), and the two planes holding
+//! the axis a partial turn ends on.
 //!
 //! The faces are laid by hand, as a raise lays its walls, then tidied and
 //! checked as a boolean's result is: what the kernel cannot verify it does not
@@ -17,7 +18,7 @@ use super::assembly::tidied;
 use super::curve::Circle;
 use super::piece;
 use super::scale::Scale;
-use super::surface::Cylinder;
+use super::surface::{Cone, Cylinder};
 use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame};
 use crate::turning::{Straight, Turn};
@@ -75,6 +76,11 @@ impl Placed {
         Cylinder::about(self.origin, self.axis, corner.y)
     }
 
+    /// The cone a run slanted to the axis turns into.
+    fn cone(&self, from: DVec2, to: DVec2) -> Cone {
+        Cone::through(self.origin, self.axis, [from, to])
+    }
+
     /// The outward direction of the plane the turn ends on.
     fn closing_outward(&self) -> DVec3 {
         self.across * self.cos - self.toward * self.sin
@@ -86,10 +92,16 @@ impl Body {
     /// standing in `frame`.
     ///
     /// A run parallel to the axis turns into a cylinder, a run square to it
-    /// into a plane, and a run on the axis into nothing. Each face answers to
-    /// the numbers of the runs it was turned from, the outline's runs first
+    /// into a plane, a run slanted to it into a cone, and a run on the axis
+    /// into nothing. A corner on the axis between two runs leaving it would
+    /// pinch the body there, and is declined as a profile. Each face answers
+    /// to the numbers of the runs it was turned from, the outline's runs first
     /// and then each hole's; a partial turn ends on the sketch's own plane,
     /// numbered `runs`, and on the plane it turns to, numbered `runs + 1`.
+    ///
+    /// A point turned whole has one vertex, at its tip, which its cone holds
+    /// within it and no edge reaches; the scale is read again once it is
+    /// there.
     pub fn turned(straight: &Straight, frame: Frame, turn: &Turn) -> Result<Body, Declined> {
         let (placed, backwards) = placed(straight, frame, turn)?;
         let contours: Vec<Vec<DVec2>> = straight
@@ -129,14 +141,33 @@ impl Body {
             }
             read.push(piece::turned(pieces, rank == 0));
         }
-        if read.is_empty() || !piece::apart(&read, eps) {
+        if read.is_empty()
+            || !piece::apart(&read, eps)
+            || read.iter().any(|contour| pinched(contour))
+        {
             return Err(Declined::Profile);
         }
         let (mut body, faces) = faces::laid(&placed, &read, straight.runs, eps)?;
         body.scale = Scale::of(body.reach());
         body.arrivals = vec![body.scale; body.surfaces.len()];
-        tidied(body, faces)
+        let mut body = tidied(body, faces)?;
+        body.scale = body.scale.joined(Scale::of(body.reach()));
+        body.arrivals = vec![body.scale; body.surfaces.len()];
+        Ok(body)
     }
+}
+
+/// Whether a contour has a corner on the axis between two pieces that both
+/// leave it, where the body turned from it would touch itself at a point.
+fn pinched(contour: &[piece::Named]) -> bool {
+    let count = contour.len();
+    (0..count).any(|index| {
+        let (before, after) = (
+            &contour[(index + count - 1) % count].piece,
+            &contour[index].piece,
+        );
+        after.from().y == 0.0 && before.from().y > 0.0 && after.to().y > 0.0
+    })
 }
 
 /// The turn placed in the world, the angle unsquared, and whether it turns

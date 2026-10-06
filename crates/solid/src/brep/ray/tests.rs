@@ -228,3 +228,47 @@ fn the_crossings_along_a_line_are_those_every_face_gives_on_the_sixteen_cases_an
     }
     assert!(crossed > 10_000, "{crossed} lines crossed a body");
 }
+
+/// A point of radius 5 on the plane `y = 0`, its apex at `(0, 10, 0)`,
+/// turned whole about Y: a face no edge reaches the tip of.
+fn whole_point() -> Body {
+    use crate::turning::{Axis, Corner, Straight, Turn};
+    let corners = [[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]];
+    let straight = Straight {
+        side: -1.0,
+        contours: vec![
+            (0..3)
+                .map(|run| Corner {
+                    at: DVec2::from(corners[run]),
+                    run: run as u32,
+                })
+                .collect(),
+        ],
+        runs: 3,
+        last_off_the_axis: Some(2),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::Y,
+        },
+        angle: std::f64::consts::TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, ground(0.0), &turn).expect("the point turns")
+}
+
+#[test]
+fn a_whole_point_s_face_box_holds_its_apex() {
+    let body = whole_point();
+    let boxes = Boxes::of(&body, body.scale().eps());
+    let cone = body
+        .face_ids()
+        .find(|&face| body.apex_held(face).is_some())
+        .expect("the cone's face holds its apex");
+    for place in [DVec3::new(0.0, 9.9, 0.0), DVec3::new(0.0, 5.0, 2.0)] {
+        assert!(!boxes.misses(cone, place), "{place}");
+    }
+    assert!(boxes.misses(cone, DVec3::new(0.0, 10.5, 0.0)));
+}

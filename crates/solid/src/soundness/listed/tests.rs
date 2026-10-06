@@ -89,6 +89,7 @@ fn block(low: DVec3, high: DVec3) -> Listing {
                         .map(|index| edge_between(around[index], around[(index + 1) % 4]))
                         .collect(),
                 ],
+                apex: None,
             });
         }
     }
@@ -117,16 +118,19 @@ fn round(center: DVec3, radius: f64, height: f64) -> Listing {
                 surface: Surface::Plane(disc(height)),
                 outward: true,
                 loops: vec![vec![(1, true)]],
+                apex: None,
             },
             ListedFace {
                 surface: Surface::Plane(disc(0.0)),
                 outward: false,
                 loops: vec![vec![(0, false)]],
+                apex: None,
             },
             ListedFace {
                 surface: Surface::Cylinder(cylinder),
                 outward: true,
                 loops: vec![vec![(0, true)], vec![(1, false)]],
+                apex: None,
             },
         ],
         edges: vec![rim(0.0), rim(height)],
@@ -154,6 +158,7 @@ fn bored(low: DVec3, high: DVec3, center: DVec3, radius: f64) -> Listing {
         surface: Surface::Cylinder(cylinder),
         outward: false,
         loops: vec![vec![(top, true)], vec![(bottom, false)]],
+        apex: None,
     });
     with_sides(listing)
 }
@@ -278,6 +283,7 @@ fn a_face_bounded_by_no_loop_is_found() {
         surface: listing.faces[0].surface,
         outward: true,
         loops: Vec::new(),
+        apex: None,
     });
     assert_eq!(
         listed(&listing, REACH),
@@ -558,6 +564,7 @@ fn half_round() -> Listing {
         surface,
         outward,
         loops: vec![uses],
+        apex: None,
     };
     with_sides(Listing {
         faces: vec![
@@ -787,6 +794,7 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
             surface: Surface::Cylinder(wall),
             outward: true,
             loops: vec![vec![(0, true), (1, true), (2, true), (3, true)]],
+            apex: None,
         }],
         edges,
         vertices,
@@ -795,5 +803,48 @@ fn a_wall_bounded_over_a_hair_by_the_rim_of_a_wall_touching_it_outside_turns_its
     assert_eq!(
         turning::turning(&turned_round(listing), ON * REACH),
         Err(Mislisted::Backwards { face: 0, lap: 0 })
+    );
+}
+
+/// A round stock whose top disc is said to hold a vertex within it, where
+/// `point` stands.
+fn stock_holding(point: DVec3) -> Listing {
+    let mut listing = stock();
+    listing.vertices.push(point);
+    listing.faces[0].apex = Some(0);
+    listing
+}
+
+#[test]
+fn a_vertex_a_face_holds_within_it_on_its_surface_keeps_every_rule_of_a_listing() {
+    assert_eq!(
+        listed(&stock_holding(DVec3::new(3.0, -2.0, 10.0)), REACH),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_vertex_a_face_holds_within_it_off_its_surface_is_found_off_the_face() {
+    let found = listed(&stock_holding(DVec3::new(3.0, -2.0, 10.001)), REACH);
+    assert!(
+        matches!(
+            found,
+            Err(Mislisted::VertexOffFace {
+                vertex: 0,
+                face: 0,
+                ..
+            })
+        ),
+        "{found:?}"
+    );
+}
+
+#[test]
+fn a_face_holding_a_vertex_the_listing_does_not_hold_is_found() {
+    let mut listing = stock();
+    listing.faces[2].apex = Some(4);
+    assert_eq!(
+        listed(&listing, REACH),
+        Err(Mislisted::NoSuchApex { face: 2, vertex: 4 })
     );
 }

@@ -109,10 +109,12 @@ impl Body {
     }
 
     /// The radius a face's parameters unroll at: its cylinder's, and none on
-    /// a plane, whose parameters are lengths already.
+    /// a plane, whose parameters are lengths already. A cone's is not
+    /// written yet (#536): no number, which no distance passes for.
     fn unrolled_at(&self, face: FaceId) -> Option<f64> {
         match self.surface(self.face(face).surface) {
             Surface::Cylinder(cylinder) => Some(cylinder.radius),
+            Surface::Cone(_) => Some(f64::NAN),
             Surface::Plane(_) => None,
         }
     }

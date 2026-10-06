@@ -23,6 +23,8 @@ pub enum Mislisted {
     NoSuchEdge { face: usize, edge: usize },
     /// An edge naming a vertex the listing does not hold.
     NoSuchVertex { edge: usize, vertex: usize },
+    /// A face holding within it a vertex the listing does not hold.
+    NoSuchApex { face: usize, vertex: usize },
     /// An edge naming, beside it, a face the listing does not hold.
     NoSuchFace { edge: usize, face: usize },
     /// An edge whose sides are not the faces whose loops use it.
@@ -44,7 +46,8 @@ pub enum Mislisted {
     Unclosed { face: usize, lap: usize, at: usize },
     /// An edge with no vertex that is not a whole closed curve.
     Endless { edge: usize },
-    /// A vertex standing off the surface of a face around it.
+    /// A vertex standing off the surface of a face around it, or of the face
+    /// holding it within it.
     VertexOffFace {
         vertex: usize,
         face: usize,
@@ -114,6 +117,12 @@ fn ranked(listing: &Listing) -> Result<(), Mislisted> {
             .find(|(edge, _)| *edge >= listing.edges.len())
         {
             return Err(Mislisted::NoSuchEdge { face, edge });
+        }
+        if let Some(vertex) = listed
+            .apex
+            .filter(|vertex| *vertex >= listing.vertices.len())
+        {
+            return Err(Mislisted::NoSuchApex { face, vertex });
         }
     }
     for (edge, listed) in listing.edges.iter().enumerate() {

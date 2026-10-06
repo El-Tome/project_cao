@@ -1,9 +1,13 @@
-//! The two surfaces the kernel knows, in a canonical form: the same surface
+//! The surfaces the kernel knows, in a canonical form: the same surface
 //! reached by two roads comes out with the same numbers, and parallel
-//! cylinders start their angles from the same direction.
+//! cylinders and cones start their angles from the same direction.
+
+mod cone;
 
 use glam::{DVec2, DVec3};
 use serde::{Deserialize, Serialize};
+
+pub use cone::Cone;
 
 /// The plane of points `x` with `normal · x = offset`, read in `(s, t)` along
 /// `u` and `v` from `origin`, its point nearest the world's origin.
@@ -31,6 +35,7 @@ pub struct Cylinder {
 pub enum Surface {
     Plane(Plane),
     Cylinder(Cylinder),
+    Cone(Cone),
 }
 
 /// A direction of unit length with its sign fixed: its largest component, the
@@ -150,6 +155,7 @@ impl Surface {
         match self {
             Surface::Plane(plane) => plane.point(at),
             Surface::Cylinder(cylinder) => cylinder.point(at),
+            Surface::Cone(cone) => cone.point(at),
         }
     }
 
@@ -157,15 +163,18 @@ impl Surface {
         match self {
             Surface::Plane(plane) => plane.parameters(point),
             Surface::Cylinder(cylinder) => cylinder.parameters(point),
+            Surface::Cone(cone) => cone.parameters(point),
         }
     }
 
     /// The surface's own normal at `at`: a plane's normal, a cylinder's radial
-    /// direction. A face turns it round when its matter lies the other way.
+    /// direction, a cone's normal along its ruling. A face turns it round
+    /// when its matter lies the other way.
     pub fn normal(&self, at: DVec2) -> DVec3 {
         match self {
             Surface::Plane(plane) => plane.normal,
             Surface::Cylinder(cylinder) => cylinder.radial(at.x),
+            Surface::Cone(cone) => cone.normal(at.x),
         }
     }
 
@@ -174,6 +183,7 @@ impl Surface {
         match self {
             Surface::Plane(plane) => plane.distance(point),
             Surface::Cylinder(cylinder) => cylinder.distance(point),
+            Surface::Cone(cone) => cone.distance(point),
         }
     }
 
@@ -181,7 +191,7 @@ impl Surface {
     pub fn period(&self) -> Option<f64> {
         match self {
             Surface::Plane(_) => None,
-            Surface::Cylinder(_) => Some(std::f64::consts::TAU),
+            Surface::Cylinder(_) | Surface::Cone(_) => Some(std::f64::consts::TAU),
         }
     }
 }

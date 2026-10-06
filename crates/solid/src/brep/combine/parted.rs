@@ -32,7 +32,7 @@ impl Operands<'_> {
         for (rank, wall) in list.iter().enumerate() {
             let wall = match wall {
                 Surface::Cylinder(wall) => wall,
-                Surface::Plane(_) => continue,
+                Surface::Plane(_) | Surface::Cone(_) => continue,
             };
             let wall_id = SurfaceId(rank as u32);
             let planes: Vec<(SurfaceId, Plane)> = list
@@ -42,7 +42,7 @@ impl Operands<'_> {
                     Surface::Plane(plane) if off(wall, plane, self.scale) <= eps => {
                         Some((SurfaceId(other as u32), *plane))
                     }
-                    Surface::Plane(_) | Surface::Cylinder(_) => None,
+                    Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
                 })
                 .collect();
             for (index, &(one, first)) in planes.iter().enumerate() {

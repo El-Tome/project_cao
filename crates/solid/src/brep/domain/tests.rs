@@ -663,6 +663,7 @@ fn band_cut_open(seam: f64) -> Body {
                 used(2, false),
             ]],
             numbers: Vec::new(),
+            apex: None,
         }],
         scale: Scale::of(10.0),
         arrivals: Vec::new(),
@@ -757,7 +758,7 @@ fn a_raised_face_lies_on_the_left_of_each_of_its_loops_seen_from_outside() {
 fn clearance(body: &Body, face: FaceId, at: DVec2) -> f64 {
     let radius = match body.surface(body.face(face).surface) {
         Surface::Cylinder(cylinder) => Some(cylinder.radius),
-        Surface::Plane(_) => None,
+        Surface::Plane(_) | Surface::Cone(_) => None,
     };
     body.traces(face)
         .expect("a raised face is traced")

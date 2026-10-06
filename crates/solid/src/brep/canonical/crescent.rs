@@ -38,7 +38,7 @@ pub(in crate::brep) fn closed(first: &Body, second: &Body, scale: Scale) -> Opti
     carried_along(first, second, scale, |current, rank| {
         let cylinder = match current.surfaces[rank] {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) => return None,
+            Surface::Plane(_) | Surface::Cone(_) => return None,
         };
         offset(first, &cylinder, scale)
     })
@@ -54,7 +54,7 @@ fn offset(first: &Body, cylinder: &Cylinder, scale: Scale) -> Option<DVec3> {
     for known in &first.surfaces {
         let known = match known {
             Surface::Cylinder(known) => known,
-            Surface::Plane(_) => continue,
+            Surface::Plane(_) | Surface::Cone(_) => continue,
         };
         if known.axis.cross(cylinder.axis).length() * 2.0 * scale.reach() > eps
             || (known.radius - cylinder.radius).abs() > eps

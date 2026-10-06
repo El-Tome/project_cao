@@ -193,6 +193,7 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         }
         (Surface::Cylinder(cylinder), Curve::Meet(meet)) => meet.own(cylinder, eps).is_some(),
         (Surface::Plane(_), Curve::Meet(_)) => false,
+        (Surface::Cone(_), _) => false,
     }
 }
 

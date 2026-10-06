@@ -47,7 +47,7 @@ fn cylinders(body: &Body) -> Vec<Cylinder> {
         .iter()
         .filter_map(|surface| match surface {
             Surface::Cylinder(cylinder) => Some(*cylinder),
-            Surface::Plane(_) => None,
+            Surface::Plane(_) | Surface::Cone(_) => None,
         })
         .collect()
 }

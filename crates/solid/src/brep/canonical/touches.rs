@@ -103,7 +103,8 @@ impl Surfaces {
             Relation::Meet(_) => {
                 let (first, second) = match (first, second) {
                     (Surface::Cylinder(first), Surface::Cylinder(second)) => (first, second),
-                    (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return None,
+                    (Surface::Plane(_) | Surface::Cone(_), _)
+                    | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
                 };
                 let (rank, cylinder) = moved(first, second, scale)?;
                 let (rank, cylinder) = if own([one, other][rank]) {
@@ -124,6 +125,8 @@ impl Surfaces {
             | Relation::Lines(_)
             | Relation::Tangent(_)
             | Relation::Circle(_)
+            | Relation::Rulings { .. }
+            | Relation::Apex(_)
             | Relation::Unsupported => None,
         }
     }
@@ -139,7 +142,7 @@ impl Surfaces {
     ) -> Option<([usize; 2], Cylinder)> {
         let cylinder = match self.list[rank] {
             Surface::Cylinder(cylinder) => cylinder,
-            Surface::Plane(_) => return None,
+            Surface::Plane(_) | Surface::Cone(_) => return None,
         };
         let planes: Vec<(usize, Plane, bool)> = (0..self.list.len())
             .filter(|&other| other != rank && near(rank, other))
@@ -156,7 +159,7 @@ impl Surfaces {
                     );
                     Some((other, plane, touches))
                 }
-                Surface::Plane(_) | Surface::Cylinder(_) => None,
+                Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => None,
             })
             .collect();
         for (index, &(one, plane, touches)) in planes.iter().enumerate() {
@@ -227,7 +230,9 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
         (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) => {
             (before, after, partner)
         }
-        (Surface::Plane(_), _, _) | (_, Surface::Plane(_), _) | (_, _, Surface::Plane(_)) => {
+        (Surface::Plane(_) | Surface::Cone(_), _, _)
+        | (_, Surface::Plane(_) | Surface::Cone(_), _)
+        | (_, _, Surface::Plane(_) | Surface::Cone(_)) => {
             return Vec::new();
         }
     };
@@ -247,27 +252,29 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
 }
 
 /// How far two surfaces decided to touch stand from touching exactly; none
-/// where their pair is no touch.
+/// where their pair is no touch. A cone touches nothing along a line.
 fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
     match relation(one, other, scale) {
-        Relation::Tangent(_) => Some(match (one, other) {
+        Relation::Tangent(_) => match (one, other) {
             (Surface::Plane(plane), Surface::Cylinder(cylinder))
             | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
-                (plane.distance(cylinder.origin).abs() - cylinder.radius).abs()
+                Some((plane.distance(cylinder.origin).abs() - cylinder.radius).abs())
             }
             (Surface::Cylinder(one), Surface::Cylinder(other)) => {
                 let between = other.origin - one.origin;
                 let across = (between - one.axis * one.axis.dot(between)).length();
                 let outside = across - (one.radius + other.radius);
                 let inside = (one.radius - other.radius).abs() - across;
-                outside.abs().min(inside.abs())
+                Some(outside.abs().min(inside.abs()))
             }
-            (Surface::Plane(_), Surface::Plane(_)) => 0.0,
-        }),
+            (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
+            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => None,
+        },
         Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
             let (one, other) = match (one, other) {
                 (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_), _) | (_, Surface::Plane(_)) => return None,
+                (Surface::Plane(_) | Surface::Cone(_), _)
+                | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
             };
             Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
                 let from = [one, other][rank];
@@ -280,6 +287,8 @@ fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
         | Relation::Lines(_)
         | Relation::Circle(_)
         | Relation::Meet(_)
+        | Relation::Rulings { .. }
+        | Relation::Apex(_)
         | Relation::Unsupported => None,
     }
 }
@@ -346,7 +355,9 @@ fn touching(fixed: &Surface, moving: &Surface) -> Option<Surface> {
                 cylinder.radius,
             ))
         }
-        (Surface::Plane(_), Surface::Plane(_)) => return None,
+        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            return None;
+        }
     };
     (moved != *moving).then_some(moved)
 }

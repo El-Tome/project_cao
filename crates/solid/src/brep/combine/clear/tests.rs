@@ -51,7 +51,7 @@ fn flat(body: &Body, normal: DVec3) -> FaceId {
     body.face_ids()
         .find(|&face| match body.surface(body.face(face).surface) {
             Surface::Plane(plane) => plane.normal.cross(normal.normalize()).length() < TOLERANCE,
-            Surface::Cylinder(_) => false,
+            Surface::Cylinder(_) | Surface::Cone(_) => false,
         })
         .expect("a flat face")
 }

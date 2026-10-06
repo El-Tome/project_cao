@@ -25,7 +25,7 @@ pub(in crate::brep) fn flush(first: &Body, second: &Body, scale: Scale) -> Optio
     carried_along(first, second, scale, |current, rank| {
         let plane = match current.surfaces[rank] {
             Surface::Plane(plane) => plane,
-            Surface::Cylinder(_) => return None,
+            Surface::Cylinder(_) | Surface::Cone(_) => return None,
         };
         offset(first, current, &plane, scale)
     })
@@ -47,7 +47,7 @@ fn offset(first: &Body, second: &Body, plane: &Plane, scale: Scale) -> Option<DV
         }
         let known = match known {
             Surface::Plane(known) => known,
-            Surface::Cylinder(_) => continue,
+            Surface::Cylinder(_) | Surface::Cone(_) => continue,
         };
         if known.normal.cross(plane.normal).length() * 2.0 * scale.reach() > eps {
             continue;
@@ -73,7 +73,7 @@ fn offset(first: &Body, second: &Body, plane: &Plane, scale: Scale) -> Option<DV
 fn touches_one(wall: &Surface, plane: &Plane, gap: f64, eps: f64) -> bool {
     let cylinder = match wall {
         Surface::Cylinder(cylinder) => cylinder,
-        Surface::Plane(_) => return false,
+        Surface::Plane(_) | Surface::Cone(_) => return false,
     };
     if cylinder.axis.dot(plane.normal).abs() > eps {
         return false;

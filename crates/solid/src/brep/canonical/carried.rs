@@ -105,18 +105,21 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
 }
 
 /// Whether a move leaves a surface where it is: along a plane, or along a
-/// cylinder's axis.
+/// cylinder's axis; a cone, which a move along its axis takes its apex
+/// with, only under no move at all.
 fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
+        Surface::Cone(_) => by.length(),
     };
     off <= ROUNDING * scale.eps()
 }
 
 /// The body with the surfaces `carried`, the corners on them and the curves
 /// of the edges beside them moved by `by`; none where a curve to move is one
-/// two perpendicular cylinders meet along.
+/// two perpendicular cylinders meet along, or a surface to move is a cone,
+/// which is not carried yet (#536).
 fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body> {
     let mut moved = body.clone();
     for &rank in carried {
@@ -129,6 +132,7 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
                 cylinder.axis,
                 cylinder.radius,
             )),
+            Surface::Cone(_) => return None,
         };
     }
     let mut corners = BTreeSet::new();

@@ -1,6 +1,7 @@
-//! What lies on what: every vertex on the surfaces of the faces around it,
-//! every edge's ends on its vertices, every edge on the surfaces of the faces
-//! beside it — each surface and curve evaluated by its own formula here.
+//! What lies on what: every vertex on the surfaces of the faces around it and
+//! of the face holding it within it, every edge's ends on its vertices, every
+//! edge on the surfaces of the faces beside it — each surface and curve
+//! evaluated by its own formula here.
 
 use std::collections::BTreeSet;
 
@@ -22,6 +23,11 @@ pub(super) fn lying(
     for (edge, listed) in listing.edges.iter().enumerate() {
         for vertex in listed.ends.iter().flatten() {
             around[*vertex].extend(uses[edge].iter().map(|(face, _)| *face));
+        }
+    }
+    for (face, listed) in listing.faces.iter().enumerate() {
+        if let Some(vertex) = listed.apex {
+            around[vertex].insert(face);
         }
     }
     for (vertex, faces) in around.iter().enumerate() {
@@ -81,7 +87,8 @@ fn within(distance: f64, room: f64) -> bool {
     distance <= room
 }
 
-/// How far a place stands from a surface, either side.
+/// How far a place stands from a surface, either side; from a cone, not
+/// written yet (#536): beyond any room.
 fn off(surface: &Surface, place: DVec3) -> f64 {
     match surface {
         Surface::Plane(plane) => (place - plane.origin).dot(plane.normal.normalize()).abs(),
@@ -90,6 +97,7 @@ fn off(surface: &Surface, place: DVec3) -> f64 {
             let from = place - cylinder.origin;
             ((from - axis * from.dot(axis)).length() - cylinder.radius).abs()
         }
+        Surface::Cone(_) => f64::INFINITY,
     }
 }
 

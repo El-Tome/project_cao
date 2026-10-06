@@ -30,7 +30,7 @@ pub(super) fn meet_and_surface(meet: &Meet, surface: &Surface, scale: Scale) -> 
         Surface::Cylinder(cylinder) => [meet.first, meet.second]
             .iter()
             .any(|own| matches!(cylinders(own, cylinder, scale), Relation::Same { .. })),
-        Surface::Plane(_) => false,
+        Surface::Plane(_) | Surface::Cone(_) => false,
     };
     if along {
         return Solved::Along;
@@ -91,6 +91,7 @@ fn gradient(surface: &Surface, point: DVec3) -> DVec3 {
             let from = point - cylinder.origin;
             (from - cylinder.axis * cylinder.axis.dot(from)).normalize_or_zero()
         }
+        Surface::Cone(cone) => cone.normal(cone.parameters(point).x),
     }
 }
 

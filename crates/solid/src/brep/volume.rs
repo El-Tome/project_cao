@@ -112,6 +112,7 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface) -> f64 {
                 let density = match surface {
                     Surface::Plane(plane) => planar(plane, point, speed),
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
+                    Surface::Cone(_) => f64::NAN,
                 };
                 total += weight * density * width / 2.0;
             }

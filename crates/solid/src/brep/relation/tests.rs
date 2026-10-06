@@ -162,6 +162,8 @@ fn class(relation: &Relation) -> &'static str {
         Relation::Tangent(_) => "tangent",
         Relation::Circle(_) => "circle",
         Relation::Meet(_) => "meet",
+        Relation::Rulings { .. } => "rulings",
+        Relation::Apex(_) => "apex",
         Relation::Unsupported => "unsupported",
     }
 }

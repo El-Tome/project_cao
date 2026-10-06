@@ -23,7 +23,7 @@ pub(super) struct Outline {
 impl Outline {
     /// The outline of a face, turned when the face is flipped so that its
     /// region is on the left in the surface's own parameters. None when the
-    /// face cannot be laid out.
+    /// face cannot be laid out, as a cone's cannot yet (#536).
     pub(super) fn of(
         body: &Body,
         samples: &Samples,
@@ -76,6 +76,7 @@ impl Outline {
                 let steps = divisions(cylinder.radius, tolerance);
                 outline.round(cylinder, samples, &laps, steps)?;
             }
+            Surface::Cone(_) => return None,
         }
         Some(outline)
     }

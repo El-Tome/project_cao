@@ -670,3 +670,67 @@ fn a_corner_on_two_planes_across_each_other_stands_on_the_line_they_share() {
         assert_eq!([vertex.point.x, vertex.point.y], [7.0, 5.0], "{vertex:?}");
     }
 }
+
+/// A point of radius 5 on the plane `y = 0`, its apex at `(0, 10, 0)`,
+/// turned whole about Y.
+fn whole_point() -> Body {
+    use crate::turning::{Axis, Corner, Straight, Turn};
+    let corners = [[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]];
+    let straight = Straight {
+        side: -1.0,
+        contours: vec![
+            (0..3)
+                .map(|run| Corner {
+                    at: DVec2::from(corners[run]),
+                    run: run as u32,
+                })
+                .collect(),
+        ],
+        runs: 3,
+        last_off_the_axis: Some(2),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::Y,
+        },
+        angle: TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, ground(0.0), &turn).expect("the point turns")
+}
+
+#[test]
+fn a_whole_point_s_face_meets_what_stands_at_its_apex() {
+    let point = whole_point();
+    let tip = block([-0.5, 8.0, -0.5], [0.5, 9.0, 0.5]);
+    let operands = Operands::of(&point, &tip, point.scale().joined(tip.scale()));
+    let cone = point
+        .face_ids()
+        .find(|&face| point.apex_held(face).is_some())
+        .expect("the cone's face holds its apex");
+    assert!(tip.face_ids().any(|face| operands.near(cone, face)));
+}
+
+#[test]
+#[ignore = "#536: a boolean holding a cone declines until its crossings are decided"]
+fn a_whole_point_joined_to_a_block_clear_of_it_keeps_its_tip_as_a_vertex_of_its_cone() {
+    let point = whole_point();
+    let joined = point
+        .joined(&block([20.0, 0.0, 0.0], [30.0, 10.0, 10.0]))
+        .expect("a block clear of the point joins it");
+    let cone = joined
+        .face_ids()
+        .find(|&face| matches!(joined.surface(joined.face(face).surface), Surface::Cone(_)))
+        .expect("the point's face is kept");
+    let tip = joined.face(cone).apex.expect("the cone holds its tip");
+    assert!(
+        joined
+            .vertex(tip)
+            .point
+            .distance(DVec3::new(0.0, 10.0, 0.0))
+            <= 1e-12
+    );
+    assert_eq!(joined.vertices.len(), 9);
+}

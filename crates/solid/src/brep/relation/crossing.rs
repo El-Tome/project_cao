@@ -82,6 +82,7 @@ pub fn crossings_given(
     touching: &Touches,
 ) -> Crossings {
     let solved = match (curve, surface) {
+        (_, Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching)
@@ -115,6 +116,7 @@ fn circle_and_surface(
             (cylinders(&own_cylinder, cylinder, scale), false)
         }
         Surface::Cylinder(cylinder) => (plane_and_cylinder(&own_plane, cylinder, scale), true),
+        Surface::Cone(_) => return Solved::Unsupported,
     };
     let lines: Vec<(Line, bool)> = match relation {
         Relation::Same { .. } => return Solved::Along,
@@ -122,7 +124,11 @@ fn circle_and_surface(
         Relation::Line(line) => vec![(line, false)],
         Relation::Lines(lines) => lines.map(|line| (line, false)).to_vec(),
         Relation::Tangent(line) => vec![(line, true)],
-        Relation::Circle(_) | Relation::Meet(_) | Relation::Unsupported => {
+        Relation::Circle(_)
+        | Relation::Meet(_)
+        | Relation::Rulings { .. }
+        | Relation::Apex(_)
+        | Relation::Unsupported => {
             return Solved::Unsupported;
         }
     };
@@ -191,6 +197,7 @@ fn relation_with(own: &Cylinder, surface: &Surface, scale: Scale) -> Relation {
     match surface {
         Surface::Plane(plane) => plane_and_cylinder(plane, own, scale),
         Surface::Cylinder(cylinder) => cylinders(own, cylinder, scale),
+        Surface::Cone(_) => Relation::Unsupported,
     }
 }
 

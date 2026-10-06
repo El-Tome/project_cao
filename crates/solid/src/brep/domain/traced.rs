@@ -111,7 +111,9 @@ pub(in crate::brep) fn traced(
             chord(curve, surface, from, to, eps)
                 .or_else(|declined| met(curve, own, cylinder, [from, to], eps).ok_or(declined))
         }
-        (Surface::Plane(_) | Surface::Cylinder(_), _) => chord(curve, surface, from, to, eps),
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => {
+            chord(curve, surface, from, to, eps)
+        }
     }
 }
 
@@ -178,7 +180,7 @@ fn chord(
     Ok(Trace::Segment {
         from,
         to: match surface {
-            Surface::Cylinder(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
+            Surface::Cylinder(_) | Surface::Cone(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
             Surface::Plane(_) => to,
         },
     })

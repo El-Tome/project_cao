@@ -3,8 +3,9 @@ use std::f64::consts::{FRAC_PI_2, PI, TAU};
 use glam::{DVec2, DVec3};
 
 use super::*;
-use crate::brep::FaceId;
+use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
+use crate::brep::{EdgeId, FaceId, VertexId};
 use crate::soundness::{closed, listed, uncrossed};
 use crate::turning::{Axis, Corner};
 
@@ -406,4 +407,254 @@ fn a_turn_too_short_for_the_tolerance_is_declined_as_travel() {
         Err(Declined::Travel)
     );
     assert!(Body::turned(&ring(), ground(), &about_y(TAU.to_degrees() / 2.0)).is_ok());
+}
+
+/// A shaft of radius 10 and length 30 along Y, its far end chamfered by 2.
+fn chamfered_shaft() -> Straight {
+    laid(&[&[
+        [0.0, 0.0],
+        [30.0, 0.0],
+        [30.0, 8.0],
+        [28.0, 10.0],
+        [0.0, 10.0],
+    ]])
+}
+
+/// A point of radius 5 on the sketch's plane, its apex 10 along Y.
+fn point() -> Straight {
+    laid(&[&[[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]]])
+}
+
+fn cones(body: &Body) -> Vec<FaceId> {
+    body.face_ids()
+        .filter(|&face| matches!(body.surface(body.face(face).surface), Surface::Cone(_)))
+        .collect()
+}
+
+fn cone_of(body: &Body, face: FaceId) -> Cone {
+    let Surface::Cone(cone) = *body.surface(body.face(face).surface) else {
+        panic!("the face lies on a cone");
+    };
+    cone
+}
+
+#[test]
+fn a_chamfered_shaft_turns_into_a_cylinder_a_cone_and_two_discs() {
+    let body = turned(&chamfered_shaft(), 360.0);
+    assert_eq!(counts(&body), [4, 3, 0]);
+    let [chamfer] = faces_numbered(&body, 2)[..] else {
+        panic!("one face answers to the chamfer");
+    };
+    assert_eq!(cones(&body), [chamfer]);
+    let cone = cone_of(&body, chamfer);
+    assert_eq!(cone.axis, DVec3::Y);
+    for corner in [DVec3::new(8.0, 30.0, 0.0), DVec3::new(0.0, 28.0, -10.0)] {
+        assert!(cone.distance(corner).abs() < 1e-12, "{corner}");
+    }
+    let kinds = |kind: fn(&Surface) -> bool| {
+        body.faces
+            .iter()
+            .filter(|face| kind(body.surface(face.surface)))
+            .count()
+    };
+    assert_eq!(kinds(|surface| matches!(surface, Surface::Plane(_))), 2);
+    assert_eq!(kinds(|surface| matches!(surface, Surface::Cylinder(_))), 1);
+}
+
+#[test]
+fn a_chamfer_s_matter_lies_on_the_shaft_s_side() {
+    for degrees in [90.0, 360.0, -200.0] {
+        let body = turned(&chamfered_shaft(), degrees);
+        let [chamfer] = faces_numbered(&body, 2)[..] else {
+            panic!("one face answers to the chamfer at {degrees}°");
+        };
+        let cone = cone_of(&body, chamfer);
+        let middle = DVec3::new(9.0, 29.0, 0.0);
+        let at = cone.parameters(middle);
+        let normal = cone.normal(at.x);
+        let outward = if body.face(chamfer).flipped {
+            -normal
+        } else {
+            normal
+        };
+        let away = (DVec3::Y + DVec3::X).normalize();
+        assert!(
+            outward.dot(away) > 0.99,
+            "{outward} at {degrees}° points into the shaft"
+        );
+    }
+}
+
+#[test]
+fn a_point_turned_whole_has_one_corner_at_its_tip_held_by_its_cone() {
+    let body = turned(&point(), 360.0);
+    assert_eq!(counts(&body), [2, 1, 1]);
+    assert!(faces_numbered(&body, 0).is_empty());
+    let [cone] = cones(&body)[..] else {
+        panic!("one face lies on the cone");
+    };
+    assert_eq!(body.face(cone).apex, Some(VertexId(0)));
+    assert!(body.vertices[0].point.distance(DVec3::new(0.0, 10.0, 0.0)) <= 1e-12);
+    assert_eq!(body.vertices[0].on, [body.face(cone).surface]);
+    assert_eq!(faces_numbered(&body, 1), [cone]);
+    let [disc] = faces_numbered(&body, 2)[..] else {
+        panic!("one face answers to the base");
+    };
+    assert_eq!(body.face(disc).apex, None);
+}
+
+#[test]
+fn a_whole_point_s_listing_names_its_tip_as_a_vertex_of_its_cone() {
+    let body = turned(&point(), 360.0);
+    let listing = body.listing();
+    let [cone] = cones(&body)[..] else {
+        panic!("one face lies on the cone");
+    };
+    assert_eq!(listing.faces[cone.0 as usize].apex, Some(0));
+    assert_eq!(listing.vertices, [body.vertices[0].point]);
+}
+
+#[test]
+fn a_point_turned_part_way_has_its_apex_as_a_corner_of_both_ends() {
+    let body = turned(&point(), 90.0);
+    let apex = DVec3::new(0.0, 10.0, 0.0);
+    let corners: Vec<usize> = (0..body.vertices.len())
+        .filter(|&rank| body.vertices[rank].point.distance(apex) <= body.scale().eps())
+        .collect();
+    let [corner] = corners[..] else {
+        panic!("one corner stands at the apex: {:?}", body.vertices);
+    };
+    for end in [3, 4] {
+        let [face] = faces_numbered(&body, end)[..] else {
+            panic!("one face answers to {end}");
+        };
+        let reaches = body.face(face).loops.iter().flatten().any(|coedge| {
+            body.edge(coedge.edge)
+                .ends
+                .is_some_and(|ends| ends.contains(&VertexId(corner as u32)))
+        });
+        assert!(reaches, "the end {end} does not reach the apex");
+    }
+    let [cone] = cones(&body)[..] else {
+        panic!("one face lies on the cone");
+    };
+    assert_eq!(body.face(cone).loops.len(), 1);
+    assert_eq!(body.face(cone).loops[0].len(), 3);
+    assert_eq!(body.face(cone).apex, None);
+}
+
+#[test]
+fn a_half_turn_of_a_point_keeps_its_two_rulings_apart() {
+    let body = turned(&point(), 180.0);
+    let [cone] = cones(&body)[..] else {
+        panic!("one face lies on the cone");
+    };
+    let edges: Vec<EdgeId> = body.face(cone).loops[0]
+        .iter()
+        .map(|coedge| coedge.edge)
+        .collect();
+    assert_eq!(edges.len(), 3);
+    assert!(edges[0] != edges[2] && edges[0] != edges[1] && edges[1] != edges[2]);
+    let lines = edges
+        .iter()
+        .filter(|edge| matches!(body.curve(body.edge(**edge).curve), Curve::Line(_)))
+        .count();
+    assert_eq!(lines, 2);
+}
+
+#[test]
+fn a_slanted_run_turned_backwards_gives_the_same_cone() {
+    for degrees in [90.0, 360.0] {
+        let forwards = turned(&chamfered_shaft(), degrees);
+        let backwards = turned(&chamfered_shaft(), -degrees);
+        let [one, other] = [&forwards, &backwards].map(|body| {
+            let [face] = faces_numbered(body, 2)[..] else {
+                panic!("one face answers to the chamfer");
+            };
+            cone_of(body, face)
+        });
+        assert_eq!(one, other, "at {degrees}°");
+    }
+}
+
+#[test]
+fn a_countersunk_ring_names_one_face_per_run() {
+    let ring = laid(&[&[
+        [0.0, 2.0],
+        [6.0, 2.0],
+        [11.0, 7.0],
+        [11.0, 12.0],
+        [0.0, 12.0],
+    ]]);
+    for degrees in [90.0, 360.0] {
+        let body = turned(&ring, degrees);
+        for run in 0..5 {
+            let [face] = faces_numbered(&body, run)[..] else {
+                panic!("one face answers to run {run} at {degrees}°");
+            };
+            assert_eq!(body.numbers(face), [run]);
+        }
+        assert_eq!(cones(&body), faces_numbered(&body, 1));
+    }
+}
+
+#[test]
+fn two_slanted_runs_on_one_line_turn_into_one_cone_answering_to_both() {
+    let straight = laid(&[&[
+        [0.0, 0.0],
+        [10.0, 0.0],
+        [10.0, 5.0],
+        [7.0, 8.0],
+        [4.0, 11.0],
+        [0.0, 11.0],
+    ]]);
+    for degrees in [90.0, 360.0] {
+        let body = turned(&straight, degrees);
+        let [face] = cones(&body)[..] else {
+            panic!("one face lies on a cone at {degrees}°");
+        };
+        assert_eq!(body.numbers(face), [2, 3]);
+    }
+}
+
+#[test]
+fn a_corner_on_the_axis_between_two_pieces_off_it_is_declined_as_a_profile() {
+    let diamond = laid(&[&[[5.0, 0.0], [10.0, 5.0], [5.0, 10.0], [0.0, 5.0]]]);
+    for degrees in [90.0, 360.0] {
+        assert_eq!(
+            Body::turned(&diamond, ground(), &about_y(degrees)),
+            Err(Declined::Profile)
+        );
+    }
+}
+
+#[test]
+fn a_whole_point_s_reach_and_bounds_hold_its_apex() {
+    let body = turned(&point(), 360.0);
+    assert_eq!(body.reach(), 10.0);
+    assert_eq!(body.scale().reach(), 10.0);
+    let (low, high) = body.bounds().expect("the point has a box");
+    assert_eq!(high.y, 10.0);
+    assert_eq!(low.y, 0.0);
+    let [cone] = cones(&body)[..] else {
+        panic!("one face lies on the cone");
+    };
+    assert_eq!(body.apex_held(cone), Some(DVec3::new(0.0, 10.0, 0.0)));
+}
+
+#[test]
+fn a_point_turned_part_way_holds_no_apex_beside_its_corner() {
+    for degrees in [90.0, 180.0, 270.0] {
+        let body = turned(&point(), degrees);
+        assert!(
+            body.face_ids().all(|face| body.apex_held(face).is_none()),
+            "at {degrees}°"
+        );
+    }
+    let frustum = turned(&chamfered_shaft(), 360.0);
+    assert!(
+        frustum
+            .face_ids()
+            .all(|face| frustum.apex_held(face).is_none())
+    );
 }

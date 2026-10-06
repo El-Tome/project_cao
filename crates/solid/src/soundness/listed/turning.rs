@@ -40,6 +40,7 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
         let unrolled = match listed.surface {
             Surface::Plane(_) => 1.0,
             Surface::Cylinder(cylinder) => cylinder.radius,
+            Surface::Cone(_) => f64::NAN,
         };
         let about = listed
             .loops
@@ -174,7 +175,7 @@ fn is_slit(uses: &[(usize, bool)]) -> bool {
 /// place of the face, along the plane's normal: exact for a line and for a
 /// circle. On a cylinder it is what the edge sweeps under it, down to the
 /// height of `about`, as the angle turns: nothing for a ruling, which turns
-/// no angle.
+/// no angle. On a cone it is not written yet (#536): no number.
 fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64, f64) {
     match (surface, edge.curve) {
         (Surface::Plane(plane), Curve::Line(_)) => {
@@ -195,6 +196,7 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64,
             (from.dot(plane.u), from.dot(plane.v))
         }),
         (Surface::Cylinder(_), Curve::Line(_)) => (0.0, 0.0),
+        (Surface::Cone(_), _) => (f64::NAN, f64::NAN),
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
             if section(cylinder, &circle, room) =>
         {

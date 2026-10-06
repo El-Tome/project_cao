@@ -7,8 +7,10 @@
 //! A face reaches along any direction exactly as far as its boundary does: a
 //! plane face is flat, and a point inside a wall lies on a ruling whose two
 //! ends are on the boundary, between them along any direction. So the reach
-//! of a face is read off its edges, exactly for lines and circles. A face
-//! bounded by the curve two cylinders meet along is never decided clear.
+//! of a face is read off its edges, exactly for lines and circles; on a cone
+//! whose face holds its apex within it, as a whole point's does, a ruling
+//! ends there, and the apex is read too. A face bounded by the curve two
+//! cylinders meet along is never decided clear.
 
 use std::f64::consts::PI;
 
@@ -58,12 +60,12 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
     let mut directions = vec![offered(&first), offered(&second)];
     directions.push(directions[0].cross(directions[1]));
     for (wall, edged) in [(&first, other), (&second, one)] {
-        match wall {
-            Surface::Cylinder(cylinder) => {
-                directions.extend(straight_edges(edged).map(|along| cylinder.axis.cross(along)));
-            }
-            Surface::Plane(_) => {}
-        }
+        let axis = match wall {
+            Surface::Cylinder(cylinder) => cylinder.axis,
+            Surface::Cone(cone) => cone.axis,
+            Surface::Plane(_) => continue,
+        };
+        directions.extend(straight_edges(edged).map(|along| axis.cross(along)));
     }
     let separated =
         directions
@@ -80,16 +82,18 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
             (Surface::Cylinder(first), Surface::Cylinder(second)) => {
                 walls_apart((&first, one), (&second, other), room)
             }
-            (Surface::Plane(_), _) | (_, Surface::Plane(_)) => false,
+            (Surface::Plane(_) | Surface::Cone(_), _)
+            | (_, Surface::Plane(_) | Surface::Cone(_)) => false,
         }
 }
 
 /// The direction a surface stands square to: a plane's normal, a
-/// cylinder's axis.
+/// cylinder's or a cone's axis.
 fn offered(surface: &Surface) -> DVec3 {
     match surface {
         Surface::Plane(plane) => plane.normal,
         Surface::Cylinder(cylinder) => cylinder.axis,
+        Surface::Cone(cone) => cone.axis,
     }
 }
 
@@ -124,10 +128,15 @@ fn straight_edges((body, face): (&Body, FaceId)) -> impl Iterator<Item = DVec3> 
 }
 
 /// The least and the largest of `direction · p` over a face, read off its
-/// edges; none where an edge runs along the curve two cylinders meet along.
+/// edges and the apex it holds within it; none where an edge runs along the
+/// curve two cylinders meet along.
 fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
     let mut low = f64::INFINITY;
     let mut high = f64::NEG_INFINITY;
+    if let Some(apex) = body.apex_held(face) {
+        low = direction.dot(apex);
+        high = low;
+    }
     for coedge in body.face(face).loops.iter().flatten() {
         let edge = body.edge(coedge.edge);
         let curve = body.curve(edge.curve);

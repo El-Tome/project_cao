@@ -6,7 +6,7 @@
 //! standing between two of them is taken for neither, unless it stands on
 //! one: then it is that one.
 
-use crate::brep::relation::{Relation, relation};
+use crate::brep::relation::{Relation, apart_by, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, SurfaceId};
@@ -91,7 +91,7 @@ fn between(
 const ROUNDING: f64 = 1e-6;
 
 /// How far apart two surfaces one within the tolerance stand: their offsets
-/// along the normal, or their axes and radii.
+/// along the normal, their axes and radii, or their axes and meridian lines.
 fn gap(one: &Surface, other: &Surface) -> f64 {
     match (one, other) {
         (Surface::Plane(one), Surface::Plane(other)) => {
@@ -103,8 +103,9 @@ fn gap(one: &Surface, other: &Surface) -> f64 {
             let across = between - one.axis * one.axis.dot(between);
             across.length() + (one.radius - other.radius).abs()
         }
+        (Surface::Cone(one), Surface::Cone(other)) => apart_by(one, other),
         (Surface::Plane(_), Surface::Cylinder(_) | Surface::Cone(_))
         | (Surface::Cylinder(_), Surface::Plane(_) | Surface::Cone(_))
-        | (Surface::Cone(_), _) => f64::INFINITY,
+        | (Surface::Cone(_), Surface::Plane(_) | Surface::Cylinder(_)) => f64::INFINITY,
     }
 }

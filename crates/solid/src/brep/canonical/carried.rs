@@ -21,7 +21,7 @@ use glam::DVec3;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 
 /// Under this share of the tolerance, a surface moved along itself stays.
@@ -118,8 +118,8 @@ fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
 
 /// The body with the surfaces `carried`, the corners on them and the curves
 /// of the edges beside them moved by `by`; none where a curve to move is one
-/// two perpendicular cylinders meet along, or a surface to move is a cone,
-/// which is not carried yet (#536).
+/// two perpendicular cylinders meet along. A cone is built again through
+/// its meridian line moved, canonical.
 fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body> {
     let mut moved = body.clone();
     for &rank in carried {
@@ -132,7 +132,11 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
                 cylinder.axis,
                 cylinder.radius,
             )),
-            Surface::Cone(_) => return None,
+            Surface::Cone(cone) => Surface::Cone(Cone::through(
+                cone.origin + by,
+                cone.axis,
+                [cone.foot, cone.foot + cone.ruling],
+            )),
         };
     }
     let mut corners = BTreeSet::new();

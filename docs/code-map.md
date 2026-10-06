@@ -170,6 +170,8 @@ What it does: [`sketch.md`](sketch.md).
 | Bores and slanted faces that do not meet, cut in parts laid at a slant; those that do, still declined | `solid/tests/a_slant_far_from_a_bore.rs` | `keeps_every_rule` |
 | Every face of the exact kernel keeps its number through raises, joins and cuts, and when a size changes | `solid/tests/faces_keep_their_numbers.rs` | |
 | Random solids on the exact kernel, held to the arithmetic along every line | `solid/tests/random_exact_solids.rs`, `solid/tests/random_solids/{along,arithmetic,kernels,outlines}.rs` | `Kernel`, `Exact`, `Flats`, `held_to_arithmetic`; the campaigns under `--ignored` |
+| Turns of straight profiles on the exact kernel, held to Pappus's volume and to the same profile raised in slabs | `solid/tests/the_exact_kernel_turns.rs` | its smoke campaign under `--ignored` |
+| Random turns among prisms, on the exact kernel and through `Body`, held to the arithmetic | `solid/tests/random_turned_solids.rs` | `Case::drawn_turned`, `drawn_turned_off_the_lattice`; the campaigns under `--ignored` |
 | What the exact campaigns found, in the kernel and in its triangles, and the band where a third surface crosses two that touch | `solid/tests/what_the_exact_campaigns_found_in_the_kernel.rs`, `what_the_exact_campaigns_found_in_the_triangles.rs`, `the_tangency_band.rs`; the 5 October campaigns' seeds by family: `a_crescent_s_tip_under_a_plane.rs`, `a_plane_a_hair_from_a_face.rs`, `a_surface_a_hair_from_a_line_of_touch.rs`, `a_rim_grazing_a_ruling_of_touch.rs` | `#[ignore = "…"]` for what still fails, its reason starting with the family |
 
 What it does: [`extrusion.md`](extrusion.md), for the rules and the

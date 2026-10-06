@@ -636,11 +636,15 @@ grow from.
 - **The numbers** are the flats': run `k`, the outline's first and then each
   hole's, names the face it turns into; a run on the axis, or one laid to no
   length, names none; a partial turn's opening end is `runs` and its closing
-  end `runs + 1`. The count a turn moves the part's counter by
-  (`Straight::numbers`) copies the flats' `faces_end`, quirk included: a
-  whole turn counts up to its last run off the axis, so the steps after a
-  shaft drawn the usual way, its last side on the axis, keep the numbers a
-  part saved before turns were exact gave them.
+  end `runs + 1`. The count a turn moves the part's counter by copies the
+  flats' `faces_end`, quirk included: a whole turn counts up to its last run
+  whose flats were thick enough to keep, read on the profile as drawn
+  (`body/turned.rs`, `numbers_turned_whole`), so the steps after a shaft
+  drawn the usual way, its last side on the axis, keep the numbers a part
+  saved before turns were exact gave them — and so do the steps after a
+  shaft whose side was drawn within the band, laid on the axis since but
+  counted then. `Straight::numbers` counts the profile as laid, for the
+  pieces of an area across its axis, which `main` never turned.
 
 ## The boolean
 
@@ -939,6 +943,9 @@ The tests that hold it:
   profile cut into annular slabs, each raised and joined, along a grid of
   lines; its smoke campaign of turned leaves and prisms under `--ignored`,
   compiled only with `--features campaigns`;
+- `random_turned_solids.rs`, #448's harness drawing turns among prisms, on
+  the exact kernel and through `Body`, its fast cases in the gate and its
+  campaigns under `--ignored`, compiled only with `--features campaigns`;
 - `random_exact_solids.rs`, the harness on the exact kernel, and on it again
   through `Body` as the application computes with it (`Application`), its
   campaigns under `--ignored` and compiled only with `--features campaigns`;

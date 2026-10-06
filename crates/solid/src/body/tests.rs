@@ -8,6 +8,7 @@ use glam::{DVec2, DVec3};
 use super::*;
 use crate::mesh::tests::fan;
 use crate::profile::{Contour, Frame, Run};
+use crate::sweep::Loop;
 use crate::turning::{Axis, Turn};
 
 const FLAT: Frame = Frame {

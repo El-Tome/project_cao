@@ -112,3 +112,40 @@ fn a_profile_across_its_axis_past_the_band_is_declined() {
         }
     }
 }
+
+#[test]
+fn a_profile_beyond_the_band_of_its_axis_is_turned_by_the_flats_as_main_turned_it() {
+    let mut points = vec![
+        DVec2::new(0.5, 0.0),
+        DVec2::new(2.0, 0.0),
+        DVec2::new(2.0, 1.0),
+    ];
+    let mut curves = vec![None, None];
+    for step in 1..=8 {
+        let angle = FRAC_PI_2 * step as f64 / 8.0;
+        points.push(DVec2::new(1.0 + angle.cos(), 1.0 + angle.sin()));
+        curves.push(Some(0));
+    }
+    points.push(DVec2::new(0.5, 2.0));
+    curves.extend([None, None]);
+    let triangles = fan(&points);
+    let profile = sampled(&points, &curves, &triangles);
+    for angle in [TAU, -TAU, FRAC_PI_2, -2.5] {
+        let on_main = sweep::revolution(
+            profile.sampled,
+            &[],
+            &triangles,
+            |point| FLAT.at(point),
+            V.origin,
+            V.direction,
+            angle,
+        )
+        .expect("main turned the profile");
+        let turn = Turn::of(V, angle, 0.0, &profile);
+        assert_eq!(
+            Body::default().tool_turned(&profile, FLAT, &turn),
+            Ok(Body::raised_flats(on_main)),
+            "turned {angle} rad"
+        );
+    }
+}

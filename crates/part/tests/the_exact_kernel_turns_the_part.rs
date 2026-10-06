@@ -52,8 +52,8 @@
 use std::f64::consts::PI;
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
-use cao_part::{History, PartDocument, PartState};
-use cao_sketch::{Area, Constraint, PointId, SegmentId, SketchAxis, WorkPlane};
+use cao_part::{History, PartDocument, PartState, VariableChange, VariableId};
+use cao_sketch::{Area, Constraint, DimensionTarget, PointId, SegmentId, SketchAxis, WorkPlane};
 use cao_solid::Declined;
 use cao_solid::soundness::closed;
 use glam::{DVec2, DVec3};
@@ -998,4 +998,302 @@ fn a_turn_about_a_segment_held_parallel_to_v_by_a_rule_stays_exact_beside_a_rais
         PI * 64.0 * 20.0,
         "the boss inside the tube turned about it",
     );
+}
+
+#[test]
+fn a_cut_drawn_on_a_face_of_a_turned_part_where_a_click_lays_it_is_computed_by_the_exact_kernel() {
+    let mut history = turned_on_xy(
+        |history| rectangle(history, 0, DVec2::new(-30.0, -7.5), DVec2::new(0.0, -52.5)),
+        DVec2::new(-14.8, -26.5),
+        360.0,
+    );
+    let turned = exact(&history);
+    let top = the_face(&turned, DVec3::Y, -7.5);
+    let face = turned.body.plane_of(top).expect("the top is flat");
+    let plane = WorkPlane::from_face(&face.corners, face.normal, DVec3::Z);
+    history.push(Operation::CreateSketch {
+        plane,
+        on: Some(FaceAnchor {
+            face: top,
+            up: DVec3::Z,
+        }),
+    });
+    let middle = plane.to_local(DVec3::new(0.0, -7.5, 0.0));
+    rectangle(
+        &mut history,
+        1,
+        middle - DVec2::splat(5.0),
+        middle + DVec2::splat(5.0),
+    );
+    raise(&mut history, 1, middle, -10.0, ExtrusionMode::Cut);
+
+    assert_near(
+        turned.body.volume() - exact(&history).body.volume(),
+        1000.0,
+        "a pocket 10 by 10, 10 deep, in the top of a Ø60 cylinder",
+    );
+}
+
+#[test]
+fn an_area_across_the_axis_turned_into_a_shaft_takes_both_sides_away() {
+    let mut history = turned_on_xy(
+        |history| rectangle(history, 0, DVec2::ZERO, DVec2::new(10.0, 40.0)),
+        DVec2::splat(5.0),
+        360.0,
+    );
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(
+        &mut history,
+        1,
+        DVec2::new(-4.0, 10.0),
+        DVec2::new(5.0, 20.0),
+    );
+    turn(
+        &mut history,
+        1,
+        DVec2::new(1.0, 15.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Cut,
+    );
+
+    assert_near(
+        exact(&history).body.volume(),
+        4000.0 * PI - 250.0 * PI,
+        "a shaft Ø20 by 40 less the Ø10 by 10 the side reaching 5 turns",
+    );
+}
+
+/// A square from -10 to 10 across V, 10 high, holed by a square 3 wide on
+/// its right, turned by `degrees`.
+fn a_holed_area_across_the_axis(degrees: f64) -> History {
+    turned_on_xy(
+        |history| {
+            rectangle(history, 0, DVec2::new(-10.0, 0.0), DVec2::new(10.0, 10.0));
+            rectangle(history, 0, DVec2::new(3.0, 3.0), DVec2::new(6.0, 6.0));
+        },
+        DVec2::new(-5.0, 5.0),
+        degrees,
+    )
+}
+
+#[test]
+fn a_holed_area_across_the_axis_turned_whole_is_filled_by_its_other_side() {
+    assert_near(
+        exact(&a_holed_area_across_the_axis(360.0)).body.volume(),
+        1000.0 * PI,
+        "the left side turned whole fills the ring the hole on the right leaves",
+    );
+}
+
+#[test]
+fn a_holed_area_across_the_axis_turned_part_way_keeps_its_hole() {
+    let right = 500.0 - 3.0 * (36.0 - 9.0) / 2.0;
+    let left = 500.0;
+
+    assert_near(
+        exact(&a_holed_area_across_the_axis(90.0)).body.volume(),
+        PI / 2.0 * (right + left),
+        "a quarter turn of each side, apart, the right one holed",
+    );
+}
+
+#[test]
+fn a_slanted_area_across_the_axis_is_turned_on_both_sides_by_the_flats() {
+    let history = turned_on_xy(
+        |history| {
+            polygon(
+                history,
+                0,
+                &[
+                    DVec2::new(-5.0, 0.0),
+                    DVec2::new(10.0, 0.0),
+                    DVec2::new(0.0, 10.0),
+                ],
+            )
+        },
+        DVec2::new(1.0, 1.0),
+        360.0,
+    );
+    let state = PartState::rebuild(&history);
+    let cone = 1000.0 * PI / 3.0;
+
+    assert!(!state.body.is_exact(), "a cone is the flats'");
+    assert!(
+        (state.body.volume() - cone).abs() < 0.01 * cone,
+        "the side reaching 10 turned whole holds the side reaching 5, not {}",
+        state.body.volume(),
+    );
+}
+
+/// A shaft Ø20 for 30 turned whole, given a flat 2 deep across its side,
+/// then a block raised at 50 whose top is drawn on by number.
+fn a_flat_on_a_shaft_then_a_block(history: &mut History) {
+    sketch_on(
+        history,
+        WorkPlane {
+            origin: DVec3::Z * 8.0,
+            ..WorkPlane::XY
+        },
+    );
+    rectangle(history, 1, DVec2::new(-15.0, 5.0), DVec2::new(15.0, 15.0));
+    raise(history, 1, DVec2::new(0.0, 10.0), 5.0, ExtrusionMode::Cut);
+    sketch_on(
+        history,
+        WorkPlane {
+            origin: DVec3::Z * 50.0,
+            ..WorkPlane::XY
+        },
+    );
+    rectangle(history, 2, DVec2::new(30.0, 0.0), DVec2::new(40.0, 10.0));
+    raise(history, 2, DVec2::new(35.0, 5.0), 5.0, ExtrusionMode::Add);
+}
+
+#[test]
+#[ignore = "known renumbering, not mended by #533: the flats parted the shaft's \
+            cylinder, cut across by the flat, into two numbers, where the exact \
+            kernel sees it whole; every face numbered after that step on main is \
+            one lower now, and a drawing saved there lands on a wall, without a \
+            word. Both kernels would have to part a face alike"]
+fn a_drawing_saved_on_main_on_a_block_raised_after_a_flat_on_a_turned_shaft_keeps_its_face() {
+    let mut history = turned_on_xy(
+        |history| rectangle(history, 0, DVec2::ZERO, DVec2::new(10.0, 40.0)),
+        DVec2::splat(5.0),
+        360.0,
+    );
+    a_flat_on_a_shaft_then_a_block(&mut history);
+    // Measured on `main` at dc5bfe5.
+    let blocks_top_on_main = 11;
+
+    let (plane, adrift) = laid_on(history, blocks_top_on_main);
+
+    assert!(!adrift, "the block's top is there");
+    assert!(
+        (plane.origin.z - 55.0).abs() < 1e-9 && plane.normal().distance(DVec3::Z) < 1e-9,
+        "the drawing stands on the block's top as it did on `main`, not on {plane:?}",
+    );
+}
+
+/// The shaft of a part whose shoulder's radius at the top is the variable
+/// `w`: a size of 10 draws its runs straight, any other slants the last one.
+fn a_shaft_whose_top_radius_is_a_variable(w: f64) -> PartDocument {
+    let now = "2026-10-06T09:00:00Z".parse().expect("a date");
+    let mut part = PartDocument::new("Turned", now);
+    part.change_variable(VariableChange::Added {
+        name: "w".into(),
+        formula: w.into(),
+    })
+    .expect("w is a name");
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    polygon(
+        &mut history,
+        0,
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(10.0, 20.0),
+            DVec2::new(w, 30.0),
+            DVec2::new(0.0, 30.0),
+        ],
+    );
+    for operation in history.operations() {
+        part.apply(operation.clone());
+    }
+    for constraint in [
+        Constraint::AxisCollinear {
+            segment: SegmentId(4),
+            axis: SketchAxis::V,
+        },
+        Constraint::AxisPerpendicular {
+            segment: SegmentId(0),
+            axis: SketchAxis::V,
+        },
+        Constraint::AxisParallel {
+            segment: SegmentId(1),
+            axis: SketchAxis::V,
+        },
+        Constraint::AxisPerpendicular {
+            segment: SegmentId(3),
+            axis: SketchAxis::V,
+        },
+    ] {
+        part.apply(Operation::Constrain {
+            sketch: 0,
+            constraint,
+        });
+    }
+    let w = part.variables().read("w").expect("w is known");
+    for (segment, value) in [(0, 10.0.into()), (1, 20.0.into()), (4, 30.0.into()), (3, w)] {
+        part.apply(Operation::SetDimension {
+            sketch: 0,
+            target: DimensionTarget::Length(SegmentId(segment)),
+            value,
+            placement: None,
+        });
+    }
+    let areas = part.areas_at(0, &[DVec2::splat(2.0)]);
+    part.apply(Operation::Revolve {
+        sketch: 0,
+        areas,
+        axis: ABOUT_V,
+        angle: 360.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    let mut rest = History::default();
+    sketch_on(&mut rest, WorkPlane::XY);
+    a_flat_on_a_shaft_then_a_block(&mut rest);
+    for operation in rest.operations().iter().skip(1) {
+        part.apply(operation.clone());
+    }
+    part
+}
+
+#[test]
+#[ignore = "known renumbering, not mended by #533: a size that slants a run \
+            sends the turn to the flats, which part the shaft's faces cut by a \
+            later flat into more numbers than the exact kernel does; the steps \
+            after it are numbered by whichever kernel ran, and a drawing laid \
+            on one of their faces lands on another, without a word. Both \
+            kernels would have to part a face alike"]
+fn a_drawing_after_a_turn_keeps_its_face_when_a_size_sends_the_turn_to_the_flats() {
+    for (from, to) in [(10.0, 6.0), (6.0, 10.0)] {
+        let mut part = a_shaft_whose_top_radius_is_a_variable(from);
+        let top = (0..part.body().faces_end())
+            .find(|&face| {
+                part.body().plane_of(face).is_some_and(|plane| {
+                    plane.normal.distance(DVec3::Z) < 1e-9
+                        && plane
+                            .corners
+                            .iter()
+                            .all(|corner| (corner.z - 55.0).abs() < 1e-9)
+                })
+            })
+            .expect("the block's top");
+        let drawing = part.sketches().len();
+        part.apply(Operation::CreateSketch {
+            plane: WorkPlane::XY,
+            on: Some(FaceAnchor {
+                face: top,
+                up: DVec3::Z,
+            }),
+        });
+
+        part.change_variable(VariableChange::Edited {
+            variable: VariableId(0),
+            name: "w".into(),
+            formula: to.into(),
+        })
+        .expect("w takes the size");
+
+        let plane = part.sketches()[drawing].plane;
+        assert!(
+            !part.is_adrift(drawing),
+            "w from {from} to {to}: the top is there"
+        );
+        assert!(
+            (plane.origin.z - 55.0).abs() < 1e-9 && plane.normal().distance(DVec3::Z) < 1e-9,
+            "w from {from} to {to}: the drawing stays on the block's top, not on {plane:?}",
+        );
+    }
 }

@@ -41,7 +41,9 @@ It can:
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
   when a size changes: 0 for the floor of a raise, 1 for its top, one per run
   for the walls — two runs on one line, or two arcs of one circle, make one
-  wall answering to both. A face kept from a boolean answers to the numbers
+  wall answering to both; a straight run whose two ends are one corner,
+  within the tolerance, is left out and names none, as a turn leaves out a
+  run laid to no length (`brep/piece.rs`). A face kept from a boolean answers to the numbers
   of every operand face it lies on; a face merged across a seam to all of its
   members'. A face a cut leaves in pieces that no longer touch keeps its
   number on the first piece, and the others get fresh numbers.

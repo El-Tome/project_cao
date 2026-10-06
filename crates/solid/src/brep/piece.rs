@@ -150,12 +150,15 @@ pub(super) fn pieces_numbered(
     }
     let mut merged: Vec<Taken> = Vec::new();
     for (index, &number) in numbers.iter().enumerate() {
-        let piece = read(
+        let Some(piece) = read(
             contour.corners[index],
             contour.corners[(index + 1) % count],
             contour.runs[index],
             eps,
-        )?;
+        )?
+        else {
+            continue;
+        };
         let piece = (piece, Vec::new(), vec![number]);
         let whole = match merged.last() {
             Some(last) => fused(last, &piece, eps)?,
@@ -206,13 +209,17 @@ fn fused(first: &Taken, second: &Taken, eps: f64) -> Result<Option<Taken>, Decli
 
 /// Every check below is written as what must hold, so that a number which
 /// is not one fails it.
-fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
+///
+/// A straight run whose ends are one corner is read as none, as a turn lays
+/// a run to no length: it keeps its number and names no wall, and the piece
+/// before it ends where the piece after it starts, within the tolerance.
+fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Option<Piece>, Declined> {
     if !(from.is_finite() && to.is_finite()) {
         return Err(Declined::Profile);
     }
     match run {
-        Run::Straight if from.distance(to) > eps => Ok(Piece::Straight { from, to }),
-        Run::Straight => Err(Declined::Profile),
+        Run::Straight if from.distance(to) > eps => Ok(Some(Piece::Straight { from, to })),
+        Run::Straight => Ok(None),
         Run::Round { center, turn } => {
             let radius = from.distance(center);
             let held = radius > eps && radius * ROUNDINGS * f64::EPSILON <= eps;
@@ -221,13 +228,13 @@ fn read(from: DVec2, to: DVec2, run: Run, eps: f64) -> Result<Piece, Declined> {
             if !((whole || apart) && held && lands(from, center, turn, to, eps)) {
                 return Err(Declined::Profile);
             }
-            Ok(Piece::Arc {
+            Ok(Some(Piece::Arc {
                 from,
                 to,
                 center,
                 radius,
                 sweep: turn,
-            })
+            }))
         }
     }
 }

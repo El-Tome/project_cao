@@ -595,9 +595,12 @@ fn seed_8515425_a_rounded_rectangle_a_hair_from_the_line_a_bore_touches_a_disc_s
 }
 
 /// The profile draw, on the kernel and through the application's body:
-/// Closed.
+/// Closed. A corner on a disc's top and a block's side the disc's wall
+/// touches, laid on the line the two planes share a hair off the wall, had
+/// every rim of the wall sampled there, and the block top's edge along the
+/// side ran past that sample: the top was left uncut. The edge takes it
+/// (`tessellation/sampling/touches.rs`).
 #[test]
-#[ignore = "triangles: a corner on a disc's top and a block's side the disc's wall touches, laid on the line the two planes share a hair off the wall, has every rim of the wall sampled there, and the block top's rim on the edge the top has along the side: the top left uncut"]
 fn seed_8542629_a_wall_touching_a_side_along_a_line_across_the_side_s_line_with_a_cap() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

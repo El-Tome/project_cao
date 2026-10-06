@@ -727,7 +727,17 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   pinches there, or runs out to the vertex and back along the edge as a
   hair bounding nothing, which the sweep follows. A
   sample a hair from a vertex off the edge stays: on the ray through the end
-  of a curve beside it, it keeps the two in order.
+  of a curve beside it, it keeps the two in order. Two edges touching
+  between their vertices share the place they touch at: a line takes every
+  sample standing on it within rounding, vertex or not, in its order along
+  it, and a sample within rounding of another edge's is that one. The kernel
+  puts no vertex where two edges touch without crossing — a rim touching the
+  line a floor through a wall's axis cuts on it, at the rim's vertex or at a
+  step of its grid; two curves grazing at a step of both — and with the line
+  sampled at its ends alone, or a sample on each edge a rounding apart, the
+  face holding both met its own loop in the middle of a segment, which no
+  sweep cuts: the body was declined as undrawn (533647113, 533643649,
+  533786336, 533600448).
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the

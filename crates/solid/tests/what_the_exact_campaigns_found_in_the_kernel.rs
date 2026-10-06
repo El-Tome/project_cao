@@ -4,13 +4,24 @@
 //! fixed, ignored with its diagnosis.
 //!
 //! The tangency band's findings are gathered in `the_tangency_band.rs`.
+//!
+//! The turned campaigns of #533 (`random_turned_solids.rs`, 6 October,
+//! `docs/exact-kernel-failures.md`) are named here by family, one seed for
+//! each, the rest of each family listed in the journal. The night's campaign
+//! through the application's body is then sorted by the place in the code at
+//! fault, several seeds to each family, its key at the head of the reason:
+//! `kernel-drawing` and `kernel-declines`. The two families of a wall a hair
+//! thin turned on the flats, `flats-ends` and `flats-join`, hold since
+//! laying makes such a wall nothing, and the exact kernel turns the
+//! section; `rounded-a-hair` holds since a straight run of no length is
+//! left out of a raise.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
 #[allow(dead_code, unused_imports)]
 mod random_solids;
 
-use random_solids::{Case, Leaf, Outline, Plane, Step};
+use random_solids::{Axis, Case, Leaf, Outline, Plane, Section, Step};
 
 /// A bar along X whose side touches, from inside, the wall of a post along
 /// Z: the curve they meet along is a figure of eight through the point of
@@ -3021,5 +3032,632 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
                 42.4999997,
             )),
         ],
+    ));
+}
+
+/// A hole a hair inside its outline's far side, a wall 1e-8 thick, turned
+/// 270 degrees. The exact kernel declined the section, the levels of the
+/// wall's two sides being one, and the flats turned it with the wall and
+/// left an end facing the wrong way along it. Laying now holds to its own
+/// levels: the wall is not there, the hole opens onto the outline as a
+/// notch, and the exact kernel turns it.
+#[test]
+fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[7.5, 0.0, 5.0]]).with_holes(&[([3.0, 2.5], [5.0, 4.99999999])]),
+            270.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "plane-a-hair: a block's side 1.8e-6 from the axis of a cylinder turned before it cuts the cylinder a hair from its widest rulings; two faces drawn crossing, as with the cylinder raised"]
+fn seed_533300839_a_block_s_side_a_hair_from_a_turned_cylinder_s_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(150.0),
+            Outline::circle([180.0, 300.0], 105.0),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(135.0),
+                Axis::second(255.0000018),
+                Section::bands(135.0, &[[330.0, 0.0, 15.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([75.0, 255.0], [165.0, 345.0]),
+                240.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "band: a bore turned 3e-7 under the half width of the block it runs through, a hair from touching both sides; the kernel refuses to answer along a line, and through the application's body the last turn is declined as unverified"]
+fn seed_533301022_a_turned_bore_a_hair_from_touching_a_block_s_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::rectangle([90.0, 30.0], [150.0, 90.0]),
+            -75.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(120.0),
+                Axis::second(60.0),
+                Section::bands(-105.0, &[[120.0, 0.0, 29.9999997]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::rectangle([0.0, 60.0], [180.0, 120.0]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(120.0),
+                Axis::second(0.0),
+                Section::bands(-105.0, &[[120.0, -60.0, -30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "plane-a-hair: a turned bore's end and a post's end 6e-6 from the faces they meet; the kernel's triangles leave the body open, which the application declines as undrawn"]
+fn seed_533341432_a_turned_bore_and_a_post_ending_a_hair_from_a_face() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(210.0),
+            Outline::circle([90.0, 210.0], 15.0),
+            150.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xz(119.999994),
+                Axis::second(285.0),
+                Section::bands(165.0, &[[90.0, 0.0, 30.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(164.99999400000002),
+                Outline::circle([285.0, 210.0], 15.0),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a stepped shaft turned about an axis leaning 1e-7, cut by a cylinder square to it; two faces drawn crossing where the shaft's shoulder meets the cut"]
+fn seed_533335255_a_shaft_turned_about_an_axis_leaning_a_hair() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::second(0.0).leaning(1e-7),
+            Section::bands(-15.0, &[[5.0, 0.0, 30.0], [8.0, 0.0, 40.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(30.0),
+            Axis::second(5.0),
+            Section::bands(25.0, &[[18.0, -15.0, 10.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// line-of-touch: a cylinder turned about a line lying on the tangent plane
+/// of a ring's outer wall, then a post through that line of touch; the
+/// kernel's triangles left the body open, alike with the cylinder raised as
+/// a prism, until a line took every sample standing on it within rounding
+/// (`tessellation/sampling/touches.rs`).
+#[test]
+fn seed_533330824_a_turned_cylinder_whose_axis_touches_a_ring_s_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(40.0),
+            Outline::ring([30.0, 30.0], 30.0, 17.5),
+            38.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xz(60.0),
+                Axis::first(59.0),
+                Section::bands(0.0, &[[60.0, 0.0, 12.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(39.0),
+                Outline::circle([30.0, 60.0], 12.5),
+                40.0,
+            )),
+        ],
+    ));
+}
+
+/// line-of-touch: a cylinder turned square to a post, touching it at a
+/// point, then a block across both; declined as undrawn through the
+/// application's body, alike with the cylinder raised as a prism, until a
+/// line took every sample standing on it within rounding
+/// (`tessellation/sampling/touches.rs`).
+#[test]
+fn seed_533413234_a_turned_cylinder_touching_a_post_at_a_point() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([7.0, 2.0], 1.5), 2.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(7.0),
+                Axis::second(11.5),
+                Section::bands(0.0, &[[4.0, 0.0, 3.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(2.0),
+                Outline::rectangle([2.0, 5.0], [10.0, 10.0]),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a sector turned 270 degrees cut about the axis of a cylinder turned before it; the ends of the cut, planes holding that axis, meet the cylinder along its rulings and the kernel declines a tie"]
+fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(4.0), Outline::circle([6.0, 4.0], 1.0), 3.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(5.5),
+                Axis::first(5.5),
+                Section::bands(4.5, &[[3.0, 0.0, 0.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(5.5),
+                Axis::first(5.5),
+                Section::bands(5.5, &[[1.0, -1.0, 0.0]]),
+                270.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a sector turned a hundredth of a degree about the axis of a cylinder raised along it; the sector's ends, planes holding that axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are drawn crossing, alike with the cylinder turned; at a degree it holds"]
+fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::slot([6.0, 9.0], [6.0, 5.5], 0.5),
+            -3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(5.0),
+                Outline::circle([7.0, 2.5], 0.5),
+                -4.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(2.5),
+                Axis::second(7.0),
+                Section::bands(7.0, &[[1.0, 0.0, 2.0]]),
+                0.01,
+            )),
+        ],
+    ));
+}
+
+/// A band on its axis, its hole 2e-7 under its outer radius, turned a
+/// quarter: the flats lost the strip a hair thin at their ends. Laid, the
+/// hole is a notch in the outline, turned by the exact kernel.
+#[test]
+fn seed_533617180_a_wall_a_hair_thin_on_the_axis_turned_a_quarter_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(0.0, &[[7.0, 0.0, 5.0]]).with_holes(&[([2.5, 3.0], [6.5, 4.9999998])]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A band below its axis, its hole 1e-7 inside its far edge, turned a
+/// quarter: the flats refused the strip from both ends as a sliver. Laid,
+/// the hole is a notch, turned by the exact kernel.
+#[test]
+fn seed_533612358_a_wall_a_hair_thin_below_the_axis_turned_a_quarter_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(2.0, &[[5.5, -7.5, 0.0]])
+                .with_holes(&[([3.0, -7.4999999], [5.0, -4.5])]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A band across its axis, its hole 2e-8 inside the far edge below it,
+/// turned a quarter: the side below went to the flats and lost the strip
+/// at its ends. Laid, that side's hole is a notch, turned by the exact
+/// kernel.
+#[test]
+fn seed_533622662_a_wall_a_hair_thin_below_an_axis_the_band_crosses_turned_a_quarter_on_the_flats()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(2.5, &[[4.0, -2.5, 1.0]])
+                .with_holes(&[([4.0, -2.49999998], [6.0, -0.5])]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A band across its axis, its hole 1e-7 under the edge on one side,
+/// turned a quarter: that side's ends were open on the flats before the two
+/// sides were joined. Laid, the hole is a notch, turned by the exact
+/// kernel.
+#[test]
+fn seed_533653685_a_wall_a_hair_thin_across_the_axis_turned_a_quarter_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::first(0.0),
+            Section::bands(1.0, &[[3.0, -4.0, 2.5]]).with_holes(&[([2.5, 1.0], [3.5, 2.4999999])]),
+            90.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A band on its axis, its hole 2e-7 under its outer radius, turned a tenth
+/// of a degree short of whole: the flats laid ends and lost the strip a
+/// hair thin there. Laid, the hole is a notch, turned by the exact kernel.
+#[test]
+fn seed_533669075_a_wall_a_hair_thin_turned_a_tenth_of_a_degree_short_of_whole_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[7.5, 0.0, 9.5]]).with_holes(&[([5.0, 8.0], [5.5, 9.4999998])]),
+            359.9,
+        ),
+        vec![],
+    ));
+}
+
+/// A band across its axis, its hole 1e-8 under the edge on one side, turned
+/// whole. Each side alone was closed on the flats; their join left the
+/// hair-thin wall open, the flats' boolean splitting faces a hair apart
+/// into slivers it refuses. The exact kernel declined the side, the
+/// levels of the wall's two faces being one, and laying now holds to that:
+/// the wall is not there, the hole opens onto the outline as a notch, and
+/// both sides are turned and joined exactly.
+#[test]
+fn seed_533626745_a_wall_a_hair_thin_across_the_axis_turned_whole_joined_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[4.0, -3.0, 3.0]])
+                .with_holes(&[([-0.5, 0.5], [0.5, 2.99999999])]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A band on its axis, its hole 6e-8 under its outer radius, turned whole,
+/// then cut by a block: the flats' cut left the wall a hair thin open.
+/// Laid, the hole is a notch, and turn and cut are exact.
+#[test]
+fn seed_533638603_a_wall_a_hair_thin_turned_whole_then_cut_by_a_block_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(0.0),
+            Section::bands(2.0, &[[3.5, 0.0, 5.0]]).with_holes(&[([2.5, 3.5], [4.5, 4.99999994])]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([2.0, 2.0], [7.0, 8.0]),
+            7.0,
+        ))],
+    ));
+}
+
+/// A band on its axis, its hole 1e-8 under its outer radius, turned whole,
+/// then cut by a post: the flats' cut left it open. Laid, the hole is a
+/// notch, and turn and cut are exact.
+#[test]
+fn seed_533654767_a_wall_a_hair_thin_turned_whole_then_cut_by_a_post_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[7.5, 0.0, 5.0]]).with_holes(&[([5.5, 1.5], [8.0, 4.99999999])]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(-4.0),
+            Outline::circle([8.0, 0.0], 5.0),
+            12.0,
+        ))],
+    ));
+}
+
+/// A band below its axis, its hole 6e-8 inside its far edge, turned whole,
+/// then cut by a block: the flats' cut left it open. Laid, the hole is a
+/// notch, and turn and cut are exact.
+#[test]
+fn seed_533698627_a_wall_a_hair_thin_below_the_axis_turned_whole_then_cut_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::second(0.0),
+            Section::bands(2.0, &[[5.5, -5.5, 0.0]])
+                .with_holes(&[([5.0, -5.49999994], [6.5, -3.0])]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rectangle([-7.0, 1.0], [8.0, 16.0]),
+            12.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-drawing: a cylinder turned whole, cut by a post whose axis passes 1e-8 from the cylinder's; two faces drawn crossing, on the exact kernel too: the kernel's hair families, reached by turned cylinders as by raised ones: 70 of the 1 071 failures through the application's body, two faces crossing or the body declined as undrawn"]
+fn seed_533695958_a_turned_cylinder_cut_by_a_post_whose_axis_passes_a_hair_from_its_own() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(5.0),
+            Axis::first(0.0),
+            Section::bands(6.0, &[[10.0, 0.0, 3.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(1.0),
+            Outline::circle([5.00000001, 7.0], 1.0),
+            4.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-drawing: a tube turned about an axis leaning 1e-3 degrees, joined to a ring raised across it; two faces drawn crossing, on the exact kernel too"]
+fn seed_533719875_a_turned_tube_whose_axis_leans_a_thousandth_of_a_degree_joined_to_a_ring() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.0),
+            Axis::first(0.0).leaning(0.001),
+            Section::bands(2.0, &[[3.5, 0.5, 3.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(7.0),
+            Outline::ring([2.0, 2.0], 6.0, 1.5),
+            6.0,
+        ))],
+    ));
+}
+
+/// kernel-drawing: a cylinder turned whole touching a post's wall at a
+/// point, then a second post of the cylinder's radius through it, its axis
+/// meeting the cylinder's. The second post's wall touches the first's along
+/// a line, which the node of the two equal walls stands on: the node is a
+/// vertex, the line an edge running past it. The line was sampled at its
+/// ends alone, the wall's two loops met in the middle of a segment, and the
+/// application declined the body as undrawn. A line now takes every sample
+/// standing on it within rounding (`tessellation/sampling/touches.rs`).
+#[test]
+fn seed_533647113_a_turned_cylinder_lying_along_a_post_s_wall_is_drawn_closed() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(1.0), Outline::circle([3.0, 10.0], 2.5), 3.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(3.0),
+                Axis::first(15.0),
+                Section::bands(-1.0, &[[8.0, 0.0, 2.5]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-1.0),
+                Outline::circle([3.0, 15.0], 2.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-drawing: a cylinder turned whole, cut by a post and joined to a disc; the exact kernel's own triangles hold, the application's finer ones are drawn crossing (body/drawn.rs), as 533666445"]
+fn seed_533779006_a_turned_cylinder_cut_and_joined_is_drawn_crossing_through_the_body_alone() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::first(4.0),
+            Section::bands(0.0, &[[6.0, 0.0, 2.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(8.0),
+                Outline::circle([3.0, 4.0], 2.0),
+                6.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::circle([0.5, 6.0], 5.0),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-drawing: a ring raised from a plane 1e-8 off the round numbers, by 4.50000002, cut by a lying post; shrunk to prisms alone, two faces drawn crossing on the exact kernel: the kernel's own hair family, not turning's"]
+fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(7.00000001),
+            Outline::ring([8.0, 10.0], 8.0, 6.0),
+            -4.50000002,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(-0.5),
+            Outline::circle([6.0, 4.0], 2.5),
+            8.5,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-declines: a slot whose floor stands 1e-7 from the point where its lower cap touches a turned cylinder inside, the cap a perpendicular wall: the slot's corner there is taken onto the cylinder, the curve the cap and the cylinder meet along passes 5e-8 from it, is not cut there, and runs on to the point of touch under the floor, a hair the cap's face cannot close (brep/combine/cut.rs, decision 4 at a contact); declined as unverified (brep/assembly.rs). 32 of the 1 071 failures through the application's body were declined as unverified or as a tie; 4 now hold"]
+fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_declined_as_unverified() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(2.0000001),
+            Outline::slot([6.0, 8.0], [6.0, 6.0], 3.0),
+            -2.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(2.0),
+            Axis::second(0.0),
+            Section::bands(2.0, &[[4.0, -9.0, 0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// The post crosses the shaft at a node but for 5e-9 of radius: the curve
+/// the two meet along was laid on the post given the shaft's radius, while
+/// the post itself was left where it stood, since growing it would lift it
+/// off the shaft's end it rests on; the corners found on the post stood
+/// three tolerances off that curve. The post grown is slid along the
+/// shaft's axis by what it grew, and rests on the end still.
+#[test]
+fn seed_533609727_a_shaft_whose_two_bands_differ_by_a_hair_joined_to_a_post() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(2.0),
+            Axis::first(0.0),
+            Section::bands(1.0, &[[2.5, 0.0, 2.5], [0.5, 0.0, 2.50000001]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(-5.0),
+            Outline::circle([2.0, 3.5], 2.5),
+            7.0,
+        ))],
+    ));
+}
+
+/// The block's top crosses the slit the turn leaves, 6e-8 from its axis,
+/// where the slit's two ends stand a ten-thousandth of the tolerance apart:
+/// one piece of surface, two planes crossing along the axis, which the
+/// turn holds as a crack and which was a tie. Two planes are read one above
+/// the other at the place, where they stand further apart than rounding.
+#[test]
+fn seed_533708173_a_turn_short_of_whole_joined_to_a_block_a_hair_off_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(12.5),
+            Axis::first(1.5),
+            Section::bands(3.0, &[[8.0, 0.0, 1.0]]),
+            359.9,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(1.50000006),
+            Outline::rectangle([0.0, 8.0], [4.0, 15.0]),
+            -12.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel-declines: a cylinder turned about an axis 2e-8 off a rounded block's side, its ends on the block's ends, which touch the corners' walls: the curve each corner's wall meets the cylinder along passes 4e-16 from the cylinder's end circle, inside the band of the end and the corner, with no corner, and the cylinder's overlay finds a region with no point inside it (brep/overlay/partition.rs); declined as a tie. So is 533620725"]
+fn seed_533648596_a_turned_cylinder_a_hair_from_a_rounded_block_s_side_is_declined_as_a_tie() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::rounded([8.0, 6.0], [12.5, 7.5], 0.5),
+            7.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(7.50000002),
+            Section::bands(8.0, &[[4.5, 0.0, 0.5]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// The slot's cap stands 4.99999997e-8 from the disc's wall, just under
+/// the tolerance, and was taken for it; its side, which the slot made touch
+/// the cap, stands 5.00000006e-8 from the wall, just over it, and crossed
+/// the wall it should have touched. A wall taken for the first's a hair off
+/// now moves its operand onto it, as decision 8 does further off.
+#[test]
+fn seed_533613392_a_disc_cut_by_a_slot_a_hair_off_its_centre_with_no_turn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::yz(5.0), Outline::circle([5.0, 25.0], 25.0), -45.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(5.0),
+            Outline::slot([4.99999995, 25.0], [4.99999995, 22.5], 25.0),
+            -45.0,
+        ))],
+    ));
+}
+
+#[test]
+fn seed_533656030_a_rounded_square_a_hair_wider_than_its_corners_is_raised() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(3.0),
+            Outline::rounded([12.49999999, 0.5], [13.5, 1.5], 0.5),
+            1.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_533729250_a_rounded_rectangle_a_hair_wider_than_a_slot_is_raised() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(7.0),
+            Outline::rounded([3.99998999, 11.0], [4.99999, 15.0], 0.5),
+            5.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_533684645_a_large_rounded_rectangle_a_hair_wider_than_a_slot_is_raised() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(-90.0),
+            Outline::rounded([-14.9999982, 75.0], [15.0000021, 210.0], 15.0),
+            -210.0,
+        ),
+        vec![],
     ));
 }

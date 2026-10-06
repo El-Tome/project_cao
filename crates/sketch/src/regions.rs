@@ -369,6 +369,7 @@ fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
         .all(|(from, to)| side(point, from, to) != Side::Right)
 }
 
+mod across;
 mod measure;
 mod runs;
 mod side;

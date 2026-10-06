@@ -8,22 +8,29 @@
 
 mod along;
 mod arithmetic;
+mod around;
 mod building;
+#[cfg(feature = "campaigns")]
+pub mod campaigning;
 mod checking;
 mod cores;
 mod drawing;
 mod kernels;
 mod outlines;
 mod printing;
+mod sections;
 mod smaller;
 
 use glam::{DQuat, DVec2, DVec3};
 
 pub use along::{Crossing, Stretch};
 pub use arithmetic::{Measured, held_to_arithmetic, holds_exactly, holds_through_the_application};
+pub use around::{Swept, Turned};
+pub use building::Drawn;
 pub use checking::{check, holds, kept_its_promise, within_reach};
 pub use cores::on_every_core;
-pub use kernels::{Application, Exact, Flats, Kernel, whole_circle};
+pub use kernels::{Application, Exact, Flats, Kernel, TESSELLATION, whole_circle};
+pub use sections::{Along, Axis, Piece, Section};
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Case {
@@ -87,6 +94,14 @@ pub enum Leaf {
         high: DVec2,
         degrees: f64,
     },
+    /// A section of straight runs turned about a line of the plane by
+    /// `degrees`, either way, a whole turn at most.
+    Turned {
+        plane: Plane,
+        axis: Axis,
+        section: Section,
+        degrees: f64,
+    },
 }
 
 impl Leaf {
@@ -107,9 +122,20 @@ impl Leaf {
         }
     }
 
+    pub fn turned(plane: Plane, axis: Axis, section: Section, degrees: f64) -> Self {
+        Self::Turned {
+            plane,
+            axis,
+            section,
+            degrees,
+        }
+    }
+
     pub fn plane(&self) -> &Plane {
         match self {
-            Leaf::Prism { plane, .. } | Leaf::Revolution { plane, .. } => plane,
+            Leaf::Prism { plane, .. }
+            | Leaf::Revolution { plane, .. }
+            | Leaf::Turned { plane, .. } => plane,
         }
     }
 }

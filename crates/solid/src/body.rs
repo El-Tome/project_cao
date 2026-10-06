@@ -3,17 +3,20 @@
 mod caught;
 mod drawn;
 mod exact;
+mod turned;
 
 use std::borrow::Cow;
 
-use glam::{DVec2, DVec3};
+use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
 use crate::brep::Declined;
 use crate::mesh::{Mesh, Polygon};
 use crate::profile::{Frame, Profile};
-use crate::sweep::{self, Loop};
+use crate::sweep;
+use crate::turning::{Lie, Straight, Turn};
 use exact::Exact;
+use turned::{numbers_turned_whole, turned_flats};
 
 /// A solid: one closed surface, its faces numbered.
 ///
@@ -27,8 +30,8 @@ pub struct Body {
 
 /// Which kernel computed the matter. Exact on planes and cylinders as long as
 /// every step was one the exact kernel builds; flat pieces from the first step
-/// it does not — a revolution, an ellipse — on, since an exact body joined to
-/// flats can only be flats.
+/// it does not — a revolution of a slanted run or an arc, an ellipse — on,
+/// since an exact body joined to flats can only be flats.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
     Exact(Exact),
@@ -95,28 +98,36 @@ impl Body {
         Ok(Body::raised_flats(mesh))
     }
 
-    /// A flat area turned about an axis lying in its own plane, or `None` when
-    /// the area straddles the axis and would sweep through itself. Always
-    /// flats: the exact kernel has no surface of revolution.
-    pub fn revolution(
-        outline: Loop<'_>,
-        holes: &[Loop<'_>],
-        triangles: &[[DVec2; 3]],
-        to_world: impl Fn(DVec2) -> DVec3,
-        axis_origin: DVec2,
-        axis_direction: DVec2,
-        turn: f64,
-    ) -> Option<Body> {
-        let mesh = sweep::revolution(
-            outline,
-            holes,
-            triangles,
-            to_world,
-            axis_origin,
-            axis_direction,
-            turn,
-        )?;
-        Some(Body::raised_flats(mesh))
+    /// A profile turned about an axis lying in its plane, in the kernel this
+    /// body is computed by: exact when the body is and every run of the
+    /// profile is parallel or square to the axis, flats otherwise. A turn
+    /// that makes nothing is an empty body; an area across its axis is
+    /// declined, since each side of it is turned apart. Declined otherwise
+    /// only by the exact kernel.
+    pub fn tool_turned(
+        &self,
+        profile: &Profile,
+        frame: Frame,
+        turn: &Turn,
+    ) -> Result<Body, Declined> {
+        match turn.lie(profile) {
+            Lie::Nothing => return Ok(Body::default()),
+            Lie::Across => return Err(Declined::Profile),
+            Lie::Side(_) => {}
+        }
+        let whole = numbers_turned_whole(profile, frame, turn);
+        if let Some(straight) = self.straight(profile, frame, turn) {
+            let numbers = whole.unwrap_or_else(|| straight.numbers(turn.is_whole()));
+            return Ok(Body::of_exact(Exact::turned(
+                &straight, frame, turn, numbers,
+            )?));
+        }
+        Ok(
+            turned_flats(profile, frame, turn).map_or_else(Body::default, |mesh| {
+                let next = mesh.faces_end().max(whole.unwrap_or(0) as usize);
+                Body::of_flats(mesh, next)
+            }),
+        )
     }
 
     /// Everything that is in either body.
@@ -195,6 +206,33 @@ impl Body {
         }
     }
 
+    /// Moves the faces' count past the numbers a turn of `profile` would have
+    /// named, for a step the kernel declined, as [`Body::count_past`] does
+    /// for a raise.
+    pub fn count_past_turned(&mut self, profile: &Profile, frame: Frame, turn: &Turn) {
+        if !matches!(self.matter, Matter::Exact(_)) || !matches!(turn.lie(profile), Lie::Side(_)) {
+            return;
+        }
+        let numbers = numbers_turned_whole(profile, frame, turn).unwrap_or_else(|| {
+            match self.straight(profile, frame, turn) {
+                Some(straight) => straight.numbers(turn.is_whole()),
+                None => {
+                    turned_flats(profile, frame, turn).map_or(0, |mesh| mesh.faces_end() as u32)
+                }
+            }
+        });
+        if let Matter::Exact(exact) = &mut self.matter {
+            exact.count_past_turned(numbers);
+        }
+    }
+
+    /// Whether the exact kernel computed the body, for the tests that hold a
+    /// part to it.
+    #[cfg(any(test, feature = "test-support"))]
+    pub fn is_exact(&self) -> bool {
+        matches!(self.matter, Matter::Exact(_))
+    }
+
     /// Whether some face of the body answers to `face`.
     pub fn has_face(&self, face: usize) -> bool {
         match &self.matter {
@@ -255,6 +293,15 @@ impl Body {
             Matter::Exact(exact) => exact.volume(),
             Matter::Flats(flats) => flats.mesh.volume(),
         }
+    }
+
+    /// The profile laid square to the axis of `turn`, when the body is
+    /// exact and the exact kernel can turn it.
+    fn straight(&self, profile: &Profile, frame: Frame, turn: &Turn) -> Option<Straight> {
+        let (Matter::Exact(exact), Some((outline, holes))) = (&self.matter, &profile.exact) else {
+            return None;
+        };
+        Straight::of(outline, holes, frame, turn, exact.reach())
     }
 
     fn of_exact(exact: Exact) -> Body {

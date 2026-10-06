@@ -546,7 +546,8 @@ What the rule leaves of the corpus, each case ignored with its reason:
   band of theirs is laid out. Where a plane touches both, its two bands
   carry the crossing line, and ten of the family hold so.
 - **2-1, three lines of touch in one band** (6086149, 6576153, 6529277),
-  not traced since the rule; and 6155665, whose bore dips a hair into both
+  not traced since the rule — 6529277 is drawn closed since a line takes
+  the samples standing on it (#533, below); and 6155665, whose bore dips a hair into both
   the wall and the plane resting on it, a band the guard of 90016363 leaves
   as it was.
 - **1-2, a plane touching a wall a hair from a line crossing it** (6168409,
@@ -837,7 +838,8 @@ What the merge made, three seeds held the night before:
   in 8542629 the wall touches a block's side along a ruling across that
   line, every rim of the wall is sampled square to the corner, on the
   side, and the block's top, whose rim it is too, has its rim sample on
-  its own edge along the side and is left uncut. Not fixed. A corner kept
+  its own edge along the side and is left uncut — drawn closed since the
+  edge takes the samples standing on it (#533, below). Not fixed then. A corner kept
   where it was found, or laid where a wall crossing the line crosses it,
   fixed one or both and broke up to eight seeds the merged lanes hold
   (8504113, 8511276, 8540216, 8544675, 8562569, 8573267, 8586557, 8586895);
@@ -862,3 +864,264 @@ The last row is 8544067 and 8552226 on both profile draws, and 8512856,
 8540477, 8581445 and 8588829 through the body: shrunk on the night's
 kernel, each case holds now, and the seed wants shrinking again on this
 one.
+
+## #533: turns
+
+Two campaigns of `random_turned_solids.rs`, two hours each, side by side on
+the branch's tip (`01c30e2`), on 6 October: the off-lattice turned draw
+(`Case::drawn_turned_off_the_lattice`) on the exact kernel from seed
+533300000, and through the application's body from seed 533400000. Every
+seed they named was shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`, and each shrunk
+case run again on both paths to tell which kernel computed each step. Two
+hours is not the night the issue asked for; the rates below are what they
+are worth.
+
+| | cases | broke a rule | asking for an ellipse, declined | a wall a hair thin, declined as no profile |
+| --- | --- | --- | --- | --- |
+| on the exact kernel | 71 475 | 53 (0.07 %) | 7 791 | 573 |
+| through the application's body | 13 520 | 72 seeds (0.53 %) | 1 478 | 0 |
+
+No turned leaf breaks a rule alone on the exact kernel: every failure there
+is a boolean meeting a turned surface. By family, the seeds' last six
+digits after 533:
+
+- **The flats turning a wall a hair thin**, 64 seeds, every one through the
+  application's body: a hole a hair inside its outline's side, turned
+  whole or part way, alone or joined to the part. The exact kernel declines the section as no profile, the application
+  turns it on the flats, which are main's sweep unchanged
+  (`a_profile_beyond_the_band_of_its_axis_is_turned_by_the_flats_as_main_turned_it`),
+  and they leave an end facing the wrong way along that wall: the flats' own
+  defect, out of #533's scope. Named by 400107. The others: 400076 400215
+  400360 400461 400495 400628 401117 401440 401642 401891 401925 402109
+  402344 402464 402529 402653 402908 403425 403793 403860 404076 404112
+  404171 404350 404371 404649 404673 404842 404964 404998 405140 405152
+  406130 406289 406550 406756 407246 407550 407625 407671 407688 408150
+  408174 408443 408737 408789 408984 409095 409409 409550 409913 409933
+  410141 410511 410814 410835 411056 412073 412077 412334 412364 412411
+  413237.
+- **A surface or a plane a hair from another**, 40 seeds on the exact
+  kernel and 4 through the body: a coordinate a hair, from 1e-8 to 1e-5,
+  off the one it would meet; the families prisms already fail by
+  (plane-a-hair, the band, the line of touch), reached by turned cylinders
+  and discs as by raised ones. Named by 300839, 301022 and 341432. The
+  others: 300796 304139 304813 305000 305495 311777 315421 319050 319710
+  320588 320774 321257 325448 327154 327166 330490 331748 332674 338751
+  338790 339621 340695 342139 343652 347353 348114 348459 349284 351190
+  351969 353686 358886 360327 365286 365909 369492 371154; through the
+  body 404973 405215 406729 410520.
+- **An axis leaning a hair**, 6 on the exact kernel and 2 through the body:
+  a turn about an axis leaning 1e-7 to 1e-3, which the reading lays square,
+  meeting a surface square to it. Named by 335255. The others: 307526
+  317654 328870 337056 337834; through the body 401606 412197.
+- **Surfaces touching, no hair**, 7 on the exact kernel and 2 through the
+  body: a cylinder whose axis lies on another's tangent plane, two
+  cylinders square to each other touching at a point, and a partial turn
+  whose ends, planes holding an axis, meet a cylinder turned about that
+  axis along its rulings, declined as a tie. With the turned cylinder
+  raised as a prism instead, 330824 and 413234 fail alike: the kernel's
+  line of touch, not the turn. Named by 330824, 413234 and 328889. The
+  others: 306876 308079 316268 346954 365319; through the body 412761.
+
+Each named seed is in `what_the_exact_campaigns_found_in_the_kernel.rs`,
+ignored with its reason. None was fixed: every family but the last is one
+the kernel already fails on prisms, or the flats' own, and the partial
+turn's tie is the one finding that belongs to turning; it is left for the
+cones' issue, which builds the same ends.
+
+### The night's campaigns
+
+Run on 6 October in release, side by side, on the branch at `2d7623e` and
+on a copy of `main` at `dc5bfe5`, each tree with its own target directory.
+The turned campaigns ran four hours each, the square and profile draws
+the same seeds and the same number of cases on both trees
+(`CAO_FUZZ_CASES`), and the part campaign an hour on both, compared over
+the seeds both reached. A case that never answered ends a campaign; it was
+started again from the next seed, so every seed in the range was tried.
+
+| campaign | first seed | cases | main | branch | per thousand |
+| --- | --- | --- | --- | --- | --- |
+| turned, on the exact kernel | 533500000 | 124 732 | | 68 | 0.55 |
+| turned, through the application's body | 533600000 | 187 902 | | 1 071 | 5.70 |
+| square solids, on the exact kernel | 533700000 | 150 000 | 6 | 6 | 0.04 |
+| profiles, on the exact kernel | 533800000 | 95 000 | 42 | 42 | 0.44 |
+| parts, every gesture undone | 533900000 | 1 014 | 92 | 75 | 90.7 / 74.0 |
+
+The turned campaigns also declined 13 710 and 21 011 cases asking for an
+ellipse, as the scope rule has them, and the exact kernel 915 turned walls
+a hair thin as no profile.
+
+**Square and profiles: no regression.** The same 6 and 42 seeds fail on
+both trees, by the same rules, and shrink into the same cases.
+
+**Parts: sixteen seeds failed on the branch alone**, every one a circle
+drawn across a sketch axis, an area `main` dropped and the branch cuts
+along the axis and turns on both sides. Both sides of a circle go to the
+flats, and their join took 43 s in release for a circle turned whole alone,
+93 s after a raise: fourteen seeds answered too late, two came out open.
+
+- **Fixed: a whole turn needs only the sides no other side holds.** Turned
+  whole, a side whose mirror lies within the other sweeps nothing the
+  other does not, and `Turn::sides_needed` leaves it out (`b55c4a8`). The
+  circle alone now turns in 4 ms, after a raise in 12 s, where a circle on
+  one side of the axis takes 29 s on `main`. Over the first 570 seeds,
+  run again: `main` 54 failures, the branch 44 before the fix, 37 after;
+  seven of the ten the branch failed alone hold. Held in the gate by
+  `a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone`
+  and `a_circle_across_its_axis_turned_whole_undoes_every_gesture_within_the_patience`.
+- **Open: a circle across its axis turned part way.** Both sides are still
+  turned on the flats and joined: at 180 degrees, back to back, it takes
+  longer than the patience (533900361, 533900651, 533900890). The flats'
+  join, #418; each named in `an_undo_gives_back_the_part.rs`, ignored with
+  its reason. At -45 degrees the seam came out open (533900197, 533900883):
+  not the join but the ends, which faced the way a forwards turn would;
+  fixed with the flats' ends below, and held in the gate.
+- **Open: a part on the flats after a round turn.** A circle across its
+  axis turned whole now makes matter, and the part goes to the flats from
+  that step on, where every later join is as slow as `main` makes it for a
+  circle turned on one side (533900569, 533900776, 533900903): #492.
+
+**Turned, by family**, each seed shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one` and the shrunk
+case run again on both paths:
+
+| family | on the exact kernel | through the body |
+| --- | --- | --- |
+| the flats turning a wall a hair thin | | 961 |
+| a surface or a plane a hair from another | 51 | 74 |
+| surfaces touching, no hair | 11 | 25 |
+| an axis leaning a hair | 6 | 7 |
+| the flats answering too late | | 4 |
+
+- The wall a hair thin is the family the two-hour runs named by 533400107:
+  the exact kernel declines the section, the flats turn it as `main` did
+  and leave an end facing the wrong way.
+- The hairs, the touches and the leaning axes are the kernel's families on
+  prisms, reached by turned cylinders and discs. Nine of them were run
+  again with the turned cylinder raised as a prism instead, and fail alike:
+  the rules `Listed`, `Volume` and `Closed` this campaign met on the
+  kernel's own triangles (533620562, 533515182, 533565540, 533544801), the
+  touches declined as undrawn (533520746, 533545056, 533549652), and two
+  ties (533512790, 533571909). Through the body, 533666445, a cylinder
+  turned about V and cut by a ring and a post, is drawn crossing by the
+  body's finer triangles, alike with the cylinder raised: named in
+  `what_the_exact_campaigns_found_in_the_triangles.rs`.
+- **Turning's own: a sliver about a cylinder's axis.** A sector turned a
+  hundredth of a degree about the axis of a cylinder lies with its two
+  ends, planes holding that axis, on the cylinder's rulings, and two faces
+  are drawn crossing (533603007); at a degree it holds. The same family as
+  533328889's tie, the ends of a partial turn meeting a coaxial cylinder;
+  named in `what_the_exact_campaigns_found_in_the_kernel.rs` and left, as
+  that one is, for the cones' issue.
+- **Fixed: two edges touching between their vertices**, 15 of the 17
+  bodies of the kernel-drawing family the application declined as
+  undrawn. A rim touching the line a floor through a wall's axis cuts on
+  it, at the rim's vertex or at a step of its grid, or two curves grazing
+  at a step of both: the kernel puts no vertex there, the line was sampled
+  at its ends alone, or each curve took a sample a rounding apart, and the
+  face holding both met its own loop in the middle of a segment, which the
+  sweep refuses. A line now takes every sample standing on it within
+  rounding, and samples of two edges within rounding of each other are one
+  (`tessellation/sampling/touches.rs`). Held by 533647113, 533643649,
+  533786336 and 533600448; the same rule holds 533330824 and 533413234 of
+  the touches above, 8542629 and the band's 6529277. The two left,
+  533729464 and 533693925, are two circles a hair apart on one cap, their
+  chords crossing.
+
+### The flats' ends
+
+`flats-ends`, the 753 seeds of the night's turns through the application's
+body whose turned leaf came out open alone: a wall a hair thin, which the
+exact kernel declines as no profile, turned part way on the flats. Three
+faults in `sweep::revolution`, each a fact the sweep decided apart from
+the rest:
+
+- **A thin end refused.** The ends were the drawing's own triangles passed
+  through `Polygon::new`, which refuses a splinter a cut leaves, while the
+  strip's two walls were kept: they are now `Polygon::drawn`, kept however
+  thin while they are thicker than the rules' `NEAR`. The caps of a prism
+  are the same pieces and are kept the same way.
+- **An end facing the way read at its first corner.** Every piece fanned
+  from a corner on the axis read no way at all; and the way ignored the
+  sign of the turn, so every partial turn backwards on the flats was open
+  (#486). An end now faces the way a point off the axis travels, back
+  where the turn opens and ahead where it closes.
+- **A whole turn a hair short.** A turn the reading takes as whole, within
+  a thousandth of a radian, was swept by its own angle, its last step that
+  hair from its first and no end across the slit; it is swept whole.
+
+Each seed run again alone, on `1492eed` and on the fix: 238 of the 753
+hold. The 515 left break where the flats join two solids, the family
+`flats-join` names: 438 at a later step whose tool holds alone, 32 a leaf
+across its axis whose two sides are joined, 31 a later tool across its
+axis, and 14 answer past the patience, every one a join on the flats. A
+fifteen-minute campaign from 533600000 on both trees, side by side: 5 569
+seeds reached by both, 24 failures before and 18 after, none failing after
+alone; six of the fifteen `flats-ends` seeds in that range hold. Held by
+`a_part_turn_is_closed_either_way_on_its_axis_and_off_it`,
+`a_wall_a_hair_thin_keeps_its_two_ends` and
+`a_turn_a_hair_short_of_whole_closes_on_itself`, #486's
+`a_quarter_turn_backwards_keeps_every_rule`, and the parts 533900197 and
+533900883, a circle across its axis turned -45 degrees.
+
+The `flats-join` fix, merged beside this one, settles the rest upstream:
+`Straight::of` now reads the hair-thin wall away and the exact kernel turns
+these sections, so the named seeds of both families no longer reach the
+flats. The flats' ends stay fixed for what still turns there: a section
+the exact kernel declines, and #486's turns backwards.
+
+### Round 1: the kernel's declines
+
+The night's failures through the application's body were sorted by the
+place at fault (`1492eed`); 32 seeds were the exact boolean declining a
+step, as unverified or as a tie, a plane or a wall a hair from another.
+Every shrunk case was traced to the first fact decided twice:
+
+- **Fixed: a wall taken for another a hair off moves its operand.**
+  Decision 1 took a slot's cap for a disc's wall at just under the
+  tolerance and left the slot's side, which touched the cap, just over it
+  from the wall: the side crossed the wall it should have touched. The
+  operand now moves onto the wall it is taken for, as decision 8 moves it
+  further off (533613392, 533704316, and 8515425 from the line of touch).
+- **Fixed: a cylinder grown onto a node slides along its partner's axis.**
+  The curve a post and a shaft meet along at a node but for a hair of
+  radius was laid on the post given the shaft's radius, while the post,
+  resting on the shaft's end, was left as it stood; its corners stood
+  three tolerances off the curve. Grown, it is slid along the shaft's axis
+  by what it grew, and rests on the end still (533609727's shrunk case).
+- **Fixed: two planes as twins are read at the place.** The two ends of a
+  turn a tenth of a degree short of whole stand closer than the tolerance
+  near its axis, and a block's face crossing them there made twins of the
+  two, a tie. They are read one above the other where they stand further
+  apart than rounding (533708173's shrunk case).
+- **Open, the band again:** the curve a corner's wall meets a turned
+  cylinder along passing 4e-16 from the cylinder's end circle, inside the
+  band of the end plane and the wall, with no corner (533648596,
+  533620725); a slot's corner taken onto a cylinder its cap touches inside
+  1e-7 under it, off the curve the two meet along (533631663); a meet laid
+  on a moved cylinder neither operand may move (533602391's shrunk case,
+  533775454); walls a hair apart beyond decision 8's reach under a
+  perpendicular one (533603710); a third surface crossing a line of touch a
+  hair inside (533614588). Each is the tangency band's or decision 2's,
+  reached by turned surfaces as by raised ones.
+
+Measured on the 32 seeds as drawn, through the body: 3 now hold
+(533602391, 533613392, 533704316). 533609727 as drawn holds a third band
+that still declines; 533708173 as drawn now answers, and its turn's own
+crack near the axis is drawn crossing under the block, as it was on
+`1492eed` with the block above: the triangles' family. A 15-minute
+campaign from 533600000 on both trees, 3 448 seeds in common: the same
+failures, less 533602391; no seed that held fails.
+
+### Round 1: a rounded outline a hair wider than its corners
+
+`rounded-a-hair`, four seeds of the night's turns through the
+application's body: a rounded square or rectangle a hair wider than its
+corner radii, raised. Its straight run between two arcs had its ends
+within the tolerance, and the raise declined such a run as no profile
+(`brep/piece.rs`). It is now left out and names no wall, as a turn leaves
+out a run laid to no length, and the arcs on either side, their centres a
+hair apart, are one: a rounded square a hair wider than its corners is
+raised as a disc, a rectangle a hair wider than a slot as the slot. The
+four seeds hold, run one at a time; 533656030, 533729250 and 533684645 are
+un-ignored.

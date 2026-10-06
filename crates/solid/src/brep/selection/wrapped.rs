@@ -92,8 +92,9 @@ pub(in crate::brep) fn covering(
 /// stand one above the other all along the stretch between the lines they
 /// cross along: read at its middle, where they stand furthest apart. Kept
 /// two by the operand though one at this tolerance, they are read at the
-/// first twin's place, where they stand further apart than rounding. Other
-/// twins are a tie.
+/// first twin's place, where they stand further apart than rounding; so are
+/// two planes, the ends of a turn short of whole near its axis. Other twins
+/// are a tie.
 pub(in crate::brep) fn collapsed(
     operands: &Operands,
     operand: usize,
@@ -117,8 +118,9 @@ pub(in crate::brep) fn collapsed(
 /// normal points to, along the line the two were decided at `scale` to
 /// touch along, all along the stretch between the two lines they were
 /// decided to cross along that `place` stands on, or at `place` where two
-/// neither touching nor crossing, a plane and a wall or two parallel walls,
-/// stand further apart than rounding; none otherwise.
+/// neither touching nor crossing along two lines — a plane and a wall, two
+/// parallel walls, two planes — stand further apart than rounding; none
+/// otherwise.
 pub(super) fn lies_above(
     operands: &Operands,
     scale: Scale,
@@ -138,6 +140,11 @@ pub(super) fn lies_above(
             }
             (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
                 let gap = plane.distance(beside(cylinder, place));
+                (gap.abs() > rounding).then_some(gap > 0.0)
+            }
+            (Surface::Plane(first), Surface::Plane(second)) => {
+                let facing = first.normal.dot(second.normal);
+                let gap = -second.distance(place) / facing;
                 (gap.abs() > rounding).then_some(gap > 0.0)
             }
             _ => None,

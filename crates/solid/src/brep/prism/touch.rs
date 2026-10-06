@@ -11,7 +11,7 @@ use std::f64::consts::TAU;
 
 use glam::DVec2;
 
-use super::piece::{Named, Piece};
+use crate::brep::piece::{Named, Piece};
 
 /// A loop of the profile parted at the touches: each piece with the touch
 /// its start stands at, if any.

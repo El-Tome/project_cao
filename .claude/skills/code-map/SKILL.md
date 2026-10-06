@@ -55,10 +55,10 @@ there. See the `architecture-rust` skill.
 
 | What one is after | File | Way in |
 | --- | --- | --- |
-| The matter as every crate above sees it, and the only thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::prism`, `revolution`, `union`, `difference`, `ray_hit`, `plane_of` |
+| The matter as every crate above sees it, and the only thing that leaves `cao_solid` | `solid/src/body.rs` | `Body`, `Body::tool_raised`, `tool_turned`, `union`, `difference`, `ray_hit`, `plane_of` |
 | What a body is made of inside the crate: the mesh, the faces, the ray cast | `solid/src/mesh.rs` | `Mesh`, `Polygon`, `ray_hit`, `bounds` |
-| Extruding an area into a prism | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::prism` |
-| Turning an area around an axis | `solid/src/sweep.rs` | `revolution(...)`, reached as `Body::revolution` |
+| Extruding an area into a prism on the flats | `solid/src/sweep.rs` | `prism(...)`, reached as `Body::tool_raised` |
+| Turning an area around an axis: read once for both kernels, then the exact kernel for straight runs, the flats otherwise | `solid/src/turning.rs`, `turning/straight.rs`, `brep/turned.rs`, `sweep.rs` | `Turn::lie`, `Straight::of`, `brep::Body::turned`, `revolution(...)`, all reached as `Body::tool_turned` |
 | Adding or taking away matter | `solid/src/boolean.rs` | `Mesh::union`, `Mesh::difference` (BSP tree) |
 | The exact kernel of #498, planes and cylinders, beside the flats and not yet behind `Body` | `solid/src/brep.rs` and `brep/`, `solid/src/profile.rs` | `brep::Body::raised`, `joined`, `cut_by`, `triangles`, `volume`, `listing`, `Declined` |
 

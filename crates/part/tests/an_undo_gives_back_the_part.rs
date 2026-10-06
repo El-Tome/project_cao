@@ -472,7 +472,6 @@ fn the_same_seed_draws_the_same_part() {
 }
 
 #[test]
-#[ignore = "#486"]
 fn a_quarter_turn_backwards_undoes_every_gesture() {
     assert_eq!(
         undoes(&[
@@ -542,6 +541,100 @@ fn a_block_raised_beside_a_turned_circle_answers_within_the_patience() {
         },
     ];
     assert_eq!(answer(gestures, &check, Duration::from_secs(5)), Ok(()));
+}
+
+#[test]
+fn a_circle_across_its_axis_turned_whole_undoes_every_gesture_within_the_patience() {
+    let check: Check<Vec<Move>> = Arc::new(|gestures: &Vec<Move>| undoes(gestures));
+    let gestures = vec![
+        Move::Sketch(Origin::Xy),
+        Move::Circle {
+            center: [7.0, 1.0],
+            radius: 5.5,
+        },
+        Move::Turn {
+            at: [7.0, 1.0],
+            about: SketchAxis::U,
+            degrees: 360.0,
+            cut: false,
+        },
+    ];
+    assert_eq!(answer(gestures, &check, Duration::from_secs(10)), Ok(()));
+}
+
+/// A circle across its axis turned -45 degrees, both sides on the flats:
+/// their ends faced the way a forwards turn would, and the seam came out
+/// open; they face the way the area travels now.
+#[test]
+fn seed_533900197_a_circle_across_its_axis_turned_part_way_undoes_every_gesture() {
+    assert_eq!(
+        undoes(&[
+            Move::Sketch(Origin::Yz),
+            Move::Circle {
+                center: [15.0, 6.0],
+                radius: 8.0,
+            },
+            Move::Turn {
+                at: [15.0, 6.0],
+                about: SketchAxis::U,
+                degrees: -45.0,
+                cut: false,
+            },
+        ]),
+        Ok(())
+    );
+}
+
+/// A circle across its axis cut -45 degrees into a block, both sides on
+/// the flats, whose ends faced the way a forwards turn would.
+#[test]
+fn seed_533900883_a_circle_across_its_axis_cut_part_way_into_a_block_undoes_every_gesture() {
+    assert_eq!(
+        undoes(&[
+            Move::Sketch(Origin::Xz),
+            Move::Rectangle {
+                low: [5.0, 19.0],
+                high: [10.0, 27.0],
+            },
+            Move::Raise {
+                at: [7.5, 23.0],
+                depth: -9.0,
+                cut: false,
+            },
+            Move::SketchOnFace(4),
+            Move::Circle {
+                center: [6.0, 2.0],
+                radius: 7.0,
+            },
+            Move::Turn {
+                at: [0.0, 5.0],
+                about: SketchAxis::V,
+                degrees: -45.0,
+                cut: true,
+            },
+        ]),
+        Ok(())
+    );
+}
+
+#[test]
+#[ignore = "#418: a circle across its axis turned half way is turned on both sides on the flats, back to back, and their join takes the flats longer than the patience; on main the area made nothing"]
+fn seed_533900361_a_circle_across_its_axis_turned_half_way_answers_within_the_patience() {
+    let check: Check<Vec<Move>> = Arc::new(|gestures: &Vec<Move>| undoes(gestures));
+    let gestures = vec![
+        Move::Sketch(Origin::Xz),
+        Move::Circle {
+            center: [7.0, 18.0],
+            radius: 7.5,
+        },
+        Move::Turn {
+            at: [7.0, 18.0],
+            about: SketchAxis::V,
+            degrees: 180.0,
+            cut: false,
+        },
+    ];
+    assert_eq!(answer(gestures, &check, Duration::from_secs(10)), Ok(()));
 }
 
 fn from_the_environment(name: &str) -> Option<u64> {

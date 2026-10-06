@@ -29,14 +29,22 @@ It can:
   both loops share on each cap, the line the two walls touch along between
   them, and each wall parted there. A touch at a corner of the other loop is
   not laid this way.
+- **turn a profile of straight runs** about an axis lying in its plane, when
+  every run is parallel or square to the axis: by any angle up to a whole
+  turn, either way, adding or taking away matter. A run parallel to the axis
+  turns into a cylinder, a run square to it into a disc or a ring, and a
+  partial turn ends on two planes holding the axis (`brep/turned.rs`). The
+  section [Turning](#turning) says how.
 - surfaces: planes, and circular cylinders parallel or square to each other;
   curves: lines, circles, and the curve two perpendicular cylinders meet
   along.
 - **number its faces as the flats do**, so a drawing laid on a face keeps it
   when a size changes: 0 for the floor of a raise, 1 for its top, one per run
   for the walls — two runs on one line, or two arcs of one circle, make one
-  wall answering to both. A face kept from a boolean answers to the numbers
-  of every operand face it lies on; a face merged across a seam to all of its
+  wall answering to both; a straight run whose two ends are one corner,
+  within the tolerance, is left out and names none, as a turn leaves out a
+  run laid to no length (`brep/piece.rs`). A face kept from a boolean
+  answers to the numbers of every operand face it lies on; a face merged across a seam to all of its
   members'. A face a cut leaves in pieces that no longer touch keeps its
   number on the first piece, and the others get fresh numbers.
 - **decline**, with a reason (`Declined`), and never hand back a solid it could
@@ -52,13 +60,14 @@ It can:
 - **tell faces at a slant that never touch from faces that cross**: a plane
   against a cylinder patch, two skew cylinders, are decided apart on the faces
   themselves before the kernel declines (`combine/clear.rs`).
-- hand a revolution, or an area bounded by an ellipse, **to the flats**, from
-  that step on: it has no surface for either.
+- hand a revolution of a profile with a slanted run or an arc, or an area
+  bounded by an ellipse, **to the flats**, from that step on: it has no cone,
+  sphere, torus or ellipse.
 
 Left, in the order #497 set:
 
-- revolutions: of a rectangle about an axis along its sides (planes and
-  cylinders only), then of arcs and slanted runs (cones, spheres, tori);
+- revolutions of slanted runs and arcs: cones, spheres, tori. Those of
+  straight runs parallel or square to the axis are done (#533);
 - ellipses: a plane crossing a cylinder at a slant, and an ellipse drawn in a
   profile;
 - an exact STEP;
@@ -92,7 +101,11 @@ Known and still open:
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
 - **Operations:** raise a profile of straight runs and arcs along its plane's
-  normal, join, cut. Revolutions, cones, spheres and tori are out.
+  normal; turn a profile whose runs are each parallel or square to the axis;
+  join, cut. Cones, spheres and tori, what a slanted run or an arc turns
+  into, are out. A turn about a line that is no axis of the planes the rest
+  of the part stands on brings cylinders at a skew angle to those, and
+  declines where their faces cross: a broken step, as #533 decided.
 
 ## Deciding once
 
@@ -136,8 +149,13 @@ The decisions, in the order taken, once per operation:
    neither, a floor drawn on the middle one of three floors a hair apart
    stood as a fourth plane on it, its corners within the tolerance of
    corners no merge may join, and a region between them found no column to
-   be read in (8537287, 8087943). From here on, coplanar, coaxial and flush
-   are comparisons of ids.
+   be read in (8537287, 8087943). A wall taken for the first's a hair off,
+   further than rounding, moves its operand onto that wall with what it
+   built on it, as decision 8 moves it further off: left where it is, a
+   slot's cap taken at just under the tolerance kept the side its operand
+   made touch it just over the tolerance from the wall, and the side crossed
+   the wall it should have touched (533613392). From here on, coplanar,
+   coaxial and flush are comparisons of ids.
 2. **The relation of a pair** of surfaces whose faces' boxes overlap: apart,
    one line, a tangent line, two lines, a circle, or the curve two
    perpendicular cylinders meet along with its special points. This is the
@@ -151,7 +169,12 @@ The decisions, in the order taken, once per operation:
    carrying the first operand's corners is never moved, or they would stay
    on its old wall: where the pair would move it, its partner moves instead,
    across it the other way, and takes its radius at a node of two of one
-   radius. A plane and a cylinder, or two
+   radius. A cylinder grown onto such a node that would lift off a plane
+   square to its partner's axis, which it touched, is slid along that axis
+   by what it grew: the node stands wherever along the axis the two meet,
+   and a post resting on a shaft's end, crossing the shaft at a node but
+   for a hair of radius, rests on it still (533609727). A plane and a
+   cylinder, or two
    parallel cylinders, one of each operand, decided to touch along a line a
    hair apart are made to touch the same way: the surface the second operand
    alone carries is moved onto the touch — a cylinder along the plane's
@@ -292,8 +315,10 @@ The decisions, in the order taken, once per operation:
    cylinders a hair apart crossing at a grazing angle — the two stand one
    above the other all along the stretch between the lines they cross
    along, the wall's slice beyond the plane from its axis, read at the
-   middle of that stretch, where they stand furthest apart. Other twins
-   are still a tie. The
+   middle of that stretch, where they stand furthest apart. Two planes
+   are read at the region's point, where they stand further apart than
+   rounding: the two ends of a turn a tenth of a degree short of whole,
+   near its axis, a crack (533708173). Other twins are still a tie. The
    point inside each is what tells twins from the two caps two crossing
    cylinders bound with the one loop they meet along.
 7. **The band.** A plane and a cylinder decided to touch, or two cylinders
@@ -570,6 +595,84 @@ same input gives the same bits.
 - **Non-manifold edges** have four uses, or six: two blocks touching along an
   edge, a hole tangent to a wall.
 
+## Turning
+
+#533 brought the kernel its first turn, of the profiles whose surfaces it
+already had: every run parallel or square to the axis. The body is laid
+directly, as a raise lays its walls, rather than raised in slabs and joined
+or swept through the raise's code: one surface per piece of the profile, one
+circle per corner, which is the construction cones, spheres and tori will
+grow from.
+
+- **The reading** is decided once, before either kernel, in `turning.rs`:
+  whether a turn is whole (within a thousandth of a radian, the flats' own
+  rule), which side of its axis the area lies on, and how close to the axis
+  counts as on it — a thousandth of the area's furthest point from the axis,
+  on either side, the band the flats always used (#487, #488). An area
+  across its axis is cut along it before the body is asked, and each side
+  turned apart. `Straight` is the profile laid square to its axis: every run
+  exactly parallel or square to it, its corners read `(h, r)`, along the axis
+  and away from it; one that cannot be laid so goes to the flats. Levels
+  closer than the tolerance are one across the whole profile, its holes'
+  included, and laying holds to that: a wall or a gap between two of them is
+  not there. A hole a hair inside its outline opens onto it as a notch, a
+  slot a hair wide closes, and the outline's run along the wall that went is
+  left in pieces, each answering to its number. Where laying makes the
+  profile touch itself, it is read again as the matter it bounds, cell by
+  cell between its levels (`turning/straight/bounded.rs`); it is declined
+  only where that matter is not one piece, or touches itself at a corner.
+  The flats, handed such a wall, kept it a hair thick, and their boolean
+  left it open (533626745).
+- **The placement** (`brep/turned.rs`). A corner `(h, r)` turned by `φ` is
+  `O + A h + r (R cos φ + S sin φ)`, `S = A × R`: the turn the flats make
+  with `DQuat::from_axis_angle`. A turn backwards is the turn forwards about
+  the axis turned round, its corners read along it the other way, so the
+  sketch's plane is always the end the turn opens on. A turn within
+  `Scale::HAIR` tolerances of a quarter, a half or three quarters of a turn,
+  at the profile's furthest corner, is taken as that turn exactly, its
+  cosine and sine from a table: the ends then stand on the planes a raise from
+  the planes of the origin stands on, and a half turn ends on one plane.
+- **The construction** (`brep/turned/faces.rs`, on the raise's own
+  `brep/laying.rs` and `brep/piece.rs`). Runs on one line are one piece. A
+  piece parallel to the axis lies on `Cylinder::about(O, A, r)`, the very
+  cylinder a circle raised along that axis lies on, so a coaxial bore is
+  decision 1's identity and needs no tolerance; a piece square to it on the
+  plane through `O + A h` square to `A`; a piece on the axis on nothing. A
+  partial turn has a corner where each corner off the axis starts and ends,
+  and the arc between them; one corner where a corner on the axis stays; a
+  straight edge where each piece starts and ends; and the two ends, holding
+  the profile's holes as holes. A whole turn is its limit, the two ends
+  closing on each other: a whole circle for each corner off the axis, no
+  corner at all — a square turned about its side is two discs and a
+  cylinder between two circles. A hole of the profile, or a notch on the
+  axis, turned whole leaves a closed hollow inside.
+- **Tidied and checked** as a boolean's result is (`assembly::tidied`):
+  faces on one surface with one side merged across what nothing else uses,
+  and the body verified. On a turn this only changes a half turn of a profile
+  touching its axis: the two ends are one face answering to both numbers,
+  and each pair of radial lines, laid on one curve, one diameter, the corner
+  on the axis gone.
+- **Declined:** a corner turned, or the slit a partial turn leaves, narrower
+  than the tolerance (`Declined::Travel`) — past the reading's own rules,
+  which make such a turn nothing or whole first; a profile whose pieces are
+  neither parallel nor square nor on the axis, or whose corners stand on
+  each other (`Declined::Profile`).
+- **The numbers** are the flats': run `k`, the outline's first and then each
+  hole's, names the face it turns into; a run on the axis, or one laid to no
+  length, names none; a partial turn's opening end is `runs` and its closing
+  end `runs + 1`. The count a turn moves the part's counter by copies the
+  flats' `faces_end`, quirk included: a whole turn counts up to its last run
+  whose flats were thick enough to keep, read on the profile as drawn
+  (`body/turned.rs`, `numbers_turned_whole`), so the steps after a shaft
+  drawn the usual way, its last side on the axis, keep the numbers a part
+  saved before turns were exact gave them — and so do the steps after a
+  shaft whose side was drawn within the band, laid on the axis since but
+  counted then. `Straight::numbers` counts the profile as laid, for the
+  pieces of an area across its axis, which `main` never turned. A face a
+  wall a hair thin left in pieces is told apart by the first boolean, as a
+  cut's pieces are: the second piece takes the next fresh number, one past
+  the count the flats gave the profile with its wall.
+
 ## The boolean
 
 A classic boolean splits faces against faces. This one splits **surfaces**: all
@@ -651,7 +754,17 @@ meeting), a single point of contact. Nodes are vertices. The parameter is
   pinches there, or runs out to the vertex and back along the edge as a
   hair bounding nothing, which the sweep follows. A
   sample a hair from a vertex off the edge stays: on the ray through the end
-  of a curve beside it, it keeps the two in order.
+  of a curve beside it, it keeps the two in order. Two edges touching
+  between their vertices share the place they touch at: a line takes every
+  sample standing on it within rounding, vertex or not, in its order along
+  it, and a sample within rounding of another edge's is that one. The kernel
+  puts no vertex where two edges touch without crossing — a rim touching the
+  line a floor through a wall's axis cuts on it, at the rim's vertex or at a
+  step of its grid; two curves grazing at a step of both — and with the line
+  sampled at its ends alone, or a sample on each edge a rounding apart, the
+  face holding both met its own loop in the middle of a segment, which no
+  sweep cuts: the body was declined as undrawn (533647113, 533643649,
+  533786336, 533600448).
 - **Sampling.** A line at its ends. A curve on a cylinder at the cylinder's
   grid `θ_k = 2πk/N`, `N` a multiple of four chosen so a chord stands within
   the tolerance asked of the surface, anchored at the cylinder's `u`: the
@@ -863,6 +976,13 @@ The tests that hold it:
 - `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`, the table: the
   flats and the exact kernel on #498's cases, OpenCascade quoted from #447;
 - `the_exact_kernel_joins_and_cuts.rs`, the same cases counted by hand;
+- `the_exact_kernel_turns.rs`, turns held to Pappus's volume and to the same
+  profile cut into annular slabs, each raised and joined, along a grid of
+  lines; its smoke campaign of turned leaves and prisms under `--ignored`,
+  compiled only with `--features campaigns`;
+- `random_turned_solids.rs`, #448's harness drawing turns among prisms, on
+  the exact kernel and through `Body`, its fast cases in the gate and its
+  campaigns under `--ignored`, compiled only with `--features campaigns`;
 - `random_exact_solids.rs`, the harness on the exact kernel, and on it again
   through `Body` as the application computes with it (`Application`), its
   campaigns under `--ignored` and compiled only with `--features campaigns`;

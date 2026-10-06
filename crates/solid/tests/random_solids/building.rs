@@ -1,10 +1,11 @@
 //! A leaf handed to the kernel, and what the kernel was promised for it.
 
-use cao_solid::profile::{Frame, Profile};
-use cao_solid::{Body, Loop};
+use cao_solid::profile::{Contour, Frame, Profile};
+use cao_solid::turning::{self, Turn};
+use cao_solid::{Body, Declined, Loop};
 use glam::DVec2;
 
-use super::{CIRCLE_STEPS, Leaf, Outline};
+use super::{Axis, CIRCLE_STEPS, Leaf, Outline, Section, Turned};
 
 /// The loops a prism is raised from, and the triangles its two ends are
 /// filled with.
@@ -167,6 +168,9 @@ impl Leaf {
                     && *degrees != 0.0
                     && (low.x >= -hair || high.x <= hair)
             }
+            Leaf::Turned {
+                section, degrees, ..
+            } => section.is_solid() && 0.0 < degrees.abs() && degrees.abs() <= 360.0,
         }
     }
 
@@ -212,16 +216,24 @@ impl Leaf {
                     low: *low,
                     high: *high,
                 });
-                Body::revolution(
-                    Loop::straight(&area.outline),
-                    &[],
-                    &area.triangles,
-                    |point| plane.to_world(point),
-                    DVec2::ZERO,
-                    DVec2::Y,
-                    degrees.to_radians(),
-                )
+                let profile = Profile {
+                    exact: None,
+                    sampled: Loop::straight(&area.outline),
+                    sampled_holes: Vec::new(),
+                    triangles: &area.triangles,
+                };
+                let axis = turning::Axis {
+                    origin: DVec2::ZERO,
+                    direction: DVec2::Y,
+                };
+                let turn = Turn::of(axis, degrees.to_radians(), 0.0, &profile);
+                let (origin, u, v) = plane.frame();
+                Body::default()
+                    .tool_turned(&profile, Frame { origin, u, v }, &turn)
+                    .ok()
+                    .filter(|body| !body.is_empty())
             }
+            Leaf::Turned { .. } => self.as_turned()?.tool(false).ok(),
         }
     }
 
@@ -256,6 +268,10 @@ impl Leaf {
                     * (high.y - low.y).abs();
                 (pappus, pappus * FACETING)
             }
+            Leaf::Turned { .. } => {
+                let volume = self.as_turned().map_or(0.0, |turned| turned.volume());
+                (volume, volume * FACETING)
+            }
         }
     }
 }
@@ -265,3 +281,146 @@ impl Leaf {
 /// percent covers that, and a kernel meshing a true curve to a hundredth of a
 /// unit, and nothing like a face gone missing.
 pub const FACETING: f64 = 2e-3;
+
+/// One side of a turned leaf as the kernels are handed it, in the plane's
+/// own coordinates: its outline and its holes, and the triangles its ends are
+/// filled with, two to every rectangle of the section.
+pub struct Drawn {
+    pub outline: Vec<DVec2>,
+    pub holes: Vec<Vec<DVec2>>,
+    pub triangles: Vec<[DVec2; 3]>,
+}
+
+impl Drawn {
+    fn of(axis: &Axis, section: &Section) -> Drawn {
+        let (outline, holes) = section.corners();
+        let triangles = section
+            .rectangles()
+            .iter()
+            .flat_map(|&[from, to, low, high]| {
+                let corners = [
+                    DVec2::new(from, low),
+                    DVec2::new(to, low),
+                    DVec2::new(to, high),
+                    DVec2::new(from, high),
+                ]
+                .map(|corner| axis.at(corner));
+                [
+                    [corners[0], corners[1], corners[2]],
+                    [corners[0], corners[2], corners[3]],
+                ]
+            })
+            .collect();
+        Drawn {
+            outline: outline.iter().map(|corner| axis.at(*corner)).collect(),
+            holes: holes
+                .iter()
+                .map(|hole| hole.iter().map(|corner| axis.at(*corner)).collect())
+                .collect(),
+            triangles,
+        }
+    }
+
+    /// The outline and the holes as runs, every one of them straight.
+    pub fn contours(&self) -> (Contour, Vec<Contour>) {
+        (
+            Contour::straight(self.outline.clone()),
+            self.holes
+                .iter()
+                .map(|hole| Contour::straight(hole.clone()))
+                .collect(),
+        )
+    }
+
+    /// The side as the application hands an area over: both ways, or, when
+    /// not `exact`, sampled alone, which keeps it on the flats.
+    pub fn profile(&self, exact: bool) -> Profile<'_> {
+        Profile {
+            exact: exact.then(|| self.contours()),
+            sampled: Loop::straight(&self.outline),
+            sampled_holes: self.holes.iter().map(|hole| Loop::straight(hole)).collect(),
+            triangles: &self.triangles,
+        }
+    }
+}
+
+impl Turned {
+    pub fn frame(&self) -> Frame {
+        let (origin, u, v) = self.plane.frame();
+        Frame { origin, u, v }
+    }
+
+    /// Each side of the section as the kernels are handed it: the section
+    /// itself when it lies on one side of its axis, its two sides otherwise.
+    pub fn drawn(&self) -> Vec<Drawn> {
+        self.section
+            .sides()
+            .iter()
+            .map(|side| Drawn::of(&self.axis, side))
+            .collect()
+    }
+
+    /// The turn the kernels are handed, at the drawing's `resolution`, how
+    /// close to the axis counts as on it read off the whole section.
+    pub fn turn(&self, resolution: f64) -> Turn {
+        let whole = Drawn::of(&self.axis, &self.section);
+        Turn::of(
+            self.axis.line(),
+            self.degrees.to_radians(),
+            resolution,
+            &whole.profile(true),
+        )
+    }
+
+    /// The leaf turned through the application's body, each side apart and
+    /// the two joined: by the exact kernel, or by the flats when not `exact`.
+    pub fn tool(&self, exact: bool) -> Result<Body, Declined> {
+        let (frame, turn) = (self.frame(), self.turn(0.0));
+        self.drawn()
+            .iter()
+            .map(|side| Body::default().tool_turned(&side.profile(exact), frame, &turn))
+            .try_fold(None, |joined: Option<Body>, side| {
+                let side = side?;
+                Ok(Some(match joined {
+                    Some(joined) => joined.union(&side)?,
+                    None => side,
+                }))
+            })
+            .map(Option::unwrap_or_default)
+    }
+
+    /// Whether a hole of the section stands a hair from an edge of its band
+    /// or from the axis: a wall the exact kernel cannot lay square without
+    /// bringing the hole onto the outline, so it may decline the section as
+    /// no profile it reads, and the application turns it on the flats.
+    pub fn has_a_wall_a_hair_thin(&self) -> bool {
+        let Some((low, high)) = self.bounds() else {
+            return false;
+        };
+        let hair = A_HAIR_THIN * low.abs().max(high.abs()).max_element();
+        let ends = self.section.ends();
+        self.section.holes.iter().any(|[hole_low, hole_high]| {
+            let band = (0..self.section.bands.len())
+                .find(|&index| ends[index] < hole_low.x && hole_high.x < ends[index + 1]);
+            band.is_some_and(|index| {
+                let [_, low, high] = self.section.bands[index];
+                [
+                    hole_low.x - ends[index],
+                    ends[index + 1] - hole_high.x,
+                    hole_low.y - low,
+                    high - hole_high.y,
+                    hole_low.y.abs(),
+                    hole_high.y.abs(),
+                ]
+                .iter()
+                .any(|gap| *gap <= hair)
+            })
+        })
+    }
+}
+
+/// How thin a wall the draw draws a hair thin is, as a share of how far the
+/// leaf reaches: its hairs stand below it and its lattice far above, and the
+/// tolerance the exact kernel lays a turned leaf at is under a twentieth of
+/// it.
+const A_HAIR_THIN: f64 = 1e-6;

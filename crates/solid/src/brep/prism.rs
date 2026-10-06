@@ -1,6 +1,5 @@
 //! A profile raised along its plane's normal into a body.
 
-mod piece;
 mod touch;
 mod walls;
 
@@ -10,10 +9,10 @@ use glam::DVec3;
 
 use super::Declined;
 use super::curve::Circle;
+use super::piece::{self, Named};
 use super::scale::Scale;
 use super::topology::{Body, turning_points};
 use crate::profile::{Contour, Frame, Run};
-use piece::Named;
 
 /// How far off its plane's normal a travel may lean, relative to its length,
 /// and still be taken as square to the plane.

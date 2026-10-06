@@ -948,9 +948,10 @@ fn seed_6576153_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
     ));
 }
 
-/// Campaign 6b, the profile draw: Closed.
+/// Campaign 6b, the profile draw: Closed. Three lines of touch in one band;
+/// drawn closed since a line takes every sample standing on it within
+/// rounding (`tessellation/sampling/touches.rs`).
 #[test]
-#[ignore = "band: three lines of touch in one band, not traced since the rule (2-1)"]
 fn seed_6529277_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(-1.0), Outline::circle([8.0, 6.0], 5.0), -15.0),

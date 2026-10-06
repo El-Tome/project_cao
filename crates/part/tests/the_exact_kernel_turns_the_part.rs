@@ -32,13 +32,15 @@
 //!   `an_area_across_a_sketch_axis_is_turned_on_both_sides_and_joined` (50π),
 //!   `an_area_across_the_axis_turned_part_way_holds_both_sides_volumes` (90°: 20.5π),
 //!   `an_area_across_a_construction_line_is_turned_on_both_sides_and_joined`
-//! - #448's harness draws revolutions, written before the kernel code; a campaign ran
-//!   overnight, its failures are named, its fast cases are in the gate, the long ones
+//! - #448's harness draws revolutions, written before the kernel code; a campaign is
+//!   run, its failures are named, its fast cases are in the gate, the long ones
 //!   behind `--features campaigns` — no test: held in `cao_solid` by
 //!   `random_turned_solids.rs` (its draw tests and the kernel gate tests the kernel's
 //!   commit un-ignored), its campaigns under `#[ignore]` below `#[cfg(feature =
-//!   "campaigns")]`, held by `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`;
-//!   named failures in `what_the_exact_campaigns_found_in_the_kernel.rs` / `…_triangles.rs`
+//!   "campaigns")]`, held by `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`.
+//!   The campaigns ran two hours each, not overnight; their failures are filed by family
+//!   in `docs/exact-kernel-failures.md` ("#533: turns"), one seed of each named in
+//!   `what_the_exact_campaigns_found_in_the_kernel.rs`
 //! - #498's eighteen cases still hold — no test: held by
 //!   `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`, which the gate runs
 //! - `docs/exact-kernel.md` says what the kernel turns, and what it still hands the

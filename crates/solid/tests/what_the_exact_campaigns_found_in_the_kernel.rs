@@ -4,13 +4,17 @@
 //! fixed, ignored with its diagnosis.
 //!
 //! The tangency band's findings are gathered in `the_tangency_band.rs`.
+//!
+//! The turned campaigns of #533 (`random_turned_solids.rs`, 6 October,
+//! `docs/exact-kernel-failures.md`) are named here by family, one seed for
+//! each, the rest of each family listed in the journal.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
 #[allow(dead_code, unused_imports)]
 mod random_solids;
 
-use random_solids::{Case, Leaf, Outline, Plane, Step};
+use random_solids::{Axis, Case, Leaf, Outline, Plane, Section, Step};
 
 /// A bar along X whose side touches, from inside, the wall of a post along
 /// Z: the curve they meet along is a figure of eight through the point of
@@ -3019,6 +3023,188 @@ fn seed_4176492_a_bore_a_hair_from_two_touches_square_to_each_other() {
                 Plane::xy(35.0),
                 Outline::circle([12.5, 25.0], 2.49999995),
                 42.4999997,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "flats: a hole a hair inside its outline's far side, a wall 1e-8 thick turned 270 degrees; the exact kernel declines the section as no profile and the application turns it on the flats, main's very sweep, which leaves an end facing the wrong way along that wall: 64 of the 73 failures through the application's body"]
+fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[7.5, 0.0, 5.0]]).with_holes(&[([3.0, 2.5], [5.0, 4.99999999])]),
+            270.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "plane-a-hair: a block's side 1.8e-6 from the axis of a cylinder turned before it cuts the cylinder a hair from its widest rulings; two faces drawn crossing, as with the cylinder raised"]
+fn seed_533300839_a_block_s_side_a_hair_from_a_turned_cylinder_s_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(150.0),
+            Outline::circle([180.0, 300.0], 105.0),
+            -30.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(135.0),
+                Axis::second(255.0000018),
+                Section::bands(135.0, &[[330.0, 0.0, 15.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(30.0),
+                Outline::rectangle([75.0, 255.0], [165.0, 345.0]),
+                240.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "band: a bore turned 3e-7 under the half width of the block it runs through, a hair from touching both sides; the kernel refuses to answer along a line, and through the application's body the last turn is declined as unverified"]
+fn seed_533301022_a_turned_bore_a_hair_from_touching_a_block_s_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(30.0),
+            Outline::rectangle([90.0, 30.0], [150.0, 90.0]),
+            -75.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(120.0),
+                Axis::second(60.0),
+                Section::bands(-105.0, &[[120.0, 0.0, 29.9999997]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(210.0),
+                Outline::rectangle([0.0, 60.0], [180.0, 120.0]),
+                180.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(120.0),
+                Axis::second(0.0),
+                Section::bands(-105.0, &[[120.0, -60.0, -30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "plane-a-hair: a turned bore's end and a post's end 6e-6 from the faces they meet; the kernel's triangles leave the body open, which the application declines as undrawn"]
+fn seed_533341432_a_turned_bore_and_a_post_ending_a_hair_from_a_face() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(210.0),
+            Outline::circle([90.0, 210.0], 15.0),
+            150.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xz(119.999994),
+                Axis::second(285.0),
+                Section::bands(165.0, &[[90.0, 0.0, 30.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(164.99999400000002),
+                Outline::circle([285.0, 210.0], 15.0),
+                90.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a stepped shaft turned about an axis leaning 1e-7, cut by a cylinder square to it; two faces drawn crossing where the shaft's shoulder meets the cut"]
+fn seed_533335255_a_shaft_turned_about_an_axis_leaning_a_hair() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::second(0.0).leaning(1e-7),
+            Section::bands(-15.0, &[[5.0, 0.0, 30.0], [8.0, 0.0, 40.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(30.0),
+            Axis::second(5.0),
+            Section::bands(25.0, &[[18.0, -15.0, 10.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "line-of-touch: a cylinder turned about a line lying on the tangent plane of a ring's outer wall, then a post through that line of touch; the kernel's triangles leave the body open, which the application declines as undrawn, and alike with the cylinder raised as a prism"]
+fn seed_533330824_a_turned_cylinder_whose_axis_touches_a_ring_s_wall() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(40.0),
+            Outline::ring([30.0, 30.0], 30.0, 17.5),
+            38.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xz(60.0),
+                Axis::first(59.0),
+                Section::bands(0.0, &[[60.0, 0.0, 12.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(39.0),
+                Outline::circle([30.0, 60.0], 12.5),
+                40.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "line-of-touch: a cylinder turned square to a post, touching it at a point, then a block across both; declined as undrawn through the application's body, and alike with the cylinder raised as a prism"]
+fn seed_533413234_a_turned_cylinder_touching_a_post_at_a_point() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([7.0, 2.0], 1.5), 2.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(7.0),
+                Axis::second(11.5),
+                Section::bands(0.0, &[[4.0, 0.0, 3.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(2.0),
+                Outline::rectangle([2.0, 5.0], [10.0, 10.0]),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a sector turned 270 degrees cut about the axis of a cylinder turned before it; the ends of the cut, planes holding that axis, meet the cylinder along its rulings and the kernel declines a tie"]
+fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(4.0), Outline::circle([6.0, 4.0], 1.0), 3.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(5.5),
+                Axis::first(5.5),
+                Section::bands(4.5, &[[3.0, 0.0, 0.5]]),
+                360.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(5.5),
+                Axis::first(5.5),
+                Section::bands(5.5, &[[1.0, -1.0, 0.0]]),
+                270.0,
             )),
         ],
     ));

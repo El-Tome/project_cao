@@ -862,3 +862,67 @@ The last row is 8544067 and 8552226 on both profile draws, and 8512856,
 8540477, 8581445 and 8588829 through the body: shrunk on the night's
 kernel, each case holds now, and the seed wants shrinking again on this
 one.
+
+## #533: turns
+
+Two campaigns of `random_turned_solids.rs`, two hours each, side by side on
+the branch's tip (`01c30e2`), on 6 October: the off-lattice turned draw
+(`Case::drawn_turned_off_the_lattice`) on the exact kernel from seed
+533300000, and through the application's body from seed 533400000. Every
+seed they named was shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`, and each shrunk
+case run again on both paths to tell which kernel computed each step. Two
+hours is not the night the issue asked for; the rates below are what they
+are worth.
+
+| | cases | broke a rule | asking for an ellipse, declined | a wall a hair thin, declined as no profile |
+| --- | --- | --- | --- | --- |
+| on the exact kernel | 71 475 | 53 (0.07 %) | 7 791 | 573 |
+| through the application's body | 13 520 | 72 seeds (0.53 %) | 1 478 | 0 |
+
+No turned leaf breaks a rule alone on the exact kernel: every failure there
+is a boolean meeting a turned surface. By family, the seeds' last six
+digits after 533:
+
+- **The flats turning a wall a hair thin**, 64 seeds, every one through the
+  application's body: a hole a hair inside its outline's side, turned
+  whole or part way, alone or joined to the part. The exact kernel declines the section as no profile, the application
+  turns it on the flats, which are main's sweep unchanged
+  (`a_profile_beyond_the_band_of_its_axis_is_turned_by_the_flats_as_main_turned_it`),
+  and they leave an end facing the wrong way along that wall: the flats' own
+  defect, out of #533's scope. Named by 400107. The others: 400076 400215
+  400360 400461 400495 400628 401117 401440 401642 401891 401925 402109
+  402344 402464 402529 402653 402908 403425 403793 403860 404076 404112
+  404171 404350 404371 404649 404673 404842 404964 404998 405140 405152
+  406130 406289 406550 406756 407246 407550 407625 407671 407688 408150
+  408174 408443 408737 408789 408984 409095 409409 409550 409913 409933
+  410141 410511 410814 410835 411056 412073 412077 412334 412364 412411
+  413237.
+- **A surface or a plane a hair from another**, 40 seeds on the exact
+  kernel and 4 through the body: a coordinate a hair, from 1e-8 to 1e-5,
+  off the one it would meet; the families prisms already fail by
+  (plane-a-hair, the band, the line of touch), reached by turned cylinders
+  and discs as by raised ones. Named by 300839, 301022 and 341432. The
+  others: 300796 304139 304813 305000 305495 311777 315421 319050 319710
+  320588 320774 321257 325448 327154 327166 330490 331748 332674 338751
+  338790 339621 340695 342139 343652 347353 348114 348459 349284 351190
+  351969 353686 358886 360327 365286 365909 369492 371154; through the
+  body 404973 405215 406729 410520.
+- **An axis leaning a hair**, 6 on the exact kernel and 2 through the body:
+  a turn about an axis leaning 1e-7 to 1e-3, which the reading lays square,
+  meeting a surface square to it. Named by 335255. The others: 307526
+  317654 328870 337056 337834; through the body 401606 412197.
+- **Surfaces touching, no hair**, 7 on the exact kernel and 2 through the
+  body: a cylinder whose axis lies on another's tangent plane, two
+  cylinders square to each other touching at a point, and a partial turn
+  whose ends, planes holding an axis, meet a cylinder turned about that
+  axis along its rulings, declined as a tie. With the turned cylinder
+  raised as a prism instead, 330824 and 413234 fail alike: the kernel's
+  line of touch, not the turn. Named by 330824, 413234 and 328889. The
+  others: 306876 308079 316268 346954 365319; through the body 412761.
+
+Each named seed is in `what_the_exact_campaigns_found_in_the_kernel.rs`,
+ignored with its reason. None was fixed: every family but the last is one
+the kernel already fails on prisms, or the flats' own, and the partial
+turn's tie is the one finding that belongs to turning; it is left for the
+cones' issue, which builds the same ends.

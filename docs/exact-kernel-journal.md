@@ -414,3 +414,22 @@ And on the profile draw, which adds rounded rectangles, slots and rings:
   cases, ignored there and held now, cost
   about two and a half seconds of it, and the band's newly held cases half
   a second. No test binary that held the same cases got slower.
+
+## 6 October: the turned campaigns of #533
+
+Two hours each, on the exact kernel and through the application's body, on
+`01c30e2`: 53 failures in 71 475 cases, and 72 seeds in 13 520. Every one
+shrunk and filed by family in `exact-kernel-failures.md`; one seed of each
+family is named in `what_the_exact_campaigns_found_in_the_kernel.rs`.
+
+- Most failures through the body, 64 of 72, are the flats turning a hole a
+  hair inside its outline, which the exact kernel declines and the
+  application hands them: main's sweep, unchanged.
+- On the exact kernel the families are those prisms meet: a surface a hair
+  from another, an axis leaning a hair, surfaces touching. Two cases of
+  the last fail alike with the turned cylinder raised as a prism.
+- The one finding of turning's own: the ends of a partial turn, planes
+  holding its axis, cutting a cylinder turned about that axis along its
+  rulings, declined as a tie (328889).
+- An earlier fifteen-minute run, before the commit that counts a wall a
+  hair thin as the flats' to turn, is superseded by these.

@@ -3209,3 +3209,28 @@ fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
         ],
     ));
 }
+
+#[test]
+#[ignore = "kernel: a sector turned a hundredth of a degree about the axis of a cylinder raised along it; the sector's ends, planes holding that axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are drawn crossing, alike with the cylinder turned; at a degree it holds"]
+fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::slot([6.0, 9.0], [6.0, 5.5], 0.5),
+            -3.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xz(5.0),
+                Outline::circle([7.0, 2.5], 0.5),
+                -4.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(2.5),
+                Axis::second(7.0),
+                Section::bands(7.0, &[[1.0, 0.0, 2.0]]),
+                0.01,
+            )),
+        ],
+    ));
+}

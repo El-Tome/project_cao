@@ -39,9 +39,11 @@
 //!   `random_turned_solids.rs` (its draw tests and the kernel gate tests the kernel's
 //!   commit un-ignored), its campaigns under `#[ignore]` below `#[cfg(feature =
 //!   "campaigns")]`, held by `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`.
-//!   The campaigns ran two hours each, not overnight; their failures are filed by family
-//!   in `docs/exact-kernel-failures.md` ("#533: turns"), one seed of each named in
-//!   `what_the_exact_campaigns_found_in_the_kernel.rs`
+//!   The turned campaigns ran four hours each on 6 October, beside the square, profile
+//!   and part campaigns run on main and the branch over the same seeds; their failures
+//!   are filed by family in `docs/exact-kernel-failures.md` ("#533: turns"), one seed of
+//!   each named in `what_the_exact_campaigns_found_in_the_kernel.rs` / `…_triangles.rs`,
+//!   and the parts in `an_undo_gives_back_the_part.rs`
 //! - #498's eighteen cases still hold — no test: held by
 //!   `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`, which the gate runs
 //! - `docs/exact-kernel.md` says what the kernel turns, and what it still hands the

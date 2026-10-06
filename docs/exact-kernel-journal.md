@@ -433,3 +433,31 @@ family is named in `what_the_exact_campaigns_found_in_the_kernel.rs`.
   rulings, declined as a tie (328889).
 - An earlier fifteen-minute run, before the commit that counts a wall a
   hair thin as the flats' to turn, is superseded by these.
+
+## 6 October: the night's campaigns of #533
+
+The turned campaigns four hours each on the branch, and the square,
+profile and part campaigns on the branch and on a copy of `main` over the
+same seeds, all side by side in release.
+
+- The square and profile draws fail the same seeds on both trees, 6 in
+  150 000 and 42 in 95 000, shrunk into the same cases: #533 changed
+  nothing a prism meets.
+- The part campaign found what the solids' campaigns cannot: sixteen
+  parts failing on the branch alone, every one a circle drawn across a
+  sketch axis, which `main` dropped. Joining its two sides on the flats
+  took most of a minute. A whole turn now turns only the sides no other
+  side's turn holds, and the circle turns in milliseconds; seven of the
+  ten such seeds in the range run again hold. The part-way turns, two
+  solids touching along the axis or back to back, stay with the flats'
+  join (#418), and a part made round by such a turn joins as slowly
+  afterwards as `main` does any round part (#492).
+- The turned campaigns' failures fall in the families the two-hour runs
+  found: the flats turning a wall a hair thin through the body, the
+  kernel's hairs, touches and leaning axes on the exact kernel, each
+  sample run again with a prism instead failing alike. One more finding of
+  turning's own, a sector a hundredth of a degree wide about a cylinder's
+  axis (533603007), joins the partial turn's tie.
+- The gate's tests, built, take about 30 s on the branch where they take
+  about 23 s on `main`: the turned harness's kernel tests and the part's
+  slanted turn on the flats are most of the difference.

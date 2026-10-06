@@ -12,7 +12,7 @@
 #[allow(dead_code, unused_imports)]
 mod random_solids;
 
-use random_solids::{Case, Leaf, Outline, Plane, Step};
+use random_solids::{Axis, Case, Leaf, Outline, Plane, Section, Step};
 
 #[test]
 fn seed_595_a_skin_left_under_a_cap_is_drawn_without_a_wall_folding_over_it() {
@@ -2680,5 +2680,31 @@ fn seed_8503138_a_post_a_hair_off_a_rounded_corner_keeps_its_steps_away_from_the
             Outline::circle([8.5, 2.49999], 0.5),
             9.0,
         ))],
+    ));
+}
+
+#[test]
+#[ignore = "triangles: a cylinder turned about V, cut by a ring across it and by a post, is drawn crossing through the application's body, which draws finer than the kernel's own triangles; alike with the cylinder raised as a prism"]
+fn seed_533666445_a_turned_cylinder_cut_by_a_ring_and_a_post_is_drawn_uncrossed_through_the_application()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(120.0),
+            Axis::second(120.0),
+            Section::bands(120.0, &[[60.0, 0.0, 195.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(225.0),
+                Outline::ring([150.0, 90.0], 135.0, 30.0),
+                270.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::circle([270.0, 240.0], 120.0),
+                255.0,
+            )),
+        ],
     ));
 }

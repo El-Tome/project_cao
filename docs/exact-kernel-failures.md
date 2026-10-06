@@ -926,3 +926,87 @@ ignored with its reason. None was fixed: every family but the last is one
 the kernel already fails on prisms, or the flats' own, and the partial
 turn's tie is the one finding that belongs to turning; it is left for the
 cones' issue, which builds the same ends.
+
+### The night's campaigns
+
+Run on 6 October in release, side by side, on the branch at `2d7623e` and
+on a copy of `main` at `dc5bfe5`, each tree with its own target directory.
+The turned campaigns ran four hours each, the square and profile draws
+the same seeds and the same number of cases on both trees
+(`CAO_FUZZ_CASES`), and the part campaign an hour on both, compared over
+the seeds both reached. A case that never answered ends a campaign; it was
+started again from the next seed, so every seed in the range was tried.
+
+| campaign | first seed | cases | main | branch | per thousand |
+| --- | --- | --- | --- | --- | --- |
+| turned, on the exact kernel | 533500000 | 124 732 | | 68 | 0.55 |
+| turned, through the application's body | 533600000 | 187 902 | | 1 071 | 5.70 |
+| square solids, on the exact kernel | 533700000 | 150 000 | 6 | 6 | 0.04 |
+| profiles, on the exact kernel | 533800000 | 95 000 | 42 | 42 | 0.44 |
+| parts, every gesture undone | 533900000 | 1 014 | 92 | 75 | 90.7 / 74.0 |
+
+The turned campaigns also declined 13 710 and 21 011 cases asking for an
+ellipse, as the scope rule has them, and the exact kernel 915 turned walls
+a hair thin as no profile.
+
+**Square and profiles: no regression.** The same 6 and 42 seeds fail on
+both trees, by the same rules, and shrink into the same cases.
+
+**Parts: sixteen seeds failed on the branch alone**, every one a circle
+drawn across a sketch axis, an area `main` dropped and the branch cuts
+along the axis and turns on both sides. Both sides of a circle go to the
+flats, and their join took 43 s in release for a circle turned whole alone,
+93 s after a raise: fourteen seeds answered too late, two came out open.
+
+- **Fixed: a whole turn needs only the sides no other side holds.** Turned
+  whole, a side whose mirror lies within the other sweeps nothing the
+  other does not, and `Turn::sides_needed` leaves it out (`b55c4a8`). The
+  circle alone now turns in 4 ms, after a raise in 12 s, where a circle on
+  one side of the axis takes 29 s on `main`. Over the first 570 seeds,
+  run again: `main` 54 failures, the branch 44 before the fix, 37 after;
+  seven of the ten the branch failed alone hold. Held in the gate by
+  `a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone`
+  and `a_circle_across_its_axis_turned_whole_undoes_every_gesture_within_the_patience`.
+- **Open: a circle across its axis turned part way.** Both sides are still
+  turned on the flats and joined: at -45 degrees, two solids touching along
+  the axis, the join leaves the seam open (533900197, 533900883); at 180
+  degrees, back to back, it takes longer than the patience (533900361,
+  533900651, 533900890). The flats' join, #418; each named in
+  `an_undo_gives_back_the_part.rs`, ignored with its reason.
+- **Open: a part on the flats after a round turn.** A circle across its
+  axis turned whole now makes matter, and the part goes to the flats from
+  that step on, where every later join is as slow as `main` makes it for a
+  circle turned on one side (533900569, 533900776, 533900903): #492.
+
+**Turned, by family**, each seed shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one` and the shrunk
+case run again on both paths:
+
+| family | on the exact kernel | through the body |
+| --- | --- | --- |
+| the flats turning a wall a hair thin | | 961 |
+| a surface or a plane a hair from another | 51 | 74 |
+| surfaces touching, no hair | 11 | 25 |
+| an axis leaning a hair | 6 | 7 |
+| the flats answering too late | | 4 |
+
+- The wall a hair thin is the family the two-hour runs named by 533400107:
+  the exact kernel declines the section, the flats turn it as `main` did
+  and leave an end facing the wrong way.
+- The hairs, the touches and the leaning axes are the kernel's families on
+  prisms, reached by turned cylinders and discs. Nine of them were run
+  again with the turned cylinder raised as a prism instead, and fail alike:
+  the rules `Listed`, `Volume` and `Closed` this campaign met on the
+  kernel's own triangles (533620562, 533515182, 533565540, 533544801), the
+  touches declined as undrawn (533520746, 533545056, 533549652), and two
+  ties (533512790, 533571909). Through the body, 533666445, a cylinder
+  turned about V and cut by a ring and a post, is drawn crossing by the
+  body's finer triangles, alike with the cylinder raised: named in
+  `what_the_exact_campaigns_found_in_the_triangles.rs`.
+- **Turning's own: a sliver about a cylinder's axis.** A sector turned a
+  hundredth of a degree about the axis of a cylinder lies with its two
+  ends, planes holding that axis, on the cylinder's rulings, and two faces
+  are drawn crossing (533603007); at a degree it holds. The same family as
+  533328889's tie, the ends of a partial turn meeting a coaxial cylinder;
+  named in `what_the_exact_campaigns_found_in_the_kernel.rs` and left, as
+  that one is, for the cones' issue.

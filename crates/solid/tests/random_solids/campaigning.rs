@@ -14,11 +14,12 @@ use cao_solid::soundness::{Check, Flaw, Random, Report, answer, campaign, shrink
 use super::Case;
 
 /// How many lines the campaign held its cases along, how many it left out
-/// for grazing a curved wall, how many cases asking for an ellipse the
-/// kernel declined as unsupported, and how many turned walls a hair thin it
-/// declined to raise.
+/// for grazing a curved wall or running through a cone's tip, how many
+/// cases asking for a conic the kernel declined as unsupported, and how many
+/// turned walls a hair thin it declined to raise.
 pub static HELD: AtomicUsize = AtomicUsize::new(0);
 pub static GRAZING: AtomicUsize = AtomicUsize::new(0);
+pub static TIPS: AtomicUsize = AtomicUsize::new(0);
 pub static DECLINED: AtomicUsize = AtomicUsize::new(0);
 pub static THIN: AtomicUsize = AtomicUsize::new(0);
 
@@ -145,7 +146,11 @@ fn print_report(report: &Report<Case>, answering: Answering) {
         GRAZING.load(Ordering::Relaxed)
     );
     println!(
-        "{} cases asking for an ellipse declined as unsupported",
+        "{} lines left out for running through a cone's tip",
+        TIPS.load(Ordering::Relaxed)
+    );
+    println!(
+        "{} cases asking for a conic declined as unsupported",
         DECLINED.load(Ordering::Relaxed)
     );
     println!(

@@ -118,11 +118,31 @@ fn a_slot_whose_cap_stands_a_hair_along_from_a_post_moves_its_near_cap_alone() {
 }
 
 #[test]
-fn a_wall_within_the_tolerance_of_another_radius_or_further_than_a_hair_is_not_moved() {
+fn a_wall_taken_for_another_within_the_tolerance_is_moved_onto_it() {
+    let eps = scale().eps();
+    let one = post(DVec2::ZERO, 2.0);
+    let other = post(DVec2::X * eps / 2.0, 2.0);
+    let moved = closed(&one, &other, scale()).expect("the wall moves onto the post's");
+    let [wall] = cylinders(&moved)[..] else {
+        panic!("one wall");
+    };
+    assert!(wall.origin.distance(cylinders(&one)[0].origin) < 1e-12);
+    on_its_surfaces(&moved);
+}
+
+#[test]
+fn a_wall_standing_on_another_but_for_rounding_is_not_moved() {
+    let eps = scale().eps();
+    let one = post(DVec2::ZERO, 2.0);
+    let other = post(DVec2::X * 1e-9 * eps, 2.0);
+    assert!(closed(&one, &other, scale()).is_none());
+}
+
+#[test]
+fn a_wall_of_another_radius_or_further_than_a_hair_is_not_moved() {
     let eps = scale().eps();
     let one = post(DVec2::ZERO, 2.0);
     for other in [
-        post(DVec2::X * eps / 2.0, 2.0),
         post(DVec2::X * 10.0 * eps, 2.0 + 2.0 * eps),
         post(DVec2::X * (Scale::HAIR + 1.0) * eps, 2.0),
     ] {

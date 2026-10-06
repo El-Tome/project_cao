@@ -10,8 +10,10 @@
 //! Every touch a surface has is read before it moves, and a move is made
 //! only where no other touch of the surface ends further from exact than it
 //! was: settled onto one touch, a cylinder in two would otherwise break the
-//! other. A move may run along an exact touch, but not on a wall its
-//! operand drew corners on, which would leave them behind the line of
+//! other — but a cylinder grown onto a node may slide along its partner's
+//! axis, which leaves the node where it is, to keep a plane it touched. A
+//! move may run along an exact touch, but not on a wall its operand drew
+//! corners on, which would leave them behind the line of
 //! touch it takes along: such a slide is made before, on the operand, with
 //! its corners (`combine/slid.rs`). A cylinder touching two parallel planes
 //! on opposite sides is moved midway between them, its radius half their
@@ -74,7 +76,13 @@ impl Surfaces {
             let Some((shifted, surface)) = self.onto(pair, own, scale) else {
                 continue;
             };
-            if self.keeps(shifted, &surface, &pair, (close, pinned(shifted)), scale) {
+            let partner = self.list[pair[usize::from(pair[0] == shifted)]];
+            let kept = std::iter::once(surface)
+                .chain(along_the_partner(&self.list[shifted], &surface, &partner))
+                .find(|surface| {
+                    self.keeps(shifted, surface, &pair, (close, pinned(shifted)), scale)
+                });
+            if let Some(surface) = kept {
                 self.list[shifted] = surface;
                 moved[shifted] = true;
             }
@@ -198,6 +206,33 @@ impl Surfaces {
                 }
             })
     }
+}
+
+/// A cylinder given its partner's radius at a node of two of one radius,
+/// slid either way along the partner's axis by what its radius grew: the
+/// node stands wherever along that axis the two meet, and the slide keeps
+/// the cylinder touching a plane square to the axis as it touched it — a
+/// post resting on a shaft's end, whose wall crosses the shaft at a node
+/// but for a hair of radius (533609727). None for any other move.
+fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Vec<Surface> {
+    let (Surface::Cylinder(before), Surface::Cylinder(after), Surface::Cylinder(partner)) =
+        (before, after, partner)
+    else {
+        return Vec::new();
+    };
+    let grown = after.radius - before.radius;
+    if grown == 0.0 {
+        return Vec::new();
+    }
+    [grown, -grown]
+        .map(|by| {
+            Surface::Cylinder(Cylinder::about(
+                after.origin + partner.axis * by,
+                after.axis,
+                after.radius,
+            ))
+        })
+        .to_vec()
 }
 
 /// How far two surfaces decided to touch stand from touching exactly; none

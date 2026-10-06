@@ -215,7 +215,6 @@ fn a_cone_and_a_plane_standing_apart_are_each_read_on_the_side_the_other_stands(
 }
 
 #[test]
-#[ignore = "#536: K1's relation reads the rulings a plane holding the axis cuts"]
 fn a_cone_halved_by_a_plane_through_its_axis_has_it_on_its_axis_side_up_to_the_rulings() {
     let point = point(360.0);
     let half = block([0.0, -20.0, -20.0], [20.0, 20.0, 20.0]);

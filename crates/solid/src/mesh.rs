@@ -1,6 +1,13 @@
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+/// How thin, against the largest coordinate it stands at, a face the drawing
+/// gave can be before its corners are taken for a line: the rules' own
+/// `soundness::NEAR`, within which they weld two corners into one, so that
+/// leaving out a face thinner than it opens nothing they can see, and a
+/// face thicker is kept. Six orders above what rounding leaves of a line.
+const IN_A_LINE: f64 = 1e-10;
+
 /// A flat, convex-enough face of a solid, kept as its corners in order.
 ///
 /// Polygons rather than triangles: the boolean operations cut faces against
@@ -35,6 +42,33 @@ impl Polygon {
         let reach = candidate.perimeter();
         (reach > 1e-9 && candidate.area_vector().length() / (reach * reach) > 1e-7)
             .then_some(candidate)
+    }
+
+    /// A face the drawing gave rather than a cut left, or `None` when its
+    /// corners stand in a line to rounding.
+    ///
+    /// Kept however thin: a wall a hair from another is real, and its end is
+    /// as real as its sides, which are kept. Refused as a splinter, it would
+    /// leave both sides open.
+    pub fn drawn(corners: Vec<DVec3>) -> Option<Self> {
+        let count = corners.len();
+        if count < 3 {
+            return None;
+        }
+        let reach = corners.iter().fold(1.0f64, |reach, corner| {
+            reach.max(corner.abs().max_element())
+        });
+        let longest = (0..count)
+            .map(|index| corners[index].distance(corners[(index + 1) % count]))
+            .fold(0.0, f64::max);
+        // Read from the first corner rather than the origin, so that rounding
+        // weighs what the face spans and not where it stands.
+        let first = corners[0];
+        let doubled: DVec3 = (1..count - 1)
+            .map(|index| (corners[index] - first).cross(corners[index + 1] - first))
+            .sum();
+        let thickness = doubled.length() / longest;
+        (thickness > IN_A_LINE * reach).then_some(Self { corners, face: 0 })
     }
 
     fn perimeter(&self) -> f64 {

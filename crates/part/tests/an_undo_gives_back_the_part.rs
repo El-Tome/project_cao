@@ -562,8 +562,10 @@ fn a_circle_across_its_axis_turned_whole_undoes_every_gesture_within_the_patienc
     assert_eq!(answer(gestures, &check, Duration::from_secs(10)), Ok(()));
 }
 
+/// A circle across its axis turned -45 degrees, both sides on the flats:
+/// their ends faced the way a forwards turn would, and the seam came out
+/// open; they face the way the area travels now.
 #[test]
-#[ignore = "flats: a circle across its axis turned part way is turned on both sides on the flats, two solids touching along the axis, and the flats' join leaves the seam open; on main the area made nothing"]
 fn seed_533900197_a_circle_across_its_axis_turned_part_way_undoes_every_gesture() {
     assert_eq!(
         undoes(&[
@@ -583,8 +585,9 @@ fn seed_533900197_a_circle_across_its_axis_turned_part_way_undoes_every_gesture(
     );
 }
 
+/// A circle across its axis cut -45 degrees into a block, both sides on
+/// the flats, whose ends faced the way a forwards turn would.
 #[test]
-#[ignore = "flats: a circle across its axis cut part way into a block, both sides turned on the flats and joined, leaves the block open; on main the area made nothing"]
 fn seed_533900883_a_circle_across_its_axis_cut_part_way_into_a_block_undoes_every_gesture() {
     assert_eq!(
         undoes(&[

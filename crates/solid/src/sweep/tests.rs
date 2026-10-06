@@ -10,11 +10,14 @@
 //!   shape of `Loop`, which carries the curve every segment was sampled from
 //!   rather than leaving it to be guessed from the angle between two flats
 
+use std::f64::consts::{FRAC_PI_2, TAU};
+
 use glam::{DVec2, DVec3};
 
 use super::{Loop, prism, revolution};
 use crate::mesh::tests::{box_of, fan, square, volume};
 use crate::mesh::{Mesh, Polygon};
+use crate::soundness::closed;
 
 fn profile(min: DVec2, max: DVec2) -> Vec<DVec2> {
     vec![min, DVec2::new(max.x, min.y), max, DVec2::new(min.x, max.y)]
@@ -299,5 +302,115 @@ fn a_full_turn_sweeps_one_face_for_each_trait_it_carries() {
         faces_of(&solid, |_| true).len(),
         4,
         "a full turn closes on itself: four traits swept, and no ends",
+    );
+}
+
+fn turned(outline: &[DVec2], holes: &[Vec<DVec2>], triangles: &[[DVec2; 3]], angle: f64) -> Mesh {
+    let holes: Vec<Loop<'_>> = holes.iter().map(|hole| Loop::straight(hole)).collect();
+    revolution(
+        Loop::straight(outline),
+        &holes,
+        triangles,
+        |point| DVec3::new(point.x, point.y, 0.0),
+        DVec2::ZERO,
+        DVec2::Y,
+        angle,
+    )
+    .expect("a profile on one side of its axis")
+}
+
+#[test]
+fn a_part_turn_is_closed_either_way_on_its_axis_and_off_it() {
+    for left in [0.0, 3.0] {
+        let outline = profile(DVec2::new(left, 0.0), DVec2::new(5.0, 2.0));
+        for angle in [FRAC_PI_2, -FRAC_PI_2, 2.5, -2.5, TAU - 2e-3, 2e-3 - TAU] {
+            let solid = turned(&outline, &[], &fan(&outline), angle);
+            assert_eq!(
+                closed(&solid.triangles()),
+                Ok(()),
+                "from {left}, turned {angle} rad"
+            );
+        }
+    }
+}
+
+/// A rectangle on its axis with a hole a hair from its far side, cut into
+/// the triangles a drawing gives it: the outline, the hole, the triangles.
+fn a_wall_a_hair_thin(hair: f64) -> (Vec<DVec2>, Vec<DVec2>, Vec<[DVec2; 3]>) {
+    let outline = profile(DVec2::ZERO, DVec2::new(5.0, 7.0));
+    let hole = vec![
+        DVec2::new(3.0, 2.5),
+        DVec2::new(3.0, 6.5),
+        DVec2::new(5.0 - hair, 6.5),
+        DVec2::new(5.0 - hair, 2.5),
+    ];
+    let (o, h) = (&outline, &hole);
+    let quads = [
+        [o[0], o[1], h[3], h[0]],
+        [o[0], h[0], h[1], o[3]],
+        [o[3], h[1], h[2], o[2]],
+        [o[1], o[2], h[2], h[3]],
+    ];
+    let triangles = quads
+        .iter()
+        .flat_map(|&[a, b, c, d]| [[a, b, c], [a, c, d]])
+        .collect();
+    (outline, hole, triangles)
+}
+
+#[test]
+fn a_wall_a_hair_thin_keeps_its_two_ends() {
+    for hair in [1e-8, 2e-7, 3e-7] {
+        let (outline, hole, triangles) = a_wall_a_hair_thin(hair);
+        for angle in [FRAC_PI_2, -FRAC_PI_2, TAU - 2e-3] {
+            let solid = turned(&outline, std::slice::from_ref(&hole), &triangles, angle);
+            assert_eq!(
+                closed(&solid.triangles()),
+                Ok(()),
+                "a wall {hair} thin turned {angle} rad"
+            );
+        }
+        let solid = prism(
+            Loop::straight(&outline),
+            &[Loop::straight(&hole)],
+            &triangles,
+            |point| DVec3::new(point.x, point.y, 0.0),
+            DVec3::Z * 2.0,
+        );
+        assert_eq!(
+            closed(&solid.triangles()),
+            Ok(()),
+            "a wall {hair} thin raised"
+        );
+    }
+}
+
+#[test]
+fn a_turn_a_hair_short_of_whole_closes_on_itself() {
+    let outline = profile(DVec2::new(3.0, 0.0), DVec2::new(5.0, 2.0));
+    for angle in [TAU - 8e-4, 8e-4 - TAU, TAU + 8e-4] {
+        let solid = turned(&outline, &[], &fan(&outline), angle);
+        assert_eq!(closed(&solid.triangles()), Ok(()), "turned {angle} rad");
+        let expected = TAU * 4.0 * 4.0;
+        assert!(
+            (volume(&solid) - expected).abs() / expected < 0.01,
+            "turned {angle} rad: {}",
+            volume(&solid)
+        );
+    }
+}
+
+#[test]
+fn a_piece_in_a_line_is_no_end() {
+    let outline = profile(DVec2::ZERO, DVec2::new(5.0, 2.0));
+    let mut triangles = fan(&outline);
+    triangles.push([DVec2::ZERO, DVec2::new(0.0, 1.0), DVec2::new(0.0, 2.0)]);
+    let solid = turned(&outline, &[], &triangles, FRAC_PI_2);
+    assert_eq!(closed(&solid.triangles()), Ok(()));
+    assert_eq!(
+        solid.polygons.len(),
+        turned(&outline, &[], &fan(&outline), FRAC_PI_2)
+            .polygons
+            .len()
     );
 }

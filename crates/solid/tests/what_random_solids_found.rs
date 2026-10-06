@@ -27,8 +27,9 @@ mod random_solids;
 
 use random_solids::{Case, Leaf, Outline, Plane, Step};
 
+/// #486: the flats' ends faced the way read at each piece's first corner,
+/// blind to the sign of the turn; they face the way the area travels now.
 #[test]
-#[ignore = "#486"]
 fn a_quarter_turn_backwards_keeps_every_rule() {
     random_solids::holds(&Case::new(
         Leaf::revolution(Plane::xy(0.0), [1.0, 0.0], [2.0, 1.0], -45.0),

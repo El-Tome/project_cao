@@ -31,7 +31,8 @@
 //!   `a_cone_whose_leg_was_laid_on_the_axis_comes_out_closed` (#488, flats),
 //!   `an_area_across_a_sketch_axis_is_turned_on_both_sides_and_joined` (50π),
 //!   `an_area_across_the_axis_turned_part_way_holds_both_sides_volumes` (90°: 20.5π),
-//!   `an_area_across_a_construction_line_is_turned_on_both_sides_and_joined`
+//!   `an_area_across_a_construction_line_is_turned_on_both_sides_and_joined`,
+//!   `a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone`
 //! - #448's harness draws revolutions, written before the kernel code; a campaign is
 //!   run, its failures are named, its fast cases are in the gate, the long ones
 //!   behind `--features campaigns` — no test: held in `cao_solid` by
@@ -52,6 +53,8 @@
 //! kernel's own tests are `cao_solid`'s, in `the_exact_kernel_turns.rs`.
 
 use std::f64::consts::PI;
+use std::sync::mpsc;
+use std::time::Duration;
 
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 use cao_part::{History, PartDocument, PartState, VariableChange, VariableId};
@@ -1298,4 +1301,36 @@ fn a_drawing_after_a_turn_keeps_its_face_when_a_size_sends_the_turn_to_the_flats
             "w from {from} to {to}: the drawing stays on the block's top, not on {plane:?}",
         );
     }
+}
+
+/// How long a whole turn of a round area across its axis may take: its larger
+/// side alone, on the flats, takes milliseconds, where both sides turned and
+/// joined took most of a minute in release (the night campaign of parts).
+const PATIENCE: Duration = Duration::from_secs(10);
+
+#[test]
+fn a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone() {
+    let (center, radius) = (DVec2::new(5.0, 16.0), 7.0);
+    let history = turned_on_xy(|history| circle(history, 0, center, radius), center, 360.0);
+    let (sender, receiver) = mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = sender.send(PartState::rebuild(&history).body.volume());
+    });
+    let volume = receiver
+        .recv_timeout(PATIENCE)
+        .expect("the turn answers within the patience");
+
+    let steps = 100_000;
+    let width = (center.x + radius) / steps as f64;
+    let pappus: f64 = (0..steps)
+        .map(|step| {
+            let u = (step as f64 + 0.5) * width;
+            let half = (radius * radius - (u - center.x).powi(2)).max(0.0).sqrt();
+            2.0 * PI * u * 2.0 * half * width
+        })
+        .sum();
+    assert!(
+        (volume - pappus).abs() < 0.02 * pappus,
+        "the disc's side reaching 12 turned whole holds the side reaching 2: {volume} where Pappus gives {pappus}",
+    );
 }

@@ -3,6 +3,7 @@
 //! lies, and how close to the axis counts as on it. Decided here once, for
 //! both kernels, the part and the harness alike (#533).
 
+mod sides;
 mod straight;
 
 use std::f64::consts::TAU;

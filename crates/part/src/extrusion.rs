@@ -274,7 +274,8 @@ fn frame_of(sketch: &Sketch) -> Frame {
 /// one side of the axis, and cut along the axis into its sides when it lies
 /// across it. Every side keeps the band its whole area was read at, so that
 /// a corner the drawing left a hair off the axis lands on it whichever side
-/// it ended up in.
+/// it ended up in. Turned whole, a side the other side's turn holds already
+/// is left out.
 fn sides_of<'a>(
     sketch: &Sketch,
     standing: &[&'a Region],
@@ -291,9 +292,23 @@ fn sides_of<'a>(
             sides.push((Cow::Borrowed(region), triangles, turn));
             continue;
         }
-        for side in sketch.pieces_across(region, axis.origin, axis.direction) {
-            let triangles = side.face_triangles();
-            sides.push((Cow::Owned(side), triangles, turn));
+        let pieces: Vec<(Region, Vec<[DVec2; 3]>)> = sketch
+            .pieces_across(region, axis.origin, axis.direction)
+            .into_iter()
+            .map(|side| {
+                let triangles = side.face_triangles();
+                (side, triangles)
+            })
+            .collect();
+        let profiles: Vec<Profile> = pieces
+            .iter()
+            .map(|(side, triangles)| profile(side, triangles))
+            .collect();
+        let needed = turn.sides_needed(&profiles);
+        for (index, (side, triangles)) in pieces.into_iter().enumerate() {
+            if needed.contains(&index) {
+                sides.push((Cow::Owned(side), triangles, turn));
+            }
         }
     }
     sides

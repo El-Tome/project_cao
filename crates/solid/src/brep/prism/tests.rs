@@ -226,21 +226,69 @@ fn a_profile_that_describes_no_solid_is_declined() {
     let square = |corners: Vec<DVec2>| Contour::straight(corners);
     let raise = |contour: &Contour| Body::raised(contour, &[], ground(), DVec3::Z).map(|_| ());
     let empty = square(Vec::new());
-    let doubled = square(vec![
-        DVec2::ZERO,
-        DVec2::X,
-        DVec2::X + DVec2::new(1e-12, 0.0),
-        DVec2::ONE,
-    ]);
     let folded = square(vec![DVec2::ZERO, DVec2::X * 2.0, DVec2::X]);
     let mut astray = Contour::circle(DVec2::ZERO, 1.0);
     astray.runs[0] = Run::Round {
         center: DVec2::ZERO,
         turn: 3.0,
     };
-    for contour in [&empty, &doubled, &folded, &astray] {
+    for contour in [&empty, &folded, &astray] {
         assert_eq!(raise(contour), Err(Declined::Profile), "{contour:?}");
     }
+}
+
+#[test]
+fn a_straight_run_no_longer_than_the_tolerance_is_left_out_and_names_no_wall() {
+    let doubled = Contour::straight(vec![
+        DVec2::ZERO,
+        DVec2::X,
+        DVec2::X + DVec2::new(1e-12, 0.0),
+        DVec2::ONE,
+    ]);
+    let body = Body::raised(&doubled, &[], ground(), DVec3::Z).expect("a triangle raises");
+    assert_eq!(counts(&body), [5, 9, 6]);
+    assert_sound(&body);
+    let named: Vec<u32> = body
+        .faces
+        .iter()
+        .flat_map(|face| face.numbers.clone())
+        .collect();
+    assert!(
+        !named.contains(&3),
+        "the run of no length names a wall: {named:?}"
+    );
+}
+
+#[test]
+fn a_rounded_square_a_hair_wider_than_its_corners_is_raised_as_a_disc() {
+    use crate::profile::Run;
+    use std::f64::consts::FRAC_PI_2;
+    let hair = 5e-10;
+    let quarter = |x: f64, y: f64| Run::Round {
+        center: DVec2::new(x, y),
+        turn: FRAC_PI_2,
+    };
+    let rounded = Contour {
+        corners: vec![
+            DVec2::new(0.0, -1.0),
+            DVec2::new(hair, -1.0),
+            DVec2::new(1.0 + hair, 0.0),
+            DVec2::new(hair, 1.0),
+            DVec2::new(0.0, 1.0),
+            DVec2::new(-1.0, 0.0),
+        ],
+        runs: vec![
+            Run::Straight,
+            quarter(hair, 0.0),
+            quarter(hair, 0.0),
+            Run::Straight,
+            quarter(0.0, 0.0),
+            quarter(0.0, 0.0),
+        ],
+    };
+    let body = Body::raised(&rounded, &[], ground(), DVec3::Z).expect("a disc raises");
+    assert_eq!(counts(&body), [3, 2, 0]);
+    assert_sound(&body);
 }
 
 #[test]

@@ -10,10 +10,11 @@
 //! each, the rest of each family listed in the journal. The night's campaign
 //! through the application's body is then sorted by the place in the code at
 //! fault, several seeds to each family, its key at the head of the reason:
-//! `kernel-drawing`, `kernel-declines` and `rounded-a-hair`. The two
-//! families of a wall a hair thin turned on the flats, `flats-ends` and
-//! `flats-join`, hold since laying makes such a wall nothing, and the exact
-//! kernel turns the section.
+//! `kernel-drawing` and `kernel-declines`. The two families of a wall a hair
+//! thin turned on the flats, `flats-ends` and `flats-join`, hold since
+//! laying makes such a wall nothing, and the exact kernel turns the
+//! section; `rounded-a-hair` holds since a straight run of no length is
+//! left out of a raise.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -3626,7 +3627,6 @@ fn seed_533613392_a_disc_cut_by_a_slot_a_hair_off_its_centre_with_no_turn() {
 }
 
 #[test]
-#[ignore = "rounded-a-hair: a rounded square whose corners are all but a circle, two of its straight sides 1e-8 long and two of none; the exact raise declines it as no profile (brep/piece.rs, pieces read at the profile's eps): 4 of the 1 071 failures through the application's body"]
 fn seed_533656030_a_rounded_square_a_hair_wider_than_its_corners_is_raised() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3639,7 +3639,6 @@ fn seed_533656030_a_rounded_square_a_hair_wider_than_its_corners_is_raised() {
 }
 
 #[test]
-#[ignore = "rounded-a-hair: a rounded rectangle 1e-8 wider than its corners, a slot but for a hair; declined as no profile (brep/piece.rs)"]
 fn seed_533729250_a_rounded_rectangle_a_hair_wider_than_a_slot_is_raised() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -3652,7 +3651,6 @@ fn seed_533729250_a_rounded_rectangle_a_hair_wider_than_a_slot_is_raised() {
 }
 
 #[test]
-#[ignore = "rounded-a-hair: a rounded rectangle 3e-7 wider than its corners at a reach of 210; declined as no profile (brep/piece.rs)"]
 fn seed_533684645_a_large_rounded_rectangle_a_hair_wider_than_a_slot_is_raised() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(

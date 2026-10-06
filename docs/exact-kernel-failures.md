@@ -1112,3 +1112,16 @@ crack near the axis is drawn crossing under the block, as it was on
 `1492eed` with the block above: the triangles' family. A 15-minute
 campaign from 533600000 on both trees, 3 448 seeds in common: the same
 failures, less 533602391; no seed that held fails.
+
+### Round 1: a rounded outline a hair wider than its corners
+
+`rounded-a-hair`, four seeds of the night's turns through the
+application's body: a rounded square or rectangle a hair wider than its
+corner radii, raised. Its straight run between two arcs had its ends
+within the tolerance, and the raise declined such a run as no profile
+(`brep/piece.rs`). It is now left out and names no wall, as a turn leaves
+out a run laid to no length, and the arcs on either side, their centres a
+hair apart, are one: a rounded square a hair wider than its corners is
+raised as a disc, a rectangle a hair wider than a slot as the slot. The
+four seeds hold, run one at a time; 533656030, 533729250 and 533684645 are
+un-ignored.

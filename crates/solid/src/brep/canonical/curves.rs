@@ -37,8 +37,9 @@ impl Registry {
 
     /// The rank of the curve, the first registered within the tolerance of
     /// it — or a line on two planes across each other `support` lies on —
-    /// and lying on no surface apart from `support`, or a new one; either way
-    /// lying on `support` from now on.
+    /// and lying on no surface apart from `support` nor meeting one of it at a
+    /// cone's apex alone, or a new one; either way lying on `support` from
+    /// now on.
     pub fn register(&mut self, curve: Curve, support: &[SurfaceId]) -> usize {
         self.register_beside(curve, support, |_| false)
     }
@@ -56,6 +57,7 @@ impl Registry {
                 && self.planes.fix_a_line(&known.support, support);
             (fixed || same(&known.curve, &curve, self.scale))
                 && !self.apart.across(&known.support, support)
+                && !self.apart.pointed(&known.support, support)
                 && !other(rank)
         });
         let rank = found.unwrap_or_else(|| {
@@ -72,9 +74,10 @@ impl Registry {
     }
 
     /// Whether a curve may lie on `surface` too: it lies on no surface
-    /// decided apart from it.
+    /// decided apart from it, or decided to meet it at a cone's apex alone.
     pub fn admits(&self, curve: usize, surface: SurfaceId) -> bool {
-        !self.apart.across(&self.list[curve].support, &[surface])
+        let support = &self.list[curve].support;
+        !self.apart.across(support, &[surface]) && !self.apart.pointed(support, &[surface])
     }
 
     pub fn join(&mut self, curve: usize, surface: SurfaceId) {

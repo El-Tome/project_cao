@@ -38,6 +38,7 @@ pub(in crate::brep) struct Apart {
     pairs: BTreeSet<[SurfaceId; 2]>,
     touching: BTreeSet<[SurfaceId; 2]>,
     grazing: BTreeSet<[SurfaceId; 2]>,
+    pointed: BTreeSet<[SurfaceId; 2]>,
     points: BTreeMap<[SurfaceId; 2], Vec<DVec3>>,
     surfaces: Vec<Surface>,
 }
@@ -51,6 +52,7 @@ impl Apart {
         let mut pairs = BTreeSet::new();
         let mut touching = BTreeSet::new();
         let mut grazing = BTreeSet::new();
+        let mut pointed = BTreeSet::new();
         let mut points = BTreeMap::new();
         for (one, first) in surfaces.iter().enumerate() {
             for (other, second) in surfaces.iter().enumerate().skip(one + 1) {
@@ -81,8 +83,11 @@ impl Apart {
                     }
                     Relation::Rulings {
                         apex: Some(apex), ..
+                    } => {
+                        points.insert(pair, vec![apex]);
                     }
-                    | Relation::Apex(apex) => {
+                    Relation::Apex(apex) => {
+                        pointed.insert(pair);
                         points.insert(pair, vec![apex]);
                     }
                     Relation::Line(_)
@@ -97,6 +102,7 @@ impl Apart {
             pairs,
             touching,
             grazing,
+            pointed,
             points,
             surfaces: surfaces.to_vec(),
         }
@@ -115,6 +121,19 @@ impl Apart {
     /// angle, standing within the tolerance of each other far from them.
     pub fn graze(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.grazing.contains(&[one.min(other), one.max(other)])
+    }
+
+    /// Whether a surface of `one` and a surface of `other` were decided to
+    /// meet at a cone's apex alone, so that no curve lies on both: a ruling
+    /// of one, read as a whole line, may still be one of the other's, two
+    /// cones of one apex each the other's mirror.
+    pub fn pointed(&self, one: &[SurfaceId], other: &[SurfaceId]) -> bool {
+        one.iter().any(|&first| {
+            other.iter().any(|&second| {
+                self.pointed
+                    .contains(&[first.min(second), first.max(second)])
+            })
+        })
     }
 
     /// The points where two perpendicular cylinders, or a cone at its apex

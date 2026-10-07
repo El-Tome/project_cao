@@ -254,10 +254,14 @@ The decisions, in the order taken, once per operation:
    `clear` stands the two faces apart. No pair with a cone grazes and none is
    moved onto a touch: a cone a hair from a cylinder of its axis meets it
    along one exact circle, whatever the band the two stand within `EPS` of
-   each other over.
+   each other over. Two surfaces meeting at the apex alone carry no curve
+   together: two cones of one apex, each the other's mirror, share their
+   rulings as whole lines, one half on each, and a ruling one of them shares
+   with a plane holding the axis is never laid on the other's (decision 3).
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
-   two surfaces decided apart, and never two curves of one operand, which
+   two surfaces decided apart or decided to meet at a cone's apex alone, and
+   never two curves of one operand, which
    the operation that made it kept apart. A line a pair's line was taken for is that
    pair's alone: another within `EPS` of it, on a surface apart from the
    first's, does not lie on the pair's surfaces for that. An operand's edge

@@ -4,6 +4,7 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::{Circle, Curve, Line};
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, SurfaceId};
@@ -148,6 +149,38 @@ fn a_ruling_through_the_apex_only_touches_the_other_surface() {
         assert!(!apart.pair(cone, other));
     }
     assert!(apart.points(cone, below).is_empty());
+}
+
+/// Two cones of one axis and one apex, each the other's mirror: a ruling of
+/// one, read as a whole line, is a ruling of the other, but the two meet at
+/// the apex alone, and the ruling one of them shares with a plane holding
+/// the axis is not the other's.
+#[test]
+fn a_ruling_of_a_cone_is_not_laid_on_the_same_line_of_its_mirror() {
+    let rising = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(15.0, 5.0), DVec2::new(20.0, 10.0)],
+    ));
+    let falling = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 10.0), DVec2::new(5.0, 5.0)],
+    ));
+    let holding = Surface::Plane(Plane::through(DVec3::ZERO, DVec3::X).0);
+    let list = [holding, rising, falling];
+    let mut registry = Registry::new(scale(), Apart::of(&list, |_| scale()), Planes::default());
+    let rulings = |rank: usize| match relation(&list[0], &list[rank], scale()) {
+        Relation::Rulings { lines, .. } => lines,
+        other => panic!("{other:?}"),
+    };
+    let [plane, rising, falling] = [0, 1, 2].map(SurfaceId);
+    let risen = rulings(1).map(|line| registry.register(Curve::Line(line), &[plane, rising]));
+    let fallen = rulings(2).map(|line| registry.register(Curve::Line(line), &[plane, falling]));
+    assert!(
+        risen.iter().all(|rank| !fallen.contains(rank)),
+        "{risen:?} {fallen:?}"
+    );
 }
 
 #[test]

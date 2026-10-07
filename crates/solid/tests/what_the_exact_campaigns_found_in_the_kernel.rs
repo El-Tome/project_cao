@@ -3694,8 +3694,9 @@ fn seed_536202582_a_partial_turn_a_hair_off_the_axis_of_a_disc_it_cuts() {
     ));
 }
 
+/// A quarter turn with slanted runs joined to a cylinder of its axis: two
+/// of its cones are each other's mirror, of one apex, as 5361118847.
 #[test]
-#[ignore = "kernel: a quarter turn with slanted runs joined to a cylinder turned about the same axis; the ends of the quarter turn, planes holding that axis, meet the cylinder along its rulings, declined as unverified: the family of 533328889"]
 fn seed_536210335_a_slanted_quarter_turn_joined_to_a_cylinder_of_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3947,8 +3948,12 @@ fn seed_5361110937_a_point_on_a_disc_a_hair_off_the_axis_of_a_ring() {
     ));
 }
 
+/// A half turn of stepped cones joined to a block: two of its cones are
+/// each other's mirror, of one apex, and a ruling the slit's plane cut from
+/// one was laid on the other's, which it shares as a whole line. The corners
+/// on the first then stood on the second, apart from the plane past its
+/// apex, and fell off their rims.
 #[test]
-#[ignore = "cone-boolean: a half turn of stepped cones joined to a block it does not reach the axis of, nothing a hair off, declined as unverified"]
 fn seed_5361118847_a_half_turn_of_stepped_cones_joined_to_a_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3981,8 +3986,9 @@ fn seed_5361118847_a_half_turn_of_stepped_cones_joined_to_a_block() {
     ));
 }
 
+/// A block cut by a quarter turn of stepped cones, two of them each
+/// other's mirror, as 5361118847.
 #[test]
-#[ignore = "cone-boolean: a block cut by a quarter turn of a stepped section with cones, nothing a hair off, declined as a tie"]
 fn seed_5361135092_a_block_cut_by_a_quarter_turn_of_stepped_cones() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -4017,8 +4023,9 @@ fn seed_5361135092_a_block_cut_by_a_quarter_turn_of_stepped_cones() {
     ));
 }
 
+/// A quarter turn of cones about a leaning axis, cut by a cylinder, two
+/// of its cones each other's mirror, as 5361118847.
 #[test]
-#[ignore = "cone-boolean: a quarter turn of cones about an axis leaning 60 degrees, cut by a cylinder of another axis, declined"]
 fn seed_5361102829_a_quarter_turn_of_cones_about_a_leaning_axis_cut_by_a_cylinder() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -4040,8 +4047,9 @@ fn seed_5361102829_a_quarter_turn_of_cones_about_a_leaning_axis_cut_by_a_cylinde
     ));
 }
 
+/// A half turn of stepped cones, two of them each other's mirror, joined
+/// to a point of its axis it does not reach, as 5361118847.
 #[test]
-#[ignore = "cone-boolean, through the application's body: a half turn of stepped cones joined to a point of its axis, nothing a hair off, declined as unverified"]
 fn seed_5361201784_a_half_turn_of_stepped_cones_joined_to_a_point_of_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

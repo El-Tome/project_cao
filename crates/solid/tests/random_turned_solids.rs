@@ -1388,17 +1388,25 @@ fn a_turned_leaf_names_its_faces_as_the_flats_name_them() {
         .filter(|leaf| turned(leaf).is_some_and(|turn| turn.section.side().is_some()))
         .collect();
     assert!(leaves.len() > 100, "{} leaves", leaves.len());
-    name_their_faces_as_the_flats_name_them(&leaves);
+    let exact = name_their_faces_as_the_flats_name_them(&leaves);
+    assert_eq!(
+        exact,
+        leaves.len(),
+        "every leaf is turned by the exact kernel"
+    );
 }
 
 /// Whether every one of `leaves`, turned on one side of its axis, is
 /// numbered by the exact kernel as the flats number it, and each run it
 /// lays turns into the face of its own number: or of a run on its line, or
-/// of one the kernel tells apart past the flats' numbers.
-fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) {
+/// of one the kernel tells apart past the flats' numbers; and how many of
+/// them the exact kernel turned, the others held to the flats by the flats.
+fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) -> usize {
+    let mut turned_exactly = 0;
     for leaf in leaves {
         let turn = turned(leaf).expect("a turn");
         let exact = Application.raised(leaf).expect("a turned body");
+        turned_exactly += usize::from(exact.is_exact());
         let flats = Flats::for_case(&Case::new(leaf.clone(), vec![]))
             .raised(leaf)
             .expect("a turn the flats make");
@@ -1454,6 +1462,7 @@ fn name_their_faces_as_the_flats_name_them(leaves: &[Leaf]) {
             );
         }
     }
+    turned_exactly
 }
 
 /// How many runs a section's outline and holes have.
@@ -1611,7 +1620,12 @@ fn a_sloped_leaf_names_its_faces_as_the_flats_name_them() {
         .filter(|leaf| turned(leaf).is_some_and(|turn| turn.section.side().is_some()))
         .collect();
     assert!(leaves.len() > 40, "{} leaves", leaves.len());
-    name_their_faces_as_the_flats_name_them(&leaves);
+    let exact = name_their_faces_as_the_flats_name_them(&leaves);
+    assert_eq!(
+        exact,
+        leaves.len(),
+        "every leaf is turned by the exact kernel"
+    );
 }
 
 #[test]

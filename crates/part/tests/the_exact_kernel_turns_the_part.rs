@@ -25,8 +25,10 @@
 //!   `a_flat_milled_on_a_cone_is_a_broken_step_with_its_reason` (hyperbola),
 //!   `a_plane_at_a_slant_across_a_cone_is_a_broken_step_with_its_reason` (ellipse),
 //!   `a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason`,
-//!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`
-//!   (each: `declined_because(step) == Some(Declined::Unsupported)`, volume unchanged,
+//!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`,
+//!   `a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason`
+//!   (each, its tool meeting the frustum's cone alone:
+//!   `declined_because(step) == Some(Declined::Unsupported)`, volume unchanged,
 //!   part still exact), `a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood`
 //! - #448's harness draws turns with slanted runs before the kernel code — no test:
 //!   held in `cao_solid` by `random_turned_solids.rs` (`Case::drawn_slanted`, its draw
@@ -707,7 +709,11 @@ fn a_part_turned_from_a_slanted_run_after_an_exact_one_stays_exact_from_that_ste
         360.0,
         ExtrusionMode::Add,
     );
-    exact(&history);
+    assert_near(
+        exact(&history).body.volume(),
+        11.0 * PI + 7500.0 * PI,
+        "the ring, then the triangle turned at 75 from the axis, by Pappus",
+    );
 
     let (added, stays_exact) = a_disc_raised_on(&history);
     assert!(stays_exact, "the part stays on the exact kernel");
@@ -1356,6 +1362,14 @@ fn a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone() 
 
         let plane = part.sketches()[drawing].plane;
         assert!(part.body().is_exact(), "w at {to}: the part is exact");
+        let flat = 10.0 * (100.0 * 0.8f64.acos() - 48.0);
+        let expected = 2000.0 * PI + 10.0 * PI / 3.0 * (100.0 + 10.0 * to + to * to) - flat + 500.0;
+        let made = part.body().volume();
+        assert!(
+            (made - expected).abs() <= 1e-4 * expected,
+            "w at {to}: {made} where the shaft turned, the flat milled and the block raised \
+             give {expected}, within what the drawing's solver leaves of an edited size",
+        );
         assert!(
             !part.is_adrift(drawing),
             "w from {from} to {to}: the top is there"
@@ -1640,21 +1654,59 @@ fn a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason() {
 
 #[test]
 fn a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason() {
-    let history = turned_at_thirty_degrees_beside_a_cylinder_at(0.0, 4.0);
+    let history = a_frustum_then(|history| {
+        let along = DVec3::new(2.0, 1.0, 0.0).normalize();
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Y * 10.0 - along * 20.0,
+                u: DVec3::Z,
+                v: along.cross(DVec3::Z),
+            },
+        );
+        circle(history, 1, DVec2::ZERO, 1.0);
+        raise(history, 1, DVec2::ZERO, 40.0, ExtrusionMode::Cut);
+    });
 
-    let part = applied_live(&history);
+    declined_on_the_frustum(
+        &history,
+        "a cylinder at 27° from square to the cone's axis crosses its slope alone",
+    );
+}
 
-    assert_eq!(
-        part.declined_because(last_step(&history)),
-        Some(Declined::Unsupported),
-        "the turn's cone crosses the raised cylinder at 60°",
+#[test]
+fn a_cone_of_another_axis_through_a_cone_is_a_broken_step_with_its_reason() {
+    let history = a_frustum_then(|history| {
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Y * 10.0,
+                ..WorkPlane::XY
+            },
+        );
+        polygon(
+            history,
+            1,
+            &[
+                DVec2::new(4.0, 0.0),
+                DVec2::new(14.0, 0.0),
+                DVec2::new(9.0, 3.0),
+            ],
+        );
+        turn(
+            history,
+            1,
+            DVec2::new(9.0, 1.0),
+            RevolutionAxis::Sketch(SketchAxis::U),
+            360.0,
+            ExtrusionMode::Cut,
+        );
+    });
+
+    declined_on_the_frustum(
+        &history,
+        "two cones about X, tip to tip at their foot, cross the cone about Y across its slope",
     );
-    assert_near(
-        part.body().volume(),
-        PI * 4.0 * 20.0,
-        "the cylinder, as it stood before",
-    );
-    assert!(part.body().is_exact(), "the part stays exact");
 }
 
 #[test]
@@ -1816,5 +1868,56 @@ fn a_block_raised_beside_a_point_s_slope_stays_exact() {
         exact(&history).body.volume(),
         250.0 * PI / 3.0 + 1.0,
         "the point and a unit block standing clear of it",
+    );
+}
+
+#[test]
+#[ignore = "known renumbering, not mended by #536, the class #533 left: on main the \
+            chamfer sent the part to the flats, which parted the wall of a disc raised \
+            after it into thirteen numbers, where the exact kernel names three; every \
+            face numbered after that step on main is ten lower now, and a drawing \
+            saved there is adrift, or lands on another face without a word. Both \
+            kernels would have to part a face alike"]
+fn a_drawing_saved_on_main_on_a_block_raised_after_a_disc_beside_a_chamfered_shaft_keeps_its_face()
+{
+    let mut history = a_chamfered_shaft(2.0);
+    sketch_on(&mut history, WorkPlane::XY);
+    circle(&mut history, 1, DVec2::new(0.0, 100.0), 20.0);
+    raise(
+        &mut history,
+        1,
+        DVec2::new(0.0, 100.0),
+        10.0,
+        ExtrusionMode::Add,
+    );
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Z * 20.0,
+            ..WorkPlane::XY
+        },
+    );
+    rectangle(
+        &mut history,
+        2,
+        DVec2::new(30.0, 0.0),
+        DVec2::new(40.0, 10.0),
+    );
+    raise(
+        &mut history,
+        2,
+        DVec2::new(35.0, 5.0),
+        5.0,
+        ExtrusionMode::Add,
+    );
+    // Measured on `main` at f1d99a0 by the adversarial review of #536.
+    let blocks_top_on_main = 18;
+
+    let (plane, adrift) = laid_on(history, blocks_top_on_main);
+
+    assert!(!adrift, "the block's top is there");
+    assert!(
+        (plane.origin.z - 25.0).abs() < 1e-9 && plane.normal().distance(DVec3::Z) < 1e-9,
+        "the drawing stands on the block's top as it did on `main`, not on {plane:?}",
     );
 }

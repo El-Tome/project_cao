@@ -993,6 +993,50 @@ fn a_radial_hole_through_a_cone_declines_as_unsupported() {
 }
 
 #[test]
+fn a_plane_at_a_slant_across_a_cone_declines_as_unsupported() {
+    let (sin, cos) = 30.0_f64.to_radians().sin_cos();
+    let tilted = Frame {
+        origin: DVec3::Y * 10.0,
+        u: DVec3::X,
+        v: DVec3::new(0.0, sin, cos),
+    };
+    let slab = Body::raised(
+        &Contour::rectangle(DVec2::splat(-20.0), DVec2::splat(20.0)),
+        &[],
+        tilted,
+        tilted.u.cross(tilted.v) * 4.0,
+    )
+    .expect("the slanted slab raises");
+    assert_eq!(frustum().cut_by(&slab), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_cylinder_at_a_skew_angle_across_a_cone_s_slope_alone_declines_as_unsupported() {
+    let along = DVec3::new(2.0, 1.0, 0.0).normalize();
+    let skew = Frame {
+        origin: DVec3::Y * 10.0 - along * 20.0,
+        u: DVec3::Z,
+        v: along.cross(DVec3::Z),
+    };
+    let hole = Body::raised(&Contour::circle(DVec2::ZERO, 1.0), &[], skew, along * 40.0)
+        .expect("the skew rod raises");
+    assert_eq!(frustum().cut_by(&hole), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_cone_of_another_axis_across_a_cone_s_slope_declines_as_unsupported() {
+    let about_x = Turning {
+        origin: DVec3::Y * 10.0,
+        along: DVec3::X,
+        side: DVec3::Y,
+    };
+    let tips = laid(1.0, &[&[[4.0, 0.0], [14.0, 0.0], [9.0, 3.0]]]);
+    let tool = turned(&tips, about_x, TAU).expect("the two points turn");
+    assert_eq!(frustum().cut_by(&tool), Err(Declined::Unsupported));
+    assert_eq!(tool.cut_by(&frustum()), Err(Declined::Unsupported));
+}
+
+#[test]
 fn a_point_resting_on_a_plate_by_its_tip_a_hair_into_it_keeps_every_rule() {
     let tip_down = laid(1.0, &[&[[0.0, 0.0], [10.0, 5.0], [10.0, 0.0]]]);
     let slab = block([-20.0, -20.0, -10.0], [20.0, 20.0, 0.0]);

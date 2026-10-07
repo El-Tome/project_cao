@@ -311,6 +311,64 @@ fn every_turned_listing_holds_to_its_geometry() {
     }
 }
 
+/// Profiles with slanted runs: a chamfered shaft, a point, a point opening
+/// the other way along the axis, a countersunk ring, a dovetailed ring, and
+/// a block holding a hole with a slanted side.
+fn slanted() -> [Straight; 6] {
+    [
+        chamfered_shaft(),
+        point(),
+        laid(&[&[[0.0, 0.0], [10.0, 0.0], [10.0, 5.0]]]),
+        laid(&[&[
+            [0.0, 2.0],
+            [6.0, 2.0],
+            [11.0, 7.0],
+            [11.0, 12.0],
+            [0.0, 12.0],
+        ]]),
+        laid(&[&[[0.0, 4.0], [10.0, 4.0], [8.0, 8.0], [2.0, 8.0]]]),
+        laid(&[
+            &[[0.0, 0.0], [10.0, 0.0], [10.0, 10.0], [0.0, 10.0]],
+            &[[3.0, 4.0], [6.0, 7.0], [6.0, 4.0]],
+        ]),
+    ]
+}
+
+const TURNS: [f64; 9] = [45.0, 90.0, 135.0, 180.0, 270.0, 300.0, 360.0, -90.0, -200.0];
+
+#[test]
+fn every_slanted_turned_listing_holds_to_its_geometry() {
+    for (rank, straight) in slanted().iter().enumerate() {
+        for degrees in TURNS {
+            let body = turned(straight, degrees);
+            let reach = body.scale().reach();
+            assert_eq!(
+                listed(&body.listing(), reach),
+                Ok(()),
+                "profile {rank} at {degrees}°"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "#536: a cone is drawn by K4 and its volume read by K2"]
+fn every_slanted_turned_body_closes_its_triangles_and_holds_pappus_s_volume() {
+    for (rank, straight) in slanted().iter().enumerate() {
+        for degrees in TURNS {
+            let body = turned(straight, degrees);
+            let triangles = body.triangles(1e-3 * body.scale().reach());
+            assert_eq!(closed(&triangles), Ok(()), "profile {rank} at {degrees}°");
+            assert_eq!(
+                uncrossed(&triangles),
+                Ok(()),
+                "profile {rank} at {degrees}°"
+            );
+            assert_volume(&body, pappus(straight, f64::to_radians(degrees)));
+        }
+    }
+}
+
 #[test]
 fn faces_are_numbered_one_per_run_then_the_opening_and_the_closing_end() {
     let body = turned(&ring(), 90.0);

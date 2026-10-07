@@ -12,6 +12,7 @@ use std::f64::consts::TAU;
 use crate::brep::{Curve, Listing};
 
 mod lying;
+mod nappe;
 mod turning;
 
 /// What a listing says that its geometry does not bear out, and where: faces,
@@ -69,6 +70,17 @@ pub enum Mislisted {
         at: f64,
         distance: f64,
     },
+    /// A face said to hold within it, as its apex, a vertex standing off the
+    /// apex of its cone — infinitely far from a surface with no apex.
+    ApexAway {
+        face: usize,
+        vertex: usize,
+        distance: f64,
+    },
+    /// A cone face pointed at its apex — its loops winding once round its
+    /// axis, closed there — holding no vertex at its apex, or one holding a
+    /// vertex there that is not pointed.
+    Pointed { face: usize },
     /// A loop keeping its face on its right seen from outside the matter:
     /// run the wrong way round, or on a face said to look the wrong way.
     Backwards { face: usize, lap: usize },

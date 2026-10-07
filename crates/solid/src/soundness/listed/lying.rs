@@ -1,13 +1,14 @@
 //! What lies on what: every vertex on the surfaces of the faces around it and
-//! of the face holding it within it, every edge's ends on its vertices, every
-//! edge on the surfaces of the faces beside it — each surface and curve
-//! evaluated by its own formula here.
+//! of the face holding it within it, that one at its cone's apex, every
+//! edge's ends on its vertices, every edge on the surfaces of the faces
+//! beside it — each surface and curve evaluated by its own formula here.
 
 use std::collections::BTreeSet;
 
 use glam::DVec3;
 
 use super::Mislisted;
+use super::nappe::Nappe;
 use crate::brep::{Curve, Listing, Surface};
 
 /// How many stretches an edge is cut into to be tried along its length: its
@@ -40,6 +41,23 @@ pub(super) fn lying(
                     distance,
                 });
             }
+        }
+    }
+
+    for (face, listed) in listing.faces.iter().enumerate() {
+        let Some(vertex) = listed.apex else {
+            continue;
+        };
+        let distance = match &listed.surface {
+            Surface::Cone(cone) => Nappe::of(cone).apex().distance(listing.vertices[vertex]),
+            Surface::Plane(_) | Surface::Cylinder(_) => f64::INFINITY,
+        };
+        if !within(distance, room) {
+            return Err(Mislisted::ApexAway {
+                face,
+                vertex,
+                distance,
+            });
         }
     }
 
@@ -87,8 +105,7 @@ fn within(distance: f64, room: f64) -> bool {
     distance <= room
 }
 
-/// How far a place stands from a surface, either side; from a cone, not
-/// written yet (#536): beyond any room.
+/// How far a place stands from a surface, either side.
 fn off(surface: &Surface, place: DVec3) -> f64 {
     match surface {
         Surface::Plane(plane) => (place - plane.origin).dot(plane.normal.normalize()).abs(),
@@ -97,7 +114,7 @@ fn off(surface: &Surface, place: DVec3) -> f64 {
             let from = place - cylinder.origin;
             ((from - axis * from.dot(axis)).length() - cylinder.radius).abs()
         }
-        Surface::Cone(_) => f64::INFINITY,
+        Surface::Cone(cone) => Nappe::of(cone).off(place),
     }
 }
 

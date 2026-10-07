@@ -9,6 +9,7 @@ use std::f64::consts::{PI, TAU};
 
 use cao_solid::brep::{Body, FaceId, Surface};
 use cao_solid::profile::{Contour, Frame, Run};
+use cao_solid::turning::{Axis, Corner, Straight, Turn};
 use glam::{DVec2, DVec3};
 
 /// How far a face's plane may stand from where the arithmetic puts it.
@@ -300,4 +301,75 @@ fn the_numbers_of_a_parts_faces_do_not_move_when_a_size_changes() {
 fn a_circle_handed_as_two_halves_makes_one_wall_answering_to_both() {
     let body = raised(Contour::circle(DVec2::ZERO, 10.0), &[], 0.0, 5.0);
     assert_eq!(on_cylinders(&body), [[2, 3]]);
+}
+
+/// A shaft of radius ten along Y, thirty long, its far end chamfered by
+/// `chamfer`, turned whole: its runs number its foot nought, its wall one,
+/// the chamfer two and its end three, the run on the axis none.
+fn chamfered_shaft(chamfer: f64) -> Body {
+    let corners = [
+        [0.0, 0.0],
+        [0.0, 10.0],
+        [30.0 - chamfer, 10.0],
+        [30.0, 10.0 - chamfer],
+        [30.0, 0.0],
+    ];
+    let straight = Straight {
+        side: 1.0,
+        contours: vec![
+            corners
+                .iter()
+                .zip(0..)
+                .map(|(&at, run)| Corner {
+                    at: DVec2::from(at),
+                    run,
+                })
+                .collect(),
+        ],
+        runs: 5,
+        last_off_the_axis: Some(3),
+    };
+    let along_y = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::X,
+        },
+        angle: TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    let frame = Frame {
+        origin: DVec3::ZERO,
+        u: DVec3::Y,
+        v: DVec3::X,
+    };
+    Body::turned(&straight, frame, &along_y).expect("the shaft turns")
+}
+
+#[test]
+fn a_drawing_on_a_chamfered_shaft_s_shoulder_keeps_its_face_when_the_chamfer_grows() {
+    let boss = |chamfer: f64| {
+        let frame = Frame {
+            origin: DVec3::Y * 30.0,
+            u: DVec3::Z,
+            v: DVec3::X,
+        };
+        let boss = Body::raised(&circle([0.0, 0.0], 3.0), &[], frame, DVec3::Y * 4.0)
+            .expect("the boss raises")
+            .renumbered(5);
+        chamfered_shaft(chamfer)
+            .joined(&boss)
+            .expect("the boss joins the shaft's end")
+    };
+    let [small, large] = [1.0, 2.0].map(boss);
+    assert_eq!(names(&large), names(&small));
+    for body in [&small, &large] {
+        assert_eq!(on_plane(body, DVec3::Y * 30.0, DVec3::Y), [[3]]);
+        let chamfers: Vec<&[u32]> = body
+            .face_ids()
+            .filter(|&face| matches!(body.surface(body.face(face).surface), Surface::Cone(_)))
+            .map(|face| body.numbers(face))
+            .collect();
+        assert_eq!(chamfers, [[2]]);
+    }
 }

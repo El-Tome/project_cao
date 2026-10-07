@@ -1,8 +1,11 @@
 //! The exact kernel turning a profile of straight runs about an axis lying in
-//! its plane (#533), held to the arithmetic: Pappus's volume, the rules every
+//! its plane (#533), a run slanted to the axis included, which turns into a
+//! cone (#536), held to the arithmetic: Pappus's volume, the rules every
 //! body keeps, and what the same profile cut into annular slabs, each raised
 //! from a sector of a disc and joined by the boolean, holds along a grid of
-//! lines.
+//! lines. A cone meets what shares its axis along circles and what holds its
+//! axis along rulings; anything else is declined as unsupported, unless the
+//! two stand clear of each other.
 //!
 //! The profiles are handed to `cao_solid::brep::Body::turned` already laid
 //! square to their axis, as `cao_solid::turning::Straight` literals: what
@@ -681,6 +684,343 @@ fn a_turn_of_half_a_turn_and_a_hair_keeps_two_ends() {
         .collect();
     assert_eq!(ends.len(), 2);
     holds(&body, 500.0 * angle);
+}
+
+/// A shaft of radius ten and length thirty, its far end chamfered by two.
+fn chamfered_shaft() -> Straight {
+    laid(
+        1.0,
+        &[&[
+            [0.0, 0.0],
+            [30.0, 0.0],
+            [30.0, 8.0],
+            [28.0, 10.0],
+            [0.0, 10.0],
+        ]],
+    )
+}
+
+/// A point of radius five, its apex ten along the axis.
+fn point() -> Straight {
+    laid(1.0, &[&[[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]]])
+}
+
+/// A plate of forty by forty by ten, on XY.
+fn plate() -> Body {
+    block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0])
+}
+
+/// A bore of radius two through the plate, its mouth countersunk to radius
+/// six, about the line through `(x, y)` along Z: cut whole, it takes 280π/3.
+fn countersink(x: f64, y: f64) -> Body {
+    let section = laid(
+        1.0,
+        &[&[
+            [-1.0, 0.0],
+            [11.0, 0.0],
+            [11.0, 7.0],
+            [6.0, 2.0],
+            [-1.0, 2.0],
+        ]],
+    );
+    let along_z = Turning {
+        origin: DVec3::new(x, y, 0.0),
+        along: DVec3::Z,
+        side: DVec3::X,
+    };
+    turned(&section, along_z, TAU).expect("the countersink turns")
+}
+
+/// A circle about `(x, y)` raised along Z from `from` to `to`.
+fn post(x: f64, y: f64, radius: f64, from: f64, to: f64) -> Body {
+    let frame = Frame {
+        origin: DVec3::Z * from,
+        u: DVec3::X,
+        v: DVec3::Y,
+    };
+    let circle = Contour::circle(DVec2::new(x, y), radius);
+    Body::raised(&circle, &[], frame, DVec3::Z * (to - from)).expect("a post raises")
+}
+
+/// How many vertices stand within the body's tolerance of `point`.
+fn corners_at(body: &Body, point: DVec3) -> usize {
+    let eps = body.scale().eps();
+    body.vertex_ids()
+        .filter(|&vertex| body.vertex(vertex).point.distance(point) <= eps)
+        .count()
+}
+
+#[test]
+fn a_chamfered_shaft_holds_pappus_s_volume() {
+    for turning in [about_y(), slanted()] {
+        let body = turned(&chamfered_shaft(), turning, TAU).expect("the shaft turns");
+        holds(&body, 8888.0 * PI / 3.0);
+        for angle in [FRAC_PI_2, -2.0, 4.0] {
+            let body = turned(&chamfered_shaft(), turning, angle).expect("the shaft turns");
+            holds(&body, pappus(&chamfered_shaft(), angle));
+        }
+    }
+}
+
+#[test]
+fn a_point_turned_whole_holds_a_third_of_its_cylinder() {
+    for turning in [about_y(), slanted()] {
+        let body = turned(&point(), turning, TAU).expect("the point turns");
+        holds(&body, 250.0 * PI / 3.0);
+        let tip = turning.origin + turning.along * 10.0;
+        assert_eq!(body.vertex_ids().count(), 1);
+        assert_eq!(corners_at(&body, tip), 1, "{turning:?}");
+    }
+}
+
+#[test]
+fn a_shaft_ending_in_a_point_holds_pappus_s_volume() {
+    let shaft = laid(1.0, &[&[[0.0, 0.0], [15.0, 0.0], [10.0, 5.0], [0.0, 5.0]]]);
+    for turning in [about_y(), slanted()] {
+        let body = turned(&shaft, turning, TAU).expect("the shaft turns");
+        holds(&body, 875.0 * PI / 3.0);
+        assert_eq!(corners_at(&body, turning.origin + turning.along * 15.0), 1);
+        for angle in [PI, -FRAC_PI_2] {
+            let body = turned(&shaft, turning, angle).expect("the shaft turns");
+            holds(&body, pappus(&shaft, angle));
+        }
+    }
+}
+
+#[test]
+fn a_countersunk_hole_cut_into_a_plate_leaves_the_arithmetic_s_volume() {
+    for (x, y) in [(0.0, 0.0), (5.0, -3.0)] {
+        let cut = plate()
+            .cut_by(&countersink(x, y))
+            .expect("the countersink cuts");
+        holds(&cut, 16000.0 - 280.0 * PI / 3.0);
+    }
+}
+
+#[test]
+fn a_partial_turn_of_a_slanted_run_either_way_holds_pappus_s_volume() {
+    let trapezoid = laid(1.0, &[&[[0.0, 2.0], [0.0, 5.0], [4.0, 4.0], [4.0, 2.0]]]);
+    for angle in [FRAC_PI_2, -FRAC_PI_2] {
+        let body = turned(&trapezoid, about_y(), angle).expect("the trapezoid turns");
+        holds(&body, 49.0 * PI / 3.0);
+    }
+    for angle in [0.3, -2.0, 4.0, -5.5, PI] {
+        let body = turned(&trapezoid, slanted(), angle).expect("the trapezoid turns");
+        holds(&body, pappus(&trapezoid, angle));
+    }
+}
+
+#[test]
+fn a_point_turned_part_way_holds_its_volume_and_its_apex_as_one_corner() {
+    for turning in [about_y(), slanted()] {
+        for angle in [FRAC_PI_2, -2.0, PI, 4.0] {
+            let body = turned(&point(), turning, angle).expect("the point turns");
+            holds(&body, pappus(&point(), angle));
+            let tip = turning.origin + turning.along * 10.0;
+            assert_eq!(corners_at(&body, tip), 1, "by {angle}");
+        }
+    }
+}
+
+#[test]
+fn a_cone_joined_to_the_cylinder_it_continues_holds_its_volume() {
+    let rod = laid(1.0, &[&[[0.0, 0.0], [10.0, 0.0], [10.0, 5.0], [0.0, 5.0]]]);
+    let tip = laid(1.0, &[&[[10.0, 0.0], [15.0, 0.0], [10.0, 5.0]]]);
+    for turning in [about_y(), slanted()] {
+        for angle in [TAU, FRAC_PI_2, -4.0] {
+            let rod_turned = turned(&rod, turning, angle).expect("the rod turns");
+            let tip_turned = turned(&tip, turning, angle).expect("the tip turns");
+            let joined = rod_turned
+                .joined(&tip_turned)
+                .expect("the tip joins the rod");
+            holds(&joined, pappus(&rod, angle) + pappus(&tip, angle));
+            if angle == TAU {
+                assert_eq!(joined.face_ids().count(), 3, "the shared disc is gone");
+            }
+        }
+    }
+}
+
+#[test]
+fn two_coaxial_cones_cut_one_from_the_other_hold_their_volume() {
+    let wide = laid(1.0, &[&[[0.0, 0.0], [12.0, 0.0], [0.0, 6.0]]]);
+    let slender = laid(1.0, &[&[[-1.0, 0.0], [15.0, 0.0], [-1.0, 4.0]]]);
+    let left = laid(1.0, &[&[[0.0, 3.75], [0.0, 6.0], [9.0, 1.5]]]);
+    for turning in [about_y(), slanted()] {
+        for angle in [TAU, FRAC_PI_2] {
+            let wide = turned(&wide, turning, angle).expect("the wide cone turns");
+            let slender = turned(&slender, turning, angle).expect("the slender cone turns");
+            let cut = wide.cut_by(&slender).expect("the slender cone cuts");
+            holds(&cut, pappus(&left, angle));
+            let joined = wide.joined(&slender).expect("the cones join");
+            holds(&joined, pappus(&left, angle) + slender.volume());
+        }
+    }
+}
+
+#[test]
+fn two_points_apex_to_apex_hold_their_volume() {
+    let lower = laid(1.0, &[&[[0.0, 0.0], [10.0, 0.0], [0.0, 5.0]]]);
+    let upper = laid(1.0, &[&[[10.0, 0.0], [16.0, 0.0], [16.0, 3.0]]]);
+    for turning in [about_y(), slanted()] {
+        let lower = turned(&lower, turning, TAU).expect("the lower point turns");
+        let upper = turned(&upper, turning, TAU).expect("the upper point turns");
+        let joined = lower.joined(&upper).expect("the points join at their tips");
+        holds(&joined, 250.0 * PI / 3.0 + 18.0 * PI);
+        let cut = lower.cut_by(&upper).expect("a tip cuts nothing from a tip");
+        holds(&cut, 250.0 * PI / 3.0);
+    }
+}
+
+#[test]
+fn a_point_halved_by_a_block_through_its_axis_holds_its_volume() {
+    let point = turned(&point(), about_y(), TAU).expect("the point turns");
+    let half = block([0.0, -1.0, -10.0], [10.0, 11.0, 10.0]);
+    let cut = point.cut_by(&half).expect("the block halves the point");
+    holds(&cut, 125.0 * PI / 3.0);
+    let joined = point.joined(&half).expect("the block joins the point");
+    holds(&joined, 2400.0 + 125.0 * PI / 3.0);
+}
+
+#[test]
+fn a_partial_point_joined_to_a_block_holds_its_volume() {
+    let quarter = turned(&point(), about_y(), FRAC_PI_2).expect("the point turns");
+    let cap = block([-10.0, 4.0, -10.0], [10.0, 12.0, 10.0]);
+    let joined = quarter.joined(&cap).expect("the block joins the point");
+    holds(&joined, 3200.0 + 49.0 * PI / 3.0);
+    let cut = quarter.cut_by(&cap).expect("the block cuts the tip off");
+    holds(&cut, 49.0 * PI / 3.0);
+}
+
+#[test]
+fn a_countersink_beside_a_bolt_hole_is_passed_over() {
+    let bolt = post(-10.0, 8.0, 2.0, -1.0, 11.0);
+    let both = 16000.0 - 280.0 * PI / 3.0 - 40.0 * PI;
+    let sunk_first = plate()
+        .cut_by(&countersink(5.0, -3.0))
+        .and_then(|plate| plate.cut_by(&bolt))
+        .expect("the bolt hole is cut beside the countersink");
+    holds(&sunk_first, both);
+    let bolted_first = plate()
+        .cut_by(&bolt)
+        .and_then(|plate| plate.cut_by(&countersink(5.0, -3.0)))
+        .expect("the countersink is cut beside the bolt hole");
+    holds(&bolted_first, both);
+}
+
+#[test]
+fn a_slanted_plate_far_from_a_countersink_is_passed_over() {
+    let (sin, cos) = 30.0_f64.to_radians().sin_cos();
+    let tilted = Frame {
+        origin: DVec3::new(-18.0, 10.0, 8.0),
+        u: DVec3::X,
+        v: DVec3::new(0.0, cos, sin),
+    };
+    let slab = Body::raised(
+        &Contour::rectangle(DVec2::ZERO, DVec2::new(6.0, 6.0)),
+        &[],
+        tilted,
+        tilted.u.cross(tilted.v) * 4.0,
+    )
+    .expect("the slanted plate raises");
+    let plain = plate().joined(&slab).expect("the slanted plate joins");
+    let sunk = plate()
+        .cut_by(&countersink(5.0, -3.0))
+        .and_then(|plate| plate.joined(&slab))
+        .expect("the slanted plate joins beside the countersink");
+    holds(&sunk, plain.volume() - 280.0 * PI / 3.0);
+}
+
+/// A frustum of radius ten at its foot and five at its top, twenty high,
+/// about Y: 3500π/3.
+fn frustum() -> Body {
+    let section = laid(1.0, &[&[[0.0, 0.0], [20.0, 0.0], [20.0, 5.0], [0.0, 10.0]]]);
+    turned(&section, about_y(), TAU).expect("the frustum turns")
+}
+
+#[test]
+fn a_flat_milled_on_a_cone_declines_as_unsupported() {
+    let flat = block([-15.0, 2.0, 6.0], [15.0, 18.0, 20.0]);
+    assert_eq!(frustum().cut_by(&flat), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_radial_hole_through_a_cone_declines_as_unsupported() {
+    let hole = post(0.0, 10.0, 2.0, -20.0, 20.0);
+    assert_eq!(frustum().cut_by(&hole), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_point_resting_on_a_plate_by_its_tip_a_hair_into_it_keeps_every_rule() {
+    let tip_down = laid(1.0, &[&[[0.0, 0.0], [10.0, 5.0], [10.0, 0.0]]]);
+    let slab = block([-20.0, -20.0, -10.0], [20.0, 20.0, 0.0]);
+    let hair = slab.scale().eps();
+    for depth in [0.0, 0.5 * hair, -0.5 * hair] {
+        let standing = Turning {
+            origin: DVec3::Z * -depth,
+            along: DVec3::Z,
+            side: DVec3::X,
+        };
+        let point = turned(&tip_down, standing, TAU).expect("the point turns");
+        let joined = slab
+            .joined(&point)
+            .unwrap_or_else(|declined| panic!("{declined:?} at a depth of {depth}"));
+        holds(&joined, 16000.0 + 250.0 * PI / 3.0);
+    }
+}
+
+/// Every body above with a cone in it, as each test builds it.
+fn bodies_with_cones() -> Vec<Body> {
+    let mut bodies = Vec::new();
+    for angle in [TAU, FRAC_PI_2] {
+        for straight in [chamfered_shaft(), point()] {
+            bodies.push(turned(&straight, slanted(), angle).expect("the profile turns"));
+        }
+    }
+    bodies.push(
+        plate()
+            .cut_by(&countersink(5.0, -3.0))
+            .expect("the countersink cuts"),
+    );
+    let whole = turned(&point(), about_y(), TAU).expect("the point turns");
+    bodies.push(
+        whole
+            .cut_by(&block([0.0, -1.0, -10.0], [10.0, 11.0, 10.0]))
+            .expect("the block halves the point"),
+    );
+    bodies.push(frustum());
+    let rod = laid(1.0, &[&[[0.0, 0.0], [10.0, 0.0], [10.0, 5.0], [0.0, 5.0]]]);
+    let tip = laid(1.0, &[&[[10.0, 0.0], [15.0, 0.0], [10.0, 5.0]]]);
+    let upper = laid(1.0, &[&[[10.0, 0.0], [16.0, 0.0], [16.0, 3.0]]]);
+    let wide = laid(1.0, &[&[[0.0, 0.0], [12.0, 0.0], [0.0, 6.0]]]);
+    let slender = laid(1.0, &[&[[-1.0, 0.0], [15.0, 0.0], [-1.0, 4.0]]]);
+    for (one, other) in [(&rod, &tip), (&point(), &upper)] {
+        let [one, other] = [one, other]
+            .map(|straight| turned(straight, slanted(), TAU).expect("the profile turns"));
+        bodies.push(one.joined(&other).expect("the two turns join"));
+    }
+    let [wide, slender] =
+        [&wide, &slender].map(|straight| turned(straight, slanted(), TAU).expect("it turns"));
+    bodies.push(wide.cut_by(&slender).expect("the slender cone cuts"));
+    let quarter = turned(&point(), about_y(), FRAC_PI_2).expect("the point turns");
+    bodies.push(
+        quarter
+            .joined(&block([-10.0, 4.0, -10.0], [10.0, 12.0, 10.0]))
+            .expect("the block joins the point"),
+    );
+    bodies
+}
+
+#[test]
+fn every_cone_body_above_is_drawn_closed_and_uncrossed() {
+    for body in bodies_with_cones() {
+        let reach = body.scale().reach();
+        for fraction in [1e-1, 1e-2, 1e-4] {
+            let triangles = body.triangles(fraction * reach);
+            assert_eq!(closed(&triangles), Ok(()), "at {fraction} of the reach");
+            assert_eq!(uncrossed(&triangles), Ok(()), "at {fraction} of the reach");
+        }
+    }
 }
 
 #[cfg(feature = "campaigns")]

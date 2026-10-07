@@ -10,7 +10,9 @@
 //! curve through either. The curve two perpendicular cylinders
 //! meet along is solved through the lines the surface makes with one of its
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
+//! A line or a circle against a cone is solved in `cone.rs`.
 
+mod cone;
 mod scan;
 
 use glam::DVec3;
@@ -37,7 +39,9 @@ pub enum Crossings {
     At(Vec<Crossing>),
     /// The curve lies on the surface, within the tolerance.
     Along,
-    /// A circle against a cylinder at a skew angle.
+    /// A circle against a cylinder at a skew angle, or against a cone
+    /// unless about an axis parallel to the cone's or in a plane holding
+    /// it; the curve two cylinders meet along against a cone.
     Unsupported,
 }
 
@@ -82,7 +86,13 @@ pub fn crossings_given(
     touching: &Touches,
 ) -> Crossings {
     let solved = match (curve, surface) {
-        (_, Surface::Cone(_)) => Solved::Unsupported,
+        (Curve::Line(line), Surface::Cone(cone)) => {
+            cone::line_and_cone(line, cone, scale, touching)
+        }
+        (Curve::Circle(circle), Surface::Cone(cone)) => {
+            cone::circle_and_cone(circle, cone, scale, touching)
+        }
+        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching)
@@ -118,6 +128,19 @@ fn circle_and_surface(
         Surface::Cylinder(cylinder) => (plane_and_cylinder(&own_plane, cylinder, scale), true),
         Surface::Cone(_) => return Solved::Unsupported,
     };
+    circle_through(circle, relation, across, scale, touching)
+}
+
+/// What the circle's own plane, `across`, or its own cylinder makes with a
+/// surface, against the circle: a line in its plane crosses it where it
+/// passes through it, a line along its cylinder at its height.
+fn circle_through(
+    circle: &Circle,
+    relation: Relation,
+    across: bool,
+    scale: Scale,
+    touching: &Touches,
+) -> Solved {
     let lines: Vec<(Line, bool)> = match relation {
         Relation::Same { .. } => return Solved::Along,
         Relation::Apart => Vec::new(),

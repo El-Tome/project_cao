@@ -714,7 +714,6 @@ fn a_whole_point_s_face_meets_what_stands_at_its_apex() {
 }
 
 #[test]
-#[ignore = "#536: a boolean holding a cone declines until its crossings are decided"]
 fn a_whole_point_joined_to_a_block_clear_of_it_keeps_its_tip_as_a_vertex_of_its_cone() {
     let point = whole_point();
     let joined = point

@@ -363,3 +363,227 @@ fn an_ellipse_of_two_equal_cylinders_lies_along_its_own_plane() {
     assert_eq!(crossings(&ellipse, &own, scale()), Crossings::Along);
     assert_eq!(found(&ellipse, &other, 1e-12 * REACH).len(), 2);
 }
+
+/// A point about Z: tip at height 10, base of radius 5 on the XY plane; its
+/// section at height `h` is of radius `5 − h/2`.
+fn point() -> Surface {
+    Surface::Cone(crate::brep::surface::Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [glam::DVec2::new(0.0, 5.0), glam::DVec2::new(10.0, 0.0)],
+    ))
+}
+
+fn line(through: [f64; 3], direction: [f64; 3]) -> Curve {
+    Curve::Line(Line::through(DVec3::from(through), DVec3::from(direction)))
+}
+
+#[test]
+fn a_ruling_lies_along_its_cone() {
+    let ruling = line([5.0, 0.0, 0.0], [-5.0, 0.0, 10.0]);
+    assert_eq!(crossings(&ruling, &point(), scale()), Crossings::Along);
+    let near_cylinder = Surface::Cone(crate::brep::surface::Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [
+            glam::DVec2::new(0.0, 10.0),
+            glam::DVec2::new(20.0, 10.0 + 1e-6),
+        ],
+    ));
+    let far_ruling = line([0.0, 10.0, 0.0], [0.0, 1e-6, 20.0]);
+    assert_eq!(
+        crossings(&far_ruling, &near_cylinder, scale()),
+        Crossings::Along
+    );
+}
+
+#[test]
+fn the_axis_crosses_a_cone_once_at_its_apex() {
+    let axis = line([0.0, 0.0, -3.0], [0.0, 0.0, 1.0]);
+    let once = found(&axis, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&once), [false]);
+    assert!((once[0].point - DVec3::new(0.0, 0.0, 10.0)).length() < 1e-12 * REACH);
+}
+
+#[test]
+fn a_line_through_the_apex_outside_the_cone_only_touches_it() {
+    let eps = scale().eps();
+    for moved in [0.0, eps / 2.0] {
+        let flat = line([0.0, moved, 10.0], [1.0, 0.0, 0.1]);
+        let once = found(&flat, &point(), eps);
+        assert_eq!(tangents(&once), [true], "{moved}");
+    }
+    let steep = line([0.0, 0.0, 10.0], [1.0, 0.0, 3.0]);
+    assert_eq!(tangents(&found(&steep, &point(), 1e-12 * REACH)), [false]);
+}
+
+#[test]
+fn a_line_square_to_the_axis_grazing_a_cone_touches_it_once() {
+    let eps = scale().eps();
+    let at = |y: f64| line([0.0, y, 4.0], [1.0, 0.0, 0.0]);
+    let touch = found(&at(3.0 + eps / 2.0), &point(), eps);
+    assert_eq!(tangents(&touch), [true]);
+    assert!((touch[0].point - DVec3::new(0.0, 3.0 + eps / 2.0, 4.0)).length() < 1e-12 * REACH);
+    assert_eq!(
+        tangents(&found(&at(3.0 - 2.0 * eps), &point(), 1e-12 * REACH)),
+        [false, false]
+    );
+    assert!(found(&at(3.0 + 2.0 * eps), &point(), 0.0).is_empty());
+    assert_eq!(
+        tangents(&found(&at(3.0 - eps / 2.0), &point(), eps)),
+        [false, false]
+    );
+    assert_eq!(
+        tangents(&found_touching(&at(3.0 - eps / 2.0), &point(), eps)),
+        [true]
+    );
+}
+
+#[test]
+fn a_skew_line_grazing_a_cone_touches_it_once() {
+    let eps = scale().eps();
+    let direction = (DVec3::X + DVec3::new(0.0, -1.0, 2.0) * 0.2).normalize();
+    let normal = DVec3::new(0.0, 2.0, 1.0).normalize();
+    let on = DVec3::new(0.0, 3.0, 4.0);
+    for off in [0.0, eps / 2.0, -eps / 2.0] {
+        let grazing = Curve::Line(Line::through(on + normal * off, direction));
+        let crossed = found(&grazing, &point(), eps);
+        assert!(crossed.len() <= 2, "{off}: {crossed:?}");
+        if off >= 0.0 {
+            assert_eq!(tangents(&crossed), [true], "{off}");
+        }
+    }
+}
+
+#[test]
+fn a_skew_line_crosses_a_cone_at_its_roots_on_its_nappe_only() {
+    let twice = line([0.0, 0.5, 4.0], [1.0, 0.0, 1.0]);
+    let crossed = found(&twice, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&crossed), [false, false]);
+    let through_both = line([0.0, 0.5, 4.0], [1.0, 0.0, 3.0]);
+    let once = found(&through_both, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&once), [false]);
+    assert!(once[0].point.z < 10.0, "{once:?}");
+}
+
+#[test]
+fn a_line_parallel_to_a_ruling_crosses_once() {
+    let beside = line([0.0, 1.0, 0.0], [-1.0, 0.0, 2.0]);
+    let once = found(&beside, &point(), 1e-12 * REACH);
+    assert_eq!(tangents(&once), [false]);
+    assert!((once[0].point - DVec3::new(-2.4, 1.0, 4.8)).length() < 1e-12 * REACH);
+}
+
+#[test]
+fn a_coaxial_circle_lies_along_a_cone_or_misses_it() {
+    let eps = scale().eps();
+    for radius in [3.0, 3.0 + eps / 2.0] {
+        let rim = circle(DVec3::ZERO, radius, 4.0);
+        assert_eq!(crossings(&rim, &point(), scale()), Crossings::Along);
+    }
+    assert!(found(&circle(DVec3::ZERO, 3.5, 4.0), &point(), 0.0).is_empty());
+    assert!(found(&circle(DVec3::ZERO, 1.0, 12.0), &point(), 0.0).is_empty());
+}
+
+#[test]
+fn a_circle_square_to_the_axis_crosses_a_cone_where_it_crosses_its_section() {
+    let across = found(
+        &circle(DVec3::new(3.0, 0.0, 0.0), 1.0, 4.0),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&across), [false, false]);
+    let inside = found(
+        &circle(DVec3::new(2.0, 0.0, 0.0), 1.0, 4.0),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&inside), [true]);
+    assert!((inside[0].point - DVec3::new(3.0, 0.0, 4.0)).length() < 1e-12 * REACH);
+    let at_the_apex = found(
+        &circle(DVec3::new(2.0, 0.0, 0.0), 2.0, 10.0),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&at_the_apex), [true]);
+}
+
+#[test]
+fn a_circle_in_a_plane_holding_the_axis_crosses_its_rulings_on_its_nappe_only() {
+    let upright = |center: DVec3, radius: f64| {
+        Curve::Circle(Circle {
+            center,
+            axis: DVec3::Y,
+            radius,
+            u: DVec3::Z,
+            v: DVec3::X,
+        })
+    };
+    let below = found(
+        &upright(DVec3::new(0.0, 0.0, 5.0), 3.0),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&below), [false; 4]);
+    let over = found(
+        &upright(DVec3::new(0.0, 0.0, 10.0), 2.0),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&over), [false, false]);
+    for crossing in over {
+        assert!(crossing.point.z < 10.0, "{crossing:?}");
+    }
+}
+
+#[test]
+fn a_circle_at_a_slant_to_a_cone_is_unsupported() {
+    let slanted = Curve::Circle(Circle {
+        center: DVec3::new(0.0, 0.0, 4.0),
+        axis: DVec3::new(0.0, 0.6, 0.8),
+        radius: 3.0,
+        u: DVec3::X,
+        v: DVec3::new(0.0, 0.8, -0.6),
+    });
+    assert_eq!(
+        crossings(&slanted, &point(), scale()),
+        Crossings::Unsupported
+    );
+}
+
+#[test]
+fn a_circle_through_the_apex_in_a_plane_holding_the_axis_touches_it_there_unless_it_enters() {
+    let upright = |center: DVec3| {
+        Curve::Circle(Circle {
+            center,
+            axis: DVec3::Y,
+            radius: 2.0,
+            u: DVec3::Z,
+            v: DVec3::X,
+        })
+    };
+    let apex = DVec3::new(0.0, 0.0, 10.0);
+    let above = found(
+        &upright(DVec3::new(0.0, 0.0, 12.0)),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&above), [true], "{above:?}");
+    assert!((above[0].point - apex).length() < 1e-12 * REACH);
+    let beside = found(
+        &upright(DVec3::new(2.0, 0.0, 10.0)),
+        &point(),
+        1e-12 * REACH,
+    );
+    assert_eq!(tangents(&beside), [false, false], "{beside:?}");
+    assert!(
+        beside
+            .iter()
+            .any(|crossing| (crossing.point - apex).length() < 1e-12 * REACH)
+    );
+    assert!(
+        beside
+            .iter()
+            .any(|crossing| (crossing.point - DVec3::new(0.8, 0.0, 8.4)).length() < 1e-12 * REACH)
+    );
+}

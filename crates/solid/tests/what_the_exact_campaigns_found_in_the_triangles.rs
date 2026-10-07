@@ -2797,3 +2797,56 @@ fn seed_533600448_a_slot_whose_round_end_touches_a_block_s_side_is_drawn_closed(
         ],
     ));
 }
+
+#[test]
+#[ignore = "triangles, through the application's body: the body declined as undrawn. A ring turned 270 degrees about a frustum's axis, its inner rim resting on the frustum's cone along an arc of 270 degrees: the kernel keeps that arc on the cone's face as a slit, an edge run both ways, which the cone's chart cannot lay out"]
+fn seed_536212654_a_partial_ring_whose_rim_rests_on_a_cone_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(6.0),
+            Axis::first(0.0),
+            Section::bands(2.0, &[[2.5, 3.5, 3.5]]).sloping_to(&[[1.0, 3.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(6.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(-4.0, &[[1.0, 2.5, 4.5]]),
+            270.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "triangles, through the application's body: the body declined as undrawn. A ring turned half way about a cone's axis and joined to it, not traced further"]
+fn seed_536215029_a_half_turn_joined_to_a_cone_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(60.0),
+            Axis::second(0.0),
+            Section::bands(-75.0, &[[90.0, -45.0, 75.0]]).sloping_to(&[[-90.0, 105.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(60.0).backwards(),
+            Section::bands(30.0, &[[23.0, 90.0, 135.0]]),
+            180.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "triangles, through the application's body: the leaf alone declined as undrawn. A shaft stepping in by 1e-5 before its slant leaves a ring a hair wide on the step, which the triangles do not cut, at any tolerance tried from 1e-3 to 5e-5 of the reach"]
+fn seed_536203669_a_shaft_stepping_in_by_a_hair_before_its_slant() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(-1.0, &[[3.0, 0.0, 2.0], [2.0, 0.0, 1.99999]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 4.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}

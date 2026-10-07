@@ -3661,3 +3661,55 @@ fn seed_533684645_a_large_rounded_rectangle_a_hair_wider_than_a_slot_is_raised()
         vec![],
     ));
 }
+
+#[test]
+fn seed_536211029_a_point_whose_tip_a_partial_turn_cuts_away_but_for_a_sector() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(7.0),
+            Axis::second(0.0),
+            Section::bands(3.0, &[[2.0, 0.0, 4.0]]).sloping_to(&[[0.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(7.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(-10.0, &[[8.0, -3.0, -0.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a partial turn with a slanted run about an axis 1e-8 off a disc's, cut into it: the cone taken as of the disc's axis, the result declined as unverified. The family #536's third default names, a cone a hair from a coaxial cylinder: measured, and left for Tom's word"]
+fn seed_536202582_a_partial_turn_a_hair_off_the_axis_of_a_disc_it_cuts() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xz(5.0), Outline::circle([8.0, 5.0], 4.5), 5.0),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(5.0),
+            Axis::second(8.00000001).backwards(),
+            Section::bands(-0.0, &[[0.5, 0.0, 4.5]]).sloping_to(&[[0.0, 4.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "kernel: a quarter turn with slanted runs joined to a cylinder turned about the same axis; the ends of the quarter turn, planes holding that axis, meet the cylinder along its rulings, declined as unverified: the family of 533328889"]
+fn seed_536210335_a_slanted_quarter_turn_joined_to_a_cylinder_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(4.0, &[[1.0, 0.0, 2.0], [2.0, 0.0, 1.0], [1.0, 0.0, 1.0]])
+                .sloping_to(&[[0.0, 1.0], [0.0, 1.0], [0.0, 2.0]]),
+            90.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(10.0, &[[1.0, 0.0, 1.0]]),
+            360.0,
+        ))],
+    ));
+}

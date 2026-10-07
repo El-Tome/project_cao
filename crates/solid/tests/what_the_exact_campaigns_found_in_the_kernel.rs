@@ -3713,3 +3713,31 @@ fn seed_536210335_a_slanted_quarter_turn_joined_to_a_cylinder_of_its_axis() {
         ))],
     ));
 }
+
+#[test]
+fn seed_536101211_a_shaft_whose_top_slants_in_over_a_hair_of_height() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0),
+            Section::bands(1.0, &[[1.0, 0.0, 4.5], [2e-7, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.5], [0.0, 1.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+fn seed_536104721_a_shaft_whose_top_slants_in_over_a_hair_its_roots_rounded_into_one() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(4.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[2.4999998, 0.0, 4.5], [2e-7, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.5], [0.0, 2.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}

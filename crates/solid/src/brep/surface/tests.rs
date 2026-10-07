@@ -293,3 +293,64 @@ fn a_circle_about_the_axis_on_the_nappe_is_held_and_one_off_it_is_not() {
         assert!(!cone.holds(&leaning, eps));
     }
 }
+
+#[test]
+fn a_line_crossing_a_cone_a_hair_from_a_disc_is_found_on_it_to_rounding() {
+    let cone = Cone::through(
+        DVec3::ZERO,
+        DVec3::Y,
+        [DVec2::new(2.0, 4.5), DVec2::new(2.0000002, 1.5)],
+    );
+    let origin = DVec3::new(-7.1351913357409575, -2.4514847956860875, -17.65520603895878);
+    let direction = DVec3::new(0.2959199195828451, 0.21946291946926036, 0.9296598454123485);
+    let roots: Vec<f64> = cone
+        .roots(origin, direction)
+        .into_iter()
+        .flatten()
+        .collect();
+    assert_eq!(roots.len(), 1, "{roots:?}");
+    let off = cone.distance(origin + direction * roots[0]);
+    assert!(off.abs() < 1e-14, "the crossing stands {off} off the cone");
+}
+
+#[test]
+fn a_line_crossing_a_cone_a_hair_from_a_disc_whose_two_roots_rounding_merges_is_found_on_it() {
+    let cone = Cone::through(
+        DVec3::new(4.0, 0.0, 0.0),
+        DVec3::Z,
+        [DVec2::new(0.5, 4.5), DVec2::new(0.5000002, 2.0)],
+    );
+    let direction = DVec3::new(0.2959199195828451, 0.21946291946926036, 0.9296598454123485);
+    for origin in [
+        DVec3::new(-3.4953630840525207, -3.80127111251585, -16.239702096428253),
+        DVec3::new(
+            -1.3705863609991313,
+            -0.9192521076683491,
+            -17.596391930899653,
+        ),
+    ] {
+        let roots: Vec<f64> = cone
+            .roots(origin, direction)
+            .into_iter()
+            .flatten()
+            .collect();
+        assert_eq!(roots.len(), 1, "{origin}: {roots:?}");
+        let off = cone.distance(origin + direction * roots[0]);
+        assert!(
+            off.abs() < 1e-14,
+            "{origin}: the crossing stands {off} off the cone"
+        );
+    }
+}
+
+#[test]
+fn a_line_passing_a_cone_by_a_hair_or_crossing_its_other_nappe_never_crosses_it() {
+    let cone = narrowing();
+    for origin in [
+        DVec3::new(-30.0, 4.0 + 1e-9, 4.0),
+        DVec3::new(-30.0, 4.0 + 1e-12, 4.0),
+        DVec3::new(-30.0, 0.5, 14.0),
+    ] {
+        assert_eq!(cone.roots(origin, DVec3::X), [None, None], "{origin}");
+    }
+}

@@ -231,6 +231,10 @@ impl Cone {
             }
         } else {
             let discriminant = half * half - square * rest;
+            let size = half * half + (square * rest).abs();
+            if discriminant.abs() <= 16.0 * f64::EPSILON * size {
+                return self.hair_apart(origin, direction, -half / square);
+            }
             if discriminant < 0.0 {
                 return [None, None];
             }
@@ -246,7 +250,56 @@ impl Cone {
             .into_iter()
             .flatten()
             .filter(|t| reach(h + rise * t) >= 0.0)
+            .map(|t| self.polished(origin, direction, t).0)
             .collect();
         [kept.first().copied(), kept.get(1).copied()]
+    }
+
+    /// The root on this nappe of a line crossing a cone a hair from a disc,
+    /// where the two roots, one on each nappe, stand so close that rounding
+    /// takes the discriminant for nought, or below: the double root `middle`,
+    /// which the nappe test then reads on either nappe or neither, taken onto
+    /// the nappe and kept only where it lands on it to rounding. A line
+    /// touching a cone is found at its touch, once.
+    fn hair_apart(&self, origin: DVec3, direction: DVec3, middle: f64) -> [Option<f64>; 2] {
+        let (root, off) = self.polished(origin, direction, middle);
+        let along = (origin - self.origin).length() + (direction * root).length();
+        let on = off.abs() <= 16.0 * f64::EPSILON * along.max(1.0);
+        [on.then_some(root), None]
+    }
+
+    /// A root of the line through `origin` along `direction` taken onto the
+    /// nappe by Newton's steps across its meridian line, and how far across
+    /// that line it is left: the quadratic's two roots stand a hair apart on
+    /// a cone a hair from a disc, one on each nappe, and its discriminant
+    /// leaves them both that far off, where the distance across the meridian
+    /// line is all but straight along the line.
+    fn polished(&self, origin: DVec3, direction: DVec3, root: f64) -> (f64, f64) {
+        let across = self.across();
+        let rise = direction.dot(self.axis);
+        let speed = direction - self.axis * rise;
+        let off = |t: f64| {
+            let from = origin + direction * t - self.origin;
+            let h = from.dot(self.axis);
+            let radial = from - self.axis * h;
+            let rho = radial.length();
+            let off = across.dot(DVec2::new(h, rho) - self.foot);
+            let slope = across.x * rise + across.y * radial.dot(speed) / rho;
+            (off, slope)
+        };
+        let mut best = root;
+        let (mut least, mut slope) = off(root);
+        for _ in 0..3 {
+            if !slope.is_finite() || slope == 0.0 {
+                break;
+            }
+            let next = best - least / slope;
+            let (reached, onward) = off(next);
+            if reached.abs() >= least.abs() {
+                break;
+            }
+            (best, least, slope) = (next, reached, onward);
+        }
+        (best, least)
     }
 }

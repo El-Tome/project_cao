@@ -613,7 +613,12 @@ impl Drawing {
     /// part of it or carried on, filled to the axis or as a sleeve on it; a
     /// cylinder at one of its rims, ending there or a hair from there; a
     /// cone of another slope crossing it at a rim; or the same slant a hair
-    /// off it. In a campaign now and then a hair off its axis.
+    /// off it. In a campaign now and then a hair off its axis. A slant a
+    /// hair long is not drawn from, since a turn of it would be a sliver:
+    /// a fresh turn is drawn instead. A cone is
+    /// carried on by a length along its axis, or, steeper than forty-five
+    /// degrees, by a length away from it: a cone a hair from square carried
+    /// along its axis would reach a billion times further.
     pub(super) fn along_a_slant(
         &mut self,
         line: Line,
@@ -630,7 +635,11 @@ impl Drawing {
                     .filter(move |&edge| start[edge] != end[edge])
                     .map(move |edge| (along, [start[edge].abs(), end[edge].abs()]))
             })
+            .filter(|([bottom, top], _)| top - bottom > self.scale / 4.0)
             .collect();
+        if slants.is_empty() {
+            return self.fresh_turned();
+        }
         let (along, radii) = *self.random.pick(&slants);
         let (plane, mut axis) = self.holding(line);
         if self.off_the_lattice() && self.random.chance(0.15) {
@@ -643,15 +652,16 @@ impl Drawing {
             ([levels[1], levels[0]], [radii[1], radii[0]])
         };
         let radius_at = |level: f64| low + (high - low) * (level - bottom) / (top - bottom);
+        let slope = (high - low) / (top - bottom);
         let unit = self.scale;
         let section = match self.random.below(10) {
             0..=2 => {
                 let (from, to) = if self.random.chance(0.5) {
                     (bottom, top)
                 } else if high >= low {
-                    (bottom, top + self.length(0.5, 2.0))
+                    (bottom, top + self.length(0.5, 2.0) / slope.abs().max(1.0))
                 } else {
-                    (bottom - self.length(0.5, 2.0), top)
+                    (bottom - self.length(0.5, 2.0) / slope.abs().max(1.0), top)
                 };
                 let (start, end) = (radius_at(from).max(0.0), radius_at(to).max(0.0));
                 if self.random.chance(0.5) {
@@ -691,7 +701,6 @@ impl Drawing {
                 };
                 let run = self.length(0.5, 2.0);
                 let rise = (self.length(0.5, 2.0)).min(radius / 2.0);
-                let slope = (high - low) / (top - bottom);
                 let sign = if self.random.chance(0.5) { 1.0 } else { -1.0 };
                 let sign = if -sign * rise / run == slope {
                     -sign

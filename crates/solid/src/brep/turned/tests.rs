@@ -352,7 +352,6 @@ fn every_slanted_turned_listing_holds_to_its_geometry() {
 }
 
 #[test]
-#[ignore = "#536: a cone is drawn by K4 and its volume read by K2"]
 fn every_slanted_turned_body_closes_its_triangles_and_holds_pappus_s_volume() {
     for (rank, straight) in slanted().iter().enumerate() {
         for degrees in TURNS {

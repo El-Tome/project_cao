@@ -28,9 +28,9 @@ pub struct Body {
     matter: Matter,
 }
 
-/// Which kernel computed the matter. Exact on planes and cylinders as long as
-/// every step was one the exact kernel builds; flat pieces from the first step
-/// it does not — a revolution of a slanted run or an arc, an ellipse — on,
+/// Which kernel computed the matter. Exact on planes, cylinders and cones as
+/// long as every step was one the exact kernel builds; flat pieces from the
+/// first step it does not — a revolution of an arc, an ellipse — on,
 /// since an exact body joined to flats can only be flats.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
@@ -100,10 +100,10 @@ impl Body {
 
     /// A profile turned about an axis lying in its plane, in the kernel this
     /// body is computed by: exact when the body is and every run of the
-    /// profile is parallel or square to the axis, flats otherwise. A turn
-    /// that makes nothing is an empty body; an area across its axis is
-    /// declined, since each side of it is turned apart. Declined otherwise
-    /// only by the exact kernel.
+    /// profile is straight, flats for an arc or a profile the exact kernel
+    /// cannot lay against its axis. A turn that makes nothing is an empty
+    /// body; an area across its axis is declined, since each side of it is
+    /// turned apart. Declined otherwise only by the exact kernel.
     pub fn tool_turned(
         &self,
         profile: &Profile,
@@ -295,7 +295,7 @@ impl Body {
         }
     }
 
-    /// The profile laid square to the axis of `turn`, when the body is
+    /// The profile laid against the axis of `turn`, when the body is
     /// exact and the exact kernel can turn it.
     fn straight(&self, profile: &Profile, frame: Frame, turn: &Turn) -> Option<Straight> {
         let (Matter::Exact(exact), Some((outline, holes))) = (&self.matter, &profile.exact) else {

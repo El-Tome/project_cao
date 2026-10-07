@@ -124,12 +124,44 @@ fn a_run_a_hair_off_square_to_the_axis_is_laid_square() {
 }
 
 #[test]
-fn a_run_leaning_ten_times_the_resolution_is_not_straight() {
+fn a_run_leaning_ten_times_the_resolution_is_laid_slanted_where_it_was_drawn() {
     let lean = 10.0 * RESOLUTION;
     let leaning = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0 + lean, 2.0], [1.0, 2.0]]);
-    assert_eq!(laid(&leaning, &[], RESOLUTION), None);
+    let straight = laid(&leaning, &[], RESOLUTION).expect("a run leaning off parallel");
+    assert_eq!(
+        at(&straight),
+        [[[0.0, 1.0], [0.0, 5.0], [2.0, 5.0 + lean], [2.0, 1.0]]]
+    );
+    assert_eq!(runs(&straight), [[0, 1, 2, 3]]);
     let leaning = polygon(&[[1.0, 0.0], [5.0, lean], [5.0, 2.0], [1.0, 2.0]]);
-    assert_eq!(laid(&leaning, &[], RESOLUTION), None);
+    let straight = laid(&leaning, &[], RESOLUTION).expect("a run leaning off square");
+    assert_eq!(
+        at(&straight),
+        [[[0.0, 1.0], [lean, 5.0], [2.0, 5.0], [2.0, 1.0]]]
+    );
+    assert_eq!(runs(&straight), [[0, 1, 2, 3]]);
+}
+
+#[test]
+fn a_run_within_the_tolerance_of_parallel_or_square_is_laid_so_and_one_past_it_is_a_slant() {
+    for (lean, slanted) in [(0.9 * RESOLUTION, false), (1.1 * RESOLUTION, true)] {
+        let off_parallel = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0 + lean, 2.0], [1.0, 2.0]]);
+        let corners = laid(&off_parallel, &[], RESOLUTION).expect("a run off parallel");
+        let corners = &corners.contours[0];
+        assert_eq!(
+            corners[1].at.y != corners[2].at.y,
+            slanted,
+            "{lean} off parallel: {corners:?}"
+        );
+        let off_square = polygon(&[[1.0, 0.0], [5.0, lean], [5.0, 2.0], [1.0, 2.0]]);
+        let corners = laid(&off_square, &[], RESOLUTION).expect("a run off square");
+        let corners = &corners.contours[0];
+        assert_eq!(
+            corners[0].at.x != corners[1].at.x,
+            slanted,
+            "{lean} off square: {corners:?}"
+        );
+    }
 }
 
 #[test]
@@ -143,10 +175,92 @@ fn a_chamfer_wider_than_the_resolution_stays_a_slant() {
             [1.0, 2.0],
         ])
     };
-    assert_eq!(laid(&chamfered(2.0 * RESOLUTION), &[], RESOLUTION), None);
+    let width = 2.0 * RESOLUTION;
+    let straight = laid(&chamfered(width), &[], RESOLUTION).expect("a chamfer");
+    assert_eq!(runs(&straight), [[0, 1, 2, 3, 4]]);
+    assert_eq!(
+        at(&straight),
+        [[
+            [0.0, 1.0],
+            [0.0, 5.0 - width],
+            [width, 5.0],
+            [2.0, 5.0],
+            [2.0, 1.0]
+        ]]
+    );
     let straight = laid(&chamfered(0.5 * RESOLUTION), &[], RESOLUTION)
         .expect("a chamfer within the resolution");
     assert_eq!(runs(&straight), [[0, 2, 3, 4]], "the chamfer names no face");
+}
+
+#[test]
+fn a_chamfer_s_corners_stand_on_the_levels_of_the_runs_beside_it_to_the_bit() {
+    let hair = 0.5 * RESOLUTION;
+    let shaft = polygon(&[
+        [1.0, 0.0],
+        [4.0, hair],
+        [5.0, 1.0],
+        [5.0, 3.0],
+        [3.0, 3.0],
+        [3.0, 4.0],
+        [5.0 + hair, 4.0],
+        [5.0 + hair, 6.0],
+        [1.0, 6.0],
+    ]);
+    let straight = laid(&shaft, &[], RESOLUTION).expect("a chamfered shaft");
+    let corners = &straight.contours[0];
+    assert_eq!(runs(&straight), [[0, 1, 2, 3, 4, 5, 6, 7, 8]]);
+    assert!(near(corners[0].at.x, hair / 2.0), "{corners:?}");
+    assert_eq!(corners[1].at.x, corners[0].at.x, "the chamfer's foot");
+    assert!(near(corners[2].at.y, 5.0 + hair / 2.0), "{corners:?}");
+    for corner in [3, 6, 7] {
+        assert_eq!(corners[2].at.y, corners[corner].at.y, "corner {corner}");
+    }
+    assert_eq!((corners[1].at.y, corners[2].at.x), (4.0, 1.0));
+}
+
+#[test]
+fn a_slanted_run_reaching_within_the_band_of_the_axis_ends_on_it() {
+    let point = polygon(&[[0.0, 0.0], [5.0, 0.0], [0.003, 10.0]]);
+    let straight = laid(&point, &[], RESOLUTION).expect("a point");
+    assert_eq!(at(&straight), [[[0.0, 0.0], [0.0, 5.0], [10.0, 0.0]]]);
+    assert_eq!(runs(&straight), [[0, 1, 2]]);
+    assert_eq!(straight.last_off_the_axis, Some(1));
+}
+
+/// A plate from 1 to 5 away from the axis and 0 to 4 along it, its far top
+/// corner chamfered along `r + h = 7`, holed by a square whose corner
+/// `(4, 3 − off)` stands `off / √2` from the chamfer.
+fn a_hole_under_a_chamfer(off: f64) -> Option<Straight> {
+    let plate = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [3.0, 4.0], [1.0, 4.0]]);
+    let hole = polygon(&[[2.0, 1.0], [2.0, 3.0 - off], [4.0, 3.0 - off], [4.0, 1.0]]);
+    laid(&plate, &[hole], RESOLUTION)
+}
+
+#[test]
+fn a_corner_within_the_tolerance_of_a_slanted_run_leaves_the_profile_to_the_flats() {
+    assert_eq!(a_hole_under_a_chamfer(0.5 * RESOLUTION), None);
+    assert_eq!(a_hole_under_a_chamfer(0.0), None, "a contact drawn");
+    let kept = a_hole_under_a_chamfer(3.0 * RESOLUTION).expect("a wall past the tolerance");
+    assert_eq!(runs(&kept), [vec![0, 1, 2, 3, 4], vec![5, 6, 7, 8]]);
+}
+
+#[test]
+fn a_hole_laid_onto_its_outline_beside_a_slant_leaves_the_profile_to_the_flats() {
+    let gap = 0.5 * RESOLUTION;
+    let hole = polygon(&[[2.0, 0.5], [2.0, 1.5], [5.0 - gap, 1.5], [5.0 - gap, 0.5]]);
+    let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
+    assert!(laid(&square, std::slice::from_ref(&hole), RESOLUTION).is_some());
+    let chamfered = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.5, 2.0], [1.0, 1.5]]);
+    assert_eq!(laid(&chamfered, &[hole], RESOLUTION), None);
+}
+
+#[test]
+fn a_profile_pinched_at_a_corner_on_its_axis_goes_to_the_flats() {
+    let diamond = |off: f64| polygon(&[[off, 5.0], [5.0, 0.0], [10.0, 5.0], [5.0, 10.0]]);
+    assert_eq!(laid(&diamond(0.0), &[], RESOLUTION), None);
+    assert_eq!(laid(&diamond(0.003), &[], RESOLUTION), None, "laid on it");
+    assert!(laid(&diamond(1.0), &[], RESOLUTION).is_some());
 }
 
 #[test]
@@ -327,18 +441,30 @@ fn a_hole_laid_onto_its_outline_at_a_corner_alone_is_not_straight() {
     );
 }
 
+/// Whether the run of a profile leaning off parallel, from its second
+/// corner to its third, was laid parallel to the axis.
+fn laid_parallel(straight: &Straight) -> bool {
+    let corners = &straight.contours[0];
+    corners[1].at.y == corners[2].at.y
+}
+
 #[test]
 fn the_tolerance_is_never_finer_than_twenty_of_the_kernel_s() {
     let leaning = |lean: f64| polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0 + lean, 2.0], [1.0, 2.0]]);
     let eps = Scale::of(10.0).eps();
-    assert!(laid(&leaning(10.0 * eps), &[], 0.0).is_some());
-    assert_eq!(laid(&leaning(40.0 * eps), &[], 0.0), None);
+    let laid_at_no_resolution =
+        |lean: f64| laid_parallel(&laid(&leaning(lean), &[], 0.0).expect("a leaning run"));
+    assert!(laid_at_no_resolution(10.0 * eps));
+    assert!(!laid_at_no_resolution(40.0 * eps));
 
     let profile = leaning(1e-3);
     let turn = turn_of(&[&profile], 0.0);
-    assert_eq!(Straight::of(&profile, &[], FLAT, &turn, 0.0), None);
+    let laid_within = |frame: Frame, part_reach: f64| {
+        laid_parallel(&Straight::of(&profile, &[], frame, &turn, part_reach).expect("a lean"))
+    };
+    assert!(!laid_within(FLAT, 0.0));
     assert!(
-        Straight::of(&profile, &[], FLAT, &turn, 1e6).is_some(),
+        laid_within(FLAT, 1e6),
         "laid within the kernel's tolerance over the part it is turned against",
     );
     let far = Frame {
@@ -346,7 +472,7 @@ fn the_tolerance_is_never_finer_than_twenty_of_the_kernel_s() {
         ..FLAT
     };
     assert!(
-        Straight::of(&profile, &[], far, &turn, 0.0).is_some(),
+        laid_within(far, 0.0),
         "laid within the kernel's tolerance over where it stands",
     );
 }
@@ -403,6 +529,17 @@ fn the_count_of_a_turned_profile_is_the_flats_faces_end() {
         [3.0, 4.0],
         [0.0, 4.0],
     ]);
+    let chamfered = points(&[[1.0, 0.0], [5.0, 0.0], [5.0, 1.5], [4.5, 2.0], [1.0, 2.0]]);
+    let point = points(&[[0.0, 0.0], [5.0, 0.0], [0.0, 10.0]]);
+    let shaft_ending_in_a_point = points(&[[0.0, 0.0], [5.0, 0.0], [5.0, 10.0], [0.0, 15.0]]);
+    let countersink = points(&[
+        [0.0, -1.0],
+        [2.0, -1.0],
+        [2.0, 6.0],
+        [7.0, 11.0],
+        [0.0, 11.0],
+    ]);
+    let trapezoid = points(&[[1.0, 0.0], [6.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
     let hole = points(&[[2.0, 0.5], [3.0, 0.5], [3.0, 1.5], [2.0, 1.5]]);
     let walked = |corners: &[DVec2], from: usize| {
         let mut corners = corners.to_vec();
@@ -410,7 +547,15 @@ fn the_count_of_a_turned_profile_is_the_flats_faces_end() {
         corners
     };
     for angle in [TAU, -TAU, FRAC_PI_2, -3.0 * FRAC_PI_2, PI] {
-        for outline in [&on_the_axis, &off_the_axis, &shaft] {
+        for outline in [
+            &on_the_axis,
+            &off_the_axis,
+            &shaft,
+            &chamfered,
+            &point,
+            &shaft_ending_in_a_point,
+            &countersink,
+        ] {
             for from in 0..outline.len() {
                 let outline = walked(outline, from);
                 let (numbers, faces_end) = counted(&outline, &[], angle);
@@ -420,7 +565,7 @@ fn the_count_of_a_turned_profile_is_the_flats_faces_end() {
                 );
             }
         }
-        for outline in [&on_the_axis, &off_the_axis] {
+        for outline in [&on_the_axis, &off_the_axis, &trapezoid] {
             for from in 0..hole.len() {
                 let holes = [walked(&hole, from)];
                 let (numbers, faces_end) = counted(outline, &holes, angle);
@@ -431,4 +576,12 @@ fn the_count_of_a_turned_profile_is_the_flats_faces_end() {
             }
         }
     }
+}
+
+#[test]
+fn a_point_turned_whole_counts_its_numbers_as_the_flats_do() {
+    let point = points(&[[0.0, 0.0], [5.0, 0.0], [0.0, 10.0]]);
+    assert_eq!(counted(&point, &[], TAU), (2, 2));
+    let axis_leg_first = points(&[[0.0, 10.0], [0.0, 0.0], [5.0, 0.0]]);
+    assert_eq!(counted(&axis_leg_first, &[], TAU), (3, 3));
 }

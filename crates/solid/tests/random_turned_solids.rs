@@ -35,13 +35,12 @@
 //! hair off it, a circle on its rim. A slanted piece of a section turns into
 //! the room between two cones, a line against each of them one quadratic,
 //! and encloses a frustum's volume; a line through a cone's tip, where the
-//! cone has no normal, is left out and counted as a grazing one is. Until
-//! the reading lays a slanted run, the exact kernel's tests of that draw
-//! wait under `#[ignore]`. The flats answered 231 of the first 300 slanted
-//! cases by their own rules when the draw was written, and the arithmetic
-//! held every one.
+//! cone has no normal, is left out and counted as a grazing one is. The
+//! reading lays a slanted run as drawn, and the exact kernel turns it into a
+//! cone. The flats answered 231 of the first 300 slanted cases by their own
+//! rules when the draw was written, and the arithmetic held every one.
 //!
-//! The exact kernel lays a section square to its axis before turning it; a
+//! The exact kernel lays a section against its axis before turning it; a
 //! hole a hair from its band's edge is laid onto the outline, and the wall
 //! between them is not there. Where that leaves the matter in two pieces, or
 //! touching itself at a corner, it declines the section, which the
@@ -1519,12 +1518,18 @@ fn kept_through_the_application_s_body_and_exact(
 
 #[test]
 fn a_case_asking_for_a_conic_is_declined_as_unsupported_or_held() {
-    let asking: Vec<Case> = (0..2000)
-        .map(Case::drawn_turned_off_the_lattice)
-        .filter(Case::asks_for_a_conic)
-        .take(24)
-        .collect();
-    assert!(asking.len() >= 20, "{} cases", asking.len());
+    let asking_of = |draw: fn(u64) -> Case, count: usize| -> Vec<Case> {
+        (0..2000)
+            .map(draw)
+            .filter(Case::asks_for_a_conic)
+            .take(count)
+            .collect()
+    };
+    let turned = asking_of(Case::drawn_turned_off_the_lattice, 24);
+    let slanted = asking_of(Case::drawn_slanted_off_the_lattice, 16);
+    assert!(turned.len() >= 20, "{} turned cases", turned.len());
+    assert_eq!(slanted.len(), 16, "{} slanted cases", slanted.len());
+    let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
     let weighed = random_solids::on_every_core(&asking, |case| {
         random_solids::held_to_arithmetic(case, &Exact)
     });
@@ -1592,7 +1597,6 @@ fn drawn_slants(seeds: u64) -> Vec<Leaf> {
 }
 
 #[test]
-#[ignore = "#536: the reading does not lay a slanted run yet"]
 fn every_sloped_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume()
  {
     let leaves = drawn_slants(80);
@@ -1601,7 +1605,6 @@ fn every_sloped_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_enclo
 }
 
 #[test]
-#[ignore = "#536: the reading does not lay a slanted run yet"]
 fn a_sloped_leaf_names_its_faces_as_the_flats_name_them() {
     let leaves: Vec<Leaf> = drawn_slants(120)
         .into_iter()
@@ -1612,14 +1615,12 @@ fn a_sloped_leaf_names_its_faces_as_the_flats_name_them() {
 }
 
 #[test]
-#[ignore = "#536: the reading does not lay a slanted run yet"]
 fn sloped_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
     let held = kept_through_the_application_s_body_and_exact(Case::drawn_slanted, 0..8);
     assert!(held > 3, "{held} cases held");
 }
 
 #[test]
-#[ignore = "#536: the reading does not lay a slanted run yet"]
 fn random_slanted_cases_keep_every_rule_on_the_exact_kernel() {
     keep_every_rule_on_the_exact_kernel(Case::drawn_slanted, 0..16);
 }

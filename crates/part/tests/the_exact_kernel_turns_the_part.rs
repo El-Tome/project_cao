@@ -14,9 +14,9 @@
 //!   `a_drawing_on_a_shoulder_of_a_turned_shaft_rides_it_when_the_shoulder_moves`,
 //!   `a_drawing_on_the_closing_end_of_a_partial_turn_follows_it_when_the_turn_widens`,
 //!   `faces_after_a_full_turn_are_numbered_as_on_main`
-//! - a profile with a slanted run or an arc sends the part to the flats from that step on —
-//!   `a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on`,
-//!   `a_part_turned_from_a_slanted_run_after_an_exact_one_goes_to_the_flats_from_that_step_on`
+//! - a profile with an arc sends the part to the flats from that step on (a slanted
+//!   run did too, until #536) —
+//!   `a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on`
 //! - a revolution the exact kernel declines is a broken step, with its reason kept —
 //!   `a_turn_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`
 //!   (`declined_because(step) == Some(Declined::Unsupported)`, volume unchanged),
@@ -28,7 +28,7 @@
 //!   `a_square_a_hair_across_the_axis_is_turned_as_if_drawn_on_it`,
 //!   `a_square_a_hair_off_the_axis_on_its_own_side_is_turned_as_if_drawn_on_it`,
 //!   `a_profile_whose_side_was_laid_on_the_axis_turns_into_a_closed_solid` (#488, flats),
-//!   `a_cone_whose_leg_was_laid_on_the_axis_comes_out_closed` (#488, flats),
+//!   `a_cone_whose_leg_was_laid_on_the_axis_comes_out_closed` (#488; exact since #536),
 //!   `an_area_across_a_sketch_axis_is_turned_on_both_sides_and_joined` (50π),
 //!   `an_area_across_the_axis_turned_part_way_holds_both_sides_volumes` (90°: 20.5π),
 //!   `an_area_across_a_construction_line_is_turned_on_both_sides_and_joined`,
@@ -49,9 +49,9 @@
 //! - `docs/exact-kernel.md` says what the kernel turns, and what it still hands the
 //!   flats — no test: it is prose, held by `language.rs` and by nothing that asserts
 //!
-//! A part turned from a profile of straight runs, each parallel or square to its
-//! axis, as the application builds it: the exact kernel turns it, and the part
-//! stays exact after it. A slanted run or an arc still goes to the flats. The
+//! A part turned from a profile of straight runs, each parallel, square or
+//! slanted to its axis, as the application builds it: the exact kernel turns
+//! it, and the part stays exact after it. An arc still goes to the flats. The
 //! kernel's own tests are `cao_solid`'s, in `the_exact_kernel_turns.rs`.
 
 use std::f64::consts::PI;
@@ -557,8 +557,16 @@ fn inscribed(radius: f64) -> f64 {
 
 /// How much matter a Ø40 raised 10 far from the rest adds to the part
 /// `history` describes, applied as the user would, so that the part is built
-/// once rather than at every click.
+/// once rather than at every click; the part held to stay on the flats.
 fn a_disc_raised_after(history: &History) -> f64 {
+    let (added, exact) = a_disc_raised_on(history);
+    assert!(!exact, "the part stays on the flats");
+    added
+}
+
+/// How much matter a Ø40 raised 10 far from the rest adds to the part
+/// `history` describes, and whether the part is still exact after it.
+fn a_disc_raised_on(history: &History) -> (f64, bool) {
     let mut part = applied_live(history);
     let before = part.body().volume();
     let sketch = part.sketches().len();
@@ -580,8 +588,7 @@ fn a_disc_raised_after(history: &History) -> f64 {
         distance: 10.0.into(),
         mode: ExtrusionMode::Add,
     });
-    assert!(!part.body().is_exact(), "the part stays on the flats");
-    part.body().volume() - before
+    (part.body().volume() - before, part.body().is_exact())
 }
 
 #[test]
@@ -623,7 +630,7 @@ fn a_part_turned_from_an_arc_is_computed_by_the_flats_from_that_step_on() {
 }
 
 #[test]
-fn a_part_turned_from_a_slanted_run_after_an_exact_one_goes_to_the_flats_from_that_step_on() {
+fn a_part_turned_from_a_slanted_run_after_an_exact_one_stays_exact_from_that_step_on() {
     let mut history = turned_on_xy(
         |history| rectangle(history, 0, DVec2::new(5.0, 0.0), DVec2::new(6.0, 1.0)),
         DVec2::new(5.5, 0.5),
@@ -648,11 +655,14 @@ fn a_part_turned_from_a_slanted_run_after_an_exact_one_goes_to_the_flats_from_th
         360.0,
         ExtrusionMode::Add,
     );
+    exact(&history);
 
+    let (added, stays_exact) = a_disc_raised_on(&history);
+    assert!(stays_exact, "the part stays on the exact kernel");
     assert_near(
-        a_disc_raised_after(&history),
-        inscribed(20.0) * 10.0,
-        "the Ø40 raised after the cone, by the flats",
+        added,
+        PI * 400.0 * 10.0,
+        "the Ø40 raised after the cone, on its true cylinder",
     );
 }
 
@@ -894,6 +904,7 @@ fn a_cone_whose_leg_was_laid_on_the_axis_comes_out_closed() {
     turned_whole_at(&mut part, DVec2::new(5.0, 5.0));
 
     assert_eq!(closed(&part.body().triangles()), Ok(()));
+    assert!(part.body().is_exact(), "the cone is the exact kernel's");
 }
 
 /// A rectangle from (−4, 0) to (5, 2), across the V axis, turned `degrees`
@@ -1106,7 +1117,7 @@ fn a_holed_area_across_the_axis_turned_part_way_keeps_its_hole() {
 }
 
 #[test]
-fn a_slanted_area_across_the_axis_is_turned_on_both_sides_by_the_flats() {
+fn a_slanted_area_across_the_axis_turned_whole_is_its_larger_side_s_cone_exactly() {
     let history = turned_on_xy(
         |history| {
             polygon(
@@ -1122,14 +1133,11 @@ fn a_slanted_area_across_the_axis_is_turned_on_both_sides_by_the_flats() {
         DVec2::new(1.0, 1.0),
         360.0,
     );
-    let state = PartState::rebuild(&history);
-    let cone = 1000.0 * PI / 3.0;
 
-    assert!(!state.body.is_exact(), "a cone is the flats'");
-    assert!(
-        (state.body.volume() - cone).abs() < 0.01 * cone,
-        "the side reaching 10 turned whole holds the side reaching 5, not {}",
-        state.body.volume(),
+    assert_near(
+        exact(&history).body.volume(),
+        1000.0 * PI / 3.0,
+        "the side reaching 10 turned whole, holding the side reaching 5",
     );
 }
 
@@ -1257,15 +1265,10 @@ fn a_shaft_whose_top_radius_is_a_variable(w: f64) -> PartDocument {
 }
 
 #[test]
-#[ignore = "known renumbering, not mended by #533: a size that slants a run \
-            sends the turn to the flats, which part the shaft's faces cut by a \
-            later flat into more numbers than the exact kernel does; the steps \
-            after it are numbered by whichever kernel ran, and a drawing laid \
-            on one of their faces lands on another, without a word. Both \
-            kernels would have to part a face alike"]
-fn a_drawing_after_a_turn_keeps_its_face_when_a_size_sends_the_turn_to_the_flats() {
+fn a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone() {
     for (from, to) in [(10.0, 6.0), (6.0, 10.0)] {
         let mut part = a_shaft_whose_top_radius_is_a_variable(from);
+        assert!(part.body().is_exact(), "w at {from}: the part is exact");
         let top = (0..part.body().faces_end())
             .find(|&face| {
                 part.body().plane_of(face).is_some_and(|plane| {
@@ -1294,6 +1297,7 @@ fn a_drawing_after_a_turn_keeps_its_face_when_a_size_sends_the_turn_to_the_flats
         .expect("w takes the size");
 
         let plane = part.sketches()[drawing].plane;
+        assert!(part.body().is_exact(), "w at {to}: the part is exact");
         assert!(
             !part.is_adrift(drawing),
             "w from {from} to {to}: the top is there"

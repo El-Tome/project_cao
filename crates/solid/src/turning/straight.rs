@@ -1,5 +1,6 @@
-//! A profile of straight runs laid square to its axis: every run parallel to
-//! the axis or square to it, exactly, ready for the exact kernel to turn.
+//! A profile of straight runs laid against its axis: every run within the
+//! tolerance of parallel or square to the axis laid so, exactly, and every
+//! other slanted as drawn, ready for the exact kernel to turn.
 
 mod bounded;
 mod contacts;
@@ -13,8 +14,8 @@ use super::Turn;
 use crate::brep::Scale;
 use crate::profile::{Contour, Frame, Run};
 
-/// A profile whose every run is parallel or square to its axis, read along
-/// the axis and away from it.
+/// A profile whose every run is parallel, square or slanted to its axis,
+/// read along the axis and away from it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Straight {
     /// `+1.0` or `-1.0`: a corner's distance from the axis, signed as
@@ -30,7 +31,7 @@ pub struct Straight {
     pub last_off_the_axis: Option<u32>,
 }
 
-/// A corner of a profile laid square to its axis.
+/// A corner of a profile laid against its axis.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Corner {
     /// How far along the axis, and how far away from it, never below nought.
@@ -40,20 +41,25 @@ pub struct Corner {
 }
 
 impl Straight {
-    /// The profile laid square to the axis of `turn`, or `None` when a run is
-    /// round, or leans at the drawing's resolution: the flats turn it then.
+    /// The profile laid against the axis of `turn`, or `None` when a run is
+    /// round, or the profile cannot be laid as the exact kernel turns it: the
+    /// flats turn it then.
     ///
     /// A corner within the turn's band of the axis is laid on it. Every run
     /// within the tolerance of parallel or square to the axis is laid so,
     /// exactly, and levels closer than the tolerance anywhere in the profile
-    /// are one. The tolerance is the drawing's resolution, never finer than
-    /// the kernel can tell apart over the profile turned and `part_reach`.
-    /// A profile is not straight when laying it would move a corner by more
-    /// than twice the tolerance. Where laying makes it touch itself where it
-    /// does not, a wall or a gap thinner than the tolerance is not there: the
-    /// profile is the matter it bounds as laid, declined when that is not one
-    /// piece or touches itself at a corner. A run laid to no length keeps its
-    /// number and names no face.
+    /// are one; a run leaning further slants between the levels of its two
+    /// corners, its angle never snapped. The tolerance is the drawing's
+    /// resolution, never finer than the kernel can tell apart over the
+    /// profile turned and `part_reach`. A profile is not straight when laying
+    /// it would move a corner by more than twice the tolerance. Where laying
+    /// makes it touch itself where it does not, a wall or a gap thinner than
+    /// the tolerance is not there: the profile is the matter it bounds as
+    /// laid, declined when that is not one piece or touches itself at a
+    /// corner. With a slanted run, a profile touching itself where it did not,
+    /// a corner within the tolerance of a slant, or a corner on the axis
+    /// between two runs that both leave it is not straight. A run laid to no
+    /// length keeps its number and names no face.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -97,7 +103,7 @@ impl Straight {
                     .collect()
             })
             .collect();
-        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps()) {
+        let contours = if contacts::are_drawn(&laid, &read, &laid_runs, scale.eps(), tolerance) {
             kept.iter()
                 .map(|corners| {
                     corners
@@ -109,6 +115,12 @@ impl Straight {
                         .collect()
                 })
                 .collect()
+        } else if laid_runs
+            .iter()
+            .flatten()
+            .any(|&run| contacts::slanted(&laid, run))
+        {
+            return None;
         } else {
             bounded::contours(&laid, &laid_runs)?
         };

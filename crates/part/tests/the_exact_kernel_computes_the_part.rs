@@ -7,10 +7,9 @@
 //!   `a_disc_joined_across_a_block_s_side_holds_the_arithmetics_volume`,
 //!   `a_hole_drilled_right_through_a_hexagonal_bar_is_cut`
 //! - once a revolution is in the history, the part is computed by the flats
-//!   from that step on (since #533, a revolution of a slanted run or an arc;
-//!   one of straight runs parallel or square to its axis is the exact
-//!   kernel's, `the_exact_kernel_turns_the_part.rs`) —
-//!   `a_part_turned_from_a_slanted_run_is_computed_by_the_flats_from_that_step_on`,
+//!   from that step on (since #536, a revolution of an arc; one of straight
+//!   runs is the exact kernel's, `the_exact_kernel_turns_the_part.rs`) —
+//!   `a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on`,
 //!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
 //!   likewise — `a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on`
 //! - an operation the exact kernel declines is a broken step —
@@ -54,10 +53,10 @@
 //!   test: it is prose, held by `language.rs` and by nothing that asserts
 //!
 //! The part a history describes, computed by the exact kernel wherever it can
-//! and by the flats from the first step it cannot: a revolution of a slanted
-//! run or an arc, which turns into a cone, a sphere or a torus, or an area
-//! bounded by an ellipse (`an_ellipse_encloses_an_area.rs`), which the exact
-//! kernel has no surface for. The screen's side — the notice and the tree row
+//! and by the flats from the first step it cannot: a revolution of an arc,
+//! which turns into a sphere or a torus, or an area bounded by an ellipse
+//! (`an_ellipse_encloses_an_area.rs`), which the exact kernel has no surface
+//! for. The screen's side — the notice and the tree row
 //! a declined step shows — is `cao_app`'s, tested beside its presenters.
 
 use std::f64::consts::PI;
@@ -237,22 +236,14 @@ fn inscribed(radius: f64) -> f64 {
     sides / 2.0 * radius * radius * (2.0 * PI / sides).sin()
 }
 
-/// A triangle turned about the sketch's own V axis, far from anything at the
-/// origin: its slanted runs turn into cones, matter only the flats can make.
-fn turn_a_cone(history: &mut History, sketch: usize) {
+/// A circle Ø8 turned about the sketch's own V axis, far from anything at
+/// the origin: it turns into a torus, matter only the flats can make.
+fn turn_a_torus(history: &mut History, sketch: usize) {
     sketch_on(history, WorkPlane::XY);
-    polygon(
-        history,
-        sketch,
-        &[
-            DVec2::new(50.0, 0.0),
-            DVec2::new(60.0, 0.0),
-            DVec2::new(55.0, 10.0),
-        ],
-    );
+    circle(history, sketch, DVec2::new(55.0, 5.0), 4.0);
     history.push(Operation::Revolve {
         sketch,
-        areas: clicked(history, sketch, DVec2::new(55.0, 3.0)),
+        areas: clicked(history, sketch, DVec2::new(55.0, 5.0)),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
         angle: 360.0.into(),
         mode: ExtrusionMode::Add,
@@ -260,13 +251,13 @@ fn turn_a_cone(history: &mut History, sketch: usize) {
 }
 
 #[test]
-fn a_part_turned_from_a_slanted_run_is_computed_by_the_flats_from_that_step_on() {
+fn a_part_turned_into_a_torus_is_computed_by_the_flats_from_that_step_on() {
     let mut history = History::default();
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 0, DVec2::ZERO, 20.0);
     raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
     let before_the_turn = PartState::rebuild(&history).body.volume();
-    turn_a_cone(&mut history, 1);
+    turn_a_torus(&mut history, 1);
     let turned = PartState::rebuild(&history).body.volume();
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 2, DVec2::new(0.0, 100.0), 20.0);
@@ -297,7 +288,7 @@ fn undoing_the_turn_gives_the_part_back_to_the_exact_kernel() {
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 0, DVec2::ZERO, 20.0);
     raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
-    turn_a_cone(&mut history, 1);
+    turn_a_torus(&mut history, 1);
     history.undo();
     sketch_on(&mut history, WorkPlane::XY);
     circle(&mut history, 2, DVec2::new(0.0, 100.0), 20.0);

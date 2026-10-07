@@ -1,11 +1,12 @@
 //! The levels a profile's corners are laid at: every run parallel to the
 //! axis brings its two corners to one distance from it, every run square to
 //! it to one place along it, and levels a hair apart anywhere in the profile
-//! are one.
+//! are one. A run leaning past the tolerance joins no level: it slants from
+//! the level of one corner to the level of the other, as drawn.
 
 /// Each corner, read as `(along, away)`, laid at its level, or `None` when a
-/// run leans past `tolerance` or a corner would move further than twice it.
-/// `runs` are the corners each run goes between.
+/// corner would move further than twice `tolerance`. `runs` are the corners
+/// each run goes between.
 pub(super) fn laid(
     read: &[glam::DVec2],
     runs: &[(usize, usize)],
@@ -15,14 +16,10 @@ pub(super) fn laid(
     let mut away = Classes::of(read.len());
     for &(from, to) in runs {
         let step = (read[to] - read[from]).abs();
-        let (square, parallel) = (step.x <= tolerance, step.y <= tolerance);
-        if !square && !parallel {
-            return None;
-        }
-        if square {
+        if step.x <= tolerance {
             along.join(from, to);
         }
-        if parallel {
+        if step.y <= tolerance {
             away.join(from, to);
         }
     }

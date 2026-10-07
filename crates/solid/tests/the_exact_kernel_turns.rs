@@ -562,6 +562,38 @@ fn a_straight_profile_is_turned_by_the_exact_kernel_through_the_body() {
     assert!((turned.volume() - (500.0 + 1000.0 * PI)).abs() <= 1e-9 * turned.volume());
 }
 
+/// A shaft Ø20 for 30 drawn on the sketch's Y axis, its top rim chamfered
+/// 2, its last side on the axis, cut into triangles.
+fn chamfered_shaft_on_y() -> ([DVec2; 5], [[DVec2; 3]; 3]) {
+    let corners = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(10.0, 0.0),
+        DVec2::new(10.0, 28.0),
+        DVec2::new(8.0, 30.0),
+        DVec2::new(0.0, 30.0),
+    ];
+    let triangles = [
+        [corners[0], corners[1], corners[2]],
+        [corners[0], corners[2], corners[3]],
+        [corners[0], corners[3], corners[4]],
+    ];
+    (corners, triangles)
+}
+
+#[test]
+fn a_slanted_profile_is_turned_by_the_exact_kernel_through_the_body() {
+    let (corners, triangles) = chamfered_shaft_on_y();
+    let profile = drawn(&corners, &triangles);
+    let part = part();
+    let tool = part
+        .tool_turned(&profile, ground(), &about_the_sketch_s_y(TAU, &profile))
+        .expect("the chamfered shaft turns");
+    let turned = part.union(&tool).expect("the turn joins the part");
+    assert!(turned.is_exact());
+    let volume = 500.0 + 8888.0 * PI / 3.0;
+    assert!((turned.volume() - volume).abs() <= 1e-9 * volume);
+}
+
 #[test]
 fn a_profile_with_an_arc_is_turned_by_the_flats_through_the_body() {
     let center = DVec2::new(6.0, 2.0);
@@ -605,13 +637,23 @@ fn a_profile_with_an_arc_is_turned_by_the_flats_through_the_body() {
 
 #[test]
 fn a_declined_turn_counts_past_the_numbers_it_would_have_named() {
-    let (corners, triangles) = square_on_y();
-    let profile = drawn(&corners, &triangles);
-    for (angle, named) in [(TAU, 3), (FRAC_PI_2, 6)] {
-        let mut part = part();
-        let before = part.faces_end();
-        part.count_past_turned(&profile, ground(), &about_the_sketch_s_y(angle, &profile));
-        assert_eq!(part.faces_end(), before + named);
+    let (square, square_triangles) = square_on_y();
+    let (chamfered, chamfered_triangles) = chamfered_shaft_on_y();
+    for (profile, whole, partial) in [
+        (drawn(&square, &square_triangles), 3, 6),
+        (drawn(&chamfered, &chamfered_triangles), 4, 7),
+    ] {
+        for (angle, named) in [(TAU, whole), (FRAC_PI_2, partial)] {
+            let mut part = part();
+            let before = part.faces_end();
+            part.count_past_turned(&profile, ground(), &about_the_sketch_s_y(angle, &profile));
+            assert_eq!(
+                part.faces_end(),
+                before + named,
+                "{:?} turned {angle} rad",
+                profile.sampled.points
+            );
+        }
     }
 }
 

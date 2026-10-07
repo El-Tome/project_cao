@@ -106,7 +106,11 @@ Known and still open:
   drilled right through it past the far side's slanted neighbours — the pair
   is passed over, decided on the faces themselves rather than on the boxes
   round them (`combine/clear.rs`), along the directions the two surfaces and
-  their straight edges offer. Every leaf of the sixteen cases and
+  their straight edges offer; beside a cone, also where the other face
+  stands inside the hollow the cone's face leaves about its axis, or beyond
+  a plane touching the cone along a ruling — a hex socket in a chamfered
+  head, a pocket beside a countersink, a block beside a point's slope.
+  Every leaf of the sixteen cases and
   of the campaign stands on a plane of the origin, so neither is needed to
   hold them.
 - **Operations:** raise a profile of straight runs and arcs along its plane's

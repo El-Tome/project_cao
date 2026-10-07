@@ -1125,3 +1125,91 @@ hair apart, are one: a rounded square a hair wider than its corners is
 raised as a disc, a rectangle a hair wider than a slot as the slot. The
 four seeds hold, run one at a time; 533656030, 533729250 and 533684645 are
 un-ignored.
+
+## #536: cones
+
+Two campaigns of `random_turned_solids.rs`'s slanted draw
+(`Case::drawn_slanted_off_the_lattice`) on 7 October, in release, each on
+its own copy of the branch: first at `611b616`, on the exact kernel from
+seed 536100000 and through the application's body from 536200000; then,
+after the fixes they led to, at `ba3224d` from fresh seeds. Every seed the
+first two named was shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`
+(`CAO_TRIAGE_DRAW=slanted`), and each shrunk case run again on the fixed
+tree.
+
+| campaign | tree | first seed | cases | broke a rule | per thousand | asking for a conic, declined |
+| --- | --- | --- | --- | --- | --- | --- |
+| slanted, on the exact kernel | `611b616` | 536100000 | 42 477 | 206 | 4.85 | 11 992 |
+| slanted, through the application's body | `611b616` | 536200000 | 16 481 | 80 | 4.85 | 4 813 |
+| slanted, on the exact kernel | `ba3224d` | 536800000 | 30 000 | 93 | 3.10 | 8 598 |
+| slanted, through the application's body | `ba3224d` | 536900000 | 15 000 | 59 | 3.93 | 4 189 |
+
+**The bar is not met.** One case in a thousand is the issue's; what is
+left is, case for case, the hairs below. On the fixed tree no ray lost its
+way out of a cone (`Spans`) any more.
+
+**Fixed:**
+
+- **A line crossing a cone a hair from a disc**, 70 of the 206 seeds on
+  the exact kernel, every one a leaf alone: a shaft whose top slants in
+  over a height of 1e-7 to 1e-5. The quadratic's two roots stand a hair
+  apart there, one on each nappe; the discriminant left both a hair off
+  and the nappe test read them on the wrong one, or rounding took it for
+  nought and both were dropped, and the ray found no way out of the
+  matter (`Spans`). A root is now taken onto the nappe by Newton's steps
+  across its meridian line (`Cone::roots`). The 70 hold; 536101211 and
+  536104721 are in the gate.
+- **A point whose tip a partial turn cuts away but for a sector**
+  (536211029): the loop through the apex closed along the floor the short
+  way, and the face was left open to the triangles and read as pointed
+  without a tip by the soundness checks. It closes the long way round.
+  In the gate.
+- Before the campaigns, from the review: a face standing inside the
+  hollow a cone's face leaves about its axis, or beyond a plane touching
+  the cone along a ruling, is clear of it — a hex socket in a chamfered
+  head, a pocket in a chamfered end or beside a countersink, a block
+  beside a point, which were declined as unsupported where `main`
+  computed them.
+
+**Open, hairs.** Of the 136 seeds left on the exact kernel, all but six
+draw a coordinate a hair, 1e-8 to 1e-4, from another: 62 with no cone at
+all, the families #533 named on prisms and turned cylinders; the
+others a cone a hair from a coaxial cylinder, plane or cone, or a slant a
+hair from square to its axis. Through the body, 74 of the 79 cases shrunk
+carry a hair. This is the family the issue's third default names: it is
+measured here, and no fall-back or decline is added for it without Tom's
+word. Named by 536202582, a partial turn about an axis 1e-8 off a disc's,
+declined as unverified, and 536203669, a ring a hair wide on a step,
+undrawn.
+
+**Open, no hair:**
+
+- **A partial turn about a cone's axis**, its ends meeting the cone, or a
+  cylinder of its axis, along their rulings: refused as unverified
+  (536210335, 536135909), or open along a rim (536112193, 536128400). The
+  family of 533328889, which #533 left for the cones.
+- **A ring resting on a cone along its rim** (536212654): the kernel keeps
+  the arc of touch on the cone's face as a slit, an edge run both ways,
+  which the cone's chart cannot lay out. Undrawn.
+- **A half turn joined to a cone of its axis** (536215029), undrawn, and a
+  partial point cut by a block (536101248), refused: not traced.
+
+Each named seed is in `what_the_exact_campaigns_found_in_the_kernel.rs`
+or `…_triangles.rs`, ignored with its reason where it still fails.
+
+**No seed that held before fails.** The earlier draws, run on `main`
+(`f1d99a0`) and on the branch (`611b616`) over the same seeds, side by
+side: the same seeds fail on both, by the same rules.
+
+| campaign | first seed | cases | `main` | branch |
+| --- | --- | --- | --- | --- |
+| turned, on the exact kernel | 536400000 | 10 000 | 3 | 3 |
+| turned, through the application's body | 536300000 | 10 000 | 3 | 3 |
+| square solids, on the exact kernel | 536500000 | 20 000 | 2 | 2 |
+| profiles, on the exact kernel | 536600000 | 10 000 | 2 | 2 |
+| profiles, through the application's body | 536700000 | 5 000 | 1 | 1 |
+
+**The gate's time.** `cargo test --workspace`, built, on an idle machine,
+the second run of each: 31.0 s on `main` (`f1d99a0`), 30.9 s on the
+branch's tip.

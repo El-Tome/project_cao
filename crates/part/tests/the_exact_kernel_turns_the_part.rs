@@ -1,3 +1,49 @@
+//! Closes #536.
+//! - a chamfered shaft, a point, a countersunk hole and a partial turn of a slanted
+//!   run each hold the arithmetic's volume, exactly, on the exact kernel —
+//!   `a_chamfered_shaft_turned_holds_the_arithmetics_volume` ([0,10]×[0,30], chamfer 2: 8888π/3),
+//!   `a_point_turned_holds_the_arithmetics_volume` ((0,0),(5,0),(0,10): 250π/3),
+//!   `a_shaft_ending_in_a_point_turned_holds_the_arithmetics_volume` ((0,0),(5,0),(5,10),(0,15): 875π/3),
+//!   `a_countersunk_hole_turned_into_a_plate_leaves_the_arithmetics_volume`
+//!   (40×40×10 plate, (0,−1),(2,−1),(2,6),(7,11),(0,11) on XZ about Z, cut whole: 16000 − 280π/3),
+//!   `a_partial_turn_of_a_slanted_run_either_way_holds_the_arithmetics_volume`
+//!   ((2,0),(5,0),(4,4),(2,4) at ±90°: 49π/3)
+//! - a part with a cone stays on the exact kernel for the steps after it —
+//!   `a_part_turned_from_a_slanted_run_after_an_exact_one_stays_exact_from_that_step_on`,
+//!   `a_slanted_area_across_the_axis_turned_whole_is_its_larger_side_s_cone_exactly`
+//! - a drawing laid on a face of a turned part with a cone keeps its face when a
+//!   size changes —
+//!   `a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone`,
+//!   `a_drawing_on_the_end_of_a_chamfered_shaft_rides_it_when_the_chamfer_grows`
+//! - what a cone meets at a slant or across is a broken step, with its reason kept —
+//!   `a_flat_milled_on_a_cone_is_a_broken_step_with_its_reason` (hyperbola),
+//!   `a_plane_at_a_slant_across_a_cone_is_a_broken_step_with_its_reason` (ellipse),
+//!   `a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason`,
+//!   `a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason`
+//!   (each: `declined_because(step) == Some(Declined::Unsupported)`, volume unchanged,
+//!   part still exact), `a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood`
+//! - #448's harness draws turns with slanted runs before the kernel code — no test:
+//!   held in `cao_solid` by `random_turned_solids.rs` (`Case::drawn_slanted`, its draw
+//!   tests `the_slanted_generator_draws_every_kind_it_keeps` and
+//!   `the_draws_before_cones_still_give_each_seed_its_case`, and the kernel gate tests
+//!   the flip's commit un-ignored:
+//!   `every_sloped_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume`,
+//!   `a_sloped_leaf_names_its_faces_as_the_flats_name_them`,
+//!   `sloped_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact`,
+//!   `a_case_asking_for_a_conic_is_declined_as_unsupported_or_held`)
+//! - campaigns run until every random-solid draw fails on fewer than one case in a
+//!   thousand on fresh seeds, no seed that held before failing; failures named, fast
+//!   cases in the gate, long ones behind `--features campaigns` — no test: the counts
+//!   and families are in `docs/exact-kernel-failures.md` ("#536: cones"), one seed of
+//!   each named in `what_the_exact_campaigns_found_in_the_kernel.rs` / `…_triangles.rs`,
+//!   the campaigns under `#[ignore]` below `#[cfg(feature = "campaigns")]`, held by
+//!   `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`
+//! - #498's eighteen cases still hold, and the gate's time grows by no more than a
+//!   few seconds — no test: held by `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`,
+//!   which the gate runs; the time is measured and written in the pull request
+//! - `docs/exact-kernel.md` says what the kernel turns, and what it still hands the
+//!   flats — no test: it is prose, held by `language.rs` and by nothing that asserts
+//!
 //! Closes #533.
 //! - a square turned about one of its sides holds the arithmetic's volume, exactly,
 //!   on the exact kernel, and so do a ring, a stepped shaft, a partial turn and a
@@ -671,6 +717,12 @@ fn a_part_turned_from_a_slanted_run_after_an_exact_one_stays_exact_from_that_ste
 /// about, the rectangle turned whole about it. With the cylinder at the
 /// origin the two axes meet at 60°.
 fn a_turn_at_thirty_degrees_beside_a_cylinder_at(at: f64) -> History {
+    turned_at_thirty_degrees_beside_a_cylinder_at(at, 3.0)
+}
+
+/// The turn of `a_turn_at_thirty_degrees_beside_a_cylinder_at`, its far run
+/// from 3 away from the segment's line, where it starts, to `far`.
+fn turned_at_thirty_degrees_beside_a_cylinder_at(at: f64, far: f64) -> History {
     let mut history = History::default();
     sketch_on(
         &mut history,
@@ -699,7 +751,7 @@ fn a_turn_at_thirty_degrees_beside_a_cylinder_at(at: f64) -> History {
     polygon(
         &mut history,
         1,
-        &[at(1.0, 1.0), at(6.0, 1.0), at(6.0, 3.0), at(1.0, 3.0)],
+        &[at(1.0, 1.0), at(6.0, 1.0), at(6.0, 3.0), at(1.0, far)],
     );
     turn(
         &mut history,
@@ -1339,4 +1391,299 @@ fn a_circle_across_the_axis_turned_whole_is_turned_from_its_larger_side_alone() 
         (volume - pappus).abs() < 0.02 * pappus,
         "the disc's side reaching 12 turned whole holds the side reaching 2: {volume} where Pappus gives {pappus}",
     );
+}
+
+/// A profile drawn on XY through `corners` and turned whole about V,
+/// clicked at `place`.
+fn turned_whole(corners: &[DVec2], place: DVec2) -> History {
+    turned_on_xy(|history| polygon(history, 0, corners), place, 360.0)
+}
+
+/// A shaft Ø20 for 30 standing on XY's V axis, its top rim chamfered by
+/// `chamfer`, turned whole: its runs are the floor, the wall, the chamfer,
+/// the end and the axis, numbered so.
+fn a_chamfered_shaft(chamfer: f64) -> History {
+    turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(10.0, 30.0 - chamfer),
+            DVec2::new(10.0 - chamfer, 30.0),
+            DVec2::new(0.0, 30.0),
+        ],
+        DVec2::new(5.0, 15.0),
+    )
+}
+
+#[test]
+fn a_chamfered_shaft_turned_holds_the_arithmetics_volume() {
+    assert_near(
+        exact(&a_chamfered_shaft(2.0)).body.volume(),
+        8888.0 * PI / 3.0,
+        "Ø20 for 28, then a frustum from Ø20 to Ø16 over 2",
+    );
+}
+
+#[test]
+fn a_point_turned_holds_the_arithmetics_volume() {
+    let point = turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(5.0, 0.0),
+            DVec2::new(0.0, 10.0),
+        ],
+        DVec2::new(1.0, 1.0),
+    );
+
+    assert_near(
+        exact(&point).body.volume(),
+        250.0 * PI / 3.0,
+        "a cone Ø10 at its foot, 10 high",
+    );
+}
+
+#[test]
+fn a_shaft_ending_in_a_point_turned_holds_the_arithmetics_volume() {
+    let shaft = turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(5.0, 0.0),
+            DVec2::new(5.0, 10.0),
+            DVec2::new(0.0, 15.0),
+        ],
+        DVec2::new(2.0, 5.0),
+    );
+
+    assert_near(
+        exact(&shaft).body.volume(),
+        875.0 * PI / 3.0,
+        "Ø10 for 10, then a point 5 long",
+    );
+}
+
+#[test]
+fn a_countersunk_hole_turned_into_a_plate_leaves_the_arithmetics_volume() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 0, DVec2::splat(-20.0), DVec2::splat(20.0));
+    raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
+    sketch_on(&mut history, WorkPlane::XZ);
+    polygon(
+        &mut history,
+        1,
+        &[
+            DVec2::new(0.0, -1.0),
+            DVec2::new(2.0, -1.0),
+            DVec2::new(2.0, 6.0),
+            DVec2::new(7.0, 11.0),
+            DVec2::new(0.0, 11.0),
+        ],
+    );
+    turn(
+        &mut history,
+        1,
+        DVec2::new(1.0, 5.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Cut,
+    );
+
+    assert_near(
+        exact(&history).body.volume(),
+        16000.0 - 280.0 * PI / 3.0,
+        "a plate 40 by 40 by 10 less a Ø4 bore 6 deep and a countersink from Ø4 to Ø12",
+    );
+}
+
+#[test]
+fn a_partial_turn_of_a_slanted_run_either_way_holds_the_arithmetics_volume() {
+    for degrees in [90.0, -90.0] {
+        let history = turned_on_xy(
+            |history| {
+                polygon(
+                    history,
+                    0,
+                    &[
+                        DVec2::new(2.0, 0.0),
+                        DVec2::new(5.0, 0.0),
+                        DVec2::new(4.0, 4.0),
+                        DVec2::new(2.0, 4.0),
+                    ],
+                )
+            },
+            DVec2::new(3.0, 2.0),
+            degrees,
+        );
+
+        assert_near(
+            exact(&history).body.volume(),
+            49.0 * PI / 3.0,
+            &format!("a trapezoid from [2,5] to [2,4] over 4, turned {degrees}°"),
+        );
+    }
+}
+
+#[test]
+fn a_drawing_on_the_end_of_a_chamfered_shaft_rides_it_when_the_chamfer_grows() {
+    let end = the_face(&exact(&a_chamfered_shaft(1.0)), DVec3::Y, 30.0);
+    assert_eq!(end, 3, "the end is named by its run");
+
+    for chamfer in [1.0, 2.0] {
+        let (plane, adrift) = laid_on(a_chamfered_shaft(chamfer), end);
+
+        assert!(!adrift, "the end of a shaft chamfered {chamfer} is there");
+        assert!(
+            plane.normal().distance(DVec3::Y) < 1e-9 && (plane.origin.y - 30.0).abs() < 1e-9,
+            "the drawing stands on the end chamfered {chamfer}, not on {plane:?}",
+        );
+    }
+}
+
+/// A frustum from Ø20 at its foot to Ø10 at 20, standing on XY's V axis,
+/// turned whole; then `tool`, a step that meets its cone.
+fn a_frustum_then(tool: impl FnOnce(&mut History)) -> History {
+    let mut history = turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(10.0, 0.0),
+            DVec2::new(5.0, 20.0),
+            DVec2::new(0.0, 20.0),
+        ],
+        DVec2::new(2.0, 2.0),
+    );
+    tool(&mut history);
+    history
+}
+
+/// Whether the last step of `history` is a broken step the kernel declined
+/// as unsupported, the part standing exact as the frustum did before it.
+fn declined_on_the_frustum(history: &History, what: &str) {
+    let part = applied_live(history);
+
+    assert_eq!(
+        part.declined_because(last_step(history)),
+        Some(Declined::Unsupported),
+        "{what}",
+    );
+    assert_near(
+        part.body().volume(),
+        3500.0 * PI / 3.0,
+        "the frustum, as it stood before",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
+}
+
+#[test]
+fn a_flat_milled_on_a_cone_is_a_broken_step_with_its_reason() {
+    let history = a_frustum_then(|history| {
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Z * 6.0,
+                ..WorkPlane::XY
+            },
+        );
+        rectangle(history, 1, DVec2::new(-15.0, 2.0), DVec2::new(15.0, 18.0));
+        raise(history, 1, DVec2::new(0.0, 10.0), 5.0, ExtrusionMode::Cut);
+    });
+
+    declined_on_the_frustum(
+        &history,
+        "a plane parallel to the cone's axis meets it along a hyperbola",
+    );
+}
+
+#[test]
+fn a_plane_at_a_slant_across_a_cone_is_a_broken_step_with_its_reason() {
+    let history = a_frustum_then(|history| {
+        let (sin, cos) = (PI / 6.0).sin_cos();
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Y * 10.0,
+                u: DVec3::X,
+                v: DVec3::new(0.0, sin, cos),
+            },
+        );
+        rectangle(history, 1, DVec2::splat(-20.0), DVec2::splat(20.0));
+        raise(history, 1, DVec2::ZERO, 4.0, ExtrusionMode::Cut);
+    });
+
+    declined_on_the_frustum(
+        &history,
+        "a plane at 30° from square to the cone's axis meets it along an ellipse",
+    );
+}
+
+#[test]
+fn a_radial_hole_through_a_cone_is_a_broken_step_with_its_reason() {
+    let history = a_frustum_then(|history| {
+        sketch_on(
+            history,
+            WorkPlane {
+                origin: DVec3::Z * -15.0,
+                ..WorkPlane::XY
+            },
+        );
+        circle(history, 1, DVec2::new(0.0, 10.0), 2.0);
+        raise(history, 1, DVec2::new(0.0, 10.0), 30.0, ExtrusionMode::Cut);
+    });
+
+    declined_on_the_frustum(&history, "a cylinder square to the cone's axis crosses it");
+}
+
+#[test]
+fn a_cone_crossing_a_raised_cylinder_at_a_skew_angle_is_a_broken_step_with_its_reason() {
+    let history = turned_at_thirty_degrees_beside_a_cylinder_at(0.0, 4.0);
+
+    let part = applied_live(&history);
+
+    assert_eq!(
+        part.declined_because(last_step(&history)),
+        Some(Declined::Unsupported),
+        "the turn's cone crosses the raised cylinder at 60°",
+    );
+    assert_near(
+        part.body().volume(),
+        PI * 4.0 * 20.0,
+        "the cylinder, as it stood before",
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
+}
+
+#[test]
+fn a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood() {
+    let with_a_plate_after = |at: f64| {
+        let mut history = turned_at_thirty_degrees_beside_a_cylinder_at(at, 4.0);
+        sketch_on(&mut history, WorkPlane::XY);
+        rectangle(
+            &mut history,
+            2,
+            DVec2::new(20.0, 20.0),
+            DVec2::new(30.0, 30.0),
+        );
+        raise(
+            &mut history,
+            2,
+            DVec2::new(25.0, 25.0),
+            3.0,
+            ExtrusionMode::Add,
+        );
+        history
+    };
+    let plates_top = 3 + 4 + 1;
+    let declined = with_a_plate_after(0.0);
+    let stood = with_a_plate_after(50.0);
+    assert!(applied_live(&declined).is_declined(last_step(&declined) - 3));
+    let standing = applied_live(&stood);
+    assert!(!standing.is_declined(last_step(&stood) - 3));
+    assert!(standing.body().is_exact(), "the cone stood, exact");
+
+    for history in [declined, stood] {
+        let (plane, adrift) = laid_on(history, plates_top);
+        assert!(
+            !adrift && (plane.origin.z - 3.0).abs() < 1e-9,
+            "the drawing stands on the plate's top, not on {plane:?}",
+        );
+    }
 }

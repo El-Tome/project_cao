@@ -1,9 +1,9 @@
 //! Whether laying a profile against its axis made it touch itself where
 //! the drawing did not: a corner brought onto a run, two runs brought onto
 //! one line, a run brought back onto the one before it, two runs brought
-//! across each other; and whether it touches itself where the exact kernel
-//! cannot turn it, at a corner on the axis between two runs that both leave
-//! it, or within the tolerance of a slanted run.
+//! across each other; whether a slanted run meets the rest of the profile
+//! anywhere but at its own corners; and whether the profile touches itself
+//! at a corner on the axis between two runs that both leave it.
 //!
 //! Corners laid at one level share its value to the bit, and every run is
 //! laid exactly square or parallel to the axis, or slanted as drawn: the laid
@@ -12,15 +12,16 @@
 
 use glam::DVec2;
 
+use super::Corner;
+
 /// One run of a laid contour: the corners it goes between, by their number
 /// in the profile.
 pub(super) type Run = (usize, usize);
 
 /// Whether the laid profile touches itself only where the profile as read
-/// already did, to `eps`, never at a pinch on the axis, and no corner but its
-/// own ends stands within `tolerance` of a slanted run. `contours` are the
-/// runs of each contour in order, each beginning where the one before it
-/// ends.
+/// already did, to `eps`, and meets no slanted run but at its ends.
+/// `contours` are the runs of each contour in order, each beginning where the
+/// one before it ends.
 pub(super) fn are_drawn(
     laid: &[DVec2],
     read: &[DVec2],
@@ -37,13 +38,6 @@ pub(super) fn are_drawn(
             before.perp_dot(after) == 0.0 && before.dot(after) < 0.0
         })
     });
-    let pinched = contours.iter().any(|contour| {
-        (0..contour.len()).any(|index| {
-            let (from, to) = contour[index];
-            let (_, beyond) = contour[(index + 1) % contour.len()];
-            laid[to].y == 0.0 && laid[from].y > 0.0 && laid[beyond].y > 0.0
-        })
-    });
     let meet = runs.iter().enumerate().any(|(index, &first)| {
         runs[index + 1..]
             .iter()
@@ -53,19 +47,45 @@ pub(super) fn are_drawn(
         runs.iter().any(|&(from, to)| {
             corner != from
                 && corner != to
-                && if slanted(laid, (from, to)) {
-                    apart(laid[corner], laid[from], laid[to]) <= tolerance
-                } else {
-                    on(laid[corner], laid[from], laid[to])
-                        && apart(read[corner], read[from], read[to]) > eps
-                }
+                && !slanted(laid, (from, to))
+                && on(laid[corner], laid[from], laid[to])
+                && apart(read[corner], read[from], read[to]) > eps
         })
     });
-    !turns_back && !pinched && !meet && !touches
+    !turns_back && !meet && !touches && !a_slant_is_met(laid, &runs, tolerance)
+}
+
+/// Whether a slanted run meets the rest of the laid profile anywhere but at
+/// its ends: a corner within `tolerance` of it that is not laid on one of
+/// them, or a run across it.
+pub(super) fn a_slant_is_met(laid: &[DVec2], runs: &[Run], tolerance: f64) -> bool {
+    runs.iter()
+        .filter(|&&run| slanted(laid, run))
+        .any(|&slant| {
+            let (from, to) = (laid[slant.0], laid[slant.1]);
+            runs.iter().any(|&other| {
+                let corner = laid[other.0];
+                cross(laid, slant, other)
+                    || (corner != from && corner != to && near(corner, from, to, tolerance))
+            })
+        })
+}
+
+/// Whether a contour has a corner on the axis between two runs that both
+/// leave it, where the body turned from it would touch itself at a point.
+pub(super) fn pinched(contours: &[Vec<Corner>]) -> bool {
+    contours.iter().any(|corners| {
+        let count = corners.len();
+        (0..count).any(|index| {
+            let before = corners[(index + count - 1) % count].at;
+            let after = corners[(index + 1) % count].at;
+            corners[index].at.y == 0.0 && before.y > 0.0 && after.y > 0.0
+        })
+    })
 }
 
 /// Whether a laid run is neither square nor parallel to the axis.
-pub(super) fn slanted(laid: &[DVec2], run: Run) -> bool {
+fn slanted(laid: &[DVec2], run: Run) -> bool {
     let (from, to) = (laid[run.0], laid[run.1]);
     from.x != to.x && from.y != to.y
 }
@@ -120,6 +140,25 @@ fn cross(laid: &[DVec2], first: Run, second: Run) -> bool {
 fn on(point: DVec2, from: DVec2, to: DVec2) -> bool {
     let within = |value: f64, from: f64, to: f64| from.min(to) <= value && value <= from.max(to);
     within(point.x, from.x, to.x) && within(point.y, from.y, to.y)
+}
+
+/// Whether a point stands within `tolerance` of a slanted run as levels
+/// are told apart, one coordinate at a time: along the axis from where the
+/// run passes at the point's distance from it, or away from it where the run
+/// passes at the point's place along it. A corner a run longer than the
+/// tolerance from the slant's end, on a level of its own, is not near it.
+fn near(point: DVec2, from: DVec2, to: DVec2, tolerance: f64) -> bool {
+    let gap = |axis: usize| {
+        let across = 1 - axis;
+        if point[across] < from[across].min(to[across])
+            || point[across] > from[across].max(to[across])
+        {
+            return f64::INFINITY;
+        }
+        let share = (point[across] - from[across]) / (to[across] - from[across]);
+        (point[axis] - (from[axis] + (to[axis] - from[axis]) * share)).abs()
+    };
+    gap(0).min(gap(1)) <= tolerance
 }
 
 /// How far a point stands from a segment.

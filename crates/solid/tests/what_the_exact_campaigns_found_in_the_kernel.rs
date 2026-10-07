@@ -3762,8 +3762,10 @@ fn seed_536112193_a_half_turn_cut_about_the_axis_of_a_frustum() {
     ));
 }
 
+/// A fin 1e-8 thick on the narrow end of a cone: laid onto the cone's end,
+/// the profile turned back on itself and was declined, slanted, where a
+/// straight one is bounded; the matter as laid is the cone alone.
 #[test]
-#[ignore = "slant-touch: the reading lays the fin onto the cone's end, the laid profile turns back on itself, and with a slanted run it is declined rather than bounded as a straight profile is; the exact kernel then answers nothing"]
 fn seed_5361100533_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3777,8 +3779,26 @@ fn seed_5361100533_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone() {
     ));
 }
 
+/// 5361100533's fin, its far side slanting from its rim back to the cone's
+/// end over 2e-8: laid square, the corner it ends on is the cone's end.
 #[test]
-#[ignore = "slant-touch: the slope 1e-7 short of 2 and the step back out to 2 are laid to one level, a corner then stands within the tolerance of the cone after it, and the section is declined"]
+fn seed_5361134707_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_its_far_side_slanting() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[3.99999998, 0.0, 3.0], [2e-8, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 2.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+/// A shaft slanting in by 1e-7, a hair past the tolerance, before a cone:
+/// the shoulder between them stands on a level of its own, and a corner a
+/// run longer than the tolerance from a slant's end is not near it.
+#[test]
 fn seed_5361126605_a_shaft_slanting_in_by_a_hair_before_a_cone() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3792,8 +3812,8 @@ fn seed_5361126605_a_shaft_slanting_in_by_a_hair_before_a_cone() {
     ));
 }
 
+/// The same as 5361126605 before a point, the shaft slanting in by 2e-7.
 #[test]
-#[ignore = "slant-touch: the same as 5361126605 before a point, the shaft slanting in by 2e-7"]
 fn seed_5361120170_a_point_whose_shaft_slants_in_by_a_hair_before_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3822,8 +3842,9 @@ fn seed_5361101048_a_cone_a_hair_long() {
     ));
 }
 
+/// 5361100533's fin, 2e-7 thick, through the application's body: the exact
+/// kernel turns the cone, where the flats left it open along its rim.
 #[test]
-#[ignore = "slant-touch, through the application's body: 5361100533's fin, 2e-7 thick, which the reading declines and the flats then turn open along its rim"]
 fn seed_5361217405_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_turned_on_the_flats() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3837,8 +3858,10 @@ fn seed_5361217405_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_turned_on_the
     ));
 }
 
+/// A hole 6e-8 under the rim of a shaft past a cone: laid onto the rim, it
+/// opens onto it beside the slant as beside a square corner, where the flats
+/// left the cut open.
 #[test]
-#[ignore = "slant-touch, through the application's body: a hole 6e-8 under the rim of a shaft past a cone; laid onto the rim, the profile touches itself, which a straight profile is bounded through and a slanted one is declined for; the flats then leave the cut open"]
 fn seed_5361201830_a_hole_a_hair_under_the_rim_of_a_shaft_past_a_cone_cut_by_a_block() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

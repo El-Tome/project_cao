@@ -64,8 +64,8 @@ It can:
 - hand a revolution of a profile with an arc, or an area bounded by an
   ellipse, **to the flats**, from that step on: it has no sphere, torus or
   ellipse. So does a profile of straight runs the reading cannot lay against
-  its axis: pinched at a corner on the axis, or touching itself once laid
-  beside a slant.
+  its axis: pinched at a corner on the axis, or a corner of it within the
+  tolerance of a slant it does not end.
 
 Left, in the order #497 set:
 
@@ -677,15 +677,21 @@ the construction spheres and tori will grow from.
   cylinder or a disc. A hole a hair inside its outline opens onto it as a notch, a
   slot a hair wide closes, and the outline's run along the wall that went is
   left in pieces, each answering to its number. Where laying makes the
-  profile touch itself, it is read again as the matter it bounds, cell by
-  cell between its levels (`turning/straight/bounded.rs`); it is declined
-  only where that matter is not one piece, or touches itself at a corner.
-  The flats, handed such a wall, kept it a hair thick, and their boolean
-  left it open (533626745). Cells between levels are no reading of a slant:
-  a profile with one that laying makes touch itself goes to the flats, and
-  so does one with a corner within the tolerance of a slant, a hole under a
-  chamfer, or a corner on the axis between two runs that both leave it, a
-  pinch the turn would close on a point (`turning/straight/contacts.rs`).
+  profile touch itself, it is read again as the matter it bounds, column by
+  column between its levels along the axis, a slant crossing a column whole
+  (`turning/straight/bounded.rs`); it is declined only where that matter is
+  not one piece, or touches itself at a corner. A fin a hair thick at a
+  cone's end is not there, and a hole a hair under a rim past a chamfer
+  opens onto it. The flats, handed such a wall, kept it a hair thick, and
+  their boolean left it open (533626745, 5361217405). A slant shares no
+  level with the corners beside it, so a corner within the tolerance of a
+  slant it does not end, read one coordinate at a time as levels are told
+  apart, cannot be laid onto it: such a profile goes to the flats — a hole
+  under a chamfer — and so does one with a run across a slant, or a corner
+  on the axis between two runs that both leave it, a pinch the turn would
+  close on a point (`turning/straight/contacts.rs`). A corner on a level of
+  its own a run past the tolerance from a slant's end is no contact
+  (5361126605).
 - **The placement** (`brep/turned.rs`). A corner `(h, r)` turned by `φ` is
   `O + A h + r (R cos φ + S sin φ)`, `S = A × R`: the turn the flats make
   with `DQuat::from_axis_angle`. A turn backwards is the turn forwards about

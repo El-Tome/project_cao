@@ -56,10 +56,10 @@ impl Straight {
     /// makes it touch itself where it does not, a wall or a gap thinner than
     /// the tolerance is not there: the profile is the matter it bounds as
     /// laid, declined when that is not one piece or touches itself at a
-    /// corner. With a slanted run, a profile touching itself where it did not,
-    /// a corner within the tolerance of a slant, or a corner on the axis
-    /// between two runs that both leave it is not straight. A run laid to no
-    /// length keeps its number and names no face.
+    /// corner. A corner within the tolerance of a slanted run it does not end,
+    /// a run across a slant, or a corner on the axis between two runs that
+    /// both leave it is not straight. A run laid to no length keeps its
+    /// number and names no face.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -115,15 +115,12 @@ impl Straight {
                         .collect()
                 })
                 .collect()
-        } else if laid_runs
-            .iter()
-            .flatten()
-            .any(|&run| contacts::slanted(&laid, run))
-        {
-            return None;
         } else {
-            bounded::contours(&laid, &laid_runs)?
+            bounded::contours(&laid, &laid_runs, tolerance)?
         };
+        if contacts::pinched(&contours) {
+            return None;
+        }
 
         let last_off_the_axis = runs
             .iter()

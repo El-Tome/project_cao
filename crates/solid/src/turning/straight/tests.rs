@@ -246,13 +246,82 @@ fn a_corner_within_the_tolerance_of_a_slanted_run_leaves_the_profile_to_the_flat
 }
 
 #[test]
-fn a_hole_laid_onto_its_outline_beside_a_slant_leaves_the_profile_to_the_flats() {
+fn a_hole_laid_onto_its_outline_beside_a_slant_opens_onto_it_as_beside_a_square_corner() {
     let gap = 0.5 * RESOLUTION;
     let hole = polygon(&[[2.0, 0.5], [2.0, 1.5], [5.0 - gap, 1.5], [5.0 - gap, 0.5]]);
-    let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
-    assert!(laid(&square, std::slice::from_ref(&hole), RESOLUTION).is_some());
     let chamfered = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.5, 2.0], [1.0, 1.5]]);
-    assert_eq!(laid(&chamfered, &[hole], RESOLUTION), None);
+    let straight = laid(&chamfered, &[hole], RESOLUTION).expect("a notch beside the chamfer");
+    let far = straight.contours[0]
+        .iter()
+        .map(|corner| corner.at.y)
+        .fold(0.0, f64::max);
+    assert!(near(far, 5.0 - gap / 2.0), "{straight:?}");
+    assert_eq!(
+        corners(&straight),
+        [vec![
+            ([0.0, 1.0], 4),
+            ([0.0, far], 0),
+            ([0.5, 2.0], 8),
+            ([0.5, far], 1),
+            ([1.5, 1.0], 3),
+            ([1.5, 2.0], 5),
+            ([1.5, far], 6),
+            ([2.0, 1.5], 2),
+            ([2.0, far], 1),
+        ]],
+        "the chamfer kept, the wall and the hole's run along it naming nothing",
+    );
+}
+
+#[test]
+fn a_fin_a_hair_thick_on_the_narrow_end_of_a_cone_is_not_there() {
+    let hair = 0.5 * RESOLUTION;
+    let finned = |tip: f64| {
+        polygon(&[
+            [0.0, 5.0],
+            [0.0, 8.5 - hair],
+            [0.0, 8.5],
+            [tip, 8.5],
+            [5.0, 8.5 - hair],
+            [3.0, 8.5 - hair],
+            [5.0, 5.0],
+        ])
+    };
+    for (tip, fin) in [(5.0, "square"), (3.0, "slanted a hair")] {
+        let straight = laid(&finned(tip), &[], RESOLUTION).expect(fin);
+        let end = straight.contours[0][1].at.x;
+        assert!(
+            near(end, 8.5 - 0.6 * hair),
+            "the mean of five corners: {straight:?}"
+        );
+        assert_eq!(
+            corners(&straight),
+            [vec![
+                ([5.0, 0.0], 0),
+                ([5.0, 5.0], 6),
+                ([end, 0.0], 2),
+                ([end, 3.0], 5),
+            ]],
+            "a fin {fin} at its end",
+        );
+    }
+}
+
+#[test]
+fn a_shoulder_a_little_past_the_tolerance_at_the_end_of_a_chamfer_is_kept() {
+    let shoulder = 1.2 * RESOLUTION;
+    let stepped = polygon(&[
+        [1.0, 0.0],
+        [5.0, 0.0],
+        [5.0, 2.0],
+        [3.0, 4.0],
+        [3.0 + shoulder, 4.0],
+        [3.0 + shoulder, 6.0],
+        [1.0, 6.0],
+    ]);
+    let straight = laid(&stepped, &[], RESOLUTION).expect("a shoulder at the chamfer's end");
+    assert_eq!(runs(&straight), [[0, 1, 2, 3, 4, 5, 6]]);
+    assert_eq!(straight.contours[0][4].at, DVec2::new(4.0, 3.0 + shoulder));
 }
 
 #[test]

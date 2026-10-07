@@ -198,8 +198,12 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
 
 /// Whether every surface the move carries along with the surface of rank
 /// `taken` stands with each of the first operand's as it stood before: one
-/// with it, or touching it, still. The surface itself goes where its move
-/// was decided: one with the first's wall, or onto a touch. And whether every
+/// with it, or touching it, still; and a cone, or a surface beside one,
+/// decided with it about one axis still (#536): moved a hair off, the pair
+/// would meet along a curve the kernel does not build, and a bore of a
+/// pocket's radius moved onto it took its cone off the wall it widens onto
+/// (5361127255). The surface itself goes where its move was decided: one
+/// with the first's wall, about its axis, or onto a touch. And whether every
 /// surface carried stays apart from those of its own operand left behind,
 /// which that operand built apart: a rounded rectangle a hair taller than its
 /// two corners, its top moved down onto a face, would take its upper corners'
@@ -226,11 +230,12 @@ fn kept(
     parted
         && carried.iter().filter(|&&rank| rank != taken).all(|&rank| {
             first.surfaces.iter().all(|known| {
-                let held = |surface: &Surface| {
-                    matches!(
-                        relation(known, surface, scale),
-                        Relation::Same { .. } | Relation::Tangent(_)
-                    )
+                let held = |surface: &Surface| match relation(known, surface, scale) {
+                    Relation::Same { .. } | Relation::Tangent(_) => true,
+                    Relation::Unsupported => false,
+                    _ => [known, surface]
+                        .iter()
+                        .any(|one| matches!(one, Surface::Cone(_))),
                 };
                 !held(&before.surfaces[rank]) || held(&after.surfaces[rank])
             })

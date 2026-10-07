@@ -258,6 +258,8 @@ The decisions, in the order taken, once per operation:
    together: two cones of one apex, each the other's mirror, share their
    rulings as whole lines, one half on each, and a ruling one of them shares
    with a plane holding the axis is never laid on the other's (decision 3).
+   A cone whose axis stands a hair off the other's is taken about one axis
+   by decision 8.
 3. **Line identity.** The same line comes out of several pairs; lines within
    `EPS` over the box are one, and their supports are joined — never across
    two surfaces decided apart or decided to meet at a cone's apex alone, and
@@ -427,6 +429,22 @@ The decisions, in the order taken, once per operation:
    crescent merged away is at most `G` thick and is almost always what was
    meant: a slot's cap, a rounded corner or a bore drawn on a hole of its
    radius, a hair off.
+
+   A cone (#536) is decided against a cylinder or a cone about one axis
+   only: a cone and a wall or a cone, one of each operand, whose axes are
+   parallel and stand within `G` of each other, whatever their radii, are
+   taken about the first's axis, the second operand moved square to it with
+   what it built, as two walls of one radius are. Left two, the pair met
+   along a curve the kernel does not build, or, within `EPS`, along a circle
+   read about the cone's axis while the lines and circles of the wall were
+   read about its own: a ring cut by a quarter turn of a cone `3e-7` off its
+   axis found the corner where the cone leaves the ring's wall twice, a hair
+   apart along the slope (5361108529), and a point on a disc a hair off a
+   ring's axis declined (5361110937). Nor is any move made, by this
+   decision or decision 2, that would take a cone off a surface of the
+   first it was decided with about one axis: a ring's bore moved onto a
+   pocket of its radius a hair off the wall its cone widens onto took the
+   cone off that wall (5361127255).
 
    Twenty, bounded rather than measured alone. A line crossing the moved
    wall at a slant sees it moved by the offset over the cosine, at each of

@@ -3680,8 +3680,11 @@ fn seed_536211029_a_point_whose_tip_a_partial_turn_cuts_away_but_for_a_sector() 
     ));
 }
 
+/// A partial turn with a slanted run about an axis 1e-8 off a disc's, cut
+/// into it: its cone was read about the disc's axis within the tolerance,
+/// its end planes holding its own a hair off. It is moved onto the disc's
+/// axis (decision 8).
 #[test]
-#[ignore = "kernel: a partial turn with a slanted run about an axis 1e-8 off a disc's, cut into it: the cone taken as of the disc's axis, the result declined as unverified. The family #536's third default names, a cone a hair from a coaxial cylinder: measured, and left for Tom's word"]
 fn seed_536202582_a_partial_turn_a_hair_off_the_axis_of_a_disc_it_cuts() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::xz(5.0), Outline::circle([8.0, 5.0], 4.5), 5.0),
@@ -3882,7 +3885,7 @@ fn seed_5361201830_a_hole_a_hair_under_the_rim_of_a_shaft_past_a_cone_cut_by_a_b
 }
 
 #[test]
-#[ignore = "cone-boolean: a turn of 240 degrees with slanted runs cut by a cylinder whose axis stands 3e-7 off its own, declined as unverified"]
+#[ignore = "not a cone: the reading lays the slope of 3e-7 level, onto the radius of the wide band, and the cutter, a wall 2.25e-7 wider about an axis 3e-7 off, is slid onto an inside touch along the line where the start plane of the turn passes; the straight form, a 240 degree turn of radius 25.000000075 cut so, is refused as unverified the same way. A hair of #533's cylinders"]
 fn seed_5361130486_a_partial_turn_of_cones_cut_by_a_cylinder_a_hair_off_its_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3909,8 +3912,11 @@ fn seed_5361130486_a_partial_turn_of_cones_cut_by_a_cylinder_a_hair_off_its_axis
     ));
 }
 
+/// A ring cut by a quarter turn of a cone about an axis 3e-7 off the
+/// ring's: decided about the cone's axis within the tolerance, the corner where
+/// the cone leaves the ring's wall was found twice, a hair apart along the
+/// slope. The cone is now moved onto the ring's axis (decision 8).
 #[test]
-#[ignore = "cone-boolean: a ring cut by a quarter turn of a cone about an axis 3e-7 off the ring's, declined as unverified"]
 fn seed_5361108529_a_ring_cut_by_a_quarter_turn_of_a_cone_a_hair_off_its_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3927,8 +3933,10 @@ fn seed_5361108529_a_ring_cut_by_a_quarter_turn_of_a_cone_a_hair_off_its_axis() 
     ));
 }
 
+/// A point standing on a disc 6e-8 off the axis of the ring it was raised
+/// on: decision 8 took the disc onto the ring's axis, and the point, turned
+/// about the disc's, met the ring a hair off its axis. It is moved onto it.
 #[test]
-#[ignore = "cone-boolean: a point standing on a disc 6e-8 off the axis of the ring it was raised on, declined as unsupported though the case asks for no conic the harness knows of. The grazing coaxial family #536's plan asks Tom about: left for his word"]
 fn seed_5361110937_a_point_on_a_disc_a_hair_off_the_axis_of_a_ring() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(2.0), Outline::ring([8.0, 9.0], 6.0, 2.0), 7.0),
@@ -4072,6 +4080,87 @@ fn seed_5361201784_a_half_turn_of_stepped_cones_joined_to_a_point_of_its_axis() 
             )
             .sloping_to(&[[0.0, 15.0], [0.0, 5.0], [0.0, 5.0], [0.0, 7.5]]),
             180.0,
+        ))],
+    ));
+}
+
+/// A cylinder pocketed a hair off its axis, then cut by a ring of its axis
+/// whose bore widens along a cone onto its wall: decision 8 moved the bore,
+/// of the pocket's radius, onto the pocket's axis, and took the cone a hair
+/// off the wall it meets. A move that takes a cone off a surface it was
+/// decided with about one axis is not made.
+#[test]
+fn seed_5361127255_a_ring_whose_bore_widens_onto_a_wall_pocketed_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(25.0), Outline::circle([40.0, 35.0], 27.5), 48.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(29.99999995),
+                Outline::circle([39.9999999, 35.0], 17.5),
+                8.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::yz(40.0),
+                Axis::first(35.0).backwards(),
+                Section::bands(12.5, &[[10.0, 27.5, 30.0], [2.5, 17.5, 30.0]])
+                    .sloping_to(&[[17.5, 30.0], [17.5, 30.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, the grazing coaxial family: a cone of slope 5e-8 cut by a wall of its axis whose radius it crosses, the two within the tolerance of each other over a band a quarter of the length wide; declined as unverified. Left for Tom's word (the plan's 6.1)"]
+fn seed_5361134935_a_cone_a_hair_from_a_wall_of_its_axis_cut_by_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-0.5),
+            Axis::first(4.5),
+            Section::bands(-3.0, &[[3.5, 0.0, 2.5], [4.0, 0.0, 2.49999998]])
+                .sloping_to(&[[0.0, 2.5], [0.0, 2.49999978]]),
+            90.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(0.5),
+            Outline::circle([4.5, -0.5], 2.49999998),
+            8.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, a rim a hair off: the cutter's cone starts 5e-8 outside the shaft's wall at its shoulder; its rim is laid on the shaft's circle there (decision 3), and the cone crosses the wall 1e-7 further along (decision 2), two circles on one pair; declined as a tie. Left for Tom's word with the grazing coaxial family"]
+fn seed_5361120549_a_shaft_cut_by_a_quarter_turn_of_a_cone_whose_rim_stands_a_hair_off_its_shoulder()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(12.5),
+            Axis::first(0.0),
+            Section::bands(
+                -10.0,
+                &[
+                    [5.0, 0.0, 7.5],
+                    [2.5, 0.0, 12.5],
+                    [5.0, 0.0, 15.0],
+                    [20.0, 0.0, 12.5],
+                    [12.5, 0.0, 7.5],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 7.5],
+                [0.0, 15.0],
+                [0.0, 15.0],
+                [0.0, 12.5],
+                [0.0, 7.5],
+            ]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(12.5),
+            Section::bands(-2.5, &[[5.0, 0.0, 15.00000005]]).sloping_to(&[[0.0, 12.50000005]]),
+            90.0,
         ))],
     ));
 }

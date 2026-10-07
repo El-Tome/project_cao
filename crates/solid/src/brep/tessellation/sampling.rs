@@ -25,8 +25,11 @@
 //! circle is not at the steps it withholds, nor on a plane touching either
 //! off the line they touch along. Two edges touching between their vertices
 //! share the place they touch at ([`touches`]). A circle lying on a cone is
-//! also sampled on the cone's grid, the same for all its rims ([`cone`]).
+//! also sampled on the cone's grid, the same for all its rims ([`cone`]), and
+//! where the cone stands close to another wall, on every ray the walls
+//! standing with it take ([`axis`]).
 
+mod axis;
 mod beneath;
 mod circle;
 mod cone;
@@ -44,6 +47,7 @@ use super::contact::{self, Contact, Zones};
 use crate::brep::curve::Curve;
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
+use axis::Axes;
 use circle::on_circle;
 use cone::Grid;
 use ends::Ends;
@@ -137,15 +141,19 @@ impl Samples {
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
+        let axes = Axes::of(body, grids, walls, tolerance);
+        let given = axes.given();
         let mut meets = on_meets(body, walls, zones, &alone, tolerance);
-        let mut contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
+        let mut contacts =
+            contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
             meets = on_meets(body, walls, zones, &contacts, tolerance);
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         }
+        let axes = axes.gathered(&contacts);
         let vertices = samples.points.clone();
         let alone = Contact::default();
         let mut places = Places::new(eps * TOLD);
@@ -154,11 +162,15 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = contact::wall_of(circle, walls, eps)
+                    let wall = contact::wall_of(circle, walls, eps);
+                    let contact = wall
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
-                    let on_cones = cone::widened(contact, grids, circle, eps);
-                    let contact = on_cones.as_ref().unwrap_or(contact);
+                    let on_axis = wall.and_then(|(surface, own)| {
+                        let clear = |point| !zones.crowded(own, point);
+                        axes.widened(contact, (circle, *surface), tolerance, eps, clear)
+                    });
+                    let contact = on_axis.as_ref().unwrap_or(contact);
                     let ends = Ends::of(body, circle, edge);
                     let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
                     on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)

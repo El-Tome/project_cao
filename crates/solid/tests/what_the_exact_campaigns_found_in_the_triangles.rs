@@ -2837,7 +2837,6 @@ fn seed_536215029_a_half_turn_joined_to_a_cone_of_its_axis() {
 }
 
 #[test]
-#[ignore = "triangles, through the application's body: the leaf alone declined as undrawn. A shaft stepping in by 1e-5 before its slant leaves a ring a hair wide on the step, which the triangles do not cut, at any tolerance tried from 1e-3 to 5e-5 of the reach"]
 fn seed_536203669_a_shaft_stepping_in_by_a_hair_before_its_slant() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -2852,7 +2851,6 @@ fn seed_536203669_a_shaft_stepping_in_by_a_hair_before_its_slant() {
 }
 
 #[test]
-#[ignore = "cone-triangles: a cone ending 1e-5 wide of the next cone's rim leaves a ring 1e-5 wide between two rims sampled each on its own cone's grid; the ring's triangles leave an edge of the narrow rim open"]
 fn seed_5361115564_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -2867,7 +2865,6 @@ fn seed_5361115564_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim() {
 }
 
 #[test]
-#[ignore = "cone-triangles, through the application's body: 5361115564's ring a hair wide between two cones, declined as undrawn"]
 fn seed_5361201524_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim_is_drawn() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -2882,7 +2879,6 @@ fn seed_5361201524_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim_is_drawn() {
 }
 
 #[test]
-#[ignore = "cone-triangles: a point and a frustum joined to a coaxial disc 1e-5 wider than their shared rim: the ring a hair wide on the disc's face is left open along the rim"]
 fn seed_5361107843_a_point_joined_to_a_disc_a_hair_wider_than_its_rim() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -2901,7 +2897,6 @@ fn seed_5361107843_a_point_joined_to_a_disc_a_hair_wider_than_its_rim() {
 }
 
 #[test]
-#[ignore = "cone-triangles: the grazing coaxial family, a skin 5e-8 thick between a cone and the coaxial cone cut from inside it; the two walls are sampled each on its own grid, as two cylinders were before contact gave them common rays, and their triangles cross"]
 fn seed_5361100037_a_cone_cut_by_a_coaxial_cone_a_hair_inside_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -2924,7 +2919,6 @@ fn seed_5361100037_a_cone_cut_by_a_coaxial_cone_a_hair_inside_it() {
 }
 
 #[test]
-#[ignore = "cone-triangles: 5361100037's skin left by a cut of three quarters of a turn, 6e-8 inside the cone"]
 fn seed_5361104857_a_cone_cut_by_three_quarters_of_a_coaxial_cone_a_hair_inside_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -2944,7 +2938,6 @@ fn seed_5361104857_a_cone_cut_by_three_quarters_of_a_coaxial_cone_a_hair_inside_
 }
 
 #[test]
-#[ignore = "cone-triangles, through the application's body: 5361100037's skin, 1e-7 thick, between a frustum and the coaxial frustum cut from inside it"]
 fn seed_5361220159_a_frustum_cut_by_a_coaxial_frustum_a_hair_inside_it() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -2964,7 +2957,7 @@ fn seed_5361220159_a_frustum_cut_by_a_coaxial_frustum_a_hair_inside_it() {
 }
 
 #[test]
-#[ignore = "cone-triangles: a shaft of a cylinder and a cone cut by a coaxial turn of 345 degrees whose section starts 3e-7 off the shaft's end: the triangles at the cut's ends cross"]
+#[ignore = "cone-triangles, not a matter of common rays: the cut's floor stands 3e-7 up the cone, where the cone is 6.7e-8 narrower than the cut, and the kernel ends the floor on the cut's radius; the cone's edge at the cut's end is an upright line 3e-7 long to that corner, the cone's triangle from it to its rim's sample on the same ray stands in the end's plane, and the floor's radial edge runs 6.7e-8 into it"]
 fn seed_5361110015_a_shaft_with_a_cone_cut_by_a_coaxial_partial_turn() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -2980,5 +2973,30 @@ fn seed_5361110015_a_shaft_with_a_cone_cut_by_a_coaxial_partial_turn() {
             Section::bands(-74.9999997, &[[60.0, -88.33333333333333, -0.0]]),
             345.0,
         ))],
+    ));
+}
+
+#[test]
+fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and_a_coaxial_bore() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.5),
+            Axis::first(0.0),
+            Section::bands(3.0, &[[2.0, -3.0, -0.0]]).sloping_to(&[[-2.0, -0.0]]),
+            90.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xz(0.0),
+                Axis::first(3.5000002).backwards(),
+                Section::bands(-4.5, &[[0.5, -2.5, -0.0]]),
+                90.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(4.0),
+                Outline::circle([0.0, 3.5], 2.5),
+                1.0,
+            )),
+        ],
     ));
 }

@@ -174,17 +174,19 @@ fn bears(body: &Body, vertex: &Vertex, (id, cylinder): &Wall) -> bool {
 ///
 /// `meets` holds every edge's samples between its ends, empty but for the
 /// curves two cylinders meet along; `inside`, for each wall, the samples of
-/// other curves standing just inside it, taken as vertices standing there.
+/// other curves standing just inside it, taken as vertices standing there;
+/// `given`, for each wall, the rays it takes on its own besides.
 pub(super) fn contacts(
     body: &Body,
     walls: &[Wall],
     zones: &Zones,
     meets: &[Vec<DVec3>],
     inside: &BTreeMap<SurfaceId, Vec<DVec3>>,
+    given: &BTreeMap<SurfaceId, Vec<DVec3>>,
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Contact> {
     let eps = body.scale().eps();
-    let mut own: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+    let mut own = given.clone();
     along_meets(body, meets, &mut own);
     let Through {
         anchors,

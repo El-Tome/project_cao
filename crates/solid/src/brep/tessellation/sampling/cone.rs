@@ -9,15 +9,17 @@
 //! as well, every rim has a sample at every one of its angles, and the strip
 //! between two rims at two consecutive angles is a flat trapezoid whose sag is
 //! the chord's at the widest radius. Each circle keeps its own grid besides,
-//! which the other face along it — a bore's wall, a disc — is cut on. A
-//! circle lying on no cone is sampled as before, bit for bit.
+//! which the other face along it — a bore's wall, a disc — is cut on; where
+//! the cone stands close to another wall, every rim takes the others' too
+//! ([`axis`]). A circle lying on no cone is sampled as before, bit for bit.
+//!
+//! [`axis`]: super::axis
 
 use std::collections::BTreeMap;
 use std::f64::consts::TAU;
 
 use glam::DVec3;
 
-use super::super::contact::Contact;
 use super::divisions;
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cone, Surface};
@@ -26,7 +28,7 @@ use crate::brep::topology::{Body, SurfaceId};
 /// The grid of a cone: how many steps a turn, and the angles of the vertices
 /// lying on it but at its apex, where the angle is rounding.
 pub(super) struct Grid {
-    cone: Cone,
+    pub(super) cone: Cone,
     pub(super) steps: usize,
     angles: Vec<f64>,
 }
@@ -34,7 +36,7 @@ pub(super) struct Grid {
 impl Grid {
     /// The directions from the axis a circle of the cone is sampled along:
     /// the grid's, then the vertices'.
-    fn rays(&self) -> impl Iterator<Item = DVec3> + '_ {
+    pub(super) fn rays(&self) -> impl Iterator<Item = DVec3> + '_ {
         (0..self.steps)
             .map(|step| TAU * step as f64 / self.steps as f64)
             .chain(self.angles.iter().copied())
@@ -88,31 +90,4 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
             )
         })
         .collect()
-}
-
-/// What a circle takes besides its grid, `contact`, and the rays of every
-/// cone it lies on as well: None for a circle lying on no cone, which takes
-/// `contact` alone.
-pub(super) fn widened(
-    contact: &Contact,
-    grids: &BTreeMap<SurfaceId, Grid>,
-    circle: &Circle,
-    eps: f64,
-) -> Option<Contact> {
-    let mut rays: Vec<DVec3> = grids
-        .values()
-        .filter(|grid| grid.cone.holds(circle, eps))
-        .flat_map(Grid::rays)
-        .collect();
-    if rays.is_empty() {
-        return None;
-    }
-    rays.splice(0..0, contact.rays.iter().copied());
-    Some(Contact {
-        rays,
-        withheld: contact.withheld.clone(),
-        anchors: contact.anchors.clone(),
-        beside: contact.beside.clone(),
-        beneath: contact.beneath.clone(),
-    })
 }

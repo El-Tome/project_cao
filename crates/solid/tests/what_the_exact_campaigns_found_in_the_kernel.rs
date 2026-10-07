@@ -3761,3 +3761,285 @@ fn seed_536112193_a_half_turn_cut_about_the_axis_of_a_frustum() {
         ))],
     ));
 }
+
+#[test]
+#[ignore = "slant-touch: the reading lays the fin onto the cone's end, the laid profile turns back on itself, and with a slanted run it is declined rather than bounded as a straight profile is; the exact kernel then answers nothing"]
+fn seed_5361100533_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::first(0.0),
+            Section::bands(5.0, &[[3.49999999, 0.0, 5.0], [1e-8, 0.0, 5.0]])
+                .sloping_to(&[[0.0, 3.0], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "slant-touch: the slope 1e-7 short of 2 and the step back out to 2 are laid to one level, a corner then stands within the tolerance of the cone after it, and the section is declined"]
+fn seed_5361126605_a_shaft_slanting_in_by_a_hair_before_a_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::second(0.0),
+            Section::bands(0.5, &[[1.0, 0.0, 2.0], [1.0, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 1.9999999], [0.0, 1.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "slant-touch: the same as 5361126605 before a point, the shaft slanting in by 2e-7"]
+fn seed_5361120170_a_point_whose_shaft_slants_in_by_a_hair_before_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.0),
+            Axis::second(0.0),
+            Section::bands(-1.0, &[[0.5, 0.0, 1.5], [1.5, 0.0, 1.5]])
+                .sloping_to(&[[0.0, 1.4999998], [0.0, 0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "slant-touch, the harness: a section 2e-7 long altogether, a wall a hair thin with no hole, which laying makes nothing; the decline is right, and only a hole a hair from its band is counted apart as a wall a hair thin, so it is no answer. The straight form, 5361101390 shrunk, fails on main too"]
+fn seed_5361101048_a_cone_a_hair_long() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[2e-7, -1.0, -0.0]]).sloping_to(&[[-5.0, -0.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "slant-touch, through the application's body: 5361100533's fin, 2e-7 thick, which the reading declines and the flats then turn open along its rim"]
+fn seed_5361217405_a_disc_a_hair_thick_on_the_narrow_end_of_a_cone_turned_on_the_flats() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(3.0, &[[3.9999998, 0.0, 8.5], [2e-7, 0.0, 8.5]])
+                .sloping_to(&[[0.0, 7.5], [0.0, 8.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "slant-touch, through the application's body: a hole 6e-8 under the rim of a shaft past a cone; laid onto the rim, the profile touches itself, which a straight profile is bounded through and a slanted one is declined for; the flats then leave the cut open"]
+fn seed_5361201830_a_hole_a_hair_under_the_rim_of_a_shaft_past_a_cone_cut_by_a_block() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(-0.5, &[[1.5, -5.0, -0.0], [3.0, -3.5, -0.0]])
+                .sloping_to(&[[-3.5, -0.0], [-3.5, -0.0]])
+                .with_holes(&[([1.5, -3.49999994], [2.0, -2.0])]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(1.0),
+            Outline::rectangle([2.5, -1.5], [7.5, 3.5]),
+            3.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a turn of 240 degrees with slanted runs cut by a cylinder whose axis stands 3e-7 off its own, declined as unverified"]
+fn seed_5361130486_a_partial_turn_of_cones_cut_by_a_cylinder_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(0.0),
+            Section::bands(
+                25.0,
+                &[
+                    [12.5, 0.0, 25.0],
+                    [17.5, 0.0, 5.0],
+                    [20.0, 0.0, 5.0],
+                    [2.5, 0.0, 25.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 25.0], [0.0, 5.0], [0.0, 5.0], [0.0, 25.0000003]]),
+            240.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(30.0),
+            Axis::first(3e-7),
+            Section::bands(62.5, &[[15.0, -25.0000003, -0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a ring cut by a quarter turn of a cone about an axis 3e-7 off the ring's, declined as unverified"]
+fn seed_5361108529_a_ring_cut_by_a_quarter_turn_of_a_cone_a_hair_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(-45.0),
+            Outline::ring([210.0, 150.0], 120.0, 105.0),
+            120.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(210.0),
+            Axis::first(150.0000003),
+            Section::bands(45.0, &[[30.0, 120.0, 180.0]]).sloping_to(&[[90.0, 180.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a point standing on a disc 6e-8 off the axis of the ring it was raised on, declined as unsupported though the case asks for no conic the harness knows of. The grazing coaxial family #536's plan asks Tom about: left for his word"]
+fn seed_5361110937_a_point_on_a_disc_a_hair_off_the_axis_of_a_ring() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(2.0), Outline::ring([8.0, 9.0], 6.0, 2.0), 7.0),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::circle([7.99999994, 9.0], 2.0),
+                9.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::yz(7.99999994),
+                Axis::second(9.0),
+                Section::bands(10.0, &[[1.0, 0.0, 2.0]]).sloping_to(&[[0.0, 0.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a half turn of stepped cones joined to a block it does not reach the axis of, nothing a hair off, declined as unverified"]
+fn seed_5361118847_a_half_turn_of_stepped_cones_joined_to_a_block() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(0.0),
+            Section::bands(
+                -3.5,
+                &[
+                    [0.5, -2.0, -0.0],
+                    [2.0, -1.5, -0.0],
+                    [1.5, -1.5, -0.0],
+                    [1.0, -3.0, -0.0],
+                    [0.5, -3.0, -0.0],
+                ],
+            )
+            .sloping_to(&[
+                [-1.5, -0.0],
+                [-1.5, -0.0],
+                [-1.5, -0.0],
+                [-3.0, -0.0],
+                [-3.5, -0.0],
+            ]),
+            180.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([3.0, 9.0], [11.0, 17.0]),
+            5.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a block cut by a quarter turn of a stepped section with cones, nothing a hair off, declined as a tie"]
+fn seed_5361135092_a_block_cut_by_a_quarter_turn_of_stepped_cones() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-1.0),
+            Outline::rectangle([4.0, 5.0], [6.0, 12.0]),
+            8.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(
+                2.0,
+                &[
+                    [2.5, 0.0, 7.0],
+                    [2.0, 0.0, 4.5],
+                    [1.5, 0.0, 5.0],
+                    [2.5, 0.0, 1.5],
+                    [1.5, 0.0, 3.5],
+                    [0.5, 0.0, 3.0],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 4.5],
+                [0.0, 4.5],
+                [0.0, 5.0],
+                [0.0, 1.5],
+                [0.0, 3.5],
+                [0.0, 3.5],
+            ]),
+            90.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean: a quarter turn of cones about an axis leaning 60 degrees, cut by a cylinder of another axis, declined"]
+fn seed_5361102829_a_quarter_turn_of_cones_about_a_leaning_axis_cut_by_a_cylinder() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0).leaning(60.0),
+            Section::bands(
+                1.0,
+                &[[1.0, -2.0, -0.0], [3.0, -1.0, -0.0], [3.0, -2.0, -0.0]],
+            )
+            .sloping_to(&[[-1.0, -0.0], [-1.0, -0.0], [-5.0, -0.0]]),
+            90.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(7.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(2.0, &[[3.0, 0.0, 5.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, through the application's body: a half turn of stepped cones joined to a point of its axis, nothing a hair off, declined as unverified"]
+fn seed_5361201784_a_half_turn_of_stepped_cones_joined_to_a_point_of_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(10.0),
+            Axis::second(0.0),
+            Section::bands(-15.0, &[[8.0, 0.0, 0.0]]).sloping_to(&[[0.0, 10.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(20.0),
+            Axis::second(0.0),
+            Section::bands(
+                10.0,
+                &[
+                    [2.5, 0.0, 17.5],
+                    [12.5, 0.0, 5.0],
+                    [7.5, 0.0, 5.0],
+                    [2.5, 0.0, 5.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 15.0], [0.0, 5.0], [0.0, 5.0], [0.0, 7.5]]),
+            180.0,
+        ))],
+    ));
+}

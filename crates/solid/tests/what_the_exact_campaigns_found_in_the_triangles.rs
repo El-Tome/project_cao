@@ -2850,3 +2850,135 @@ fn seed_536203669_a_shaft_stepping_in_by_a_hair_before_its_slant() {
         vec![],
     ));
 }
+
+#[test]
+#[ignore = "cone-triangles: a cone ending 1e-5 wide of the next cone's rim leaves a ring 1e-5 wide between two rims sampled each on its own cone's grid; the ring's triangles leave an edge of the narrow rim open"]
+fn seed_5361115564_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::first(0.0),
+            Section::bands(1.0, &[[3.5, 0.0, 2.0], [3.5, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 2.00001], [0.0, 4.5]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles, through the application's body: 5361115564's ring a hair wide between two cones, declined as undrawn"]
+fn seed_5361201524_a_cone_ending_a_hair_wide_of_the_next_cone_s_rim_is_drawn() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(4.0),
+            Axis::second(0.0),
+            Section::bands(-2.0, &[[4.0, 0.0, 3.0], [2.0, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 3.00001], [0.0, 5.0]]),
+            360.0,
+        ),
+        vec![],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles: a point and a frustum joined to a coaxial disc 1e-5 wider than their shared rim: the ring a hair wide on the disc's face is left open along the rim"]
+fn seed_5361107843_a_point_joined_to_a_disc_a_hair_wider_than_its_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::first(0.0),
+            Section::bands(-3.0, &[[3.5, -0.0, 0.0], [1.0, -4.0, 0.0]])
+                .sloping_to(&[[-4.0, 0.0], [-5.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::yz(0.5),
+            Outline::circle([0.0, 8.0], 4.00001),
+            10.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles: the grazing coaxial family, a skin 5e-8 thick between a cone and the coaxial cone cut from inside it; the two walls are sampled each on its own grid, as two cylinders were before contact gave them common rays, and their triangles cross"]
+fn seed_5361100037_a_cone_cut_by_a_coaxial_cone_a_hair_inside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(
+                0.0,
+                &[[5.0, -5.0, -0.0], [2.5, -5.0, -0.0], [2.5, -5.0, -0.0]],
+            )
+            .sloping_to(&[[-5.0, -0.0], [-5.0, -0.0], [-2.5, -0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(7.5, &[[2.5, 0.0, 4.99999995]]).sloping_to(&[[0.0, 2.49999995]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles: 5361100037's skin left by a cut of three quarters of a turn, 6e-8 inside the cone"]
+fn seed_5361104857_a_cone_cut_by_three_quarters_of_a_coaxial_cone_a_hair_inside_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(3.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(5.0, &[[1.0, -4.5, 0.0], [1.0, -4.5, 0.0]])
+                .sloping_to(&[[-4.5, 0.0], [-3.5, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(3.0),
+            Section::bands(-7.0, &[[1.0, -3.49999994, -0.0]]).sloping_to(&[[-4.49999994, -0.0]]),
+            270.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles, through the application's body: 5361100037's skin, 1e-7 thick, between a frustum and the coaxial frustum cut from inside it"]
+fn seed_5361220159_a_frustum_cut_by_a_coaxial_frustum_a_hair_inside_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(0.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[12.99038105676658, 0.0, 20.0]]).sloping_to(&[[0.0, 27.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(0.0),
+            Axis::second(0.0),
+            Section::bands(15.0, &[[12.99038105676658, -19.9999999, -0.0]])
+                .sloping_to(&[[-27.4999999, -0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-triangles: a shaft of a cylinder and a cone cut by a coaxial turn of 345 degrees whose section starts 3e-7 off the shaft's end: the triangles at the cut's ends cross"]
+fn seed_5361110015_a_shaft_with_a_cone_cut_by_a_coaxial_partial_turn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(30.0),
+            Axis::second(60.0),
+            Section::bands(-90.0, &[[75.0, 0.0, 105.0], [60.0, 0.0, 88.33333333333333]])
+                .sloping_to(&[[0.0, 105.0], [0.0, 75.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(60.0),
+            Axis::first(30.0),
+            Section::bands(-74.9999997, &[[60.0, -88.33333333333333, -0.0]]),
+            345.0,
+        ))],
+    ));
+}

@@ -44,7 +44,8 @@
 //! hole a hair from its band's edge is laid onto the outline, and the wall
 //! between them is not there. Where that leaves the matter in two pieces, or
 //! touching itself at a corner, it declines the section, which the
-//! application turns on the flats then, and that decline is counted apart.
+//! application turns on the flats then, and that decline is counted apart;
+//! so is a section a hair long from end to end, which laying makes nothing.
 //! A campaign is run by hand, on the exact kernel or through the
 //! application's body:
 //!

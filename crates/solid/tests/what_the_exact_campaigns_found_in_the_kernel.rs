@@ -3807,8 +3807,9 @@ fn seed_5361120170_a_point_whose_shaft_slants_in_by_a_hair_before_it() {
     ));
 }
 
+/// A section 2e-7 long altogether, a wall a hair thin with no hole, which
+/// laying makes nothing: declined, and counted apart as such a wall.
 #[test]
-#[ignore = "slant-touch, the harness: a section 2e-7 long altogether, a wall a hair thin with no hole, which laying makes nothing; the decline is right, and only a hole a hair from its band is counted apart as a wall a hair thin, so it is no answer. The straight form, 5361101390 shrunk, fails on main too"]
 fn seed_5361101048_a_cone_a_hair_long() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

@@ -398,12 +398,21 @@ impl Turned {
     /// bringing the hole onto the outline, so it may decline the section as
     /// no profile it reads, and the application turns it on the flats. A
     /// sloped edge is read where the hole starts and ends, square to itself.
+    /// So is a section a hair long from end to end, a wall with no hole that
+    /// laying makes nothing.
     pub fn has_a_wall_a_hair_thin(&self) -> bool {
         let Some((low, high)) = self.bounds() else {
             return false;
         };
         let hair = A_HAIR_THIN * low.abs().max(high.abs()).max_element();
         let ends = self.section.ends();
+        let length = ends
+            .last()
+            .zip(ends.first())
+            .map(|(last, first)| (last - first).abs());
+        if length.is_some_and(|length| length <= hair) {
+            return true;
+        }
         self.section.holes.iter().any(|[hole_low, hole_high]| {
             let band = (0..self.section.bands.len())
                 .find(|&index| ends[index] < hole_low.x && hole_high.x < ends[index + 1]);

@@ -38,17 +38,26 @@
 //!   `every_sloped_leaf_raised_by_the_exact_kernel_alone_keeps_every_rule_and_encloses_pappus_s_volume`,
 //!   `a_sloped_leaf_names_its_faces_as_the_flats_name_them`,
 //!   `sloped_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact`,
-//!   `a_case_asking_for_a_conic_is_declined_as_unsupported_or_held`)
+//!   `a_case_asking_for_a_conic_is_declined_as_unsupported_or_held`). Read against the
+//!   history, the draw came after the kernel's first lanes rather than before them, and
+//!   `836bf70` narrowed it: no tool is built from a slant shorter than a quarter, and a
+//!   cone steeper than 45° grows away from its axis rather than along it
 //! - campaigns run until every random-solid draw fails on fewer than one case in a
 //!   thousand on fresh seeds, no seed that held before failing; failures named, fast
-//!   cases in the gate, long ones behind `--features campaigns` — no test: the counts
-//!   and families are in `docs/exact-kernel-failures.md` ("#536: cones"), one seed of
-//!   each named in `what_the_exact_campaigns_found_in_the_kernel.rs` / `…_triangles.rs`,
-//!   the campaigns under `#[ignore]` below `#[cfg(feature = "campaigns")]`, held by
+//!   cases in the gate, long ones behind `--features campaigns` — **not met**, no test:
+//!   the slanted campaigns ran on 7 October, before and after the fixes they led to,
+//!   and still fail three to four cases in a thousand, nearly all of them on a hair the
+//!   issue's third default leaves to Tom's word. Their counts, families and the runs of
+//!   the earlier draws on `main` and the branch over the same seeds are in
+//!   `docs/exact-kernel-failures.md` ("#536: cones"); one seed of each family is named
+//!   in `what_the_exact_campaigns_found_in_the_kernel.rs` / `…_triangles.rs`, the fixed
+//!   ones in the gate; the campaigns under `#[ignore]` below
+//!   `#[cfg(feature = "campaigns")]`, held by
 //!   `the_long_campaigns_over_solids_are_compiled_only_when_asked_for`
 //! - #498's eighteen cases still hold, and the gate's time grows by no more than a
 //!   few seconds — no test: held by `crates/solid/tests/a_bored_cylinder_on_two_kernels.rs`,
-//!   which the gate runs; the time is measured and written in the pull request
+//!   which the gate runs; the gate's time, measured on `main` and on the branch, is in
+//!   `docs/exact-kernel-failures.md` ("#536: cones")
 //! - `docs/exact-kernel.md` says what the kernel turns, and what it still hands the
 //!   flats — no test: it is prose, held by `language.rs` and by nothing that asserts
 //!
@@ -1919,5 +1928,32 @@ fn a_drawing_saved_on_main_on_a_block_raised_after_a_disc_beside_a_chamfered_sha
     assert!(
         (plane.origin.z - 25.0).abs() < 1e-9 && plane.normal().distance(DVec3::Z) < 1e-9,
         "the drawing stands on the block's top as it did on `main`, not on {plane:?}",
+    );
+}
+
+#[test]
+fn a_diamond_turned_about_its_corner_on_the_axis_is_computed_by_the_flats_not_broken() {
+    let history = turned_whole(
+        &[
+            DVec2::new(0.0, 5.0),
+            DVec2::new(5.0, 0.0),
+            DVec2::new(10.0, 5.0),
+            DVec2::new(5.0, 10.0),
+        ],
+        DVec2::new(5.0, 5.0),
+    );
+
+    let part = applied_live(&history);
+
+    assert!(
+        !part.is_declined(last_step(&history)),
+        "a profile pinched on its axis is the flats', not a broken step",
+    );
+    assert!(!part.body().is_exact(), "the flats turned it");
+    let pappus = 2.0 * PI * 5.0 * 50.0;
+    assert!(
+        (part.body().volume() - pappus).abs() <= 1e-2 * pappus,
+        "{} where Pappus gives {pappus}",
+        part.body().volume(),
     );
 }

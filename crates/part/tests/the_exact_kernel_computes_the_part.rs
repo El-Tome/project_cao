@@ -236,14 +236,29 @@ fn inscribed(radius: f64) -> f64 {
     sides / 2.0 * radius * radius * (2.0 * PI / sides).sin()
 }
 
-/// A circle Ø8 turned about the sketch's own V axis, far from anything at
-/// the origin: it turns into a torus, matter only the flats can make.
+/// A round segment, an arc and its chord, turned about the sketch's own V
+/// axis far from anything at the origin: its arc turns into a band of a
+/// torus, matter only the flats can make. A whole circle would do as well,
+/// but its flats take the flats' boolean minutes to join in a debug build.
 fn turn_a_torus(history: &mut History, sketch: usize) {
     sketch_on(history, WorkPlane::XY);
-    circle(history, sketch, DVec2::new(55.0, 5.0), 4.0);
+    let first = PartState::rebuild(history).sketches[sketch].points().len();
+    history.push(Operation::AddArc {
+        sketch,
+        center: PointRef::New(DVec2::new(50.0, 5.0)),
+        start: PointRef::New(DVec2::new(55.0, 0.0)),
+        end: PointRef::New(DVec2::new(55.0, 10.0)),
+        construction: false,
+    });
+    history.push(Operation::AddSegment {
+        sketch,
+        start: PointRef::Existing(PointId(first + 2)),
+        end: PointRef::Existing(PointId(first + 1)),
+        construction: false,
+    });
     history.push(Operation::Revolve {
         sketch,
-        areas: clicked(history, sketch, DVec2::new(55.0, 5.0)),
+        areas: clicked(history, sketch, DVec2::new(56.0, 5.0)),
         axis: RevolutionAxis::Sketch(SketchAxis::V),
         angle: 360.0.into(),
         mode: ExtrusionMode::Add,

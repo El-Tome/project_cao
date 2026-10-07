@@ -21,7 +21,7 @@ use glam::DVec3;
 
 use super::Mislisted;
 use super::lying::point;
-use crate::brep::{Circle, Curve, Cylinder, ListedEdge, Listing, Surface};
+use crate::brep::{Circle, Curve, ListedEdge, Listing, Surface};
 
 /// How many chords a curve with no short formula is swept along.
 const CHORDS: usize = 64;
@@ -198,25 +198,35 @@ fn sweep(surface: &Surface, edge: &ListedEdge, about: DVec3, room: f64) -> (f64,
         (Surface::Cylinder(_), Curve::Line(_)) => (0.0, 0.0),
         (Surface::Cone(_), _) => (f64::NAN, f64::NAN),
         (Surface::Cylinder(cylinder), Curve::Circle(circle))
-            if section(cylinder, &circle, room) =>
+            if section(cylinder.origin, cylinder.axis, &circle, room) =>
         {
             let axis = cylinder.axis.normalize();
             let height = (circle.center - about).dot(axis);
             let angle = (edge.to - edge.from) * axis.dot(circle.u.cross(circle.v)).signum();
             (-height * angle, angle)
         }
-        (Surface::Cylinder(cylinder), _) => around(cylinder, edge, about),
+        (Surface::Cylinder(cylinder), _) => {
+            let axis = cylinder.axis.normalize();
+            around(edge, |place| {
+                let from = place - cylinder.origin;
+                (
+                    (place - about).dot(axis),
+                    from.dot(cylinder.v).atan2(from.dot(cylinder.u)),
+                )
+            })
+        }
     }
 }
 
-/// Whether a circle is a cross-section of a cylinder, its angle the
-/// cylinder's own: square to the axis, about a place of it within `room`.
-/// A circle about another axis lies on the cylinder only over a stretch a
-/// hair long, an arc of the cylinder's taken for it — the rim of a wall all
-/// but touching this one, whose angle may run the other way round.
-fn section(cylinder: &Cylinder, circle: &Circle, room: f64) -> bool {
-    let axis = cylinder.axis.normalize();
-    let from = circle.center - cylinder.origin;
+/// Whether a circle is a cross-section of a surface about the axis through
+/// `origin` along `axis`, its angle the surface's own: square to the axis,
+/// about a place of it within `room`. A circle about another axis lies on
+/// the surface only over a stretch a hair long, an arc of the surface's
+/// taken for it — the rim of a wall all but touching this one, whose angle
+/// may run the other way round.
+fn section(origin: DVec3, axis: DVec3, circle: &Circle, room: f64) -> bool {
+    let axis = axis.normalize();
+    let from = circle.center - origin;
     axis.cross(circle.axis).length() <= SQUARE && (from - axis * from.dot(axis)).length() <= room
 }
 
@@ -239,21 +249,16 @@ fn chords(edge: &ListedEdge, flat: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {
     (area, 0.0)
 }
 
-/// What a curve sweeps on a cylinder, along chords in the cylinder's
-/// parameters, the angle followed across the turn rather than read afresh,
-/// the height read from that of `about`.
-fn around(cylinder: &Cylinder, edge: &ListedEdge, about: DVec3) -> (f64, f64) {
-    let axis = cylinder.axis.normalize();
+/// What a curve sweeps under a surface about an axis, along chords in the
+/// surface's parameters as `chart` reads them at each place — the height
+/// from that of `about`, then the angle — the angle followed across the
+/// turn rather than read afresh.
+fn around(edge: &ListedEdge, chart: impl Fn(DVec3) -> (f64, f64)) -> (f64, f64) {
     let mut last: Option<(f64, f64)> = None;
     let (mut area, mut angle) = (0.0, 0.0);
     for piece in 0..=CHORDS {
         let at = edge.from + (edge.to - edge.from) * piece as f64 / CHORDS as f64;
-        let place = point(&edge.curve, at);
-        let from = place - cylinder.origin;
-        let (height, theta) = (
-            (place - about).dot(axis),
-            from.dot(cylinder.v).atan2(from.dot(cylinder.u)),
-        );
+        let (height, theta) = chart(point(&edge.curve, at));
         if let Some((before_height, before)) = last {
             let step = (theta - before + TAU / 2.0).rem_euclid(TAU) - TAU / 2.0;
             area -= (height + before_height) / 2.0 * step;

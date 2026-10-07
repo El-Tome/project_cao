@@ -9,7 +9,10 @@
 //! much as the rest of the loop goes round, so that it turns by nought. A face
 //! holding its apex within it — a point turned whole — has a loop of the floor
 //! of its own, going round the other way from its rims, so that the region
-//! lies between them. A triangle with two corners on the floor stands for the
+//! lies between them. A face going round whose apex a loop passes through —
+//! a point whose tip a partial turn cut away but for a sector — closes that
+//! loop along the floor the long way round instead, the rest of the floor
+//! the sector leaves. A triangle with two corners on the floor stands for the
 //! apex twice and is dropped: what is left is a fan from the apex to the rims'
 //! samples.
 
@@ -81,10 +84,10 @@ impl Floor<'_> {
 
     /// The loop `lap` laid out, each angle within half a turn of the last,
     /// and each pass through the apex laid along the floor. Read from just
-    /// after its first pass, the last pass closes the loop with no turn;
-    /// any other turns by less than half a turn. None when it passes twice
-    /// in a row or stands at the apex alone.
-    fn laid(&self, lap: &[usize]) -> Option<Laid> {
+    /// after its first pass, the last pass closes the loop going `round`
+    /// times round the axis; any other turns by less than half a turn. None
+    /// when it passes twice in a row or stands at the apex alone.
+    fn laid(&self, lap: &[usize], round: i64) -> Option<Laid> {
         let count = lap.len();
         let start = match lap.iter().position(|id| self.tip(*id)) {
             Some(first) => (first + 1) % count,
@@ -115,7 +118,10 @@ impl Floor<'_> {
         }
         let (first, last) = (laid.raw.first()?.x, last?);
         match passing {
-            Some(tip) => self.between(last, first, tip, &mut laid)?,
+            Some(tip) => {
+                self.between(last, first + round as f64 * TAU, tip, &mut laid)?;
+                laid.turns = round;
+            }
             None => {
                 let round = last + apart(first, last) - first;
                 laid.turns = (round / TAU).round() as i64;
@@ -160,13 +166,19 @@ impl Outline {
         };
         let mut laid: Vec<Laid> = laps
             .iter()
-            .map(|lap| floor.laid(lap))
+            .map(|lap| floor.laid(lap, 0))
             .collect::<Option<_>>()?;
         let turns: i64 = laid.iter().map(|lap| lap.turns).sum();
-        match (apex, turns) {
-            (None, _) => {}
-            (Some(apex), 1 | -1) => laid.push(floor.round(-turns, apex)),
-            (Some(_), _) => return None,
+        let passing = laps
+            .iter()
+            .position(|lap| lap.iter().any(|&id| floor.tip(id)));
+        match (apex, turns, passing) {
+            (None, 1 | -1, Some(passing)) => {
+                laid[passing] = floor.laid(&laps[passing], -turns)?;
+            }
+            (None, _, _) => {}
+            (Some(apex), 1 | -1, _) => laid.push(floor.round(-turns, apex)),
+            (Some(_), _, _) => return None,
         }
         let (raws, ids): (Vec<Vec<DVec2>>, Vec<Vec<usize>>) =
             laid.into_iter().map(|lap| (lap.raw, lap.ids)).unzip();

@@ -36,7 +36,9 @@ const CHORDS: usize = 64;
 /// what has to come out positive, and every loop that winds round nothing is
 /// a hole. On a cone, a face holding its apex within it is bounded by loops
 /// winding once round the axis in all, closed by the floor the apex unrolls
-/// into; a loop passing through the apex is closed along that floor too.
+/// into; a loop passing through the apex is closed along that floor too,
+/// and where the others wind once round it, the rest of the floor closes
+/// the face as for an apex held within it.
 pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
     for (face, listed) in listing.faces.iter().enumerate() {
         let side = if listed.outward { 1.0 } else { -1.0 };
@@ -97,8 +99,14 @@ pub(super) fn turning(listing: &Listing, room: f64) -> Result<(), Mislisted> {
             .collect();
         let winding: f64 = round.iter().map(|&lap| swept[lap].1).sum();
         let floor = match &nappe {
-            Some(nappe) => floor(nappe, winding, listed.apex.is_some(), about)
-                .ok_or(Mislisted::Pointed { face })?,
+            Some(nappe) => {
+                let passed = listed
+                    .loops
+                    .iter()
+                    .any(|uses| passes(listing, uses, nappe.apex(), room));
+                let closed = listed.apex.is_some() || passed && winding.abs() == 1.0;
+                floor(nappe, winding, closed, about).ok_or(Mislisted::Pointed { face })?
+            }
             None => (0.0, 0.0),
         };
         let outside = if let Some(&first) = round.first() {

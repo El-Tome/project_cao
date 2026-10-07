@@ -865,6 +865,20 @@ fn a_point_turned_part_way_holds_its_volume_and_its_apex_as_one_corner() {
 }
 
 #[test]
+fn a_point_whose_tip_a_partial_turn_cuts_away_keeps_its_tip_in_the_sector_left() {
+    let block = laid(1.0, &[&[[5.0, 0.0], [12.0, 0.0], [12.0, 8.0], [5.0, 8.0]]]);
+    for turning in [about_y(), slanted()] {
+        let point = turned(&point(), turning, TAU).expect("the point turns");
+        for angle in [1.5 * PI, -1.5 * PI, FRAC_PI_2] {
+            let tool = turned(&block, turning, angle).expect("the block turns");
+            let cut = point.cut_by(&tool).expect("the turn cuts the tip");
+            let tip = 31.25 * PI / 3.0;
+            holds(&cut, 250.0 * PI / 3.0 - tip * angle.abs() / TAU);
+        }
+    }
+}
+
+#[test]
 fn a_cone_joined_to_the_cylinder_it_continues_holds_its_volume() {
     let rod = laid(1.0, &[&[[0.0, 0.0], [10.0, 0.0], [10.0, 5.0], [0.0, 5.0]]]);
     let tip = laid(1.0, &[&[[10.0, 0.0], [15.0, 0.0], [10.0, 5.0]]]);

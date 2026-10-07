@@ -41,10 +41,10 @@ The dependencies go one way only, and each crate is one context since #26 and
   [sketch.md](sketch.md).
 - `cao_solid`: the volumes — the extrusion of an area into a prism, boolean
   operations (adding and taking away matter), behind one `Body`. Two kernels sit
-  behind it: the exact kernel on planes and cylinders, which computes a part
-  wherever it can, turning a profile of straight runs too, and a polygon mesh
-  (the flats), which takes over from a revolution of a slanted run or an arc,
-  or an ellipse, on. No rendering, no interface. See
+  behind it: the exact kernel on planes, cylinders and cones, which computes a
+  part wherever it can, turning a profile of straight runs too, and a polygon
+  mesh (the flats), which takes over from a revolution of an arc, or an
+  ellipse, on. No rendering, no interface. See
   [extrusion.md](extrusion.md) and [exact-kernel.md](exact-kernel.md).
 - `cao_render`: GPU rendering of the viewport (`wgpu`), with no interface
   dependency. See [render.md](render.md).

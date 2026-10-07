@@ -27,9 +27,9 @@ is the one that carries a part, not an exclusive one.
   constraints, the solver, closed regions. Pure mathematics: no disk, no clock,
   no GPU. Rich, precise language of its own.
 - **`cao_solid` — the matter.** Prisms, revolutions, union and difference,
-  computed by the exact kernel on planes and cylinders (`brep`), or by the
-  flats — polygons and a BSP tree — from the first revolution of a slanted
-  run or an arc, or the first ellipse, on.
+  computed by the exact kernel on planes, cylinders and cones (`brep`), or by
+  the flats — polygons and a BSP tree — from the first revolution of an arc,
+  or the first ellipse, on.
   Also pure mathematics, and it knows nothing of `cao_sketch`. What leaves it
   is a `Body`: the brep, the mesh and its polygons stay inside, which is what
   let #526 put the exact kernel behind it without the rest of the workspace

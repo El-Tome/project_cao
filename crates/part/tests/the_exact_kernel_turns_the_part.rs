@@ -10,7 +10,13 @@
 //!   ((2,0),(5,0),(4,4),(2,4) at ±90°: 49π/3)
 //! - a part with a cone stays on the exact kernel for the steps after it —
 //!   `a_part_turned_from_a_slanted_run_after_an_exact_one_stays_exact_from_that_step_on`,
-//!   `a_slanted_area_across_the_axis_turned_whole_is_its_larger_side_s_cone_exactly`
+//!   `a_slanted_area_across_the_axis_turned_whole_is_its_larger_side_s_cone_exactly`;
+//!   a step that never reaches the cone stays exact after it, where a face standing
+//!   in its hollow or beyond its slope was declined —
+//!   `a_hex_socket_in_a_chamfered_bolt_head_stays_exact`,
+//!   `a_square_pocket_in_the_end_of_a_chamfered_shaft_stays_exact`,
+//!   `a_pocket_beside_a_flush_countersink_stays_exact`,
+//!   `a_block_raised_beside_a_point_s_slope_stays_exact`
 //! - a drawing laid on a face of a turned part with a cone keeps its face when a
 //!   size changes —
 //!   `a_drawing_after_a_turn_keeps_its_face_when_a_size_slants_a_run_into_a_cone`,
@@ -1686,4 +1692,129 @@ fn a_step_after_a_declined_cone_numbers_its_faces_as_if_it_had_stood() {
             "the drawing stands on the plate's top, not on {plane:?}",
         );
     }
+}
+
+/// A drawing on XZ at `height` up V, where a raise goes down it.
+fn sketch_across_v_at(history: &mut History, height: f64) {
+    sketch_on(
+        history,
+        WorkPlane {
+            origin: DVec3::Y * height,
+            ..WorkPlane::XZ
+        },
+    );
+}
+
+#[test]
+fn a_hex_socket_in_a_chamfered_bolt_head_stays_exact() {
+    let mut history = turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(8.0, 0.0),
+            DVec2::new(8.0, 4.0),
+            DVec2::new(7.0, 5.0),
+            DVec2::new(0.0, 5.0),
+        ],
+        DVec2::new(2.0, 2.0),
+    );
+    sketch_across_v_at(&mut history, 5.0);
+    let hexagon: Vec<DVec2> = (0..6)
+        .map(|corner| DVec2::from_angle(corner as f64 * PI / 3.0) * 3.0)
+        .collect();
+    polygon(&mut history, 1, &hexagon);
+    raise(&mut history, 1, DVec2::ZERO, 3.0, ExtrusionMode::Cut);
+
+    assert_near(
+        exact(&history).body.volume(),
+        937.0 * PI / 3.0 - 81.0 * 3f64.sqrt() / 2.0,
+        "a head Ø16 for 4, chamfered to Ø14 over 1, less a hexagon across 6 sunk 3",
+    );
+}
+
+#[test]
+fn a_square_pocket_in_the_end_of_a_chamfered_shaft_stays_exact() {
+    for (chamfer, depth) in [(2.0, 3.0), (2.0, 1.0), (0.5, 0.2)] {
+        let mut history = a_chamfered_shaft(chamfer);
+        sketch_across_v_at(&mut history, 30.0);
+        rectangle(&mut history, 1, DVec2::splat(-2.0), DVec2::splat(2.0));
+        raise(&mut history, 1, DVec2::ZERO, depth, ExtrusionMode::Cut);
+        let narrow = 10.0 - chamfer;
+        let shaft = 3000.0 * PI - PI / 3.0 * chamfer * (200.0 - 10.0 * narrow - narrow * narrow);
+
+        assert_near(
+            exact(&history).body.volume(),
+            shaft - 16.0 * depth,
+            &format!("the shaft chamfered {chamfer} less a 4 by 4 pocket {depth} deep"),
+        );
+    }
+}
+
+#[test]
+fn a_pocket_beside_a_flush_countersink_stays_exact() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 0, DVec2::splat(-20.0), DVec2::splat(20.0));
+    raise(&mut history, 0, DVec2::ZERO, 10.0, ExtrusionMode::Add);
+    sketch_on(&mut history, WorkPlane::XZ);
+    polygon(
+        &mut history,
+        1,
+        &[
+            DVec2::new(0.0, -1.0),
+            DVec2::new(2.0, -1.0),
+            DVec2::new(2.0, 6.0),
+            DVec2::new(6.0, 10.0),
+            DVec2::new(0.0, 10.0),
+        ],
+    );
+    turn(
+        &mut history,
+        1,
+        DVec2::new(1.0, 5.0),
+        ABOUT_V,
+        360.0,
+        ExtrusionMode::Cut,
+    );
+    sketch_on(
+        &mut history,
+        WorkPlane {
+            origin: DVec3::Z * 8.0,
+            ..WorkPlane::XY
+        },
+    );
+    rectangle(&mut history, 2, DVec2::splat(4.5), DVec2::splat(5.5));
+    raise(&mut history, 2, DVec2::splat(5.0), 2.0, ExtrusionMode::Cut);
+
+    assert_near(
+        exact(&history).body.volume(),
+        16000.0 - 280.0 * PI / 3.0 - 2.0,
+        "the countersunk plate less a 1 by 1 pocket 2 deep, clear of the countersink",
+    );
+}
+
+#[test]
+fn a_block_raised_beside_a_point_s_slope_stays_exact() {
+    let mut history = turned_whole(
+        &[
+            DVec2::new(0.0, 0.0),
+            DVec2::new(5.0, 0.0),
+            DVec2::new(0.0, 10.0),
+        ],
+        DVec2::new(1.0, 1.0),
+    );
+    sketch_on(&mut history, WorkPlane::XY);
+    rectangle(&mut history, 1, DVec2::new(4.0, 8.0), DVec2::new(5.0, 9.0));
+    raise(
+        &mut history,
+        1,
+        DVec2::new(4.5, 8.5),
+        1.0,
+        ExtrusionMode::Add,
+    );
+
+    assert_near(
+        exact(&history).body.volume(),
+        250.0 * PI / 3.0 + 1.0,
+        "the point and a unit block standing clear of it",
+    );
 }

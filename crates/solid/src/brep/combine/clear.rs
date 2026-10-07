@@ -15,7 +15,7 @@
 
 use std::f64::consts::PI;
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::operands::Operands;
 use crate::brep::curve::{Circle, Curve};
@@ -53,8 +53,9 @@ pub(super) fn clear(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
 /// to both, the directions square to a wall's axis and to a straight edge of
 /// the other face — or, for two walls, whether the stretches of their axes
 /// the walls span stand further apart than the walls stand from them; and,
-/// a cone among the two, whether one stands inside the hollow the other
-/// leaves about its axis.
+/// a cone among the two, whether the other face stands inside the hollow
+/// the cone's face leaves about its axis, or beyond a plane touching the cone
+/// along a ruling.
 ///
 /// A bore drilled through a hexagonal bar, past its far side, is told apart
 /// from that side's slanted neighbours only across its own axis, in the plane
@@ -92,6 +93,79 @@ fn apart(one: (&Body, FaceId), other: (&Body, FaceId), room: f64) -> bool {
             }
             _ => false,
         }
+        || [(&first, one, other), (&second, other, one)]
+            .into_iter()
+            .any(|(surface, nappe, face)| match surface {
+                Surface::Cone(cone) => {
+                    in_the_hollow(cone, nappe, face, room) || beyond(cone, face, room)
+                }
+                Surface::Plane(_) | Surface::Cylinder(_) => false,
+            })
+}
+
+/// Whether a face stands nearer a cone's axis everywhere than the face on
+/// the cone does anywhere: a pocket within a chamfered end.
+fn in_the_hollow(cone: &Cone, nappe: (&Body, FaceId), face: (&Body, FaceId), room: f64) -> bool {
+    match (radii(cone, nappe), farthest(face, cone.origin, cone.axis)) {
+        (Some([inner, _]), Some(farthest)) => farthest + room < inner,
+        _ => false,
+    }
+}
+
+/// Whether a face stands beyond a plane touching the cone along one of its
+/// rulings, on the side away from the solid the nappe bounds: a block beside
+/// a point's slope, which no direction the two surfaces offer tells apart
+/// from the ring the slope makes. The planes tried touch the cone where the
+/// face's corners stand about the axis, and where their mean does.
+fn beyond(cone: &Cone, face: (&Body, FaceId), room: f64) -> bool {
+    let corners = corners(face);
+    let mean = corners.iter().sum::<DVec3>() / corners.len().max(1) as f64;
+    corners.iter().chain([&mean]).any(|&corner| {
+        let theta = cone.parameters(corner).x;
+        let outward = cone.normal(theta) * cone.ruling.x.signum();
+        let touching = outward.dot(cone.point(DVec2::new(theta, 0.0)));
+        reach(face, outward).is_some_and(|[low, _]| low > touching + room)
+    })
+}
+
+/// The ends of a face's edges, and the centres of its circles.
+fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
+    body.face(face)
+        .loops
+        .iter()
+        .flatten()
+        .flat_map(|coedge| {
+            let edge = body.edge(coedge.edge);
+            let curve = body.curve(edge.curve);
+            let centre = match curve {
+                Curve::Circle(circle) => Some(circle.center),
+                Curve::Line(_) | Curve::Meet(_) => None,
+            };
+            [curve.point(edge.from), curve.point(edge.to)]
+                .into_iter()
+                .chain(centre)
+        })
+        .collect()
+}
+
+/// How far from the line through `origin` along `axis` a face stands at
+/// most, or more: read off its boundary, since the distance from a line
+/// grows along any straight line, a circle taken as far as its centre
+/// stands plus its radius; none where an edge runs along the curve two
+/// cylinders meet along.
+fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option<f64> {
+    let off = |point: DVec3| from_the_axis(point, origin, axis);
+    let mut farthest = body.apex_held(face).map_or(0.0, off);
+    for coedge in body.face(face).loops.iter().flatten() {
+        let edge = body.edge(coedge.edge);
+        let reached = match body.curve(edge.curve) {
+            Curve::Line(line) => off(line.point(edge.from)).max(off(line.point(edge.to))),
+            Curve::Circle(circle) => off(circle.center) + circle.radius,
+            Curve::Meet(_) => return None,
+        };
+        farthest = farthest.max(reached);
+    }
+    Some(farthest)
 }
 
 /// The direction a surface stands square to: a plane's normal, a

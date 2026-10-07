@@ -284,3 +284,86 @@ fn two_stretches_whose_lines_cross_beyond_one_end_stand_as_far_as_that_end() {
     );
     assert!((distance - 2.0).abs() < TOLERANCE, "{distance}");
 }
+
+/// A shaft of radius 10 about Z, 30 long, its top chamfered from radius 10
+/// at `z = 28` to radius 8 at its end.
+fn chamfered_shaft() -> Body {
+    turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[
+            [0.0, 0.0],
+            [0.0, 10.0],
+            [28.0, 10.0],
+            [30.0, 8.0],
+            [30.0, 0.0],
+        ],
+        TAU,
+    )
+}
+
+fn faces(body: &Body) -> Vec<FaceId> {
+    body.face_ids().collect()
+}
+
+#[test]
+fn every_face_of_a_pocket_in_a_chamfered_end_stands_clear_of_the_chamfer() {
+    let shaft = chamfered_shaft();
+    let pocket = plate(DVec3::Z * 28.5, DVec3::Z, 2.0);
+    for face in faces(&pocket) {
+        assert!(
+            apart((&shaft, nappe(&shaft)), (&pocket, face), 1e-8),
+            "{face:?}"
+        );
+        assert!(
+            apart((&pocket, face), (&shaft, nappe(&shaft)), 1e-8),
+            "{face:?}"
+        );
+    }
+}
+
+#[test]
+fn a_pocket_reaching_past_the_chamfer_s_narrow_end_does_not_stand_clear_of_it() {
+    let shaft = chamfered_shaft();
+    let pocket = plate(DVec3::Z * 28.5, DVec3::Z, 9.0);
+    assert!(!apart(
+        (&shaft, nappe(&shaft)),
+        (&pocket, flat(&pocket, DVec3::X)),
+        1e-8
+    ));
+}
+
+#[test]
+fn every_face_of_a_block_beyond_a_point_s_slope_stands_clear_of_it() {
+    let point = turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[[0.0, 0.0], [0.0, 5.0], [10.0, 0.0]],
+        TAU,
+    );
+    let block = plate(DVec3::new(4.5, 0.0, 8.0), DVec3::Z, 0.5);
+    for face in faces(&block) {
+        assert!(
+            apart((&point, nappe(&point)), (&block, face), 1e-8),
+            "{face:?}"
+        );
+    }
+    let across = plate(DVec3::new(3.0, 0.0, 4.0), DVec3::Z, 0.5);
+    assert!(!apart(
+        (&point, nappe(&point)),
+        (&across, flat(&across, DVec3::Z)),
+        1e-8
+    ));
+}
+
+#[test]
+fn every_face_of_a_pocket_beside_a_countersink_s_slope_stands_clear_of_it() {
+    let tool = countersink();
+    let pocket = plate(DVec3::new(5.0, 5.0, 3.0), DVec3::Z, 0.5);
+    for face in faces(&pocket) {
+        assert!(
+            apart((&tool, nappe(&tool)), (&pocket, face), 1e-8),
+            "{face:?}"
+        );
+    }
+}

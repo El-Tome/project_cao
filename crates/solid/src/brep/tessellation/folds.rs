@@ -14,15 +14,16 @@
 //! reaches out of the sliver.
 //!
 //! A diagonal is taken only where the two triangles beside it make a convex
-//! corner of four, by the exact signs the sweep decides with, so the cut stays
-//! a cut of the region, and only where neither triangle it makes lies on
-//! another face or passes through one — a chord of a round a hair off a vertex
-//! of the face beside it sinks under it by a fraction of the tolerance. Where
-//! the diagonal runs into a point of the boundary, the triangle beyond is cut
-//! the other way first; where a triangle it makes is held by one of another
-//! face, that one is cut the other way too, and the two flips stand or fall
-//! together. Two faces whose triangles end up on the same three samples are a
-//! skin of no thickness ([`super::skins`]).
+//! corner of four, by the exact signs the sweep decides with and by more than
+//! the rounding the parameters were read with, so the cut stays a cut of the
+//! region in space as in parameters, and only where neither triangle it makes
+//! lies on another face or passes through one — a chord of a round a hair off
+//! a vertex of the face beside it sinks under it by a fraction of the
+//! tolerance. Where the diagonal runs into a point of the boundary, the
+//! triangle beyond is cut the other way first; where a triangle it makes is
+//! held by one of another face, that one is cut the other way too, and the two
+//! flips stand or fall together. Two faces whose triangles end up on the same
+//! three samples are a skin of no thickness ([`super::skins`]).
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};

@@ -32,7 +32,9 @@
 //! `carried-one-with` where a slide is refused for carrying a wall one with
 //! the first operand's onto it, `cone-axis-unmet` where a wall is refused a
 //! move for a coaxial cone it never meets, and `triangles-sliver` where two
-//! triangles cross across a sliver a hair wide.
+//! triangles cross across a sliver a hair wide. `cone-axis-unmet` holds
+//! since a cone holds a wall about its axis only where faces of the two meet
+//! on the circle they cross along.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -5291,9 +5293,12 @@ fn seed_5366215526_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
 /// axis stands 90 below its own: the step of radius 150 touches the cylinder
 /// from inside, and the next, 6e-7 narrower, is laid with it as one wall of
 /// 149.9999997. The section ends on a cone pointed on its axis, which that
-/// wall never meets. Holds at ae20fa9 and fails since beb95aa.
+/// wall never meets. Held at ae20fa9 and failed since beb95aa: decision 2
+/// moved the wall 3e-7 across its axis onto the touch, and the pointed cone,
+/// crossing it along a circle 60 below the section, held it on the axis; the
+/// step was declined as unverified. A cone holds a wall about its axis only
+/// where faces of the two meet on the circle they cross along.
 #[test]
-#[ignore = "cone-axis-unmet, found by round 3's triage: decision 2 moves the wall of 149.9999997 by 3e-7 across its axis onto the touch with the cylinder of 240; `off` (canonical/touches.rs) counts the section's pointed cone, coaxial with the wall but meeting it nowhere on their faces (they cross along a circle 60 below the section), as a wall about a cone's axis, and `keeps` refuses the move: declined as unverified. Not the grazing coaxial family: the cone is sixty across where the wall is three hundred. Holds with the cone's axis left out of `off`"]
 fn seed_5365100952_a_wall_touching_a_cylinder_inside_coaxial_with_a_cone_it_never_meets() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

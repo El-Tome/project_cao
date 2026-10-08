@@ -1,6 +1,9 @@
 //! How far a touch decision 2 reads stands from exact: two surfaces decided
 //! to touch, or a wall decided to stand about a cone's axis.
 
+use glam::DVec3;
+
+use crate::brep::curve::Circle;
 use crate::brep::meet::moved;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
@@ -8,15 +11,34 @@ use crate::brep::surface::{Cone, Cylinder, Surface};
 
 /// How far two surfaces decided to touch stand from touching exactly, or a
 /// wall decided to stand about a cone's axis from standing on it; none where
-/// their pair is neither. A cone touches nothing along a line.
-pub(super) fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
+/// their pair is neither. A cone touches nothing along a line, and holds a
+/// wall about its axis only where faces of the two `meet` within the box
+/// round the circle they cross along: a section's pointed cone, crossing
+/// its widest step below the section, holds nothing (5365100952).
+pub(super) fn off(
+    one: &Surface,
+    other: &Surface,
+    scale: Scale,
+    meet: impl Fn([DVec3; 2]) -> bool,
+) -> Option<f64> {
     if let (
         Surface::Cone(cone),
         Surface::Cylinder(Cylinder { origin, .. }) | Surface::Cone(Cone { origin, .. }),
     )
     | (Surface::Cylinder(Cylinder { origin, .. }), Surface::Cone(cone)) = (one, other)
     {
-        let about = relation(one, other, scale) != Relation::Unsupported;
+        let about = match relation(one, other, scale) {
+            Relation::Circle(circle) => meet(boxed(&circle)),
+            Relation::Unsupported => false,
+            Relation::Apart
+            | Relation::Same { .. }
+            | Relation::Line(_)
+            | Relation::Lines(_)
+            | Relation::Tangent(_)
+            | Relation::Meet(_)
+            | Relation::Rulings { .. }
+            | Relation::Apex(_) => true,
+        };
         return about.then(|| cone.off_axis(*origin));
     }
     match relation(one, other, scale) {
@@ -56,4 +78,11 @@ pub(super) fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
         | Relation::Apex(_)
         | Relation::Unsupported => None,
     }
+}
+
+/// The box round a circle.
+fn boxed(circle: &Circle) -> [DVec3; 2] {
+    let square = DVec3::ONE - circle.axis * circle.axis;
+    let reach = square.max(DVec3::ZERO).map(f64::sqrt) * circle.radius;
+    [circle.center - reach, circle.center + reach]
 }

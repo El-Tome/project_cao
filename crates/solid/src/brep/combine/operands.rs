@@ -60,7 +60,7 @@ impl<'a> Operands<'a> {
                 .map(|face| boxed(body, face, scale.eps()))
                 .collect()
         });
-        let near = |one: SurfaceId, other: SurfaceId| {
+        let near = |one: SurfaceId, other: SurfaceId, within: [DVec3; 2]| {
             let (lying, boxes) = (&lying, &boxes);
             let faces = |surface: SurfaceId| {
                 (0..2).flat_map(move |operand| {
@@ -69,7 +69,10 @@ impl<'a> Operands<'a> {
                         .map(move |face| boxes[operand][face.0 as usize])
                 })
             };
-            faces(one).any(|first| faces(other).any(|second| meet(first, second)))
+            faces(one).any(|first| {
+                meet(first, within)
+                    && faces(other).any(|second| meet(first, second) && meet(second, within))
+            })
         };
         let mut cornered = vec![false; surfaces.list.len()];
         for vertex in second.vertices.iter().filter(|_| pinned) {

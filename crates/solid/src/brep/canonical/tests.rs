@@ -837,7 +837,7 @@ fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
             (0, 1) => both,
             _ => false,
         },
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -913,7 +913,7 @@ fn a_cylinder_touching_two_parallel_planes_on_opposite_sides_is_moved_midway_and
     };
     let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -938,7 +938,7 @@ fn hole_under(ceiling: f64) -> Surface {
     };
     surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -984,7 +984,7 @@ fn a_cylinder_a_hair_from_a_plane_whose_faces_stand_far_is_not_moved() {
     };
     surfaces.snapped(
         |operand, surface| operand == surface.0 as usize,
-        |_, _| false,
+        |_, _, _| false,
         |_| false,
         scale(),
     );
@@ -1007,7 +1007,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     };
     along.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -1025,7 +1025,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     };
     across.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -1048,12 +1048,45 @@ fn a_cylinder_touching_two_parallel_planes_on_one_side_keeps_its_radius() {
     };
     let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
     assert_eq!(moved, [false, false, false]);
     assert_eq!(surfaces.list, [low, high, Surface::Cylinder(post)]);
+}
+
+/// A wall a hair from touching a side, about a cone's axis, the side the
+/// first operand's: moved onto the touch, it would stand off the cone's
+/// axis. That holds the wall only where faces of the two meet on the circle
+/// they cross along; a cone met nowhere on it — a section's pointed cone, its
+/// circle with the section's widest step below the section (5365100952) —
+/// does not.
+#[test]
+fn a_wall_about_a_cone_s_axis_is_held_on_it_only_where_their_faces_meet_on_their_circle() {
+    let eps = scale().eps();
+    let side = plane_at(3.0, DVec3::X);
+    let wall = Surface::Cylinder(Cylinder::about(DVec3::ZERO, DVec3::Z, 3.0 + eps / 2.0));
+    let cone = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(-10.0, 1.0), DVec2::new(-20.0, 5.0)],
+    ));
+    let snapped = |near: &dyn Fn([DVec3; 2]) -> bool| {
+        let mut surfaces = Surfaces {
+            list: vec![side, wall, cone],
+            mapped: [Vec::new(), Vec::new()],
+        };
+        let moved = surfaces.snapped(
+            |operand, surface| (operand == 1) == (surface.0 != 0),
+            |_, _, within| near(within),
+            |_| false,
+            scale(),
+        );
+        moved[1]
+    };
+    assert!(snapped(&|within| within[1].z >= 0.0));
+    assert!(!snapped(&|_| true));
 }
 
 /// A rectangle from `low` to `high` with its corners rounded to `radius`,

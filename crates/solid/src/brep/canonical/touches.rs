@@ -17,19 +17,25 @@
 //! touch it takes along: such a slide is made before, on the operand, with
 //! its corners (`combine/slid.rs`); nor take such a wall, a plane, further
 //! than the tolerance off the line it crosses another plane along. Nor is
-//! a wall about a cone's axis moved off it. A cylinder touching two
-//! parallel planes on opposite sides is moved midway between them, its
-//! radius half their gap, which makes both exact; so is one touching one of
-//! them and standing within decision 8's hair of the other, which left
-//! touching the one stands a hair or two off the other, across a skin no ray
-//! tells the side of.
+//! a wall about a cone's axis moved off it, where faces of the two meet on
+//! the circle they cross along. A cylinder touching two parallel planes on
+//! opposite sides is moved midway between them, its radius half their gap,
+//! which makes both exact; so is one touching one of them and standing
+//! within decision 8's hair of the other, which left touching the one
+//! stands a hair or two off the other, across a skin no ray tells the side
+//! of.
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
+
+mod off;
+
+use glam::DVec3;
+use off::off;
 
 use crate::brep::meet::{moved, moved_instead};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;
 
 use super::surfaces::Surfaces;
@@ -38,22 +44,26 @@ use super::surfaces::Surfaces;
 /// exact as it was.
 const ROUNDING: f64 = 1e-3;
 
+/// The box round every place: faces near each other anywhere.
+const EVERYWHERE: [DVec3; 2] = [DVec3::NEG_INFINITY, DVec3::INFINITY];
+
 impl Surfaces {
     /// The moves onto a touch, of pairs of a surface `carried` by each
-    /// operand whose faces stand `near` each other; a surface the second
-    /// operand's corners lie on is `cornered`. Whether each surface was
-    /// moved.
+    /// operand whose faces stand `near` each other, in boxes that meet each
+    /// other and the box given; a surface the second operand's corners lie
+    /// on is `cornered`. Whether each surface was moved.
     pub fn snapped(
         &mut self,
         carried: impl Fn(usize, SurfaceId) -> bool,
-        near: impl Fn(SurfaceId, SurfaceId) -> bool,
+        near: impl Fn(SurfaceId, SurfaceId, [DVec3; 2]) -> bool,
         cornered: impl Fn(SurfaceId) -> bool,
         scale: Scale,
     ) -> Vec<bool> {
         let count = self.list.len();
         let id = |rank: usize| SurfaceId(rank as u32);
         let own = |rank: usize| carried(1, id(rank)) && !carried(0, id(rank));
-        let close = |one: usize, other: usize| near(id(one), id(other));
+        let meet = |one: usize, other: usize, within| near(id(one), id(other), within);
+        let close = |one: usize, other: usize| meet(one, other, EVERYWHERE);
         let pinned = |rank: usize| cornered(id(rank));
         let mut moved = vec![false; count];
         for rank in (0..count).filter(|&rank| own(rank)) {
@@ -61,7 +71,7 @@ impl Surfaces {
                 continue;
             };
             let surface = Surface::Cylinder(cylinder);
-            if self.keeps(rank, &surface, &planes, (close, pinned(rank)), scale) {
+            if self.keeps(rank, &surface, &planes, (meet, pinned(rank)), scale) {
                 self.list[rank] = surface;
                 moved[rank] = true;
             }
@@ -82,7 +92,7 @@ impl Surfaces {
             let kept = std::iter::once(surface)
                 .chain(along_the_partner(&self.list[shifted], &surface, &partner))
                 .find(|surface| {
-                    self.keeps(shifted, surface, &pair, (close, pinned(shifted)), scale)
+                    self.keeps(shifted, surface, &pair, (meet, pinned(shifted)), scale)
                 });
             if let Some(surface) = kept {
                 self.list[shifted] = surface;
@@ -196,26 +206,30 @@ impl Surfaces {
     /// corners drawn on it; nor, then, may a plane cross another along a line
     /// a tolerance off where they crossed, which a grazing angle makes of a
     /// hair: ninety microns, a hundredth of a degree's turn (5365230254).
+    /// Where faces meet is read where the surface was.
     fn keeps(
         &self,
         rank: usize,
         surface: &Surface,
         besides: &[usize],
-        (near, pinned): (impl Fn(usize, usize) -> bool, bool),
+        (near, pinned): (impl Fn(usize, usize, [DVec3; 2]) -> bool, bool),
         scale: Scale,
     ) -> bool {
         let room = ROUNDING * scale.eps();
         let before = &self.list[rank];
         (0..self.list.len())
-            .filter(|&other| other != rank && !besides.contains(&other) && near(rank, other))
-            .all(|other| {
-                let other = &self.list[other];
+            .filter(|&other| {
+                other != rank && !besides.contains(&other) && near(rank, other, EVERYWHERE)
+            })
+            .all(|partner| {
+                let other = &self.list[partner];
                 if pinned && crossed_elsewhere(before, surface, other, scale) {
                     return false;
                 }
-                match off(before, other, scale) {
+                match off(before, other, scale, |within| near(rank, partner, within)) {
                     Some(gap) => {
-                        off(surface, other, scale).is_some_and(|after| after <= gap + room)
+                        off(surface, other, scale, |_| true)
+                            .is_some_and(|after| after <= gap + room)
                             && !(pinned
                                 && gap <= room
                                 && moved_along(before, surface, other, scale) > room)
@@ -256,58 +270,6 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
             ))
         })
         .to_vec()
-}
-
-/// How far two surfaces decided to touch stand from touching exactly, or a
-/// wall decided to stand about a cone's axis from standing on it; none where
-/// their pair is neither. A cone touches nothing along a line.
-fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
-    if let (
-        Surface::Cone(cone),
-        Surface::Cylinder(Cylinder { origin, .. }) | Surface::Cone(Cone { origin, .. }),
-    )
-    | (Surface::Cylinder(Cylinder { origin, .. }), Surface::Cone(cone)) = (one, other)
-    {
-        let about = relation(one, other, scale) != Relation::Unsupported;
-        return about.then(|| cone.off_axis(*origin));
-    }
-    match relation(one, other, scale) {
-        Relation::Tangent(_) => match (one, other) {
-            (Surface::Plane(plane), Surface::Cylinder(cylinder))
-            | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
-                Some((plane.distance(cylinder.origin).abs() - cylinder.radius).abs())
-            }
-            (Surface::Cylinder(one), Surface::Cylinder(other)) => {
-                let between = other.origin - one.origin;
-                let across = (between - one.axis * one.axis.dot(between)).length();
-                let outside = across - (one.radius + other.radius);
-                let inside = (one.radius - other.radius).abs() - across;
-                Some(outside.abs().min(inside.abs()))
-            }
-            (Surface::Plane(_), Surface::Plane(_)) => Some(0.0),
-            (Surface::Cone(_), _) | (_, Surface::Cone(_)) => None,
-        },
-        Relation::Meet(meeting) if !meeting.nodes.is_empty() || meeting.contact.is_some() => {
-            let (one, other) = match (one, other) {
-                (Surface::Cylinder(one), Surface::Cylinder(other)) => (one, other),
-                (Surface::Plane(_) | Surface::Cone(_), _)
-                | (_, Surface::Plane(_) | Surface::Cone(_)) => return None,
-            };
-            Some(moved(one, other, scale).map_or(0.0, |(rank, to)| {
-                let from = [one, other][rank];
-                from.origin.distance(to.origin) + (from.radius - to.radius).abs()
-            }))
-        }
-        Relation::Apart
-        | Relation::Same { .. }
-        | Relation::Line(_)
-        | Relation::Lines(_)
-        | Relation::Circle(_)
-        | Relation::Meet(_)
-        | Relation::Rulings { .. }
-        | Relation::Apex(_)
-        | Relation::Unsupported => None,
-    }
 }
 
 /// Whether two planes crossing along a line, the first put for `before`,

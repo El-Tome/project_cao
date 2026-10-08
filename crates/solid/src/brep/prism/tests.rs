@@ -956,3 +956,36 @@ fn a_hole_passing_twice_through_one_corner_is_raised_as_the_kernel_cuts_it() {
         );
     }
 }
+
+#[test]
+fn a_pinch_whose_walls_leave_its_corner_nearly_along_each_other_is_declined() {
+    let notch_and_window_a_hair_apart = Contour::straight(
+        [
+            (0.0, 0.0),
+            (60.0, 0.0),
+            (60.0, 60.0),
+            (23.338692939825332, 60.00000006784355),
+            (23.338724161513277, 9.95054548519367),
+            (23.33886558796814, 50.074228525321416),
+            (50.0000466217739, 50.074134551147935),
+            (50.00004699890918, 9.950545851554532),
+            (23.338724161513277, 9.95054548519367),
+            (9.999986116998937, 9.95054555358826),
+            (9.99998573242549, 59.99999996535066),
+            (0.0, 60.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+    );
+
+    assert_eq!(
+        Body::raised(
+            &notch_and_window_a_hair_apart,
+            &[],
+            ground(),
+            DVec3::Z * 10.0
+        )
+        .map(|_| ()),
+        Err(Declined::Profile)
+    );
+}

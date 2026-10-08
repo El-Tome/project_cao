@@ -1,13 +1,72 @@
 //! A stretch of a profile run once each way: a corridor of no width, which a
 //! drawing leaves where a trait joins a loop to another, and which a raise
 //! would stand two walls back to back along. Two loops meeting at a point
-//! are no corridor, and are laid as one corner (`touch.rs`).
+//! are no corridor, and are laid as one corner (`touch.rs`) — unless two of
+//! the walls leaving that corner nearly lie along each other, which leaves a
+//! fin between them.
 
 use std::f64::consts::TAU;
 
 use glam::DVec2;
 
 use crate::brep::piece::{Named, Piece};
+
+/// How far apart, in radians, the walls leaving a corner the profile passes
+/// through twice have to stand. Closer, they hold between them a fin nobody
+/// drew: a side the solver left leaning on its neighbour by a hair, read as
+/// two sides parting at the corner they share (#540).
+const NEEDLE: f64 = 1e-3;
+
+/// Whether a corner standing where another stands, within `eps`, has two runs
+/// leaving it nearly the same way.
+pub(super) fn needle(contours: &[Vec<Named>], eps: f64) -> bool {
+    let leaving: Vec<(DVec2, DVec2)> = contours
+        .iter()
+        .filter(|pieces| pieces.len() > 1)
+        .flat_map(|pieces| {
+            pieces.iter().enumerate().flat_map(|(at, named)| {
+                let before = &pieces[(at + pieces.len() - 1) % pieces.len()].piece;
+                let corner = named.piece.from();
+                [
+                    (corner, way(&named.piece, true)),
+                    (corner, way(before, false)),
+                ]
+            })
+        })
+        .collect();
+    let met = |corner: DVec2| {
+        leaving
+            .iter()
+            .filter(|(other, _)| other.distance(corner) <= eps)
+            .count()
+            > 2
+    };
+    leaving.iter().enumerate().any(|(at, (corner, one))| {
+        met(*corner)
+            && leaving[at + 1..].iter().any(|(other, way)| {
+                other.distance(*corner) <= eps && one.angle_to(*way).abs() < NEEDLE
+            })
+    })
+}
+
+/// Which way a piece leaves its start, or, read back from its end, which way
+/// it leaves that end.
+fn way(piece: &Piece, from_start: bool) -> DVec2 {
+    match *piece {
+        Piece::Straight { from, to } if from_start => (to - from).normalize_or_zero(),
+        Piece::Straight { from, to } => (from - to).normalize_or_zero(),
+        Piece::Arc {
+            from,
+            to,
+            center,
+            sweep,
+            ..
+        } => {
+            let (corner, sign) = if from_start { (from, 1.0) } else { (to, -1.0) };
+            (corner - center).perp().normalize_or_zero() * sweep.signum() * sign
+        }
+    }
+}
 
 /// Whether two pieces of the profile run along one stretch longer than `eps`,
 /// one each way.

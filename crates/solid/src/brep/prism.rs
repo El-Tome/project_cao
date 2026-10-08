@@ -98,7 +98,10 @@ impl Body {
         let ring_in_a_loop = contours
             .iter()
             .any(|pieces| pieces.len() > 1 && pieces.iter().any(|named| named.piece.is_ring()));
-        if ring_in_a_loop || corridor::run_both_ways(&contours, eps) {
+        if ring_in_a_loop
+            || corridor::run_both_ways(&contours, eps)
+            || corridor::needle(&contours, eps)
+        {
             return Err(Declined::Profile);
         }
         if lift.length() <= eps {

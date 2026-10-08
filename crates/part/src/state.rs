@@ -160,9 +160,10 @@ impl PartState {
                 let pull = sketch.pull(*point, scale);
                 sketch.settle_pulled(&pull, *position, scale);
                 hold(sketch, *point, on);
+                // A drop the drawing cannot take joins nothing, as one that
+                // stopped short of the hand does.
                 if let Some(kept) = merged_into {
-                    sketch.merge_points(*kept, *point);
-                    sketch.resolve(scale);
+                    sketch.join_points(*kept, *point, scale);
                 }
                 None
             }
@@ -265,9 +266,7 @@ impl PartState {
             } => {
                 let scale = self.scale();
                 let sketch = self.sketches.get_mut(*sketch)?;
-                sketch.merge_points(*kept, *dropped);
-                sketch.resolve(scale);
-                None
+                (!sketch.join_points(*kept, *dropped, scale)).then_some(Outcome::RuleRefused)
             }
             Operation::Constrain { sketch, constraint } => {
                 let scale = self.scale();

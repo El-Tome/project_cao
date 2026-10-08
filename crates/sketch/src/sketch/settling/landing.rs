@@ -98,7 +98,7 @@ impl Sketch {
     /// put back and settles as if nothing had been clicked first.
     ///
     /// Fixed points outrank the clicks, and give only when neither way lands.
-    fn land(
+    pub(in crate::sketch) fn land(
         &mut self,
         from: Option<Element>,
         target: Option<DimensionTarget>,

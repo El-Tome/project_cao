@@ -566,3 +566,25 @@ fn the_rectangle_keeps_its_way_up_whichever_shape_was_drawn_first() {
         }
     }
 }
+
+#[test]
+fn an_arc_tied_to_a_held_point_is_not_turned_back_off_the_rule_that_ties_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let centre = sketch.add_point(DVec2::new(20.0, 0.0));
+    let start = sketch.add_point(DVec2::new(20.0, -5.0));
+    let end = sketch.add_point(DVec2::new(20.0, 5.0));
+    let arc = sketch.add_arc(centre, start, end);
+    let corner = sketch.add_point(DVec2::new(40.0, 0.0));
+    let top = sketch.add_point(DVec2::new(40.0, 10.0));
+    sketch.add_segment(corner, top);
+    sketch.add_constraint(Constraint::OnArc { point: corner, arc });
+
+    let landed = sketch.settle_held(vec![corner], Vec::new(), SCALE);
+
+    let off = (sketch.point(corner).distance(sketch.point(centre)) - sketch.arc_radius(arc)).abs();
+    assert!(landed, "the arc could not come to the corner");
+    assert!(
+        off < A_SETTLED_LENGTH,
+        "the settle said it landed with the corner {off} off the arc"
+    );
+}

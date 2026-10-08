@@ -625,10 +625,56 @@ aimed at within four points: far finer than anyone aims.
 Dropping a point on another **merges** them: everything that pointed at the one
 that goes now points at the one that stays, dimensions included. Two ends laid
 on one another are one corner, not two — without which the outline looks closed
-without being so, and nothing extrudes.
+without being so, and nothing extrudes. « Coïncidence » between two points and
+« Concentrique » between two circles merge the same way, through the same code,
+so what the drawing holds afterwards never depends on which gesture made it.
 
-A trait whose two ends become the same point goes away: it has neither length
-nor direction left. And the origin point is never the one that gives way.
+**An arc is a trait here** (#539). Its centre, its start and its end are handed
+over as a trait's ends are: an arc end dropped on a corner becomes that corner,
+and moving the corner takes the arc with it. The same goes for the centre of a
+circle or an ellipse, and for the two ends of an arc of ellipse. **The rules held
+on the point are handed over too** — on a trait, a circle, an arc, an ellipse or
+an axis, at the middle of a trait, fixed, the contact point of a tangency — and
+a rule is never lost with its point. One the merge makes always true, such as a
+point held on a trait it now ends, is let go of; one that arrives twice is kept
+once.
+
+Of the two, **the one dropped on, or the first one clicked, stays where it is**
+(#451), and the drawing settles around it. A corner made one with a point held on an arc keeps the rule,
+and the arc moves to pass through the corner. The origin is never the one that
+gives way, and a fixed point outranks the clicks: when the point that goes was
+fixed, the one kept comes to its place and is fixed there.
+
+**Curves that share a centre are locked together.** When the centre several
+curves turn about is the point that goes, each of them is carried whole onto
+the one that stays — its size, its opening and the way it is turned unchanged —
+and the traits sharing their ends stretch to follow, as they do when the centre
+is dragged. While the drawing settles, what was carried is held where it now
+stands, as a drag of the centre holds it: a shape tied to the curve — a trait
+whose middle is the arc's centre — travels with it rather than bending. A curve
+standing on a fixed point is the exception: the fixed point stays, and the
+curve reshapes about it. When it is the point kept that comes to
+a fixed one, the curves turning about it come with it.
+
+What the merge leaves with no length goes:
+
+- a trait whose two ends become one point: it has neither length nor direction
+  left;
+- an arc whose two ends become one point, dragged round onto its own start for
+  instance. A radius value it carried becomes a distance value with the same
+  number, between its centre and the merged point; a value on its opening has
+  nothing left to measure, and goes with it. Its centre and the merged point
+  stay, as points;
+- an arc whose end becomes its own centre, when no value holds its radius;
+- an arc of ellipse whose two ends become one point.
+
+A merge that leaves a rule or a value no way to hold — an arc end made one with
+its own centre while its radius is typed, a point at the middle of a trait made
+one with an end of it, the contact point of a tangency made one with the centre
+of its curve — is **refused** like any other rule (#467): nothing is
+recorded, and the message bar reads « Règle impossible : elle contredit le
+dessin ». A drop the drawing cannot hold joins nothing, as a point that stopped
+short of the hand already joins nothing.
 
 The decision is taken on release and **recorded**, like the snapping: the
 distance that counts depends on the zoom of the moment, so making it again on
@@ -1061,6 +1107,8 @@ when none decides it.
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
 | Lay a rule | A point on a trait | The point comes onto the trait | Same |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
+| Lay a rule | « Coïncidence », a free corner clicked first, then a point held on an arc | The corner stays and keeps the point's rule; the arc moves to pass through it | Same (#539); the point went, its rule stayed on it, and the corner never came onto the curve |
+| Lay a rule | « Concentrique », a free circle clicked first, then a circle sharing its centre with an arc | The circle and the arc travel together onto the first circle's centre, each keeping its size, opening and way round | Same (#539); the arc stayed round a centre that no longer existed |
 | Change the part | A sketch on a face, a point on a corner | It follows the corner, and lets go only when values from the origin cannot hold | Not built: #359, #372 |
 | Move a mirror's original | Its mirrored copy | The copy | Not built: the copy is not tied to its original yet (#320); settled when the mirror tool is taken up again |
 

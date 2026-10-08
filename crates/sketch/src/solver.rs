@@ -138,7 +138,7 @@ impl Sketch {
             }
         }
 
-        self.hold_orientations(&held);
+        self.hold_orientations(&held, millimeters_per_unit, scale);
         outcome
     }
 

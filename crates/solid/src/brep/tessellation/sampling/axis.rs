@@ -17,9 +17,14 @@
 //! So a cone with a rim within twice a chord's sag of a parallel wall — as
 //! [`contact`] tells two cylinders close — stands in a group with every other
 //! rim of it and every coaxial wall within that sag of one of them, joined
-//! one through the next. Every circle of the group is sampled on every ray
-//! any of them takes: its cones' grids and vertices, every wall's own grid,
-//! and what the walls take in contact. Every strip of those walls is then
+//! one through the next. So does a cone with a coaxial circle standing within
+//! that sag of its face, between its rims or beyond them: a post's rim a hair
+//! inside a funnel. The cone's triangles reach from rim to rim, and at the
+//! circle's height they are the chords between the rays their rims share; a
+//! sample of the circle off those rays stands outside such a chord, and its
+//! face pokes through the cone's. Every circle of the group is sampled on
+//! every ray any of them takes: its cones' grids and vertices, every wall's
+//! own grid, and what the walls take in contact. Every strip of those walls is then
 //! flat between the same two rays, and walls a hair apart keep their order:
 //! what [`contact`] gives cylinders close to each other, given to the walls
 //! of a cone, decided once for them. A cone standing close to nothing keeps
@@ -106,30 +111,37 @@ impl Axes {
             })
             .collect();
         let mut cones = Vec::new();
-        let mut rims: Vec<(Vec<SurfaceId>, &Grid)> = Vec::new();
+        let mut rims: Vec<(Vec<SurfaceId>, Vec<SurfaceId>, &Grid)> = Vec::new();
         for grid in grids.values() {
             cones.push((grid.cone, grid.rays().collect()));
-            let held: Vec<SurfaceId> = circles
-                .iter()
-                .filter(|circle| grid.cone.holds(circle, eps))
-                .filter_map(|circle| contact::wall_of(circle, walls, eps))
-                .map(|(id, _)| *id)
-                .collect();
+            let walls_of = |within: &dyn Fn(&Circle) -> bool| -> Vec<SurfaceId> {
+                circles
+                    .iter()
+                    .filter(|circle| within(circle))
+                    .filter_map(|circle| contact::wall_of(circle, walls, eps))
+                    .map(|(id, _)| *id)
+                    .collect()
+            };
+            let held = walls_of(&|circle| grid.cone.holds(circle, eps));
+            let near = walls_of(&|circle| {
+                !grid.cone.holds(circle, eps)
+                    && grid.cone.holds(circle, beside(circle, grid, tolerance))
+            });
             if !held.is_empty() {
-                rims.push((held, grid));
+                rims.push((held, near, grid));
             }
         }
         let about: Vec<&Wall> = walls
             .iter()
             .filter(|wall| {
                 rims.iter()
-                    .any(|(_, grid)| along(grid.cone.origin, grid.cone.axis, wall, eps))
+                    .any(|(_, _, grid)| along(grid.cone.origin, grid.cone.axis, wall, eps))
             })
             .collect();
         let (mut joined, close) = Joined::close(&about, walls, eps, tolerance);
-        rims.retain(|(held, _)| held.iter().any(|id| close.contains(id)));
-        for (held, _) in &rims {
-            for id in held {
+        rims.retain(|(held, near, _)| !near.is_empty() || held.iter().any(|id| close.contains(id)));
+        for (held, near, _) in &rims {
+            for id in held.iter().chain(near) {
                 joined.join(held[0], *id);
             }
         }
@@ -138,7 +150,7 @@ impl Axes {
             groups: Vec::new(),
             of_wall: BTreeMap::new(),
         };
-        for (held, grid) in rims {
+        for (held, _, grid) in rims {
             let group = axes.group(joined.root(held[0]), grid);
             axes.groups[group].rays.extend(grid.rays());
         }
@@ -261,6 +273,14 @@ fn along(origin: DVec3, axis: DVec3, (_, wall): &Wall, eps: f64) -> bool {
     let from = wall.origin - origin;
     axis.cross(wall.axis).length() <= Scale::RELATIVE
         && (from - axis * axis.dot(from)).length() <= eps
+}
+
+/// How far from a cone a coaxial circle may stand and still be sampled with
+/// it: twice the sag of a chord of either's grid at the circle's radius, as
+/// [`together`] tells two walls close.
+fn beside(circle: &Circle, grid: &Grid, tolerance: f64) -> f64 {
+    let sag = |steps: usize| circle.radius * (1.0 - (PI / steps as f64).cos());
+    2.0 * sag(divisions(circle.radius, tolerance)).max(sag(grid.steps))
 }
 
 /// Whether two parallel walls stand within twice a chord's sag of each

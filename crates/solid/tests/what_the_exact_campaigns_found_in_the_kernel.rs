@@ -4787,11 +4787,13 @@ fn seed_5365216755_a_cone_across_its_axis_joined_to_a_half_turn_about_another() 
     ));
 }
 
-/// A cone joined to a coaxial post 3e-7 narrower than its rim: the exact
-/// kernel's own triangles hold, the application's finer ones are drawn crossing
-/// (body/drawn.rs).
+/// A funnel joined to a coaxial post whose top rim stands 3e-7 inside the
+/// funnel's cone, between its rims: the application's finer triangles were
+/// drawn crossing (body/drawn.rs). The cone's triangles reach from rim to rim,
+/// and the post's rim, sampled on angles of its own, poked through them. A
+/// coaxial circle within a sag of a cone's face now stands in the cone's
+/// group, sampled on the rays its rims take (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a cone joined to a coaxial post 3e-7 narrower than its rim; the exact kernel's own triangles hold, and the application's finer ones are drawn crossing (body/drawn.rs)"]
 fn seed_5365223411_a_cone_joined_to_a_post_3e_7_inside_its_rim() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

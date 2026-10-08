@@ -3015,8 +3015,13 @@ fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and
     ));
 }
 
+/// Was ignored as: triangles: a ring left between two coaxial cones crossing at
+/// a shallow angle is drawn crossing along the circle they cross on. The seed's
+/// cone stood a hair off the frustum's axis and was declined as unsupported
+/// until decision 8 took it about one axis; shrunk, the case is exactly
+/// coaxial and fails at 3286cee too. Holds since a coaxial circle within a
+/// sag of a cone's face stands in the cone's group, round 2 of #536.
 #[test]
-#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too"]
 fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

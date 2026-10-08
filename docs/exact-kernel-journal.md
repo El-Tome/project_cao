@@ -589,3 +589,45 @@ slanted draws run again on `ae20fa9` and on the tip:
   half each.
 - The gate's tests, built, take about 32 s, against about 31 s at
   `ae20fa9`.
+
+## 8 October: round 3 of #536, measured
+
+Three lanes merged onto `a344fdb` (two faces folded onto each other across
+an edge, a slide carrying a wall onto the first operand's, a cone holding a
+wall on its axis), measured at `40afb2d` on fresh seeds, in release, the
+seven draws side by side, and the first 15 000 seeds of round 1's slanted
+draws run again on `a344fdb` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5369100000 | 40 000 | 14 | 0.35 |
+| slanted, application's body | 5369200000 | 40 000 | 16 | 0.40 |
+| turned, exact kernel | 5369300000 | 30 000 | 9 | 0.30 |
+| turned, application's body | 5369400000 | 30 000 | 13 | 0.43 |
+| square | 5369500000 | 30 000 | 0 | 0 |
+| profiles, exact kernel | 5369600000 | 20 000 | 4 | 0.20 |
+| profiles, application's body | 5369700000 | 20 000 | 3 | 0.15 |
+
+- Every draw stays under one failure in a thousand, each lower than in
+  round 2. Over round 1's first 15 000 slanted seeds the exact kernel
+  goes from 0.40 failures in a thousand at `a344fdb` to 0.33, the
+  application's body from 0.20 to 0.13.
+- Three seeds that hold on `a344fdb` fail on the tip, all drawn crossing
+  (`Uncrossed`), all from `82eec7b` (two faces folded onto each other are
+  cut the other way), each shrunk to a case that holds on `a344fdb`:
+  5365104153, a stepped post ending in a pointed cone joined to a sixth
+  of a turn of a coaxial post; 5369119536, three quarters of a pointed
+  cone cut by three quarters of a coaxial post; 5369239472, through the
+  application's body, a whole cone bored by a coaxial post as wide as its
+  narrow end and joined to a block 6e-7 off that end. None is named yet.
+- Every other failure, run again on `a344fdb`, fails there too, two of
+  them by another rule: drawn crossing there, refused here. Shrunk, the
+  slanted draws' 30 are: no cone at all, 14, most of them straight turns;
+  coaxial turns with a cone, 9, five of them partial; a cone with prisms,
+  5; and a single cone alone, 2. A turn drawn in another plane about the
+  same line counts as coaxial here, which round 2's sorting missed. The
+  turned and profile draws' are prisms' and straight turns' families,
+  those of #533. By the rule broken, over all 59: refused (`Answers`) 31,
+  drawn crossing 24, left open (`Closed`) 3, a volume off 1.
+- The gate's tests, built, take about 33 s, against about 32.4 s at
+  `a344fdb`.

@@ -108,7 +108,7 @@ impl Floor<'_> {
                 continue;
             }
             let read = self.cone.parameters(self.samples.point(id));
-            let theta = last.map_or(read.x, |last| last + apart(read.x, last));
+            let theta = last.map_or(read.x, |last| near_turn(read.x, last));
             if let (Some(tip), Some(last)) = (passing.take(), last) {
                 self.between(last, theta, tip, &mut laid)?;
             }
@@ -141,6 +141,15 @@ impl Floor<'_> {
             turns: way,
         }
     }
+}
+
+/// The angle `read` a whole number of turns on, within half a turn of `last`:
+/// the same bits wherever the same sample is met at the same place, as a
+/// loop running along an edge and back along it meets each of its samples
+/// twice. Added up step by step from the last, the angles of the two passes
+/// part by a rounding, and the two chains cross.
+fn near_turn(read: f64, last: f64) -> f64 {
+    read + TAU * ((last - read) / TAU).round()
 }
 
 impl Outline {

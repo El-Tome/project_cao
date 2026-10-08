@@ -4656,9 +4656,14 @@ fn seed_5365207818_a_cone_joined_to_a_cylinder_a_hair_inside_its_rim_cut_twice()
 }
 
 /// A cylinder ending on a cone, joined to a coaxial ring turned 315 degrees the
-/// other way: drawn open along an arc.
+/// other way: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a cylinder ending on a cone joined to a coaxial ring turned 315 degrees; the exact body lists itself on its geometry and holds every line's promise, and its triangles are open along an arc; the application declines the step as undrawn"]
 fn seed_5365207903_a_cylinder_and_cone_joined_to_a_coaxial_turn_of_315_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -4678,9 +4683,14 @@ fn seed_5365207903_a_cylinder_and_cone_joined_to_a_coaxial_turn_of_315_degrees()
 }
 
 /// Stepped cones cut by a half turn of a cone about a square axis whose ends
-/// stand 2e-7 off their steps: two faces drawn crossing.
+/// stand 2e-7 off their steps: two faces were drawn crossing.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: stepped cones cut by a half turn of a cone about a square axis, 2e-7 off their steps; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
 fn seed_5365210781_stepped_cones_cut_by_a_half_cone_2e_7_off_their_steps() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -4736,9 +4746,14 @@ fn seed_5365212787_a_block_joined_to_a_post_and_to_a_post_6e_6_off_its_side() {
 }
 
 /// A cone of a section across its axis joined to a half turn about a square
-/// axis: drawn open along an arc.
+/// axis: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a cone of a section across its axis joined to a half turn about a square axis; the exact body lists itself on its geometry and holds every line's promise, and its triangles are open along an arc; the application declines the step as undrawn"]
 fn seed_5365216755_a_cone_across_its_axis_joined_to_a_half_turn_about_another() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -4808,9 +4823,14 @@ fn seed_5365223651_a_cone_pointed_1e_7_off_its_axis_cut_by_two_cylinders() {
 }
 
 /// A cylinder cut by a ring turned 359.9 degrees about a square axis, then by a
-/// coaxial pointed cone: drawn open along an arc.
+/// coaxial pointed cone: was drawn open along an arc.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a cylinder cut by a ring turned 359.9 degrees about a square axis and by a coaxial pointed cone; the exact body lists itself on its geometry and holds every line's promise, and its triangles are open along an arc; the application declines the step as undrawn"]
 fn seed_5365226551_a_cylinder_cut_by_a_turn_of_359_9_degrees_and_by_a_coaxial_point() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -4902,10 +4922,16 @@ fn seed_5365232431_a_stepped_shaft_leaning_1e_7_cut_by_a_cylinder_about_a_square
     ));
 }
 
-/// A stepped cone cut by a quarter turn of a band about a parallel axis: drawn
-/// open along an arc.
+/// A stepped cone cut by a quarter turn of a band about a parallel axis, whose
+/// end touches the cone along an arc and leaves it there as an edge the cone's
+/// face runs out and back along: was drawn open along the cone's rim.
+///
+/// A face of a cone that meets a sample twice — along an edge it runs out and
+/// back along, or at a corner it passes twice — was laid out by angles summed
+/// step by step, and its two passes stood a rounding apart and crossed: the face
+/// was left uncut. Each angle is now the sample's own, a whole number of turns
+/// on (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a stepped cone cut by a quarter turn about a parallel axis; the exact body lists itself on its geometry and holds every line's promise, and its triangles are open along an arc; the application declines the step as undrawn"]
 fn seed_5365237361_a_stepped_cone_cut_by_a_quarter_turn_about_a_parallel_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

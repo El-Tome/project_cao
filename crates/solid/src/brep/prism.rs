@@ -1,5 +1,6 @@
 //! A profile raised along its plane's normal into a body.
 
+mod corridor;
 mod touch;
 mod walls;
 
@@ -91,7 +92,13 @@ impl Body {
             contours.push(read(contour, first, anticlockwise)?);
             first += contour.runs.len() as u32;
         }
-        if !piece::apart(&contours, eps) {
+        // A whole turn of a circle sharing its loop with other runs starts and
+        // ends at a corner the loop passes through again: the touch would
+        // part it there, which only a loop of its own can take.
+        let ring_in_a_loop = contours
+            .iter()
+            .any(|pieces| pieces.len() > 1 && pieces.iter().any(|named| named.piece.is_ring()));
+        if ring_in_a_loop || corridor::run_both_ways(&contours, eps) {
             return Err(Declined::Profile);
         }
         if lift.length() <= eps {

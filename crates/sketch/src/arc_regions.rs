@@ -12,13 +12,25 @@ use crate::sketch::Sketch;
 /// turn is a ten-thousandth of a degree.
 const THE_SAME_WAY: f64 = 1e-9;
 
+/// What the walk of the drawing finds, every loop turning counter-clockwise.
+pub(crate) struct Walked {
+    /// Each area the drawing encloses.
+    pub(crate) areas: Vec<Outline>,
+    /// The outside of each piece of the drawing that holds together: where
+    /// several areas touching each other make such a piece inside an area,
+    /// what that area is hollow of. Two windows touching each other are one
+    /// piece, and leave one opening.
+    pub(crate) outsides: Vec<Outline>,
+}
+
 impl Sketch {
-    /// Walks the segment and arc graph and returns each area it encloses, as
-    /// a loop of positions turning counter-clockwise.
+    /// Walks the segment and arc graph, and returns each area it encloses and
+    /// the outside of each piece of it.
     ///
     /// A circle or an ellipse nothing cuts never reaches the graph, and comes
-    /// back from `crossed` as the closed loop it already is.
-    pub(crate) fn closed_outlines(&self) -> Vec<Outline> {
+    /// back from `crossed` as the closed loop it already is: an area, and a
+    /// piece of its own.
+    pub(crate) fn closed_outlines(&self) -> Walked {
         let Crossed {
             places,
             ends,
@@ -36,8 +48,12 @@ impl Sketch {
                 Some(all_of_one_curve(curves, bend, points))
             })
             .collect();
+        let mut outsides = outlines.clone();
         if ends.is_empty() {
-            return outlines;
+            return Walked {
+                areas: outlines,
+                outsides,
+            };
         }
 
         let departure = |half: usize| -> DVec2 {
@@ -93,6 +109,43 @@ impl Sketch {
             Some(around[(position + around.len() - 1) % around.len()])
         };
 
+        // The loop the half-edges walk, each run with the curve it bends
+        // along, and the curves of the drawing bounding it.
+        let outline_of = |bounding: &[usize]| -> Outline {
+            let mut outline = Outline::default();
+            for half in bounding.iter().copied() {
+                let (from, to) = (places[ends[half].0], places[ends[half].1]);
+                match half.checked_sub(split) {
+                    None => {
+                        outline.points.push(from);
+                        outline.curves.push(None);
+                    }
+                    Some(curved) => {
+                        let sampled = curves[curved].points_along(from, to);
+                        // The run's number is where its bend is about to land,
+                        // so the two cannot drift apart. Counted any other way
+                        // they would agree only as long as nobody changed
+                        // either — and a run whose bend went missing is read
+                        // as the steps it was sampled into, which is the one
+                        // answer this whole file exists to improve on.
+                        let run = outline.bends.len();
+                        outline.bends.push(curves[curved].bend);
+                        outline
+                            .curves
+                            .extend(std::iter::repeat_n(Some(run), sampled.len()));
+                        outline.points.extend(sampled);
+                    }
+                }
+            }
+            outline.bounds = bounding
+                .iter()
+                .map(|half| cut_from[half / 2].clone())
+                .collect();
+            outline.bounds.sort_unstable();
+            outline.bounds.dedup();
+            outline
+        };
+
         let mut visited = vec![false; ends.len()];
         for start in 0..ends.len() {
             if visited[start] || ends[start].0 == ends[start].1 {
@@ -123,50 +176,32 @@ impl Sketch {
                 continue;
             }
 
-            let mut outline = Outline::default();
+            // Turning the other way round the same edges walks the outside of
+            // a piece of the drawing, which is not an area: only the face the
+            // walk keeps on its left has a positive signed area. Walked back
+            // along the twins, that outside is what an area around the piece
+            // is hollow of. A face pinched at a point — a bowtie's crossing, a
+            // point dropped on a trait — walks that point twice, quite
+            // correctly, so nothing here may ask for the corners to be
+            // distinct.
             let bounding = without_spurs(&walked);
-            for half in bounding.iter().copied() {
-                let (from, to) = (places[ends[half].0], places[ends[half].1]);
-                match half.checked_sub(split) {
-                    None => {
-                        outline.points.push(from);
-                        outline.curves.push(None);
-                    }
-                    Some(curved) => {
-                        let sampled = curves[curved].points_along(from, to);
-                        // The run's number is where its bend is about to land,
-                        // so the two cannot drift apart. Counted any other way
-                        // they would agree only as long as nobody changed
-                        // either — and a run whose bend went missing is read
-                        // as the steps it was sampled into, which is the one
-                        // answer this whole file exists to improve on.
-                        let run = outline.bends.len();
-                        outline.bends.push(curves[curved].bend);
-                        outline
-                            .curves
-                            .extend(std::iter::repeat_n(Some(run), sampled.len()));
-                        outline.points.extend(sampled);
-                    }
+            let outline = outline_of(&bounding);
+            if signed_area(&outline.points) > 1e-9 {
+                outlines.push(outline);
+                continue;
+            }
+            for piece in apart_at_bridges(bounding) {
+                let twins: Vec<usize> = piece.iter().rev().map(|half| half ^ 1).collect();
+                let outside = outline_of(&twins);
+                if signed_area(&outside.points) > 1e-9 {
+                    outsides.push(outside);
                 }
             }
-
-            // Turning the other way round the same edges walks the outside of
-            // the drawing, which is not an area: only the face the walk keeps
-            // on its left has a positive signed area. A face pinched at a
-            // point — a bowtie's crossing, a point dropped on a trait — walks
-            // that point twice, quite correctly, so nothing here may ask for
-            // the corners to be distinct.
-            if signed_area(&outline.points) > 1e-9 {
-                outline.bounds = bounding
-                    .iter()
-                    .map(|half| cut_from[half / 2].clone())
-                    .collect();
-                outline.bounds.sort_unstable();
-                outline.bounds.dedup();
-                outlines.push(outline);
-            }
         }
-        outlines
+        Walked {
+            areas: outlines,
+            outsides,
+        }
     }
 }
 
@@ -196,6 +231,38 @@ fn all_of_one_curve(curves: Vec<CurveId>, bend: Bend, points: Vec<DVec2>) -> Out
         bends: vec![bend],
         points,
     }
+}
+
+/// The loops the outside of a piece falls into once every trait it runs along
+/// both ways is taken out: two shapes a trait alone joins are two pieces as
+/// far as what they leave hollow goes, and the trait, standing in matter,
+/// bounds nothing. Left in, it would be a corridor of no width the walls
+/// stand back to back along.
+fn apart_at_bridges(bounding: Vec<usize>) -> Vec<Vec<usize>> {
+    let mut loops = Vec::new();
+    let mut pending = vec![bounding];
+    while let Some(lap) = pending.pop() {
+        let lap = without_spurs(&lap);
+        let bridge = lap.iter().enumerate().find_map(|(out, half)| {
+            let back = lap.iter().position(|other| *other == half ^ 1)?;
+            Some((out.min(back), out.max(back)))
+        });
+        let Some((first, second)) = bridge else {
+            if !lap.is_empty() {
+                loops.push(lap);
+            }
+            continue;
+        };
+        pending.push(lap[first + 1..second].to_vec());
+        pending.push(
+            lap[second + 1..]
+                .iter()
+                .chain(&lap[..first])
+                .copied()
+                .collect(),
+        );
+    }
+    loops
 }
 
 /// The half-edges that really bound the face, with every trait the walk had to

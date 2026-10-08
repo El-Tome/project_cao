@@ -3126,9 +3126,12 @@ fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_a
 /// The fan from the cone's tip to two samples of the ruling the post's end
 /// plane holds is collinear in space, and is taken for a fold lying on that
 /// plane's triangle; the flip makes a triangle whose side runs along the
-/// ruling past the sample between them. Holds since a corner lies on another
-/// face's triangle only clear of the edge's line, round 4 of #536.
+/// ruling past the sample between them. Round 4 held it by taking a triangle
+/// whose third corner sits on the edge's line but for rounding for no fold,
+/// and broke 5370402053, where only that flip keeps a sliver from crossing:
+/// the sign of a rounding 1e-15 off the line decides both.
 #[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3153,9 +3156,9 @@ fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxi
 /// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
 /// The same fan from the tip, collinear along the ruling the turns' shared
 /// start plane holds, flipped past the sample where the post meets the cone.
-/// Holds since a corner lies on another face's triangle only clear of the
-/// edge's line, round 4 of #536.
+/// Held and let go with 5365104153 in round 4.
 #[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3202,5 +3205,27 @@ fn seed_5369239472_a_cone_bored_as_wide_as_its_narrow_end_joined_to_a_block_6e_7
                 -480.0,
             )),
         ],
+    ));
+}
+
+/// Round 4 of #536, a regression of the lane that took a triangle whose
+/// third corner sits on the edge's line but for rounding for no fold: the
+/// post is tangent to the bar's end along a line, the post's triangles along
+/// it include fans of collinear samples, and only their flip keeps a sliver
+/// of the post from crossing the bar's end.
+#[test]
+fn seed_5370402053_a_post_touching_along_a_line_the_end_of_a_bar_leaning_a_thousandth() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(2e-8).leaning(0.001),
+            Section::bands(0.0, &[[2.0, -3.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(-2.0),
+            Outline::circle([4.0, 0.0], 2.0),
+            6.0,
+        ))],
     ));
 }

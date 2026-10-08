@@ -3538,9 +3538,17 @@ fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
     ));
 }
 
+/// A slot whose floor stands 1e-7 from the point where its lower cap touches
+/// a turned cylinder inside, the cap a perpendicular wall. The slot's corner
+/// there was taken onto the cylinder, the curve the cap and the cylinder meet
+/// along passed 5e-8 from it, was not cut there, and ran on to the point of
+/// touch under the floor; the body was declined as unverified. A line a
+/// plane cuts the cap along, a hair inside the cylinder by less than a
+/// coordinate holds, was rounded onto it and taken to touch it: it is
+/// measured from the two radii now, as for 5365239969, and the curve is cut
+/// where it crosses.
 #[test]
-#[ignore = "kernel-declines: a slot whose floor stands 1e-7 from the point where its lower cap touches a turned cylinder inside, the cap a perpendicular wall: the slot's corner there is taken onto the cylinder, the curve the cap and the cylinder meet along passes 5e-8 from it, is not cut there, and runs on to the point of touch under the floor, a hair the cap's face cannot close (brep/combine/cut.rs, decision 4 at a contact); declined as unverified (brep/assembly.rs). 32 of the 1 071 failures through the application's body were declined as unverified or as a tie; 4 now hold"]
-fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_declined_as_unverified() {
+fn seed_533631663_a_slot_a_hair_off_a_turned_cylinder_s_axis_plane_is_cut_where_its_cap_crosses() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
             Plane::xz(2.0000001),
@@ -5101,10 +5109,16 @@ fn seed_5365230254_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree() {
     ));
 }
 
-/// A rounded block joined to a cylinder whose last band is 6e-8 long: declined
-/// as unverified. No cone.
+/// A rounded block joined to a cylinder whose last band is 6e-8 long, laid
+/// as its end 3e-8 short of where the block's corner round touches the
+/// cylinder's wall from inside. The end's rim crosses the round twice, 8.5e-8
+/// either side of the block's bottom, but the line the end's plane cuts the
+/// round along stands 4.5e-16 inside the wall, less than a coordinate holds:
+/// rounded onto it, the rim was taken to touch the round at the bottom, the
+/// curve the round and the wall meet along was not cut where the rim crosses
+/// it, and the body was declined as unverified. The line is now measured
+/// from the two radii. No cone.
 #[test]
-#[ignore = "kernel-declines, found by round 2's triage: a rounded block joined to a cylinder whose last band is 6e-8 long is declined as unverified. No cone"]
 fn seed_5365239969_a_rounded_block_joined_to_a_cylinder_ending_on_a_band_6e_8_long() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

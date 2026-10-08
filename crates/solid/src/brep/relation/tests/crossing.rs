@@ -194,6 +194,66 @@ fn a_circle_crosses_a_perpendicular_cylinder_where_its_plane_cuts_it() {
     assert_eq!(crossings(&rim, &skew, scale()), Crossings::Unsupported);
 }
 
+/// A round of radius 1 along Y whose axis stands 7 from Z, so that it touches
+/// the wall of radius 8 about Z from inside at `(8, 0, 3)`, and the height a
+/// hair under that touch: the plane there cuts the round 7 + √(1 − δ²) from
+/// the axis, a hair inside the wall by less than a coordinate holds, so the
+/// line as rounded stands on the wall. Its two crossings are √8 δ either side
+/// of the touch, many tolerances apart.
+fn a_hair_under_a_round_touching_inside() -> (Cylinder, Surface, f64, f64) {
+    let delta = 3e-8;
+    let wall = Cylinder::about(DVec3::ZERO, DVec3::Z, 8.0);
+    let round = cylinder(DVec3::new(7.0, 0.0, 3.0), DVec3::Y, 1.0);
+    (wall, round, 3.0 - delta, 8.0_f64.sqrt() * delta)
+}
+
+#[test]
+fn a_circle_a_hair_under_a_round_touching_its_wall_inside_crosses_it_twice() {
+    let (wall, round, height, half) = a_hair_under_a_round_touching_inside();
+    assert!(half > 2.0 * scale().eps());
+    let rim = Curve::Circle(Circle::on(&wall, height));
+    let crossed = found(&rim, &round, 1e-12 * REACH);
+    assert_eq!(tangents(&crossed), [false; 4]);
+    let near: Vec<&Crossing> = crossed
+        .iter()
+        .filter(|crossing| crossing.point.x > 7.5)
+        .collect();
+    assert_eq!(near.len(), 2);
+    for crossing in near {
+        assert!(
+            (crossing.point.y.abs() - half).abs() < 1e-12 * REACH,
+            "{crossing:?}"
+        );
+    }
+}
+
+#[test]
+fn the_curve_two_cylinders_meet_along_a_hair_from_their_touch_crosses_a_plane_twice_there() {
+    let (wall, round, height, half) = a_hair_under_a_round_touching_inside();
+    let Surface::Cylinder(round) = round else {
+        unreachable!()
+    };
+    let meet = Curve::Meet(Meet {
+        first: wall,
+        second: round,
+        component: 0,
+    });
+    let level = plane(DVec3::new(0.0, 0.0, height), DVec3::Z);
+    let crossed = found(&meet, &level, 1e-12 * REACH);
+    let near: Vec<&Crossing> = crossed
+        .iter()
+        .filter(|crossing| crossing.point.x > 7.5)
+        .collect();
+    assert_eq!(near.len(), 2, "{crossed:?}");
+    for crossing in near {
+        assert!(!crossing.tangent);
+        assert!(
+            (crossing.point.y.abs() - half).abs() < 1e-12 * REACH,
+            "{crossing:?}"
+        );
+    }
+}
+
 /// The loop a cylinder of radius 3 along X through `(0, 4, 0)` makes with one
 /// of radius 5 standing on Z: it spans `y` from 1 to 5, and reaches up to
 /// `z = 3` where `y = 4`, at `x = ±3`.

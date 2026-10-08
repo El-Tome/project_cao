@@ -35,7 +35,7 @@ pub(super) fn line_and_cone(line: &Line, cone: &Cone, scale: Scale, touching: &T
         let radius = cone.section(height);
         if radius > eps {
             let section = Cylinder::about(cone.origin, cone.axis, radius);
-            return line_and_cylinder(line, &section, scale, touching);
+            return line_and_cylinder(line, &section, scale, touching, None);
         }
         if radius < -eps || !through {
             return Solved::At(Vec::new());
@@ -147,7 +147,7 @@ pub(super) fn circle_and_cone(
             return circle_through(
                 circle,
                 cylinders(&own, &section, scale),
-                false,
+                (false, None),
                 scale,
                 touching,
             );
@@ -166,7 +166,13 @@ pub(super) fn circle_and_cone(
         return Solved::Unsupported;
     };
     let apex = cone.apex();
-    match circle_through(circle, Relation::Lines(lines), true, scale, touching) {
+    match circle_through(
+        circle,
+        Relation::Lines(lines),
+        (true, None),
+        scale,
+        touching,
+    ) {
         Solved::At(found) => {
             let mut kept: Vec<(f64, bool)> = Vec::new();
             for (at, touch) in found {

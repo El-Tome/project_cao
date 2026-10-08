@@ -1,5 +1,6 @@
 use glam::DVec2;
 
+use crate::arc_regions::Walked;
 use crate::edges::half_edge::Bend;
 use crate::naming::CurveId;
 use crate::sketch::Sketch;
@@ -44,8 +45,10 @@ pub struct Outline {
 #[derive(Clone, Debug)]
 pub struct Region {
     pub outline: Outline,
-    /// The outlines drawn directly inside this one. They are what a shape
-    /// leaves hollow when it becomes a solid — the middle of a tube.
+    /// The outlines drawn directly inside this one, or the outside several of
+    /// them make together where they touch. They are what a shape leaves
+    /// hollow when it becomes a solid — the middle of a tube, or one opening
+    /// for two windows touching.
     pub holes: Vec<Outline>,
     pub depth: usize,
     pub triangles: Vec<[DVec2; 3]>,
@@ -94,8 +97,8 @@ impl Sketch {
     /// around exactly one area. Counting segments could not do this — the same
     /// segment belongs to two areas when two shapes share a side.
     pub fn regions(&self) -> Vec<Region> {
-        let mut regions: Vec<Region> = self
-            .closed_outlines()
+        let Walked { areas, outsides } = self.closed_outlines();
+        let mut regions: Vec<Region> = areas
             .into_iter()
             .filter_map(|outline| {
                 let triangles = triangulate(&outline.points);
@@ -108,39 +111,7 @@ impl Sketch {
             })
             .collect();
 
-        // `within[inner][outer]`, read once: depth and holes both ask it.
-        let within: Vec<Vec<bool>> = regions
-            .iter()
-            .enumerate()
-            .map(|(inner, region)| {
-                regions
-                    .iter()
-                    .enumerate()
-                    .map(|(outer, other)| {
-                        inner != outer && lies_within(&region.outline.points, &other.outline.points)
-                    })
-                    .collect()
-            })
-            .collect();
-        let depths: Vec<usize> = within
-            .iter()
-            .map(|outers| outers.iter().filter(|inside| **inside).count())
-            .collect();
-
-        // Only the outlines directly inside count as holes: what sits inside a
-        // hole is matter again, and belongs to its own area.
-        let holes: Vec<Vec<Outline>> = (0..regions.len())
-            .map(|outer| {
-                (0..regions.len())
-                    .filter(|inner| within[*inner][outer] && depths[*inner] == depths[outer] + 1)
-                    .map(|inner| regions[inner].outline.clone())
-                    .collect()
-            })
-            .collect();
-        for ((region, holes), depth) in regions.iter_mut().zip(holes).zip(depths) {
-            region.holes = holes;
-            region.depth = depth;
-        }
+        hollow::nest(&mut regions, outsides);
         regions.sort_by_key(|region| region.depth);
         regions
     }
@@ -370,6 +341,7 @@ fn in_triangle(point: DVec2, a: DVec2, b: DVec2, c: DVec2) -> bool {
 }
 
 mod across;
+mod hollow;
 mod measure;
 mod runs;
 mod side;

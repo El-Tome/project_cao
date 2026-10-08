@@ -566,36 +566,10 @@ fn a_run_of_nearly_straight_corners_keeps_every_corner_on_its_walls() {
     }
 }
 
-#[test]
-fn a_profile_passing_twice_through_one_corner_is_declined() {
-    use crate::profile::Run;
-    use std::f64::consts::PI;
-    let raise = |outline: &Contour, holes: &[Contour]| {
-        Body::raised(outline, holes, ground(), DVec3::Z * 10.0).map(|_| ())
-    };
-    let circle_and_triangle = Contour {
-        corners: vec![
-            DVec2::new(5.0, 0.0),
-            DVec2::new(-5.0, 0.0),
-            DVec2::new(5.0, 0.0),
-            DVec2::new(10.0, -5.0),
-            DVec2::new(10.0, 5.0),
-        ],
-        runs: vec![
-            Run::Round {
-                center: DVec2::ZERO,
-                turn: PI,
-            },
-            Run::Round {
-                center: DVec2::ZERO,
-                turn: PI,
-            },
-            Run::Straight,
-            Run::Straight,
-            Run::Straight,
-        ],
-    };
-    assert_eq!(raise(&circle_and_triangle, &[]), Err(Declined::Profile));
+/// Profiles passing twice through one place: a bow tie pinched to within a
+/// hair, a triangle cut out of a block's corner, two windows meeting at a
+/// corner — each with that place and the surface it encloses.
+fn passing_twice_through_one_corner() -> Vec<(Contour, Vec<Contour>, DVec2, f64)> {
     let bow_tie = Contour::straight(vec![
         DVec2::new(0.0, 0.0),
         DVec2::new(2.0, 0.0),
@@ -604,19 +578,165 @@ fn a_profile_passing_twice_through_one_corner_is_declined() {
         DVec2::new(0.0, 2.0),
         DVec2::new(1.0, 1.0 + 1e-12),
     ]);
-    assert_eq!(raise(&bow_tie, &[]), Err(Declined::Profile));
     let block = Contour::rectangle(DVec2::ZERO, DVec2::new(10.0, 10.0));
     let in_the_corner = Contour::straight(vec![
         DVec2::new(10.0, 10.0),
         DVec2::new(5.0, 8.0),
         DVec2::new(8.0, 5.0),
     ]);
+    vec![
+        (bow_tie, vec![], DVec2::ONE, 2.0),
+        (block, vec![in_the_corner], DVec2::splat(10.0), 89.5),
+        (
+            Contour::rectangle(DVec2::ZERO, DVec2::splat(30.0)),
+            vec![two_windows_meeting_at_a_corner()],
+            DVec2::splat(15.0),
+            700.0,
+        ),
+    ]
+}
+
+#[test]
+fn a_whole_circle_sharing_its_loop_with_other_runs_is_declined() {
+    use crate::profile::Run;
+    use std::f64::consts::PI;
+    let half = Run::Round {
+        center: DVec2::ZERO,
+        turn: PI,
+    };
+    let circle_and_triangle = Contour {
+        corners: [
+            (5.0, 0.0),
+            (-5.0, 0.0),
+            (5.0, 0.0),
+            (10.0, -5.0),
+            (10.0, 5.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+        runs: vec![half, half, Run::Straight, Run::Straight, Run::Straight],
+    };
+    let raise = |holes: &[Contour]| {
+        Body::raised(&circle_and_triangle, holes, ground(), DVec3::Z * 10.0).map(|_| ())
+    };
+
+    assert_eq!(raise(&[]), Err(Declined::Profile));
+    let touching_inside = Contour::circle(DVec2::new(0.0, 3.0), 2.0);
+    assert_eq!(raise(&[touching_inside]), Err(Declined::Profile));
+}
+
+#[test]
+fn a_profile_running_a_stretch_both_ways_is_declined() {
+    let frame_with_a_trait_to_its_window = Contour::straight(
+        [
+            (0.0, 0.0),
+            (30.0, 0.0),
+            (30.0, 30.0),
+            (0.0, 30.0),
+            (0.0, 0.0),
+            (10.0, 10.0),
+            (10.0, 20.0),
+            (20.0, 20.0),
+            (20.0, 10.0),
+            (10.0, 10.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+    );
+    let raise = |outline: &Contour, holes: &[Contour]| {
+        Body::raised(outline, holes, ground(), DVec3::Z * 10.0).map(|_| ())
+    };
+
     assert_eq!(
-        raise(&block, std::slice::from_ref(&in_the_corner)),
+        raise(&frame_with_a_trait_to_its_window, &[]),
         Err(Declined::Profile)
     );
-    let hole = Contour::rectangle(DVec2::new(2.0, 2.0), DVec2::new(5.0, 5.0));
-    assert_eq!(raise(&block, &[hole]), Ok(()));
+    let frame = Contour::rectangle(DVec2::ZERO, DVec2::splat(30.0));
+    let windows_and_the_trait_between = Contour::straight(
+        [
+            (5.0, 5.0),
+            (10.0, 5.0),
+            (10.0, 10.0),
+            (20.0, 20.0),
+            (25.0, 20.0),
+            (25.0, 25.0),
+            (20.0, 25.0),
+            (20.0, 20.0),
+            (10.0, 10.0),
+            (5.0, 10.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+    );
+    assert_eq!(
+        raise(&frame, &[windows_and_the_trait_between]),
+        Err(Declined::Profile)
+    );
+    let quarter = |turn: f64| crate::profile::Run::Round {
+        center: DVec2::new(20.0, 10.0),
+        turn: turn * std::f64::consts::FRAC_PI_2,
+    };
+    let straight = crate::profile::Run::Straight;
+    let windows_and_the_arc_between = Contour {
+        corners: [
+            (5.0, 5.0),
+            (10.0, 5.0),
+            (10.0, 10.0),
+            (20.0, 20.0),
+            (25.0, 20.0),
+            (25.0, 25.0),
+            (20.0, 25.0),
+            (20.0, 20.0),
+            (10.0, 10.0),
+            (5.0, 10.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+        runs: vec![
+            straight,
+            straight,
+            quarter(-1.0),
+            straight,
+            straight,
+            straight,
+            straight,
+            quarter(1.0),
+            straight,
+            straight,
+        ],
+    };
+    assert_eq!(
+        raise(&frame, &[windows_and_the_arc_between]),
+        Err(Declined::Profile)
+    );
+}
+
+#[test]
+fn a_profile_passing_twice_through_one_corner_lays_one_corner_there() {
+    for (outline, holes, place, area) in passing_twice_through_one_corner() {
+        let body = Body::raised(&outline, &holes, ground(), DVec3::Z * 10.0)
+            .unwrap_or_else(|reason| panic!("{place}: declined, {reason:?}"));
+
+        assert_sound(&body);
+        let triangles = body.triangles(1e-3);
+        crate::soundness::closed(&triangles).expect("the triangles close");
+        crate::soundness::uncrossed(&triangles).expect("no triangle crosses another");
+        assert!(
+            (body.volume() - area * 10.0).abs() <= 1e-9 * area * 10.0,
+            "{place}: {} against {}",
+            body.volume(),
+            area * 10.0
+        );
+        for height in [0.0, 10.0] {
+            let there = body
+                .vertex_ids()
+                .filter(|corner| {
+                    body.vertex(*corner).point.distance(place.extend(height)) <= body.scale().eps()
+                })
+                .count();
+            assert_eq!(there, 1, "{place} at {height}: one corner");
+        }
+    }
 }
 
 #[test]
@@ -758,4 +878,114 @@ fn a_hole_touching_its_outline_at_one_point_is_raised_as_the_kernel_cuts_it() {
             );
         }
     }
+}
+
+/// Window A (5,5)–(15,15) and window B (15,15)–(25,25) as the drawing hands
+/// them once they touch: one opening, passing twice through (15, 15).
+fn two_windows_meeting_at_a_corner() -> Contour {
+    Contour::straight(
+        [
+            (5.0, 5.0),
+            (15.0, 5.0),
+            (15.0, 15.0),
+            (25.0, 15.0),
+            (25.0, 25.0),
+            (15.0, 25.0),
+            (15.0, 15.0),
+            (5.0, 15.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+    )
+}
+
+#[test]
+fn a_hole_passing_twice_through_one_corner_is_raised_as_the_kernel_cuts_it() {
+    let frame = Contour::rectangle(DVec2::ZERO, DVec2::splat(30.0));
+    let raised = Body::raised(
+        &frame,
+        &[two_windows_meeting_at_a_corner()],
+        ground(),
+        DVec3::Z * 10.0,
+    )
+    .expect("the frame raises");
+    let below = Frame {
+        origin: DVec3::Z * -1.0,
+        ..ground()
+    };
+    let window = |low: f64, high: f64| {
+        Body::raised(
+            &Contour::rectangle(DVec2::splat(low), DVec2::splat(high)),
+            &[],
+            below,
+            DVec3::Z * 12.0,
+        )
+        .expect("a window raises")
+    };
+    let block = Body::raised(&frame, &[], ground(), DVec3::Z * 10.0).expect("the block raises");
+    let cut = block
+        .cut_by(&window(5.0, 15.0))
+        .and_then(|once| once.cut_by(&window(15.0, 25.0)))
+        .expect("the kernel cuts both windows");
+
+    assert_sound(&raised);
+    assert!(
+        (raised.volume() - 7000.0).abs() <= 1e-9 * 7000.0,
+        "{}",
+        raised.volume()
+    );
+    assert_eq!(counts(&raised), counts(&cut));
+    for (cap, height) in raised.faces[..2].iter().zip([0.0, 10.0]) {
+        let opening = &cap.loops[1];
+        let through: Vec<_> = opening
+            .iter()
+            .filter_map(|coedge| raised.edge(coedge.edge).ends)
+            .flatten()
+            .filter(|corner| {
+                raised
+                    .vertex(*corner)
+                    .point
+                    .distance(DVec3::new(15.0, 15.0, height))
+                    <= raised.scale().eps()
+            })
+            .collect();
+        assert_eq!(through.len(), 4, "two runs in, two out: {through:?}");
+        assert!(
+            through.windows(2).all(|pair| pair[0] == pair[1]),
+            "one corner"
+        );
+    }
+}
+
+#[test]
+fn a_pinch_whose_walls_leave_its_corner_nearly_along_each_other_is_declined() {
+    let notch_and_window_a_hair_apart = Contour::straight(
+        [
+            (0.0, 0.0),
+            (60.0, 0.0),
+            (60.0, 60.0),
+            (23.338692939825332, 60.00000006784355),
+            (23.338724161513277, 9.95054548519367),
+            (23.33886558796814, 50.074228525321416),
+            (50.0000466217739, 50.074134551147935),
+            (50.00004699890918, 9.950545851554532),
+            (23.338724161513277, 9.95054548519367),
+            (9.999986116998937, 9.95054555358826),
+            (9.99998573242549, 59.99999996535066),
+            (0.0, 60.0),
+        ]
+        .map(|(x, y)| DVec2::new(x, y))
+        .to_vec(),
+    );
+
+    assert_eq!(
+        Body::raised(
+            &notch_and_window_a_hair_apart,
+            &[],
+            ground(),
+            DVec3::Z * 10.0
+        )
+        .map(|_| ()),
+        Err(Declined::Profile)
+    );
 }

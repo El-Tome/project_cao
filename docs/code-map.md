@@ -108,6 +108,7 @@ in one of the two domains, never there.
 | The five circle constructions, and the ways of drawing one | `sketch/src/construct.rs` | `centre_through`, `centre_touching_two`, `circle_touching_three`, `CircleMode` |
 | Work plane, going 2D ↔ 3D | `sketch/src/plane.rs` | `WorkPlane::to_world`, `to_local`, `ray_intersection`, `kind`, `near_side` |
 | Closed areas, to extrude | `sketch/src/regions.rs` | `Sketch::regions()` |
+| How deep an area lies and what it is hollow of: the areas directly inside it, or the outside several of them make where they touch (#540) | `sketch/src/regions/hollow.rs`, `sketch/src/arc_regions.rs` | `nest`, `Walked::outsides`, `apart_at_bridges` |
 | How much surface an area holds and how far it is round, the curve honoured rather than the steps it was sampled into | `sketch/src/regions/measure.rs` | `Region::area`, `Region::perimeter`, `Outline::area`, `Outline::perimeter` |
 | An area's outline and holes as runs — straight, round about a centre with how far it turns, or along an ellipse — which is how the exact kernel is handed an area | `sketch/src/regions/runs.rs` | `Outline::runs`, `Leg` |
 | An area cut along a line into its sides, arcs cut as arcs, for a turn about an axis running through it | `sketch/src/regions/across.rs` | `Sketch::pieces_across` |
@@ -155,6 +156,7 @@ What it does: [`sketch.md`](sketch.md).
 | Keeping only what lies behind a plane, to look inside rather than to cut | `solid/src/clipping.rs` | `Mesh::behind` |
 | The exact kernel of #498: a body of planes and cylinders, raised from a profile of straight runs and arcs, joined and cut exactly — behind `Body` since #526, and refused above `cao_solid` by `the_exact_kernel_stays_behind_the_body` and `the_insides_of_the_matter_stay_in_cao_solid` ([`exact-kernel.md`](exact-kernel.md)) | `solid/src/brep.rs` and `brep/` | `brep::Body::raised`, `joined`, `cut_by` → `Result<_, Declined>`, `triangles`, `volume`, `listing` → `Listing`, `crossings_along`, `winding` |
 | The profile a kernel is handed: loops of straight runs and arcs, and the frame they stand in, beside the steps the flats raise | `solid/src/profile.rs` | `Profile`, `Contour`, `Run`, `Frame` |
+| Where a raised profile touches itself — a whole circle touching another loop, two corners in one place — laid as one corner every loop through it shares; a stretch run both ways, the corridor a trait joining two loops leaves, and a corner whose walls leave it nearly along each other, declined | `solid/src/brep/prism/touch.rs`, `brep/prism/corridor.rs` | `parted`, `corners_met`, `run_both_ways`, `needle` |
 | The numbers a face of the exact kernel answers to, carried through a raise, a boolean and a merge | `solid/src/brep/topology/numbers.rs`, `brep/selection/numbers.rs`, `brep/prism/walls.rs` | `Body::numbers`, `renumbered`, `pieces_of`, `rename` |
 | How two surfaces of the exact kernel meet, decided once | `solid/src/brep/relation.rs`, `brep/meet.rs`, `brep/canonical/` | `relation`, `crossings`, `Meeting` |
 | Join and cut on the exact kernel | `solid/src/brep/combine.rs` and `combine/` | `Body::joined`, `Body::cut_by` |

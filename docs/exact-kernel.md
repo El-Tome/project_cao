@@ -27,8 +27,18 @@ It can:
   tolerance. The touch is decided once, on the pieces (`prism/touch.rs`),
   and laid as the boolean lays it when it cuts the same hole out: a corner
   both loops share on each cap, the line the two walls touch along between
-  them, and each wall parted there. A touch at a corner of the other loop is
-  not laid this way.
+  them, and each wall parted there. Two corners standing in one place, within
+  the tolerance, are laid as one corner the same way: a loop passing twice
+  through it, as the opening two windows meeting at a corner leave (#540), a
+  shape pinched against its outline, or a hole in a corner of it. A circle
+  touching another loop at a corner of that loop is not laid this way. Still
+  declined: a stretch run once each way, the corridor a trait joining a loop
+  to another leaves, which would stand two walls back to back
+  (`prism/corridor.rs`); a corner passed through twice whose walls leave it
+  less than a thousandth of a radian apart, the fin a side the solver left
+  leaning on its neighbour by a hair would stand; a whole circle sharing its
+  loop with other runs; and, by a turn, any profile passing twice through one
+  corner.
 - **turn a profile of straight runs** about an axis lying in its plane, when
   every run is parallel or square to the axis: by any angle up to a whole
   turn, either way, adding or taking away matter. A run parallel to the axis

@@ -39,17 +39,33 @@ pub fn areas_of(sketch: &Sketch) -> Vec<Area> {
 
 /// What an outline encloses, read on its curves: the area of the region it
 /// bounds, with what that region is hollow of added back — each hole being
-/// the outline of an area one level deeper, measured the same way.
+/// the outline of an area one level deeper, or the outside of several such
+/// areas touching each other (#540), measured the same way.
 fn measure(region: &Region, regions: &[Region], depth: usize) -> f64 {
     let hollow: f64 = region
         .holes
         .iter()
         .map(|hole| {
+            let tiling: Vec<&Region> = regions
+                .iter()
+                .filter(|inner| {
+                    inner.depth == region.depth + 1
+                        && inner
+                            .outline
+                            .points
+                            .iter()
+                            .any(|place| hole.points.contains(place))
+                })
+                .collect();
             match regions
                 .iter()
                 .find(|inner| inner.outline.points == hole.points)
             {
                 Some(inner) if depth > 0 => measure(inner, regions, depth - 1),
+                None if depth > 0 && tiling.len() > 1 => tiling
+                    .iter()
+                    .map(|inner| measure(inner, regions, depth - 1))
+                    .sum(),
                 _ => shoelace(&hole.points),
             }
         })

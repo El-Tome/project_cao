@@ -3101,3 +3101,23 @@ fn seed_5365214000_a_ring_6e_6_thick_whose_outer_wall_narrows_across_it_turned_2
         vec![],
     ));
 }
+
+/// The same seed shrunk again once the first was held: a long cone narrowing
+/// from 165 to 135 ended by a second one 6e-6 long all but square to the axis,
+/// whose narrow rim stands a hair beyond the first's and close to it across
+/// the axis. Grouped with the long cone, the short one's grid merged with the
+/// long one's and a face was drawn crossing: a circle stands with a cone only
+/// between the heights of its rims, where the cone has triangles to cross.
+#[test]
+fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-60.0),
+            Axis::first(60.0).backwards(),
+            Section::bands(-30.0, &[[164.999994, 0.0, 165.0], [6e-6, 0.0, 165.0]])
+                .sloping_to(&[[0.0, 135.0], [0.0, 135.0]]),
+            270.0,
+        ),
+        vec![],
+    ));
+}

@@ -19,7 +19,7 @@
 //! rim of it and every coaxial wall within that sag of one of them, joined
 //! one through the next. So does a cone with a coaxial circle standing within
 //! that sag of its face, read across the axis at the circle's height, between
-//! its rims or beyond them: a post's rim a hair inside a funnel. The cone's
+//! the heights of its rims: a post's rim a hair inside a funnel. The cone's
 //! triangles reach from rim to rim, and at the circle's height they are the
 //! chords between the rays their rims share; a sample of the circle off those
 //! rays stands outside such a chord, and its face pokes through the cone's.
@@ -32,7 +32,10 @@
 //! leave samples a fraction of a step apart, and a plane all but lying on a
 //! cone's face, a slope a hair from square, cut into a sliver between two of
 //! them lies on the cone's triangles. Such a plane stands close to the cone
-//! along the axis, not across it, and its circles are left out of the group.
+//! along the axis, not across it, and its circles are left out of the group;
+//! so is a circle beyond the cone's rims, where the cone has no triangle for it
+//! to poke through: a second cone all but square to the axis, a hair long,
+//! ending the first.
 //!
 //! A group's rays are handed to [`contact`] as each wall's own before it
 //! shares them: a wall a hair off the axis, close to one of the group, takes
@@ -123,9 +126,20 @@ impl Axes {
                     .map(|(id, _)| *id)
                     .collect()
             };
+            let height = |circle: &Circle| (circle.center - grid.cone.origin).dot(grid.cone.axis);
+            let (low, high) = circles
+                .iter()
+                .filter(|circle| grid.cone.holds(circle, eps))
+                .map(|circle| height(circle))
+                .fold((f64::INFINITY, f64::NEG_INFINITY), |(low, high), at| {
+                    (low.min(at), high.max(at))
+                });
             let held = walls_of(&|circle| grid.cone.holds(circle, eps));
             let near = walls_of(&|circle| {
-                !grid.cone.holds(circle, eps) && beside(circle, grid, tolerance)
+                low + eps < height(circle)
+                    && height(circle) < high - eps
+                    && !grid.cone.holds(circle, eps)
+                    && beside(circle, grid, tolerance)
             });
             if !held.is_empty() {
                 rims.push((held, near, grid));

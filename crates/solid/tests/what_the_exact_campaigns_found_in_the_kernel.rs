@@ -32,7 +32,9 @@
 //! `carried-one-with` where a slide is refused for carrying a wall one with
 //! the first operand's onto it, `cone-axis-unmet` where a wall is refused a
 //! move for a coaxial cone it never meets, and `triangles-sliver` where two
-//! triangles cross across a sliver a hair wide.
+//! triangles cross across a sliver a hair wide. `triangles-sliver` holds since
+//! the triangles of two faces folded onto each other across an edge are cut
+//! the other way, and 5366215526 as drawn with it.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -3072,8 +3074,12 @@ fn seed_533400107_a_wall_a_hair_thin_turned_part_way_on_the_flats() {
     ));
 }
 
+/// Was ignored as: plane-a-hair: a block's side 1.8e-6 from the axis of a
+/// cylinder turned before it cuts the cylinder a hair from its widest rulings;
+/// two faces drawn crossing, as with the cylinder raised. Holds since the
+/// triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
 #[test]
-#[ignore = "plane-a-hair: a block's side 1.8e-6 from the axis of a cylinder turned before it cuts the cylinder a hair from its widest rulings; two faces drawn crossing, as with the cylinder raised"]
 fn seed_533300839_a_block_s_side_a_hair_from_a_turned_cylinder_s_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3153,8 +3159,11 @@ fn seed_533341432_a_turned_bore_and_a_post_ending_a_hair_from_a_face() {
     ));
 }
 
+/// Was ignored as: kernel: a stepped shaft turned about an axis leaning 1e-7,
+/// cut by a cylinder square to it; two faces drawn crossing where the shaft's
+/// shoulder meets the cut. Holds since the triangles of two faces folded onto
+/// each other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel: a stepped shaft turned about an axis leaning 1e-7, cut by a cylinder square to it; two faces drawn crossing where the shaft's shoulder meets the cut"]
 fn seed_533335255_a_shaft_turned_about_an_axis_leaning_a_hair() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3251,8 +3260,13 @@ fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
     ));
 }
 
+/// Was ignored as: kernel: a sector turned a hundredth of a degree about the
+/// axis of a cylinder raised along it; the sector's ends, planes holding that
+/// axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are
+/// drawn crossing, alike with the cylinder turned; at a degree it holds. Holds
+/// since the triangles of two faces folded onto each other across an edge are
+/// cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel: a sector turned a hundredth of a degree about the axis of a cylinder raised along it; the sector's ends, planes holding that axis 1.7e-4 rad apart, meet the cylinder along its rulings and two faces are drawn crossing, alike with the cylinder turned; at a degree it holds"]
 fn seed_533603007_a_sliver_turned_about_the_axis_of_a_cylinder() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3443,8 +3457,14 @@ fn seed_533698627_a_wall_a_hair_thin_below_the_axis_turned_whole_then_cut_on_the
     ));
 }
 
+/// Was ignored as: kernel-drawing: a cylinder turned whole, cut by a post whose
+/// axis passes 1e-8 from the cylinder's; two faces drawn crossing, on the exact
+/// kernel too: the kernel's hair families, reached by turned cylinders as by
+/// raised ones: 70 of the 1 071 failures through the application's body, two
+/// faces crossing or the body declined as undrawn. Holds since the triangles of
+/// two faces folded onto each other across an edge are cut the other way, round
+/// 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a cylinder turned whole, cut by a post whose axis passes 1e-8 from the cylinder's; two faces drawn crossing, on the exact kernel too: the kernel's hair families, reached by turned cylinders as by raised ones: 70 of the 1 071 failures through the application's body, two faces crossing or the body declined as undrawn"]
 fn seed_533695958_a_turned_cylinder_cut_by_a_post_whose_axis_passes_a_hair_from_its_own() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3461,8 +3481,11 @@ fn seed_533695958_a_turned_cylinder_cut_by_a_post_whose_axis_passes_a_hair_from_
     ));
 }
 
+/// Was ignored as: kernel-drawing: a tube turned about an axis leaning 1e-3
+/// degrees, joined to a ring raised across it; two faces drawn crossing, on the
+/// exact kernel too. Holds since the triangles of two faces folded onto each
+/// other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a tube turned about an axis leaning 1e-3 degrees, joined to a ring raised across it; two faces drawn crossing, on the exact kernel too"]
 fn seed_533719875_a_turned_tube_whose_axis_leans_a_thousandth_of_a_degree_joined_to_a_ring() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -3532,8 +3555,12 @@ fn seed_533779006_a_turned_cylinder_cut_and_joined_is_drawn_crossing_through_the
     ));
 }
 
+/// Was ignored as: kernel-drawing: a ring raised from a plane 1e-8 off the
+/// round numbers, by 4.50000002, cut by a lying post; shrunk to prisms alone,
+/// two faces drawn crossing on the exact kernel: the kernel's own hair family,
+/// not turning's. Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "kernel-drawing: a ring raised from a plane 1e-8 off the round numbers, by 4.50000002, cut by a lying post; shrunk to prisms alone, two faces drawn crossing on the exact kernel: the kernel's own hair family, not turning's"]
 fn seed_533751095_a_ring_raised_a_hair_off_round_numbers_cut_by_a_lying_post() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -4768,8 +4795,14 @@ fn seed_5365210781_stepped_cones_cut_by_a_half_cone_2e_7_off_their_steps() {
 /// Prisms alone: a block joined to a post, then to a post whose centre stands
 /// 6e-6 off the block's side: two faces drawn crossing, the kernel's hair
 /// family of #533 and no turn's.
+///
+/// Was ignored as: triangles, found by round 2's triage: prisms alone, a block
+/// joined to a post and to a post 6e-6 off its side; the exact body lists
+/// itself on its geometry and holds every line's promise, and two of its faces
+/// are drawn crossing: the hair family of #533, no turn's. Holds since the
+/// triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
 #[test]
-#[ignore = "triangles, found by round 2's triage: prisms alone, a block joined to a post and to a post 6e-6 off its side; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing: the hair family of #533, no turn's"]
 fn seed_5365212787_a_block_joined_to_a_post_and_to_a_post_6e_6_off_its_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -4952,8 +4985,14 @@ fn seed_5365231546_a_post_cut_by_a_cylinder_whose_axis_stands_2e_8_above_its_top
 
 /// A stepped shaft turned about an axis leaning 1e-7, cut by a cylinder about a
 /// square axis: two faces drawn crossing. No cone.
+///
+/// Was ignored as: triangles, found by round 2's triage: a stepped shaft about
+/// an axis leaning 1e-7 cut by a cylinder about a square axis, no cone; the
+/// exact body lists itself on its geometry and holds every line's promise, and
+/// two of its faces are drawn crossing. Holds since the triangles of two faces
+/// folded onto each other across an edge are cut the other way, round 3 of
+/// #536.
 #[test]
-#[ignore = "triangles, found by round 2's triage: a stepped shaft about an axis leaning 1e-7 cut by a cylinder about a square axis, no cone; the exact body lists itself on its geometry and holds every line's promise, and two of its faces are drawn crossing"]
 fn seed_5365232431_a_stepped_shaft_leaning_1e_7_cut_by_a_cylinder_about_a_square_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -5281,8 +5320,14 @@ fn seed_5365110795_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
 
 /// 5366215526 as drawn. Holds at ae20fa9 and fails since 8a008ea, its
 /// triangles crossing; its shrunk core, below, fails at ae20fa9 too.
+///
+/// Was ignored as: carried-one-with, found by round 3's triage: drawn crossing
+/// through the application's body since 8a008ea (canonical/carried.rs, `kept`);
+/// holds once a carried surface that stays one with the first's and ends no
+/// further from it is allowed. Holds since the triangles of two faces folded
+/// onto each other across an edge are cut the other way, and a skin of no
+/// thickness two faces are drawn on is left out, round 3 of #536.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: drawn crossing through the application's body since 8a008ea (canonical/carried.rs, `kept`); holds once a carried surface that stays one with the first's and ends no further from it is allowed"]
 fn seed_5366215526_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
     random_solids::holds_through_the_application(&Case::drawn_slanted_off_the_lattice(5366215526));
 }
@@ -5321,8 +5366,14 @@ fn seed_5365100952_a_wall_touching_a_cylinder_inside_coaxial_with_a_cone_it_neve
 }
 
 /// 5366415073 as drawn. Holds at ae20fa9 and fails since af8e71a.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: drawn crossing
+/// through the application's body since af8e71a (relation/crossing/cut.rs), two
+/// triangles of one plane's face crossing across a sliver 1e-8 wide; its shrunk
+/// core below. Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, and a skin of no thickness two faces
+/// are drawn on is left out, round 3 of #536.
 #[test]
-#[ignore = "triangles-sliver, found by round 3's triage: drawn crossing through the application's body since af8e71a (relation/crossing/cut.rs), two triangles of one plane's face crossing across a sliver 1e-8 wide; its shrunk core below"]
 fn seed_5366415073_as_drawn_a_post_cut_by_a_post_1e_8_past_its_axis() {
     random_solids::holds_through_the_application(&Case::drawn_turned_off_the_lattice(5366415073));
 }
@@ -5332,8 +5383,15 @@ fn seed_5366415073_as_drawn_a_post_cut_by_a_post_1e_8_past_its_axis() {
 /// the first's wall touches it along. On the exact kernel it holds with
 /// af8e71a undone at the tip; through the application's body it fails at
 /// ae20fa9 too.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: two triangles
+/// cross across a sliver 1e-8 wide where the second post's top, the first's end
+/// and the line the first's wall touches the second's along meet; the sweep
+/// (tessellation/sweep.rs) cuts a region exactly only while its boundaries do
+/// not cross, not traced further. Holds since the triangles of two faces folded
+/// onto each other across an edge are cut the other way, and a skin of no
+/// thickness two faces are drawn on is left out, round 3 of #536.
 #[test]
-#[ignore = "triangles-sliver, found by round 3's triage: two triangles cross across a sliver 1e-8 wide where the second post's top, the first's end and the line the first's wall touches the second's along meet; the sweep (tessellation/sweep.rs) cuts a region exactly only while its boundaries do not cross, not traced further"]
 fn seed_5366415073_a_post_cut_by_a_post_whose_top_stands_1e_8_past_its_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(2.0), Outline::circle([4.0, 9.5], 0.5), 1.0),
@@ -5346,8 +5404,14 @@ fn seed_5366415073_a_post_cut_by_a_post_whose_top_stands_1e_8_past_its_axis() {
 }
 
 /// 5366116515 as drawn. Holds at ae20fa9 and fails since 6fd4c2a.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: drawn crossing
+/// on the exact kernel since 6fd4c2a (tessellation/outline/cone.rs), the end
+/// face of a turn of 315 degrees crossing itself across a sliver 5e-8 wide; its
+/// shrunk core below. Holds since the triangles of two faces folded onto each
+/// other across an edge are cut the other way, and a skin of no thickness two
+/// faces are drawn on is left out, round 3 of #536.
 #[test]
-#[ignore = "triangles-sliver, found by round 3's triage: drawn crossing on the exact kernel since 6fd4c2a (tessellation/outline/cone.rs), the end face of a turn of 315 degrees crossing itself across a sliver 5e-8 wide; its shrunk core below"]
 fn seed_5366116515_as_drawn_a_stepped_cone_joined_to_a_turn_of_315_degrees() {
     random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5366116515));
 }
@@ -5357,8 +5421,14 @@ fn seed_5366116515_as_drawn_a_stepped_cone_joined_to_a_turn_of_315_degrees() {
 /// of radius 4.9999999, whose end planes meet the cone's tip. Fails at
 /// ae20fa9 too; with 6fd4c2a undone at the tip, on two triangles of the
 /// turn's start face instead.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: two triangles
+/// of the turn's end face, one reaching the cone's tip, cross across a sliver
+/// 5e-8 wide at the cone's rim, where the steps of 5 and 4.9999999 end
+/// (tessellation/sweep.rs), not traced further. Holds since the triangles of
+/// two faces folded onto each other across an edge are cut the other way, and a
+/// skin of no thickness two faces are drawn on is left out, round 3 of #536.
 #[test]
-#[ignore = "triangles-sliver, found by round 3's triage: two triangles of the turn's end face, one reaching the cone's tip, cross across a sliver 5e-8 wide at the cone's rim, where the steps of 5 and 4.9999999 end (tessellation/sweep.rs), not traced further"]
 fn seed_5366116515_a_stepped_cone_joined_to_a_coaxial_turn_of_315_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -5395,8 +5465,14 @@ fn seed_5366116515_a_stepped_cone_joined_to_a_coaxial_turn_of_315_degrees() {
 /// 5366215526 shrunk: a turn of a hundredth of a degree cut by a quarter
 /// turn about a parallel axis 6e-8 off, both sections in one plane. Fails at
 /// ae20fa9 too.
+///
+/// Was ignored as: triangles-sliver, found by round 3's triage: the two turns'
+/// start faces lie in one plane, and two triangles of it cross across the
+/// sliver 6e-8 wide between the two axes (tessellation/sweep.rs). Holds since
+/// the triangles of two faces folded onto each other across an edge are cut the
+/// other way, and a skin of no thickness two faces are drawn on is left out,
+/// round 3 of #536.
 #[test]
-#[ignore = "triangles-sliver, found by round 3's triage: the two turns' start faces lie in one plane, and two triangles of it cross across the sliver 6e-8 wide between the two axes (tessellation/sweep.rs)"]
 fn seed_5366215526_a_hundredth_of_a_degree_s_turn_cut_by_a_quarter_turn_6e_8_off_its_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

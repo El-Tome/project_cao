@@ -9,8 +9,8 @@
 //! two planes from one side of 4-1); or blocks, slots and discs whose floors
 //! stand a hair apart, crossed by a third surface. Every case failed the same
 //! way at every fineness the triangles were drawn at: the kernel's.
-//! Decisions 1, 2, 3 and 10 of `docs/exact-kernel.md` hold all but three,
-//! ignored with what still breaks them.
+//! Decisions 1, 2, 3 and 10 of `docs/exact-kernel.md` hold all but one,
+//! ignored with what still breaks it.
 
 // The drawing, the promise and the checks are the campaigns'; this file
 // only builds cases and holds them.
@@ -417,8 +417,13 @@ fn seed_8527977_two_faces_a_hair_apart_crossed_by_a_third_surface() {
 
 /// Campaigns 8b and 8c, the profile draw, on the kernel and through the
 /// application's body: Uncrossed.
+///
+/// Was ignored as: plane-a-hair: a later leaf far off grows the tolerance past
+/// the hair two corners of the body stand apart, and decision 5 takes them for
+/// one, off a wall: two faces drawn crossing. Holds since the triangles of two
+/// faces folded onto each other across an edge are cut the other way, round 3
+/// of #536.
 #[test]
-#[ignore = "plane-a-hair: a later leaf far off grows the tolerance past the hair two corners of the body stand apart, and decision 5 takes them for one, off a wall: two faces drawn crossing"]
 fn seed_8519077_two_faces_a_hair_apart_crossed_by_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -503,8 +508,13 @@ fn seed_8534613_two_faces_a_hair_apart_crossed_by_a_third_surface() {
 
 /// Campaigns 8b and 8c, the profile draw, on the kernel and through the
 /// application's body: Uncrossed.
+///
+/// Was ignored as: plane-a-hair: the line two walls of one radius cross along
+/// stands a tolerance from a block's side, and the corners either wall makes on
+/// the side are merged off the other: a line a hair from a surface, two faces
+/// drawn crossing. Holds since the triangles of two faces folded onto each
+/// other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "plane-a-hair: the line two walls of one radius cross along stands a tolerance from a block's side, and the corners either wall makes on the side are merged off the other: a line a hair from a surface, two faces drawn crossing"]
 fn seed_8550377_two_faces_a_hair_apart_crossed_by_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(60.0), Outline::circle([240.0, 180.0], 60.0), 30.0),

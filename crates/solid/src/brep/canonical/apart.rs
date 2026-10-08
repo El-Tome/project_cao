@@ -124,7 +124,7 @@ impl Apart {
     }
 
     /// Whether a surface of `one` and a surface of `other` were decided to
-    /// meet at a cone's apex alone, so that no curve lies on both: a ruling
+    /// meet at a cone's apex alone, so that no line lies on both: a ruling
     /// of one, read as a whole line, may still be one of the other's, two
     /// cones of one apex each the other's mirror.
     pub fn pointed(&self, one: &[SurfaceId], other: &[SurfaceId]) -> bool {

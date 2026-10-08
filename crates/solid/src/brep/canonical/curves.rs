@@ -37,9 +37,9 @@ impl Registry {
 
     /// The rank of the curve, the first registered within the tolerance of
     /// it — or a line on two planes across each other `support` lies on —
-    /// and lying on no surface apart from `support` nor meeting one of it at a
-    /// cone's apex alone, or a new one; either way lying on `support` from
-    /// now on.
+    /// and lying on no surface apart from `support`, nor, a line, meeting one
+    /// of it at a cone's apex alone, or a new one; either way lying on
+    /// `support` from now on.
     pub fn register(&mut self, curve: Curve, support: &[SurfaceId]) -> usize {
         self.register_beside(curve, support, |_| false)
     }
@@ -57,7 +57,7 @@ impl Registry {
                 && self.planes.fix_a_line(&known.support, support);
             (fixed || same(&known.curve, &curve, self.scale))
                 && !self.apart.across(&known.support, support)
-                && !self.apart.pointed(&known.support, support)
+                && !ruled_apart(&self.apart, &curve, &known.support, support)
                 && !other(rank)
         });
         let rank = found.unwrap_or_else(|| {
@@ -74,10 +74,12 @@ impl Registry {
     }
 
     /// Whether a curve may lie on `surface` too: it lies on no surface
-    /// decided apart from it, or decided to meet it at a cone's apex alone.
+    /// decided apart from it, nor, a line, decided to meet it at a cone's
+    /// apex alone.
     pub fn admits(&self, curve: usize, surface: SurfaceId) -> bool {
-        let support = &self.list[curve].support;
-        !self.apart.across(support, &[surface]) && !self.apart.pointed(support, &[surface])
+        let Registered { curve, support } = &self.list[curve];
+        !self.apart.across(support, &[surface])
+            && !ruled_apart(&self.apart, curve, support, &[surface])
     }
 
     pub fn join(&mut self, curve: usize, surface: SurfaceId) {
@@ -115,6 +117,17 @@ impl Registry {
             _ => [start.min(end), start.max(end)],
         }
     }
+}
+
+/// Whether `curve`, a line, lies on a surface of `one` and one of `other`
+/// decided to meet at a cone's apex alone: a ruling of one, read as a whole
+/// line, may be one of the other's, two cones of one apex each the other's
+/// mirror, its two halves one on each nappe. A circle lies on a cone's own
+/// nappe or not at all: within the tolerance of both, it is on both — two
+/// cones of one apex a hair apart in slope, which stand within the
+/// tolerance of each other all along their faces (5365211513).
+fn ruled_apart(apart: &Apart, curve: &Curve, one: &[SurfaceId], other: &[SurfaceId]) -> bool {
+    matches!(curve, Curve::Line(_)) && apart.pointed(one, other)
 }
 
 /// Whether two curves are one within the tolerance over the whole box.

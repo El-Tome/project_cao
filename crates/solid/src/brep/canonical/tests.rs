@@ -184,6 +184,31 @@ fn a_ruling_of_a_cone_is_not_laid_on_the_same_line_of_its_mirror() {
 }
 
 #[test]
+fn a_circle_of_a_cone_is_laid_on_the_same_circle_of_a_cone_of_its_apex_a_hair_apart_in_slope() {
+    let one = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(5.0, 5.0), DVec2::new(10.0, 0.0)],
+    ));
+    let other = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(5.0, 5.00000002), DVec2::new(10.0, 0.0)],
+    ));
+    assert!(matches!(relation(&one, &other, scale()), Relation::Apex(_)));
+    let level = plane_at(5.0, DVec3::Z);
+    let list = [level, one, other];
+    let mut registry = Registry::new(scale(), Apart::of(&list, |_| scale()), Planes::default());
+    let circle = |rank: usize| match relation(&list[0], &list[rank], scale()) {
+        Relation::Circle(circle) => Curve::Circle(circle),
+        found => panic!("{found:?}"),
+    };
+    let [level, one, other] = [0, 1, 2].map(SurfaceId);
+    let first = registry.register(circle(1), &[level, one]);
+    assert_eq!(registry.register(circle(2), &[level, other]), first);
+}
+
+#[test]
 fn two_blocks_sharing_a_wall_share_every_plane_but_the_far_wall() {
     let one = block([-20.0, -20.0, 0.0], [20.0, 20.0, 10.0]);
     let other = block([20.0, -20.0, 0.0], [60.0, 20.0, 10.0]);

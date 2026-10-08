@@ -4189,8 +4189,14 @@ fn seed_5361120549_a_shaft_cut_by_a_quarter_turn_of_a_cone_whose_rim_stands_a_ha
     ));
 }
 
+/// A pointed cone cut away by a coaxial cone a hair wider whose tip stands
+/// 1e-8 off the axis, at the first one's apex. The two meet at the apex
+/// alone, their slopes a hair apart, and stand within the tolerance of each
+/// other all along their faces; from eba1fa2 on, no curve was laid on both,
+/// and the rim of one at the cylinder's end stood beside the other's, 1e-8
+/// apart, a region between them thinner than the tolerance: a tie. Only a
+/// line, a ruling of a mirror, is kept off two such cones now.
 #[test]
-#[ignore = "cone-boolean, found by round 1's measure: a pointed cone cut away by a coaxial cone a hair wider whose tip stands 1e-8 off the axis, at the first one's apex, is refused. It holds at 3286cee and fails from eba1fa2 on, and fails the same with both tips at one apex"]
 fn seed_5365211513_a_pointed_cone_cut_away_by_a_cone_of_its_apex_a_hair_wider() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

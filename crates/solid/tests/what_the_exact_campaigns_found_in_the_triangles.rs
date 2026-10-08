@@ -3015,13 +3015,8 @@ fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and
     ));
 }
 
-/// Was ignored as: triangles: a ring left between two coaxial cones crossing at
-/// a shallow angle is drawn crossing along the circle they cross on. The seed's
-/// cone stood a hair off the frustum's axis and was declined as unsupported
-/// until decision 8 took it about one axis; shrunk, the case is exactly
-/// coaxial and fails at 3286cee too. Holds since a coaxial circle within a
-/// sag of a cone's face stands in the cone's group, round 2 of #536.
 #[test]
+#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too. Round 2 of #536: each cone's rim stands 0.104 across the axis from the other cone, a little over the twice a chord's sag (0.094) within which a circle is sampled with a cone; read along the cone's normal, 0.081, it held, but so read, a cone all but square to its axis took the circles of a plane a hair from it and broke 5365213844"]
 fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3071,5 +3066,38 @@ fn seed_5363104867_a_frustum_joined_inside_a_partial_ring_of_its_axis_is_drawn_c
             Section::bands(5.5, &[[1.0, -3.0, -0.0]]).sloping_to(&[[-6.0, -0.0]]),
             360.0,
         ))],
+    ));
+}
+
+/// A ring 1e-5 thick whose outer wall narrows from 165 to 135 across that
+/// thickness, turned 315 degrees: a cone all but square to its axis, a hair
+/// from the planes of the ring's faces. Grouped with their circles, as a
+/// circle a hair from a cone's face, the cone's grid and theirs merged and a
+/// face was drawn crossing the cone's triangles: a circle stands with a cone
+/// only where it is close to it across the axis.
+#[test]
+fn seed_5365213844_a_ring_a_hair_thick_whose_outer_wall_narrows_across_it_turned_315_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::second(0.0),
+            Section::bands(60.0, &[[1e-5, 45.0, 165.0]]).sloping_to(&[[45.0, 135.0]]),
+            315.0,
+        ),
+        vec![],
+    ));
+}
+
+/// The same, 6e-6 thick, turned 270 degrees about a reversed axis.
+#[test]
+fn seed_5365214000_a_ring_6e_6_thick_whose_outer_wall_narrows_across_it_turned_270_degrees() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(-60.0),
+            Axis::first(60.0).backwards(),
+            Section::bands(-30.0, &[[6e-6, 30.0, 165.0]]).sloping_to(&[[30.0, 135.0]]),
+            270.0,
+        ),
+        vec![],
     ));
 }

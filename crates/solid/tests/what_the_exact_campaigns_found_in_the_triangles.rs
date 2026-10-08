@@ -3000,3 +3000,51 @@ fn seed_5361304914_a_quarter_point_beside_a_quarter_turn_a_hair_off_its_axis_and
         ],
     ));
 }
+
+#[test]
+#[ignore = "triangles: a ring left between two coaxial cones crossing at a shallow angle is drawn crossing along the circle they cross on. The seed's cone stood a hair off the frustum's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too"]
+fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_angle() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.5),
+            Axis::first(0.0),
+            Section::bands(0.0, &[[7.5, -5.0, 0.0], [2.5, -10.5, 0.0]])
+                .sloping_to(&[[-5.0, 0.0], [-12.5, 0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(7.5),
+                Axis::first(0.0),
+                Section::bands(0.0, &[[15.0, -5.312499625, -0.0]])
+                    .sloping_to(&[[-15.937498875, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(35.0),
+                Outline::rectangle([25.0, -10.0], [47.5, 10.0]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "triangles: a frustum joined inside a partial ring of its axis, its narrow rim on the ring's step, is left open along that rim where the turn ends. The seed's frustum stood a hair off the ring's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too"]
+fn seed_5363104867_a_frustum_joined_inside_a_partial_ring_of_its_axis_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(4.0),
+            Section::bands(5.0, &[[0.5, 4.0, 5.0], [0.5, 4.0, 5.0]])
+                .sloping_to(&[[4.0, 5.0], [4.5, 5.0]]),
+            315.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(6.0),
+            Axis::first(4.0),
+            Section::bands(5.5, &[[1.0, -3.0, -0.0]]).sloping_to(&[[-6.0, -0.0]]),
+            360.0,
+        ))],
+    ));
+}

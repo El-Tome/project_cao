@@ -14,20 +14,21 @@
 //! reaches out of the sliver.
 //!
 //! A diagonal is taken only where the two triangles beside it make a convex
-//! corner of four, by the exact signs the sweep decides with, so the cut stays
-//! a cut of the region, and only where neither triangle it makes lies on
-//! another face or passes through one — a chord of a round a hair off a vertex
-//! of the face beside it sinks under it by a fraction of the tolerance. Where
-//! the diagonal runs into a point of the boundary, the triangle beyond is cut
-//! the other way first; where a triangle it makes is held by one of another
-//! face, that one is cut the other way too, and the two flips stand or fall
-//! together. Two faces whose triangles end up on the same three samples are a
-//! skin of no thickness ([`super::skins`]).
+//! corner of four, by the exact signs the sweep decides with and by more than
+//! the rounding the parameters were read with, so the cut stays a cut of the
+//! region in space as in parameters, and only where neither triangle it makes
+//! lies on another face or passes through one — a chord of a round a hair off
+//! a vertex of the face beside it sinks under it by a fraction of the
+//! tolerance. Where the diagonal runs into a point of the boundary, the
+//! triangle beyond is cut the other way first; where a triangle it makes is
+//! held by one of another face, that one is cut the other way too, and the two
+//! flips stand or fall together. Two faces whose triangles end up on the same
+//! three samples are a skin of no thickness ([`super::skins`]).
 
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::orientation::turn;
 use super::outline::Outline;
@@ -55,8 +56,15 @@ type Undo = Vec<(At, At, [[usize; 3]; 2])>;
 const DEPTH: usize = 1;
 
 /// How far off a triangle's plane, as a share of the tolerance, a corner of
-/// another stands across it: far under what the rules see, far over rounding.
+/// another stands across it, and how far off an edge's line a corner stands
+/// clear of it: far under what the rules see, far over rounding.
 const CLEAR: f64 = 1e-2;
+
+/// How far off the line of the other two, in roundings of the parameters,
+/// the nearest corner of a triangle a flip makes stands: a thousand, far over
+/// the few a reading of a sample carries, and far under the narrowest sliver
+/// a flip is wanted for.
+const ROUNDINGS: f64 = 1e3;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal can.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
@@ -167,7 +175,10 @@ impl Folds<'_> {
 
     /// Whether triangle `one` lies on `other` across the edge both have: its
     /// third corner within the tolerance of the other's plane, on the side of
-    /// the edge the other covers.
+    /// the edge the other covers, and clear of the edge's line. A corner on
+    /// that line but for rounding — a fan from a cone's tip to two samples of
+    /// the ruling an end plane holds — makes a triangle of no area, lying on
+    /// nothing, which a flip would turn into a side running past a sample.
     fn lies_on(&self, one: [usize; 3], other: [usize; 3], [a, b]: [usize; 2]) -> bool {
         let third = |corners: [usize; 3]| corners.into_iter().find(|id| *id != a && *id != b);
         let (Some(mine), Some(theirs)) = (third(one), third(other)) else {
@@ -178,7 +189,7 @@ impl Folds<'_> {
             return false;
         };
         let side = (to - from).cross(mine - from).dot(normal);
-        normal.dot(mine - from).abs() <= self.eps && side > 0.0
+        normal.dot(mine - from).abs() <= self.eps && side > self.eps * CLEAR * (to - from).length()
     }
 
     /// Cuts the triangle at `at` the other way, with one of the triangles of
@@ -307,9 +318,7 @@ impl Folds<'_> {
             .iter()
             .find(|corner| **corner != u && **corner != v)?;
         let points = &self.drawn[face].outline.points;
-        let convex = |a: usize, b: usize, e: usize| {
-            turn(points[a], points[b], points[e]) == Ordering::Greater
-        };
+        let convex = |a: usize, b: usize, e: usize| opens(points[a], points[b], points[e]);
         if !(convex(c, u, d) && convex(c, d, v)) {
             return None;
         }
@@ -325,6 +334,18 @@ impl Folds<'_> {
         self.index(at, true);
         self.index(partner, true);
     }
+}
+
+/// Whether the triangle `a`, `b`, `e` of a face's parameters turns left, and
+/// opens by more than `ROUNDINGS` roundings of its corners: three samples of
+/// a rim, collinear in the parameters but for the rounding they were read
+/// with, make no triangle there, and one in space whose neighbour's chord
+/// skips the middle sample.
+fn opens(a: DVec2, b: DVec2, e: DVec2) -> bool {
+    let longest = (b - a).length().max((e - b).length()).max((a - e).length());
+    let size = a.abs().max(b.abs()).max(e.abs()).max_element();
+    turn(a, b, e) == Ordering::Greater
+        && (b - a).perp_dot(e - a) > ROUNDINGS * f64::EPSILON * size * longest
 }
 
 /// Whether two triangles pass through each other: each stands across the

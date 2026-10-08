@@ -3126,9 +3126,9 @@ fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_a
 /// The fan from the cone's tip to two samples of the ruling the post's end
 /// plane holds is collinear in space, and is taken for a fold lying on that
 /// plane's triangle; the flip makes a triangle whose side runs along the
-/// ruling past the sample between them.
+/// ruling past the sample between them. Holds since a corner lies on another
+/// face's triangle only clear of the edge's line, round 4 of #536.
 #[test]
-#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3153,8 +3153,9 @@ fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxi
 /// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
 /// The same fan from the tip, collinear along the ruling the turns' shared
 /// start plane holds, flipped past the sample where the post meets the cone.
+/// Holds since a corner lies on another face's triangle only clear of the
+/// edge's line, round 4 of #536.
 #[test]
-#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3177,9 +3178,10 @@ fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_
 /// tolerance the reach of the block gives: every triangle of the wall lies
 /// on the cone's, and the flips that follow cut a triangle of the cone
 /// across three samples of its rim, collinear in its parameters but for
-/// rounding, so that its neighbour skips the middle one.
+/// rounding, so that its neighbour skips the middle one. Holds since a flip
+/// is taken only where each triangle it makes opens by more than a thousand
+/// roundings of its parameters, round 4 of #536.
 #[test]
-#[ignore = "folds: a wall and a cone each 6e-7 wide lie on each other, and a flip taken across three rim samples collinear in the cone's parameters but for rounding skips the middle one"]
 fn seed_5369239472_a_cone_bored_as_wide_as_its_narrow_end_joined_to_a_block_6e_7_off_it() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

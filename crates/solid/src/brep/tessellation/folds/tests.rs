@@ -1,6 +1,6 @@
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
-use super::through;
+use super::{opens, through};
 
 const CLEAR: f64 = 1e-10;
 
@@ -43,4 +43,24 @@ fn a_chord_sinking_two_billionths_under_a_corner_beside_it_passes_through_the_fa
         at(2.0, 3.5, 9.5),
     ];
     assert!(through(chord, ceiling, CLEAR));
+}
+
+#[test]
+fn three_samples_of_a_rim_collinear_in_a_cone_s_parameters_but_for_rounding_make_no_triangle() {
+    let rim = [
+        DVec2::new(3.4781918664744134, 42.42640687119284),
+        DVec2::new(3.5903916041026207, 42.426406871192825),
+        DVec2::new(3.702591341730827, 42.42640687119283),
+    ];
+    assert!(!opens(rim[0], rim[1], rim[2]));
+}
+
+#[test]
+fn a_sliver_a_few_billionths_of_a_turn_wide_still_opens() {
+    let sliver = [
+        DVec2::new(2.4980915514631756, -2.0),
+        DVec2::new(2.4980915471965086, 0.5),
+        DVec2::new(2.498091544796509, 0.5),
+    ];
+    assert!(opens(sliver[0], sliver[1], sliver[2]));
 }

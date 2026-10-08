@@ -193,6 +193,7 @@ pub(super) fn contacts(
         mut pinned,
         beneath,
     } = through_vertices(body, walls, inside, tolerance, &mut own);
+    one_place(walls, eps, &mut own);
     let mut close = Vec::new();
     let mut contacts: BTreeMap<SurfaceId, Contact> = BTreeMap::new();
     for (at, one) in walls.iter().enumerate() {
@@ -270,6 +271,31 @@ pub(super) fn contacts(
         contacts.entry(wall).or_default().anchors.push(point);
     }
     contacts
+}
+
+/// Gives each wall the rays every wall at one place with it took on its own.
+///
+/// Two walls of one axis and one radius to within the kernel's tolerance —
+/// decided apart while it was finer, two surfaces still — each hold every
+/// circle of either, and a face a hair wide between a circle of each, a step
+/// from one to the other, is cut into nothing only where the two are sampled
+/// on the same rays. Each kept to its own, one takes the rays of a curve it
+/// meets another wall along and the other does not, and the step's chords
+/// cross.
+fn one_place(walls: &[Wall], eps: f64, own: &mut BTreeMap<SurfaceId, Vec<DVec3>>) {
+    for (at, (one, first)) in walls.iter().enumerate() {
+        for (other, second) in &walls[at + 1..] {
+            let between = second.origin - first.origin;
+            let offset = between - first.axis * first.axis.dot(between);
+            let parallel = first.axis.cross(second.axis).length() <= Scale::RELATIVE;
+            if !parallel || offset.length() > eps || (first.radius - second.radius).abs() > eps {
+                continue;
+            }
+            let [mine, theirs] = [one, other].map(|id| own.get(id).cloned().unwrap_or_default());
+            own.entry(*one).or_default().extend(theirs);
+            own.entry(*other).or_default().extend(mine);
+        }
+    }
 }
 
 /// The directions from the axes of two parallel cylinders to each line their

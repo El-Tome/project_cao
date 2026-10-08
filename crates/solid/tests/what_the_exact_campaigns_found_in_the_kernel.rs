@@ -4615,9 +4615,14 @@ fn seed_5365237332_a_disc_6e_8_thick_three_and_a_half_across_is_nothing() {
 }
 
 /// A stepped cone joined to a lying cylinder 2e-8 narrower than its rim, cut by
-/// a block and by a cylinder about a third axis: drawn open along an arc.
+/// a block and by a cylinder about a third axis: was drawn open along an arc.
+///
+/// The body keeps two coaxial walls of radii 1.3e-8 apart, under its
+/// tolerance, and a ring that wide between a circle of each. Only one of them
+/// took the rays of the curve the bore meets it along, and the ring's two
+/// rims were sampled apart: its chords crossed and it was left uncut. Walls
+/// at one place now take each other's rays (round 2 of #536).
 #[test]
-#[ignore = "triangles, found by round 2's triage: a stepped cone joined to a lying cylinder 2e-8 narrower than its rim and cut twice; the exact body lists itself on its geometry and holds every line's promise, and its triangles are open along an arc; the application declines the step as undrawn"]
 fn seed_5365207818_a_cone_joined_to_a_cylinder_a_hair_inside_its_rim_cut_twice() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

@@ -9,10 +9,10 @@
 //! a wall of its radius a hair off; decision 2 slides a wall its operand
 //! drew corners on along a touch this way.
 //!
-//! A move that would part a surface of the second operand from one of the
-//! first's it was one with or touched, lay one of its surfaces on another of
-//! its own it leaves behind, or move a curve the kernel does not translate,
-//! is not made.
+//! A move that would carry a surface of the second operand off one of the
+//! first's it was one with, part it from one it touched, lay one of its
+//! surfaces on another of its own it leaves behind, or move a curve the
+//! kernel does not translate, is not made.
 
 use std::collections::BTreeSet;
 
@@ -197,8 +197,13 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
 }
 
 /// Whether every surface the move carries along with the surface of rank
-/// `taken` stands with each of the first operand's as it stood before: one
-/// with it, or touching it, still; and a cone, or a surface beside one,
+/// `taken` stands with each of the first operand's as it stood before:
+/// touching it still, and never one with it — the first's is the surface
+/// read, so a surface carried off it by less than the tolerance would stay
+/// where it was while the corners and the walls it was built with went. A
+/// hundredth of a degree's turn lying on a block's side, slid onto a round
+/// its other end grazes, took the line its two ends meet along ninety
+/// microns along the side (5365230254). And a cone, or a surface beside one,
 /// decided with it about one axis still (#536): moved a hair off, the pair
 /// would meet along a curve the kernel does not build, and a bore of a
 /// pocket's radius moved onto it took its cone off the wall it widens onto
@@ -237,7 +242,8 @@ fn kept(
                         .iter()
                         .any(|one| matches!(one, Surface::Cone(_))),
                 };
-                !held(&before.surfaces[rank]) || held(&after.surfaces[rank])
+                !same(known, &before.surfaces[rank])
+                    && (!held(&before.surfaces[rank]) || held(&after.surfaces[rank]))
             })
         })
 }

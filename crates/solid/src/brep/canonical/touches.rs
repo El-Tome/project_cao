@@ -15,7 +15,9 @@
 //! move may run along an exact touch, but not on a wall its operand drew
 //! corners on, which would leave them behind the line of
 //! touch it takes along: such a slide is made before, on the operand, with
-//! its corners (`combine/slid.rs`). A cylinder touching two parallel planes
+//! its corners (`combine/slid.rs`); nor take such a wall, a plane, further
+//! than the tolerance off the line it crosses another plane along. A
+//! cylinder touching two parallel planes
 //! on opposite sides is moved midway between them, its radius half their
 //! gap, which makes both exact; so is one touching one of them and standing
 //! within decision 8's hair of the other, which left touching the one
@@ -191,7 +193,12 @@ impl Surfaces {
     /// it has with a surface near it but `besides` as near exact as it was;
     /// and, where corners of its operand lie on it, every exact touch where
     /// it was: slid along it, the line of touch would leave behind the
-    /// corners drawn on it.
+    /// corners drawn on it. Nor, then, may a plane cross another a tolerance
+    /// further off the line they crossed along: moved a hair along its
+    /// normal, a plane takes the line it crosses another along at a grazing
+    /// angle that hair over the sine of the angle, away from the corners on
+    /// it — a hundredth of a degree's turn, moved onto a round it grazes,
+    /// put the line its two ends meet along ninety microns away (5365230254).
     fn keeps(
         &self,
         rank: usize,
@@ -206,6 +213,9 @@ impl Surfaces {
             .filter(|&other| other != rank && !besides.contains(&other) && near(rank, other))
             .all(|other| {
                 let other = &self.list[other];
+                if pinned && crossed_elsewhere(before, surface, other, scale) {
+                    return false;
+                }
                 match off(before, other, scale) {
                     Some(gap) => {
                         off(surface, other, scale).is_some_and(|after| after <= gap + room)
@@ -290,6 +300,21 @@ fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
         | Relation::Rulings { .. }
         | Relation::Apex(_)
         | Relation::Unsupported => None,
+    }
+}
+
+/// Whether two planes crossing along a line, the first put for `before`,
+/// cross along one standing further than the tolerance from it.
+fn crossed_elsewhere(before: &Surface, after: &Surface, other: &Surface, scale: Scale) -> bool {
+    match (
+        relation(before, other, scale),
+        relation(after, other, scale),
+    ) {
+        (Relation::Line(was), Relation::Line(is)) => {
+            let from = is.origin - was.origin;
+            (from - was.direction * was.direction.dot(from)).length() > scale.eps()
+        }
+        _ => false,
     }
 }
 

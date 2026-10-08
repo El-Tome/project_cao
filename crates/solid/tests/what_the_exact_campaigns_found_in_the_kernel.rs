@@ -5074,10 +5074,17 @@ fn seed_5365216226_a_cone_cut_by_a_block_whose_side_grazes_its_rim() {
     ));
 }
 
-/// A rounded block cut by a turn of a hundredth of a degree: declined as
-/// unverified. No cone.
+/// A rounded block cut by a turn of a hundredth of a degree lying on its
+/// side, the turn's axis on the line the block's corner round touches that
+/// side along. The turn's other end grazes the round within the tolerance,
+/// and was moved onto it with the whole turn, carried a hair off the side:
+/// the end lying on it was still read as the block's side, the other went,
+/// and the line the two ends meet along stood ninety microns along it. The
+/// body was declined as unverified. A move now carries nothing off a surface
+/// of the first operand it is one with, nor a plane its operand drew corners
+/// on further than the tolerance off the line it crosses another along. No
+/// cone.
 #[test]
-#[ignore = "kernel-declines, found by round 2's triage: a rounded block cut by a turn of a hundredth of a degree is declined as unverified. No cone"]
 fn seed_5365230254_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

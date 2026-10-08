@@ -3121,3 +3121,84 @@ fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_a
         vec![],
     ));
 }
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The fan from the cone's tip to two samples of the ruling the post's end
+/// plane holds is collinear in space, and is taken for a fold lying on that
+/// plane's triangle; the flip makes a triangle whose side runs along the
+/// ruling past the sample between them.
+#[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
+fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxial_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(-2.0),
+            Axis::first(2.0),
+            Section::bands(
+                2.0,
+                &[[1.0, -1.0, -0.0], [1.0, -3.0, -0.0], [3.0, -3.0, -0.0]],
+            )
+            .sloping_to(&[[-1.0, -0.0], [-3.0, -0.0], [-0.0, -0.0]]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(2.0),
+            Axis::first(-2.0),
+            Section::bands(2.0, &[[6.0, 0.0, 1.0]]),
+            60.0,
+        ))],
+    ));
+}
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The same fan from the tip, collinear along the ruling the turns' shared
+/// start plane holds, flipped past the sample where the post meets the cone.
+#[test]
+#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
+fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_post() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::first(20.0),
+            Section::bands(-8.0, &[[18.0, -0.0, -0.0]]).sloping_to(&[[-23.0, -0.0]]),
+            -270.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(-10.0),
+            Axis::first(20.0).backwards(),
+            Section::bands(-8.0, &[[73.0, 0.0, 3.0]]),
+            -270.0,
+        ))],
+    ));
+}
+
+/// Round 3 of #536, a regression: holds at a344fdb, breaks from 82eec7b.
+/// The bore's wall and the cone are each a strip 6e-7 wide, under the
+/// tolerance the reach of the block gives: every triangle of the wall lies
+/// on the cone's, and the flips that follow cut a triangle of the cone
+/// across three samples of its rim, collinear in its parameters but for
+/// rounding, so that its neighbour skips the middle one.
+#[test]
+#[ignore = "folds: a wall and a cone each 6e-7 wide lie on each other, and a flip taken across three rim samples collinear in the cone's parameters but for rounding skips the middle one"]
+fn seed_5369239472_a_cone_bored_as_wide_as_its_narrow_end_joined_to_a_block_6e_7_off_it() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(150.0),
+            Axis::first(-90.0).backwards(),
+            Section::bands(0.0, &[[15.0, -60.0, -0.0]]).sloping_to(&[[-75.0, -0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(-0.0),
+                Outline::circle([-90.0, 150.0], 60.0),
+                -240.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-6.000000000000001e-7),
+                Outline::rectangle([-195.0, 45.0], [15.0, 255.0]),
+                -480.0,
+            )),
+        ],
+    ));
+}

@@ -505,3 +505,43 @@ them:
   eight campaigns sharing the machine.
 - The gate's tests, built, take about 30 s; the turned harness about
   2.9 s of it, still above its 2.5 s budget.
+
+## 8 October: round 1 of #536, measured
+
+Three lanes merged onto `3286cee` (a slanted section that touches itself,
+a cone's triangles, a cone's boolean), measured at `2e1e3ec` on fresh
+seeds, in release, the seven draws side by side, and the first 15 000
+seeds of each slanted draw run again on `3286cee` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5365100000 | 40 000 | 35 | 0.88 |
+| slanted, application's body | 5365200000 | 40 000 | 42 | 1.05 |
+| turned, exact kernel | 5365300000 | 30 000 | 21 | 0.70 |
+| turned, application's body | 5365400000 | 30 000 | 15 | 0.50 |
+| square | 5365500000 | 30 000 | 2 | 0.07 |
+| profiles, exact kernel | 5365600000 | 20 000 | 9 | 0.45 |
+| profiles, application's body | 5365700000 | 20 000 | 7 | 0.35 |
+
+- Over the slanted draws' first 15 000 seeds the exact kernel goes from
+  3.87 failures in a thousand at `3286cee` to 0.93, the application's
+  body from 4.87 to 1.13. No seed there that holds on `3286cee` fails on
+  the tip.
+- The fresh seeds found three that do, each run again on every commit of
+  the round, each named and ignored in
+  `what_the_exact_campaigns_found_in_the_kernel.rs`. A pointed cone cut
+  away by a cone of its apex a hair wider is refused from `eba1fa2` on
+  (5365211513), with both tips on one apex too. Taking a cone about an
+  axis a hair off, from `d961d6d` on, leaves a slot's round end 1e-5
+  off a cone's axis open along a ruling (5365114896), and refuses a shaft
+  ending on a band a hair long beside a quarter cone (5365205368), whose
+  shrunk case fails on `3286cee` too.
+- Every other failure, run again on `3286cee`, fails there too. The
+  turned, square and profile draws' are prisms' and straight turns'
+  families, those of #533. The slanted draws' are, by their shrunk
+  cases: no cone at all; a partial turn of a cone or about its axis; a
+  single whole cone whose section has a step, a band or a hole a hair
+  off; coaxial cones with prisms; and a cone beside a turn about another
+  axis.
+- The gate's tests, built, take about 31.5 s, against about 31 s at
+  `3286cee`.

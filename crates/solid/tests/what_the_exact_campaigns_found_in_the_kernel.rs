@@ -4164,3 +4164,79 @@ fn seed_5361120549_a_shaft_cut_by_a_quarter_turn_of_a_cone_whose_rim_stands_a_ha
         ))],
     ));
 }
+
+#[test]
+#[ignore = "cone-boolean, found by round 1's measure: a pointed cone cut away by a coaxial cone a hair wider whose tip stands 1e-8 off the axis, at the first one's apex, is refused. It holds at 3286cee and fails from eba1fa2 on, and fails the same with both tips at one apex"]
+fn seed_5365211513_a_pointed_cone_cut_away_by_a_cone_of_its_apex_a_hair_wider() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(-3.0),
+            Section::bands(2.0, &[[3.0, 0.0, 0.0], [3.0, 0.0, 4.5], [3.5, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 2.5], [0.0, 4.5], [0.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xz(5.0),
+            Axis::second(-3.0),
+            Section::bands(8.0, &[[3.5, 0.0, 4.50000001]]).sloping_to(&[[0.0, 1e-8]]),
+            360.0,
+        ))],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, found by round 1's measure: a slot whose round end stands 1e-5 off a cone's axis, taken about that axis since d961d6d, leaves the solid open along a ruling of the cone's inner wall. It holds at 3286cee and at eba1fa2, and holds exactly coaxial on both"]
+fn seed_5365114896_a_slot_a_hair_off_a_cone_s_axis_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(240.0),
+            Outline::slot([270.00001, 60.0], [270.00001, 150.0], 180.0),
+            75.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(210.0),
+                Outline::rounded([90.0, -120.0], [450.0, 240.0], 180.0),
+                240.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(60.0),
+                Axis::second(270.0),
+                Section::bands(0.0, &[[30.0, 180.0, 195.0]]).sloping_to(&[[150.0, 195.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+#[test]
+#[ignore = "cone-boolean, found by round 1's measure: a turned shaft whose last band is 2e-8 long, joined to a body cut by a quarter turn of a cone about another axis and to a cylinder about a third, is refused. The seed holds at eba1fa2 and fails from d961d6d on; shrunk, the case fails at 3286cee too, and holds with that band 0 long"]
+fn seed_5365205368_a_shaft_ending_on_a_band_a_hair_long_joined_to_a_quarter_cone() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-1.0), Outline::circle([3.0, 4.0], 3.0), -10.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::yz(3.0),
+                Axis::first(4.0),
+                Section::bands(7.0, &[[2.0, -5.0, -3.0]]).sloping_to(&[[-5.0, -1.0]]),
+                90.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(0.0),
+                Section::bands(
+                    -2.0,
+                    &[[2.0, 0.0, 3.5], [0.99999998, 0.0, 2.5], [2e-8, 0.0, 2.5]],
+                ),
+                360.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(4.0),
+                Axis::second(3.0),
+                Section::bands(-3.0, &[[13.0, -2.0, -0.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}

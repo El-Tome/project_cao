@@ -82,6 +82,11 @@ impl Cone {
         (from.dot(self.v).atan2(from.dot(self.u)), DVec2::new(h, rho))
     }
 
+    /// How far `point` stands from the axis.
+    pub fn off_axis(&self, point: DVec3) -> f64 {
+        self.meridian(point).1.y
+    }
+
     /// The height along the axis at length `l` along the ruling.
     pub fn height_at(&self, l: f64) -> f64 {
         self.foot.x + l * self.ruling.x

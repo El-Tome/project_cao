@@ -4239,8 +4239,14 @@ fn seed_5365114896_a_slot_a_hair_off_a_cone_s_axis_is_drawn_closed() {
     ));
 }
 
+/// A turned shaft whose last band is 2e-8 long, laid as its end a tolerance
+/// short of the wall of a cylinder about the axis of a quarter cone the body
+/// was cut by. Decision 2 moved that cylinder onto the touch with the end, a
+/// tolerance off the axis it shares with the cone, and the two, still
+/// decided about one axis, met along a circle the moved wall stood off: the
+/// step was declined as unverified. A wall about a cone's axis is no longer
+/// moved off it.
 #[test]
-#[ignore = "cone-boolean, found by round 1's measure: a turned shaft whose last band is 2e-8 long, joined to a body cut by a quarter turn of a cone about another axis and to a cylinder about a third, is refused. The seed holds at eba1fa2 and fails from d961d6d on; shrunk, the case fails at 3286cee too, and holds with that band 0 long"]
 fn seed_5365205368_a_shaft_ending_on_a_band_a_hair_long_joined_to_a_quarter_cone() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(-1.0), Outline::circle([3.0, 4.0], 3.0), -10.0),
@@ -5036,9 +5042,12 @@ fn seed_5365202020_a_block_cut_by_a_cylinder_joined_to_a_block_1e_8_off_its_wall
 }
 
 /// The grazing coaxial family: a turned tube joined to a coaxial cone that
-/// stands 1e-7 off the tube's bore: an edge lists itself 6e-8 off its face.
+/// stands 1e-7 off the tube's bore. Decision 2 moved a wall of the bore's
+/// radius onto a touch, 2.5e-8 off the axis it shares with the cone, and the
+/// two, still decided about one axis, met along a circle the moved wall stood
+/// off: an edge listed itself 6e-8 off its face. A wall about a cone's axis
+/// is no longer moved off it; no fall-back and no decline.
 #[test]
-#[ignore = "kernel-declines, found by round 2's triage: the grazing coaxial family, a turned tube joined to a coaxial cone 1e-7 off its bore, lists an edge 6e-8 off its face (Listed). Left for Tom's word if a fix needs a fall-back or a decline"]
 fn seed_5365208585_a_tube_whose_bore_stands_1e_7_off_a_coaxial_cone_s_tip() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

@@ -16,20 +16,20 @@
 //! corners on, which would leave them behind the line of
 //! touch it takes along: such a slide is made before, on the operand, with
 //! its corners (`combine/slid.rs`); nor take such a wall, a plane, further
-//! than the tolerance off the line it crosses another plane along. A
-//! cylinder touching two parallel planes
-//! on opposite sides is moved midway between them, its radius half their
-//! gap, which makes both exact; so is one touching one of them and standing
-//! within decision 8's hair of the other, which left touching the one
-//! stands a hair or two off the other, across a skin no ray tells the side
-//! of.
+//! than the tolerance off the line it crosses another plane along. Nor is
+//! a wall about a cone's axis moved off it. A cylinder touching two
+//! parallel planes on opposite sides is moved midway between them, its
+//! radius half their gap, which makes both exact; so is one touching one of
+//! them and standing within decision 8's hair of the other, which left
+//! touching the one stands a hair or two off the other, across a skin no ray
+//! tells the side of.
 //! A touch counts where faces on the two surfaces stand in boxes that meet:
 //! a plane whose face is far away touches nothing.
 
 use crate::brep::meet::{moved, moved_instead};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::SurfaceId;
 
 use super::surfaces::Surfaces;
@@ -193,12 +193,9 @@ impl Surfaces {
     /// it has with a surface near it but `besides` as near exact as it was;
     /// and, where corners of its operand lie on it, every exact touch where
     /// it was: slid along it, the line of touch would leave behind the
-    /// corners drawn on it. Nor, then, may a plane cross another a tolerance
-    /// further off the line they crossed along: moved a hair along its
-    /// normal, a plane takes the line it crosses another along at a grazing
-    /// angle that hair over the sine of the angle, away from the corners on
-    /// it — a hundredth of a degree's turn, moved onto a round it grazes,
-    /// put the line its two ends meet along ninety microns away (5365230254).
+    /// corners drawn on it; nor, then, may a plane cross another along a line
+    /// a tolerance off where they crossed, which a grazing angle makes of a
+    /// hair: ninety microns, a hundredth of a degree's turn (5365230254).
     fn keeps(
         &self,
         rank: usize,
@@ -261,9 +258,19 @@ fn along_the_partner(before: &Surface, after: &Surface, partner: &Surface) -> Ve
         .to_vec()
 }
 
-/// How far two surfaces decided to touch stand from touching exactly; none
-/// where their pair is no touch. A cone touches nothing along a line.
+/// How far two surfaces decided to touch stand from touching exactly, or a
+/// wall decided to stand about a cone's axis from standing on it; none where
+/// their pair is neither. A cone touches nothing along a line.
 fn off(one: &Surface, other: &Surface, scale: Scale) -> Option<f64> {
+    if let (
+        Surface::Cone(cone),
+        Surface::Cylinder(Cylinder { origin, .. }) | Surface::Cone(Cone { origin, .. }),
+    )
+    | (Surface::Cylinder(Cylinder { origin, .. }), Surface::Cone(cone)) = (one, other)
+    {
+        let about = relation(one, other, scale) != Relation::Unsupported;
+        return about.then(|| cone.off_axis(*origin));
+    }
     match relation(one, other, scale) {
         Relation::Tangent(_) => match (one, other) {
             (Surface::Plane(plane), Surface::Cylinder(cylinder))

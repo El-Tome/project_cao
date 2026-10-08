@@ -413,7 +413,8 @@ impl Case {
     /// its axis, a plane holding its axis or parallel to it past where its
     /// leaf reaches, or a cylinder or a cone about the very same axis, where
     /// its leaf's box meets the other's: a cone a hair off coaxial asks too,
-    /// and so does a plane tangent to its widest rim. The kernel may decline
+    /// and so does a plane tangent to its widest rim, or past it by less than
+    /// the kernel tells a face clear (5365216226). The kernel may decline
     /// such a case as unsupported; it may also hold it, the leaves never
     /// meeting there.
     pub fn asks_for_a_conic(&self) -> bool {
@@ -504,12 +505,19 @@ enum Wall {
 /// the rounding of a direction of unit length, and that share of the reach.
 const ALIGNED: f64 = 1e-12;
 
+/// How far past a cone's widest rim, as a share of the reach, a plane
+/// parallel to its axis still asks: ten times the kernel's tolerance, which
+/// tells a face clear of another only four tolerances off it
+/// (`combine/clear.rs`). Nearer, the plane grazes the rim within what the
+/// kernel can tell, and may cut it along a hyperbola it does not build.
+const GRAZED: f64 = 1e-8;
+
 impl Wall {
     /// Whether this wall meets a cone of `axis` through `point`, whose leaf
     /// reaches `radius` from the axis, in a curve the kernel does not build:
     /// anything but a plane square to the axis, holding it or parallel to it
-    /// further off than the leaf reaches, or a cylinder or a cone about the
-    /// same line.
+    /// further off than the leaf reaches by more than the kernel tells
+    /// clear, or a cylinder or a cone about the same line.
     fn asks_of_a_cone(&self, axis: DVec3, point: DVec3, radius: f64, reach: f64) -> bool {
         let axis = axis.normalize();
         match *self {
@@ -518,7 +526,7 @@ impl Wall {
                 let square = normal.cross(axis).length() <= ALIGNED;
                 let off = normal.dot(point - on).abs();
                 let parallel = normal.dot(axis).abs() <= ALIGNED;
-                let clear = parallel && (off <= ALIGNED * reach || off > radius + ALIGNED * reach);
+                let clear = parallel && (off <= ALIGNED * reach || off > radius + GRAZED * reach);
                 !square && !clear
             }
             Wall::Cylinder {

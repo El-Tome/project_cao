@@ -1017,6 +1017,24 @@ fn a_case_asking_for_a_conic_is_told_from_one_that_does_not() {
             true,
         ),
         (
+            "a flat a hair past its widest rim, closer than the kernel tells clear",
+            Leaf::prism(
+                Plane::xy(3.00000002),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            true,
+        ),
+        (
+            "a flat past its widest rim",
+            Leaf::prism(
+                Plane::xy(3.001),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
             "a plane at a slant",
             Leaf::prism(
                 Plane::tilted([0.0, 0.0, 0.0], [0.0, 30.0, 0.0]),

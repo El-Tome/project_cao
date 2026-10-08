@@ -5061,11 +5061,13 @@ fn seed_5365208585_a_tube_whose_bore_stands_1e_7_off_a_coaxial_cone_s_tip() {
     ));
 }
 
-/// A cone cut by a block whose side, parallel to its axis, stands 5e-8 inside
-/// its widest rim: declined as unsupported, which the draw does not count as a
-/// conic asked for.
+/// A cone cut by a block whose side, parallel to its axis, stands 5e-8 past
+/// its widest rim, a tolerance and a tenth: the kernel tells a face clear of
+/// another only four tolerances off it, and declines the step as
+/// unsupported, a hyperbola it may cut. The harness took the side for clear
+/// past 1e-12 of the reach, and counted the decline as no answer; it counts
+/// a plane that near the rim as asking for a conic now.
 #[test]
-#[ignore = "kernel-declines, found by round 2's triage: a cone cut by a block whose side, parallel to its axis, stands 5e-8 inside its widest rim is declined as unsupported, and `asks_for_a_conic` does not count it: either the kernel should take the graze or the harness should count the decline"]
 fn seed_5365216226_a_cone_cut_by_a_block_whose_side_grazes_its_rim() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

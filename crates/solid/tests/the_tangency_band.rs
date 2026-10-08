@@ -300,8 +300,12 @@ fn seed_6270911_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
 }
 
 /// Campaign 6a, the square draw: Uncrossed.
+///
+/// Was ignored as: band: a plane touching a wall a hair from a line crossing
+/// it, not traced since the rule (1-2). Holds since the triangles of two faces
+/// folded onto each other across an edge are cut the other way, round 3 of
+/// #536.
 #[test]
-#[ignore = "band: a plane touching a wall a hair from a line crossing it, not traced since the rule (1-2)"]
 fn seed_6168409_a_plane_touching_a_wall_a_hair_from_a_line_crossing_it() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -732,8 +736,11 @@ fn seed_6038027_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() 
 }
 
 /// Campaign 6a, the square draw: Uncrossed.
+///
+/// Was ignored as: band: a bore grazing both surfaces of the band, left as it
+/// was (2-1). Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "band: a bore grazing both surfaces of the band, left as it was (2-1)"]
 fn seed_6155665_a_plane_and_two_walls_touching_along_three_lines_a_hair_apart() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(37.5), Outline::circle([40.0, 5.0], 20.0), 47.5),
@@ -1101,8 +1108,11 @@ fn seed_6512044_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wal
 }
 
 /// Campaign 6b, the profile draw: Uncrossed.
+///
+/// Was ignored as: band: a plane crossing a wall a hair inside, no touch to lay
+/// out (3-2). Holds since the triangles of two faces folded onto each other
+/// across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "band: a plane crossing a wall a hair inside, no touch to lay out (3-2)"]
 fn seed_6550239_a_plane_touching_a_wall_along_a_ruling_that_crosses_a_square_wall() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -1249,8 +1259,12 @@ fn seed_6218170_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface()
 }
 
 /// Campaign 6a, the square draw: Uncrossed.
+///
+/// Was ignored as: band: two walls of one radius crossing at a grazing angle,
+/// their band laid out since #528 and still drawn crossing (1-9). Holds since
+/// the triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
 #[test]
-#[ignore = "band: two walls of one radius crossing at a grazing angle, their band laid out since #528 and still drawn crossing (1-9)"]
 fn seed_6074790_two_walls_of_one_radius_beyond_the_hair_beside_a_third_surface() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -3248,8 +3262,12 @@ fn seed_93505897_a_ring_filled_by_a_pin_ten_microns_aside_then_given_a_block_tou
 }
 
 /// The review of round 6, the profile draw: Uncrossed.
+///
+/// Was ignored as: band: two walls of one radius beyond the hair and a plane
+/// touching both, their band laid out since #528 and still drawn crossing
+/// (1-9). Holds since the triangles of two faces folded onto each other across
+/// an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "band: two walls of one radius beyond the hair and a plane touching both, their band laid out since #528 and still drawn crossing (1-9)"]
 fn seed_93530253_a_slot_given_a_disc_ten_microns_off_its_end_then_cut_by_its_end_s_twin() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -4078,8 +4096,11 @@ fn a_bar_resting_on_a_top_bored_by_a_hole_half_a_tolerance_clear_of_its_line() {
     ));
 }
 
+/// Was ignored as: band: a ruling of touch crossing a square wall where it
+/// grazes it, no surface square to part the band (3-2). Holds since the
+/// triangles of two faces folded onto each other across an edge are cut the
+/// other way, round 3 of #536.
 #[test]
-#[ignore = "band: a ruling of touch crossing a square wall where it grazes it, no surface square to part the band (3-2)"]
 fn a_bar_resting_on_a_top_bored_by_a_hole_thirty_tolerances_clear_of_its_line() {
     random_solids::holds_exactly(&a_bar_resting_on_a_top_bored_by_a_hole_grazing_its_line(
         30.0,
@@ -4126,8 +4147,11 @@ fn a_slot_cut_by_a_bar_touching_its_run_a_micron_short_of_its_end() {
     random_solids::holds_exactly(&a_slot_cut_by_a_bar_touching_its_run_past_its_end(-1e-6));
 }
 
+/// Was ignored as: band: two walls square to each other touching a plane at one
+/// point, a cap a hair past it (3-2). Holds since the triangles of two faces
+/// folded onto each other across an edge are cut the other way, round 3 of
+/// #536.
 #[test]
-#[ignore = "band: two walls square to each other touching a plane at one point, a cap a hair past it (3-2)"]
 fn a_slot_cut_by_a_bar_touching_its_run_a_micron_past_its_end() {
     random_solids::holds_exactly(&a_slot_cut_by_a_bar_touching_its_run_past_its_end(1e-6));
 }

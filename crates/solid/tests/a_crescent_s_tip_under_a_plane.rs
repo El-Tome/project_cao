@@ -1082,8 +1082,13 @@ fn seed_8555088_two_walls_of_one_radius_a_hair_apart_under_a_plane_touching_both
 
 /// Campaign 8c, the profile draw through the application's body: Uncrossed.
 /// Shrunk through the application's body.
+///
+/// Was ignored as: crescent-tip: left: the crescent's tip, ended on a slot's
+/// cap a hair from the line a box's side touches it along, stands past the end
+/// of that side's face, where no band is laid, and the cap's triangle reaching
+/// it crosses the side's. Holds since the triangles of two faces folded onto
+/// each other across an edge are cut the other way, round 3 of #536.
 #[test]
-#[ignore = "crescent-tip: left: the crescent's tip, ended on a slot's cap a hair from the line a box's side touches it along, stands past the end of that side's face, where no band is laid, and the cap's triangle reaching it crosses the side's"]
 fn seed_8555390_two_walls_of_one_radius_a_hair_apart_under_a_plane_touching_both() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

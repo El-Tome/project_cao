@@ -55,7 +55,8 @@ type Undo = Vec<(At, At, [[usize; 3]; 2])>;
 const DEPTH: usize = 1;
 
 /// How far off a triangle's plane, as a share of the tolerance, a corner of
-/// another stands across it: far under what the rules see, far over rounding.
+/// another stands across it, and how far off an edge's line a corner stands
+/// clear of it: far under what the rules see, far over rounding.
 const CLEAR: f64 = 1e-2;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal can.
@@ -167,7 +168,10 @@ impl Folds<'_> {
 
     /// Whether triangle `one` lies on `other` across the edge both have: its
     /// third corner within the tolerance of the other's plane, on the side of
-    /// the edge the other covers.
+    /// the edge the other covers, and clear of the edge's line. A corner on
+    /// that line but for rounding — a fan from a cone's tip to two samples of
+    /// the ruling an end plane holds — makes a triangle of no area, lying on
+    /// nothing, which a flip would turn into a side running past a sample.
     fn lies_on(&self, one: [usize; 3], other: [usize; 3], [a, b]: [usize; 2]) -> bool {
         let third = |corners: [usize; 3]| corners.into_iter().find(|id| *id != a && *id != b);
         let (Some(mine), Some(theirs)) = (third(one), third(other)) else {
@@ -178,7 +182,7 @@ impl Folds<'_> {
             return false;
         };
         let side = (to - from).cross(mine - from).dot(normal);
-        normal.dot(mine - from).abs() <= self.eps && side > 0.0
+        normal.dot(mine - from).abs() <= self.eps && side > self.eps * CLEAR * (to - from).length()
     }
 
     /// Cuts the triangle at `at` the other way, with one of the triangles of

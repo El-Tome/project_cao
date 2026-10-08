@@ -3128,7 +3128,6 @@ fn seed_5365214000_a_long_cone_ended_by_a_cone_6e_6_long_all_but_square_to_its_a
 /// plane's triangle; the flip makes a triangle whose side runs along the
 /// ruling past the sample between them.
 #[test]
-#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3154,7 +3153,6 @@ fn seed_5365104153_a_stepped_post_ending_in_a_point_joined_to_a_sixth_of_a_coaxi
 /// The same fan from the tip, collinear along the ruling the turns' shared
 /// start plane holds, flipped past the sample where the post meets the cone.
 #[test]
-#[ignore = "folds: a fan triangle collinear along a ruling the end plane holds is taken for a fold, and the flip runs a side past a sample of the ruling"]
 fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_post() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

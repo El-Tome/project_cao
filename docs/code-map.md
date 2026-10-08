@@ -55,6 +55,7 @@ in one of the two domains, never there.
 | Where an ellipse crosses a trait, a circle, an arc or another ellipse | `sketch/src/crossing/ellipse.rs` | `where_segment_crosses_ellipse`, `where_circle_crosses_ellipse`, `where_arc_crosses_ellipse`, `where_ellipses_cross` |
 | An ellipse, and the turns at which the drawing runs through it | `sketch/src/ellipse_edges.rs` | `Oval`, `Sketch::ovals` |
 | Erasing an element and what leans on it | `sketch/src/sketch.rs` | `Sketch::erase` |
+| Two points made one — a drop, « Coïncidence », « Concentrique » — and everything that named the one that goes handed to the one that stays | `sketch/src/sketch/merging.rs` | `Sketch::join_points`, `merge_points` |
 | Whether a rule still speaks of a drawing that has it | `sketch/src/sketch/holds_up.rs` | `Sketch::holds_up` |
 | Taking a stretch out of a trait, and cutting one in two | `sketch/src/trimming.rs` | `Sketch::stretch_at`, `Sketch::trim` → `Trimmed` |
 | What a cut of a **trait** carries over to a piece, and what it cannot | `sketch/src/trimming/carrying.rs` | `Sketch::carried_by`, `still_holds`, `still_measured`, `Piece` |
@@ -83,12 +84,12 @@ in one of the two domains, never there.
 | What a circle or an ellipse brushing a line asks of the solver | `sketch/src/solver/tangent_solver.rs` | `circle_tangent_equations`, `ellipse_tangent_equations` |
 | A point dropped and the drawing settled around it; a handful dropped at once | `sketch/src/sketch/settling.rs` | `Sketch::settle_around`, `settle_around_all` |
 | What a drag of one point may do: stretch, follow one way, pivot, or nothing | `sketch/src/sketch/settling/pull.rs` | `PointPull`, `Sketch::pull`, `settle_pulled` |
-| Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to` |
+| Where a pulled point is taken at each frame, and what it lands on | `sketch/src/sketch/settling/pull/landing.rs` | `PointPull::landing`, `onto_grid`, `arrived`, `joined_to`, `joins` |
 | The shape a dragged point belongs to, and the point of it that stays | `sketch/src/sketch/settling/shape.rs` | `shape_of`, `stay_point`, `centres_under`, `turned_about` |
 | The traits a drag keeps pointing the way they did | `sketch/src/sketch/settling/kept.rs` | `Kept`, `tied_by_direction`, `lines_kept_in` |
 | Where a dragged point can go without its shape turning | `sketch/src/sketch/settling/give.rs` | `Give`, `give_of` |
 | The kept lines as rows of the solver | `sketch/src/solver/kept_solver.rs` | `kept_equations`, `kept_row` |
-| The way-up guard of a drawing that settles | `sketch/src/solver/orientation.rs` | `orientations`, `hold_orientations`, `rotation_gauges` |
+| The way-up guard of a drawing that settles, and the turn back that breaks nothing the settle made true | `sketch/src/solver/orientation.rs`, `orientation/turning_back.rs` | `orientations`, `rotation_gauges`, `hold_orientations` |
 | When a sweep of the solver has stopped getting anywhere | `sketch/src/solver/stall.rs` | `Stall::stalled` |
 | A point held keeping its place along what holds it through a gesture | `sketch/src/sketch/settling/share.rs` | `Sketch::shares`, `keep_shares` |
 | A side or a curve pulled: across or along, what a press takes hold of | `sketch/src/pulling.rs` | `Sketch::pulled_at`, `side_drag`, `curve_drag`, `SideDrag`, `CurveDrag` |

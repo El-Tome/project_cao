@@ -257,39 +257,6 @@ impl Sketch {
         (lone != Sketch::ORIGIN.0).then_some((Sketch::ORIGIN, PointId(lone)))
     }
 
-    /// Turns each group back the way it was pointing. A rigid turn about the
-    /// point the group turns about leaves every dimension of it free to turn
-    /// exactly as it found it — that is what "free to turn" means — so this
-    /// straightens the drawing without touching what it measures.
-    ///
-    /// That point stays for good, so where it was read before the settle is
-    /// where it still is.
-    pub(super) fn hold_orientations(&mut self, held: &[WayRound]) {
-        if held.is_empty() {
-            return;
-        }
-        let pinned = self.pinned_points();
-
-        for way in held {
-            let span = self.point(way.to) - self.point(way.from);
-            if span.length() < 1e-6 {
-                continue;
-            }
-            let drift = wrap(span.to_angle() - way.angle);
-            if drift.abs() < 1e-6 {
-                continue;
-            }
-            let turn = DVec2::from_angle(-drift);
-            for index in way.members.iter().copied() {
-                if pinned[index] {
-                    continue;
-                }
-                let moved = way.about + turn.rotate(self.point(PointId(index)) - way.about);
-                self.place_point(PointId(index), moved);
-            }
-        }
-    }
-
     /// Which group of joined geometry each point belongs to, as the index of a
     /// representative point. Two shapes drawn apart are two groups.
     pub(crate) fn point_groups(&self) -> Vec<usize> {
@@ -381,17 +348,7 @@ impl Sketch {
     }
 }
 
-/// An angle brought back into [-pi, pi], so a drift either side of a turn reads
-/// as the small angle it is.
-fn wrap(mut angle: f64) -> f64 {
-    while angle > std::f64::consts::PI {
-        angle -= std::f64::consts::TAU;
-    }
-    while angle < -std::f64::consts::PI {
-        angle += std::f64::consts::TAU;
-    }
-    angle
-}
+mod turning_back;
 
 #[cfg(test)]
 mod tests;

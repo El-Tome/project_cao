@@ -14,6 +14,9 @@ use glam::DVec2;
 use super::{Element, LengthOutcome, PointId, Sketch};
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
+use handing_over::handed_over;
+
+mod handing_over;
 
 impl Sketch {
     /// Makes two points one and settles the drawing into it, the point kept
@@ -37,14 +40,14 @@ impl Sketch {
             return false;
         }
         let before = self.clone();
+        let mut carried = Vec::new();
         if self.is_held(Element::Point(dropped)) && !self.is_held(Element::Point(kept)) {
             let step = self.point(dropped) - self.point(kept);
-            self.carry_curves_about(kept, step, [kept, dropped]);
+            carried = self.carry_curves_about(kept, step, [kept, dropped]);
             self.move_point(kept, self.point(dropped));
         }
-        self.merge_points(kept, dropped);
-        let landed = self.land(Some(Element::Point(kept)), None, millimeters_per_unit);
-        if landed == LengthOutcome::BestEffort {
+        carried.extend(self.merge_carrying(kept, dropped));
+        if self.settle_joined(kept, carried, millimeters_per_unit) == LengthOutcome::BestEffort {
             *self = before;
             return false;
         }
@@ -59,12 +62,17 @@ impl Sketch {
     /// length goes: a trait with the same point at both ends, an arc whose ends
     /// meet or that ends on its own centre, an arc of ellipse whose ends meet.
     pub fn merge_points(&mut self, kept: PointId, dropped: PointId) {
+        self.merge_carrying(kept, dropped);
+    }
+
+    /// The merge, and the points it carried with the curves it moved.
+    fn merge_carrying(&mut self, kept: PointId, dropped: PointId) -> Vec<PointId> {
         let (kept, dropped) = self.which_stays(kept, dropped);
         if kept == dropped || !self.has_point(kept) || !self.has_point(dropped) {
-            return;
+            return Vec::new();
         }
         let step = self.point(kept) - self.point(dropped);
-        self.carry_curves_about(dropped, step, [kept, dropped]);
+        let carried = self.carry_curves_about(dropped, step, [kept, dropped]);
         self.hand_over_the_point(kept, dropped);
         self.take_away_what_collapsed();
 
@@ -78,6 +86,29 @@ impl Sketch {
             })
             .filter(|dimension| self.measures_live(dimension.target))
             .collect();
+        carried
+    }
+
+    /// Settles the drawing with the point kept, and the points the merge
+    /// carried with its curves, held where they now stand — as a drag of a
+    /// centre holds its curve, so that a shape tied to the curve travels with
+    /// it rather than bending. Around the point kept alone when that cannot
+    /// land.
+    fn settle_joined(
+        &mut self,
+        kept: PointId,
+        mut carried: Vec<PointId>,
+        millimeters_per_unit: f64,
+    ) -> LengthOutcome {
+        if !carried.is_empty() {
+            let before = self.shapes_now();
+            carried.push(kept);
+            if self.settle_held(carried, Vec::new(), millimeters_per_unit) {
+                return LengthOutcome::Exact;
+            }
+            self.give_back(before);
+        }
+        self.land(Some(Element::Point(kept)), None, millimeters_per_unit)
     }
 
     /// The origin never moves, so it is always the one kept.
@@ -152,9 +183,14 @@ impl Sketch {
     /// Not a curve that stands on a fixed point, nor one that ends on one of
     /// the two points being joined: a fixed point is never the one that moves,
     /// and the settle reshapes that curve about it instead.
-    fn carry_curves_about(&mut self, centre: PointId, step: DVec2, joined: [PointId; 2]) {
+    fn carry_curves_about(
+        &mut self,
+        centre: PointId,
+        step: DVec2,
+        joined: [PointId; 2],
+    ) -> Vec<PointId> {
         if step == DVec2::ZERO {
-            return;
+            return Vec::new();
         }
         let arcs = self
             .live_arcs()
@@ -187,9 +223,10 @@ impl Sketch {
         }
         carried.sort_by_key(|point| point.0);
         carried.dedup();
-        for point in carried {
-            self.move_point(point, self.point(point) + step);
+        for point in &carried {
+            self.move_point(*point, self.point(*point) + step);
         }
+        carried
     }
 
     /// The points a rule holds on a curve.
@@ -300,86 +337,6 @@ impl Sketch {
         for collapsed in ellipses {
             self.erase(collapsed);
         }
-    }
-}
-
-/// The same rule, every point it names handed over. Every kind is named, so
-/// that a kind added later is not forgotten here.
-fn handed_over(rule: Constraint, one: impl Fn(PointId) -> PointId) -> Constraint {
-    match rule {
-        Constraint::OnSegment { point, segment } => Constraint::OnSegment {
-            point: one(point),
-            segment,
-        },
-        Constraint::OnCircle { point, circle } => Constraint::OnCircle {
-            point: one(point),
-            circle,
-        },
-        Constraint::OnArc { point, arc } => Constraint::OnArc {
-            point: one(point),
-            arc,
-        },
-        Constraint::OnEllipse { point, ellipse } => Constraint::OnEllipse {
-            point: one(point),
-            ellipse,
-        },
-        Constraint::OnAxis { point, axis } => Constraint::OnAxis {
-            point: one(point),
-            axis,
-        },
-        Constraint::Midpoint { point, segment } => Constraint::Midpoint {
-            point: one(point),
-            segment,
-        },
-        Constraint::Fixed {
-            element: Element::Point(point),
-        } => Constraint::Fixed {
-            element: Element::Point(one(point)),
-        },
-        Constraint::Tangent {
-            circle,
-            segment,
-            at,
-            from,
-        } => Constraint::Tangent {
-            circle,
-            segment,
-            at: at.map(&one),
-            from,
-        },
-        Constraint::ArcTangent {
-            arc,
-            segment,
-            at,
-            from,
-        } => Constraint::ArcTangent {
-            arc,
-            segment,
-            at: at.map(&one),
-            from,
-        },
-        Constraint::EllipseTangent {
-            ellipse,
-            segment,
-            at,
-            from,
-        } => Constraint::EllipseTangent {
-            ellipse,
-            segment,
-            at: at.map(&one),
-            from,
-        },
-        Constraint::Fixed { .. }
-        | Constraint::Perpendicular { .. }
-        | Constraint::Parallel { .. }
-        | Constraint::Equal { .. }
-        | Constraint::EqualRadius { .. }
-        | Constraint::EqualRadiusArc { .. }
-        | Constraint::EqualRadiusArcCircle { .. }
-        | Constraint::Collinear { .. }
-        | Constraint::AxisCollinear { .. }
-        | Constraint::AxisParallel { .. }
-        | Constraint::AxisPerpendicular { .. } => rule,
     }
 }
 

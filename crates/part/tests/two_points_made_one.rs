@@ -48,6 +48,11 @@
 //! made one with its circle's centre shrank the circle to nothing —
 //! `a_contact_point_made_one_with_the_centre_of_its_circle_is_refused`.
 //!
+//! Tried in the app, a shape whose arc turns about the middle of its own side
+//! bent and turned when that middle was made one with a circle's centre: what
+//! the merge carried was let go of while the drawing settled —
+//! `a_shape_turning_about_the_middle_of_its_side_travels_whole_to_the_point_clicked_first`.
+//!
 //! Case (5) found the solver turning a group back after it had settled, about
 //! the origin, onto a rule tying it to a point held still — a turn read to the
 //! first order as one that changes nothing. That is held beside the solver, in
@@ -845,5 +850,75 @@ fn a_contact_point_made_one_with_the_centre_of_its_circle_is_refused() {
         sketch.circles()[0].radius > 1.0,
         "the circle shrank to {}",
         sketch.circles()[0].radius
+    );
+}
+
+#[test]
+fn a_shape_turning_about_the_middle_of_its_side_travels_whole_to_the_point_clicked_first() {
+    let mut document = blank();
+    let (top, bottom, middle) = (
+        DVec2::new(-40.0, -15.0),
+        DVec2::new(-40.0, -55.0),
+        DVec2::new(-40.0, -35.0),
+    );
+    document.apply(Operation::AddSegment {
+        sketch: 0,
+        start: PointRef::New(top),
+        end: PointRef::New(bottom),
+        construction: false,
+    });
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: middle,
+        on: Vec::new(),
+    });
+    let sketch = &document.sketches()[0];
+    let [top_point, bottom_point, middle_point] =
+        [top, bottom, middle].map(|place| point_at(sketch, place));
+    document.apply(Operation::Constrain {
+        sketch: 0,
+        constraint: Constraint::Midpoint {
+            point: middle_point,
+            segment: SegmentId(0),
+        },
+    });
+    document.apply(Operation::AddArc {
+        sketch: 0,
+        center: PointRef::Existing(middle_point),
+        start: PointRef::Existing(bottom_point),
+        end: PointRef::New(middle + DVec2::from_angle(45f64.to_radians()) * 20.0),
+        construction: false,
+    });
+    let elsewhere = DVec2::new(40.0, 10.0);
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(elsewhere),
+        radius: 10.0,
+        rim: vec![PointRef::New(DVec2::new(40.0, 0.0))],
+        construction: false,
+    });
+    let centre = point_at(&document.sketches()[0], elsewhere);
+
+    let (kept, outcome) = made_to_coincide(&mut document, centre, middle_point);
+
+    let sketch = &document.sketches()[0];
+    let step = elsewhere - middle;
+    assert_eq!(outcome, None, "the merge was refused");
+    assert_eq!(
+        sketch.arcs()[0].center,
+        kept,
+        "the arc turns about a point that went"
+    );
+    for (point, was) in [(top_point, top), (bottom_point, bottom)] {
+        assert!(
+            sketch.point(point).distance(was + step) < 1e-6,
+            "the side did not travel whole: an end stands at {}, not {}",
+            sketch.point(point),
+            was + step
+        );
+    }
+    assert!(
+        (sketch.arc_radius(ArcId(0)) - 20.0).abs() < 1e-6,
+        "the arc changed size"
     );
 }

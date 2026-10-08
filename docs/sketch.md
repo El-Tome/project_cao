@@ -649,8 +649,11 @@ fixed, the one kept comes to its place and is fixed there.
 curves turn about is the point that goes, each of them is carried whole onto
 the one that stays — its size, its opening and the way it is turned unchanged —
 and the traits sharing their ends stretch to follow, as they do when the centre
-is dragged. A curve standing on a fixed point is the exception: the fixed point
-stays, and the curve reshapes about it. When it is the point kept that comes to
+is dragged. While the drawing settles, what was carried is held where it now
+stands, as a drag of the centre holds it: a shape tied to the curve — a trait
+whose middle is the arc's centre — travels with it rather than bending. A curve
+standing on a fixed point is the exception: the fixed point stays, and the
+curve reshapes about it. When it is the point kept that comes to
 a fixed one, the curves turning about it come with it.
 
 What the merge leaves with no length goes:

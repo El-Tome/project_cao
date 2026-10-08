@@ -3218,8 +3218,11 @@ fn seed_533413234_a_turned_cylinder_touching_a_post_at_a_point() {
     ));
 }
 
+/// A sector turned 270 degrees cut about the axis of a cylinder turned
+/// before it; the ends of the cut, planes holding that axis, meet the
+/// cylinder along its rulings, and every read of one region along its chord
+/// was a tie. It is settled read either side of the chord, as 5365202020 is.
 #[test]
-#[ignore = "kernel: a sector turned 270 degrees cut about the axis of a cylinder turned before it; the ends of the cut, planes holding that axis, meet the cylinder along its rulings and the kernel declines a tie"]
 fn seed_533328889_a_partial_turn_cut_about_the_axis_of_a_turned_cylinder() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(4.0), Outline::circle([6.0, 4.0], 1.0), 3.0),
@@ -5020,10 +5023,14 @@ fn seed_5365239260_a_rounded_block_cut_by_a_block_a_cylinder_and_a_slot() {
     ));
 }
 
-/// A block cut by a cylinder, then joined to a block whose side stands 1e-8 off
-/// the cylinder's wall: declined as a tie. No cone.
+/// A block cut by a cylinder that leaves a strip of its top 2e-8 wide at the
+/// rim, then joined to a block whose side stands 1e-8 off the cylinder's
+/// wall, in the middle of the strip. That side was taken for the first
+/// block's, 1e-8 off, and the strip was a region between the cylinder's line
+/// and that side's, its middle on the second block's own edge all along its
+/// chord: read there and further along, a tie. The region is read either side
+/// of its chord now. No cone.
 #[test]
-#[ignore = "kernel-declines, found by round 2's triage: a block cut by a cylinder and joined to a block whose side stands 1e-8 off the cylinder's wall is declined as a tie. No cone"]
 fn seed_5365202020_a_block_cut_by_a_cylinder_joined_to_a_block_1e_8_off_its_wall() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

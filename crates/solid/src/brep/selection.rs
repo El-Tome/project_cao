@@ -173,7 +173,10 @@ impl Place<'_> {
 /// is the same. So it is where the point stands on a corner of the surface:
 /// a corner inside a region is where another surface touches it at a point,
 /// a post made to touch a bar's wall, and a ray from there is taken on
-/// whichever side of the post rounding leaves it.
+/// whichever side of the post rounding leaves it. Last, it is read either
+/// side of the chord: a region thinner than the tolerance may have an
+/// operand's own edge, which stands within the tolerance of the arc it was
+/// laid on, all along its chord (5365202020).
 fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>, Declined> {
     let on_a_corner = members.iter().any(|member| {
         let point = member.geometry.point(member.region.inside);
@@ -182,18 +185,19 @@ fn wraps(operands: &Operands, members: &[Member]) -> Result<Option<[Wrapped; 2]>
             .iter()
             .any(|corner| corner.distance(point) <= operands.eps())
     });
-    for share in [None, Some(0.25), Some(0.75)] {
-        if share.is_none() && on_a_corner {
-            continue;
-        }
+    for read in usize::from(on_a_corner)..5 {
         let places: Vec<Place> = members
             .iter()
             .map(|member| {
                 let region = member.region;
                 let [low, high] = region.chord;
-                let at = share.map_or(region.inside, |share| {
-                    DVec2::new(region.inside.x, low + (high - low) * share)
-                });
+                let at = match read {
+                    0 => region.inside,
+                    1 | 2 => {
+                        DVec2::new(region.inside.x, low + (high - low) * [0.25, 0.75][read - 1])
+                    }
+                    _ => region.aside[read - 3],
+                };
                 Place {
                     surface: member.surface,
                     geometry: member.geometry,

@@ -3756,8 +3756,14 @@ fn seed_536104721_a_shaft_whose_top_slants_in_over_a_hair_its_roots_rounded_into
     ));
 }
 
+/// Was ignored as: kernel: a shaft whose top slants out, turned whole, cut by a
+/// half turn about the same axis whose wall has the radius the slant starts
+/// from; the ends of the half turn, planes holding that axis, meet the cone
+/// along its rulings, and the body comes out open along the rim the wall rests
+/// on. Not traced: the family of 533328889, which #533 left for the cones, or
+/// the rim's touch. Holds since a face of a cone meeting a sample twice is laid
+/// out on one angle for it, round 2 of #536.
 #[test]
-#[ignore = "kernel: a shaft whose top slants out, turned whole, cut by a half turn about the same axis whose wall has the radius the slant starts from; the ends of the half turn, planes holding that axis, meet the cone along its rulings, and the body comes out open along the rim the wall rests on. Not traced: the family of 533328889, which #533 left for the cones, or the rim's touch"]
 fn seed_536112193_a_half_turn_cut_about_the_axis_of_a_frustum() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

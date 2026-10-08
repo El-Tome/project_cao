@@ -2798,8 +2798,13 @@ fn seed_533600448_a_slot_whose_round_end_touches_a_block_s_side_is_drawn_closed(
     ));
 }
 
+/// Was ignored as: triangles, through the application's body: the body declined
+/// as undrawn. A ring turned 270 degrees about a frustum's axis, its inner rim
+/// resting on the frustum's cone along an arc of 270 degrees: the kernel keeps
+/// that arc on the cone's face as a slit, an edge run both ways, which the
+/// cone's chart cannot lay out. Holds since a face of a cone meeting a sample
+/// twice is laid out on one angle for it, round 2 of #536.
 #[test]
-#[ignore = "triangles, through the application's body: the body declined as undrawn. A ring turned 270 degrees about a frustum's axis, its inner rim resting on the frustum's cone along an arc of 270 degrees: the kernel keeps that arc on the cone's face as a slit, an edge run both ways, which the cone's chart cannot lay out"]
 fn seed_536212654_a_partial_ring_whose_rim_rests_on_a_cone_of_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -2817,8 +2822,11 @@ fn seed_536212654_a_partial_ring_whose_rim_rests_on_a_cone_of_its_axis() {
     ));
 }
 
+/// Was ignored as: triangles, through the application's body: the body declined
+/// as undrawn. A ring turned half way about a cone's axis and joined to it, not
+/// traced further. Holds since a face of a cone meeting a sample twice is laid
+/// out on one angle for it, round 2 of #536.
 #[test]
-#[ignore = "triangles, through the application's body: the body declined as undrawn. A ring turned half way about a cone's axis and joined to it, not traced further"]
 fn seed_536215029_a_half_turn_joined_to_a_cone_of_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -2956,8 +2964,14 @@ fn seed_5361220159_a_frustum_cut_by_a_coaxial_frustum_a_hair_inside_it() {
     ));
 }
 
+/// Was ignored as: cone-triangles, not a matter of common rays: the cut's floor
+/// stands 3e-7 up the cone, where the cone is 6.7e-8 narrower than the cut, and
+/// the kernel ends the floor on the cut's radius; the cone's edge at the cut's
+/// end is an upright line 3e-7 long to that corner, the cone's triangle from it
+/// to its rim's sample on the same ray stands in the end's plane, and the
+/// floor's radial edge runs 6.7e-8 into it. Holds since a face of a cone
+/// meeting a sample twice is laid out on one angle for it, round 2 of #536.
 #[test]
-#[ignore = "cone-triangles, not a matter of common rays: the cut's floor stands 3e-7 up the cone, where the cone is 6.7e-8 narrower than the cut, and the kernel ends the floor on the cut's radius; the cone's edge at the cut's end is an upright line 3e-7 long to that corner, the cone's triangle from it to its rim's sample on the same ray stands in the end's plane, and the floor's radial edge runs 6.7e-8 into it"]
 fn seed_5361110015_a_shaft_with_a_cone_cut_by_a_coaxial_partial_turn() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -3029,8 +3043,14 @@ fn seed_5364102153_a_ring_left_between_two_coaxial_cones_crossing_at_a_shallow_a
     ));
 }
 
+/// Was ignored as: triangles: a frustum joined inside a partial ring of its
+/// axis, its narrow rim on the ring's step, is left open along that rim where
+/// the turn ends. The seed's frustum stood a hair off the ring's axis and was
+/// declined as unsupported until decision 8 took it about one axis; shrunk, the
+/// case is exactly coaxial and fails at 3286cee too. Holds since a face of a
+/// cone meeting a sample twice is laid out on one angle for it, round 2 of
+/// #536.
 #[test]
-#[ignore = "triangles: a frustum joined inside a partial ring of its axis, its narrow rim on the ring's step, is left open along that rim where the turn ends. The seed's frustum stood a hair off the ring's axis and was declined as unsupported until decision 8 took it about one axis; shrunk, the case is exactly coaxial and fails at 3286cee too"]
 fn seed_5363104867_a_frustum_joined_inside_a_partial_ring_of_its_axis_is_drawn_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

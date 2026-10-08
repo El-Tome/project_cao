@@ -78,8 +78,10 @@ const CLOSE_TO_AN_END: f64 = 1e-9;
 /// ten-millionths apart. Left as two vertices it leaves a sliver of an edge
 /// between them, and the walk comes back with one face where the drawing shows
 /// two. A ten-millionth of the drawing is a hundredth of a micron on a part a
-/// metre across: far below anything drawn, and far below what the solver holds
-/// a dimension to.
+/// metre across: far below anything drawn, and far below what the solver
+/// counts a dimension as held to — which is why a drawing whose rules hold is
+/// settled further, under it (#545), so that a side drawn along another is
+/// still read along it once the drawing has moved.
 const THE_SAME_PLACE: f64 = 1e-7;
 
 /// Read against how far out the place stands, so the drawing can be measured

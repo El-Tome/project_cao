@@ -307,6 +307,76 @@ fn a_fin_a_hair_thick_on_the_narrow_end_of_a_cone_is_not_there() {
     }
 }
 
+/// A tube from 1 to 4 away from its axis whose end slants from 2 away at 5
+/// along to 4 away `lean` short of it, then comes back square to the axis to
+/// 3 away, and slants from there to its outer bottom corner: the fin between
+/// the end and the run back is half the resolution thick where it ends.
+const A_FIN_BESIDE_A_SLANT: [[f64; 2]; 6] = [
+    [1.0, 0.0],
+    [1.0, 5.0],
+    [2.0, 5.0],
+    [4.0, 5.0 - 1.5 * RESOLUTION],
+    [3.0, 5.0 - 1.5 * RESOLUTION],
+    [4.0, 0.0],
+];
+
+#[test]
+fn a_slant_whose_end_the_next_run_brings_back_within_the_tolerance_of_it_ends_where_that_run_does()
+{
+    let lean = 1.5 * RESOLUTION;
+    let straight = laid(&polygon(&A_FIN_BESIDE_A_SLANT), &[], RESOLUTION).expect("a fin");
+    assert_eq!(
+        at(&straight),
+        [[
+            [0.0, 1.0],
+            [5.0, 1.0],
+            [5.0, 2.0],
+            [5.0 - lean, 3.0],
+            [0.0, 4.0]
+        ]],
+        "the slant cut short where the run back ends",
+    );
+    assert_eq!(
+        runs(&straight),
+        [[0, 1, 2, 4, 5]],
+        "the run back names nothing"
+    );
+
+    let mut backwards = A_FIN_BESIDE_A_SLANT;
+    backwards.reverse();
+    let straight = laid(&polygon(&backwards), &[], RESOLUTION).expect("a fin, walked back");
+    assert_eq!(
+        at(&straight),
+        [[
+            [0.0, 4.0],
+            [5.0 - lean, 3.0],
+            [5.0, 2.0],
+            [5.0, 1.0],
+            [0.0, 1.0]
+        ]],
+        "the slant starting where the run to it starts",
+    );
+    assert_eq!(runs(&straight), [[0, 2, 3, 4, 5]]);
+}
+
+#[test]
+fn a_section_laid_to_no_area_is_nothing_and_a_hole_laid_so_is_not_there() {
+    let hair = 0.5 * RESOLUTION;
+    let disc = polygon(&[[0.0, 0.0], [5.0, 0.0], [5.0, hair], [0.0, hair]]);
+    let nothing = laid(&disc, &[], RESOLUTION).expect("a disc a hair thick");
+    assert!(nothing.contours.is_empty(), "{nothing:?}");
+    assert_eq!(nothing.runs, 4);
+    let cornered = polygon(&[[0.0, 0.0], [2.0, 0.0], [5.0, 0.0], [5.0, hair], [0.0, hair]]);
+    let nothing = laid(&cornered, &[], RESOLUTION).expect("a disc a hair thick, a corner more");
+    assert!(nothing.contours.is_empty(), "{nothing:?}");
+
+    let square = polygon(&[[1.0, 0.0], [5.0, 0.0], [5.0, 2.0], [1.0, 2.0]]);
+    let slit = polygon(&[[2.0, 0.5], [2.0, 0.5 + hair], [3.0, 0.5 + hair], [3.0, 0.5]]);
+    let straight = laid(&square, &[slit], RESOLUTION).expect("a slit a hair wide");
+    assert_eq!(runs(&straight), [[0, 1, 2, 3]], "the slit names nothing");
+    assert_eq!(straight.runs, 8);
+}
+
 #[test]
 fn a_shoulder_a_little_past_the_tolerance_at_the_end_of_a_chamfer_is_kept() {
     let shoulder = 1.2 * RESOLUTION;

@@ -5,6 +5,7 @@
 mod bounded;
 mod contacts;
 mod levels;
+mod slivers;
 
 use std::ops::Range;
 
@@ -22,7 +23,9 @@ pub struct Straight {
     /// [`super::Axis::side`] reads it, is `side` times its distance away.
     pub side: f64,
     /// The outline, then each hole in the profile's order, as the corners
-    /// they run through; a run laid to no length is left out.
+    /// they run through; a run laid to no length is left out, and so is a
+    /// hole laid to no area. None at all when the profile is laid to no area:
+    /// turned, it is nothing.
     pub contours: Vec<Vec<Corner>>,
     /// How many runs the profile has, the outline's first and then each
     /// hole's: what its faces are numbered by.
@@ -55,11 +58,13 @@ impl Straight {
     /// it would move a corner by more than twice the tolerance. Where laying
     /// makes it touch itself where it does not, a wall or a gap thinner than
     /// the tolerance is not there: the profile is the matter it bounds as
-    /// laid, declined when that is not one piece or touches itself at a
-    /// corner. A corner within the tolerance of a slanted run it does not end,
-    /// a run across a slant, or a corner on the axis between two runs that
-    /// both leave it is not straight. A run laid to no length keeps its
-    /// number and names no face.
+    /// laid, nothing when it bounds none, declined when that is not one
+    /// piece or touches itself at a corner. Nor is a sliver between a slanted
+    /// run and the run bringing its end back to within the tolerance of it
+    /// there: the slant ends where the run back does. Any other corner within
+    /// the tolerance of a slanted run it does not end, a run across a slant,
+    /// or a corner on the axis between two runs that both leave it is not
+    /// straight. A run laid to no length keeps its number and names no face.
     pub fn of(
         outline: &Contour,
         holes: &[Contour],
@@ -82,9 +87,10 @@ impl Straight {
             .collect();
         let scale = scale(&contours, frame, &read, part_reach);
         let tolerance = turn.resolution.max(Scale::HAIR * scale.eps());
-        let laid = levels::laid(&read, &runs, tolerance)?;
+        let mut laid = levels::laid(&read, &runs, tolerance)?;
+        slivers::cut_short(&mut laid, &rings, tolerance);
 
-        let kept: Vec<Vec<usize>> = rings
+        let mut kept: Vec<Vec<usize>> = rings
             .iter()
             .map(|ring| {
                 ring.clone()
@@ -92,9 +98,10 @@ impl Straight {
                     .collect()
             })
             .collect();
-        if kept.iter().any(|corners| corners.len() < 3) {
-            return None;
+        if kept[0].len() < 3 {
+            kept.clear();
         }
+        kept.retain(|corners| corners.len() >= 3);
         let laid_runs: Vec<Vec<contacts::Run>> = kept
             .iter()
             .map(|corners| {
@@ -197,6 +204,14 @@ fn next(ring: &Range<usize>, corner: usize) -> usize {
         ring.start
     } else {
         corner + 1
+    }
+}
+
+fn previous(ring: &Range<usize>, corner: usize) -> usize {
+    if corner == ring.start {
+        ring.end - 1
+    } else {
+        corner - 1
     }
 }
 

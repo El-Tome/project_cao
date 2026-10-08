@@ -101,9 +101,12 @@ impl Body {
     ///
     /// A point turned whole has one vertex, at its tip, which its cone holds
     /// within it and no edge reaches; the scale is read again once it is
-    /// there.
+    /// there. A profile laid to no area turns into nothing.
     pub fn turned(straight: &Straight, frame: Frame, turn: &Turn) -> Result<Body, Declined> {
         let (placed, backwards) = placed(straight, frame, turn)?;
+        if straight.contours.is_empty() {
+            return Ok(Body::empty());
+        }
         let contours: Vec<Vec<DVec2>> = straight
             .contours
             .iter()
@@ -141,10 +144,7 @@ impl Body {
             }
             read.push(piece::turned(pieces, rank == 0));
         }
-        if read.is_empty()
-            || !piece::apart(&read, eps)
-            || read.iter().any(|contour| pinched(contour))
-        {
+        if !piece::apart(&read, eps) || read.iter().any(|contour| pinched(contour)) {
             return Err(Declined::Profile);
         }
         let (mut body, faces) = faces::laid(&placed, &read, straight.runs, eps)?;

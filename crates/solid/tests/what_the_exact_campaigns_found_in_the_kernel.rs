@@ -21,7 +21,10 @@
 //! where laying gives up a section with a run a hair long and the flats it
 //! falls back on break, `triangles` where a body that lists itself on its
 //! geometry and holds every line is drawn open, crossing or short, and
-//! `kernel-declines` where the boolean declines or mislists.
+//! `kernel-declines` where the boolean declines or mislists. Most of
+//! `laying-declines` holds since a section laid to no area is nothing, and a
+//! slant whose end a run brings back to within the tolerance of it ends where
+//! that run does.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -4248,11 +4251,11 @@ fn seed_5365205368_a_shaft_ending_on_a_band_a_hair_long_joined_to_a_quarter_cone
     ));
 }
 
-/// A disc 1e-6 thick and 25 across turned about its edge: laid, it is nothing,
-/// and the flats it falls back on leave its rim open.
+/// A disc 1e-6 thick and 25 across turned about its edge: laid, it bounds no
+/// area, and it was turned on the flats, which left its rim open. It is now
+/// nothing.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365201759_a_disc_a_hair_thick_turned_whole_is_left_open_on_the_flats() {
+fn seed_5365201759_a_disc_a_hair_thick_turned_whole_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(40.0),
@@ -4268,7 +4271,7 @@ fn seed_5365201759_a_disc_a_hair_thick_turned_whole_is_left_open_on_the_flats() 
 /// tube 15 to 27.5 across: laying declines the section, and the flats leave it
 /// open along a rim.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it open along a rim"]
+#[ignore = "laying-declines, found by round 2's triage: the band 1e-7 long is the only thing joining the tube before it to the tube after it, which do not overlap across it; laid to nothing, it leaves the matter in two pieces, which laying declines (turning/straight/bounded.rs, `contours`), and the application turns the section on the flats, which leave it open along a rim. Whether a section laying parts in two is turned as two pieces is Tom's to decide"]
 fn seed_5365202888_a_band_1e_7_long_between_a_tapered_tube_and_a_wider_one() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4291,8 +4294,7 @@ fn seed_5365202888_a_band_1e_7_long_between_a_tapered_tube_and_a_wider_one() {
 
 /// A disc 6e-8 thick, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365205927_a_disc_6e_8_thick_is_left_open_on_the_flats() {
+fn seed_5365205927_a_disc_6e_8_thick_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(1.0),
@@ -4305,10 +4307,10 @@ fn seed_5365205927_a_disc_6e_8_thick_is_left_open_on_the_flats() {
 }
 
 /// A shaft tapering by 1e-5, ending on a band 1e-5 long whose wall falls from
-/// 40 to 25, a slope a hair from square: laying declines it, and the flats draw
-/// it crossing at the rim.
+/// 40 to 25, a slope a hair from square: laying declined it, and the flats drew
+/// it crossing at the rim. The slant now ends where the run back along it does,
+/// and the section is turned exactly.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing at the rim"]
 fn seed_5365208537_a_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long_sloping_to_its_end() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4324,7 +4326,6 @@ fn seed_5365208537_a_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long_sloping_t
 
 /// As 5365208537, 4.5 across.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing at the rim"]
 fn seed_5365208894_a_short_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4339,10 +4340,10 @@ fn seed_5365208894_a_short_shaft_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
 }
 
 /// A shaft whose wall slopes by 6e-6 over 45, then a cone whose tip stands
-/// 1.8e-6 off the axis: laying declines the section, and the flats leave it
-/// open.
+/// 1.8e-6 off the axis: laying declined the section, and the flats left it
+/// open. The slant now ends where the run back along it does, and the section
+/// is turned exactly.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it open along a rim"]
 fn seed_5365210847_a_shaft_sloping_by_6e_6_before_a_point_1_8e_6_off_its_axis() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4358,8 +4359,7 @@ fn seed_5365210847_a_shaft_sloping_by_6e_6_before_a_point_1_8e_6_off_its_axis() 
 
 /// A disc 2e-8 thick drawn below its axis, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365213065_a_disc_2e_8_thick_below_its_axis_is_left_open_on_the_flats() {
+fn seed_5365213065_a_disc_2e_8_thick_below_its_axis_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(1.0),
@@ -4373,8 +4373,7 @@ fn seed_5365213065_a_disc_2e_8_thick_below_its_axis_is_left_open_on_the_flats() 
 
 /// A disc 3e-7 thick and 135 in radius, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365214883_a_disc_3e_7_thick_and_wide_is_left_open_on_the_flats() {
+fn seed_5365214883_a_disc_3e_7_thick_and_wide_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(240.0),
@@ -4388,7 +4387,6 @@ fn seed_5365214883_a_disc_3e_7_thick_and_wide_is_left_open_on_the_flats() {
 
 /// As 5365208537, 6 across.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing at the rim"]
 fn seed_5365216402_a_shaft_six_across_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4403,10 +4401,10 @@ fn seed_5365216402_a_shaft_six_across_tapering_by_1e_5_ending_on_a_band_1e_5_lon
 }
 
 /// A tube whose outer wall falls from 135 to 120, then a band 6e-6 long whose
-/// outer wall falls by 30, a slope a hair from square: laying declines it, and
-/// the flats leave it open.
+/// outer wall falls by 30, a slope a hair from square: laying declined it, and
+/// the flats left it open. The slant now ends where the run back along it does,
+/// and the section is turned exactly.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it open along a rim"]
 fn seed_5365218392_a_tube_ending_on_a_band_6e_6_long_whose_top_falls_by_thirty() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4422,7 +4420,6 @@ fn seed_5365218392_a_tube_ending_on_a_band_6e_6_long_whose_top_falls_by_thirty()
 
 /// As 5365208537, 8 across.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing at the rim"]
 fn seed_5365219857_a_shaft_eight_across_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4438,8 +4435,7 @@ fn seed_5365219857_a_shaft_eight_across_tapering_by_1e_5_ending_on_a_band_1e_5_l
 
 /// A disc 2e-8 thick turned about the plane's second axis, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365221239_a_disc_2e_8_thick_about_the_second_axis_is_left_open_on_the_flats() {
+fn seed_5365221239_a_disc_2e_8_thick_about_the_second_axis_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(3.0),
@@ -4452,10 +4448,10 @@ fn seed_5365221239_a_disc_2e_8_thick_about_the_second_axis_is_left_open_on_the_f
 }
 
 /// A shaft tapering by 2e-7 into a cone, joined to a coaxial stepped shaft:
-/// laying declines the first section, and the flats it falls back on, joined to
-/// the exact shaft, are drawn crossing.
+/// laying declined the first section, and the flats it fell back on, joined to
+/// the exact shaft, were drawn crossing. The slant now ends where the run back
+/// along it does, and the section is turned exactly.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing where the exact shaft joins them"]
 fn seed_5365224843_a_shaft_tapering_by_2e_7_into_a_cone_joined_to_a_stepped_shaft() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4479,7 +4475,6 @@ fn seed_5365224843_a_shaft_tapering_by_2e_7_into_a_cone_joined_to_a_stepped_shaf
 
 /// As 5365208537, drawn below its axis.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it crossing at the rim"]
 fn seed_5365227230_a_shaft_below_its_axis_tapering_by_1e_5_ending_on_a_band_1e_5_long() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4495,8 +4490,7 @@ fn seed_5365227230_a_shaft_below_its_axis_tapering_by_1e_5_ending_on_a_band_1e_5
 
 /// A disc 6e-7 thick and 75 in radius, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365227767_a_disc_6e_7_thick_is_left_open_on_the_flats() {
+fn seed_5365227767_a_disc_6e_7_thick_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(210.0),
@@ -4510,8 +4504,7 @@ fn seed_5365227767_a_disc_6e_7_thick_is_left_open_on_the_flats() {
 
 /// A disc 2e-8 thick and 7 in radius about the second axis, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365228671_a_disc_2e_8_thick_seven_across_is_left_open_on_the_flats() {
+fn seed_5365228671_a_disc_2e_8_thick_seven_across_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(-3.0),
@@ -4525,8 +4518,7 @@ fn seed_5365228671_a_disc_2e_8_thick_seven_across_is_left_open_on_the_flats() {
 
 /// A disc 6e-7 thick standing 270 along its axis, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365229905_a_disc_6e_7_thick_far_along_its_axis_is_left_open_on_the_flats() {
+fn seed_5365229905_a_disc_6e_7_thick_far_along_its_axis_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(30.0),
@@ -4539,9 +4531,9 @@ fn seed_5365229905_a_disc_6e_7_thick_far_along_its_axis_is_left_open_on_the_flat
 }
 
 /// A pointed shaft of four bands whose steps stand 3e-7 and 1e-5 off their
-/// neighbours: laying declines it, and the flats leave it open.
+/// neighbours: laying declined it, and the flats left it open. The slant now
+/// ends where the run back along it does, and the section is turned exactly.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it open along a rim"]
 fn seed_5365230087_a_shaft_whose_steps_stand_3e_7_and_1e_5_off_their_neighbours() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4565,8 +4557,7 @@ fn seed_5365230087_a_shaft_whose_steps_stand_3e_7_and_1e_5_off_their_neighbours(
 
 /// A disc 1e-7 thick and 30 in radius, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365233246_a_disc_1e_7_thick_is_left_open_on_the_flats() {
+fn seed_5365233246_a_disc_1e_7_thick_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(-10.0),
@@ -4581,7 +4572,7 @@ fn seed_5365233246_a_disc_1e_7_thick_is_left_open_on_the_flats() {
 /// A ring whose inner wall slants out by a half, then a band 2e-7 long whose
 /// outer wall falls by one: laying declines it, and the flats leave it open.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a band a hair long beside a slant a hair from parallel or from square; laying declines the section where it traces the laid matter (turning/straight/bounded.rs, `contours`), and the application turns it on the flats, which leave it open along a rim"]
+#[ignore = "laying-declines, found by round 2's triage: the band's falling top passes 1e-7 from the corner where the ring's slanted inner wall ends, two runs away from its own end, and the band below that corner is a fin 1e-7 to 2e-7 thick, from under to over the tolerance of 1.6e-7: no wall wholly thinner than the tolerance to take away, so laying declines the corner near the slant (turning/straight/contacts.rs, `a_slant_is_met`), and the application turns the section on the flats, which leave it open along a rim"]
 fn seed_5365236403_a_ring_ending_on_a_band_2e_7_long_whose_top_falls_by_one() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -4597,8 +4588,7 @@ fn seed_5365236403_a_ring_ending_on_a_band_2e_7_long_whose_top_falls_by_one() {
 
 /// A disc 5e-8 thick about the second axis, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365236670_a_disc_5e_8_thick_about_the_second_axis_is_left_open_on_the_flats() {
+fn seed_5365236670_a_disc_5e_8_thick_about_the_second_axis_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(40.0),
@@ -4612,8 +4602,7 @@ fn seed_5365236670_a_disc_5e_8_thick_about_the_second_axis_is_left_open_on_the_f
 
 /// A disc 6e-8 thick and 3.5 in radius, as 5365201759.
 #[test]
-#[ignore = "laying-declines, found by round 2's triage: a section a hair long from end to end turned whole about a line through its end, a disc a hair thick; laying keeps two corners of it and declines it (turning/straight.rs, `kept`), and the application turns it on the flats, which leave the disc open along its rim. The exact kernel's decline is counted apart; the application's fall-back is what breaks"]
-fn seed_5365237332_a_disc_6e_8_thick_three_and_a_half_across_is_left_open_on_the_flats() {
+fn seed_5365237332_a_disc_6e_8_thick_three_and_a_half_across_is_nothing() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
             Plane::xy(1.0),

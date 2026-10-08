@@ -20,10 +20,10 @@ use super::Corner;
 use super::contacts::{self, Run};
 
 /// The contours bounding the matter of the laid profile, the outline first
-/// and anticlockwise, each hole after it clockwise; `None` when the matter
-/// is not one piece, has none, touches itself at a corner, or meets a slant
-/// anywhere but at its corners. `contours` are the runs of each laid contour,
-/// the outline's first.
+/// and anticlockwise, each hole after it clockwise, and none when it has no
+/// matter; `None` when the matter is not one piece, touches itself at a
+/// corner, or meets a slant anywhere but at its corners. `contours` are the
+/// runs of each laid contour, the outline's first.
 pub(super) fn contours(
     laid: &[DVec2],
     contours: &[Vec<Run>],
@@ -82,6 +82,9 @@ pub(super) fn contours(
             .map(|(from, to)| from.at.perp_dot(to.at))
             .sum()
     };
+    if loops.is_empty() {
+        return Some(Vec::new());
+    }
     let (outlines, holes): (Vec<_>, Vec<_>) = loops.into_iter().partition(|each| area(each) > 0.0);
     let [outline] = <[Vec<Corner>; 1]>::try_from(outlines).ok()?;
     Some(std::iter::once(outline).chain(holes).collect())

@@ -85,7 +85,7 @@ pub(super) fn pinched(contours: &[Vec<Corner>]) -> bool {
 }
 
 /// Whether a laid run is neither square nor parallel to the axis.
-fn slanted(laid: &[DVec2], run: Run) -> bool {
+pub(super) fn slanted(laid: &[DVec2], run: Run) -> bool {
     let (from, to) = (laid[run.0], laid[run.1]);
     from.x != to.x && from.y != to.y
 }
@@ -147,7 +147,7 @@ fn on(point: DVec2, from: DVec2, to: DVec2) -> bool {
 /// run passes at the point's distance from it, or away from it where the run
 /// passes at the point's place along it. A corner a run longer than the
 /// tolerance from the slant's end, on a level of its own, is not near it.
-fn near(point: DVec2, from: DVec2, to: DVec2, tolerance: f64) -> bool {
+pub(super) fn near(point: DVec2, from: DVec2, to: DVec2, tolerance: f64) -> bool {
     let gap = |axis: usize| {
         let across = 1 - axis;
         if point[across] < from[across].min(to[across])

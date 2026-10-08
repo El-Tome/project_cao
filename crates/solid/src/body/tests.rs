@@ -779,6 +779,27 @@ fn an_area_across_its_axis_is_declined_and_a_turn_too_short_makes_nothing() {
 }
 
 #[test]
+fn a_disc_a_hair_thick_turned_on_an_exact_part_is_nothing_counted_past_its_numbers() {
+    let disc = [
+        DVec2::new(0.0, 0.0),
+        DVec2::new(5.0, 0.0),
+        DVec2::new(5.0, 1e-8),
+        DVec2::new(0.0, 1e-8),
+    ];
+    let triangles = fan(&disc);
+    let profile = straight(&disc, &triangles);
+    let turn = about_v(&profile, TAU);
+    let nothing = Body::default()
+        .tool_turned(&profile, FLAT, &turn)
+        .expect("nothing is no decline");
+    assert!(nothing.is_exact() && nothing.is_empty(), "{nothing:?}");
+    assert_eq!(
+        nothing.faces_end(),
+        numbers_turned_whole(&profile, FLAT, &turn).expect("a whole turn") as usize,
+    );
+}
+
+#[test]
 fn a_turn_declined_on_an_exact_body_counts_past_the_numbers_the_flats_give_it() {
     let on_the_axis = [
         DVec2::new(0.0, 0.0),

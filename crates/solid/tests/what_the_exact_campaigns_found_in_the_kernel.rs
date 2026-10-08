@@ -5193,7 +5193,6 @@ fn seed_5365239969_a_rounded_block_joined_to_a_cylinder_ending_on_a_band_6e_8_lo
 /// A block cut by a circle, then by a rounded block whose sides stand 5e-8
 /// past the block's. Holds at ae20fa9 and fails since 8a008ea.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: decision 2 slides the rounded block onto the block's side, and the slide carries the rounded block's other walls onto the block's, one with them before and after and no further off; `kept` (canonical/carried.rs) refuses any carried surface that was one with the first operand's, even one brought onto it, so the block stays 5e-8 off and is declined as unverified. Allowing a carried surface that stays one with the first's and ends no further from it holds all five seeds of this family and 5365230254"]
 fn seed_5366611312_a_block_cut_by_a_circle_and_by_a_rounded_block_5e_8_off_its_sides() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -5220,7 +5219,6 @@ fn seed_5366611312_a_block_cut_by_a_circle_and_by_a_rounded_block_5e_8_off_its_s
 /// stands 2e-7 off its own, then cut by a circle. Holds at ae20fa9 and fails
 /// since 8a008ea.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: as 5366611312, a slide refused because it carries a wall one with the block's onto it (canonical/carried.rs, `kept`); declined as unverified"]
 fn seed_5366614710_a_block_joined_to_a_rounded_block_2e_7_off_then_cut_by_a_circle() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -5247,7 +5245,6 @@ fn seed_5366614710_a_block_joined_to_a_rounded_block_2e_7_off_then_cut_by_a_circ
 /// sides stand 3e-7 past the block's. Holds at ae20fa9 and fails since
 /// 8a008ea, on the exact kernel too.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: as 5366611312, a slide refused because it carries a wall one with the block's onto it (canonical/carried.rs, `kept`); the application's body declines it"]
 fn seed_5366205754_a_block_joined_to_a_cylinder_and_to_a_rounded_block_3e_7_off_its_sides() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -5274,7 +5271,6 @@ fn seed_5366205754_a_block_joined_to_a_cylinder_and_to_a_rounded_block_3e_7_off_
 /// 5365110795 as drawn. Holds at ae20fa9 and fails since 8a008ea; its
 /// shrunk core, below, fails at ae20fa9 too.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: declined as unverified since 8a008ea (canonical/carried.rs, `kept`); holds once a carried surface that stays one with the first's and ends no further from it is allowed"]
 fn seed_5365110795_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
     random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5365110795));
 }
@@ -5282,7 +5278,6 @@ fn seed_5365110795_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
 /// 5366215526 as drawn. Holds at ae20fa9 and fails since 8a008ea, its
 /// triangles crossing; its shrunk core, below, fails at ae20fa9 too.
 #[test]
-#[ignore = "carried-one-with, found by round 3's triage: drawn crossing through the application's body since 8a008ea (canonical/carried.rs, `kept`); holds once a carried surface that stays one with the first's and ends no further from it is allowed"]
 fn seed_5366215526_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
     random_solids::holds_through_the_application(&Case::drawn_slanted_off_the_lattice(5366215526));
 }

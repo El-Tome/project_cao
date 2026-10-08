@@ -129,6 +129,74 @@ fn a_chamfered_shaft_slid_onto_a_bore_keeps_its_cone_on_its_rim() {
     }
 }
 
+/// A block 30 by 10 by 10, and a slot 20 long and 10 wide standing `hair`
+/// across its length from the block's sides, whose half circles reach the
+/// block's ends; with the rank in the slot of its far side, along y = 10 +
+/// `hair`.
+fn a_slot_a_hair_off_a_block() -> (Body, Body, usize, f64) {
+    let hair = 1e-8;
+    let first = block([0.0, 0.0, 0.0], [30.0, 10.0, 10.0]);
+    let [low, high] = [hair, 10.0 + hair];
+    let outline = Contour {
+        corners: vec![
+            DVec2::new(5.0, low),
+            DVec2::new(25.0, low),
+            DVec2::new(25.0, high),
+            DVec2::new(5.0, high),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(25.0, 5.0 + hair),
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(5.0, 5.0 + hair),
+                turn: PI,
+            },
+        ],
+    };
+    let slot = Body::raised(&outline, &[], ground(0.0), DVec3::Z * 10.0)
+        .expect("a slot raises")
+        .renumbered(6);
+    let far = slot
+        .surfaces
+        .iter()
+        .position(|surface| *surface == plane_at(high, DVec3::Y))
+        .expect("the slot has a side on y = 10 + hair");
+    (first, slot, far, hair)
+}
+
+#[test]
+fn a_slot_slid_onto_a_block_s_side_brings_its_other_side_onto_the_block_s_other_side() {
+    let (block, slot, far, hair) = a_slot_a_hair_off_a_block();
+    let moved = carried_along(&block, &slot, scale(), |_, rank| {
+        (rank == far).then_some(DVec3::Y * -hair)
+    })
+    .expect("the slide carries the near side onto the block's");
+    let near = moved
+        .surfaces
+        .iter()
+        .find_map(|surface| match surface {
+            Surface::Plane(plane) if plane.normal.y.abs() > 0.5 && plane.offset().abs() < 1.0 => {
+                Some(plane.offset())
+            }
+            _ => None,
+        })
+        .expect("the slot keeps its near side");
+    assert!(near.abs() < 1e-12, "the near side stands at y = {near}");
+}
+
+#[test]
+fn a_slot_slid_away_from_a_block_s_side_is_not_carried_further_off_the_block_s_other_side() {
+    let (block, slot, far, hair) = a_slot_a_hair_off_a_block();
+    let moved = carried_along(&block, &slot, scale(), |_, rank| {
+        (rank == far).then_some(DVec3::Y * hair)
+    });
+    assert!(moved.is_none(), "the near side was carried off the block's");
+}
+
 #[test]
 fn a_ruling_through_the_apex_only_touches_the_other_surface() {
     let tip = Surface::Cone(Cone::through(

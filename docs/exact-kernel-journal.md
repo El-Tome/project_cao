@@ -545,3 +545,47 @@ seeds of each slanted draw run again on `3286cee` and on the tip:
   axis.
 - The gate's tests, built, take about 31.5 s, against about 31 s at
   `3286cee`.
+
+## 8 October: round 2 of #536, measured
+
+Three lanes merged onto `ae20fa9` (laying's declines, a cone's triangles,
+the kernel's declines), measured at `37ad3cc` on fresh seeds, in release,
+the seven draws side by side, and the first 15 000 seeds of round 1's
+slanted draws run again on `ae20fa9` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5366100000 | 40 000 | 22 | 0.55 |
+| slanted, application's body | 5366200000 | 40 000 | 29 | 0.73 |
+| turned, exact kernel | 5366300000 | 30 000 | 10 | 0.33 |
+| turned, application's body | 5366400000 | 30 000 | 21 | 0.70 |
+| square | 5366500000 | 30 000 | 2 | 0.07 |
+| profiles, exact kernel | 5366600000 | 20 000 | 10 | 0.50 |
+| profiles, application's body | 5366700000 | 20 000 | 9 | 0.45 |
+
+- Every draw is under one failure in a thousand. Over round 1's first
+  15 000 slanted seeds the exact kernel goes from 0.93 failures in a
+  thousand at `ae20fa9` to 0.40, the application's body from 1.07 to
+  0.20.
+- Eight seeds that hold on `ae20fa9` fail on the tip, each run again on
+  every commit of the round. From `8a008ea` on (a plane its operand drew
+  corners on is not moved onto a touch): 5365110795, 5366205754,
+  5366215526, 5366611312 and 5366614710, four declined as unverified,
+  two of them prisms alone, a rounded block a hair off a block's side.
+  From `beb95aa` (a wall about a cone's axis is not moved off it):
+  5365100952, a cylinder cut by a coaxial section with a band sloping by
+  6e-7, declined as unverified. From `af8e71a`: 5366415073, a post cut by
+  a post a hair off its end, drawn crossing through the body. From
+  `6fd4c2a`: 5366116515, a stepped cone joined to a partial turn, drawn
+  crossing. The last four shrink to cases that fail on `ae20fa9` too; the
+  regression is in the case as drawn. None is named yet.
+- Every other failure, run again on `ae20fa9`, fails there too. Shrunk,
+  the slanted draws' 51 are: no cone at all, 25, most of them straight
+  turns; a cone beside a turn about another axis, 9; coaxial turns with a
+  cone, 8; a cone with prisms, 6; and a single cone with a band a hair
+  long, 3, left open (`Closed`). The turned, square and profile draws'
+  are prisms' and straight turns' families, those of #533. By the rule
+  broken: drawn crossing (`Uncrossed`) and refused (`Answers`), nearly
+  half each.
+- The gate's tests, built, take about 32 s, against about 31 s at
+  `ae20fa9`.

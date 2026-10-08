@@ -5054,6 +5054,29 @@ fn seed_5365202020_a_block_cut_by_a_cylinder_joined_to_a_block_1e_8_off_its_wall
     ));
 }
 
+/// 5365202020 as drawn, shrunk again once the block above held: a round post
+/// in place of the block.
+#[test]
+#[ignore = "kernel-declines, found by round 2's lane: a round post cut by a cylinder whose top line stands 2e-8 inside the post's wall, joined to a block whose side stands between the two. The post's rim and the cylinder's line, both laid on the block's side, cross there 8.5e-4 apart and run as one in its parameters between: two arcs leave a corner along one another (overlay/star.rs), a tie. The band's family, decisions 7 and 9; the seed as drawn fails at ae20fa9 too"]
+fn seed_5365202020_as_drawn_a_round_post_whose_rim_grazes_a_cylinder_s_line_on_a_joined_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(5.0), Outline::circle([3.0, 10.0], 4.5), 5.0),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(10.0),
+                Axis::second(3.0).backwards(),
+                Section::bands(-11.0, &[[7.5, -4.49999998, -0.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::rectangle([7.49999999, 9.0], [7.99999998, 11.0]),
+                6.0,
+            )),
+        ],
+    ));
+}
+
 /// The grazing coaxial family: a turned tube joined to a coaxial cone that
 /// stands 1e-7 off the tube's bore. Decision 2 moved a wall of the bore's
 /// radius onto a touch, 2.5e-8 off the axis it shares with the cone, and the

@@ -1098,7 +1098,8 @@ Every shrunk case was traced to the first fact decided twice:
   cylinder along passing 4e-16 from the cylinder's end circle, inside the
   band of the end plane and the wall, with no corner (533648596,
   533620725); a slot's corner taken onto a cylinder its cap touches inside
-  1e-7 under it, off the curve the two meet along (533631663); a meet laid
+  1e-7 under it, off the curve the two meet along (533631663, holding
+  since #536's round 2); a meet laid
   on a moved cylinder neither operand may move (533602391's shrunk case,
   533775454); walls a hair apart beyond decision 8's reach under a
   perpendicular one (533603710); a third surface crossing a line of touch a
@@ -1188,7 +1189,8 @@ undrawn.
 - **A partial turn about a cone's axis**, its ends meeting the cone, or a
   cylinder of its axis, along their rulings: refused as unverified
   (536210335, 536135909), or open along a rim (536112193, 536128400). The
-  family of 533328889, which #533 left for the cones.
+  family of 533328889, which #533 left for the cones; 533328889 itself
+  holds since round 2.
 - **A ring resting on a cone along its rim** (536212654): the kernel keeps
   the arc of touch on the cone's face as a slit, an edge run both ways,
   which the cone's chart cannot lay out. Undrawn.
@@ -1213,3 +1215,56 @@ side: the same seeds fail on both, by the same rules.
 **The gate's time.** `cargo test --workspace`, built, on an idle machine,
 the second run of each: 31.0 s on `main` (`f1d99a0`), 30.9 s on the
 branch's tip.
+
+### Round 2: the kernel's declines
+
+The seven cases round 2's triage sorted under `kernel-declines`, each run
+step by step on the exact kernel to the decision at fault, and fixed there.
+No fall-back and no decline is added.
+
+- **A move took a surface off one it was one with** (5365230254, a turn of
+  a hundredth of a degree lying on a block's side). Its other end grazed
+  the block's corner round and was moved onto it with the whole turn, a
+  hair off the side its first end was read on, and the line the two ends
+  meet along went ninety microns along the side. A move carries nothing
+  off a surface of the first operand it is one with, and a plane its
+  operand drew corners on is not moved further than the tolerance off a
+  line it crosses another plane along.
+- **A line rounded onto a wall it crosses** (5365239969, and 533631663 of
+  #533). A plane a hair off a round's axis cuts it along a line a hair
+  inside the wall the round touches inside, by less than a coordinate
+  holds; rounded, the line was taken to touch the wall, though it crosses
+  it many tolerances either side. Such a line is measured from the radii.
+- **A wall moved off a cone's axis** (5365205368, 5365208585 of the
+  grazing coaxial family). A cylinder about a cone's axis was moved onto a
+  touch with a third surface up to a tolerance off that axis; the circle
+  it meets the cone along, built on the cone's axis, stood off it. A wall
+  about a cone's axis is not moved off it.
+- **Two cones of one apex a hair apart in slope** (5365211513, a
+  regression of eba1fa2): within the tolerance of each other all along
+  their faces, they carried no curve together, and their rims stood side
+  by side. Only a line, a ruling of a mirror, is kept off such a pair.
+- **A region thinner than the tolerance with an operand's edge down its
+  middle** (5365202020, and 533328889 of #533): every read along its chord
+  stood on that edge, a tie. It is read either side of the chord last.
+- **The harness's judgement** (5365216226): a block's side parallel to a
+  cone's axis 5e-8 past its widest rim, a tolerance and a tenth, is
+  declined as unsupported since the kernel tells a face clear only four
+  tolerances off it. `asks_for_a_conic` counts such a plane as asking.
+
+5365202020 as drawn, shrunk again, is a round post in place of the block:
+the post's rim and the cylinder's line cross on the joined block's side
+8.5e-4 apart and run as one in its parameters between, two arcs leaving a
+corner along one another. The band's family; named and ignored.
+
+The slanted draw through the application's body from 5365200000, on the
+branch before the lane (`ae20fa9`) and after its fixes (`833daa9`), over the
+same seeds:
+
+| tree | cases | broke a rule | per thousand |
+| --- | --- | --- | --- |
+| `ae20fa9` | 14 577 | 15 | 1.03 |
+| `833daa9` | 14 577 | 12 | 0.82 |
+
+Every seed failing on `833daa9` fails on `ae20fa9`, by the same rule;
+5365205368, 5365208585 and 5365211513 hold.

@@ -4195,8 +4195,13 @@ fn seed_5365211513_a_pointed_cone_cut_away_by_a_cone_of_its_apex_a_hair_wider() 
     ));
 }
 
+/// A slot whose round end stands 1e-5 off a cone's axis, its arc a hair off the
+/// wall of a rounded cut the cone's rim stands on: was drawn open along the
+/// slot's side. The cone's group gathered a ray its rim took in contact, the
+/// cut's wall took it, and the slot's arc, close to that wall, did not: the
+/// sliver between the two was sampled apart and left uncut. The gathered rays
+/// are now shared once more (round 2 of #536).
 #[test]
-#[ignore = "cone-boolean, found by round 1's measure: a slot whose round end stands 1e-5 off a cone's axis, taken about that axis since d961d6d, leaves the solid open along a ruling of the cone's inner wall. It holds at 3286cee and at eba1fa2, and holds exactly coaxial on both"]
 fn seed_5365114896_a_slot_a_hair_off_a_cone_s_axis_is_drawn_closed() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

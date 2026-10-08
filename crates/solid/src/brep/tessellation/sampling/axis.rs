@@ -32,7 +32,11 @@
 //! shares them: a wall a hair off the axis, close to one of the group, takes
 //! them too through its own axis, and the two keep their order. What the
 //! walls of the group then take in contact is gathered back onto all of
-//! them.
+//! them, and handed to [`contact`] once more when that grew the group: a ray
+//! one wall of it took in contact reaches every other wall of it, and a wall
+//! a hair off the axis, close to one of those, must take it too. Left out, a
+//! slot's end a hair off a cut's wall, which a cone's rim stands on, has its
+//! arc sampled apart from the wall's and the sliver between them crossed.
 //!
 //! [`cone`]: super::cone
 //! [`contact`]: super::super::contact

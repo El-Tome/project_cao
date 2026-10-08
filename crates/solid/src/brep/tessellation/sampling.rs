@@ -153,7 +153,12 @@ impl Samples {
             meets = on_meets(body, walls, zones, &contacts, tolerance);
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         }
-        let axes = axes.gathered(&contacts);
+        let mut axes = axes.gathered(&contacts);
+        let gathered = axes.given();
+        if gathered != given {
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
+            axes = axes.gathered(&contacts);
+        }
         let vertices = samples.points.clone();
         let alone = Contact::default();
         let mut places = Places::new(eps * TOLD);

@@ -25,6 +25,14 @@
 //! `laying-declines` holds since a section laid to no area is nothing, and a
 //! slant whose end a run brings back to within the tolerance of it ends where
 //! that run does.
+//!
+//! The third round of #536 names the seeds that held at `ae20fa9` and fail
+//! after round 2, each the case as drawn where its shrunk core fails at
+//! `ae20fa9` too, sorted by the place in the code at fault:
+//! `carried-one-with` where a slide is refused for carrying a wall one with
+//! the first operand's onto it, `cone-axis-unmet` where a wall is refused a
+//! move for a coaxial cone it never meets, and `triangles-sliver` where two
+//! triangles cross across a sliver a hair wide.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -5178,6 +5186,252 @@ fn seed_5365239969_a_rounded_block_joined_to_a_cylinder_ending_on_a_band_6e_8_lo
             Axis::second(0.0),
             Section::bands(-1.0, &[[3.99999994, 0.0, 8.0], [6e-8, 0.0, 8.0]]),
             360.0,
+        ))],
+    ));
+}
+
+/// A block cut by a circle, then by a rounded block whose sides stand 5e-8
+/// past the block's. Holds at ae20fa9 and fails since 8a008ea.
+#[test]
+#[ignore = "carried-one-with, found by round 3's triage: decision 2 slides the rounded block onto the block's side, and the slide carries the rounded block's other walls onto the block's, one with them before and after and no further off; `kept` (canonical/carried.rs) refuses any carried surface that was one with the first operand's, even one brought onto it, so the block stays 5e-8 off and is declined as unverified. Allowing a carried surface that stays one with the first's and ends no further from it holds all five seeds of this family and 5365230254"]
+fn seed_5366611312_a_block_cut_by_a_circle_and_by_a_rounded_block_5e_8_off_its_sides() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([35.0, 40.0], [50.0, 52.5]),
+            15.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(5.0),
+                Outline::circle([40.0, 30.0], 22.5),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rounded([35.00000005, 40.0], [50.00000005, 52.5], 5.0),
+                30.0,
+            )),
+        ],
+    ));
+}
+
+/// A block joined to a rounded block whose sides stand 1e-8 and whose base
+/// stands 2e-7 off its own, then cut by a circle. Holds at ae20fa9 and fails
+/// since 8a008ea.
+#[test]
+#[ignore = "carried-one-with, found by round 3's triage: as 5366611312, a slide refused because it carries a wall one with the block's onto it (canonical/carried.rs, `kept`); declined as unverified"]
+fn seed_5366614710_a_block_joined_to_a_rounded_block_2e_7_off_then_cut_by_a_circle() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(5.5),
+            Outline::rectangle([9.0, 8.0], [13.0, 14.0]),
+            1.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(5.5000002),
+                Outline::rounded([9.00000001, 8.0], [13.00000001, 13.5], 1.0),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(3.0),
+                Outline::circle([9.0, 8.0], 5.5),
+                7.0,
+            )),
+        ],
+    ));
+}
+
+/// A block joined to a cylinder across it, then to a rounded block whose
+/// sides stand 3e-7 past the block's. Holds at ae20fa9 and fails since
+/// 8a008ea, on the exact kernel too.
+#[test]
+#[ignore = "carried-one-with, found by round 3's triage: as 5366611312, a slide refused because it carries a wall one with the block's onto it (canonical/carried.rs, `kept`); the application's body declines it"]
+fn seed_5366205754_a_block_joined_to_a_cylinder_and_to_a_rounded_block_3e_7_off_its_sides() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(150.0),
+            Outline::rectangle([225.0, 120.0], [435.0, 360.0]),
+            300.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::yz(435.0),
+                Axis::first(60.0),
+                Section::bands(120.0, &[[240.0, 0.0, 90.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(120.0),
+                Outline::rounded([225.0000003, 120.0], [435.0000003, 360.0], 90.0),
+                135.0,
+            )),
+        ],
+    ));
+}
+
+/// 5365110795 as drawn. Holds at ae20fa9 and fails since 8a008ea; its
+/// shrunk core, below, fails at ae20fa9 too.
+#[test]
+#[ignore = "carried-one-with, found by round 3's triage: declined as unverified since 8a008ea (canonical/carried.rs, `kept`); holds once a carried surface that stays one with the first's and ends no further from it is allowed"]
+fn seed_5365110795_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5365110795));
+}
+
+/// 5366215526 as drawn. Holds at ae20fa9 and fails since 8a008ea, its
+/// triangles crossing; its shrunk core, below, fails at ae20fa9 too.
+#[test]
+#[ignore = "carried-one-with, found by round 3's triage: drawn crossing through the application's body since 8a008ea (canonical/carried.rs, `kept`); holds once a carried surface that stays one with the first's and ends no further from it is allowed"]
+fn seed_5366215526_as_drawn_a_slide_carrying_a_wall_onto_the_first_s() {
+    random_solids::holds_through_the_application(&Case::drawn_slanted_off_the_lattice(5366215526));
+}
+
+/// A stepped section about Z cutting a cylinder about X, radius 240, whose
+/// axis stands 90 below its own: the step of radius 150 touches the cylinder
+/// from inside, and the next, 6e-7 narrower, is laid with it as one wall of
+/// 149.9999997. The section ends on a cone pointed on its axis, which that
+/// wall never meets. Holds at ae20fa9 and fails since beb95aa.
+#[test]
+#[ignore = "cone-axis-unmet, found by round 3's triage: decision 2 moves the wall of 149.9999997 by 3e-7 across its axis onto the touch with the cylinder of 240; `off` (canonical/touches.rs) counts the section's pointed cone, coaxial with the wall but meeting it nowhere on their faces (they cross along a circle 60 below the section), as a wall about a cone's axis, and `keeps` refuses the move: declined as unverified. Not the grazing coaxial family: the cone is sixty across where the wall is three hundred. Holds with the cone's axis left out of `off`"]
+fn seed_5365100952_a_wall_touching_a_cylinder_inside_coaxial_with_a_cone_it_never_meets() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(0.0),
+            Axis::first(90.0),
+            Section::bands(-90.0, &[[30.0, 0.0, 240.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(180.0),
+            Axis::second(0.0),
+            Section::bands(
+                0.0,
+                &[
+                    [75.0, 0.0, 45.0],
+                    [30.0, 0.0, 150.0],
+                    [15.0, 0.0, 149.9999994],
+                    [45.0, 0.0, 30.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 45.0], [0.0, 150.0], [0.0, 149.9999994], [0.0, 0.0]]),
+            360.0,
+        ))],
+    ));
+}
+
+/// 5366415073 as drawn. Holds at ae20fa9 and fails since af8e71a.
+#[test]
+#[ignore = "triangles-sliver, found by round 3's triage: drawn crossing through the application's body since af8e71a (relation/crossing/cut.rs), two triangles of one plane's face crossing across a sliver 1e-8 wide; its shrunk core below"]
+fn seed_5366415073_as_drawn_a_post_cut_by_a_post_1e_8_past_its_axis() {
+    random_solids::holds_through_the_application(&Case::drawn_turned_off_the_lattice(5366415073));
+}
+
+/// A post along X cut by a post along Z whose top stands 1e-8 above the
+/// first's axis, and whose wall passes through the first's end on the line
+/// the first's wall touches it along. On the exact kernel it holds with
+/// af8e71a undone at the tip; through the application's body it fails at
+/// ae20fa9 too.
+#[test]
+#[ignore = "triangles-sliver, found by round 3's triage: two triangles cross across a sliver 1e-8 wide where the second post's top, the first's end and the line the first's wall touches the second's along meet; the sweep (tessellation/sweep.rs) cuts a region exactly only while its boundaries do not cross, not traced further"]
+fn seed_5366415073_a_post_cut_by_a_post_whose_top_stands_1e_8_past_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(2.0), Outline::circle([4.0, 9.5], 0.5), 1.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::xy(5.49999999),
+            Outline::circle([2.0, 4.0], 0.5),
+            4.00000002,
+        ))],
+    ));
+}
+
+/// 5366116515 as drawn. Holds at ae20fa9 and fails since 6fd4c2a.
+#[test]
+#[ignore = "triangles-sliver, found by round 3's triage: drawn crossing on the exact kernel since 6fd4c2a (tessellation/outline/cone.rs), the end face of a turn of 315 degrees crossing itself across a sliver 5e-8 wide; its shrunk core below"]
+fn seed_5366116515_as_drawn_a_stepped_cone_joined_to_a_turn_of_315_degrees() {
+    random_solids::holds_exactly(&Case::drawn_slanted_off_the_lattice(5366116515));
+}
+
+/// A stepped section about Y whose steps of 5 and 4.9999999 end on a cone
+/// pointed on its axis, joined to a turn of 315 degrees about the same axis,
+/// of radius 4.9999999, whose end planes meet the cone's tip. Fails at
+/// ae20fa9 too; with 6fd4c2a undone at the tip, on two triangles of the
+/// turn's start face instead.
+#[test]
+#[ignore = "triangles-sliver, found by round 3's triage: two triangles of the turn's end face, one reaching the cone's tip, cross across a sliver 5e-8 wide at the cone's rim, where the steps of 5 and 4.9999999 end (tessellation/sweep.rs), not traced further"]
+fn seed_5366116515_a_stepped_cone_joined_to_a_coaxial_turn_of_315_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::second(0.0),
+            Section::bands(
+                3.0,
+                &[
+                    [3.5, 0.0, 3.5],
+                    [1.0, 0.0, 3.0],
+                    [1.5, 0.0, 5.0],
+                    [0.5, 0.0, 4.9999999],
+                    [1.0, 0.0, 4.9999999],
+                ],
+            )
+            .sloping_to(&[
+                [0.0, 3.5],
+                [0.0, 3.0],
+                [0.0, 5.0],
+                [0.0, 4.9999999],
+                [0.0, 0.0],
+            ]),
+            360.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(0.0),
+            Axis::first(1.0),
+            Section::bands(9.5, &[[3.0, -4.9999999, -0.0]]),
+            315.0,
+        ))],
+    ));
+}
+
+/// 5366215526 shrunk: a turn of a hundredth of a degree cut by a quarter
+/// turn about a parallel axis 6e-8 off, both sections in one plane. Fails at
+/// ae20fa9 too.
+#[test]
+#[ignore = "triangles-sliver, found by round 3's triage: the two turns' start faces lie in one plane, and two triangles of it cross across the sliver 6e-8 wide between the two axes (tessellation/sweep.rs)"]
+fn seed_5366215526_a_hundredth_of_a_degree_s_turn_cut_by_a_quarter_turn_6e_8_off_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(-2.0),
+            Section::bands(2.0, &[[3.0, -9.0, -0.0]]),
+            0.01,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(-1.99999994).backwards(),
+            Section::bands(-2.0, &[[1.0, 0.0, 7.0]]),
+            90.0,
+        ))],
+    ));
+}
+
+/// 5365110795 shrunk: a quarter turn of a solid cylinder about X joined to
+/// a cone turned 270 degrees about Y, its axis passing 3e-7 from the
+/// cylinder's. Fails at ae20fa9 too.
+#[test]
+#[ignore = "kernel-declines, found by round 3's triage: declined as unverified at ae20fa9 too; a cone's axis crossing a square cylinder's 3e-7 off it, not traced"]
+fn seed_5365110795_a_quarter_turn_joined_to_a_cone_whose_axis_passes_3e_7_off_its_own() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(0.0),
+            Section::bands(60.0, &[[255.0, -105.0, -0.0]]),
+            90.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::yz(210.0),
+            Axis::first(59.9999997),
+            Section::bands(135.0, &[[45.0, -30.0, -0.0]]).sloping_to(&[[-0.0, -0.0]]),
+            270.0,
         ))],
     ));
 }

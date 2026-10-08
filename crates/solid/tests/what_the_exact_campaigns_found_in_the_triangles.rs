@@ -3177,7 +3177,6 @@ fn seed_5369119536_three_quarters_of_a_point_cut_by_three_quarters_of_a_coaxial_
 /// across three samples of its rim, collinear in its parameters but for
 /// rounding, so that its neighbour skips the middle one.
 #[test]
-#[ignore = "folds: a wall and a cone each 6e-7 wide lie on each other, and a flip taken across three rim samples collinear in the cone's parameters but for rounding skips the middle one"]
 fn seed_5369239472_a_cone_bored_as_wide_as_its_narrow_end_joined_to_a_block_6e_7_off_it() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(

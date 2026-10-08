@@ -27,7 +27,7 @@
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, BTreeSet};
 
-use glam::DVec3;
+use glam::{DVec2, DVec3};
 
 use super::orientation::turn;
 use super::outline::Outline;
@@ -58,6 +58,12 @@ const DEPTH: usize = 1;
 /// another stands across it, and how far off an edge's line a corner stands
 /// clear of it: far under what the rules see, far over rounding.
 const CLEAR: f64 = 1e-2;
+
+/// How far off the line of the other two, in roundings of the parameters,
+/// the nearest corner of a triangle a flip makes stands: a thousand, far over
+/// the few a reading of a sample carries, and far under the narrowest sliver
+/// a flip is wanted for.
+const ROUNDINGS: f64 = 1e3;
 
 /// Undoes every fold between the faces of `drawn`, as far as a diagonal can.
 pub(super) fn unfolded(drawn: &mut [Drawn], samples: &Samples, eps: f64) {
@@ -311,9 +317,7 @@ impl Folds<'_> {
             .iter()
             .find(|corner| **corner != u && **corner != v)?;
         let points = &self.drawn[face].outline.points;
-        let convex = |a: usize, b: usize, e: usize| {
-            turn(points[a], points[b], points[e]) == Ordering::Greater
-        };
+        let convex = |a: usize, b: usize, e: usize| opens(points[a], points[b], points[e]);
         if !(convex(c, u, d) && convex(c, d, v)) {
             return None;
         }
@@ -329,6 +333,18 @@ impl Folds<'_> {
         self.index(at, true);
         self.index(partner, true);
     }
+}
+
+/// Whether the triangle `a`, `b`, `e` of a face's parameters turns left, and
+/// opens by more than `ROUNDINGS` roundings of its corners: three samples of
+/// a rim, collinear in the parameters but for the rounding they were read
+/// with, make no triangle there, and one in space whose neighbour's chord
+/// skips the middle sample.
+fn opens(a: DVec2, b: DVec2, e: DVec2) -> bool {
+    let longest = (b - a).length().max((e - b).length()).max((a - e).length());
+    let size = a.abs().max(b.abs()).max(e.abs()).max_element();
+    turn(a, b, e) == Ordering::Greater
+        && (b - a).perp_dot(e - a) > ROUNDINGS * f64::EPSILON * size * longest
 }
 
 /// Whether two triangles pass through each other: each stands across the

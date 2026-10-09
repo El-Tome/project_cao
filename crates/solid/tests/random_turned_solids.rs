@@ -161,6 +161,9 @@ fn to_a_millionth(printed: &str) -> String {
 /// A draw of cases, one to a seed.
 type Draw = fn(u64) -> Case;
 
+/// How many pairs of walls meet along one kind of conic.
+type Count = fn(&random_solids::Conics) -> usize;
+
 fn fingerprint(draw: Draw) -> u64 {
     (0..300)
         .flat_map(|seed| to_a_millionth(&draw(seed).to_string()).into_bytes())
@@ -1332,7 +1335,7 @@ fn a_plane_leaning_about_an_axis_of_the_origin_holds_that_axis_and_leans_by_its_
 
 #[test]
 fn the_scope_rule_split_in_two_answers_as_it_did() {
-    let draws: [(&str, Draw); 4] = [
+    let draws: [(&str, Draw); 6] = [
         ("turned", Case::drawn_turned),
         ("turned off the lattice", Case::drawn_turned_off_the_lattice),
         ("slanted", Case::drawn_slanted),
@@ -1340,6 +1343,8 @@ fn the_scope_rule_split_in_two_answers_as_it_did() {
             "slanted off the lattice",
             Case::drawn_slanted_off_the_lattice,
         ),
+        ("tilted", Case::drawn_tilted),
+        ("tilted off the lattice", Case::drawn_tilted_off_the_lattice),
     ];
     for (name, draw) in draws {
         let seeds: Vec<u64> = (0..2000).collect();
@@ -3251,6 +3256,364 @@ fn shrinking_any_drawn_slanted_case_comes_to_an_end() {
             "seed {seed} stopped short: {shrunk}"
         );
     }
+}
+
+#[test]
+fn the_same_seed_draws_the_same_tilted_case_and_not_one_of_the_other_draws() {
+    for seed in 0..200 {
+        assert_eq!(
+            Case::drawn_tilted(seed),
+            Case::drawn_tilted(seed),
+            "seed {seed}"
+        );
+    }
+    let distinct: std::collections::BTreeSet<String> = (0..200)
+        .map(|seed| Case::drawn_tilted(seed).to_string())
+        .collect();
+    assert!(distinct.len() > 190, "{} distinct cases", distinct.len());
+    let same = (0..200)
+        .filter(|seed| {
+            let tilted = Case::drawn_tilted(*seed);
+            tilted == Case::drawn_slanted(*seed)
+                || tilted == Case::drawn_turned(*seed)
+                || tilted == Case::drawn_profiles(*seed)
+                || tilted == Case::drawn_square(*seed)
+        })
+        .count();
+    assert!(same < 20, "{same} tilted cases are another draw's");
+}
+
+#[test]
+fn every_seed_draws_a_tilted_case_though_nothing_before_it_has_a_slanted_face() {
+    for seed in 0..5000 {
+        let drawn = std::panic::catch_unwind(|| {
+            [
+                Case::drawn_tilted(seed),
+                Case::drawn_tilted_off_the_lattice(seed),
+            ]
+        });
+        let Ok(cases) = drawn else {
+            panic!("seed {seed} draws no case");
+        };
+        for case in cases {
+            for leaf in case.leaves() {
+                assert!(leaf.is_solid(), "seed {seed}: {case}");
+            }
+        }
+    }
+}
+
+/// The steps of a case on a plane leaning off the planes of the origin.
+fn leaning(case: &Case) -> impl Iterator<Item = &Step> {
+    case.steps
+        .iter()
+        .filter(|step| matches!(step.tool.plane(), Plane::Tilted { .. }))
+}
+
+/// The holes cut and the bosses added square to a slanted face a cut before
+/// them left: on a plane turned as that cut's was.
+fn on_a_slanted_face(case: &Case, mode: Mode) -> bool {
+    case.steps.iter().enumerate().any(|(index, step)| {
+        let Leaf::Prism {
+            plane: Plane::Tilted { turn, .. },
+            outline: Outline::Circle { .. } | Outline::Slot { .. } | Outline::Ring { .. },
+            ..
+        } = step.tool
+        else {
+            return false;
+        };
+        step.mode == mode
+            && case.steps[..index].iter().any(|before| {
+                before.mode == Mode::Cut
+                    && matches!(
+                        before.tool,
+                        Leaf::Prism {
+                            plane: Plane::Tilted { turn: cut, .. },
+                            outline: Outline::Rectangle { .. },
+                            ..
+                        } if cut == turn
+                    )
+            })
+    })
+}
+
+/// The walls of a case's shafts, bores and cones read about the world lines
+/// their leaves turn about, or circles are raised along: a point of the
+/// line, its world axis, a radius, and the slope of the wall.
+fn round_walls(case: &Case) -> Vec<(DVec3, usize, f64, f64)> {
+    let mut walls = Vec::new();
+    for leaf in case.leaves() {
+        match leaf {
+            Leaf::Prism {
+                plane,
+                outline: Outline::Circle { center, radius, .. },
+                ..
+            } if !matches!(plane, Plane::Tilted { .. }) => walls.push((
+                plane.to_world(*center),
+                plane.normal().abs().max_position(),
+                *radius,
+                0.0,
+            )),
+            _ => {
+                if let Some(read) = meridian(leaf) {
+                    let (point, axis) = read.line;
+                    for [from, to] in read.level.iter().chain(&read.sloped) {
+                        walls.push((point, axis, from.y, (to.y - from.y) / (to.x - from.x)));
+                    }
+                }
+            }
+        }
+    }
+    walls
+}
+
+/// Whether a step's plane runs along a shaft's axis at its radius, touching
+/// it along a line.
+fn along_a_shaft_at_its_radius(case: &Case) -> bool {
+    let walls = round_walls(case);
+    case.steps.iter().any(|step| {
+        let plane = *step.tool.plane();
+        let (origin, normal) = (plane.to_world(DVec2::ZERO), plane.normal());
+        walls.iter().any(|&(point, axis, radius, slope)| {
+            slope == 0.0
+                && radius > 0.0
+                && normal[axis].abs() <= 1e-12
+                && ((origin - point).dot(normal).abs() - radius).abs() <= 1e-6 * radius
+        })
+    })
+}
+
+/// Whether a leaning step of a case stands a hair, in angle, from square to
+/// the axis of one of its shafts or cones, from parallel to it, or from a
+/// cone's own slope.
+fn leaning_hairs(case: &Case) -> [bool; 3] {
+    let hair = |angle: f64| (1e-14..1e-4).contains(&angle.abs());
+    let walls = round_walls(case);
+    let mut found = [false; 3];
+    for step in leaning(case) {
+        let normal = step.tool.plane().normal();
+        for &(_, axis, _, slope) in &walls {
+            let along = normal[axis].abs();
+            let with_the_axis = along.atan2((1.0 - along * along).max(0.0).sqrt());
+            found[0] |= hair(std::f64::consts::FRAC_PI_2 - with_the_axis);
+            found[1] |= hair(with_the_axis);
+            found[2] |= slope != 0.0 && hair(with_the_axis - slope.abs().atan());
+        }
+    }
+    found
+}
+
+#[test]
+fn the_tilted_generator_draws_every_kind_it_keeps() {
+    let cases: Vec<Case> = (0..1000).map(Case::drawn_tilted).collect();
+    let seen = |what: &str, found: bool| assert!(found, "no tilted case drew {what}");
+    let share = |count: usize| count as f64 / cases.len() as f64;
+    let conics = random_solids::on_every_core(&cases, Case::conics);
+    let with = |kind: fn(&random_solids::Conics) -> usize| {
+        share(conics.iter().filter(|conics| kind(conics) > 0).count())
+    };
+    let asking = random_solids::on_every_core(&cases, Case::asks_beyond_the_conics);
+
+    seen(
+        "a case started on a leaning block",
+        cases
+            .iter()
+            .any(|case| matches!(case.start.plane(), Plane::Tilted { .. })),
+    );
+    seen(
+        "a slanted cut",
+        cases.iter().flat_map(leaning).any(|step| {
+            step.mode == Mode::Cut
+                && matches!(
+                    step.tool,
+                    Leaf::Prism {
+                        outline: Outline::Rectangle { .. },
+                        ..
+                    }
+                )
+        }),
+    );
+    seen(
+        "a leaning block added",
+        cases.iter().flat_map(leaning).any(|step| {
+            step.mode == Mode::Add
+                && matches!(
+                    step.tool,
+                    Leaf::Prism {
+                        outline: Outline::Rectangle { .. },
+                        ..
+                    }
+                )
+        }),
+    );
+    seen(
+        "a hole square into a slanted face",
+        cases.iter().any(|case| on_a_slanted_face(case, Mode::Cut)),
+    );
+    seen(
+        "a boss square on a slanted face",
+        cases.iter().any(|case| on_a_slanted_face(case, Mode::Add)),
+    );
+    seen(
+        "a bore at a slant",
+        cases.iter().flat_map(leaning).any(|step| {
+            step.mode == Mode::Cut
+                && matches!(
+                    step.tool,
+                    Leaf::Prism {
+                        outline: Outline::Circle { .. },
+                        ..
+                    }
+                )
+        }),
+    );
+    seen(
+        "a plane along a shaft's axis at its radius",
+        cases.iter().any(along_a_shaft_at_its_radius),
+    );
+    for case in &cases {
+        for step in leaning(case) {
+            assert!(
+                random_solids::clear_of_the_lines(*step.tool.plane()),
+                "a plane square to the lines of measure:\n{case}"
+            );
+        }
+    }
+
+    let thresholds: [(&str, Count, f64); 6] = [
+        ("ellipses", |conics| conics.ellipses, 0.3),
+        ("hyperbolas", |conics| conics.hyperbolas, 0.15),
+        ("parabolas", |conics| conics.parabolas, 0.04),
+        (
+            "lines through an apex",
+            |conics| conics.lines_through_an_apex,
+            0.003,
+        ),
+        ("an apex alone", |conics| conics.apex_alone, 0.003),
+        ("tangent rulings", |conics| conics.tangent_rulings, 0.01),
+    ];
+    for (kind, count, least) in thresholds {
+        let found = with(count);
+        assert!(found >= least, "{found} of the tilted cases cut {kind}");
+    }
+    let beyond = share(asking.iter().filter(|asks| **asks).count());
+    assert!(
+        beyond <= 0.25,
+        "{beyond} of the tilted cases ask beyond the conics"
+    );
+
+    let hairs = (0..1000)
+        .map(|seed| leaning_hairs(&Case::drawn_tilted_off_the_lattice(seed)))
+        .fold([false; 3], |seen, found| {
+            [0, 1, 2].map(|kind| seen[kind] || found[kind])
+        });
+    seen("a plane a hair from square to an axis", hairs[0]);
+    seen("a plane a hair from parallel to an axis", hairs[1]);
+    seen("a plane a hair from a cone's slope", hairs[2]);
+}
+
+#[test]
+fn a_tilted_case_prints_as_the_rust_that_builds_it_again() {
+    let pasted = Case::new(
+        Leaf::prism(
+            Plane::xy(0.0),
+            Outline::rectangle([0.0, 0.0], [20.0, 20.0]),
+            20.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 0.0, 5.0], [30.0, 0.0, 0.0]),
+                Outline::rectangle([-1.0, -3.0], [21.0, 26.0]),
+                25.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([10.0, 10.0, 10.773502691896258], [90.0, 2e-8, 0.0]),
+                Outline::circle([0.0, 0.0], 2.0),
+                -21.0,
+            )),
+        ],
+    );
+    assert_eq!(
+        pasted.to_string(),
+        "Case::new(
+    Leaf::prism(Plane::xy(0.0), Outline::rectangle([0.0, 0.0], [20.0, 20.0]), 20.0),
+    vec![
+        Step::cut(Leaf::prism(Plane::tilted([0.0, 0.0, 5.0], [30.0, 0.0, 0.0]), Outline::rectangle([-1.0, -3.0], [21.0, 26.0]), 25.0)),
+        Step::cut(Leaf::prism(Plane::tilted([10.0, 10.0, 10.773502691896258], [90.0, 2e-8, 0.0]), Outline::circle([0.0, 0.0], 2.0), -21.0)),
+    ],
+)"
+    );
+    for seed in 0..200 {
+        for case in [
+            Case::drawn_tilted(seed),
+            Case::drawn_tilted_off_the_lattice(seed),
+        ] {
+            let printed = case.to_string();
+            assert!(
+                !printed.contains("NaN") && !printed.contains("inf"),
+                "seed {seed} prints a number Rust cannot read back: {printed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn shrinking_any_drawn_tilted_case_comes_to_an_end() {
+    for seed in 0..200 {
+        let mut rounds = 0;
+        let shrunk = shrink(
+            Case::drawn_tilted_off_the_lattice(seed),
+            Case::smaller,
+            |_| true,
+            || {
+                rounds += 1;
+                rounds < 100_000
+            },
+        );
+        assert!(rounds < 100_000, "seed {seed} was still shrinking");
+        assert!(
+            shrunk.smaller().is_empty(),
+            "seed {seed} stopped short: {shrunk}"
+        );
+    }
+}
+
+#[test]
+fn a_tilted_plane_shrinks_to_the_lattice_and_to_a_plane_of_the_origin() {
+    let block = |plane: Plane| Leaf::prism(plane, Outline::rectangle([0.0, 0.0], [2.0, 2.0]), 1.0);
+    let tilted = Plane::tilted([0.3, 1.2, 2.7], [89.99999998, 37.0, 0.0]);
+    let shrunk: Vec<Leaf> = Case::new(block(tilted), vec![])
+        .smaller()
+        .into_iter()
+        .map(|case| case.start)
+        .collect();
+    for expected in [
+        Plane::xy(2.7),
+        Plane::tilted([0.3, 1.2, 2.7], [0.0, 37.0, 0.0]),
+        Plane::tilted([0.3, 1.2, 2.7], [89.99999998, 0.0, 0.0]),
+        Plane::tilted([0.3, 1.2, 2.7], [90.0, 37.0, 0.0]),
+        Plane::tilted([0.3, 1.2, 2.7], [89.99999998, 30.0, 0.0]),
+        Plane::tilted([0.3, 1.2, 2.7], [89.99999998, 45.0, 0.0]),
+        Plane::tilted([0.0, 1.0, 3.0], [89.99999998, 37.0, 0.0]),
+    ] {
+        let expected = block(expected);
+        assert!(shrunk.contains(&expected), "{expected} among {shrunk:#?}");
+    }
+    let lattice = Plane::tilted([0.0, 1.0, 3.0], [45.0, 30.0, 0.0]);
+    assert!(
+        Case::new(block(lattice), vec![])
+            .smaller()
+            .iter()
+            .all(|case| {
+                match case.start.plane() {
+                    Plane::Tilted { turn, .. } => {
+                        turn.to_array().iter().all(|degrees| degrees % 15.0 == 0.0)
+                    }
+                    _ => true,
+                }
+            }),
+        "a turn on the lattice shrinks off it"
+    );
 }
 
 /// The campaigns, compiled only when asked for — `--features campaigns` —

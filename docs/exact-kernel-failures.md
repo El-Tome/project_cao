@@ -1439,3 +1439,47 @@ tilted draws but four carries a hair, by design of the draw:
 
 The review's reproducers: 9400405, 9300117 and 9300193 hold; 9412210 is
 the crossing above.
+
+### Two planes at a grazing angle
+
+The tilted draw at `0d74713`, its failures shrunk (424 on the exact kernel,
+391 through the application's body), counted 244 where two planes cross at
+a few times the angle the kernel reads as parallel — a block's face
+leaning 4e-8° to 1e-7° off a post's end or a block's side — and stand
+within the tolerance of each other far from the line they cross along.
+Two corners within the tolerance of each other and of both, one on each,
+were kept apart since that line passes far from them, and the arcs
+between them never made one.
+
+- **The planes graze, decided once.** Two planes too near parallel to fix
+  their line graze where every corner candidate on either, in a box faces
+  of both may meet in, stands within the tolerance of both, and every
+  curve crossing both crosses them within it of one place; corners within
+  the tolerance of each other on two grazing planes are then one
+  (5520121880, 5520206994, 5520122256). A first cut that let any corner
+  within the tolerance of both through, corner by corner, held 256 of the
+  815, and failed three seeds the base held: one pair of corners merged
+  and the next a hair too far apart (5520267036), a cone's ruling
+  crossing the two planes 1.2e-8 apart (5520167649), planes at 1e-3°
+  (5520271162).
+- **A corner on an edge over its stretch.** A face leaning a hair off a
+  post's end, left bounded by the post's circle, lies on that circle over
+  its stretch alone; a cut crossing the circle there now finds the corner
+  on the face too, and the line it leaves on the face ends there
+  (5520140378, failed once the corners were one).
+
+Three seeds named above hold now and are no longer ignored: 9300728 and
+9412210, a shaft's end or flat side and a plane leaning 1e-7° off it,
+since the two graze; 9519300, the ellipse touching a ruling at the next
+cut's floor, since the corner the floor crosses the edge at lies on the
+face that edge bounds over its stretch.
+
+Of the 815, 241 hold (130 on the exact kernel, 111 through the body),
+none that held fails. On fresh seeds, the tilted draw off the lattice
+against `34a1b64` over the same seeds: on the exact kernel, 224 of 31 396
+(7.1 in a thousand) against 313 (10.0) from 5520140000; through the
+application's body, 346 of 44 524 (7.8) against 463 (10.4) from 5520240000.
+No seed that held on `34a1b64` fails. 15 of the 815 the first cut held
+fail still: a corner of one plane where their faces meet stands a hair
+past the tolerance from the other (5 % past it in 5520108939 and
+5520102585), and the two cross.

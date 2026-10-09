@@ -29,12 +29,15 @@ use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 
-/// A corner found where a registered curve passes through a surface.
+/// A corner found where a registered curve passes through a surface, and
+/// the surfaces an operand's edge covering it lies on over its stretch alone
+/// (decision 6): the corner is on that edge, and so on them.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Found {
     pub point: DVec3,
     pub surface: SurfaceId,
     pub curve: usize,
+    pub partly: Vec<SurfaceId>,
 }
 
 pub(super) fn crossed(
@@ -96,10 +99,18 @@ pub(super) fn crossed(
                     }
                 }
                 if counts {
+                    let mut partly: Vec<SurfaceId> = on_it
+                        .iter()
+                        .filter(|held| held.covers(crossing.parameter, geometry.period(), slack))
+                        .flat_map(|held| held.partly.iter().copied())
+                        .collect();
+                    partly.sort();
+                    partly.dedup();
                     found.push(Found {
                         point: crossing.point,
                         surface,
                         curve,
+                        partly,
                     });
                 }
             }

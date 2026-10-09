@@ -4,7 +4,18 @@
 //! three one corner, however far apart they were found — each plane taken
 //! for another within the tolerance by decision 1, their crossing moves by
 //! more than the tolerance. Such a corner stands where the three meet, and
-//! one on two across each other only on the line they share.
+//! one on two across each other only on the line they share. Two nearer
+//! parallel than that fix nothing, and where every corner found on either
+//! where faces of both may meet stands within the tolerance of both, and
+//! every curve crossing both crosses them within the tolerance of one
+//! place, they graze: a place on one within the tolerance of the other is
+//! on both, however far from the line they share. Decided once for the
+//! pair, rather than corner by corner: two pairs of corners along the same
+//! two arcs, one within the tolerance and the next a hair past it, would
+//! make one arc of the two at one end and leave them two at the other
+//! (5520267036, 5520167649).
+
+use std::collections::BTreeSet;
 
 use glam::DVec3;
 
@@ -16,10 +27,21 @@ use crate::brep::topology::SurfaceId;
 /// clear of planes the relation of their pair would take for parallel.
 const ACROSS: f64 = 1e-3;
 
+/// A corner candidate as [`Planes::grazing`] reads it: where it was found,
+/// the surfaces it lies on — those it was found on and those of the curves
+/// it was found along — and those curves.
+pub(in crate::brep) struct Place {
+    pub point: DVec3,
+    pub on: Vec<SurfaceId>,
+    pub along: Vec<usize>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(in crate::brep) struct Planes {
     /// Each surface's normal and offset, when it is a plane.
     planes: Vec<Option<(DVec3, f64)>>,
+    /// The pairs of planes decided to graze.
+    grazing: BTreeSet<[SurfaceId; 2]>,
 }
 
 impl Planes {
@@ -32,7 +54,84 @@ impl Planes {
                     Surface::Cylinder(_) | Surface::Cone(_) => None,
                 })
                 .collect(),
+            grazing: BTreeSet::new(),
         }
+    }
+
+    /// The planes, each two of them crossing too near parallel to fix the
+    /// line they share decided to graze where, of the corner candidates
+    /// `places` within a box `meeting` gives for them — a box faces of both
+    /// may meet in — every one on either stands within `eps` of both, and
+    /// every two a curve crosses the two at, one on each, within `eps` of
+    /// each other: each would be one corner on both. Two whose corners part
+    /// by more there cross.
+    pub fn grazing(
+        mut self,
+        meeting: impl Fn([SurfaceId; 2]) -> Vec<[DVec3; 2]>,
+        places: &[Place],
+        eps: f64,
+    ) -> Planes {
+        for (one, first) in self.planes.iter().enumerate() {
+            for (other, second) in self.planes.iter().enumerate().skip(one + 1) {
+                let (Some(first), Some(second)) = (first, second) else {
+                    continue;
+                };
+                if first.0.cross(second.0).length() >= ACROSS {
+                    continue;
+                }
+                let pair = [SurfaceId(one as u32), SurfaceId(other as u32)];
+                let boxes = meeting(pair);
+                let inside = |point: DVec3| {
+                    boxes
+                        .iter()
+                        .any(|[low, high]| point.cmpge(*low).all() && point.cmple(*high).all())
+                };
+                let near = |point: DVec3| {
+                    [first, second]
+                        .iter()
+                        .all(|(normal, offset)| (normal.dot(point) - offset).abs() <= eps)
+                };
+                let met: Vec<&Place> = places
+                    .iter()
+                    .filter(|place| {
+                        place.on.iter().any(|surface| pair.contains(surface)) && inside(place.point)
+                    })
+                    .collect();
+                let only = |place: &Place, own: SurfaceId, theirs: SurfaceId| {
+                    place.on.contains(&own) && !place.on.contains(&theirs)
+                };
+                let one_place = |own: SurfaceId, theirs: SurfaceId| {
+                    met.iter()
+                        .filter(|place| only(place, own, theirs))
+                        .all(|place| {
+                            place.along.iter().all(|curve| {
+                                let across: Vec<DVec3> = met
+                                    .iter()
+                                    .filter(|other| {
+                                        only(other, theirs, own) && other.along.contains(curve)
+                                    })
+                                    .map(|other| other.point)
+                                    .collect();
+                                across.is_empty()
+                                    || across.iter().any(|at| at.distance(place.point) <= eps)
+                            })
+                        })
+                };
+                if !boxes.is_empty()
+                    && met.iter().all(|place| near(place.point))
+                    && one_place(pair[0], pair[1])
+                    && one_place(pair[1], pair[0])
+                {
+                    self.grazing.insert(pair);
+                }
+            }
+        }
+        self
+    }
+
+    /// Whether two planes were decided to graze.
+    pub fn graze(&self, one: SurfaceId, other: SurfaceId) -> bool {
+        self.grazing.contains(&[one.min(other), one.max(other)])
     }
 
     pub fn is_plane(&self, surface: SurfaceId) -> bool {

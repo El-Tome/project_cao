@@ -181,6 +181,25 @@ impl<'a> Operands<'a> {
             .fold(Scale::of(1.0), Scale::joined)
     }
 
+    /// Where a face on one of two shared surfaces and a face on the other,
+    /// of either operand, may meet: the box each two whose boxes meet share.
+    pub fn meeting(&self, pair: [SurfaceId; 2]) -> Vec<[DVec3; 2]> {
+        let faces = |surface: SurfaceId| {
+            (0..2).flat_map(move |operand| {
+                self.lying[operand][surface.0 as usize]
+                    .iter()
+                    .map(move |face| self.boxes[operand][face.0 as usize])
+            })
+        };
+        faces(pair[0])
+            .flat_map(|one| {
+                faces(pair[1])
+                    .filter(move |other| meet(one, *other))
+                    .map(move |other| [one[0].max(other[0]), one[1].min(other[1])])
+            })
+            .collect()
+    }
+
     /// Whether the boxes round two faces, one of each operand, meet.
     pub fn near(&self, first: FaceId, second: FaceId) -> bool {
         meet(

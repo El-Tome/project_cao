@@ -15,9 +15,11 @@ mod parted;
 mod related;
 mod slid;
 
+use glam::DVec3;
+
 use super::Declined;
 use super::assembly::assembled;
-use super::canonical::{Apart, Planes, Pool, Registry, closed, flush};
+use super::canonical::{Apart, Place, Planes, Pool, Registry, closed, flush};
 use super::selection::selected;
 use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
@@ -85,45 +87,65 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let (special, done) = related::related(operands, &mut registry)?;
     let found = crossed::crossed(operands, &mut registry, &held)?;
     related::completed(operands, &mut registry, &done);
-    let mut pool = pooled(operands, &registry, &ending, &special, &found);
+    let candidates = candidates(operands, &registry, &ending, &special, &found);
+    let places: Vec<Place> = candidates
+        .iter()
+        .map(|(point, surfaces, curves)| {
+            let mut on = surfaces.clone();
+            for curve in curves {
+                on.extend(registry.list[*curve].support.iter().copied());
+            }
+            Place {
+                point: *point,
+                on,
+                along: curves.clone(),
+            }
+        })
+        .collect();
+    registry.planes = std::mem::take(&mut registry.planes).grazing(
+        |pair| operands.meeting(pair),
+        &places,
+        operands.eps(),
+    );
+    let mut pool = Pool::new(operands.eps());
+    for (point, surfaces, curves) in candidates {
+        pool.add(point, surfaces, curves, &registry);
+    }
     let bands = band::laid_out(operands, &mut registry, &mut pool)?;
     cut::cut(operands, &registry, &pool, &held, &bands)
 }
 
-/// Every corner candidate in a fixed order — the first operand's vertices,
-/// the second's, the relations' special points, the crossings three planes
-/// fix, the other crossings — merged. A place three planes fix is exact,
-/// and the crossings a curve makes nearby are merged into it rather than
-/// into each other: a post's rim crossing the two sides of a box whose
-/// corner line stands a hair inside the wall crosses them past the
-/// tolerance apart, each within it of the corner.
-fn pooled(
+/// Every corner candidate, the surfaces it was found on and the curves it
+/// was found along, in the fixed order they are merged in — the first
+/// operand's vertices, the second's, the relations' special points, the
+/// crossings three planes fix, the other crossings. A place three planes
+/// fix is exact, and the crossings a curve makes nearby are merged into it
+/// rather than into each other: a post's rim crossing the two sides of a
+/// box whose corner line stands a hair inside the wall crosses them past
+/// the tolerance apart, each within it of the corner.
+fn candidates(
     operands: &Operands,
     registry: &Registry,
     ending: &held::Ending,
     special: &[Special],
     found: &[crossed::Found],
-) -> Pool {
-    let mut pool = Pool::new(operands.eps());
+) -> Vec<(DVec3, Vec<SurfaceId>, Vec<usize>)> {
+    let mut candidates = Vec::new();
     for (operand, body) in operands.bodies.iter().enumerate() {
         for id in body.vertex_ids() {
             let vertex = body.vertex(id);
             let surfaces = vertex
                 .on
                 .iter()
-                .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0);
+                .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0)
+                .collect();
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
             let point = held::laid(operands, registry, operand, id, &curves);
-            pool.add(point, surfaces, curves, registry);
+            candidates.push((point, surfaces, curves));
         }
     }
     for point in special {
-        pool.add(
-            point.point,
-            point.surfaces,
-            point.curves.iter().copied(),
-            registry,
-        );
+        candidates.push((point.point, point.surfaces.to_vec(), point.curves.to_vec()));
     }
     let fixed = |crossing: &&crossed::Found| {
         let mut on = registry.list[crossing.curve].support.clone();
@@ -134,14 +156,11 @@ fn pooled(
     let (by_planes, others): (Vec<&crossed::Found>, Vec<&crossed::Found>) =
         found.iter().partition(fixed);
     for crossing in by_planes.into_iter().chain(others) {
-        pool.add(
-            crossing.point,
-            [crossing.surface],
-            [crossing.curve],
-            registry,
-        );
+        let mut surfaces = crossing.partly.clone();
+        surfaces.push(crossing.surface);
+        candidates.push((crossing.point, surfaces, vec![crossing.curve]));
     }
-    pool
+    candidates
 }
 
 #[cfg(test)]

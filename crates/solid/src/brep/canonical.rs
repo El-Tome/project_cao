@@ -22,7 +22,7 @@ pub(super) use corners::{Pool, lies_on, standing};
 pub(super) use crescent::closed;
 pub(super) use curves::{Registered, Registry, distance, same, within};
 pub(super) use flush::flush;
-pub(super) use planes::Planes;
+pub(super) use planes::{Place, Planes};
 pub(super) use surfaces::Surfaces;
 
 #[cfg(test)]

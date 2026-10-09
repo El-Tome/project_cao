@@ -45,6 +45,10 @@
 //! stand within the tolerance of each other and of both planes, and
 //! `hair-from-tangent` where a plane a hair from tangent to a wall, or from
 //! an edge, by an offset, is held by no band — the issue's second default.
+//! Most of `grazing-planes` holds since two planes too near parallel to fix
+//! the line they cross along are decided, once, to graze where every corner
+//! of either where their faces meet stands within the tolerance of both,
+//! and two corners within it of each other, one on each, are then one.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -5664,10 +5668,10 @@ fn seed_9501559_a_partial_turn_cut_along_a_frustum_s_ruling_past_its_tip_comes_b
 /// leaning 1e-7° off square to a shaft's axis at its very end, within four
 /// times the angle the kernel reads as square. It cuts the shaft along an
 /// ellipse within the tolerance of the end's rim all round, and the plane
-/// within the tolerance of the end across it, with no band laid between
-/// them: the faces either side are not parted alike.
+/// within the tolerance of the end across it. The two planes graze: the
+/// corners of the rim and of the ellipse are one, and so are the arcs
+/// between them.
 #[test]
-#[ignore = "kernel-declines, #552: a plane a hair off square or parallel to a wall's axis, the family the issue's second default names; it waits on a band on conics"]
 fn seed_9300728_a_shaft_cut_at_its_end_by_a_plane_a_hair_off_square_to_its_axis() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(
@@ -5717,10 +5721,10 @@ fn seed_9501873_a_plane_holding_the_ellipse_two_equal_shafts_meet_along() {
 /// #552: a shaft cut by a plane leaning 15° about Z that touches the
 /// shaft's outermost ruling exactly where the next cut's floor passes:
 /// the ellipse is tangent to that floor's line there, and its crossing with
-/// the floor stands four microns from the floor's own corner, two corners
-/// the faces either side do not share.
+/// the floor stands four microns from the floor's own corner. It was
+/// declined there until a corner a cut crosses an edge at was laid on the
+/// faces the edge lies on over its stretch alone.
 #[test]
-#[ignore = "kernel-declines, #552: a conic touching a third surface, its crossing found as a double root to the square root of rounding; no band is laid along a conic"]
 fn seed_9519300_a_slanted_cut_touching_a_shaft_s_ruling_at_the_next_cut_s_floor() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xz(0.0), Outline::circle([60.0, 180.0], 45.0), 150.0),
@@ -5774,11 +5778,10 @@ fn seed_9507403_a_quarter_turn_cut_at_a_slant_then_square_leaves_an_arc_of_no_le
 /// along a line through the post, and stand within the tolerance of each
 /// other across it; the corner where the rim, the block's side and the top
 /// meet, and the one where the ellipse, that side and the floor meet, stand
-/// 8e-10 apart and are kept two, since the line the planes cross along
-/// passes far from them. The top keeps the rim between its corners, the wall
-/// the ellipse between the others, and neither arc is used twice.
+/// 8e-10 apart and are one, though the line the planes cross along passes
+/// far from them: the rim and the ellipse between them are one arc, used by
+/// the top and by the wall.
 #[test]
-#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified"]
 fn seed_5520121880_a_post_cut_by_a_block_whose_floor_leans_4e_8_degrees_off_its_top() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(4.0), Outline::circle([4.0, 2.0], 3.0), 5.5),
@@ -5794,7 +5797,6 @@ fn seed_5520121880_a_post_cut_by_a_block_whose_floor_leans_4e_8_degrees_off_its_
 /// by a block whose far face leans 1e-7° off the post's bottom, the family
 /// of 5520121880 on the other end.
 #[test]
-#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified"]
 fn seed_5520206994_a_post_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_bottom() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::xy(6.0), Outline::circle([6.0, 4.0], 6.0), 9.0),
@@ -5808,10 +5810,9 @@ fn seed_5520206994_a_post_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_i
 
 /// #552, the tilted campaign: a block cut by a block whose far face leans
 /// 1e-7° off its side, with no curve but lines. The family of 5520121880
-/// with no conic in it: it fails on `9e54a71` the same way, and the tilted
+/// with no conic in it: it failed on `9e54a71` the same way, and the tilted
 /// draw is what reaches it.
 #[test]
-#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified, on 9e54a71 too"]
 fn seed_5520122256_a_block_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_side() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -5824,6 +5825,135 @@ fn seed_5520122256_a_block_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_
             Outline::rectangle([-6.0, -6.0], [6.0, 6.0]),
             -4.0,
         ))],
+    ));
+}
+
+/// #552, the tilted campaign, shrunk: a block whose far face leans 4e-8°
+/// off square to Y, pocketed by a turned post whose end lies on that face,
+/// then cut by a block square to X across the pocket's rim. The rim the
+/// face is left bounded by is the post's circle, on the face over its
+/// stretch alone; where the second cut crosses it, the corner is on the
+/// face too, and the line the cut leaves on the face ends there. Drawn as
+/// it was, the seed held on `34a1b64` and failed once the face's corners
+/// and the end's were one.
+#[test]
+fn seed_5520140378_a_face_leaning_4e_8_degrees_off_a_pocket_s_end_cut_across_the_pocket_s_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([3.0, 5.0, 4.0], [-89.99999996, 0.0, 0.0]),
+            Outline::rectangle([-4.0, -2.0], [0.0, 2.0]),
+            4.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::second(0.0),
+                Section::bands(5.0, &[[5.0, 0.0, 1.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(2.0),
+                Outline::rectangle([4.0, 4.0], [10.0, 6.0]),
+                -1.5,
+            )),
+        ],
+    ));
+}
+
+/// #552, the tilted campaign through the application's body, shrunk: half
+/// a shaft leaning 15° whose flat side lies on the far face of a block
+/// leaning 1e-7° off it, cut by that block. The two planes stand within the
+/// tolerance of each other where one of the shaft's rims meets the block
+/// and part by more where the other does: they cross, and both ends of the
+/// rims stay two. It held on `34a1b64` and failed once a corner within the
+/// tolerance of both planes was one, corner by corner.
+#[test]
+fn seed_5520267036_half_a_leaning_shaft_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_flat_side()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(90.0),
+            Axis::first(0.0).leaning(15.0),
+            Section::bands(30.0, &[[45.0, 0.0, 135.0]]),
+            180.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([60.0, -30.0, 0.0], [-1e-7, 0.0, 0.0]),
+            Outline::rectangle([-105.0, -120.0], [90.0, 120.0]),
+            -195.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign, its first step: a stepped post turned five
+/// sixths round, ending in a cone, cut by a block whose far face leans
+/// 1e-7° off the post's end. Every corner of either plane where their faces
+/// meet stands within the tolerance of both, but the cone's ruling crosses
+/// the two 1.2e-8 apart, past the tolerance: the corner it ends at on the
+/// end and the one it crosses the face at stay two, and so must the others
+/// of the two planes. It held on `34a1b64`.
+#[test]
+fn seed_5520167649_a_stepped_post_ending_in_a_cone_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_end()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(5.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(
+                -1.0,
+                &[
+                    [2.5, -4.5, 6.499999999999999e-7],
+                    [1.5, -2.5, 6.499999999999999e-7],
+                    [0.03589838486224517, -5.0, 6.499999999999999e-7],
+                    [3.464101615137755, -5.0, 6.499999999999999e-7],
+                ],
+            )
+            .sloping_to(&[
+                [-4.4999998, 6.499999999999999e-7],
+                [-2.5, 6.499999999999999e-7],
+                [-5.0, 6.499999999999999e-7],
+                [-3.0, 6.499999999999999e-7],
+            ]),
+            -300.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([5.0, 3.0, -6.5], [-1e-7, 0.0, 0.0]),
+            Outline::rectangle([-5.5, -9.0], [5.5, 2.5]),
+            -1.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign through the application's body, shrunk: a
+/// block bored by a post whose axis leans 1e-3° off X, then by a post
+/// along X. A plane of the leaning post crosses the block's side at a sine
+/// of 1.7e-5, a real angle, near the block's corner, and the two part far
+/// past the tolerance across the block: a corner within the tolerance of
+/// both near the line they cross along is not on both. It held on
+/// `34a1b64`.
+#[test]
+fn seed_5520271162_a_block_bored_by_a_post_leaning_1e_3_degrees_off_its_side_then_by_a_square_one()
+{
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(35.0),
+            Outline::rectangle([0.0, 0.0], [40.0, 28.0]),
+            13.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(15.0),
+                Axis::first(0.0).leaning(0.001),
+                Section::bands(20.0, &[[20.0, 0.0, 30.0], [4.0, 0.0, 20.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(40.0),
+                Axis::first(0.0),
+                Section::bands(-10.0, &[[13.0, 0.0, 15.0]]),
+                360.0,
+            )),
+        ],
     ));
 }
 

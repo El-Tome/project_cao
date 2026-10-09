@@ -110,10 +110,11 @@ Known and still open:
 - the conics (#552): a plane within a few times the angle the kernel reads
   as square or parallel of a wall's axis, and a plane or a conic a hair
   from tangent, are built with no band, and decline or draw crossing about
-  ten times in a thousand random parts of the tilted draw off the lattice,
-  seven of them a plane a hair off square or parallel — the families
-  `exact-kernel-failures.md` counts, waiting on a band on conics. The
-  slanted and turned draws are under one in a thousand;
+  seven times in a thousand random parts of the tilted draw off the lattice
+  — the families `exact-kernel-failures.md` counts, waiting on a band on
+  conics; two planes at a few times the angle read as parallel graze, and
+  hold, where their corners allow it. The slanted and turned draws are
+  under one in a thousand;
 - a face standing inside a cylinder's hollow is not decided clear of a
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
@@ -392,7 +393,20 @@ The decisions, in the order taken, once per operation:
    crossing a fourth surface at that place finds that corner rather than a
    second one beside it (8520500). A plane and a wall crossing along a conic
    at a grazing angle stand within `EPS` of each other far from it, so the
-   refusal reads their conic as it reads their lines (#552).
+   refusal reads their conic as it reads their lines (#552). Two planes
+   too near parallel to fix the line they share (below) are decided, once,
+   to graze where every corner candidate on either, in a box faces of both
+   may meet in, stands within `EPS` of both, and every curve crossing both
+   there crosses them within `EPS` of one place: they stand within `EPS` of
+   each other far from that line too, and the refusal does not hold
+   between them — the corner a rim, a side and a top meet at and the one an
+   ellipse, that side and a floor leaning a hair off the top meet at are
+   one, and the rim and the ellipse between them one arc (5520121880).
+   Where one candidate stands further, the two cross, and no corner is one
+   on both: one pair of corners merged and the next a hair too far apart
+   would make one arc of two at one end and leave them two at the other
+   (5520267036), and a cone's ruling crossing the two 1.2e-8 apart would
+   leave one of its corners two (5520167649).
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly
@@ -407,7 +421,11 @@ The decisions, in the order taken, once per operation:
    stretch alone, so supports are carried by arcs rather than by curves: an
    arc lies on its curve's surfaces and on those of the arcs taken for it,
    and an edge a later operation reads lies on its curve's surfaces all
-   along and on the others over its stretch. Two arcs whose surfaces
+   along and on the others over its stretch, and so does a corner a
+   surface of the other operand crosses it at there: a circle a face
+   leaning a hair off its plane is left bounded by, crossed by a cut, is
+   crossed on that face too, and the line the cut leaves on the face ends
+   there (5520140378). Two arcs whose surfaces
    include two decided apart stay two. The curve two perpendicular walls
    meet along is carried all along by its own two walls only, not by a wall
    of one radius a hair beside one of them: there it lies over its stretch

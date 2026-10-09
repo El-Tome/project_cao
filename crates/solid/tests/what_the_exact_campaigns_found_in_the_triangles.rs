@@ -3339,11 +3339,11 @@ fn seed_9311810_two_conics_touching_at_a_frustum_s_rim_are_drawn_closed() {
 
 /// #552, one of the review's reproducers: a rounded block joined to half a
 /// shaft whose axis leans 1e-7° off the block's, so that the block's faces
-/// cut its wall along ellipses a hair from its rulings. The body is built
-/// and listed right; two triangles of it cross where those ellipses run
-/// beside the rounded corners' walls.
+/// cut its wall along ellipses a hair from its rulings. Two triangles of it
+/// crossed where those ellipses run beside the rounded corners' walls,
+/// until the shaft's flat side and the block's face it leans a hair off
+/// were decided to graze.
 #[test]
-#[ignore = "triangles, #552: a wall a hair off parallel to the faces it meets, the family the issue's second default names; it waits on a band on conics"]
 fn seed_9412210_half_a_shaft_leaning_a_hair_joined_to_a_rounded_block() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

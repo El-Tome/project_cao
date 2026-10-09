@@ -686,6 +686,148 @@ fn a_corner_on_two_planes_across_each_other_stands_on_the_line_they_share_neares
     assert!(placed.distance(DVec3::new(105.0, 17.0, -120.0)) < 1e-12);
 }
 
+/// A top at 9.5, a floor leaning `sine` about X off it along the line at
+/// `y = across`, and a side at `y = 2`, at a reach of 15, faces of the top
+/// and of the floor meeting from `y = -1` to `y = 12`; the line the top and
+/// the floor cross along registered. The corner of the top and the side at
+/// `x = 4`, and the corner of the floor and the side, where the floor stands
+/// `sine · (2 - across)` above the top; and a corner of the floor at
+/// `y = farthest`.
+fn a_floor_leaning_off_a_top(
+    sine: f64,
+    across: f64,
+    farthest: f64,
+) -> (Registry, Pool, [DVec3; 2]) {
+    let scale = Scale::of(15.0);
+    let normal = DVec3::new(0.0, -sine, (1.0 - sine * sine).sqrt());
+    let surfaces = vec![
+        plane_at(9.5, DVec3::Z),
+        Surface::Plane(Plane::through(DVec3::new(0.0, across, 9.5), normal).0),
+        plane_at(2.0, DVec3::Y),
+    ];
+    let on_the_floor = |y: f64| DVec3::new(4.0, y, 9.5 + (y - across) * sine / normal.z);
+    let corners = [DVec3::new(4.0, 2.0, 9.5), on_the_floor(2.0)];
+    let [top, floor, side] = [0, 1, 2].map(SurfaceId);
+    let place = |point: DVec3, on: Vec<SurfaceId>| Place {
+        point,
+        on,
+        along: Vec::new(),
+    };
+    let places = [
+        place(corners[0], vec![top, side]),
+        place(corners[1], vec![floor, side]),
+        place(on_the_floor(farthest), vec![floor]),
+    ];
+    let meeting = |pair: [SurfaceId; 2]| match pair {
+        [SurfaceId(0), SurfaceId(1)] => {
+            vec![[DVec3::new(0.0, -1.0, 9.0), DVec3::new(8.0, 12.0, 10.0)]]
+        }
+        _ => Vec::new(),
+    };
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces).grazing(meeting, &places, scale.eps()),
+    );
+    let Relation::Line(crossing) = relation(&surfaces[0], &surfaces[1], scale) else {
+        panic!("the top and the floor cross along a line");
+    };
+    registry.register(Curve::Line(crossing), &[top, floor]);
+    (registry, Pool::new(scale.eps()), corners)
+}
+
+/// Seed 5520121880 of #552's tilted campaign: a floor leaning 4e-8° off a
+/// post's top, a few times the angle read as parallel. Every corner on
+/// either where their faces meet, twelve units from the line the two cross
+/// along and more, stands within the tolerance of both, and the corner the
+/// top and a side meet at and the one the floor and that side meet at are
+/// one, on both.
+#[test]
+fn corners_within_the_tolerance_of_two_planes_crossing_at_a_grazing_angle_are_one_far_from_their_line()
+ {
+    let (registry, mut pool, [on_the_top, on_the_floor]) =
+        a_floor_leaning_off_a_top(1e-9, -10.0, 4.0);
+    let [top, floor, side] = [0, 1, 2].map(SurfaceId);
+    let first = pool.add(on_the_top, [top, side], [], &registry);
+    let second = pool.add(on_the_floor, [floor, side], [], &registry);
+    assert_eq!((first, second), (0, 0));
+    assert_eq!(pool.supports(&registry)[0], vec![top, floor, side]);
+}
+
+/// Seed 5520267036 of #552's tilted campaign: two planes at the same
+/// grazing angle part by more than the tolerance at a corner of one of them
+/// at the far end of where their faces meet. The corners there are two, and
+/// so are those within the tolerance of each other nearer the line the
+/// planes cross along: one pair one and the next two would leave an arc
+/// between them on one plane and not on the other.
+#[test]
+fn corners_of_two_planes_at_a_grazing_angle_parting_where_their_faces_meet_are_two_far_from_their_line()
+ {
+    let (registry, mut pool, [on_the_top, on_the_floor]) =
+        a_floor_leaning_off_a_top(1e-9, -10.0, 10.0);
+    let [top, floor, side] = [0, 1, 2].map(SurfaceId);
+    assert!(on_the_top.distance(on_the_floor) <= Scale::of(15.0).eps());
+    let first = pool.add(on_the_top, [top, side], [], &registry);
+    let second = pool.add(on_the_floor, [floor, side], [], &registry);
+    assert_eq!((first, second), (0, 1));
+}
+
+/// Seed 5520167649 of #552's tilted campaign: a top and a floor leaning
+/// 1e-9 off it, within the tolerance of each other where their faces meet,
+/// and a line at a slope of one in two crossing them, at places that stand
+/// within the tolerance of both but more than it from each other. They
+/// would be one corner on both, and cannot: the two planes do not graze.
+/// Crossed steeply, a hair apart, they do.
+#[test]
+fn two_planes_a_line_crosses_more_than_the_tolerance_apart_do_not_graze() {
+    let eps = Scale::of(15.0).eps();
+    let sine: f64 = 1e-9;
+    let normal = DVec3::new(0.0, -sine, (1.0 - sine * sine).sqrt());
+    let surfaces = vec![
+        plane_at(9.5, DVec3::Z),
+        Surface::Plane(Plane::through(DVec3::new(0.0, -10.0, 9.5), normal).0),
+    ];
+    let [top, floor] = [0, 1].map(SurfaceId);
+    let rise = 12.0 * sine / normal.z;
+    let meeting =
+        |_: [SurfaceId; 2]| vec![[DVec3::new(0.0, -1.0, 9.0), DVec3::new(8.0, 5.0, 10.0)]];
+    let crossed = |run: f64| {
+        let on_the_top = DVec3::new(4.0, 2.0, 9.5);
+        let places = [
+            Place {
+                point: on_the_top,
+                on: vec![top],
+                along: vec![0],
+            },
+            Place {
+                point: on_the_top + DVec3::new(0.0, run * rise, rise),
+                on: vec![floor],
+                along: vec![0],
+            },
+        ];
+        Planes::of(&surfaces)
+            .grazing(meeting, &places, eps)
+            .graze(top, floor)
+    };
+    assert!(rise <= eps && 2.0 * rise > eps);
+    assert!(!crossed(2.0));
+    assert!(crossed(0.0));
+}
+
+/// Two planes across each other fix the line they cross along, and a corner
+/// on both stands on it: a corner within the tolerance of both seventy
+/// tolerances from that line is not one with a corner on the other.
+#[test]
+fn corners_within_the_tolerance_of_two_planes_across_each_other_far_from_their_line_are_two() {
+    let (registry, mut pool, [on_the_top, on_the_floor]) =
+        a_floor_leaning_off_a_top(1e-2, 2.0 - 1e-6, 2.0);
+    let [top, floor, side] = [0, 1, 2].map(SurfaceId);
+    assert!(on_the_top.distance(on_the_floor) <= Scale::of(15.0).eps());
+    let first = pool.add(on_the_top, [top, side], [], &registry);
+    let second = pool.add(on_the_floor, [floor, side], [], &registry);
+    assert_eq!((first, second), (0, 1));
+}
+
 /// Seed 1034172 of the campaign: a block's bottom touches a bore along a
 /// line six tenths of a micron short of the block's side, at a reach of 315.
 /// The block's corner lies on both within the tolerance, as every place of a

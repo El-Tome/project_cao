@@ -197,7 +197,9 @@ const ROUNDING: f64 = 1e-3;
 /// grazing angle near it. Two walls decided to cross at a grazing angle are
 /// read as two touching are: a corner one of them carries near their
 /// crossing, and the node a band puts on the other there, are one corner on
-/// both.
+/// both. Nor are two planes decided to graze: within the tolerance of each
+/// other wherever their faces may meet, far from the line they cross along
+/// too, a place on one within it of the other is on both (5520121880).
 fn parted(
     point: DVec3,
     one: &[SurfaceId],
@@ -214,7 +216,10 @@ fn parted(
     let [first, second] = [only(one, other), only(other, one)];
     first.iter().any(|&a| {
         second.iter().any(|&b| {
-            if registry.apart.touch(a, b) || registry.apart.graze(a, b) {
+            if registry.apart.touch(a, b)
+                || registry.apart.graze(a, b)
+                || registry.planes.graze(a, b)
+            {
                 return false;
             }
             let mut shared = registry.list.iter().filter(|known| {

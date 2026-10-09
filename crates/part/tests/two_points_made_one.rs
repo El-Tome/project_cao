@@ -324,7 +324,8 @@ fn a_corner_made_one_with_a_point_held_on_an_arc_keeps_it_on_the_arc() {
     assert!(
         sketch.constraints().contains(&Constraint::OnArc {
             point: kept,
-            arc: ArcId(0)
+            arc: ArcId(0),
+            from: LaidFrom::Nowhere,
         }),
         "the rule was lost with the point"
     );

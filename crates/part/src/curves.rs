@@ -1,7 +1,7 @@
 //! The curves a part's sketches are drawn with — circles, arcs and ellipses —
 //! laid down again as the history replays them.
 
-use cao_sketch::{Constraint, PointId, Sketch};
+use cao_sketch::{Constraint, LaidFrom, PointId, Sketch};
 
 use crate::history::PointRef;
 use crate::outcome::Outcome;
@@ -25,7 +25,11 @@ impl PartState {
         };
         for place in rim {
             let point = resolve(sketch, place);
-            sketch.add_constraint(Constraint::OnCircle { point, circle });
+            sketch.add_constraint(Constraint::OnCircle {
+                point,
+                circle,
+                from: LaidFrom::Nowhere,
+            });
         }
         None
     }

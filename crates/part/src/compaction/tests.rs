@@ -337,6 +337,7 @@ fn a_circles_rim_point_stays_bundled_in_its_own_step_after_compacting() {
             .contains(&cao_sketch::Constraint::OnCircle {
                 point: rim_point,
                 circle: cao_sketch::CircleId(0),
+                from: cao_sketch::LaidFrom::Nowhere,
             }),
         "the rim point no longer holds the circle: {:?}",
         sketch.constraints()

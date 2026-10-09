@@ -94,6 +94,18 @@ pub(super) fn remap_target(target: DimensionTarget, map: &SketchIdMap) -> Dimens
     }
 }
 
+/// A rule as it is laid again. A point held on a curve keeps no order of the
+/// clicks: laid in one on a drawing that already holds it, it would be brought
+/// back onto what is drawn of the curve from wherever a drag left it (#554).
+pub(super) fn without_order(rule: Constraint) -> Constraint {
+    match rule {
+        Constraint::OnCircle { .. } | Constraint::OnArc { .. } | Constraint::OnEllipse { .. } => {
+            rule.normalised()
+        }
+        other => other,
+    }
+}
+
 pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Constraint {
     match constraint {
         Constraint::Perpendicular { first, second } => Constraint::Perpendicular {
@@ -166,17 +178,28 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             at: at.map(|point| map.points[&point]),
             from,
         },
-        Constraint::OnCircle { point, circle } => Constraint::OnCircle {
+        Constraint::OnCircle {
+            point,
+            circle,
+            from,
+        } => Constraint::OnCircle {
             point: map.points[&point],
             circle: map.circles[&circle],
+            from,
         },
-        Constraint::OnArc { point, arc } => Constraint::OnArc {
+        Constraint::OnArc { point, arc, from } => Constraint::OnArc {
             point: map.points[&point],
             arc: map.arcs[&arc],
+            from,
         },
-        Constraint::OnEllipse { point, ellipse } => Constraint::OnEllipse {
+        Constraint::OnEllipse {
+            point,
+            ellipse,
+            from,
+        } => Constraint::OnEllipse {
             point: map.points[&point],
             ellipse: map.ellipses[&ellipse],
+            from,
         },
         Constraint::OnAxis { point, axis } => Constraint::OnAxis {
             point: map.points[&point],

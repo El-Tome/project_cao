@@ -181,7 +181,11 @@ fn a_point_on_the_rim_resizes_the_circle_when_it_is_pulled() {
     let center = sketch.add_point(DVec2::new(0.0, 0.0));
     let circle = sketch.add_circle(center, 10.0);
     let rim = sketch.add_point(DVec2::new(10.0, 0.0));
-    sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: rim,
+        circle,
+        from: crate::LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(rim, DVec2::new(30.0, 0.0), 1.0);
 

@@ -4,6 +4,7 @@
 use glam::DVec2;
 
 use crate::constraints::Constraint;
+use crate::holding::Support;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
 impl Sketch {
@@ -34,13 +35,13 @@ impl Sketch {
             let (joined, to): (Vec<PointId>, Vec<PointId>) = match *constraint {
                 Constraint::OnSegment { point, segment, .. }
                 | Constraint::Midpoint { point, segment } => (vec![point], ends_of(segment)),
-                Constraint::OnCircle { point, circle } => {
+                Constraint::OnCircle { point, circle, .. } => {
                     (vec![point], circle_centre(circle).into_iter().collect())
                 }
-                Constraint::OnArc { point, arc } => {
+                Constraint::OnArc { point, arc, .. } => {
                     (vec![point], arc_centre(arc).into_iter().collect())
                 }
-                Constraint::OnEllipse { point, ellipse } => {
+                Constraint::OnEllipse { point, ellipse, .. } => {
                     (vec![point], ellipse_centre(ellipse).into_iter().collect())
                 }
                 Constraint::Tangent {
@@ -131,7 +132,11 @@ impl Sketch {
     /// How many joins away from `point` each point stands, by rank; nothing
     /// for a point it does not reach. The walk goes to a point the drawing
     /// holds still and no further.
-    fn steps_from(&self, point: PointId, pairs: &[(PointId, PointId)]) -> Vec<Option<usize>> {
+    pub(super) fn steps_from(
+        &self,
+        point: PointId,
+        pairs: &[(PointId, PointId)],
+    ) -> Vec<Option<usize>> {
         let count = self.points().len();
         let mut next_to: Vec<Vec<usize>> = vec![Vec::new(); count];
         for (one, other) in pairs {
@@ -204,20 +209,14 @@ impl Sketch {
                 centres.push(ellipse.center);
             }
         }
-        for constraint in self.constraints() {
-            let centre = match *constraint {
-                Constraint::OnCircle {
-                    point: held,
-                    circle,
-                } if held == point => self.circles().get(circle.0).map(|round| round.center),
-                Constraint::OnArc { point: held, arc } if held == point => {
-                    self.arcs().get(arc.0).map(|curve| curve.center)
+        for support in self.holds_on(point) {
+            let centre = match support {
+                Support::Circle(circle) => self.circles().get(circle.0).map(|round| round.center),
+                Support::Arc(arc) => self.arcs().get(arc.0).map(|curve| curve.center),
+                Support::Ellipse(ellipse) => {
+                    self.ellipses().get(ellipse.0).map(|curve| curve.center)
                 }
-                Constraint::OnEllipse {
-                    point: held,
-                    ellipse,
-                } if held == point => self.ellipses().get(ellipse.0).map(|curve| curve.center),
-                _ => None,
+                Support::Segment(_) | Support::Axis(_) => None,
             };
             centres.extend(centre);
         }

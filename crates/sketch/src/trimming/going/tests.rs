@@ -242,6 +242,7 @@ fn a_point_held_on_the_stretch_that_goes_loses_what_held_it() {
     let held = Constraint::OnArc {
         point: between,
         arc,
+        from: LaidFrom::Nowhere,
     };
     sketch.add_constraint(held);
 

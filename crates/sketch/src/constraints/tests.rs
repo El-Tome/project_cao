@@ -102,14 +102,17 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
         Constraint::OnCircle {
             point: loose,
             circle: round,
+            from: LaidFrom::Nowhere,
         },
         Constraint::OnArc {
             point: loose,
             arc: bend,
+            from: LaidFrom::Nowhere,
         },
         Constraint::OnEllipse {
             point: loose,
             ellipse: oval,
+            from: LaidFrom::Nowhere,
         },
         Constraint::OnAxis {
             point: loose,

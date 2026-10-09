@@ -298,7 +298,11 @@ fn a_click_just_past_where_an_arc_ends_asks_for_the_stretch_that_ends_there() {
 fn a_point_held_on_an_arc_goes_on_being_held_by_the_piece_it_sits_on() {
     let (mut sketch, arc, [first, second]) = a_half_turn();
     let held = on_the_rim(&mut sketch, 30.0);
-    sketch.add_constraint(Constraint::OnArc { point: held, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point: held,
+        arc,
+        from: cao_sketch::LaidFrom::Nowhere,
+    });
 
     let trimmed = sketch
         .trim_arc(arc, first, second)
@@ -317,7 +321,11 @@ fn a_point_held_on_an_arc_goes_on_being_held_by_the_piece_it_sits_on() {
 fn a_point_held_on_the_stretch_a_cut_takes_away_loses_what_held_it() {
     let (mut sketch, arc, [first, second]) = a_half_turn();
     let held = on_the_rim(&mut sketch, 90.0);
-    sketch.add_constraint(Constraint::OnArc { point: held, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point: held,
+        arc,
+        from: cao_sketch::LaidFrom::Nowhere,
+    });
 
     let trimmed = sketch
         .trim_arc(arc, first, second)

@@ -237,6 +237,11 @@ pub enum Constraint {
     OnCircle {
         point: PointId,
         circle: CircleId,
+        /// Which of the two was clicked first, as for a point laid on a trait:
+        /// the curve for a free point, which comes onto it, and none for one
+        /// laid down on the rim (#554).
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on the circle an arc is a piece of, wherever the arc goes
     /// and whatever size it takes. The whole circle, not the stretch drawn:
@@ -245,6 +250,8 @@ pub enum Constraint {
     OnArc {
         point: PointId,
         arc: ArcId,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// An ellipse brushing a line: the line grazes it and no more.
     EllipseTangent {
@@ -263,6 +270,8 @@ pub enum Constraint {
     OnEllipse {
         point: PointId,
         ellipse: EllipseId,
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// A point held on one of the sketch's own axes, which is a line nothing
     /// can move.

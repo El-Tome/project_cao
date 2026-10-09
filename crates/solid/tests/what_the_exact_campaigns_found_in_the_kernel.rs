@@ -5627,3 +5627,28 @@ fn seed_9304992_an_ellipse_touching_a_shaft_s_far_rim_is_cut_with_one_corner_the
         ],
     ));
 }
+
+/// #552: a partial turn of a frustum and a shaft with a groove, cut along
+/// the ruling of the frustum's slope through its tip. A corner past the
+/// tip on that ruling took the curve's other surfaces into its support,
+/// and was read as still missing the frustum on every pass after, so the
+/// support grew for ever: the step never came back. It failed, declining,
+/// before corners past an apex were read off its cone.
+#[test]
+fn seed_9501559_a_partial_turn_cut_along_a_frustum_s_ruling_past_its_tip_comes_back() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(1.0),
+            Axis::first(0.0),
+            Section::bands(5.0, &[[5.5, 1.0, 7.0], [2.5, 1.0, 7.0]])
+                .sloping_to(&[[1.0, 7.0], [3.5, 7.0]])
+                .with_holes(&[([6.0, 4.0], [9.5, 5.0])]),
+            -75.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([9.5, 1.0, 0.0], [0.0, 45.0, 0.0]),
+            Outline::rectangle([-9.0, -0.5], [3.0, 7.5]),
+            -3.5,
+        ))],
+    ));
+}

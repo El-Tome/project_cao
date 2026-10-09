@@ -108,21 +108,15 @@ impl Pool {
             for (corner, support) in self.corners.iter().zip(&mut supports) {
                 for (rank, known) in registry.list.iter().enumerate() {
                     let sorted: Vec<SurfaceId> = support.iter().copied().collect();
-                    if known
-                        .support
-                        .iter()
-                        .all(|surface| support.contains(surface))
+                    let standing: Vec<SurfaceId> =
+                        on_the_nappe(&known.support, corner.point, registry, self.eps).collect();
+                    if standing.iter().all(|surface| support.contains(surface))
                         || registry.apart.across(&known.support, &sorted)
                         || !lies_on(corner.point, &sorted, rank, registry, self.eps)
                     {
                         continue;
                     }
-                    support.extend(on_the_nappe(
-                        &known.support,
-                        corner.point,
-                        registry,
-                        self.eps,
-                    ));
+                    support.extend(standing);
                     grown = true;
                 }
             }

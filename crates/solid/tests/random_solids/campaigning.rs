@@ -9,7 +9,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant, SystemTime};
 
-use cao_solid::soundness::{Check, Flaw, Random, Report, answer, campaign, shrink};
+use cao_solid::soundness::{Check, Flaw, Random, Report, answer, campaign_across, shrink};
 
 use super::Case;
 
@@ -74,16 +74,21 @@ pub fn campaign_over(
     });
     let cases = from_the_environment("CAO_FUZZ_CASES").unwrap_or(u64::MAX);
     let patience = Duration::from_secs(from_the_environment("CAO_FUZZ_PATIENCE").unwrap_or(30));
+    let threads = from_the_environment("CAO_FUZZ_THREADS").map_or_else(
+        || std::thread::available_parallelism().map_or(1, |cores| cores.get()),
+        |threads| threads as usize,
+    );
     let deadline = Instant::now() + Duration::from_secs(seconds);
     println!(
-        "campaign of {what} {} from seed {first}, for {seconds} s",
+        "campaign of {what} {} from seed {first}, for {seconds} s, on {threads} threads",
         answering.on()
     );
 
     let check: Check<Case> = Arc::new(check);
     let quiet = std::panic::take_hook();
     std::panic::set_hook(Box::new(|_| {}));
-    let report = campaign(
+    let report = campaign_across(
+        threads,
         first..first.saturating_add(cases),
         draw,
         check,

@@ -1,6 +1,8 @@
 pub(crate) mod across;
 mod cones;
+mod conics;
 pub(crate) mod fixtures;
+pub(crate) mod slanted;
 
 use std::f64::consts::{PI, TAU};
 

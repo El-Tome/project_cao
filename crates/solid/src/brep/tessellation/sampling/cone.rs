@@ -11,7 +11,11 @@
 //! the chord's at the widest radius. Each circle keeps its own grid besides,
 //! which the other face along it — a bore's wall, a disc — is cut on; where
 //! the cone stands close to another wall, every rim takes the others' too
-//! ([`axis`]). A circle lying on no cone is sampled as before, bit for bit.
+//! ([`axis`]). A conic cut on the cone counts towards its widest too: an
+//! ellipse a plane cuts at a slant has no vertex to read it off, and stands
+//! further out than a narrow rim, whose strips to it would otherwise span a
+//! step of the rim's grid at the ellipse's radius. A circle lying on no cone
+//! is sampled as before, bit for bit.
 //!
 //! [`axis`]: super::axis
 
@@ -21,9 +25,10 @@ use std::f64::consts::TAU;
 use glam::DVec3;
 
 use super::divisions;
+use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::{Circle, Curve};
 use crate::brep::surface::{Cone, Surface};
-use crate::brep::topology::{Body, SurfaceId};
+use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// The grid of a cone: how many steps a turn, and the angles of the vertices
 /// lying on it but at its apex, where the angle is rounding.
@@ -42,10 +47,17 @@ impl Grid {
             .chain(self.angles.iter().copied())
             .map(|angle| self.cone.radial(angle))
     }
+
+    /// The angles of the vertices lying on the cone but at its apex.
+    pub(super) fn vertex_angles(&self) -> &[f64] {
+        &self.angles
+    }
 }
 
 /// The grid of every cone of the body, read at the furthest any circle lying
-/// on it or vertex on it stands from the axis.
+/// on it, conic cut on it or vertex on it stands from the axis: a ring a
+/// plane cuts at a slant has no vertex to read its width off, and may stand
+/// further out than every rim.
 pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
     let eps = body.scale().eps();
     let circles: Vec<&Circle> = body
@@ -53,6 +65,14 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
         .filter_map(|id| match body.curve(body.edge(id).curve) {
             Curve::Circle(circle) => Some(circle),
             Curve::Line(_) | Curve::Meet(_) | Curve::Conic(_) => None,
+        })
+        .collect();
+    let conics: Vec<(&Conic, &Edge)> = body
+        .edge_ids()
+        .map(|id| body.edge(id))
+        .filter_map(|edge| match body.curve(edge.curve) {
+            Curve::Conic(conic) => Some((conic, edge)),
+            Curve::Line(_) | Curve::Circle(_) | Curve::Meet(_) => None,
         })
         .collect();
     (0..body.surfaces.len() as u32)
@@ -67,6 +87,11 @@ pub(super) fn grids(body: &Body, tolerance: f64) -> BTreeMap<SurfaceId, Grid> {
                 .filter(|circle| cone.holds(circle, eps))
                 .map(|circle| circle.radius)
                 .fold(0.0, f64::max);
+            for (conic, edge) in &conics {
+                if conic.round == Round::Cone(cone) {
+                    widest = widest.max(conic.widest(edge.from, edge.to));
+                }
+            }
             let mut angles = Vec::new();
             for vertex in body.vertex_ids().map(|vertex| body.vertex(vertex)) {
                 if !vertex.on.contains(&id) {

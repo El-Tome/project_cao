@@ -14,7 +14,10 @@ use glam::{DVec2, DVec3};
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
 mod slants;
+mod tilts;
 mod turns;
+
+pub use tilts::clear_of_the_lines;
 
 impl Case {
     /// The case a seed stands for. The same seed always draws the same case,
@@ -53,6 +56,7 @@ impl Case {
             Among::Turned {
                 off_the_lattice: false,
                 slanted: false,
+                tilted: false,
             },
         )
     }
@@ -66,6 +70,7 @@ impl Case {
             Among::Turned {
                 off_the_lattice: true,
                 slanted: false,
+                tilted: false,
             },
         )
     }
@@ -83,6 +88,7 @@ impl Case {
             Among::Turned {
                 off_the_lattice: false,
                 slanted: true,
+                tilted: false,
             },
         )
     }
@@ -97,6 +103,41 @@ impl Case {
             Among::Turned {
                 off_the_lattice: true,
                 slanted: true,
+                tilted: false,
+            },
+        )
+    }
+
+    /// The case a seed stands for among planes meeting cylinders and cones
+    /// at a slant (#552): the slanted draw, and tools on planes leaning about
+    /// a world axis drawn from a leaf before them for nearly half the steps —
+    /// a slanted cut, a hole or a boss square to the face it left, a bore at
+    /// a slant, a leaning block, a plane along a shaft at its radius, a flat
+    /// on a cone, a plane parallel to a ruling, a plane through a tip — and
+    /// now and then a leaning block to start with. None of the cases
+    /// `drawn_slanted` gives the same seed.
+    pub fn drawn_tilted(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: false,
+                slanted: true,
+                tilted: true,
+            },
+        )
+    }
+
+    /// The case a seed stands for in a campaign over tilted tools: the same
+    /// draw past the gate's lattice, its planes leaning on a degree's step, by
+    /// a real angle, or a hair from square, from parallel or from a cone's
+    /// own slope.
+    pub fn drawn_tilted_off_the_lattice(seed: u64) -> Case {
+        Case::drawn_among(
+            seed,
+            Among::Turned {
+                off_the_lattice: true,
+                slanted: true,
+                tilted: true,
             },
         )
     }
@@ -105,10 +146,15 @@ impl Case {
     /// fewer kinds rather than drawing again: the cases `drawn` and
     /// `drawn_square` give are the ones a seed has always named. A slanted
     /// draw throws one number away first, so that a case of it with no
-    /// slant in it is still none of `drawn_turned`'s.
+    /// slant in it is still none of `drawn_turned`'s, and a tilted draw a
+    /// second one, so that a case of it with no leaning plane is none of
+    /// `drawn_slanted`'s.
     fn drawn_among(seed: u64, among: Among) -> Case {
         let mut random = Random::seeded(seed);
         if let Among::Turned { slanted: true, .. } = among {
+            random.number();
+        }
+        if let Among::Turned { tilted: true, .. } = among {
             random.number();
         }
         let scale = *random.pick(&[1.0, 1.0, 1.0, 5.0, 30.0]);
@@ -118,10 +164,21 @@ impl Case {
             among,
         };
 
-        let start = drawing.leaf(None);
+        let start = if drawing.tilted() && drawing.random.chance(0.1) {
+            drawing.leaning_block()
+        } else {
+            drawing.leaf(None)
+        };
         let count = *drawing.random.pick(&[1, 1, 1, 2, 2, 2, 3, 3, 4, 5]);
         let mut steps: Vec<Step> = Vec::new();
         for _ in 0..count {
+            if drawing.tilted()
+                && drawing.random.chance(0.45)
+                && let Some(step) = drawing.tilted_step(&start, &steps)
+            {
+                steps.push(step);
+                continue;
+            }
             let before = if drawing.random.chance(0.5) {
                 let leaves: Vec<&Leaf> = std::iter::once(&start)
                     .chain(steps.iter().map(|step| &step.tool))
@@ -154,10 +211,12 @@ enum Among {
     Profiles,
     /// Turned sections and the prisms of the profiles, on the planes of the
     /// origin; past the gate's lattice in a campaign; their runs slanting,
-    /// and tools drawn from the slants, when `slanted`.
+    /// and tools drawn from the slants, when `slanted`; and tools on leaning
+    /// planes drawn from what came before them, when `tilted`.
     Turned {
         off_the_lattice: bool,
         slanted: bool,
+        tilted: bool,
     },
 }
 

@@ -111,7 +111,7 @@ impl Drawing {
     }
 
     /// A hair a slant is drawn with, never nought: the hairs `nudge` draws.
-    fn hair(&mut self) -> f64 {
+    pub(super) fn hair(&mut self) -> f64 {
         let reach = 20.0 * self.scale;
         let hair = *self.random.pick(&[
             5e-10 * reach,
@@ -127,7 +127,7 @@ impl Drawing {
 
     /// A length on the half lattice from half a unit up to `most`, or
     /// nothing when `most` is shorter than half a unit.
-    fn up_to(&mut self, most: f64) -> Option<f64> {
+    pub(super) fn up_to(&mut self, most: f64) -> Option<f64> {
         let value = self.random.on_lattice(0.5, most / self.scale, 0.5) * self.scale;
         (value <= most).then_some(value)
     }

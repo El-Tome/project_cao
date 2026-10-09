@@ -38,6 +38,13 @@
 //! cone holds a wall about its axis only where faces of the two meet on the
 //! circle they cross along, and `triangles-sliver` since the triangles of two
 //! faces folded onto each other across an edge are cut the other way.
+//!
+//! The tilted campaign of #552 at `0d74713` is sorted the same way, its keys
+//! at the head of the reason: `grazing-planes` where two planes crossing at
+//! an angle a few times the one read as parallel part two corners that
+//! stand within the tolerance of each other and of both planes, and
+//! `hair-from-tangent` where a plane a hair from tangent to a wall, or from
+//! an edge, by an offset, is held by no band — the issue's second default.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -5759,5 +5766,123 @@ fn seed_9507403_a_quarter_turn_cut_at_a_slant_then_square_leaves_an_arc_of_no_le
                 10.0,
             )),
         ],
+    ));
+}
+
+/// #552, the tilted campaign at `0d74713`: a post cut by a block whose
+/// floor lies on the post's top, leaning 4e-8° about X. The two planes cross
+/// along a line through the post, and stand within the tolerance of each
+/// other across it; the corner where the rim, the block's side and the top
+/// meet, and the one where the ellipse, that side and the floor meet, stand
+/// 8e-10 apart and are kept two, since the line the planes cross along
+/// passes far from them. The top keeps the rim between its corners, the wall
+/// the ellipse between the others, and neither arc is used twice.
+#[test]
+#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified"]
+fn seed_5520121880_a_post_cut_by_a_block_whose_floor_leans_4e_8_degrees_off_its_top() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(4.0), Outline::circle([4.0, 2.0], 3.0), 5.5),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([5.5, 1.5, 9.5], [4e-8, 0.0, 0.0]),
+            Outline::rectangle([-5.0, -7.0], [1.0, 4.0]),
+            7.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign through the application's body: a post cut
+/// by a block whose far face leans 1e-7° off the post's bottom, the family
+/// of 5520121880 on the other end.
+#[test]
+#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified"]
+fn seed_5520206994_a_post_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_bottom() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::xy(6.0), Outline::circle([6.0, 4.0], 6.0), 9.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([3.0, 8.0, 9.0], [1e-7, 0.0, 0.0]),
+            Outline::rectangle([-4.0, -4.0], [4.0, 4.0]),
+            -3.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign: a block cut by a block whose far face leans
+/// 1e-7° off its side, with no curve but lines. The family of 5520121880
+/// with no conic in it: it fails on `9e54a71` the same way, and the tilted
+/// draw is what reaches it.
+#[test]
+#[ignore = "grazing-planes, #552's tilted triage: two planes crossing at a grazing angle part two corners within the tolerance of each other and of both (canonical/corners.rs, parted); declined as unverified, on 9e54a71 too"]
+fn seed_5520122256_a_block_cut_by_a_block_whose_far_face_leans_1e_7_degrees_off_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([2.0, 6.0, 4.0], [45.0, 0.0, 0.0]),
+            Outline::rectangle([-3.0, -3.0], [-1.5, 1.5]),
+            2.5,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([4.5, 3.0, 6.0], [0.0, 89.9999999, 0.0]),
+            Outline::rectangle([-6.0, -6.0], [6.0, 6.0]),
+            -4.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign: a post along X cut by a block whose floor
+/// stands 2e-7 inside its top ruling, leaning 2e-8° — under the angle the
+/// kernel reads as parallel to the axis, so the floor cuts the wall along
+/// two lines 1.3e-3 apart. The wall keeps the rims of the sliver the floor
+/// takes off, the ends keep the chords across it. It fails on `9e54a71`
+/// the same way.
+#[test]
+#[ignore = "hair-from-tangent, #552's tilted triage: a plane a hair from tangent to a wall, by an offset, that no band holds (the issue's second default: no band is added); declined as unverified, on 9e54a71 too"]
+fn seed_5520135751_a_post_cut_by_a_floor_2e_7_inside_its_top_ruling() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::yz(4.5), Outline::circle([4.0, 10.0], 1.0), 1.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([5.0, 4.0, 10.9999998], [0.0, -2e-8, 0.0]),
+            Outline::rectangle([-2.0, -2.0], [1.0, 2.0]),
+            3.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign through the application's body: a post cut by
+/// a block whose floor stands 1e-7 inside its ruling, leaning 2e-8°, the
+/// family of 5520135751.
+#[test]
+#[ignore = "hair-from-tangent, #552's tilted triage: a plane a hair from tangent to a wall, by an offset, that no band holds (the issue's second default: no band is added); declined as unverified, on 9e54a71 too"]
+fn seed_5520203207_a_post_cut_by_a_floor_1e_7_inside_its_ruling() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::yz(-2.0), Outline::circle([0.0, 3.0], 3.0), 10.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-2.0, 0.0, 1e-7], [0.0, -2e-8, 0.0]),
+            Outline::rectangle([-1.0, -4.0], [11.0, 4.0]),
+            1.0,
+        ))],
+    ));
+}
+
+/// #552, the tilted campaign: a rounded block cut by a plane leaning 15°
+/// that passes 1e-8 from the edge where its end meets its top, along the
+/// rounded corners' walls as two ellipses. The cut takes a sliver 4e-8 long
+/// off the top's edge; the walls keep lines of that length the top does not.
+/// `9e54a71` declined it as asking for a conic.
+#[test]
+#[ignore = "hair-from-tangent, #552's tilted triage: a plane at a slant a hair from an edge, conics a hair from where the walls end (the issue's second default: no band is added); declined as unverified"]
+fn seed_5520109275_a_rounded_block_cut_at_15_degrees_1e_8_from_its_end_s_edge() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(2.0),
+            Outline::rounded([2.0, 7.0], [7.0, 15.0], 2.0),
+            8.5,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [10.499999996497152, 7.0, 15.000000009366433],
+                [0.0, -15.0, 0.0],
+            ),
+            Outline::rectangle([-12.0, -6.0], [1.0, 1.0]),
+            4.0,
+        ))],
     ));
 }

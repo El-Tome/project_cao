@@ -27,12 +27,17 @@
 //! share the place they touch at ([`touches`]). A circle lying on a cone is
 //! also sampled on the cone's grid, the same for all its rims ([`cone`]), and
 //! where the cone stands close to another wall, on every ray the walls
-//! standing with it take ([`axis`]).
+//! standing with it take ([`axis`]). The conic a plane cuts a wall along at
+//! a slant is sampled as a meet is, with one wall: on that wall's grid and
+//! rays, then between them wherever a chord would leave it ([`conic`]); on a
+//! cone, it widens the cone's grid to the furthest it stands from the axis.
 
 mod axis;
 mod beneath;
+mod chords;
 mod circle;
 mod cone;
+mod conic;
 mod ends;
 mod meet;
 mod planes;
@@ -44,6 +49,7 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
+use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
@@ -165,7 +171,14 @@ impl Samples {
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
-                Curve::Line(_) | Curve::Conic(_) => Vec::new(),
+                Curve::Line(_) => Vec::new(),
+                Curve::Conic(conic) => {
+                    let rays = match conic.round {
+                        Round::Cylinder(cylinder) => taken(&cylinder, walls, &contacts),
+                        Round::Cone(_) => Vec::new(),
+                    };
+                    conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+                }
                 Curve::Circle(circle) => {
                     let wall = contact::wall_of(circle, walls, eps);
                     let contact = wall
@@ -272,19 +285,7 @@ fn on_meets(
     tolerance: f64,
 ) -> Vec<Vec<DVec3>> {
     let eps = body.scale().eps();
-    let angles = |cylinder: &Cylinder| -> Vec<f64> {
-        walls
-            .iter()
-            .find(|(_, wall)| wall == cylinder)
-            .and_then(|(id, _)| contacts.get(id))
-            .map_or_else(Vec::new, |contact| {
-                contact
-                    .rays
-                    .iter()
-                    .map(|way| way.dot(cylinder.v).atan2(way.dot(cylinder.u)))
-                    .collect()
-            })
-    };
+    let angles = |cylinder: &Cylinder| taken(cylinder, walls, contacts);
     body.edge_ids()
         .map(|id| {
             let edge = body.edge(id);
@@ -310,6 +311,26 @@ fn on_meets(
             }
         })
         .collect()
+}
+
+/// The angles from its `u` of the rays the circles of `cylinder` take in
+/// `contacts`, if it is one of the walls.
+fn taken(
+    cylinder: &Cylinder,
+    walls: &[contact::Wall],
+    contacts: &BTreeMap<SurfaceId, Contact>,
+) -> Vec<f64> {
+    walls
+        .iter()
+        .find(|(_, wall)| wall == cylinder)
+        .and_then(|(id, _)| contacts.get(id))
+        .map_or_else(Vec::new, |contact| {
+            contact
+                .rays
+                .iter()
+                .map(|way| way.dot(cylinder.v).atan2(way.dot(cylinder.u)))
+                .collect()
+        })
 }
 
 #[cfg(test)]

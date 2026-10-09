@@ -1,4 +1,6 @@
-//! What the ends of a circle's edge lie on besides the circle.
+//! What the ends of an edge lie on besides its curve: for a circle, read
+//! once for its sampling; for any curve, to tell a place grazing such a
+//! surface a step from an end.
 
 use glam::DVec3;
 
@@ -99,5 +101,39 @@ impl Ends {
             }
             Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_) => true,
         }
+    }
+}
+
+/// Whether a place of an edge stands within `room` of a surface one of its
+/// ends lies on and none of the curve's `own` surfaces is, `step` or less
+/// from that end.
+pub(super) fn grazed<'a>(
+    body: &'a Body,
+    edge: &'a Edge,
+    own: &[Surface],
+    step: f64,
+) -> impl Fn(DVec3, f64) -> bool + use<'a> {
+    let ends: Vec<(DVec3, Vec<Surface>)> = edge
+        .ends
+        .into_iter()
+        .flatten()
+        .map(|end| {
+            let vertex = body.vertex(end);
+            let surfaces = vertex
+                .on
+                .iter()
+                .map(|id| *body.surface(*id))
+                .filter(|surface| !own.contains(surface))
+                .collect();
+            (vertex.point, surfaces)
+        })
+        .collect();
+    move |point: DVec3, room: f64| {
+        ends.iter().any(|(end, surfaces)| {
+            (point - *end).length() <= step
+                && surfaces
+                    .iter()
+                    .any(|surface| surface.distance(point).abs() < room)
+        })
     }
 }

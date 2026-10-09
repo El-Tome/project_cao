@@ -7,6 +7,8 @@ mod crossing;
 mod cylinders;
 mod planar;
 mod revolved;
+#[cfg_attr(not(test), expect(dead_code))]
+mod sliced;
 
 use glam::DVec3;
 

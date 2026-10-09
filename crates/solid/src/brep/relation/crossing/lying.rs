@@ -11,8 +11,21 @@
 //! a line in the plane crosses the wall by the tolerance over the slope the
 //! wall meets the plane at — a hundred tolerances aside of the lines, two
 //! corners where there is one (5520135751).
+//!
+//! So too for a plane at a slant decided through a cone's apex (#552): it
+//! holds the two rulings it cuts, or touches the cone along one, and a rim
+//! of the cone crosses it where those rulings cross the rim's plane. Crossed
+//! on its own, a rim a third of a millimetre wide of the ruling a plane a
+//! hair past the apex was decided to touch along crosses the plane twice
+//! that far apart (5541100672).
+//!
+//! A line or a circle of a triple of two planes and a wall, where the line
+//! the planes share grazes the wall, is crossed as `grazed.rs` decides.
 
-use super::super::Relation;
+use glam::DVec3;
+
+use super::super::{Relation, at_a_slant};
+use super::grazed::grazed;
 use super::{Crossing, Crossings, Solved, Touches, crossings_given, line_and_plane};
 use crate::brep::curve::{Curve, Line};
 use crate::brep::scale::Scale;
@@ -44,8 +57,50 @@ pub fn crossings_lying(
     scale: Scale,
     touching: &Touches,
 ) -> Crossings {
-    through_lines(curve, lying, surface, scale)
-        .unwrap_or_else(|| crossings_given(curve, surface, scale, touching))
+    through_lines(curve, lying, surface, scale).unwrap_or_else(|| {
+        let found = crossings_given(curve, surface, scale, touching);
+        let (Some((planes, wall)), Crossings::At(list)) = (triple(lying, surface), &found) else {
+            return found;
+        };
+        match grazed(planes, wall, list, scale) {
+            Some(decided) => on_the_curve(curve, decided, scale),
+            None => found,
+        }
+    })
+}
+
+/// The two planes and the wall a curve lying on two surfaces makes a triple
+/// of with `surface`, where it is one.
+fn triple<'a>(lying: &[Lying<'a>], surface: &'a Surface) -> Option<([&'a Plane; 2], &'a Surface)> {
+    let [one, other] = lying else {
+        return None;
+    };
+    match (one.surface, other.surface, surface) {
+        (Surface::Plane(first), Surface::Plane(second), wall)
+        | (Surface::Plane(first), wall, Surface::Plane(second))
+        | (wall, Surface::Plane(first), Surface::Plane(second)) => {
+            (!matches!(wall, Surface::Plane(_))).then_some(([first, second], wall))
+        }
+        _ => None,
+    }
+}
+
+/// Points decided for a curve, as its crossings: each kept where it stands
+/// within the tolerance of the curve, sorted along it.
+fn on_the_curve(curve: &Curve, decided: Vec<(DVec3, bool)>, scale: Scale) -> Crossings {
+    let mut kept: Vec<Crossing> = decided
+        .into_iter()
+        .filter_map(|(point, tangent)| {
+            let parameter = curve.parameter(point);
+            (curve.point(parameter).distance(point) <= scale.eps()).then_some(Crossing {
+                parameter,
+                point,
+                tangent,
+            })
+        })
+        .collect();
+    kept.sort_by(|one, other| one.parameter.total_cmp(&other.parameter));
+    Crossings::At(kept)
 }
 
 /// Whether a plane read along a wall's axis, or a wall read parallel to
@@ -54,9 +109,13 @@ pub fn crossings_lying(
 /// and only then is a corner found off them. Along it, every curve finds the
 /// corner within rounding, and a corner moved by rounding may be parted
 /// from its twin where two planes cross at a grazing angle nearby
-/// (5523010597).
+/// (5523010597). A plane through a cone's apex leans off its rulings where
+/// it stands at a slant to it, and holds them where it holds the axis.
 pub(super) fn leans(one: &Surface, other: &Surface, scale: Scale) -> bool {
     let lean = match (one, other) {
+        (Surface::Plane(_), Surface::Cone(_)) | (Surface::Cone(_), Surface::Plane(_)) => {
+            return at_a_slant(one, other, scale);
+        }
         (Surface::Plane(plane), Surface::Cylinder(cylinder))
         | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
             plane.normal.dot(cylinder.axis).abs()
@@ -88,8 +147,8 @@ fn through_lines(
     }
     lying.iter().enumerate().find_map(|(index, one)| {
         let (lines, touch): (Vec<Line>, bool) = match &one.with {
-            Relation::Lines(lines) => (lines.to_vec(), false),
-            Relation::Tangent(line) => (vec![*line], true),
+            Relation::Lines(lines) | Relation::Rulings { lines, .. } => (lines.to_vec(), false),
+            Relation::Tangent(line) | Relation::Ruling { line, .. } => (vec![*line], true),
             _ => return None,
         };
         if !leans(one.surface, surface, scale) {

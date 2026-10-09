@@ -588,6 +588,69 @@ fn a_conic_turns_back_along_a_direction_where_its_closed_form_says() {
 }
 
 #[test]
+fn a_conic_crosses_a_plane_where_its_closed_form_says() {
+    let normals = [
+        DVec3::X,
+        DVec3::Y,
+        DVec3::Z,
+        DVec3::new(1.0, 2.0, -3.0).normalize(),
+    ];
+    for (conic, [from, to]) in stretches() {
+        for t in evenly(from, to, 7) {
+            let point = conic.point(t);
+            for normal in normals {
+                let speed = conic.derivative(t).normalize();
+                if speed.dot(normal).abs() < 1e-3 {
+                    continue;
+                }
+                let across = plane(point, normal);
+                let roots = conic.across(&across);
+                assert!(
+                    roots
+                        .iter()
+                        .any(|root| (root - t).abs() <= 1e-9 * (1.0 + t.abs())),
+                    "{conic:?} crosses {normal} through its point at {t}, not at {roots:?}"
+                );
+                for root in roots.iter().filter(|root| in_the_box(conic.point(**root))) {
+                    assert!(
+                        across.distance(conic.point(*root)).abs() <= held(),
+                        "{conic:?} at {root} stands off the plane it was said to cross"
+                    );
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_plane_a_few_tolerances_past_a_hairpin_s_vertex_crosses_it_twice_where_it_stands() {
+    let round = shaft(5.0);
+    let vertex = DVec3::new(6.0, -2.0, 3.0);
+    let lean = 1e-7;
+    let conic = Conic::cut(
+        &plane(vertex, leaning(DVec3::X, DVec3::Z, lean)),
+        &round,
+        scale(),
+    )[0];
+    for tolerances in [3.0, 30.0, 300.0] {
+        let past = conic.anchor.z + tolerances * scale().eps();
+        let floor = plane(DVec3::new(0.0, 0.0, past), DVec3::Z);
+        let roots = conic.across(&floor);
+        assert_eq!(roots.len(), 2, "{tolerances} tolerances past the vertex");
+        let half = (2.0 * 5.0 * lean * tolerances * scale().eps()).sqrt();
+        for root in roots {
+            let point = conic.point(root);
+            assert!(
+                (point.z - past).abs() <= held()
+                    && ((point.y - conic.anchor.y).abs() - half).abs() <= 1e-6 * half,
+                "{tolerances} tolerances past the vertex, crossed at {point} rather than {half} \
+                 either side of it"
+            );
+        }
+    }
+}
+
+#[test]
 fn a_conic_seen_on_its_wall_is_a_graph_over_the_wall_s_angle() {
     for (conic, [from, to]) in stretches() {
         let step = 1e-4 * (to - from);

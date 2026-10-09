@@ -285,6 +285,57 @@ impl Conic {
             .collect()
     }
 
+    /// The parameters where the curve crosses `plane` on its own arm, two
+    /// at most. In the half-angle `g` — `2 tan(√k τ/2)/√k` on an ellipse,
+    /// its hyperbolic tangent on a hyperbola, `τ` on a parabola — the
+    /// plane's distance times `1 + k g²/4` is the quadratic
+    /// `(a k/4 + c/2) g² + b g + a`, with `a`, `b` and `c` the distance of
+    /// the anchor, the rise of the tangent and of the bend. Solved in closed
+    /// form, so a plane a hair past a hairpin's vertex is crossed where it
+    /// stands, never by a seed's luck.
+    pub fn across(&self, plane: &Plane) -> Vec<f64> {
+        let a = plane.distance(self.anchor);
+        let b = plane.normal.dot(self.tangent);
+        let c = plane.normal.dot(self.bend);
+        let square = a * self.k / 4.0 + c / 2.0;
+        let halves = if square == 0.0 {
+            if b == 0.0 { Vec::new() } else { vec![-a / b] }
+        } else {
+            let discriminant = b * b - 4.0 * square * a;
+            if discriminant < 0.0 {
+                Vec::new()
+            } else {
+                let q = -(b + b.signum() * discriminant.sqrt()) / 2.0;
+                if q == 0.0 {
+                    vec![0.0]
+                } else {
+                    vec![q / square, a / q]
+                }
+            }
+        };
+        halves
+            .into_iter()
+            .filter_map(|half| self.unhalved(half))
+            .filter(|t| self.holds(self.point(*t)))
+            .collect()
+    }
+
+    /// The parameter whose half-angle is `half`, none where a hyperbola has
+    /// none.
+    fn unhalved(&self, half: f64) -> Option<f64> {
+        let z = self.k * half * half / 4.0;
+        let t = if z == 0.0 {
+            half
+        } else if z > 0.0 {
+            half * z.sqrt().atan() / z.sqrt()
+        } else if z > -1.0 {
+            half * (-z).sqrt().atanh() / (-z).sqrt()
+        } else {
+            return None;
+        };
+        t.is_finite().then_some(t)
+    }
+
     /// A box holding the curve from `from` to `to`: its ends and where each
     /// coordinate turns back, grown by rounding.
     pub fn bounds(&self, from: f64, to: f64) -> [DVec3; 2] {

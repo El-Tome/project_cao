@@ -12,9 +12,11 @@
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
 //! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
 //! square to it, is measured from the radii (`cut.rs`). A line or a circle
-//! against a cone is solved in `cone.rs`.
+//! against a cone is solved in `cone.rs`, and the conic a plane cuts a wall
+//! along at a slant through its triple's other pair in `conic.rs`.
 
 mod cone;
+mod conic;
 mod cut;
 mod scan;
 
@@ -45,7 +47,8 @@ pub enum Crossings {
     Along,
     /// A circle against a cylinder at a skew angle, or against a cone
     /// unless about an axis parallel to the cone's or in a plane holding
-    /// it; the curve two cylinders meet along against a cone; any conic.
+    /// it; the curve two cylinders meet along against a cone; a conic
+    /// against a surface its wall meets in a way the kernel does not build.
     Unsupported,
 }
 
@@ -96,7 +99,10 @@ pub fn crossings_given(
         (Curve::Circle(circle), Surface::Cone(cone)) => {
             cone::circle_and_cone(circle, cone, scale, touching)
         }
-        (Curve::Meet(_), Surface::Cone(_)) | (Curve::Conic(_), _) => Solved::Unsupported,
+        (Curve::Conic(conic), surface) => {
+            return conic::conic_and_surface(conic, surface, scale, touching);
+        }
+        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching, None)

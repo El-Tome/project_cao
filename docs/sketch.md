@@ -886,12 +886,15 @@ as far off the axis as along it.
 
 ### A point held keeps its place along what holds it
 
-A point held on a trait, a circle or an arc keeps its place along it while a
-gesture, a value typed or a rule laid moves what holds it: its share of the trait from the trait's start, its
-angle about the circle's centre, its share of the arc's sweep from the arc's
-start. At 70 of a trait it stays at 70 however the trait stretches; at 40° on a
-circle it stays at 40° wherever the circle goes; halfway round an arc it stays
-halfway round as the arc opens. The place is read as the gesture starts and put
+A point held on a trait, a circle, an arc or an ellipse keeps its place along
+it while a gesture, a value typed or a rule laid moves what holds it: its share
+of the trait from the trait's start, its angle about the circle's centre, its
+share of the arc's sweep from the arc's start, its share of what is drawn of an
+ellipse — or its turn round a whole one. At 70 of a trait it stays at 70
+however the trait stretches; at 40° on a circle it stays at 40° wherever the
+circle goes; halfway round an arc it stays halfway round as the arc opens. On
+half an ellipse, which holds it on the whole curve, it would otherwise slide
+round to the half that is not drawn as soon as the curve moved (#531). The place is read as the gesture starts and put
 back once the drawing has settled, so nothing is kept in the file for it.
 
 A point a value places along what holds it — a distance typed from the trait's
@@ -1096,6 +1099,7 @@ when none decides it.
 | Drag a side already selected | — | Not the order's to say: which gesture the press means is #442 | — |
 | Move a selection | A side of a rectangle whose sizes are typed, moved where they forbid | Nothing: the hand stops short | Same (#472); the right angles were left untrue, and every later drag refused |
 | Move what holds a point | A point held on a trait, a circle or an arc | It keeps its place along what holds it | Same (#446) |
+| Lay a rule | A point held on half an ellipse drawn by its ends, a rule elsewhere moving the curve | The point keeps its place on the half drawn | Same (#531); it slid round to the half not drawn, and seemed to come off the curve until touched again |
 | Type a value | A rectangle, its two bottom corners fixed, its width changed | One fixed corner, chosen as rank 4 says | Same (#453): the corner nearest the origin stays |
 | Type a value | A rectangle, three corners fixed, its width changed | The one fixed corner that can answer alone, its free neighbour following | Same (#453) |
 | Lay a rule | A fixed trait laid along a sketch axis | The trait comes onto the axis and stays fixed there | Same (#453); the rule was kept and left untrue |

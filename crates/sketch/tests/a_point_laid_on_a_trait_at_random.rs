@@ -29,11 +29,13 @@
 //! flaw.
 //!
 //! Seeds 400 to 5199, some 340 000 rules laid, still found three drawings.
-//! Two of them, 2792 and 3874, hold a point on half an ellipse: it is taken
-//! back onto the stretch drawn whenever the drawing settles, and the ellipse
-//! moves with it — #531, not this rule, which is why points held on a cut
-//! ellipse are left out of what is weighed. 2783, a single rule, is not
-//! understood yet.
+//! Two of them, 2792 and 3874, held a point on half an ellipse that was taken
+//! back onto the stretch drawn whenever the drawing settled — #531, which put
+//! them right, and points held on a cut ellipse are weighed like the rest
+//! since. 2783, a single rule, is not understood yet. Run again from 400 to
+//! 7955 once #531 had landed, some 530 000 rules, the campaign found 2783 and
+//! one more, 7430: the same flaw, the trait clicked first coming to the
+//! point, and found on `main` as well.
 //!
 //! Two kinds of drawing the generator makes are left out, since no rule can
 //! land on them: one holding a trait of no length — a rectangle of no width —
@@ -285,28 +287,17 @@ fn landed(
     if off > near {
         return Err(format!("the point stands {off} off the trait"));
     }
-    // A point held on half an ellipse is taken back onto the stretch drawn
-    // whenever the drawing settles, whatever moved: #531, and nothing of this
-    // rule's.
-    let on_an_ellipse = |id: PointId| {
-        after.holds_on(id).iter().any(|support| match support {
-            cao_sketch::Support::Ellipse(ellipse) => after.ellipse_ends(*ellipse).is_some(),
-            _ => false,
-        })
-    };
     let shape_moved = |shape: usize| {
         sketch
             .live_points()
-            .filter(|(id, _)| shapes[id.0] == shape && !on_an_ellipse(*id))
+            .filter(|(id, _)| shapes[id.0] == shape)
             .map(|(id, _)| moved(id))
             .fold(0.0, f64::max)
     };
-    if let Some((id, _)) = sketch.live_points().find(|(id, _)| {
-        shapes[id.0] != of_point
-            && shapes[id.0] != of_trait
-            && moved(*id) > still
-            && !on_an_ellipse(*id)
-    }) {
+    if let Some((id, _)) = sketch
+        .live_points()
+        .find(|(id, _)| shapes[id.0] != of_point && shapes[id.0] != of_trait && moved(*id) > still)
+    {
         return Err(format!("{id:?}, in a shape apart, moved by {}", moved(id)));
     }
     let Constraint::OnSegment { from, .. } = rule else {

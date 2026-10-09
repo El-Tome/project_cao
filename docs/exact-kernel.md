@@ -106,7 +106,18 @@ Known and still open:
   with a cone and a cone beside prisms, under one failure in a thousand
   random parts; `exact-kernel-failures.md` counts them by family;
 - a face bounded by the curve two perpendicular cylinders meet is never
-  decided clear of a face at a slant, so such a pair still declines.
+  decided clear of a face at a slant, so such a pair still declines;
+- the conics (#552): a plane within a few times the angle the kernel reads
+  as square or parallel of a wall's axis, and a plane or a conic a hair
+  from tangent, are built with no band, and decline or draw crossing about
+  ten times in a thousand random parts of the tilted draw off the lattice,
+  seven of them a plane a hair off square or parallel — the families
+  `exact-kernel-failures.md` counts, waiting on a band on conics. The
+  slanted and turned draws are under one in a thousand;
+- a face standing inside a cylinder's hollow is not decided clear of a
+  cylinder at a skew angle to it: a boss raised, or a hole cut, square to
+  the elliptic face a slanted cut leaves on a shaft declines, though the
+  tool never reaches the shaft's wall.
 
 ## Scope
 
@@ -120,7 +131,7 @@ Known and still open:
   its apex alone. Two cylinders at any other angle than parallel or square,
   a cone against a cylinder or a cone of another axis, and a cone within the
   tolerance of a plane or a cylinder of its axis all across the box are
-  declined where their faces cross: the operation gives no answer, which
+  declined where their faces may cross: the operation gives no answer, which
   the harness counts as such rather than as a wrong solid. Where the faces stand clear of each other — a
   bore square into one side of a hexagonal prism, beside the next side, or
   drilled right through it past the far side's slanted neighbours — the pair

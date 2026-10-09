@@ -5652,3 +5652,112 @@ fn seed_9501559_a_partial_turn_cut_along_a_frustum_s_ruling_past_its_tip_comes_b
         ))],
     ));
 }
+
+/// #552, the family most of the tilted campaign's failures fall in: a plane
+/// leaning 1e-7° off square to a shaft's axis at its very end, within four
+/// times the angle the kernel reads as square. It cuts the shaft along an
+/// ellipse within the tolerance of the end's rim all round, and the plane
+/// within the tolerance of the end across it, with no band laid between
+/// them: the faces either side are not parted alike.
+#[test]
+#[ignore = "kernel-declines, #552: a plane a hair off square or parallel to a wall's axis, the family the issue's second default names; it waits on a band on conics"]
+fn seed_9300728_a_shaft_cut_at_its_end_by_a_plane_a_hair_off_square_to_its_axis() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0).backwards(),
+            Section::bands(2.5, &[[2.5, 0.0, 3.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([2.0, -2.5, 2.0], [-89.9999999, 0.0, 0.0]),
+            Outline::rectangle([-4.0, -2.0], [4.0, 2.0]),
+            2.0,
+        ))],
+    ));
+}
+
+/// #552: a shaft cut by a plane at 45° through the point where its axis
+/// crosses that of a second shaft of the same radius, square to it, then
+/// joined to that shaft. The two meet along two ellipses, and one of them
+/// lies in the plane: the conic the plane cuts the first shaft along is
+/// that very curve, which crossing the second shaft finds lying along it.
+#[test]
+#[ignore = "kernel-declines, #552: a conic one with a component of the curve two perpendicular cylinders of one radius meet along is declined as unsupported; a conic is never read as one with a meet"]
+fn seed_9501873_a_plane_holding_the_ellipse_two_equal_shafts_meet_along() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::yz(210.0),
+            Axis::second(0.0),
+            Section::bands(120.0, &[[60.0, 0.0, 120.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([210.0, 0.0, 150.0], [-45.0, 0.0, 0.0]),
+                Outline::rectangle([-135.0, -135.0], [135.0, 135.0]),
+                135.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xz(165.0),
+                Outline::circle([210.0, 150.0], 120.0),
+                330.0,
+            )),
+        ],
+    ));
+}
+
+/// #552: a shaft cut by a plane leaning 15° about Z that touches the
+/// shaft's outermost ruling exactly where the next cut's floor passes:
+/// the ellipse is tangent to that floor's line there, and its crossing with
+/// the floor stands four microns from the floor's own corner, two corners
+/// the faces either side do not share.
+#[test]
+#[ignore = "kernel-declines, #552: a conic touching a third surface, its crossing found as a double root to the square root of rounding; no band is laid along a conic"]
+fn seed_9519300_a_slanted_cut_touching_a_shaft_s_ruling_at_the_next_cut_s_floor() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(0.0), Outline::circle([60.0, 180.0], 45.0), 150.0),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([105.0, -150.0, 225.0], [90.0, -15.0, 0.0]),
+                Outline::rectangle([-255.0, -105.0], [15.0, 30.0]),
+                75.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-30.0, -150.0, 180.0], [0.0, 0.0, 0.0]),
+                Outline::rectangle([-150.0, -120.0], [165.0, 105.0]),
+                120.0,
+            )),
+        ],
+    ));
+}
+
+/// #552: a quarter turn of a shaft and a frustum cut by a plane leaning
+/// atan ¼ about X, then by a block square to the axis: the block's side
+/// leaves an arc of no length between two corners a rounding apart, which
+/// the face's arcs cannot be ordered round.
+#[test]
+#[ignore = "kernel-declines, #552: two corners a rounding apart left unmerged by a cut along a conic, an arc of no length between them; declined as a tie"]
+fn seed_9507403_a_quarter_turn_cut_at_a_slant_then_square_leaves_an_arc_of_no_length() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(35.0),
+            Axis::second(-15.0).backwards(),
+            Section::bands(-15.0, &[[15.0, -2.5, 15.0], [20.0, -2.5, 15.0]])
+                .sloping_to(&[[-2.5, 15.0], [-7.5, 15.0]]),
+            90.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-15.0, 10.0, 35.0], [14.036243467926479, 0.0, 0.0]),
+                Outline::rectangle([-10.0, -35.0], [18.0, 13.0]),
+                -13.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::yz(-15.0),
+                Outline::rectangle([-23.0, 25.0], [18.0, 53.0]),
+                10.0,
+            )),
+        ],
+    ));
+}

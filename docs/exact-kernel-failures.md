@@ -1312,3 +1312,130 @@ face listed backwards 1. The seeds named in the rounds before and still
 failing, among them 5365104153 (a stepped post ending in a point joined to
 a sixth of a turn of a coaxial post), stay ignored with their reason in
 `what_the_exact_campaigns_found_in_the_kernel.rs` and `…_triangles.rs`.
+
+## #552: conics
+
+The review of #552 ran the tilted draw on fresh seeds at `62cd56b`, the
+branch as the lanes left it: 1 120 of 39 061 cases broke a rule, 28.7 in a
+thousand — 842 declines, 215 meshes left open, 59 crossing, 3 listings
+off, 1 volume. On the slanted draw, every failure the branch added to the
+base's was a seed the base declined as asking for a conic. The rounds below
+are measured with `triage_552`, a scratch twin of the campaigns that names
+the kernel's reason beside each failure, in release, the seeds of a draw
+dealt over every core; seeds the round named were shrunk by
+`the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`.
+
+### What the review's round fixed
+
+- **A corner of one arm on the other** (9312094, 51 of the first 153
+  failures over seeds 9300000–9304999): a plane a hair off parallel to a
+  shaft's axis cuts an ellipse whose far vertices stand a billion reaches
+  away, built as two arms. Read through one arm's parameter, a point of the
+  other came back a whole sweep away, within the tolerance by rounding, and
+  the wall held the same stretch twice. A point across an arm's plane of
+  symmetry is on neither (`Conic::holds`, `Conic::distance`).
+- **A ray at an end's own angle** (9312005): an arm all but along the
+  rulings turns by a hair across the box, and a sample read back off the
+  angle of its end landed beyond it; such a ray stands at the end.
+- **A conic and its neighbours on other angles** (9314220, 9512340,
+  9311810): a conic halved between its wall's rays, beside a circle, a meet
+  or another conic of the same axis sampled on other angles, had chords
+  crossing theirs where they touch or meet at a sharp rim, and a face was
+  left uncut. Every sample of a conic is a ray of every wall about its
+  axis. These took the meshes left open from 31 to 2 in the first 5 000
+  tilted seeds.
+- **A line past a cone's apex** (9304992, 9302688, 9303477, 9301298): a
+  plane at a cone's slope through its apex touches it along a ruling a
+  turned section's flat face holds, and the line the plane cuts that face
+  along runs on past the apex over the other nappe. It was read as lying on
+  the cone there: a corner on a surface apart from the cone was refused on
+  it, an arc past the apex was laid on the cone's face, and a corner past
+  it took the cone among its surfaces. A cone a place stands off the own
+  nappe of is left out of what that place lies on. A first cut of this left
+  a corner's support growing for ever on seven seeds in 20 000; the
+  support now takes, and asks for, the surfaces the corner stands on
+  (9501559).
+
+### The count
+
+At `a74a27b`, 20 000 seeds a draw from 9500000, on the exact kernel; the
+base `9e54a71` over the same seeds for the draws it has:
+
+| draw | broke a rule | per thousand | base broke a rule | base declined as asking for a conic |
+| --- | --- | --- | --- | --- |
+| tilted, off the lattice | 204 | 10.2 | — | — |
+| tilted, on the lattice | 71 | 3.55 | — | — |
+| slanted, off the lattice | 13 | 0.65 | 10 | 5 692 |
+| slanted, on the lattice | 15 | 0.75 | 10 | 5 009 |
+| turned, off the lattice | 14 | 0.70 | 6 | 2 263 |
+
+Through the application's body, 10 000 seeds from 9600000: tilted off the
+lattice 115 (11.5 in a thousand), on it 33 (3.3); no mesh is left open
+there — a face the triangles cannot cover is declined as undrawn — and 20
+and 5 cases draw crossing triangles.
+
+**No seed that held on the base fails.** On the slanted and turned draws,
+every seed failing on the branch and not on the base was declined on the
+base as asking for a conic: 3 slanted off the lattice, 5 on it, 8 turned —
+the family the issue's first default names, *asked for a conic before,
+built now, wrong*, counted in the table. Of those 16, 13 are declines, 2
+list a vertex off its face, 1 draws crossing.
+
+**Bit for bit.** The fingerprints of every body and its triangles over
+seeds 0..1000 of the square, profile, turned and slanted draws, on and off
+the lattice, are those of `9e54a71` up to the first step the base
+declined; #498's eighteen cases are identical.
+
+**The gate.** `cargo test --workspace`, warm, three runs each: 33.0 to
+33.4 s on `9e54a71`, 34.7 to 34.8 s at `a74a27b` (the issue's fourth
+default allows three seconds).
+
+**The judge** (the issue's third default): read only where the leaves'
+boxes meet, the cases asking beyond the conics over seeds 0..1000 go from
+115 to 82 turned off the lattice, 389 to 360 slanted off it, 227 to 210
+tilted and 282 to 244 tilted off it (`c2c47f3`).
+
+### What is left, by family
+
+The slanted and turned draws are under one failure in a thousand. The
+tilted ones are not, and the bar is not met there. Every failure of the
+tilted draws but four carries a hair, by design of the draw:
+
+| family | off the lattice | on the lattice |
+| --- | --- | --- |
+| a plane within 1e-7° of square or parallel to a wall's axis | 148 | 3 |
+| a plane or a wall a hair from tangent, by an offset (`nudge`) | 22 | 45 |
+| a plane 2e-7° to 1e-3° off, drawn or computed from a nudged place | 33 | 19 |
+| no hair | 1 | 4 |
+
+- **A plane a hair off square or parallel to a wall's axis**, 7.4 in a
+  thousand alone off the lattice: within four times the angle the kernel
+  reads as square or parallel (5e-10 rad, 2.9e-8°), the conic stands within
+  the tolerance of the rim or of the rulings, and the plane within it of the
+  wall or of the end, across the box. No band is laid along a conic (the
+  issue's second default), and these are declined as unverified or as a
+  tie, or drawn crossing. Named by 9300728 (a shaft cut at its end by a
+  plane 1e-7° off square) and 9412210 (half a shaft leaning 1e-7° joined to
+  a rounded block, the review's crossing reproducer), both ignored. This
+  family alone keeps the tilted draw above the bar: by the second default
+  it ships named, and waits on a band on conics, an issue of its own.
+- **A hair from tangent by an offset** — a hole's wall a hair from a
+  block's side, a plane a hair from a shaft's ruling, a conic a hair from a
+  rim — the tangency band's family of #528 and #533, now met at a slant.
+  The same second default.
+- **Without a hair.** Off the lattice, one: a tube cut by a shaft square
+  to it and by a block, with no conic at all, listed with a loop
+  backwards — on the base too (9505549). On the lattice, three, each a
+  coincidence of the lattice: a plane holding one of the two ellipses two
+  perpendicular shafts of one radius meet along (9501873: a conic is never
+  read as one with a meet, declined as unsupported); a slanted cut touching
+  a shaft's outermost ruling exactly at the next cut's floor (9519300); two
+  corners a rounding apart leaving an arc of no length (9507403); the
+  fourth the table counts there, 9503428, has a hair of 1e-8 in its plane's
+  place the reading missed. And from the first 5 000 seeds: an ellipse
+  touching a shaft's far rim at its vertex, the sliver between the chord
+  rounding leaves and the rim one unit in the last place wide (9304992).
+  The four of #552 are ignored with their reason.
+
+The review's reproducers: 9400405, 9300117 and 9300193 hold; 9412210 is
+the crossing above.

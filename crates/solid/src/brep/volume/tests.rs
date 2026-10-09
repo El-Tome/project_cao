@@ -5,6 +5,8 @@ use glam::{DVec2, DVec3};
 use super::*;
 use crate::profile::{Contour, Frame};
 
+mod conic;
+
 fn ground() -> Frame {
     Frame {
         origin: DVec3::ZERO,

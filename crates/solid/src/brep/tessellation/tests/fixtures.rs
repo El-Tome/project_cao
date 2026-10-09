@@ -50,7 +50,7 @@ impl Build {
         }
     }
 
-    fn surface(&mut self, surface: Surface) -> SurfaceId {
+    pub(crate) fn surface(&mut self, surface: Surface) -> SurfaceId {
         self.body.surfaces.push(surface);
         SurfaceId(self.body.surfaces.len() as u32 - 1)
     }
@@ -74,7 +74,13 @@ impl Build {
         VertexId(self.body.vertices.len() as u32 - 1)
     }
 
-    fn edge(&mut self, curve: Curve, ends: Option<[VertexId; 2]>, from: f64, to: f64) -> EdgeId {
+    pub(crate) fn edge(
+        &mut self,
+        curve: Curve,
+        ends: Option<[VertexId; 2]>,
+        from: f64,
+        to: f64,
+    ) -> EdgeId {
         self.body.curves.push(curve);
         let curve = CurveId(self.body.curves.len() as u32 - 1);
         self.body.edges.push(Edge {

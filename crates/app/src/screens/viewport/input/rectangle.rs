@@ -35,6 +35,7 @@ pub(crate) fn two_click_shape(
     // Nothing forces the user to place those points first.
     let corner = point_ref_at(context, index, start, snap);
     let opposite = point_ref_at(context, index, cursor, snap);
+    let opened = context.document.history.mark();
     context.document.apply(Operation::AddRectangle {
         sketch: index,
         corner,
@@ -42,6 +43,7 @@ pub(crate) fn two_click_shape(
         construction: context.editor.construction,
     });
     dimension_the_rectangle(context, index, pixel);
+    context.document.history.fold_into_one_gesture(opened);
     context.editor.live.clear();
     true
 }
@@ -95,3 +97,6 @@ fn dimension_the_rectangle(context: &mut SketchContext<'_>, index: usize, pixel:
     };
     lay_values(context, index, wanted, typed, pixel);
 }
+
+#[cfg(test)]
+mod tests;

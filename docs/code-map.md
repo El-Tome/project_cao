@@ -472,9 +472,6 @@ lives.
   - `crates/app/src/screens/viewport/navigation.rs`, which came out of it and
     carries the same glue: a gesture read off `egui` and handed to the camera;
   - `crates/app/src/screens/viewport/input/mod.rs`;
-  - `crates/app/src/screens/viewport/input/arcs.rs`;
-  - `crates/app/src/screens/viewport/input/circles.rs`;
-  - `crates/app/src/screens/viewport/input/rectangle.rs`;
   - `crates/app/src/screens/viewport/input/resizing.rs`;
   - `crates/app/src/screens/viewport/input/symmetric_line.rs`;
   - `crates/app/src/screens/settings/`;

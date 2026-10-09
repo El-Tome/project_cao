@@ -4,6 +4,8 @@ use glam::DVec2;
 
 use crate::constraints::{Constraint, Dimension, DimensionTarget};
 use crate::erased::Erased;
+use crate::holding::Support;
+use crate::laid_from::LaidFrom;
 use crate::sketch::{Element, PointId, SegmentId, Sketch};
 use crate::trimming::carrying::{Carried, Piece, gone, still_holds, still_measured, targets};
 
@@ -73,8 +75,7 @@ impl Sketch {
     }
 
     fn is_held_on(&self, point: PointId, segment: SegmentId) -> bool {
-        self.constraints()
-            .contains(&Constraint::OnSegment { point, segment })
+        self.holds_on(point).contains(&Support::Segment(segment))
     }
 
     /// Takes the stretch between `from` and `to` out of a trait, and leaves
@@ -158,6 +159,7 @@ impl Sketch {
                 self.add_constraint(Constraint::OnSegment {
                     point: *point,
                     segment,
+                    from: LaidFrom::Nowhere,
                 });
             }
         }
@@ -248,12 +250,15 @@ impl Sketch {
     ) -> bool {
         pieces.iter().any(|piece| {
             let moved = match rule {
-                Constraint::OnSegment { point, segment } if segment == cut => {
-                    Some(Constraint::OnSegment {
-                        point,
-                        segment: piece.id,
-                    })
-                }
+                Constraint::OnSegment {
+                    point,
+                    segment,
+                    from,
+                } if segment == cut => Some(Constraint::OnSegment {
+                    point,
+                    segment: piece.id,
+                    from,
+                }),
                 other => still_holds(other, cut, piece, place),
             };
             moved.is_some_and(|moved| self.carries(moved))

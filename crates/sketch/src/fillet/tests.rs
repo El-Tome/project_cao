@@ -105,7 +105,7 @@ fn a_fillet_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
         .constraints()
         .iter()
         .filter(|rule| {
-            matches!(rule, Constraint::OnSegment { point, segment }
+            matches!(rule, Constraint::OnSegment { point, segment, .. }
                 if *point == pivot && rounded.pieces.contains(segment))
         })
         .count();

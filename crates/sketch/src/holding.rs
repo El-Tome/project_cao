@@ -7,9 +7,10 @@ use glam::DVec2;
 use serde::{Deserialize, Serialize};
 
 use crate::arc::ArcId;
-use crate::constraints::{Constraint, SketchAxis};
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::edges::off_by;
 use crate::ellipse::EllipseId;
+use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId, Sketch};
 use crate::snap::onto_rim;
 
@@ -28,7 +29,11 @@ impl Support {
     /// The rule that holds a point on it.
     pub fn holding(self, point: PointId) -> Constraint {
         match self {
-            Self::Segment(segment) => Constraint::OnSegment { point, segment },
+            Self::Segment(segment) => Constraint::OnSegment {
+                point,
+                segment,
+                from: LaidFrom::Nowhere,
+            },
             Self::Circle(circle) => Constraint::OnCircle { point, circle },
             Self::Arc(arc) => Constraint::OnArc { point, arc },
             Self::Ellipse(ellipse) => Constraint::OnEllipse { point, ellipse },
@@ -39,7 +44,7 @@ impl Support {
     /// The point a rule holds, when it is one of these.
     pub fn held_by(constraint: Constraint) -> Option<(PointId, Self)> {
         match constraint {
-            Constraint::OnSegment { point, segment } => Some((point, Self::Segment(segment))),
+            Constraint::OnSegment { point, segment, .. } => Some((point, Self::Segment(segment))),
             Constraint::OnCircle { point, circle } => Some((point, Self::Circle(circle))),
             Constraint::OnArc { point, arc } => Some((point, Self::Arc(arc))),
             Constraint::OnEllipse { point, ellipse } => Some((point, Self::Ellipse(ellipse))),
@@ -205,11 +210,36 @@ impl Sketch {
         }
     }
 
+    /// Whether a point belongs to nothing: no trait or curve is drawn from it,
+    /// and no rule or value speaks of it — a point laid down on its own.
+    pub(crate) fn stands_alone(&self, point: PointId) -> bool {
+        let measured = |target: DimensionTarget| match target {
+            DimensionTarget::Distance { from, to }
+            | DimensionTarget::Projected { from, to, .. } => from == point || to == point,
+            DimensionTarget::PointToSegment { point: held, .. } => held == point,
+            _ => false,
+        };
+        if self.dimensions().iter().any(|value| measured(value.target)) {
+            return false;
+        }
+        let names = |rule: &Constraint| match *rule {
+            Constraint::Midpoint { point: held, .. }
+            | Constraint::Fixed {
+                element: Element::Point(held),
+            } => held == point,
+            Constraint::Tangent { at, .. }
+            | Constraint::ArcTangent { at, .. }
+            | Constraint::EllipseTangent { at, .. } => at == Some(point),
+            rule => Support::held_by(rule).is_some_and(|(held, _)| held == point),
+        };
+        !self.anything_stands_on(point) && !self.constraints().iter().any(names)
+    }
+
     /// Whether a rule holding a point still speaks of what the drawing has.
     pub(crate) fn hold_holds_up(&self, constraint: Constraint) -> bool {
         let drawn = |id: PointId| id.0 < self.points().len() && !self.is_erased_point(id);
         match constraint {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 drawn(point)
                     && segment.0 < self.segments().len()
                     && !self.is_erased_segment(segment)

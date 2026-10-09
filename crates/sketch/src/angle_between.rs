@@ -7,7 +7,8 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, Toward};
+use crate::constraints::{DimensionTarget, Toward};
+use crate::holding::Support;
 use crate::sketch::{SegmentId, Sketch};
 
 /// Below this the two traits run the same way and never meet, as a fraction of
@@ -103,12 +104,9 @@ impl Sketch {
     /// a T, laid there on purpose.
     fn has_its_foot_held_on(&self, stem: SegmentId, bar: SegmentId) -> bool {
         let drawn = self.segments()[stem.0];
-        [drawn.start, drawn.end].into_iter().any(|point| {
-            self.constraints().contains(&Constraint::OnSegment {
-                point,
-                segment: bar,
-            })
-        })
+        [drawn.start, drawn.end]
+            .into_iter()
+            .any(|point| self.holds_on(point).contains(&Support::Segment(bar)))
     }
 
     /// One arm of an angle: a trait's own direction, run the way asked.
@@ -217,12 +215,7 @@ impl Sketch {
     /// what a solver leaves: a hair from an end is that end.
     fn only_arm(&self, segment: SegmentId, other: SegmentId, fraction: f64) -> Option<Toward> {
         let drawn = self.segments().get(segment.0)?;
-        let held = |point| {
-            self.constraints().contains(&Constraint::OnSegment {
-                point,
-                segment: other,
-            })
-        };
+        let held = |point| self.holds_on(point).contains(&Support::Segment(other));
         match () {
             _ if held(drawn.start) || fraction.abs() <= AT_AN_END => Some(Toward::End),
             _ if held(drawn.end) || (fraction - 1.0).abs() <= AT_AN_END => Some(Toward::Start),

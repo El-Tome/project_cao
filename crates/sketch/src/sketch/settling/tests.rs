@@ -82,6 +82,7 @@ use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::element::Element;
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -856,6 +857,7 @@ fn a_point_held_on_a_trait_leaves_the_far_end_whichever_way_the_trait_was_drawn(
         sketch.add_constraint(Constraint::OnSegment {
             point: held,
             segment: side,
+            from: LaidFrom::Nowhere,
         });
 
         sketch.settle_around(near, DVec2::new(100.0, 30.0), 1.0);
@@ -1175,6 +1177,7 @@ fn a_rectangle_with_a_square_trait() -> (Sketch, PointId, PointId) {
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
     let tip = sketch.add_point(DVec2::new(90.0, 110.0));
     let square = sketch.add_segment(foot, tip);

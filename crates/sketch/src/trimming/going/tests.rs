@@ -35,6 +35,7 @@ use super::*;
 use crate::arc::ArcId;
 use crate::arcing::sweep_of;
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{PointId, SegmentId, Sketch};
 
@@ -114,6 +115,7 @@ fn a_rule_the_cut_would_take_with_it_is_named() {
     let held = Constraint::OnSegment {
         point: middle,
         segment,
+        from: LaidFrom::Nowhere,
     };
     sketch.add_constraint(held);
 

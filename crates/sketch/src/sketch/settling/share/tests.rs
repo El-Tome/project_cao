@@ -43,6 +43,7 @@
 use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::resizing::Curved;
 use crate::sketch::{PointId, SegmentId, Sketch};
@@ -96,6 +97,7 @@ fn a_trait() -> (Sketch, [PointId; 2], SegmentId, PointId) {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: line,
+        from: LaidFrom::Nowhere,
     });
     (sketch, [start, end], line, held)
 }
@@ -214,6 +216,7 @@ fn a_point_on_a_trait_keeps_its_share_when_the_trait_is_pulled_across() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
 
     sketch.move_side(sides[3], DVec2::new(-30.0, 0.0), 1.0);
@@ -233,6 +236,7 @@ fn a_point_on_a_side_keeps_its_share_when_its_rectangle_stretches_or_turns() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: sides[1],
+        from: LaidFrom::Nowhere,
     });
 
     sketch.settle_around(c, DVec2::new(140.0, 90.0), 1.0);
@@ -401,6 +405,7 @@ fn a_point_on_a_trait_off_a_circle_keeps_its_share_when_the_circle_is_drawn_to_a
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: line,
+        from: LaidFrom::Nowhere,
     });
 
     sketch.resize(Curved::Circle(circle), 45.0, 1.0);
@@ -432,6 +437,7 @@ fn a_point_a_trait_leaves_square_from_keeps_its_share_of_the_side() {
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
     let tip = sketch.add_point(DVec2::new(90.0, 110.0));
     let square = sketch.add_segment(foot, tip);
@@ -542,6 +548,7 @@ fn two_held_points_a_rule_ties_do_not_cost_a_third_its_place() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment: sides[2],
+        from: LaidFrom::Nowhere,
     });
     let loose = sketch.add_point(DVec2::new(90.0, 100.0));
     sketch.add_segment(held, loose);
@@ -549,6 +556,7 @@ fn two_held_points_a_rule_ties_do_not_cost_a_third_its_place() {
     sketch.add_constraint(Constraint::OnSegment {
         point: bottom,
         segment: sides[0],
+        from: LaidFrom::Nowhere,
     });
     let from = sketch.add_point(DVec2::new(0.0, -10.0));
     let to = sketch.add_point(DVec2::new(140.0, -10.0));
@@ -557,6 +565,7 @@ fn two_held_points_a_rule_ties_do_not_cost_a_third_its_place() {
     sketch.add_constraint(Constraint::OnSegment {
         point: under,
         segment: rail,
+        from: LaidFrom::Nowhere,
     });
     let rib = sketch.add_segment(bottom, under);
     sketch.add_constraint(Constraint::AxisParallel {

@@ -33,6 +33,7 @@
 use super::*;
 
 use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{Element, SegmentId};
 
@@ -503,10 +504,12 @@ fn a_leaning_square_does_not_borrow_a_way_up_from_a_level_trait_tied_to_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: s_point,
         segment: sides[1],
+        from: LaidFrom::Nowhere,
     });
     sketch.add_constraint(Constraint::OnSegment {
         point: t_point,
         segment: sides[3],
+        from: LaidFrom::Nowhere,
     });
     sketch.set_dimension(DimensionTarget::Length(chord), 62.5, false);
     sketch.solve(SCALE);

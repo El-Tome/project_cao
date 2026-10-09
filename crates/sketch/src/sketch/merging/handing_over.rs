@@ -7,9 +7,14 @@ use crate::sketch::{Element, PointId};
 /// that a kind added later is not forgotten here.
 pub(super) fn handed_over(rule: Constraint, one: impl Fn(PointId) -> PointId) -> Constraint {
     match rule {
-        Constraint::OnSegment { point, segment } => Constraint::OnSegment {
+        Constraint::OnSegment {
+            point,
+            segment,
+            from,
+        } => Constraint::OnSegment {
             point: one(point),
             segment,
+            from,
         },
         Constraint::OnCircle { point, circle } => Constraint::OnCircle {
             point: one(point),

@@ -196,6 +196,11 @@ pub enum Constraint {
     OnSegment {
         point: PointId,
         segment: SegmentId,
+        /// Which of the two was clicked first, and so stays where it is — for
+        /// a point that belongs to something. A free point, or one born on the
+        /// trait, comes onto it whichever was clicked first, and keeps none.
+        #[serde(default)]
+        from: LaidFrom,
     },
     /// Two traits lying on one and the same line.
     Collinear {

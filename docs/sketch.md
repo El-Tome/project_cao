@@ -1050,10 +1050,18 @@ From what never gives to what gives first:
 A rule laid, or an angle typed, between two things the order ranks alike leaves
 **the first one clicked** where it is and brings the second to it — the
 length of a trait for **Equal**, the direction of a trait for a square, a
-parallel or an angle, a circle's place and size for a tangency. A point is the
-exception: it comes onto the trait or the curve it is laid on whichever was
-clicked first. The order decides before the clicks do: where holding the first
-leaves the rule no way to hold — the second is fixed — the first gives.
+parallel or an angle, a circle's place and size for a tangency. A free point
+— one that belongs to nothing — is the exception: it comes onto the trait or
+the curve it is laid on whichever was clicked first. A point that belongs to
+something follows the clicks like the rest (#548): with « Coïncidence », the
+point clicked first stays and the trait comes to it, turning about one of its
+ends when sliding it across would squeeze its own shape; the trait clicked
+first stays and the point comes onto it, an arc a point was placed on
+reshaping to bring it, an arc whose centre it is travelling whole with it.
+Only the second one moves, with what it belongs to: nothing else in the
+drawing does. The order decides before the clicks do: where holding the first
+leaves the rule no way to hold — the second is fixed — the first gives, and
+where neither can come the rule is refused.
 
 The first one clicked is held only while the rule lands. Afterwards the two are
 as free as the rule leaves them: a length typed later on the second of two
@@ -1105,7 +1113,13 @@ when none decides it.
 | Type a value | A length on the second of two traits made equal | Both take it | Same since #451; it was refused, Equal only ever moving the second |
 | Drag a point | An end of the second of two traits made equal | It follows the hand, and the first trait stretches with it | Same since #451; the end stopped short, Equal only ever moving the second |
 | Cut a corner | A chamfer or a fillet on a corner carrying an angle | The angle, read between the stretches, still turns the trait it was typed from | Same (#451) |
-| Lay a rule | A point on a trait | The point comes onto the trait | Same |
+| Lay a rule | A free point on a trait | The point comes onto the trait, whichever was clicked first | Same |
+| Lay a rule | « Coïncidence », a trait clicked first, then a point placed on an arc the trait does not reach | The arc reshapes to bring the point onto the trait; the trait stays | Same (#548); the rule was refused |
+| Lay a rule | The same, the point clicked first | The trait comes to the point; the arc stays | Same (#548); the rule was refused |
+| Lay a rule | « Coïncidence », a trait clicked first, then the centre of an arc | The arc travels whole with its centre onto the trait | Same (#548); the arc opened by 118° and the trait moved |
+| Lay a rule | « Coïncidence », a trait clicked first, then an end of an arc | The end comes onto the trait and the arc reshapes; the trait stays | Same (#548); the trait moved too |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed trait | The fixed trait cannot come: the point comes onto it instead | Same (#548) |
+| Lay a rule | « Coïncidence », the end of a free trait and another free trait, either clicked first | The first stays; only the second moves, with what it belongs to | Same (#548); both traits travelled several squares and turned |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
 | Lay a rule | « Coïncidence », a free corner clicked first, then a point held on an arc | The corner stays and keeps the point's rule; the arc moves to pass through it | Same (#539); the point went, its rule stayed on it, and the corner never came onto the curve |
 | Lay a rule | « Concentrique », a free circle clicked first, then a circle sharing its centre with an arc | The circle and the arc travel together onto the first circle's centre, each keeping its size, opening and way round | Same (#539); the arc stayed round a centre that no longer existed |

@@ -7,7 +7,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::constraints::{DimensionTarget, SketchAxis};
 use crate::dimensioning::axis_under;
 use crate::sketch::{PointId, SegmentId, Sketch};
 use crate::trimming::ON_THE_TRAIT;
@@ -270,8 +270,8 @@ pub(crate) fn no_distance_to(
     let place = sketch.point(point);
     let along = (place - start).dot(span) / reach;
     let held = sketch
-        .constraints()
-        .contains(&Constraint::OnSegment { point, segment });
+        .holds_on(point)
+        .contains(&crate::holding::Support::Segment(segment));
     if !held && place.distance(start + span * along) > ON_THE_TRAIT {
         return None;
     }

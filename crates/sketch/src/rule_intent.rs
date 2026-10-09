@@ -61,9 +61,9 @@ pub enum RuleIntent {
 ///
 /// The order of the clicks is kept where the rule has two things alike to it:
 /// the one clicked first stays where it is while the rule lands, and the other
-/// comes to it. A point and a trait make the same coincidence whichever comes
-/// first — the point comes onto the trait — so that one is built from the
-/// kinds gathered rather than from their order.
+/// comes to it. A point that belongs to something and a trait keep it too. A
+/// free point and a trait make the same coincidence whichever comes first —
+/// the point comes onto the trait — and keep none (#548).
 pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<RuleIntent> {
     let segments: Vec<SegmentId> = picks
         .iter()
@@ -199,6 +199,11 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             ([point], [segment]) => constrain(Constraint::OnSegment {
                 point: *point,
                 segment: *segment,
+                from: match (sketch.stands_alone(*point), picks.first()) {
+                    (true, _) => LaidFrom::Nowhere,
+                    (false, Some(RulePick::Element(Element::Segment(_)))) => LaidFrom::Trait,
+                    (false, _) => LaidFrom::Point,
+                },
             }),
             // Two points asked to coincide are one point: the origin is never
             // the one that gives way.

@@ -1710,6 +1710,15 @@ fn the_draws_before_cones_still_give_each_seed_its_case() {
 }
 
 #[test]
+fn the_draws_before_conics_still_give_each_seed_its_case() {
+    assert_eq!(fingerprint(Case::drawn_slanted), 0x2254_c920_5d6b_d63a);
+    assert_eq!(
+        fingerprint(Case::drawn_slanted_off_the_lattice),
+        0x1c0c_4b23_deb0_6a25
+    );
+}
+
+#[test]
 fn the_same_seed_draws_the_same_slanted_case_and_not_one_of_the_other_draws() {
     for seed in 0..200 {
         assert_eq!(

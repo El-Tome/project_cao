@@ -1,6 +1,8 @@
-//! A point held on a trait, a circle or an arc keeps its place along what
-//! holds it while a gesture moves that: its share of the trait, its angle about
-//! the circle's centre, its share of the arc's sweep.
+//! A point held on a trait, a circle, an arc or an ellipse keeps its place
+//! along what holds it while a gesture moves that: its share of the trait, its
+//! angle about the circle's centre, its share of the arc's sweep, its share of
+//! what is drawn of the ellipse. Held on the whole curve, it would otherwise
+//! slide off what is drawn as soon as the curve moved (#531).
 //!
 //! Read when the gesture starts and put back once the drawing has settled, so
 //! nothing new is kept in the file: a replay reads the same drawing and puts
@@ -11,6 +13,7 @@ use glam::DVec2;
 use super::kept::Kept;
 use crate::arc::ArcId;
 use crate::constraints::Constraint;
+use crate::ellipse::EllipseId;
 use crate::equation::Equation;
 use crate::independence::turns_nothing;
 use crate::length::LengthOutcome;
@@ -31,14 +34,18 @@ enum Along {
     Circle(CircleId, f64),
     /// Its share of the arc's sweep, counted from the arc's start.
     Arc(ArcId, f64),
+    /// Its share of what is drawn of the ellipse, counted from where the
+    /// stretch starts — or, on a whole ellipse, its turn round it from the end
+    /// of the first axis.
+    Ellipse(EllipseId, f64),
 }
 
 impl Sketch {
-    /// Where each point held on a trait, a circle or an arc stands along it,
-    /// read before a gesture moves anything. Not the points in `except`, which
-    /// the gesture holds itself, nor one held on two things at once, nor one a
-    /// value or another rule places along what holds it: sliding it there
-    /// would break that rule, and the rule wins.
+    /// Where each point held on a trait, a circle, an arc or an ellipse stands
+    /// along it, read before a gesture moves anything. Not the points in
+    /// `except`, which the gesture holds itself, nor one held on two things at
+    /// once, nor one a value or another rule places along what holds it:
+    /// sliding it there would break that rule, and the rule wins.
     ///
     /// A rule tying the point to something free to follow does not place it:
     /// a trait standing square on it slides along with it. One tying it only
@@ -142,8 +149,8 @@ impl Sketch {
     }
 
     /// Settles the drawing after a value or a rule changed, each point held on
-    /// a trait, a circle or an arc kept at its place along it, as a gesture
-    /// does. Read once the change is made, so that a value placing the point
+    /// a trait, a circle, an arc or an ellipse kept at its place along it, as
+    /// a gesture does. Read once the change is made, so that a value placing the point
     /// along what holds it is the value's.
     pub fn resolve_keeping_places(&mut self, millimeters_per_unit: f64) -> LengthOutcome {
         let shares = self.shares(&[], millimeters_per_unit);
@@ -154,7 +161,7 @@ impl Sketch {
         outcome
     }
 
-    /// The points that say where a trait, a circle or an arc stands.
+    /// The points that say where a trait, a circle, an arc or an ellipse stands.
     fn defining(&self, along: Along) -> Vec<PointId> {
         match along {
             Along::Trait(segment, _) => {
@@ -166,6 +173,7 @@ impl Sketch {
                 let curve = self.arc(arc);
                 vec![curve.center, curve.start, curve.end]
             }
+            Along::Ellipse(ellipse, _) => self.ellipse_stands_on(ellipse),
         }
     }
 
@@ -203,11 +211,29 @@ impl Sketch {
                 };
                 (sweep > 1e-9).then(|| (point, Along::Arc(arc, round / sweep), way))
             }
+            Constraint::OnEllipse { point, ellipse } => {
+                let drawn = self.ellipse_draft(ellipse);
+                let turn = drawn.turn_on(self.point(point));
+                let way = (drawn.second_axis() * turn.cos() - drawn.first * turn.sin())
+                    .try_normalize()?;
+                if self.ellipse_ends(ellipse).is_none() {
+                    return Some((point, Along::Ellipse(ellipse, turn), way));
+                }
+                let (from, sweep) = self.ellipse_run(ellipse);
+                let tau = std::f64::consts::TAU;
+                let round = (turn - from).rem_euclid(tau);
+                // As on an arc: past the start, it counts back from it.
+                let round = match round > sweep && tau - round < round - sweep {
+                    true => round - tau,
+                    false => round,
+                };
+                (sweep > 1e-9).then(|| (point, Along::Ellipse(ellipse, round / sweep), way))
+            }
             _ => None,
         }
     }
 
-    /// Where a place along a trait, a circle or an arc stands in the drawing
+    /// Where a place along a trait, a circle, an arc or an ellipse stands in the drawing
     /// as it is now.
     fn place_of(&self, along: Along) -> Option<DVec2> {
         match along {
@@ -224,6 +250,16 @@ impl Sketch {
                 let out = drawn.start - drawn.centre;
                 let turn = share * self.arc_sweep(arc);
                 Some(drawn.centre + DVec2::from_angle(turn).rotate(out))
+            }
+            Along::Ellipse(ellipse, share) => {
+                let drawn = self.ellipse_draft(ellipse);
+                match self.ellipse_ends(ellipse) {
+                    None => Some(drawn.at(share)),
+                    Some(_) => {
+                        let (from, sweep) = self.ellipse_run(ellipse);
+                        Some(drawn.at(from + share * sweep))
+                    }
+                }
             }
         }
     }

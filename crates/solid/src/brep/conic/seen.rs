@@ -113,11 +113,6 @@ impl Conic {
         (t, point)
     }
 
-    /// The wall's angle a stretch turns through, signed as it goes.
-    pub fn swept(&self, from: f64, to: f64) -> f64 {
-        self.on_wall(to)[0].x - self.on_wall(from)[0].x
-    }
-
     /// How far a stretch stands from its wall's axis at most: a cylinder's
     /// radius; on a cone, at an end, or at the far vertex of an ellipse where
     /// the stretch passes it, `|C|/|D|`, `D` least there.

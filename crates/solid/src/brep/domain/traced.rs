@@ -245,7 +245,13 @@ fn beside(
         Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
     };
     let middle = curve.point((from + to) / 2.0);
-    let off = |conic: &Conic, at: f64| conic.point(at).distance(middle);
+    let off = |conic: &Conic, at: f64| {
+        if conic.holds(middle) {
+            conic.point(at).distance(middle)
+        } else {
+            f64::INFINITY
+        }
+    };
     let (conic, at) = conics
         .into_iter()
         .map(|conic| (conic, conic.parameter(middle)))

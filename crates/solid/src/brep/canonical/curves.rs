@@ -211,7 +211,7 @@ pub(in crate::brep) fn distance(curve: &Curve, point: DVec3) -> f64 {
         Curve::Line(line) => line_distance(line, point),
         Curve::Circle(circle) => circle_distance(circle, point),
         Curve::Meet(meet) => meet_distance(meet, point),
-        Curve::Conic(conic) => conic.point(conic.parameter(point)).distance(point),
+        Curve::Conic(conic) => conic.distance(point),
     }
 }
 

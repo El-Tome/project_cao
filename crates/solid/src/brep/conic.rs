@@ -170,6 +170,36 @@ impl Conic {
         }
     }
 
+    /// Whether `point` stands on the conic's own stretch of the cut:
+    /// anywhere for a whole curve; for an arm, on the side of the plane of
+    /// symmetry its wall's angle from the angle of the plane's normal gives
+    /// it.
+    pub fn holds(&self, point: DVec3) -> bool {
+        let Arm::Split { side } = self.arm else {
+            return true;
+        };
+        let (origin, u, v) = match self.round {
+            Round::Cylinder(cylinder) => (cylinder.origin, cylinder.u, cylinder.v),
+            Round::Cone(cone) => (cone.origin, cone.u, cone.v),
+        };
+        let from = point - origin;
+        let normal = self.plane.normal;
+        let turned = from.dot(v).atan2(from.dot(u)) - normal.dot(v).atan2(normal.dot(u));
+        let psi = turned - TAU * (turned / TAU).round();
+        f64::from(side) * psi > 0.0
+    }
+
+    /// How far `point` stands from the curve: from its foot, on the arm's
+    /// own side of the plane of symmetry. A point across it stands by the
+    /// other arm, which one parameter reaches only a whole sweep of the
+    /// ellipse away, to rounding over that length: it is on neither.
+    pub fn distance(&self, point: DVec3) -> f64 {
+        if !self.holds(point) {
+            return f64::INFINITY;
+        }
+        self.point(self.parameter(point)).distance(point)
+    }
+
     /// Where Newton starts: on a cylinder, the eccentric angle; on a cone, the
     /// nearer of the parameter the point's place along the tangent and the
     /// bend gives, and of its place along the tangent alone, which is all

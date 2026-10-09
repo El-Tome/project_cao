@@ -14,14 +14,10 @@
 //! on its arm's side of the plane of symmetry when it is an arm. Where `Q`
 //! and `S` meet in a way the kernel does not build, so does the conic.
 
-use std::f64::consts::TAU;
-
-use glam::DVec3;
-
 use super::super::planar::planes;
 use super::super::{Relation, relation};
 use super::{Crossing, Crossings, Touches, crossings_given};
-use crate::brep::conic::{Arm, Conic, Round};
+use crate::brep::conic::{Conic, Round};
 use crate::brep::curve::Curve;
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -41,7 +37,16 @@ pub(super) fn conic_and_surface(
         Surface::Plane(plane) => match planes(&conic.plane, plane, scale) {
             Relation::Same { .. } => return Crossings::Along,
             Relation::Line(line) => (vec![Curve::Line(line)], wall, false),
-            _ => (Vec::new(), wall, false),
+            Relation::Apart => (Vec::new(), wall, false),
+            Relation::Apex(_)
+            | Relation::Lines(_)
+            | Relation::Tangent(_)
+            | Relation::Circle(_)
+            | Relation::Meet(_)
+            | Relation::Rulings { .. }
+            | Relation::Conic(_)
+            | Relation::Ruling { .. }
+            | Relation::Unsupported => return Crossings::Unsupported,
         },
         Surface::Cylinder(_) | Surface::Cone(_) => match relation(&wall, surface, scale) {
             Relation::Same { .. } => return Crossings::Along,
@@ -74,7 +79,7 @@ pub(super) fn conic_and_surface(
         for crossing in found {
             let point = crossing.point;
             let parameter = conic.parameter(point);
-            if holds(conic, point) && conic.point(parameter).distance(point) <= scale.eps() {
+            if conic.holds(point) && conic.point(parameter).distance(point) <= scale.eps() {
                 kept.push(Crossing {
                     parameter,
                     point,
@@ -85,22 +90,4 @@ pub(super) fn conic_and_surface(
     }
     kept.sort_by(|one, other| one.parameter.total_cmp(&other.parameter));
     Crossings::At(kept)
-}
-
-/// Whether `point` stands on the conic's own stretch of the cut: anywhere
-/// for a whole curve; for an arm, on the side of the plane of symmetry its
-/// wall's angle from the angle of the plane's normal gives it.
-fn holds(conic: &Conic, point: DVec3) -> bool {
-    let Arm::Split { side } = conic.arm else {
-        return true;
-    };
-    let (origin, u, v) = match conic.round {
-        Round::Cylinder(cylinder) => (cylinder.origin, cylinder.u, cylinder.v),
-        Round::Cone(cone) => (cone.origin, cone.u, cone.v),
-    };
-    let from = point - origin;
-    let normal = conic.plane.normal;
-    let turned = from.dot(v).atan2(from.dot(u)) - normal.dot(v).atan2(normal.dot(u));
-    let psi = turned - TAU * (turned / TAU).round();
-    f64::from(side) * psi > 0.0
 }

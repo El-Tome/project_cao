@@ -222,3 +222,44 @@ fn an_ellipse_arc_is_parted_from_its_chord_where_it_parts_most() {
         "{found} measured, {most} at most"
     );
 }
+
+/// A plane a hair off parallel to a shaft's axis cuts it along an ellipse
+/// whose far vertices stand a billion reaches away, built as two arms. Read
+/// through one arm's parameter, a point of the other comes back a whole
+/// sweep of the ellipse away, where rounding over that length can land it
+/// within the tolerance of the point: a corner of one arm was then cut onto
+/// the other too, and the shaft's wall held the same stretch twice
+/// (9312094).
+#[test]
+fn a_corner_of_one_arm_of_a_split_ellipse_does_not_lie_on_the_other() {
+    let wall = shaft(DVec3::new(0.0, 0.0, -2.0), 7.0);
+    let mut checked = 0;
+    for lean in [1.5e-8_f64, 4e-8, 1e-7, 3e-7] {
+        for offset in [-3.0, -1.0, 0.5, 4.0, 6.0] {
+            let plane = Plane::through(
+                DVec3::new(0.0, offset, 0.0),
+                DVec3::new(0.0, 1.0, 0.0) * lean.cos() + DVec3::Z * lean.sin(),
+            )
+            .0;
+            let arms = Conic::cut(&plane, &wall, scale());
+            let [one, other] = arms[..] else {
+                panic!("two arms of {plane:?}: {arms:?}");
+            };
+            for height in [-8.0, -3.0, 0.0, 2.5, 4.0, 9.0] {
+                let mine = one.point(height);
+                assert!(
+                    distance(&Curve::Conic(one), mine) <= scale().eps(),
+                    "a point of an arm lies on it"
+                );
+                let across = distance(&Curve::Conic(other), mine);
+                assert!(
+                    across > scale().eps(),
+                    "{lean} off parallel, {offset} from the axis: a point of one arm stands \
+                     {across} from the other"
+                );
+                checked += 1;
+            }
+        }
+    }
+    assert_eq!(checked, 120);
+}

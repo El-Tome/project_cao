@@ -323,7 +323,11 @@ fn a_circle_dragged_by_its_centre_is_carried_at_its_size() {
     let centre = sketch.add_point(DVec2::new(40.0, 40.0));
     let circle = sketch.add_circle(centre, 15.0);
     let rim = sketch.add_point(DVec2::new(55.0, 40.0));
-    sketch.add_constraint(Constraint::OnCircle { point: rim, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: rim,
+        circle,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(centre, DVec2::new(70.0, 20.0), 1.0);
 
@@ -1148,7 +1152,11 @@ fn a_rectangle_whose_far_corner_sits_on_a_circle_still_follows_the_hand() {
     let (mut sketch, [a, b, c, _], _) = upright();
     let centre = sketch.add_point(DVec2::new(160.0, 100.0));
     let circle = sketch.add_circle(centre, 50.0);
-    sketch.add_constraint(Constraint::OnCircle { point: c, circle });
+    sketch.add_constraint(Constraint::OnCircle {
+        point: c,
+        circle,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.settle_around(a, DVec2::new(5.0, 45.0), 1.0);
 

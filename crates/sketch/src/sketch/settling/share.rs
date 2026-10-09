@@ -189,12 +189,12 @@ impl Sketch {
                     .is_finite()
                     .then(|| (point, Along::Trait(segment, share), span.normalize()))
             }
-            Constraint::OnCircle { point, circle } => {
+            Constraint::OnCircle { point, circle, .. } => {
                 let out = self.point(point) - self.point(self.circle(circle).center);
                 let way = out.try_normalize()?.perp();
                 Some((point, Along::Circle(circle, out.to_angle()), way))
             }
-            Constraint::OnArc { point, arc } => {
+            Constraint::OnArc { point, arc, .. } => {
                 let drawn = self.arc_draft(arc);
                 let out = self.point(point) - drawn.centre;
                 let way = out.try_normalize()?.perp();
@@ -211,7 +211,7 @@ impl Sketch {
                 };
                 (sweep > 1e-9).then(|| (point, Along::Arc(arc, round / sweep), way))
             }
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 let drawn = self.ellipse_draft(ellipse);
                 let turn = drawn.turn_on(self.point(point));
                 let way = (drawn.second_axis() * turn.cos() - drawn.first * turn.sin())

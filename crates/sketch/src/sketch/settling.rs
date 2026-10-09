@@ -11,12 +11,14 @@ mod kept;
 mod landing;
 mod nearest;
 mod onto_axis;
+mod point_on_curve;
 mod point_on_trait;
 mod pull;
 mod shape;
 mod share;
 
 pub(crate) use kept::Kept;
+pub use point_on_curve::CLEAR_OF_AN_END;
 pub use pull::PointPull;
 
 /// What the user is holding while a drag lasts: points the solver reads as

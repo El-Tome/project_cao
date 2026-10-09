@@ -61,9 +61,9 @@ pub enum RuleIntent {
 ///
 /// The order of the clicks is kept where the rule has two things alike to it:
 /// the one clicked first stays where it is while the rule lands, and the other
-/// comes to it. A point that belongs to something and a trait keep it too. A
-/// free point and a trait make the same coincidence whichever comes first —
-/// the point comes onto the trait — and keep none (#548).
+/// comes to it. A point that belongs to something keeps it too, against a trait
+/// or a curve. A free point makes the same coincidence whichever comes first —
+/// the point comes onto the trait or the curve (#548, #554).
 pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<RuleIntent> {
     let segments: Vec<SegmentId> = picks
         .iter()
@@ -195,27 +195,57 @@ pub fn rule_intent(rule: Rule, picks: &[RulePick], sketch: &Sketch) -> Option<Ru
             [RulePick::Element(element)] => constrain(Constraint::Fixed { element: *element }),
             _ => None,
         },
-        Rule::Coincident => match (points.as_slice(), segments.as_slice()) {
-            ([point], [segment]) => constrain(Constraint::OnSegment {
-                point: *point,
-                segment: *segment,
-                from: match (sketch.stands_alone(*point), picks.first()) {
-                    (true, _) => LaidFrom::Nowhere,
-                    (false, Some(RulePick::Element(Element::Segment(_)))) => LaidFrom::Trait,
-                    (false, _) => LaidFrom::Point,
-                },
-            }),
-            // Two points asked to coincide are one point: the origin is never
-            // the one that gives way.
-            ([first, second], []) => {
-                let (kept, dropped) = match sketch.is_origin(*second) {
-                    true => (*second, *first),
-                    false => (*first, *second),
+        Rule::Coincident => {
+            // A free point comes onto what it is laid on whichever was
+            // clicked first: a trait keeps no order for it, and a curve takes
+            // it as clicked second, which is what lands it on what is drawn.
+            let point_first = matches!(picks.first(), Some(RulePick::Element(Element::Point(_))));
+            let from =
+                |point: PointId, laid_on: LaidFrom| match (sketch.stands_alone(point), point_first)
+                {
+                    (true, _) if laid_on == LaidFrom::Trait => LaidFrom::Nowhere,
+                    (true, _) | (false, false) => laid_on,
+                    (false, true) => LaidFrom::Point,
                 };
-                Some(RuleIntent::Merge { kept, dropped })
+            match (
+                points.as_slice(),
+                segments.as_slice(),
+                circles.as_slice(),
+                arcs.as_slice(),
+                ellipses.as_slice(),
+            ) {
+                ([point], [segment], [], [], []) => constrain(Constraint::OnSegment {
+                    point: *point,
+                    segment: *segment,
+                    from: from(*point, LaidFrom::Trait),
+                }),
+                ([point], [], [circle], [], []) => constrain(Constraint::OnCircle {
+                    point: *point,
+                    circle: *circle,
+                    from: from(*point, LaidFrom::Curve),
+                }),
+                ([point], [], [], [arc], []) => constrain(Constraint::OnArc {
+                    point: *point,
+                    arc: *arc,
+                    from: from(*point, LaidFrom::Curve),
+                }),
+                ([point], [], [], [], [ellipse]) => constrain(Constraint::OnEllipse {
+                    point: *point,
+                    ellipse: *ellipse,
+                    from: from(*point, LaidFrom::Curve),
+                }),
+                // Two points asked to coincide are one point: the origin is
+                // never the one that gives way.
+                ([first, second], [], [], [], []) => {
+                    let (kept, dropped) = match sketch.is_origin(*second) {
+                        true => (*second, *first),
+                        false => (*first, *second),
+                    };
+                    Some(RuleIntent::Merge { kept, dropped })
+                }
+                _ => None,
             }
-            _ => None,
-        },
+        }
         Rule::Concentric => match circles.as_slice() {
             [first, second] => {
                 let (kept, dropped) = (sketch.circle(*first).center, sketch.circle(*second).center);

@@ -580,7 +580,11 @@ fn an_arc_tied_to_a_held_point_is_not_turned_back_off_the_rule_that_ties_it() {
     let corner = sketch.add_point(DVec2::new(40.0, 0.0));
     let top = sketch.add_point(DVec2::new(40.0, 10.0));
     sketch.add_segment(corner, top);
-    sketch.add_constraint(Constraint::OnArc { point: corner, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point: corner,
+        arc,
+        from: LaidFrom::Nowhere,
+    });
 
     let landed = sketch.settle_held(vec![corner], Vec::new(), SCALE);
 

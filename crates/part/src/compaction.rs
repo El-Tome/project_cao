@@ -15,7 +15,7 @@ use cao_sketch::{ArcId, Area, CircleId, Constraint, PointId, Segment, SegmentId,
 
 use crate::history::{History, Operation, PointRef, RevolutionAxis};
 use crate::state::PartState;
-use remap::{SketchIdMap, remap_area, remap_constraint, remap_target};
+use remap::{SketchIdMap, remap_area, remap_constraint, remap_target, without_order};
 use variables::{Renumbered, compact_variables};
 
 mod ellipses;
@@ -257,6 +257,7 @@ fn compact_sketch(
                 Constraint::OnCircle {
                     point,
                     circle: held,
+                    ..
                 } if *held == old_id => Some(*point),
                 _ => None,
             })
@@ -333,7 +334,7 @@ fn compact_sketch(
     ellipses::cut_ellipses(old_sketch, sketch_index, &mut map, new_history, new_state);
 
     for constraint in old_sketch.constraints() {
-        if let Constraint::OnCircle { point, circle } = constraint
+        if let Constraint::OnCircle { point, circle, .. } = constraint
             && bundled_rim_points.contains(&(*point, *circle))
         {
             continue;
@@ -341,7 +342,7 @@ fn compact_sketch(
         record(
             Operation::Constrain {
                 sketch: sketch_index,
-                constraint: remap_constraint(*constraint, &map),
+                constraint: remap_constraint(without_order(*constraint), &map),
             },
             new_history,
             new_state,

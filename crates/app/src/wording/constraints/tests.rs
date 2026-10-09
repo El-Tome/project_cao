@@ -68,6 +68,7 @@ fn named_rules() -> [(Constraint, &'static str); 14] {
             Constraint::OnCircle {
                 point: PointId(1),
                 circle: CircleId(0),
+                from: LaidFrom::Nowhere,
             },
             "Coïncidence",
         ),

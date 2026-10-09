@@ -129,6 +129,7 @@ fn a_circle_carrying_one_point_is_taken_away_whole_and_the_point_stays() {
     sketch.add_constraint(Constraint::OnCircle {
         point: handle,
         circle,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
 
     assert!(
@@ -293,6 +294,7 @@ fn a_round_holding_a_point(degrees: f64) -> (Sketch, CircleId, [PointId; 2], Poi
     sketch.add_constraint(Constraint::OnCircle {
         point: held,
         circle,
+        from: cao_sketch::LaidFrom::Nowhere,
     });
     (sketch, circle, ends, held)
 }
@@ -308,9 +310,11 @@ fn a_point_held_on_a_circle_goes_on_being_held_by_the_arc_it_sits_on() {
         .expect("an arc of the circle stayed");
 
     assert!(
-        sketch
-            .constraints()
-            .contains(&Constraint::OnArc { point: held, arc }),
+        sketch.constraints().contains(&Constraint::OnArc {
+            point: held,
+            arc,
+            from: cao_sketch::LaidFrom::Nowhere
+        }),
         "the point stands on the stretch that stayed, so the arc holds it: {:?}",
         sketch.constraints(),
     );

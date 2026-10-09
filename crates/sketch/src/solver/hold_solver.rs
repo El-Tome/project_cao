@@ -25,9 +25,11 @@ impl Sketch {
             Constraint::OnSegment { point, segment, .. } => {
                 into.extend(self.on_line_equation(point, segment, 0.0))
             }
-            Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
-            Constraint::OnArc { point, arc } => into.extend(self.on_arc_equation(point, arc)),
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnCircle { point, circle, .. } => {
+                into.extend(self.rim_equation(point, circle))
+            }
+            Constraint::OnArc { point, arc, .. } => into.extend(self.on_arc_equation(point, arc)),
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 into.extend(self.on_ellipse_equation(point, ellipse))
             }
             Constraint::OnAxis { point, axis } => into.extend(self.on_axis_equation(point, axis)),

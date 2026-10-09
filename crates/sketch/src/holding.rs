@@ -34,9 +34,21 @@ impl Support {
                 segment,
                 from: LaidFrom::Nowhere,
             },
-            Self::Circle(circle) => Constraint::OnCircle { point, circle },
-            Self::Arc(arc) => Constraint::OnArc { point, arc },
-            Self::Ellipse(ellipse) => Constraint::OnEllipse { point, ellipse },
+            Self::Circle(circle) => Constraint::OnCircle {
+                point,
+                circle,
+                from: LaidFrom::Nowhere,
+            },
+            Self::Arc(arc) => Constraint::OnArc {
+                point,
+                arc,
+                from: LaidFrom::Nowhere,
+            },
+            Self::Ellipse(ellipse) => Constraint::OnEllipse {
+                point,
+                ellipse,
+                from: LaidFrom::Nowhere,
+            },
             Self::Axis(axis) => Constraint::OnAxis { point, axis },
         }
     }
@@ -45,9 +57,9 @@ impl Support {
     pub fn held_by(constraint: Constraint) -> Option<(PointId, Self)> {
         match constraint {
             Constraint::OnSegment { point, segment, .. } => Some((point, Self::Segment(segment))),
-            Constraint::OnCircle { point, circle } => Some((point, Self::Circle(circle))),
-            Constraint::OnArc { point, arc } => Some((point, Self::Arc(arc))),
-            Constraint::OnEllipse { point, ellipse } => Some((point, Self::Ellipse(ellipse))),
+            Constraint::OnCircle { point, circle, .. } => Some((point, Self::Circle(circle))),
+            Constraint::OnArc { point, arc, .. } => Some((point, Self::Arc(arc))),
+            Constraint::OnEllipse { point, ellipse, .. } => Some((point, Self::Ellipse(ellipse))),
             Constraint::OnAxis { point, axis } => Some((point, Self::Axis(axis))),
             _ => None,
         }
@@ -244,13 +256,13 @@ impl Sketch {
                     && segment.0 < self.segments().len()
                     && !self.is_erased_segment(segment)
             }
-            Constraint::OnCircle { point, circle } => {
+            Constraint::OnCircle { point, circle, .. } => {
                 drawn(point) && circle.0 < self.circles().len() && !self.is_erased_circle(circle)
             }
-            Constraint::OnArc { point, arc } => {
+            Constraint::OnArc { point, arc, .. } => {
                 drawn(point) && arc.0 < self.arcs().len() && !self.is_erased_arc(arc)
             }
-            Constraint::OnEllipse { point, ellipse } => {
+            Constraint::OnEllipse { point, ellipse, .. } => {
                 drawn(point)
                     && ellipse.0 < self.ellipses().len()
                     && !self.is_erased_ellipse(ellipse)

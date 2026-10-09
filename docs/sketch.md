@@ -501,16 +501,17 @@ The **Contraintes** menu, in the Dessin row, offers nine:
 | **Perpendicular** | Two traits | They stay square |
 | **Parallel** | Two traits | They keep the same direction |
 | **Equal** | Two traits, or two circles | The second takes the size of the first |
-| **Coincident** | A point and a trait, or two points | The point stays on the line; two points become one; a point laid on a circle stays on its rim |
+| **Coincident** | A point and a trait, a point and a curve, or two points | The point stays on the line, or on the curve — an arc on its whole circle; two points become one |
 | **Collinear** | Two traits, or a trait and an axis of the frame | They rest on the same line |
 | **Tangent** | A circle and a trait | The trait grazes the circle, and the contact point is placed |
 | **Midpoint** | A point and a trait | The point stays halfway along |
 | **Fixed** | Anything: a point, a trait, a circle | It no longer moves from its place (its size is not fixed for all that) |
 | **Concentric** | Two circles | They share one single centre |
 
-The order of the clicks is free: a point and a trait make the same coincidence
-either way round. What counts is **what** was clicked, so the rule is built
-from the types gathered and not from their order.
+The order of the clicks does not change the rule: a point and a trait make the
+same coincidence either way round. What counts is **what** was clicked, so the
+rule is built from the types gathered. The order says only which of the two
+stays while it lands — "What gives way first" has it.
 
 Between the first click and the last, **what the rule has already been shown is
 drawn in a colour of its own**, set in the appearance settings like the rest.
@@ -1066,6 +1067,23 @@ drawing does. The order decides before the clicks do: where holding the first
 leaves the rule no way to hold — the second is fixed — the first gives, and
 where neither can come the rule is refused.
 
+A point and an arc, a circle or an ellipse land the same way (#554). The point
+clicked first stays, and the curve comes to it whole, keeping its size and the
+way it is turned, until it passes through the point. When the point then falls
+beyond what is drawn — of an arc, or of half an ellipse a cut left — the curve
+lengthens a little past it, its opening growing and its radius kept; a circle
+only moves. A fillet lengthens too, the trait it is tangent to turning with its
+end. Half an ellipse drawn by its ends ends on its own axis, which no end can
+slide off without turning the curve: it does not lengthen, and moves until what
+is drawn reaches the point — as does an arc whose shape cannot follow it
+lengthening. When the curve alone would bend what it is joined to, its whole
+shape comes with it. The curve clicked first stays, and the
+point comes onto what is drawn of it, at the nearest place, its shape
+following. Either way the point stands a little inside the end — five degrees
+round the curve — never on top of it nor made one with it, so as never to read
+as a corner it is not. Where the point lands is all that is new: the curve
+still holds it on the whole of itself afterwards, an arc on its whole circle.
+
 The first one clicked is held only while the rule lands. Afterwards the two are
 as free as the rule leaves them: a length typed later on the second of two
 equal traits changes both, rather than being refused. The rule keeps the order
@@ -1124,6 +1142,14 @@ when none decides it.
 | Lay a rule | « Coïncidence », a trait clicked first, then an end of an arc | The end comes onto the trait and the arc reshapes; the trait stays | Same (#548); the trait moved too |
 | Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed trait | The fixed trait cannot come: the point comes onto it instead | Same (#548) |
 | Lay a rule | « Coïncidence », the end of a free trait and another free trait, either clicked first | The first stays; only the second moves, with what it belongs to | Same (#548); both traits travelled several squares and turned |
+| Lay a rule | « Coïncidence », a free point and an arc, a circle or an ellipse, either clicked first | The point comes onto what is drawn of the curve; the curve stays | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then an arc it does not reach | The arc comes whole, its radius kept, until its circle passes through the point, and lengthens a little past it when the point falls beyond its ends; the trait stays | Same (#554); the rule was refused |
+| Lay a rule | The same with a circle | The circle comes whole, its radius kept | Same (#554); the rule was refused |
+| Lay a rule | The same with half an ellipse a cut left | It comes whole, its axes kept, and lengthens a little past the point | Same (#554); the rule was refused |
+| Lay a rule | The same with half an ellipse drawn by its ends | It comes whole until what is drawn reaches the point, a little inside its end; it does not lengthen | Same (#554); the rule was refused |
+| Lay a rule | The same with the fillet of two free traits | It comes whole and lengthens, the trait it is tangent to turning with its end | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », an arc or half an ellipse clicked first, then the end of a trait | The point comes onto what is drawn, at the nearest place — a little short of an end when the nearest place on the whole curve is past it; the curve stays | Same (#554); the rule was refused |
+| Lay a rule | « Coïncidence », the end of a trait clicked first, then a fixed curve | The curve cannot come: the point comes onto it | Same (#554); the rule was refused |
 | Lay a rule | A point at the middle of a trait | The point comes to the middle; the trait stays | Same (#479); the trait moved a third of the way to the point |
 | Lay a rule | « Coïncidence », a free corner clicked first, then a point held on an arc | The corner stays and keeps the point's rule; the arc moves to pass through it | Same (#539); the point went, its rule stayed on it, and the corner never came onto the curve |
 | Lay a rule | « Concentrique », a free circle clicked first, then a circle sharing its centre with an arc | The circle and the arc travel together onto the first circle's centre, each keeping its size, opening and way round | Same (#539); the arc stayed round a centre that no longer existed |

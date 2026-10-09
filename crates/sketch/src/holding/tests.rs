@@ -15,7 +15,11 @@ fn a_point_held_on_an_arc_keeps_its_reach_when_the_arc_grows() {
     let end = sketch.add_point(DVec2::new(20.0, 40.0));
     let arc = sketch.add_arc(centre, start, end);
     let point = sketch.add_point(DVec2::new(20.0, 30.0) + DVec2::splat(10.0 / 2.0_f64.sqrt()));
-    sketch.add_constraint(Constraint::OnArc { point, arc });
+    sketch.add_constraint(Constraint::OnArc {
+        point,
+        arc,
+        from: LaidFrom::Nowhere,
+    });
 
     sketch.set_dimension(DimensionTarget::ArcRadius(arc), 20.0, false);
     sketch.resolve(1.0);
@@ -206,6 +210,7 @@ fn a_point_held_on_a_circle_slides_round_its_rim() {
     sketch.add_constraint(Constraint::OnCircle {
         point,
         circle: round,
+        from: LaidFrom::Nowhere,
     });
 
     let slid = sketch.slide(point, DVec2::new(20.0, 45.0));

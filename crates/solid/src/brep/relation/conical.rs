@@ -1,7 +1,10 @@
 //! How a cone meets another surface (#536). A surface of its axis — a plane
 //! square to it, a cylinder or a cone about it — is decided as two lines of
-//! the meridian half-plane (`revolved.rs`). Anything else is unsupported,
-//! which declines a boolean unless the two faces stand clear of each other.
+//! the meridian half-plane (`revolved.rs`), a plane holding its axis as the
+//! two rulings it cuts, and any other plane as the conic it cuts or the
+//! rulings through the apex (#552, `sliced.rs`). A cylinder or a cone off its
+//! axis is unsupported, which declines a boolean unless the two faces stand
+//! clear of each other.
 
 use glam::DVec3;
 
@@ -61,7 +64,8 @@ fn coaxial(cone: &Cone, origin: DVec3, axis: DVec3, scale: Scale) -> bool {
 }
 
 /// Square to the axis, the circle at the plane's height, from the formula a
-/// cylinder of the axis reads it with.
+/// cylinder of the axis reads it with; holding it, its two rulings; at a
+/// slant, what `sliced.rs` decides.
 fn with_plane(cone: &Cone, plane: &Plane, scale: Scale) -> Relation {
     if parallel(plane.normal, cone.axis, scale) {
         let height = (plane.offset() - plane.normal.dot(cone.origin)) / plane.normal.dot(cone.axis);
@@ -70,7 +74,7 @@ fn with_plane(cone: &Cone, plane: &Plane, scale: Scale) -> Relation {
     if square(plane.normal, cone.axis, scale) && plane.distance(cone.origin).abs() <= scale.eps() {
         return rulings(cone, plane, scale);
     }
-    Relation::Unsupported
+    super::sliced::plane_and_cone(cone, plane, scale)
 }
 
 /// Holding the axis, the two rulings of the cone in the plane, each built

@@ -134,8 +134,22 @@ fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
 /// The square raised 10 into a block, then a circle on a plane tilted 30°
 /// about X standing over the block's top: raised down its normal, the
 /// cylinder meets that top along an ellipse the exact kernel does not draw.
-fn a_block_under_a_slanted_circle() -> PartDocument {
-    let mut document = a_part_with_a_square();
+/// A post Ø8 raised 10 about the origin, and over it a circle on a plane
+/// tilted 30° about X: raised down, its wall crosses the post's at a skew
+/// angle, which the exact kernel does not build.
+fn a_post_under_a_slanted_circle() -> PartDocument {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 4.0,
+        rim: Vec::new(),
+        construction: false,
+    });
     document.apply(Operation::Extrude {
         sketch: 0,
         areas: document.areas_at(0, &[DVec2::ZERO]),
@@ -164,7 +178,7 @@ fn a_block_under_a_slanted_circle() -> PartDocument {
 #[test]
 fn an_extrusion_the_kernel_declines_says_so_rather_than_that_it_made_nothing() {
     let lang = Catalogue::french();
-    let mut document = a_block_under_a_slanted_circle();
+    let mut document = a_post_under_a_slanted_circle();
     let mut extrusion = ExtrusionState::default();
     extrusion.offer(1);
     extrusion.picks = vec![DVec2::ZERO];

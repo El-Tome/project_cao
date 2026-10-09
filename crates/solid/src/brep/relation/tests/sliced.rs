@@ -1,38 +1,28 @@
 //! A plane at a slant to a cylinder or a cone (#552), decided as the kernel
-//! will decide it once `planar.rs` and `conical.rs` ask `sliced.rs` for the
-//! pairs `at_a_slant` picks out: a conic, the rulings through the apex, the
-//! ruling of touch, the apex alone, or nothing.
+//! decides it, `planar.rs` and `conical.rs` asking `sliced.rs` for the pairs
+//! `at_a_slant` picks out: a conic, the rulings through the apex, the ruling
+//! of touch, the apex alone, or nothing.
 
 use glam::DVec2;
 
-use super::super::sliced;
 use super::*;
 use crate::brep::canonical::distance;
 use crate::brep::conic::{Arm, Conic};
 use crate::brep::surface::Cone;
 
-/// The relation of two surfaces, a pair at a slant decided by `sliced.rs`,
-/// any other as today; the same whichever came first.
+/// The relation of two surfaces, the same whichever came first, and for a
+/// pair at a slant what `sliced.rs` alone decides.
 fn decided(one: &Surface, other: &Surface) -> Relation {
-    let both = [(one, other), (other, one)].map(|(one, other)| {
-        if !at_a_slant(one, other, scale()) {
-            return relation(one, other, scale());
-        }
-        match (one, other) {
-            (Surface::Plane(plane), Surface::Cylinder(cylinder))
-            | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
-                sliced::plane_and_cylinder(plane, cylinder, scale())
-            }
-            (Surface::Plane(plane), Surface::Cone(cone))
-            | (Surface::Cone(cone), Surface::Plane(plane)) => {
-                sliced::plane_and_cone(cone, plane, scale())
-            }
-            _ => unreachable!("only a plane and a wall are at a slant"),
-        }
-    });
-    let [first, second] = both;
-    assert_eq!(first, second, "{one:?} and {other:?} in either order");
-    first
+    let found = relation(one, other, scale());
+    assert_eq!(
+        relation(other, one, scale()),
+        found,
+        "{one:?} and {other:?} in either order"
+    );
+    if at_a_slant(one, other, scale()) {
+        assert_eq!(found, sliced_alone(one, other), "{one:?} and {other:?}");
+    }
+    found
 }
 
 /// The conics of a relation that cuts some.

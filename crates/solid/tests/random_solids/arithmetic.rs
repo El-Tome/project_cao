@@ -153,13 +153,11 @@ pub fn holds_through_the_application(case: &Case) {
 }
 
 /// A kernel's decline, judged: counted when the case asks for a curve
-/// beyond the conics, or meets along one, and the kernel says it does not
-/// build it, no answer otherwise. The second excuse goes once the kernel
-/// builds the conics (#552).
+/// beyond the conics and the kernel says it does not build it, no answer
+/// otherwise. A case that meets along a conic alone is answered since the
+/// kernel builds the conics (#552).
 fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
-    if declined == Declined::Unsupported
-        && (case.asks_beyond_the_conics() || case.meets_along_a_conic())
-    {
+    if declined == Declined::Unsupported && case.asks_beyond_the_conics() {
         measured.declined += 1;
         return Ok(measured);
     }

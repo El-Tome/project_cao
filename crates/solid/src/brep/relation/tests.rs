@@ -146,11 +146,18 @@ fn a_plane_touching_a_cylinder_exactly_meets_it_along_the_line_where_it_touches(
 }
 
 #[test]
-fn a_plane_oblique_to_a_cylinder_s_axis_is_not_supported() {
+fn a_plane_oblique_to_a_cylinder_s_axis_meets_it_along_an_ellipse() {
     let hole = cylinder(DVec3::ZERO, DVec3::Z, 5.0);
     let slope = plane(DVec3::ZERO, DVec3::new(1.0, 0.0, 1.0));
-    assert_eq!(relation(&hole, &slope, scale()), Relation::Unsupported);
-    assert_eq!(relation(&slope, &hole, scale()), Relation::Unsupported);
+    let found = relation(&hole, &slope, scale());
+    assert_eq!(relation(&slope, &hole, scale()), found);
+    let Relation::Conic(conics) = &found else {
+        panic!("an ellipse expected, got {found:?}");
+    };
+    let [ellipse] = conics.as_slice() else {
+        panic!("one ellipse expected, got {found:?}");
+    };
+    assert!(ellipse.k > 0.0 && ellipse.period().is_some(), "{ellipse:?}");
 }
 
 fn class(relation: &Relation) -> &'static str {
@@ -268,7 +275,7 @@ fn two_planes_one_within_the_tolerance_say_when_their_canonical_normals_part() {
 }
 
 #[test]
-fn a_plane_is_at_a_slant_to_a_wall_exactly_where_their_pair_was_left_unsupported() {
+fn a_plane_is_at_a_slant_to_a_wall_exactly_where_the_conic_s_own_decision_answers_for_it() {
     use crate::brep::surface::Cone;
     use glam::DVec2;
     let eps = scale().eps();
@@ -293,13 +300,25 @@ fn a_plane_is_at_a_slant_to_a_wall_exactly_where_their_pair_was_left_unsupported
                 let slant = plane(DVec3::new(1.0 + off, -2.0, 0.5), normal);
                 for wall in [&shaft, &point] {
                     for (one, other) in [(&slant, wall), (wall, &slant)] {
-                        let left = relation(one, other, scale()) == Relation::Unsupported;
-                        assert_eq!(
-                            at_a_slant(one, other, scale()),
-                            left,
-                            "{one:?} against {other:?}"
-                        );
-                        slanted += usize::from(left);
+                        let found = relation(one, other, scale());
+                        if at_a_slant(one, other, scale()) {
+                            assert_eq!(
+                                found,
+                                sliced_alone(one, other),
+                                "{one:?} against {other:?}"
+                            );
+                            slanted += 1;
+                        } else {
+                            assert!(
+                                !matches!(
+                                    found,
+                                    Relation::Conic(_)
+                                        | Relation::Ruling { .. }
+                                        | Relation::Unsupported
+                                ),
+                                "{one:?} against {other:?}: {found:?}"
+                            );
+                        }
                     }
                 }
             }
@@ -307,6 +326,21 @@ fn a_plane_is_at_a_slant_to_a_wall_exactly_where_their_pair_was_left_unsupported
     }
     assert!(slanted > 100, "{slanted} pairs at a slant");
     assert!(!at_a_slant(&shaft, &point, scale()));
+}
+
+/// What `sliced.rs` alone decides for a plane and a wall.
+fn sliced_alone(one: &Surface, other: &Surface) -> Relation {
+    match (one, other) {
+        (Surface::Plane(plane), Surface::Cylinder(cylinder))
+        | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
+            super::sliced::plane_and_cylinder(plane, cylinder, scale())
+        }
+        (Surface::Plane(plane), Surface::Cone(cone))
+        | (Surface::Cone(cone), Surface::Plane(plane)) => {
+            super::sliced::plane_and_cone(cone, plane, scale())
+        }
+        _ => unreachable!("only a plane and a wall are at a slant"),
+    }
 }
 
 mod conical;

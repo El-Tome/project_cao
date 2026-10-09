@@ -185,16 +185,19 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
 /// A block 10 by 20 raised 4, with no size set so that the drawing is in
 /// millimetres, then a circle drawn on a plane tilted 30° about X and
 /// standing over the block's top, raised down its normal.
-fn a_block_under_a_slanted_circle_raised() -> PartDocument {
+/// A post Ø8 about (5, 10) raised 4, then a circle on a plane tilted 30°
+/// about X raised down across its wall.
+fn a_post_under_a_slanted_circle_raised() -> PartDocument {
     let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
     document.apply(Operation::CreateSketch {
         plane: WorkPlane::XY,
         on: None,
     });
-    document.apply(Operation::AddRectangle {
+    document.apply(Operation::AddCircle {
         sketch: 0,
-        corner: PointRef::New(DVec2::ZERO),
-        opposite: PointRef::New(DVec2::new(10.0, 20.0)),
+        center: PointRef::New(DVec2::new(5.0, 10.0)),
+        radius: 4.0,
+        rim: Vec::new(),
         construction: false,
     });
     document.apply(Operation::Extrude {
@@ -230,12 +233,12 @@ fn a_block_under_a_slanted_circle_raised() -> PartDocument {
 
 #[test]
 fn a_step_the_kernel_declines_is_marked_in_the_tree() {
-    let tree = PartTree::of(&a_block_under_a_slanted_circle_raised(), &french());
+    let tree = PartTree::of(&a_post_under_a_slanted_circle_raised(), &french());
 
     assert!(
         tree.bodies[1].declined,
-        "a circle raised across the block's top at a slant meets it along an \
-         ellipse, which the exact kernel declines",
+        "a circle raised across the post's wall at a slant meets it as two \
+         cylinders at a skew angle, which the exact kernel declines",
     );
-    assert!(!tree.bodies[0].declined, "the block itself was built");
+    assert!(!tree.bodies[0].declined, "the post itself was built");
 }

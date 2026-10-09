@@ -5160,8 +5160,9 @@ fn seed_5365208585_a_tube_whose_bore_stands_1e_7_off_a_coaxial_cone_s_tip() {
 /// its widest rim, a tolerance and a tenth: the kernel tells a face clear of
 /// another only four tolerances off it, and declines the step as
 /// unsupported, a hyperbola it may cut. The harness took the side for clear
-/// past 1e-12 of the reach, and counted the decline as no answer; it counts
-/// a plane that near the rim as asking for a conic now.
+/// past 1e-12 of the reach, and counted the decline as no answer; it then
+/// counted a plane that near the rim as asking for a conic. Since #552 the
+/// kernel cuts that hyperbola, and the case holds answered.
 #[test]
 fn seed_5365216226_a_cone_cut_by_a_block_whose_side_grazes_its_rim() {
     random_solids::holds_exactly(&Case::new(

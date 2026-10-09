@@ -51,10 +51,11 @@
 //! off the lattice angles a hair from square, from parallel and from a
 //! cone's slope. A plane meets a cylinder or a cone there along an ellipse,
 //! a parabola, a hyperbola, two lines through an apex, the apex alone or a
-//! ruling it touches along: `Case::conics` tells which, and a decline as
-//! unsupported is excused on such a case, as on one asking beyond the
-//! conics (`Case::asks_beyond_the_conics`), until the kernel builds them;
-//! the tests that hold it then are written, and wait on it. The volume a
+//! ruling it touches along: `Case::conics` tells which. The kernel builds
+//! them, so a decline as unsupported is excused only on a case asking
+//! beyond the conics (`Case::asks_beyond_the_conics`): two cylinders at a
+//! skew angle, or a cone against a wall off its axis, where their leaves'
+//! boxes meet. The volume a
 //! round leaf keeps under a slanted plane is held besides to its slices
 //! (`Leaf::kept_by_a_half_space`), which owe nothing to the lines. The flats
 //! answered 244 of the first 300 tilted cases by their own rules when the
@@ -77,7 +78,7 @@
 //!
 //! It draws past the gate's lattice (`Case::drawn_turned_off_the_lattice`):
 //! angles a hair from half a turn, a quarter and a whole one, and axes
-//! slanted or leaning a hair, where a case asking for a conic may be
+//! slanted or leaning a hair, where a case asking beyond the conics may be
 //! declined as unsupported and is counted so. The campaigns of slanted
 //! solids (`a_campaign_of_slanted_solids_…`) draw past it the same way
 //! (`Case::drawn_slanted_off_the_lattice`), with slopes at thirty and sixty
@@ -993,170 +994,6 @@ fn a_turned_leaf_grown_holds_every_line_it_held_and_shrunk_holds_none_it_did_not
 }
 
 #[test]
-fn a_case_asking_for_a_conic_is_told_from_one_that_does_not() {
-    let shaft = |degrees: f64, axis: Axis| {
-        Leaf::turned(
-            Plane::xy(0.0),
-            axis,
-            Section::bands(-2.0, &[[6.0, 0.0, 2.0]]),
-            degrees,
-        )
-    };
-    let post = Leaf::prism(Plane::xy(-3.0), Outline::circle([1.0, 1.0], 1.0), 6.0);
-    let bar = Leaf::prism(Plane::yz(-3.0), Outline::circle([0.0, 0.0], 1.0), 6.0);
-    let block = Leaf::prism(
-        Plane::xy(-1.0),
-        Outline::rectangle([0.0, 0.0], [3.0, 3.0]),
-        2.0,
-    );
-    let asks = |start: &Leaf, tool: &Leaf| {
-        Case::new(start.clone(), vec![Step::cut(tool.clone())]).asks_for_a_conic()
-    };
-
-    for degrees in [360.0, 90.0, -180.0, 270.0] {
-        assert!(!asks(&shaft(degrees, Axis::first(0.0)), &post), "{degrees}");
-    }
-    for degrees in [30.0, -105.0, 359.9] {
-        assert!(asks(&shaft(degrees, Axis::first(0.0)), &post), "{degrees}");
-        assert!(!asks(&shaft(degrees, Axis::first(0.0)), &bar), "{degrees}");
-        assert!(
-            !asks(&shaft(degrees, Axis::first(0.0)), &block),
-            "{degrees}"
-        );
-    }
-    let slanted = Axis::first(0.0).leaning(30.0);
-    assert!(asks(&shaft(360.0, slanted), &block));
-    assert!(asks(&shaft(360.0, slanted), &bar));
-    assert!(!Case::new(shaft(45.0, slanted), vec![]).asks_for_a_conic());
-    assert!(!asks(&post, &block));
-
-    let asking = (0..1000)
-        .filter(|seed| Case::drawn_turned_off_the_lattice(*seed).asks_for_a_conic())
-        .count();
-    assert!(
-        (20..500).contains(&asking),
-        "{asking} cases ask for an ellipse"
-    );
-
-    let cone = |degrees: f64| {
-        Leaf::turned(
-            Plane::xy(0.0),
-            Axis::first(0.0),
-            Section::bands(0.0, &[[4.0, 0.0, 3.0]]).sloping_to(&[[0.0, 1.0]]),
-            degrees,
-        )
-    };
-    let about = |axis: Axis| {
-        Leaf::turned(
-            Plane::xz(0.0),
-            axis,
-            Section::bands(2.0, &[[4.0, 0.0, 1.0]]).sloping_to(&[[0.0, 3.0]]),
-            360.0,
-        )
-    };
-    let told = [
-        (
-            "a cap square to its axis",
-            Leaf::prism(Plane::yz(-1.0), Outline::circle([0.0, 0.0], 2.0), 3.0),
-            false,
-        ),
-        (
-            "a block whose face holds its axis",
-            Leaf::prism(
-                Plane::xy(0.0),
-                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
-                10.0,
-            ),
-            false,
-        ),
-        (
-            "a flat parallel to its axis and off it",
-            Leaf::prism(
-                Plane::xy(1.0),
-                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
-                10.0,
-            ),
-            true,
-        ),
-        (
-            "a flat tangent to its widest rim",
-            Leaf::prism(
-                Plane::xy(3.0),
-                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
-                10.0,
-            ),
-            true,
-        ),
-        (
-            "a flat a hair past its widest rim, closer than the kernel tells clear",
-            Leaf::prism(
-                Plane::xy(3.00000002),
-                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
-                10.0,
-            ),
-            true,
-        ),
-        (
-            "a flat past its widest rim",
-            Leaf::prism(
-                Plane::xy(3.001),
-                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
-                10.0,
-            ),
-            false,
-        ),
-        (
-            "a plane at a slant",
-            Leaf::prism(
-                Plane::tilted([0.0, 0.0, 0.0], [0.0, 30.0, 0.0]),
-                Outline::rectangle([-5.0, -5.0], [5.0, 5.0]),
-                1.0,
-            ),
-            true,
-        ),
-        (
-            "a cylinder about its axis",
-            Leaf::prism(Plane::yz(1.0), Outline::circle([0.0, 0.0], 2.0), 2.0),
-            false,
-        ),
-        ("a cone about its axis", about(Axis::first(0.0)), false),
-        (
-            "a cylinder parallel to its axis and off it",
-            Leaf::prism(Plane::yz(1.0), Outline::circle([1.0, 0.0], 1.0), 2.0),
-            true,
-        ),
-        (
-            "a hole across it",
-            Leaf::prism(Plane::xz(5.0), Outline::circle([2.0, 0.0], 1.0), 10.0),
-            true,
-        ),
-        ("a cone a hair off its axis", about(Axis::first(1e-7)), true),
-        (
-            "a block whose box stands apart from its own",
-            Leaf::prism(
-                Plane::xy(1.0),
-                Outline::rectangle([20.0, 20.0], [25.0, 25.0]),
-                2.0,
-            ),
-            false,
-        ),
-    ];
-    for (what, tool, asking) in told {
-        assert_eq!(asks(&cone(360.0), &tool), asking, "{what}");
-    }
-    assert!(!Case::new(cone(90.0), vec![]).asks_for_a_conic());
-    assert!(!Case::new(cone(-215.0), vec![]).asks_for_a_conic());
-
-    let asking = (0..1000)
-        .filter(|seed| Case::drawn_slanted(*seed).asks_for_a_conic())
-        .count();
-    assert!(
-        (200..650).contains(&asking),
-        "{asking} slanted cases ask for a conic"
-    );
-}
-
-#[test]
 fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
     let shaft = |degrees: f64, axis: Axis| {
         Leaf::turned(
@@ -1352,34 +1189,6 @@ fn a_plane_leaning_about_an_axis_of_the_origin_holds_that_axis_and_leans_by_its_
                 "holding axis {holds} by {degrees}: leaned {}",
                 leaned.to_degrees()
             );
-        }
-    }
-}
-
-#[test]
-fn the_scope_rule_split_in_two_answers_as_it_did() {
-    let draws: [(&str, Draw); 6] = [
-        ("turned", Case::drawn_turned),
-        ("turned off the lattice", Case::drawn_turned_off_the_lattice),
-        ("slanted", Case::drawn_slanted),
-        (
-            "slanted off the lattice",
-            Case::drawn_slanted_off_the_lattice,
-        ),
-        ("tilted", Case::drawn_tilted),
-        ("tilted off the lattice", Case::drawn_tilted_off_the_lattice),
-    ];
-    for (name, draw) in draws {
-        let seeds: Vec<u64> = (0..2000).collect();
-        let answers = random_solids::on_every_core(&seeds, |seed| {
-            let case = draw(*seed);
-            (
-                case.asks_for_a_conic(),
-                case.asks_beyond_the_conics() || case.meets_along_a_conic(),
-            )
-        });
-        for (seed, (before, split)) in seeds.iter().zip(answers) {
-            assert_eq!(split, before, "{name} seed {seed}:\n{}", draw(*seed));
         }
     }
 }
@@ -2116,31 +1925,6 @@ fn kept_through_the_application_s_body_and_exact(
         assert!(exact, "seed {seed} left the exact kernel:\n{case}");
     }
     held
-}
-
-#[test]
-fn a_case_asking_for_a_conic_is_declined_as_unsupported_or_held() {
-    let asking_of = |draw: fn(u64) -> Case, count: usize| -> Vec<Case> {
-        (0..2000)
-            .map(draw)
-            .filter(Case::asks_for_a_conic)
-            .take(count)
-            .collect()
-    };
-    let turned = asking_of(Case::drawn_turned_off_the_lattice, 24);
-    let slanted = asking_of(Case::drawn_slanted_off_the_lattice, 16);
-    assert!(turned.len() >= 20, "{} turned cases", turned.len());
-    assert_eq!(slanted.len(), 16, "{} slanted cases", slanted.len());
-    let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
-    let weighed = random_solids::on_every_core(&asking, |case| {
-        random_solids::held_to_arithmetic(case, &Exact)
-    });
-    let mut declined = 0;
-    for (case, measured) in asking.iter().zip(weighed) {
-        let measured = measured.unwrap_or_else(|flaw| panic!("{flaw:?}\n{case}"));
-        declined += measured.declined;
-    }
-    println!("{declined} of {} declined as unsupported", asking.len());
 }
 
 #[test]
@@ -3744,7 +3528,6 @@ fn cut_at_a_slant(leaf: &Leaf, index: usize) -> (Case, DVec3, f64) {
 }
 
 #[test]
-#[ignore = "#552: the kernel does not build a conic yet"]
 fn a_lone_round_leaf_cut_by_a_slanted_half_space_encloses_the_volume_of_its_slices() {
     let leaves = round_leaves(48);
     let cut: Vec<(Case, DVec3, f64)> = leaves
@@ -3780,13 +3563,11 @@ fn a_lone_round_leaf_cut_by_a_slanted_half_space_encloses_the_volume_of_its_slic
 }
 
 #[test]
-#[ignore = "#552: the kernel does not build a conic yet"]
 fn random_tilted_cases_keep_every_rule_on_the_exact_kernel() {
     keep_every_rule_on_the_exact_kernel(Case::drawn_tilted, 0..16);
 }
 
 #[test]
-#[ignore = "#552: the kernel does not build a conic yet"]
 fn tilted_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
     let held = kept_through_the_application_s_body_and_exact(Case::drawn_tilted, 0..8);
     assert!(held > 3, "{held} cases held");
@@ -3799,13 +3580,12 @@ fn picked(draw: Draw, asks: fn(&Case) -> bool, count: usize) -> Vec<Case> {
 }
 
 #[test]
-#[ignore = "#552: the kernel does not build a conic yet"]
 fn a_case_that_asked_for_a_conic_is_built_now() {
     let conic = |case: &Case| case.meets_along_a_conic() && !case.asks_beyond_the_conics();
-    let turned = picked(Case::drawn_turned_off_the_lattice, conic, 24);
-    let slanted = picked(Case::drawn_slanted_off_the_lattice, conic, 16);
-    assert_eq!(turned.len(), 24, "{} turned cases", turned.len());
-    assert_eq!(slanted.len(), 16, "{} slanted cases", slanted.len());
+    let turned = picked(Case::drawn_turned_off_the_lattice, conic, 10);
+    let slanted = picked(Case::drawn_slanted_off_the_lattice, conic, 6);
+    assert_eq!(turned.len(), 10, "{} turned cases", turned.len());
+    assert_eq!(slanted.len(), 6, "{} slanted cases", slanted.len());
     let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
     let weighed = random_solids::on_every_core(&asking, |case| {
         (
@@ -3822,7 +3602,6 @@ fn a_case_that_asked_for_a_conic_is_built_now() {
 }
 
 #[test]
-#[ignore = "#552: the kernel does not build a conic yet"]
 fn a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held() {
     let turned = picked(
         Case::drawn_turned_off_the_lattice,

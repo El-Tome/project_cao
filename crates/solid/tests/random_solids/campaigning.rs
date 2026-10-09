@@ -186,7 +186,7 @@ fn print_report(report: &Report<Case>, answering: Answering) {
         TIPS.load(Ordering::Relaxed)
     );
     println!(
-        "{} cases asking beyond the conics, or meeting along one, declined as unsupported",
+        "{} cases asking beyond the conics declined as unsupported",
         DECLINED.load(Ordering::Relaxed)
     );
     let met = MET_ALONG_A_CONIC.load(Ordering::Relaxed);

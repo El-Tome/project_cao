@@ -13,7 +13,9 @@
 //!   `undoing_the_turn_gives_the_part_back_to_the_exact_kernel`; an ellipse
 //!   likewise — `a_part_with_an_ellipse_raised_is_computed_by_the_flats_from_that_step_on`
 //! - an operation the exact kernel declines is a broken step —
-//!   `a_raise_meeting_a_wall_at_a_slant_is_a_broken_step`,
+//!   `a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step` (since #552 the
+//!   raise meeting a block at a slant is built,
+//!   `a_raise_meeting_a_block_at_a_slant_is_built_exactly`),
 //!   `a_step_declined_live_is_named_by_its_own_number`,
 //!   `a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood`,
 //!   `a_size_that_would_have_the_kernel_decline_a_step_is_refused_naming_the_step`; a part
@@ -326,13 +328,31 @@ fn undoing_the_turn_gives_the_part_back_to_the_exact_kernel() {
 
 /// A block 10 on a side, then a circle drawn on a plane tilted 30° about X
 /// and standing at `at`, raised 10 down its normal. Over the block's top, the
-/// cylinder meets that top at a slant, along an ellipse the exact kernel does
-/// not draw.
+/// cylinder meets that top and the wall at `y = 10` at a slant, along
+/// ellipses the exact kernel builds since #552.
 fn a_slanted_raise_beside_a_block(at: DVec3) -> History {
+    a_slanted_raise_beside(at, |history| {
+        rectangle(history, 0, DVec2::ZERO, DVec2::splat(10.0));
+        raise(history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
+    })
+}
+
+/// A post Ø8 about (5, 5), 10 high, then the same slanted raise: over the
+/// post, the cylinder crosses its wall at 30° to its axis, two cylinders at a
+/// skew angle, which the exact kernel does not build.
+fn a_slanted_raise_beside_a_post(at: DVec3) -> History {
+    a_slanted_raise_beside(at, |history| {
+        circle(history, 0, DVec2::splat(5.0), 4.0);
+        raise(history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
+    })
+}
+
+/// What `first` raises on XY, then a circle drawn on a plane tilted 30°
+/// about X and standing at `at`, raised 10 down its normal.
+fn a_slanted_raise_beside(at: DVec3, first: impl FnOnce(&mut History)) -> History {
     let mut history = History::default();
     sketch_on(&mut history, WorkPlane::XY);
-    rectangle(&mut history, 0, DVec2::ZERO, DVec2::splat(10.0));
-    raise(&mut history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
+    first(&mut history);
     let (sin, cos) = (PI / 6.0).sin_cos();
     let slanted = WorkPlane {
         origin: at,
@@ -363,8 +383,29 @@ fn applied_live(history: &History) -> PartDocument {
 }
 
 #[test]
-fn a_raise_meeting_a_wall_at_a_slant_is_a_broken_step() {
+fn a_raise_meeting_a_block_at_a_slant_is_built_exactly() {
     let history = a_slanted_raise_beside_a_block(OVER_THE_BLOCK);
+    let mut part = applied_live(&history);
+    part.undo();
+    part.redo();
+
+    assert!(
+        !part.is_declined(last_step(&history)),
+        "the slanted raise is built"
+    );
+    assert!(part.body().is_exact(), "the part stays exact");
+    let triangles = part.body().triangles();
+    soundness::closed(&triangles).expect("the part is drawn closed");
+    let volume = part.body().volume();
+    assert!(
+        volume > 1000.0 + 1.0 && volume < 1000.0 + 40.0 * PI,
+        "the block and what of the slanted Ø4 stands out of it: {volume}",
+    );
+}
+
+#[test]
+fn a_raise_crossing_a_post_at_a_skew_angle_is_a_broken_step() {
+    let history = a_slanted_raise_beside_a_post(OVER_THE_BLOCK);
     let mut part = applied_live(&history);
     part.undo();
     part.redo();
@@ -375,14 +416,14 @@ fn a_raise_meeting_a_wall_at_a_slant_is_a_broken_step() {
     );
     assert_near(
         part.body().volume(),
-        1000.0,
-        "the block, as it stood before",
+        160.0 * PI,
+        "the post, as it stood before",
     );
 }
 
 #[test]
 fn a_step_declined_live_is_named_by_its_own_number() {
-    let history = a_slanted_raise_beside_a_block(OVER_THE_BLOCK);
+    let history = a_slanted_raise_beside_a_post(OVER_THE_BLOCK);
 
     let part = applied_live(&history);
 
@@ -396,7 +437,7 @@ fn a_step_declined_live_is_named_by_its_own_number() {
 #[test]
 fn a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood() {
     let with_a_plate_after = |at: DVec3| {
-        let mut history = a_slanted_raise_beside_a_block(at);
+        let mut history = a_slanted_raise_beside_a_post(at);
         sketch_on(&mut history, WorkPlane::XY);
         rectangle(
             &mut history,
@@ -413,9 +454,9 @@ fn a_step_after_a_declined_one_numbers_its_faces_as_if_it_had_stood() {
         );
         history
     };
-    // The block's six faces, the disc's floor, top and wall, then the
-    // plate's floor and top.
-    let plates_top = 6 + 3 + TOP;
+    // The post's floor, top and wall, the disc's, then the plate's floor and
+    // top.
+    let plates_top = 3 + 3 + TOP;
     let declined = with_a_plate_after(OVER_THE_BLOCK);
     let raised = with_a_plate_after(DVec3::new(100.0, 5.0, 12.0));
 
@@ -781,13 +822,14 @@ fn a_hole_drawn_on_a_rounded_plate_moves_no_further_than_its_corners_when_they_c
     }
 }
 
-/// A block 10 on a side, then a circle on a plane tilted 30° over it, raised
-/// down its normal by the variable `reach`, first 1: short of the block.
+/// A post Ø8 about (5, 5), 10 high, then a circle on a plane tilted 30° over
+/// it, raised down its normal by the variable `reach`, first 1: short of the
+/// post. At 10 it crosses the post's wall at a skew angle.
 fn a_slanted_raise_reaching(reach: f64) -> PartDocument {
     let mut part = applied_live(&{
         let mut history = History::default();
         sketch_on(&mut history, WorkPlane::XY);
-        rectangle(&mut history, 0, DVec2::ZERO, DVec2::splat(10.0));
+        circle(&mut history, 0, DVec2::splat(5.0), 4.0);
         raise(&mut history, 0, DVec2::splat(5.0), 10.0, ExtrusionMode::Add);
         history
     });
@@ -830,10 +872,7 @@ fn a_slanted_raise_reaching(reach: f64) -> PartDocument {
 fn a_size_that_would_have_the_kernel_decline_a_step_is_refused_naming_the_step() {
     let mut part = a_slanted_raise_reaching(1.0);
     let slanted = part.history.steps().last().expect("a step").operations()[0];
-    assert!(
-        !part.is_declined(slanted),
-        "short of the block, it is built"
-    );
+    assert!(!part.is_declined(slanted), "short of the post, it is built");
     let before = part.body().volume();
 
     let refused = part.change_variable(VariableChange::Edited {

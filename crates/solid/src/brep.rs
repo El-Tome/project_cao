@@ -57,10 +57,11 @@ pub enum Declined {
     /// short or that nearly whole is read before the kernel as nothing or as
     /// whole: this is the kernel's own net.
     Travel,
-    /// Two surfaces meet in a way the kernel does not build: a plane oblique
-    /// to a cylinder's axis or a cone's, or parallel to a cone's without
-    /// holding it; two cylinders at a skew angle, a cone and a cylinder or a
-    /// cone not of its axis.
+    /// Two surfaces meet along a curve the kernel does not build: two
+    /// cylinders at a skew angle, a cylinder or a cone off a cone's axis, a
+    /// cone within the tolerance of a plane or a cylinder of its axis all
+    /// across the box. A plane meets a cylinder or a cone at any angle along a
+    /// conic, which is built (#552).
     Unsupported,
     /// Two curves touch more closely than their curvatures can order.
     Tie,

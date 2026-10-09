@@ -2,7 +2,9 @@
 //! square to its axis or another bore at a skew angle, whose boxes meet
 //! though the faces themselves stand apart: the exact kernel cuts them
 //! rather than declining, and declines only where the faces truly cross
-//! along a curve it does not build (#526).
+//! along a curve it does not build (#526). A plane crossing a bore at a slant
+//! is cut along the ellipse they meet along (#552); two bores crossing at a
+//! skew angle are still declined.
 //!
 //! Every part here is turned and moved off the planes of the origin as a
 //! whole, so that the tilted cylinders and their triangles are exercised too:
@@ -217,10 +219,32 @@ fn two_holes_in_two_adjacent_sides_of_a_hexagon_that_do_not_meet_are_cut() {
     );
 }
 
+/// The least distance between the axes of two bores drawn into the
+/// hexagon, each from its side's face down to its depth, sought along both
+/// a hundredth of a unit apart: further than their two radii and a step,
+/// their walls cannot meet.
+fn between_axes(one: (usize, DVec2, f64), other: (usize, DVec2, f64)) -> f64 {
+    let points = |(side, at, depth): (usize, DVec2, f64)| {
+        let normal = outward(side);
+        let entry = normal * apothem() + DVec3::Z.cross(normal) * at.x + DVec3::Z * at.y;
+        let steps = (depth * 100.0).ceil() as usize;
+        (0..=steps)
+            .map(move |step| entry - normal * (depth * step as f64 / steps as f64))
+            .collect::<Vec<DVec3>>()
+    };
+    let others = points(other);
+    points(one)
+        .iter()
+        .flat_map(|point| others.iter().map(move |other| point.distance(*other)))
+        .fold(f64::INFINITY, f64::min)
+}
+
 /// Two bores drawn at random into two adjacent sides, the part laid at
-/// random: where they cross each other or a side at a slant the operation is
-/// declined, and otherwise it holds every rule with the arithmetic's volume —
-/// neither crossing anything but its own side, each takes its own matter.
+/// random, each standing far enough from its side's ends never to reach
+/// the next side: where their walls may cross each other, at a skew angle,
+/// the operation may be declined, and otherwise it holds every rule with
+/// the arithmetic's volume — neither crossing anything but its own side,
+/// each takes its own matter.
 #[test]
 fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsupported() {
     const CASES: u64 = 60;
@@ -234,7 +258,7 @@ fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsuppor
             .map(|side| {
                 let radius = random.between(1.0, 5.0);
                 let at = DVec2::new(
-                    random.between(-9.0, 9.0),
+                    random.between(radius - 9.0, 9.0 - radius),
                     random.between(radius + 1.0, HEIGHT - radius - 1.0),
                 );
                 (side, at, radius, random.between(1.0, 15.0))
@@ -248,7 +272,17 @@ fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsuppor
                 })
         };
         match made() {
-            Err(Declined::Unsupported) => {}
+            Err(Declined::Unsupported) => {
+                let [
+                    (one, at, radius, depth),
+                    (other, other_at, other_radius, other_depth),
+                ] = [drawn[0], drawn[1]];
+                let apart = between_axes((one, at, depth), (other, other_at, other_depth));
+                assert!(
+                    apart <= radius + other_radius + 0.01,
+                    "seed {seed}: declined, its bores' axes {apart} apart: {drawn:?} in {pose:?}"
+                );
+            }
             _ => {
                 let arithmetic = drawn
                     .iter()
@@ -332,26 +366,29 @@ fn a_blind_hole_beneath_a_chamfer_is_cut() {
     );
 }
 
+/// The chamfer stands at `40 − x`: over the disc about thirty-three, the
+/// bore takes seven on average, from the floor up.
 #[test]
-fn a_bore_crossing_a_slanted_side_is_still_declined() {
-    for pose in Pose::all() {
-        assert_eq!(
-            chamfered(&pose).cut_by(&standing(&pose, 33.0, -10.0, 2.0, 12.0)),
-            Err(Declined::Unsupported),
-            "{pose:?}"
-        );
-    }
+fn a_bore_crossing_a_slanted_side_is_cut() {
+    keeps_every_rule(
+        |pose| chamfered(pose).cut_by(&standing(pose, 33.0, -10.0, 2.0, 12.0)),
+        chamfered_volume() - bored(2.0, 7.0),
+    );
 }
 
+/// Eight along the side from its middle, a bore of radius three reaches a
+/// unit past the side's end, and the next side, at sixty degrees, keeps it
+/// from the matter beyond: at a depth `t` the bore's disc pokes past it by
+/// the segment beyond a chord `2 + t/√3` from its centre, which over the
+/// depth adds up to `√3·M`.
 #[test]
-fn a_bore_square_to_one_side_poking_through_the_next_is_still_declined() {
-    for pose in Pose::all() {
-        assert_eq!(
-            hexagon(&pose).cut_by(&bore(&pose, 0, 8.0, 3.0, 8.0)),
-            Err(Declined::Unsupported),
-            "{pose:?}"
-        );
-    }
+fn a_bore_square_to_one_side_poking_through_the_next_is_cut() {
+    let segment = 9.0 * (2.0f64 / 3.0).acos() - 2.0 * 5f64.sqrt();
+    let beyond = 3f64.sqrt() * (2.0 / 3.0 * 5f64.powf(1.5) - 2.0 * segment);
+    keeps_every_rule(
+        |pose| hexagon(pose).cut_by(&bore(pose, 0, 8.0, 3.0, 8.0)),
+        hexagon_volume() - (bored(3.0, 8.0) - beyond),
+    );
 }
 
 /// The numbers every face of `body` answers to, sorted.

@@ -3,8 +3,9 @@
 //! cone (#536), held to the arithmetic: Pappus's volume, the rules every
 //! body keeps, and what the same profile cut into annular slabs, each raised
 //! from a sector of a disc and joined by the boolean, holds along a grid of
-//! lines. A cone meets what shares its axis along circles and what holds its
-//! axis along rulings; anything else is declined as unsupported, unless the
+//! lines. A cone meets what shares its axis along circles, what holds its
+//! axis along rulings, and a plane at a slant along the conic it cuts (#552);
+//! a cylinder or a cone off its axis is declined as unsupported, unless the
 //! two stand clear of each other.
 //!
 //! The profiles are handed to `cao_solid::brep::Body::turned` already laid
@@ -994,10 +995,23 @@ fn frustum() -> Body {
     turned(&section, about_y(), TAU).expect("the frustum turns")
 }
 
+/// A flat six from the frustum's axis, milled from two to eighteen along it:
+/// it reaches the slope where the radius comes down to six, at sixteen,
+/// along a hyperbola. The segment of the disc of radius `r` beyond the flat,
+/// integrated over the radius, is `F`; the slope gives four along the axis
+/// for one of radius.
 #[test]
-fn a_flat_milled_on_a_cone_declines_as_unsupported() {
+fn a_flat_milled_on_a_cone_holds_the_arithmetics_volume() {
     let flat = block([-15.0, 2.0, 6.0], [15.0, 18.0, 20.0]);
-    assert_eq!(frustum().cut_by(&flat), Err(Declined::Unsupported));
+    let integral = |r: f64| {
+        let half = (r * r - 36.0).sqrt();
+        r.powi(3) / 3.0 * (6.0 / r).acos() - 4.0 * r * half + 72.0 * (r + half).ln()
+    };
+    let milled = frustum().cut_by(&flat).expect("the flat is milled");
+    holds(
+        &milled,
+        3500.0 * PI / 3.0 - 4.0 * (integral(9.5) - integral(6.0)),
+    );
 }
 
 #[test]
@@ -1006,8 +1020,12 @@ fn a_radial_hole_through_a_cone_declines_as_unsupported() {
     assert_eq!(frustum().cut_by(&hole), Err(Declined::Unsupported));
 }
 
+/// A slab two thick leaning thirty degrees off square to the frustum's
+/// axis, through it at ten: it takes what lies between two ellipses, the
+/// difference of the two points their planes cut off the cone, whose apex
+/// stands at forty, thirty and `30 + 4/√3` from them along the axis.
 #[test]
-fn a_plane_at_a_slant_across_a_cone_declines_as_unsupported() {
+fn a_plane_at_a_slant_across_a_cone_holds_the_arithmetics_volume() {
     let (sin, cos) = 30.0_f64.to_radians().sin_cos();
     let tilted = Frame {
         origin: DVec3::Y * 10.0,
@@ -1018,10 +1036,13 @@ fn a_plane_at_a_slant_across_a_cone_declines_as_unsupported() {
         &Contour::rectangle(DVec2::splat(-20.0), DVec2::splat(20.0)),
         &[],
         tilted,
-        tilted.u.cross(tilted.v) * 4.0,
+        tilted.u.cross(tilted.v) * 2.0,
     )
     .expect("the slanted slab raises");
-    assert_eq!(frustum().cut_by(&slab), Err(Declined::Unsupported));
+    let far = 30.0 + 4.0 / 3f64.sqrt();
+    let between = PI / 48.0 * (far.powi(3) - 30f64.powi(3)) / (47.0f64 / 48.0).powf(1.5);
+    let cut = frustum().cut_by(&slab).expect("the slab cuts across");
+    holds(&cut, 3500.0 * PI / 3.0 - between);
 }
 
 #[test]

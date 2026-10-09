@@ -1,8 +1,8 @@
 //! A plane at a slant to a wall (#552): neither square to a cylinder's axis
 //! nor along it, or neither square to a cone's axis nor holding it — the
-//! pairs `at_a_slant` picks out, decided here and nowhere else. Until
-//! `planar.rs` and `conical.rs` hand it those pairs, which #552 does once
-//! every reading of a conic downstream is built, only its tests ask for it.
+//! pairs `at_a_slant` picks out, which `planar.rs` and `conical.rs` hand
+//! over once they have read every row before it, decided here and nowhere
+//! else.
 //!
 //! A cylinder is cut along an ellipse, whole or in its two arms: never apart,
 //! never touched, since a plane along a ruling is square to the axis.

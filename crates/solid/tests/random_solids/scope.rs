@@ -2,91 +2,15 @@
 //! not build, read off the walls their leaves are bounded by, so that a
 //! decline as unsupported is counted rather than failed.
 //!
-//! #552 splits it in two, the old rule kept beside them until the kernel
-//! builds the conics: what asks beyond the conics — skew cylinders, a cone
-//! against anything off its axis — and the conics a case's planes meet its
-//! cylinders and cones along, told kind by kind. The two together answer
-//! as the old rule did.
+//! #552 split it in two: what asks beyond the conics — skew cylinders, a
+//! cone against anything off its axis, where their leaves' boxes meet — and
+//! the conics a case's planes meet its cylinders and cones along, told kind
+//! by kind. The kernel builds the conics, so only the first excuses a
+//! decline.
 
 use glam::{DVec2, DVec3};
 
 use super::{Case, Leaf, Outline};
-
-impl Case {
-    /// Whether the case may ask the exact kernel for a curve it does not
-    /// build. A plane meeting a cylinder neither square to its axis nor
-    /// along it, an ellipse, or two cylinders whose axes are neither
-    /// parallel nor square, a skew meeting (#533): turned leaves bring them,
-    /// with an end that stops off the quarter turns, or an axis slanted in
-    /// its plane. And a cone (#536) meeting anything but a plane square to
-    /// its axis, a plane holding its axis or parallel to it past where its
-    /// leaf reaches, or a cylinder or a cone about the very same axis, where
-    /// its leaf's box meets the other's: a cone a hair off coaxial asks too,
-    /// and so does a plane tangent to its widest rim, or past it by less than
-    /// the kernel tells a face clear (5365216226). The kernel may decline
-    /// such a case as unsupported; it may also hold it, the leaves never
-    /// meeting there.
-    pub fn asks_for_a_conic(&self) -> bool {
-        let walled: Vec<(Vec<Wall>, Spanned)> = self
-            .leaves()
-            .map(|leaf| {
-                (
-                    walls(leaf),
-                    leaf.is_solid().then(|| leaf.bounds()).flatten(),
-                )
-            })
-            .collect();
-        let all = || walled.iter().flat_map(|(walls, _)| walls);
-        let planes: Vec<DVec3> = all()
-            .filter_map(|wall| match wall {
-                Wall::Plane { normal, .. } => Some(*normal),
-                _ => None,
-            })
-            .collect();
-        let cylinders: Vec<DVec3> = all()
-            .filter_map(|wall| match wall {
-                Wall::Cylinder { axis, .. } => Some(*axis),
-                _ => None,
-            })
-            .collect();
-        let an_ellipse = cylinders.iter().any(|axis| {
-            planes.iter().any(|normal| oblique(*normal, *axis))
-                || cylinders.iter().any(|other| oblique(*other, *axis))
-        });
-        let reach = walled
-            .iter()
-            .filter_map(|(_, bounds)| *bounds)
-            .map(|(low, high)| low.abs().max(high.abs()).max_element())
-            .fold(1.0, f64::max);
-        let near = |one: Spanned, other: Spanned| {
-            let margin = 1e-6 * reach;
-            match (one, other) {
-                (Some((low, high)), Some((other_low, other_high))) => {
-                    (low - margin).cmple(other_high).all() && (other_low - margin).cmple(high).all()
-                }
-                _ => false,
-            }
-        };
-        let a_cone = walled.iter().any(|(walls, bounds)| {
-            walls.iter().any(|wall| {
-                let Wall::Cone {
-                    axis,
-                    point,
-                    radius,
-                } = *wall
-                else {
-                    return false;
-                };
-                walled
-                    .iter()
-                    .filter(|(_, others)| near(*bounds, *others))
-                    .flat_map(|(others, _)| others)
-                    .any(|other| other.asks_of_a_cone(axis, point, radius, reach))
-            })
-        });
-        an_ellipse || a_cone
-    }
-}
 
 /// The box a leaf spans, or nothing for a leaf that is no solid.
 type Spanned = Option<(DVec3, DVec3)>;
@@ -377,6 +301,14 @@ struct Walled {
     reach: f64,
 }
 
+/// The axes of the cylinders among a leaf's walls.
+fn cylinders_among(walls: &[Wall]) -> impl Iterator<Item = DVec3> + '_ {
+    walls.iter().filter_map(|wall| match wall {
+        Wall::Cylinder { axis, .. } => Some(*axis),
+        _ => None,
+    })
+}
+
 impl Walled {
     fn of(case: &Case) -> Walled {
         let leaves: Vec<(Vec<Wall>, Spanned, Vec<Slope>)> = case
@@ -402,11 +334,9 @@ impl Walled {
     }
 
     fn cylinders(&self) -> Vec<DVec3> {
-        self.all()
-            .filter_map(|wall| match wall {
-                Wall::Cylinder { axis, .. } => Some(*axis),
-                _ => None,
-            })
+        self.leaves
+            .iter()
+            .flat_map(|(walls, _, _)| cylinders_among(walls))
             .collect()
     }
 
@@ -445,15 +375,21 @@ impl Case {
     /// Whether the case may ask the exact kernel for a curve that is no
     /// conic (#552): two cylinders whose axes are neither parallel nor
     /// square, a skew meeting; or a cone meeting a cylinder or a cone not
-    /// about its very axis, where its leaf's box meets the other's. A plane
+    /// about its very axis; each where their leaves' boxes meet. A plane
     /// never asks. The kernel may decline such a case as unsupported; it
     /// may also hold it, the leaves never meeting there.
     pub fn asks_beyond_the_conics(&self) -> bool {
         let walled = Walled::of(self);
-        let cylinders = walled.cylinders();
-        let skew = cylinders
-            .iter()
-            .any(|axis| cylinders.iter().any(|other| oblique(*other, *axis)));
+        let skew = walled.leaves.iter().any(|(walls, bounds, _)| {
+            walled
+                .leaves
+                .iter()
+                .filter(|(_, others, _)| walled.near(*bounds, *others))
+                .any(|(others, _, _)| {
+                    cylinders_among(walls)
+                        .any(|axis| cylinders_among(others).any(|other| oblique(other, axis)))
+                })
+        });
         skew || walled.against_cones().into_iter().any(|(cone, _, other)| {
             let Wall::Cone {
                 axis,

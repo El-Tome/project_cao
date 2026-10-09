@@ -308,3 +308,58 @@ fn a_place_outside_the_box_of_a_conic_is_told_far_from_it_before_any_distance() 
     assert!(body.far_from(&trace, DVec3::new(30.0, 0.0, 0.0), eps));
     assert!(body.far_from(&trace, DVec3::new(0.0, 0.0, 30.0), eps));
 }
+
+/// The ellipse a plane leaning twenty degrees about X cuts a shaft of radius
+/// two along, anchored at the vertex nearest the origin, as the kernel lists
+/// it (seed 0 of `a_lone_round_leaf_cut_by_a_slanted_half_space_…`): along
+/// its plane its first parameter turns back a quarter of the way round,
+/// exactly on a sample, where its derivative rounds to nought.
+fn turning_on_a_sample() -> Trace {
+    let conic = Conic {
+        plane: Plane {
+            origin: DVec3::new(-0.0, 0.4537315202591833, -1.2466171064069236),
+            normal: DVec3::new(0.0, -0.3420201433256687, 0.9396926207859084),
+            u: DVec3::X,
+            v: DVec3::new(-0.0, 0.9396926207859084, 0.3420201433256687),
+        },
+        round: Round::Cylinder(Cylinder {
+            origin: DVec3::new(4.0, 8.0, 0.0),
+            axis: DVec3::new(-0.0, -0.0, 1.0),
+            radius: 2.0000000000000004,
+            u: DVec3::X,
+            v: DVec3::new(-0.0, 1.0, 0.0),
+        }),
+        anchor: DVec3::new(4.0, 6.0, 0.7720595314675952),
+        tangent: DVec3::new(1.0, 6.123233995736766e-17, 0.0),
+        bend: DVec3::new(
+            -3.0616169978683824e-17,
+            0.49999999999999994,
+            0.18198511713310114,
+        ),
+        k: 0.24999999999999986,
+        arm: crate::brep::conic::Arm::Whole,
+    };
+    Trace::Conic {
+        conic,
+        on: On::Plane,
+        from: 0.0,
+        to: conic.period().expect("an ellipse closes"),
+    }
+}
+
+#[test]
+fn an_ellipse_turning_back_exactly_on_a_sample_is_crossed_twice_by_a_line_through_it() {
+    let trace = turning_on_a_sample();
+    assert_eq!(
+        trace.at(0.25)[1].x,
+        0.0,
+        "the derivative rounds to nought on the sample"
+    );
+    let heights = crossing::heights(&[vec![trace]], 4.28, false);
+    let [low, high] = heights[..] else {
+        panic!("a line through an ellipse crosses it twice, not at {heights:?}");
+    };
+    for (height, expected) in [(low, 5.923), (high, 10.137)] {
+        assert!((height - expected).abs() <= 1e-3, "{heights:?}");
+    }
+}

@@ -1,6 +1,7 @@
 //! How a cone meets a plane, a cylinder or another cone (#536): every pair of
 //! one axis read as two lines of the meridian half-plane, a plane holding the
-//! axis as the two rulings it cuts, anything else declined.
+//! axis as the two rulings it cuts, a plane at a slant as the conic it cuts
+//! (#552, `sliced.rs`), anything else declined.
 
 use glam::DVec2;
 
@@ -119,35 +120,42 @@ fn a_plane_a_hair_from_square_is_square() {
     rulings(&point(), &side, eps);
 }
 
+/// The conic a plane cuts the point along, the same whichever came first.
+fn cut(by: &Surface) -> Vec<crate::brep::conic::Conic> {
+    let found = relation(&Surface::Cone(point()), by, scale());
+    assert_eq!(relation(by, &Surface::Cone(point()), scale()), found);
+    let Relation::Conic(conics) = found else {
+        panic!("a conic expected, got {found:?}");
+    };
+    conics
+}
+
 #[test]
-fn a_plane_at_a_slant_is_unsupported() {
-    for normal in [
-        DVec3::new(1.0, 0.0, 1.0),
-        DVec3::new(0.0, 1.0, 0.01),
-        DVec3::new(1.0, 1.0, 5.0),
+fn a_plane_at_a_slant_meets_a_cone_along_the_conic_it_cuts() {
+    for (normal, closed) in [
+        (DVec3::new(1.0, 0.0, 1.0), true),
+        (DVec3::new(0.0, 1.0, 0.01), false),
+        (DVec3::new(1.0, 1.0, 5.0), true),
     ] {
         let slant = plane(DVec3::new(0.0, 0.0, 5.0), normal);
-        assert_eq!(
-            relation(&Surface::Cone(point()), &slant, scale()),
-            Relation::Unsupported
-        );
-        assert_eq!(
-            relation(&slant, &Surface::Cone(point()), scale()),
-            Relation::Unsupported
-        );
+        let conics = cut(&slant);
+        assert!(!conics.is_empty(), "{normal}");
+        for conic in conics {
+            assert_eq!(conic.k > 0.0, closed, "{normal}: {conic:?}");
+        }
     }
 }
 
 #[test]
-fn a_plane_parallel_to_the_axis_off_it_is_unsupported() {
+fn a_plane_parallel_to_the_axis_off_it_meets_a_cone_along_a_hyperbola() {
     let eps = scale().eps();
     for off in [2.0 * eps, 1.0, 20.0] {
         let side = plane(DVec3::new(off, 0.0, 0.0), DVec3::X);
-        assert_eq!(
-            relation(&Surface::Cone(point()), &side, scale()),
-            Relation::Unsupported,
-            "{off}"
-        );
+        let conics = cut(&side);
+        assert!(!conics.is_empty(), "{off}");
+        for branch in conics {
+            assert!(branch.k < 0.0, "{off}: {branch:?}");
+        }
     }
 }
 

@@ -7,7 +7,6 @@ mod crossing;
 mod cylinders;
 mod planar;
 mod revolved;
-#[cfg_attr(not(test), expect(dead_code))]
 mod sliced;
 
 use glam::DVec3;
@@ -41,8 +40,9 @@ pub enum Relation {
     Circle(Circle),
     /// Two perpendicular cylinders.
     Meet(Meeting),
-    /// A plane holding a cone's axis: the two rulings it cuts, and the apex
-    /// they cross at where it stands within the box.
+    /// A plane through a cone's apex steeper than its slope, holding its axis
+    /// or at a slant to it: the two rulings it cuts, and the apex they cross
+    /// at where it stands within the box.
     Rulings {
         lines: [Line; 2],
         apex: Option<DVec3>,
@@ -59,9 +59,9 @@ pub enum Relation {
         line: Line,
         apex: Option<DVec3>,
     },
-    /// A plane oblique to a cylinder's axis, two cylinders at a skew angle,
-    /// a cone and a plane neither square to its axis nor holding it, a cone
-    /// and a cylinder or a cone not of its axis.
+    /// Two cylinders at a skew angle, a cone and a cylinder or a cone not of
+    /// its axis, a cone within the tolerance of a plane or a cylinder of its
+    /// axis all across the box.
     Unsupported,
 }
 

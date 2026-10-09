@@ -328,24 +328,49 @@ fn a_disc_s_box_reaches_its_rim_exactly() {
     );
 }
 
-#[test]
-fn a_slant_across_a_bore_is_handed_back_as_a_decline() {
-    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+/// A bore of radius three raised twenty from `origin` along the normal of a
+/// plane leaning thirty degrees about X.
+fn slanted_bore(part: &Body, origin: DVec3) -> Body {
     let (sin, cos) = (30.0f64).to_radians().sin_cos();
     let slanted = Frame {
-        origin: DVec3::new(10.0, 10.0, -5.0),
+        origin,
         u: DVec3::X,
         v: DVec3::new(0.0, cos, sin),
     };
-    let bore = part
-        .tool_raised(
-            &exact(disc(DVec2::ZERO, 3.0), vec![]),
-            slanted,
-            slanted.normal() * 20.0,
-        )
-        .expect("a bore stands on its own");
+    part.tool_raised(
+        &exact(disc(DVec2::ZERO, 3.0), vec![]),
+        slanted,
+        slanted.normal() * 20.0,
+    )
+    .expect("a bore stands on its own")
+}
 
-    assert_eq!(part.difference(&bore), Err(Declined::Unsupported));
+#[test]
+fn a_slant_across_a_post_is_handed_back_as_a_decline() {
+    let post = raised(
+        &Body::default(),
+        &exact(disc(DVec2::splat(10.0), 8.0), vec![]),
+        10.0,
+    );
+    let bore = slanted_bore(&post, DVec3::new(10.0, 10.0, -5.0));
+
+    assert_eq!(post.difference(&bore), Err(Declined::Unsupported));
+}
+
+#[test]
+fn a_slant_through_a_block_s_floor_and_top_is_cut_exactly() {
+    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+    let bore = slanted_bore(&part, DVec3::new(10.0, 14.0, -5.0));
+
+    let cut = part.difference(&bore).expect("the kernel cuts it");
+
+    assert!(cut.is_exact());
+    let arithmetic = 4000.0 - 60.0 * 3f64.sqrt() * PI;
+    assert!(
+        (cut.volume() - arithmetic).abs() <= 1e-9 * arithmetic,
+        "{} against {arithmetic}",
+        cut.volume()
+    );
 }
 
 #[test]

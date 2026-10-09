@@ -45,7 +45,7 @@ pub enum Crossings {
     Along,
     /// A circle against a cylinder at a skew angle, or against a cone
     /// unless about an axis parallel to the cone's or in a plane holding
-    /// it; the curve two cylinders meet along against a cone.
+    /// it; the curve two cylinders meet along against a cone; any conic.
     Unsupported,
 }
 
@@ -96,7 +96,7 @@ pub fn crossings_given(
         (Curve::Circle(circle), Surface::Cone(cone)) => {
             cone::circle_and_cone(circle, cone, scale, touching)
         }
-        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
+        (Curve::Meet(_), Surface::Cone(_)) | (Curve::Conic(_), _) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
             line_and_cylinder(line, cylinder, scale, touching, None)
@@ -158,11 +158,12 @@ fn circle_through(
         Relation::Apart => Vec::new(),
         Relation::Line(line) => vec![(*line, false, None)],
         Relation::Lines(lines) => lines.map(|line| (line, false, cut.as_ref())).to_vec(),
-        Relation::Tangent(line) => vec![(*line, true, None)],
+        Relation::Tangent(line) | Relation::Ruling { line, .. } => vec![(*line, true, None)],
         Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Rulings { .. }
         | Relation::Apex(_)
+        | Relation::Conic(_)
         | Relation::Unsupported => {
             return Solved::Unsupported;
         }

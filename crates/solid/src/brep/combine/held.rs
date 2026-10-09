@@ -197,6 +197,7 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
         (Surface::Cone(_), Curve::Meet(_)) => false,
+        (_, Curve::Conic(_)) => false,
     }
 }
 

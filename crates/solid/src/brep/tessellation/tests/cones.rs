@@ -309,7 +309,7 @@ fn a_countersink_s_narrow_rim_shares_its_bore_s_samples() {
                 .edge_ids()
                 .filter(|&edge| match body.curve(body.edge(edge).curve) {
                     Curve::Circle(circle) => circle.radius == 2.0 && circle.center.y == 6.0,
-                    Curve::Line(_) | Curve::Meet(_) => false,
+                    Curve::Line(_) | Curve::Meet(_) | Curve::Conic(_) => false,
                 })
                 .collect::<Vec<_>>()[..]
             else {

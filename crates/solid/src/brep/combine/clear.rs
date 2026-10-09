@@ -139,7 +139,7 @@ fn corners((body, face): (&Body, FaceId)) -> Vec<DVec3> {
             let curve = body.curve(edge.curve);
             let centre = match curve {
                 Curve::Circle(circle) => Some(circle.center),
-                Curve::Line(_) | Curve::Meet(_) => None,
+                Curve::Line(_) | Curve::Meet(_) | Curve::Conic(_) => None,
             };
             [curve.point(edge.from), curve.point(edge.to)]
                 .into_iter()
@@ -161,7 +161,7 @@ fn farthest((body, face): (&Body, FaceId), origin: DVec3, axis: DVec3) -> Option
         let reached = match body.curve(edge.curve) {
             Curve::Line(line) => off(line.point(edge.from)).max(off(line.point(edge.to))),
             Curve::Circle(circle) => off(circle.center) + circle.radius,
-            Curve::Meet(_) => return None,
+            Curve::Meet(_) | Curve::Conic(_) => return None,
         };
         farthest = farthest.max(reached);
     }
@@ -259,7 +259,7 @@ fn radii(cone: &Cone, (body, face): (&Body, FaceId)) -> Option<[f64; 2]> {
                 };
                 (near, centre + circle.radius)
             }
-            Curve::Meet(_) => return None,
+            Curve::Meet(_) | Curve::Conic(_) => return None,
         };
         inner = inner.min(near);
         outer = outer.max(far);
@@ -301,7 +301,7 @@ fn reach((body, face): (&Body, FaceId), direction: DVec3) -> Option<[f64; 2]> {
         match curve {
             Curve::Line(_) => {}
             Curve::Circle(circle) => points.extend(turning(circle, direction, edge.from, edge.to)),
-            Curve::Meet(_) => return None,
+            Curve::Meet(_) | Curve::Conic(_) => return None,
         }
         for point in points {
             let along = direction.dot(point);

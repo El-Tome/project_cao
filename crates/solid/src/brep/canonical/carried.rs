@@ -167,7 +167,7 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
                 center: circle.center + by,
                 ..circle
             }),
-            Curve::Meet(_) => return None,
+            Curve::Meet(_) | Curve::Conic(_) => return None,
         };
     }
     for edge in &mut moved.edges {
@@ -240,8 +240,14 @@ fn kept(
             first.surfaces.iter().all(|known| {
                 let held = |surface: &Surface| match relation(known, surface, scale) {
                     Relation::Same { .. } | Relation::Tangent(_) => true,
-                    Relation::Unsupported => false,
-                    _ => [known, surface]
+                    Relation::Conic(_) | Relation::Ruling { .. } | Relation::Unsupported => false,
+                    Relation::Apart
+                    | Relation::Line(_)
+                    | Relation::Lines(_)
+                    | Relation::Circle(_)
+                    | Relation::Meet(_)
+                    | Relation::Rulings { .. }
+                    | Relation::Apex(_) => [known, surface]
                         .iter()
                         .any(|one| matches!(one, Surface::Cone(_))),
                 };

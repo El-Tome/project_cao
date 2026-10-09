@@ -1,9 +1,10 @@
 //! A curve seen in a surface's parameters: `(s, t)` on a plane, `(θ, h)` on a
-//! cylinder, with `θ` unwrapped along the trace so that it never jumps by a
-//! turn in the middle of one.
+//! cylinder, `(θ, l)` on a cone, with `θ` unwrapped along the trace so that it
+//! never jumps by a turn in the middle of one.
 
 use glam::DVec2;
 
+use super::conic::{Conic, On};
 use super::curve::Meet;
 use super::surface::Cylinder;
 
@@ -31,6 +32,14 @@ pub enum Trace {
         meet: Meet,
         on_first: bool,
         beside: Option<Cylinder>,
+        from: f64,
+        to: f64,
+    },
+    /// The conic a plane cuts a wall along, seen on its own plane or on its
+    /// own wall, between two of its parameters.
+    Conic {
+        conic: Conic,
+        on: On,
         from: f64,
         to: f64,
     },
@@ -71,6 +80,16 @@ impl Trace {
                 };
                 [point, first * span, second * span * span]
             }
+            Trace::Conic {
+                conic,
+                on,
+                from,
+                to,
+            } => {
+                let span = to - from;
+                let [point, first, second] = conic.seen_on(on, from + span * u);
+                [point, first * span, second * span * span]
+            }
         }
     }
 
@@ -107,6 +126,17 @@ impl Trace {
                 meet,
                 on_first,
                 beside,
+                from: to,
+                to: from,
+            },
+            Trace::Conic {
+                conic,
+                on,
+                from,
+                to,
+            } => Trace::Conic {
+                conic,
+                on,
                 from: to,
                 to: from,
             },

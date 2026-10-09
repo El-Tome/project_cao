@@ -1,10 +1,12 @@
 //! The curves an edge runs along, each with its own parameter: a length along
-//! a line, an angle round a circle, and for the curve two perpendicular
-//! cylinders meet along, the parameter `meet.rs` gives it.
+//! a line, an angle round a circle, for the curve two perpendicular cylinders
+//! meet along the parameter `meet.rs` gives it, and for the conic a plane cuts
+//! a wall along at a slant the universal parameter of `conic.rs`.
 
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::conic::Conic;
 use super::surface::{Cylinder, canonical_direction};
 
 /// The line through `origin`, its point nearest the world's origin, along
@@ -41,6 +43,7 @@ pub enum Curve {
     Line(Line),
     Circle(Circle),
     Meet(Meet),
+    Conic(Conic),
 }
 
 impl Line {
@@ -96,6 +99,7 @@ impl Curve {
             Curve::Line(line) => line.point(t),
             Curve::Circle(circle) => circle.point(t),
             Curve::Meet(meet) => meet.point(t),
+            Curve::Conic(conic) => conic.point(t),
         }
     }
 
@@ -106,6 +110,7 @@ impl Curve {
             Curve::Line(line) => line.direction,
             Curve::Circle(circle) => circle.derivative(t),
             Curve::Meet(meet) => meet.derivative(t),
+            Curve::Conic(conic) => conic.derivative(t),
         }
     }
 
@@ -116,6 +121,7 @@ impl Curve {
             Curve::Line(line) => line.parameter(point),
             Curve::Circle(circle) => circle.parameter(point),
             Curve::Meet(meet) => meet.parameter(point),
+            Curve::Conic(conic) => conic.parameter(point),
         }
     }
 
@@ -125,6 +131,7 @@ impl Curve {
             Curve::Line(_) => None,
             Curve::Circle(_) => Some(std::f64::consts::TAU),
             Curve::Meet(meet) => meet.period(),
+            Curve::Conic(conic) => conic.period(),
         }
     }
 }

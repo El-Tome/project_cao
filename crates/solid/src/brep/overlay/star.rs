@@ -157,7 +157,7 @@ fn leaving(arcs: &[Arc], half: usize, rounding: f64, vertex: DVec2) -> Leaving {
         blur: rounding / lever,
         bend: direction.perp_dot(second) / direction.length().powi(3),
         flat: match *trace {
-            Trace::Graph { .. } => 2.0 * rounding / (lever * lever),
+            Trace::Graph { .. } | Trace::Conic { .. } => 2.0 * rounding / (lever * lever),
             Trace::Segment { .. } | Trace::Round { .. } => 0.0,
         },
         off: start.distance(vertex) + rounding,
@@ -180,7 +180,7 @@ fn length(trace: &Trace) -> f64 {
     match *trace {
         Trace::Segment { from, to } => from.distance(to),
         Trace::Round { radius, sweep, .. } => radius * sweep.abs(),
-        Trace::Graph { .. } => (0..PIECES)
+        Trace::Graph { .. } | Trace::Conic { .. } => (0..PIECES)
             .map(|piece| {
                 let at = |piece: usize| trace.at(piece as f64 / PIECES as f64)[0];
                 at(piece).distance(at(piece + 1))

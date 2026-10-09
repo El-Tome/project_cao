@@ -1,6 +1,9 @@
-use glam::DVec2;
+use glam::{DVec2, DVec3};
 
 use super::*;
+use crate::brep::conic::Round;
+use crate::brep::scale::Scale;
+use crate::brep::surface::{Cylinder, Plane};
 
 const CLOSE: f64 = 1e-12;
 
@@ -43,11 +46,45 @@ fn a_trace_run_the_other_way_starts_where_it_ended() {
             start: 1.0,
             sweep: 4.0,
         },
+        slanted(On::Plane),
+        slanted(On::Wall),
     ];
     for trace in traces {
         let back = trace.reversed();
         assert!((back.start() - trace.end()).length() < CLOSE);
         assert!((back.end() - trace.start()).length() < CLOSE);
         assert!((back.at(0.25)[0] - trace.at(0.75)[0]).length() < CLOSE);
+    }
+}
+
+/// The ellipse a plane at a slant cuts a shaft along, seen on its plane or
+/// on its wall over half a turn.
+fn slanted(on: On) -> Trace {
+    let (plane, _) = Plane::through(DVec3::new(0.0, 0.0, 2.0), DVec3::new(0.4, 0.0, 1.0));
+    let shaft = Round::Cylinder(Cylinder::about(DVec3::ZERO, DVec3::Z, 5.0));
+    let [conic] = Conic::cut(&plane, &shaft, Scale::of(10.0))[..] else {
+        panic!("one ellipse");
+    };
+    Trace::Conic {
+        conic,
+        on,
+        from: -0.4,
+        to: 3.0,
+    }
+}
+
+#[test]
+fn a_conic_trace_s_derivatives_are_those_of_its_points_on_its_plane_and_its_wall() {
+    for on in [On::Plane, On::Wall] {
+        let trace = slanted(on);
+        for u in [0.1, 0.5, 0.9] {
+            let [_, first, second] = trace.at(u);
+            let [first_seen, second_seen] = numeric(&trace, u);
+            assert!((first - first_seen).length() < 1e-6, "{first} {first_seen}");
+            assert!(
+                (second - second_seen).length() < 1e-3,
+                "{second} {second_seen}"
+            );
+        }
     }
 }

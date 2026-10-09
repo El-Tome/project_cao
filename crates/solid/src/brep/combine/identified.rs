@@ -96,7 +96,8 @@ fn laid_once(
     let kind = |curve: &Curve| match curve {
         Curve::Line(_) => 0,
         Curve::Circle(_) => 1,
-        Curve::Meet(_) => 2,
+        Curve::Conic(_) => 2,
+        Curve::Meet(_) => 3,
     };
     let kept = ranks
         .iter()

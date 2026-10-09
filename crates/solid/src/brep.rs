@@ -7,6 +7,7 @@
 mod assembly;
 mod canonical;
 mod combine;
+mod conic;
 mod curve;
 mod domain;
 mod laying;
@@ -28,6 +29,7 @@ mod volume;
 
 use serde::{Deserialize, Serialize};
 
+pub use conic::{Arm, Conic, On, Round};
 pub use curve::{Circle, Curve, Line, Meet};
 pub use domain::Location;
 pub use listing::{ListedEdge, ListedFace, Listing};

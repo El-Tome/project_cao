@@ -139,6 +139,8 @@ pub(super) fn lies_above(
         | Relation::Circle(_)
         | Relation::Meet(_)
         | Relation::Apex(_)
+        | Relation::Conic(_)
+        | Relation::Ruling { .. }
         | Relation::Unsupported => {
             let rounding = operands.eps() * ROUNDING;
             match (first, second) {

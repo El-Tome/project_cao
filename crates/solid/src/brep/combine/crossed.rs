@@ -10,6 +10,12 @@
 //! shares it, as decision 3 reads it. A curve running within the tolerance of
 //! a surface it was decided off, on a surface decided apart from it or a hair
 //! beside the curve they share, never meets it.
+//!
+//! A crossing the kernel cannot solve is left to the pair that makes it so:
+//! a surface the curve lies on that meets the other in a way the kernel does
+//! not build, a pair the boolean declined unless its faces stand clear. On
+//! any other triple the crossing is owed, and the operation declines rather
+//! than pass it by.
 
 use glam::DVec3;
 
@@ -18,7 +24,9 @@ use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Registry, same};
 use crate::brep::curve::Curve;
-use crate::brep::relation::{Crossings, Touches, crossings_given, relation};
+use crate::brep::relation::{Crossings, Relation, Touches, crossings_given, relation};
+use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
 
 /// A corner found where a registered curve passes through a surface.
@@ -62,7 +70,18 @@ pub(super) fn crossed(
                     }
                     continue;
                 }
-                Crossings::Unsupported => continue,
+                Crossings::Unsupported => {
+                    let list = &operands.surfaces.list;
+                    let support: Vec<(&Surface, Scale)> = registry.list[curve]
+                        .support
+                        .iter()
+                        .map(|own| (&list[own.0 as usize], operands.scale_of([*own, surface])))
+                        .collect();
+                    if left_to_a_declined_pair(&support, &list[rank]) {
+                        continue;
+                    }
+                    return Err(Declined::Unsupported);
+                }
                 Crossings::At(list) => list,
             };
             for crossing in list {
@@ -136,3 +155,16 @@ fn touches(registry: &Registry, curve: usize, surface: SurfaceId) -> Touches {
         at,
     }
 }
+
+/// Whether a crossing left unsolved against `surface` stands on a pair the
+/// kernel does not build: a surface the curve lies on, each with the scale
+/// its pair with `surface` is decided at, meeting it in a way left
+/// unsupported.
+fn left_to_a_declined_pair(support: &[(&Surface, Scale)], surface: &Surface) -> bool {
+    support
+        .iter()
+        .any(|(own, scale)| relation(own, surface, *scale) == Relation::Unsupported)
+}
+
+#[cfg(test)]
+mod tests;

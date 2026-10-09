@@ -131,9 +131,6 @@ fn a_distance_that_does_not_read_says_why_and_is_not_ready() {
     assert!(!extrusion.is_ready(&variables));
 }
 
-/// The square raised 10 into a block, then a circle on a plane tilted 30°
-/// about X standing over the block's top: raised down its normal, the
-/// cylinder meets that top along an ellipse the exact kernel does not draw.
 /// A post Ø8 raised 10 about the origin, and over it a circle on a plane
 /// tilted 30° about X: raised down, its wall crosses the post's at a skew
 /// angle, which the exact kernel does not build.

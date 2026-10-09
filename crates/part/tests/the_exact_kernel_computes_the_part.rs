@@ -396,10 +396,10 @@ fn a_raise_meeting_a_block_at_a_slant_is_built_exactly() {
     assert!(part.body().is_exact(), "the part stays exact");
     let triangles = part.body().triangles();
     soundness::closed(&triangles).expect("the part is drawn closed");
-    let volume = part.body().volume();
-    assert!(
-        volume > 1000.0 + 1.0 && volume < 1000.0 + 40.0 * PI,
-        "the block and what of the slanted Ø4 stands out of it: {volume}",
+    assert_near(
+        part.body().volume(),
+        1000.0 + 16.0 * (PI + 1.0) / 3f64.sqrt(),
+        "the block, the slanted Ø4 above its top, 16π/√3, and the wedge of it beyond its side, 16/√3",
     );
 }
 

@@ -182,9 +182,6 @@ fn a_sketch_that_lost_its_face_is_marked_in_the_tree() {
     );
 }
 
-/// A block 10 by 20 raised 4, with no size set so that the drawing is in
-/// millimetres, then a circle drawn on a plane tilted 30° about X and
-/// standing over the block's top, raised down its normal.
 /// A post Ø8 about (5, 10) raised 4, then a circle on a plane tilted 30°
 /// about X raised down across its wall.
 fn a_post_under_a_slanted_circle_raised() -> PartDocument {

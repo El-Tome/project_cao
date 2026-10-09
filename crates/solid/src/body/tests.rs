@@ -374,6 +374,34 @@ fn a_slant_through_a_block_s_floor_and_top_is_cut_exactly() {
 }
 
 #[test]
+fn a_slant_through_a_block_s_floor_and_out_through_its_side_is_cut_exactly() {
+    let part = block(DVec2::ZERO, DVec2::splat(20.0), 10.0);
+    let bore = slanted_bore(&part, DVec3::new(10.0, 10.0, -5.0));
+
+    let cut = part.difference(&bore).expect("the kernel cuts it");
+
+    assert!(cut.is_exact());
+    let (half, slope) = (
+        3.0 / (30.0f64).to_radians().cos(),
+        (30.0f64).to_radians().tan(),
+    );
+    let level = |z: f64| (10.0 - slope * (z + 5.0)) / half;
+    let swept =
+        |c: f64| PI * c - (c * c.acos() - (1.0 - c * c).sqrt()) - (1.0 - c * c).powf(1.5) / 3.0;
+    let whole = (10.0 - half) / slope - 5.0;
+    let bored = 3.0 * half * (PI * whole + (swept(level(10.0)) - swept(1.0)) / (-slope / half));
+    let arithmetic = 4000.0 - bored;
+    assert!(
+        (cut.volume() - arithmetic).abs() <= 1e-9 * arithmetic,
+        "{} against {arithmetic}",
+        cut.volume()
+    );
+    let triangles = cut.triangles();
+    assert_eq!(crate::soundness::closed(&triangles), Ok(()));
+    assert_eq!(crate::soundness::uncrossed(&triangles), Ok(()));
+}
+
+#[test]
 fn a_kernel_that_stops_on_a_bug_hands_back_a_decline() {
     let stopped: Result<(), Declined> = caught::caught(|| panic!("a shape nobody tried"));
 

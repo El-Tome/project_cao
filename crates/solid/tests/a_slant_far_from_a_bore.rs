@@ -239,16 +239,34 @@ fn between_axes(one: (usize, DVec2, f64), other: (usize, DVec2, f64)) -> f64 {
         .fold(f64::INFINITY, f64::min)
 }
 
+/// How much of a bore square into a side, `aside` along it from its middle,
+/// stands beyond the next side, which leans in at sixty degrees from the
+/// side's end ten along: at a depth `t` the bore's disc pokes past it by the
+/// segment beyond a chord `10 − |aside| + t/√3` from its centre, whose
+/// integral along the chord's distance is `d·S(d) − ⅔(r² − d²)^{3/2}`.
+fn beyond_the_next_side(radius: f64, aside: f64, depth: f64) -> f64 {
+    let integral = |chord: f64| {
+        if chord >= radius {
+            return 0.0;
+        }
+        let segment = radius * radius * (chord / radius).acos()
+            - chord * (radius * radius - chord * chord).sqrt();
+        chord * segment - 2.0 / 3.0 * (radius * radius - chord * chord).powf(1.5)
+    };
+    let chord = |t: f64| 10.0 - aside.abs() + t / 3f64.sqrt();
+    3f64.sqrt() * (integral(chord(depth)) - integral(chord(0.0)))
+}
+
 /// Two bores drawn at random into two adjacent sides, the part laid at
-/// random, each standing far enough from its side's ends never to reach
-/// the next side: where their walls may cross each other, at a skew angle,
-/// the operation may be declined, and otherwise it holds every rule with
-/// the arithmetic's volume — neither crossing anything but its own side,
-/// each takes its own matter.
+/// random, either of them poking past its side's end through the next side:
+/// where their walls may cross each other, at a skew angle, the operation
+/// may be declined, and otherwise it holds every rule with the arithmetic's
+/// volume — each takes its own matter, less what stands beyond the next
+/// side.
 #[test]
 fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsupported() {
     const CASES: u64 = 60;
-    let mut cut = 0;
+    let (mut cut, mut poking) = (0, 0);
     for seed in 0..CASES {
         let mut random = Random::seeded(seed);
         let pose = Pose::drawn(&mut random);
@@ -258,7 +276,7 @@ fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsuppor
             .map(|side| {
                 let radius = random.between(1.0, 5.0);
                 let at = DVec2::new(
-                    random.between(radius - 9.0, 9.0 - radius),
+                    random.between(-9.0, 9.0),
                     random.between(radius + 1.0, HEIGHT - radius - 1.0),
                 );
                 (side, at, radius, random.between(1.0, 15.0))
@@ -284,21 +302,33 @@ fn two_bores_drawn_at_random_into_adjacent_sides_are_cut_or_declined_as_unsuppor
                 );
             }
             _ => {
-                let arithmetic = drawn
-                    .iter()
-                    .fold(hexagon_volume(), |left, &(_, _, radius, depth)| {
-                        left - bored(radius, depth)
-                    });
+                let arithmetic =
+                    drawn
+                        .iter()
+                        .fold(hexagon_volume(), |left, &(_, at, radius, depth)| {
+                            left - (bored(radius, depth)
+                                - beyond_the_next_side(radius, at.x, depth))
+                        });
                 holds(
                     made,
                     arithmetic,
                     &format!("seed {seed}: {drawn:?} in {pose:?}"),
                 );
                 cut += 1;
+                if drawn
+                    .iter()
+                    .any(|&(_, at, radius, _)| at.x.abs() + radius > 10.0)
+                {
+                    poking += 1;
+                }
             }
         }
     }
     assert!(cut >= CASES / 4, "only {cut} of {CASES} cut");
+    assert!(
+        poking >= 5,
+        "only {poking} cut poking through the next side"
+    );
 }
 
 #[test]
@@ -411,6 +441,20 @@ fn a_bore_cut_square_into_a_side_beside_a_slant_leaves_every_face_its_number_and
         assert_eq!(
             names(&cut),
             [sides.clone(), bottom_and_wall].concat(),
+            "{pose:?}"
+        );
+    }
+}
+
+#[test]
+fn a_bore_crossing_a_slanted_side_leaves_every_face_its_number_and_brings_its_wall() {
+    let sides: Vec<Vec<u32>> = (0..6).map(|number| vec![number]).collect();
+    for pose in Pose::all() {
+        let tool = standing(&pose, 33.0, -10.0, 2.0, 12.0).renumbered(6);
+        let cut = chamfered(&pose).cut_by(&tool).expect("the bore is cut");
+        assert_eq!(
+            names(&cut),
+            [sides.clone(), vec![vec![8]]].concat(),
             "{pose:?}"
         );
     }

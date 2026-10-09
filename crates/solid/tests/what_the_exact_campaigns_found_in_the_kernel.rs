@@ -6152,11 +6152,11 @@ fn seed_5520210646_a_slab_cut_a_hair_from_its_floor_s_edge_at_75_degrees_then_fr
     ));
 }
 
-/// 5541124475 as drawn, #552's tilted campaign on the exact kernel. Holds on
-/// `34a1b64` and fails since the grazing planes (`cecca2f`); its shrunk core
-/// below fails on `34a1b64` too.
+/// 5541124475 as drawn, #552's tilted campaign on the exact kernel. Held on
+/// `34a1b64` and failed since the grazing planes (`cecca2f`); its shrunk core
+/// below failed on `34a1b64` too. Both hold once a plane carries an edge's
+/// line only where the line stays within the tolerance of it.
 #[test]
-#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as a tie in a face's overlay"]
 fn seed_5541124475_as_drawn_a_block_leaning_1e_7_degrees_joined_to_two_square_blocks() {
     random_solids::holds_exactly(&Case::drawn_tilted_off_the_lattice(5541124475));
 }
@@ -6165,10 +6165,13 @@ fn seed_5541124475_as_drawn_a_block_leaning_1e_7_degrees_joined_to_two_square_bl
 /// one. The leaning block's floor is decided to graze the first block's at
 /// the first join; at the second, one pair of the leaning block's faces
 /// stands 1.25 tolerances apart across the box their faces may meet in: not
-/// grazing, and too near parallel to fix the line they share. The overlay
-/// of a face finds a tie. Fails on `34a1b64` too.
+/// grazing, and too near parallel to fix the line they share. The first
+/// join's edge along the floor, beside the square block's floor over its
+/// stretch, was laid on that floor all along, though the leaning floor
+/// parts from it by 1.25 tolerances at the far end, and the overlay of a
+/// face found a tie. Failed on `34a1b64` too. The square floor now carries
+/// the edge over its stretch alone.
 #[test]
-#[ignore = "near-parallel-planes, #552's round 2 triage: two planes 1.25 tolerances apart across their box neither graze nor fix their line; declined as a tie in a face's overlay"]
 fn seed_5541124475_a_block_leaning_1e_7_degrees_joined_to_two_square_blocks() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(
@@ -6302,11 +6305,11 @@ fn seed_5520207605_a_stepped_double_cone_cut_by_a_block_off_the_lattice_and_a_pl
 /// #552's turned campaign through the application's body, round 0's seed
 /// run again: a post whose axis leans 1e-7 joined to two blocks. The post's
 /// end is decided to graze a block's face at each join, and a dozen of the
-/// edges round them are left with one face each. Holds on `34a1b64` and with
-/// the hair lane alone (`25e824f`), fails with the grazing planes
-/// (`cecca2f`).
+/// edges round them were left with one face each. Held on `34a1b64` and
+/// with the hair lane alone (`25e824f`), failed with the grazing planes
+/// (`cecca2f`); holds once a plane carries an edge's line only where the
+/// line stays within the tolerance of it.
 #[test]
-#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as unverified"]
 fn seed_5520600321_a_post_whose_axis_leans_1e_7_joined_to_two_blocks() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::turned(
@@ -6335,11 +6338,14 @@ fn seed_5520600321_a_post_whose_axis_leans_1e_7_joined_to_two_blocks() {
 /// cross the leaning block's at 1e-3°, under the angle that fixes the line
 /// two planes share; an operand's own corner on them stands where its
 /// operand built it (`placed`, canonical/corners.rs), and edges 1.5e-4 long
-/// are left with one face each. Placed as any other corner, it holds. Holds
-/// on `34a1b64` and with the grazing planes alone (`cecca2f`), fails with
-/// the hair lane (`25e824f`).
+/// were left with one face each. Held on `34a1b64` and with the grazing
+/// planes alone (`cecca2f`), failed with the hair lane (`25e824f`). The
+/// cause was the support that corner was given: the first cut's corner line
+/// was laid on the leaning side all along, from an edge beside that side
+/// over its last 1.5e-4 alone, and a corner at the cut's floor, twenty
+/// tolerances off the side, stood on the line it shares with a wall.
+/// Carried over that stretch alone, the side holds no such corner.
 #[test]
-#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since an operand's own corner stays where it was built (25e824f); declined as unverified"]
 fn seed_5541239472_a_block_leaning_1e_3_degrees_cut_by_two_blocks_and_a_post() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -6372,8 +6378,12 @@ fn seed_5541239472_a_block_leaning_1e_3_degrees_cut_by_two_blocks_and_a_post() {
 /// about X off the first's side and crosses it halfway up. The two faces
 /// cross along a line inside both, the wedge between them up to sixteen
 /// tolerances thick: too far apart to graze, too near parallel to fix that
-/// line, and the wedge's edges are left with one face each. Fails on
-/// `34a1b64` too.
+/// line, and the wedge's edges are left with one face each: the side's
+/// corner line crossing the face and the face's line crossing the side,
+/// each at the shallow angle of the two faces, stand 1.5 tolerances apart
+/// along it. Fails on `34a1b64` too. Crossing both through the line the
+/// faces share makes it hold, but moved other corners of fresh seeds off
+/// where their other surfaces fix them.
 #[test]
 #[ignore = "near-parallel-planes, #552's round 2 triage: two faces crossing at 1e-5 degrees inside both leave a wedge whose edges each keep one face; declined as unverified"]
 fn seed_5541126238_a_block_cut_by_a_block_whose_face_leans_1e_5_degrees_off_its_side() {

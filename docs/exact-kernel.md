@@ -462,6 +462,11 @@ The decisions, in the order taken, once per operation:
    meet along is carried all along by its own two walls only, not by a wall
    of one radius a hair beside one of them: there it lies over its stretch
    alone, and is seen there as below, under "Everything else is derived".
+   Nor is a line carried all along by a plane it crosses at a grazing
+   angle: a cut's corner line beside a block's side leaning 1e-3° off the
+   cut's face lies on that side over the 1.5e-4 of its edge alone, and laid
+   on it all along it put a corner at the cut's floor, twenty tolerances
+   off the side, on the side (5541239472).
    A conic on a plane or a wall that is not its own, and a circle leaning
    on a plane by less than the tolerance across its rim, are seen there as
    the conic that surface meets the curve's other own surface along,

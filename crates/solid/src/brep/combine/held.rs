@@ -171,19 +171,28 @@ fn shared(
 const MOVED: f64 = 2.0;
 
 /// Whether a surface carries a curve all along it, within the tolerance: a
-/// line on a cylinder runs along its axis, a circle on a plane or a cylinder
-/// stands square to it and about its axis, the curve two cylinders meet along
-/// runs round one of its own two — not round a wall of one radius a hair
-/// beside one of them, which carries it only over the stretch an arc of it
-/// was taken for (decision 6). A cone carries its rulings and its circles
-/// about its axis. A conic is carried by a surface decided one with its
-/// plane or with its wall, and by nothing else.
+/// line on a plane stands square to its normal and within the tolerance of
+/// it, a line on a cylinder runs along its axis, a circle on a plane or a
+/// cylinder stands square to it and about its axis, the curve two cylinders
+/// meet along runs round one of its own two — not round a wall of one
+/// radius a hair beside one of them, which carries it only over the stretch
+/// an arc of it was taken for (decision 6). Nor does a plane a line crosses
+/// at a grazing angle, within the tolerance of it over the stretch an edge
+/// beside it covers: a block's side leaning 1e-3° off a cut's face carries
+/// the cut's corner line over the 1.5e-4 between their crossing and the
+/// block's top, and stands twenty tolerances off it at the cut's floor
+/// (5541239472). A cone carries its rulings and its circles about its axis.
+/// A conic is carried by a surface decided one with its plane or with its
+/// wall, and by nothing else.
 pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
         |one: DVec3, other: DVec3| one.cross(other).length() * 2.0 * scale.reach() <= eps;
+    let square = |one: DVec3, other: DVec3| one.dot(other).abs() * 2.0 * scale.reach() <= eps;
     match (surface, curve) {
-        (Surface::Plane(_), Curve::Line(_)) => true,
+        (Surface::Plane(plane), Curve::Line(line)) => {
+            square(line.direction, plane.normal) && plane.distance(line.origin).abs() <= eps
+        }
         (Surface::Plane(plane), Curve::Circle(circle)) => {
             parallel(circle.axis, plane.normal) && plane.distance(circle.center).abs() <= eps
         }

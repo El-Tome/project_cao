@@ -734,5 +734,44 @@ fn a_whole_point_joined_to_a_block_clear_of_it_keeps_its_tip_as_a_vertex_of_its_
     assert_eq!(joined.vertices.len(), 9);
 }
 
+/// Seed 5541239472 of #552's tilted campaign: a block's side leaning 1e-3°
+/// off a cut's face crosses the cut's corner line 1.5e-4 below the block's
+/// top, and the stretch of that line between them stands on the side. The
+/// side carries no more of it: twenty tolerances down, the line stands that
+/// far off the side, and a corner at the cut's floor no closer.
+#[test]
+fn a_plane_carries_a_line_only_where_the_line_stays_within_the_tolerance_of_it_across_the_box() {
+    let scale = Scale::of(60.0);
+    let eps = scale.eps();
+    let corner_line = Curve::Line(crate::brep::curve::Line::through(
+        DVec3::new(42.5, 30.0, 0.0),
+        DVec3::Z,
+    ));
+    let lean = 1e-3_f64.to_radians();
+    let leaning_side = Plane::through(
+        DVec3::new(42.5, 30.0, 25.000152717530757),
+        DVec3::new(lean.cos(), 0.0, lean.sin()),
+    )
+    .0;
+    for (plane, expected) in [
+        (Plane::through(DVec3::new(42.5, 0.0, 0.0), DVec3::X).0, true),
+        (
+            Plane::through(DVec3::new(42.5 + eps / 2.0, 0.0, 0.0), DVec3::X).0,
+            true,
+        ),
+        (
+            Plane::through(DVec3::new(42.5 + 3.0 * eps, 0.0, 0.0), DVec3::X).0,
+            false,
+        ),
+        (leaning_side, false),
+    ] {
+        assert_eq!(
+            held::carries(&Surface::Plane(plane), &corner_line, scale),
+            expected,
+            "{plane:?}"
+        );
+    }
+}
+
 mod conical;
 mod conics;

@@ -18,6 +18,7 @@ mod drawing;
 mod kernels;
 mod outlines;
 mod printing;
+mod scope;
 mod sections;
 mod smaller;
 

@@ -5514,3 +5514,116 @@ fn seed_5365110795_a_quarter_turn_joined_to_a_cone_whose_axis_passes_3e_7_off_it
         ))],
     ));
 }
+
+/// #552: half a turn of a shaft ending in a frustum, its tip beyond the
+/// frustum's narrow rim, cut by a plane through that tip at the frustum's
+/// slope: it touches the frustum along the ruling the half turn's flat face
+/// holds. The line the plane cuts the flat face along runs on past the tip,
+/// over the other nappe, to the shaft's end; a corner there was read off it
+/// as lying on the frustum, which the shaft's end never meets, and the flat
+/// face was not parted along it. A curve lies on a cone only where it
+/// stands on the cone's own nappe.
+#[test]
+fn seed_9304992_a_plane_touching_a_frustum_along_a_ruling_a_flat_face_holds_is_cut_past_its_tip() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(3.0, &[[5.0, 0.0, 4.0], [3.0, 0.0, 4.0]])
+                .sloping_to(&[[0.0, 4.0], [0.0, 7.0]]),
+            180.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-4.0, 0.0, -2.0], [90.0, 45.0, 0.0]),
+            Outline::rectangle([-10.0, -1.0], [6.0, 8.0]),
+            10.0,
+        ))],
+    ));
+}
+
+/// #552: the same, three quarters of a turn, the plane through the tip of a
+/// frustum between two shafts. Once the corner past the tip lay on the
+/// line, the arc between the two was still laid on the frustum's face, its
+/// whole length read back onto the tip: a stretch of no length there, which
+/// the face's arcs could not be ordered round. An arc past a cone's apex
+/// lies on the curve's other surfaces only (9301298 too).
+#[test]
+fn seed_9302688_a_plane_touching_a_frustum_between_two_shafts_along_a_ruling_is_cut_past_its_tip() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.0),
+            Axis::first(3.5).backwards(),
+            Section::bands(-1.0, &[[1.5, 0.0, 4.5], [0.5, 0.0, 2.0], [4.0, 0.0, 4.5]])
+                .sloping_to(&[[0.0, 4.5], [0.0, 1.5], [0.0, 4.5]]),
+            270.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-2.5, 3.5, 7.0], [90.0, 45.0, 0.0]),
+            Outline::rectangle([-6.0, -6.0], [7.0, 6.0]),
+            7.0,
+        ))],
+    ));
+}
+
+/// #552: a cut along a ruling past a frustum's tip as in 9304992, then a
+/// block joined well clear of it.
+/// The corner past the frustum's tip, read again as a vertex of the first
+/// operand found along the tip's line, took the frustum among its surfaces
+/// from that line, and so stood apart from the shaft's end it lies on: the
+/// flat face lost its edge along that end. A corner past a cone's apex takes
+/// none of a curve's surfaces but those it stands on.
+#[test]
+fn seed_9303477_a_cut_past_a_frustum_s_tip_is_joined_to_a_block_clear_of_it() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(8.0),
+            Axis::second(0.0),
+            Section::bands(3.0, &[[3.5, 0.0, 2.0], [0.5, 0.0, 2.0]])
+                .sloping_to(&[[0.0, 2.0], [0.0, 2.5]]),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 4.5, 8.0], [90.0, -45.0, 0.0]),
+                Outline::rectangle([-7.0, -1.0], [4.0, 4.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([2.0, 10.0], [7.0, 17.0]),
+                9.0,
+            )),
+        ],
+    ));
+}
+
+/// #552: a shaft along X, a plane leaning 45° about Z whose ellipse on the
+/// shaft reaches its far end exactly at the end's rim, and touches it there.
+/// The line the plane cuts the end along passes that rim a femtometre
+/// inside, as rounding left it, and crossed the shaft twice a tenth of a
+/// micron apart: the end held a sliver between that chord and the rim no
+/// column could find a point in. Declined as a tie.
+#[test]
+#[ignore = "kernel-declines, #552: the corners a tenth of a micron apart are what a line a hair inside a rim crosses it at too (a_circle_a_hair_under_a_round_touching_its_wall_inside_crosses_it_twice); the sliver between them is one unit in the last place wide, and no column of the end's overlay finds a point in it"]
+fn seed_9304992_an_ellipse_touching_a_shaft_s_far_rim_is_cut_with_one_corner_there() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-2.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(3.0, &[[7.5, 0.0, 6.5]]),
+            180.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::yz(-10.5),
+                Outline::circle([0.0, -2.0], 6.5),
+                5.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-4.0, 0.0, -2.0], [90.0, 45.0, 0.0]),
+                Outline::rectangle([-10.0, -1.0], [6.0, 8.0]),
+                10.0,
+            )),
+        ],
+    ));
+}

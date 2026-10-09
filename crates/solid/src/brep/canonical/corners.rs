@@ -93,7 +93,12 @@ impl Pool {
             .map(|corner| {
                 let mut support = corner.surfaces.clone();
                 for curve in &corner.curves {
-                    support.extend(registry.list[*curve].support.iter().copied());
+                    support.extend(on_the_nappe(
+                        &registry.list[*curve].support,
+                        corner.point,
+                        registry,
+                        self.eps,
+                    ));
                 }
                 support
             })
@@ -112,7 +117,12 @@ impl Pool {
                     {
                         continue;
                     }
-                    support.extend(known.support.iter().copied());
+                    support.extend(on_the_nappe(
+                        &known.support,
+                        corner.point,
+                        registry,
+                        self.eps,
+                    ));
                     grown = true;
                 }
             }
@@ -125,6 +135,22 @@ impl Pool {
             .map(|support| support.into_iter().collect())
             .collect()
     }
+}
+
+/// The surfaces of a curve a corner on it lies on: all of them, but a cone
+/// the corner stands off the own nappe of — a line through the cone's apex
+/// runs on past it, and a corner there lies on the curve's other surfaces
+/// only.
+fn on_the_nappe(
+    surfaces: &[SurfaceId],
+    point: DVec3,
+    registry: &Registry,
+    eps: f64,
+) -> impl Iterator<Item = SurfaceId> {
+    surfaces
+        .iter()
+        .copied()
+        .filter(move |surface| !registry.apart.off_the_nappe(*surface, point, eps))
 }
 
 /// Where a corner stands: where three planes it lies on meet, when their
@@ -239,7 +265,11 @@ fn on(
 /// corner lies on it where it stands within the tolerance of it. Nor is the
 /// line two surfaces touch along: a corner lies on it only within the
 /// tolerance of it and of both surfaces. And no corner lies on a curve one of
-/// whose surfaces is decided apart from one of the corner's (decision 5).
+/// whose surfaces is decided apart from one of the corner's (decision 5),
+/// but a cone the corner stands off the own nappe of: a line through its
+/// apex — the ruling a plane touches it along, which a flat face holding
+/// the axis carries too — runs on past the apex, where a surface apart from
+/// the cone may well cross it.
 pub(in crate::brep) fn lies_on(
     point: DVec3,
     support: &[SurfaceId],
@@ -248,7 +278,8 @@ pub(in crate::brep) fn lies_on(
     eps: f64,
 ) -> bool {
     let own = &registry.list[curve];
-    if registry.apart.across(&own.support, support) || distance(&own.curve, point) > eps {
+    let standing: Vec<SurfaceId> = on_the_nappe(&own.support, point, registry, eps).collect();
+    if registry.apart.across(&standing, support) || distance(&own.curve, point) > eps {
         return false;
     }
     let shared: Vec<SurfaceId> = own

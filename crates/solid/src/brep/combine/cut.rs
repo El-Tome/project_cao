@@ -87,7 +87,7 @@ pub(super) fn cut(
                 .collect(),
         };
         for edge in pieces.into_iter().filter(|edge| edge.from < edge.to) {
-            let mut support = lies(rank, registered, held, &edge);
+            let mut support = lies(rank, registered, registry, held, &edge, eps);
             support.extend(beside(
                 operands, registry, bands, registered, &edge, &corners, &support,
             )?);
@@ -120,11 +120,26 @@ pub(super) fn cut(
 }
 
 /// The surfaces an arc lies on: its curve's, and those an operand's edge
-/// covering it lies on over its stretch alone.
-fn lies(rank: usize, registered: &Registered, held: &[Held], edge: &Edge) -> Vec<SurfaceId> {
+/// covering it lies on over its stretch alone. A line through a cone's apex
+/// lies on the cone's own nappe on one side of it only: past the apex, an
+/// arc of it lies on the other surfaces of its curve and not on the cone.
+fn lies(
+    rank: usize,
+    registered: &Registered,
+    registry: &Registry,
+    held: &[Held],
+    edge: &Edge,
+    eps: f64,
+) -> Vec<SurfaceId> {
     let middle = (edge.from + edge.to) / 2.0;
     let period = registered.curve.period();
-    let mut support = registered.support.clone();
+    let point = registered.curve.point(middle);
+    let mut support: Vec<SurfaceId> = registered
+        .support
+        .iter()
+        .copied()
+        .filter(|surface| !registry.apart.off_the_nappe(*surface, point, eps))
+        .collect();
     for held in held
         .iter()
         .filter(|held| held.curve == rank && held.covers(middle, period, 0.0))

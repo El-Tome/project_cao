@@ -151,6 +151,16 @@ impl Apart {
             .map_or(&[], Vec::as_slice)
     }
 
+    /// Whether `surface` is a cone `point` stands off the own nappe of by
+    /// more than `eps`: a ruling through the apex runs on over the other
+    /// nappe, where it lies on no face of the cone.
+    pub fn off_the_nappe(&self, surface: SurfaceId, point: DVec3, eps: f64) -> bool {
+        matches!(
+            self.surfaces.get(surface.0 as usize),
+            Some(Surface::Cone(cone)) if cone.distance(point).abs() > eps
+        )
+    }
+
     /// Whether a place stands within `eps` of a surface.
     pub fn near(&self, surface: SurfaceId, point: DVec3, eps: f64) -> bool {
         self.surfaces

@@ -1036,7 +1036,11 @@ From what never gives to what gives first:
    leaves the point nearest the origin where it is and moves the other, and
    changes no size nobody typed on the way: the other point is taken where
    the value says, what lies beyond it goes the whole way, what lies between
-   the two stretches, and the solver only mends what is left (#455). Of two
+   the two stretches, and the solver only mends what is left (#455). Where
+   that stretch breaks something already decided — a side typed beside the
+   one it stretches — and the other point going alone breaks nothing, it goes
+   alone: mending the stretch would move a corner nobody asked to move
+   (#530). Of two
    points as near the origin, the one drawn first stays. Construction
    geometry is ordinary here: it settles like the profile, and gives neither
    first nor last (#452 tried otherwise, and was turned down in use).
@@ -1124,6 +1128,7 @@ when none decides it.
 | Lay a rule | Two traits of typed lengths made equal | Nothing: the rule is refused, as a value is | Same (#467); the rule was kept and left untrue |
 | Type a value | A trait alone, both ends free | The end nearest the origin stays, the other moves | Same (#455); both ends moved by half |
 | Type a value | Four traits made square, only the width typed | The side nearest the origin stays, and the height with it | Same (#455); both sides moved, and the height changed |
+| Type a value | Four traits from a corner held on V, nothing square, the left side typed, then the right one | The far corner of the right side alone: the held corner, the left side and the bottom stay | Same (#530); the left side grew with the right one and was brought back by sliding the corner along V, the bottom leaning and growing — and before #547, by turning the corner off V while the value answered exact |
 | Type a value | An angle between two free traits | The second trait clicked turns, the first stays | Same (#451) |
 | Type a value | A shape squared by its rules, held by a single fixed point or corner of the part | Nothing turns | Same for a fixed point (#456); a corner of the part waits on #359 |
 | Lay a rule | Two free traits made square | The second clicked turns onto the first | Same (#451) |

@@ -18,6 +18,11 @@
 //! `a_distance_between_two_shapes_carries_the_far_one_and_leaves_the_near_one`;
 //! and an arc hanging off the far end swelled rather than going with it —
 //! `an_arc_hanging_off_the_far_end_goes_with_it`.
+//!
+//! #530 found a side already typed stretched with the one beside it, and
+//! brought back by moving a corner nobody typed —
+//! `a_side_already_typed_is_not_stretched_by_the_side_typed_beside_it`. Its
+//! criteria are held in `crates/part/tests/a_corner_held_on_an_axis_stays_on_it.rs`.
 
 use glam::DVec2;
 
@@ -249,5 +254,59 @@ fn an_arc_hanging_off_the_far_end_goes_with_it() {
         (sketch.arc_radius(arc) - 50.0).abs() < SETTLED,
         "the arc was to keep its radius of 50, it is {}",
         sketch.arc_radius(arc),
+    );
+}
+
+/// Four free traits through `corners`, nothing square: the corners as drawn,
+/// and the sides from the first corner to the second onwards.
+fn four_free_traits(sketch: &mut Sketch, corners: [DVec2; 4]) -> ([PointId; 4], Vec<SegmentId>) {
+    let corners = corners.map(|corner| sketch.add_point(corner));
+    let sides = (0..4)
+        .map(|index| sketch.add_segment(corners[index], corners[(index + 1) % 4]))
+        .collect();
+    (corners, sides)
+}
+
+#[test]
+fn a_side_already_typed_is_not_stretched_by_the_side_typed_beside_it() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let (corners, sides) = four_free_traits(
+        &mut sketch,
+        [
+            DVec2::new(0.0, 30.0),
+            DVec2::new(100.0, 30.0),
+            DVec2::new(100.0, 80.0),
+            DVec2::new(0.0, 80.0),
+        ],
+    );
+    sketch.set_dimension(DimensionTarget::Length(sides[3]), 50.0, false);
+    sketch.set_dimension(DimensionTarget::Length(sides[1]), 50.0, false);
+    assert_eq!(sketch.resolve(SCALE), LengthOutcome::Exact);
+
+    type_value(&mut sketch, DimensionTarget::Length(sides[1]), 80.0);
+
+    assert_at(
+        &sketch,
+        corners[0],
+        DVec2::new(0.0, 30.0),
+        "the bottom left corner",
+    );
+    assert_at(
+        &sketch,
+        corners[3],
+        DVec2::new(0.0, 80.0),
+        "the top left corner",
+    );
+    assert_at(
+        &sketch,
+        corners[1],
+        DVec2::new(100.0, 30.0),
+        "the bottom right corner",
+    );
+    assert_at(
+        &sketch,
+        corners[2],
+        DVec2::new(100.0, 110.0),
+        "the top right corner",
     );
 }

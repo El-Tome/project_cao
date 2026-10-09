@@ -105,6 +105,13 @@ patience. The seed being tried is written on the standard error as it goes: a
 kernel that blows its stack ends the program, which nothing can catch, and the
 last seed written is the one to run again.
 
+The campaigns of `random_exact_solids` and `random_turned_solids` hand their
+seeds to every core of the machine (`campaign_across`, #549); `CAO_FUZZ_THREADS`
+sets how many threads instead. They name the same failing seeds, in seed order,
+as one thread would. Several campaigns run side by side should share the cores
+between them: a machine crowded past its cores slows every case, and a case
+slowed past `CAO_FUZZ_PATIENCE` counts as no answer.
+
 A campaign shrinks the first three failures of each rule and counts the rest.
 One rule broken by a common cause can hide a rarer one behind it: several
 campaigns from different seeds see more than one long one.

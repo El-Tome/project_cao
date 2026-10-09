@@ -1213,3 +1213,31 @@ fn a_trait_standing_square_off_a_side_slides_along_it_by_its_foot_or_its_tip() {
         "the foot, slid along with it",
     );
 }
+
+#[test]
+fn a_drop_the_drawing_would_refuse_joins_nothing() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let end = sketch.add_point(DVec2::new(10.0, 0.0));
+    let far = sketch.add_point(DVec2::new(20.0, 0.0));
+    let side = sketch.add_segment(end, far);
+    let middle = sketch.add_point(DVec2::new(15.0, 0.0));
+    sketch.add_constraint(Constraint::Midpoint {
+        point: middle,
+        segment: side,
+    });
+    let pull = sketch.pull(middle, 1.0);
+    let landing = sketch.point(end);
+    let mut settled = sketch.clone();
+    settled.move_point(middle, landing);
+
+    assert_eq!(
+        pull.joined_to(&settled, landing, 1.0),
+        Some(end),
+        "it lands on the end"
+    );
+    assert_eq!(
+        pull.joins(&settled, landing, 1.0, 1.0),
+        None,
+        "the middle of a trait cannot be one of its ends"
+    );
+}

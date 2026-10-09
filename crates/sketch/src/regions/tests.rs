@@ -542,3 +542,60 @@ fn a_circle_touching_an_area_the_walk_cut_out_is_a_hole_of_it() {
     assert_eq!(around.len(), 1, "one area has the small disc as its hole");
     assert!(around[0].contains(DVec2::new(8.0, 5.0)));
 }
+
+#[test]
+fn windows_touching_each_other_are_one_hole_of_their_frame() {
+    let drawings = [
+        [(5.0, 5.0, 15.0, 25.0), (15.0, 5.0, 25.0, 25.0)],
+        [(5.0, 5.0, 15.0, 25.0), (15.0, 10.0, 25.0, 20.0)],
+        [(5.0, 5.0, 15.0, 15.0), (15.0, 15.0, 25.0, 25.0)],
+    ];
+    for windows in drawings {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        rectangle(&mut sketch, DVec2::ZERO, DVec2::splat(30.0));
+        for (left, bottom, right, top) in windows {
+            rectangle(
+                &mut sketch,
+                DVec2::new(left, bottom),
+                DVec2::new(right, top),
+            );
+        }
+        let regions = sketch.regions();
+        let frame = &regions[0];
+        let open: f64 = windows
+            .iter()
+            .map(|(left, bottom, right, top)| (right - left) * (top - bottom))
+            .sum();
+
+        assert_eq!(frame.holes.len(), 1, "{windows:?}: one opening");
+        assert!(
+            (frame.area() - (900.0 - open)).abs() < 1e-9,
+            "{windows:?}: the frame measures {}",
+            frame.area()
+        );
+        let matter = area(&frame.face_triangles());
+        assert!(
+            (matter - frame.area()).abs() < 1e-9,
+            "{windows:?}: the frame's matter {matter} against its measure {}",
+            frame.area()
+        );
+    }
+}
+
+#[test]
+fn windows_a_trait_joins_are_two_holes_of_their_frame() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    rectangle(&mut sketch, DVec2::ZERO, DVec2::splat(30.0));
+    rectangle(&mut sketch, DVec2::splat(5.0), DVec2::splat(10.0));
+    rectangle(&mut sketch, DVec2::splat(20.0), DVec2::splat(25.0));
+    let ends = [10.0, 20.0].map(|at| sketch.add_point(DVec2::splat(at)));
+    sketch.add_segment(ends[0], ends[1]);
+
+    let regions = sketch.regions();
+    let frame = &regions[0];
+
+    let corners: Vec<usize> = frame.holes.iter().map(|hole| hole.points.len()).collect();
+    assert_eq!(corners, vec![4, 4], "two openings of four corners each");
+    assert!((frame.area() - 850.0).abs() < 1e-9, "{}", frame.area());
+    assert!((area(&frame.face_triangles()) - 850.0).abs() < 1e-9);
+}

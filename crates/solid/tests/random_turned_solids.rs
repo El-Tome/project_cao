@@ -68,6 +68,12 @@
 //! `CAO_TRIAGE_SEEDS`, with `CAO_TRIAGE_KERNEL=application` for the
 //! campaign through the application's body and `CAO_TRIAGE_DRAW=slanted`
 //! for a campaign of slanted solids.
+//!
+//! Closes #541.
+//! - the fingerprint of the draws passes on macOS and on the CI's Linux —
+//!   `the_draws_before_turns_still_give_each_seed_its_case`
+//! - a case drawn differently still changes the fingerprint —
+//!   `a_case_drawn_differently_changes_the_fingerprint`
 
 // The drawing, the promise and the checks are shared with the other
 // campaigns; each file uses its own part of them.
@@ -123,9 +129,38 @@ fn lines_over(leaf: &Leaf) -> (Lines, f64) {
     (Lines::across(low - 1.0, high + 1.0, 24), reach)
 }
 
+/// A case as printed, each number in it to a millionth. A star's corners are
+/// laid with `sin` and `cos`, which each platform's library rounds its own
+/// way in the last bit: read to the last digit, the same draws would have one
+/// fingerprint on a Mac and another on Linux.
+fn to_a_millionth(printed: &str) -> String {
+    let mut rounded = String::with_capacity(printed.len());
+    let mut characters = printed.chars().peekable();
+    while let Some(first) = characters.next() {
+        if !first.is_ascii_digit() {
+            rounded.push(first);
+            continue;
+        }
+        let mut number = String::from(first);
+        while let Some(&next) = characters.peek() {
+            let signed_exponent = matches!(next, '-' | '+') && number.ends_with('e');
+            if !(next.is_ascii_digit() || matches!(next, '.' | 'e') || signed_exponent) {
+                break;
+            }
+            number.push(next);
+            characters.next();
+        }
+        match number.parse::<f64>() {
+            Ok(value) if number.contains(['.', 'e']) => rounded.push_str(&format!("{value:.6}")),
+            _ => rounded.push_str(&number),
+        }
+    }
+    rounded
+}
+
 fn fingerprint(draw: fn(u64) -> Case) -> u64 {
     (0..300)
-        .flat_map(|seed| draw(seed).to_string().into_bytes())
+        .flat_map(|seed| to_a_millionth(&draw(seed).to_string()).into_bytes())
         .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
             (hash ^ u64::from(byte)).wrapping_mul(0x0100_0000_01b3)
         })
@@ -160,9 +195,16 @@ fn the_draws_before_turns_still_give_each_seed_its_case() {
     ],
 )"
     );
-    assert_eq!(fingerprint(Case::drawn), 0x9adb_9ced_5c90_2374);
-    assert_eq!(fingerprint(Case::drawn_square), 0x4d0a_3585_66ad_9363);
-    assert_eq!(fingerprint(Case::drawn_profiles), 0xfce7_f8b3_1736_214a);
+    assert_eq!(fingerprint(Case::drawn), 0x0046_86d1_6591_9cb0);
+    assert_eq!(fingerprint(Case::drawn_square), 0x9f98_5bfa_be69_afd9);
+    assert_eq!(fingerprint(Case::drawn_profiles), 0x3d32_990d_6d85_4c27);
+}
+
+#[test]
+fn a_case_drawn_differently_changes_the_fingerprint() {
+    let moved: fn(u64) -> Case = |seed| Case::drawn(if seed == 7 { 8 } else { seed });
+
+    assert_ne!(fingerprint(moved), fingerprint(Case::drawn));
 }
 
 #[test]
@@ -1660,10 +1702,10 @@ fn random_slanted_cases_keep_every_rule_on_the_exact_kernel() {
 
 #[test]
 fn the_draws_before_cones_still_give_each_seed_its_case() {
-    assert_eq!(fingerprint(Case::drawn_turned), 0x588a_d4d5_4a36_cb30);
+    assert_eq!(fingerprint(Case::drawn_turned), 0xcc31_66e3_4654_2d89);
     assert_eq!(
         fingerprint(Case::drawn_turned_off_the_lattice),
-        0x1557_617a_6b85_bd8e
+        0x15a1_285a_02b7_1fa1
     );
 }
 

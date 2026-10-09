@@ -72,6 +72,7 @@ pub struct Sketch {
 mod dimensions;
 mod holds_up;
 mod keeping;
+mod merging;
 mod redundancy;
 pub(crate) mod settling;
 mod tangency;
@@ -408,56 +409,6 @@ impl Sketch {
         }
         let t = ((position - start).dot(span) / length_squared).clamp(0.0, 1.0);
         start + span * t
-    }
-
-    /// Makes two points one.
-    ///
-    /// Everything that referred to `dropped` now refers to `kept`, and any
-    /// segment left with the same point at both ends goes: it has no length and
-    /// no direction, so it is not a line any more.
-    pub fn merge_points(&mut self, kept: PointId, dropped: PointId) {
-        if kept == dropped || self.is_origin(dropped) && !self.is_origin(kept) {
-            // The origin never moves, so it is always the one kept.
-            return self.merge_points(dropped, kept);
-        }
-        if kept.0 >= self.points.len() || dropped.0 >= self.points.len() {
-            return;
-        }
-
-        for segment in &mut self.segments {
-            if segment.start == dropped {
-                segment.start = kept;
-            }
-            if segment.end == dropped {
-                segment.end = kept;
-            }
-        }
-        let circles = self.circles.iter_mut().map(|circle| &mut circle.center);
-        for centre in circles.chain(self.ellipses.iter_mut().map(|oval| &mut oval.center)) {
-            if *centre == dropped {
-                *centre = kept;
-            }
-        }
-
-        let collapsed: Vec<Element> = self
-            .live_segments()
-            .filter(|(_, segment)| segment.start == segment.end)
-            .map(|(id, _)| Element::Segment(id))
-            .collect();
-        for segment in collapsed {
-            self.erase(segment);
-        }
-
-        Erased::mark(&mut self.erased.points, dropped.0);
-        let dimensions = std::mem::take(&mut self.dimensions);
-        self.dimensions = dimensions
-            .into_iter()
-            .map(|dimension| Dimension {
-                target: dimension.target.redirected(kept, dropped),
-                ..dimension
-            })
-            .filter(|dimension| self.measures_live(dimension.target))
-            .collect();
     }
 
     pub(crate) fn distance_to_segment(&self, id: SegmentId, position: DVec2) -> f64 {

@@ -63,6 +63,13 @@ That is exactly the rule "one selects the area of the same colour": what is
 tinted one shade is one area, what is tinted more strongly is another. What is
 drawn **inside a hole** is matter again, and forms an area of its own.
 
+Shapes drawn inside an area that **touch each other** — two windows sharing a
+side, part of one, or a corner — leave it **one** opening, not two: where the
+areas directly inside it touch, the outside they make together is what it is
+hollow of. Raised, the frame has no wall standing between the windows (#540).
+A trait merely joining two windows leaves them two openings, and stands no
+wall of its own.
+
 The chosen area is filled on screen with the colour of the matter it is about
 to become — green for an addition, red for a removal — holes included, so what
 is shown solid is exactly what will become solid.

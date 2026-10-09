@@ -138,7 +138,7 @@ impl Sketch {
             }
         }
 
-        self.hold_orientations(&held);
+        self.hold_orientations(&held, millimeters_per_unit, scale);
         outcome
     }
 
@@ -158,8 +158,9 @@ impl Sketch {
         let pulled = self.pulled_elsewhere(millimeters_per_unit, &pinned);
 
         let mut stall = stall::Stall::new();
+        let mut worst: f64 = f64::INFINITY;
         for iteration in 1..=MAX_ITERATIONS {
-            let mut worst: f64 = 0.0;
+            worst = 0.0;
             for index in 0..self.equation_count() {
                 let held_alone = self.held_alone(index, &pinned, &pulled);
                 self.any_equation(index, millimeters_per_unit, &pinned, &mut entry);
@@ -211,14 +212,15 @@ impl Sketch {
                 }
             }
 
-            if worst < TOLERANCE {
-                return SolveOutcome::Solved;
-            }
-            if stall.stalled(iteration, worst) {
-                return SolveOutcome::Residual;
+            // Held, it is polished while it gains: the graph welds finer (#545).
+            if worst < TOLERANCE * SETTLED_ALREADY || stall.stalled(iteration, worst) {
+                break;
             }
         }
-        SolveOutcome::Residual
+        match worst < TOLERANCE {
+            true => SolveOutcome::Solved,
+            false => SolveOutcome::Residual,
+        }
     }
 
     /// The parts of the drawing the change has no reason to reshape.

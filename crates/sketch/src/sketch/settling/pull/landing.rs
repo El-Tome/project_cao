@@ -101,4 +101,21 @@ impl PointPull {
             false => Some(other),
         }
     }
+
+    /// The point a drop joins the dragged one to, as `joined_to` finds it, when
+    /// the drawing can take the joining. One it would refuse joins nothing, as
+    /// a point that stopped short of the hand joins nothing.
+    pub fn joins(
+        &self,
+        settled: &Sketch,
+        landing: DVec2,
+        reach: f64,
+        millimeters_per_unit: f64,
+    ) -> Option<PointId> {
+        self.joined_to(settled, landing, reach).filter(|kept| {
+            settled
+                .clone()
+                .join_points(*kept, self.point, millimeters_per_unit)
+        })
+    }
 }

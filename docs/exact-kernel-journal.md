@@ -631,3 +631,43 @@ draws run again on `a344fdb` and on the tip:
   drawn crossing 24, left open (`Closed`) 3, a volume off 1.
 - The gate's tests, built, take about 33 s, against about 32.4 s at
   `a344fdb`.
+
+## 9 October: round 4 of #536, measured
+
+One lane merged onto `dcce010`, and half of it taken back: two faces
+folded onto each other are flipped only across triangles that open by
+more than rounding, while a fan of collinear samples is a fold again.
+Measured at `594dec4` on fresh seeds, in release, the seven draws side by
+side, and the first 15 000 seeds of round 1's slanted draws run again on
+`dcce010` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5371100000 | 40 000 | 20 | 0.50 |
+| slanted, application's body | 5371200000 | 40 000 | 8 | 0.20 |
+| turned, exact kernel | 5371300000 | 30 000 | 14 | 0.47 |
+| turned, application's body | 5371400000 | 30 000 | 15 | 0.50 |
+| square | 5371500000 | 30 000 | 4 | 0.13 |
+| profiles, exact kernel | 5371600000 | 20 000 | 2 | 0.10 |
+| profiles, application's body | 5371700000 | 20 000 | 3 | 0.15 |
+
+- Every draw stays under one failure in a thousand. Against round 3, the
+  slanted exact, turned and square draws fail more often and the slanted
+  application's body less; since every one of these failures fails on
+  `dcce010` too, that is the draw of seeds, not the code.
+- Over round 1's first 15 000 slanted seeds, `dcce010` and the tip fail
+  on the same seeds: five on the exact kernel (0.33 in a thousand), two
+  through the application's body (0.13). 5365104153 is among them, open
+  since round 3.
+- Every failure on fresh seeds, run again on `dcce010`, fails there too,
+  by the same rule. No seed that holds on `dcce010` fails on the tip.
+- Shrunk, the slanted draws' 28 are: coaxial turns with a cone, 9, five
+  of them partial; no cone at all, 11, eight of them straight turns; a
+  cone with prisms, 4; a single cone alone, 3, two of them refused; a
+  cone beside a turn about another axis, 1.
+  The turned, square and profile draws' 38 are straight turns, 26, and
+  prisms alone, 12: the families of #533.
+- By the rule broken, over all 66: refused (`Answers`) 37, drawn crossing
+  (`Uncrossed`) 23, left open (`Closed`) 2, a volume off 2, a span off
+  along a line 1, a face listed backwards 1.
+- The gate's tests, built, take about 33 s, as at the merge.

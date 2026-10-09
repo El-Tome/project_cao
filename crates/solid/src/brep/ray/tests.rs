@@ -353,7 +353,6 @@ fn a_ray_along_a_ruling_is_doubtful() {
 }
 
 #[test]
-#[ignore = "#552: a face bounded by a conic is located once `domain/traced.rs` sees the conic (lane K3)"]
 fn a_ray_through_a_face_bounded_by_a_conic_crosses_it_once_and_misses_it_beside() {
     use crate::brep::tessellation::tests::fixtures::stock_cut_at_a_slant;
     let body = stock_cut_at_a_slant(0.3);

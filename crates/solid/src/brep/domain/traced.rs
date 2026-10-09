@@ -5,14 +5,15 @@ use std::f64::consts::TAU;
 use glam::{DVec2, DVec3};
 
 use crate::brep::Declined;
+use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::{Circle, Curve, Meet};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Surface};
+use crate::brep::surface::{Cylinder, Plane, Surface};
 use crate::brep::trace::Trace;
 
 /// The stretch of `curve` from parameter `from` to `to`, seen in the
-/// parameters of `surface`: declined where the surface would see an ellipse,
-/// or a curve it cannot carry.
+/// parameters of `surface`: declined where the surface would see a curve it
+/// cannot carry.
 ///
 /// That the curve lies on the surface was decided before; what is read here
 /// is only how. The curve two cylinders meet along is seen on the one whose
@@ -22,18 +23,25 @@ use crate::brep::trace::Trace;
 /// curve only because it was taken for the curve the wall meets the other
 /// cylinder along (decision 6), and sees it as that curve; where no stretch
 /// of that curve stands within `eps` of it, it sees the curve in its own
-/// angles, not in its own wall's.
+/// angles, not in its own wall's. A conic is seen on its own plane and its
+/// own wall as the graph it is there (#552).
 ///
 /// A curve a surface does not carry — a line across a cylinder's axis, a
 /// circle whose centre stands further than `eps` off it or square to
-/// another axis — lies on the surface only because an arc of the surface
-/// was taken for it (decision 6), within the tolerance and between two
-/// corners: where it stands within `eps` of the chord between them, it is
-/// seen as the segment between where its ends stand. A circle square to a
-/// cylinder's axis that bulges off its chord there — a rim passing a hair
-/// from a ruling it crosses twice, taken for the curve its own wall meets
-/// that cylinder along — is seen as that curve, traced the way the curve's
-/// own arc is. Anything else is declined, as a circle leaning on a plane is.
+/// another axis, a circle leaning on a plane, a conic on a surface not its
+/// own — lies on the surface only because an arc of the surface was taken
+/// for it (decision 6), within the tolerance and between two corners. A
+/// conic, and a circle leaning on a plane by less than the tolerance across
+/// its rim, are seen as the conic the surface meets the curve's other own
+/// surface along, the circle's own wall a cylinder: its stretch the curve's
+/// ends stand on, where its middle stands within `eps` of it. Where a
+/// stretch stands within `eps` of the chord between its corners, it is
+/// seen as the segment between where its ends stand — first, for a circle,
+/// as it was before conics were built. A circle square to a cylinder's axis
+/// that bulges off its chord there — a rim passing a hair from a ruling it
+/// crosses twice, taken for the curve its own wall meets that cylinder
+/// along — is seen as that curve, traced the way the curve's own arc is.
+/// Anything else is declined.
 pub(in crate::brep) fn traced(
     curve: &Curve,
     surface: &Surface,
@@ -55,6 +63,36 @@ pub(in crate::brep) fn traced(
                 start: start + turn * from,
                 sweep: turn * (to - from),
             })
+        }
+        (Surface::Plane(_), Curve::Circle(circle)) => {
+            let (own, _) = Plane::through(circle.center, circle.axis);
+            let round = Round::Cylinder(Cylinder::about(circle.center, circle.axis, circle.radius));
+            chord(curve, surface, from, to, eps).or_else(|declined| {
+                beside(curve, (&own, &round), surface, [from, to], eps).ok_or(declined)
+            })
+        }
+        (Surface::Plane(plane), Curve::Conic(conic)) if *plane == conic.plane => {
+            Ok(own(conic, On::Plane, from, to))
+        }
+        (Surface::Cylinder(cylinder), Curve::Conic(conic))
+            if conic.round == Round::Cylinder(*cylinder) =>
+        {
+            Ok(own(conic, On::Wall, from, to))
+        }
+        (Surface::Cone(cone), Curve::Conic(conic)) if conic.round == Round::Cone(*cone) => {
+            Ok(own(conic, On::Wall, from, to))
+        }
+        (_, Curve::Conic(conic)) => {
+            match beside(
+                curve,
+                (&conic.plane, &conic.round),
+                surface,
+                [from, to],
+                eps,
+            ) {
+                Some(trace) => Ok(trace),
+                None => chord(curve, surface, from, to, eps),
+            }
         }
         (Surface::Cylinder(cylinder), Curve::Line(line))
             if parallel(line.direction, cylinder.axis) =>
@@ -172,6 +210,68 @@ fn met(
         meet,
         on_first: false,
         beside: None,
+        from: start,
+        to: end,
+    })
+}
+
+fn own(conic: &Conic, on: On, from: f64, to: f64) -> Trace {
+    Trace::Conic {
+        conic: *conic,
+        on,
+        from,
+        to,
+    }
+}
+
+/// A stretch of a curve lying on a plane and a wall, `own`, seen on a
+/// surface a hair beside one of them as the conic that surface meets the
+/// other along: on a plane, the conic it cuts the wall along; on a wall,
+/// the conic the plane cuts it along. The component and the stretch of it
+/// the curve's ends and middle stand on, when the middle stands within
+/// `eps` of it; read round the turns a stretch of a closed curve runs, a
+/// whole loop of it a whole loop of the conic.
+fn beside(
+    curve: &Curve,
+    (plane, round): (&Plane, &Round),
+    surface: &Surface,
+    [from, to]: [f64; 2],
+    eps: f64,
+) -> Option<Trace> {
+    let scale = Scale::of(eps / Scale::RELATIVE);
+    let (conics, on) = match surface {
+        Surface::Plane(beside) => (Conic::cut(beside, round, scale), On::Plane),
+        Surface::Cylinder(wall) => (Conic::cut(plane, &Round::Cylinder(*wall), scale), On::Wall),
+        Surface::Cone(wall) => (Conic::cut(plane, &Round::Cone(*wall), scale), On::Wall),
+    };
+    let middle = curve.point((from + to) / 2.0);
+    let off = |conic: &Conic, at: f64| conic.point(at).distance(middle);
+    let (conic, at) = conics
+        .into_iter()
+        .map(|conic| (conic, conic.parameter(middle)))
+        .min_by(|(one, at), (other, then)| off(one, *at).total_cmp(&off(other, *then)))?;
+    if off(&conic, at) > eps {
+        return None;
+    }
+    let [start, end] = [from, to].map(|end| conic.parameter(curve.point(end)));
+    let [start, end] = match (conic.period(), curve.period()) {
+        (Some(period), Some(turn)) => {
+            let way = curve
+                .derivative((from + to) / 2.0)
+                .dot(conic.derivative(at))
+                .signum();
+            let run = way * (to - from) / turn * period;
+            let start = start + period * ((at - run / 2.0 - start) / period).round();
+            [start, end + period * ((start + run - end) / period).round()]
+        }
+        (Some(period), None) => {
+            [start, end].map(|end| end + period * ((at - end) / period).round())
+        }
+        (None, _) => [start, end],
+    };
+    ((start - at) * (end - at) < 0.0).then_some(Trace::Conic {
+        conic,
+        on,
         from: start,
         to: end,
     })

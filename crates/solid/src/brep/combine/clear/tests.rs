@@ -367,3 +367,5 @@ fn every_face_of_a_pocket_beside_a_countersink_s_slope_stands_clear_of_it() {
         );
     }
 }
+
+mod conic;

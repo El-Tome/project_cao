@@ -465,3 +465,4 @@ fn two_walls_facing_each_other_across_a_crossing_are_ordered_by_which_way_each_f
 }
 
 mod cone;
+mod slant;

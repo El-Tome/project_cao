@@ -6,6 +6,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::conic::Conic;
 use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
@@ -191,9 +192,9 @@ impl Body {
     }
 
     /// The corners of a face, the points of its edges where a coordinate
-    /// turns back, and points all along its circles, in the order its loops
-    /// run: read off the exact curves, so they do not move with how finely
-    /// the face is drawn.
+    /// turns back, and points all along its circles and its closed conics,
+    /// in the order its loops run: read off the exact curves, so they do not
+    /// move with how finely the face is drawn.
     ///
     /// A drawing laid on the face takes the corner nearest the bottom-left of
     /// its span. The ends and turning points of a circle stand two at a time
@@ -210,8 +211,10 @@ impl Body {
                 points[0] = self.vertex(from).point;
                 points[1] = self.vertex(to).point;
             }
-            if let Curve::Circle(circle) = self.curve(edge.curve) {
-                points.extend(along(circle, edge.from, edge.to));
+            match self.curve(edge.curve) {
+                Curve::Circle(circle) => points.extend(along(circle, edge.from, edge.to)),
+                Curve::Conic(conic) => points.extend(along_a_conic(conic, edge.from, edge.to)),
+                Curve::Line(_) | Curve::Meet(_) => {}
             }
             corners.extend(points);
         }
@@ -280,10 +283,13 @@ pub(super) fn turning_points(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> 
     found
 }
 
+/// How many points [`Body::corners_of`] reads along a closed curve, a turn
+/// round, as the flats did.
+const STEPS: f64 = 48.0;
+
 /// The points of a circle, between two of its parameters, every 48th of a
 /// turn from where its angle is read.
 fn along(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
-    const STEPS: f64 = 48.0;
     let step = TAU / STEPS;
     let first = (from / step).ceil() as i64;
     let last = (to / step).floor() as i64;
@@ -292,5 +298,20 @@ fn along(circle: &Circle, from: f64, to: f64) -> Vec<DVec3> {
         .collect()
 }
 
+/// The points of a closed conic, between two of its parameters, every 48th
+/// of its period from its anchor; none along a conic that does not close,
+/// whose ends and turning points move with it already.
+fn along_a_conic(conic: &Conic, from: f64, to: f64) -> Vec<DVec3> {
+    let Some(period) = conic.period() else {
+        return Vec::new();
+    };
+    let step = period / STEPS;
+    let first = (from / step).ceil() as i64;
+    let last = (to / step).floor() as i64;
+    (first..=last)
+        .map(|index| conic.point(index as f64 * step))
+        .collect()
+}
+
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;

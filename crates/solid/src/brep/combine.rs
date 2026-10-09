@@ -90,15 +90,15 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
     let candidates = candidates(operands, &registry, &ending, &special, &found);
     let places: Vec<Place> = candidates
         .iter()
-        .map(|(point, surfaces, curves)| {
-            let mut on = surfaces.clone();
-            for curve in curves {
+        .map(|candidate| {
+            let mut on = candidate.surfaces.clone();
+            for curve in &candidate.curves {
                 on.extend(registry.list[*curve].support.iter().copied());
             }
             Place {
-                point: *point,
+                point: candidate.point,
                 on,
-                along: curves.clone(),
+                along: candidate.curves.clone(),
             }
         })
         .collect();
@@ -108,15 +108,34 @@ pub(super) fn laid(operands: &Operands) -> Result<Arena, Declined> {
         operands.eps(),
     );
     let mut pool = Pool::new(operands.eps());
-    for (point, surfaces, curves) in candidates {
-        pool.add(point, surfaces, curves, &registry);
+    for candidate in candidates {
+        let Candidate {
+            point,
+            surfaces,
+            curves,
+            built,
+        } = candidate;
+        if built {
+            pool.add_built(point, surfaces, curves, &registry);
+        } else {
+            pool.add(point, surfaces, curves, &registry);
+        }
     }
     let bands = band::laid_out(operands, &mut registry, &mut pool)?;
     cut::cut(operands, &registry, &pool, &held, &bands)
 }
 
-/// Every corner candidate, the surfaces it was found on and the curves it
-/// was found along, in the fixed order they are merged in — the first
+/// A corner candidate: where it was found, the surfaces it was found on, the
+/// curves it was found along, and whether it is an operand's own corner
+/// standing where that operand built it.
+struct Candidate {
+    point: DVec3,
+    surfaces: Vec<SurfaceId>,
+    curves: Vec<usize>,
+    built: bool,
+}
+
+/// Every corner candidate in the fixed order they are merged in — the first
 /// operand's vertices, the second's, the relations' special points, the
 /// crossings three planes fix, the other crossings. A place three planes
 /// fix is exact, and the crossings a curve makes nearby are merged into it
@@ -129,7 +148,7 @@ fn candidates(
     ending: &held::Ending,
     special: &[Special],
     found: &[crossed::Found],
-) -> Vec<(DVec3, Vec<SurfaceId>, Vec<usize>)> {
+) -> Vec<Candidate> {
     let mut candidates = Vec::new();
     for (operand, body) in operands.bodies.iter().enumerate() {
         for id in body.vertex_ids() {
@@ -140,12 +159,22 @@ fn candidates(
                 .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0)
                 .collect();
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
-            let point = held::laid(operands, registry, operand, id, &curves);
-            candidates.push((point, surfaces, curves));
+            let (point, built) = held::laid(operands, registry, operand, id, &curves);
+            candidates.push(Candidate {
+                point,
+                surfaces,
+                curves,
+                built,
+            });
         }
     }
     for point in special {
-        candidates.push((point.point, point.surfaces.to_vec(), point.curves.to_vec()));
+        candidates.push(Candidate {
+            point: point.point,
+            surfaces: point.surfaces.to_vec(),
+            curves: point.curves.to_vec(),
+            built: false,
+        });
     }
     let fixed = |crossing: &&crossed::Found| {
         let mut on = registry.list[crossing.curve].support.clone();
@@ -158,7 +187,12 @@ fn candidates(
     for crossing in by_planes.into_iter().chain(others) {
         let mut surfaces = crossing.partly.clone();
         surfaces.push(crossing.surface);
-        candidates.push((crossing.point, surfaces, vec![crossing.curve]));
+        candidates.push(Candidate {
+            point: crossing.point,
+            surfaces,
+            curves: vec![crossing.curve],
+            built: false,
+        });
     }
     candidates
 }

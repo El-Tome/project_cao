@@ -18,6 +18,7 @@
 mod cone;
 mod conic;
 mod cut;
+mod lying;
 mod scan;
 
 use glam::DVec3;
@@ -29,6 +30,7 @@ use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
 use cut::Cut;
+pub use lying::{Lying, crossings_lying};
 
 /// A point where a curve meets a surface, at its parameter on the curve.
 /// `tangent` when the curve touches the surface there without passing through.

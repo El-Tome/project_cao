@@ -275,3 +275,22 @@ fn a_conic_against_a_skew_wall_or_a_cone_off_its_axis_is_unsupported() {
         );
     }
 }
+
+#[test]
+fn a_conic_crosses_a_plane_read_along_its_wall_s_axis_where_that_plane_s_lines_cross_its_own_to_the_bit()
+ {
+    let eps = scale().eps();
+    let none = Touches::default();
+    let slant = slanted();
+    let conic = ellipse(&slant, Round::Cylinder(wall()));
+    let lean = 0.8 * eps / (2.0 * scale().reach());
+    let inside = plane(DVec3::new(5.0 - 2e-7, 0.0, 0.0), DVec3::new(1.0, 0.0, lean));
+    let found = on_the_conic(&conic, &inside, &none);
+    assert_eq!(tangents(&found), [false, false]);
+    let lines = relation(&Surface::Cylinder(wall()), &inside, scale()).curves();
+    assert!(lines.iter().all(|curve| matches!(curve, Curve::Line(_))));
+    assert_eq!(
+        bits(&Crossings::At(found)),
+        bits(&through(&lines, &Surface::Plane(slant), &none))
+    );
+}

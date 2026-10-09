@@ -1498,3 +1498,42 @@ No seed that held on `34a1b64` fails. 15 of the 815 the first cut held
 fail still: a corner of one plane where their faces meet stands a hair
 past the tolerance from the other (5 % past it in 5520108939 and
 5520102585), and the two cross.
+
+### A plane a hair from tangent by an offset
+
+The family a plane a hair from tangent by an offset, triaged at `34a1b64`,
+counts 313 of the 815 shrunk tilted failures (156 on the kernel, 157
+through the application's body). Two of its causes were facts decided
+twice, and are decided once now:
+
+- **A plane read along a wall's axis though it leans** (5520135751,
+  5520203207): its rulings are drawn through the foot of the wall's
+  origin, and a line it shares with an end crossed the wall microns aside
+  of them. A line or a circle on two surfaces crosses the wall where those
+  rulings cross its other plane (decision 4), and a conic crosses such a
+  plane the same way.
+- **An earlier operation's corner moved by the next one** (5520107844,
+  5520210646): a cut a hair from a block's edge leaves the edge's corners
+  on the cut's plane within the tolerance; the next operation moved them to
+  where that plane, the floor and a side meet, off the edge they end. An
+  operand's own corner on its own planes stands where its operand built it
+  (decision 5).
+
+Of the 313, 103 hold (47 and 56), and none of the 815 that held fails.
+On fresh seeds, fifteen minutes a draw against `34a1b64`: the tilted
+draw on the kernel from 5525000000, 131 failures in 14 704 cases against
+149 in 14 766 (10.2 to 8.9 in a thousand); through the application's body
+from 5526000000, 145 in 14 022 against 166 in 14 044 (11.8 to 10.3); no
+seed the base held fails. What is left of the family is the band on
+conics the issue defers: a plane at a slant a hair from an edge or a rim,
+where a conic's vertex stands a few tolerances from a corner every plane
+holds within the tolerance (5520109275, ignored with its reason).
+
+Merged on the grazing planes above, the two hold what each held alone:
+335 of the 815 (170 on the kernel, 165 through the body; 231 with the
+grazing planes alone), none that held on `34a1b64` failing. Ten minutes
+a draw against `34a1b64` over the same seeds: on the exact kernel from
+5527000000, 115 of 16 460 (7.0 in a thousand) against 167 (10.1); through
+the application's body from 5528000000, 106 of 15 738 (6.7) against 168
+(10.7). No seed that held on `34a1b64`, nor with the grazing planes alone,
+fails.

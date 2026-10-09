@@ -6021,11 +6021,14 @@ fn seed_5527006753_a_block_and_a_post_cut_by_a_slab_whose_far_face_leans_1e_7_de
 /// #552, the tilted campaign: a post along X cut by a block whose floor
 /// stands 2e-7 inside its top ruling, leaning 2e-8° — under the angle the
 /// kernel reads as parallel to the axis, so the floor cuts the wall along
-/// two lines 1.3e-3 apart. The wall keeps the rims of the sliver the floor
-/// takes off, the ends keep the chords across it. It fails on `9e54a71`
-/// the same way.
+/// two rulings 1.3e-3 apart, drawn through the foot of the wall's origin.
+/// At the post's ends the floor stands a fraction of the tolerance higher,
+/// and the line it shares with an end crossed the rim microns aside of the
+/// rulings: the corners were found twice, and the wall kept the rims of the
+/// sliver the floor takes off while the ends kept the chords across it. It
+/// failed on `9e54a71` the same way. The chord and the rim now cross the
+/// wall and the floor where the rulings cross the end.
 #[test]
-#[ignore = "hair-from-tangent, #552's tilted triage: a plane a hair from tangent to a wall, by an offset, that no band holds (the issue's second default: no band is added); declined as unverified, on 9e54a71 too"]
 fn seed_5520135751_a_post_cut_by_a_floor_2e_7_inside_its_top_ruling() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(4.5), Outline::circle([4.0, 10.0], 1.0), 1.0),
@@ -6041,7 +6044,6 @@ fn seed_5520135751_a_post_cut_by_a_floor_2e_7_inside_its_top_ruling() {
 /// a block whose floor stands 1e-7 inside its ruling, leaning 2e-8°, the
 /// family of 5520135751.
 #[test]
-#[ignore = "hair-from-tangent, #552's tilted triage: a plane a hair from tangent to a wall, by an offset, that no band holds (the issue's second default: no band is added); declined as unverified, on 9e54a71 too"]
 fn seed_5520203207_a_post_cut_by_a_floor_1e_7_inside_its_ruling() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(Plane::yz(-2.0), Outline::circle([0.0, 3.0], 3.0), 10.0),
@@ -6075,5 +6077,65 @@ fn seed_5520109275_a_rounded_block_cut_at_15_degrees_1e_8_from_its_end_s_edge() 
             Outline::rectangle([-12.0, -6.0], [1.0, 1.0]),
             4.0,
         ))],
+    ));
+}
+
+/// #552, the tilted campaign: a block cut by a plane leaning 30° that
+/// passes 1e-8 above the edge where its end meets its floor, then by a
+/// block standing on its top. The first cut leaves the edge's corners where
+/// the block had them, on the slanted plane within the tolerance, though
+/// that plane, the floor and a side meet 2e-8 beyond, and the end face they
+/// were decided on is gone. The second cut moved them there, off the edge
+/// they end, and the floor lost its last edge. It failed on `9e54a71` the
+/// same way.
+#[test]
+fn seed_5520107844_a_block_cut_1e_8_above_its_floor_s_edge_at_30_degrees_then_from_its_top() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::yz(1.5),
+            Outline::rectangle([6.0, 9.0], [13.0, 11.0]),
+            5.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [6.5000000058340115, 6.0, 9.000000008121841],
+                    [0.0, 30.0, 0.0],
+                ),
+                Outline::rectangle([-6.0, -1.0], [1.0, 7.0]),
+                2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(11.0),
+                Outline::rectangle([-4.0, -3.0], [4.0, 4.0]),
+                5.0,
+            )),
+        ],
+    ));
+}
+
+/// #552, the tilted campaign through the application's body: a slab cut by
+/// a plane leaning 75° a hair from the edge where its end meets its floor,
+/// then by a block resting on its top, the family of 5520107844.
+#[test]
+fn seed_5520210646_a_slab_cut_a_hair_from_its_floor_s_edge_at_75_degrees_then_from_its_top() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::yz(6.0),
+            Outline::rectangle([6.0, 10.0], [10.0, 17.0]),
+            1.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([6.999999990667421, 6.0, 9.99999999640793], [0.0, 75.0, 0.0]),
+                Outline::rectangle([-8.0, -1.0], [1.0, 4.0]),
+                -2.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(17.0),
+                Outline::rectangle([-1.0, -3.0], [0.0, 3.0]),
+                2.0,
+            )),
+        ],
     ));
 }

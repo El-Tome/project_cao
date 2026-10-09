@@ -202,10 +202,17 @@ impl Planes {
     /// none where no two are across, or where three span space and fix a
     /// place instead.
     pub fn line(&self, support: &[SurfaceId]) -> Option<(DVec3, DVec3)> {
-        let planes = self.shared(support, support);
-        if self.spanning(&planes).is_some() {
+        if self.spanning(&self.shared(support, support)).is_some() {
             return None;
         }
+        self.line_across(support)
+    }
+
+    /// The line two planes of `support` across each other share, of all
+    /// such pairs the one across the most, whether a third fixes a place on
+    /// it or not.
+    pub fn line_across(&self, support: &[SurfaceId]) -> Option<(DVec3, DVec3)> {
+        let planes = self.shared(support, support);
         let mut best: Option<(f64, [(DVec3, f64); 2])> = None;
         for first in 0..planes.len() {
             for second in first + 1..planes.len() {

@@ -2,6 +2,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DVec2, DVec3};
 
+use super::corners::standing;
 use super::*;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
@@ -675,6 +676,36 @@ fn two_corners_on_three_planes_whose_normals_span_space_are_one_however_far_apar
     let third = pool.add(along, [front, side], [], &registry);
     assert_eq!((first, second, third), (0, 0, 1));
     assert_eq!(pool.corners[0].point, corner);
+}
+
+#[test]
+fn an_operand_s_own_corner_stands_where_its_operand_built_it_though_its_planes_meet_a_hair_beyond()
+{
+    let (registry, [bottom, side, front]) = nearly_one_corner();
+    let eps = Scale::of(420.0).eps();
+    let on = [bottom, side, front];
+    let mut pool = Pool::new(eps);
+    let built = DVec3::new(105.0, 240.000_000_3, -120.0);
+    let rank = pool.add_built(built, on, [], &registry);
+    let found = pool.add(DVec3::new(105.0, 240.0, -120.0), on, [], &registry);
+    assert_eq!(found, rank);
+    assert_eq!(pool.corners[rank].standing(&on, &registry, eps), built);
+
+    let mut pool = Pool::new(eps);
+    let rank = pool.add(built, on, [], &registry);
+    let placed = pool.corners[rank].standing(&on, &registry, eps);
+    assert!(placed.distance(DVec3::new(105.0, 240.0, -120.0)) < 1e-12);
+}
+
+#[test]
+fn an_operand_s_own_corner_stands_where_a_plane_of_the_other_through_it_meets_its_planes() {
+    let (registry, [bottom, side, front]) = nearly_one_corner();
+    let eps = Scale::of(420.0).eps();
+    let mut pool = Pool::new(eps);
+    let built = DVec3::new(105.0, 240.000_000_3, -120.0);
+    let rank = pool.add_built(built, [bottom, side], [], &registry);
+    let placed = pool.corners[rank].standing(&[bottom, side, front], &registry, eps);
+    assert!(placed.distance(DVec3::new(105.0, 240.0, -120.0)) < 1e-12);
 }
 
 #[test]

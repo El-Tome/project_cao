@@ -213,20 +213,21 @@ pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     }
 }
 
-/// Where an operand's corner stands in the arena: where the operand built
-/// it, or, where a surface it lies on was taken for another or moved onto a
-/// touch, where a line of the edges ending there now crosses a plane it lies
-/// on, square enough to it to fix the place. Its edges are laid on the
-/// curves the surfaces now share; left where it was built, the corner would
-/// stand a hair off them, and off the place the next operation finds them
-/// crossing at.
+/// Where an operand's corner stands in the arena, and whether it stands
+/// where the operand built it, on the surfaces it built it on: or, where a
+/// surface it lies on was taken for another or moved onto a touch, where a
+/// line of the edges ending there now crosses a plane it lies on, square
+/// enough to it to fix the place. Its edges are laid on the curves the
+/// surfaces now share; left where it was built, the corner would stand a
+/// hair off them, and off the place the next operation finds them crossing
+/// at.
 pub(super) fn laid(
     operands: &Operands,
     registry: &Registry,
     operand: usize,
     vertex: VertexId,
     curves: &[usize],
-) -> DVec3 {
+) -> (DVec3, bool) {
     let body = operands.bodies[operand];
     let own = body.vertex(vertex);
     let list = &operands.surfaces.list;
@@ -241,7 +242,7 @@ pub(super) fn laid(
         .zip(&shared)
         .any(|(surface, taken)| list[taken.0 as usize] != *body.surface(*surface));
     if !moved {
-        return own.point;
+        return (own.point, true);
     }
     let mut crossings = curves.iter().flat_map(|&curve| {
         let registered = &registry.list[curve];
@@ -260,9 +261,10 @@ pub(super) fn laid(
             })
             .collect()
     });
-    crossings
+    let point = crossings
         .find(|place| place.distance(own.point) <= MOVED * operands.eps())
-        .unwrap_or(own.point)
+        .unwrap_or(own.point);
+    (point, false)
 }
 
 /// How square to a plane a line must stand, in the cosine of their angle,

@@ -24,7 +24,7 @@ use super::operands::Operands;
 use crate::brep::Declined;
 use crate::brep::canonical::{Registry, same};
 use crate::brep::curve::Curve;
-use crate::brep::relation::{Crossings, Relation, Touches, crossings_given, relation};
+use crate::brep::relation::{Crossings, Lying, Relation, Touches, crossings_lying, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::SurfaceId;
@@ -61,8 +61,10 @@ pub(super) fn crossed(
             }
             let geometry = registry.list[curve].curve;
             let touches = touches(registry, curve, surface);
-            let list = match crossings_given(
+            let lying = lying(operands, registry, curve, surface);
+            let list = match crossings_lying(
                 &geometry,
+                &lying,
                 &operands.surfaces.list[rank],
                 operands.scale,
                 &touches,
@@ -144,6 +146,47 @@ fn along(operands: &Operands, registry: &Registry, curve: usize, surface: Surfac
             .iter()
             .any(|shared| same(shared, &known.curve, operands.scale) && !elsewhere(shared))
         })
+}
+
+/// The surfaces a registered line or circle lies on, each with what it was
+/// decided to make with `surface`, as decision 2 decides that pair; none
+/// for another curve, which is solved through its own surfaces already, nor
+/// for one lying on a third surface. That curve was taken for one on a
+/// third within the tolerance, and that surface decides the corner too:
+/// two planes crossing at a grazing angle, a hair from a wall's axis, cut
+/// it along a conic and along two rulings a fraction of the tolerance
+/// apart, and the corner found through the rulings stood that far off the
+/// one the conic found (5523010597).
+fn lying<'a>(
+    operands: &'a Operands,
+    registry: &Registry,
+    curve: usize,
+    surface: SurfaceId,
+) -> Vec<Lying<'a>> {
+    let list = &operands.surfaces.list;
+    let known = &registry.list[curve];
+    if known.support.len() != 2 || !matches!(known.curve, Curve::Line(_) | Curve::Circle(_)) {
+        return Vec::new();
+    }
+    known
+        .support
+        .iter()
+        .map(|&own| {
+            let [one, other] = if own < surface {
+                [own, surface]
+            } else {
+                [surface, own]
+            };
+            Lying {
+                surface: &list[own.0 as usize],
+                with: relation(
+                    &list[one.0 as usize],
+                    &list[other.0 as usize],
+                    operands.scale_of([one, other]),
+                ),
+            }
+        })
+        .collect()
 }
 
 /// What the surfaces a registered curve lies on were decided to make with

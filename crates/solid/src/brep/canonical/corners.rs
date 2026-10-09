@@ -26,6 +26,10 @@ pub(in crate::brep) struct Corner {
     pub point: DVec3,
     pub surfaces: BTreeSet<SurfaceId>,
     pub curves: BTreeSet<usize>,
+    /// For an operand's own corner, the surfaces its operand built it on:
+    /// on those planes alone, it stands where that operand decided, not
+    /// where they meet.
+    pub built: Option<Vec<SurfaceId>>,
 }
 
 pub(in crate::brep) struct Pool {
@@ -56,13 +60,44 @@ impl Pool {
         curves: impl IntoIterator<Item = usize>,
         registry: &Registry,
     ) -> usize {
+        self.added(point, surfaces, curves, registry, false)
+    }
+
+    /// As `add`, for an operand's own corner on the surfaces its operand
+    /// built it on, none taken for another nor moved: on no plane but those,
+    /// it stands where its operand put it. That operand decided it, at its
+    /// own tolerance, on every surface it then lay on: a cut a hair from a
+    /// block's edge left the edge's corner on the cut's plane within the
+    /// tolerance, though the cut, the floor and a side meet twice the
+    /// tolerance beyond it, and the end face it was decided on is gone. Moved
+    /// to where those three meet, it left the edge it ends, laid where the
+    /// operand built it, that far off (5520107844).
+    pub fn add_built(
+        &mut self,
+        point: DVec3,
+        surfaces: impl IntoIterator<Item = SurfaceId>,
+        curves: impl IntoIterator<Item = usize>,
+        registry: &Registry,
+    ) -> usize {
+        self.added(point, surfaces, curves, registry, true)
+    }
+
+    fn added(
+        &mut self,
+        point: DVec3,
+        surfaces: impl IntoIterator<Item = SurfaceId>,
+        curves: impl IntoIterator<Item = usize>,
+        registry: &Registry,
+        built: bool,
+    ) -> usize {
         let surfaces: BTreeSet<SurfaceId> = surfaces.into_iter().collect();
         let curves: BTreeSet<usize> = curves.into_iter().collect();
         let found_on = on(&surfaces, &curves, registry);
-        let here = standing(point, &found_on, registry, self.eps);
+        let built = built.then(|| surfaces.iter().copied().collect::<Vec<_>>());
+        let here = placed(point, built.as_deref(), &found_on, registry, self.eps);
         let found = self.corners.iter().position(|corner| {
             let known = on(&corner.surfaces, &corner.curves, registry);
-            let there = standing(corner.point, &known, registry, self.eps);
+            let there = corner.standing(&known, registry, self.eps);
             (there.distance(here) <= self.eps
                 && !parted(there, &known, &found_on, registry, self.eps)
                 || registry.planes.fix_a_place(&known, &found_on))
@@ -73,6 +108,7 @@ impl Pool {
                 point,
                 surfaces: BTreeSet::new(),
                 curves: BTreeSet::new(),
+                built,
             });
             self.corners.len() - 1
         });
@@ -131,6 +167,14 @@ impl Pool {
     }
 }
 
+impl Corner {
+    /// Where the corner stands, given what it lies on ([`standing`]): where
+    /// its operand built it, for an operand's own.
+    pub fn standing(&self, support: &[SurfaceId], registry: &Registry, eps: f64) -> DVec3 {
+        placed(self.point, self.built.as_deref(), support, registry, eps)
+    }
+}
+
 /// The surfaces of a curve a corner on it lies on: all of them, but a cone
 /// the corner stands off the own nappe of — a line through the cone's apex
 /// runs on past it, and a corner there lies on the curve's other surfaces
@@ -180,6 +224,34 @@ pub(in crate::brep) fn standing(
         .place(support, touching)
         .or_else(|| registry.planes.line(support).map(foot));
     match fixed {
+        Some(place) if place.distance(point) > eps * ROUNDING => place,
+        _ => point,
+    }
+}
+
+/// Where a corner stands ([`standing`]), or, for an operand's own corner
+/// lying on no plane but those its operand `built` it on, on the line the
+/// two of them most across each other share, at its foot there, never moved
+/// to where a third crosses that line: its operand decided where. A plane
+/// of the other operand through the corner fixes its place anew, as it
+/// does for any corner it crosses: the place the boolean finds its other
+/// crossings at (5523006542).
+fn placed(
+    point: DVec3,
+    built: Option<&[SurfaceId]>,
+    support: &[SurfaceId],
+    registry: &Registry,
+    eps: f64,
+) -> DVec3 {
+    let own = |surface: &SurfaceId| {
+        !registry.planes.is_plane(*surface) || built.is_some_and(|built| built.contains(surface))
+    };
+    if built.is_none() || !support.iter().all(own) {
+        return standing(point, support, registry, eps);
+    }
+    let foot =
+        |(origin, direction): (DVec3, DVec3)| origin + direction * direction.dot(point - origin);
+    match registry.planes.line_across(support).map(foot) {
         Some(place) if place.distance(point) > eps * ROUNDING => place,
         _ => point,
     }

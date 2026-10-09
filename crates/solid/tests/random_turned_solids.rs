@@ -1494,6 +1494,143 @@ fn a_plane_meeting_a_cylinder_or_a_cone_is_told_by_the_conic_it_cuts() {
     }
 }
 
+/// The area of a disc of `radius` beyond a chord `distance` from its centre.
+fn beyond_a_chord(radius: f64, distance: f64) -> f64 {
+    radius * radius * (distance / radius).acos()
+        - distance * (radius * radius - distance * distance).sqrt()
+}
+
+#[test]
+fn the_slices_of_a_round_leaf_cut_by_a_plane_add_up_to_the_closed_forms() {
+    let tan30 = 30f64.to_radians().tan();
+    let tan15 = 15f64.to_radians().tan();
+    let shaft = Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 5.0), 30.0);
+    let point = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(0.0, &[[10.0, 0.0, 5.0]]).sloping_to(&[[0.0, 0.0]]),
+        360.0,
+    );
+    let face = DVec3::new(10.0, 10.0, 5.0 + 10.0 * tan30);
+    let hole = Leaf::prism(
+        Plane::leaning(0, 30.0, face),
+        Outline::circle([0.0, 0.0], 2.0),
+        -20.0,
+    );
+    let wedge = 2000.0 + 4000.0 / 3f64.sqrt();
+    let bore = Leaf::prism(Plane::xy(0.0), Outline::circle([33.0, -10.0], 2.0), 12.0);
+    let chamfered = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(0.0, &[[26.0, 0.0, 10.0], [4.0, 0.0, 10.0]])
+            .sloping_to(&[[0.0, 10.0], [0.0, 6.0]]),
+        360.0,
+    );
+    let flat = |rho: f64| {
+        let d: f64 = 8.0;
+        let root = (rho * rho - d * d).sqrt();
+        rho.powi(3) / 3.0 * (d / rho).acos() - 2.0 / 3.0 * d * rho * root
+            + d.powi(3) / 3.0 * (rho + root).ln()
+    };
+    let tube = Leaf::prism(Plane::xy(0.0), Outline::ring([0.0, 0.0], 5.0, 3.0), 30.0);
+    let across = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(0.0, &[[30.0, -2.0, 3.0]]),
+        360.0,
+    );
+    let slant = |leaf: &Leaf| leaf.kept_by_a_half_space(DVec3::new(0.0, -tan30, 1.0), 15.0);
+    let kept = [
+        ("a shaft cut at a slant", slant(&shaft), 375.0 * PI, None),
+        (
+            "a hole square into a slanted face, out through the floor",
+            hole.kept_by_a_half_space(DVec3::NEG_Z, 0.0)
+                .map(|hole| wedge - hole),
+            wedge - 4.0 * PI * (10.0 / 3f64.sqrt() + 20.0 / 3.0),
+            Some(4153.0732980934),
+        ),
+        (
+            "a bore crossing a slanted side",
+            bore.kept_by_a_half_space(DVec3::new(1.0, 0.0, 1.0), 40.0)
+                .map(|bore| 7000.0 - bore),
+            7000.0 - 28.0 * PI,
+            None,
+        ),
+        (
+            "an ungula",
+            shaft.kept_by_a_half_space(DVec3::new(0.0, -2.0, 1.0), 0.0),
+            500.0 / 3.0,
+            None,
+        ),
+        (
+            "a point cut obliquely, an ellipse, its tip's side",
+            point.kept_by_a_half_space(
+                DVec3::new(0.0, 15f64.to_radians().sin(), -15f64.to_radians().cos()),
+                -6.0 * 15f64.to_radians().cos(),
+            ),
+            16.0 * PI / 3.0 * (1.0 - tan15 * tan15 / 4.0).powf(-1.5),
+            Some(17.2166109221),
+        ),
+        (
+            "a point cut parallel to a ruling, a parabola, its tip's side",
+            point.kept_by_a_half_space(DVec3::new(0.0, -2.0, -1.0), -2.0),
+            (250.0 * 0.2f64.acos() + 44.0 * 6f64.sqrt()) / 3.0,
+            Some(150.0457167279),
+        ),
+        (
+            "a point cut through its tip, two lines, beyond them",
+            point.kept_by_a_half_space(DVec3::new(0.0, -1.0, -tan15), -10.0 * tan15),
+            10.0 / 3.0 * beyond_a_chord(5.0, 10.0 * tan15),
+            Some(46.0646029578),
+        ),
+        (
+            "a flat on a chamfer, a hyperbola",
+            chamfered.kept_by_a_half_space(DVec3::Y, 8.0),
+            8584.0 * PI / 3.0 - 26.0 * beyond_a_chord(10.0, 8.0) - (flat(10.0) - flat(8.0)),
+            Some(8551.2434081957),
+        ),
+        ("a tube cut at a slant", slant(&tube), 240.0 * PI, None),
+        (
+            "a section across its axis cut at a slant",
+            slant(&across),
+            135.0 * PI,
+            None,
+        ),
+        (
+            "a shaft cut square to its axis",
+            shaft.kept_by_a_half_space(DVec3::Z, 12.0),
+            300.0 * PI,
+            None,
+        ),
+    ];
+    for (what, sliced, closed, printed) in kept {
+        let sliced = sliced.unwrap_or_else(|| panic!("{what}: a round leaf"));
+        assert!(
+            (sliced - closed).abs() <= 1e-12 * closed,
+            "{what}: {sliced} by slices against {closed}"
+        );
+        if let Some(printed) = printed {
+            assert!(
+                (closed - printed).abs() <= 1e-10,
+                "{what}: {closed} against {printed}"
+            );
+        }
+    }
+    let partial = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(0.0, &[[10.0, 0.0, 5.0]]),
+        90.0,
+    );
+    let block = Leaf::prism(
+        Plane::xy(0.0),
+        Outline::rectangle([0.0, 0.0], [1.0, 1.0]),
+        1.0,
+    );
+    assert_eq!(partial.kept_by_a_half_space(DVec3::Z, 1.0), None);
+    assert_eq!(block.kept_by_a_half_space(DVec3::Z, 1.0), None);
+}
+
 #[test]
 fn a_turned_case_prints_as_the_rust_that_builds_it_again() {
     let pasted = Case::new(

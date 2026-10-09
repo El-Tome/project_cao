@@ -20,6 +20,7 @@ mod outlines;
 mod printing;
 mod scope;
 mod sections;
+mod slices;
 mod smaller;
 
 use glam::{DQuat, DVec2, DVec3};

@@ -113,8 +113,10 @@ fn pooled(
                 .iter()
                 .map(|own| operands.surfaces.mapped[operand][own.0 as usize].0);
             let curves = ending.get(&(operand, id)).cloned().unwrap_or_default();
-            let point = held::laid(operands, registry, operand, id, &curves);
-            pool.add(point, surfaces, curves, registry);
+            match held::laid(operands, registry, operand, id, &curves) {
+                (point, true) => pool.add_built(point, surfaces, curves, registry),
+                (point, false) => pool.add(point, surfaces, curves, registry),
+            };
         }
     }
     for point in special {

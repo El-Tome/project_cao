@@ -13,7 +13,7 @@ use super::held::Held;
 use super::identified::identified;
 use super::operands::Operands;
 use crate::brep::Declined;
-use crate::brep::canonical::{Pool, Registered, Registry, lies_on, standing};
+use crate::brep::canonical::{Pool, Registered, Registry, lies_on};
 use crate::brep::curve::Curve;
 use crate::brep::domain::traced;
 use crate::brep::topology::{Body, CurveId, Edge, SurfaceId, Vertex, VertexId};
@@ -31,7 +31,7 @@ pub(super) fn cut(
         .corners
         .iter()
         .zip(&corners)
-        .map(|(corner, support)| standing(corner.point, support, registry, eps))
+        .map(|(corner, support)| corner.standing(support, registry, eps))
         .collect();
     let corners = corners
         .iter()

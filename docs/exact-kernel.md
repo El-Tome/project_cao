@@ -374,7 +374,24 @@ The decisions, in the order taken, once per operation:
    whichever curve reaches it, and no quartic is solved. Where `Q` and `S`
    meet in a way the kernel does not build, so does the conic; and a
    crossing left unsolved on a pair the kernel builds declines rather than
-   being passed over.
+   being passed over. A plane leaning off a wall's axis by less than the
+   angle read as along it, by more than rounding, is cut along lines drawn
+   through the foot of the wall's origin, and stands a fraction of the
+   tolerance off them where a corner is: a hair inside the wall's ruling,
+   the line it shares with an end crossed the wall microns aside of them,
+   and every corner of the sliver it cuts off was found twice (5520135751).
+   So a line or a circle lying on two surfaces, one of them so decided to
+   cut or touch the other along lines — a plane and a wall, two walls read
+   parallel — crosses it where those lines cross the curve's other plane,
+   by the call those lines make themselves (`relation/crossing/lying.rs`),
+   and a conic crosses such a plane the same way. Only where the lines
+   cross that plane steeply, at a cosine of a tenth or more: shallower, a
+   hair moves the place along them by far more than the other pairs of the
+   triple do (5524010446). A curve lying on a third surface, taken for one
+   that surface carries, is left to its own crossings: two planes crossing
+   at a grazing angle near a wall's axis put the rulings and the conic a
+   fraction of the tolerance apart, and the corner found through the
+   rulings stood that far off the conic's (5523010597).
 5. **Point identity.** Corners within `EPS` are merged, in a fixed order —
    the operands' own corners, the relations' special points, the crossings
    three planes fix, then the others, so that the crossings a curve makes
@@ -390,9 +407,20 @@ The decisions, in the order taken, once per operation:
    whose three planes fix a place stands there, though an operand put it
    up to three hairs off, each plane taken for another, and a curve
    crossing a fourth surface at that place finds that corner rather than a
-   second one beside it (8520500). A plane and a wall crossing along a conic
-   at a grazing angle stand within `EPS` of each other far from it, so the
-   refusal reads their conic as it reads their lines (#552).
+   second one beside it (8520500). An operand's own corner, on the
+   surfaces its operand built it on, none taken for another nor moved onto
+   a touch, and on no plane of the other operand, stands where its operand
+   built it, on the line two of its planes share: that operand decided it.
+   A cut a hair from a block's edge leaves the edge's corners on the cut's
+   plane within the tolerance, though that plane, the floor and a side
+   meet twice the tolerance beyond, and the end face they were decided on
+   is gone; moved there by the next operation, they left the edge they end
+   that far off, and the floor lost its last edge (5520107844). A plane of
+   the other operand through the corner fixes its place anew, where the
+   boolean finds its other crossings with that plane (5523006542). A plane
+   and a wall crossing along a conic at a grazing angle stand within `EPS`
+   of each other far from it, so the refusal reads their conic as it reads
+   their lines (#552).
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly

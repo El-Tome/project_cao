@@ -1439,3 +1439,33 @@ tilted draws but four carries a hair, by design of the draw:
 
 The review's reproducers: 9400405, 9300117 and 9300193 hold; 9412210 is
 the crossing above.
+
+### What the hair-from-tangent lane fixed
+
+The family a plane a hair from tangent by an offset, triaged at `34a1b64`,
+counts 313 of the 815 shrunk tilted failures (156 on the kernel, 157
+through the application's body). Two of its causes were facts decided
+twice, and are decided once now:
+
+- **A plane read along a wall's axis though it leans** (5520135751,
+  5520203207): its rulings are drawn through the foot of the wall's
+  origin, and a line it shares with an end crossed the wall microns aside
+  of them. A line or a circle on two surfaces crosses the wall where those
+  rulings cross its other plane (decision 4), and a conic crosses such a
+  plane the same way.
+- **An earlier operation's corner moved by the next one** (5520107844,
+  5520210646): a cut a hair from a block's edge leaves the edge's corners
+  on the cut's plane within the tolerance; the next operation moved them to
+  where that plane, the floor and a side meet, off the edge they end. An
+  operand's own corner on its own planes stands where its operand built it
+  (decision 5).
+
+Of the 313, 103 hold (47 and 56), and none of the 815 that held fails.
+On fresh seeds, fifteen minutes a draw against `34a1b64`: the tilted
+draw on the kernel from 5525000000, 131 failures in 14 704 cases against
+149 in 14 766 (10.2 to 8.9 in a thousand); through the application's body
+from 5526000000, 145 in 14 022 against 166 in 14 044 (11.8 to 10.3); no
+seed the base held fails. What is left of the family is the band on
+conics the issue defers: a plane at a slant a hair from an edge or a rim,
+where a conic's vertex stands a few tolerances from a corner every plane
+holds within the tolerance (5520109275, ignored with its reason).

@@ -16,7 +16,9 @@ use super::curve::{Circle, Curve, Line};
 use super::meet::Meeting;
 use super::scale::Scale;
 use super::surface::Surface;
-pub use crossing::{Crossing, Crossings, Touches, crossings, crossings_given};
+pub use crossing::{
+    Crossing, Crossings, Lying, Touches, crossings, crossings_given, crossings_lying,
+};
 pub(in crate::brep) use revolved::apart_by;
 
 #[derive(Clone, Debug, PartialEq)]

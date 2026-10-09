@@ -24,8 +24,9 @@ use glam::DVec3;
 
 use super::operands::Operands;
 use crate::brep::canonical::{Registry, distance, within};
+use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
-use crate::brep::relation::relation;
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
 use crate::brep::topology::{CurveId, EdgeId, SurfaceId, VertexId};
@@ -175,8 +176,9 @@ const MOVED: f64 = 2.0;
 /// runs round one of its own two — not round a wall of one radius a hair
 /// beside one of them, which carries it only over the stretch an arc of it
 /// was taken for (decision 6). A cone carries its rulings and its circles
-/// about its axis.
-fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
+/// about its axis. A conic is carried by a surface decided one with its
+/// plane or with its wall, and by nothing else.
+pub(super) fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
     let eps = scale.eps();
     let parallel =
         |one: DVec3, other: DVec3| one.cross(other).length() * 2.0 * scale.reach() <= eps;
@@ -197,7 +199,17 @@ fn carries(surface: &Surface, curve: &Curve, scale: Scale) -> bool {
         (Surface::Cone(cone), Curve::Line(line)) => cone.rules(line, scale),
         (Surface::Cone(cone), Curve::Circle(circle)) => cone.holds(circle, eps),
         (Surface::Cone(_), Curve::Meet(_)) => false,
-        (_, Curve::Conic(_)) => false,
+        (_, Curve::Conic(conic)) => {
+            let own = match (surface, conic.round) {
+                (Surface::Plane(_), _) => Surface::Plane(conic.plane),
+                (Surface::Cylinder(_), Round::Cylinder(cylinder)) => Surface::Cylinder(cylinder),
+                (Surface::Cone(_), Round::Cone(cone)) => Surface::Cone(cone),
+                (Surface::Cylinder(_), Round::Cone(_)) | (Surface::Cone(_), Round::Cylinder(_)) => {
+                    return false;
+                }
+            };
+            matches!(relation(surface, &own, scale), Relation::Same { .. })
+        }
     }
 }
 

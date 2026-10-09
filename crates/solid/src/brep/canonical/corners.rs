@@ -169,13 +169,15 @@ pub(in crate::brep) fn standing(
 const ROUNDING: f64 = 1e-3;
 
 /// Whether a surface of `one` the other lacks and a surface of `other` the
-/// first lacks cross along lines, none of them within `eps` of `point`. Two
-/// surfaces touching stand within `eps` of each other far from the line they
-/// touch along, and a place on both is not for that on it; nor is a place
-/// within `eps` of two cylinders meeting at a grazing angle near the curve
-/// they meet along. Two walls decided to cross at a grazing angle are read
-/// as two touching are: a corner one of them carries near their crossing,
-/// and the node a band puts on the other there, are one corner on both.
+/// first lacks cross along lines or a conic, none of them within `eps` of
+/// `point`. Two surfaces touching stand within `eps` of each other far from
+/// the line they touch along, and a place on both is not for that on it; nor
+/// is a place within `eps` of two cylinders meeting at a grazing angle near
+/// the curve they meet along, nor of a plane and a wall cutting a conic at a
+/// grazing angle near it. Two walls decided to cross at a grazing angle are
+/// read as two touching are: a corner one of them carries near their
+/// crossing, and the node a band puts on the other there, are one corner on
+/// both.
 fn parted(
     point: DVec3,
     one: &[SurfaceId],
@@ -196,7 +198,7 @@ fn parted(
                 return false;
             }
             let mut shared = registry.list.iter().filter(|known| {
-                matches!(known.curve, Curve::Line(_))
+                matches!(known.curve, Curve::Line(_) | Curve::Conic(_))
                     && known.support.binary_search(&a).is_ok()
                     && known.support.binary_search(&b).is_ok()
             });

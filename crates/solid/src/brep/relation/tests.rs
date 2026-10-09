@@ -312,3 +312,4 @@ fn a_plane_is_at_a_slant_to_a_wall_exactly_where_their_pair_was_left_unsupported
 mod conical;
 mod crossing;
 mod lattice;
+mod sliced;

@@ -14,6 +14,7 @@ use glam::{DVec2, DVec3};
 use super::{Case, Leaf, Mode, Outline, Plane, Step};
 
 mod slants;
+mod tilts;
 mod turns;
 
 impl Case {

@@ -158,7 +158,10 @@ fn to_a_millionth(printed: &str) -> String {
     rounded
 }
 
-fn fingerprint(draw: fn(u64) -> Case) -> u64 {
+/// A draw of cases, one to a seed.
+type Draw = fn(u64) -> Case;
+
+fn fingerprint(draw: Draw) -> u64 {
     (0..300)
         .flat_map(|seed| to_a_millionth(&draw(seed).to_string()).into_bytes())
         .fold(0xcbf2_9ce4_8422_2325, |hash, byte| {
@@ -1125,6 +1128,370 @@ fn a_case_asking_for_a_conic_is_told_from_one_that_does_not() {
         (200..650).contains(&asking),
         "{asking} slanted cases ask for a conic"
     );
+}
+
+#[test]
+fn a_case_asking_beyond_the_conics_is_told_from_one_that_does_not() {
+    let shaft = |degrees: f64, axis: Axis| {
+        Leaf::turned(
+            Plane::xy(0.0),
+            axis,
+            Section::bands(-2.0, &[[6.0, 0.0, 2.0]]),
+            degrees,
+        )
+    };
+    let post = Leaf::prism(Plane::xy(-3.0), Outline::circle([1.0, 1.0], 1.0), 6.0);
+    let bar = Leaf::prism(Plane::yz(-3.0), Outline::circle([0.0, 0.0], 1.0), 6.0);
+    let block = Leaf::prism(
+        Plane::xy(-1.0),
+        Outline::rectangle([0.0, 0.0], [3.0, 3.0]),
+        2.0,
+    );
+    let asks = |start: &Leaf, tool: &Leaf| {
+        Case::new(start.clone(), vec![Step::cut(tool.clone())]).asks_beyond_the_conics()
+    };
+
+    for degrees in [360.0, 90.0, -180.0, 270.0] {
+        assert!(!asks(&shaft(degrees, Axis::first(0.0)), &post), "{degrees}");
+    }
+    for degrees in [30.0, -105.0, 359.9] {
+        assert!(!asks(&shaft(degrees, Axis::first(0.0)), &post), "{degrees}");
+        assert!(!asks(&shaft(degrees, Axis::first(0.0)), &bar), "{degrees}");
+        assert!(
+            !asks(&shaft(degrees, Axis::first(0.0)), &block),
+            "{degrees}"
+        );
+    }
+    let slanted = Axis::first(0.0).leaning(30.0);
+    assert!(!asks(&shaft(360.0, slanted), &block));
+    assert!(asks(&shaft(360.0, slanted), &bar));
+    assert!(!Case::new(shaft(45.0, slanted), vec![]).asks_beyond_the_conics());
+    assert!(!asks(&post, &block));
+
+    let asking = (0..1000)
+        .filter(|seed| Case::drawn_turned_off_the_lattice(*seed).asks_beyond_the_conics())
+        .count();
+    assert!(
+        (50..250).contains(&asking),
+        "{asking} cases ask beyond the conics"
+    );
+
+    let cone = |degrees: f64| {
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::first(0.0),
+            Section::bands(0.0, &[[4.0, 0.0, 3.0]]).sloping_to(&[[0.0, 1.0]]),
+            degrees,
+        )
+    };
+    let about = |axis: Axis| {
+        Leaf::turned(
+            Plane::xz(0.0),
+            axis,
+            Section::bands(2.0, &[[4.0, 0.0, 1.0]]).sloping_to(&[[0.0, 3.0]]),
+            360.0,
+        )
+    };
+    let told = [
+        (
+            "a cap square to its axis",
+            Leaf::prism(Plane::yz(-1.0), Outline::circle([0.0, 0.0], 2.0), 3.0),
+            false,
+        ),
+        (
+            "a block whose face holds its axis",
+            Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
+            "a flat parallel to its axis and off it",
+            Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
+            "a flat tangent to its widest rim",
+            Leaf::prism(
+                Plane::xy(3.0),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
+            "a flat a hair past its widest rim, closer than the kernel tells clear",
+            Leaf::prism(
+                Plane::xy(3.00000002),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
+            "a flat past its widest rim",
+            Leaf::prism(
+                Plane::xy(3.001),
+                Outline::rectangle([-1.0, -5.0], [5.0, 5.0]),
+                10.0,
+            ),
+            false,
+        ),
+        (
+            "a plane at a slant",
+            Leaf::prism(
+                Plane::tilted([0.0, 0.0, 0.0], [0.0, 30.0, 0.0]),
+                Outline::rectangle([-5.0, -5.0], [5.0, 5.0]),
+                1.0,
+            ),
+            false,
+        ),
+        (
+            "a cylinder about its axis",
+            Leaf::prism(Plane::yz(1.0), Outline::circle([0.0, 0.0], 2.0), 2.0),
+            false,
+        ),
+        ("a cone about its axis", about(Axis::first(0.0)), false),
+        (
+            "a cylinder parallel to its axis and off it",
+            Leaf::prism(Plane::yz(1.0), Outline::circle([1.0, 0.0], 1.0), 2.0),
+            true,
+        ),
+        (
+            "a hole across it",
+            Leaf::prism(Plane::xz(5.0), Outline::circle([2.0, 0.0], 1.0), 10.0),
+            true,
+        ),
+        ("a cone a hair off its axis", about(Axis::first(1e-7)), true),
+        (
+            "a block whose box stands apart from its own",
+            Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([20.0, 20.0], [25.0, 25.0]),
+                2.0,
+            ),
+            false,
+        ),
+    ];
+    for (what, tool, asking) in told {
+        assert_eq!(asks(&cone(360.0), &tool), asking, "{what}");
+    }
+    assert!(!Case::new(cone(90.0), vec![]).asks_beyond_the_conics());
+    assert!(!Case::new(cone(-215.0), vec![]).asks_beyond_the_conics());
+
+    let asking = (0..1000)
+        .filter(|seed| Case::drawn_slanted(*seed).asks_beyond_the_conics())
+        .count();
+    assert!(
+        (200..450).contains(&asking),
+        "{asking} slanted cases ask beyond the conics"
+    );
+}
+
+#[test]
+fn a_plane_leaning_about_an_axis_of_the_origin_holds_that_axis_and_leans_by_its_angle() {
+    let origin = DVec3::new(1.0, -2.0, 3.5);
+    for degrees in [15.0, -30.0, 45.0, 75.0, 2e-8, -1e-5, 90.0 - 2e-8] {
+        let radians = f64::to_radians(degrees);
+        let expected = [
+            DVec3::new(0.0, -radians.sin(), radians.cos()),
+            DVec3::new(radians.sin(), 0.0, radians.cos()),
+            DVec3::new(radians.sin(), -radians.cos(), 0.0),
+        ];
+        for (holds, (starts, expected)) in [DVec3::Z, DVec3::Z, DVec3::NEG_Y]
+            .into_iter()
+            .zip(expected)
+            .enumerate()
+        {
+            let plane = Plane::leaning(holds, degrees, origin);
+            let normal = plane.normal();
+            assert_eq!(plane.to_world(DVec2::ZERO), origin);
+            assert!(
+                normal.dot(DVec3::AXES[holds]).abs() <= 1e-15,
+                "holding axis {holds} by {degrees}: {normal}"
+            );
+            assert!(
+                (normal - expected).length() <= 1e-15,
+                "holding axis {holds} by {degrees}: {normal} against {expected}"
+            );
+            let leaned = normal.cross(starts).length().atan2(normal.dot(starts));
+            assert!(
+                (leaned.to_degrees() - degrees.abs()).abs() <= 1e-12,
+                "holding axis {holds} by {degrees}: leaned {}",
+                leaned.to_degrees()
+            );
+        }
+    }
+}
+
+#[test]
+fn the_scope_rule_split_in_two_answers_as_it_did() {
+    let draws: [(&str, Draw); 4] = [
+        ("turned", Case::drawn_turned),
+        ("turned off the lattice", Case::drawn_turned_off_the_lattice),
+        ("slanted", Case::drawn_slanted),
+        (
+            "slanted off the lattice",
+            Case::drawn_slanted_off_the_lattice,
+        ),
+    ];
+    for (name, draw) in draws {
+        let seeds: Vec<u64> = (0..2000).collect();
+        let answers = random_solids::on_every_core(&seeds, |seed| {
+            let case = draw(*seed);
+            (
+                case.asks_for_a_conic(),
+                case.asks_beyond_the_conics() || case.meets_along_a_conic(),
+            )
+        });
+        for (seed, (before, split)) in seeds.iter().zip(answers) {
+            assert_eq!(split, before, "{name} seed {seed}:\n{}", draw(*seed));
+        }
+    }
+}
+
+/// A disc of radius nine on a plane through `on` holding a world axis of
+/// the origin and leaning `degrees` off it, raised a unit: its two faces
+/// lean, its wall stands square to them, and it has no side to lean too.
+fn disc(holds: usize, degrees: f64, on: [f64; 3]) -> Leaf {
+    Leaf::prism(
+        Plane::leaning(holds, degrees, DVec3::from(on)),
+        Outline::circle([0.0, 0.0], 9.0),
+        1.0,
+    )
+}
+
+fn told(counts: [usize; 6]) -> random_solids::Conics {
+    let [
+        ellipses,
+        parabolas,
+        hyperbolas,
+        lines_through_an_apex,
+        apex_alone,
+        tangent_rulings,
+    ] = counts;
+    random_solids::Conics {
+        ellipses,
+        parabolas,
+        hyperbolas,
+        lines_through_an_apex,
+        apex_alone,
+        tangent_rulings,
+    }
+}
+
+#[test]
+fn a_plane_meeting_a_cylinder_or_a_cone_is_told_by_the_conic_it_cuts() {
+    let conics =
+        |start: &Leaf, tool: Leaf| Case::new(start.clone(), vec![Step::cut(tool)]).conics();
+    let shaft = Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 5.0), 10.0);
+    for (what, tool, expected) in [
+        (
+            "a plane square to the axis",
+            Leaf::prism(Plane::xy(4.0), Outline::circle([0.0, 0.0], 9.0), 1.0),
+            0,
+        ),
+        ("a slant", disc(0, 30.0, [0.0, 0.0, 5.0]), 4),
+        (
+            "a slant within the rounding of square",
+            disc(0, 1e-11, [0.0, 0.0, 5.0]),
+            0,
+        ),
+        (
+            "a slant a hair off square",
+            disc(0, 1e-8, [0.0, 0.0, 5.0]),
+            4,
+        ),
+        (
+            "a slant a hair off its axis",
+            disc(0, 90.0 - 1e-8, [0.0, 0.0, 5.0]),
+            4,
+        ),
+        (
+            "a plane along its axis at its radius, a line",
+            disc(0, 90.0, [0.0, 5.0, 5.0]),
+            0,
+        ),
+    ] {
+        assert_eq!(
+            conics(&shaft, tool),
+            told([expected, 0, 0, 0, 0, 0]),
+            "{what}"
+        );
+    }
+
+    let point = Leaf::turned(
+        Plane::xz(0.0),
+        Axis::second(0.0),
+        Section::bands(0.0, &[[10.0, 0.0, 5.0]]).sloping_to(&[[0.0, 0.0]]),
+        360.0,
+    );
+    let steep = 90.0 - 0.5f64.atan().to_degrees();
+    for (what, tool, expected) in [
+        (
+            "a slant steeper than the slope",
+            disc(0, 15.0, [0.0, 0.0, 6.0]),
+            [6, 0, 0, 0, 0, 0],
+        ),
+        (
+            "a slant as steep as the slope",
+            disc(0, steep, [0.0, 0.0, 6.0]),
+            [4, 2, 0, 0, 0, 0],
+        ),
+        (
+            "a slant a hair steeper",
+            disc(0, steep - 1e-9, [0.0, 0.0, 6.0]),
+            [6, 0, 0, 0, 0, 0],
+        ),
+        (
+            "a slant a hair flatter",
+            disc(0, steep + 1e-9, [0.0, 0.0, 6.0]),
+            [4, 0, 2, 0, 0, 0],
+        ),
+        (
+            "a flat along the axis",
+            disc(0, 90.0, [0.0, 2.0, 6.0]),
+            [0, 0, 2, 0, 0, 0],
+        ),
+        (
+            "a flatter plane through the tip",
+            disc(0, 75.0, [0.0, 0.0, 10.0]),
+            [4, 0, 1, 1, 0, 0],
+        ),
+        (
+            "a steeper plane through the tip",
+            disc(0, 15.0, [0.0, 0.0, 10.0]),
+            [5, 0, 0, 0, 1, 0],
+        ),
+        (
+            "a plane through the tip as steep",
+            disc(0, steep, [0.0, 0.0, 10.0]),
+            [4, 1, 0, 0, 0, 1],
+        ),
+        (
+            "as steep a hair off the tip",
+            disc(0, steep, [0.0, 0.0, 10.000001]),
+            [4, 2, 0, 0, 0, 0],
+        ),
+        (
+            "a plane holding the axis",
+            disc(0, 90.0, [0.0, 0.0, 6.0]),
+            [0, 0, 1, 0, 0, 0],
+        ),
+        (
+            "a slant whose box stands apart",
+            disc(0, 15.0, [60.0, 60.0, 60.0]),
+            [4, 0, 0, 0, 0, 0],
+        ),
+    ] {
+        assert_eq!(conics(&point, tool), told(expected), "{what}");
+    }
 }
 
 #[test]

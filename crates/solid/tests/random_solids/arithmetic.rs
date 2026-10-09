@@ -71,10 +71,10 @@ struct Promise {
 /// the whole case run twice, bit for bit.
 ///
 /// A leaf or a step the kernel declines is no answer, but for a case asking
-/// for a conic declined as unsupported, and a turned leaf with a wall a
-/// hair thin declined as no profile, which are counted. A case with a
-/// leaf that is no solid, or none this arithmetic covers — a star — holds
-/// nothing.
+/// beyond the conics, or meeting along one, declined as unsupported, and a
+/// turned leaf with a wall a hair thin declined as no profile, which are
+/// counted. A case with a leaf that is no solid, or none this arithmetic
+/// covers — a star — holds nothing.
 pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured, Flaw> {
     let mut measured = Measured::default();
     if !case.leaves().all(covered) {
@@ -152,10 +152,14 @@ pub fn holds_through_the_application(case: &Case) {
     }
 }
 
-/// A kernel's decline, judged: counted when the case asks for a conic and
-/// the kernel says it does not build one, no answer otherwise.
+/// A kernel's decline, judged: counted when the case asks for a curve
+/// beyond the conics, or meets along one, and the kernel says it does not
+/// build it, no answer otherwise. The second excuse goes once the kernel
+/// builds the conics (#552).
 fn declined_on(case: &Case, declined: Declined, mut measured: Measured) -> Result<Measured, Flaw> {
-    if declined == Declined::Unsupported && case.asks_for_a_conic() {
+    if declined == Declined::Unsupported
+        && (case.asks_beyond_the_conics() || case.meets_along_a_conic())
+    {
         measured.declined += 1;
         return Ok(measured);
     }

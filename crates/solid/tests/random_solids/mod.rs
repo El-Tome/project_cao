@@ -31,6 +31,7 @@ pub use building::Drawn;
 pub use checking::{check, holds, kept_its_promise, within_reach};
 pub use cores::on_every_core;
 pub use kernels::{Application, Exact, Flats, Kernel, TESSELLATION, whole_circle};
+pub use scope::Conics;
 pub use sections::{Along, Axis, ON_THE_AXIS, Piece, Section, Trapezoid};
 
 #[derive(Clone, Debug, PartialEq)]

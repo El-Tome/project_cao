@@ -1,6 +1,12 @@
 //! The scope rule: which cases may ask the exact kernel for a curve it does
 //! not build, read off the walls their leaves are bounded by, so that a
 //! decline as unsupported is counted rather than failed.
+//!
+//! #552 splits it in two, the old rule kept beside them until the kernel
+//! builds the conics: what asks beyond the conics — skew cylinders, a cone
+//! against anything off its axis — and the conics a case's planes meet its
+//! cylinders and cones along, told kind by kind. The two together answer
+//! as the old rule did.
 
 use glam::{DVec2, DVec3};
 
@@ -262,4 +268,244 @@ fn walls(leaf: &Leaf) -> Vec<Wall> {
 fn oblique(one: DVec3, other: DVec3) -> bool {
     let (one, other) = (one.normalize(), other.normalize());
     one.dot(other).abs() > ALIGNED && one.cross(other).length() > ALIGNED
+}
+
+/// How many pairs of a case's walls meet along each kind of conic, as the
+/// scope rule reads them (#552): a plane neither square to a cylinder's axis
+/// nor along it cuts an ellipse; a plane meeting a cone, near the box its
+/// leaf spans, neither square to its axis nor holding it nor parallel to it
+/// past its widest rim, cuts an ellipse, a parabola or a hyperbola, or
+/// through its tip two lines, a ruling it touches along, or the tip alone,
+/// as its angle with the axis is steeper than the cone's slope, as steep or
+/// flatter.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct Conics {
+    pub ellipses: usize,
+    pub parabolas: usize,
+    pub hyperbolas: usize,
+    pub lines_through_an_apex: usize,
+    pub apex_alone: usize,
+    pub tangent_rulings: usize,
+}
+
+impl Conics {
+    pub fn total(&self) -> usize {
+        self.ellipses
+            + self.parabolas
+            + self.hyperbolas
+            + self.lines_through_an_apex
+            + self.apex_alone
+            + self.tangent_rulings
+    }
+}
+
+/// A cone of a turned leaf as the conics are told by: its tip, its axis of
+/// unit length, and its slope off the axis in radians.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct Slope {
+    tip: DVec3,
+    axis: DVec3,
+    angle: f64,
+}
+
+impl Slope {
+    /// The conic a plane through `on` square to `normal` cuts this cone
+    /// along, a plane that neither stands square to its axis nor holds it.
+    fn cut(&self, normal: DVec3, on: DVec3, reach: f64, conics: &mut Conics) {
+        let normal = normal.normalize();
+        let along = normal.dot(self.axis).abs();
+        let with_the_axis = along.atan2(normal.cross(self.axis).length());
+        let through_the_tip = normal.dot(self.tip - on).abs() <= ALIGNED * reach;
+        let kind = if along <= ALIGNED {
+            &mut conics.hyperbolas
+        } else if (with_the_axis - self.angle).abs() <= ALIGNED {
+            if through_the_tip {
+                &mut conics.tangent_rulings
+            } else {
+                &mut conics.parabolas
+            }
+        } else if with_the_axis < self.angle {
+            if through_the_tip {
+                &mut conics.lines_through_an_apex
+            } else {
+                &mut conics.hyperbolas
+            }
+        } else if through_the_tip {
+            &mut conics.apex_alone
+        } else {
+            &mut conics.ellipses
+        };
+        *kind += 1;
+    }
+}
+
+/// The cones of a turned leaf: one for every slanted edge of its section,
+/// read as drawn, either side of the axis.
+fn slopes(leaf: &Leaf) -> Vec<Slope> {
+    let Some(turned) = leaf.as_turned() else {
+        return Vec::new();
+    };
+    let swept = turned.swept(1.0);
+    let ends = turned.section.ends();
+    let mut slopes: Vec<Slope> = Vec::new();
+    for index in 0..turned.section.bands.len() {
+        let (start, end) = turned.section.edges(index);
+        let run = ends[index + 1] - ends[index];
+        for edge in 0..2 {
+            let (from, to) = (start[edge], end[edge]);
+            if from == to || run <= 0.0 {
+                continue;
+            }
+            let tip = ends[index] - from * run / (to - from);
+            let slope = Slope {
+                tip: swept.origin + swept.along * tip,
+                axis: swept.along,
+                angle: (to - from).abs().atan2(run),
+            };
+            if !slopes.contains(&slope) {
+                slopes.push(slope);
+            }
+        }
+    }
+    slopes
+}
+
+/// A case's walls read leaf by leaf, with the box each leaf spans and its
+/// cones, and how far the case reaches.
+struct Walled {
+    leaves: Vec<(Vec<Wall>, Spanned, Vec<Slope>)>,
+    reach: f64,
+}
+
+impl Walled {
+    fn of(case: &Case) -> Walled {
+        let leaves: Vec<(Vec<Wall>, Spanned, Vec<Slope>)> = case
+            .leaves()
+            .map(|leaf| {
+                (
+                    walls(leaf),
+                    leaf.is_solid().then(|| leaf.bounds()).flatten(),
+                    slopes(leaf),
+                )
+            })
+            .collect();
+        let reach = leaves
+            .iter()
+            .filter_map(|(_, bounds, _)| *bounds)
+            .map(|(low, high)| low.abs().max(high.abs()).max_element())
+            .fold(1.0, f64::max);
+        Walled { leaves, reach }
+    }
+
+    fn all(&self) -> impl Iterator<Item = &Wall> {
+        self.leaves.iter().flat_map(|(walls, _, _)| walls)
+    }
+
+    fn cylinders(&self) -> Vec<DVec3> {
+        self.all()
+            .filter_map(|wall| match wall {
+                Wall::Cylinder { axis, .. } => Some(*axis),
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Whether two leaves' boxes meet, a millionth of the reach apart.
+    fn near(&self, one: Spanned, other: Spanned) -> bool {
+        let margin = 1e-6 * self.reach;
+        match (one, other) {
+            (Some((low, high)), Some((other_low, other_high))) => {
+                (low - margin).cmple(other_high).all() && (other_low - margin).cmple(high).all()
+            }
+            _ => false,
+        }
+    }
+
+    /// Every wall of a leaf whose box meets a cone's, with that cone's wall,
+    /// its leaf's cones, and the wall met.
+    fn against_cones(&self) -> Vec<(&Wall, &[Slope], &Wall)> {
+        let mut met = Vec::new();
+        for (walls, bounds, slopes) in &self.leaves {
+            for cone in walls
+                .iter()
+                .filter(|wall| matches!(wall, Wall::Cone { .. }))
+            {
+                for (others, other_bounds, _) in &self.leaves {
+                    if self.near(*bounds, *other_bounds) {
+                        met.extend(others.iter().map(|other| (cone, slopes.as_slice(), other)));
+                    }
+                }
+            }
+        }
+        met
+    }
+}
+
+impl Case {
+    /// Whether the case may ask the exact kernel for a curve that is no
+    /// conic (#552): two cylinders whose axes are neither parallel nor
+    /// square, a skew meeting; or a cone meeting a cylinder or a cone not
+    /// about its very axis, where its leaf's box meets the other's. A plane
+    /// never asks. The kernel may decline such a case as unsupported; it
+    /// may also hold it, the leaves never meeting there.
+    pub fn asks_beyond_the_conics(&self) -> bool {
+        let walled = Walled::of(self);
+        let cylinders = walled.cylinders();
+        let skew = cylinders
+            .iter()
+            .any(|axis| cylinders.iter().any(|other| oblique(*other, *axis)));
+        skew || walled.against_cones().into_iter().any(|(cone, _, other)| {
+            let Wall::Cone {
+                axis,
+                point,
+                radius,
+            } = *cone
+            else {
+                return false;
+            };
+            !matches!(other, Wall::Plane { .. })
+                && other.asks_of_a_cone(axis, point, radius, walled.reach)
+        })
+    }
+
+    /// The conics the case's planes meet its cylinders and cones along, as
+    /// `Conics` tells them.
+    pub fn conics(&self) -> Conics {
+        let walled = Walled::of(self);
+        let mut conics = Conics::default();
+        let cylinders = walled.cylinders();
+        for wall in walled.all() {
+            if let Wall::Plane { normal, .. } = wall {
+                conics.ellipses += cylinders
+                    .iter()
+                    .filter(|axis| oblique(*normal, **axis))
+                    .count();
+            }
+        }
+        for (cone, slopes, other) in walled.against_cones() {
+            let (
+                Wall::Cone {
+                    axis,
+                    point,
+                    radius,
+                },
+                Wall::Plane { normal, point: on },
+            ) = (cone, other)
+            else {
+                continue;
+            };
+            if other.asks_of_a_cone(*axis, *point, *radius, walled.reach) {
+                for slope in slopes {
+                    slope.cut(*normal, *on, walled.reach, &mut conics);
+                }
+            }
+        }
+        conics
+    }
+
+    /// Whether some plane of the case meets a cylinder or a cone of it along
+    /// a conic.
+    pub fn meets_along_a_conic(&self) -> bool {
+        self.conics().total() > 0
+    }
 }

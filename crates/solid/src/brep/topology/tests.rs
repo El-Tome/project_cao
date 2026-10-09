@@ -88,3 +88,49 @@ fn a_body_bounded_by_an_ellipse_reaches_as_far_as_its_ellipse_does() {
         }
     }
 }
+
+#[test]
+fn the_corners_of_a_face_bounded_by_an_ellipse_hold_points_along_it_that_move_with_it() {
+    use crate::brep::tessellation::tests::fixtures;
+    let corners_at = |lean: f64| {
+        let body = fixtures::stock_cut_at_a_slant(lean);
+        let top = body
+            .face_ids()
+            .find(|&face| match body.surface(body.face(face).surface) {
+                Surface::Plane(plane) => plane.normal.x != 0.0,
+                Surface::Cylinder(_) | Surface::Cone(_) => false,
+            })
+            .expect("the slanted top");
+        let Curve::Conic(conic) = *body.curve(body.edge(body.face(top).loops[0][0].edge).curve)
+        else {
+            panic!("the top is bounded by its ellipse");
+        };
+        (conic, body.corners_of(top))
+    };
+    let (conic, corners) = corners_at(0.25);
+    let period = conic.period().expect("an ellipse closes");
+    let along: Vec<DVec3> = (0..48)
+        .map(|step| conic.point(period * f64::from(step) / 48.0))
+        .collect();
+    for point in &along {
+        assert!(
+            corners
+                .iter()
+                .any(|corner| corner.distance(*point) <= 1e-12),
+            "{point} along the ellipse is one of the top's corners"
+        );
+    }
+    let (_, nudged) = corners_at(0.25 + 1e-7);
+    for point in &along {
+        let nearest = nudged
+            .iter()
+            .map(|corner| corner.distance(*point))
+            .fold(f64::INFINITY, f64::min);
+        assert!(
+            nearest <= 1e-5,
+            "{point} moves by {nearest} as the plane leans a hair further"
+        );
+    }
+}
+
+pub(in crate::brep) mod conic;

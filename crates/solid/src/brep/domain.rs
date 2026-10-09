@@ -115,15 +115,19 @@ impl Body {
     }
 
     /// Whether `place` stands further than `eps` from the curve two cylinders
-    /// meet along that a trace follows, told from the box round it before
-    /// the distance is sought along it: on a surface a distance is never
-    /// shorter than straight across, and the box holds every point of the
-    /// curve. Other traces are measured in closed form at once.
+    /// meet along, or the conic, that a trace follows, told from the box
+    /// round it before the distance is sought along it: on a surface a
+    /// distance is never shorter than straight across, and the box holds
+    /// every point of the curve. Other traces are measured in closed form at
+    /// once.
     fn far_from(&self, trace: &Trace, place: DVec3, eps: f64) -> bool {
-        let Trace::Graph { meet, from, to, .. } = *trace else {
-            return false;
+        let [low, high] = match *trace {
+            Trace::Graph { meet, from, to, .. } => meet.bounds(from, to),
+            Trace::Conic {
+                conic, from, to, ..
+            } => conic.bounds(from, to),
+            Trace::Segment { .. } | Trace::Round { .. } => return false,
         };
-        let [low, high] = meet.bounds(from, to);
         let room = eps + self.scale.eps();
         place.cmplt(low - room).any() || place.cmpgt(high + room).any()
     }

@@ -395,8 +395,9 @@ The decisions, in the order taken, once per operation:
    at a grazing angle stand within `EPS` of each other far from it, so the
    refusal reads their conic as it reads their lines (#552). Two planes
    too near parallel to fix the line they share (below) are decided, once,
-   to graze where every corner candidate on either, in a box faces of both
-   may meet in, stands within `EPS` of both, and every curve crossing both
+   to graze where they stand within `EPS` of each other across every box
+   faces of both may meet in, every corner candidate on either in such a
+   box stands within `EPS` of both, and every curve crossing both
    there crosses them within `EPS` of one place: they stand within `EPS` of
    each other far from that line too, and the refusal does not hold
    between them — the corner a rim, a side and a top meet at and the one an
@@ -406,7 +407,10 @@ The decisions, in the order taken, once per operation:
    on both: one pair of corners merged and the next a hair too far apart
    would make one arc of two at one end and leave them two at the other
    (5520267036), and a cone's ruling crossing the two 1.2e-8 apart would
-   leave one of its corners two (5520167649).
+   leave one of its corners two (5520167649). Nor do two whose faces may
+   meet further out, past every corner: a disc's rim has none at its far
+   side, three hundred units from the line, where the two part 5.2e-7 at a
+   tolerance of 5.1e-7 (5527004090).
 6. **Arc identity.** Once every curve is cut into arcs at the pooled
    corners, two arcs lying on one surface between the same two corners,
    which part by no more than `EPS` anywhere along them — measured exactly

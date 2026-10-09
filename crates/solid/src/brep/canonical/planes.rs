@@ -59,12 +59,15 @@ impl Planes {
     }
 
     /// The planes, each two of them crossing too near parallel to fix the
-    /// line they share decided to graze where, of the corner candidates
-    /// `places` within a box `meeting` gives for them — a box faces of both
-    /// may meet in — every one on either stands within `eps` of both, and
-    /// every two a curve crosses the two at, one on each, within `eps` of
-    /// each other: each would be one corner on both. Two whose corners part
-    /// by more there cross.
+    /// line they share decided to graze where they stand within `eps` of
+    /// each other across every box `meeting` gives for them — a box faces of
+    /// both may meet in — and, of the corner candidates `places` within such
+    /// a box, every one on either stands within `eps` of both, and every two
+    /// a curve crosses the two at, one on each, within `eps` of each other:
+    /// each would be one corner on both. Two whose corners part by more
+    /// there cross, and so do two whose faces may meet where they part by
+    /// more, past every corner: a disc's rim has none at its far side
+    /// (5527004090).
     pub fn grazing(
         mut self,
         meeting: impl Fn([SurfaceId; 2]) -> Vec<[DVec3; 2]>,
@@ -91,6 +94,22 @@ impl Planes {
                         .iter()
                         .all(|(normal, offset)| (normal.dot(point) - offset).abs() <= eps)
                 };
+                let parting = |point: DVec3| {
+                    let on_first = point - first.0 * (first.0.dot(point) - first.1);
+                    (second.0.dot(on_first) - second.1).abs()
+                };
+                let together = boxes.iter().all(|[low, high]| {
+                    (0..8).all(|corner| {
+                        let pick = |axis: usize| {
+                            if corner >> axis & 1 == 0 {
+                                low[axis]
+                            } else {
+                                high[axis]
+                            }
+                        };
+                        parting(DVec3::new(pick(0), pick(1), pick(2))) <= eps
+                    })
+                });
                 let met: Vec<&Place> = places
                     .iter()
                     .filter(|place| {
@@ -118,6 +137,7 @@ impl Planes {
                         })
                 };
                 if !boxes.is_empty()
+                    && together
                     && met.iter().all(|place| near(place.point))
                     && one_place(pair[0], pair[1])
                     && one_place(pair[1], pair[0])

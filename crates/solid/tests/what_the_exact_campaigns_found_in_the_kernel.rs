@@ -5957,6 +5957,67 @@ fn seed_5520271162_a_block_bored_by_a_post_leaning_1e_3_degrees_off_its_side_the
     ));
 }
 
+/// #552, the tilted campaign, shrunk: a disc joined to a block at its
+/// edge, cut by a slab whose floor leans 1e-7° about X off the disc's
+/// bottom, along a line touching the disc's rim. Every corner where their
+/// faces meet stands within the tolerance of both, but the rim's far side,
+/// three hundred units from that line, stands 5.2e-7 off the floor, a hair
+/// past the tolerance of 5.1e-7: the two planes cross where their faces
+/// meet, and do not graze. It held on `34a1b64`.
+#[test]
+fn seed_5527004090_a_disc_and_a_block_cut_by_a_slab_whose_floor_leans_1e_7_degrees_off_the_disc_s_bottom()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(-30.0),
+            Outline::circle([300.0, 30.0], 150.0),
+            60.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(-60.0),
+                Outline::rectangle([450.0, 0.0], [510.0, 60.0]),
+                120.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([300.0, 180.0, -30.0], [-1e-7, 0.0, 0.0]),
+                Outline::rectangle([-165.0, -330.0], [165.0, 15.0]),
+                30.0,
+            )),
+        ],
+    ));
+}
+
+/// #552, the tilted campaign, shrunk: a block joined to a post standing
+/// apart below it, cut by a slab whose far face leans 1e-7° about Y off
+/// the post's bottom, along a line beyond the post, the family of
+/// 5527004090: the rim's far side, twelve units from that line, stands
+/// 2.2e-8 off the slab's face, past the tolerance of 1.6e-8. It held on
+/// `34a1b64`.
+#[test]
+fn seed_5527006753_a_block_and_a_post_cut_by_a_slab_whose_far_face_leans_1e_7_degrees_off_the_post_s_bottom()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::rectangle([8.0, 7.0], [16.0, 10.0]),
+            6.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.99999998),
+                Outline::circle([2.0, 9.0], 4.0),
+                -6.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([10.5, 8.0, -1.999999987845058e-8], [0.0, 1e-7, 0.0]),
+                Outline::rectangle([-10.0, -5.0], [1.0, 5.0]),
+                -1.0,
+            )),
+        ],
+    ));
+}
+
 /// #552, the tilted campaign: a post along X cut by a block whose floor
 /// stands 2e-7 inside its top ruling, leaning 2e-8° — under the angle the
 /// kernel reads as parallel to the axis, so the floor cuts the wall along

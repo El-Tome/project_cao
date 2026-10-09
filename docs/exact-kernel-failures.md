@@ -1462,6 +1462,21 @@ between them never made one.
   and the next a hair too far apart (5520267036), a cone's ruling
   crossing the two planes 1.2e-8 apart (5520167649), planes at 1e-3°
   (5520271162).
+- **Their faces part past every corner.** Measured again once merged, a
+  ten-minute draw against `34a1b64` found two seeds the base held that the
+  rule above failed: a disc's bottom and a slab's floor leaning 1e-7° off
+  it, every corner within the tolerance of both, but the disc's rim, which
+  has no corner at its far side, three hundred units from the line the two
+  cross along and 5.2e-7 off the floor at a tolerance of 5.1e-7
+  (5527004090, and 5527006753 at the scale of a post). Two planes now
+  graze only where they stand within the tolerance of each other across
+  every box faces of both may meet in too. A box is wider than the faces
+  in it, and the rule gave back 10 of the 241 of the 815: 231 hold, none
+  that held on `34a1b64` fails. Ten minutes a draw against `34a1b64` over
+  the same seeds: on the exact kernel from 5527000000, 129 of 16 627 (7.8
+  in a thousand) against 169 (10.2); through the application's body from
+  5528000000, 121 of 15 702 (7.7) against 168 (10.7). No seed that held on
+  `34a1b64` fails.
 - **A corner on an edge over its stretch.** A face leaning a hair off a
   post's end, left bounded by the post's circle, lies on that circle over
   its stretch alone; a cut crossing the circle there now finds the corner

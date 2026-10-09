@@ -76,6 +76,7 @@ pub(crate) fn draw_circle(
                 .into_iter()
                 .map(|place| point_ref_at(context, index, place, snap))
                 .collect();
+            let opened = context.document.history.mark();
             context.document.apply(Operation::AddCircle {
                 sketch: index,
                 center,
@@ -121,6 +122,7 @@ pub(crate) fn draw_circle(
                     }
                 }
             }
+            context.document.history.fold_into_one_gesture(opened);
 
             context.editor.live.clear();
             context.editor.message = Some(crate::wording::circle::asks_for(context.lang, mode));
@@ -161,3 +163,6 @@ pub(crate) fn circle_from(
         shape_scale(context),
     )
 }
+
+#[cfg(test)]
+mod tests;

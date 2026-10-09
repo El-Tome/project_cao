@@ -40,6 +40,26 @@
 //! cone. The flats answered 231 of the first 300 slanted cases by their own
 //! rules when the draw was written, and the arithmetic held every one.
 //!
+//! Planes lean into them (#552), in a draw of their own
+//! (`Case::drawn_tilted`), which keeps every seed of `drawn_slanted` its
+//! case: tools on planes leaning about a world axis, drawn from a leaf
+//! before them — a slanted cut through a block, a hole or a boss square to
+//! the face it left, a bore at a slant, a leaning block; a slant through a
+//! shaft's middle or about a rim's tangent, a plane along its axis at its
+//! radius, which touches it along a line, a flat; on a cone a flat along its
+//! axis, a slant, a plane parallel to a ruling, planes through its tip — and
+//! off the lattice angles a hair from square, from parallel and from a
+//! cone's slope. A plane meets a cylinder or a cone there along an ellipse,
+//! a parabola, a hyperbola, two lines through an apex, the apex alone or a
+//! ruling it touches along: `Case::conics` tells which, and a decline as
+//! unsupported is excused on such a case, as on one asking beyond the
+//! conics (`Case::asks_beyond_the_conics`), until the kernel builds them;
+//! the tests that hold it then are written, and wait on it. The volume a
+//! round leaf keeps under a slanted plane is held besides to its slices
+//! (`Leaf::kept_by_a_half_space`), which owe nothing to the lines. The flats
+//! answered 244 of the first 300 tilted cases by their own rules when the
+//! draw was written, and the arithmetic held every one.
+//!
 //! The exact kernel lays a section against its axis before turning it; a
 //! hole a hair from its band's edge is laid onto the outline, and the wall
 //! between them is not there. Where that leaves the matter in two pieces, or
@@ -61,13 +81,16 @@
 //! declined as unsupported and is counted so. The campaigns of slanted
 //! solids (`a_campaign_of_slanted_solids_…`) draw past it the same way
 //! (`Case::drawn_slanted_off_the_lattice`), with slopes at thirty and sixty
-//! degrees besides, and coaxial tools a hair off their axis.
+//! degrees besides, and coaxial tools a hair off their axis; and those of
+//! tilted solids (`a_campaign_of_tilted_solids_…`,
+//! `Case::drawn_tilted_off_the_lattice`) with their planes leaning by a
+//! degree's step, a real angle, or a hair.
 //! `CAO_FUZZ_SEED`, `CAO_FUZZ_CASES` and `CAO_FUZZ_PATIENCE` are read as in
 //! `random_exact_solids.rs`; the seeds a campaign names are shrunk by
 //! `the_seeds_a_turning_campaign_named_are_shrunk_one_by_one`, given in
 //! `CAO_TRIAGE_SEEDS`, with `CAO_TRIAGE_KERNEL=application` for the
-//! campaign through the application's body and `CAO_TRIAGE_DRAW=slanted`
-//! for a campaign of slanted solids.
+//! campaign through the application's body, and `CAO_TRIAGE_DRAW=slanted`
+//! or `tilted` for a campaign of slanted or tilted solids.
 //!
 //! Closes #541.
 //! - the fingerprint of the draws passes on macOS and on the CI's Linux —
@@ -3616,6 +3639,215 @@ fn a_tilted_plane_shrinks_to_the_lattice_and_to_a_plane_of_the_origin() {
     );
 }
 
+#[test]
+fn a_shaft_cut_at_a_slant_and_a_holed_wedge_are_held_by_the_flats_to_the_arithmetic() {
+    let tan30 = 30f64.to_radians().tan();
+    let face = DVec3::new(10.0, 10.0, 5.0 + 10.0 * tan30);
+    let normal = Plane::leaning(0, 30.0, face).normal();
+    let cases = [
+        (
+            Case::new(
+                Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 5.0), 30.0),
+                vec![Step::cut(Leaf::prism(
+                    Plane::leaning(0, 30.0, DVec3::new(0.0, 0.0, 15.0)),
+                    Outline::rectangle([-10.0, -15.0], [10.0, 15.0]),
+                    20.0,
+                ))],
+            ),
+            375.0 * PI,
+        ),
+        (
+            Case::new(
+                Leaf::prism(
+                    Plane::xy(0.0),
+                    Outline::rectangle([0.0, 0.0], [20.0, 20.0]),
+                    20.0,
+                ),
+                vec![
+                    Step::cut(Leaf::prism(
+                        Plane::leaning(0, 30.0, DVec3::new(0.0, 0.0, 5.0)),
+                        Outline::rectangle([-1.0, -3.0], [21.0, 26.0]),
+                        25.0,
+                    )),
+                    Step::cut(Leaf::prism(
+                        Plane::leaning(0, 30.0, face + normal),
+                        Outline::circle([0.0, 0.0], 2.0),
+                        -21.0,
+                    )),
+                ],
+            ),
+            2000.0 + 4000.0 / 3f64.sqrt() - 4.0 * PI * (10.0 / 3f64.sqrt() + 20.0 / 3.0),
+        ),
+    ];
+    for (case, arithmetic) in cases {
+        random_solids::holds(&case);
+        let flats = Flats::for_case(&case);
+        let held = random_solids::held_to_arithmetic(&case, &flats);
+        assert!(held.is_ok(), "{held:?}\n{case}");
+        let body = case
+            .steps
+            .iter()
+            .fold(case.start.solid().expect("a solid"), |body, step| {
+                let tool = step.tool.solid().expect("a solid");
+                match step.mode {
+                    Mode::Add => body.union(&tool).expect("a union"),
+                    Mode::Cut => body.difference(&tool).expect("a difference"),
+                }
+            });
+        let enclosed = cao_solid::soundness::enclosed(&body.triangles());
+        assert!(
+            (enclosed - arithmetic).abs() <= 1e-2 * arithmetic,
+            "{enclosed} against {arithmetic}\n{case}"
+        );
+    }
+}
+
+/// The round leaves of the first cases of the tilted draw: circles and
+/// rings raised, and whole turns.
+fn round_leaves(count: usize) -> Vec<Leaf> {
+    (0..)
+        .flat_map(|seed| {
+            Case::drawn_tilted(seed)
+                .leaves()
+                .cloned()
+                .collect::<Vec<_>>()
+        })
+        .filter(|leaf| leaf.kept_by_a_half_space(DVec3::Z, 0.0).is_some())
+        .take(count)
+        .collect()
+}
+
+/// A leaf cut by a prism on a plane leaning through the middle of its box
+/// and covering it, and the half-space it keeps: `normal · x ≤ offset`.
+fn cut_at_a_slant(leaf: &Leaf, index: usize) -> (Case, DVec3, f64) {
+    let (low, high) = leaf.bounds().expect("a leaf with a box");
+    let middle = (low + high) / 2.0;
+    let holds = index % 3;
+    let degrees = [20.0, 35.0, 50.0, 65.0][index / 3 % 4];
+    let plane = [degrees, -degrees]
+        .into_iter()
+        .map(|degrees| Plane::leaning(holds, degrees, middle))
+        .find(|plane| random_solids::clear_of_the_lines(*plane))
+        .expect("a leaning clear of the lines");
+    let normal = plane.normal();
+    let reach = (high - low).length() + 1.0;
+    let tool = Leaf::prism(
+        plane,
+        Outline::rectangle([-reach, -reach], [reach, reach]),
+        reach,
+    );
+    (
+        Case::new(leaf.clone(), vec![Step::cut(tool)]),
+        normal,
+        normal.dot(middle),
+    )
+}
+
+#[test]
+#[ignore = "#552: the kernel does not build a conic yet"]
+fn a_lone_round_leaf_cut_by_a_slanted_half_space_encloses_the_volume_of_its_slices() {
+    let leaves = round_leaves(48);
+    let cut: Vec<(Case, DVec3, f64)> = leaves
+        .iter()
+        .enumerate()
+        .map(|(index, leaf)| cut_at_a_slant(leaf, index))
+        .collect();
+    let weighed = random_solids::on_every_core(&cut, |(case, _, _)| {
+        let held = random_solids::held_to_arithmetic(case, &Exact);
+        let volume = Exact
+            .raised(&case.start)
+            .and_then(|leaf| {
+                let tool = Exact.raised(&case.steps[0].tool)?;
+                Exact.combined(&leaf, &tool, Mode::Cut)
+            })
+            .map(|body| body.volume());
+        (held, volume)
+    });
+    for ((case, normal, offset), (held, volume)) in cut.iter().zip(weighed) {
+        let measured = held.unwrap_or_else(|flaw| panic!("{flaw:?}\n{case}"));
+        assert_eq!(measured.declined, 0, "declined:\n{case}");
+        let volume = volume.unwrap_or_else(|declined| panic!("{declined:?}\n{case}"));
+        let sliced = case
+            .start
+            .kept_by_a_half_space(*normal, *offset)
+            .expect("a round leaf");
+        let room = turned(&case.start).map_or(0.0, |turn| laying_room(&turn));
+        assert!(
+            (volume - sliced).abs() <= 1e-9 * sliced + room,
+            "{volume} against {sliced} by slices\n{case}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "#552: the kernel does not build a conic yet"]
+fn random_tilted_cases_keep_every_rule_on_the_exact_kernel() {
+    keep_every_rule_on_the_exact_kernel(Case::drawn_tilted, 0..16);
+}
+
+#[test]
+#[ignore = "#552: the kernel does not build a conic yet"]
+fn tilted_cases_the_exact_kernel_keeps_are_kept_through_the_application_s_body_and_stay_exact() {
+    let held = kept_through_the_application_s_body_and_exact(Case::drawn_tilted, 0..8);
+    assert!(held > 3, "{held} cases held");
+}
+
+/// The cases of the first two thousand seeds of `draw` that `asks` picks
+/// out, `count` at most.
+fn picked(draw: Draw, asks: fn(&Case) -> bool, count: usize) -> Vec<Case> {
+    (0..2000).map(draw).filter(asks).take(count).collect()
+}
+
+#[test]
+#[ignore = "#552: the kernel does not build a conic yet"]
+fn a_case_that_asked_for_a_conic_is_built_now() {
+    let conic = |case: &Case| case.meets_along_a_conic() && !case.asks_beyond_the_conics();
+    let turned = picked(Case::drawn_turned_off_the_lattice, conic, 24);
+    let slanted = picked(Case::drawn_slanted_off_the_lattice, conic, 16);
+    assert_eq!(turned.len(), 24, "{} turned cases", turned.len());
+    assert_eq!(slanted.len(), 16, "{} slanted cases", slanted.len());
+    let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
+    let weighed = random_solids::on_every_core(&asking, |case| {
+        (
+            random_solids::held_to_arithmetic(case, &Exact),
+            random_solids::held_to_arithmetic(case, &Application),
+        )
+    });
+    for (case, (exactly, through_the_application)) in asking.iter().zip(weighed) {
+        for measured in [exactly, through_the_application] {
+            let measured = measured.unwrap_or_else(|flaw| panic!("{flaw:?}\n{case}"));
+            assert_eq!(measured.declined, 0, "declined:\n{case}");
+        }
+    }
+}
+
+#[test]
+#[ignore = "#552: the kernel does not build a conic yet"]
+fn a_case_asking_beyond_the_conics_is_declined_as_unsupported_or_held() {
+    let turned = picked(
+        Case::drawn_turned_off_the_lattice,
+        Case::asks_beyond_the_conics,
+        12,
+    );
+    let slanted = picked(
+        Case::drawn_slanted_off_the_lattice,
+        Case::asks_beyond_the_conics,
+        8,
+    );
+    assert_eq!(turned.len(), 12, "{} turned cases", turned.len());
+    assert_eq!(slanted.len(), 8, "{} slanted cases", slanted.len());
+    let asking: Vec<Case> = turned.into_iter().chain(slanted).collect();
+    let weighed = random_solids::on_every_core(&asking, |case| {
+        random_solids::held_to_arithmetic(case, &Exact)
+    });
+    let mut declined = 0;
+    for (case, measured) in asking.iter().zip(weighed) {
+        let measured = measured.unwrap_or_else(|flaw| panic!("{flaw:?}\n{case}"));
+        declined += measured.declined;
+    }
+    println!("{declined} of {} declined as unsupported", asking.len());
+}
+
 /// The campaigns, compiled only when asked for — `--features campaigns` —
 /// so that work on any other issue never pays for them.
 #[cfg(feature = "campaigns")]
@@ -3626,6 +3858,7 @@ mod campaign {
     use cao_solid::soundness::{Check, Flaw};
     use random_solids::campaigning::{
         Answering, DECLINED, GRAZING, HELD, THIN, TIPS, campaign_over, shrunk_one_by_one,
+        tally_conics,
     };
 
     use super::*;
@@ -3640,11 +3873,13 @@ mod campaign {
 
     fn exactly(case: &Case) -> Result<(), Flaw> {
         tallied(random_solids::held_to_arithmetic(case, &Exact)?);
+        tally_conics(case);
         Ok(())
     }
 
     fn through_the_application(case: &Case) -> Result<(), Flaw> {
         tallied(random_solids::held_to_arithmetic(case, &Application)?);
+        tally_conics(case);
         Ok(())
     }
 
@@ -3659,6 +3894,12 @@ mod campaign {
     fn drawn_slanted(seed: u64) -> Case {
         eprint!("\rseed {seed} ");
         Case::drawn_slanted_off_the_lattice(seed)
+    }
+
+    /// The same, among tools on leaning planes (#552).
+    fn drawn_tilted(seed: u64) -> Case {
+        eprint!("\rseed {seed} ");
+        Case::drawn_tilted_off_the_lattice(seed)
     }
 
     #[test]
@@ -3695,9 +3936,26 @@ mod campaign {
         );
     }
 
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_tilted_solids_on_the_exact_kernel_keeps_every_rule() {
+        campaign_over("tilted solids", Answering::Exactly, drawn_tilted, exactly);
+    }
+
+    #[test]
+    #[ignore = "a campaign, run by hand: see the head of this file"]
+    fn a_campaign_of_tilted_solids_through_the_application_s_body_keeps_every_rule() {
+        campaign_over(
+            "tilted solids",
+            Answering::ThroughTheApplication,
+            drawn_tilted,
+            through_the_application,
+        );
+    }
+
     /// Each seed named in `CAO_TRIAGE_SEEDS`, commas between them, drawn as
     /// a turning campaign draws it — as a slanted one when `CAO_TRIAGE_DRAW`
-    /// is `slanted` — run again on the exact kernel — through the
+    /// is `slanted`, as a tilted one when it is `tilted` — run again on the exact kernel — through the
     /// application's body when `CAO_TRIAGE_KERNEL` is `application` —
     /// shrunk while it still breaks the same rule, and printed as a test.
     #[test]
@@ -3714,6 +3972,7 @@ mod campaign {
         };
         let draw: fn(u64) -> Case = match std::env::var("CAO_TRIAGE_DRAW").as_deref() {
             Ok("slanted") => Case::drawn_slanted_off_the_lattice,
+            Ok("tilted") => Case::drawn_tilted_off_the_lattice,
             _ => Case::drawn_turned_off_the_lattice,
         };
         shrunk_one_by_one(seeds, draw, check);
@@ -3760,6 +4019,16 @@ mod campaign {
     #[ignore = "a campaign, run by hand once: see the head of this file"]
     fn slanted_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
         let held = held_by_the_flats_and_the_arithmetic(Case::drawn_slanted);
+        assert!(held > 100, "{held} cases held");
+    }
+
+    /// The arithmetic of leaning tools held to the flats before the exact
+    /// kernel cuts a conic (#552): a seam where a conic was approximated
+    /// would show on the flats, which owe the draw nothing.
+    #[test]
+    #[ignore = "a campaign, run by hand once: see the head of this file"]
+    fn tilted_cases_the_flats_answer_by_their_own_rules_keep_every_rule_held_to_the_arithmetic() {
+        let held = held_by_the_flats_and_the_arithmetic(Case::drawn_tilted);
         assert!(held > 100, "{held} cases held");
     }
 }

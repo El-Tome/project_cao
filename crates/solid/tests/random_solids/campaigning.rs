@@ -15,13 +15,44 @@ use super::Case;
 
 /// How many lines the campaign held its cases along, how many it left out
 /// for grazing a curved wall or running through a cone's tip, how many
-/// cases asking for a conic the kernel declined as unsupported, and how many
-/// turned walls a hair thin it declined to raise.
+/// cases asking beyond the conics, or meeting along one, the kernel declined
+/// as unsupported, and how many turned walls a hair thin it declined to
+/// raise.
 pub static HELD: AtomicUsize = AtomicUsize::new(0);
 pub static GRAZING: AtomicUsize = AtomicUsize::new(0);
 pub static TIPS: AtomicUsize = AtomicUsize::new(0);
 pub static DECLINED: AtomicUsize = AtomicUsize::new(0);
 pub static THIN: AtomicUsize = AtomicUsize::new(0);
+
+/// How many cases met along each kind of conic (#552), and along any.
+pub static MET_ALONG_A_CONIC: AtomicUsize = AtomicUsize::new(0);
+pub static ELLIPSES: AtomicUsize = AtomicUsize::new(0);
+pub static PARABOLAS: AtomicUsize = AtomicUsize::new(0);
+pub static HYPERBOLAS: AtomicUsize = AtomicUsize::new(0);
+pub static LINES_THROUGH_AN_APEX: AtomicUsize = AtomicUsize::new(0);
+pub static APEX_ALONE: AtomicUsize = AtomicUsize::new(0);
+pub static TANGENT_RULINGS: AtomicUsize = AtomicUsize::new(0);
+
+/// The conics a case meets along, tallied for the report.
+pub fn tally_conics(case: &Case) {
+    let conics = case.conics();
+    let kinds = [
+        (&ELLIPSES, conics.ellipses),
+        (&PARABOLAS, conics.parabolas),
+        (&HYPERBOLAS, conics.hyperbolas),
+        (&LINES_THROUGH_AN_APEX, conics.lines_through_an_apex),
+        (&APEX_ALONE, conics.apex_alone),
+        (&TANGENT_RULINGS, conics.tangent_rulings),
+    ];
+    for (tally, count) in kinds {
+        if count > 0 {
+            tally.fetch_add(1, Ordering::Relaxed);
+        }
+    }
+    if conics.total() > 0 {
+        MET_ALONG_A_CONIC.fetch_add(1, Ordering::Relaxed);
+    }
+}
 
 /// The kernel a campaign holds its cases on, as its report names it and as
 /// the tests it prints call it.
@@ -155,9 +186,22 @@ fn print_report(report: &Report<Case>, answering: Answering) {
         TIPS.load(Ordering::Relaxed)
     );
     println!(
-        "{} cases asking for a conic declined as unsupported",
+        "{} cases asking beyond the conics, or meeting along one, declined as unsupported",
         DECLINED.load(Ordering::Relaxed)
     );
+    let met = MET_ALONG_A_CONIC.load(Ordering::Relaxed);
+    if met > 0 {
+        println!(
+            "{met} cases met along a conic: {} along an ellipse, {} a parabola, {} a hyperbola, \
+             {} two lines through an apex, {} an apex alone, {} a tangent ruling",
+            ELLIPSES.load(Ordering::Relaxed),
+            PARABOLAS.load(Ordering::Relaxed),
+            HYPERBOLAS.load(Ordering::Relaxed),
+            LINES_THROUGH_AN_APEX.load(Ordering::Relaxed),
+            APEX_ALONE.load(Ordering::Relaxed),
+            TANGENT_RULINGS.load(Ordering::Relaxed),
+        );
+    }
     println!(
         "{} cases with a turned wall a hair thin declined as no profile",
         THIN.load(Ordering::Relaxed)

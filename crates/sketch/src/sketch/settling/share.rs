@@ -173,7 +173,7 @@ impl Sketch {
     /// way it would slide along it there.
     fn standing_along(&self, rule: Constraint) -> Option<(PointId, Along, DVec2)> {
         match rule {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 let (start, end) = self.endpoints(segment);
                 let span = end - start;
                 let share = (self.point(point) - start).dot(span) / span.length_squared();

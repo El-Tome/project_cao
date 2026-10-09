@@ -22,6 +22,7 @@
 use glam::DVec2;
 
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{LengthOutcome, PointId, SegmentId, Sketch};
 
@@ -176,6 +177,7 @@ fn a_point_held_on_the_trait_keeps_its_place_along_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment,
+        from: LaidFrom::Nowhere,
     });
     sketch.set_dimension(DimensionTarget::Length(segment), 100.0, false);
 

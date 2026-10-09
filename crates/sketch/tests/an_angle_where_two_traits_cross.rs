@@ -29,6 +29,7 @@
 //!   where the two meet —
 //!   `trimming_the_top_off_the_stem_of_a_t_keeps_the_angle_at_its_foot`
 
+use cao_sketch::LaidFrom;
 use cao_sketch::{
     AnnotationMetrics, Constraint, DimensionMode, DimensionPick, DimensionPicks, DimensionTarget,
     Sketch, Toward, WorkPlane, measure_pick,
@@ -241,6 +242,7 @@ fn a_typed_angle_turns_the_crossing_traits_to_it_and_holds() {
                 sketch.add_constraint(Constraint::OnSegment {
                     point: crossing,
                     segment,
+                    from: LaidFrom::Nowhere,
                 });
             }
             crossing
@@ -353,6 +355,7 @@ fn a_leaning_t() -> (Sketch, [cao_sketch::SegmentId; 2], [cao_sketch::PointId; 2
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: bar,
+        from: LaidFrom::Nowhere,
     });
     let low = sketch.add_point(foot_at + rise * 0.6);
     let high = sketch.add_point(foot_at + rise * 0.8);
@@ -423,6 +426,7 @@ fn a_typed_angle_on_a_t_stays_drawn_once_the_solver_has_moved_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: foot,
         segment: across,
+        from: LaidFrom::Nowhere,
     });
     let opening = DimensionTarget::AngleBetween {
         first: across,

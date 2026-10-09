@@ -363,7 +363,8 @@ fn a_corner_made_one_with_a_point_held_on_a_trait_keeps_it_on_the_trait() {
     assert!(
         sketch.constraints().contains(&Constraint::OnSegment {
             point: kept,
-            segment: SegmentId(0)
+            segment: SegmentId(0),
+            from: LaidFrom::Nowhere
         }),
         "the rule was lost with the point"
     );

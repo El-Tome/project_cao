@@ -120,9 +120,14 @@ pub(super) fn remap_constraint(constraint: Constraint, map: &SketchIdMap) -> Con
             arc: map.arcs[&arc],
             circle: map.circles[&circle],
         },
-        Constraint::OnSegment { point, segment } => Constraint::OnSegment {
+        Constraint::OnSegment {
+            point,
+            segment,
+            from,
+        } => Constraint::OnSegment {
             point: map.points[&point],
             segment: map.segments[&segment],
+            from,
         },
         Constraint::Collinear { first, second } => Constraint::Collinear {
             first: map.segments[&first],

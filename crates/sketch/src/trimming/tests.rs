@@ -131,6 +131,7 @@ fn a_point_held_on_a_trait_is_held_on_the_piece_it_lands_on() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment,
+        from: LaidFrom::Nowhere,
     });
     let from = sketch.add_point(DVec2::new(5.0, 1.0));
     let to = sketch.add_point(DVec2::new(8.0, 1.0));
@@ -144,6 +145,7 @@ fn a_point_held_on_a_trait_is_held_on_the_piece_it_lands_on() {
         sketch.constraints().contains(&Constraint::OnSegment {
             point: held,
             segment: pieces[0],
+            from: LaidFrom::Nowhere
         }),
         "held on {:?}, and the rules standing are {:?}",
         pieces[0],
@@ -276,6 +278,7 @@ fn a_point_a_rule_holds_on_a_trait_sits_on_it_wherever_the_solver_left_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: held,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     assert_eq!(
@@ -293,6 +296,7 @@ fn the_origin_a_rule_holds_on_a_trait_does_cut_it() {
     sketch.add_constraint(Constraint::OnSegment {
         point: Sketch::ORIGIN,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     assert_eq!(
@@ -331,6 +335,7 @@ fn a_trait_cut_beyond_where_an_ellipse_brushes_it_keeps_the_tangency() {
     sketch.add_constraint(Constraint::OnSegment {
         point: corner,
         segment,
+        from: LaidFrom::Nowhere,
     });
 
     let pieces = sketch

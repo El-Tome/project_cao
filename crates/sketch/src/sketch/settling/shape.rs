@@ -32,7 +32,7 @@ impl Sketch {
         };
         for constraint in self.constraints() {
             let (joined, to): (Vec<PointId>, Vec<PointId>) = match *constraint {
-                Constraint::OnSegment { point, segment }
+                Constraint::OnSegment { point, segment, .. }
                 | Constraint::Midpoint { point, segment } => (vec![point], ends_of(segment)),
                 Constraint::OnCircle { point, circle } => {
                     (vec![point], circle_centre(circle).into_iter().collect())
@@ -361,7 +361,9 @@ impl Sketch {
             .flat_map(|line| [line.start, line.end])
             .collect();
         points.extend(self.constraints().iter().filter_map(|rule| match *rule {
-            Constraint::OnSegment { point, segment } if traits.contains(&segment) => Some(point),
+            Constraint::OnSegment { point, segment, .. } if traits.contains(&segment) => {
+                Some(point)
+            }
             _ => None,
         }));
         points.sort_by_key(|point| point.0);

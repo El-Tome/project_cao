@@ -183,7 +183,7 @@ impl Sketch {
     /// Not a curve that stands on a fixed point, nor one that ends on one of
     /// the two points being joined: a fixed point is never the one that moves,
     /// and the settle reshapes that curve about it instead.
-    fn carry_curves_about(
+    pub(in crate::sketch) fn carry_curves_about(
         &mut self,
         centre: PointId,
         step: DVec2,
@@ -279,7 +279,7 @@ impl Sketch {
     /// those ends are on it only because a rule holds them there.
     fn holds_by_itself(&self, rule: Constraint) -> bool {
         match rule {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 let side = self.segments[segment.0];
                 point == side.start || point == side.end
             }

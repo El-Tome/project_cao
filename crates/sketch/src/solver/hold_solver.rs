@@ -22,7 +22,7 @@ impl Sketch {
     /// moment of the correction: see [`Sketch::held_alone`].
     pub(super) fn hold_equations(&self, constraint: Constraint, into: &mut Vec<Equation>) {
         match constraint {
-            Constraint::OnSegment { point, segment } => {
+            Constraint::OnSegment { point, segment, .. } => {
                 into.extend(self.on_line_equation(point, segment, 0.0))
             }
             Constraint::OnCircle { point, circle } => into.extend(self.rim_equation(point, circle)),
@@ -85,7 +85,9 @@ impl Sketch {
     /// which points does not change while the drawing settles, only how far
     /// off they are.
     pub(super) fn pulled_elsewhere(&self, millimeters_per_unit: f64, pinned: &[bool]) -> Vec<bool> {
-        let mut pulled = vec![false; self.points().len()];
+        let mut pulled: Vec<bool> = (0..self.points().len())
+            .map(|point| self.is_loosened(PointId(point)))
+            .collect();
         let mut entry: Vec<Equation> = Vec::new();
         for index in 0..self.equation_count() {
             if self.held_by_a_rule(index).is_some() {

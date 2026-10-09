@@ -1,6 +1,7 @@
 //! What a rule with no value holds.
 
 use super::*;
+use crate::laid_from::LaidFrom;
 
 #[test]
 fn a_right_angle_can_be_asked_for_without_a_value() {
@@ -43,6 +44,7 @@ fn a_point_can_be_held_on_a_line() {
     sketch.add_constraint(Constraint::OnSegment {
         point: floating,
         segment: line,
+        from: LaidFrom::Nowhere,
     });
     assert_eq!(sketch.resolve(1.0), LengthOutcome::Exact);
 

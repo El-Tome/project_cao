@@ -183,7 +183,7 @@ fn a_chamfer_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
         .constraints()
         .iter()
         .filter_map(|rule| match rule {
-            Constraint::OnSegment { point, segment } if *point == pivot => Some(*segment),
+            Constraint::OnSegment { point, segment, .. } if *point == pivot => Some(*segment),
             _ => None,
         })
         .collect();

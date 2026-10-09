@@ -75,6 +75,7 @@ fn one_of_every_kind() -> (Sketch, Vec<Constraint>) {
         Constraint::OnSegment {
             point: loose,
             segment: side,
+            from: LaidFrom::Nowhere,
         },
         Constraint::Collinear {
             first: side,

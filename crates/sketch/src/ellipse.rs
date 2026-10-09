@@ -356,7 +356,7 @@ impl Sketch {
     }
 
     /// Whether any curve still drawn stands on a point.
-    fn anything_stands_on(&self, point: PointId) -> bool {
+    pub(crate) fn anything_stands_on(&self, point: PointId) -> bool {
         self.live_segments()
             .any(|(_, segment)| segment.start == point || segment.end == point)
             || self

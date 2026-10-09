@@ -258,9 +258,9 @@ impl Sketch {
             held: rules
                 .iter()
                 .filter_map(|rule| match rule {
-                    Constraint::OnSegment { point, segment: on } if *on == segment => {
-                        Some((place_of_point(*point)?, *point))
-                    }
+                    Constraint::OnSegment {
+                        point, segment: on, ..
+                    } if *on == segment => Some((place_of_point(*point)?, *point)),
                     _ => None,
                 })
                 .collect(),

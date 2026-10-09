@@ -5,6 +5,7 @@ use std::collections::BTreeSet;
 use cao_sketch::{ArcId, CircleId, Element, PointId, SegmentId};
 
 use super::*;
+use cao_sketch::LaidFrom;
 
 const FIRST: SegmentId = SegmentId(0);
 const SECOND: SegmentId = SegmentId(1);
@@ -59,6 +60,7 @@ fn named_rules() -> [(Constraint, &'static str); 14] {
             Constraint::OnSegment {
                 point: PointId(1),
                 segment: FIRST,
+                from: LaidFrom::Nowhere,
             },
             "Coïncidence",
         ),

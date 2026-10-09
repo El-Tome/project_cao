@@ -355,7 +355,7 @@ impl Sketch {
     }
 
     /// How far off the drawing is, as a fraction of its own size.
-    fn worst_error(&self, millimeters_per_unit: f64, scale: f64) -> f64 {
+    pub(crate) fn worst_error(&self, millimeters_per_unit: f64, scale: f64) -> f64 {
         self.equations(millimeters_per_unit)
             .iter()
             .map(|equation| equation.off_by(scale))

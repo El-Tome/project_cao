@@ -213,7 +213,7 @@ fn length(edge: &ListedEdge) -> f64 {
     match edge.curve {
         Curve::Line(_) => (edge.to - edge.from).abs(),
         Curve::Circle(circle) => circle.radius * (edge.to - edge.from).abs(),
-        Curve::Meet(_) => (0..CHORDS)
+        Curve::Meet(_) | Curve::Conic(_) => (0..CHORDS)
             .map(|piece| {
                 let at = |piece: usize| {
                     point(

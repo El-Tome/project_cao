@@ -165,7 +165,7 @@ impl Samples {
         for id in body.edge_ids() {
             let edge = body.edge(id);
             let between = match body.curve(edge.curve) {
-                Curve::Line(_) => Vec::new(),
+                Curve::Line(_) | Curve::Conic(_) => Vec::new(),
                 Curve::Circle(circle) => {
                     let wall = contact::wall_of(circle, walls, eps);
                     let contact = wall
@@ -306,7 +306,7 @@ fn on_meets(
                     };
                     meet::on_meet(meet, edge, tolerance, eps, [&first, &second], &clear)
                 }
-                Curve::Line(_) | Curve::Circle(_) => Vec::new(),
+                Curve::Line(_) | Curve::Circle(_) | Curve::Conic(_) => Vec::new(),
             }
         })
         .collect()

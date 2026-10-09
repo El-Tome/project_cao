@@ -236,6 +236,12 @@ impl Body {
         match curve {
             Curve::Line(_) => {}
             Curve::Circle(circle) => found.extend(turning_points(circle, edge.from, edge.to)),
+            Curve::Conic(conic) => found.extend(
+                DVec3::AXES
+                    .into_iter()
+                    .flat_map(|axis| conic.turning(axis, edge.from, edge.to))
+                    .map(|t| conic.point(t)),
+            ),
             Curve::Meet(_) => {
                 const SAMPLES: usize = 64;
                 let step = (edge.to - edge.from) / SAMPLES as f64;

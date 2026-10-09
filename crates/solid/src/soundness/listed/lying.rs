@@ -127,5 +127,6 @@ pub(super) fn point(curve: &Curve, at: f64) -> DVec3 {
             circle.center + (circle.u * cos + circle.v * sin) * circle.radius
         }
         Curve::Meet(meet) => meet.point(at),
+        Curve::Conic(conic) => conic.point(at),
     }
 }

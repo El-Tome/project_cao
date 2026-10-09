@@ -90,7 +90,7 @@ pub(super) fn stretches(trace: &Trace, periodic: bool) -> Vec<Stretch> {
             cuts.sort_by(f64::total_cmp);
             cuts
         }
-        Trace::Graph { .. } => sampled(trace, periodic),
+        Trace::Graph { .. } | Trace::Conic { .. } => sampled(trace, periodic),
     };
     let bounds: Vec<f64> = std::iter::once(0.0)
         .chain(cuts)
@@ -166,7 +166,7 @@ fn height(stretch: &Stretch, target: f64) -> f64 {
             let sine = ((1.0 - cosine) * (1.0 + cosine)).sqrt();
             center.y + radius * sine.copysign(middle.sin())
         }
-        Trace::Graph { .. } => bisected(stretch, target),
+        Trace::Graph { .. } | Trace::Conic { .. } => bisected(stretch, target),
     }
 }
 

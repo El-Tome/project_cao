@@ -10,6 +10,7 @@ mod revolved;
 
 use glam::DVec3;
 
+use super::conic::Conic;
 use super::curve::{Circle, Curve, Line};
 use super::meet::Meeting;
 use super::scale::Scale;
@@ -46,6 +47,16 @@ pub enum Relation {
     },
     /// Two surfaces touching at a cone's apex alone.
     Apex(DVec3),
+    /// A plane at a slant to a cylinder's axis, or to a cone's axis without
+    /// passing through its apex within the box: the conic it cuts on the
+    /// wall's own nappe, whole or as the arms it is split into.
+    Conic(Vec<Conic>),
+    /// A plane touching a cone along a ruling: that line, and the apex where
+    /// it stands within the box.
+    Ruling {
+        line: Line,
+        apex: Option<DVec3>,
+    },
     /// A plane oblique to a cylinder's axis, two cylinders at a skew angle,
     /// a cone and a plane neither square to its axis nor holding it, a cone
     /// and a cylinder or a cone not of its axis.
@@ -64,6 +75,30 @@ pub fn relation(one: &Surface, other: &Surface, scale: Scale) -> Relation {
         }
         (Surface::Cone(cone), other) | (other, Surface::Cone(cone)) => {
             conical::relation(cone, other, scale)
+        }
+    }
+}
+
+/// Whether two surfaces are a plane at a slant to a cylinder's axis — neither
+/// square to it nor along it — or to a cone's — neither square to it nor
+/// holding it: the pairs whose curve is a conic, which only the conic's own
+/// decision builds.
+pub(in crate::brep) fn at_a_slant(one: &Surface, other: &Surface, scale: Scale) -> bool {
+    match (one, other) {
+        (Surface::Plane(plane), Surface::Cylinder(cylinder))
+        | (Surface::Cylinder(cylinder), Surface::Plane(plane)) => {
+            !parallel(plane.normal, cylinder.axis, scale)
+                && !square(plane.normal, cylinder.axis, scale)
+        }
+        (Surface::Plane(plane), Surface::Cone(cone))
+        | (Surface::Cone(cone), Surface::Plane(plane)) => {
+            !parallel(plane.normal, cone.axis, scale)
+                && !(square(plane.normal, cone.axis, scale)
+                    && plane.distance(cone.origin).abs() <= scale.eps())
+        }
+        (Surface::Plane(_), Surface::Plane(_))
+        | (Surface::Cylinder(_) | Surface::Cone(_), Surface::Cylinder(_) | Surface::Cone(_)) => {
+            false
         }
     }
 }
@@ -88,6 +123,8 @@ impl Relation {
                 lines.map(Curve::Line).to_vec()
             }
             Relation::Circle(circle) => vec![Curve::Circle(*circle)],
+            Relation::Conic(conics) => conics.iter().copied().map(Curve::Conic).collect(),
+            Relation::Ruling { line, .. } => vec![Curve::Line(*line)],
             Relation::Meet(meeting) => meeting
                 .components
                 .iter()
@@ -111,7 +148,9 @@ impl Relation {
                 .map(|node| node.point)
                 .chain(meeting.contact)
                 .collect(),
-            Relation::Rulings { apex, .. } => apex.iter().copied().collect(),
+            Relation::Rulings { apex, .. } | Relation::Ruling { apex, .. } => {
+                apex.iter().copied().collect()
+            }
             Relation::Apex(apex) => vec![*apex],
             Relation::Apart
             | Relation::Same { .. }
@@ -119,6 +158,7 @@ impl Relation {
             | Relation::Lines(_)
             | Relation::Tangent(_)
             | Relation::Circle(_)
+            | Relation::Conic(_)
             | Relation::Unsupported => Vec::new(),
         }
     }

@@ -65,6 +65,12 @@ impl Apart {
                     Relation::Tangent(_) => {
                         touching.insert(pair);
                     }
+                    Relation::Ruling { apex, .. } => {
+                        touching.insert(pair);
+                        if let Some(apex) = apex {
+                            points.insert(pair, vec![apex]);
+                        }
+                    }
                     Relation::Lines([line, _])
                         if grazes(first, second, line.origin, scale.eps()) =>
                     {
@@ -94,6 +100,7 @@ impl Apart {
                     | Relation::Lines(_)
                     | Relation::Circle(_)
                     | Relation::Rulings { apex: None, .. }
+                    | Relation::Conic(_)
                     | Relation::Unsupported => {}
                 }
             }

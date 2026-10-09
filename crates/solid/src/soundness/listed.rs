@@ -218,6 +218,9 @@ fn whole(listing: &Listing, reach: f64) -> Result<(), Mislisted> {
                 edge.from != edge.to
                     && (meet.point(edge.from) - meet.point(edge.to)).length() <= room
             }
+            Curve::Conic(conic) => conic
+                .period()
+                .is_some_and(|period| ((edge.to - edge.from).abs() - period).abs() <= ON * period),
         };
         if !round {
             return Err(Mislisted::Endless { edge: rank });

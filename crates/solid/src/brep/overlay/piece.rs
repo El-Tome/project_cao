@@ -67,7 +67,7 @@ pub(super) fn turns(trace: &Trace) -> Vec<f64> {
             turns.sort_by(f64::total_cmp);
             turns
         }
-        Trace::Graph { .. } => sampled_turns(trace),
+        Trace::Graph { .. } | Trace::Conic { .. } => sampled_turns(trace),
     }
 }
 

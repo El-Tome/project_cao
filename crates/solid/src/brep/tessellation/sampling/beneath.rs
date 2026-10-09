@@ -18,6 +18,7 @@ use glam::DVec3;
 
 use super::super::contact::Wall;
 use super::{Samples, divisions};
+use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
@@ -53,6 +54,7 @@ pub(super) fn walls(
                     circle.axis.cross(cylinder.axis).length() > Scale::RELATIVE
                 }
                 Curve::Meet(meet) => meet.first != *cylinder && meet.second != *cylinder,
+                Curve::Conic(conic) => conic.round != Round::Cylinder(*cylinder),
                 Curve::Line(_) => false,
             };
             if !across {

@@ -164,6 +164,8 @@ fn class(relation: &Relation) -> &'static str {
         Relation::Meet(_) => "meet",
         Relation::Rulings { .. } => "rulings",
         Relation::Apex(_) => "apex",
+        Relation::Conic(_) => "conic",
+        Relation::Ruling { .. } => "ruling",
         Relation::Unsupported => "unsupported",
     }
 }
@@ -263,6 +265,48 @@ fn two_planes_one_within_the_tolerance_say_when_their_canonical_normals_part() {
         relation(&one, &other, scale()),
         Relation::Same { agree: false }
     );
+}
+
+#[test]
+fn a_plane_is_at_a_slant_to_a_wall_exactly_where_their_pair_was_left_unsupported() {
+    use crate::brep::surface::Cone;
+    use glam::DVec2;
+    let eps = scale().eps();
+    let shaft = cylinder(DVec3::new(1.0, -2.0, 0.0), DVec3::Z, 5.0);
+    let point = Surface::Cone(Cone::through(
+        DVec3::new(1.0, -2.0, 0.0),
+        DVec3::Z,
+        [DVec2::new(0.0, 5.0), DVec2::new(4.0, 2.0)],
+    ));
+    let threshold = eps / (2.0 * REACH);
+    let mut slanted = 0;
+    for tilt in [0.0, 1e-12, 0.9, 1.1, 2.0, 1e3, 1e9]
+        .map(|share: f64| share * threshold)
+        .into_iter()
+        .chain([1e-3, 0.5])
+    {
+        for off in [-2.0, -0.5, 0.0, 0.5, 2.0].map(|share| share * eps) {
+            for normal in [
+                DVec3::Z * tilt.cos() + DVec3::X * tilt.sin(),
+                DVec3::X * tilt.cos() + DVec3::Z * tilt.sin(),
+            ] {
+                let slant = plane(DVec3::new(1.0 + off, -2.0, 0.5), normal);
+                for wall in [&shaft, &point] {
+                    for (one, other) in [(&slant, wall), (wall, &slant)] {
+                        let left = relation(one, other, scale()) == Relation::Unsupported;
+                        assert_eq!(
+                            at_a_slant(one, other, scale()),
+                            left,
+                            "{one:?} against {other:?}"
+                        );
+                        slanted += usize::from(left);
+                    }
+                }
+            }
+        }
+    }
+    assert!(slanted > 100, "{slanted} pairs at a slant");
+    assert!(!at_a_slant(&shaft, &point, scale()));
 }
 
 mod conical;

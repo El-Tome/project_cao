@@ -71,6 +71,7 @@ fn boxed(body: &Body, edge: &Edge) -> [DVec3; 2] {
         }
         Curve::Circle(circle) => arc(circle, edge.from, edge.to),
         Curve::Meet(meet) => meet.bounds(edge.from, edge.to),
+        Curve::Conic(conic) => conic.bounds(edge.from, edge.to),
     }
 }
 

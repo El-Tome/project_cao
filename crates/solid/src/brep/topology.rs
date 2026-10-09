@@ -10,6 +10,7 @@ use super::curve::{Circle, Curve};
 use super::scale::Scale;
 use super::surface::Surface;
 
+mod apex;
 mod numbers;
 
 pub(super) use numbers::ascending;
@@ -68,12 +69,17 @@ pub struct Coedge {
 /// raise names its floor nought, its top one and each wall two more than
 /// the run of the profile it stands on, and a boolean keeps the names of
 /// every face of its operands a face lies on.
+///
+/// `apex` is the vertex a face on a cone holds within it, which none of its
+/// loops reaches: a whole point's tip (#536).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Face {
     pub surface: SurfaceId,
     pub flipped: bool,
     pub loops: Vec<Vec<Coedge>>,
     pub numbers: Vec<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apex: Option<VertexId>,
 }
 
 /// A solid, as the surfaces and curves it stands on and the faces, edges and

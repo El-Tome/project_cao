@@ -11,6 +11,7 @@ use crate::brep::Declined;
 use crate::brep::canonical::Surfaces;
 use crate::brep::domain::Location;
 use crate::brep::scale::Scale;
+use crate::brep::surface::Surface;
 use crate::brep::topology::{Body, FaceId, SurfaceId};
 
 pub(in crate::brep) struct Operands<'a> {
@@ -59,7 +60,7 @@ impl<'a> Operands<'a> {
                 .map(|face| boxed(body, face, scale.eps()))
                 .collect()
         });
-        let near = |one: SurfaceId, other: SurfaceId| {
+        let near = |one: SurfaceId, other: SurfaceId, within: [DVec3; 2]| {
             let (lying, boxes) = (&lying, &boxes);
             let faces = |surface: SurfaceId| {
                 (0..2).flat_map(move |operand| {
@@ -68,7 +69,10 @@ impl<'a> Operands<'a> {
                         .map(move |face| boxes[operand][face.0 as usize])
                 })
             };
-            faces(one).any(|first| faces(other).any(|second| meet(first, second)))
+            faces(one).any(|first| {
+                meet(first, within)
+                    && faces(other).any(|second| meet(first, second) && meet(second, within))
+            })
         };
         let mut cornered = vec![false; surfaces.list.len()];
         for vertex in second.vertices.iter().filter(|_| pinned) {
@@ -186,7 +190,10 @@ impl<'a> Operands<'a> {
     }
 
     /// Where `point`, on a shared surface, stands against each face of an
-    /// operand lying on it, on its boundary within `eps` of it.
+    /// operand lying on it, on its boundary within `eps` of it. On a cone, a
+    /// point of the other nappe reads in the parameters as one of this, and
+    /// is outside every face: it stands off the cone the operand was built
+    /// on by more than the shared surface may stand from it.
     pub fn located(
         &self,
         operand: usize,
@@ -199,6 +206,11 @@ impl<'a> Operands<'a> {
             .iter()
             .map(|&face| {
                 let own = body.surface(body.face(face).surface);
+                if let Surface::Cone(cone) = own
+                    && cone.distance(point).abs() > NAPPE * self.eps()
+                {
+                    return Ok((face, Location::Outside));
+                }
                 Ok((face, body.locate(face, own.parameters(point), eps)?))
             })
             .collect()
@@ -219,15 +231,24 @@ impl<'a> Operands<'a> {
     }
 }
 
+/// How many tolerances off an operand's cone a point of the shared surface
+/// may stand: the shared cone stands within one of the operand's, and the
+/// point within rounding of the shared one.
+const NAPPE: f64 = 2.0;
+
 /// Whether two boxes meet.
 fn meet(one: [DVec3; 2], other: [DVec3; 2]) -> bool {
     one[0].cmple(other[1]).all() && other[0].cmple(one[1]).all()
 }
 
-/// The box round a face, from the extremes of its edges, grown by `eps`.
+/// The box round a face, from the extremes of its edges and the apex it
+/// holds within it, grown by `eps`.
 fn boxed(body: &Body, face: FaceId, eps: f64) -> [DVec3; 2] {
     let mut low = DVec3::INFINITY;
     let mut high = DVec3::NEG_INFINITY;
+    if let Some(apex) = body.apex_held(face) {
+        (low, high) = (apex, apex);
+    }
     for coedge in body.face(face).loops.iter().flatten() {
         for point in body.extremes(body.edge(coedge.edge)) {
             low = low.min(point);

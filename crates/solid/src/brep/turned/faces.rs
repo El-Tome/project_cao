@@ -73,12 +73,14 @@ pub(super) fn laid(
             flipped: opening_flipped,
             loops: openings,
             numbers: vec![runs],
+            apex: None,
         });
         faces.push(Face {
             surface: closing,
             flipped: closing_flipped,
             loops: closings,
             numbers: vec![runs + 1],
+            apex: None,
         });
     }
     Ok((laying.body, faces))
@@ -105,6 +107,10 @@ fn ends(laying: &mut Laying, placed: &Placed, contours: &[Vec<Named>]) -> [(Surf
 ///
 /// Parallel, square and on the axis are read exactly: the profile was laid
 /// so before it came, each run's corners given one height or one distance.
+/// Any other run is slanted, and turns into a cone whose matter, on the
+/// left of the run as the contour turns, lies on the side its normal points
+/// to where the run goes away from the axis — read along the cone's own
+/// axis, which a turn backwards points against the turn's.
 fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, Declined> {
     let Piece::Straight { from, to } = *piece else {
         return Err(Declined::Profile);
@@ -128,7 +134,12 @@ fn sweep(laying: &mut Laying, placed: &Placed, piece: &Piece) -> Result<Swept, D
             flipped,
         )))
     } else {
-        Err(Declined::Profile)
+        let cone = placed.cone(from, to);
+        let flipped = (along.y > 0.0) == (cone.axis.dot(placed.axis) > 0.0);
+        Ok(Some((
+            laying.surface(Surface::Cone(cone), &corners),
+            flipped,
+        )))
     }
 }
 
@@ -177,6 +188,7 @@ fn whole(laying: &mut Laying, placed: &Placed, contour: &[Named], swept: &[Swept
                 .map(|ring| vec![ring])
                 .collect(),
             numbers: named.numbers.clone(),
+            apex: None,
         });
     }
     faces
@@ -214,7 +226,8 @@ fn partial(
             closings.push(at_opening);
             continue;
         };
-        let at_closing = if placed.half && start.arc.is_none() != end.arc.is_none() {
+        let square = named.piece.from().x == named.piece.to().x;
+        let at_closing = if placed.half && square && start.arc.is_none() != end.arc.is_none() {
             laying.line_on(at_opening, start.closing, end.closing)
         } else {
             laying.line(start.closing, end.closing)
@@ -230,6 +243,7 @@ fn partial(
             flipped,
             loops: vec![lap],
             numbers: named.numbers.clone(),
+            apex: None,
         });
     }
     (faces, openings, closings)

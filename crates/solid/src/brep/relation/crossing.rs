@@ -10,7 +10,12 @@
 //! curve through either. The curve two perpendicular cylinders
 //! meet along is solved through the lines the surface makes with one of its
 //! two cylinders where it makes any, and numerically otherwise, in `scan.rs`.
+//! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
+//! square to it, is measured from the radii (`cut.rs`). A line or a circle
+//! against a cone is solved in `cone.rs`.
 
+mod cone;
+mod cut;
 mod scan;
 
 use glam::DVec3;
@@ -21,6 +26,7 @@ use super::{Relation, parallel, square};
 use crate::brep::curve::{Circle, Curve, Line, Meet};
 use crate::brep::scale::Scale;
 use crate::brep::surface::{Cylinder, Plane, Surface};
+use cut::Cut;
 
 /// A point where a curve meets a surface, at its parameter on the curve.
 /// `tangent` when the curve touches the surface there without passing through.
@@ -37,7 +43,9 @@ pub enum Crossings {
     At(Vec<Crossing>),
     /// The curve lies on the surface, within the tolerance.
     Along,
-    /// A circle against a cylinder at a skew angle.
+    /// A circle against a cylinder at a skew angle, or against a cone
+    /// unless about an axis parallel to the cone's or in a plane holding
+    /// it; the curve two cylinders meet along against a cone.
     Unsupported,
 }
 
@@ -82,9 +90,16 @@ pub fn crossings_given(
     touching: &Touches,
 ) -> Crossings {
     let solved = match (curve, surface) {
+        (Curve::Line(line), Surface::Cone(cone)) => {
+            cone::line_and_cone(line, cone, scale, touching)
+        }
+        (Curve::Circle(circle), Surface::Cone(cone)) => {
+            cone::circle_and_cone(circle, cone, scale, touching)
+        }
+        (Curve::Meet(_), Surface::Cone(_)) => Solved::Unsupported,
         (Curve::Line(line), Surface::Plane(plane)) => line_and_plane(line, plane, scale),
         (Curve::Line(line), Surface::Cylinder(cylinder)) => {
-            line_and_cylinder(line, cylinder, scale, touching)
+            line_and_cylinder(line, cylinder, scale, touching, None)
         }
         (Curve::Circle(circle), surface) => circle_and_surface(circle, surface, scale, touching),
         (Curve::Meet(meet), surface) => meet_through_lines(meet, surface, scale, touching)
@@ -109,30 +124,56 @@ fn circle_and_surface(
 ) -> Solved {
     let (own_plane, _) = Plane::through(circle.center, circle.axis);
     let own_cylinder = Cylinder::about(circle.center, circle.axis, circle.radius);
-    let (relation, across) = match surface {
-        Surface::Plane(plane) => (planes(&own_plane, plane, scale), true),
+    let (relation, across, cut) = match surface {
+        Surface::Plane(plane) => (planes(&own_plane, plane, scale), true, None),
         Surface::Cylinder(cylinder) if parallel(circle.axis, cylinder.axis, scale) => {
-            (cylinders(&own_cylinder, cylinder, scale), false)
+            (cylinders(&own_cylinder, cylinder, scale), false, None)
         }
-        Surface::Cylinder(cylinder) => (plane_and_cylinder(&own_plane, cylinder, scale), true),
+        Surface::Cylinder(cylinder) => (
+            plane_and_cylinder(&own_plane, cylinder, scale),
+            true,
+            Some(Cut {
+                cylinder,
+                plane: &own_plane,
+            }),
+        ),
+        Surface::Cone(_) => return Solved::Unsupported,
     };
-    let lines: Vec<(Line, bool)> = match relation {
+    circle_through(circle, relation, (across, cut), scale, touching)
+}
+
+/// What the circle's own plane, `across`, or its own cylinder makes with a
+/// surface, against the circle: a line in its plane crosses it where it
+/// passes through it, a line along its cylinder at its height. Lines the
+/// plane cuts a cylinder along are read as that `cut`.
+fn circle_through(
+    circle: &Circle,
+    relation: Relation,
+    (across, cut): (bool, Option<Cut>),
+    scale: Scale,
+    touching: &Touches,
+) -> Solved {
+    let lines: Vec<(Line, bool, Option<&Cut>)> = match &relation {
         Relation::Same { .. } => return Solved::Along,
         Relation::Apart => Vec::new(),
-        Relation::Line(line) => vec![(line, false)],
-        Relation::Lines(lines) => lines.map(|line| (line, false)).to_vec(),
-        Relation::Tangent(line) => vec![(line, true)],
-        Relation::Circle(_) | Relation::Meet(_) | Relation::Unsupported => {
+        Relation::Line(line) => vec![(*line, false, None)],
+        Relation::Lines(lines) => lines.map(|line| (line, false, cut.as_ref())).to_vec(),
+        Relation::Tangent(line) => vec![(*line, true, None)],
+        Relation::Circle(_)
+        | Relation::Meet(_)
+        | Relation::Rulings { .. }
+        | Relation::Apex(_)
+        | Relation::Unsupported => {
             return Solved::Unsupported;
         }
     };
     let mut found = Vec::new();
-    for (line, along_a_touch) in lines {
+    for (line, along_a_touch, cut) in lines {
         if across {
             found.extend(line_across_circle(
                 &line,
                 circle,
-                along_a_touch,
+                (along_a_touch, cut),
                 touching,
                 scale,
             ));
@@ -158,7 +199,7 @@ fn meet_through_lines(
     scale: Scale,
     touching: &Touches,
 ) -> Option<Solved> {
-    let (lines, other) = [(meet.first, meet.second), (meet.second, meet.first)]
+    let (lines, own, other) = [(meet.first, meet.second), (meet.second, meet.first)]
         .into_iter()
         .find_map(|(own, other)| {
             let lines: Vec<(Line, bool)> = match relation_with(&own, surface, scale) {
@@ -166,12 +207,20 @@ fn meet_through_lines(
                 Relation::Tangent(line) => vec![(line, true)],
                 _ => return None,
             };
-            Some((lines, other))
+            Some((lines, own, other))
         })?;
+    let cut = match surface {
+        Surface::Plane(plane) => Some(Cut {
+            cylinder: &own,
+            plane,
+        }),
+        Surface::Cylinder(_) | Surface::Cone(_) => None,
+    };
     let curve = Curve::Meet(*meet);
     let mut found = Vec::new();
     for (line, along_a_touch) in lines {
-        let Solved::At(crossed) = line_and_cylinder(&line, &other, scale, touching) else {
+        let cut = cut.as_ref().filter(|_| !along_a_touch);
+        let Solved::At(crossed) = line_and_cylinder(&line, &other, scale, touching, cut) else {
             continue;
         };
         for (at, touch) in crossed {
@@ -191,28 +240,30 @@ fn relation_with(own: &Cylinder, surface: &Surface, scale: Scale) -> Relation {
     match surface {
         Surface::Plane(plane) => plane_and_cylinder(plane, own, scale),
         Surface::Cylinder(cylinder) => cylinders(own, cylinder, scale),
+        Surface::Cone(_) => Relation::Unsupported,
     }
 }
 
 /// A line lying in the circle's plane passes the centre at its closest, and
 /// touches the circle there when it passes within the tolerance of the
-/// radius, as `touches` decides.
+/// radius, as `touches` decides. A line a plane cuts a cylinder along is
+/// measured as that `cut`.
 fn line_across_circle(
     line: &Line,
     circle: &Circle,
-    along_a_touch: bool,
+    (along_a_touch, cut): (bool, Option<&Cut>),
     touching: &Touches,
     scale: Scale,
 ) -> Vec<(f64, bool)> {
     let closest = line.point(line.parameter(circle.center));
-    let passing = (closest - circle.center).length();
-    let gap = passing - circle.radius;
+    let gap = cut.map_or_else(
+        || (closest - circle.center).length() - circle.radius,
+        |cut| cut.gap(line, circle.center, circle.axis, circle.radius),
+    );
     if gap > scale.eps() {
         return Vec::new();
     }
-    let half = ((circle.radius - passing) * (circle.radius + passing))
-        .max(0.0)
-        .sqrt();
+    let half = (-gap * (2.0 * circle.radius + gap)).max(0.0).sqrt();
     if touches(gap, half, touching.here(closest, scale), scale) {
         return vec![(circle.parameter(closest), true)];
     }
@@ -274,8 +325,16 @@ fn beside(away: f64, scale: Scale) -> Solved {
 }
 
 /// Quadratic, seen square to the axis: the line passes the axis at its
-/// closest, and touches when that is within the tolerance of the radius.
-fn line_and_cylinder(line: &Line, cylinder: &Cylinder, scale: Scale, touching: &Touches) -> Solved {
+/// closest, and touches when that is within the tolerance of the radius. A
+/// line a plane cuts a cylinder square to this one along is measured as that
+/// `cut`.
+fn line_and_cylinder(
+    line: &Line,
+    cylinder: &Cylinder,
+    scale: Scale,
+    touching: &Touches,
+    cut: Option<&Cut>,
+) -> Solved {
     let flat = |v: DVec3| v - cylinder.axis * cylinder.axis.dot(v);
     let (from, towards) = (flat(line.origin - cylinder.origin), flat(line.direction));
     if parallel(line.direction, cylinder.axis, scale) {
@@ -283,12 +342,14 @@ fn line_and_cylinder(line: &Line, cylinder: &Cylinder, scale: Scale, touching: &
     }
     let speed = towards.length_squared();
     let closest = -from.dot(towards) / speed;
-    let passing = (from + towards * closest).length();
-    let gap = passing - cylinder.radius;
+    let gap = cut.map_or_else(
+        || (from + towards * closest).length() - cylinder.radius,
+        |cut| cut.gap(line, cylinder.origin, cylinder.axis, cylinder.radius),
+    );
     if gap > scale.eps() {
         return Solved::At(Vec::new());
     }
-    let half = ((cylinder.radius - passing) * (cylinder.radius + passing) / speed)
+    let half = (-gap * (2.0 * cylinder.radius + gap) / speed)
         .max(0.0)
         .sqrt();
     if touches(gap, half, touching.here(line.point(closest), scale), scale) {

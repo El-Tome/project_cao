@@ -55,7 +55,7 @@ pub(in crate::brep::tessellation) fn touching_planes(
         .map(SurfaceId)
         .filter_map(|id| match body.surface(id) {
             Surface::Plane(plane) => Some((id, *plane)),
-            Surface::Cylinder(_) => None,
+            Surface::Cylinder(_) | Surface::Cone(_) => None,
         })
         .filter(|(id, plane)| {
             plane.normal.dot(axis).abs() <= Scale::RELATIVE

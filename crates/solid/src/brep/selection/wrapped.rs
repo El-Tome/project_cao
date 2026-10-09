@@ -117,9 +117,10 @@ pub(in crate::brep) fn collapsed(
 /// Whether the second of a pair stands on the side of the first its own
 /// normal points to, along the line the two were decided at `scale` to
 /// touch along, all along the stretch between the two lines they were
-/// decided to cross along that `place` stands on, or at `place` where two
-/// neither touching nor crossing along two lines — a plane and a wall, two
-/// parallel walls, two planes — stand further apart than rounding; none
+/// decided to cross along that `place` stands on, all round a cone a plane
+/// holding its axis cuts, or at `place` where two neither touching nor
+/// crossing along two lines — a plane and a wall, two parallel walls, two
+/// planes, a cone and anything — stand further apart than rounding; none
 /// otherwise.
 pub(super) fn lies_above(
     operands: &Operands,
@@ -128,28 +129,44 @@ pub(super) fn lies_above(
     place: DVec3,
 ) -> Option<bool> {
     let [first, second] = pair.map(|surface| &operands.surfaces.list[surface.0 as usize]);
-    let decided = relation(first, second, scale);
-    if let Relation::Lines(lines) = &decided {
-        return across_the_lobe(first, second, lines, place);
+    match relation(first, second, scale) {
+        Relation::Lines(lines) => across_the_lobe(first, second, &lines, place),
+        Relation::Tangent(_) => touching_above(first, second),
+        Relation::Rulings { .. } => across_the_rulings(first, second),
+        Relation::Apart
+        | Relation::Same { .. }
+        | Relation::Line(_)
+        | Relation::Circle(_)
+        | Relation::Meet(_)
+        | Relation::Apex(_)
+        | Relation::Unsupported => {
+            let rounding = operands.eps() * ROUNDING;
+            match (first, second) {
+                (Surface::Cylinder(first), Surface::Cylinder(second)) => {
+                    above_at(first, second, place, rounding)
+                }
+                (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
+                    let gap = plane.distance(beside(cylinder, place));
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
+                (Surface::Plane(first), Surface::Plane(second)) => {
+                    let facing = first.normal.dot(second.normal);
+                    let gap = -second.distance(place) / facing;
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
+                (Surface::Cylinder(_), Surface::Plane(_)) => None,
+                (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+                    let gap = first.distance(nearest(second, place));
+                    (gap.abs() > rounding).then_some(gap > 0.0)
+                }
+            }
+        }
     }
-    if !matches!(decided, Relation::Tangent(_)) {
-        let rounding = operands.eps() * ROUNDING;
-        return match (first, second) {
-            (Surface::Cylinder(first), Surface::Cylinder(second)) => {
-                above_at(first, second, place, rounding)
-            }
-            (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
-                let gap = plane.distance(beside(cylinder, place));
-                (gap.abs() > rounding).then_some(gap > 0.0)
-            }
-            (Surface::Plane(first), Surface::Plane(second)) => {
-                let facing = first.normal.dot(second.normal);
-                let gap = -second.distance(place) / facing;
-                (gap.abs() > rounding).then_some(gap > 0.0)
-            }
-            _ => None,
-        };
-    }
+}
+
+/// Whether the second of two surfaces decided to touch along a line stands
+/// on the side of the first its own normal points to.
+fn touching_above(first: &Surface, second: &Surface) -> Option<bool> {
     match (first, second) {
         (Surface::Plane(plane), Surface::Cylinder(cylinder)) => {
             Some(plane.distance(cylinder.origin) > 0.0)
@@ -162,7 +179,9 @@ pub(super) fn lies_above(
             let inside = (across - (first.radius - second.radius).abs()).abs();
             Some(outside <= inside || second.radius > first.radius)
         }
-        (Surface::Plane(_), Surface::Plane(_)) => None,
+        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            None
+        }
     }
 }
 
@@ -183,7 +202,9 @@ fn across_the_lobe(
 ) -> Option<bool> {
     let wall = match (first, second) {
         (Surface::Cylinder(wall), _) | (_, Surface::Cylinder(wall)) => wall,
-        _ => return None,
+        (Surface::Plane(_) | Surface::Cone(_), Surface::Plane(_) | Surface::Cone(_)) => {
+            return None;
+        }
     };
     let at = wall.parameters(place);
     let [one, other] = lines.map(|line| wall.parameters(line.origin).x);
@@ -204,7 +225,31 @@ fn across_the_lobe(
         (Surface::Cylinder(wall), Surface::Plane(plane)) => {
             Some(plane.distance(middle) * plane.distance(wall.origin) > 0.0)
         }
-        (Surface::Plane(_), Surface::Plane(_)) => None,
+        (Surface::Plane(_), Surface::Plane(_)) | (Surface::Cone(_), _) | (_, Surface::Cone(_)) => {
+            None
+        }
+    }
+}
+
+/// Whether a plane holding a cone's axis stands on the side of the cone its
+/// own normal points to: on the axis side all round, the same on either
+/// lobe the two rulings part the cone into, where the cone's normal points
+/// when it opens against its axis. A place of the plane stands at the very
+/// angle of a ruling, on neither lobe, and the cone stands on both sides of
+/// the plane there: none.
+fn across_the_rulings(first: &Surface, second: &Surface) -> Option<bool> {
+    match (first, second) {
+        (Surface::Cone(cone), Surface::Plane(_)) => Some(cone.ruling.x < 0.0),
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => None,
+    }
+}
+
+/// The point of a surface nearest `place`.
+fn nearest(surface: &Surface, place: DVec3) -> DVec3 {
+    match surface {
+        Surface::Plane(plane) => place - plane.normal * plane.distance(place),
+        Surface::Cylinder(cylinder) => beside(cylinder, place),
+        Surface::Cone(cone) => cone.nearest(place),
     }
 }
 

@@ -1,24 +1,35 @@
-//! Where a line meets a plane or a cylinder, with the surface's own normal
-//! there: linear on a plane, and on a cylinder the quadratic solved so that
-//! neither root is found by taking two close numbers from each other.
+//! Where a line meets a plane, a cylinder or a cone, with the surface's own
+//! normal there: linear on a plane, and on a cylinder or a cone the
+//! quadratic solved so that neither root is found by taking two close
+//! numbers from each other, a cone's kept on its own nappe.
 
 use glam::DVec3;
 
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::curve::Line;
+use crate::brep::scale::Scale;
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 
 pub(super) enum Hits {
     /// Parameters along the line, each with the surface's own normal there:
-    /// a line meets a plane once and a cylinder twice at most.
+    /// a line meets a plane once, and a cylinder or a cone twice at most.
     At([Option<(f64, DVec3)>; 2]),
     /// The line runs along the surface, within the tolerance.
     Along,
 }
 
-/// `direction` is of unit length.
-pub(super) fn hits(surface: &Surface, origin: DVec3, direction: DVec3, eps: f64) -> Hits {
+/// `direction` is of unit length; `scale` is the body's, within which a
+/// cone's apex and rulings are told whatever `eps` the ray is cast with.
+pub(super) fn hits(
+    surface: &Surface,
+    origin: DVec3,
+    direction: DVec3,
+    eps: f64,
+    scale: Scale,
+) -> Hits {
     match surface {
         Surface::Plane(plane) => on_plane(plane, origin, direction, eps),
         Surface::Cylinder(cylinder) => on_cylinder(cylinder, origin, direction, eps),
+        Surface::Cone(cone) => on_cone(cone, origin, direction, scale),
     }
 }
 
@@ -64,4 +75,26 @@ fn on_cylinder(cylinder: &Cylinder, origin: DVec3, direction: DVec3, eps: f64) -
         }
     };
     Hits::At(roots.map(|root| root.map(|at| (at, (from + towards * at) / radius))))
+}
+
+/// A line through the apex, where the normal is no answer and the two roots
+/// are one, or along a ruling runs along the cone as far as a ray can tell:
+/// another direction settles it. Both are told within the body's own
+/// tolerance, however fine the one the ray is cast with: a ray a rounding
+/// from the apex finds its roots there only by chance.
+fn on_cone(cone: &Cone, origin: DVec3, direction: DVec3, scale: Scale) -> Hits {
+    let eps = scale.eps();
+    let apex = cone.apex();
+    let towards = apex - origin;
+    let passing = (towards - direction * towards.dot(direction)).length();
+    let held = apex.abs().max_element() <= scale.reach() + eps;
+    if (held && passing <= eps) || cone.rules(&Line::through(origin, direction), scale) {
+        return Hits::Along;
+    }
+    Hits::At(cone.roots(origin, direction).map(|root| {
+        root.map(|at| {
+            let theta = cone.parameters(origin + direction * at).x;
+            (at, cone.normal(theta))
+        })
+    }))
 }

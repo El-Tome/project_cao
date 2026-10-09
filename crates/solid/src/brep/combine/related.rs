@@ -1,8 +1,9 @@
 //! Decision 2, once per pair of surfaces whose faces, one of each operand,
 //! stand in boxes that meet: the curves the pair shares, registered as lying
-//! on both, and the points where such a curve crosses itself or where two
-//! cylinders only touch. A pair at a slant, whose curve the kernel does not
-//! build, declines the operation unless its faces stand clear of each other.
+//! on both, and the points where such a curve crosses itself, where two
+//! cylinders only touch, or where a cone's apex stands on the other surface.
+//! A pair at a slant, whose curve the kernel does not build, declines the
+//! operation unless its faces stand clear of each other.
 //!
 //! The boxes only spare the pairs that cannot meet; they decide nothing
 //! else. A box round a face at a slant is loose, which costs a pair related
@@ -56,25 +57,47 @@ pub(super) fn related(
                 .into_iter()
                 .map(|curve| registry.register(curve, &pair))
                 .collect();
-            if let Relation::Meet(meeting) = &found {
-                for node in &meeting.nodes {
-                    special.push(Special {
-                        point: node.point,
-                        surfaces: pair,
-                        curves: node
-                            .on
-                            .iter()
-                            .map(|(component, _)| ranks[*component as usize])
-                            .collect(),
-                    });
+            match &found {
+                Relation::Meet(meeting) => {
+                    for node in &meeting.nodes {
+                        special.push(Special {
+                            point: node.point,
+                            surfaces: pair,
+                            curves: node
+                                .on
+                                .iter()
+                                .map(|(component, _)| ranks[*component as usize])
+                                .collect(),
+                        });
+                    }
+                    if let Some(point) = meeting.contact {
+                        special.push(Special {
+                            point,
+                            surfaces: pair,
+                            curves: Vec::new(),
+                        });
+                    }
                 }
-                if let Some(point) = meeting.contact {
-                    special.push(Special {
-                        point,
-                        surfaces: pair,
-                        curves: Vec::new(),
-                    });
-                }
+                Relation::Rulings {
+                    apex: Some(point), ..
+                } => special.push(Special {
+                    point: *point,
+                    surfaces: pair,
+                    curves: ranks.clone(),
+                }),
+                Relation::Apex(point) => special.push(Special {
+                    point: *point,
+                    surfaces: pair,
+                    curves: Vec::new(),
+                }),
+                Relation::Apart
+                | Relation::Same { .. }
+                | Relation::Line(_)
+                | Relation::Lines(_)
+                | Relation::Tangent(_)
+                | Relation::Circle(_)
+                | Relation::Rulings { apex: None, .. }
+                | Relation::Unsupported => {}
             }
         }
     }

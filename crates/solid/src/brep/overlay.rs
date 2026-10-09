@@ -28,7 +28,9 @@ pub struct Arc {
 /// left, every arc used once each way over all the regions; and a point
 /// inside it, as far from its boundary as a vertical chord through it lets,
 /// with the heights the chord runs between: every point of it strictly
-/// between them is inside the region too. Unbounded on a plane for the
+/// between them is inside the region too; and a point either side of the
+/// chord, a quarter of the gap it stands in away, midway between the same
+/// two arcs. Unbounded on a plane for the
 /// region outside everything, on a cylinder for those above and below
 /// everything.
 #[derive(Clone, Debug, PartialEq)]
@@ -36,6 +38,7 @@ pub struct Region {
     pub cycles: Vec<Vec<(usize, bool)>>,
     pub inside: DVec2,
     pub chord: [f64; 2],
+    pub aside: [DVec2; 2],
     pub unbounded: bool,
 }
 
@@ -63,6 +66,7 @@ impl Overlay {
                     cycles: Vec::new(),
                     inside: DVec2::ZERO,
                     chord: [0.0; 2],
+                    aside: [DVec2::ZERO; 2],
                     unbounded: true,
                 }],
             });

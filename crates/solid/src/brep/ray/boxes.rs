@@ -2,11 +2,13 @@
 //! a face is known to miss it without the face being traced.
 //!
 //! Every point of a face lies in the box of its boundary: on a plane it lies
-//! between two points of the boundary, and on a cylinder between two points
-//! of the boundary on the ruling through it. The box of a line is that of its
-//! ends, of an arc of a circle that of its ends and of the places each
-//! coordinate turns, both exact to rounding; the curve two cylinders meet
-//! along is boxed by what its height across both axes leaves each root.
+//! between two points of the boundary, and on a cylinder or a cone between
+//! two points of the boundary on the ruling through it — or, on a cone whose
+//! face holds its apex within it, between one and the apex, which is boxed
+//! too. The box of a line is that of its ends, of an arc of a circle that of
+//! its ends and of the places each coordinate turns, both exact to rounding;
+//! the curve two cylinders meet along is boxed by what its height across
+//! both axes leaves each root.
 
 use std::f64::consts::{PI, TAU};
 
@@ -33,13 +35,17 @@ impl Boxes {
         let boxes = body
             .face_ids()
             .map(|face| {
-                body.face(face).loops.iter().flatten().fold(
-                    [DVec3::INFINITY, DVec3::NEG_INFINITY],
-                    |[low, high], coedge| {
+                let held = body
+                    .apex_held(face)
+                    .map_or([DVec3::INFINITY, DVec3::NEG_INFINITY], |apex| [apex, apex]);
+                body.face(face)
+                    .loops
+                    .iter()
+                    .flatten()
+                    .fold(held, |[low, high], coedge| {
                         let [from, to] = edges[coedge.edge.0 as usize];
                         [low.min(from), high.max(to)]
-                    },
-                )
+                    })
             })
             .collect();
         Boxes {

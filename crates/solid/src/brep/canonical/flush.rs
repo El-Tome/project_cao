@@ -23,8 +23,9 @@ use crate::brep::topology::Body;
 /// it; none when nothing moves.
 pub(in crate::brep) fn flush(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     carried_along(first, second, scale, |current, rank| {
-        let Surface::Plane(plane) = current.surfaces[rank] else {
-            return None;
+        let plane = match current.surfaces[rank] {
+            Surface::Plane(plane) => plane,
+            Surface::Cylinder(_) | Surface::Cone(_) => return None,
         };
         offset(first, current, &plane, scale)
     })
@@ -44,8 +45,9 @@ fn offset(first: &Body, second: &Body, plane: &Plane, scale: Scale) -> Option<DV
         ) {
             return None;
         }
-        let Surface::Plane(known) = known else {
-            continue;
+        let known = match known {
+            Surface::Plane(known) => known,
+            Surface::Cylinder(_) | Surface::Cone(_) => continue,
         };
         if known.normal.cross(plane.normal).length() * 2.0 * scale.reach() > eps {
             continue;
@@ -69,8 +71,9 @@ fn offset(first: &Body, second: &Body, plane: &Plane, scale: Scale) -> Option<DV
 /// Whether `wall` is a cylinder along `plane` touching it, or the plane
 /// `gap` along its normal, within `eps`.
 fn touches_one(wall: &Surface, plane: &Plane, gap: f64, eps: f64) -> bool {
-    let Surface::Cylinder(cylinder) = wall else {
-        return false;
+    let cylinder = match wall {
+        Surface::Cylinder(cylinder) => cylinder,
+        Surface::Plane(_) | Surface::Cone(_) => return false,
     };
     if cylinder.axis.dot(plane.normal).abs() > eps {
         return false;

@@ -505,3 +505,169 @@ them:
   eight campaigns sharing the machine.
 - The gate's tests, built, take about 30 s; the turned harness about
   2.9 s of it, still above its 2.5 s budget.
+
+## 8 October: round 1 of #536, measured
+
+Three lanes merged onto `3286cee` (a slanted section that touches itself,
+a cone's triangles, a cone's boolean), measured at `2e1e3ec` on fresh
+seeds, in release, the seven draws side by side, and the first 15 000
+seeds of each slanted draw run again on `3286cee` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5365100000 | 40 000 | 35 | 0.88 |
+| slanted, application's body | 5365200000 | 40 000 | 42 | 1.05 |
+| turned, exact kernel | 5365300000 | 30 000 | 21 | 0.70 |
+| turned, application's body | 5365400000 | 30 000 | 15 | 0.50 |
+| square | 5365500000 | 30 000 | 2 | 0.07 |
+| profiles, exact kernel | 5365600000 | 20 000 | 9 | 0.45 |
+| profiles, application's body | 5365700000 | 20 000 | 7 | 0.35 |
+
+- Over the slanted draws' first 15 000 seeds the exact kernel goes from
+  3.87 failures in a thousand at `3286cee` to 0.93, the application's
+  body from 4.87 to 1.13. No seed there that holds on `3286cee` fails on
+  the tip.
+- The fresh seeds found three that do, each run again on every commit of
+  the round, each named and ignored in
+  `what_the_exact_campaigns_found_in_the_kernel.rs`. A pointed cone cut
+  away by a cone of its apex a hair wider is refused from `eba1fa2` on
+  (5365211513), with both tips on one apex too. Taking a cone about an
+  axis a hair off, from `d961d6d` on, leaves a slot's round end 1e-5
+  off a cone's axis open along a ruling (5365114896), and refuses a shaft
+  ending on a band a hair long beside a quarter cone (5365205368), whose
+  shrunk case fails on `3286cee` too.
+- Every other failure, run again on `3286cee`, fails there too. The
+  turned, square and profile draws' are prisms' and straight turns'
+  families, those of #533. The slanted draws' are, by their shrunk
+  cases: no cone at all; a partial turn of a cone or about its axis; a
+  single whole cone whose section has a step, a band or a hole a hair
+  off; coaxial cones with prisms; and a cone beside a turn about another
+  axis.
+- The gate's tests, built, take about 31.5 s, against about 31 s at
+  `3286cee`.
+
+## 8 October: round 2 of #536, measured
+
+Three lanes merged onto `ae20fa9` (laying's declines, a cone's triangles,
+the kernel's declines), measured at `37ad3cc` on fresh seeds, in release,
+the seven draws side by side, and the first 15 000 seeds of round 1's
+slanted draws run again on `ae20fa9` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5366100000 | 40 000 | 22 | 0.55 |
+| slanted, application's body | 5366200000 | 40 000 | 29 | 0.73 |
+| turned, exact kernel | 5366300000 | 30 000 | 10 | 0.33 |
+| turned, application's body | 5366400000 | 30 000 | 21 | 0.70 |
+| square | 5366500000 | 30 000 | 2 | 0.07 |
+| profiles, exact kernel | 5366600000 | 20 000 | 10 | 0.50 |
+| profiles, application's body | 5366700000 | 20 000 | 9 | 0.45 |
+
+- Every draw is under one failure in a thousand. Over round 1's first
+  15 000 slanted seeds the exact kernel goes from 0.93 failures in a
+  thousand at `ae20fa9` to 0.40, the application's body from 1.07 to
+  0.20.
+- Eight seeds that hold on `ae20fa9` fail on the tip, each run again on
+  every commit of the round. From `8a008ea` on (a plane its operand drew
+  corners on is not moved onto a touch): 5365110795, 5366205754,
+  5366215526, 5366611312 and 5366614710, four declined as unverified,
+  two of them prisms alone, a rounded block a hair off a block's side.
+  From `beb95aa` (a wall about a cone's axis is not moved off it):
+  5365100952, a cylinder cut by a coaxial section with a band sloping by
+  6e-7, declined as unverified. From `af8e71a`: 5366415073, a post cut by
+  a post a hair off its end, drawn crossing through the body. From
+  `6fd4c2a`: 5366116515, a stepped cone joined to a partial turn, drawn
+  crossing. The last four shrink to cases that fail on `ae20fa9` too; the
+  regression is in the case as drawn. None is named yet.
+- Every other failure, run again on `ae20fa9`, fails there too. Shrunk,
+  the slanted draws' 51 are: no cone at all, 25, most of them straight
+  turns; a cone beside a turn about another axis, 9; coaxial turns with a
+  cone, 8; a cone with prisms, 6; and a single cone with a band a hair
+  long, 3, left open (`Closed`). The turned, square and profile draws'
+  are prisms' and straight turns' families, those of #533. By the rule
+  broken: drawn crossing (`Uncrossed`) and refused (`Answers`), nearly
+  half each.
+- The gate's tests, built, take about 32 s, against about 31 s at
+  `ae20fa9`.
+
+## 8 October: round 3 of #536, measured
+
+Three lanes merged onto `a344fdb` (two faces folded onto each other across
+an edge, a slide carrying a wall onto the first operand's, a cone holding a
+wall on its axis), measured at `40afb2d` on fresh seeds, in release, the
+seven draws side by side, and the first 15 000 seeds of round 1's slanted
+draws run again on `a344fdb` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5369100000 | 40 000 | 14 | 0.35 |
+| slanted, application's body | 5369200000 | 40 000 | 16 | 0.40 |
+| turned, exact kernel | 5369300000 | 30 000 | 9 | 0.30 |
+| turned, application's body | 5369400000 | 30 000 | 13 | 0.43 |
+| square | 5369500000 | 30 000 | 0 | 0 |
+| profiles, exact kernel | 5369600000 | 20 000 | 4 | 0.20 |
+| profiles, application's body | 5369700000 | 20 000 | 3 | 0.15 |
+
+- Every draw stays under one failure in a thousand, each lower than in
+  round 2. Over round 1's first 15 000 slanted seeds the exact kernel
+  goes from 0.40 failures in a thousand at `a344fdb` to 0.33, the
+  application's body from 0.20 to 0.13.
+- Three seeds that hold on `a344fdb` fail on the tip, all drawn crossing
+  (`Uncrossed`), all from `82eec7b` (two faces folded onto each other are
+  cut the other way), each shrunk to a case that holds on `a344fdb`:
+  5365104153, a stepped post ending in a pointed cone joined to a sixth
+  of a turn of a coaxial post; 5369119536, three quarters of a pointed
+  cone cut by three quarters of a coaxial post; 5369239472, through the
+  application's body, a whole cone bored by a coaxial post as wide as its
+  narrow end and joined to a block 6e-7 off that end. None is named yet.
+- Every other failure, run again on `a344fdb`, fails there too, two of
+  them by another rule: drawn crossing there, refused here. Shrunk, the
+  slanted draws' 30 are: no cone at all, 14, most of them straight turns;
+  coaxial turns with a cone, 9, five of them partial; a cone with prisms,
+  5; and a single cone alone, 2. A turn drawn in another plane about the
+  same line counts as coaxial here, which round 2's sorting missed. The
+  turned and profile draws' are prisms' and straight turns' families,
+  those of #533. By the rule broken, over all 59: refused (`Answers`) 31,
+  drawn crossing 24, left open (`Closed`) 3, a volume off 1.
+- The gate's tests, built, take about 33 s, against about 32.4 s at
+  `a344fdb`.
+
+## 9 October: round 4 of #536, measured
+
+One lane merged onto `dcce010`, and half of it taken back: two faces
+folded onto each other are flipped only across triangles that open by
+more than rounding, while a fan of collinear samples is a fold again.
+Measured at `594dec4` on fresh seeds, in release, the seven draws side by
+side, and the first 15 000 seeds of round 1's slanted draws run again on
+`dcce010` and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 5371100000 | 40 000 | 20 | 0.50 |
+| slanted, application's body | 5371200000 | 40 000 | 8 | 0.20 |
+| turned, exact kernel | 5371300000 | 30 000 | 14 | 0.47 |
+| turned, application's body | 5371400000 | 30 000 | 15 | 0.50 |
+| square | 5371500000 | 30 000 | 4 | 0.13 |
+| profiles, exact kernel | 5371600000 | 20 000 | 2 | 0.10 |
+| profiles, application's body | 5371700000 | 20 000 | 3 | 0.15 |
+
+- Every draw stays under one failure in a thousand. Against round 3, the
+  slanted exact, turned and square draws fail more often and the slanted
+  application's body less; since every one of these failures fails on
+  `dcce010` too, that is the draw of seeds, not the code.
+- Over round 1's first 15 000 slanted seeds, `dcce010` and the tip fail
+  on the same seeds: five on the exact kernel (0.33 in a thousand), two
+  through the application's body (0.13). 5365104153 is among them, open
+  since round 3.
+- Every failure on fresh seeds, run again on `dcce010`, fails there too,
+  by the same rule. No seed that holds on `dcce010` fails on the tip.
+- Shrunk, the slanted draws' 28 are: coaxial turns with a cone, 9, five
+  of them partial; no cone at all, 11, eight of them straight turns; a
+  cone with prisms, 4; a single cone alone, 3, two of them refused; a
+  cone beside a turn about another axis, 1.
+  The turned, square and profile draws' 38 are straight turns, 26, and
+  prisms alone, 12: the families of #533.
+- By the rule broken, over all 66: refused (`Answers`) 37, drawn crossing
+  (`Uncrossed`) 23, left open (`Closed`) 2, a volume off 2, a span off
+  along a line 1, a face listed backwards 1.
+- The gate's tests, built, take about 33 s, as at the merge.

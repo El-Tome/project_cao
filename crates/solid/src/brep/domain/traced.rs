@@ -71,7 +71,7 @@ pub(in crate::brep) fn traced(
         {
             let turn = circle.axis.dot(cylinder.axis).signum();
             let height = (circle.center - cylinder.origin).dot(cylinder.axis);
-            let [start, end] = if off_axis(circle, cylinder) > eps {
+            let [start, end] = if off_axis(circle, cylinder.origin, cylinder.axis) > eps {
                 let start = cylinder.parameters(circle.point(from)).x;
                 let end = cylinder.parameters(circle.point(to)).x;
                 [start, unwrapped(end, start + turn * (to - from))]
@@ -111,7 +111,30 @@ pub(in crate::brep) fn traced(
             chord(curve, surface, from, to, eps)
                 .or_else(|declined| met(curve, own, cylinder, [from, to], eps).ok_or(declined))
         }
-        _ => chord(curve, surface, from, to, eps),
+        (Surface::Cone(cone), Curve::Line(line))
+            if cone.rules(line, Scale::of(eps / Scale::RELATIVE)) =>
+        {
+            let angle = cone.ruling_angle(line, from, to);
+            let [from, to] =
+                [from, to].map(|at| DVec2::new(angle, cone.parameters(line.point(at)).y));
+            Ok(Trace::Segment { from, to })
+        }
+        (Surface::Cone(cone), Curve::Circle(circle))
+            if parallel(circle.axis, cone.axis)
+                && off_axis(circle, cone.origin, cone.axis) <= eps =>
+        {
+            let turn = circle.axis.dot(cone.axis).signum();
+            let start = circle.u.dot(cone.v).atan2(circle.u.dot(cone.u));
+            let height = (circle.center - cone.origin).dot(cone.axis);
+            let length = (DVec2::new(height, circle.radius) - cone.foot).dot(cone.ruling);
+            Ok(Trace::Segment {
+                from: DVec2::new(start + turn * from, length),
+                to: DVec2::new(start + turn * to, length),
+            })
+        }
+        (Surface::Plane(_) | Surface::Cylinder(_) | Surface::Cone(_), _) => {
+            chord(curve, surface, from, to, eps)
+        }
     }
 }
 
@@ -178,16 +201,16 @@ fn chord(
     Ok(Trace::Segment {
         from,
         to: match surface {
-            Surface::Cylinder(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
+            Surface::Cylinder(_) | Surface::Cone(_) => DVec2::new(unwrapped(to.x, from.x), to.y),
             Surface::Plane(_) => to,
         },
     })
 }
 
-/// How far a circle's centre stands off a cylinder's axis.
-fn off_axis(circle: &Circle, cylinder: &Cylinder) -> f64 {
-    let from = circle.center - cylinder.origin;
-    (from - cylinder.axis * from.dot(cylinder.axis)).length()
+/// How far a circle's centre stands off the axis through `origin`.
+fn off_axis(circle: &Circle, origin: DVec3, axis: DVec3) -> f64 {
+    let from = circle.center - origin;
+    (from - axis * from.dot(axis)).length()
 }
 
 /// An angle moved by whole turns to stand within half a turn of `near`, and

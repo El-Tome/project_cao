@@ -51,7 +51,7 @@ fn flat(body: &Body, normal: DVec3) -> FaceId {
     body.face_ids()
         .find(|&face| match body.surface(body.face(face).surface) {
             Surface::Plane(plane) => plane.normal.cross(normal.normalize()).length() < TOLERANCE,
-            Surface::Cylinder(_) => false,
+            Surface::Cylinder(_) | Surface::Cone(_) => false,
         })
         .expect("a flat face")
 }
@@ -139,6 +139,134 @@ fn a_wall_beside_a_small_slanted_plate_its_plane_crosses_stands_clear_of_it() {
     ));
 }
 
+/// The body a profile of corners `(h, r)` turns into about the line through
+/// `origin` along `axis`, turned by `angle`.
+fn turned(origin: DVec3, axis: DVec3, corners: &[[f64; 2]], angle: f64) -> Body {
+    use crate::turning::{Axis, Corner, Straight, Turn};
+    let axis = axis.normalize();
+    let frame = Frame {
+        origin,
+        u: axis.any_orthonormal_vector(),
+        v: axis,
+    };
+    let straight = Straight {
+        side: -1.0,
+        contours: vec![
+            corners
+                .iter()
+                .enumerate()
+                .map(|(run, at)| Corner {
+                    at: DVec2::from(*at),
+                    run: run as u32,
+                })
+                .collect(),
+        ],
+        runs: corners.len() as u32,
+        last_off_the_axis: Some(corners.len() as u32 - 1),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::Y,
+        },
+        angle,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, frame, &turn).expect("the profile turns")
+}
+
+fn nappe(body: &Body) -> FaceId {
+    body.face_ids()
+        .find(|&face| matches!(body.surface(body.face(face).surface), Surface::Cone(_)))
+        .expect("a face on a cone")
+}
+
+/// A countersink about Z: a cone from radius 2 at the plate's floor, `z =
+/// 0`, to radius 7 at its top, `z = 5`, as the tool cutting it.
+fn countersink() -> Body {
+    turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[[0.0, 0.0], [0.0, 2.0], [5.0, 7.0], [5.0, 0.0]],
+        TAU,
+    )
+}
+
+#[test]
+fn a_cone_far_from_an_oblique_face_stands_clear() {
+    let tool = countersink();
+    let normal = DVec3::new(1.0, 0.0, 1.0);
+    for slab in [
+        plate(DVec3::Z * 15.0, normal, 20.0),
+        plate(DVec3::new(0.0, 12.0, 2.0), normal, 3.0),
+    ] {
+        assert!(apart(
+            (&tool, nappe(&tool)),
+            (&slab, flat(&slab, normal)),
+            1e-8
+        ));
+    }
+}
+
+#[test]
+fn a_cone_crossing_an_oblique_face_does_not_stand_clear() {
+    let tool = countersink();
+    let normal = DVec3::new(1.0, 0.0, 1.0);
+    let slab = plate(DVec3::Z * 2.5, normal, 20.0);
+    assert!(!apart(
+        (&tool, nappe(&tool)),
+        (&slab, flat(&slab, normal)),
+        1e-8
+    ));
+}
+
+#[test]
+fn a_bolt_hole_beside_a_countersink_stands_clear() {
+    let tool = countersink();
+    for (at, expected) in [(12.0, true), (9.5, true), (8.5, false), (6.0, false)] {
+        let bolt = rod(DVec3::new(at, 0.0, -5.0), DVec3::Z, 2.0, 15.0);
+        assert_eq!(
+            apart((&tool, nappe(&tool)), (&bolt, wall(&bolt)), 1e-8),
+            expected,
+            "{at}"
+        );
+    }
+}
+
+#[test]
+fn a_bore_inside_a_countersink_s_narrow_end_stands_clear() {
+    let tool = countersink();
+    for (at, radius, expected) in [(0.5, 1.0, true), (0.0, 1.9, true), (0.5, 1.6, false)] {
+        let bore = rod(DVec3::new(0.0, at, -5.0), DVec3::Z, radius, 15.0);
+        assert_eq!(
+            apart((&tool, nappe(&tool)), (&bore, wall(&bore)), 1e-8),
+            expected,
+            "{at} {radius}"
+        );
+        assert_eq!(
+            apart((&bore, wall(&bore)), (&tool, nappe(&tool)), 1e-8),
+            expected,
+            "{at} {radius}"
+        );
+    }
+}
+
+#[test]
+fn a_whole_point_s_tip_counts_in_its_reach() {
+    let point = turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[[0.0, 0.0], [0.0, 5.0], [10.0, 0.0]],
+        TAU,
+    );
+    let [low, high] = reach((&point, nappe(&point)), DVec3::Z).expect("a reach");
+    assert!(
+        low.abs() < TOLERANCE && (high - 10.0).abs() < TOLERANCE,
+        "the point reaches from {low} to {high}"
+    );
+}
+
 #[test]
 fn two_stretches_side_by_side_stand_as_far_apart_as_their_lines() {
     let distance = between_stretches(
@@ -155,4 +283,87 @@ fn two_stretches_whose_lines_cross_beyond_one_end_stand_as_far_as_that_end() {
         [DVec3::new(0.0, -1.0, 0.0), DVec3::new(0.0, 1.0, 0.0)],
     );
     assert!((distance - 2.0).abs() < TOLERANCE, "{distance}");
+}
+
+/// A shaft of radius 10 about Z, 30 long, its top chamfered from radius 10
+/// at `z = 28` to radius 8 at its end.
+fn chamfered_shaft() -> Body {
+    turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[
+            [0.0, 0.0],
+            [0.0, 10.0],
+            [28.0, 10.0],
+            [30.0, 8.0],
+            [30.0, 0.0],
+        ],
+        TAU,
+    )
+}
+
+fn faces(body: &Body) -> Vec<FaceId> {
+    body.face_ids().collect()
+}
+
+#[test]
+fn every_face_of_a_pocket_in_a_chamfered_end_stands_clear_of_the_chamfer() {
+    let shaft = chamfered_shaft();
+    let pocket = plate(DVec3::Z * 28.5, DVec3::Z, 2.0);
+    for face in faces(&pocket) {
+        assert!(
+            apart((&shaft, nappe(&shaft)), (&pocket, face), 1e-8),
+            "{face:?}"
+        );
+        assert!(
+            apart((&pocket, face), (&shaft, nappe(&shaft)), 1e-8),
+            "{face:?}"
+        );
+    }
+}
+
+#[test]
+fn a_pocket_reaching_past_the_chamfer_s_narrow_end_does_not_stand_clear_of_it() {
+    let shaft = chamfered_shaft();
+    let pocket = plate(DVec3::Z * 28.5, DVec3::Z, 9.0);
+    assert!(!apart(
+        (&shaft, nappe(&shaft)),
+        (&pocket, flat(&pocket, DVec3::X)),
+        1e-8
+    ));
+}
+
+#[test]
+fn every_face_of_a_block_beyond_a_point_s_slope_stands_clear_of_it() {
+    let point = turned(
+        DVec3::ZERO,
+        DVec3::Z,
+        &[[0.0, 0.0], [0.0, 5.0], [10.0, 0.0]],
+        TAU,
+    );
+    let block = plate(DVec3::new(4.5, 0.0, 8.0), DVec3::Z, 0.5);
+    for face in faces(&block) {
+        assert!(
+            apart((&point, nappe(&point)), (&block, face), 1e-8),
+            "{face:?}"
+        );
+    }
+    let across = plate(DVec3::new(3.0, 0.0, 4.0), DVec3::Z, 0.5);
+    assert!(!apart(
+        (&point, nappe(&point)),
+        (&across, flat(&across, DVec3::Z)),
+        1e-8
+    ));
+}
+
+#[test]
+fn every_face_of_a_pocket_beside_a_countersink_s_slope_stands_clear_of_it() {
+    let tool = countersink();
+    let pocket = plate(DVec3::new(5.0, 5.0, 3.0), DVec3::Z, 0.5);
+    for face in faces(&pocket) {
+        assert!(
+            apart((&tool, nappe(&tool)), (&pocket, face), 1e-8),
+            "{face:?}"
+        );
+    }
 }

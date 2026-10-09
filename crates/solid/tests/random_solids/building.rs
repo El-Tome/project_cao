@@ -284,7 +284,8 @@ pub const FACETING: f64 = 2e-3;
 
 /// One side of a turned leaf as the kernels are handed it, in the plane's
 /// own coordinates: its outline and its holes, and the triangles its ends are
-/// filled with, two to every rectangle of the section.
+/// filled with, two to every trapezoid of the section but where one of them
+/// has no area, at a point.
 pub struct Drawn {
     pub outline: Vec<DVec2>,
     pub holes: Vec<Vec<DVec2>>,
@@ -295,20 +296,23 @@ impl Drawn {
     fn of(axis: &Axis, section: &Section) -> Drawn {
         let (outline, holes) = section.corners();
         let triangles = section
-            .rectangles()
+            .trapezoids()
             .iter()
-            .flat_map(|&[from, to, low, high]| {
+            .flat_map(|trapezoid| {
+                let [from, to] = trapezoid.along;
                 let corners = [
-                    DVec2::new(from, low),
-                    DVec2::new(to, low),
-                    DVec2::new(to, high),
-                    DVec2::new(from, high),
-                ]
-                .map(|corner| axis.at(corner));
-                [
-                    [corners[0], corners[1], corners[2]],
-                    [corners[0], corners[2], corners[3]],
-                ]
+                    DVec2::new(from, trapezoid.low[0]),
+                    DVec2::new(to, trapezoid.low[1]),
+                    DVec2::new(to, trapezoid.high[1]),
+                    DVec2::new(from, trapezoid.high[0]),
+                ];
+                [[0, 1, 2], [0, 2, 3]]
+                    .into_iter()
+                    .filter(move |[one, two, three]| {
+                        (corners[*two] - corners[*one]).perp_dot(corners[*three] - corners[*one])
+                            != 0.0
+                    })
+                    .map(move |triangle| triangle.map(|corner| axis.at(corners[corner])))
             })
             .collect();
         Drawn {
@@ -392,27 +396,43 @@ impl Turned {
     /// Whether a hole of the section stands a hair from an edge of its band
     /// or from the axis: a wall the exact kernel cannot lay square without
     /// bringing the hole onto the outline, so it may decline the section as
-    /// no profile it reads, and the application turns it on the flats.
+    /// no profile it reads, and the application turns it on the flats. A
+    /// sloped edge is read where the hole starts and ends, square to itself.
+    /// So is a section a hair long from end to end, a wall with no hole that
+    /// laying makes nothing.
     pub fn has_a_wall_a_hair_thin(&self) -> bool {
         let Some((low, high)) = self.bounds() else {
             return false;
         };
         let hair = A_HAIR_THIN * low.abs().max(high.abs()).max_element();
         let ends = self.section.ends();
+        let length = ends
+            .last()
+            .zip(ends.first())
+            .map(|(last, first)| (last - first).abs());
+        if length.is_some_and(|length| length <= hair) {
+            return true;
+        }
         self.section.holes.iter().any(|[hole_low, hole_high]| {
             let band = (0..self.section.bands.len())
                 .find(|&index| ends[index] < hole_low.x && hole_high.x < ends[index + 1]);
             band.is_some_and(|index| {
-                let [_, low, high] = self.section.bands[index];
+                let ([low, high], [low_end, high_end]) = self.section.edges(index);
+                let length = self.section.bands[index][0];
+                let square = |rise: f64| (1.0 + (rise / length).powi(2)).sqrt();
+                let (under, over) = (square(low_end - low), square(high_end - high));
+                let walls = [hole_low.x, hole_high.x].map(|along| {
+                    let [floor, ceiling] = self.section.at(index, along);
+                    [(hole_low.y - floor) / under, (ceiling - hole_high.y) / over]
+                });
                 [
                     hole_low.x - ends[index],
                     ends[index + 1] - hole_high.x,
-                    hole_low.y - low,
-                    high - hole_high.y,
                     hole_low.y.abs(),
                     hole_high.y.abs(),
                 ]
                 .iter()
+                .chain(walls.iter().flatten())
                 .any(|gap| *gap <= hair)
             })
         })

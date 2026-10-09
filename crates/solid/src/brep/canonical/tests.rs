@@ -4,8 +4,9 @@ use glam::{DVec2, DVec3};
 
 use super::*;
 use crate::brep::curve::{Circle, Curve, Line};
+use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, SurfaceId};
 use crate::profile::{Contour, Frame, Run};
 
@@ -47,6 +48,232 @@ fn a_body_carried_along_a_move_keeps_its_faces_their_ranks_and_their_numbers() {
     .expect("the wall moves");
     assert_ne!(moved.surfaces, moving.surfaces);
     assert_eq!(moved.faces, moving.faces);
+}
+
+/// A shaft of radius 10 along Y, 30 long, its far end chamfered by 2.
+fn chamfered_shaft() -> Body {
+    use crate::turning::{Axis, Corner, Straight, Turn};
+    let corners = [
+        [0.0, 0.0],
+        [30.0, 0.0],
+        [30.0, 8.0],
+        [28.0, 10.0],
+        [0.0, 10.0],
+    ];
+    let straight = Straight {
+        side: -1.0,
+        contours: vec![
+            (0..corners.len())
+                .map(|run| Corner {
+                    at: DVec2::from(corners[run]),
+                    run: run as u32,
+                })
+                .collect(),
+        ],
+        runs: corners.len() as u32,
+        last_off_the_axis: Some(4),
+    };
+    let turn = Turn {
+        axis: Axis {
+            origin: DVec2::ZERO,
+            direction: DVec2::Y,
+        },
+        angle: TAU,
+        resolution: 0.0,
+        on_the_axis: 0.0,
+    };
+    Body::turned(&straight, ground(0.0), &turn).expect("the shaft turns")
+}
+
+#[test]
+fn a_chamfered_shaft_slid_onto_a_bore_keeps_its_cone_on_its_rim() {
+    let far = block([100.0, 100.0, 100.0], [110.0, 110.0, 110.0]);
+    let shaft = chamfered_shaft();
+    let rank_of = |wanted: fn(&Surface) -> bool| {
+        shaft
+            .surfaces
+            .iter()
+            .position(wanted)
+            .expect("the shaft has the surface")
+    };
+    let wall = rank_of(|surface| matches!(surface, Surface::Cylinder(_)));
+    let chamfer = rank_of(|surface| matches!(surface, Surface::Cone(_)));
+    let hair = DVec3::new(0.5e-8, 0.0, 0.3e-8);
+    let moved = carried_along(&far, &shaft, scale(), |_, rank| {
+        (rank == wall).then_some(hair)
+    })
+    .expect("the wall moves");
+    let [Surface::Cone(before), Surface::Cone(after)] =
+        [&shaft, &moved].map(|body| body.surfaces[chamfer])
+    else {
+        unreachable!()
+    };
+    for at in [
+        DVec2::new(0.0, 0.5),
+        DVec2::new(2.0, 1.5),
+        DVec2::new(-3.0, 2.5),
+    ] {
+        let point = before.point(at) + hair;
+        assert!(after.distance(point).abs() < 1e-12, "{point} off {after:?}");
+    }
+    for face in moved.face_ids() {
+        let Surface::Cone(cone) = moved.surface(moved.face(face).surface) else {
+            continue;
+        };
+        for coedge in moved.face(face).loops.iter().flatten() {
+            let Curve::Circle(rim) = moved.curve(moved.edge(coedge.edge).curve) else {
+                panic!("a chamfer bounded by its rims alone");
+            };
+            assert!(cone.holds(rim, 1e-12), "{rim:?} off {cone:?}");
+        }
+    }
+}
+
+/// A block 30 by 10 by 10, and a slot 20 long and 10 wide standing `hair`
+/// across its length from the block's sides, whose half circles reach the
+/// block's ends; with the rank in the slot of its far side, along y = 10 +
+/// `hair`.
+fn a_slot_a_hair_off_a_block() -> (Body, Body, usize, f64) {
+    let hair = 1e-8;
+    let first = block([0.0, 0.0, 0.0], [30.0, 10.0, 10.0]);
+    let [low, high] = [hair, 10.0 + hair];
+    let outline = Contour {
+        corners: vec![
+            DVec2::new(5.0, low),
+            DVec2::new(25.0, low),
+            DVec2::new(25.0, high),
+            DVec2::new(5.0, high),
+        ],
+        runs: vec![
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(25.0, 5.0 + hair),
+                turn: PI,
+            },
+            Run::Straight,
+            Run::Round {
+                center: DVec2::new(5.0, 5.0 + hair),
+                turn: PI,
+            },
+        ],
+    };
+    let slot = Body::raised(&outline, &[], ground(0.0), DVec3::Z * 10.0)
+        .expect("a slot raises")
+        .renumbered(6);
+    let far = slot
+        .surfaces
+        .iter()
+        .position(|surface| *surface == plane_at(high, DVec3::Y))
+        .expect("the slot has a side on y = 10 + hair");
+    (first, slot, far, hair)
+}
+
+#[test]
+fn a_slot_slid_onto_a_block_s_side_brings_its_other_side_onto_the_block_s_other_side() {
+    let (block, slot, far, hair) = a_slot_a_hair_off_a_block();
+    let moved = carried_along(&block, &slot, scale(), |_, rank| {
+        (rank == far).then_some(DVec3::Y * -hair)
+    })
+    .expect("the slide carries the near side onto the block's");
+    let near = moved
+        .surfaces
+        .iter()
+        .find_map(|surface| match surface {
+            Surface::Plane(plane) if plane.normal.y.abs() > 0.5 && plane.offset().abs() < 1.0 => {
+                Some(plane.offset())
+            }
+            _ => None,
+        })
+        .expect("the slot keeps its near side");
+    assert!(near.abs() < 1e-12, "the near side stands at y = {near}");
+}
+
+#[test]
+fn a_slot_slid_away_from_a_block_s_side_is_not_carried_further_off_the_block_s_other_side() {
+    let (block, slot, far, hair) = a_slot_a_hair_off_a_block();
+    let moved = carried_along(&block, &slot, scale(), |_, rank| {
+        (rank == far).then_some(DVec3::Y * hair)
+    });
+    assert!(moved.is_none(), "the near side was carried off the block's");
+}
+
+#[test]
+fn a_ruling_through_the_apex_only_touches_the_other_surface() {
+    let tip = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+    ));
+    let holding = Surface::Plane(Plane::through(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0)).0);
+    let square = plane_at(10.0, DVec3::Z);
+    let below = plane_at(4.0, DVec3::Z);
+    let apart = Apart::of(&[tip, holding, square, below], |_| scale());
+    let apex = DVec3::new(0.0, 0.0, 10.0);
+    let [cone, holding, square, below] = [0, 1, 2, 3].map(SurfaceId);
+    for other in [holding, square] {
+        let points = apart.points(cone, other);
+        assert_eq!(points.len(), 1, "{points:?}");
+        assert!(points[0].distance(apex) < 1e-12, "{points:?}");
+        assert!(!apart.pair(cone, other));
+    }
+    assert!(apart.points(cone, below).is_empty());
+}
+
+/// Two cones of one axis and one apex, each the other's mirror: a ruling of
+/// one, read as a whole line, is a ruling of the other, but the two meet at
+/// the apex alone, and the ruling one of them shares with a plane holding
+/// the axis is not the other's.
+#[test]
+fn a_ruling_of_a_cone_is_not_laid_on_the_same_line_of_its_mirror() {
+    let rising = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(15.0, 5.0), DVec2::new(20.0, 10.0)],
+    ));
+    let falling = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(0.0, 10.0), DVec2::new(5.0, 5.0)],
+    ));
+    let holding = Surface::Plane(Plane::through(DVec3::ZERO, DVec3::X).0);
+    let list = [holding, rising, falling];
+    let mut registry = Registry::new(scale(), Apart::of(&list, |_| scale()), Planes::default());
+    let rulings = |rank: usize| match relation(&list[0], &list[rank], scale()) {
+        Relation::Rulings { lines, .. } => lines,
+        other => panic!("{other:?}"),
+    };
+    let [plane, rising, falling] = [0, 1, 2].map(SurfaceId);
+    let risen = rulings(1).map(|line| registry.register(Curve::Line(line), &[plane, rising]));
+    let fallen = rulings(2).map(|line| registry.register(Curve::Line(line), &[plane, falling]));
+    assert!(
+        risen.iter().all(|rank| !fallen.contains(rank)),
+        "{risen:?} {fallen:?}"
+    );
+}
+
+#[test]
+fn a_circle_of_a_cone_is_laid_on_the_same_circle_of_a_cone_of_its_apex_a_hair_apart_in_slope() {
+    let one = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(5.0, 5.0), DVec2::new(10.0, 0.0)],
+    ));
+    let other = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(5.0, 5.00000002), DVec2::new(10.0, 0.0)],
+    ));
+    assert!(matches!(relation(&one, &other, scale()), Relation::Apex(_)));
+    let level = plane_at(5.0, DVec3::Z);
+    let list = [level, one, other];
+    let mut registry = Registry::new(scale(), Apart::of(&list, |_| scale()), Planes::default());
+    let circle = |rank: usize| match relation(&list[0], &list[rank], scale()) {
+        Relation::Circle(circle) => Curve::Circle(circle),
+        found => panic!("{found:?}"),
+    };
+    let [level, one, other] = [0, 1, 2].map(SurfaceId);
+    let first = registry.register(circle(1), &[level, one]);
+    assert_eq!(registry.register(circle(2), &[level, other]), first);
 }
 
 #[test]
@@ -236,6 +463,23 @@ fn a_surface_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest()
         plane_at(7.0 - hair / 2.0, DVec3::Z),
     ]);
     let other = with_surfaces(vec![plane_at(7.0 + hair, DVec3::Z)]);
+    let surfaces = Surfaces::of(&one, &other, scale);
+    assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
+}
+
+#[test]
+fn a_cone_within_the_tolerance_of_two_of_the_first_operand_s_is_the_nearest() {
+    let scale = Scale::of(25.0);
+    let along = 0.8 * scale.eps() * 5.0_f64.sqrt();
+    let tip = |height: f64| {
+        Surface::Cone(Cone::through(
+            DVec3::Z * height,
+            DVec3::Z,
+            [DVec2::new(0.0, 5.0), DVec2::new(10.0, 0.0)],
+        ))
+    };
+    let one = with_surfaces(vec![tip(0.0), tip(along), tip(-along / 2.0)]);
+    let other = with_surfaces(vec![tip(along)]);
     let surfaces = Surfaces::of(&one, &other, scale);
     assert_eq!(surfaces.mapped[1], vec![(SurfaceId(1), true)]);
 }
@@ -593,7 +837,7 @@ fn snapped_pair(first: Surface, second: Surface, both: bool) -> Vec<Surface> {
             (0, 1) => both,
             _ => false,
         },
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -669,7 +913,7 @@ fn a_cylinder_touching_two_parallel_planes_on_opposite_sides_is_moved_midway_and
     };
     let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -694,7 +938,7 @@ fn hole_under(ceiling: f64) -> Surface {
     };
     surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -740,7 +984,7 @@ fn a_cylinder_a_hair_from_a_plane_whose_faces_stand_far_is_not_moved() {
     };
     surfaces.snapped(
         |operand, surface| operand == surface.0 as usize,
-        |_, _| false,
+        |_, _, _| false,
         |_| false,
         scale(),
     );
@@ -763,7 +1007,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     };
     along.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -781,7 +1025,7 @@ fn a_cylinder_touching_a_plane_exactly_moves_onto_another_touch_only_along_the_p
     };
     across.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
@@ -804,12 +1048,45 @@ fn a_cylinder_touching_two_parallel_planes_on_one_side_keeps_its_radius() {
     };
     let moved = surfaces.snapped(
         |operand, surface| (operand == 1) == (surface.0 == 2),
-        |_, _| true,
+        |_, _, _| true,
         |_| false,
         scale(),
     );
     assert_eq!(moved, [false, false, false]);
     assert_eq!(surfaces.list, [low, high, Surface::Cylinder(post)]);
+}
+
+/// A wall a hair from touching a side, about a cone's axis, the side the
+/// first operand's: moved onto the touch, it would stand off the cone's
+/// axis. That holds the wall only where faces of the two meet on the circle
+/// they cross along; a cone met nowhere on it — a section's pointed cone, its
+/// circle with the section's widest step below the section (5365100952) —
+/// does not.
+#[test]
+fn a_wall_about_a_cone_s_axis_is_held_on_it_only_where_their_faces_meet_on_their_circle() {
+    let eps = scale().eps();
+    let side = plane_at(3.0, DVec3::X);
+    let wall = Surface::Cylinder(Cylinder::about(DVec3::ZERO, DVec3::Z, 3.0 + eps / 2.0));
+    let cone = Surface::Cone(Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [DVec2::new(-10.0, 1.0), DVec2::new(-20.0, 5.0)],
+    ));
+    let snapped = |near: &dyn Fn([DVec3; 2]) -> bool| {
+        let mut surfaces = Surfaces {
+            list: vec![side, wall, cone],
+            mapped: [Vec::new(), Vec::new()],
+        };
+        let moved = surfaces.snapped(
+            |operand, surface| (operand == 1) == (surface.0 != 0),
+            |_, _, within| near(within),
+            |_| false,
+            scale(),
+        );
+        moved[1]
+    };
+    assert!(snapped(&|within| within[1].z >= 0.0));
+    assert!(!snapped(&|_| true));
 }
 
 /// A rectangle from `low` to `high` with its corners rounded to `radius`,

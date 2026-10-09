@@ -9,10 +9,10 @@
 //! a wall of its radius a hair off; decision 2 slides a wall its operand
 //! drew corners on along a touch this way.
 //!
-//! A move that would part a surface of the second operand from one of the
-//! first's it was one with or touched, lay one of its surfaces on another of
-//! its own it leaves behind, or move a curve the kernel does not translate,
-//! is not made.
+//! A move that would carry a surface of the second operand further off one
+//! of the first's it was one with, part it from one it touched, lay one of its
+//! surfaces on another of its own it leaves behind, or move a curve the
+//! kernel does not translate, is not made.
 
 use std::collections::BTreeSet;
 
@@ -21,7 +21,7 @@ use glam::DVec3;
 use crate::brep::curve::{Circle, Curve, Line};
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Cylinder, Plane, Surface};
+use crate::brep::surface::{Cone, Cylinder, Plane, Surface};
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
 
 /// Under this share of the tolerance, a surface moved along itself stays.
@@ -105,18 +105,21 @@ fn beside(body: &Body, edge: EdgeId) -> Vec<usize> {
 }
 
 /// Whether a move leaves a surface where it is: along a plane, or along a
-/// cylinder's axis.
+/// cylinder's axis; a cone, which a move along its axis takes its apex
+/// with, only under no move at all.
 fn slides(surface: &Surface, by: DVec3, scale: Scale) -> bool {
     let off = match surface {
         Surface::Plane(plane) => plane.normal.dot(by).abs(),
         Surface::Cylinder(cylinder) => (by - cylinder.axis * cylinder.axis.dot(by)).length(),
+        Surface::Cone(_) => by.length(),
     };
     off <= ROUNDING * scale.eps()
 }
 
 /// The body with the surfaces `carried`, the corners on them and the curves
 /// of the edges beside them moved by `by`; none where a curve to move is one
-/// two perpendicular cylinders meet along.
+/// two perpendicular cylinders meet along. A cone is built again through
+/// its meridian line moved, canonical.
 fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body> {
     let mut moved = body.clone();
     for &rank in carried {
@@ -128,6 +131,11 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
                 cylinder.origin + by,
                 cylinder.axis,
                 cylinder.radius,
+            )),
+            Surface::Cone(cone) => Surface::Cone(Cone::through(
+                cone.origin + by,
+                cone.axis,
+                [cone.foot, cone.foot + cone.ruling],
             )),
         };
     }
@@ -189,9 +197,21 @@ fn translated(body: &Body, carried: &BTreeSet<usize>, by: DVec3) -> Option<Body>
 }
 
 /// Whether every surface the move carries along with the surface of rank
-/// `taken` stands with each of the first operand's as it stood before: one
-/// with it, or touching it, still. The surface itself goes where its move
-/// was decided: one with the first's wall, or onto a touch. And whether every
+/// `taken` stands with each of the first operand's as it stood before:
+/// touching it still, and one with it only where the move brings it no
+/// further off — the first's is the surface read, so a surface carried off
+/// it by less than the tolerance would stay where it was while the corners
+/// and the walls it was built with went. A hundredth of a degree's turn
+/// lying on a block's side, slid onto a round its other end grazes, took the
+/// line its two ends meet along ninety microns along the side (5365230254).
+/// A rounded block a hair off a block's sides, slid onto one of them, brings
+/// its other side onto the block's other one, and is kept a hair off
+/// otherwise (5366611312). And a cone, or a surface beside one,
+/// decided with it about one axis still (#536): moved a hair off, the pair
+/// would meet along a curve the kernel does not build, and a bore of a
+/// pocket's radius moved onto it took its cone off the wall it widens onto
+/// (5361127255). The surface itself goes where its move was decided: one
+/// with the first's wall, about its axis, or onto a touch. And whether every
 /// surface carried stays apart from those of its own operand left behind,
 /// which that operand built apart: a rounded rectangle a hair taller than its
 /// two corners, its top moved down onto a face, would take its upper corners'
@@ -218,13 +238,35 @@ fn kept(
     parted
         && carried.iter().filter(|&&rank| rank != taken).all(|&rank| {
             first.surfaces.iter().all(|known| {
-                let held = |surface: &Surface| {
-                    matches!(
-                        relation(known, surface, scale),
-                        Relation::Same { .. } | Relation::Tangent(_)
-                    )
+                let held = |surface: &Surface| match relation(known, surface, scale) {
+                    Relation::Same { .. } | Relation::Tangent(_) => true,
+                    Relation::Unsupported => false,
+                    _ => [known, surface]
+                        .iter()
+                        .any(|one| matches!(one, Surface::Cone(_))),
                 };
-                !held(&before.surfaces[rank]) || held(&after.surfaces[rank])
+                (!same(known, &before.surfaces[rank])
+                    || onto(known, &before.surfaces[rank], &after.surfaces[rank], scale))
+                    && (!held(&before.surfaces[rank]) || held(&after.surfaces[rank]))
             })
         })
+}
+
+/// Whether a surface one with `known` before the move is one with it after,
+/// and no further from it: a plane by its offset along the normal, a
+/// cylinder by its axis and its radius. Its corners and its walls then go
+/// towards the surface read rather than away from it. Two cones are not
+/// weighed: a move carrying a cone one with the first's is not made.
+fn onto(known: &Surface, before: &Surface, after: &Surface, scale: Scale) -> bool {
+    let off = |surface: &Surface| match (known, surface) {
+        (Surface::Plane(known), Surface::Plane(plane)) => Some(known.distance(plane.origin).abs()),
+        (Surface::Cylinder(known), Surface::Cylinder(cylinder)) => {
+            let between = cylinder.origin - known.origin;
+            let across = between - known.axis * known.axis.dot(between);
+            Some(across.length() + (cylinder.radius - known.radius).abs())
+        }
+        _ => None,
+    };
+    matches!(relation(known, after, scale), Relation::Same { .. })
+        && matches!((off(before), off(after)), (Some(before), Some(after)) if after <= before)
 }

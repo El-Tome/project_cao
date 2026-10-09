@@ -6,6 +6,8 @@
 //! anticlockwise in the surface's parameters when the face is not flipped,
 //! so a flipped face gives its flux the right sign by itself.
 
+mod cone;
+
 use std::f64::consts::PI;
 
 use glam::DVec3;
@@ -13,29 +15,35 @@ use glam::DVec3;
 use super::curve::Curve;
 use super::domain::traced;
 use super::surface::{Cylinder, Plane, Surface};
-use super::topology::{Body, Coedge};
+use super::topology::{Body, Coedge, FaceId};
 use super::trace::Trace;
 
 impl Body {
     pub fn volume(&self) -> f64 {
-        let flux: f64 = self
-            .faces
-            .iter()
-            .flat_map(|face| {
-                let surface = self.surface(face.surface);
-                face.loops
-                    .iter()
-                    .flatten()
-                    .map(move |coedge| self.flux_along(surface, *coedge))
-            })
-            .sum();
+        let flux: f64 = self.face_ids().flat_map(|face| self.fluxes(face)).sum();
         flux / 3.0
     }
 
+    /// What each use of an edge adds to the flux through a face, a face of
+    /// a cone anchored where `cone.rs` says.
+    fn fluxes(&self, face: FaceId) -> impl Iterator<Item = f64> + '_ {
+        let lying = self.face(face);
+        let surface = self.surface(lying.surface);
+        let anchor = match surface {
+            Surface::Cone(cone) => self.anchor(face, cone),
+            Surface::Plane(_) | Surface::Cylinder(_) => 0.0,
+        };
+        lying
+            .loops
+            .iter()
+            .flatten()
+            .map(move |coedge| self.flux_along(surface, anchor, *coedge))
+    }
+
     /// What one use of an edge adds to the flux through its face: in closed
-    /// form for the lines and circles a plane or a cylinder carries, and by
-    /// quadrature along the curve for any other.
-    fn flux_along(&self, surface: &Surface, coedge: Coedge) -> f64 {
+    /// form for the lines and circles a plane, a cylinder or a cone carries,
+    /// and by quadrature along the curve for any other.
+    fn flux_along(&self, surface: &Surface, anchor: f64, coedge: Coedge) -> f64 {
         let edge = self.edge(coedge.edge);
         let curve = self.curve(edge.curve);
         let exact = match (
@@ -46,9 +54,12 @@ impl Body {
             (Surface::Cylinder(cylinder), Ok(Trace::Segment { from, to })) => {
                 wall(cylinder, from.x, to.x, from.y, to.y)
             }
+            (Surface::Cone(cone), Ok(Trace::Segment { from, to })) => {
+                cone::straight(cone, anchor, from, to)
+            }
             _ => None,
         };
-        let flux = exact.unwrap_or_else(|| along(curve, edge.from, edge.to, surface));
+        let flux = exact.unwrap_or_else(|| along(curve, edge.from, edge.to, surface, anchor));
         if coedge.forward { flux } else { -flux }
     }
 }
@@ -99,9 +110,10 @@ fn wall(cylinder: &Cylinder, from: f64, to: f64, low: f64, high: f64) -> Option<
     Some(-low * (radius * radius * (to - from) + radius * moment))
 }
 
-/// The flux a stretch of any curve adds on either surface, by composite
-/// Gauss–Legendre over the curve's own parameter.
-fn along(curve: &Curve, from: f64, to: f64, surface: &Surface) -> f64 {
+/// The flux a stretch of any curve adds on any surface, by composite
+/// Gauss–Legendre over the curve's own parameter: on a cone, from its
+/// 1-form anchored at the length `anchor` along the ruling.
+fn along(curve: &Curve, from: f64, to: f64, surface: &Surface, anchor: f64) -> f64 {
     let mut total = 0.0;
     for [start, end] in panels(curve, from, to) {
         let (middle, width) = ((start + end) / 2.0, end - start);
@@ -112,6 +124,7 @@ fn along(curve: &Curve, from: f64, to: f64, surface: &Surface) -> f64 {
                 let density = match surface {
                     Surface::Plane(plane) => planar(plane, point, speed),
                     Surface::Cylinder(cylinder) => radial(cylinder, point, speed),
+                    Surface::Cone(cone) => cone::conical(cone, anchor, point, speed),
                 };
                 total += weight * density * width / 2.0;
             }

@@ -320,13 +320,16 @@ impl Drawing {
         );
         for (rank, region) in overlay.regions.iter().enumerate() {
             let point = region.inside;
-            for (other, cycles) in overlay.regions.iter().enumerate() {
-                assert_eq!(
-                    located_in(&self.arcs, &cycles.cycles, period, point),
-                    other == rank,
-                    "the point {point} of region {rank} against region {other}: {:?}",
-                    overlay.regions
-                );
+            let reads = std::iter::once(point).chain(region.aside.iter().copied());
+            for read in reads.take(if region.unbounded { 1 } else { 3 }) {
+                for (other, cycles) in overlay.regions.iter().enumerate() {
+                    assert_eq!(
+                        located_in(&self.arcs, &cycles.cycles, period, read),
+                        other == rank,
+                        "the point {read} of region {rank} against region {other}: {:?}",
+                        overlay.regions
+                    );
+                }
             }
             let apart = clearance(&self.arcs, period, point);
             assert!(
@@ -355,6 +358,25 @@ fn a_square_with_a_square_hole_is_a_ring_and_the_outside() {
         .find(|region| region.cycles.len() == 2)
         .expect("the ring has two cycles");
     assert!(!ring.unbounded);
+}
+
+#[test]
+fn a_strip_thinner_than_the_tolerance_is_read_either_side_of_its_middle() {
+    let (vertices, arcs) = square([7.49999998, 9.0], [7.5, 11.0], 0);
+    let overlay = Overlay::of(&vertices, &arcs, None).expect("the overlay is made");
+    let strip = overlay
+        .regions
+        .iter()
+        .find(|region| !region.unbounded)
+        .expect("the strip is bounded");
+    let [left, right] = strip.aside;
+    assert_eq!(strip.inside.x, 7.49999999);
+    assert!(7.49999998 < left.x && left.x < strip.inside.x, "{left}");
+    assert!(strip.inside.x < right.x && right.x < 7.5, "{right}");
+    for read in [left, right] {
+        assert!(located_in(&arcs, &strip.cycles, None, read), "{read}");
+        assert_eq!(read.y, 10.0);
+    }
 }
 
 #[test]

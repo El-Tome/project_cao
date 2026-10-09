@@ -24,10 +24,15 @@
 //! sampled where either cylinder all but lies on a wall facing it, as a
 //! circle is not at the steps it withholds, nor on a plane touching either
 //! off the line they touch along. Two edges touching between their vertices
-//! share the place they touch at ([`touches`]).
+//! share the place they touch at ([`touches`]). A circle lying on a cone is
+//! also sampled on the cone's grid, the same for all its rims ([`cone`]), and
+//! where the cone stands close to another wall, on every ray the walls
+//! standing with it take ([`axis`]).
 
+mod axis;
 mod beneath;
 mod circle;
+mod cone;
 mod ends;
 mod meet;
 mod planes;
@@ -42,7 +47,9 @@ use super::contact::{self, Contact, Zones};
 use crate::brep::curve::Curve;
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
+use axis::Axes;
 use circle::on_circle;
+use cone::Grid;
 use ends::Ends;
 pub(super) use planes::{on_a_plane, touching_planes};
 use touches::{Places, on_the_line};
@@ -95,6 +102,7 @@ pub(super) struct Samples {
     points: Vec<DVec3>,
     edges: Vec<Vec<usize>>,
     vertices: usize,
+    grids: BTreeMap<SurfaceId, Grid>,
 }
 
 impl Samples {
@@ -103,12 +111,16 @@ impl Samples {
     pub(super) fn of(body: &Body, tolerance: f64) -> Samples {
         let walls = contact::walls(body);
         let zones = Zones::of(body, &walls);
-        let first = Samples::through(body, &walls, &zones, &BTreeMap::new(), tolerance);
+        let grids = cone::grids(body, tolerance);
+        let first = Samples::through(body, &walls, &zones, &grids, &BTreeMap::new(), tolerance);
         let beneath = beneath::walls(body, &walls, &first, tolerance);
-        if beneath.is_empty() {
-            return first;
-        }
-        Samples::through(body, &walls, &zones, &beneath, tolerance)
+        let mut samples = if beneath.is_empty() {
+            first
+        } else {
+            Samples::through(body, &walls, &zones, &grids, &beneath, tolerance)
+        };
+        samples.grids = grids;
+        samples
     }
 
     /// Every edge sampled, each wall's circles also on the rays through the
@@ -117,6 +129,7 @@ impl Samples {
         body: &Body,
         walls: &[contact::Wall],
         zones: &Zones,
+        grids: &BTreeMap<SurfaceId, Grid>,
         beneath: &BTreeMap<SurfaceId, Vec<DVec3>>,
         tolerance: f64,
     ) -> Samples {
@@ -124,17 +137,27 @@ impl Samples {
             points: body.vertex_ids().map(|id| body.vertex(id).point).collect(),
             edges: Vec::new(),
             vertices: body.vertex_ids().count(),
+            grids: BTreeMap::new(),
         };
         let eps = body.scale().eps();
         let alone = BTreeMap::new();
+        let axes = Axes::of(body, grids, walls, tolerance);
+        let given = axes.given();
         let mut meets = on_meets(body, walls, zones, &alone, tolerance);
-        let mut contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
+        let mut contacts =
+            contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
         let meeting = body
             .edge_ids()
             .any(|id| matches!(body.curve(body.edge(id).curve), Curve::Meet(_)));
         if meeting {
             meets = on_meets(body, walls, zones, &contacts, tolerance);
-            contacts = contact::contacts(body, walls, zones, &meets, beneath, tolerance);
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+        }
+        let mut axes = axes.gathered(&contacts);
+        let gathered = axes.given();
+        if gathered != given {
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
+            axes = axes.gathered(&contacts);
         }
         let vertices = samples.points.clone();
         let alone = Contact::default();
@@ -144,9 +167,15 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Circle(circle) => {
-                    let contact = contact::wall_of(circle, walls, eps)
+                    let wall = contact::wall_of(circle, walls, eps);
+                    let contact = wall
                         .and_then(|(surface, _)| contacts.get(surface))
                         .unwrap_or(&alone);
+                    let on_axis = wall.and_then(|(surface, own)| {
+                        let clear = |point| !zones.crowded(own, point);
+                        axes.widened(contact, (circle, *surface), tolerance, eps, clear)
+                    });
+                    let contact = on_axis.as_ref().unwrap_or(contact);
                     let ends = Ends::of(body, circle, edge);
                     let planes = touching_planes(body, circle.center, circle.axis, circle.radius);
                     on_circle(circle, edge, tolerance, eps, contact, &ends, &planes)
@@ -217,6 +246,11 @@ impl Samples {
 
     pub(super) fn edge(&self, edge: EdgeId) -> &[usize] {
         &self.edges[edge.0 as usize]
+    }
+
+    /// How many steps a turn the grid of the cone `surface` has.
+    pub(super) fn steps(&self, surface: SurfaceId) -> Option<usize> {
+        self.grids.get(&surface).map(|grid| grid.steps)
     }
 
     /// Whether a sample is a vertex's own point.

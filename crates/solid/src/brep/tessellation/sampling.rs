@@ -165,6 +165,19 @@ impl Samples {
             contacts = contact::contacts(body, walls, zones, &meets, beneath, &gathered, tolerance);
             axes = axes.gathered(&contacts);
         }
+        let along = conic::rays_along(body, walls, zones, grids, &contacts, tolerance);
+        if !along.is_empty() {
+            let mut given = axes.given();
+            for (wall, rays) in along {
+                given.entry(wall).or_default().extend(rays);
+            }
+            contacts = contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            if meeting {
+                meets = on_meets(body, walls, zones, &contacts, tolerance);
+                contacts =
+                    contact::contacts(body, walls, zones, &meets, beneath, &given, tolerance);
+            }
+        }
         let vertices = samples.points.clone();
         let alone = Contact::default();
         let mut places = Places::new(eps * TOLD);

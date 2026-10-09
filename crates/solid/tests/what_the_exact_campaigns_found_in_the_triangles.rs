@@ -3229,3 +3229,58 @@ fn seed_5370402053_a_post_touching_along_a_line_the_end_of_a_bar_leaning_a_thous
         ))],
     ));
 }
+
+/// #552: a tube cut by a plane through its axis, leaning 6e-8 rad off it,
+/// along arms that all but run along its rulings. The ray at an end's own
+/// angle met the arm, read back off that angle, beyond the end by more than
+/// the tolerance — an angle that close to a ruling's is a place along the
+/// arm only to rounding times its length — and the cut face's outline
+/// doubled back on itself there.
+#[test]
+fn seed_9312005_a_tube_cut_through_its_axis_leaning_a_hair_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(22.5),
+            Axis::second(0.0).backwards(),
+            Section::bands(-12.5, &[[5.0, 20.0, 32.5]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-15.0, 10.0, 22.5], [3.4377468109587785e-6, 0.0, 0.0]),
+            Outline::rectangle([-38.0, -8.0], [38.0, 8.0]),
+            -38.0,
+        ))],
+    ));
+}
+
+/// #552: a shaft along X, a post standing across its end, and a plane
+/// leaning 45° about Z cut through both, touching the curve the shaft and
+/// the post meet along on the shaft's wall where it crosses it. The ellipse
+/// was halved between the rays the wall's circles take, the meet beside it
+/// was not, and their chords crossed by the tangency, where the two curves
+/// part only as the square of the distance: the shaft's wall could not be
+/// cut. Each sample of a conic on a cylinder is a ray of its wall, as each
+/// of a meet's is.
+#[test]
+fn seed_9314220_a_plane_touching_a_shaft_s_meet_with_a_post_on_its_wall_is_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(1.0),
+            Axis::first(9.0),
+            Section::bands(4.5, &[[7.0, 0.0, 1.5]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(4.0),
+                Outline::circle([8.5, 1.0], 2.5),
+                9.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([12.0, 1.0, 9.0], [90.0, 45.0, 0.0]),
+                Outline::rectangle([-8.0, -4.0], [3.0, 4.0]),
+                3.0,
+            )),
+        ],
+    ));
+}

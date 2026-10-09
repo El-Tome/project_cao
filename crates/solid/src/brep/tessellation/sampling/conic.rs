@@ -20,22 +20,30 @@
 //! surface that end lies on, as for a meet.
 
 use std::collections::BTreeMap;
-use std::f64::consts::TAU;
+use std::f64::consts::{PI, TAU};
 
 use glam::DVec3;
 
 use super::chords::halved;
 use super::cone::Grid;
 use super::ends::grazed;
-use super::{divisions, on_a_plane, touching_planes};
+use super::{divisions, on_a_plane, taken, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
+use crate::brep::curve::Curve;
 use crate::brep::surface::Surface;
-use crate::brep::tessellation::contact::{self, Zones};
+use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
 
 /// How many turns of its wall a stretch may run before its angles are given
 /// up on: a whole ellipse runs one, an arm less.
 const TURNS: f64 = 4.0;
+
+/// How near an end's own angle on the wall a grid angle or a ray stands at
+/// that end, as the outline reads a sample on a grid angle. An arm all but
+/// along the wall's rulings turns by a hair across the box: read back off an
+/// angle that close to an end's, the place along it is the end's only to
+/// rounding times the arm's length, and may land beyond the end.
+const AT_AN_END: f64 = 1e-9;
 
 /// Why a parameter is a sample, the stronger reason first: of two places
 /// closer than the kernel's tolerance, the one kept is the stronger.
@@ -94,6 +102,52 @@ pub(super) fn of_edge(
     }
 }
 
+/// The rays through every sample of every conic on a cylinder, and through
+/// its ends, for each wall that cylinder is: what its circles, and the
+/// curve it meets a perpendicular wall along, take for the conic, as the
+/// walls of a meet take its samples. A conic halved between the rays of its
+/// wall where a chord would leave it, beside a circle or a meet sampled
+/// only on those rays, has its chords cross theirs where the two touch,
+/// parting as the square of the distance from there: on the same rays,
+/// each strip between two holds both curves' chords in their order.
+pub(super) fn rays_along(
+    body: &Body,
+    walls: &[Wall],
+    zones: &Zones,
+    grids: &BTreeMap<SurfaceId, Grid>,
+    contacts: &BTreeMap<SurfaceId, Contact>,
+    tolerance: f64,
+) -> BTreeMap<SurfaceId, Vec<DVec3>> {
+    let mut along: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
+    for id in body.edge_ids() {
+        let edge = body.edge(id);
+        let Curve::Conic(conic) = body.curve(edge.curve) else {
+            continue;
+        };
+        let Round::Cylinder(cylinder) = conic.round else {
+            continue;
+        };
+        let rays = taken(&cylinder, walls, contacts);
+        let ends = edge
+            .ends
+            .into_iter()
+            .flatten()
+            .map(|end| body.vertex(end).point);
+        let ways: Vec<DVec3> = of_edge(body, edge, conic, zones, grids, &rays, tolerance)
+            .into_iter()
+            .chain(ends)
+            .filter_map(|point| {
+                let from = point - cylinder.origin;
+                (from - cylinder.axis * cylinder.axis.dot(from)).try_normalize()
+            })
+            .collect();
+        for (wall, _) in walls.iter().filter(|(_, wall)| *wall == cylinder) {
+            along.entry(*wall).or_default().extend(ways.iter().copied());
+        }
+    }
+    along
+}
+
 /// The angles of a grid of `steps` steps a turn.
 fn turn(steps: usize) -> Vec<f64> {
     (0..steps)
@@ -131,8 +185,14 @@ pub(in crate::brep::tessellation) fn on_conic(
             (high, Reason::End, conic.point(high)),
         ]
     };
+    let at_an_end = |angle: f64| {
+        !whole
+            && [start, end]
+                .iter()
+                .any(|end| ((angle - end + PI).rem_euclid(TAU) - PI).abs() <= AT_AN_END)
+    };
     for (reason, angles) in [(Reason::Grid, grid), (Reason::Ray, rays)] {
-        for at in angles {
+        for at in angles.iter().filter(|at| !at_an_end(**at)) {
             let (from, to) = (((first - at) / TAU).ceil(), ((last - at) / TAU).floor());
             if !(to - from).is_finite() || to - from > TURNS {
                 continue;

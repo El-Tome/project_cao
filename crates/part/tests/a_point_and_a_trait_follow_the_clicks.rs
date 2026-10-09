@@ -25,6 +25,9 @@
 //!   — `a_point_held_on_the_trait_that_comes_keeps_its_place_along_it`
 //! - a point tied to something by a value alone is not free: it follows the
 //!   clicks — `a_point_tied_by_a_value_follows_the_clicks_as_one_tied_by_a_trait`
+//! - tried in the app: a trait coming to a point clicked first slides across
+//!   to it, keeping its direction, rather than turning —
+//!   `a_trait_coming_to_a_point_clicked_first_keeps_its_direction`
 
 use cao_part::{Operation, Outcome, PartDocument, PointRef};
 use cao_sketch::{
@@ -482,5 +485,36 @@ fn a_point_tied_by_a_value_follows_the_clicks_as_one_tied_by_a_trait() {
     assert!(
         moved(&before, sketch, &ends(sketch, apart)) < ON,
         "a trait apart moved"
+    );
+}
+
+fn direction(sketch: &Sketch, segment: SegmentId) -> f64 {
+    let (start, end) = sketch.endpoints(segment);
+    (end - start).to_angle().to_degrees()
+}
+
+#[test]
+fn a_trait_coming_to_a_point_clicked_first_keeps_its_direction() {
+    let (mut document, d) = an_arc_and_a_trait();
+    let way = direction(&document.sketches()[0], d.line);
+    let length = document.sketches()[0].segment_length(d.line);
+
+    let outcome = laid(&mut document, d.held, d.line, true);
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(outcome, None, "the rule was refused");
+    assert!(
+        (direction(sketch, d.line) - way).abs() < 1e-6,
+        "the trait turned from {way}° to {}°",
+        direction(sketch, d.line)
+    );
+    assert!(
+        (sketch.segment_length(d.line) - length).abs() < 1e-6,
+        "the trait stretched from {length} to {}",
+        sketch.segment_length(d.line)
+    );
+    assert!(
+        off_the_line(sketch, d.held, d.line) < ON_THE_LINE,
+        "the point is off the trait"
     );
 }

@@ -27,8 +27,12 @@ enum Placing {
     /// with the ways up the drawing keeps, and is kept only if the first did
     /// stay.
     Ordinarily,
+    /// The trait slid square to itself until its line passes through the
+    /// point, its direction and its length kept.
+    SlidAcross,
     /// The trait turned about one of its ends until its line passes through
-    /// the point, its length kept.
+    /// the point, its length kept: when sliding it would squeeze its own
+    /// shape.
     TurnedAbout(PointId),
     /// The point taken square onto the trait's line.
     OntoTheLine,
@@ -91,6 +95,7 @@ impl Sketch {
                     false => (side.end, side.start),
                 };
                 let placings = vec![
+                    Placing::SlidAcross,
                     Placing::AsItIs,
                     Placing::Ordinarily,
                     Placing::TurnedAbout(far),
@@ -189,6 +194,20 @@ impl Sketch {
     ) -> Option<Vec<PointId>> {
         match placing {
             Placing::AsItIs | Placing::Ordinarily => Some(Vec::new()),
+            Placing::SlidAcross => {
+                let side = self.segments()[segment.0];
+                if [side.start, side.end]
+                    .iter()
+                    .any(|end| self.is_held(Element::Point(*end)))
+                {
+                    return None;
+                }
+                let step = self.point(point) - self.foot_on_segment(point, segment)?;
+                for end in [side.start, side.end] {
+                    self.move_point(end, self.point(end) + step);
+                }
+                Some(vec![side.start, side.end])
+            }
             Placing::TurnedAbout(pivot) => {
                 let side = self.segments()[segment.0];
                 let other = match side.start == pivot {

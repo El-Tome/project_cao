@@ -28,13 +28,12 @@
 //! already another point's. Between two free shapes apart, anything else is a
 //! flaw.
 //!
-//! Seeds 400 to 4798, some 310 000 rules laid, still found four drawings.
+//! Seeds 400 to 5199, some 340 000 rules laid, still found three drawings.
 //! Two of them, 2792 and 3874, hold a point on half an ellipse: it is taken
 //! back onto the stretch drawn whenever the drawing settles, and the ellipse
 //! moves with it — #531, not this rule, which is why points held on a cut
-//! ellipse are left out of what is weighed. 2935 is drawn with a hair, a
-//! rectangle a thousandth wide whose top is the trait. 2783, a single rule, is
-//! not understood yet.
+//! ellipse are left out of what is weighed. 2783, a single rule, is not
+//! understood yet.
 //!
 //! Two kinds of drawing the generator makes are left out, since no rule can
 //! land on them: one holding a trait of no length — a rectangle of no width —

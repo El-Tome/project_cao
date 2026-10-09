@@ -49,7 +49,6 @@ use std::f64::consts::PI;
 use glam::DVec3;
 
 use super::contact::{self, Contact, Zones};
-use crate::brep::conic::Round;
 use crate::brep::curve::Curve;
 use crate::brep::surface::Cylinder;
 use crate::brep::topology::{Body, EdgeId, SurfaceId};
@@ -186,10 +185,7 @@ impl Samples {
             let between = match body.curve(edge.curve) {
                 Curve::Line(_) => Vec::new(),
                 Curve::Conic(conic) => {
-                    let rays = match conic.round {
-                        Round::Cylinder(cylinder) => taken(&cylinder, walls, &contacts),
-                        Round::Cone(_) => Vec::new(),
-                    };
+                    let rays = conic::rays_about(conic, walls, &contacts, eps);
                     conic::of_edge(body, edge, conic, zones, grids, &rays, tolerance)
                 }
                 Curve::Circle(circle) => {

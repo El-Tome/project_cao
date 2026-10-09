@@ -27,9 +27,11 @@ use glam::DVec3;
 use super::chords::halved;
 use super::cone::Grid;
 use super::ends::grazed;
-use super::{divisions, on_a_plane, taken, touching_planes};
+use super::{divisions, on_a_plane, touching_planes};
 use crate::brep::conic::{Conic, On, Round};
 use crate::brep::curve::Curve;
+use crate::brep::scale::Scale;
+use crate::brep::surface::Cylinder;
 use crate::brep::surface::Surface;
 use crate::brep::tessellation::contact::{self, Contact, Wall, Zones};
 use crate::brep::topology::{Body, Edge, SurfaceId};
@@ -97,19 +99,21 @@ pub(super) fn of_edge(
             let own = [plane, Surface::Cone(cone)];
             let grazing = grazed(body, edge, &own, step);
             let clear = |point: DVec3| !grazing(point, eps * contact::APART);
-            on_conic(conic, edge, tolerance, eps, [&grid, &vertices], &clear)
+            let rays: Vec<f64> = vertices.iter().chain(rays).copied().collect();
+            on_conic(conic, edge, tolerance, eps, [&grid, &rays], &clear)
         }
     }
 }
 
-/// The rays through every sample of every conic on a cylinder, and through
-/// its ends, for each wall that cylinder is: what its circles, and the
-/// curve it meets a perpendicular wall along, take for the conic, as the
+/// The rays through every sample of every conic, and through its ends, for
+/// each wall about its wall's axis: what their circles, and the curve a
+/// cylinder meets a perpendicular wall along, take for the conic, as the
 /// walls of a meet take its samples. A conic halved between the rays of its
-/// wall where a chord would leave it, beside a circle or a meet sampled
-/// only on those rays, has its chords cross theirs where the two touch,
-/// parting as the square of the distance from there: on the same rays,
-/// each strip between two holds both curves' chords in their order.
+/// wall where a chord would leave it, beside a circle, a meet or another
+/// conic sampled on other angles about the same axis, has its chords cross
+/// theirs where the two touch or meet at a sharp angle, parting as the
+/// square of the distance from there: on the same rays, each strip between
+/// two holds both curves' chords in their order.
 pub(super) fn rays_along(
     body: &Body,
     walls: &[Wall],
@@ -118,16 +122,15 @@ pub(super) fn rays_along(
     contacts: &BTreeMap<SurfaceId, Contact>,
     tolerance: f64,
 ) -> BTreeMap<SurfaceId, Vec<DVec3>> {
+    let eps = body.scale().eps();
     let mut along: BTreeMap<SurfaceId, Vec<DVec3>> = BTreeMap::new();
     for id in body.edge_ids() {
         let edge = body.edge(id);
         let Curve::Conic(conic) = body.curve(edge.curve) else {
             continue;
         };
-        let Round::Cylinder(cylinder) = conic.round else {
-            continue;
-        };
-        let rays = taken(&cylinder, walls, contacts);
+        let (origin, axis) = about(&conic.round);
+        let rays = rays_about(conic, walls, contacts, eps);
         let ends = edge
             .ends
             .into_iter()
@@ -137,15 +140,54 @@ pub(super) fn rays_along(
             .into_iter()
             .chain(ends)
             .filter_map(|point| {
-                let from = point - cylinder.origin;
-                (from - cylinder.axis * cylinder.axis.dot(from)).try_normalize()
+                let from = point - origin;
+                (from - axis * axis.dot(from)).try_normalize()
             })
             .collect();
-        for (wall, _) in walls.iter().filter(|(_, wall)| *wall == cylinder) {
+        for (wall, _) in walls
+            .iter()
+            .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
+        {
             along.entry(*wall).or_default().extend(ways.iter().copied());
         }
     }
     along
+}
+
+/// The angles, about the conic's wall from its own `u`, of every ray the
+/// walls about the same axis take in `contacts`.
+pub(super) fn rays_about(
+    conic: &Conic,
+    walls: &[Wall],
+    contacts: &BTreeMap<SurfaceId, Contact>,
+    eps: f64,
+) -> Vec<f64> {
+    let (origin, axis) = about(&conic.round);
+    let (u, v) = match conic.round {
+        Round::Cylinder(cylinder) => (cylinder.u, cylinder.v),
+        Round::Cone(cone) => (cone.u, cone.v),
+    };
+    walls
+        .iter()
+        .filter(|(_, wall)| coaxial(wall, origin, axis, eps))
+        .filter_map(|(id, _)| contacts.get(id))
+        .flat_map(|contact| contact.rays.iter())
+        .map(|way| way.dot(v).atan2(way.dot(u)))
+        .collect()
+}
+
+fn about(round: &Round) -> (DVec3, DVec3) {
+    match round {
+        Round::Cylinder(cylinder) => (cylinder.origin, cylinder.axis),
+        Round::Cone(cone) => (cone.origin, cone.axis),
+    }
+}
+
+/// Whether a wall turns about the line through `origin` along `axis`.
+fn coaxial(wall: &Cylinder, origin: DVec3, axis: DVec3, eps: f64) -> bool {
+    let from = wall.origin - origin;
+    wall.axis.cross(axis).length() <= Scale::RELATIVE
+        && (from - axis * axis.dot(from)).length() <= eps
 }
 
 /// The angles of a grid of `steps` steps a turn.

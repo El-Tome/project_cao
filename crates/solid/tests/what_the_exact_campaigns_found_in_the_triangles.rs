@@ -3284,3 +3284,55 @@ fn seed_9314220_a_plane_touching_a_shaft_s_meet_with_a_post_on_its_wall_is_drawn
         ],
     ));
 }
+
+/// #552: a ring whose inner wall is a shaft and whose outer wall a cone
+/// meeting it at a sharp rim, cut by a plane leaning 15° that crosses that
+/// rim. The plane's face runs between the two conics into the wedge at the
+/// rim, where they part as the distance from it; each was sampled on its own
+/// wall's angles, and the chords of one crossed the other's triangles. The
+/// samples of a conic are rays of every wall about its axis, cone or shaft.
+#[test]
+fn seed_9512340_a_plane_across_the_sharp_rim_of_a_cone_on_a_shaft_is_drawn_uncrossed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(-15.0, &[[10.0, 15.0, 15.0]]).sloping_to(&[[15.0, 25.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([15.0, 5.0, 20.0], [0.0, -15.0, 0.0]),
+            Outline::rectangle([-20.0, -28.0], [8.0, 3.0]),
+            18.0,
+        ))],
+    ));
+}
+
+/// #552: a frustum cut by a plane through a point of its narrow rim,
+/// leaning about the rim's tangent there, then a shaft of that rim's radius
+/// joined on its axis. The conics the plane cuts the frustum and the shaft
+/// along touch at the rim, and the plane's face between them could not be
+/// cut where their chords, taken at angles of their own walls, crossed.
+#[test]
+fn seed_9311810_two_conics_touching_at_a_frustum_s_rim_are_drawn_closed() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::first(2.0).backwards(),
+            Section::bands(4.0, &[[0.5, -1.5, 0.5]]).sloping_to(&[[-2.0, 0.5]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-4.75, 2.0, -1.0], [0.0, -63.43494882292201, 0.0]),
+                Outline::rectangle([-3.0, -3.0], [3.0, 3.0]),
+                2.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::yz(-4.5),
+                Outline::circle([2.0, -1.0], 1.5),
+                4.0,
+            )),
+        ],
+    ));
+}

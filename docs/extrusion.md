@@ -117,8 +117,11 @@ the simpler methods.
 
 ### A step the exact kernel declines
 
-Some steps the exact kernel does not build yet — a cylinder meeting a face at a
-slant, two cylinders at a skew angle where they actually cross. It then
+Some steps the exact kernel does not build yet — a radial hole in a cone, two
+cylinders at a skew angle where they actually cross. A hole drilled through a
+slanted face, a shaft cut at a slant or a flat milled on a chamfer are built
+since #552: a plane meets a cylinder or a cone at any angle along a conic. It
+then
 declines rather than hand back a solid it cannot vouch for, and the step is
 **broken**: the part stands as it was before it, the notice says the kernel
 cannot build that operation yet, and the part tree marks the step. There is

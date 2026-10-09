@@ -4,6 +4,8 @@ use super::*;
 use crate::brep::curve::Meet;
 use crate::brep::meet::Meeting;
 
+mod conic;
+
 /// The crossings found, each checked to lie on the curve at its parameter and
 /// on the surface, and the list sorted.
 fn found(curve: &Curve, surface: &Surface, within: f64) -> Vec<Crossing> {

@@ -49,6 +49,18 @@
 //! the line they cross along are decided, once, to graze where every corner
 //! of either where their faces meet stands within the tolerance of both,
 //! and two corners within it of each other, one on each, are then one.
+//!
+//! Round 2 of #552 sorts the tilted draws measured at `daf2079`, and the six
+//! seeds that held at `34a1b64` and fail there, under two keys:
+//! `near-parallel-planes` where two planes cross nearer parallel than the
+//! angle that fixes the line they share (`ACROSS`, canonical/planes.rs) —
+//! decided to graze, or a hair too far apart for that — and the corners
+//! they make with a third surface are kept apart or placed off each other
+//! along that line (canonical/corners.rs); `hair-from-tangent` where a plane
+//! at a slant a hair from tangent to a wall cuts it along an ellipse turning
+//! within a few dozen tolerances, or a conic is cut a hair from a cone's rim
+//! or apex: the issue's second default, named, with no band and no decline
+//! added.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -6137,5 +6149,306 @@ fn seed_5520210646_a_slab_cut_a_hair_from_its_floor_s_edge_at_75_degrees_then_fr
                 2.0,
             )),
         ],
+    ));
+}
+
+/// 5541124475 as drawn, #552's tilted campaign on the exact kernel. Holds on
+/// `34a1b64` and fails since the grazing planes (`cecca2f`); its shrunk core
+/// below fails on `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as a tie in a face's overlay"]
+fn seed_5541124475_as_drawn_a_block_leaning_1e_7_degrees_joined_to_two_square_blocks() {
+    random_solids::holds_exactly(&Case::drawn_tilted_off_the_lattice(5541124475));
+}
+
+/// A block leaning 1e-7° about Y joined to a square block, then to a wider
+/// one. The leaning block's floor is decided to graze the first block's at
+/// the first join; at the second, one pair of the leaning block's faces
+/// stands 1.25 tolerances apart across the box their faces may meet in: not
+/// grazing, and too near parallel to fix the line they share. The overlay
+/// of a face finds a tie. Fails on `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: two planes 1.25 tolerances apart across their box neither graze nor fix their line; declined as a tie in a face's overlay"]
+fn seed_5541124475_a_block_leaning_1e_7_degrees_joined_to_two_square_blocks() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([20.0, 5.0, 0.0], [0.0, 1e-7, 0.0]),
+            Outline::rectangle([25.0, 13.0], [50.0, 23.0]),
+            8.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([28.0, 3.0], [53.0, 28.0]),
+                15.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(0.0),
+                Outline::rectangle([20.0, -5.0], [70.0, 45.0]),
+                13.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's tilted campaign through the application's body: a rounded block
+/// joined to a block leaning 1e-7° about Y, then cut by a block and a cone.
+/// A face of each is decided to graze the other's at the join, and the cone
+/// then crosses a curve the kernel finds no crossing with: declined as
+/// unsupported
+/// (combine/crossed.rs). Holds on `34a1b64`, fails since the grazing planes
+/// (`cecca2f`).
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as unsupported once two faces graze"]
+fn seed_5541221936_a_rounded_block_joined_to_a_block_leaning_1e_7_degrees_then_cut_by_a_block_and_a_cone()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(240.0),
+            Outline::rounded([150.0, 255.0], [270.0, 345.0], 15.0),
+            195.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::tilted([225.0, 255.0, 405.0], [0.0, 1e-7, 0.0]),
+                Outline::rectangle([-60.0, -60.0], [60.0, 75.0]),
+                45.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([225.0, 300.0, 360.0], [90.0, 0.0, 0.0]),
+                Outline::rectangle([-30.0, 0.0], [120.0, 45.0]),
+                75.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(195.0),
+                Axis::first(0.0),
+                Section::bands(90.0, &[[45.0, 0.0, 69.0]]).sloping_to(&[[0.0, 75.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// 5541236206 as drawn, #552's tilted campaign through the application's
+/// body. Holds on `34a1b64` and fails since the grazing planes (`cecca2f`);
+/// its shrunk core below fails on `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as unverified"]
+fn seed_5541236206_as_drawn_a_post_cut_by_a_block_whose_face_leans_2e_7_degrees_off_its_end() {
+    random_solids::holds_through_the_application(&Case::drawn_tilted_off_the_lattice(5541236206));
+}
+
+/// A post along X cut by a block whose face leans 2e-7° off the post's end
+/// and stands 5e-9 past it. The face and the end stand 1.2 tolerances apart
+/// across their box: they neither graze nor fix the line they share, and
+/// the corners the post's wall makes with each are kept apart. A scratch
+/// waiver in `parted` (canonical/corners.rs) for a place within the
+/// tolerance of both makes it hold. Fails on `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: a face 1.2 tolerances from a post's end across their box neither grazes it nor fixes their line; declined as unverified"]
+fn seed_5541236206_a_post_cut_by_a_block_whose_face_leans_2e_7_degrees_off_its_end() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(0.0),
+            Section::bands(4.0, &[[6.0, -2.0, -0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [10.000000005342956, 3.333333831179175e-17, 5.0],
+                [0.0, -89.99999980901404, 0.0],
+            ),
+            Outline::rectangle([-3.0, -1.0], [3.0, 3.0]),
+            1.0,
+        ))],
+    ));
+}
+
+/// #552's tilted campaign through the application's body, round 0's seed
+/// run again: a stepped double cone cut by a block 1.8e-6 off the lattice,
+/// then by a plane leaning 4e-8° off square to its axis. The plane is
+/// decided to graze another plane of the part, and two conics on the cone
+/// and two lines are left with one face each. Holds on `34a1b64` and with
+/// the hair lane alone (`25e824f`), fails with the grazing planes
+/// (`cecca2f`).
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as unverified"]
+fn seed_5520207605_a_stepped_double_cone_cut_by_a_block_off_the_lattice_and_a_plane_leaning_4e_8_degrees()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(210.0),
+            Axis::second(0.0),
+            Section::bands(90.0, &[[15.0, 0.0, 30.0], [105.0, 0.0, 30.0]])
+                .sloping_to(&[[0.0, 45.0], [0.0, 135.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::yz(29.9999982),
+                Outline::rectangle([75.0, 60.0], [285.0, 360.0]),
+                180.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 105.0, 165.0], [-89.99999996, 0.0, 0.0]),
+                Outline::rectangle([-150.0, -210.0], [150.0, 120.0]),
+                195.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's turned campaign through the application's body, round 0's seed
+/// run again: a post whose axis leans 1e-7 joined to two blocks. The post's
+/// end is decided to graze a block's face at each join, and a dozen of the
+/// edges round them are left with one face each. Holds on `34a1b64` and with
+/// the hair lane alone (`25e824f`), fails with the grazing planes
+/// (`cecca2f`).
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since the grazing planes (cecca2f); declined as unverified"]
+fn seed_5520600321_a_post_whose_axis_leans_1e_7_joined_to_two_blocks() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::yz(5.0),
+            Axis::second(5.0).backwards().leaning(1e-7),
+            Section::bands(-2.0, &[[6.0, 0.0, 6.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(2.0),
+                Outline::rectangle([4.0, 10.0], [9.0, 15.0]),
+                4.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(1.0),
+                Outline::rectangle([6.0, 6.0], [8.0, 13.0]),
+                8.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's tilted campaign through the application's body: a block leaning
+/// 1e-3° about Y cut by two blocks and a post. The square blocks' faces
+/// cross the leaning block's at 1e-3°, under the angle that fixes the line
+/// two planes share; an operand's own corner on them stands where its
+/// operand built it (`placed`, canonical/corners.rs), and edges 1.5e-4 long
+/// are left with one face each. Placed as any other corner, it holds. Holds
+/// on `34a1b64` and with the grazing planes alone (`cecca2f`), fails with
+/// the hair lane (`25e824f`).
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: holds on 34a1b64 and fails since an operand's own corner stays where it was built (25e824f); declined as unverified"]
+fn seed_5541239472_a_block_leaning_1e_3_degrees_cut_by_two_blocks_and_a_post() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::tilted([25.0, 15.0, 25.0], [0.0, -0.001, 0.0]),
+            Outline::rectangle([-5.0, 5.0], [17.5, 30.0]),
+            -43.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xy(20.0),
+                Outline::rectangle([15.0, 30.0], [42.5, 42.5]),
+                40.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(40.0),
+                Outline::rectangle([28.0, 18.0], [53.0, 43.0]),
+                23.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xy(43.0),
+                Axis::first(0.0),
+                Section::bands(5.0, &[[25.0, 0.0, 13.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's tilted campaign: a block cut by a block whose face leans 1e-5°
+/// about X off the first's side and crosses it halfway up. The two faces
+/// cross along a line inside both, the wedge between them up to sixteen
+/// tolerances thick: too far apart to graze, too near parallel to fix that
+/// line, and the wedge's edges are left with one face each. Fails on
+/// `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: two faces crossing at 1e-5 degrees inside both leave a wedge whose edges each keep one face; declined as unverified"]
+fn seed_5541126238_a_block_cut_by_a_block_whose_face_leans_1e_5_degrees_off_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rectangle([7.0, 6.5], [13.5, 9.5]),
+            7.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([8.5, 6.5, 7.75], [89.99999, 0.0, 0.0]),
+            Outline::rectangle([-3.0, -2.0], [3.0, 3.0]),
+            5.0,
+        ))],
+    ));
+}
+
+/// #552's tilted campaign: a turn of 315° about X cut by a block whose floor
+/// leans 1e-7° about Y off the plane the turn starts in. The floor is
+/// decided to graze the turn's start face, and four lines on them are left
+/// with one face each. Fails on `34a1b64` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 2 triage: a floor decided to graze a turn's start face; declined as unverified"]
+fn seed_5541139119_a_turn_of_315_degrees_cut_by_a_block_whose_floor_leans_1e_7_degrees_off_its_start()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(1.0),
+            Axis::first(0.0),
+            Section::bands(-2.0, &[[4.0, 0.0, 5.0]]),
+            315.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-4.0, 0.0, 1.0], [0.0, 1e-7, 0.0]),
+            Outline::rectangle([-7.0, -6.0], [7.0, 6.0]),
+            6.0,
+        ))],
+    ));
+}
+
+/// #552's tilted campaign: a post along Z cut by a block whose sides stand
+/// at the post's radius, leaning 1e-5° about X. Each side cuts the wall
+/// along an ellipse whose vertex, in the box, turns on a radius of fifty
+/// tolerances. `34a1b64` fails it too.
+#[test]
+#[ignore = "hair-from-tangent, #552's round 2 triage: a plane at a slant a hair from tangent to a wall cuts it along an ellipse turning within fifty tolerances (the issue's second default: no band is added); declined as unverified"]
+fn seed_5541111069_a_post_cut_by_a_block_whose_sides_touch_its_wall_leaning_1e_5_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-1.0), Outline::circle([3.0, 4.0], 1.5), 5.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([3.0, 4.0, 1.0], [-1e-5, 0.0, 0.0]),
+            Outline::rectangle([-1.0, -1.5], [1.0, 1.5]),
+            -3.0,
+        ))],
+    ));
+}
+
+/// #552's tilted campaign: a frustum about Y cut by a block whose side holds
+/// the axis's direction 1e-7 inside the frustum's wide rim, along a
+/// hyperbola whose vertex stands that hair from the rim. `34a1b64` fails it
+/// too.
+#[test]
+#[ignore = "hair-from-tangent, #552's round 2 triage: a conic cut a hair from a cone's rim (the issue's second default: no band is added); declined as a tie in a face's overlay"]
+fn seed_5541109790_a_frustum_cut_along_its_axis_1e_7_inside_its_wide_rim() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(0.0),
+            Axis::second(0.0),
+            Section::bands(5.0, &[[2.5, 0.0, 12.5]]).sloping_to(&[[0.0, 5.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::yz(-12.4999999),
+            Outline::rectangle([3.0, -18.0], [48.0, 18.0]),
+            8.0,
+        ))],
     ));
 }

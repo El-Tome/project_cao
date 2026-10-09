@@ -1146,9 +1146,11 @@ tree.
 | slanted, on the exact kernel | `ba3224d` | 536800000 | 30 000 | 93 | 3.10 | 8 598 |
 | slanted, through the application's body | `ba3224d` | 536900000 | 15 000 | 59 | 3.93 | 4 189 |
 
-**The bar is not met.** One case in a thousand is the issue's; what is
-left is, case for case, the hairs below. On the fixed tree no ray lost its
-way out of a cone (`Spans`) any more.
+**The bar was not met on these two campaigns.** One case in a thousand is
+the issue's; what was left was, case for case, the hairs below. On the
+fixed tree no ray lost its way out of a cone (`Spans`) any more. Four
+rounds of lanes followed, and every draw is now under the bar: see
+[The final count](#the-final-count) below.
 
 **Fixed:**
 
@@ -1268,3 +1270,45 @@ same seeds:
 
 Every seed failing on `833daa9` fails on `ae20fa9`, by the same rule;
 5365205368, 5365208585 and 5365211513 hold.
+
+### The final count
+
+Each round was measured on fresh seeds, in release, the seven draws side
+by side; the journal (`exact-kernel-journal.md`, 8 and 9 October) has each
+round's table, the seeds that held on the round's base and failed on its
+tip, and the gate's time. Failures in a thousand:
+
+| Draw | round 1 | round 2 | round 3 | round 4 |
+| --- | --- | --- | --- | --- |
+| slanted, exact kernel | 0.88 | 0.55 | 0.35 | 0.50 |
+| slanted, application's body | 1.05 | 0.73 | 0.40 | 0.20 |
+| turned, exact kernel | 0.70 | 0.33 | 0.30 | 0.47 |
+| turned, application's body | 0.50 | 0.70 | 0.43 | 0.50 |
+| square | 0.07 | 0.07 | 0 | 0.13 |
+| profiles, exact kernel | 0.45 | 0.50 | 0.20 | 0.10 |
+| profiles, application's body | 0.35 | 0.45 | 0.15 | 0.15 |
+
+Round 4, at `594dec4`, 40 000 slanted cases a draw, 30 000 turned and
+square, 20 000 profiles: every draw is under one failure in a thousand,
+and every failure fails on the round's base (`dcce010`) too, by the same
+rule. Over round 1's first 15 000 slanted seeds, base and tip fail on the
+same seeds, five on the exact kernel and two through the body.
+
+**What is left, by family**, the 66 failures of round 4, shrunk:
+
+| family | failures |
+| --- | --- |
+| coaxial turns with a cone, five of them partial | 9 |
+| no cone at all, eight of them straight turns | 11 |
+| a cone with prisms | 4 |
+| a single cone alone, two of them refused | 3 |
+| a cone beside a turn about another axis | 1 |
+| turned, square and profile draws: straight turns (#533's families) | 26 |
+| turned, square and profile draws: prisms alone (#533's families) | 12 |
+
+By the rule broken: refused (`Answers`) 37, drawn crossing (`Uncrossed`)
+23, left open (`Closed`) 2, a volume off 2, a span off along a line 1, a
+face listed backwards 1. The seeds named in the rounds before and still
+failing, among them 5365104153 (a stepped post ending in a point joined to
+a sixth of a turn of a coaxial post), stay ignored with their reason in
+`what_the_exact_campaigns_found_in_the_kernel.rs` and `…_triangles.rs`.

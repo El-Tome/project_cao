@@ -88,6 +88,9 @@ Known and still open:
   or triangles drawing a right body badly. The crescent's tip, two walls of
   one radius crossing a hair apart under a plane, has its band since #528;
   what it leaves is listed in `exact-kernel-failures.md`;
+- a cone's own (#536): partial turns about a cone's axis, coaxial turns
+  with a cone and a cone beside prisms, under one failure in a thousand
+  random parts; `exact-kernel-failures.md` counts them by family;
 - a face bounded by the curve two perpendicular cylinders meet is never
   decided clear of a face at a slant, so such a pair still declines.
 

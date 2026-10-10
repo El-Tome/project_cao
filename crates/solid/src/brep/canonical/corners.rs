@@ -271,7 +271,11 @@ const ROUNDING: f64 = 1e-3;
 /// crossing, and the node a band puts on the other there, are one corner on
 /// both. Nor are two planes decided to graze: within the tolerance of each
 /// other wherever their faces may meet, far from the line they cross along
-/// too, a place on one within it of the other is on both (5520121880).
+/// too, a place on one within it of the other is on both (5520121880). Nor
+/// two too near parallel to fix that line where the place stands within
+/// rounding of both: the line is fixed only to that rounding over the sine
+/// of their angle, and the place is on it however far from it the line was
+/// computed (5542123080).
 fn parted(
     point: DVec3,
     one: &[SurfaceId],
@@ -291,6 +295,7 @@ fn parted(
             if registry.apart.touch(a, b)
                 || registry.apart.graze(a, b)
                 || registry.planes.graze(a, b)
+                || registry.planes.meet_at(a, b, point, eps * ROUNDING)
             {
                 return false;
             }

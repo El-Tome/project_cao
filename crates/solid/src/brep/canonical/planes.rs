@@ -14,6 +14,11 @@
 //! two arcs, one within the tolerance and the next a hair past it, would
 //! make one arc of the two at one end and leave them two at the other
 //! (5520267036, 5520167649).
+//!
+//! Two too near parallel to fix their line, not grazing, still cross along
+//! it, fixed across only to rounding over the sine of their angle: a place
+//! within rounding of both is on it, however far from it the line was
+//! computed ([`Planes::meet_at`]).
 
 use std::collections::BTreeSet;
 
@@ -152,6 +157,21 @@ impl Planes {
     /// Whether two planes were decided to graze.
     pub fn graze(&self, one: SurfaceId, other: SurfaceId) -> bool {
         self.grazing.contains(&[one.min(other), one.max(other)])
+    }
+
+    /// Whether two planes too near parallel to fix the line they share both
+    /// pass within `rounding` of `point`: the line is fixed only to that
+    /// rounding over the sine of their angle, and the place is on it however
+    /// far from it it was computed.
+    pub fn meet_at(&self, one: SurfaceId, other: SurfaceId, point: DVec3, rounding: f64) -> bool {
+        let plane = |surface: SurfaceId| self.planes.get(surface.0 as usize).copied().flatten();
+        let (Some(first), Some(second)) = (plane(one), plane(other)) else {
+            return false;
+        };
+        first.0.cross(second.0).length() < ACROSS
+            && [first, second]
+                .iter()
+                .all(|(normal, offset)| (normal.dot(point) - offset).abs() <= rounding)
     }
 
     pub fn is_plane(&self, surface: SurfaceId) -> bool {

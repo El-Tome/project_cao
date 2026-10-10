@@ -717,6 +717,50 @@ fn a_corner_on_two_planes_across_each_other_stands_on_the_line_they_share_neares
     assert!(placed.distance(DVec3::new(105.0, 17.0, -120.0)) < 1e-12);
 }
 
+/// Seed 5542123080 of #552's tilted draws, round 3: a top at 7 and a floor
+/// leaning 1e-5° about Y off it, at a reach of 13, and a side at `y = 1`.
+/// The line the two cross along is fixed only to rounding over the sine of
+/// their angle, and stands 2e-8 from the corner of the top and the side,
+/// which the floor passes within rounding of: a corner the floor and the
+/// side meet at there is one with it.
+#[test]
+fn a_corner_within_rounding_of_two_planes_too_near_parallel_to_fix_their_line_is_on_it() {
+    let scale = Scale::of(13.0);
+    let surfaces = vec![
+        plane_at(7.0, DVec3::Z),
+        Surface::Plane(Plane {
+            origin: DVec3::new(-1.2217301565477156e-6, 0.0, 6.999998167404074),
+            normal: DVec3::new(-1.7453292519943212e-7, 0.0, 0.9999999999999849),
+            u: DVec3::new(0.0, 1.0, 0.0),
+            v: DVec3::new(-0.9999999999999849, 0.0, -1.7453292519943212e-7),
+        }),
+        plane_at(1.0, DVec3::Y),
+    ];
+    let [top, floor, side] = [0, 1, 2].map(SurfaceId);
+    let mut registry = Registry::new(
+        scale,
+        Apart::of(&surfaces, |_| scale),
+        Planes::of(&surfaces),
+    );
+    let Relation::Line(crossing) = relation(&surfaces[0], &surfaces[1], scale) else {
+        panic!("the top and the floor cross along a line");
+    };
+    registry.register(Curve::Line(crossing), &[top, floor]);
+    let on_the_top = DVec3::new(10.5, 1.0, 7.0);
+    assert!(super::curves::distance(&Curve::Line(crossing), on_the_top) > scale.eps());
+    let mut pool = Pool::new(scale.eps());
+    let ranks = [
+        pool.add(on_the_top, [top, side], [], &registry),
+        pool.add(
+            DVec3::new(10.5, 1.0, 7.000000000000002),
+            [floor, side],
+            [],
+            &registry,
+        ),
+    ];
+    assert_eq!(ranks, [0, 0]);
+}
+
 /// A top at 9.5, a floor leaning `sine` about X off it along the line at
 /// `y = across`, and a side at `y = 2`, at a reach of 15, faces of the top
 /// and of the floor meeting from `y = -1` to `y = faces`; the line the top

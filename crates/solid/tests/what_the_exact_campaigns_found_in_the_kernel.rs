@@ -71,7 +71,16 @@
 //! with a line (combine/identified.rs) — all three regressions are of it;
 //! `near-parallel-planes` keeps the planes alone, two too near parallel to
 //! fix their line, their faces drawn through each other or their corners
-//! parted (canonical/planes.rs, canonical/corners.rs).
+//! parted (canonical/planes.rs, canonical/corners.rs). Part of it holds
+//! since such a line is fixed across only to rounding over the sine of the
+//! planes' angle, and a place within rounding of both is on it. Left: two
+//! corners found on the same three planes, two of them so, more than the
+//! tolerance apart along that line; corners found on such a line, each
+//! within rounding of both planes, standing off the line as computed by
+//! more than the tolerance; two whole curves within the tolerance of each
+//! other all round, a rim and the ellipse a plane a hair off its own cuts
+//! the wall along; and the two planes of one lean, one pair decided to
+//! graze and the next not.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -6613,11 +6622,12 @@ fn seed_5542133393_a_post_cut_by_a_block_whose_floor_leans_1e_7_degrees_on_its_e
 /// #552's round 3 on the exact kernel: a rounded block cut by a block
 /// leaning 1e-5° about Y from its top: the leaning faces and the block's
 /// cross too near parallel to fix their line, without grazing, and the
-/// overlay of a face finds a tie. Holds once a corner within the tolerance
-/// of two such planes is not parted (canonical/corners.rs). Fails on
-/// `7411e98` too.
+/// overlay of a face finds a tie. Fails on `7411e98` too. Holds since a
+/// place within rounding of two planes too near parallel to fix their line
+/// is on it, however far from it the line was computed: the corner the
+/// block's side and round make with the top, and the one they make with
+/// the leaning face, are one (canonical/corners.rs).
 #[test]
-#[ignore = "near-parallel-planes, #552's round 3 triage: corners within the tolerance of two planes 1e-5 degrees apart are parted; declined as a tie in a face's overlay"]
 fn seed_5542123080_a_rounded_block_cut_by_a_block_leaning_1e_5_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(

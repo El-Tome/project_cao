@@ -6429,7 +6429,7 @@ fn seed_5541139119_a_turn_of_315_degrees_cut_by_a_block_whose_floor_leans_1e_7_d
 /// along an ellipse whose vertex, in the box, turns on a radius of fifty
 /// tolerances. `34a1b64` fails it too.
 #[test]
-#[ignore = "hair-from-tangent, #552's round 2 triage: a plane at a slant a hair from tangent to a wall cuts it along an ellipse turning within fifty tolerances (the issue's second default: no band is added); declined as unverified"]
+#[ignore = "hair-from-tangent, #552's round 2 triage: a plane at a slant a hair from tangent to a wall cuts it along an ellipse turning within fifty tolerances (the issue's second default: no band is added); its corners stand on the hairpin since the triple is decided there, and the sliver it leaves, thinner than the rules' room towards its tip, is drawn crossing itself"]
 fn seed_5541111069_a_post_cut_by_a_block_whose_sides_touch_its_wall_leaning_1e_5_degrees() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(-1.0), Outline::circle([3.0, 4.0], 1.5), 5.0),
@@ -6446,7 +6446,6 @@ fn seed_5541111069_a_post_cut_by_a_block_whose_sides_touch_its_wall_leaning_1e_5
 /// hyperbola whose vertex stands that hair from the rim. `34a1b64` fails it
 /// too.
 #[test]
-#[ignore = "hair-from-tangent, #552's round 2 triage: a conic cut a hair from a cone's rim (the issue's second default: no band is added); declined as a tie in a face's overlay"]
 fn seed_5541109790_a_frustum_cut_along_its_axis_1e_7_inside_its_wide_rim() {
     random_solids::holds_exactly(&Case::new(
         Leaf::turned(

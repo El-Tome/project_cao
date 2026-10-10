@@ -6,8 +6,8 @@ use super::*;
 use crate::brep::curve::Curve;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
-use crate::brep::surface::{Plane, Surface};
-use crate::brep::topology::{Edge, Vertex};
+use crate::brep::surface::{Cone, Plane, Surface};
+use crate::brep::topology::{CurveId, Edge, Vertex, VertexId};
 use crate::profile::{Contour, Frame, Run};
 use crate::soundness::listed;
 
@@ -357,6 +357,68 @@ fn a_circle_running_within_the_tolerance_of_a_side_between_two_corners_is_that_s
             .expect("the boss's wall") as u32,
     );
     assert!(support_of(&laid, edge).contains(&wall));
+}
+
+/// Seed 5541109790 of #552's tilted campaign: a frustum's wide rim cut 1e-7
+/// inside by a plane along its axis. Between the two corners where the line
+/// that plane shares with the rim's plane crosses the frustum, the
+/// hyperbola it cuts the frustum along rises two thirds of the tolerance
+/// over the line: one arc. Kept as the line, the frustum would see it as
+/// the segment between its ends in its own parameters — the rim itself, two
+/// tolerances off the line — and the rim's arc there twice over.
+#[test]
+fn a_line_and_a_conic_one_arc_between_two_corners_are_kept_as_the_conic_its_wall_sees_bend() {
+    let scale = Scale::of(50.0);
+    let frustum = Cone::through(
+        DVec3::ZERO,
+        DVec3::Y,
+        [DVec2::new(5.0, 12.5), DVec2::new(7.5, 5.0)],
+    );
+    let rim = Plane::through(DVec3::new(0.0, 5.0, 0.0), DVec3::Y).0;
+    let side = Plane::through(DVec3::new(-12.499_999_9, 0.0, 0.0), DVec3::X).0;
+    let surfaces = [
+        Surface::Cone(frustum),
+        Surface::Plane(rim),
+        Surface::Plane(side),
+    ];
+    let Relation::Line(line) = relation(&surfaces[1], &surfaces[2], scale) else {
+        panic!("the rim's plane and the side cross");
+    };
+    let Relation::Conic(hyperbola) = relation(&surfaces[0], &surfaces[2], scale) else {
+        panic!("the side cuts the frustum at a slant");
+    };
+    let half = (12.5_f64.powi(2) - 12.499_999_9_f64.powi(2)).sqrt();
+    let corners = [-half, half].map(|z| DVec3::new(-12.499_999_9, 5.0, z));
+    let curves = [Curve::Line(line), Curve::Conic(hyperbola[0])];
+    let arc = |rank: usize| {
+        let [from, to] = corners.map(|corner| curves[rank].parameter(corner));
+        let ends = [VertexId(0), VertexId(1)];
+        Edge {
+            curve: CurveId(rank as u32),
+            ends: Some(if from < to { ends } else { [ends[1], ends[0]] }),
+            from: from.min(to),
+            to: from.max(to),
+        }
+    };
+    let (edges, lying) = identified::identified(
+        vec![arc(0), arc(1)],
+        vec![
+            vec![SurfaceId(1), SurfaceId(2)],
+            vec![SurfaceId(0), SurfaceId(2)],
+        ],
+        &curves,
+        &Apart::of(&surfaces, |_| scale),
+        scale.eps(),
+    );
+    let [kept] = edges.as_slice() else {
+        panic!("one arc expected, got {edges:?}");
+    };
+    assert!(
+        matches!(curves[kept.curve.0 as usize], Curve::Conic(_)),
+        "kept as {:?}",
+        curves[kept.curve.0 as usize]
+    );
+    assert_eq!(lying[0], [SurfaceId(0), SurfaceId(1), SurfaceId(2)]);
 }
 
 /// Seed 1026137 of the campaign: a block cut by a block flush with its side

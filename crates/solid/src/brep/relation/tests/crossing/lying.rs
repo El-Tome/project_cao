@@ -163,3 +163,78 @@ fn the_rulings_cross_the_plane_of_the_line_they_cross_most_steeply() {
         assert!(found.distance(*ruling) <= 1e-12 * REACH, "{found} {ruling}");
     }
 }
+
+/// A point about Z: tip at height 10, base of radius 5 on the XY plane.
+fn point() -> Surface {
+    Surface::Cone(crate::brep::surface::Cone::through(
+        DVec3::ZERO,
+        DVec3::Z,
+        [glam::DVec2::new(0.0, 5.0), glam::DVec2::new(10.0, 0.0)],
+    ))
+}
+
+/// A plane at the point's slope, `below` under its tip along Z: it touches
+/// the point along the ruling through `(5, 0, 0)` when `below` is within the
+/// tolerance, and cuts it along a parabola otherwise.
+fn along_the_ruling(below: f64) -> Surface {
+    plane(
+        DVec3::new(0.0, 0.0, 10.0 - below),
+        DVec3::new(2.0, 0.0, 1.0),
+    )
+}
+
+/// 5541100672's kind: a plane through a point's tip within the tolerance,
+/// along a ruling, is decided to touch it along that ruling; the rim of the
+/// base, which the plane cuts a third of a millimetre either side of the
+/// ruling's foot, touches it there, as the ruling crosses the base.
+#[test]
+fn the_rim_of_a_point_touches_a_plane_touching_the_point_along_a_ruling_at_the_ruling_s_foot() {
+    let eps = scale().eps();
+    let base = plane(DVec3::ZERO, DVec3::Z);
+    let touching = along_the_ruling(eps / 2.0);
+    assert!(matches!(
+        relation(&point(), &touching, scale()),
+        Relation::Ruling { .. }
+    ));
+    let Relation::Circle(rim) = relation(&point(), &base, scale()) else {
+        panic!("the base cuts the point along its rim");
+    };
+    let rim = Curve::Circle(rim);
+    assert_eq!(points(crossings(&rim, &touching, scale())).len(), 2);
+    let found = crossings_lying(
+        &rim,
+        &lying(&[&base, &point()], &touching),
+        &touching,
+        scale(),
+        &Touches::default(),
+    );
+    let Crossings::At(found) = found else {
+        panic!("points expected, got {found:?}");
+    };
+    assert_eq!(found.len(), 1, "{found:?}");
+    assert!(found[0].tangent);
+    assert!(
+        found[0].point.distance(DVec3::new(5.0, 0.0, 0.0)) <= 1e-12 * REACH,
+        "{found:?}"
+    );
+}
+
+#[test]
+fn the_rim_of_a_point_crosses_a_plane_holding_its_axis_as_before() {
+    let base = plane(DVec3::ZERO, DVec3::Z);
+    let holding = plane(DVec3::ZERO, DVec3::new(1.0, 1.0, 0.0));
+    let Relation::Circle(rim) = relation(&point(), &base, scale()) else {
+        panic!("the base cuts the point along its rim");
+    };
+    let rim = Curve::Circle(rim);
+    assert_eq!(
+        crossings_lying(
+            &rim,
+            &lying(&[&base, &point()], &holding),
+            &holding,
+            scale(),
+            &Touches::default(),
+        ),
+        crossings(&rim, &holding, scale()),
+    );
+}

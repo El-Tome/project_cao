@@ -10,12 +10,17 @@
 //! whichever curve reaches it. Two conics of one plane meet through their
 //! walls, two of one wall through their planes: no quartic is solved.
 //!
+//! Where the line of `P` and `S` grazes `Q` and one of the two planes meets
+//! `Q` more grazingly still, the corner is decided on that plane's hairpin
+//! instead, as the line's own crossing is (`grazed.rs`).
+//!
 //! A point found is kept where it stands within the tolerance of the conic,
 //! on its arm's side of the plane of symmetry when it is an arm. Where `Q`
 //! and `S` meet in a way the kernel does not build, so does the conic.
 
 use super::super::planar::{plane_and_cylinder, planes};
 use super::super::{Relation, relation, square};
+use super::grazed::grazed;
 use super::lying::{STEEP, leans};
 use super::{Crossing, Crossings, Touches, crossings_given};
 use crate::brep::conic::{Conic, Round};
@@ -78,6 +83,22 @@ pub(super) fn conic_and_surface(
         let Crossings::At(found) = crossings_given(curve, &across, scale, touching) else {
             return Crossings::Unsupported;
         };
+        let decided = match surface {
+            Surface::Plane(plane) if across == wall => {
+                grazed([&conic.plane, plane], &wall, &found, scale)
+            }
+            _ => None,
+        };
+        let found = decided.map_or(found, |decided| {
+            decided
+                .into_iter()
+                .map(|(point, tangent)| Crossing {
+                    parameter: 0.0,
+                    point,
+                    tangent,
+                })
+                .collect()
+        });
         for crossing in found {
             let point = crossing.point;
             let parameter = conic.parameter(point);

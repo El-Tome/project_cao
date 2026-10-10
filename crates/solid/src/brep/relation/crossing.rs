@@ -13,11 +13,14 @@
 //! A line a plane cuts a cylinder along, crossed with a circle or a cylinder
 //! square to it, is measured from the radii (`cut.rs`). A line or a circle
 //! against a cone is solved in `cone.rs`, and the conic a plane cuts a wall
-//! along at a slant through its triple's other pair in `conic.rs`.
+//! along at a slant through its triple's other pair in `conic.rs`. A triple
+//! of two planes and a wall one of them stands a hair from tangent to is
+//! decided on the hairpin that plane cuts, in `grazed.rs`.
 
 mod cone;
 mod conic;
 mod cut;
+mod grazed;
 mod lying;
 mod scan;
 

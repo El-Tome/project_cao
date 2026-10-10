@@ -11,6 +11,10 @@
 //!   `a_symmetric_lines_arm_reaches_its_end_and_not_twice_that`
 //! - and it gets the reading, like a plain trait —
 //!   `a_symmetric_line_drawn_at_a_typed_angle_gets_its_reading`
+//!
+//! Closes #560.
+//! - the reading laid with the trait measures what was typed, wherever the
+//!   click lands — `a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -161,6 +165,48 @@ fn a_line_drawn_at_a_typed_angle_is_one_step_of_the_history() {
         document.sketches()[0].live_segments().count(),
         0,
         "one undo left a piece of the gesture behind",
+    );
+}
+
+#[test]
+fn a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let start = DVec2::new(3.0, 4.0);
+    let behind = start - DVec2::from_angle(30.0_f64.to_radians()) * 8.0;
+
+    crate::screens::viewport::input::draw_line_point(&mut context, 0, start, 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(30.0)]);
+    crate::screens::viewport::input::draw_line_point(&mut context, 0, behind, 0.1, 0.05);
+
+    let sketch = &document.sketches()[0];
+    let (from, to) = sketch.endpoints(SegmentId(0));
+    let runs = (to - from).normalize();
+    assert!(
+        runs.distance(DVec2::from_angle(30.0_f64.to_radians())) < 1e-9,
+        "30° typed, the trait runs towards {runs}",
+    );
+    let reading = sketch
+        .dimensions()
+        .iter()
+        .find(|value| matches!(value.target, DimensionTarget::Angle { .. }))
+        .expect("the angle between the arm and the trait is written down");
+    assert!(
+        (reading.value - 30.0).abs() < 1e-6,
+        "the reading says {} where 30 was typed",
+        reading.value,
     );
 }
 

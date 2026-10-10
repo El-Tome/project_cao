@@ -146,9 +146,11 @@ ellipse, is drawn at once at the scale the first one gives. See
 Emptying a field takes the decision back. `Entrée` validates the shape without
 having to find the canvas again with the mouse.
 
-The sign follows the cursor: 30° typed means the 30° one is pointing at, not
-the ones underneath. And as long as a value is fixed, a neighbouring point is
-no longer snapped to — that would quietly give the trait another length.
+An angle typed is the angle drawn: -90 goes straight down even with the cursor
+above, and 30 leaves up and to the right wherever the cursor is. The cursor
+still gives the length, as far as it reaches along that line on either side.
+And as long as a value is fixed, a neighbouring point is no longer snapped to —
+that would quietly give the trait another length.
 
 ## Right angles place themselves
 

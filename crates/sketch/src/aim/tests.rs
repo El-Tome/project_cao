@@ -1,4 +1,16 @@
 //! What sketch · aim.rs is held to.
+//!
+//! Closes #560.
+//! - an angle typed for a trait drawn from nowhere is the angle drawn, wherever
+//!   the mouse is: -90 goes down with the mouse above the start —
+//!   `a_locked_angle_is_the_angle_drawn_wherever_the_cursor_is`
+//! - the mouse still gives the length when none is typed —
+//!   `a_locked_angle_takes_its_length_from_the_cursor_on_either_side`
+//! - a symmetric line drawn at a typed angle runs at that angle —
+//!   `a_symmetric_trait_runs_at_the_angle_typed_wherever_the_cursor_is`
+//! - the reading laid with the trait measures what was typed — no test: held
+//!   where the reading is laid, in
+//!   `crates/app/src/screens/viewport/input/angle_arm/tests.rs`
 
 use super::*;
 use crate::plane::WorkPlane;
@@ -106,40 +118,47 @@ fn a_locked_length_leaves_the_line_free_to_turn() {
 }
 
 #[test]
-fn a_locked_angle_follows_the_side_the_cursor_is_on() {
+fn a_locked_angle_is_the_angle_drawn_wherever_the_cursor_is() {
     let sketch = Sketch::new(WorkPlane::XY);
-    let from = DVec2::ZERO;
+    for (typed, cursor) in [
+        (-90.0, DVec2::new(0.0, 100.0)),
+        (-90.0, DVec2::new(0.0, -100.0)),
+        (30.0, DVec2::from_angle(210.0_f64.to_radians()) * 100.0),
+        (30.0, DVec2::from_angle(30.0_f64.to_radians()) * 100.0),
+    ] {
+        let locked = LockedInput {
+            first: None,
+            second: Some(typed),
+        };
+
+        let aimed = sketch.aim(ChainAnchor::Pending(DVec2::ZERO), None, cursor, locked, 1.0);
+
+        let wanted = DVec2::from_angle(f64::to_radians(typed));
+        assert!(
+            aimed.position.normalize().distance(wanted) < TOLERANCE,
+            "{typed}° typed with the cursor at {cursor} runs towards {}",
+            aimed.position,
+        );
+    }
+}
+
+#[test]
+fn a_locked_angle_takes_its_length_from_the_cursor_on_either_side() {
+    let sketch = Sketch::new(WorkPlane::XY);
     let locked = LockedInput {
         first: None,
-        second: Some(30.0),
+        second: Some(-90.0),
     };
-    let thirty = DVec2::from_angle(30.0_f64.to_radians());
 
-    let pointing_up = sketch.aim(
-        ChainAnchor::Pending(from),
-        None,
-        thirty * 100.0,
-        locked,
-        1.0,
-    );
-    let pointing_down = sketch.aim(
-        ChainAnchor::Pending(from),
-        None,
-        thirty * -100.0,
-        locked,
-        1.0,
-    );
+    for cursor in [DVec2::new(5.0, -60.0), DVec2::new(5.0, 60.0)] {
+        let aimed = sketch.aim(ChainAnchor::Pending(DVec2::ZERO), None, cursor, locked, 1.0);
 
-    assert!(
-        pointing_up.position.normalize().distance(thirty) < TOLERANCE,
-        "pointing up the line, thirty degrees is the one above: {}",
-        pointing_up.position,
-    );
-    assert!(
-        pointing_down.position.normalize().distance(-thirty) < TOLERANCE,
-        "pointing the other way, it is the thirty degrees the cursor is on: {}",
-        pointing_down.position,
-    );
+        assert!(
+            aimed.position.distance(DVec2::new(0.0, -60.0)) < TOLERANCE,
+            "the cursor at {cursor} reaches 60 along the line, and the trait ends at {}",
+            aimed.position,
+        );
+    }
 }
 
 #[test]
@@ -160,6 +179,30 @@ fn a_symmetric_trait_grows_equally_on_both_sides_of_its_middle() {
     );
     assert!((end.x - 40.0).abs() < TOLERANCE, "end = {end}");
     assert!((start.x + 20.0).abs() < TOLERANCE, "start = {start}");
+}
+
+#[test]
+fn a_symmetric_trait_runs_at_the_angle_typed_wherever_the_cursor_is() {
+    let sketch = Sketch::new(WorkPlane::XY);
+    let middle = DVec2::new(10.0, 10.0);
+    let locked = LockedInput {
+        first: None,
+        second: Some(30.0),
+    };
+    let thirty = DVec2::from_angle(30.0_f64.to_radians());
+
+    let (start, end) = sketch.symmetric_ends(middle, middle - thirty * 50.0, locked, 1.0);
+
+    assert!(
+        (end - middle).normalize().distance(thirty) < TOLERANCE,
+        "the end runs from the middle towards {}, not at 30°",
+        end - middle,
+    );
+    assert!(
+        (start - middle).normalize().distance(-thirty) < TOLERANCE,
+        "the start mirrors it: {}",
+        start - middle,
+    );
 }
 
 #[test]

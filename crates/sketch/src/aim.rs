@@ -82,23 +82,26 @@ impl Sketch {
         let mut direction = span.normalize_or(DVec2::X);
         let mut square_with = None;
 
-        if let Some(degrees) = locked.second {
-            // The sign follows the cursor: 30 degrees typed means the 30 the
-            // user is pointing at, not the one below the axis they are not.
-            let wanted = DVec2::from_angle(degrees.to_radians());
-            direction = if wanted.dot(direction) >= 0.0 {
-                wanted
-            } else {
-                -wanted
-            };
-        } else if let Some(squared) = previous.and_then(|id| self.right_angle(id, from, span)) {
-            direction = squared;
-            square_with = previous;
-        }
+        // An angle typed is a decision the cursor no longer turns: -90 goes
+        // down even with the cursor above. Its reach along that line, on
+        // either side, is still the length.
+        let along = match locked.second {
+            Some(degrees) => {
+                direction = DVec2::from_angle(degrees.to_radians());
+                span.dot(direction).abs()
+            }
+            None => {
+                if let Some(squared) = previous.and_then(|id| self.right_angle(id, from, span)) {
+                    direction = squared;
+                    square_with = previous;
+                }
+                span.dot(direction).max(0.0)
+            }
+        };
 
         let length = match locked.first {
             Some(millimeters) => millimeters / scale,
-            None => span.dot(direction).max(0.0),
+            None => along,
         };
 
         Aim {

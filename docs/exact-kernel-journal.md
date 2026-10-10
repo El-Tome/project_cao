@@ -871,3 +871,83 @@ the seeds both reached:
   one seed, broke two, a later step's tool left at the lean an earlier one
   was turned from).
 
+
+## 10 October: round 4 of #552, measured
+
+Round 4 is the first of the two rounds Tom allowed: the pieces with no hair
+(`c2646fb`, `dc2ea74`), decision 11 laying a lean of a hair exactly square
+or along (`b69f80a`), and the warning for a lean past it up to a sine of a
+thousandth (`beaf75d`). Measured at `beaf75d` on fresh seeds, release, two
+campaigns at a time on five threads each, and the same seeds run on
+`85a2d2e`, each tree built in its own target directory:
+
+| Draw | First seed | Cases | `85a2d2e` | `beaf75d` | Per thousand | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5544100000 | 40 000 | 215 | 98 | 2.45 | 117 | 0 |
+| tilted, application's body | 5544200000 | 40 000 | 267 | 104 | 2.60 | 166 | 3 |
+| slanted, exact kernel | 5544300000 | 30 000 | 21 | 19 | 0.63 | 2 | 0 |
+| slanted, application's body | 5544400000 | 30 000 | 15 | 14 | 0.47 | 1 | 0 |
+| turned, exact kernel | 5544500000 | 30 000 | 23 | 23 | 0.77 | 2 | 2 |
+| turned, application's body | 5544600000 | 30 000 | 16 | 16 | 0.53 | 4 | 4 |
+| square | 5544700000 | 30 000 | 2 | 2 | 0.07 | 0 | 0 |
+| profiles, exact kernel | 5544800000 | 20 000 | 4 | 4 | 0.20 | 0 | 0 |
+| profiles, application's body | 5544900000 | 20 000 | 4 | 4 | 0.20 | 0 | 0 |
+
+- The tilted draws go from 5.4 and 6.7 failures in a thousand to 2.5 and
+  2.6, less than half, still over the bar of one. Every other draw is
+  under it, as on `85a2d2e`.
+- **Nine seeds that hold on `85a2d2e` fail on the tip**, each alone as
+  well. Each holds at `dc2ea74`, the plain pieces, and fails at `b69f80a`,
+  decision 11: the plain pieces break none. Shrunk and run on `85a2d2e`,
+  four cores fail there too, broken only by the path their draw took
+  (5544218830, 5544523915, 5544621412, 5544623198). Five are decision
+  11's own, all refused:
+  - a turn about an axis leaning 1e-7, beside turns about a world axis —
+    a wedge of 15° (5544600162), a post (5544510380), a disc, a hole and
+    a turned cut (5544600864);
+  - a plane 4e-8° off a quarter turn, beside a cone already cut at 45°,
+    at a reach of hundreds (5544232904);
+  - a block 4e-8° off a quarter turn, joined to a turn whose band starts
+    2e-8 off, cut at 45° a hair aside (5544236192).
+- **Shrunk, 283 of the 284 failures.** The last, 5544611344 through the
+  application's body, is a case of some 28 s that misses the 30 s patience
+  under load, on both trees; every shrinking step waits as long, and it
+  was left as drawn.
+- **No hair, 11**, every one failing on `85a2d2e` as well:
+  - tilted, 3: a tube beside a half turn, cut at 60°, refused
+    (5544100660); a cone cut by a flat along its axis, drawn crossing
+    (5544205878); two turns about one axis cut at 45°, refused
+    (5544229207);
+  - slanted, 2: a post, a disc turned square to it and a pin, refused
+    (5544320693); a cone joined to two partial turns, left open
+    (5544323650), drawn with a hair of 3e-7 the shrink took away;
+  - turned, 6, the families of #533: a turn of 359.9°, refused
+    (5544504441); a rounded block, a turn and a hole, refused
+    (5544515442); four drawn crossing (5544518834, 5544528726, 5544618545,
+    5544629222).
+- **A hair, 272**:
+  - by an offset, 180;
+  - a lean between 2e-7° and 1e-3°, in the warning's band, 66;
+  - a lean of 1e-7° or less that decision 11 does not lay, 24;
+  - a plane 4e-8° off a cone's slope, which decision 11 leaves as drawn,
+    2 (5544100380, 5544220888).
+- **The tilted draws' share, 202 shrunk:** 19 within 1e-7° where round 3
+  had 236, 62 in the band where it had 129, 116 by an offset where it had
+  98, 2 off a slope, 3 with no hair where it had 7. Round 3's sorting put
+  a lean first, so a case with both a lean and an offset counted as a
+  lean then; once the lean is laid, the offset is what is left.
+- By the rule broken, over all 284: refused (`Answers`) 224, drawn
+  crossing (`Uncrossed`) 51, left open (`Closed`) 5, listed off
+  (`Listed`) 4.
+- **The warning and the rounding, counted.** The steps built at an
+  unstable lean, in the cases that held: 4 342 and 3 539 in the tilted
+  draws, on the exact kernel and through the body; 104 and 147 in the
+  slanted ones; 234 and 202 in the turned ones; none in the square and
+  profile draws. The booleans in which decision 11 turned the second
+  operand: 8 595 and 8 530 tilted, 602 and 496 slanted, 920 and 1 323
+  turned. The harness cannot count these: a counter was added in the
+  measured copy only, and its count includes the few cases a campaign
+  shrinks.
+- The gate's tests, built and warm, take about 35.5 s at `beaf75d`, 35.2 s
+  at `85a2d2e` and 33.3 s at `9e54a71`, the tip of #536: about 2.3 s over
+  it, inside the 3 s allowed.

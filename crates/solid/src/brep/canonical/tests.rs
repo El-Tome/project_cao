@@ -451,6 +451,7 @@ fn with_surfaces(surfaces: Vec<Surface>) -> Body {
         faces: Vec::new(),
         scale: Scale::of(1.0),
         arrivals: Vec::new(),
+        unstable: None,
     }
 }
 

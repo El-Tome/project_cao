@@ -34,6 +34,7 @@ impl Laying {
                 faces: Vec::new(),
                 scale: Scale::of(1.0),
                 arrivals: Vec::new(),
+                unstable: None,
             },
             eps,
         }

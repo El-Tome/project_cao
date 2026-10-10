@@ -47,7 +47,8 @@ const EXACTLY: f64 = 1e-6;
 /// has no normal (#536), summed over every body the case was checked at; how
 /// many cases the kernel declined as asking for a curve it does not build,
 /// and how many it declined to raise for a turned wall a hair thin, which
-/// are no answers it owed (#533).
+/// are no answers it owed (#533); how many steps it built though it reads
+/// them unstably, which it says and which are held like any other (#552).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Measured {
     pub held: usize,
@@ -55,6 +56,7 @@ pub struct Measured {
     pub through_a_tip: usize,
     pub declined: usize,
     pub thin: usize,
+    pub unstable: usize,
 }
 
 /// What a case promises along every line, one entry per leaf: where each
@@ -112,6 +114,9 @@ pub fn held_to_arithmetic<K: Kernel>(case: &Case, kernel: &K) -> Result<Measured
             Ok(body) => body,
             Err(declined) => return declined_on(case, declined, measured),
         };
+        if kernel.unstable(&body) {
+            measured.unstable += 1;
+        }
         promised = promised
             .iter()
             .zip(&promise.spans[index + 1])

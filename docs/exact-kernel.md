@@ -1090,6 +1090,31 @@ covered once from each side.
    a later, larger tolerance takes the face's surface for.
 9. **Verification.** The listing is checked before the body is handed back.
    What the kernel cannot verify it does not answer.
+10. **A lean read unstably** (#552, `combine/unstable.rs`). Once decision 11
+    has turned the second operand, a plane of one operand and a cylinder or
+    a cone of the other, their faces near enough to meet and not standing
+    clear, may still lean off square to the wall's axis, or off along it,
+    by more than decision 11 lays exactly and by a sine under a thousandth.
+    The conic it cuts divides by that lean, so the step's rounding is
+    magnified up to a thousand times: built, it may change for a change too
+    small to see. The step is built as drawn and the body carries the least
+    such lean, `Unstable` with its `Lean` and its degrees, which the
+    interface says to the user (Tom's decision of 2026-10-10: never
+    blocked). A decline stays a decline, with its own reason. Only pairs
+    across the two operands are read, so a later step never notes an
+    earlier one's lean, and a body handed back whole, where nothing was
+    combined, carries no note.
+
+    Why a thousandth of a radian, some 0.057°: it is where the kernel already
+    stops trusting a near-parallel pair — two planes stop fixing the line
+    they share (`canonical/planes.rs`), a surface stops parting a band across
+    (`combine/band.rs`) — and past it rounding is magnified less than a
+    thousand times, a ten-thousandth of the tolerance. Every hair the tilted
+    draw makes, 1e-3° at most, is inside. On 20 000 fresh tilted seeds with
+    decision 11, one case in eleven kept a lean in the band, and those
+    failed at 1.4 %, against 0.18 % for the others; a bound of 1e-4 would
+    miss the wedges of a hundredth of a degree, which are among the
+    failures. A draft drawn under 0.057° gets the notice, and nothing else.
 
 ## The conic a plane cuts a wall along
 

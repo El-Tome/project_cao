@@ -888,3 +888,55 @@ fn a_body_tells_whether_the_exact_kernel_computed_it() {
             .is_exact()
     );
 }
+
+/// A shaft of radius five about Z, thirty high, cut by a block whose floor
+/// leans a ten-thousandth of a degree off square to it: a step the kernel
+/// builds and reads unstably (#552).
+fn shaft_cut_a_ten_thousandth_of_a_degree_off_square() -> Body {
+    let shaft = raised(
+        &Body::default(),
+        &exact(disc(DVec2::ZERO, 5.0), vec![]),
+        30.0,
+    );
+    let (sin, cos) = (1e-4f64).to_radians().sin_cos();
+    let leaning = Frame {
+        origin: DVec3::new(0.0, 0.0, 20.0),
+        u: DVec3::X,
+        v: DVec3::new(0.0, cos, sin),
+    };
+    let tool = shaft
+        .tool_raised(
+            &exact(
+                Contour::rectangle(DVec2::splat(-10.0), DVec2::splat(10.0)),
+                vec![],
+            ),
+            leaning,
+            leaning.normal() * 20.0,
+        )
+        .expect("a block raises");
+    shaft.difference(&tool).expect("the kernel cuts it")
+}
+
+#[test]
+fn a_cut_at_an_unstable_lean_is_handed_up_with_its_note() {
+    let cut = shaft_cut_a_ten_thousandth_of_a_degree_off_square();
+
+    let unstable = cut.unstable().expect("the step is noted");
+    assert_eq!(unstable.lean, crate::Lean::Square);
+    assert!(
+        (unstable.degrees - 1e-4).abs() <= 1e-10,
+        "{}°",
+        unstable.degrees
+    );
+}
+
+#[test]
+fn a_tool_that_takes_nothing_hands_back_the_part_without_a_note() {
+    let cut = shaft_cut_a_ten_thousandth_of_a_degree_off_square();
+
+    let again = cut
+        .difference(&Body::default())
+        .expect("nothing to take is taken");
+
+    assert_eq!(again.unstable(), None);
+}

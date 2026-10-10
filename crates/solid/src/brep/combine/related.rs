@@ -160,7 +160,7 @@ pub(super) fn completed(
 
 /// Whether a face of one operand on one surface of the pair and a face of
 /// the other on the other surface stand in boxes that meet.
-fn facing(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
+pub(super) fn facing(operands: &Operands, [one, other]: [SurfaceId; 2]) -> bool {
     let on = |operand: usize, surface: SurfaceId| -> &[FaceId] {
         &operands.lying[operand][surface.0 as usize]
     };

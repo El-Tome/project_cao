@@ -765,3 +765,59 @@ fn a_cache_written_before_conics_were_exact_is_replayed() {
         "the design is replayed rather than the cache read",
     );
 }
+
+#[test]
+fn an_unstable_step_keeps_its_lean_once_the_part_opens_on_its_cache() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut noted = a_part_with_matter().state;
+    let unstable = cao_solid::Unstable {
+        lean: cao_solid::Lean::Along,
+        degrees: 0.01,
+    };
+    noted.unstable.insert(2, unstable);
+    let cached = encoded(&noted, &borrowed(&design)).expect("a cache");
+    replacing(&files, path, GEOMETRY_ENTRY, Some(&cached));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert_eq!(
+        reopened.unstable_at(2),
+        Some(unstable),
+        "the lean is only known by computing the matter, which a part opened \
+         on its cache does not do",
+    );
+    assert_eq!(reopened.unstable_at(0), None, "and only for that step");
+}
+
+#[test]
+fn a_cache_written_before_unstable_steps_were_noted_is_replayed() {
+    let files = InMemoryFiles::default();
+    let path = Path::new("/parts/piece.caopart");
+    put_away(&files, path);
+    let design = design_of(&files, path);
+    let mut marked = a_part_with_matter().state;
+    marked.declined.insert(3, cao_solid::Declined::Unsupported);
+    let today = String::from_utf8(encoded(&marked, &borrowed(&design)).expect("a cache"))
+        .expect("a cache is text");
+    let stamped = today.replacen(
+        &format!(r#""rebuilt_by":{REBUILT_BY}"#),
+        r#""rebuilt_by":7"#,
+        1,
+    );
+    assert_ne!(
+        stamped, today,
+        "laying a plane a hair off square exactly so, and noting an unstable \
+         step, rebuilds past the 7 of #552's conics"
+    );
+    replacing(&files, path, GEOMETRY_ENTRY, Some(stamped.as_bytes()));
+
+    let reopened = PartDocument::load(&files, path).expect("reads");
+
+    assert!(
+        !reopened.is_declined(3),
+        "the design is replayed rather than the cache read",
+    );
+}

@@ -6,6 +6,7 @@ use std::f64::consts::{PI, TAU};
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
+use super::Unstable;
 use super::conic::Conic;
 use super::curve::{Circle, Curve};
 use super::scale::Scale;
@@ -97,6 +98,10 @@ pub struct Body {
     /// For each surface, the scale of the operation that brought it into the
     /// body: a raised profile's own for each of its surfaces.
     pub(crate) arrivals: Vec<Scale>,
+    /// Whether the operation that made the body read it unstably: its own
+    /// operation's alone, never an earlier one's.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub(crate) unstable: Option<Unstable>,
 }
 
 impl Body {
@@ -110,6 +115,7 @@ impl Body {
             faces: Vec::new(),
             scale: Scale::of(0.0),
             arrivals: Vec::new(),
+            unstable: None,
         }
     }
 
@@ -147,6 +153,16 @@ impl Body {
 
     pub fn scale(&self) -> Scale {
         self.scale
+    }
+
+    /// Whether the operation that made the body read it unstably, and how.
+    pub fn unstable(&self) -> Option<Unstable> {
+        self.unstable
+    }
+
+    /// The body, noted as its own operation read it.
+    pub(crate) fn noted(self, unstable: Option<Unstable>) -> Body {
+        Body { unstable, ..self }
     }
 
     /// The scale of the operation that brought a surface into the body. A

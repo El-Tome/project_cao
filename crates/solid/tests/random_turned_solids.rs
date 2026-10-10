@@ -1927,6 +1927,35 @@ fn kept_through_the_application_s_body_and_exact(
     held
 }
 
+/// A shaft cut by a block whose floor leans a ten-thousandth of a degree off
+/// square to it: a step the kernel builds and reads unstably (#552), which
+/// the campaigns count beside the rules, and the judge does not excuse.
+#[test]
+fn a_step_built_at_an_unstable_lean_is_counted_on_both_kernels() {
+    let case = Case::new(
+        Leaf::prism(Plane::xy(0.0), Outline::circle([0.0, 0.0], 5.0), 30.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([0.0, 0.0, 20.0], [1e-4, 0.0, 0.0]),
+            Outline::rectangle([-10.0, -10.0], [10.0, 10.0]),
+            20.0,
+        ))],
+    );
+
+    for (kernel, measured) in [
+        ("exact", random_solids::held_to_arithmetic(&case, &Exact)),
+        (
+            "application",
+            random_solids::held_to_arithmetic(&case, &Application),
+        ),
+    ] {
+        assert_eq!(
+            measured.map(|measured| measured.unstable),
+            Ok(1),
+            "{kernel}"
+        );
+    }
+}
+
 #[test]
 fn a_hole_a_hair_from_its_band_s_edge_opens_onto_it_on_the_exact_kernel() {
     let holed = |top: f64| {
@@ -3636,7 +3665,7 @@ mod campaign {
 
     use cao_solid::soundness::{Check, Flaw};
     use random_solids::campaigning::{
-        Answering, DECLINED, GRAZING, HELD, THIN, TIPS, campaign_over, shrunk_one_by_one,
+        Answering, DECLINED, GRAZING, HELD, THIN, TIPS, UNSTABLE, campaign_over, shrunk_one_by_one,
         tally_conics,
     };
 
@@ -3647,6 +3676,7 @@ mod campaign {
         GRAZING.fetch_add(measured.grazing, Ordering::Relaxed);
         TIPS.fetch_add(measured.through_a_tip, Ordering::Relaxed);
         DECLINED.fetch_add(measured.declined, Ordering::Relaxed);
+        UNSTABLE.fetch_add(measured.unstable, Ordering::Relaxed);
         THIN.fetch_add(measured.thin, Ordering::Relaxed);
     }
 

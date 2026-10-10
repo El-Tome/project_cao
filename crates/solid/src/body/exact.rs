@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use super::caught::{caught, quietly};
 use super::drawn::Drawn;
 use super::{FaceHit, FacePlane};
-use crate::brep::{self, Declined, FaceId, Surface};
+use crate::brep::{self, Declined, FaceId, Surface, Unstable};
 use crate::mesh::Mesh;
 use crate::profile::{Contour, Frame};
 use crate::turning::{Straight, Turn};
@@ -72,7 +72,7 @@ impl Exact {
     pub fn joined(&self, other: &Exact) -> Result<Exact, Declined> {
         self.combined(other, |first, second| {
             if first.face_ids().next().is_none() {
-                return Ok(second.clone());
+                return Ok(second.clone().noted(None));
             }
             first.joined(second)
         })
@@ -81,14 +81,16 @@ impl Exact {
     pub fn cut_by(&self, tool: &Exact) -> Result<Exact, Declined> {
         self.combined(tool, |first, second| {
             if first.face_ids().next().is_none() {
-                return Ok(first.clone());
+                return Ok(first.clone().noted(None));
             }
             first.cut_by(second)
         })
     }
 
     /// The operation on the two bodies, the second's numbers moved above the
-    /// first's count, every face a cut left in pieces apart told apart, and
+    /// first's count, every face a cut left in pieces apart told apart, noted
+    /// unstable only as this operation reads it — a body handed back whole,
+    /// where nothing was combined, carries no earlier step's note — and
     /// the result drawn: a body the kernel cannot draw, or a face of which it
     /// cannot cut into triangles, is declined, rather than shown with a hole
     /// where its matter is and handed on with that hole to the flats.
@@ -100,7 +102,7 @@ impl Exact {
         caught(|| {
             let second = other.brep.clone().renumbered(self.next);
             let brep = if second.face_ids().next().is_none() {
-                self.brep.clone()
+                self.brep.clone().noted(None)
             } else {
                 operation(&self.brep, &second)?
             };
@@ -132,6 +134,10 @@ impl Exact {
 
     pub fn is_empty(&self) -> bool {
         self.brep.face_ids().next().is_none()
+    }
+
+    pub fn unstable(&self) -> Option<Unstable> {
+        self.brep.unstable()
     }
 
     pub fn faces_end(&self) -> usize {

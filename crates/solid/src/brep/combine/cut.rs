@@ -115,6 +115,7 @@ pub(super) fn cut(
         faces: Vec::new(),
         scale: operands.scale,
         arrivals: operands.arrivals(),
+        unstable: None,
     };
     Ok(Arena { body, supports })
 }

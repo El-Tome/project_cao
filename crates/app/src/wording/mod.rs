@@ -27,4 +27,5 @@ pub mod settings;
 pub mod shortcuts;
 pub mod storage;
 pub mod toolbar;
+pub mod unstable;
 pub mod variables;

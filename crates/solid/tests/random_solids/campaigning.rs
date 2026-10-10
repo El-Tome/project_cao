@@ -24,6 +24,9 @@ pub static TIPS: AtomicUsize = AtomicUsize::new(0);
 pub static DECLINED: AtomicUsize = AtomicUsize::new(0);
 pub static THIN: AtomicUsize = AtomicUsize::new(0);
 
+/// How many steps the kernel built though it reads them unstably (#552).
+pub static UNSTABLE: AtomicUsize = AtomicUsize::new(0);
+
 /// How many cases met along each kind of conic (#552), and along any.
 pub static MET_ALONG_A_CONIC: AtomicUsize = AtomicUsize::new(0);
 pub static ELLIPSES: AtomicUsize = AtomicUsize::new(0);
@@ -205,6 +208,10 @@ fn print_report(report: &Report<Case>, answering: Answering) {
     println!(
         "{} cases with a turned wall a hair thin declined as no profile",
         THIN.load(Ordering::Relaxed)
+    );
+    println!(
+        "{} steps built at an unstable lean",
+        UNSTABLE.load(Ordering::Relaxed)
     );
     for (rule, count) in &report.broken {
         println!("  {rule:?}: broken by {count}");

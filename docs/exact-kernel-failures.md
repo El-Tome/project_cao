@@ -1725,3 +1725,30 @@ round 3's 538 shrunk failures, 289 hold, the union of what each lane held
 alone (9 and 282). With `--include-ignored`, nothing that passed on
 either lane alone fails in any named-case file, and #498's eighteen cases
 hold.
+
+### The warning: a lean the kernel reads unstably
+
+The second half of Tom's decision of 2026-10-10. A step whose plane leans
+off square to, or along, a wall's axis by more than decision 11 lays
+exactly and by a sine under a thousandth — some 0.057° — is built as drawn
+and noted with its least lean; the application says it is an unstable
+case, with the angle, once the step is applied and in the tree, and never
+refuses it. A decline in the band stays a broken step, with its reason. The
+design and the bound are in `exact-kernel.md`, step 10 of the boolean.
+
+- **What the band covers.** On 20 000 fresh tilted seeds from 5549100000
+  with decision 11, 1 820 cases (9.1 %) kept a lean in the band, and 25 of
+  them failed: 1.4 %, against 0.18 % for the cases with none. The tilted
+  draw is weighted towards hairs, so a user's part sees the notice far
+  less often. 29 of that measurement's 57 failures were neither turned
+  nor in the band.
+- **What the warning does not change.** The judge of the campaigns does
+  not excuse a step in the band: a failure there counts as any other. The
+  campaigns count the steps built in the band, "steps built at an unstable
+  lean", beside their rules.
+- **Left in the band.** The families of round 3 between 2e-7° and 1e-3°
+  that decision 11 does not reach, 5549204865 (a tube cut by a face 5e-7
+  off tangent and 1.9e-6° off square), and the wedges of a hundredth of a
+  degree (5543224272, 5543227890) are built with the notice where the
+  kernel builds them, and broken with their reason where it declines.
+

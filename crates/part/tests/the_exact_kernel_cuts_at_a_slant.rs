@@ -46,6 +46,19 @@
 //!   runs; the gate's time on base and branch is in `docs/exact-kernel-failures.md`
 //! - `docs/exact-kernel.md` says which conics the kernel builds and what it still
 //!   declines — no test: prose, held by `language.rs` only
+//! - a plane a hair off square to, or along, a wall's axis is laid exactly so
+//!   (decision 11, Tom's decision of 2026-10-10), and its step is not noted
+//!   unstable — `a_shaft_cut_a_ten_millionth_of_a_degree_off_square_is_laid_square_and_not_noted`
+//!   (Ø20 cut at 20 leaning 1e-7°: 2000π)
+//! - past that, up to a thousandth of a radian, the step is built as drawn and
+//!   noted unstable with its lean, which the interface says, never blocking the
+//!   user —
+//!   `a_shaft_cut_by_a_slice_turned_a_hundredth_of_a_degree_is_built_and_its_step_noted_unstable`
+//!   (Ø20 raised 30, a slice turned 0.01° about X cut out: `Along`, 0.01°); the
+//!   sentences are held in `cao_app` (`wording/unstable/tests.rs`, the extrusion
+//!   screen's and the part tree's tests)
+//! - a decline stays a broken step with its reason, never a note —
+//!   `a_slanted_hole_crossing_a_bore_at_a_skew_angle_is_a_broken_step_with_its_reason`
 //!
 //! A part cut at a slant, as the application builds it: a plane meets a
 //! cylinder or a cone at any angle along a conic the exact kernel builds — an
@@ -59,8 +72,8 @@ use std::f64::consts::PI;
 use cao_part::history::{ExtrusionMode, FaceAnchor, Operation, PointRef, RevolutionAxis};
 use cao_part::{History, PartDocument, PartState};
 use cao_sketch::{Area, PointId, SketchAxis, WorkPlane};
-use cao_solid::Declined;
 use cao_solid::soundness::closed;
+use cao_solid::{Declined, Lean};
 use glam::{DVec2, DVec3};
 
 /// How near the arithmetic an exact volume comes: the kernel's matter is the
@@ -448,5 +461,78 @@ fn a_point_cut_parallel_to_its_slope_holds_the_arithmetics_volume() {
         &history,
         POINT - (10.0 * segment(5.0, 3.5) + 17.0 * root) / 3.0,
         "a point cut where x > 3.5 − y/2",
+    );
+}
+
+/// A shaft Ø20 raised 30 on XY, cut above a plane through (0,0,20) leaning
+/// `degrees` about X off square to it.
+fn a_shaft_cut_leaning(degrees: f64) -> History {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    circle(&mut history, 0, DVec2::ZERO, 10.0);
+    raise(&mut history, 0, DVec2::ZERO, 30.0, ExtrusionMode::Add);
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    sketch_on(
+        &mut history,
+        plane(DVec3::Z * 20.0, DVec3::X, DVec3::new(0.0, cos, sin)),
+    );
+    rectangle(
+        &mut history,
+        1,
+        DVec2::new(-15.0, -20.0),
+        DVec2::new(15.0, 20.0),
+    );
+    raise(&mut history, 1, DVec2::ZERO, 20.0, ExtrusionMode::Cut);
+    history
+}
+
+#[test]
+fn a_shaft_cut_a_ten_millionth_of_a_degree_off_square_is_laid_square_and_not_noted() {
+    let history = a_shaft_cut_leaning(1e-7);
+
+    built_exactly(&history, 2000.0 * PI, "a Ø20 cut square at 20");
+    assert_eq!(
+        applied_live(&history).unstable_at(last_step(&history)),
+        None,
+        "a lean decision 11 lays exactly is not unstable",
+    );
+}
+
+/// The gesture that shows the warning: a shaft Ø20 raised 30 on XY, and a
+/// rectangle from (−20, 0) to (20, 40) drawn on XZ, its foot on the
+/// sketch's horizontal axis, turned a hundredth of a degree about it to cut
+/// a thin slice out of the shaft. The slice's second side leans a
+/// hundredth of a degree off along the shaft's axis.
+#[test]
+fn a_shaft_cut_by_a_slice_turned_a_hundredth_of_a_degree_is_built_and_its_step_noted_unstable() {
+    let mut history = History::default();
+    sketch_on(&mut history, WorkPlane::XY);
+    circle(&mut history, 0, DVec2::ZERO, 10.0);
+    raise(&mut history, 0, DVec2::ZERO, 30.0, ExtrusionMode::Add);
+    sketch_on(&mut history, WorkPlane::XZ);
+    rectangle(
+        &mut history,
+        1,
+        DVec2::new(-20.0, 0.0),
+        DVec2::new(20.0, 40.0),
+    );
+    history.push(Operation::Revolve {
+        sketch: 1,
+        areas: clicked(&history, 1, DVec2::new(0.0, 20.0)),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 0.01_f64.into(),
+        mode: ExtrusionMode::Cut,
+    });
+
+    let slice = 20.0 * 30.0 * 30.0 / 2.0 * 0.01_f64.to_radians().tan();
+    built_exactly(&history, 3000.0 * PI - slice, "a Ø20 less a slice of 0.01°");
+    let Some(unstable) = applied_live(&history).unstable_at(last_step(&history)) else {
+        panic!("the step is noted unstable");
+    };
+    assert_eq!(unstable.lean, Lean::Along);
+    assert!(
+        (unstable.degrees - 0.01).abs() <= 1e-9,
+        "noted at {}°",
+        unstable.degrees,
     );
 }

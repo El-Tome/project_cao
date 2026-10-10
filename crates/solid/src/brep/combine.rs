@@ -14,6 +14,7 @@ mod operands;
 mod parted;
 mod related;
 mod slid;
+mod unstable;
 
 use glam::DVec3;
 
@@ -25,6 +26,7 @@ use super::topology::{Body, SurfaceId};
 pub(super) use operands::Operands;
 use related::Special;
 use slid::slid;
+use unstable::unstable;
 
 /// What is kept of the two operands' matter.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -74,9 +76,10 @@ pub(super) fn combine(first: &Body, second: &Body, operation: Operation) -> Resu
     let second = flush.as_ref().unwrap_or(second);
     let slid = slid(first, second, scale);
     let operands = Operands::of(first, slid.as_ref().unwrap_or(second), scale);
+    let unstable = unstable(&operands);
     let arena = laid(&operands)?;
     let faces = selected(&operands, &arena, operation)?;
-    assembled(arena, faces)
+    assembled(arena, faces).map(|body| body.noted(unstable))
 }
 
 /// The arena of two operands, decided once: surfaces, relations, curves,

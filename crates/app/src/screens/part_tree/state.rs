@@ -16,7 +16,7 @@ use cao_part::history::{ExtrusionMode, Operation};
 use cao_sketch::{Area, Element, Sketch};
 
 use crate::lang::Catalogue;
-use crate::wording::formula;
+use crate::wording::{self, formula};
 
 /// What a line of the tree points at, so that clicking it can find the thing
 /// itself.
@@ -51,6 +51,9 @@ pub struct Body {
     /// Whether the kernel declined to build it: the part stands as it did
     /// before it.
     pub declined: bool,
+    /// What the user is told of a step the kernel built though it reads it
+    /// unstably (#552), when it did.
+    pub unstable: Option<String>,
 }
 
 /// One sketch, and what is drawn on it, by kind.
@@ -103,10 +106,11 @@ impl PartTree {
         let mut sketches = 0;
 
         for (step, operation) in document.history.applied_operations().iter().enumerate() {
-            let declined = document
-                .history
-                .number_at(step)
-                .is_some_and(|number| document.is_declined(number));
+            let number = document.history.number_at(step);
+            let declined = number.is_some_and(|number| document.is_declined(number));
+            let unstable = number
+                .and_then(|number| document.unstable_at(number))
+                .map(|unstable| wording::unstable::notice(lang, unstable));
             match operation {
                 Operation::CreateSketch { .. } => {
                     let sketch = sketches;
@@ -142,6 +146,7 @@ impl PartTree {
                         ),
                         lost: standing.len() < areas.len(),
                         declined,
+                        unstable,
                         areas: standing,
                     });
                 }
@@ -170,6 +175,7 @@ impl PartTree {
                         ),
                         lost: standing.len() < areas.len(),
                         declined,
+                        unstable,
                         areas: standing,
                     });
                 }

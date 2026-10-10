@@ -97,6 +97,7 @@ pub(super) fn tidied(mut body: Body, faces: Vec<Face>) -> Result<Body, Declined>
             .kept()
             .map(|rank| body.arrived(SurfaceId(rank as u32)))
             .collect(),
+        unstable: None,
     };
     verified(&assembled)?;
     Ok(assembled)

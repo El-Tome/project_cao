@@ -79,3 +79,25 @@ pub enum Declined {
     /// costs the step, not the user's work.
     Panicked,
 }
+
+/// A step the kernel built though it reads it unstably (#552): a plane of one
+/// operand leans off square to, or along, the axis of a cylinder or a cone of
+/// the other, their faces near enough to meet, by more than decision 11 lays
+/// exactly and less than the kernel reads without magnifying its rounding.
+/// The conic such a plane cuts divides by the lean, so a change too small to
+/// see may change what is built. Said, never declined.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct Unstable {
+    pub lean: Lean,
+    /// The least such lean of the step, in degrees.
+    pub degrees: f64,
+}
+
+/// Which way a plane leans off a wall's axis, a hair or a little.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub enum Lean {
+    /// Nearly square to the axis: its normal nearly along it.
+    Square,
+    /// Nearly along the axis: its normal nearly square to it.
+    Along,
+}

@@ -10,9 +10,14 @@
 //! Closes #526.
 //! - a step the exact kernel declines is marked in the tree, and a step it
 //!   built is not — `a_step_the_kernel_declines_is_marked_in_the_tree`
+//!
+//! Closes #552.
+//! - a step the exact kernel built at a lean it reads unstably is marked in the
+//!   tree, with the sentence that says why, and a step it built stably is not
+//!   — `a_step_built_at_an_unstable_lean_is_marked_in_the_tree`
 
-use cao_part::history::{FaceAnchor, PointRef};
-use cao_sketch::{DimensionTarget, Element, SegmentId, WorkPlane};
+use cao_part::history::{FaceAnchor, PointRef, RevolutionAxis};
+use cao_sketch::{DimensionTarget, Element, SegmentId, SketchAxis, WorkPlane};
 use chrono::{DateTime, Utc};
 use glam::{DVec2, DVec3};
 
@@ -238,4 +243,63 @@ fn a_step_the_kernel_declines_is_marked_in_the_tree() {
          cylinders at a skew angle, which the exact kernel declines",
     );
     assert!(!tree.bodies[0].declined, "the post itself was built");
+}
+
+/// A shaft Ø20 raised 30 on XY, and a slice of it turned a hundredth of a
+/// degree about X cut out: the slice's second side leans that much off along
+/// the shaft's axis.
+fn a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin() -> PartDocument {
+    let mut document = PartDocument::new("Test", at("2026-01-02T09:00:00Z"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    document.apply(Operation::AddCircle {
+        sketch: 0,
+        center: PointRef::New(DVec2::ZERO),
+        radius: 10.0,
+        rim: Vec::new(),
+        construction: false,
+    });
+    document.apply(Operation::Extrude {
+        sketch: 0,
+        areas: document.areas_at(0, &[DVec2::ZERO]),
+        distance: 30.0.into(),
+        mode: ExtrusionMode::Add,
+    });
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XZ,
+        on: None,
+    });
+    document.apply(Operation::AddRectangle {
+        sketch: 1,
+        corner: PointRef::New(DVec2::new(-20.0, 0.0)),
+        opposite: PointRef::New(DVec2::new(20.0, 40.0)),
+        construction: false,
+    });
+    document.apply(Operation::Revolve {
+        sketch: 1,
+        areas: document.areas_at(1, &[DVec2::new(0.0, 20.0)]),
+        axis: RevolutionAxis::Sketch(SketchAxis::U),
+        angle: 0.01.into(),
+        mode: ExtrusionMode::Cut,
+    });
+    document
+}
+
+#[test]
+fn a_step_built_at_an_unstable_lean_is_marked_in_the_tree() {
+    let lang = french();
+    let tree = PartTree::of(
+        &a_shaft_cut_by_a_slice_a_hundredth_of_a_degree_thin(),
+        &lang,
+    );
+
+    assert_eq!(
+        tree.bodies[1].unstable,
+        Some(lang.t_with("extrusion.unstable_along", &[("angle", "0.01")])),
+        "the slice is built and said unstable",
+    );
+    assert!(!tree.bodies[1].declined, "built, not declined");
+    assert_eq!(tree.bodies[0].unstable, None, "the shaft stands square");
 }

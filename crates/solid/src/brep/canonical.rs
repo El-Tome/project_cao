@@ -26,7 +26,7 @@ pub(super) use crescent::closed;
 pub(super) use curves::{Registered, Registry, distance, same, within};
 pub(super) use flush::flush;
 pub(super) use planes::{Place, Planes};
-pub(super) use squared::squared;
+pub(super) use squared::{laid_exactly, leaning, squared};
 pub(super) use surfaces::Surfaces;
 
 #[cfg(test)]

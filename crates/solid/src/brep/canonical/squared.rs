@@ -21,6 +21,7 @@ use std::f64::consts::{PI, TAU};
 
 use glam::{DQuat, DVec3};
 
+use crate::brep::Lean;
 use crate::brep::relation::{Relation, relation};
 use crate::brep::scale::Scale;
 use crate::brep::surface::Surface;
@@ -33,16 +34,10 @@ const ROUNDING: f64 = 1e-6;
 /// a hair.
 const STEP: f64 = 1e-3;
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-enum Lean {
-    /// The second's direction off along the first's, either way.
-    Square,
-    /// The second's direction off square to the first's.
-    Along,
-}
-
 /// A direction of the first operand, one of the second's, how the second
-/// leans off it and by what sine.
+/// leans off it and by what sine: `Square` off along the first's, either
+/// way, `Along` off square to it — for a plane's normal and a wall's axis,
+/// the plane nearly square to the axis, or nearly along it.
 #[derive(Clone, Copy, Debug)]
 struct Pair {
     first: DVec3,
@@ -51,15 +46,44 @@ struct Pair {
     sine: f64,
 }
 
+/// How one direction leans off another, and by what sine.
+pub(in crate::brep) fn leaning(first: DVec3, second: DVec3) -> (Lean, f64) {
+    let square = first.cross(second).length();
+    let along = first.dot(second).abs();
+    if square <= along {
+        (Lean::Square, square)
+    } else {
+        (Lean::Along, along)
+    }
+}
+
+/// Whether a lean of `sine` moves no point of the second operand further
+/// than rounding: what this decision leaves exact, held as it was drawn or
+/// laid by the turn. `None` for an operand with no box.
+pub(in crate::brep) fn laid_exactly(second: &Body, scale: Scale) -> Option<impl Fn(f64) -> bool> {
+    let (low, high) = second.bounds()?;
+    let exact = exact(scale, lever(low, high));
+    Some(move |sine: f64| sine <= LAID * exact)
+}
+
+/// Half the diagonal of a box: the furthest a turn about its middle moves
+/// a point of it, per radian.
+fn lever(low: DVec3, high: DVec3) -> f64 {
+    ((high - low).length() / 2.0).max(f64::MIN_POSITIVE)
+}
+
+/// The sine under which a pair stands exactly as it is, for an operand of
+/// that lever.
+fn exact(scale: Scale, lever: f64) -> f64 {
+    ROUNDING * scale.eps() / lever
+}
+
+/// How many times `exact` a pair the turn laid may still lean by.
+const LAID: f64 = 10.0;
+
 impl Pair {
     fn of(first: DVec3, second: DVec3) -> Pair {
-        let square = first.cross(second).length();
-        let along = first.dot(second).abs();
-        let (lean, sine) = if square <= along {
-            (Lean::Square, square)
-        } else {
-            (Lean::Along, along)
-        };
+        let (lean, sine) = leaning(first, second);
         Pair {
             first,
             second,
@@ -83,9 +107,9 @@ impl Pair {
 /// within the hair lays them all and keeps what was exact.
 pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Option<Body> {
     let (low, high) = second.bounds()?;
-    let lever = ((high - low).length() / 2.0).max(f64::MIN_POSITIVE);
+    let lever = lever(low, high);
     let eps = scale.eps();
-    let exact = ROUNDING * eps / lever;
+    let exact = exact(scale, lever);
     let facing = facing(first, second, eps);
     let (near, held) = paired(first, second, &facing, exact, Scale::HAIR * eps / lever);
     if near.is_empty() {
@@ -95,7 +119,7 @@ pub(in crate::brep) fn squared(first: &Body, second: &Body, scale: Scale) -> Opt
     let kept_exact = near
         .iter()
         .chain(&held)
-        .all(|pair| pair.off(turn) <= 10.0 * exact);
+        .all(|pair| pair.off(turn) <= LAID * exact);
     if !kept_exact || angle(turn) * lever > Scale::HAIR * eps {
         return None;
     }

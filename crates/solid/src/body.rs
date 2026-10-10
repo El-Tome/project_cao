@@ -10,7 +10,7 @@ use std::borrow::Cow;
 use glam::DVec3;
 use serde::{Deserialize, Serialize};
 
-use crate::brep::Declined;
+use crate::brep::{Declined, Unstable};
 use crate::mesh::{Mesh, Polygon};
 use crate::profile::{Frame, Profile};
 use crate::sweep;
@@ -31,10 +31,11 @@ pub struct Body {
 /// Which kernel computed the matter. Exact on planes, cylinders and cones as
 /// long as every step was one the exact kernel builds; flat pieces from the
 /// first step it does not — a revolution of an arc, an ellipse — on,
-/// since an exact body joined to flats can only be flats.
+/// since an exact body joined to flats can only be flats. The exact body is
+/// boxed, being several times the size of the flats' handle.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 enum Matter {
-    Exact(Exact),
+    Exact(Box<Exact>),
     Flats(Flats),
 }
 
@@ -50,7 +51,7 @@ struct Flats {
 impl Default for Body {
     fn default() -> Self {
         Body {
-            matter: Matter::Exact(Exact::default()),
+            matter: Matter::Exact(Box::default()),
         }
     }
 }
@@ -154,6 +155,15 @@ impl Body {
     /// went through: a way of looking inside rather than of taking matter away.
     pub fn behind(&self, normal: DVec3, offset: f64) -> Body {
         Body::of_flats(self.as_flats().behind(normal, offset), self.faces_end())
+    }
+
+    /// Whether the step that made the body is one the exact kernel built
+    /// though it reads it unstably, and how (#552). The flats read nothing so.
+    pub fn unstable(&self) -> Option<Unstable> {
+        match &self.matter {
+            Matter::Exact(exact) => exact.unstable(),
+            Matter::Flats(_) => None,
+        }
     }
 
     pub fn is_empty(&self) -> bool {
@@ -306,7 +316,7 @@ impl Body {
 
     fn of_exact(exact: Exact) -> Body {
         Body {
-            matter: Matter::Exact(exact),
+            matter: Matter::Exact(Box::new(exact)),
         }
     }
 

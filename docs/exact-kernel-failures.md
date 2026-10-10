@@ -1537,3 +1537,74 @@ a draw against `34a1b64` over the same seeds: on the exact kernel from
 the application's body from 5528000000, 106 of 15 738 (6.7) against 168
 (10.7). No seed that held on `34a1b64`, nor with the grazing planes alone,
 fails.
+
+### Round 4: the pieces with no hair
+
+Decided with Tom on 10 October, after round 3: the pieces with no hair
+come before any hair family. Round 3's shrunk failures held twelve with no
+hair in their inputs; all twelve fail at `85a2d2e`. Run at `9e54a71`, the
+base of #536, eight held there only because #536 declined their conic, and
+four fail there too, inherited from #533 and #536 under their draws' bar.
+One of the twelve is a hair after all: 5543220895 leans 36.86989754584402°,
+atan ¾ less 1e-7°, a cone's slope less a hair, which sorting by whole
+degrees could not see — the plane through the rim's lowest point a hair off
+the ruling there, the rim bulging 7.3e-8 off its chord at a tolerance of
+6.6e-8. It belongs with the hair from tangent.
+
+Fixed, each with its shrunk case kept as a test:
+
+- **A face touching a cone along a ruling beyond its apex** (5543214149,
+  5543216778): a plane at exactly the slope through an apex outside the box
+  was cut as a conic, which is nothing for a doubled ruling; the face was
+  decided apart from the cone and the ruling's corners kept apart. Such a
+  plane now holds the ruling, or the two rulings when steeper, read at their
+  feet (decision 2).
+- **A line inside a cone's section by rounding** (5543231406): the line a
+  floor square to a cone's axis shares with a cut touching the cone exactly
+  there, found 6e-14 inside the section, crossed it twice four tolerances
+  apart, a sliver between no face agreed on. Inside by a millionth of the
+  tolerance or less, it only touches the cone (decision 4). Put in the
+  shared `touches`, the same rule broke three fresh seeds whose walls rely
+  on a line inside crossing twice (5549110872, 5549116996, 5549119078).
+- **A corner past a cone's apex** (5543226572): a slant through a cone's
+  apex on the end planes of two quarter turns, touching the cone along the
+  ruling one of them holds. A corner found along that ruling past the apex
+  was counted on the cone and kept apart from the same corner on a plane
+  apart from it. The cone counts only where the corner stands on its own
+  nappe (decision 5). It also holds 9507403, ignored since round 1.
+- **Two arcs leaving a corner straight together** (5543224272): a wedge of
+  a hundredth of a degree cut by a post touching its end plane; the curve
+  the post meets the wedge's wall along leaves the post's rim to the fourth
+  power of the way run, its chord a tenth along 8e-10 off the rim's, and
+  the corner was declined as a tie. Where the chords cannot tell, the two
+  are read halfway along the shorter (the overlay, step 5).
+
+On all 538 shrunk cases of round 3, these hold nine, four of them hair
+cases besides (5543107477, 5543132523, 5543206708, 5543529231), and none
+that failed fails otherwise. Every named-case file with
+`--include-ignored`: nothing that passed at `85a2d2e` fails. On round 3's
+own seeds against `85a2d2e`, 12 000 tilted on each kernel from 5543100000
+and 5543200000, 4 000 slanted from 5543300000 and 4 000 turned through the
+body from 5543600000: 134 failures against 135, 5543206708 repaired, no
+seed that held fails.
+
+Left, each ignored with its reason:
+
+- **The tangency band's edge with a conic at the touch** (5543307115, a
+  slanted draw): a rounded block's side touches its corner's wall along a
+  line, and a cone of that axis cuts the side along a hyperbola whose
+  vertex sits on that line; a turn's end plane of a hundredth of a degree
+  crosses the side where the side and the cone stand 1.52e-8 apart at a
+  tolerance of 1.6e-8. Two corners that far apart on the same four surfaces
+  are parted by the hyperbola, 3e-8 from both (`canonical/corners.rs`,
+  `parted`). No band is laid along a conic (decision 7): the issue's second
+  default.
+- **A wall touching a wedge at a point** (5543227890): a slot's round end
+  touches, at one point, the wall of a turn of a hundredth of a degree
+  joined to it; the slot's wall takes no sample there, and its triangle
+  crosses the turn's end face by 1e-7 (`tessellation/contact/point.rs`).
+- **Inherited from #533 and #536**, under their draws' bar: two regions
+  with no point inside them, declined as a tie at `overlay/partition.rs`
+  (5543305067, 5543616767), and two meshes drawn crossing (5543304420,
+  5543610415).
+

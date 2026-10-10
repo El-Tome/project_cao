@@ -3359,3 +3359,97 @@ fn seed_9412210_half_a_shaft_leaning_a_hair_joined_to_a_rounded_block() {
         ))],
     ));
 }
+
+/// #552's round 4, through the application's body: a slot whose round end
+/// touches, at one point, the wall of a turn of a hundredth of a degree
+/// joined to it — the slot's wall about Z, the turn's about X, their axes
+/// the sum of the radii apart. The slot's wall takes no sample at the point
+/// of contact: one of its triangles, from its floor to its top, crosses
+/// the turn's end face there by 1e-7.
+#[test]
+#[ignore = "triangles, #552's round 4: a wall touching a turn of a hundredth of a degree at a point; the wall's triangle crosses the turn's end face at the contact"]
+fn seed_5543227890_a_slot_joined_to_a_turn_of_a_hundredth_of_a_degree_touching_its_round_end() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(60.0),
+            Outline::slot([150.0, 0.0], [150.0, 60.0], 90.0),
+            105.0,
+        ),
+        vec![Step::add(Leaf::turned(
+            Plane::xy(113.0),
+            Axis::first(165.0).backwards(),
+            Section::bands(-285.0, &[[270.0, 0.0, 15.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel, failing at
+/// `9e54a71` too: a turned ring joined to a rounded block, a turn about X,
+/// a second rounded block, then cut by a ring turned about X. Two
+/// triangles draw crossing.
+#[test]
+#[ignore = "triangles, inherited from #533 and #536: rounded blocks and rings turned about X, joined then cut; drawn crossing"]
+fn seed_5543304420_rounded_blocks_and_rings_turned_about_x_draw_crossing() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(65.0),
+            Axis::first(40.0).backwards(),
+            Section::bands(-60.0, &[[43.0, 0.0, 15.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::prism(
+                Plane::xy(15.0),
+                Outline::rounded([10.0, 40.0], [27.5, 57.5], 7.5),
+                50.0,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(13.0),
+                Axis::first(15.0),
+                Section::bands(20.0, &[[5.0, 0.0, 30.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(10.0),
+                Outline::rounded([45.0, 35.0], [70.0, 60.0], 12.5),
+                50.0,
+            )),
+            Step::cut(Leaf::turned(
+                Plane::xz(40.0),
+                Axis::first(55.0),
+                Section::bands(15.0, &[[48.0, 0.0, 5.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, a turned draw through the application's body, failing
+/// at `9e54a71` too: a stepped shaft about X cut by a post along Y, then
+/// joined to a wider ring about X. Two triangles draw crossing.
+#[test]
+#[ignore = "triangles, inherited from #533 and #536: a stepped shaft cut by a post, then joined to a ring of its axis; drawn crossing"]
+fn seed_5543610415_a_stepped_shaft_cut_by_a_post_then_joined_to_a_ring() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(5.0),
+            Axis::first(5.0),
+            Section::bands(2.0, &[[3.5, 0.0, 9.0], [4.0, 0.0, 11.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::xz(2.5),
+                Outline::circle([8.0, 4.0], 4.0),
+                5.5,
+            )),
+            Step::add(Leaf::turned(
+                Plane::xy(5.0),
+                Axis::first(0.0),
+                Section::bands(2.0, &[[8.0, 11.0, 13.0]]),
+                360.0,
+            )),
+        ],
+    ));
+}

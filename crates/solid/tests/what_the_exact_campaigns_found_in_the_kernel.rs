@@ -99,6 +99,23 @@
 //! the hairpin ellipse decided just past `square`, and the faces along a
 //! cone's rulings standing a hair off: the issue's second default, named,
 //! with no band and no decline added.
+//!
+//! Round 4 also names the twelve shrunk cases of round 3 with no hair in
+//! their inputs, which come first (#552, the decision of 10 October). Five
+//! hold: a face touching a cone along a ruling at exactly its slope, the
+//! apex beyond the box (5543214149, 5543216778), since such a plane holds
+//! the ruling as through an apex; the line a floor shares with a cut
+//! touching a cone exactly, found inside the cone's section by rounding
+//! (5543231406), since such a line only touches the cone; a slant through a
+//! cone's apex on the end planes of two quarter turns (5543226572), since a
+//! corner found along a ruling past the apex is not on the cone; and a
+//! wedge of a hundredth of a degree cut by a post touching its end plane
+//! (5543224272), since two arcs leaving a corner straight together are
+//! told apart where they run. Left, ignored with their reason: the edge of
+//! the tangency band with a hyperbola at the touch (5543307115), and two
+//! regions with no point inside them inherited from #533 and #536
+//! (5543305067, 5543616767); the crossings are in
+//! `what_the_exact_campaigns_found_in_the_triangles.rs`.
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -7080,5 +7097,90 @@ fn seed_5543224272_a_wedge_of_a_hundredth_of_a_degree_cut_by_a_post_touching_its
             Outline::circle([6.0, 2.0], 1.0),
             8.0,
         ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel: a rounded block cut
+/// by a turn of a hundredth of a degree about Y, a wall and a cone of one
+/// axis with the corner's wall. The block's side touches its corner's wall
+/// along x = 8, and the cone cuts the side along a hyperbola whose vertex
+/// sits on that line of touch; the turn's far end plane crosses the side
+/// 1.75e-4 from the touch, where the side and the cone stand 1.52e-8 apart
+/// at a tolerance of 1.6e-8. Two corners that far apart, on the same four
+/// surfaces, are kept apart: the side and the cone cross along the
+/// hyperbola, 3e-8 from both. The edge of the tangency band, with a conic at
+/// the touch, where no band is laid (decision 7).
+#[test]
+#[ignore = "kernel-declines, #552's round 4: a hyperbola's vertex on a line of touch, a hundredth of a degree's end plane crossing the side at the band's edge; two corners within the tolerance parted by the hyperbola; declined as unverified"]
+fn seed_5543307115_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree_whose_cone_s_hyperbola_starts_on_a_line_of_touch()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(4.0),
+            Outline::rounded([7.0, 1.0], [10.0, 5.0], 1.0),
+            10.0,
+        ),
+        vec![Step::cut(Leaf::turned(
+            Plane::yz(8.0),
+            Axis::second(2.0),
+            Section::bands(12.0, &[[2.0, 1.0, 3.0], [2.0, 0.0, 3.0]])
+                .sloping_to(&[[0.0, 3.0], [0.0, 3.0]]),
+            0.01,
+        ))],
+    ));
+}
+
+/// #552's round 4, a slanted draw on the exact kernel, failing at `9e54a71`
+/// too, before conics: a post, a turned ring whose axis meets the post's,
+/// and a second post. A region of a face is found with no column to put a
+/// point inside it, and the step is declined as a tie
+/// (`overlay/partition.rs`).
+#[test]
+#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it between a post, a ring turned about an axis meeting its own and a second post; declined as a tie"]
+fn seed_5543305067_two_posts_and_a_ring_turned_about_an_axis_meeting_the_first() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(-2.0), Outline::circle([6.0, 9.5], 1.5), -4.0),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(-4.0),
+                Axis::second(8.5),
+                Section::bands(7.0, &[[5.0, 0.0, 1.0]]),
+                360.0,
+            )),
+            Step::add(Leaf::prism(
+                Plane::xy(-6.0),
+                Outline::circle([8.5, 9.5], 1.0),
+                4.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, a turned draw through the application's body, failing
+/// at `9e54a71` too: a ring along Y cut by a turn about X, then by a post
+/// along Y. A region of a face is found with no column to put a point
+/// inside it, and the step is declined as a tie (`overlay/partition.rs`).
+#[test]
+#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it after a ring is cut by a turn and a post; declined as a tie"]
+fn seed_5543616767_a_ring_cut_by_a_turn_about_x_then_by_a_post() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xz(-15.0),
+            Outline::ring([225.0, 270.0], 105.0, 30.0),
+            240.0,
+        ),
+        vec![
+            Step::cut(Leaf::turned(
+                Plane::xy(315.0),
+                Axis::first(-135.0),
+                Section::bands(120.0, &[[210.0, 0.0, 15.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xz(-75.0),
+                Outline::circle([225.0, 315.0], 15.0),
+                120.0,
+            )),
+        ],
     ));
 }

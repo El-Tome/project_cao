@@ -45,7 +45,8 @@ fn points(found: Crossings) -> Vec<(DVec3, bool)> {
 
 /// The line the two planes share against the wall, as an edge lying on both
 /// crosses it; the circle the first plane cuts the wall along against the
-/// second; the conic the second cuts it along against the first.
+/// second, as an edge lying on both crosses it; the conic the second cuts
+/// it along against the first.
 fn reached(planes: [Plane; 2], wall: Cylinder, scale: Scale) -> [Vec<(DVec3, bool)>; 3] {
     let [square, steep] = planes.map(Surface::Plane);
     let round = Surface::Cylinder(wall);
@@ -68,7 +69,16 @@ fn reached(planes: [Plane; 2], wall: Cylinder, scale: Scale) -> [Vec<(DVec3, boo
             scale,
             &Touches::default(),
         )),
-        points(crossings(&Curve::Circle(circle), &steep, scale)),
+        points(crossings_lying(
+            &Curve::Circle(circle),
+            &[&square, &round].map(|own| Lying {
+                surface: own,
+                with: relation(own, &steep, scale),
+            }),
+            &steep,
+            scale,
+            &Touches::default(),
+        )),
         conics
             .iter()
             .flat_map(|conic| points(crossings(&Curve::Conic(*conic), &square, scale)))

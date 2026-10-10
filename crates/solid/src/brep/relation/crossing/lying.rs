@@ -60,15 +60,8 @@ pub fn crossings_lying(
     scale: Scale,
     touching: &Touches,
 ) -> Crossings {
-    if let (Curve::Line(line), Surface::Cylinder(cylinder), [one, other]) = (curve, surface, lying)
-        && let (Surface::Plane(first), Surface::Plane(second)) = (one.surface, other.surface)
-        && let Some(at) = section::touched(line, [first, second], cylinder, scale)
-    {
-        return Crossings::At(vec![Crossing {
-            parameter: at,
-            point: line.point(at),
-            tangent: true,
-        }]);
+    if let Some(touch) = section::crossing(curve, lying, surface, scale) {
+        return Crossings::At(vec![touch]);
     }
     through_lines(curve, lying, surface, scale).unwrap_or_else(|| {
         let found = crossings_given(curve, surface, scale, touching);

@@ -138,12 +138,6 @@ fn circle_and_surface(
 ) -> Solved {
     let (own_plane, _) = Plane::through(circle.center, circle.axis);
     let own_cylinder = Cylinder::about(circle.center, circle.axis, circle.radius);
-    if let Surface::Plane(plane) = surface
-        && let Relation::Line(line) = planes(&own_plane, plane, scale)
-        && let Some(at) = section::touched(&line, [&own_plane, plane], &own_cylinder, scale)
-    {
-        return Solved::At(vec![(circle.parameter(line.point(at)), true)]);
-    }
     let (relation, across, cut) = match surface {
         Surface::Plane(plane) => (planes(&own_plane, plane, scale), true, None),
         Surface::Cylinder(cylinder) if parallel(circle.axis, cylinder.axis, scale) => {

@@ -7771,6 +7771,39 @@ fn seed_5544100660_a_tube_joined_to_a_half_tube_of_its_bore_then_cut_at_60_degre
     ));
 }
 
+/// #552's round 5, a tilted draw on the exact kernel that held on
+/// `f57a5ca`: a shaft turned about X, its narrow band giving way to a cone
+/// whose apex stands at the shaft's end, cut by a plane at 45° through that
+/// apex, a hair off the cone's slope. The rim where the shaft's wall gives
+/// way to the cone stands inside the cut by rounding alone; read as a touch
+/// there, it left the cut's hairpin on the cone crossing the rim where its
+/// vertex stands a hair beyond, and a region of the cone had no point
+/// inside it. A circle no plane of the triple holds keeps crossing twice.
+#[test]
+fn seed_5545108465_a_shaft_into_a_cone_cut_through_its_apex_a_hair_off_its_slope() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(210.0),
+            Axis::first(0.0).backwards(),
+            Section::bands(
+                120.0,
+                &[
+                    [60.000006, -60.0, 0.0],
+                    [14.999994, -60.0, 0.0],
+                    [120.0, -75.0, 0.0],
+                ],
+            )
+            .sloping_to(&[[-60.0, 0.0], [-74.999994, 0.0], [-75.0, 0.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-120.00000600000004, 0.0, 210.0], [90.0, -45.0, 0.0]),
+            Outline::rectangle([-210.0, -90.0], [75.0, 90.0]),
+            210.0,
+        ))],
+    ));
+}
+
 /// #552's round 5, a piece with no hair, tilted through the application's
 /// body and failing on `85a2d2e` too: a disc and a turn of 270° about one
 /// axis along Y and of one radius, joined, then cut by a block at 45° about

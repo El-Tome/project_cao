@@ -374,7 +374,11 @@ The decisions, in the order taken, once per operation:
    axis steeply, at a cosine of a tenth or more, standing inside the wall's
    section by rounding alone, a millionth of `EPS`, only touches the wall,
    where it passes nearest the axis — the line, the circle the square plane
-   cuts and the conic the steep one cuts each reach that touch. A cut at
+   cuts and the conic the steep one cuts each reach that touch, the circle
+   only as an edge on the square plane: a rim where a wall gives way to a
+   cone, crossed by a plane through the cone's apex a hair off its slope,
+   keeps crossing twice, where that plane's hairpin on the cone does
+   (5545108465). A cut at
    60° through a bore's lowest line at a tube's end shares a line with the
    end found 3e-14 inside the bore, which crossed it twice 3.2e-6 apart
    where the cut's ellipse touches the end once, a sliver between them no

@@ -61,6 +61,17 @@
 //! within a few dozen tolerances, or a conic is cut a hair from a cone's rim
 //! or apex: the issue's second default, named, with no band and no decline
 //! added.
+//!
+//! Round 3 sorts the tilted draws measured at `cf9093b`, and the three seeds
+//! that held at `7411e98` and fail there, under the same two keys, read
+//! wider: `hair-from-tangent` now holds every plane a hair off along a
+//! wall's axis or off its tangent, the conic it cuts a hair from a ruling,
+//! a rim or an apex, the hairpin that decides its corners
+//! (relation/crossing/grazed.rs) and the conic kept for an arc it shares
+//! with a line (combine/identified.rs) — all three regressions are of it;
+//! `near-parallel-planes` keeps the planes alone, two too near parallel to
+//! fix their line, their faces drawn through each other or their corners
+//! parted (canonical/planes.rs, canonical/corners.rs).
 
 // The drawing, the promise and the checks are shared with the campaigns;
 // this file uses its own part of them.
@@ -6458,6 +6469,224 @@ fn seed_5541109790_a_frustum_cut_along_its_axis_1e_7_inside_its_wide_rim() {
             Plane::yz(-12.4999999),
             Outline::rectangle([3.0, -18.0], [48.0, 18.0]),
             8.0,
+        ))],
+    ));
+}
+
+/// #552's round 3, through the application's body: a post along X cut by a
+/// block whose face leans 4e-8° off parallel to the post's axis. A circle
+/// and a conic are left with one face each. Holds on `7411e98` and
+/// `0d019ac`, fails since the hairpin decides the corner (`cbf3c3c`), and
+/// holds once the hairpin re-decides nothing (relation/crossing/grazed.rs).
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since the hairpin decides the corner (cbf3c3c); declined as unverified"]
+fn seed_5542230229_a_post_cut_by_a_block_whose_face_leans_4e_8_degrees_off_its_axis() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(Plane::yz(5.0), Outline::circle([6.0, 2.0], 5.5), 10.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([8.0, 3.0, 2.0], [90.0, 89.99999996, 0.0]),
+            Outline::rectangle([-9.0, -7.0], [8.5, 7.0]),
+            9.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a double cone about Y whose first
+/// band starts 2e-8 off its axis, cut by a block leaning 45°, the cones'
+/// own slope: a stretch traced on a wall stands off its chord, declined as
+/// unsupported (domain/traced.rs). Holds on `7411e98` and `0d019ac`, fails
+/// since a conic goes before a line it is one arc with (`cbf3c3c`), and
+/// holds once the line is kept again (combine/identified.rs).
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since a conic goes before the line it is one arc with (cbf3c3c); declined as unsupported"]
+fn seed_5542125645_a_double_cone_2e_8_off_its_axis_cut_by_a_block_leaning_45_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xy(-1.0),
+            Axis::second(6.0),
+            Section::bands(
+                5.0,
+                &[[1.9999999989472883e-8, 0.0, 1.5], [0.99999998, 0.0, 1.5]],
+            )
+            .sloping_to(&[[0.0, 1.5], [0.0, 2.49999998]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([6.0, 6.5, -1.0], [-45.0, 0.0, 0.0]),
+            Outline::rectangle([-3.0, -3.5], [3.0, 4.5]),
+            -4.0,
+        ))],
+    ));
+}
+
+/// #552's round 3, through the application's body: a cone about Y cut by a
+/// block leaning 45° whose corner stands 2e-7 off the lattice: a stretch
+/// traced on a wall stands off its chord, declined as unsupported
+/// (domain/traced.rs). Holds on `7411e98` and `0d019ac`, fails since a
+/// conic goes before a line it is one arc with (`cbf3c3c`), and holds once
+/// the line is kept again (combine/identified.rs).
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: holds on 7411e98 and fails since a conic goes before the line it is one arc with (cbf3c3c); declined as unsupported"]
+fn seed_5542217385_a_cone_cut_by_a_block_leaning_45_degrees_whose_corner_stands_2e_7_off() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xz(210.0),
+            Axis::second(180.0),
+            Section::bands(-75.0, &[[60.0, -105.0, 15.0]]).sloping_to(&[[-15.0, 15.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [75.00000020839751, 210.0, -74.99999978419805],
+                [0.0, 45.0, 0.0],
+            ),
+            Outline::rectangle([-165.0, -135.0], [180.0, 135.0]),
+            30.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a block leaning 1e-7° about Y joined
+/// to a post along Z whose wall its side stands 3.5e-9 from: the side cuts
+/// the wall along a hairpin a hair from tangent, and edges on both are left
+/// with one face. It holds where the side is read along the post's axis —
+/// a band the issue's second default rules out. Fails on `7411e98` too.
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: a side leaning 1e-7 degrees a hair from tangent to a post's wall; declined as unverified"]
+fn seed_5542100114_a_block_leaning_1e_7_degrees_joined_to_a_post_its_side_nearly_touches() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::tilted([5.0, 6.0, 2.0], [0.0, -1e-7, 0.0]),
+            Outline::rectangle([2.0, -3.0], [8.5, 2.5]),
+            5.0,
+        ),
+        vec![Step::add(Leaf::prism(
+            Plane::xy(2.0),
+            Outline::circle([8.5, 3.0], 5.0),
+            4.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a slot along Z cut by a block
+/// leaning 60° whose corner stands 9e-9 inside the slot's flat side: the
+/// conics the block cuts the round ends along pass a hair from the edges
+/// where the ends meet that side, and are left with one face each. Fails
+/// on `7411e98` too.
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: conics cut 9e-9 from the edge where a slot's round end meets its side; declined as unverified"]
+fn seed_5542121248_a_slot_cut_at_60_degrees_by_a_block_whose_corner_stands_9e_9_inside_its_side() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(6.0),
+            Outline::slot([10.0, 4.0], [10.0, 2.0], 1.5),
+            1.5,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [11.499999991089934, 5.5, 7.499999995460095],
+                [0.0, 60.0, 0.0],
+            ),
+            Outline::rectangle([-2.0, -6.0], [2.0, 1.0]),
+            4.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a post along Y cut by a block
+/// whose floor leans 1e-7° on the post's end: the floor cuts the wall along
+/// an ellipse a hair from the end's rim, and the sliver of wall between
+/// the two is drawn through the end. Fails on `7411e98` too.
+#[test]
+#[ignore = "hair-from-tangent, #552's round 3 triage: a floor leaning 1e-7 degrees on a post's end cuts its wall a hair from the rim, the sliver drawn through the end"]
+fn seed_5542133393_a_post_cut_by_a_block_whose_floor_leans_1e_7_degrees_on_its_end() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xz(-1.0), Outline::circle([5.0, 5.0], 4.0), 10.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([1.0, -1.0, 5.0], [90.0, -1e-7, 0.0]),
+            Outline::rectangle([-1.0, -5.0], [9.0, 5.0]),
+            11.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a rounded block cut by a block
+/// leaning 1e-5° about Y from its top: the leaning faces and the block's
+/// cross too near parallel to fix their line, without grazing, and the
+/// overlay of a face finds a tie. Holds once a corner within the tolerance
+/// of two such planes is not parted (canonical/corners.rs). Fails on
+/// `7411e98` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 3 triage: corners within the tolerance of two planes 1e-5 degrees apart are parted; declined as a tie in a face's overlay"]
+fn seed_5542123080_a_rounded_block_cut_by_a_block_leaning_1e_5_degrees() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xy(2.0),
+            Outline::rounded([10.0, 1.0], [12.0, 6.0], 0.5),
+            5.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([10.5, 3.0, 7.0], [0.0, -1e-5, 0.0]),
+            Outline::rectangle([-2.0, -3.0], [2.0, 4.0]),
+            6.0,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a disc cut by a block leaning 4e-8°
+/// about Y whose floor lies on the disc's: the two floors, a hair apart,
+/// are drawn through each other. Fails on `7411e98` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 3 triage: a floor leaning 4e-8 degrees on a disc's floor is drawn through it"]
+fn seed_5542100263_a_disc_cut_by_a_block_leaning_4e_8_degrees_on_its_floor() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(Plane::xy(7.0), Outline::circle([1.0, 9.0], 4.5), 3.0),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([6.0, 9.0, 7.0], [0.0, 4e-8, 0.0]),
+            Outline::rectangle([-10.0, -5.0], [1.0, 5.0]),
+            3.0,
+        ))],
+    ));
+}
+
+/// #552's round 3, through the application's body: a block cut by a block
+/// leaning 1e-5° about Y whose floor lies on the first block's floor: edges
+/// between planes alone are left with one face each. Fails on `7411e98`
+/// too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 3 triage: a floor leaning 1e-5 degrees on a block's floor; declined as unverified"]
+fn seed_5542234414_a_block_cut_by_a_block_leaning_1e_5_degrees_on_its_floor() {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::prism(
+            Plane::xy(5.0),
+            Outline::rectangle([8.0, 5.0], [16.0, 11.0]),
+            8.5,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([12.0, 5.0, 5.0], [0.0, 1e-5, 0.0]),
+            Outline::rectangle([-1.0, 0.0], [2.0, 5.0]),
+            8.5,
+        ))],
+    ));
+}
+
+/// #552's round 3 on the exact kernel: a slot along Y cut by a block turned
+/// 1e-7° short of a quarter turn about Y: one pair of its faces and the
+/// slot's is decided to graze, another of the same lean is not, and the
+/// overlay of a face finds a tie. Fails on `7411e98` too.
+#[test]
+#[ignore = "near-parallel-planes, #552's round 3 triage: two pairs of planes of one lean, one decided to graze and one not; declined as a tie in a face's overlay"]
+fn seed_5542111371_a_slot_cut_by_a_block_turned_1e_7_degrees_short_of_a_quarter_turn() {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::prism(
+            Plane::xz(5.0),
+            Outline::slot([0.0, 2.5], [0.0, -1.0], 2.5),
+            4.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted([-2.5, 3.5, -1.0], [0.0, 89.9999999, 0.0]),
+            Outline::rectangle([-4.0, -4.0], [4.0, 4.0]),
+            6.0,
         ))],
     ));
 }

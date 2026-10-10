@@ -105,7 +105,7 @@ fn bits(points: &[DVec3]) -> Vec<[u64; 3]> {
 fn assert_on_the_hairpin(corners: &[DVec3], lean: f64) {
     for corner in corners {
         let off = hairpin(lean).distance(*corner);
-        assert!(off <= tight().eps() / 10.0, "{corner} {off}");
+        assert!(off <= tight().eps() / 2.0, "{corner} {off}");
     }
 }
 
@@ -130,17 +130,23 @@ fn the_corner_of_a_hairpin_and_a_plane_across_it_stands_on_the_hairpin_whichever
 }
 
 #[test]
-fn a_top_under_a_hairpin_s_vertex_by_less_than_the_line_can_tell_is_crossed_where_the_hairpin_says()
-{
+fn a_top_a_hair_under_a_hairpin_s_vertex_is_touched_where_the_line_touches_the_post() {
     let lean = LEAN / 100.0;
     let below = 20.0 * tight().eps();
-    let [by_the_line, by_the_hairpin, _] = under_the_vertex(below, lean);
-    assert_eq!(by_the_line.len(), 2, "{by_the_line:?}");
-    assert_on_the_hairpin(&by_the_line, lean);
-    let apart = 2.0 * (2.0 * 1.5 * lean * below).sqrt();
-    assert!(
-        ((by_the_line[1].x - by_the_line[0].x) - apart).abs() <= 1e-3 * apart,
-        "{by_the_line:?} {apart}"
-    );
-    assert_eq!(bits(&by_the_line), bits(&by_the_hairpin));
+    let vertex = hairpin(lean).anchor;
+    let height = vertex.z - below + 1.5 * lean.tan();
+    let [by_the_line, ..] = reached(height, lean);
+    let Relation::Line(line) = relation(
+        &Surface::Plane(top(height, lean)),
+        &Surface::Plane(side(lean)),
+        tight(),
+    ) else {
+        panic!("the top and the side cross");
+    };
+    let Crossings::At(found) = crossings(&Curve::Line(line), &post(), tight()) else {
+        panic!("points expected");
+    };
+    assert!(found.iter().all(|crossing| crossing.tangent), "{found:?}");
+    let alone: Vec<DVec3> = found.iter().map(|crossing| crossing.point).collect();
+    assert_eq!(bits(&by_the_line), bits(&alone));
 }

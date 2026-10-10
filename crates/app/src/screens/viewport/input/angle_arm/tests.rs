@@ -15,6 +15,11 @@
 //! Closes #560.
 //! - the reading laid with the trait measures what was typed, wherever the
 //!   click lands — `a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty`
+//!
+//! Closes #561.
+//! - 90 typed on the second trait of a chain draws a square corner on the side
+//!   of the mouse, and lays a 90° angle at the corner, with no construction arm
+//!   — `ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm`
 
 use cao_part::PartDocument;
 use cao_part::history::PointRef;
@@ -208,6 +213,51 @@ fn a_line_typed_at_thirty_and_clicked_behind_runs_and_reads_thirty() {
         "the reading says {} where 30 was typed",
         reading.value,
     );
+}
+
+#[test]
+fn ninety_typed_on_a_chained_trait_lays_the_corner_and_no_arm() {
+    let mut document = PartDocument::new("part", Utc::now());
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    let mut editor = SketchEditor::default();
+    let mut extrusion = ExtrusionState::default();
+    let lang = Catalogue::french();
+    let mut context = SketchContext {
+        document: &mut document,
+        editor: &mut editor,
+        extrusion: &mut extrusion,
+        lang: &lang,
+    };
+    let draw = crate::screens::viewport::input::draw_line_point;
+
+    draw(&mut context, 0, DVec2::new(2.0, 3.0), 0.1, 0.05);
+    draw(&mut context, 0, DVec2::new(12.0, 3.0), 0.1, 0.05);
+    context.editor.live.open_on(&[None, Some(90.0)]);
+    draw(&mut context, 0, DVec2::new(13.0, -5.0), 0.1, 0.05);
+
+    let sketch = &document.sketches()[0];
+    assert_eq!(
+        sketch.live_segments().count(),
+        2,
+        "the two traits, and no arm: {:?}",
+        sketch.segments(),
+    );
+    let (from, to) = sketch.endpoints(SegmentId(1));
+    assert!(
+        (to - from).normalize().distance(-DVec2::Y) < 1e-9,
+        "the mouse below, the square corner turns down: {from} to {to}",
+    );
+    let corner = DimensionTarget::Angle {
+        first: SegmentId(0),
+        second: SegmentId(1),
+    };
+    let laid = sketch
+        .dimension_of(corner)
+        .expect("the corner's angle is laid");
+    assert!((laid.value - 90.0).abs() < 1e-6, "it reads {}", laid.value);
 }
 
 #[test]

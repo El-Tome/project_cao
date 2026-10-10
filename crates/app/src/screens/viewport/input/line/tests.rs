@@ -53,10 +53,7 @@ fn a_length_typed_as_a_formula_is_what_its_dimension_keeps() {
         extrusion: &mut extrusion,
         lang: &lang,
     };
-    let aimed = Aim {
-        position: DVec2::new(60.0, 0.0),
-        square_with: None,
-    };
+    let aimed = Aim::at(DVec2::new(60.0, 0.0));
 
     dimension_the_line(&mut context, 0, SegmentId(0), aimed, 0.05);
 

@@ -5,7 +5,7 @@
 use cao_sketch::{ChamferMode, ToolState};
 
 use crate::screens::sketch::{LiveInput, Tool};
-use crate::ui::formula_field::formula_field;
+use crate::ui::formula_field::{formula_field, shift_the_caret};
 
 use super::super::input::rectangle_corner;
 use super::super::values::shape_scale;
@@ -40,12 +40,17 @@ fn paint_live_fields(ui: &mut egui::Ui, context: &mut SketchContext<'_>) -> Opti
         Tool::Arc => two(arc::live_fields(context, cursor)?),
         Tool::Ellipse => two(ellipse::live_fields(context, raw_cursor)?),
         Tool::Line => {
-            let from = sketch.anchor_position(context.editor.chain()?)?;
-            let span = cursor - from;
-            two((
-                ["mm", "°"],
-                [span.length() * scale, span.y.atan2(span.x).to_degrees()],
-            ))
+            let ToolState::Line { anchor, previous } = context.editor.tool_state else {
+                return None;
+            };
+            let from = sketch.anchor_position(anchor)?;
+            let read = sketch.angle_as_typed(anchor, previous, cursor)?;
+            if sketch.drawn_on_from(anchor, previous).is_some() {
+                let right = sketch.angle_as_typed(anchor, previous, raw_cursor)? < 0.0;
+                let grew = context.editor.live.sign_as(1, right);
+                shift_the_caret(ui.ctx(), field_id(1), grew);
+            }
+            two((["mm", "°"], [(cursor - from).length() * scale, read]))
         }
         Tool::Rectangle => {
             let start = context.editor.pending_start()?;

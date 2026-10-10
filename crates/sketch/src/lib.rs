@@ -28,6 +28,7 @@ mod corner;
 pub use corner::Corner;
 mod crossing;
 mod dimensioning;
+mod drawing_on;
 mod duplicating;
 mod edges;
 mod element;

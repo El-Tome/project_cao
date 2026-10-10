@@ -43,7 +43,7 @@ mod split;
 use split::split;
 
 mod angle_arm;
-pub(super) use angle_arm::lean_on_an_arm;
+pub(super) use angle_arm::{hold_the_typed_angle, lean_on_an_arm};
 
 mod line;
 use line::dimension_the_line;
@@ -443,7 +443,7 @@ pub(crate) fn draw_line_point(
             });
 
             if locked.second.is_some() {
-                lean_on_an_arm(context, index, drawn, sprung_from, pixel);
+                hold_the_typed_angle(context, index, aimed.drawn_on, (drawn, sprung_from), pixel);
             }
             dimension_the_line(context, index, drawn, aimed, pixel);
             context.document.history.fold_into_one_gesture(opened);
@@ -466,12 +466,8 @@ fn aim(
     previous: Option<SegmentId>,
     cursor: DVec2,
 ) -> Aim {
-    let nowhere = Aim {
-        position: cursor,
-        square_with: None,
-    };
     let Some(sketch) = context.document.sketches().get(index) else {
-        return nowhere;
+        return Aim::at(cursor);
     };
     sketch.aim(
         anchor,

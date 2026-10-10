@@ -6977,3 +6977,40 @@ fn seed_5543216778_a_cone_cut_by_a_block_whose_face_touches_it_along_a_ruling_be
         ))],
     ));
 }
+
+/// #552's round 4, through the application's body: a half cone about Y cut
+/// at 30°, then at 45°, then by a floor square to its axis. The 30° cut and
+/// the floor share a line square to the axis, which touches the cone exactly
+/// at the vertex of the hyperbola the floor cuts; found a femtometre inside
+/// the cone's section there, it crossed it twice four tolerances apart,
+/// across a sliver no face agreed on, and the body was refused. A line
+/// inside the section by rounding alone touches the cone now.
+#[test]
+fn seed_5543231406_a_half_cone_cut_at_30_and_45_degrees_whose_floor_s_line_touches_it_at_a_hyperbola_s_vertex()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(240.0),
+            Axis::second(0.0),
+            Section::bands(0.0, &[[52.0, -75.0, 15.0]]).sloping_to(&[[-75.0, 45.0]]),
+            180.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([0.0, 25.98076211353316, 240.0], [-30.0, 0.0, 0.0]),
+                Outline::rectangle([-90.0, -75.0], [90.0, 135.0]),
+                -105.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted([-15.0, -0.0, 240.0], [90.0, 45.0, 0.0]),
+                Outline::rectangle([-45.0, -90.0], [165.0, 90.0]),
+                -135.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::xy(255.0),
+                Outline::rectangle([-90.0, -15.0], [90.0, 135.0]),
+                60.0,
+            )),
+        ],
+    ));
+}

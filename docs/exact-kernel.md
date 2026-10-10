@@ -365,7 +365,13 @@ The decisions, in the order taken, once per operation:
    plane or a perpendicular wall is read the same way, through the lines
    their planes share. A line meets a cone (#536) along a ruling; square to
    the axis, where it crosses the cylinder of the cone's section at its
-   height, the corner the circle of that plane gives; through the apex, once,
+   height, the corner the circle of that plane gives — a line inside that
+   cylinder by rounding alone, a millionth of `EPS`, touches it, where it
+   passes nearest the axis: the line a plane square to the axis shares with
+   a plane touching the cone exactly where it crosses it, found a femtometre
+   inside, crossed it twice four tolerances apart, a sliver between no face
+   agreed on (5543231406), while a wall's own lines keep crossing twice
+   however thin the hair, as real walls rely on; through the apex, once,
    or touching there where it stays outside on both sides; and otherwise at
    the roots of the cone's quadric kept on its own nappe, touching it once
    where it passes within `EPS` of it at its closest, as a wall. A circle in

@@ -7100,6 +7100,117 @@ fn seed_5543224272_a_wedge_of_a_hundredth_of_a_degree_cut_by_a_post_touching_its
     ));
 }
 
+/// #552's round 4, measured merged: a frustum about X sloping at 30°, its
+/// apex at x ≈ −345.79 beyond the box, cut by a block at that slope near the
+/// apex and by a second at 15° whose face passes 3e-7 off the apex. Held as
+/// the two rulings through the apex beyond the box, the face's cut was
+/// declined as unverified; the hyperbola cut as on `85a2d2e` holds.
+#[test]
+fn seed_5543114315_a_frustum_cut_by_a_face_steeper_than_its_slope_a_hair_off_its_apex_beyond_the_box()
+ {
+    random_solids::holds_exactly(&Case::new(
+        Leaf::turned(
+            Plane::xz(-60.0),
+            Axis::first(0.0),
+            Section::bands(
+                -60.0,
+                &[
+                    [25.98076211353316, -165.0, 0.0],
+                    [139.01923788646684, -180.0, 0.0],
+                ],
+            )
+            .sloping_to(&[[-180.0, 0.0], [-180.0, 0.0]]),
+            360.0,
+        ),
+        vec![
+            Step::cut(Leaf::prism(
+                Plane::tilted([-346.0, -60.0, 0.0], [90.0, -30.0, 0.0]),
+                Outline::rectangle([135.0, -210.0], [510.0, 210.0]),
+                30.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-345.7883833265105, -60.0, 2.897777478867205e-7],
+                    [0.0, -15.0, 0.0],
+                ),
+                Outline::rectangle([210.0, -195.0], [510.0, 195.0]),
+                -315.0,
+            )),
+        ],
+    ));
+}
+
+/// #552's round 4, measured merged, through the application's body: a
+/// stack of cones about X sloping at atan ⅛, cut by a block at half that
+/// slope whose face passes 3e-7 off the apex of one beyond the box. As the
+/// seed before it: declined as unverified with the two rulings, held with
+/// the hyperbola.
+#[test]
+fn seed_5543213205_a_stack_of_cones_cut_by_a_face_steeper_than_one_s_slope_a_hair_off_its_apex_beyond_the_box()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(60.0),
+            Axis::first(0.0),
+            Section::bands(
+                -90.0,
+                &[
+                    [120.0, 0.0, 120.0],
+                    [15.0, 0.0, 90.0],
+                    [120.0, 0.0, 90.0],
+                    [120.0, 0.0, 90.0],
+                ],
+            )
+            .sloping_to(&[[0.0, 120.0], [0.0, 90.0], [0.0, 90.0], [0.0, 75.0]]),
+            360.0,
+        ),
+        vec![Step::cut(Leaf::prism(
+            Plane::tilted(
+                [884.9999999813588, 0.0, 59.99999970057972],
+                [0.0, 3.562508174450899, 0.0],
+            ),
+            Outline::rectangle([-1005.0, -30.0], [-570.0, 135.0]),
+            90.0,
+        ))],
+    ));
+}
+
+/// #552's round 4, measured merged, through the application's body: a
+/// cone about Y joined to a ring, cut by a block whose face passes through
+/// the cone's apex beyond the box steeper than its slope by a third of a
+/// billionth, within the angle read as touching. Held as the ruling of
+/// touch, the face could not be drawn; the hyperbola, two arms a few
+/// thousandths apart across the box, is drawn as on `85a2d2e`.
+#[test]
+fn seed_5543216548_a_cone_cut_by_a_face_through_its_apex_beyond_the_box_a_hair_steeper_than_its_slope()
+ {
+    random_solids::holds_through_the_application(&Case::new(
+        Leaf::turned(
+            Plane::xy(7.5),
+            Axis::second(-5.0),
+            Section::bands(10.0, &[[25.0, 0.0, 27.5], [2.5, 0.0, 34.31818181818182]])
+                .sloping_to(&[[0.0, 27.5], [0.0, 35.0]]),
+            360.0,
+        ),
+        vec![
+            Step::add(Leaf::turned(
+                Plane::xy(7.5),
+                Axis::second(-5.0),
+                Section::bands(10.0, &[[28.0, 35.0, 45.0]]),
+                360.0,
+            )),
+            Step::cut(Leaf::prism(
+                Plane::tilted(
+                    [-5.0, -90.8333333333333, 7.5],
+                    [15.25511868305778, 0.0, 0.0],
+                ),
+                Outline::rectangle([-38.0, 85.0], [38.0, 138.0]),
+                10.0,
+            )),
+        ],
+    ));
+}
+
 /// #552's round 4, a slanted draw on the exact kernel: a rounded block cut
 /// by a turn of a hundredth of a degree about Y, a wall and a cone of one
 /// axis with the corner's wall. The block's side touches its corner's wall

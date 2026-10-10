@@ -1557,8 +1557,12 @@ Fixed, each with its shrunk case kept as a test:
   5543216778): a plane at exactly the slope through an apex outside the box
   was cut as a conic, which is nothing for a doubled ruling; the face was
   decided apart from the cone and the ruling's corners kept apart. Such a
-  plane now holds the ruling, or the two rulings when steeper, read at their
-  feet (decision 2).
+  plane now holds the ruling, read at its foot, where no conic is cut
+  (decision 2). Holding the two rulings of a steeper plane too, and the
+  ruling wherever the angle reads as touching, broke three seeds past the
+  12 000 measured, found once merged (5543114315, 5543213205, 5543216548,
+  each a plane a hair off an apex beyond the box whose hyperbola held):
+  narrowed to the case it was for, and named.
 - **A line inside a cone's section by rounding** (5543231406): the line a
   floor square to a cone's axis shares with a cut touching the cone exactly
   there, found 6e-14 inside the section, crossed it twice four tolerances

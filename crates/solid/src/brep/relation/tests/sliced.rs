@@ -417,9 +417,9 @@ fn assert_rulings_of_the_taper_in(lines: &[Line], side: &Surface) {
 }
 
 #[test]
-fn a_plane_touching_a_cone_along_a_ruling_whose_apex_stands_outside_the_box_is_that_ruling() {
+fn a_plane_touching_a_cone_along_a_ruling_beyond_its_apex_that_cuts_no_conic_is_that_ruling() {
     let normal = along_the_taper_s_ruling();
-    for off in [0.0, 0.5 * scale().eps(), -0.5 * scale().eps()] {
+    for off in [0.5 * scale().eps(), 0.9 * scale().eps()] {
         let touching = plane(BEYOND + normal * off, normal);
         let found = decided(&taper(), &touching);
         let Relation::Ruling { line, apex } = found else {
@@ -433,16 +433,24 @@ fn a_plane_touching_a_cone_along_a_ruling_whose_apex_stands_outside_the_box_is_t
 }
 
 #[test]
-fn a_plane_through_a_cone_s_apex_outside_the_box_steeper_than_its_slope_holds_its_two_rulings() {
-    let steep = plane(BEYOND, leaning(DVec3::X, DVec3::Z, 0.03));
-    assert!(at_a_slant(&taper(), &steep, scale()));
-    let found = decided(&taper(), &steep);
-    let Relation::Rulings { lines, apex } = found else {
-        panic!("two rulings expected, got {found:?}");
-    };
-    assert_eq!(apex, None);
-    assert_rulings_of_the_taper_in(&lines, &steep);
-    assert!(lines[0].direction.cross(lines[1].direction).length() > 0.01);
+fn a_plane_touching_a_cone_along_a_ruling_beyond_its_apex_where_a_conic_is_cut_keeps_that_conic() {
+    let normal = along_the_taper_s_ruling();
+    for off in [0.0, -0.5 * scale().eps()] {
+        let touching = plane(BEYOND + normal * off, normal);
+        let found = decided(&taper(), &touching);
+        assert_cut_on_both(&found, &taper(), &touching);
+    }
+}
+
+#[test]
+fn a_plane_through_a_cone_s_apex_outside_the_box_steeper_than_its_slope_is_left_to_its_conic() {
+    let normal = leaning(DVec3::X, DVec3::Z, 0.03);
+    for off in [0.0, 0.9 * scale().eps(), -0.9 * scale().eps()] {
+        let steep = plane(BEYOND + normal * off, normal);
+        assert!(at_a_slant(&taper(), &steep, scale()));
+        let found = decided(&taper(), &steep);
+        assert!(matches!(found, Relation::Conic(_)), "{off}: {found:?}");
+    }
 }
 
 #[test]

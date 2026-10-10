@@ -308,11 +308,14 @@ The decisions, in the order taken, once per operation:
    than the slope by more than the angle `parallel` reads, touches the cone
    along one ruling (`Relation::Ruling`, its apex with it) when it is within
    that angle of the slope, and meets it at its apex alone when flatter;
-   with the apex beyond the box, the same two rulings or ruling of touch,
-   with no apex, where they stand within `EPS` of the plane at their feet
-   and run along it across the box — cut as a conic, a doubled ruling is
-   nothing, and a face touching a cone along a ruling at exactly its slope
-   was refused (5543214149, 5543216778); a
+   with the apex beyond the box, within that angle of the slope, and no
+   conic cut, the ruling of touch, with no apex, where it stands within
+   `EPS` of the plane at its foot and runs along it across the box — cut as
+   a conic, a doubled ruling is nothing, and a face touching a cone along a
+   ruling at exactly its slope was refused (5543214149, 5543216778). Where
+   a conic is cut, or the plane is steeper, the conic is kept: the rulings
+   held there instead broke three bodies the hyperbola held (5543114315,
+   5543213205, 5543216548); a
    cut within `EPS` of the axis all round is the point of the axis on the
    plane, as a circle within `EPS` of it is; otherwise the conic on the
    cone's own nappe — an ellipse, a parabola, a branch of a hyperbola, the

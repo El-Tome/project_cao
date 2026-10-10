@@ -750,8 +750,8 @@ impl Sketch {
             DimensionTarget::Distance { from, to } => {
                 self.length_equation(from, to, dimension.value / scale)?
             }
-            DimensionTarget::Angle { first, second, .. } => {
-                self.angle_equation(first, second, dimension.value)?
+            DimensionTarget::Angle { .. } => {
+                self.angle_equation(dimension.target, dimension.value)?
             }
             DimensionTarget::AngleBetween { .. } => {
                 self.angle_between_equation(dimension.target, dimension.value)?
@@ -837,41 +837,6 @@ impl Sketch {
         equation.error = gap.abs() - target;
         equation.add(to, direction * sign);
         equation.add(from, -direction * sign);
-        Some(equation)
-    }
-
-    /// The angle at the corner two segments share.
-    ///
-    /// The wanted value keeps the sign the corner currently has, so asking for
-    /// 30° on a corner that opens one way does not flip it to the other.
-    fn angle_equation(
-        &self,
-        first: crate::sketch::SegmentId,
-        second: crate::sketch::SegmentId,
-        degrees: f64,
-    ) -> Option<Equation> {
-        let (pivot, far_first, far_second) = self.shared_corner(first, second)?;
-        let a = self.point(far_first) - self.point(pivot);
-        let b = self.point(far_second) - self.point(pivot);
-        let (length_a, length_b) = (a.length_squared(), b.length_squared());
-        if length_a < 1e-12 || length_b < 1e-12 {
-            return None;
-        }
-
-        let signed = a.perp_dot(b).atan2(a.dot(b));
-        let sign = if signed < 0.0 { -1.0 } else { 1.0 };
-
-        // Turning a point about the pivot changes the angle by the component
-        // perpendicular to its arm, scaled by how far out it sits.
-        let from_first = DVec2::new(-a.y, a.x) / length_a;
-        let from_second = DVec2::new(-b.y, b.x) / length_b;
-
-        let mut equation = Equation::new(self.variables());
-        equation.error = signed.abs() - degrees.to_radians();
-        equation.angular = true;
-        equation.add(far_second, from_second * sign);
-        equation.add(far_first, -from_first * sign);
-        equation.add(pivot, (from_first - from_second) * sign);
         Some(equation)
     }
 }

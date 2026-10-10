@@ -8,6 +8,10 @@
 //!   was put down — `an_angle_to_an_axis_is_drawn_in_the_quarter_it_measures`
 //! - a trait whose middle lies on the axis draws no line along it: the axis is
 //!   its arm — `an_angle_measured_on_the_axis_lets_the_axis_speak_for_itself`
+//!
+//! Closes #485.
+//! - a prolongation an angle opens from is drawn thin, out to the arc —
+//!   `a_corner_angle_draws_the_prolongations_it_opens_from_and_nothing_else`
 
 use cao_sketch::{
     AnnotationMetrics, AxisToward, DimensionTarget, Sketch, SketchAxis, Toward, WorkPlane,
@@ -267,5 +271,48 @@ fn an_angle_to_an_axis_is_drawn_in_the_quarter_it_measures() {
             "{said}: the value sits in the quarter too: {:?}",
             placement.text_at,
         );
+    }
+}
+
+#[test]
+fn a_corner_angle_draws_the_prolongations_it_opens_from_and_nothing_else() {
+    let corner = DVec2::new(60.0, 20.0);
+    for (put_down, expected) in [
+        (DVec2::new(-20.0, 30.0), Vec::new()),
+        (DVec2::new(40.0, 20.0), vec![DVec2::X]),
+        (
+            DVec2::new(20.0, -30.0),
+            vec![DVec2::X, -DVec2::new(40.0, 50.0).normalize()],
+        ),
+    ] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let left = sketch.add_point(DVec2::new(0.0, 20.0));
+        let pivot = sketch.add_point(corner);
+        let up_right = sketch.add_point(DVec2::new(100.0, 70.0));
+        let along = sketch.add_segment(left, pivot);
+        let slanted = sketch.add_segment(pivot, up_right);
+        let target = sketch.oriented(sketch.corner_angle(along, slanted), corner + put_down);
+        sketch.set_dimension(target, 51.3, false);
+
+        let placement = sketch.place(target, METRICS).unwrap();
+
+        let mut drawn: Vec<DVec2> = arms_from(&placement, corner)
+            .into_iter()
+            .map(|line| line.normalize())
+            .collect();
+        drawn.sort_by(|a, b| a.x.total_cmp(&b.x));
+        let mut wanted = expected.clone();
+        wanted.sort_by(|a, b| a.x.total_cmp(&b.x));
+        assert_eq!(
+            drawn.len(),
+            wanted.len(),
+            "put down at {put_down}: {drawn:?}"
+        );
+        for (line, way) in drawn.iter().zip(&wanted) {
+            assert!(
+                line.distance(*way) < 1e-9,
+                "put down at {put_down}, a line runs {line} where {way} was wanted",
+            );
+        }
     }
 }

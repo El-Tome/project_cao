@@ -12,6 +12,7 @@ use crate::annotation::angle::{Arm, angular};
 use crate::annotation::between_traits::between_traits;
 use crate::arc_annotation;
 use crate::constraints::DimensionTarget;
+use crate::corner_angle::Along;
 use crate::segment::overshot_end;
 use crate::sketch::Sketch;
 
@@ -82,9 +83,18 @@ impl Sketch {
                 }
                 linear(&mut shape, Span::between(foot, at), away, by, metrics)
             }
-            DimensionTarget::Angle { first, second, .. } => {
-                let (pivot, a, b) = self.corner_points(first, second)?;
-                angular(&mut shape, pivot, Arm::Drawn(a), b, by, metrics)
+            DimensionTarget::Angle {
+                first_along,
+                second_along,
+                ..
+            } => {
+                let (pivot, one, other) = self.corner_arms(target)?;
+                let arm = |way: DVec2, along: Along| match along {
+                    Along::Trait => Arm::Drawn(pivot + way),
+                    Along::Prolongation => Arm::Reference(pivot + way),
+                };
+                let (first, second) = (arm(one, first_along), arm(other, second_along));
+                angular(&mut shape, pivot, first, second, by, metrics)
             }
             DimensionTarget::AngleBetween {
                 first,
@@ -106,7 +116,7 @@ impl Sketch {
                     false => Arm::Reference(opens_from),
                 };
                 let reaches = middle + along_the_trait * 0.5;
-                angular(&mut shape, middle, arm, reaches, by, metrics)
+                angular(&mut shape, middle, arm, Arm::Drawn(reaches), by, metrics)
             }
             DimensionTarget::Diameter(circle) => {
                 let circle = *self.circles().get(circle.0)?;

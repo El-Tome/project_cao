@@ -54,7 +54,7 @@ pub(super) fn between_traits(
         out,
         pivot,
         Arm::Drawn(pivot + one),
-        pivot + other,
+        Arm::Drawn(pivot + other),
         by,
         metrics,
     );

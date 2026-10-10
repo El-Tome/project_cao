@@ -31,6 +31,7 @@ impl Sketch {
     /// length itself.
     pub fn oriented(&self, target: DimensionTarget, cursor: DVec2) -> DimensionTarget {
         match target {
+            DimensionTarget::Angle { .. } => return self.facing_the_corner(target, cursor),
             DimensionTarget::AngleBetween { .. } => return self.opening_toward(target, cursor),
             DimensionTarget::AxisAngle { .. } => return self.facing_axis(target, cursor),
             _ => {}
@@ -133,7 +134,7 @@ impl Sketch {
             && second != first
         {
             if self.angle_between(first, second).is_some() {
-                return Some(DimensionTarget::corner(first, second));
+                return Some(self.corner_angle(first, second));
             }
             // No shared end: crossing, one ending on the other, or lying
             // apart. Any two that do not run the same way make an angle, and

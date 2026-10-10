@@ -39,10 +39,9 @@ impl Sketch {
                 let (a, b) = (self.points.get(from.0)?, self.points.get(to.0)?);
                 a.distance(*b) * millimeters_per_unit.max(1e-9)
             }
-            DimensionTarget::Angle { first, second, .. } => self.angle_between(first, second)?,
-            DimensionTarget::AngleBetween { .. } | DimensionTarget::AxisAngle { .. } => {
-                self.opening(target)?
-            }
+            DimensionTarget::Angle { .. }
+            | DimensionTarget::AngleBetween { .. }
+            | DimensionTarget::AxisAngle { .. } => self.opening(target)?,
             DimensionTarget::PointToSegment { point, segment } => {
                 self.point_to_segment(point, segment)? * millimeters_per_unit.max(1e-9)
             }

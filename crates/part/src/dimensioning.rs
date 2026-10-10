@@ -206,10 +206,9 @@ impl PartState {
                 .then(|| self.to_millimeters(sketch.circle(circle).radius)),
             DimensionTarget::Diameter(circle) => (circle.0 < sketch.circles().len())
                 .then(|| self.to_millimeters(sketch.circle(circle).radius * 2.0)),
-            DimensionTarget::Angle { first, second, .. } => sketch.angle_between(first, second),
-            DimensionTarget::AngleBetween { .. } | DimensionTarget::AxisAngle { .. } => {
-                sketch.opening(target)
-            }
+            DimensionTarget::Angle { .. }
+            | DimensionTarget::AngleBetween { .. }
+            | DimensionTarget::AxisAngle { .. } => sketch.opening(target),
             DimensionTarget::PointToSegment { point, segment } => sketch
                 .point_to_segment(point, segment)
                 .map(|units| self.to_millimeters(units)),

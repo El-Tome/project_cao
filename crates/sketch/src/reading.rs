@@ -105,18 +105,11 @@ impl Sketch {
             DimensionTarget::ArcRadius(arc) => Reading::Round {
                 radius: (arc.0 < self.arcs().len()).then(|| self.arc_radius(arc))?,
             },
-            DimensionTarget::Angle { first, second, .. } => {
-                self.segments().get(first.0)?;
-                self.segments().get(second.0)?;
-                Reading::Opening {
-                    degrees: self.angle_between(first, second)?,
-                }
-            }
-            DimensionTarget::AngleBetween { .. } | DimensionTarget::AxisAngle { .. } => {
-                Reading::Opening {
-                    degrees: self.opening(target)?,
-                }
-            }
+            DimensionTarget::Angle { .. }
+            | DimensionTarget::AngleBetween { .. }
+            | DimensionTarget::AxisAngle { .. } => Reading::Opening {
+                degrees: self.opening(target)?,
+            },
             DimensionTarget::ArcSweep(arc) => Reading::Opening {
                 degrees: (arc.0 < self.arcs().len()).then(|| self.arc_sweep(arc).to_degrees())?,
             },

@@ -127,9 +127,10 @@ impl Pool {
     }
 
     /// Every corner's support: the surfaces it was found on, those of the
-    /// curves it was found along, and those of every curve it lies on as
-    /// `lies_on` reads it, until none is added — a corner found on two of the
-    /// three surfaces a line lies on lies on the third.
+    /// curves it was found along, those of every curve it lies on as
+    /// `lies_on` reads it, and those decided to touch one of them at a point
+    /// it stands on, until none is added — a corner found on two of the
+    /// three surfaces a line lies on lies on the third (5544320693).
     pub fn supports(&self, registry: &Registry) -> Vec<Vec<SurfaceId>> {
         let mut supports: Vec<BTreeSet<SurfaceId>> = self
             .corners
@@ -150,6 +151,9 @@ impl Pool {
         loop {
             let mut grown = false;
             for (corner, support) in self.corners.iter().zip(&mut supports) {
+                let touched = registry.apart.touching(support, corner.point, self.eps);
+                grown |= !touched.is_empty();
+                support.extend(touched);
                 for (rank, known) in registry.list.iter().enumerate() {
                     let sorted: Vec<SurfaceId> = support.iter().copied().collect();
                     let standing: Vec<SurfaceId> =

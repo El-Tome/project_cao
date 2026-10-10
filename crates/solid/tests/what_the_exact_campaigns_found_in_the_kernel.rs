@@ -114,7 +114,7 @@
 //! told apart where they run. Left, ignored with their reason: the edge of
 //! the tangency band with a hyperbola at the touch (5543307115), and two
 //! regions with no point inside them inherited from #533 and #536
-//! (5543305067, 5543616767); the crossings are in
+//! (5543305067, 5543616767), which hold since round 5; the crossings are in
 //! `what_the_exact_campaigns_found_in_the_triangles.rs`.
 //!
 //! After round 4, #552 decided to round what no band would hold: a plane of
@@ -7282,11 +7282,11 @@ fn seed_5543307115_a_rounded_block_cut_by_a_turn_of_a_hundredth_of_a_degree_whos
 
 /// #552's round 4, a slanted draw on the exact kernel, failing at `9e54a71`
 /// too, before conics: a post, a turned ring whose axis meets the post's,
-/// and a second post. A region of a face is found with no column to put a
-/// point inside it, and the step is declined as a tie
-/// (`overlay/partition.rs`).
+/// and a second post. A region of a face was found with no column to put a
+/// point inside it, and the step was declined as a tie
+/// (`overlay/partition.rs`). It holds since a corner standing where two
+/// walls were decided to touch at a point lies on both (5544320693).
 #[test]
-#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it between a post, a ring turned about an axis meeting its own and a second post; declined as a tie"]
 fn seed_5543305067_two_posts_and_a_ring_turned_about_an_axis_meeting_the_first() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::xy(-2.0), Outline::circle([6.0, 9.5], 1.5), -4.0),
@@ -7308,10 +7308,11 @@ fn seed_5543305067_two_posts_and_a_ring_turned_about_an_axis_meeting_the_first()
 
 /// #552's round 4, a turned draw through the application's body, failing
 /// at `9e54a71` too: a ring along Y cut by a turn about X, then by a post
-/// along Y. A region of a face is found with no column to put a point
-/// inside it, and the step is declined as a tie (`overlay/partition.rs`).
+/// along Y. A region of a face was found with no column to put a point
+/// inside it, and the step was declined as a tie (`overlay/partition.rs`).
+/// It holds since a corner standing where two walls were decided to touch
+/// at a point lies on both (5544320693).
 #[test]
-#[ignore = "kernel-declines, inherited from #533 and #536: a region with no point inside it after a ring is cut by a turn and a post; declined as a tie"]
 fn seed_5543616767_a_ring_cut_by_a_turn_about_x_then_by_a_post() {
     random_solids::holds_through_the_application(&Case::new(
         Leaf::prism(
@@ -7801,10 +7802,13 @@ fn seed_5544229207_two_turns_about_one_axis_cut_at_45_degrees() {
 /// along Z touching its wall, then cut by a pin along X of the rod's radius
 /// whose axis meets the rod's at the touch: the two walls of one radius
 /// cross along two ellipses whose node lies on the post's wall
-/// (meet/pair.rs). A region of the overlay has no point found inside it
-/// (overlay/partition.rs): declined as a tie.
+/// (meet/pair.rs), where the line the pin touches the post along passes.
+/// The union left no edge where the rod touches the post, and the node,
+/// found on the pin and the rod alone, did not cut the line: a region of
+/// the pin's overlay had no point found inside it (overlay/partition.rs),
+/// declined as a tie. A corner standing where two walls were decided to
+/// touch at a point lies on both.
 #[test]
-#[ignore = "plain-pieces, #552's round 5: a rod touching a post, cut by a pin of its radius crossing it at the touch; a region with no point inside it, declined as a tie"]
 fn seed_5544320693_a_post_joined_to_a_rod_touching_it_then_cut_by_a_pin_of_its_radius() {
     random_solids::holds_exactly(&Case::new(
         Leaf::prism(Plane::yz(4.0), Outline::circle([5.0, 3.5], 5.5), -7.0),

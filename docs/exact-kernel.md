@@ -429,6 +429,16 @@ The decisions, in the order taken, once per operation:
    step was refused (5543226572: a slant through the apex of a cone
    joined to two quarter turns, touching it along the ruling one of their
    end planes holds).
+   A corner standing within `EPS` of a point where two surfaces were
+   decided to touch (decision 2) — the node or the contact of two
+   perpendicular walls, a cone's apex — lies on both, and so on every
+   curve of either it stands on. Two walls of one operand touching at a
+   point leave no edge there, and the curves a third surface cuts each of
+   them along meet there with no edge to find the corner through: a rod
+   joined to a post it touches, cut by a pin of the rod's radius whose
+   axis meets the rod's at the touch, put the node of the pin and the rod
+   on neither the post nor the line the pin touches it along, and that
+   line was not cut there (5544320693).
    No corner lies on a curve on a surface apart from one of its own. Each
    corner is measured where it stands (below, where planes fix it): one
    whose three planes fix a place stands there, though an operand put it

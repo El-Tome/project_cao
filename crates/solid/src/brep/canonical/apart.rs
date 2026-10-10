@@ -151,6 +151,33 @@ impl Apart {
             .map_or(&[], Vec::as_slice)
     }
 
+    /// The surfaces `support` lacks that were decided to touch one of its
+    /// own at a point within `eps` of `point`: a corner standing there is on
+    /// both. Two walls of one operand touching at a point leave no edge
+    /// there, and the curves a third surface cuts each of them along, one
+    /// crossing the line the other touches it along, meet there with no
+    /// edge to find the corner through: a rod touching a post, both cut by
+    /// a pin of the rod's radius whose axis meets the rod's at the touch
+    /// (5544320693).
+    pub fn touching(
+        &self,
+        support: &BTreeSet<SurfaceId>,
+        point: DVec3,
+        eps: f64,
+    ) -> Vec<SurfaceId> {
+        self.points
+            .iter()
+            .filter(|(_, at)| at.iter().any(|at| at.distance(point) <= eps))
+            .filter_map(|([one, other], _)| {
+                match (support.contains(one), support.contains(other)) {
+                    (true, false) => Some(*other),
+                    (false, true) => Some(*one),
+                    _ => None,
+                }
+            })
+            .collect()
+    }
+
     /// Whether `surface` is a cone `point` stands off the own nappe of by
     /// more than `eps`: a ruling through the apex runs on over the other
     /// nappe, where it lies on no face of the cone.

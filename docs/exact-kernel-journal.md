@@ -784,3 +784,49 @@ and on the tip:
   crossing (`Uncrossed`) 135, left open (`Closed`) 6, listed off
   (`Listed`) 5, a volume off 2, a span off along a line 1.
 - The gate's tests, built, take about 35 s, as at `7411e98`.
+
+## 10 October: round 3 of #552, measured
+
+Two lanes merged onto `e1e325f` (a place within rounding of two planes too
+near parallel to fix their line is on it; two crossings the line finds stay
+two on the hairpin, and the conic is kept before a rim it is one arc with),
+measured at `0d35b52` on fresh seeds, in release, the nine draws side by
+side, and the first 15 000 seeds of each tilted draw run again on `e1e325f`
+and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 40 000 | 220 | 5.50 |
+| tilted, application's body | 5543200000 | 40 000 | 250 | 6.25 |
+| slanted, exact kernel | 5543300000 | 30 000 | 19 | 0.63 |
+| slanted, application's body | 5543400000 | 30 000 | 6 | 0.20 |
+| turned, exact kernel | 5543500000 | 30 000 | 15 | 0.50 |
+| turned, application's body | 5543600000 | 30 000 | 19 | 0.63 |
+| square | 5543700000 | 30 000 | 2 | 0.07 |
+| profiles, exact kernel | 5543800000 | 20 000 | 5 | 0.25 |
+| profiles, application's body | 5543900000 | 20 000 | 2 | 0.10 |
+
+- The tilted draws stay over the bar; every other draw is under it. Over
+  the first 15 000 fresh tilted seeds the exact kernel goes from 5.8
+  failures in a thousand at `e1e325f` to 5.4, six seeds repaired; the
+  application's body stays near 5.9, one repaired; none broken on either.
+- No seed that holds on `e1e325f` fails on the tip. Every failure, run
+  again on `e1e325f`, fails there too; two there by another rule, refused
+  there, drawn crossing here, both through the application's body:
+  5543225455 (tilted) and 5543611164 (turned). The turned draw through the
+  application's body counts 19 where round 2 counted 7, every one of them
+  failing on `e1e325f` as well: the seeds drawn, not the tip.
+- Shrunk, the tilted draws' 470: a plane within 1e-7° of square or
+  parallel, 236; a plane 2e-7° to 1e-3° off, 129; a hair by an offset, 98;
+  no hair the sorting sees, 7 — cones cut at a real slant, at 7°
+  (5543214149), at 16° (5543216778), at 45° then 37° (5543220895), at 30°
+  and 45° then square (5543231406), at 45° and joined to two quarter turns
+  (5543226572), and two turns of a hundredth of a degree, one refused
+  (5543224272), one drawn crossing (5543227890). By what is left of them:
+  prisms alone 146, turns without a cone 216, with a cone 108. The other
+  draws' 68 are the families of #533 and #536: an offset hair 53, a
+  leaning hair 10, none 5.
+- By the rule broken, over all 538: refused (`Answers`) 385, drawn
+  crossing (`Uncrossed`) 134, left open (`Closed`) 14, listed off
+  (`Listed`) 2, a volume off 2, a span off along a line 1.
+- The gate's tests, built, take about 35 s, as at `cf9093b`.

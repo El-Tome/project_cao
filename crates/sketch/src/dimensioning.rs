@@ -133,7 +133,7 @@ impl Sketch {
             && second != first
         {
             if self.angle_between(first, second).is_some() {
-                return Some(DimensionTarget::Angle { first, second });
+                return Some(DimensionTarget::corner(first, second));
             }
             // No shared end: crossing, one ending on the other, or lying
             // apart. Any two that do not run the same way make an angle, and

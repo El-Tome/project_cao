@@ -82,7 +82,7 @@ impl Sketch {
                 }
                 linear(&mut shape, Span::between(foot, at), away, by, metrics)
             }
-            DimensionTarget::Angle { first, second } => {
+            DimensionTarget::Angle { first, second, .. } => {
                 let (pivot, a, b) = self.corner_points(first, second)?;
                 angular(&mut shape, pivot, Arm::Drawn(a), b, by, metrics)
             }

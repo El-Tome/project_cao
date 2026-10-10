@@ -394,10 +394,7 @@ fn a_trait_carrying_its_length_then_a_second_trait_gives_the_angle() {
 
     assert_eq!(
         placing(&editor),
-        Some(DimensionTarget::Angle {
-            first: SegmentId(0),
-            second: SegmentId(1),
-        }),
+        Some(DimensionTarget::corner(SegmentId(0), SegmentId(1))),
         "the second trait turned the first into an angle"
     );
     assert!(editor.editing.is_none(), "the length's field stayed open");

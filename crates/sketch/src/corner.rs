@@ -188,10 +188,7 @@ impl Sketch {
             sides,
             lengths: sides.map(|side| self.dimension_of(DimensionTarget::Length(side)).cloned()),
             opening: self
-                .dimension_of(DimensionTarget::Angle {
-                    first: sides[0],
-                    second: sides[1],
-                })
+                .dimension_of(DimensionTarget::corner(sides[0], sides[1]))
                 .cloned(),
         }
     }
@@ -232,7 +229,7 @@ impl Sketch {
                 }
                 _ => stretches,
             };
-            saved += self.rewrite(opening, DimensionTarget::Angle { first, second });
+            saved += self.rewrite(opening, DimensionTarget::corner(first, second));
         }
         saved
     }

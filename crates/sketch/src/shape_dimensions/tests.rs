@@ -152,12 +152,6 @@ fn a_line_typed_with_a_length_and_squared_up_earns_both_dimensions() {
             .any(|(target, value)| *target == DimensionTarget::Length(segment) && *value == 40.0)
     );
     assert!(wanted.iter().any(|(target, value)| {
-        *target
-            == DimensionTarget::Angle {
-                first: previous,
-                second: segment,
-            }
-            .normalised()
-            && *value == 90.0
+        *target == DimensionTarget::corner(previous, segment).normalised() && *value == 90.0
     }));
 }

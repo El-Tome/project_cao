@@ -201,12 +201,17 @@ pub(super) fn still_measured(
             axis,
             axis_toward,
         }),
-        DimensionTarget::Angle { first, second }
-            if (first == cut || second == cut) && piece.reaches_the_corner =>
-        {
+        DimensionTarget::Angle {
+            first,
+            first_along,
+            second,
+            second_along,
+        } if (first == cut || second == cut) && piece.reaches_the_corner => {
             Some(DimensionTarget::Angle {
                 first: moved(first),
+                first_along,
                 second: moved(second),
+                second_along,
             })
         }
         DimensionTarget::PointToSegment { point, segment }

@@ -87,7 +87,7 @@ fn an_angular_dimension_keeps_its_arc_radius_above_the_floor() {
     let b = sketch.add_point(DVec2::new(0.0, 10.0));
     let first = sketch.add_segment(pivot, a);
     let second = sketch.add_segment(pivot, b);
-    let target = DimensionTarget::Angle { first, second };
+    let target = DimensionTarget::corner(first, second);
     sketch.set_dimension(target, 90.0, false);
     // A recorded offset closer to the pivot than the clearance around it asks
     // for a radius under the floor, which the floor has to refuse: an arc

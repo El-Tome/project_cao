@@ -60,7 +60,7 @@ fn a_typed_angle_at_a_corner_still_turns_its_two_traits_to_it() {
     let first = sketch.add_segment(corner, east);
     let second = sketch.add_segment(corner, north_east);
 
-    sketch.set_dimension(DimensionTarget::Angle { first, second }, 60.0, false);
+    sketch.set_dimension(DimensionTarget::corner(first, second), 60.0, false);
     sketch.resolve(SCALE);
 
     let held = opening(

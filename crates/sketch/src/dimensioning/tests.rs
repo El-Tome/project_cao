@@ -172,10 +172,7 @@ fn a_length_clicked_twice_is_read_as_an_angle_when_a_second_trait_is_under_the_c
         .refine(target, DVec2::new(40.0, 20.0), 1.0)
         .expect("a second trait under the cursor refines the reading");
 
-    assert_eq!(
-        refined,
-        DimensionTarget::Angle { first, second }.normalised()
-    );
+    assert_eq!(refined, DimensionTarget::corner(first, second).normalised());
 }
 
 #[test]

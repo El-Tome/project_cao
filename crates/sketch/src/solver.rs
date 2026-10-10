@@ -266,7 +266,7 @@ impl Sketch {
             // two traits, a length stretches its own.
             match self.row(index) {
                 Row::Dimension(at) => match self.dimensions()[at].target {
-                    DimensionTarget::Angle { first, second }
+                    DimensionTarget::Angle { first, second, .. }
                     | DimensionTarget::AngleBetween { first, second, .. } => {
                         opened.push((first, second))
                     }
@@ -750,7 +750,7 @@ impl Sketch {
             DimensionTarget::Distance { from, to } => {
                 self.length_equation(from, to, dimension.value / scale)?
             }
-            DimensionTarget::Angle { first, second } => {
+            DimensionTarget::Angle { first, second, .. } => {
                 self.angle_equation(first, second, dimension.value)?
             }
             DimensionTarget::AngleBetween { .. } => {

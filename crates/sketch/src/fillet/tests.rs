@@ -115,15 +115,7 @@ fn a_fillet_leaves_the_corner_behind_held_on_the_lines_of_both_sides() {
 #[test]
 fn a_fillet_keeps_the_angle_the_two_sides_stood_at() {
     let (mut sketch, along, up, _pivot) = a_right_angle();
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: along,
-            second: up,
-        }
-        .normalised(),
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(along, up).normalised(), 90.0, false);
 
     let rounded = sketch
         .fillet(along, up, 3.0)
@@ -131,11 +123,7 @@ fn a_fillet_keeps_the_angle_the_two_sides_stood_at() {
 
     let carried = sketch
         .dimension_of(
-            DimensionTarget::Angle {
-                first: rounded.stretches[0],
-                second: rounded.stretches[1],
-            }
-            .normalised(),
+            DimensionTarget::corner(rounded.stretches[0], rounded.stretches[1]).normalised(),
         )
         .expect("the angle the corner stood at, now read between the stretches");
     assert!(

@@ -213,7 +213,7 @@ impl Sketch {
             DimensionTarget::Distance { from, to } => {
                 !self.is_erased_point(from) && !self.is_erased_point(to)
             }
-            DimensionTarget::Angle { first, second }
+            DimensionTarget::Angle { first, second, .. }
             | DimensionTarget::AngleBetween { first, second, .. } => {
                 !self.is_erased_segment(first) && !self.is_erased_segment(second)
             }

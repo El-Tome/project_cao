@@ -67,10 +67,7 @@ fn an_angle_never_defines_the_scale() {
 
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
-        target: DimensionTarget::Angle {
-            first: SegmentId(0),
-            second: SegmentId(1),
-        },
+        target: DimensionTarget::corner(SegmentId(0), SegmentId(1)),
         value: 45.0.into(),
         placement: None,
     });
@@ -110,27 +107,9 @@ fn give_it_everything_it_needs(state: &mut PartState) {
     for (target, value) in [
         (DimensionTarget::Length(SegmentId(0)), 70.0),
         (DimensionTarget::Length(SegmentId(1)), 30.0),
-        (
-            DimensionTarget::Angle {
-                first: SegmentId(0),
-                second: SegmentId(1),
-            },
-            90.0,
-        ),
-        (
-            DimensionTarget::Angle {
-                first: SegmentId(1),
-                second: SegmentId(2),
-            },
-            90.0,
-        ),
-        (
-            DimensionTarget::Angle {
-                first: SegmentId(2),
-                second: SegmentId(3),
-            },
-            90.0,
-        ),
+        (DimensionTarget::corner(SegmentId(0), SegmentId(1)), 90.0),
+        (DimensionTarget::corner(SegmentId(1), SegmentId(2)), 90.0),
+        (DimensionTarget::corner(SegmentId(2), SegmentId(3)), 90.0),
         (
             DimensionTarget::AxisAngle {
                 segment: SegmentId(0),
@@ -181,10 +160,7 @@ fn a_further_angle_on_a_settled_rectangle_is_redundant() {
     // The fourth corner follows from the other three.
     let outcome = state.apply(&Operation::SetDimension {
         sketch: 0,
-        target: DimensionTarget::Angle {
-            first: SegmentId(3),
-            second: SegmentId(0),
-        },
+        target: DimensionTarget::corner(SegmentId(3), SegmentId(0)),
         value: 90.0.into(),
         placement: None,
     });

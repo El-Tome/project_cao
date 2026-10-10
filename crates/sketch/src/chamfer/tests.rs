@@ -225,15 +225,7 @@ fn a_chamfer_lays_back_in_construction_the_stretch_it_took_off_each_side() {
 #[test]
 fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
     let (mut sketch, along, up, _pivot) = a_right_angle();
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: along,
-            second: up,
-        }
-        .normalised(),
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(along, up).normalised(), 90.0, false);
 
     let chamfered = sketch
         .chamfer(along, up, Chamfer::Equal(3.0))
@@ -241,11 +233,7 @@ fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
 
     let carried = sketch
         .dimension_of(
-            DimensionTarget::Angle {
-                first: chamfered.stretches[0],
-                second: chamfered.stretches[1],
-            }
-            .normalised(),
+            DimensionTarget::corner(chamfered.stretches[0], chamfered.stretches[1]).normalised(),
         )
         .expect("the angle the corner stood at, now read between the stretches");
     assert!(
@@ -258,14 +246,7 @@ fn a_chamfer_keeps_the_angle_the_two_sides_stood_at() {
 #[test]
 fn a_chamfer_keeps_which_side_the_angle_was_typed_from() {
     let (mut sketch, along, up, _pivot) = a_right_angle();
-    sketch.set_dimension(
-        DimensionTarget::Angle {
-            first: up,
-            second: along,
-        },
-        90.0,
-        false,
-    );
+    sketch.set_dimension(DimensionTarget::corner(up, along), 90.0, false);
 
     let chamfered = sketch
         .chamfer(along, up, Chamfer::Equal(3.0))

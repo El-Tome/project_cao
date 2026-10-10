@@ -150,7 +150,7 @@ pub fn measure_pick(
             if sketch.angle_between(first, second).is_some() {
                 return (
                     cleared,
-                    DimensionPick::Target(DimensionTarget::Angle { first, second }),
+                    DimensionPick::Target(DimensionTarget::corner(first, second)),
                 );
             }
             // No shared end: crossing, one ending on the other, or lying apart.

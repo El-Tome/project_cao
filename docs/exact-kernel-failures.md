@@ -1695,3 +1695,33 @@ tangent and 1.9e-6° off square — past the hair, failing on `85a2d2e` too —
 is named under `hair-from-tangent`. The offset hairs and the planes a hair
 apart are the families above, which the rounding reaches only where they
 lean as well.
+
+### Round 4 merged: the pieces with no hair, then decision 11
+
+The plain pieces went in first, then decision 11 on top. Measured merged,
+on round 3's seeds past the 12 000 the plain pieces had been measured on,
+their reading of a plane through a cone's apex beyond the box broke three
+seeds that held on `85a2d2e` (5543114315, 5543213205, 5543216548): two
+rulings held for a plane steeper than the slope a hair off the apex,
+declined as unverified, and a ruling of touch held for a plane steeper by
+a third of a billionth, its face left undrawn. The conic cut held all
+three. The ruling of touch is now held only where no conic is cut, the
+case it was written for (decision 2); the three are named and hold.
+
+Per seed, the way each was drawn, against `85a2d2e`'s campaigns over the
+same seeds:
+
+| Draw | First seed | Seeds | `85a2d2e` | Plain pieces | Both | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 21 600 | 118 | 118 | 43 | 78 | 3 |
+| tilted, application's body | 5543200000 | 48 400 | 308 | 302 | 127 | 185 | 4 |
+| slanted, exact kernel | 5543300000 | 8 571 | 7 | 7 | 7 | 0 | 0 |
+| turned, application's body | 5543600000 | 16 800 | 16 | 16 | 14 | 3 | 1 |
+
+The plain pieces alone break no seed. The eight broken merged are decision
+11's own, named above: three by the path of their draw, five named and
+ignored; its sixth, 5543312609, lies past the slanted seeds reached. Of
+round 3's 538 shrunk failures, 289 hold, the union of what each lane held
+alone (9 and 282). With `--include-ignored`, nothing that passed on
+either lane alone fails in any named-case file, and #498's eighteen cases
+hold.

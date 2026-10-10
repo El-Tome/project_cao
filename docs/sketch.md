@@ -149,6 +149,15 @@ having to find the canvas again with the mouse.
 An angle typed is the angle drawn: -90 goes straight down even with the cursor
 above, and 30 leaves up and to the right wherever the cursor is. The cursor
 still gives the length, as far as it reaches along that line on either side.
+
+A trait **drawn on from another** reads its angle at the corner the two make,
+the way the dimension laid there reads it: 90 is a square corner, 180 carries
+straight on, 30 is a sharp point turning back. The trait before is the one just
+drawn in the chain, or the only trait ending where the new one starts; where
+several end, the angle goes back to the horizontal. There the cursor chooses
+the side: the field reads **+** with the new trait on the left of the one
+before, **−** on its right, and a number typed takes the sign of the side the
+cursor is on. Validated, the trait gets the angle at the corner, and no arm.
 And as long as a value is fixed, a neighbouring point is no longer snapped to —
 that would quietly give the trait another length.
 

@@ -182,6 +182,37 @@ impl LiveInput {
         &mut self.fields[rank]
     }
 
+    /// Gives a number typed into the field of that rank the sign of a side:
+    /// what an angle typed on a trait drawn on from another shows, since there
+    /// the cursor chooses the side and the sign typed is not read. Anything but
+    /// a plain number is left as it was written. How many characters the text
+    /// grew by, so that the caret can be kept where it stood.
+    pub fn sign_as(&mut self, rank: usize, negative: bool) -> isize {
+        let field = self.field(rank);
+        if !field
+            .written
+            .as_ref()
+            .is_some_and(|written| written.as_number().is_some())
+        {
+            return 0;
+        }
+        let digits = field
+            .text
+            .trim_start()
+            .trim_start_matches(['-', '+'])
+            .trim_start();
+        let signed = match negative {
+            true => format!("-{digits}"),
+            false => digits.to_string(),
+        };
+        let grew = signed.chars().count() as isize - field.text.chars().count() as isize;
+        if signed != field.text {
+            field.text = signed;
+            field.take(&Variables::default());
+        }
+        grew
+    }
+
     /// What was typed into the field of that rank, if anything was.
     pub fn typed(&self, rank: usize) -> Option<f64> {
         self.fields.get(rank)?.locked

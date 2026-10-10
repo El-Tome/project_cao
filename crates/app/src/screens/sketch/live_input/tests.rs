@@ -13,6 +13,12 @@
 //! - an angle never sets the scale — `an_angle_says_nothing_of_the_scale`
 //! - nothing moves when the length that said it is taken back, while another
 //!   length is still typed — `a_length_taken_back_hands_the_scale_to_a_length_still_typed`
+//!
+//! Closes #561.
+//! - an angle typed on a trait drawn on from another shows the side the mouse
+//!   is on, whatever sign was typed —
+//!   `a_number_typed_takes_the_sign_of_the_side_it_is_drawn_on`; a formula is
+//!   left as it was written — `a_formula_typed_keeps_what_it_was_written_as`
 
 use super::*;
 
@@ -148,4 +154,35 @@ fn a_length_typed_over_nothing_on_screen_says_nothing_of_the_scale() {
     type_into(&mut live, 0, "100", Some(0.0));
 
     assert_close(live.scale(None), 1.0);
+}
+
+#[test]
+fn a_number_typed_takes_the_sign_of_the_side_it_is_drawn_on() {
+    let mut live = LiveInput::default();
+    live.open();
+    type_into(&mut live, 1, "90", None);
+
+    let to_the_right = live.sign_as(1, true);
+
+    assert_eq!((live.field(1).text.as_str(), to_the_right), ("-90", 1));
+    assert_eq!(live.typed(1), Some(-90.0));
+
+    let to_the_left = live.sign_as(1, false);
+
+    assert_eq!((live.field(1).text.as_str(), to_the_left), ("90", -1));
+    assert_eq!(
+        live.sign_as(1, false),
+        0,
+        "already on that side, nothing moves"
+    );
+}
+
+#[test]
+fn a_formula_typed_keeps_what_it_was_written_as() {
+    let mut live = LiveInput::default();
+    live.open();
+    type_into(&mut live, 1, "45 + 45", None);
+
+    assert_eq!(live.sign_as(1, true), 0);
+    assert_eq!(live.field(1).text, "45 + 45");
 }

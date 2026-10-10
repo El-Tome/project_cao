@@ -295,6 +295,30 @@ fn chosen<'a>(shown: &[&'a Offer], rank: usize) -> Option<&'a Offer> {
     shown.get(rank.min(shown.len().saturating_sub(1))).copied()
 }
 
+/// Keeps the caret on the same characters of a field whose text just grew or
+/// shrank at its start by `grew`: a sign put in front of "9" must not land the
+/// "0" typed next between the two.
+pub fn shift_the_caret(ctx: &egui::Context, id: egui::Id, grew: isize) {
+    if grew == 0 {
+        return;
+    }
+    let Some(mut state) = egui::TextEdit::load_state(ctx, id) else {
+        return;
+    };
+    let Some(range) = state.cursor.char_range() else {
+        return;
+    };
+    let moved =
+        |at: egui::text::CCursor| egui::text::CCursor::new(at.index.0.saturating_add_signed(grew));
+    state
+        .cursor
+        .set_char_range(Some(egui::text::CCursorRange::two(
+            moved(range.secondary),
+            moved(range.primary),
+        )));
+    state.store(ctx, id);
+}
+
 pub(super) fn place_the_cursor(ctx: &egui::Context, id: egui::Id, at: usize) {
     let mut state = egui::TextEdit::load_state(ctx, id).unwrap_or_default();
     state

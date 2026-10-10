@@ -104,6 +104,54 @@ pub(crate) fn lean_on_an_arm(
     });
 }
 
+/// Lays what holds the angle typed for a trait just drawn, from the point it
+/// sprang from: the corner with the trait it was drawn on from, or else an arm
+/// along the horizontal.
+pub(crate) fn hold_the_typed_angle(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    drawn_on: Option<SegmentId>,
+    (drawn, from): (SegmentId, PointId),
+    pixel: f64,
+) {
+    match drawn_on {
+        Some(before) => lean_on_the_trait_before(context, index, before, drawn, pixel),
+        None => lean_on_an_arm(context, index, drawn, from, pixel),
+    }
+}
+
+/// Lays what holds the angle of a trait drawn on from another at a typed
+/// angle: the angle of the corner the two make, with no arm — the trait before
+/// is what the angle is read against.
+fn lean_on_the_trait_before(
+    context: &mut SketchContext<'_>,
+    index: usize,
+    before: SegmentId,
+    drawn: SegmentId,
+    pixel: f64,
+) {
+    let typed = context.editor.live.typed_as_written(1);
+    let target = DimensionTarget::Angle {
+        first: before,
+        second: drawn,
+    };
+    let Some(opened) = context
+        .document
+        .sketches()
+        .get(index)
+        .and_then(|sketch| sketch.angle_between(before, drawn))
+    else {
+        return;
+    };
+    context.document.apply(Operation::SetDimension {
+        sketch: index,
+        target,
+        value: as_opened(typed, opened),
+        placement: annotation_position(context, index, target, pixel)
+            .map(|placement| placement.offset),
+    });
+}
+
 /// The angle typed, written so that it comes to the angle the drawing opened.
 ///
 /// The drawing reads a trait against an arm that always runs east, so a trait

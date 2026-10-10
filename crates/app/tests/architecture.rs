@@ -188,7 +188,7 @@ const FILES_STILL_NAMING_THE_INSIDES_OF_THE_MATTER: [&str; 0] = [];
 const LINE_BUDGET: usize = 400;
 
 const FILES_OVER_THE_LINE_BUDGET: [(&str, usize); 4] = [
-    ("crates/app/src/screens/viewport/input/mod.rs", 486),
+    ("crates/app/src/screens/viewport/input/mod.rs", 482),
     ("crates/render/src/renderer.rs", 426),
     ("crates/sketch/src/sketch.rs", 570),
     ("crates/sketch/src/solver.rs", 877),

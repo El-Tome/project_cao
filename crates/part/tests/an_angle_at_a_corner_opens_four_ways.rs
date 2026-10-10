@@ -21,6 +21,12 @@
 //!   measures 150° — `an_x_at_thirty_degrees_measures_the_wide_quarter_right_beside_a_trait`
 //! - a corner carries one angle: the two traits clicked again open the one
 //!   already there — `the_same_corner_clicked_again_gives_the_angle_already_there`
+//! - an X and two traits apart keep their four ways — no test: #406's and
+//!   #407's own, run under the line test this issue gives them, hold it —
+//!   `the_angle_laid_is_the_one_on_the_side_the_dimension_is_placed` in
+//!   `crates/sketch/tests/an_angle_where_two_traits_cross.rs`, and
+//!   `the_angle_between_traits_apart_follows_the_side_it_is_placed` in
+//!   `crates/sketch/tests/an_angle_between_traits_lying_apart.rs`
 //! - every angle a tool lays by itself measures what it measures today — no
 //!   test: the chamfer, the rectangle, the corner, a trait drawn at a typed
 //!   angle and one drawn on from another (#561) all build theirs with
@@ -28,7 +34,9 @@
 //!   pass as they were written
 //!
 //! The drawing of a prolongation is held in `crates/sketch/tests/annotation.rs`,
-//! the preview in `crates/app/src/screens/viewport/render/preview/tests.rs`.
+//! the preview in `crates/app/src/screens/viewport/render/preview/tests.rs`, a
+//! T held on its bar in `crates/sketch/tests/an_angle_where_two_traits_cross.rs`,
+//! the fillet in `crates/sketch/src/fillet/tests.rs`.
 
 use cao_part::{Operation, PartDocument, PointRef};
 use cao_sketch::{Along, DimensionTarget, PointId, SegmentId, Toward, WorkPlane};

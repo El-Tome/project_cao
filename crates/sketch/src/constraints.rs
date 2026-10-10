@@ -67,9 +67,9 @@ pub enum DimensionTarget {
     /// Angle between two segments that meet without sharing an end — where
     /// they cross, or where one ends on the middle of the other.
     ///
-    /// A shared end names a corner's one angle; two traits crossing name four,
-    /// two of them acute and two obtuse. Which way each arm runs along its trait
-    /// is what says which of the four this is.
+    /// Two traits crossing make four angles, two acute and two obtuse, as a
+    /// corner does. Which way each arm runs along its trait, towards its end or
+    /// its start, is what says which of the four this is.
     AngleBetween {
         first: SegmentId,
         first_toward: Toward,

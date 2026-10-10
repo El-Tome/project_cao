@@ -29,6 +29,14 @@
 //!   and cutting a trait anywhere else keeps it on the piece still standing
 //!   where the two meet —
 //!   `trimming_the_top_off_the_stem_of_a_t_keeps_the_angle_at_its_foot`
+//!
+//! Closes #485.
+//! - a T read past its foot draws its stem prolonged, the T as it is drawn
+//!   included, its foot held on the bar and left a hair off it by the solver —
+//!   `a_held_t_read_past_its_foot_keeps_its_prolongation_once_solved`
+//! - trimming carries the angle over to the piece kept, on that T too, read
+//!   past the foot or along the stem —
+//!   `a_cut_keeps_the_angle_of_a_held_t_whichever_way_its_stem_is_read`
 
 use cao_sketch::LaidFrom;
 use cao_sketch::{
@@ -559,4 +567,99 @@ fn a_shape_hanging_off_an_angle_between_two_traits_is_turned_not_bent() {
         "the side no dimension holds went from {side} to {now}: the angle bent the \
          shape instead of turning it",
     );
+}
+
+/// A T as the line tool draws it: the stem's foot held on the middle of the
+/// bar by a rule, the angle read between the bar running east and the stem
+/// run `stem_toward`, and typed to `degrees` — which the solver reaches by
+/// leaving the foot a hair off the bar.
+fn a_held_t_solved_to(degrees: f64, stem_toward: Toward) -> (Sketch, DimensionTarget) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let west = sketch.add_point(DVec2::new(10.0, 20.0));
+    let east = sketch.add_point(DVec2::new(30.0, 20.0));
+    let foot = sketch.add_point(DVec2::new(20.0, 20.0));
+    let top =
+        sketch.add_point(DVec2::new(20.0, 20.0) + DVec2::from_angle(60.0_f64.to_radians()) * 15.0);
+    let bar = sketch.add_segment(west, east);
+    let stem = sketch.add_segment(foot, top);
+    sketch.add_constraint(Constraint::OnSegment {
+        point: foot,
+        segment: bar,
+        from: LaidFrom::Nowhere,
+    });
+    let target = DimensionTarget::AngleBetween {
+        first: bar,
+        first_toward: Toward::End,
+        second: stem,
+        second_toward: stem_toward,
+    };
+    sketch.set_dimension(target, degrees, false);
+    sketch.resolve(SCALE);
+    (sketch, target)
+}
+
+const TYPED: [f64; 10] = [
+    60.0, 120.0, 45.0, 30.0, 75.0, 100.0, 135.0, 150.0, 20.0, 80.0,
+];
+
+#[test]
+fn a_held_t_read_past_its_foot_keeps_its_prolongation_once_solved() {
+    let metrics = AnnotationMetrics {
+        offset_pixels: 22.0,
+        arrow_pixels: 8.0,
+        arc_pixels: 34.0,
+        pixel: 1.0,
+        nudge: DVec2::ZERO,
+    };
+    for degrees in TYPED {
+        let (sketch, target) = a_held_t_solved_to(degrees, Toward::Start);
+        let DimensionTarget::AngleBetween { second: stem, .. } = target else {
+            unreachable!("laid as an angle between the bar and the stem");
+        };
+        let (foot, top) = sketch.endpoints(stem);
+        let past = (foot - top).normalize();
+
+        let placement = sketch.place(target, metrics).expect("the angle is drawn");
+
+        let prolonged = placement
+            .shape
+            .iter()
+            .filter(|(from, to)| {
+                from.distance(foot) < 1e-6 && (*to - *from).normalize().distance(past) < 1e-6
+            })
+            .count();
+        assert_eq!(
+            prolonged, 1,
+            "typed {degrees}°, the stem is not prolonged past its foot"
+        );
+    }
+}
+
+#[test]
+fn a_cut_keeps_the_angle_of_a_held_t_whichever_way_its_stem_is_read() {
+    for stem_toward in [Toward::Start, Toward::End] {
+        for degrees in TYPED {
+            let (mut sketch, target) = a_held_t_solved_to(degrees, stem_toward);
+            let DimensionTarget::AngleBetween { second: stem, .. } = target else {
+                unreachable!("laid as an angle between the bar and the stem");
+            };
+            let (foot, top) = sketch.endpoints(stem);
+            let low = sketch.add_point(foot + (top - foot) * 0.5);
+            let high = sketch.add_point(foot + (top - foot) * 0.75);
+
+            sketch.trim(stem, low, high);
+
+            let kept = sketch
+                .dimensions()
+                .iter()
+                .filter(|dimension| {
+                    matches!(dimension.target, DimensionTarget::AngleBetween { .. })
+                })
+                .count();
+            assert_eq!(
+                kept, 1,
+                "typed {degrees}°, read {stem_toward:?}, the cut dropped the angle"
+            );
+        }
+    }
 }

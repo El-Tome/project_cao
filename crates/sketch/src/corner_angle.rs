@@ -137,3 +137,6 @@ impl Sketch {
         ))
     }
 }
+
+#[cfg(test)]
+mod tests;

@@ -98,11 +98,15 @@ fn halfway_between(
 /// Whether an arm runs out from the pivot along the trait's prolongation, the
 /// whole trait behind it: a T's stem read past its foot. Through an X the arm
 /// runs into its trait, short as it may be, and is drawn as it always was.
+///
+/// How far ahead of the pivot the trait may still reach is a fraction of its
+/// length, far wider than rounding: a solver leaves a foot held on the bar a
+/// hair past it, and the stem is no less read past its foot for that.
 fn runs_past(sketch: &Sketch, segment: SegmentId, pivot: DVec2, arm: DVec2) -> bool {
-    const BEHIND: f64 = 1e-9;
+    const AT_AN_END: f64 = 1e-4;
     let (from, to) = sketch.endpoints(segment);
     let ahead = |end: DVec2| (end - pivot).dot(arm);
-    ahead(from).max(ahead(to)) <= BEHIND * arm.length_squared()
+    ahead(from).max(ahead(to)) <= AT_AN_END * arm.length_squared()
 }
 
 /// Joins an arc's end back to its trait with a thin line, when the end falls

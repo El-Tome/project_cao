@@ -1,7 +1,14 @@
+//! What sketch · fillet.rs is held to.
+//!
+//! Closes #485.
+//! - a fillet hangs a corner's angle back on the stretches it laid, its
+//!   quarter with it — `a_fillet_keeps_the_quarter_a_corners_angle_measures`
+
 use glam::DVec2;
 
 use super::*;
 use crate::constraints::{Constraint, DimensionTarget};
+use crate::corner_angle::Along;
 use crate::plane::WorkPlane;
 use crate::sketch::PointId;
 
@@ -211,4 +218,53 @@ fn a_fillet_turns_the_short_way_round_whichever_side_is_named_first() {
         (sweep - 90.0).abs() <= 1e-9,
         "naming the sides the other way round is the same corner, got {sweep}"
     );
+}
+
+/// The issue's corner of #485: a trait coming in from the left, and one leaving
+/// it up and to the right, 51.3° off the horizontal's prolongation.
+fn a_leaning_corner() -> (Sketch, SegmentId, SegmentId) {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(0.0, 20.0));
+    let pivot = sketch.add_point(DVec2::new(60.0, 20.0));
+    let up_right = sketch.add_point(DVec2::new(100.0, 70.0));
+    let along = sketch.add_segment(left, pivot);
+    let slanted = sketch.add_segment(pivot, up_right);
+    (sketch, along, slanted)
+}
+
+fn acute() -> f64 {
+    50.0_f64.atan2(40.0).to_degrees()
+}
+
+fn read_past(first: SegmentId, second: SegmentId) -> DimensionTarget {
+    DimensionTarget::Angle {
+        first,
+        first_along: Along::Prolongation,
+        second,
+        second_along: Along::Trait,
+    }
+}
+
+#[test]
+fn a_fillet_keeps_the_quarter_a_corners_angle_measures() {
+    let (mut sketch, along, slanted) = a_leaning_corner();
+    sketch.set_dimension(read_past(along, slanted), acute(), false);
+
+    let rounded = sketch
+        .fillet(along, slanted, 5.0)
+        .expect("a corner that can be rounded");
+
+    let [stands_for_along, stands_for_slanted] = rounded.stretches;
+    let carried = sketch
+        .dimension_of(read_past(stands_for_along, stands_for_slanted))
+        .expect("the angle hung back, still read past the horizontal trait");
+    assert!(
+        (carried.value - acute()).abs() < 1e-9,
+        "it keeps its value: {}",
+        carried.value,
+    );
+    let read = sketch
+        .opening(carried.target)
+        .expect("the stretches still meet");
+    assert!((read - acute()).abs() < 1e-6, "and reads it: {read}°");
 }

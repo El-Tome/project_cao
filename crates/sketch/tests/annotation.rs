@@ -154,6 +154,16 @@ fn trait_about(middle: DVec2, degrees: f64) -> (Sketch, DimensionTarget) {
     (sketch, target)
 }
 
+/// Whether a line out from the pivot stops on the arc: another stroke of the
+/// annotation — the arc's last step, an arrowhead — starts or ends where it
+/// does, and nothing reaches further out along it.
+fn stops_on_the_arc(placement: &cao_sketch::Placement, pivot: DVec2, line: DVec2) -> bool {
+    let end = pivot + line;
+    placement.shape.iter().any(|(from, to)| {
+        (from.distance(pivot) > 1e-9) && (from.distance(end) < 1e-9 || to.distance(end) < 1e-9)
+    })
+}
+
 fn arms_from(placement: &cao_sketch::Placement, pivot: DVec2) -> Vec<DVec2> {
     placement
         .shape
@@ -298,10 +308,14 @@ fn a_corner_angle_draws_the_prolongations_it_opens_from_and_nothing_else() {
 
         let placement = sketch.place(target, METRICS).unwrap();
 
-        let mut drawn: Vec<DVec2> = arms_from(&placement, corner)
-            .into_iter()
-            .map(|line| line.normalize())
-            .collect();
+        let lines = arms_from(&placement, corner);
+        for line in &lines {
+            assert!(
+                stops_on_the_arc(&placement, corner, *line),
+                "put down at {put_down}, the prolongation {line} runs past the arc or short of it",
+            );
+        }
+        let mut drawn: Vec<DVec2> = lines.into_iter().map(|line| line.normalize()).collect();
         drawn.sort_by(|a, b| a.x.total_cmp(&b.x));
         let mut wanted = expected.clone();
         wanted.sort_by(|a, b| a.x.total_cmp(&b.x));
@@ -339,10 +353,17 @@ fn a_t_read_past_its_foot_draws_its_stem_prolonged_out_to_the_arc() {
 
         let placement = sketch.place(target, METRICS).unwrap();
 
-        let past_the_foot = arms_from(&placement, foot)
+        let past_the_foot: Vec<DVec2> = arms_from(&placement, foot)
             .into_iter()
             .filter(|line| line.normalize().distance(-up) < 1e-9)
-            .count();
+            .collect();
+        for line in &past_the_foot {
+            assert!(
+                stops_on_the_arc(&placement, foot, *line),
+                "the stem prolonged {line} runs past the arc or short of it",
+            );
+        }
+        let past_the_foot = past_the_foot.len();
         assert_eq!(
             past_the_foot,
             usize::from(prolonged),

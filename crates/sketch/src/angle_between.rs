@@ -1,9 +1,9 @@
 //! The angle between two traits that meet without sharing an end: where they
 //! cross, and where one ends on the middle of the other.
 //!
-//! A corner's two traits name its one angle, read from the end they share. Two
-//! traits that cross name four, and no shared end says which: each arm is taken
-//! one way along its trait instead, out from where the two meet.
+//! Two traits that cross make four angles, as a corner does; with no shared end
+//! to say an arm's way from, each arm is taken one way along its trait, towards
+//! its end or its start, out from where the two lines meet.
 
 use glam::DVec2;
 

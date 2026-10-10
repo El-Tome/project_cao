@@ -245,3 +245,27 @@ fn a_trait_then_a_point_lying_on_it_is_never_turned_into_a_zero_distance() {
         );
     }
 }
+
+#[test]
+fn a_second_trait_at_a_corner_already_carrying_an_angle_gives_that_one() {
+    let mut sketch = Sketch::new(WorkPlane::XY);
+    let left = sketch.add_point(DVec2::new(0.0, 20.0));
+    let pivot = sketch.add_point(DVec2::new(60.0, 20.0));
+    let up_right = sketch.add_point(DVec2::new(100.0, 70.0));
+    let along = sketch.add_segment(left, pivot);
+    let slanted = sketch.add_segment(pivot, up_right);
+    let read_past = DimensionTarget::Angle {
+        first: along,
+        first_along: crate::Along::Prolongation,
+        second: slanted,
+        second_along: crate::Along::Trait,
+    };
+    let on_the_slanted = DVec2::new(80.0, 45.0);
+
+    let fresh = sketch.refine(DimensionTarget::Length(along), on_the_slanted, 2.0);
+    sketch.set_dimension(read_past, 51.3, false);
+    let again = sketch.refine(DimensionTarget::Length(along), on_the_slanted, 2.0);
+
+    assert_eq!(fresh, Some(DimensionTarget::corner(along, slanted)));
+    assert_eq!(again, Some(read_past));
+}

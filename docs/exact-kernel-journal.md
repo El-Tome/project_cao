@@ -830,3 +830,44 @@ and on the tip:
   crossing (`Uncrossed`) 134, left open (`Closed`) 14, listed off
   (`Listed`) 2, a volume off 2, a span off along a line 1.
 - The gate's tests, built, take about 35 s, as at `cf9093b`.
+
+## 10 October: decision 11 of #552, measured
+
+Tom's decision after round 3: round a lean below the tolerance, warn of one
+above it up to a small angle, plain pieces first, two rounds at most. The
+rounding is decision 11 of `exact-kernel.md`: a plane of one operand a hair
+off square to, or along, a wall's axis of the other is laid exactly so, the
+second operand turned about the middle of its box where the turn moves it
+by no more than `G`. Measured on the branch against `85a2d2e`, release,
+own target directories, fifteen minutes a draw on round 3's seeds, over
+the seeds both reached:
+
+| Draw | First seed | Cases | `85a2d2e` | Decision 11 | Repaired | Broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 21 823 | 118 | 43 | 78 | 3 |
+| tilted, application's body | 5543200000 | 48 658 | 311 | 135 | 180 | 4 |
+| slanted, exact kernel | 5543300000 | 15 078 | 10 | 11 | 0 | 1 |
+| turned, application's body | 5543600000 | 17 085 | 17 | 15 | 3 | 1 |
+
+- The tilted draws go from 5.4 and 6.4 failures in a thousand to 2.0 and
+  2.8, the bar of one still not met there; the slanted and turned draws
+  stay under it.
+- Of round 3's 538 shrunk failures, 282 hold — 131 tilted on the exact
+  kernel, 144 through the body, 7 of the other draws — where the
+  prototype held 283: one is lost to the refusal of a plane laid a hair
+  beside a cone's apex (5543132867), which holds 5543232861.
+- Sixteen ignored seeds of `what_the_exact_campaigns_found_in_the_kernel.rs`
+  hold and are no longer ignored; with `--include-ignored`, nothing that
+  passed on `85a2d2e` fails there, in the triangles' file, the tangency
+  band's or the hair files. #498's eighteen cases hold.
+- Nine seeds the base held fail. Three only by the path of their draw,
+  their shrunk cores failing on the base too; six named and ignored, each
+  a lean laid exactly beside an offset hair or a turn's walls
+  (`exact-kernel-failures.md`).
+- Tried and set aside: turning about a cone's apex a plane passes near
+  (held one seed, broke four); refusing every turn that lays a face on one
+  of the body's or a plane through a cone's apex (held 126 of the 538
+  rather than 282); refusing a turn that lays two skew walls square (held
+  one seed, broke two, a later step's tool left at the lean an earlier one
+  was turned from).
+

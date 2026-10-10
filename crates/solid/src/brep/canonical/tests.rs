@@ -1451,3 +1451,4 @@ fn a_block_a_hair_beside_another_with_no_wall_touching_its_side_is_left_where_it
 }
 
 mod conics;
+mod squared;

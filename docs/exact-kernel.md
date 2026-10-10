@@ -107,14 +107,15 @@ Known and still open:
   random parts; `exact-kernel-failures.md` counts them by family;
 - a face bounded by the curve two perpendicular cylinders meet is never
   decided clear of a face at a slant, so such a pair still declines;
-- the conics (#552): a plane within a few times the angle the kernel reads
-  as square or parallel of a wall's axis, and a plane or a conic a hair
-  from tangent, are built with no band, and decline or draw crossing about
-  seven times in a thousand random parts of the tilted draw off the lattice
-  — the families `exact-kernel-failures.md` counts, waiting on a band on
-  conics; two planes at a few times the angle read as parallel graze, and
-  hold, where their corners allow it. The slanted and turned draws are
-  under one in a thousand;
+- the conics (#552): a plane a hair off square to, or along, a wall's
+  axis is laid exactly so where that moves the tool by no more than `G`
+  (decision 11); past that, up to a small angle, and a plane or a conic a
+  hair from tangent by an offset, are built with no band, and decline or
+  draw crossing two to three times in a thousand random parts of the
+  tilted draw off the lattice, a draw weighted towards such hairs — the
+  families `exact-kernel-failures.md` counts; two planes at a few times the
+  angle read as parallel graze, and hold, where their corners allow it.
+  The slanted and turned draws are under one in a thousand;
 - a face standing inside a cylinder's hollow is not decided clear of a
   cylinder at a skew angle to it: a boss raised, or a hole cut, square to
   the elliptic face a slanted cut leaves on a shaft declines, though the
@@ -164,10 +165,12 @@ There is one tolerance, `EPS = 1e-9 · reach`, `reach` being the largest
 coordinate a body or its operands have reached, never less than one. It is ten
 times the harness's `NEAR`, so what the kernel keeps apart the rules see apart,
 and a thousand times below `ALONG_A_LINE`, so a merge never shows as a volume.
-Three configurations alone are read wider, at twenty times it, each as ill
+Four configurations alone are read wider, at twenty times it, each as ill
 conditioned as the others: two parallel walls of one radius (decision 8), a
-wall touching one of two parallel planes (decision 10), and a wall touching
-one of two planes it stands between (decision 2). The result of an operation carries the larger reach of its operands. A pair
+wall touching one of two parallel planes (decision 10), a wall touching
+one of two planes it stands between (decision 2), and a plane a hair off
+square to, or along, a wall's axis (decision 11), which turns the second
+operand before decision 1 reads it. The result of an operation carries the larger reach of its operands. A pair
 of surfaces one operand alone carries is decided at the tolerance it was
 decided at when the later of the two came into that operand: a body keeps,
 for each of its surfaces, the scale of the operation that brought it in —
@@ -743,6 +746,88 @@ The decisions, in the order taken, once per operation:
     well defined, and the planes are left two. Where the move is not made,
     as decision 8's, they are left two too.
 
+11. **A plane a hair off square to, or along, a wall's axis** (#552). A
+    plane of one operand and a cylinder or a cone of the other, their faces
+    in boxes that meet, the plane leaning off square to the wall's axis or
+    off along it: the second operand is turned about the middle of its box
+    so that the plane lies exactly square or along, where that turn moves
+    none of its points further than `G`. The conic such a plane cuts the
+    wall along divides by the lean: a cut a ten-millionth of a degree off
+    square to a post cuts an ellipse within the tolerance of the rim beside
+    it, a side as far off along a bore cuts a hyperbola within it of the
+    two lines, and the kernel answered both ways, in different places — an
+    ellipse here and a rim there, crossings found once and twice. Turned,
+    the pair is the circle or the lines the kernel already holds exactly.
+
+    The measure is a move, not an angle. The lean is the sine `s` of the
+    plane's normal off the axis, `|n × a|`, or off square to it, `|n · a|`,
+    whichever is smaller; the lever `L` is half the diagonal of the second
+    operand's box, the furthest any of its points moves under a turn about
+    its middle. A pair is turned where `s·L` stands between rounding — a
+    millionth of the tolerance, under which it is exact already — and `G`.
+    For a tool as large as the part, `G` turns up to some 1e-8 radians,
+    about 6e-7 degrees; for a tool a tenth of the reach, ten times that.
+
+    `G` rather than the tolerance, though #552 decided on "less than the
+    tolerance across the part": it is the furthest the kernel already moves
+    an operand (decisions 8 and 10), a move of `G` is seen by a line at a
+    cosine of a twentieth as at most eight hundred tolerances, under the
+    thousand a line resolves, and it was measured. On the 538 shrunk
+    failures of #552's third round, a prototype turning at one tolerance
+    held 159 of the 236 within 1e-7 degrees and none of the 129 between
+    2e-7 and 1e-3 degrees; at `G` it held 216 and 60. Moving it to the
+    tolerance is one constant, and leaves the band #552 warns of wider.
+
+    The turn is decided once, before decision 8, and made rigidly with the
+    operand's surfaces, curves and corners, so that its own decisions hold
+    as it took them; a direction it turns to within rounding of one of the
+    first operand's is laid on that one's bits, so that a circle and its
+    wall share their axis, and identity, decisions 1 and 8 then compare
+    exactly. A tool turned 1e-7 degrees off a bore of its radius is then
+    merged onto it by decision 8. The turn is solved one degree of freedom
+    at a time: a pair of directions exactly parallel locks the axis it
+    turns about, the pairs off square come first, and each next one is laid
+    by a turn about the axis locked. It is not made where no one turn lays
+    every pair exactly; where it would take a pair of directions of the two
+    operands, plane or wall, off exactly square or along; where it would
+    change the kind of an exact relation the operand had with the first —
+    one surface, a touch, a ruling, an apex, a plane holding a cone's axis,
+    which turned a hair off it would become a hyperbola a hair from the
+    apex; where it would lay a plane a hair beside a cone's apex, read
+    through it — a face through a point's apex leaning 1e-7 degrees off its
+    axis, turned about the middle of its box, stood a hair beside the apex
+    and was cut along two rulings it does not hold (5543232861); where a
+    canonical direction would
+    turn round, the way its curves run with it; nor where the operand holds
+    a conic or the curve two perpendicular cylinders meet along, which a
+    leaf never does. The pair is then built as drawn.
+
+    Only a plane against a wall's axis, as #552 decided. Turning for any
+    pair of directions — two planes, two walls — held fourteen more of the
+    shrunk failures and four more fresh seeds, but broke one that held, and
+    is set aside: the pairs are found by one predicate, and widening it is
+    a one-line change.
+
+    What it held, on round 3's seeds against `85a2d2e`, fifteen minutes a
+    draw: tilted on the exact kernel, 43 failures in 21 823 cases where the
+    base had 118 (5.4 to 2.0 in a thousand); tilted through the
+    application's body, 135 in 48 658 where it had 311 (6.4 to 2.8);
+    slanted, 11 in 15 078 where it had 10; turned through the body, 15 in
+    17 085 where it had 17. Of round 3's 538 shrunk failures, 282 hold.
+    Nine seeds the base held fail, three of them only by the path their
+    draw took — their shrunk cores fail on the base too. The other six are
+    a lean laid exactly beside an offset hair the lean had kept apart, or
+    beside a turn's walls: a plane laid along a wall beside a slope a hair
+    off its corner, two floors 2e-8 apart laid along a wall, a face laid
+    parallel to another a few tolerances off, an end laid on a shaft's end
+    it crossed, a turn's end planes laid along walls, two turns' walls laid
+    square. They are named in
+    `what_the_exact_campaigns_found_in_the_kernel.rs`, ignored with their
+    reason. Refusing those turns does not hold them: a turn refused at one
+    step leaves its tool at its lean beside a tool drawn at that lean and
+    turned the step before, and refusing two skew walls laid square held
+    one seed and broke two.
+
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
 of the curve: two surfaces crossing at a grazing angle stand within `EPS` of
@@ -950,8 +1035,9 @@ Flush, touching and coincident faces are then the ordinary path rather than a
 special one: a coincident face is a region covered twice, a shared wall a region
 covered once from each side.
 
-1. **Identity** of surfaces (decision 1), once the second operand is moved
-   onto a wall of its radius a hair off (decision 8).
+1. **Identity** of surfaces (decision 1), once the second operand is turned
+   square to, or along, a wall's axis it leans a hair off (decision 11) and
+   moved onto a wall of its radius a hair off (decision 8).
 2. **Relations** of pairs whose faces' boxes overlap (2, 3).
 3. **Corners.** Every edge curve of one operand against every surface of the
    other, and the special points of the relations (4, 5). A curve can only
@@ -1341,4 +1427,8 @@ The tests that hold it:
   `a_surface_a_hair_from_a_line_of_touch.rs` and
   `a_rim_grazing_a_ruling_of_touch.rs`, the seeds the campaigns of 5 October
   2026 failed, shrunk and gathered by what breaks them, ignored with their
-  reason; those the triangles draw badly are with the triangles' findings.
+  reason; those the triangles draw badly are with the triangles' findings;
+- `a_plane_a_hair_off_square_to_a_wall.rs`, decision 11 held to the
+  arithmetic: a post cut a ten-millionth of a degree off square, a bore cut
+  a hair off along its axis, a tool a hair off a bore of its radius merged
+  onto it.

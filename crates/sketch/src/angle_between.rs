@@ -22,11 +22,6 @@ const PARALLEL: f64 = 1e-12;
 /// fight the rule, or read nothing anybody drew on purpose.
 pub(crate) const RUN_THE_SAME_WAY: f64 = 1e-4;
 
-/// How near one of its own ends a trait may be met and still be met at that
-/// end, as a fraction of its length: the foot of a T. Far wider than rounding,
-/// since a solver leaves a foot held on the other trait a hair off it.
-const AT_AN_END: f64 = 1e-4;
-
 /// How far past its own ends a trait may be met and still count as met, as a
 /// fraction of its length. Only asked of traits nothing holds together: a T
 /// whose foot a rule holds on the other trait meets it whatever the solver left
@@ -165,15 +160,14 @@ impl Sketch {
             })
     }
 
-    /// The same angle, turned to face `placed`: of the angles the two traits
-    /// make where their lines cross, the one opening towards where the
-    /// dimension is put down.
+    /// The same angle, turned to face `placed`: of the four angles the two
+    /// traits make where their lines cross, the quarter it is put down in.
     ///
-    /// A trait crossed through its middle runs both ways from the crossing, and
-    /// its arm heads towards that side. A trait met at one of its own ends — the
-    /// stem of a T — has one arm only, running away from that end: past it
-    /// nothing is drawn, and an angle read towards it would measure empty
-    /// space. So an X opens four ways, and a T two.
+    /// A place lies in the quarter between two arms when it stands on each
+    /// arm's side of the other trait's line — the test a corner and an axis
+    /// make too. Every way counts: both ways through an X, along a T's stem
+    /// prolonged past its foot, which is drawn thin out to the arc, and from
+    /// two traits lying apart.
     ///
     /// Any other target comes back as it was, and so does an angle whose
     /// traits run the same way — there is no side to face without a place to
@@ -185,41 +179,21 @@ impl Sketch {
         if let Some(laid) = self.angle_already_between(first, second) {
             return laid;
         }
-        let Some((a1, _, along, on_first, on_second)) = self.crossing_of(first, second) else {
+        let Some(crossing) = self.where_lines_cross(first, second) else {
             return target;
         };
-        let side = placed - (a1 + along * on_first);
-        let toward = |segment: SegmentId, other: SegmentId, fraction: f64| {
-            self.only_arm(segment, other, fraction).unwrap_or(
-                match side.dot(self.arm(segment, Toward::End)) >= 0.0 {
-                    true => Toward::End,
-                    false => Toward::Start,
-                },
-            )
-        };
+        let (one, other) = (self.arm(first, Toward::End), self.arm(second, Toward::End));
+        let side = placed - crossing;
+        let toward =
+            |own: DVec2, across: DVec2| match across.perp_dot(own) * across.perp_dot(side) >= 0.0 {
+                true => Toward::End,
+                false => Toward::Start,
+            };
         DimensionTarget::AngleBetween {
             first,
-            first_toward: toward(first, second, on_first),
+            first_toward: toward(one, other),
             second,
-            second_toward: toward(second, first, on_second),
-        }
-    }
-
-    /// The one arm a trait has when the other is met at one of its own ends,
-    /// running away from that end; nothing when it is crossed through its
-    /// middle and runs both ways, or when their lines cross out past it — a
-    /// trait lying apart from the other can be read either way from there.
-    ///
-    /// An end a rule holds on the other trait is that end, wherever the solver
-    /// left it. Otherwise it is read off where the lines cross, with room for
-    /// what a solver leaves: a hair from an end is that end.
-    fn only_arm(&self, segment: SegmentId, other: SegmentId, fraction: f64) -> Option<Toward> {
-        let drawn = self.segments().get(segment.0)?;
-        let held = |point| self.holds_on(point).contains(&Support::Segment(other));
-        match () {
-            _ if held(drawn.start) || fraction.abs() <= AT_AN_END => Some(Toward::End),
-            _ if held(drawn.end) || (fraction - 1.0).abs() <= AT_AN_END => Some(Toward::Start),
-            _ => None,
+            second_toward: toward(other, one),
         }
     }
 

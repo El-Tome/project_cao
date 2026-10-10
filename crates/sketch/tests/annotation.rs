@@ -12,6 +12,8 @@
 //! Closes #485.
 //! - a prolongation an angle opens from is drawn thin, out to the arc —
 //!   `a_corner_angle_draws_the_prolongations_it_opens_from_and_nothing_else`
+//! - a T read past its foot draws its stem prolonged, thin, out to the arc —
+//!   `a_t_read_past_its_foot_draws_its_stem_prolonged_out_to_the_arc`
 
 use cao_sketch::{
     AnnotationMetrics, AxisToward, DimensionTarget, Sketch, SketchAxis, Toward, WorkPlane,
@@ -314,5 +316,38 @@ fn a_corner_angle_draws_the_prolongations_it_opens_from_and_nothing_else() {
                 "put down at {put_down}, a line runs {line} where {way} was wanted",
             );
         }
+    }
+}
+
+#[test]
+fn a_t_read_past_its_foot_draws_its_stem_prolonged_out_to_the_arc() {
+    let foot = DVec2::new(40.0, 0.0);
+    let up = DVec2::from_angle(60.0_f64.to_radians());
+    for (put_down, prolonged) in [
+        (DVec2::new(30.0, -20.0), true),
+        (DVec2::new(30.0, 10.0), false),
+    ] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let west = sketch.add_point(DVec2::ZERO);
+        let east = sketch.add_point(DVec2::new(100.0, 0.0));
+        let base = sketch.add_point(foot);
+        let top = sketch.add_point(foot + up * 30.0);
+        let bar = sketch.add_segment(west, east);
+        let stem = sketch.add_segment(base, top);
+        let target = sketch.oriented(sketch.angle_between_traits(bar, stem), foot + put_down);
+        sketch.set_dimension(target, 60.0, false);
+
+        let placement = sketch.place(target, METRICS).unwrap();
+
+        let past_the_foot = arms_from(&placement, foot)
+            .into_iter()
+            .filter(|line| line.normalize().distance(-up) < 1e-9)
+            .count();
+        assert_eq!(
+            past_the_foot,
+            usize::from(prolonged),
+            "put down at {put_down}: {:?}",
+            placement.shape,
+        );
     }
 }

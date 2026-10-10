@@ -33,6 +33,23 @@ impl Piece {
     /// read exactly that drops the angle off the only piece that carries it.
     /// So the place is taken a hair along the way the arm heads, where the
     /// stretch it measures truly lies.
+    /// Whether this piece carries an arm of an angle read where two traits
+    /// meet: the piece running on from that place the way the arm heads, or,
+    /// for an arm running past the trait's own end — a T's stem prolonged past
+    /// its foot — the piece still reaching that end, since no piece runs on
+    /// there and the prolongation is the line of whichever stays.
+    pub(super) fn carries_an_arm(&self, place: f64, toward: Toward) -> bool {
+        const AT_AN_END: f64 = 1e-9;
+        let past_its_end = match toward {
+            Toward::End => place >= 1.0 - AT_AN_END,
+            Toward::Start => place <= AT_AN_END,
+        };
+        match past_its_end {
+            true => self.spans.0 - AT_AN_END <= place && place <= self.spans.1 + AT_AN_END,
+            false => self.runs_on_from(place, toward),
+        }
+    }
+
     pub(super) fn runs_on_from(&self, place: f64, toward: Toward) -> bool {
         const PAST: f64 = 1e-9;
         let past = match toward {
@@ -237,7 +254,7 @@ pub(super) fn still_measured(
                 false => second_toward,
             };
             place
-                .is_some_and(|meet| piece.runs_on_from(meet, toward))
+                .is_some_and(|meet| piece.carries_an_arm(meet, toward))
                 .then_some(DimensionTarget::AngleBetween {
                     first: moved(first),
                     first_toward,

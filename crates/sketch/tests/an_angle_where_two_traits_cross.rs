@@ -10,8 +10,9 @@
 //!   `clicking_the_same_two_traits_again_opens_the_angle_already_laid`
 //! - a trait ending on the middle of another — a T — does the same —
 //!   `a_trait_ending_on_the_middle_of_another_lays_the_angle_too`, opening
-//!   only the two ways its stem is drawn —
-//!   `a_t_opens_only_the_two_ways_its_stem_is_drawn`
+//!   only the two ways its stem is drawn. #485 reversed that: a T opens four
+//!   ways, its stem read past its foot below the bar —
+//!   `a_t_opens_four_ways_its_stem_read_past_its_foot_below_the_bar`
 //! - the angle laid, acute or obtuse, is the one on the side the dimension is
 //!   placed — `the_angle_laid_is_the_one_on_the_side_the_dimension_is_placed`
 //! - typing a value turns the traits to it, and it holds —
@@ -452,7 +453,7 @@ fn a_typed_angle_on_a_t_stays_drawn_once_the_solver_has_moved_it() {
 }
 
 #[test]
-fn a_t_opens_only_the_two_ways_its_stem_is_drawn() {
+fn a_t_opens_four_ways_its_stem_read_past_its_foot_below_the_bar() {
     let mut sketch = Sketch::new(WorkPlane::XY);
     let west = sketch.add_point(DVec2::new(10.0, 20.0));
     let east = sketch.add_point(DVec2::new(30.0, 20.0));
@@ -472,22 +473,21 @@ fn a_t_opens_only_the_two_ways_its_stem_is_drawn() {
         (DVec2::new(28.0, 24.0), 60.0, "east, above the bar"),
         (
             DVec2::new(28.0, 12.0),
-            60.0,
-            "east, below the bar where no stem is drawn",
+            120.0,
+            "east, below the bar, against the stem prolonged",
         ),
         (DVec2::new(12.0, 24.0), 120.0, "west, above the bar"),
         (
             DVec2::new(12.0, 12.0),
-            120.0,
-            "west, below the bar where no stem is drawn",
+            60.0,
+            "west, below the bar, against the stem prolonged",
         ),
     ] {
         let laid = sketch.oriented(asked, placed);
         let measured = sketch.opening(laid).expect("the two traits are there");
         assert!(
             (measured - wanted).abs() < 1e-9,
-            "put down {side}, the angle reads between the bar and the stem as it is \
-             drawn — {wanted}° — got {measured}°",
+            "put down {side}, the angle reads {wanted}°, got {measured}°",
         );
     }
 }

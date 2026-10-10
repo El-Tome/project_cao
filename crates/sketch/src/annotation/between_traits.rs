@@ -17,7 +17,8 @@ use crate::sketch::{SegmentId, Sketch};
 /// traits instead, halfway along where they run side by side, each of its ends
 /// landing on one of them; put down, it goes where it was put and moves from
 /// there. An end that falls past a trait is joined back to it by a thin line,
-/// as on a drawing.
+/// as on a drawing. A T's stem read past its foot is drawn the same way,
+/// prolonged out to the arc.
 pub(super) fn between_traits(
     out: &mut Vec<(DVec2, DVec2)>,
     sketch: &Sketch,
@@ -58,9 +59,9 @@ pub(super) fn between_traits(
         by,
         metrics,
     );
-    if apart {
-        let radius = radius_of(reach, metrics);
-        for (segment, arm) in [(first, one), (second, other)] {
+    let radius = radius_of(reach, metrics);
+    for (segment, arm) in [(first, one), (second, other)] {
+        if apart || runs_past(sketch, segment, pivot, arm) {
             reach_back(out, sketch, segment, pivot + arm.normalize() * radius);
         }
     }
@@ -92,6 +93,16 @@ fn halfway_between(
     };
     let bisector = (arms[0].1.normalize() + arms[1].1.normalize()).normalize();
     bisector * (radius + clearance(metrics))
+}
+
+/// Whether an arm runs out from the pivot along the trait's prolongation, the
+/// whole trait behind it: a T's stem read past its foot. Through an X the arm
+/// runs into its trait, short as it may be, and is drawn as it always was.
+fn runs_past(sketch: &Sketch, segment: SegmentId, pivot: DVec2, arm: DVec2) -> bool {
+    const BEHIND: f64 = 1e-9;
+    let (from, to) = sketch.endpoints(segment);
+    let ahead = |end: DVec2| (end - pivot).dot(arm);
+    ahead(from).max(ahead(to)) <= BEHIND * arm.length_squared()
 }
 
 /// Joins an arc's end back to its trait with a thin line, when the end falls

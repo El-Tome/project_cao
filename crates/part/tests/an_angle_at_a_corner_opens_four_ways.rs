@@ -12,6 +12,13 @@
 //! - trimming carries the angle over to the piece kept, its quarter with it;
 //!   compaction keeps it too —
 //!   `a_cut_and_a_compaction_carry_a_corner_quarter_over_to_what_is_kept`
+//! - a T opens four ways, like an X: the stem is prolonged past its end —
+//!   `a_t_opens_four_ways_its_stem_prolonged_past_its_foot`, and the cut keeps
+//!   an angle read along that prolongation —
+//!   `a_cut_keeps_an_angle_read_along_a_stems_prolongation`
+//! - an X's quarters are cut by the lines themselves: two traits crossing at
+//!   30°, a dimension put down just beside one of them inside the 150° quarter,
+//!   measures 150° — `an_x_at_thirty_degrees_measures_the_wide_quarter_right_beside_a_trait`
 //! - a corner carries one angle: the two traits clicked again open the one
 //!   already there — `the_same_corner_clicked_again_gives_the_angle_already_there`
 //! - every angle a tool lays by itself measures what it measures today — no
@@ -24,7 +31,7 @@
 //! the preview in `crates/app/src/screens/viewport/render/preview/tests.rs`.
 
 use cao_part::{Operation, PartDocument, PointRef};
-use cao_sketch::{Along, DimensionTarget, PointId, SegmentId, WorkPlane};
+use cao_sketch::{Along, DimensionTarget, PointId, SegmentId, Toward, WorkPlane};
 use glam::DVec2;
 
 /// The horizontal trait, from the left up to the corner.
@@ -246,4 +253,143 @@ fn the_same_corner_clicked_again_gives_the_angle_already_there() {
     assert_eq!(again, first);
     assert_eq!(angles_on(&document), vec![first]);
     assert_reads(value, acute(), "clicked again between the two traits");
+}
+
+/// Two traits, the first one clicked, then the second, then the place.
+fn two_traits(first: [DVec2; 2], second: [DVec2; 2]) -> PartDocument {
+    let mut document = PartDocument::new("part", "2026-10-10T09:00:00Z".parse().expect("a date"));
+    document.apply(Operation::CreateSketch {
+        plane: WorkPlane::XY,
+        on: None,
+    });
+    for [start, end] in [first, second] {
+        document.apply(Operation::AddSegment {
+            sketch: 0,
+            start: PointRef::New(start),
+            end: PointRef::New(end),
+            construction: false,
+        });
+    }
+    document
+}
+
+fn put_down_between(document: &mut PartDocument, on_the_second: DVec2, place: DVec2) -> f64 {
+    let sketch = &document.sketches()[0];
+    let chosen = sketch
+        .refine(DimensionTarget::Length(SegmentId(0)), on_the_second, SNAP)
+        .expect("a second trait makes an angle");
+    let target = sketch.oriented(chosen, place);
+    let value = document.measured(0, target).expect("the angle reads");
+    document.apply(Operation::SetDimension {
+        sketch: 0,
+        target,
+        value: value.into(),
+        placement: None,
+    });
+    value
+}
+
+fn along(degrees: f64) -> DVec2 {
+    DVec2::from_angle(degrees.to_radians())
+}
+
+#[test]
+fn an_x_at_thirty_degrees_measures_the_wide_quarter_right_beside_a_trait() {
+    let crossing = DVec2::new(50.0, 0.0);
+    let slanted = [crossing - along(30.0) * 40.0, crossing + along(30.0) * 40.0];
+    for (offset, expected, said) in [
+        (
+            DVec2::new(30.0, -3.0),
+            150.0,
+            "just under the horizontal, in the wide quarter",
+        ),
+        (
+            DVec2::new(0.0, -30.0),
+            150.0,
+            "in the middle of the wide quarter",
+        ),
+        (
+            DVec2::new(30.0, 3.0),
+            30.0,
+            "just above the horizontal, in the narrow quarter",
+        ),
+        (
+            DVec2::new(-12.0, 3.0),
+            150.0,
+            "just above the horizontal, on the left",
+        ),
+    ] {
+        let mut document = two_traits([DVec2::ZERO, DVec2::new(100.0, 0.0)], slanted);
+        let on_the_slanted = crossing + along(30.0) * 30.0;
+        let value = put_down_between(&mut document, on_the_slanted, crossing + offset);
+        assert_reads(value, expected, said);
+    }
+}
+
+#[test]
+fn a_t_opens_four_ways_its_stem_prolonged_past_its_foot() {
+    let foot = DVec2::new(40.0, 0.0);
+    let stem = [foot, foot + along(60.0) * 30.0];
+    for (offset, expected, said) in [
+        (DVec2::new(30.0, 10.0), 60.0, "the bar's right and the stem"),
+        (
+            DVec2::new(-30.0, 20.0),
+            120.0,
+            "the stem and the bar's left",
+        ),
+        (
+            DVec2::new(-30.0, -10.0),
+            60.0,
+            "the bar's left and the stem prolonged",
+        ),
+        (
+            DVec2::new(30.0, -20.0),
+            120.0,
+            "the stem prolonged and the bar's right",
+        ),
+    ] {
+        let mut document = two_traits([DVec2::ZERO, DVec2::new(100.0, 0.0)], stem);
+        let value = put_down_between(&mut document, foot + along(60.0) * 20.0, foot + offset);
+        assert_reads(value, expected, said);
+    }
+}
+
+#[test]
+fn a_cut_keeps_an_angle_read_along_a_stems_prolongation() {
+    let foot = DVec2::new(40.0, 0.0);
+    let top = foot + along(60.0) * 30.0;
+    let mut document = two_traits([DVec2::ZERO, DVec2::new(100.0, 0.0)], [foot, top]);
+    put_down_between(
+        &mut document,
+        foot + along(60.0) * 20.0,
+        foot + DVec2::new(30.0, -20.0),
+    );
+    document.apply(Operation::AddPoint {
+        sketch: 0,
+        position: foot + along(60.0) * 15.0,
+        on: Vec::new(),
+    });
+    let (top_point, middle) = (PointId(4), PointId(5));
+
+    document.apply(Operation::Trim {
+        sketch: 0,
+        segment: SegmentId(1),
+        from: middle,
+        to: top_point,
+    });
+
+    let kept = angles_on(&document);
+    let [carried] = kept[..] else {
+        panic!("one angle on what is kept, got {kept:?}");
+    };
+    let DimensionTarget::AngleBetween { second_toward, .. } = carried else {
+        panic!("still an angle between the bar and the stem, got {carried:?}");
+    };
+    assert_eq!(
+        second_toward,
+        Toward::Start,
+        "still along the stem's prolongation"
+    );
+    let read = document.measured(0, carried).expect("it reads");
+    assert_reads(read, 120.0, "after the cut");
 }

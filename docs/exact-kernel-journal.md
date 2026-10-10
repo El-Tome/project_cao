@@ -730,3 +730,57 @@ through the application's body, run again on `34a1b64` and on the tip:
   crossing (`Uncrossed`) 121, listed off (`Listed`) 12, left open
   (`Closed`) 6, a span off along a line 2, a volume off 2.
 - The gate's tests, built, take about 35 s, as at `34a1b64`.
+
+## 10 October: round 2 of #552, measured
+
+Two lanes merged onto `7411e98` (a plane carries an edge's line only
+where the line stays within the tolerance of it; a corner a plane a hair
+from tangent to a wall makes is decided on the hairpin it cuts), measured
+at `cf9093b` on fresh seeds, in release, the nine draws side by side, and
+the first 15 000 seeds of round 1's tilted draws run again on `7411e98`
+and on the tip:
+
+| Draw | First seed | Cases | Failures | Per thousand |
+| --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5542100000 | 40 000 | 240 | 6.00 |
+| tilted, application's body | 5542200000 | 40 000 | 239 | 5.98 |
+| slanted, exact kernel | 5542300000 | 30 000 | 19 | 0.63 |
+| slanted, application's body | 5542400000 | 30 000 | 18 | 0.60 |
+| turned, exact kernel | 5542500000 | 30 000 | 14 | 0.47 |
+| turned, application's body | 5542600000 | 30 000 | 7 | 0.23 |
+| square | 5542700000 | 30 000 | 3 | 0.10 |
+| profiles, exact kernel | 5542800000 | 20 000 | 7 | 0.35 |
+| profiles, application's body | 5542900000 | 20 000 | 2 | 0.10 |
+
+- The tilted draws stay over the bar. Over round 1's first 15 000 tilted
+  seeds the exact kernel goes from 5.8 failures in a thousand at
+  `7411e98` to 5.3, the application's body from 6.1 to 5.6; seven seeds
+  repaired on each, none broken.
+- The turned draw through the application's body is back under it. Every
+  draw but the tilted ones is.
+- Three fresh seeds that hold on `7411e98` fail on the tip, each alone,
+  each refused (`Answers`), all three from `cbf3c3c` (the hairpin decides
+  the corner): shrunk, they hold at `0d019ac` and fail at `cbf3c3c` and
+  at `0392535`. 5542125645, a stepped double cone a hair (2e-8) off its
+  axis cut by a block leaning 45°; 5542217385, through the application's
+  body, a cone cut by a block leaning 45° whose corner stands 2e-7 off
+  the lattice; 5542230229, through the application's body, a post cut by a
+  block whose face leans 4e-8° off parallel to its axis. Shrunk, all
+  three hold on `7411e98` too. None is named yet.
+- Every other failure, run again on `7411e98`, fails there too; two
+  tilted ones there by another rule, refused there, drawn crossing here.
+- Shrunk, the tilted draws' 479: a plane within 1e-7° of square or
+  parallel, 240; a plane 2e-7° to 1e-3° off, 131; a hair by an offset,
+  99; no hair the sorting sees, 9 — among them a quarter of a stepped
+  cone cut at 14° (5542101638), a cone cut at 18° (5542223462) and at 7°
+  (5542220684), a cone cut at 45° then bored by a post, drawn crossing
+  (5542124216), and two turns of a hundredth of a degree (5542216987,
+  5542213481). By what is left of them: prisms alone 164, turns without
+  a cone 212, with a cone 103. The other draws' 70 are the families of
+  #533 and #536: an offset hair 49, a leaning hair 13, none 8; one of
+  them, 5542618996, a turn bored and joined four times, takes more than
+  30 s on `7411e98` too.
+- By the rule broken, over all 549: refused (`Answers`) 400, drawn
+  crossing (`Uncrossed`) 135, left open (`Closed`) 6, listed off
+  (`Listed`) 5, a volume off 2, a span off along a line 1.
+- The gate's tests, built, take about 35 s, as at `7411e98`.

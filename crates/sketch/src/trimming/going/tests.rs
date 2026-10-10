@@ -34,7 +34,8 @@ use glam::DVec2;
 use super::*;
 use crate::arc::ArcId;
 use crate::arcing::sweep_of;
-use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
+use crate::axis_angle::AxisToward;
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis, Toward};
 use crate::laid_from::LaidFrom;
 use crate::plane::WorkPlane;
 use crate::sketch::{PointId, SegmentId, Sketch};
@@ -93,7 +94,9 @@ fn a_value_a_piece_inherits_is_not_said_to_be_going() {
     let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
     let angle = DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(angle, 0.0, false);
 

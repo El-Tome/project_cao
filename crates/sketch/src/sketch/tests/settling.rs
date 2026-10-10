@@ -60,7 +60,9 @@ fn a_shape_leaning_has_to_say_which_way_up_it_is() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: along,
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,

@@ -223,24 +223,30 @@ impl Sketch {
         }
     }
 
-    /// What an angle between two traits measures right now, in degrees: the
-    /// opening between the two arms it names, never more than a half turn.
+    /// What an angle between two traits, or between a trait and an axis,
+    /// measures right now, in degrees: the opening between the two arms it
+    /// names, never more than a half turn.
     pub fn opening(&self, target: DimensionTarget) -> Option<f64> {
-        let DimensionTarget::AngleBetween {
-            first,
-            first_toward,
-            second,
-            second_toward,
-        } = target
-        else {
-            return None;
+        let (one, other) = match target {
+            DimensionTarget::AngleBetween {
+                first,
+                first_toward,
+                second,
+                second_toward,
+            } => {
+                self.segments().get(first.0)?;
+                self.segments().get(second.0)?;
+                (
+                    self.arm(first, first_toward),
+                    self.arm(second, second_toward),
+                )
+            }
+            DimensionTarget::AxisAngle { .. } => {
+                let (_, along_the_axis, along_the_trait) = self.axis_arms(target)?;
+                (along_the_axis, along_the_trait)
+            }
+            _ => return None,
         };
-        self.segments().get(first.0)?;
-        self.segments().get(second.0)?;
-        let (one, other) = (
-            self.arm(first, first_toward),
-            self.arm(second, second_toward),
-        );
         if one.length_squared() == 0.0 || other.length_squared() == 0.0 {
             return None;
         }

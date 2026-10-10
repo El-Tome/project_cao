@@ -1,8 +1,17 @@
 //! Where a dimension's annotation is drawn: which side it stands off on, the
 //! leader on the end a foot falls outside of, the floor under an angle's arc
 //! radius, and a dragged annotation landing back where it was left.
+//!
+//! Closes #484.
+//! - the arc of an angle to an axis is drawn around the middle of the trait,
+//!   between the line along the axis and the half of the trait on the side it
+//!   was put down — `an_angle_to_an_axis_is_drawn_in_the_quarter_it_measures`
+//! - a trait whose middle lies on the axis draws no line along it: the axis is
+//!   its arm — `an_angle_measured_on_the_axis_lets_the_axis_speak_for_itself`
 
-use cao_sketch::{AnnotationMetrics, DimensionTarget, Sketch, SketchAxis, WorkPlane};
+use cao_sketch::{
+    AnnotationMetrics, AxisToward, DimensionTarget, Sketch, SketchAxis, Toward, WorkPlane,
+};
 use glam::DVec2;
 
 const METRICS: AnnotationMetrics = AnnotationMetrics {
@@ -121,14 +130,19 @@ fn a_dimension_dragged_and_placed_again_lands_where_it_was_left() {
     );
 }
 
-fn trait_at(start: DVec2, degrees: f64) -> (Sketch, DimensionTarget) {
+/// A trait 40 long, its middle at `middle`, leaning `degrees` off the
+/// horizontal.
+fn trait_about(middle: DVec2, degrees: f64) -> (Sketch, DimensionTarget) {
     let mut sketch = Sketch::new(WorkPlane::XY);
-    let from = sketch.add_point(start);
-    let to = sketch.add_point(start + DVec2::from_angle(degrees.to_radians()) * 40.0);
+    let half = DVec2::from_angle(degrees.to_radians()) * 20.0;
+    let from = sketch.add_point(middle - half);
+    let to = sketch.add_point(middle + half);
     let segment = sketch.add_segment(from, to);
     let target = DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(target, degrees, false);
     (sketch, target)
@@ -145,12 +159,12 @@ fn arms_from(placement: &cao_sketch::Placement, pivot: DVec2) -> Vec<DVec2> {
 
 #[test]
 fn an_angle_measured_off_the_axis_draws_the_line_it_opens_from() {
-    let start = DVec2::new(10.0, 10.0);
-    let (sketch, target) = trait_at(start, 30.0);
+    let middle = DVec2::new(10.0, 10.0);
+    let (sketch, target) = trait_about(middle, 30.0);
 
     let placement = sketch.place(target, METRICS).unwrap();
 
-    let arms = arms_from(&placement, start);
+    let arms = arms_from(&placement, middle);
     assert_eq!(
         arms.len(),
         1,
@@ -166,14 +180,92 @@ fn an_angle_measured_off_the_axis_draws_the_line_it_opens_from() {
 
 #[test]
 fn an_angle_measured_on_the_axis_lets_the_axis_speak_for_itself() {
-    let start = DVec2::new(10.0, 0.0);
-    let (sketch, target) = trait_at(start, 30.0);
+    let middle = DVec2::new(10.0, 0.0);
+    let (sketch, target) = trait_about(middle, 30.0);
 
     let placement = sketch.place(target, METRICS).unwrap();
 
+    let along_the_axis = |(from, to): &&(DVec2, DVec2)| {
+        from.y.abs() <= 1e-9 && to.y.abs() <= 1e-9 && from.distance(*to) > 1.0
+    };
     assert_eq!(
-        arms_from(&placement, start),
-        Vec::new(),
-        "the axis is drawn right through the vertex, and a second line on top of it says nothing"
+        placement.shape.iter().filter(along_the_axis).count(),
+        0,
+        "the axis is drawn right through the vertex, and a second line on top of it says nothing: {:?}",
+        placement.shape,
     );
+}
+
+/// Whether `place` lies between two arms out from `pivot`, the arms included.
+fn between(pivot: DVec2, one: DVec2, other: DVec2, place: DVec2) -> bool {
+    const ON_AN_ARM: f64 = 1e-6;
+    let (to, opening) = (place - pivot, one.perp_dot(other).signum());
+    one.perp_dot(to) * opening >= -ON_AN_ARM && to.perp_dot(other) * opening >= -ON_AN_ARM
+}
+
+#[test]
+fn an_angle_to_an_axis_is_drawn_in_the_quarter_it_measures() {
+    let (left, right) = (DVec2::new(20.0, 30.0), DVec2::new(120.0, 50.0));
+    let middle = (left + right) * 0.5;
+    for (put_down, along_the_axis, along_the_trait, said) in [
+        (
+            DVec2::new(40.0, 80.0),
+            DVec2::Y,
+            left - middle,
+            "up and to the left",
+        ),
+        (
+            DVec2::new(100.0, 0.0),
+            -DVec2::Y,
+            right - middle,
+            "down and to the right",
+        ),
+    ] {
+        let mut sketch = Sketch::new(WorkPlane::XY);
+        let from = sketch.add_point(left);
+        let to = sketch.add_point(right);
+        let segment = sketch.add_segment(from, to);
+        let target = sketch.oriented(sketch.angle_to_axis(segment, SketchAxis::V), put_down);
+        sketch.set_dimension(target, 101.3, false);
+
+        let placement = sketch.place(target, METRICS).unwrap();
+
+        let line = arms_from(&placement, middle);
+        assert_eq!(
+            line.len(),
+            1,
+            "{said}: one line along the axis: {:?}",
+            placement.shape
+        );
+        assert!(
+            line[0].perp_dot(along_the_axis).abs() <= 1e-9 && line[0].dot(along_the_axis) > 0.0,
+            "{said}: it runs from the middle the way the arm does: {:?}",
+            line[0],
+        );
+        let radius = line[0].length();
+        let on_the_arc = |place: DVec2| (place.distance(middle) - radius).abs() < 1e-6;
+        let arc: Vec<_> = placement
+            .shape
+            .iter()
+            .filter(|(from, to)| on_the_arc(*from) && on_the_arc(*to))
+            .collect();
+        assert!(
+            arc.len() > 10,
+            "{said}: an arc about the middle: {:?}",
+            placement.shape
+        );
+        for (from, to) in arc {
+            for place in [*from, *to] {
+                assert!(
+                    between(middle, along_the_axis, along_the_trait, place),
+                    "{place:?} strays out of the quarter {said}",
+                );
+            }
+        }
+        assert!(
+            between(middle, along_the_axis, along_the_trait, placement.text_at),
+            "{said}: the value sits in the quarter too: {:?}",
+            placement.text_at,
+        );
+    }
 }

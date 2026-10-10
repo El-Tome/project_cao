@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::angle_between::RUN_THE_SAME_WAY;
 use crate::arc::ArcId;
+use crate::axis_angle::AxisToward;
 use crate::ellipse::EllipseId;
 use crate::laid_from::LaidFrom;
 use crate::sketch::{CircleId, Element, PointId, SegmentId};
@@ -69,10 +70,14 @@ pub enum DimensionTarget {
         second: SegmentId,
         second_toward: Toward,
     },
-    /// Angle between a segment and one of the sketch axes.
+    /// Angle between a segment and one of the sketch axes, read about the
+    /// segment's middle. A line along the axis cuts four quarters there with
+    /// the trait, and which way each arm runs says which of them this is.
     AxisAngle {
         segment: SegmentId,
+        segment_toward: Toward,
         axis: SketchAxis,
+        axis_toward: AxisToward,
     },
     /// Distance from a point to the line a segment lies on, taken square to
     /// that line — as if a perpendicular segment ran from the point down to it.

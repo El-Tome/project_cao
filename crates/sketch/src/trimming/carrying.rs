@@ -190,12 +190,17 @@ pub(super) fn still_measured(
         false => id,
     };
     match value {
-        DimensionTarget::AxisAngle { segment, axis } if segment == cut => {
-            Some(DimensionTarget::AxisAngle {
-                segment: piece.id,
-                axis,
-            })
-        }
+        DimensionTarget::AxisAngle {
+            segment,
+            segment_toward,
+            axis,
+            axis_toward,
+        } if segment == cut => Some(DimensionTarget::AxisAngle {
+            segment: piece.id,
+            segment_toward,
+            axis,
+            axis_toward,
+        }),
         DimensionTarget::Angle { first, second }
             if (first == cut || second == cut) && piece.reaches_the_corner =>
         {

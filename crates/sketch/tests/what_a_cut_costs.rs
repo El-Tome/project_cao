@@ -3,7 +3,10 @@
 //! The drawing used to lose those rules and those values in silence: the user
 //! found out when the shape started moving.
 
-use cao_sketch::{Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, WorkPlane};
+use cao_sketch::{
+    AxisToward, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, Toward,
+    WorkPlane,
+};
 use glam::DVec2;
 
 fn a_trait_alongside_another() -> (Sketch, SegmentId, SegmentId, [PointId; 2]) {
@@ -48,7 +51,9 @@ fn a_cut_counts_the_values_it_could_not_carry_over() {
     sketch.set_dimension(
         DimensionTarget::AxisAngle {
             segment: cut,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         0.0,
         false,

@@ -5,7 +5,7 @@
 //!   held it before the issue and holds it still: the fix never reached here
 //! - a reference value stays a readout — `a_redundant_dimension_becomes_a_readout`
 
-use cao_sketch::{CircleId, DimensionTarget, SegmentId, WorkPlane};
+use cao_sketch::{AxisToward, CircleId, DimensionTarget, SegmentId, Toward, WorkPlane};
 use glam::DVec2;
 
 use super::*;
@@ -134,7 +134,9 @@ fn give_it_everything_it_needs(state: &mut PartState) {
         (
             DimensionTarget::AxisAngle {
                 segment: SegmentId(0),
+                segment_toward: Toward::End,
                 axis: cao_sketch::SketchAxis::U,
+                axis_toward: AxisToward::Positive,
             },
             0.0,
         ),
@@ -219,7 +221,9 @@ fn a_redundant_dimension_becomes_a_readout() {
         sketch: 0,
         target: DimensionTarget::AxisAngle {
             segment: SegmentId(0),
+            segment_toward: Toward::End,
             axis: cao_sketch::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         },
         value: 0.0.into(),
         placement: None,

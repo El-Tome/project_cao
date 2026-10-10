@@ -98,15 +98,15 @@ impl Sketch {
                 by,
                 metrics,
             )?,
-            DimensionTarget::AxisAngle { segment, axis } => {
-                let (start, end) = endpoints(self, segment)?;
-                let along = axis.direction();
-                let opens_from = start + along * start.distance(end);
-                let arm = match start.perp_dot(along).abs() <= metrics.pixel {
+            DimensionTarget::AxisAngle { .. } => {
+                let (middle, along_the_axis, along_the_trait) = self.axis_arms(target)?;
+                let opens_from = middle + along_the_axis * along_the_trait.length() * 0.5;
+                let arm = match middle.perp_dot(along_the_axis).abs() <= metrics.pixel {
                     true => Arm::Drawn(opens_from),
                     false => Arm::Reference(opens_from),
                 };
-                angular(&mut shape, start, arm, end, by, metrics)
+                let reaches = middle + along_the_trait * 0.5;
+                angular(&mut shape, middle, arm, reaches, by, metrics)
             }
             DimensionTarget::Diameter(circle) => {
                 let circle = *self.circles().get(circle.0)?;

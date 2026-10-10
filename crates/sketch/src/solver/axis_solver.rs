@@ -3,7 +3,7 @@
 
 use glam::DVec2;
 
-use crate::constraints::{Constraint, SketchAxis};
+use crate::constraints::{Constraint, DimensionTarget, SketchAxis};
 use crate::equation::Equation;
 use crate::sketch::{SegmentId, Sketch};
 
@@ -58,20 +58,29 @@ impl Sketch {
     /// Unlike an angle between two segments, this one has something immovable
     /// to lean on, so it is what finally stops a drawing from spinning about
     /// its anchor.
+    ///
+    /// Read between the two arms the dimension names, the trait's running
+    /// towards whichever of its ends it was asked to.
     pub(super) fn axis_angle_equation(
         &self,
-        segment: SegmentId,
-        axis: SketchAxis,
+        target: DimensionTarget,
         degrees: f64,
     ) -> Option<Equation> {
-        let segment = *self.segments().get(segment.0)?;
-        let span = self.point(segment.end) - self.point(segment.start);
+        let DimensionTarget::AxisAngle {
+            segment,
+            segment_toward,
+            ..
+        } = target
+        else {
+            return None;
+        };
+        let (_, reference, span) = self.axis_arms(target)?;
+        let (tip, tail) = self.arm_ends(segment, segment_toward)?;
         let length = span.length_squared();
         if length < 1e-12 {
             return None;
         }
 
-        let reference = axis.direction();
         let signed = reference.perp_dot(span).atan2(reference.dot(span));
         let sign = if signed < 0.0 { -1.0 } else { 1.0 };
         let turn = DVec2::new(-span.y, span.x) / length;
@@ -79,8 +88,8 @@ impl Sketch {
         let mut equation = Equation::new(self.variables());
         equation.error = signed.abs() - degrees.to_radians();
         equation.angular = true;
-        equation.add(segment.end, turn * sign);
-        equation.add(segment.start, -turn * sign);
+        equation.add(tip, turn * sign);
+        equation.add(tail, -turn * sign);
         Some(equation)
     }
 }

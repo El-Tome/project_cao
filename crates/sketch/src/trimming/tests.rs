@@ -2,6 +2,8 @@
 use crate::plane::WorkPlane;
 
 use super::*;
+use crate::axis_angle::AxisToward;
+use crate::constraints::Toward;
 
 #[test]
 fn the_points_sitting_on_a_trait_come_in_order_from_its_start() {
@@ -369,7 +371,9 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
     let (mut sketch, segment, [_, near, far, _]) = a_trait_with_two_points_on_it();
     let level = DimensionTarget::AxisAngle {
         segment,
+        segment_toward: Toward::End,
         axis: crate::constraints::SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(level, 0.0, false);
     sketch.write_dimension_as(level, Some("#0 * 2".to_string()));
@@ -382,7 +386,9 @@ fn a_value_carried_onto_the_pieces_keeps_what_it_was_written_as() {
     for piece in trimmed.pieces {
         let carried = DimensionTarget::AxisAngle {
             segment: piece,
+            segment_toward: Toward::End,
             axis: crate::constraints::SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         };
         let value = sketch
             .dimension_of(carried)

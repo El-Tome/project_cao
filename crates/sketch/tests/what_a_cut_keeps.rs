@@ -6,7 +6,8 @@
 //! there.
 
 use cao_sketch::{
-    CircleId, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis, WorkPlane,
+    AxisToward, CircleId, Constraint, DimensionTarget, PointId, SegmentId, Sketch, SketchAxis,
+    Toward, WorkPlane,
 };
 use glam::DVec2;
 
@@ -97,7 +98,9 @@ fn an_angle_to_an_axis_is_still_read_on_both_pieces() {
     let (mut sketch, cut, _, [first, second]) = a_trait_alongside_another();
     let target = DimensionTarget::AxisAngle {
         segment: cut,
+        segment_toward: Toward::End,
         axis: SketchAxis::U,
+        axis_toward: AxisToward::Positive,
     };
     sketch.set_dimension(target, 30.0, false);
 
@@ -109,7 +112,9 @@ fn an_angle_to_an_axis_is_still_read_on_both_pieces() {
     for piece in pieces {
         let kept = sketch.dimension_of(DimensionTarget::AxisAngle {
             segment: piece,
+            segment_toward: Toward::End,
             axis: SketchAxis::U,
+            axis_toward: AxisToward::Positive,
         });
         assert_eq!(kept.map(|value| value.value), Some(30.0), "{piece:?}");
     }

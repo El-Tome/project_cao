@@ -267,12 +267,10 @@ fn an_angle_typed_for_an_ellipse_leans_on_an_arm_from_its_centre() {
     };
 
     assert!(
-        drawing
-            .dimension_of(DimensionTarget::AxisAngle {
-                segment: oval.first,
-                axis: SketchAxis::U,
-            })
-            .is_none(),
+        !drawing.dimensions().iter().any(|dimension| matches!(
+            dimension.target,
+            DimensionTarget::AxisAngle { segment, axis: SketchAxis::U, .. } if segment == oval.first
+        )),
         "the ghost angle against the axis is still written beside the real arm",
     );
 

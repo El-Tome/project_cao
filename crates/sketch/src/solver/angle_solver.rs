@@ -57,7 +57,11 @@ impl Sketch {
     }
 
     /// The end an arm runs towards along its trait, and the end it runs from.
-    fn arm_ends(&self, segment: SegmentId, toward: Toward) -> Option<(PointId, PointId)> {
+    pub(super) fn arm_ends(
+        &self,
+        segment: SegmentId,
+        toward: Toward,
+    ) -> Option<(PointId, PointId)> {
         let drawn = *self.segments().get(segment.0)?;
         Some(match toward {
             Toward::End => (drawn.end, drawn.start),

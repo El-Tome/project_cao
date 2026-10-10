@@ -1537,3 +1537,87 @@ a draw against `34a1b64` over the same seeds: on the exact kernel from
 the application's body from 5528000000, 106 of 15 738 (6.7) against 168
 (10.7). No seed that held on `34a1b64`, nor with the grazing planes alone,
 fails.
+
+### Decision 11: a lean of a hair laid square or along
+
+After round 3, Tom decided on 2026-10-10 how #552 ends: below the kernel's
+tolerance a plane's lean off square to, or along, a wall's axis is rounded;
+above it, up to a small angle, the step is computed as drawn and the user
+is warned that it is unstable, never blocked; the pieces with no hair come
+first; two more rounds at most. This is the rounding, decision 11 of
+`exact-kernel.md`. The warning and the plain pieces are lanes of their own.
+
+- **The threshold is `G`, twenty tolerances, not one.** Tom's comment says
+  "less than the tolerance across the part"; the method was left open. The
+  turn is measured as the furthest it moves a point of the tool — the lean
+  times half the diagonal of the tool's box — and made up to `G`, the
+  furthest the kernel already moves an operand (decisions 8 and 10), which
+  a line at a cosine of a twentieth sees as at most eight hundred
+  tolerances. A prototype at one tolerance held 159 of round 3's 236
+  shrunk failures within 1e-7°, and none of the 129 between 2e-7° and
+  1e-3°; at `G`, 216 and 60. For a tool as large as the part, `G` is a
+  lean of about 1e-8 radians; for a tool a tenth of the reach, ten times
+  that. The 1e-5° and 1e-3° hairs the tilted draw makes stay as drawn.
+- **Plane against axis only.** Turning for any pair of directions, two
+  planes or two walls, held fourteen more shrunk failures and four more
+  fresh seeds on the prototype, but broke one fresh seed (5549103968); set
+  aside. Widening the rule is one predicate.
+- **Set aside too:** laying a plane a hair off a cone's slope on it
+  (5543220895, its tilt the slope less 1e-7°), outside Tom's rule.
+
+At `85a2d2e` and on the branch, release, fifteen minutes a draw over round
+3's seeds, counted over the seeds both reached:
+
+| draw | first seed | cases | `85a2d2e`, failed (in a thousand) | decision 11 | repaired | broken |
+| --- | --- | --- | --- | --- | --- | --- |
+| tilted, exact kernel | 5543100000 | 21 823 | 118 (5.41) | 43 (1.97) | 78 | 3 |
+| tilted, application's body | 5543200000 | 48 658 | 311 (6.39) | 135 (2.77) | 180 | 4 |
+| slanted, exact kernel | 5543300000 | 15 078 | 10 (0.66) | 11 (0.73) | 0 | 1 |
+| turned, application's body | 5543600000 | 17 085 | 17 (1.00) | 15 (0.88) | 3 | 1 |
+
+Of round 3's 538 shrunk failures, 282 hold: 131 tilted on the exact
+kernel, 144 through the application's body, 7 of the other draws. Sixteen
+seeds named in `what_the_exact_campaigns_found_in_the_kernel.rs` hold and
+are no longer ignored; nothing that passed there, in the triangles' file,
+the tangency band's or the hair files fails.
+
+**The nine seeds the base held that fail.** Three only by the path their
+draw took: shrunk, they fail on `85a2d2e` as well (5543113170, a turn with
+a hole cut by a floor 6e-7 off; 5543223121 and 5543242165, through the
+application's body). Six are a lean laid exactly beside an offset hair the
+lean had kept apart, or beside a turn's walls, named and ignored with
+their reason:
+
+- 5543112269 (`hair-from-tangent`): a start plane laid exactly along a
+  leaning cylinder that slopes to a point 1.8e-6 off its corner;
+- 5543218891 (`hair-from-tangent`): two floors 2e-8 apart laid along a
+  wall at 30°, cutting it along two pairs of lines a hair apart;
+- 5543312609 (`hair-from-tangent`, slanted): a turn's end planes laid
+  exactly along walls they leaned 1e-7° off;
+- 5543615040 (`hair-from-tangent`, turned): two turns' walls laid square
+  by a plane's turn, meeting along the curve of two perpendicular
+  cylinders;
+- 5543235780 (`near-parallel-planes`): a slot's face laid parallel to a
+  block's face a few tolerances off, a ring's walls crossing both;
+- 5543120314 (`near-parallel-planes`): a point's end laid on a leaning
+  shaft's end it crossed a hair off.
+
+Refusing more turns is no cure. A turn refused at one step leaves
+its tool at its lean beside one drawn at that lean and turned the step
+before: refusing a turn that lays two skew walls square held 5543615040,
+and broke 5543215175 and 5543231819, whose second step was refused.
+
+One turn the first measurement made is refused: a plane through a point's
+apex leaning 1e-7° off its axis, turned about the middle of its box along
+the axis, stood a hair beside the apex and was cut along two rulings it
+does not hold (5543232861, named, holds). A turn is not made where it
+would lay a plane a hair beside a cone's apex; it cost one of the shrunk
+failures the first measurement held (5543132867). Turning about the apex
+instead was tried: it held that seed and broke four others.
+
+**Left of the family.** A lean past `G` and under a small angle, built as
+drawn, waits on the warning; 5549204865, a tube cut by a face 5e-7 off
+tangent and 1.9e-6° off square — past the hair, failing on `85a2d2e` too —
+is named under `hair-from-tangent`. The offset hairs and the planes a hair
+apart are the families above, which the rounding reaches only where they
+lean as well.

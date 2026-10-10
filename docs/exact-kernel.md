@@ -773,11 +773,8 @@ The decisions, in the order taken, once per operation:
     apex; where it would lay a plane a hair beside a cone's apex, read
     through it — a face through a point's apex leaning 1e-7 degrees off its
     axis, turned about the middle of its box, stood a hair beside the apex
-    and was cut along two rulings it does not hold (5543232861); where it
-    would lay two skew walls square, the rule being a plane's — a turn
-    about an axis leaning 1e-7 degrees, laid square to another turn's end,
-    met that turn's wall along the curve of two perpendicular cylinders
-    (5543615040); where a canonical direction would
+    and was cut along two rulings it does not hold (5543232861); where a
+    canonical direction would
     turn round, the way its curves run with it; nor where the operand holds
     a conic or the curve two perpendicular cylinders meet along, which a
     leaf never does. The pair is then built as drawn.
@@ -788,20 +785,25 @@ The decisions, in the order taken, once per operation:
     is set aside: the pairs are found by one predicate, and widening it is
     a one-line change.
 
-    What it held, on round 3's tilted seeds against `85a2d2e`, fifteen
-    minutes a draw: on the exact kernel 43 failures in 21 823 cases where
-    the base had 118 (5.4 to 2.0 in a thousand); through the application's
-    body 135 in 48 658 where it had 311 (6.4 to 2.8). Of round 3's 538
-    shrunk failures, 282 hold. Seven seeds the base held fail, three of
-    them only by the path their draw took — their shrunk cores fail on the
-    base too. The other four are a lean laid exactly beside an offset hair
-    the lean had kept apart: a plane laid along a wall beside a slope a
-    hair off its corner, two floors 2e-8 apart laid along a wall, a face
-    laid parallel to another a few tolerances off, an end laid on a
-    shaft's end it crossed. They are named in
+    What it held, on round 3's seeds against `85a2d2e`, fifteen minutes a
+    draw: tilted on the exact kernel, 43 failures in 21 823 cases where the
+    base had 118 (5.4 to 2.0 in a thousand); tilted through the
+    application's body, 135 in 48 658 where it had 311 (6.4 to 2.8);
+    slanted, 11 in 15 078 where it had 10; turned through the body, 15 in
+    17 085 where it had 17. Of round 3's 538 shrunk failures, 282 hold.
+    Nine seeds the base held fail, three of them only by the path their
+    draw took — their shrunk cores fail on the base too. The other six are
+    a lean laid exactly beside an offset hair the lean had kept apart, or
+    beside a turn's walls: a plane laid along a wall beside a slope a hair
+    off its corner, two floors 2e-8 apart laid along a wall, a face laid
+    parallel to another a few tolerances off, an end laid on a shaft's end
+    it crossed, a turn's end planes laid along walls, two turns' walls laid
+    square. They are named in
     `what_the_exact_campaigns_found_in_the_kernel.rs`, ignored with their
-    reason: the families decision 11 does not reach, an offset rather than
-    a lean.
+    reason. Refusing those turns does not hold them: a turn refused at one
+    step leaves its tool at its lean beside a tool drawn at that lean and
+    turned the step before, and refusing two skew walls laid square held
+    one seed and broke two.
 
 Everything else is derived. A vertex lies on a curve when the curve's
 support is among the surfaces the vertex lies on and it stands within `EPS`
